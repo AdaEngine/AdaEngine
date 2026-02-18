@@ -46,17 +46,28 @@ open class UIView {
     open var isInteractionEnabled: Bool = true
 
     /// A Boolean value indicating whether the view is hidden.
-    open var isHidden: Bool = false
+    open var isHidden: Bool = false {
+        didSet {
+            if oldValue != isHidden {
+                setNeedsDisplay()
+            }
+        }
+    }
 
     /// The z-index of the view.
     open var zIndex: Int = 0 {
         didSet {
             self.parentView?.needsResortZPositionForChildren = true
+            setNeedsDisplay()
         }
     }
 
     /// The background color of the view.
-    public var backgroundColor: Color = .white
+    public var backgroundColor: Color = .white {
+        didSet {
+            setNeedsDisplay()
+        }
+    }
 
     /// The debug view color of the view.
     private let debugViewColor = Color.random()
@@ -88,6 +99,7 @@ open class UIView {
 
     /// A Boolean value indicating whether the view needs to be laid out.
     private var needsLayout = true
+    internal var needsDisplay = true
 
     /// A Boolean value indicating whether the view needs to be resorted by z-index.
     var needsResortZPositionForChildren = false
@@ -182,6 +194,28 @@ open class UIView {
     /// Set the needs layout flag.
     public func setNeedsLayout() {
         self.needsLayout = true
+        setNeedsDisplay()
+    }
+
+    /// Set the needs display flag.
+    public func setNeedsDisplay() {
+        setNeedsDisplay(in: bounds)
+    }
+
+    /// Set the needs display flag for specific rect.
+    public func setNeedsDisplay(in rect: Rect) {
+        self.needsDisplay = true
+        guard let window else {
+            return
+        }
+
+        window.markDirty(rectInWindow(rect))
+        window.needsDisplay = true
+    }
+
+    internal func consumeNeedsDisplay() -> Bool {
+        defer { needsDisplay = false }
+        return needsDisplay
     }
 
     /// Layout the view if needed.
@@ -373,6 +407,20 @@ open class UIView {
     /// - Returns: The converted point.
     public func convert(_ point: Point, from view: UIView?) -> Point {
         return view?.convert(point, to: self) ?? point
+    }
+
+    private func rectInWindow(_ rect: Rect) -> Rect {
+        guard let window else {
+            return rect
+        }
+
+        let origin = convert(rect.origin, to: window)
+        let maxPoint = convert(Point(x: rect.maxX, y: rect.maxY), to: window)
+        let minX = min(origin.x, maxPoint.x)
+        let minY = min(origin.y, maxPoint.y)
+        let maxX = max(origin.x, maxPoint.x)
+        let maxY = max(origin.y, maxPoint.y)
+        return Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
     /// Called when the view can respond to an action.

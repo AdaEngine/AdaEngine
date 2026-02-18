@@ -23,16 +23,30 @@ public struct Binding<T>: UpdatableProperty {
         }
     }
 
-    let getValue: () -> T
-    let setValue: (T) -> Void
+    private let getValue: () -> T
+    private let setValue: (T) -> Void
 
     /// Initialize a new binding.
     ///
     /// - Parameter get: The getter function.
     /// - Parameter set: The setter function.
-    public init(get: @escaping () -> T, set: @escaping (T) -> Void) {
+    @preconcurrency
+    public init(get: @escaping @isolated(any) () -> T, set: @escaping @isolated(any) (T) -> Void) {
         self.getValue = get
         self.setValue = set
+    }
+
+    @preconcurrency
+    init(storage: StateStorage<T>) {
+        self.getValue = {
+            unsafe storage.value
+        }
+        self.setValue = { newValue in
+            unsafe storage.value = newValue
+            MainActor.assumeIsolated {
+                storage.update()
+            }
+        }
     }
 
     /// Update the binding.

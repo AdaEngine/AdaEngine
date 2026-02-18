@@ -30,7 +30,9 @@ class ViewContainerNode: ViewNode {
 
     init<Content: View>(content: Content, nodes: [ViewNode]) {
         self.nodes = nodes
-        self.body = { inputs in return Content._makeListView(_ViewGraphNode(value: content), inputs: inputs) }
+        self.body = { [content] inputs in
+            return Content._makeListView(_ViewGraphNode(value: content), inputs: inputs)
+        }
         super.init(content: content)
 
         for node in nodes {
@@ -46,8 +48,11 @@ class ViewContainerNode: ViewNode {
             guard let self else {
                 return _ViewListOutputs(outputs: [])
             }
-            let content = withObservationTracking(content) {
-                Task { @MainActor in
+            let content = withObservationTracking(content) { [weak self] in
+                guard let self else {
+                    return
+                }
+                MainActor.assumeIsolated {
                     self.invalidateContent()
                 }
             }
@@ -88,6 +93,7 @@ class ViewContainerNode: ViewNode {
         )
         let listInputs = _ViewListInputs(input: inputs)
         self.invalidateContent(with: listInputs)
+        self.invalidateNearestLayer()
     }
 
     // swiftlint:disable cyclomatic_complexity
@@ -95,6 +101,7 @@ class ViewContainerNode: ViewNode {
     private func updateChildNodes(from newNodes: [ViewNode]) {
         var needsLayout = false
         var allNewNodes = [ViewNode]()
+        allNewNodes.reserveCapacity(newNodes.count)
 
         // Unfold new nodes if needed
         for node in newNodes {
@@ -107,42 +114,76 @@ class ViewContainerNode: ViewNode {
             allNewNodes.append(node)
         }
 
-        // We have same this, merge new nodes into old
-        if self.nodes.count == allNewNodes.count {
+        // We have same count, merge new nodes into old by index.
+        if let reconciled = self.reconcileNodesById(allNewNodes) {
+            for oldNode in self.nodes where !reconciled.contains(where: { $0 === oldNode }) {
+                oldNode.parent = nil
+            }
+            self.nodes = reconciled
+            needsLayout = true
+        } else if self.nodes.count == allNewNodes.count {
             for (index, (oldNode, newNode)) in zip(self.nodes, allNewNodes).enumerated() {
                 if newNode.canUpdate(oldNode) {
                     oldNode.update(from: newNode)
+                    oldNode.parent = self
+                    needsLayout = true
                 } else {
+                    oldNode.parent = nil
+                    newNode.parent = self
                     self.nodes[index] = newNode
                     needsLayout = true
                 }
             }
         } else {
-            // has different sizes.
-            let difference = allNewNodes.difference(from: self.nodes)
-            for change in difference {
-                switch change {
-                case let .remove(index, _, _):
-                    self.nodes.remove(at: index)
-                case let .insert(index, newElement, _):
-                    newElement.parent = self
-                    self.nodes.insert(newElement, at: index)
+            // Different count: keep reconciliation linear and avoid expensive CollectionDifference.
+            let oldCount = self.nodes.count
+            let newCount = allNewNodes.count
+            let sharedCount = min(oldCount, newCount)
+
+            if sharedCount > 0 {
+                for index in 0..<sharedCount {
+                    let oldNode = self.nodes[index]
+                    let newNode = allNewNodes[index]
+
+                    if newNode.canUpdate(oldNode) {
+                        oldNode.update(from: newNode)
+                        oldNode.parent = self
+                    } else {
+                        oldNode.parent = nil
+                        newNode.parent = self
+                        self.nodes[index] = newNode
+                    }
+                }
+            }
+
+            if oldCount > newCount {
+                for _ in 0..<(oldCount - newCount) {
+                    let removedNode = self.nodes.removeLast()
+                    removedNode.parent = nil
+                }
+            } else if newCount > oldCount {
+                for index in oldCount..<newCount {
+                    let newNode = allNewNodes[index]
+                    newNode.parent = self
+                    self.nodes.append(newNode)
                 }
             }
 
             needsLayout = true
         }
 
+        let currentOwner = self.owner
         for node in nodes {
+            node.updateLayoutProperties(layoutProperties)
             node.updateEnvironment(environment)
 
-            if let owner = node.owner {
-                node.updateViewOwner(owner)
+            if let currentOwner, node.owner !== currentOwner {
+                node.updateViewOwner(currentOwner)
             }
         }
 
         if shouldNotifyAboutChanges {
-            self._printDebugNode()
+//            self._printDebugNode()
         }
 
         if needsLayout {
@@ -150,6 +191,64 @@ class ViewContainerNode: ViewNode {
         }
     }
     // swiftlint:enable cyclomatic_complexity
+
+    private func reconcileNodesById(_ newNodes: [ViewNode]) -> [ViewNode]? {
+        var oldNodesById: [AnyHashable: ViewNode] = [:]
+        var oldNodesWithoutId: [ViewNode] = []
+
+        for node in self.nodes {
+            if let id = nodeIdentity(node) {
+                oldNodesById[id] = node
+            } else {
+                oldNodesWithoutId.append(node)
+            }
+        }
+
+        guard !oldNodesById.isEmpty, newNodes.contains(where: { nodeIdentity($0) != nil }) else {
+            return nil
+        }
+
+        var reconciledNodes: [ViewNode] = []
+        reconciledNodes.reserveCapacity(newNodes.count)
+
+        var fallbackIndex = 0
+        for newNode in newNodes {
+            if let id = nodeIdentity(newNode), let oldNode = oldNodesById.removeValue(forKey: id) {
+                if newNode.canUpdate(oldNode) {
+                    oldNode.update(from: newNode)
+                    oldNode.parent = self
+                    reconciledNodes.append(oldNode)
+                } else {
+                    newNode.parent = self
+                    reconciledNodes.append(newNode)
+                }
+                continue
+            }
+
+            if fallbackIndex < oldNodesWithoutId.count {
+                let oldNode = oldNodesWithoutId[fallbackIndex]
+                fallbackIndex += 1
+
+                if newNode.canUpdate(oldNode) {
+                    oldNode.update(from: newNode)
+                    oldNode.parent = self
+                    reconciledNodes.append(oldNode)
+                } else {
+                    newNode.parent = self
+                    reconciledNodes.append(newNode)
+                }
+            } else {
+                newNode.parent = self
+                reconciledNodes.append(newNode)
+            }
+        }
+
+        return reconciledNodes
+    }
+
+    private func nodeIdentity(_ node: ViewNode) -> AnyHashable? {
+        return (node as? IDViewNodeModifier)?.identifier
+    }
 
     override func update(from newNode: ViewNode) {
         super.update(from: newNode)
@@ -253,6 +352,9 @@ class ViewContainerNode: ViewNode {
         var context = context
         context.environment = environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        // NOTE: Dirty-rect drawing must be paired with clipping/scissor.
+        // Without clipping, drawing a large background that intersects dirtyRect can
+        // overwrite the whole surface while other nodes are skipped, causing "disappearing" UI.
         for node in self.nodes {
             node.draw(with: context)
         }

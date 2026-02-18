@@ -68,6 +68,8 @@ open class UILabel: UIView {
 
         self.textLayout.setTextContainer(self.textContainer)
         self.textLayout.invalidateLayout()
+        self.setNeedsLayout()
+        self.setNeedsDisplay()
     }
 
 }

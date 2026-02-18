@@ -42,6 +42,7 @@ open class UIButton: UIControl {
     ///   - state: The state to set the icon for.
     public func setIcon(_ texture: Texture2D?, for state: State) {
         self.styles[state, default: ButtonStyle()].icon = texture
+        setNeedsDisplay()
     }
 
     /// Set the background color for the button style.
@@ -51,6 +52,7 @@ open class UIButton: UIControl {
     ///   - state: The state to set the background color for.
     public func setBackgroundColor(_ color: Color, for state: State) {
         self.styles[state, default: ButtonStyle()].backgroundColor = color
+        setNeedsDisplay()
     }
 
     /// Set the attributed text for the button style.
@@ -60,6 +62,7 @@ open class UIButton: UIControl {
     ///   - state: The state to set the attributed text for.
     public func setAttributedText(_ text: AttributedText, for state: State) {
         self.styles[state, default: ButtonStyle()].textContainer.text = text
+        setNeedsDisplay()
     }
 
     /// Draw the button in the given rect with the given context.

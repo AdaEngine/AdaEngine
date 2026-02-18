@@ -41,7 +41,7 @@ extension Environment where Value: Observable & AnyObject {
             return withObservationTracking {
                 value
             } onChange: {
-                Task(priority: .userInitiated) { @MainActor in
+                MainActor.assumeIsolated {
                     container.update()
                 }
             }

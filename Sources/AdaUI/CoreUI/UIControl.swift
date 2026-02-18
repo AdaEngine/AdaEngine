@@ -116,7 +116,13 @@ open class UIControl: UIView {
     }
 
     /// The state of the UI control.
-    public var state: State = .normal
+    public var state: State = .normal {
+        didSet {
+            if oldValue != state {
+                setNeedsDisplay()
+            }
+        }
+    }
 
     /// The action of the UI control.
     public typealias Action = () -> Void

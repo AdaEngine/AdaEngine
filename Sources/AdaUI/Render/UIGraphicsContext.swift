@@ -51,6 +51,9 @@ public struct UIGraphicsContext: Sendable {
     /// The environment associated with the graphics context.
     public var environment: EnvironmentValues = EnvironmentValues()
 
+    /// Optional dirty rectangle in window coordinates.
+    public var dirtyRect: Rect?
+
     private(set) var commandQueue = CommandQueue()
 
     /// Create graphics context.
@@ -87,6 +90,10 @@ public struct UIGraphicsContext: Sendable {
     /// Clear any applied transform
     public mutating func clearTransform() {
         self.transform = .identity
+    }
+
+    mutating func setTransform(_ transform: Transform3D) {
+        self.transform = transform
     }
 
     // MARK: - Drawing
@@ -188,6 +195,40 @@ public struct UIGraphicsContext: Sendable {
         self.commandQueue.push(.commit)
     }
 
+    /// Pushes a clipping rectangle in the current coordinate space.
+    public mutating func pushClipRect(_ rect: Rect) {
+        let scale = max(environment.scaleFactor, 1)
+        let scaledRect = Rect(
+            x: rect.minX * scale,
+            y: rect.minY * scale,
+            width: rect.width * scale,
+            height: rect.height * scale
+        )
+        let minX = max(0, scaledRect.minX)
+        let minY = max(0, scaledRect.minY)
+        let maxX = max(0, scaledRect.maxX)
+        let maxY = max(0, scaledRect.maxY)
+        let clipped = Rect(
+            x: minX,
+            y: minY,
+            width: max(0, maxX - minX),
+            height: max(0, maxY - minY)
+        )
+        commandQueue.push(.pushClipRect(clipped))
+    }
+
+    /// Pops the current clipping rectangle.
+    public func popClipRect() {
+        commandQueue.push(.popClipRect)
+    }
+
+    /// Executes drawing with a clipping rectangle.
+    public mutating func clip(to rect: Rect, draw: (inout UIGraphicsContext) -> Void) {
+        pushClipRect(rect)
+        draw(&self)
+        popClipRect()
+    }
+
     @inlinable
     func applyOpacityIfNeeded(_ color: Color) -> Color {
         if color == .clear {
@@ -196,6 +237,7 @@ public struct UIGraphicsContext: Sendable {
 
         return color.opacity(self.opacity)
     }
+
 }
 
 extension Rect {
@@ -231,6 +273,10 @@ extension UIGraphicsContext {
 
     /// The commands that Graphic Context recorded.
     public enum DrawCommand: Sendable {
+        case beginLayer(id: UInt64, version: UInt64, cacheable: Bool)
+        case endLayer(id: UInt64)
+        case pushClipRect(Rect)
+        case popClipRect
         case setLineWidth(Float)
         case drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color)
 

@@ -28,6 +28,7 @@ public struct InputPlugin: Plugin {
             .insertResource(Input(gameControllerEngine: controllerEngine))
             .addSystem(InputStartupSystem.self, on: .startup)
             .addSystem(InputEventParseSystem.self, on: .preUpdate)
+            .addSystem(InputEventsCleanupSystem.self, on: .postUpdate)
     }
     
     public func destroy(for app: borrowing AppWorlds) {
@@ -51,7 +52,7 @@ public struct InputEventParseSystem {
             switch event {
             case let keyEvent as KeyEvent:
                 if keyEvent.keyCode == .none && keyEvent.isRepeated {
-                    return
+                    continue
                 }
 
                 if keyEvent.status == .down {
@@ -81,7 +82,7 @@ public struct InputEventParseSystem {
                 }
             case let gamepadButtonEvent as GamepadButtonEvent:
                 guard var gamepadState = input.gamepads[gamepadButtonEvent.gamepadId] else {
-                    return
+                    continue
                 }
 
                 if gamepadButtonEvent.isPressed {
@@ -92,7 +93,7 @@ public struct InputEventParseSystem {
                 input.gamepads[gamepadButtonEvent.gamepadId] = gamepadState
             case let gamepadAxisEvent as GamepadAxisEvent:
                 guard var gamepadState = input.gamepads[gamepadAxisEvent.gamepadId] else {
-                    return
+                    continue
                 }
 
                 gamepadState.axisValues[gamepadAxisEvent.axis] = gamepadAxisEvent.value
@@ -101,8 +102,16 @@ public struct InputEventParseSystem {
                 break
             }
         }
-        input.removeEvents()
     }
+}
+
+@System
+@inline(__always)
+@MainActor
+func InputEventsCleanup(
+    _ input: ResMut<Input>
+) {
+    input.wrappedValue.removeEvents()
 }
 
 @System

@@ -31,7 +31,10 @@ class ViewModifierNode: ViewNode {
 
     override func performLayout() {
         let proposal = ProposedViewSize(self.frame.size)
-        let origin = Point(x: self.frame.midX, y: self.frame.midY)
+        // Child layout must use local coordinates of the modifier node.
+        // Using frame.midX/midY leaks parent origin into child placement and
+        // accumulates offsets through modifier chains.
+        let origin = Point(x: self.frame.width * 0.5, y: self.frame.height * 0.5)
 
         self.contentNode.place(
             in: origin,
@@ -54,6 +57,7 @@ class ViewModifierNode: ViewNode {
 
     override func invalidateContent() {
         contentNode.invalidateContent()
+        self.invalidateNearestLayer()
     }
 
     override func buildMenu(with builder: any UIMenuBuilder) {
@@ -76,6 +80,7 @@ class ViewModifierNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = environment
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         contentNode.draw(with: context)
     }
 
@@ -84,12 +89,12 @@ class ViewModifierNode: ViewNode {
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
-        if super.point(inside: point, with: event) {
-            let newPoint = contentNode.convert(point, from: self)
-            return contentNode.hitTest(newPoint, with: event)
+        guard self.point(inside: point, with: event) else {
+            return nil
         }
 
-        return nil
+        let newPoint = contentNode.convert(point, from: self)
+        return contentNode.hitTest(newPoint, with: event)
     }
 
     override func updateViewOwner(_ owner: ViewOwner) {
@@ -99,11 +104,11 @@ class ViewModifierNode: ViewNode {
 
     override func point(inside point: Point, with event: any InputEvent) -> Bool {
         if super.point(inside: point, with: event) {
-            let newPoint = contentNode.convert(point, from: self)
-            return contentNode.point(inside: newPoint, with: event)
+            return true
         }
-        
-        return false
+
+        let newPoint = contentNode.convert(point, from: self)
+        return contentNode.point(inside: newPoint, with: event)
     }
 
     override func onMouseEvent(_ event: MouseEvent) {

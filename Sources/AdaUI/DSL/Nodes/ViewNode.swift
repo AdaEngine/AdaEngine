@@ -42,6 +42,7 @@ class ViewNode: Identifiable {
     private(set) weak var owner: ViewOwner?
     /// hold storages that can invalidate that view node.
     var storages: WeakSet<UpdatablePropertyStorage> = []
+    var stateContainer: ViewStateContainer?
 
     private var isAttached: Bool {
         return owner != nil
@@ -75,7 +76,7 @@ class ViewNode: Identifiable {
     /// - Note: This method don't call ``invalidateContent()`` method
     func setContent<Content: View>(_ content: Content) {
         self.content = content
-        self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(Content.self)
+        self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(type(of: content))
     }
 
     // MARK: Layout
@@ -87,10 +88,18 @@ class ViewNode: Identifiable {
     /// Updates stored environment.
     /// Called each time, when environment values did change.
     func updateEnvironment(_ environment: EnvironmentValues) {
-        self.environment.merge(environment)
+        self.environment = environment
         storages.forEach { storage in
             (storage as? ViewContextStorage)?.values = self.environment
         }
+    }
+
+    /// Merges partial environment values into the current environment.
+    /// Use this for external updates that don't carry the full environment snapshot.
+    func mergeEnvironment(_ environment: EnvironmentValues) {
+        var mergedEnvironment = self.environment
+        mergedEnvironment.merge(environment)
+        self.updateEnvironment(mergedEnvironment)
     }
 
     /// Update layout properties for view. 
@@ -115,22 +124,15 @@ class ViewNode: Identifiable {
         )
 
         let newFrame = Rect(origin: offset, size: size)
-
-//        if let animationController = environment.animationController, newFrame != self.frame {
-//            animationController.addTweenAnimation(
-//                from: self.frame,
-//                to: newFrame,
-//                label: "Position Animation \(self.id.hashValue)",
-//                environment: self.environment
-//            ) { newValue in
-//                    self.frame = newValue
-//                    print("set new frame", newValue, "Expected" , newFrame)
-//                }
-//        } else {
-            self.frame = newFrame
-//        }
+        let oldFrame = self.frame
+        self.frame = newFrame
 
         self.performLayout()
+        if oldFrame != newFrame, let containerView = self.owner?.containerView {
+            let oldAbsolute = absoluteFrame(using: oldFrame)
+            let newAbsolute = absoluteFrame(using: newFrame)
+            containerView.setNeedsDisplay(in: oldAbsolute.union(newAbsolute))
+        }
     }
 
     /// Updates view layout. Called when needs update UI layout.
@@ -155,11 +157,31 @@ class ViewNode: Identifiable {
     /// Update current node with a new. This method called after ``invalidationContent()`` method
     /// and if view exists in tree, we should update exsiting view using ``ViewNode/update(_:)`` method.
     func update(from newNode: ViewNode) {
-        self.environment = newNode.environment
+        self.updateEnvironment(newNode.environment)
+        self.setContent(newNode.content)
+        self.rebindStorages()
+    }
+
+    private func rebindStorages() {
+        var inputs = _ViewInputs(parentNode: self.parent, environment: self.environment)
+        inputs = inputs.resolveStorages(in: self.content, stateContainer: self.stateContainer)
+        self.storages = []
+        inputs.registerNodeForStorages(self)
     }
 
     /// This method invalidate all stored views and create a new one.
     func invalidateContent() {}
+
+    func invalidateNearestLayer() {
+        var current: ViewNode? = self
+        while let node = current {
+            if let layer = node.layer {
+                layer.invalidate()
+                return
+            }
+            current = node.parent
+        }
+    }
 
     func invalidateLayerIfNeeded() {
         if let layer = self.layer {
@@ -175,6 +197,20 @@ class ViewNode: Identifiable {
     }
 
     func createLayer() -> UILayer? { return nil }
+
+    func absoluteFrame() -> Rect {
+        return absoluteFrame(using: self.frame)
+    }
+
+    func absoluteFrame(using localFrame: Rect) -> Rect {
+        var origin = localFrame.origin
+        var currentParent = self.parent
+        while let parent = currentParent {
+            origin += parent.frame.origin
+            currentParent = parent.parent
+        }
+        return Rect(origin: origin, size: localFrame.size)
+    }
 
     /// Notify view, that view will move to parent view.
     func willMove(to parent: ViewNode?) { }
@@ -194,7 +230,29 @@ class ViewNode: Identifiable {
 
     func update(_ deltaTime: TimeInterval) { }
 
-    let debugNodeColor = Color.random()
+    lazy var debugNodeColor: Color = Self.debugColor(for: debugColorKey())
+
+    func debugColorKey() -> String {
+        if let accessibilityIdentifier {
+            return "accessibility:\(accessibilityIdentifier)"
+        }
+
+        return "type:\(String(reflecting: type(of: content)))"
+    }
+
+    private static func debugColor(for key: String) -> Color {
+        let hash = fnv1a64(key)
+        return Color.fromHex(Int(hash & 0x00FFFFFF))
+    }
+
+    private static func fnv1a64(_ string: String) -> UInt64 {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in string.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 0x100000001b3
+        }
+        return hash
+    }
 
     /// Perform draw view on the screen.
     func draw(with context: UIGraphicsContext) {
@@ -215,10 +273,8 @@ class ViewNode: Identifiable {
     func onReceiveEvent(_ event: any InputEvent) { }
 
     func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
-        if self.point(inside: point, with: event) {
-            return self
-        }
-
+        // Non-interactive by default.
+        // Interactive nodes must override this method explicitly.
         return nil
     }
 
@@ -294,11 +350,14 @@ extension ViewNode: @preconcurrency Hashable {
     }
 }
 
+@MainActor
 protocol ViewOwner: AnyObject {
-    @MainActor var window: UIWindow? { get }
-    @MainActor var containerView: UIView? { get }
 
-    @MainActor func updateEnvironment(_ env: EnvironmentValues)
+    var window: UIWindow? { get }
+
+    var containerView: UIView? { get }
+
+    func updateEnvironment(_ env: EnvironmentValues)
 }
 
 extension UIGraphicsContext {
