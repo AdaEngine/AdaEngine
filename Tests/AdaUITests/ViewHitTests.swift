@@ -17,6 +17,15 @@ struct ViewHitTests {
         try Application.prepareForTest()
     }
 
+    /// Verifies horizontal ScrollView hit-testing respects the current content offset.
+    ///
+    /// Scenario:
+    /// - Three fixed-width buttons are arranged horizontally.
+    /// - Viewport width only fits approximately one button.
+    /// - After horizontal wheel scroll, tapping the viewport center should hit `third`.
+    ///
+    /// Regression protected:
+    /// - hitTest path ignores `contentOffset` and keeps targeting pre-scroll nodes.
     @Test
     func scrollViewHitTest_usesContentOffset() {
         final class TapRecorder {
@@ -50,6 +59,7 @@ struct ViewHitTests {
             }
         }
 
+        // Arrange
         let recorder = TapRecorder()
         let tester = ViewTester {
             ScrollableButtonsView(onTap: {
@@ -61,6 +71,7 @@ struct ViewHitTests {
 
         let scrollPoint = Point(70, 32)
         // First wheel event begins scroll phase, second applies delta.
+        // Act: perform horizontal scroll.
         tester.sendMouseEvent(
             at: scrollPoint,
             button: MouseButton.scrollWheel,
@@ -87,10 +98,296 @@ struct ViewHitTests {
             time: 0.03
         )
 
+        // Assert
         #expect(targetOnMouseDown?.accessibilityIdentifier == "third")
         #expect(recorder.taps.last == "third")
     }
 
+    /// Verifies vertical ScrollView handles discrete wheel ticks and reveals deep content.
+    ///
+    /// Scenario:
+    /// - A vertical list with 14 items is clipped by a small viewport.
+    /// - `item-12` is not initially hittable.
+    /// - After several wheel ticks, `item-12` must become hittable and tappable.
+    ///
+    /// Regression protected:
+    /// - wheel events update state but fail to move vertical offset;
+    /// - or hit-testing remains bound to pre-scroll coordinates.
+    @Test
+    func verticalScrollView_acceptsDiscreteWheelTicks() {
+        final class TapRecorder {
+            var taps: [String] = []
+        }
+
+        struct VerticalListView: View {
+            let onTap: (String) -> Void
+
+            var body: some View {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(0..<14, id: \.self) { index in
+                            Button(action: {
+                                onTap("item-\(index)")
+                            }) {
+                                HStack(alignment: .center, spacing: 0) {}
+                                    .frame(width: 120, height: 24)
+                            }
+                            .accessibilityIdentifier("item-\(index)")
+                        }
+                    }
+                    .padding(8)
+                }
+                .frame(width: 140, height: 80)
+            }
+        }
+
+        // Arrange
+        let recorder = TapRecorder()
+        let tester = ViewTester {
+            VerticalListView(onTap: { recorder.taps.append($0) })
+        }
+        .setSize(Size(width: 160, height: 120))
+        .performLayout()
+
+        let targetIdentifier = "item-12"
+        let viewportRect = Rect(origin: .zero, size: Size(width: 160, height: 120))
+        #expect(tester.findHitPoint(forAccessibilityIdentifier: targetIdentifier, in: viewportRect, step: 2) == nil)
+
+        // Act: perform vertical scroll.
+        let scrollPoint = Point(40, 40)
+        for tick in 0..<4 {
+            tester.sendMouseEvent(
+                at: scrollPoint,
+                button: MouseButton.scrollWheel,
+                phase: MouseEvent.Phase.changed,
+                scrollDelta: Point(0, -1.5),
+                time: Float(tick) * 0.01
+            )
+        }
+
+        guard let clickPoint = tester.findHitPoint(
+            forAccessibilityIdentifier: targetIdentifier,
+            in: viewportRect,
+            step: 2
+        ) else {
+            let ids = tester.collectHitAccessibilityIdentifiers(in: viewportRect, step: 4).sorted().joined(separator: ", ")
+            Issue.record("\(targetIdentifier) is not hittable after vertical wheel ticks. Hittable ids: \(ids)")
+            return
+        }
+
+        // Assert: target item is now reachable and action is invoked for that exact item.
+        let targetOnMouseDown = tester.sendMouseEvent(
+            at: clickPoint,
+            phase: MouseEvent.Phase.began,
+            time: 1
+        )
+        tester.sendMouseEvent(
+            at: clickPoint,
+            phase: MouseEvent.Phase.ended,
+            time: 1.01
+        )
+
+        #expect(targetOnMouseDown?.accessibilityIdentifier == targetIdentifier)
+        #expect(recorder.taps.last == targetIdentifier)
+    }
+
+    /// Verifies vertical scrolling still works when ScrollView supports both axes.
+    ///
+    /// Scenario:
+    /// - ScrollView uses `[.vertical, .horizontal]`.
+    /// - Content is taller than viewport.
+    /// - Vertical wheel ticks must reveal deep vertical content (`item-12`).
+    ///
+    /// Regression protected:
+    /// - bi-directional configuration accidentally disables vertical offset updates.
+    @Test
+    func biDirectionalScrollView_acceptsVerticalWheelTicks() {
+        final class TapRecorder {
+            var taps: [String] = []
+        }
+
+        struct BiDirectionalListView: View {
+            let onTap: (String) -> Void
+
+            var body: some View {
+                ScrollView([.vertical, .horizontal]) {
+                    HStack(alignment: .top, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(0..<14, id: \.self) { index in
+                                Button(action: {
+                                    onTap("item-\(index)")
+                                }) {
+                                    HStack(alignment: .center, spacing: 0) {}
+                                        .frame(width: 120, height: 24)
+                                }
+                                .accessibilityIdentifier("item-\(index)")
+                            }
+                        }
+                        .frame(width: 160)
+                    }
+                    .padding(8)
+                }
+                .frame(width: 180, height: 90)
+            }
+        }
+
+        // Arrange
+        let recorder = TapRecorder()
+        let tester = ViewTester {
+            BiDirectionalListView(onTap: { recorder.taps.append($0) })
+        }
+        .setSize(Size(width: 220, height: 140))
+        .performLayout()
+
+        let targetIdentifier = "item-12"
+        let viewportRect = Rect(origin: .zero, size: Size(width: 220, height: 140))
+        #expect(tester.findHitPoint(forAccessibilityIdentifier: targetIdentifier, in: viewportRect, step: 2) == nil)
+
+        // Act: vertical wheel ticks inside bi-directional scroll view.
+        let scrollPoint = Point(60, 50)
+        for tick in 0..<8 {
+            tester.sendMouseEvent(
+                at: scrollPoint,
+                button: MouseButton.scrollWheel,
+                phase: MouseEvent.Phase.changed,
+                scrollDelta: Point(0, -1.5),
+                time: Float(tick) * 0.01
+            )
+        }
+
+        guard let clickPoint = tester.findHitPoint(
+            forAccessibilityIdentifier: targetIdentifier,
+            in: viewportRect,
+            step: 2
+        ) else {
+            let ids = tester.collectHitAccessibilityIdentifiers(in: viewportRect, step: 4).sorted().joined(separator: ", ")
+            Issue.record("\(targetIdentifier) is not hittable after vertical ticks in bi-directional scroll view. Hittable ids: \(ids)")
+            return
+        }
+
+        // Assert
+        let targetOnMouseDown = tester.sendMouseEvent(
+            at: clickPoint,
+            phase: MouseEvent.Phase.began,
+            time: 1
+        )
+        tester.sendMouseEvent(
+            at: clickPoint,
+            phase: MouseEvent.Phase.ended,
+            time: 1.01
+        )
+
+        #expect(targetOnMouseDown?.accessibilityIdentifier == targetIdentifier)
+        #expect(recorder.taps.last == targetIdentifier)
+    }
+
+    /// Verifies bi-directional ScrollView inside VStack expands into remaining space
+    /// and still performs vertical scrolling.
+    ///
+    /// Scenario is close to Kanban screen composition:
+    /// - Header on top in VStack.
+    /// - ScrollView below without explicit fixed height.
+    /// - Deep list item becomes reachable after wheel input.
+    ///
+    /// Regression protected:
+    /// - ScrollView reports content size as ideal size on scrolling axis;
+    /// - parent stack gives it content height, eliminating vertical overflow.
+    @Test
+    func biDirectionalScrollView_inVStack_expandsRemainingSpaceAndScrollsVertically() {
+        final class TapRecorder {
+            var taps: [String] = []
+        }
+
+        struct VStackHostedScrollView: View {
+            let onTap: (String) -> Void
+
+            var body: some View {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .center, spacing: 0) {}
+                        .frame(height: 36)
+
+                    ScrollView([.vertical, .horizontal]) {
+                        HStack(alignment: .top, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(0..<16, id: \.self) { index in
+                                    Button(action: {
+                                        onTap("vstack-item-\(index)")
+                                    }) {
+                                        HStack(alignment: .center, spacing: 0) {}
+                                            .frame(width: 120, height: 24)
+                                    }
+                                    .accessibilityIdentifier("vstack-item-\(index)")
+                                }
+                            }
+                            .frame(width: 160)
+                        }
+                        .padding(8)
+                    }
+                }
+                .padding(8)
+            }
+        }
+
+        // Arrange
+        let recorder = TapRecorder()
+        let tester = ViewTester {
+            VStackHostedScrollView(onTap: { recorder.taps.append($0) })
+        }
+        .setSize(Size(width: 220, height: 160))
+        .performLayout()
+
+        let targetIdentifier = "vstack-item-14"
+        let viewportRect = Rect(origin: .zero, size: Size(width: 220, height: 160))
+        #expect(tester.findHitPoint(forAccessibilityIdentifier: targetIdentifier, in: viewportRect, step: 2) == nil)
+
+        // Act
+        let scrollPoint = Point(70, 90)
+        for tick in 0..<10 {
+            tester.sendMouseEvent(
+                at: scrollPoint,
+                button: MouseButton.scrollWheel,
+                phase: MouseEvent.Phase.changed,
+                scrollDelta: Point(0, -1.5),
+                time: Float(tick) * 0.02
+            )
+        }
+
+        guard let clickPoint = tester.findHitPoint(
+            forAccessibilityIdentifier: targetIdentifier,
+            in: viewportRect,
+            step: 2
+        ) else {
+            let ids = tester.collectHitAccessibilityIdentifiers(in: viewportRect, step: 4).sorted().joined(separator: ", ")
+            Issue.record("\(targetIdentifier) is not hittable after vertical ticks in VStack-hosted scroll view. Hittable ids: \(ids)")
+            return
+        }
+
+        // Assert
+        let targetOnMouseDown = tester.sendMouseEvent(
+            at: clickPoint,
+            phase: MouseEvent.Phase.began,
+            time: 1
+        )
+        tester.sendMouseEvent(
+            at: clickPoint,
+            phase: MouseEvent.Phase.ended,
+            time: 1.01
+        )
+
+        #expect(targetOnMouseDown?.accessibilityIdentifier == targetIdentifier)
+        #expect(recorder.taps.last == targetIdentifier)
+    }
+
+    /// Verifies horizontal scrolling + hit-testing for a Kanban-like board with fixed columns.
+    ///
+    /// Scenario:
+    /// - Four columns in a horizontal scroll area.
+    /// - The `review<` button starts outside visible area.
+    /// - After horizontal wheel ticks, it must become hittable and invoke correct action.
+    ///
+    /// Regression protected:
+    /// - stale hit target after scroll;
+    /// - wrong node activation when previously offscreen columns become visible.
     @Test
     func kanbanLikeScrollHitTest_targetsButtonInVisibleColumn() {
         final class TapRecorder {
@@ -177,6 +474,7 @@ struct ViewHitTests {
             }
         }
 
+        // Arrange
         let recorder = TapRecorder()
         let tester = ViewTester {
             KanbanLikeView(onTap: { recorder.taps.append($0) })
@@ -195,6 +493,7 @@ struct ViewHitTests {
             button: MouseButton.scrollWheel,
             phase: MouseEvent.Phase.changed
         ).joined(separator: " -> ")
+        // Act: reveal right-side columns.
         for index in 0..<4 {
             tester.sendMouseEvent(
                 at: scrollPoint,
@@ -260,6 +559,7 @@ struct ViewHitTests {
             return
         }
 
+        // Assert: click lands exactly on expected button and callback id is correct.
         let targetOnMouseDown = tester.sendMouseEvent(
             at: clickPoint,
             phase: MouseEvent.Phase.began,

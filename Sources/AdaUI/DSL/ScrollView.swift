@@ -64,6 +64,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
         let height = max(0, contentSize.height - viewportSize.height)
         self.contentOffsetBounds = Rect(x: 0, y: 0, width: width, height: height)
         self.contentOffset = clampOffset(self.contentOffset)
+
         super.performLayout(
             in: Rect(origin: .zero, size: contentSize),
             proposal: ProposedViewSize(contentSize)
@@ -101,11 +102,13 @@ final class ScrollViewNode: LayoutViewContainerNode {
 
         let width = resolvedDimension(
             proposed: proposal.width,
-            measured: measuredContentSize.width
+            measured: measuredContentSize.width,
+            isScrollAxis: axis.contains(.horizontal)
         )
         let height = resolvedDimension(
             proposed: proposal.height,
-            measured: measuredContentSize.height
+            measured: measuredContentSize.height,
+            isScrollAxis: axis.contains(.vertical)
         )
 
         return Size(width: max(0, width), height: max(0, height))
@@ -152,7 +155,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
         }
     }
 
-    func project(initialVelocity: Float, decelerationRate: Float) -> Float {
+    private func project(initialVelocity: Float, decelerationRate: Float) -> Float {
         return (initialVelocity / 1000.0) * decelerationRate / (1.0 - decelerationRate)
     }
 
@@ -187,7 +190,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
         var context = context
         context.environment = environment
         context.pushClipRect(self.absoluteFrame())
-        context.translateBy(x: -contentOffset.x, y: -contentOffset.y)
+        context.translateBy(x: -contentOffset.x, y: contentOffset.y)
         super.draw(with: context)
         context.popClipRect()
     }
@@ -219,13 +222,23 @@ final class ScrollViewNode: LayoutViewContainerNode {
     }
 
     @inline(__always)
-    private func resolvedDimension(proposed: Float?, measured: Float) -> Float {
+    private func resolvedDimension(
+        proposed: Float?,
+        measured: Float,
+        isScrollAxis: Bool
+    ) -> Float {
         if proposed == .infinity {
             return .infinity
         }
 
         if let proposed, proposed.isFinite {
             return proposed
+        }
+
+        // ScrollView should not claim content size as "ideal" along scrolling axis.
+        // Otherwise parent stacks size it to content and overflow becomes zero.
+        if isScrollAxis {
+            return 0
         }
 
         return measured.isFinite ? measured : 0
