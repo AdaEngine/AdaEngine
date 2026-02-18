@@ -118,6 +118,12 @@ public struct UIDrawData: Sendable {
 public struct UIDrawPass: DrawPass {
     public typealias Item = UITransparentRenderItem
 
+    enum ScissorDecision: Equatable {
+        case none
+        case apply(Rect)
+        case skipDraw
+    }
+
     public init() {}
 
     public func render(
@@ -130,22 +136,17 @@ public struct UIDrawPass: DrawPass {
         let renderBounds = resolveRenderBounds(world: world, view: view)
         let viewportOrigin = resolveViewportOrigin(world: world, view: view)
 
-        if let clipRect = uiDrawData.clipRect {
-            let adjustedClipRect = Rect(
-                x: clipRect.minX + viewportOrigin.x,
-                y: clipRect.minY + viewportOrigin.y,
-                width: clipRect.width,
-                height: clipRect.height
-            )
-
-            if let renderBounds, let scissorRect = clampScissorRect(adjustedClipRect, to: renderBounds) {
-                renderEncoder.setScissorRect(scissorRect)
-            } else if let renderBounds {
-                // Never skip rendering due a bad clip rect. Fall back to full bounds.
-                renderEncoder.setScissorRect(renderBounds)
-            }
-        } else if let renderBounds {
-            renderEncoder.setScissorRect(renderBounds)
+        switch resolveScissorDecision(
+            clipRect: uiDrawData.clipRect,
+            renderBounds: renderBounds,
+            viewportOrigin: viewportOrigin
+        ) {
+        case .none:
+            break
+        case .apply(let scissorRect):
+            renderEncoder.setScissorRect(scissorRect)
+        case .skipDraw:
+            return
         }
 
         // Note: The uniform buffer is already set by UIRenderNode with the
@@ -330,6 +331,36 @@ public struct UIDrawPass: DrawPass {
         }
 
         return .zero
+    }
+
+    func resolveScissorDecision(
+        clipRect: Rect?,
+        renderBounds: Rect?,
+        viewportOrigin: Point
+    ) -> ScissorDecision {
+        guard let clipRect else {
+            if let renderBounds {
+                return .apply(renderBounds)
+            }
+            return .none
+        }
+
+        guard let renderBounds else {
+            return .none
+        }
+
+        let adjustedClipRect = Rect(
+            x: clipRect.minX + viewportOrigin.x,
+            y: clipRect.minY + viewportOrigin.y,
+            width: clipRect.width,
+            height: clipRect.height
+        )
+
+        guard let scissorRect = clampScissorRect(adjustedClipRect, to: renderBounds) else {
+            return .skipDraw
+        }
+
+        return .apply(scissorRect)
     }
 
     private func clampScissorRect(_ rect: Rect, to bounds: Rect) -> Rect? {

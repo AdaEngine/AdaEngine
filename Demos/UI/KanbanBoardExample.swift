@@ -23,8 +23,6 @@ struct KanbanBoardView: View {
     @State private var tasks: [TaskItem] = TaskItem.sample
 
     var body: some View {
-        let _ = Self._printChanges()
-
         ZStack {
             BoardPalette.background
 
