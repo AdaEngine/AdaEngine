@@ -80,10 +80,7 @@ public struct HStackLayout: Layout {
             )
         }
         let hasFlexibleSubviews = (0..<subviews.count).contains { index in
-            let maxWidth = cache.maxSizes[index].width
-            let idealWidth = idealSizes[index].width
-            let minWidth = cache.minSizes[index].width
-            return maxWidth > idealWidth && minWidth == idealWidth
+            isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache)
         }
 
         guard let proposedWidth = finiteDimension(proposal.width), hasFlexibleSubviews else {
@@ -122,10 +119,7 @@ public struct HStackLayout: Layout {
             return sanitizedSize
         }
         let hasFlexibleSubviews = (0..<subviews.count).contains { index in
-            let maxWidth = cache.maxSizes[index].width
-            let idealWidth = idealSizes[index].width
-            let minWidth = cache.minSizes[index].width
-            return maxWidth > idealWidth && minWidth == idealWidth
+            isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache)
         }
 
         let layoutWidth: Float
@@ -137,21 +131,14 @@ public struct HStackLayout: Layout {
         origin.x = bounds.minX
 
         var restOfFlexibleViews = (0..<subviews.count).reduce(Int.zero) { count, index in
-            let maxWidth = cache.maxSizes[index].width
-            let idealWidth = idealSizes[index].width
-            let minWidth = cache.minSizes[index].width
-            let isFlexible = maxWidth > idealWidth && minWidth == idealWidth
-            return count + (isFlexible ? 1 : 0)
+            return count + (isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache) ? 1 : 0)
         }
 
         var availableSpace = max(layoutWidth - idealWidth - cache.totalSubviewSpacing, 0)
 
         for (index, subview) in subviews.enumerated() {
             var idealWidth = idealSizes[index].width
-            let maxWidth = cache.maxSizes[index].width
-            let minWidth = cache.minSizes[index].width
-
-            let isFlexible = maxWidth > idealWidth && minWidth == idealWidth
+            let isFlexible = isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache)
 
             if isFlexible && restOfFlexibleViews > 0 {
                 let slot = max(availableSpace, 0) / Float(restOfFlexibleViews)
@@ -190,6 +177,18 @@ public struct HStackLayout: Layout {
             width: size.width.isFinite ? size.width : fallback.width,
             height: size.height.isFinite ? size.height : fallback.height
         )
+    }
+
+    @inline(__always)
+    private func isFlexibleSubview(
+        index: Int,
+        idealSizes: [Size],
+        cache: Cache
+    ) -> Bool {
+        let maxWidth = cache.maxSizes[index].width
+        let idealWidth = idealSizes[index].width
+        let minWidth = cache.minSizes[index].width
+        return maxWidth > idealWidth && minWidth == idealWidth
     }
 
 }

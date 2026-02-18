@@ -68,8 +68,8 @@ public struct VStackLayout: Layout {
                 height: partialResult.height + subviewSize.height
             )
         }
-        let hasFlexibleSubviews = zip(cache.maxSizes, idealSizes).contains { maxSize, idealSize in
-            maxSize.height > idealSize.height
+        let hasFlexibleSubviews = (0..<subviews.count).contains { index in
+            isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache)
         }
 
         guard let proposedHeight = finiteDimension(proposal.height), hasFlexibleSubviews else {
@@ -106,8 +106,8 @@ public struct VStackLayout: Layout {
             idealHeight += sanitizedSize.height
             return sanitizedSize
         }
-        let hasFlexibleSubviews = zip(cache.maxSizes, idealSizes).contains { maxSize, idealSize in
-            maxSize.height > idealSize.height
+        let hasFlexibleSubviews = (0..<subviews.count).contains { index in
+            isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache)
         }
 
         let layoutHeight: Float
@@ -118,17 +118,15 @@ public struct VStackLayout: Layout {
         }
         origin.y += (bounds.height - layoutHeight) * 0.5
 
-        var restOfFlexibleViews = zip(cache.maxSizes, idealSizes).reduce(Int.zero) { count, sizes in
-            return count + (sizes.0.height > sizes.1.height ? 1 : 0)
+        var restOfFlexibleViews = (0..<subviews.count).reduce(Int.zero) { count, index in
+            return count + (isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache) ? 1 : 0)
         }
 
         var availableSpace = max(layoutHeight - idealHeight - cache.totalSubviewSpacing, 0)
 
         for (index, subview) in subviews.enumerated() {
             var idealHeight = idealSizes[index].height
-            let maxHeight = cache.maxSizes[index].height
-
-            let isFlexible = idealHeight < maxHeight
+            let isFlexible = isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache)
 
             if isFlexible && restOfFlexibleViews > 0 {
                 let slot = max(availableSpace, 0) / Float(restOfFlexibleViews)
@@ -167,5 +165,17 @@ public struct VStackLayout: Layout {
             width: size.width.isFinite ? size.width : fallback.width,
             height: size.height.isFinite ? size.height : fallback.height
         )
+    }
+
+    @inline(__always)
+    private func isFlexibleSubview(
+        index: Int,
+        idealSizes: [Size],
+        cache: Cache
+    ) -> Bool {
+        let maxHeight = cache.maxSizes[index].height
+        let idealHeight = idealSizes[index].height
+        let minHeight = cache.minSizes[index].height
+        return maxHeight > idealHeight && minHeight == idealHeight
     }
 }
