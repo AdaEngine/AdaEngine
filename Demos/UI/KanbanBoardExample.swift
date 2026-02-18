@@ -12,7 +12,7 @@ struct KanbanBoardExample: App {
     var body: some AppScene {
         WindowGroup {
             KanbanBoardView()
-                ._debugDrawing(.drawViewOverlays)
+//                ._debugDrawing(.drawViewOverlays)
         }
         .windowMode(.windowed)
     }
