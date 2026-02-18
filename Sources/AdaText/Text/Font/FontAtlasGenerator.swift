@@ -52,7 +52,7 @@ final class FontAtlasGenerator: Sendable {
         }
         
         defer {
-            unsafe generator.deallocate()
+            unsafe font_atlas_generator_destroy(generator)
         }
         
         let fontData = unsafe font_atlas_generator_get_font_data(generator)!
@@ -65,11 +65,11 @@ final class FontAtlasGenerator: Sendable {
             let bitmap = unsafe font_atlas_generator_generate_bitmap(generator)!
 
             defer {
-                unsafe bitmap.deallocate()
+                unsafe font_atlas_bitmap_destroy(bitmap)
             }
             
             let bitmapValue = unsafe bitmap.pointee
-            let data = unsafe Data(bytesNoCopy: bitmapValue.pixels, count: Int(bitmapValue.pixelsCount), deallocator: .free)
+            let data = unsafe Data(bytes: bitmapValue.pixels!, count: Int(bitmapValue.pixelsCount))
 
             let width = unsafe Int(bitmapValue.bitmapWidth)
             let height = unsafe Int(bitmapValue.bitmapHeight)

@@ -54,7 +54,6 @@ final class OpacityViewNodeModifier: ViewModifierNode {
             }
 
             var context = context
-            context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
             context.opacity = self.opacity
             self.contentNode.draw(with: context)
         }

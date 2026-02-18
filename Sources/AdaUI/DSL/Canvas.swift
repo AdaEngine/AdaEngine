@@ -5,6 +5,7 @@
 //  Created by Vladislav Prusakov on 21.06.2024.
 //
 
+import AdaInput
 import Math
 
 /// A view type that supports immediate mode drawing.
@@ -57,5 +58,15 @@ class CanvasViewNode: ViewNode {
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         return proposal.replacingUnspecifiedDimensions()
+    }
+
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
+        // Canvas is a drawing-only primitive; it should not intercept pointer/touch events
+        // from interactive content rendered below (e.g. buttons in an overlayed card).
+        nil
+    }
+
+    override func point(inside point: Point, with event: any InputEvent) -> Bool {
+        false
     }
 }

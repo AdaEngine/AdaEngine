@@ -13,7 +13,7 @@ public struct WeakSet<T: AnyObject>: Sequence {
     var buffer: Set<WeakBox<T>>
 
     public var count: Int {
-        return self.buffer.count
+        return self.buffer.count(where: { !$0.isEmpty })
     }
 
     @safe

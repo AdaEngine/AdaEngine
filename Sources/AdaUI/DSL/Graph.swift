@@ -26,14 +26,14 @@ final class ViewGraph {
         viewsTypeToDebug.insert(ObjectIdentifier(V.self))
     }
 
-    static func shouldNotifyAboutChanges<V: View>(_ content: V.Type) -> Bool {
-        viewsTypeToDebug.contains(ObjectIdentifier(V.self))
+    static func shouldNotifyAboutChanges(_ content: any View.Type) -> Bool {
+        viewsTypeToDebug.contains(ObjectIdentifier(content))
     }
 }
 
 @MainActor
 public struct _ViewInputs {
-    var parentNode: ViewNode?
+    weak var parentNode: ViewNode?
     var layout: any Layout = VStackLayout()
     var environment: EnvironmentValues
     var propertyStorages: [PropertyStoragable] = []
@@ -45,13 +45,20 @@ public struct _ViewInputs {
 
     /// Method can find and register ``State``, ``Binding``, ``Environment`` property wrappers
     /// in new _ViewInputs value.
-    func resolveStorages<T>(in content: T) -> _ViewInputs {
+    func resolveStorages<T>(in content: T, stateContainer: ViewStateContainer? = nil) -> _ViewInputs {
         var newSelf = self
         let mirror = Mirror(reflecting: content)
 
         let storages = mirror.children.compactMap { label, property -> PropertyStoragable? in
             guard let storagable = property as? PropertyStoragable else {
                 return nil
+            }
+
+            if let bindable = property as? ViewStateBindable {
+                guard let stateContainer else {
+                    return nil
+                }
+                bindable.bind(to: stateContainer, key: label ?? "")
             }
 
             if let env = storagable.storage as? ViewContextStorage {
@@ -64,6 +71,13 @@ public struct _ViewInputs {
         }
         newSelf.propertyStorages.append(contentsOf: storages)
         return newSelf
+    }
+
+    func requiresStateContainer<T>(for content: T) -> Bool {
+        let mirror = Mirror(reflecting: content)
+        return mirror.children.contains { _, property in
+            property is ViewStateBindable
+        }
     }
 
     /// Inflate all found storages to view node.

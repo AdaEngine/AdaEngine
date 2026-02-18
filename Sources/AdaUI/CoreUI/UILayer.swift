@@ -6,20 +6,27 @@
 //
 
 import AdaUtils
-import AdaRender
+import Atomics
 import Math
 
 @MainActor
-class UILayer {
-    
-    private var texture: RenderTexture?
+open class UILayer {
+    private static let idGenerator = ManagedAtomic<UInt64>(1)
+    let id: UInt64 = idGenerator.loadThenWrappingIncrement(ordering: .relaxed)
+
+    private var cachedCommands: [UIGraphicsContext.DrawCommand]?
+    private var cachedCommandsVersion: UInt64 = 0
+    private var cachedCommandsTransform: Transform3D?
+    private(set) var commandVersion: UInt64 = 0
+    var allowsCaching: Bool = true
+    var propagatesInvalidation: Bool = true
     private(set) var frame: Rect
     private let drawBlock: (inout UIGraphicsContext, Size) -> Void
     var debugLabel: String?
 
-    weak var parent: UILayer?
+    public internal(set) weak var parent: UILayer?
 
-    init(frame: Rect, drawBlock: @escaping (inout UIGraphicsContext, Size) -> Void) {
+    public init(frame: Rect, drawBlock: @escaping (inout UIGraphicsContext, Size) -> Void) {
         self.frame = frame
         self.drawBlock = drawBlock
     }
@@ -34,8 +41,11 @@ class UILayer {
     }
 
     func invalidate() {
-        self.texture = nil
-        self.parent?.invalidate()
+        commandVersion &+= 1
+        self.cachedCommands = nil
+        if propagatesInvalidation {
+            self.parent?.invalidate()
+        }
     }
 
     final func drawLayer(in context: UIGraphicsContext) {
@@ -43,35 +53,44 @@ class UILayer {
             return
         }
 
-        if let texture = texture {
-            context.drawRect(Rect(origin: .zero, size: frame.size), texture: texture, color: .white)
-        } else {
-            self.texture = context.createLayer(from: self, drawBlock: { [weak self] context in
-                guard let self = self else {
-                    return
-                }
-                self.drawBlock(&context, self.frame.size)
-            })
-        }
+        let snapshot = commandSnapshot(environment: context.environment, transform: context.transform)
+        context.commandQueue.push(.beginLayer(id: self.id, version: snapshot.version, cacheable: snapshot.cacheable))
+        context.commandQueue.commands.append(contentsOf: snapshot.commands)
+        context.commandQueue.push(.endLayer(id: self.id))
     }
-}
 
-extension UIGraphicsContext {
-    @MainActor
-    func createLayer(from layer: UILayer, drawBlock: (inout UIGraphicsContext) -> Void) -> RenderTexture {
-        let renderTexture = RenderTexture(
-            size: SizeInt(width: Int(layer.frame.size.width) , height: Int(layer.frame.size.width)),
-            scaleFactor: 1,
-            format: .bgra8,
-            debugLabel: layer.debugLabel.flatMap { "Layer \($0)" }
-        )
+    private func commandSnapshot(
+        environment: EnvironmentValues,
+        transform: Transform3D
+    ) -> (commands: [UIGraphicsContext.DrawCommand], version: UInt64, cacheable: Bool) {
+        if let cachedCommands, cachedCommandsVersion == commandVersion, cachedCommandsTransform == transform {
+            return (cachedCommands, commandVersion, true)
+        }
 
-//        var context = UIGraphicsContext(texture: renderTexture)
-//        context.environment = self.environment
-//        context.beginDraw(in: layer.frame.size, scaleFactor: 1)
-//        drawBlock(&context)
-//        context.commitDraw()
+        var layerContext = UIGraphicsContext()
+        layerContext.setTransform(transform)
+        layerContext.environment = environment
+        self.drawBlock(&layerContext, self.frame.size)
+        layerContext.commitDraw()
+        let recordedCommands = layerContext.getDrawCommands()
+        let cacheable = allowsCaching && !containsNestedLayers(in: recordedCommands)
+        if cacheable {
+            self.cachedCommands = recordedCommands
+            self.cachedCommandsVersion = commandVersion
+            self.cachedCommandsTransform = transform
+        } else {
+            self.cachedCommands = nil
+            self.cachedCommandsTransform = nil
+        }
+        return (recordedCommands, commandVersion, cacheable)
+    }
 
-        return renderTexture
+    private func containsNestedLayers(in commands: [UIGraphicsContext.DrawCommand]) -> Bool {
+        commands.contains { command in
+            if case .beginLayer = command {
+                return true
+            }
+            return false
+        }
     }
 }

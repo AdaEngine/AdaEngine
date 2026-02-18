@@ -23,16 +23,22 @@ public protocol View {
 extension View {
     @MainActor @preconcurrency
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
-        let resolvedInputs = inputs.resolveStorages(in: view.value)
+        let stateContainer = inputs.requiresStateContainer(for: view.value) ? ViewStateContainer() : nil
+        let resolvedInputs = inputs.resolveStorages(in: view.value, stateContainer: stateContainer)
 
         if let builder = view.value as? ViewNodeBuilder {
             let node = builder.buildViewNode(in: inputs)
+            node.updateEnvironment(inputs.environment)
+            node.stateContainer = stateContainer
+            resolvedInputs.registerNodeForStorages(node)
             return _ViewOutputs(node: node)
         }
 
         let body = view[\.body]
         if let builder = body.value as? ViewNodeBuilder {
             let node = builder.buildViewNode(in: inputs)
+            node.updateEnvironment(inputs.environment)
+            node.stateContainer = stateContainer
             resolvedInputs.registerNodeForStorages(node)
             return _ViewOutputs(node: node)
         } else {
@@ -42,6 +48,8 @@ extension View {
                 content: view.value,
                 nodes: [bodyNode]
             )
+            node.updateEnvironment(inputs.environment)
+            node.stateContainer = stateContainer
             resolvedInputs.registerNodeForStorages(node)
             return _ViewOutputs(node: node)
         }
@@ -49,14 +57,23 @@ extension View {
 
     @MainActor @preconcurrency
     public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
+        let stateContainer = inputs.input.requiresStateContainer(for: view.value) ? ViewStateContainer() : nil
+        let resolvedInputs = inputs.input.resolveStorages(in: view.value, stateContainer: stateContainer)
+
         if let builder = view.value as? ViewNodeBuilder {
             let node = builder.buildViewNode(in: inputs.input)
+            node.updateEnvironment(inputs.input.environment)
+            node.stateContainer = stateContainer
+            resolvedInputs.registerNodeForStorages(node)
             return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
         }
         
         let body = view[\.body]
         if let builder = body.value as? ViewNodeBuilder {
             let node = builder.buildViewNode(in: inputs.input)
+            node.updateEnvironment(inputs.input.environment)
+            node.stateContainer = stateContainer
+            resolvedInputs.registerNodeForStorages(node)
             return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
         }
 

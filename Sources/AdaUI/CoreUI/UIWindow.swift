@@ -37,6 +37,8 @@ open class UIWindow: UIView {
     /// Flag indicates that window can draw itself content in method ``UIView/draw(in:with:)``.
     open var canDraw: Bool = true
 
+    private var dirtyRect: Rect?
+
     private var _minSize: Size = .zero
     public var minSize: Size {
         get {
@@ -109,6 +111,21 @@ open class UIWindow: UIView {
     /// Called when user did press `Close` button
     open func windowShouldClose() -> Bool {
         return true
+    }
+
+    func markDirty(_ rect: Rect) {
+        if let dirtyRect {
+            self.dirtyRect = dirtyRect.union(rect)
+        } else {
+            self.dirtyRect = rect
+        }
+    }
+
+    func consumeDirtyRect() -> Rect? {
+        defer {
+            dirtyRect = nil
+        }
+        return dirtyRect
     }
 
     func sendEvent(_ event: any InputEvent) {

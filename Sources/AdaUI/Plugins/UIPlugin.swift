@@ -26,6 +26,7 @@ public struct UIPlugin: Plugin {
             .addSystem(UIComponentSystem.self)
             .insertResource(UIWindowPendingDrawViews())
             .insertResource(UIContextPendingDraw())
+            .insertResource(UIRedrawRequest())
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -39,6 +40,8 @@ public struct UIPlugin: Plugin {
             .insertResource(RenderItems<UITransparentRenderItem>())
             .insertResource(UIDrawPass())
             .insertResource(UIViewUniform())
+            .insertResource(UIRenderBuildState())
+            .insertResource(UILayerDrawCache())
 
         renderWorld.initResource(UIRenderPipelines.self)
 
@@ -112,11 +115,13 @@ public func UpdateWindowManager(
     _ windowManager: Res<WindowManagerResource>,
     _ pendingViews: ResMut<UIWindowPendingDrawViews>,
     _ contexts: ResMut<UIContextPendingDraw>,
+    _ redrawRequest: ResMut<UIRedrawRequest>,
     _ input: Res<Input>,
     _ deltaTime: Res<DeltaTime>
 ) {
     pendingViews.windows.removeAll(keepingCapacity: true)
     contexts.contexts.removeAll(keepingCapacity: true)
+    redrawRequest.needsRedraw = false
     let windowManager = windowManager.windowManager
     let deltaTime = deltaTime.deltaTime
     let windows = windowManager.windows
@@ -129,8 +134,10 @@ public func UpdateWindowManager(
         }
 
         window.internalUpdate(deltaTime)
-        if window.canDraw {
+        if window.canDraw && window.needsDisplay {
             pendingViews.windows.append(window)
+            redrawRequest.needsRedraw = true
+            window.needsDisplay = false
         }
     }
 }
@@ -141,4 +148,8 @@ public struct UIWindowPendingDrawViews: Resource {
 
 public struct UIContextPendingDraw: Resource {
     public var contexts: [UIGraphicsContext] = []
+}
+
+public struct UIRedrawRequest: Resource {
+    public var needsRedraw: Bool = true
 }

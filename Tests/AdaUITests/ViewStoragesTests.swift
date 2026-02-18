@@ -8,8 +8,6 @@
 import Testing
 @testable import AdaUI
 @testable import AdaPlatform
-import AdaInput
-import Math
 
 @MainActor
 struct ViewStoragesTests {
@@ -18,28 +16,27 @@ struct ViewStoragesTests {
         try Application.prepareForTest()
     }
 
-    // @Test
-    // func onAppearCalled_WhenVisible() {
-    //     // given
-    //     struct TestableView: View {
-    //         @State private var value: String = "Value"
+    /// Verifies `@State` survives node updates and explicit recompose.
+    ///
+    /// Why this test exists:
+    /// `ViewNode.update(from:)` replaces `content` and rebinds storages.
+    /// If state storage is kept weakly, old content deallocation drops the only
+    /// strong reference and state is recreated from its initial value.
+    ///
+    /// Regression protected:
+    /// - old `StateStorage` is not strongly retained by `ViewStateContainer`;
+    /// - rebind by the same storage key recreates storage from initial value.
+    @Test
+    func stateStorage_isRetainedAcrossRecompose() {
+        let container = ViewStateContainer()
 
-    //         var body: some View {
-    //             Text(value)
-    //         }
-    //     }
+        let firstState = State(wrappedValue: 0)
+        firstState.bind(to: container, key: "_value")
+        firstState.wrappedValue = 42
 
-    //     let tester = ViewTester(rootView: TestableView().accessibilityIdentifier("Test"))
-    //         .setSize(
-    //             Size(width: 400, height: 400)
-    //         )
-    //         .performLayout()
+        let reboundState = State(wrappedValue: 0)
+        reboundState.bind(to: container, key: "_value")
 
-    //     // when
-    //     let node = tester.findNodeByAccessibilityIdentifier("Test")
-    //     // then
-    //     #expect(node?.storages.count == 1)
-    //     #expect(node?.storages.contains(where: { $0.propertyName == "_value" }) == true, "Incorrect name of property")
-    //     #expect(node?.storages.contains(where: { $0 is StateStorage<String> }) == true, "Incorrect type of stored property")
-    // }
+        #expect(reboundState.wrappedValue == 42)
+    }
 }

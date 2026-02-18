@@ -120,16 +120,14 @@ final class ButtonViewNode: ViewModifierNode {
         self.updateEnvironment(viewInputs.environment)
     }
 
-    override func draw(with context: UIGraphicsContext) {
-        var context = context
-        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-        super.draw(with: context)
-    }
-
     override func invalidateContent() {
         let body = self.body(self.state, self.environment)
         self.contentNode = body
         self.contentNode.parent = self
+        self.contentNode.updateEnvironment(self.environment)
+        if let owner = self.owner {
+            self.contentNode.updateViewOwner(owner)
+        }
         self.performLayout()
     }
 
@@ -149,7 +147,9 @@ final class ButtonViewNode: ViewModifierNode {
         }
 
         self.action = otherNode.action
+        self.body = otherNode.body
         super.update(from: otherNode)
+        self.invalidateContent()
     }
 
     // MARK: - Interaction
@@ -158,12 +158,7 @@ final class ButtonViewNode: ViewModifierNode {
         guard self.point(inside: point, with: event) else {
             return nil
         }
-
-        if contentNode.hitTest(point, with: event) != nil {
-            return self
-        }
-
-        return nil
+        return self
     }
 
     override func onMouseEvent(_ event: MouseEvent) {
@@ -182,12 +177,19 @@ final class ButtonViewNode: ViewModifierNode {
             default:
                 break
             }
-        case .ended, .cancelled:
+        case .ended:
+            let shouldInvokeAction = event.button == .left && state.contains(.selected)
             state.remove(.selected)
             state.remove(.focused)
             state.remove(.highlighted)
 
-            self.action()
+            if shouldInvokeAction {
+                self.action()
+            }
+        case .cancelled:
+            state.remove(.selected)
+            state.remove(.focused)
+            state.remove(.highlighted)
         }
 
         self.invalidateContent()

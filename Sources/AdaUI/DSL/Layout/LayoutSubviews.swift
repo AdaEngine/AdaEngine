@@ -11,7 +11,7 @@ import Math
 public struct LayoutSubview: Equatable {
 
     /// The node.
-    let node: ViewNode
+    unowned let node: ViewNode
 
     /// Check if two layout subviews are equal.
     ///

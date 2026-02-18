@@ -7,8 +7,6 @@
 
 import Math
 
-// FIXME: Incorrect calculation of size
-
 public struct ZStackLayoutCache {
     var minSizes: [Size] = []
     var minSize: Size = .zero
@@ -35,7 +33,7 @@ public struct ZStackLayout: Layout {
         cache = ZStackLayoutCache()
 
         for subview in subviews {
-            let minSize = subview.sizeThatFits(.unspecified)
+            let minSize = subview.sizeThatFits(.zero)
 
             cache.minSizes.append(minSize)
             cache.minSize = max(minSize, cache.minSize)
@@ -44,19 +42,25 @@ public struct ZStackLayout: Layout {
     
     public func sizeThatFits(_ proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> Size {
         let idealSize = subviews.reduce(Size.zero) { partialResult, subview in
-            let idealSize = subview.sizeThatFits(proposal)
-
-            if idealSize.width == proposal.width && idealSize.height == proposal.height && proposal != .zero {
-                return partialResult
-            }
+            let subviewSize = subview.sizeThatFits(proposal)
 
             var newSize = partialResult
-            newSize.width = max(partialResult.width, idealSize.width)
-            newSize.height = max(partialResult.height, idealSize.height)
+            newSize.width = max(partialResult.width, subviewSize.width)
+            newSize.height = max(partialResult.height, subviewSize.height)
             return newSize
         }
 
-        return max(idealSize, cache.minSize)
+        var result = max(idealSize, cache.minSize)
+
+        if let width = proposal.width, width != .infinity {
+            result.width = max(result.width, width)
+        }
+
+        if let height = proposal.height, height != .infinity {
+            result.height = max(result.height, height)
+        }
+
+        return result
     }
 
     public func placeSubviews(in bounds: Math.Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
@@ -69,8 +73,8 @@ public struct ZStackLayout: Layout {
             let idealSize = subview.sizeThatFits(proposal)
             let minSize = cache.minSizes[index]
 
-            let width = min(bounds.width, max(idealSize.width, minSize.width))
-            let height = min(bounds.height, max(idealSize.height, minSize.height))
+            let width = max(idealSize.width, minSize.width)
+            let height = max(idealSize.height, minSize.height)
 
             let proposal = ProposedViewSize(width: width, height: height)
             subview.place(at: origin, anchor: anchor, proposal: proposal)

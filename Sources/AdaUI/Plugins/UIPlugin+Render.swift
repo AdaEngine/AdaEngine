@@ -22,6 +22,48 @@ public struct ExtractedUIContexts: Resource {
     public var contexts: ContiguousArray<UIGraphicsContext> = []
 }
 
+public struct UIRenderBuildState: Resource {
+    public var needsRebuild: Bool = true
+}
+
+/// Per-layer tessellation cache used during UI render build.
+///
+/// Cache keys are stable `UILayer` identifiers (`UILayer.id`).
+/// Each entry is valid only for the exact layer `version` and is reused only
+/// when the layer reports `cacheable == true`.
+///
+/// Invalidation model:
+/// - `UILayer.invalidate()` increments the command version, so stale entries
+///   are automatically rejected by version mismatch.
+/// - After each build pass, cache entries for layers not seen in the current
+///   frame are pruned.
+///
+/// Dirty-rect interaction:
+/// - Dirty rectangles still trigger render build (`UIRenderBuildState.needsRebuild`),
+///   but unchanged cacheable layers can bypass re-tessellation by reusing
+///   cached `UIDrawData` items.
+public struct UILayerDrawCache: Resource {
+    /// Cached tessellated data keyed by `UILayer.id`.
+    public var entries: [UInt64: UILayerDrawCacheEntry] = [:]
+    public init() {}
+}
+
+/// Cached tessellation payload for a single `UILayer`.
+public struct UILayerDrawCacheEntry: Sendable {
+    /// Layer command version at the moment the cache entry was built.
+    public var version: UInt64
+    /// Tessellated draw data slices emitted by this layer in draw order.
+    public var drawDataItems: [UIDrawData]
+    /// Indicates whether this layer can safely be reused from cache.
+    public var cacheable: Bool
+
+    public init(version: UInt64, drawDataItems: [UIDrawData], cacheable: Bool) {
+        self.version = version
+        self.drawDataItems = drawDataItems
+        self.cacheable = cacheable
+    }
+}
+
 @System
 public func ExtractUIComponents(
     _ uiComponents: Extract<
@@ -33,8 +75,12 @@ public func ExtractUIComponents(
     _ contexts: Extract<
         Res<UIContextPendingDraw>
     >,
+    _ redrawRequest: Extract<
+        Res<UIRedrawRequest>
+    >,
     _ extractedUIComponents: ResMut<ExtractedUIComponents>,
-    _ extractedUIContexts: ResMut<ExtractedUIContexts>
+    _ extractedUIContexts: ResMut<ExtractedUIContexts>,
+    _ buildState: ResMut<UIRenderBuildState>
 ) {
     extractedUIComponents.components.removeAll(keepingCapacity: true)
     extractedUIContexts.contexts.removeAll(keepingCapacity: true)
@@ -46,6 +92,10 @@ public func ExtractUIComponents(
         extractedUIComponents.components.append($0)
     }
     extractedUIContexts.contexts.append(contentsOf: contexts().contexts)
+
+    buildState.needsRebuild = redrawRequest().needsRedraw
+        || !pendingViews().windows.isEmpty
+        || !contexts().contexts.isEmpty
 }
 
 public struct PendingUIGraphicsContext: Resource {
@@ -58,8 +108,12 @@ public func UIRenderPreparing(
     _ cameras: Query<Camera>,
     _ uiComponents: Res<ExtractedUIComponents>,
     _ contexts: ResMut<PendingUIGraphicsContext>,
-    _ extractedUIContexts: ResMut<ExtractedUIContexts>
+    _ extractedUIContexts: ResMut<ExtractedUIContexts>,
+    _ buildState: Res<UIRenderBuildState>
 ) {
+    guard buildState.needsRebuild else {
+        return
+    }
     contexts.graphicContexts.removeAll(keepingCapacity: true)
     uiComponents.components.forEach { component in
         let context = UIGraphicsContext()
@@ -85,6 +139,12 @@ public struct UIRenderTesselationSystem {
     @ResMut<PendingUIGraphicsContext>
     private var contexts
 
+    @ResMut<UIRenderBuildState>
+    private var buildState
+
+    @ResMut<UILayerDrawCache>
+    private var layerDrawCache
+
     @Res<UIDrawPass>
     private var uiDrawPass
 
@@ -97,212 +157,377 @@ public struct UIRenderTesselationSystem {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
+        guard buildState.needsRebuild else {
+            return
+        }
         renderItems.items.removeAll()
 
         let tessellator = UITessellator()
-        var currentLineWidth: Float = 1.0
-        var textureSlotIndex: Int = 0
-        var fontAtlasSlotIndex: Int = 0
+        var sortKey: Float = 0
+        var activeLayerIDs = Set<UInt64>()
 
-        var renderData = UIDrawData()
-        renderData.textures = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
-        renderData.fontAtlases = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
+        contexts.graphicContexts.forEach { graphicsContext in
+            var rootState = DrawBuildState()
+            var layerStack: [ActiveLayer] = []
 
-        contexts.graphicContexts.forEach { context in
-            // Process commands in order (not reversed, as draw order matters)
-            for command in context.commandQueue.commands {
+            for command in graphicsContext.commandQueue.commands {
                 switch command {
-                case let .setLineWidth(lineWidth):
-                    currentLineWidth = lineWidth
-
-                case let .drawQuad(transform, texture, color):
-                    let texIndex = findOrAddTexture(
-                        texture,
-                        in: &renderData.textures,
-                        slotIndex: &textureSlotIndex
-                    )
-
-                    let vertexOffset = UInt32(renderData.quadVertexBuffer.count)
-                    let vertices = tessellator.tessellateQuad(
-                        transform: transform,
-                        texture: texture,
-                        color: color,
-                        textureIndex: texIndex
-                    )
-                    renderData.quadVertexBuffer.elements.append(contentsOf: vertices)
-
-                    let indexStart = renderData.quadIndexBuffer.count
-                    let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
-                    renderData.quadIndexBuffer.elements.append(contentsOf: indices)
-                    appendBatch(
-                        textureIndex: texIndex,
-                        indexStart: indexStart,
-                        indexCount: indices.count,
-                        batches: &renderData.quadBatches
-                    )
-
-                case let .drawCircle(transform, thickness, fade, color):
-                    let vertexOffset = UInt32(renderData.circleVertexBuffer.count)
-                    let vertices = tessellator.tessellateCircle(
-                        transform: transform,
-                        thickness: thickness,
-                        fade: fade,
-                        color: color
-                    )
-                    renderData.circleVertexBuffer.elements.append(contentsOf: vertices)
-
-                    let indices = tessellator.generateCircleIndices(vertexOffset: vertexOffset)
-                    renderData.circleIndexBuffer.elements.append(contentsOf: indices)
-
-                case let .drawLine(start, end, lineWidth, color):
-                    let vertexOffset = UInt32(renderData.lineVertexBuffer.count)
-                    let vertices = tessellator.tessellateLine(
-                        start: start,
-                        end: end,
-                        lineWidth: lineWidth,
-                        color: color
-                    )
-                    renderData.lineVertexBuffer.elements.append(contentsOf: vertices)
-
-                    let indices = tessellator.generateLineIndices(vertexOffset: vertexOffset)
-                    renderData.lineIndexBuffer.elements.append(contentsOf: indices)
-
-                case let .drawPath(path):
-                    let result = tessellator.tessellatePath(
-                        path,
-                        lineWidth: currentLineWidth,
-                        color: .white,
-                        transform: .identity
-                    )
-
-                    let vertexOffset = UInt32(renderData.lineVertexBuffer.count)
-                    renderData.lineVertexBuffer.elements.append(contentsOf: result.vertices)
-
-                    let indices = result.indices.map { $0 + vertexOffset }
-                    renderData.lineIndexBuffer.elements.append(contentsOf: indices)
-
-                case let .drawText(textLayout, transform):
-                    // Calculate text centering offset
-                    let textSize = textLayout.boundingSize()
-                    let textAlignment = textLayout.textAlignment
-                    
-                    var offsetX: Float = 0
-                    var offsetY: Float = 0
-                    
-                    switch textAlignment {
-                    case .center:
-                        offsetX = -textSize.width / 2
-                        if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
-                            let topY = firstLine.typographicBounds.rect.origin.y
-                            let bottomY = topY - textSize.height
-                            offsetY = -(topY + bottomY) / 2
+                case let .beginLayer(id, version, cacheable):
+                    activeLayerIDs.insert(id)
+                    // Flush current state to preserve draw order.
+                    if layerStack.isEmpty {
+                        flushStateIfNeeded(&rootState, renderDevice: renderDevice.renderDevice).map { rootState.drawDataItems.append($0) }
+                        appendRenderItems(rootState.drawDataItems, sortKey: &sortKey)
+                        rootState.drawDataItems.removeAll(keepingCapacity: true)
+                    } else if layerStack[layerStack.count - 1].mode == .building {
+                        flushStateIfNeeded(&layerStack[layerStack.count - 1].state, renderDevice: renderDevice.renderDevice).map {
+                            layerStack[layerStack.count - 1].state.drawDataItems.append($0)
                         }
-                    case .leading:
-                        offsetX = 0
-                        if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
-                            let topY = firstLine.typographicBounds.rect.origin.y
-                            let bottomY = topY - textSize.height
-                            offsetY = -(topY + bottomY) / 2
-                        }
-                    case .trailing:
-                        offsetX = -textSize.width
-                        if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
-                            let topY = firstLine.typographicBounds.rect.origin.y
-                            let bottomY = topY - textSize.height
-                            offsetY = -(topY + bottomY) / 2
-                        }
+                        appendRenderItems(layerStack[layerStack.count - 1].state.drawDataItems, sortKey: &sortKey)
+                        layerStack[layerStack.count - 1].state.drawDataItems.removeAll(keepingCapacity: true)
                     }
-                    
-                    // Tessellate all glyphs from the text layout with centering
-                    for line in textLayout.textLines {
-                        // Calculate line-specific offset for horizontal alignment
-                        var lineOffsetX = offsetX
-                        if textAlignment == .center || textAlignment == .trailing {
-                            let lineWidth = line.typographicBounds.rect.width
-                            if textAlignment == .center {
-                                lineOffsetX = offsetX + (textSize.width - lineWidth) / 2
-                            } else {
-                                lineOffsetX = offsetX + (textSize.width - lineWidth)
-                            }
-                        }
-                        
-                        for run in line {
-                            for glyph in run {
-                                // Apply centering offset during tessellation
-                                let glyphOffset = Vector2(x: lineOffsetX, y: -offsetY)
-                                
-                                tessellateGlyph(
-                                    glyph,
-                                    transform: transform,
-                                    offset: glyphOffset,
-                                    tessellator: tessellator,
-                                    fontAtlasSlotIndex: &fontAtlasSlotIndex,
-                                    renderData: &renderData
-                                )
-                            }
+
+                    if cacheable, let cached = layerDrawCache.entries[id], cached.version == version, cached.cacheable {
+                        appendRenderItems(cached.drawDataItems, sortKey: &sortKey)
+                        layerStack.append(ActiveLayer(id: id, version: version, mode: .skipping, cacheable: cacheable))
+                    } else {
+                        layerStack.append(ActiveLayer(id: id, version: version, mode: .building, cacheable: cacheable))
+                    }
+
+                case let .endLayer(id):
+                    guard var layer = layerStack.popLast() else {
+                        continue
+                    }
+
+                    guard layer.id == id else {
+                        continue
+                    }
+
+                    switch layer.mode {
+                    case .skipping:
+                        break
+                    case .building:
+                        flushStateIfNeeded(&layer.state, renderDevice: renderDevice.renderDevice).map { layer.state.drawDataItems.append($0) }
+                        appendRenderItems(layer.state.drawDataItems, sortKey: &sortKey)
+
+                        if layer.cacheable {
+                            layerDrawCache.entries[id] = UILayerDrawCacheEntry(
+                                version: layer.version,
+                                drawDataItems: layer.state.drawDataItems,
+                                cacheable: true
+                            )
                         }
                     }
 
-                case let .drawGlyph(glyph, transform):
-                    tessellateGlyph(
-                        glyph,
-                        transform: transform,
-                        tessellator: tessellator,
-                        fontAtlasSlotIndex: &fontAtlasSlotIndex,
-                        renderData: &renderData
-                    )
-
-                case .commit:
-                    renderData.write(to: renderDevice.renderDevice)
-
-                    self.renderItems.items.append(
-                        UITransparentRenderItem(
-                            sortKey: 0,
-                            entity: .zero,
-                            drawPass: uiDrawPass,
-                            primitiveType: .quad,
-                            renderPipeline: renderPipelines,
-                            drawData: renderData
+                default:
+                    if let topIndex = layerStack.indices.last {
+                        switch layerStack[topIndex].mode {
+                        case .skipping:
+                            break
+                        case .building:
+                            processCommand(
+                                command,
+                                state: &layerStack[topIndex].state,
+                                tessellator: tessellator,
+                                renderDevice: renderDevice.renderDevice
+                            )
+                        }
+                    } else {
+                        processCommand(
+                            command,
+                            state: &rootState,
+                            tessellator: tessellator,
+                            renderDevice: renderDevice.renderDevice
                         )
-                    )
-
-                    renderData = UIDrawData()
-                    renderData.textures = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
-                    renderData.fontAtlases = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
-                    textureSlotIndex = 0
-                    fontAtlasSlotIndex = 0
-                    break
+                    }
                 }
             }
+
+            flushStateIfNeeded(
+                &rootState,
+                renderDevice: renderDevice.renderDevice
+            ).map { rootState.drawDataItems.append($0) }
+            appendRenderItems(rootState.drawDataItems, sortKey: &sortKey)
+        }
+
+        if !layerDrawCache.entries.isEmpty {
+            // Remove entries for layers that are no longer part of the extracted UI tree.
+            layerDrawCache.entries = layerDrawCache.entries.filter { activeLayerIDs.contains($0.key) }
+        }
+
+        buildState.needsRebuild = false
+    }
+
+    private struct DrawBuildState {
+        var renderData: UIDrawData = UIDrawData()
+        var drawDataItems: [UIDrawData] = []
+        var currentLineWidth: Float = 1.0
+        var currentClipRect: Rect?
+        var clipStack: [Rect?] = []
+
+        init(currentClipRect: Rect? = nil, clipStack: [Rect?] = []) {
+            self.currentClipRect = currentClipRect
+            self.clipStack = clipStack
+            renderData.textures = [.whiteTexture]
+            renderData.fontAtlases = []
+            renderData.clipRect = currentClipRect
+        }
+    }
+
+    private struct ActiveLayer {
+        enum Mode {
+            case building
+            case skipping
+        }
+
+        var id: UInt64
+        var version: UInt64
+        var mode: Mode
+        var cacheable: Bool
+        var state: DrawBuildState = DrawBuildState()
+
+        init(id: UInt64, version: UInt64, mode: Mode, cacheable: Bool) {
+            self.id = id
+            self.version = version
+            self.mode = mode
+            self.cacheable = cacheable
+        }
+    }
+
+    private func appendRenderItems(
+        _ items: [UIDrawData],
+        sortKey: inout Float
+    ) {
+        for drawData in items {
+            self.renderItems.items.append(
+                UITransparentRenderItem(
+                    sortKey: sortKey,
+                    entity: .zero,
+                    drawPass: uiDrawPass,
+                    primitiveType: .quad,
+                    renderPipeline: renderPipelines,
+                    drawData: drawData
+                )
+            )
+            sortKey += 1
+        }
+    }
+
+    private func flushStateIfNeeded(
+        _ state: inout DrawBuildState,
+        renderDevice: any RenderDevice
+    ) -> UIDrawData? {
+        guard !state.renderData.isEmpty else {
+            return nil
+        }
+
+        let accumulatedDrawDataItems = state.drawDataItems
+        state.renderData.write(to: renderDevice)
+        let flushed = state.renderData
+        state = DrawBuildState(
+            currentClipRect: state.currentClipRect,
+            clipStack: state.clipStack
+        )
+        state.drawDataItems = accumulatedDrawDataItems
+        return flushed
+    }
+
+    private func processCommand(
+        _ command: UIGraphicsContext.DrawCommand,
+        state: inout DrawBuildState,
+        tessellator: UITessellator,
+        renderDevice: any RenderDevice
+    ) {
+        switch command {
+        case .beginLayer, .endLayer:
+            break
+        case let .pushClipRect(rect):
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+            state.clipStack.append(state.currentClipRect)
+            if let currentClipRect = state.currentClipRect {
+                state.currentClipRect = intersectRects(currentClipRect, rect) ?? .zero
+            } else {
+                state.currentClipRect = rect
+            }
+            state.renderData.clipRect = state.currentClipRect
+        case .popClipRect:
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+            state.currentClipRect = state.clipStack.popLast() ?? nil
+            state.renderData.clipRect = state.currentClipRect
+        case let .setLineWidth(lineWidth):
+            state.currentLineWidth = lineWidth
+
+        case let .drawQuad(transform, texture, color):
+            let textureToUse = texture ?? .whiteTexture
+            var texIndex = findOrAddTexture(
+                textureToUse,
+                in: &state.renderData.textures
+            )
+            if texIndex == nil {
+                flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+                texIndex = findOrAddTexture(
+                    textureToUse,
+                    in: &state.renderData.textures
+                )
+            }
+            guard let texIndex else {
+                return
+            }
+
+            let vertexOffset = UInt32(state.renderData.quadVertexBuffer.count)
+            let vertices = tessellator.tessellateQuad(
+                transform: transform,
+                texture: texture,
+                color: color,
+                textureIndex: texIndex
+            )
+            state.renderData.quadVertexBuffer.elements.append(contentsOf: vertices)
+
+            let indexStart = state.renderData.quadIndexBuffer.count
+            let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            state.renderData.quadIndexBuffer.elements.append(contentsOf: indices)
+            appendBatch(
+                textureIndex: texIndex,
+                indexStart: indexStart,
+                indexCount: indices.count,
+                batches: &state.renderData.quadBatches
+            )
+
+        case let .drawCircle(transform, thickness, fade, color):
+            let vertexOffset = UInt32(state.renderData.circleVertexBuffer.count)
+            let vertices = tessellator.tessellateCircle(
+                transform: transform,
+                thickness: thickness,
+                fade: fade,
+                color: color
+            )
+            state.renderData.circleVertexBuffer.elements.append(contentsOf: vertices)
+
+            let indices = tessellator.generateCircleIndices(vertexOffset: vertexOffset)
+            state.renderData.circleIndexBuffer.elements.append(contentsOf: indices)
+
+        case let .drawLine(start, end, lineWidth, color):
+            let vertexOffset = UInt32(state.renderData.lineVertexBuffer.count)
+            let vertices = tessellator.tessellateLine(
+                start: start,
+                end: end,
+                lineWidth: lineWidth,
+                color: color
+            )
+            state.renderData.lineVertexBuffer.elements.append(contentsOf: vertices)
+
+            let indices = tessellator.generateLineIndices(vertexOffset: vertexOffset)
+            state.renderData.lineIndexBuffer.elements.append(contentsOf: indices)
+
+        case let .drawPath(path):
+            let result = tessellator.tessellatePath(
+                path,
+                lineWidth: state.currentLineWidth,
+                color: .white,
+                transform: .identity
+            )
+
+            let vertexOffset = UInt32(state.renderData.lineVertexBuffer.count)
+            state.renderData.lineVertexBuffer.elements.append(contentsOf: result.vertices)
+
+            let indices = result.indices.map { $0 + vertexOffset }
+            state.renderData.lineIndexBuffer.elements.append(contentsOf: indices)
+
+        case let .drawText(textLayout, transform):
+            // Calculate text centering offset
+            let textSize = textLayout.boundingSize()
+            let textAlignment = textLayout.textAlignment
+
+            var offsetX: Float = 0
+            var offsetY: Float = 0
+
+            switch textAlignment {
+            case .center:
+                offsetX = -textSize.width / 2
+                if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
+                    let topY = firstLine.typographicBounds.rect.origin.y
+                    let bottomY = topY - textSize.height
+                    offsetY = -(topY + bottomY) / 2
+                }
+            case .leading:
+                offsetX = 0
+                if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
+                    let topY = firstLine.typographicBounds.rect.origin.y
+                    let bottomY = topY - textSize.height
+                    offsetY = -(topY + bottomY) / 2
+                }
+            case .trailing:
+                offsetX = -textSize.width
+                if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
+                    let topY = firstLine.typographicBounds.rect.origin.y
+                    let bottomY = topY - textSize.height
+                    offsetY = -(topY + bottomY) / 2
+                }
+            }
+
+            // Tessellate all glyphs from the text layout with centering
+            for line in textLayout.textLines {
+                // Calculate line-specific offset for horizontal alignment
+                var lineOffsetX = offsetX
+                if textAlignment == .center || textAlignment == .trailing {
+                    let lineWidth = line.typographicBounds.rect.width
+                    if textAlignment == .center {
+                        lineOffsetX = offsetX + (textSize.width - lineWidth) / 2
+                    } else {
+                        lineOffsetX = offsetX + (textSize.width - lineWidth)
+                    }
+                }
+
+                for run in line {
+                    for glyph in run {
+                        // Apply centering offset during tessellation
+                        let glyphOffset = Vector2(x: lineOffsetX, y: -offsetY)
+
+                        tessellateGlyph(
+                            glyph,
+                            transform: transform,
+                            offset: glyphOffset,
+                            tessellator: tessellator,
+                            state: &state,
+                            renderDevice: renderDevice
+                        )
+                    }
+                }
+            }
+
+        case let .drawGlyph(glyph, transform):
+            tessellateGlyph(
+                glyph,
+                transform: transform,
+                tessellator: tessellator,
+                state: &state,
+                renderDevice: renderDevice
+            )
+
+        case .commit:
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
         }
     }
 
     // MARK: - Private Helpers
 
     private func findOrAddTexture(
-        _ texture: Texture2D?,
-        in textures: inout [Texture2D],
-        slotIndex: inout Int
-    ) -> Int {
-        guard let texture = texture else {
-            // Use white texture at index 0
-            return 0
-        }
-
+        _ texture: Texture2D,
+        in textures: inout [Texture2D]
+    ) -> Int? {
         // Check if texture already exists
         if let existingIndex = textures.firstIndex(where: { $0 === texture }) {
             return existingIndex
         }
 
-        // Add new texture if we have room
-        if slotIndex < Self.maxTexturesPerBatch - 1 {
-            slotIndex += 1
-            textures[slotIndex] = texture
-            return slotIndex
+        // Add new texture if we have room.
+        if textures.count < Self.maxTexturesPerBatch {
+            textures.append(texture)
+            return textures.count - 1
         }
 
-        // Fallback to white texture if batch is full
-        return 0
+        // Batch is full: caller should flush and retry.
+        return nil
     }
 
     private func tessellateGlyph(
@@ -310,31 +535,40 @@ public struct UIRenderTesselationSystem {
         transform: Transform3D,
         offset: Vector2 = .zero,
         tessellator: UITessellator,
-        fontAtlasSlotIndex: inout Int,
-        renderData: inout UIDrawData
+        state: inout DrawBuildState,
+        renderDevice: any RenderDevice
     ) {
-        let texIndex = findOrAddTexture(
+        var texIndex = findOrAddTexture(
             glyph.textureAtlas,
-            in: &renderData.fontAtlases,
-            slotIndex: &fontAtlasSlotIndex
+            in: &state.renderData.fontAtlases
         )
+        if texIndex == nil {
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+            texIndex = findOrAddTexture(
+                glyph.textureAtlas,
+                in: &state.renderData.fontAtlases
+            )
+        }
+        guard let texIndex else {
+            return
+        }
 
-        let vertexOffset = UInt32(renderData.glyphVertexBuffer.count)
+        let vertexOffset = UInt32(state.renderData.glyphVertexBuffer.count)
         let vertices = tessellator.tessellateGlyph(
             glyph,
             transform: transform,
             textureIndex: texIndex,
             offset: offset
         )
-        renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
-        let indexStart = renderData.glyphIndexBuffer.count
+        state.renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
+        let indexStart = state.renderData.glyphIndexBuffer.count
         let indices = tessellator.generateGlyphIndices(vertexOffset: vertexOffset)
-        renderData.glyphIndexBuffer.elements.append(contentsOf: indices)
+        state.renderData.glyphIndexBuffer.elements.append(contentsOf: indices)
         appendBatch(
             textureIndex: texIndex,
             indexStart: indexStart,
             indexCount: indices.count,
-            batches: &renderData.glyphBatches
+            batches: &state.renderData.glyphBatches
         )
     }
 
@@ -360,6 +594,19 @@ public struct UIRenderTesselationSystem {
                 indexCount: indexCount
             )
         )
+    }
+
+    private func intersectRects(_ lhs: Rect, _ rhs: Rect) -> Rect? {
+        let minX = max(lhs.minX, rhs.minX)
+        let minY = max(lhs.minY, rhs.minY)
+        let maxX = min(lhs.maxX, rhs.maxX)
+        let maxY = min(lhs.maxY, rhs.maxY)
+
+        guard maxX > minX, maxY > minY else {
+            return nil
+        }
+
+        return Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 }
 

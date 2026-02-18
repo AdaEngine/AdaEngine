@@ -16,6 +16,32 @@ public protocol UpdatableProperty {
     @MainActor func update()
 }
 
+// MARK: - State Storage
+
+/// A container that keeps state storages for a specific view node.
+@MainActor
+final class ViewStateContainer {
+    private var storages: [String: UpdatablePropertyStorage] = [:]
+
+    func storage<Value>(
+        for key: String,
+        initialValue: @autoclosure () -> StateStorage<Value>
+    ) -> StateStorage<Value> {
+        if let storage = storages[key] as? StateStorage<Value> {
+            return storage
+        }
+
+        let storage = initialValue()
+        storages[key] = storage
+        return storage
+    }
+}
+
+@MainActor
+protocol ViewStateBindable {
+    func bind(to container: ViewStateContainer, key: String)
+}
+
 /// A protocol that defines a property that can be stored.
 protocol PropertyStoragable {
     /// The storage of the property.
@@ -33,17 +59,22 @@ class UpdatablePropertyStorage {
     /// The name of the property.
     var propertyName: String = ""
 
+    nonisolated init() { }
+
     /// Update the property.
     ///
     /// - Returns: The property.
-    @MainActor
     func update() {
         nodes.forEach {
             if $0.shouldNotifyAboutChanges {
-                Logger(label: "org.adaengine.AdaUI").info("\(type(of: $0.content)): \(propertyName) changed.")
+                 Logger(label: "org.adaengine.AdaUI")
+                     .info("\(type(of: $0.content)): \(propertyName) changed.")
             }
 
             $0.invalidateContent()
+            if let containerView = $0.owner?.containerView {
+                containerView.setNeedsDisplay(in: $0.absoluteFrame())
+            }
         }
     }
 

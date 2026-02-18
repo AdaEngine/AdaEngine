@@ -10,7 +10,7 @@ import AdaUtils
 import Math
 
 /// A container view that contains a view tree.
-public class UIContainerView<Content: View>: UIView, ViewOwner {
+public final class UIContainerView<Content: View>: UIView, ViewOwner {
 
     /// The container view of the container view.
     var containerView: UIView? {
@@ -35,7 +35,11 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
     public override func layoutSubviews() {
         super.layoutSubviews()
 
-        viewTree.rootNode.place(in: .zero, anchor: .zero, proposal: ProposedViewSize(self.frame.size))
+        viewTree.rootNode.place(
+            in: .zero,
+            anchor: .zero,
+            proposal: ProposedViewSize(self.frame.size)
+        )
     }
 
     /// Build the menu.
@@ -67,19 +71,53 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
     }
 
     /// The last on mouse event node.
-    private var lastOnMouseEventNode: ViewNode?
+    private weak var lastOnMouseEventNode: ViewNode?
+    /// Mouse-down capture target. Subsequent changed/ended events are routed here.
+    private weak var activeMouseEventNode: ViewNode?
 
     /// Handle the mouse event.
     ///
     /// - Parameter event: The mouse event to handle.
     public override func onMouseEvent(_ event: MouseEvent) {
-        if let viewNode = self.viewTree.rootNode.hitTest(event.mousePosition, with: event) {
-            viewNode.onMouseEvent(event)
-
+        let localPoint = self.convert(event.mousePosition, from: self.window)
+        switch event.phase {
+        case .began:
+            let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event)
+            self.activeMouseEventNode = viewNode
+            viewNode?.onMouseEvent(event)
             if lastOnMouseEventNode !== viewNode {
                 lastOnMouseEventNode?.onMouseLeave()
                 lastOnMouseEventNode = viewNode
             }
+        case .changed:
+            if event.button == .left, let activeMouseEventNode {
+                activeMouseEventNode.onMouseEvent(event)
+                if lastOnMouseEventNode !== activeMouseEventNode {
+                    lastOnMouseEventNode?.onMouseLeave()
+                    lastOnMouseEventNode = activeMouseEventNode
+                }
+            } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
+                viewNode.onMouseEvent(event)
+                if lastOnMouseEventNode !== viewNode {
+                    lastOnMouseEventNode?.onMouseLeave()
+                    lastOnMouseEventNode = viewNode
+                }
+            }
+        case .ended, .cancelled:
+            if let activeMouseEventNode {
+                activeMouseEventNode.onMouseEvent(event)
+                if lastOnMouseEventNode !== activeMouseEventNode {
+                    lastOnMouseEventNode?.onMouseLeave()
+                    lastOnMouseEventNode = activeMouseEventNode
+                }
+            } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
+                viewNode.onMouseEvent(event)
+                if lastOnMouseEventNode !== viewNode {
+                    lastOnMouseEventNode?.onMouseLeave()
+                    lastOnMouseEventNode = viewNode
+                }
+            }
+            self.activeMouseEventNode = nil
         }
     }
 
@@ -99,7 +137,8 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
         }
 
         let firstTouch = touches.first!
-        if let viewNode = self.viewTree.rootNode.hitTest(firstTouch.location, with: firstTouch) {
+        let localPoint = self.convert(firstTouch.location, from: self.window)
+        if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
             viewNode.onTouchesEvent(touches)
         }
     }
@@ -120,6 +159,8 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
     ///   - rect: The rect to draw the container view in.
     ///   - context: The context to draw the container view in.
     override public func draw(in rect: Rect, with context: UIGraphicsContext) {
+        var context = context
+        context.dirtyRect = window?.consumeDirtyRect()
         viewTree.renderGraph(renderContext: context)
     }
 

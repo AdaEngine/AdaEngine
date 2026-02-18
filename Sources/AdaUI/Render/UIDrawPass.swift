@@ -9,6 +9,8 @@ import AdaECS
 import AdaRender
 import AdaText
 import AdaCorePipelines
+import AdaUtils
+import Math
 
 // MARK: - UI Draw Data
 
@@ -58,6 +60,9 @@ public struct UIDrawData: Sendable {
     /// Batches for glyph rendering.
     public var glyphBatches: [IndexBatch] = []
 
+    /// Optional clip rectangle in viewport coordinates.
+    public var clipRect: Rect?
+
     public init() {
         self.quadVertexBuffer = BufferData(label: "UI_QuadVertexBuffer", elements: [])
         self.quadIndexBuffer = BufferData(label: "UI_QuadIndexBuffer", elements: [])
@@ -67,6 +72,7 @@ public struct UIDrawData: Sendable {
         self.lineIndexBuffer = BufferData(label: "UI_LineIndexBuffer", elements: [])
         self.glyphVertexBuffer = BufferData(label: "UI_GlyphVertexBuffer", elements: [])
         self.glyphIndexBuffer = BufferData(label: "UI_GlyphIndexBuffer", elements: [])
+        self.clipRect = nil
     }
 
     public mutating func write(to device: any RenderDevice) {
@@ -96,6 +102,13 @@ public struct UIDrawData: Sendable {
         quadBatches.removeAll(keepingCapacity: true)
         glyphBatches.removeAll(keepingCapacity: true)
     }
+
+    public var isEmpty: Bool {
+        quadIndexBuffer.isEmpty
+        && circleIndexBuffer.isEmpty
+        && lineIndexBuffer.isEmpty
+        && glyphIndexBuffer.isEmpty
+    }
 }
 
 // MARK: - UI Draw Pass
@@ -104,6 +117,12 @@ public struct UIDrawData: Sendable {
 /// Note: The view uniform buffer is set by UIRenderNode, not here.
 public struct UIDrawPass: DrawPass {
     public typealias Item = UITransparentRenderItem
+
+    enum ScissorDecision: Equatable {
+        case none
+        case apply(Rect)
+        case skipDraw
+    }
 
     public init() {}
 
@@ -114,6 +133,21 @@ public struct UIDrawPass: DrawPass {
         item: UITransparentRenderItem
     ) throws {
         let uiDrawData = item.drawData
+        let renderBounds = resolveRenderBounds(world: world, view: view)
+        let viewportOrigin = resolveViewportOrigin(world: world, view: view)
+
+        switch resolveScissorDecision(
+            clipRect: uiDrawData.clipRect,
+            renderBounds: renderBounds,
+            viewportOrigin: viewportOrigin
+        ) {
+        case .none:
+            break
+        case .apply(let scissorRect):
+            renderEncoder.setScissorRect(scissorRect)
+        case .skipDraw:
+            return
+        }
 
         // Note: The uniform buffer is already set by UIRenderNode with the
         // UI-specific orthographic projection (origin at top-left)
@@ -272,5 +306,83 @@ public struct UIDrawPass: DrawPass {
                 instanceCount: 1
             )
         }
+    }
+
+    private func resolveRenderBounds(world: World, view: Entity) -> Rect? {
+        if let target = world.get(RenderViewTarget.self, from: view.id), let texture = target.mainTexture {
+            if texture.width > 0, texture.height > 0 {
+                return Rect(x: 0, y: 0, width: Float(texture.width), height: Float(texture.height))
+            }
+        }
+
+        if let windows = world.getResource(RenderWindows.self), let window = windows.windows.values.first?.value {
+            let size = window.physicalSize
+            if size.width > 0, size.height > 0 {
+                return Rect(x: 0, y: 0, width: size.width, height: size.height)
+            }
+        }
+
+        return nil
+    }
+
+    private func resolveViewportOrigin(world: World, view: Entity) -> Point {
+        if let camera = world.get(Camera.self, from: view.id) {
+            return camera.viewport.rect.origin
+        }
+
+        return .zero
+    }
+
+    func resolveScissorDecision(
+        clipRect: Rect?,
+        renderBounds: Rect?,
+        viewportOrigin: Point
+    ) -> ScissorDecision {
+        guard let clipRect else {
+            if let renderBounds {
+                return .apply(renderBounds)
+            }
+            return .none
+        }
+
+        guard let renderBounds else {
+            return .none
+        }
+
+        let adjustedClipRect = Rect(
+            x: clipRect.minX + viewportOrigin.x,
+            y: clipRect.minY + viewportOrigin.y,
+            width: clipRect.width,
+            height: clipRect.height
+        )
+
+        guard let scissorRect = clampScissorRect(adjustedClipRect, to: renderBounds) else {
+            return .skipDraw
+        }
+
+        return .apply(scissorRect)
+    }
+
+    private func clampScissorRect(_ rect: Rect, to bounds: Rect) -> Rect? {
+        let minX = max(bounds.minX, min(rect.minX, bounds.maxX))
+        let minY = max(bounds.minY, min(rect.minY, bounds.maxY))
+        let maxX = max(bounds.minX, min(rect.maxX, bounds.maxX))
+        let maxY = max(bounds.minY, min(rect.maxY, bounds.maxY))
+
+        guard maxX > minX, maxY > minY else {
+            return nil
+        }
+
+        // Align to pixel boundaries to satisfy backend integer scissor validation.
+        let x = minX.rounded(.down)
+        let y = minY.rounded(.down)
+        let width = maxX.rounded(.up) - x
+        let height = maxY.rounded(.up) - y
+
+        guard width > 0, height > 0 else {
+            return nil
+        }
+
+        return Rect(x: x, y: y, width: width, height: height)
     }
 }

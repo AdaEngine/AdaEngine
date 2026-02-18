@@ -18,7 +18,10 @@ struct DrawingGroupModifier<Content: View>: ViewModifier, ViewNodeBuilder {
     let content: Content
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
-        DrawingGroupViewNode(contentNode: context.makeNode(from: content), content: content)
+        DrawingGroupViewNode(
+            contentNode: context.makeNode(from: content),
+            content: content
+        )
     }
 }
 
@@ -45,12 +48,10 @@ class DrawingGroupViewNode: ViewModifierNode {
             guard let self else {
                 return
             }
-            
-            var context = context
-            context.translateBy(x: self.frame.origin.x, y: 0)
             self.contentNode.draw(with: context)
         }
-        layer.debugLabel = "Drawing Group"
+        layer.debugLabel = "Drawing Group \(self.accessibilityIdentifier ?? "")"
+        layer.propagatesInvalidation = false
         return layer
     }
 }
