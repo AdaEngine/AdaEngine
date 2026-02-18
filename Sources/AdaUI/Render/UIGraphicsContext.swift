@@ -198,11 +198,21 @@ public struct UIGraphicsContext: Sendable {
     /// Pushes a clipping rectangle in the current coordinate space.
     public mutating func pushClipRect(_ rect: Rect) {
         let scale = max(environment.scaleFactor, 1)
+        let scaledRect = Rect(
+            x: rect.minX * scale,
+            y: rect.minY * scale,
+            width: rect.width * scale,
+            height: rect.height * scale
+        )
+        let minX = max(0, scaledRect.minX)
+        let minY = max(0, scaledRect.minY)
+        let maxX = max(0, scaledRect.maxX)
+        let maxY = max(0, scaledRect.maxY)
         let clipped = Rect(
-            x: max(rect.minX * scale, 0),
-            y: max(rect.minY * scale, 0),
-            width: max(rect.width * scale, 0),
-            height: max(rect.height * scale, 0)
+            x: minX,
+            y: minY,
+            width: max(0, maxX - minX),
+            height: max(0, maxY - minY)
         )
         commandQueue.push(.pushClipRect(clipped))
     }

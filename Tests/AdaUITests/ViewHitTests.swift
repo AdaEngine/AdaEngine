@@ -17,15 +17,22 @@ struct ViewHitTests {
         try Application.prepareForTest()
     }
 
-    /// Verifies horizontal ScrollView hit-testing respects the current content offset.
+    /// Verifies horizontal `ScrollView` hit-testing uses the current `contentOffset`.
     ///
-    /// Scenario:
-    /// - Three fixed-width buttons are arranged horizontally.
-    /// - Viewport width only fits approximately one button.
-    /// - After horizontal wheel scroll, tapping the viewport center should hit `third`.
+    /// Given:
+    /// - 3 fixed-width buttons (`first`, `second`, `third`) inside horizontal scroll content;
+    /// - viewport width that can show about one button at a time.
+    ///
+    /// When:
+    /// - wheel scroll shifts content horizontally;
+    /// - user taps center of the viewport.
+    ///
+    /// Then:
+    /// - hit-test must target the button that is currently visible at that point (`third`);
+    /// - tap callback must be invoked for the same identifier.
     ///
     /// Regression protected:
-    /// - hitTest path ignores `contentOffset` and keeps targeting pre-scroll nodes.
+    /// - hit-test ignores scroll offset and still resolves pre-scroll nodes.
     @Test
     func scrollViewHitTest_usesContentOffset() {
         final class TapRecorder {
@@ -103,16 +110,22 @@ struct ViewHitTests {
         #expect(recorder.taps.last == "third")
     }
 
-    /// Verifies vertical ScrollView handles discrete wheel ticks and reveals deep content.
+    /// Verifies vertical `ScrollView` consumes wheel ticks and updates hittable content.
     ///
-    /// Scenario:
-    /// - A vertical list with 14 items is clipped by a small viewport.
-    /// - `item-12` is not initially hittable.
-    /// - After several wheel ticks, `item-12` must become hittable and tappable.
+    /// Given:
+    /// - long vertical list (`item-0 ... item-13`) in a small viewport;
+    /// - `item-12` starts outside visible region.
+    ///
+    /// When:
+    /// - several wheel events are sent to the scroll view.
+    ///
+    /// Then:
+    /// - `item-12` becomes hittable in viewport coordinates;
+    /// - tapping found point triggers exactly `item-12` action.
     ///
     /// Regression protected:
-    /// - wheel events update state but fail to move vertical offset;
-    /// - or hit-testing remains bound to pre-scroll coordinates.
+    /// - vertical offset not updated even though wheel events are delivered;
+    /// - hit-test uses stale coordinates before scroll.
     @Test
     func verticalScrollView_acceptsDiscreteWheelTicks() {
         final class TapRecorder {
@@ -191,15 +204,19 @@ struct ViewHitTests {
         #expect(recorder.taps.last == targetIdentifier)
     }
 
-    /// Verifies vertical scrolling still works when ScrollView supports both axes.
+    /// Verifies vertical scrolling remains active for bi-directional scroll views.
     ///
-    /// Scenario:
-    /// - ScrollView uses `[.vertical, .horizontal]`.
-    /// - Content is taller than viewport.
-    /// - Vertical wheel ticks must reveal deep vertical content (`item-12`).
+    /// Given:
+    /// - `ScrollView([.vertical, .horizontal])` with content taller than viewport.
+    ///
+    /// When:
+    /// - vertical wheel ticks are sent.
+    ///
+    /// Then:
+    /// - deep element (`item-12`) becomes reachable and tappable.
     ///
     /// Regression protected:
-    /// - bi-directional configuration accidentally disables vertical offset updates.
+    /// - enabling horizontal axis accidentally disables vertical offset updates.
     @Test
     func biDirectionalScrollView_acceptsVerticalWheelTicks() {
         final class TapRecorder {
@@ -281,17 +298,23 @@ struct ViewHitTests {
         #expect(recorder.taps.last == targetIdentifier)
     }
 
-    /// Verifies bi-directional ScrollView inside VStack expands into remaining space
-    /// and still performs vertical scrolling.
+    /// Verifies bi-directional `ScrollView` inside `VStack` fills remaining height and scrolls.
     ///
-    /// Scenario is close to Kanban screen composition:
-    /// - Header on top in VStack.
-    /// - ScrollView below without explicit fixed height.
-    /// - Deep list item becomes reachable after wheel input.
+    /// Given:
+    /// - header at top;
+    /// - scroll view below with no explicit fixed height (Kanban-like composition);
+    /// - content taller than available area.
+    ///
+    /// When:
+    /// - vertical wheel ticks are sent.
+    ///
+    /// Then:
+    /// - lower item (`vstack-item-14`) becomes hittable in viewport;
+    /// - tap callback receives the same id.
     ///
     /// Regression protected:
-    /// - ScrollView reports content size as ideal size on scrolling axis;
-    /// - parent stack gives it content height, eliminating vertical overflow.
+    /// - scroll view reports content as ideal size on scroll axis;
+    /// - parent stack allocates only content height, removing overflow and disabling scroll.
     @Test
     func biDirectionalScrollView_inVStack_expandsRemainingSpaceAndScrollsVertically() {
         final class TapRecorder {
@@ -378,16 +401,23 @@ struct ViewHitTests {
         #expect(recorder.taps.last == targetIdentifier)
     }
 
-    /// Verifies horizontal scrolling + hit-testing for a Kanban-like board with fixed columns.
+    /// Verifies horizontal scrolling + hit-testing in Kanban-like fixed-width columns.
     ///
-    /// Scenario:
-    /// - Four columns in a horizontal scroll area.
-    /// - The `review<` button starts outside visible area.
-    /// - After horizontal wheel ticks, it must become hittable and invoke correct action.
+    /// Given:
+    /// - 4 columns inside horizontal scroll area;
+    /// - `review<` control starts outside viewport.
+    ///
+    /// When:
+    /// - wheel scroll moves content to reveal right columns;
+    /// - test searches visible area for `review<` and performs click.
+    ///
+    /// Then:
+    /// - hit node must be exactly `review<`;
+    /// - callback must report `review<`, not a stale offscreen control.
     ///
     /// Regression protected:
-    /// - stale hit target after scroll;
-    /// - wrong node activation when previously offscreen columns become visible.
+    /// - stale active node after scroll;
+    /// - mismatch between visual position and hit-tested target.
     @Test
     func kanbanLikeScrollHitTest_targetsButtonInVisibleColumn() {
         final class TapRecorder {

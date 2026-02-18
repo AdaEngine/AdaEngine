@@ -21,18 +21,18 @@ public protocol UpdatableProperty {
 /// A container that keeps state storages for a specific view node.
 @MainActor
 final class ViewStateContainer {
-    private var storages: [String: WeakBox<UpdatablePropertyStorage>] = [:]
+    private var storages: [String: UpdatablePropertyStorage] = [:]
 
     func storage<Value>(
         for key: String,
         initialValue: @autoclosure () -> StateStorage<Value>
     ) -> StateStorage<Value> {
-        if let storage = storages[key]?.value as? StateStorage<Value> {
+        if let storage = storages[key] as? StateStorage<Value> {
             return storage
         }
 
         let storage = initialValue()
-        storages[key] = WeakBox(storage)
+        storages[key] = storage
         return storage
     }
 }

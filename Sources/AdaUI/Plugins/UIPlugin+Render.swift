@@ -26,14 +26,35 @@ public struct UIRenderBuildState: Resource {
     public var needsRebuild: Bool = true
 }
 
+/// Per-layer tessellation cache used during UI render build.
+///
+/// Cache keys are stable `UILayer` identifiers (`UILayer.id`).
+/// Each entry is valid only for the exact layer `version` and is reused only
+/// when the layer reports `cacheable == true`.
+///
+/// Invalidation model:
+/// - `UILayer.invalidate()` increments the command version, so stale entries
+///   are automatically rejected by version mismatch.
+/// - After each build pass, cache entries for layers not seen in the current
+///   frame are pruned.
+///
+/// Dirty-rect interaction:
+/// - Dirty rectangles still trigger render build (`UIRenderBuildState.needsRebuild`),
+///   but unchanged cacheable layers can bypass re-tessellation by reusing
+///   cached `UIDrawData` items.
 public struct UILayerDrawCache: Resource {
+    /// Cached tessellated data keyed by `UILayer.id`.
     public var entries: [UInt64: UILayerDrawCacheEntry] = [:]
     public init() {}
 }
 
+/// Cached tessellation payload for a single `UILayer`.
 public struct UILayerDrawCacheEntry: Sendable {
+    /// Layer command version at the moment the cache entry was built.
     public var version: UInt64
+    /// Tessellated draw data slices emitted by this layer in draw order.
     public var drawDataItems: [UIDrawData]
+    /// Indicates whether this layer can safely be reused from cache.
     public var cacheable: Bool
 
     public init(version: UInt64, drawDataItems: [UIDrawData], cacheable: Bool) {
@@ -230,6 +251,7 @@ public struct UIRenderTesselationSystem {
         }
 
         if !layerDrawCache.entries.isEmpty {
+            // Remove entries for layers that are no longer part of the extracted UI tree.
             layerDrawCache.entries = layerDrawCache.entries.filter { activeLayerIDs.contains($0.key) }
         }
 
