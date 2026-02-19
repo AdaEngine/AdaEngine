@@ -490,6 +490,59 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
             inputRef.wrappedValue.receiveEvent(keyEvent)
         }
         return 0
+
+    case UInt32(WM_CHAR), UInt32(WM_SYSCHAR):
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            guard let inputRef = windowManager?.inputRef else {
+                return
+            }
+
+            let codePoint = UInt32(wParam & 0xFFFF)
+
+            if codePoint == 0x08 {
+                let textEvent = TextInputEvent(
+                    window: window.id,
+                    text: "",
+                    action: .deleteBackward,
+                    time: getCurrentTime()
+                )
+                inputRef.wrappedValue.receiveEvent(textEvent)
+                return
+            }
+
+            guard let scalar = UnicodeScalar(codePoint) else {
+                return
+            }
+
+            let character = String(scalar)
+            let sanitizedText = character
+                .replacingOccurrences(of: "\r\n", with: " ")
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\r", with: " ")
+
+            guard !sanitizedText.isEmpty else {
+                return
+            }
+
+            let hasPrintableScalar = sanitizedText.unicodeScalars.contains { value in
+                value.value >= 0x20 && value.value != 0x7F
+            }
+
+            guard hasPrintableScalar else {
+                return
+            }
+
+            let textEvent = TextInputEvent(
+                window: window.id,
+                text: sanitizedText,
+                action: .insert,
+                time: getCurrentTime()
+            )
+
+            inputRef.wrappedValue.receiveEvent(textEvent)
+        }
+        return 0
         
     case UInt32(WM_MOUSEMOVE):
         Task { @MainActor in
@@ -772,4 +825,3 @@ extension String {
 }
 
 #endif
-

@@ -77,6 +77,8 @@ public extension Color {
 
     static let surfaceClearColor = Color(red: 43 / 255, green: 44 / 255, blue: 47 / 255, alpha: 1)
 
+    nonisolated(unsafe) package(set) static var accentColor = Color.blue.opacity(0.5)
+
     static func random() -> Color {
         Color(
             red: Float.random(in: 0...255) / 255,

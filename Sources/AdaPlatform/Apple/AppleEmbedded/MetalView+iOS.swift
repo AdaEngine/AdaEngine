@@ -71,6 +71,10 @@ extension MetalView {
     // MARK: - Touch Events
 
     open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        if !self.isFirstResponder {
+            self.becomeFirstResponder()
+        }
+
         for touch in touches {
             let point = touch.location(in: self)
 

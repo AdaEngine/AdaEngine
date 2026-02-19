@@ -10,6 +10,7 @@ import AdaApp
 import AppKit
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaUI
+import AdaUtils
 import MetalKit
 import AdaECS
 
@@ -19,6 +20,7 @@ final class MacApplication: Application {
     private let screenManager: MacOSScreenManager
 
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
+        unsafe Color.accentColor = NSColor.controlAccentColor.toColor
         self.screenManager = MacOSScreenManager()
         unsafe Screen.screenManager = screenManager
         unsafe try super.init(argc: argc, argv: argv)
@@ -129,6 +131,17 @@ class AdaApplication: NSApplication {
         } else {
             super.sendEvent(event)
         }
+    }
+}
+
+private extension NSColor {
+    var toColor: AdaUtils.Color {
+        Color(
+            red: Float(self.cgColor.components?[0] ?? 0),
+            green: Float(self.cgColor.components?[1] ?? 0),
+            blue: Float(self.cgColor.components?[2] ?? 0),
+            alpha: Float(self.cgColor.alpha)
+        )
     }
 }
 

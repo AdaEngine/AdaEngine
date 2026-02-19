@@ -74,6 +74,8 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
     private weak var lastOnMouseEventNode: ViewNode?
     /// Mouse-down capture target. Subsequent changed/ended events are routed here.
     private weak var activeMouseEventNode: ViewNode?
+    /// Focused node that receives keyboard and text input events.
+    private weak var focusedNode: ViewNode?
 
     /// Handle the mouse event.
     ///
@@ -84,13 +86,14 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
         case .began:
             let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event)
             self.activeMouseEventNode = viewNode
+            self.updateFocusedNode(with: viewNode)
             viewNode?.onMouseEvent(event)
             if lastOnMouseEventNode !== viewNode {
                 lastOnMouseEventNode?.onMouseLeave()
                 lastOnMouseEventNode = viewNode
             }
         case .changed:
-            if event.button == .left, let activeMouseEventNode {
+            if event.button != .scrollWheel, let activeMouseEventNode {
                 activeMouseEventNode.onMouseEvent(event)
                 if lastOnMouseEventNode !== activeMouseEventNode {
                     lastOnMouseEventNode?.onMouseLeave()
@@ -102,6 +105,9 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
                     lastOnMouseEventNode?.onMouseLeave()
                     lastOnMouseEventNode = viewNode
                 }
+            } else if lastOnMouseEventNode != nil {
+                lastOnMouseEventNode?.onMouseLeave()
+                lastOnMouseEventNode = nil
             }
         case .ended, .cancelled:
             if let activeMouseEventNode {
@@ -116,9 +122,51 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
                     lastOnMouseEventNode?.onMouseLeave()
                     lastOnMouseEventNode = viewNode
                 }
+            } else if lastOnMouseEventNode != nil {
+                lastOnMouseEventNode?.onMouseLeave()
+                lastOnMouseEventNode = nil
             }
             self.activeMouseEventNode = nil
         }
+    }
+
+    public override func onKeyEvent(_ event: KeyEvent) {
+        if let focusedNode {
+            focusedNode.onKeyEvent(event)
+        } else {
+            self.viewTree.rootNode.onReceiveEvent(event)
+        }
+    }
+
+    public override func onTextInputEvent(_ event: TextInputEvent) {
+        if let focusedNode {
+            focusedNode.onTextInputEvent(event)
+        } else {
+            self.viewTree.rootNode.onReceiveEvent(event)
+        }
+    }
+
+    private func updateFocusedNode(with hitNode: ViewNode?) {
+        let newFocusedNode = self.findFocusableNode(from: hitNode)
+        if self.focusedNode === newFocusedNode {
+            return
+        }
+
+        self.focusedNode?.onFocusChanged(isFocused: false)
+        self.focusedNode = newFocusedNode
+        self.focusedNode?.onFocusChanged(isFocused: true)
+    }
+
+    private func findFocusableNode(from node: ViewNode?) -> ViewNode? {
+        var currentNode = node
+        while let current = currentNode {
+            if current.canBecomeFocused {
+                return current
+            }
+            currentNode = current.parent
+        }
+
+        return nil
     }
 
     /// Update the environment.
@@ -139,7 +187,12 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
         let firstTouch = touches.first!
         let localPoint = self.convert(firstTouch.location, from: self.window)
         if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
+            if firstTouch.phase == .began {
+                self.updateFocusedNode(with: viewNode)
+            }
             viewNode.onTouchesEvent(touches)
+        } else if firstTouch.phase == .began {
+            self.updateFocusedNode(with: nil)
         }
     }
 
