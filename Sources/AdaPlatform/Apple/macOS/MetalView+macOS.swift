@@ -75,6 +75,10 @@ extension MetalView {
     }
     
     public override func mouseDown(with event: NSEvent) {
+        if let eventWindow = event.window, eventWindow.firstResponder !== self {
+            eventWindow.makeFirstResponder(self)
+        }
+
         let position = self.mousePosition(for: event)
         
         let isContinious = input?.wrappedValue.mouseEvents[.left]?.phase == .began
@@ -174,6 +178,37 @@ extension MetalView {
         )
         
         input?.wrappedValue.receiveEvent(keyEvent)
+
+        if keyCode == .backspace {
+            let textEvent = TextInputEvent(
+                window: self.windowID,
+                text: "",
+                action: .deleteBackward,
+                time: TimeInterval(event.timestamp)
+            )
+            input?.wrappedValue.receiveEvent(textEvent)
+            return
+        }
+
+        guard
+            let insertedText = event.characters,
+            let textPayload = Self.textInputPayload(
+                keyCode: keyCode,
+                modifiers: modifers,
+                characters: insertedText
+            )
+        else {
+            return
+        }
+
+        let textEvent = TextInputEvent(
+            window: self.windowID,
+            text: textPayload,
+            action: .insert,
+            time: TimeInterval(event.timestamp)
+        )
+
+        input?.wrappedValue.receiveEvent(textEvent)
     }
     
     // MARK: - Private
@@ -197,6 +232,87 @@ extension MetalView {
         default:
             return .ended
         }
+    }
+
+    static func textInputPayload(
+        keyCode: KeyCode,
+        modifiers: KeyModifier,
+        characters: String
+    ) -> String? {
+        if modifiers.contains(.main) || modifiers.contains(.control) {
+            return nil
+        }
+
+        switch keyCode {
+        case .none,
+             .enter,
+             .tab,
+             .escape,
+             .delete,
+             .home,
+             .pageUp,
+             .pageDown,
+             .shift,
+             .ctrl,
+             .alt,
+             .meta,
+             .capslock,
+             .arrowUp,
+             .arrowDown,
+             .arrowLeft,
+             .arrowRight,
+             .f1,
+             .f2,
+             .f3,
+             .f4,
+             .f5,
+             .f6,
+             .f7,
+             .f8,
+             .f9,
+             .f10,
+             .f11,
+             .f12,
+             .f13,
+             .f14,
+             .f15,
+             .f16,
+             .f17,
+             .f18,
+             .f19,
+             .f20,
+             .volumeDown,
+             .volumeUp,
+             .volumeMute:
+            return nil
+        default:
+            break
+        }
+
+        let sanitizedText = characters
+            .replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+
+        guard !sanitizedText.isEmpty else {
+            return nil
+        }
+
+        let containsUnsupportedScalars = sanitizedText.unicodeScalars.contains { scalar in
+            let value = scalar.value
+            if value < 0x20 || value == 0x7F {
+                return true
+            }
+
+            // AppKit function keys (arrows, home/end, etc.) live in this range.
+            if (0xF700...0xF8FF).contains(value) {
+                return true
+            }
+
+            return false
+        }
+
+        return containsUnsupportedScalars ? nil : sanitizedText
     }
 }
 

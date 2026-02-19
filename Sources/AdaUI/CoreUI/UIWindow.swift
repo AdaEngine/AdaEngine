@@ -133,8 +133,22 @@ open class UIWindow: UIView {
             return
         }
 
-        let responder = self.findFirstResponder(for: event) ?? self
+        let responder = self.findFirstResponder(for: event) ?? self.defaultResponder(for: event) ?? self
         responder.onEvent(event)
+    }
+
+    private func defaultResponder(for event: any InputEvent) -> UIView? {
+        switch event {
+        case is KeyEvent, is TextInputEvent:
+            // Keyboard/text events have no hit-test point, route to topmost
+            // view container so it can forward input to the focused node.
+            for subview in self.zSortedChildren.reversed() where subview.canRespondToAction(event) {
+                return subview
+            }
+            return nil
+        default:
+            return nil
+        }
     }
 
     // MARK: - Overriding

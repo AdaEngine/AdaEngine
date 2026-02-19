@@ -441,7 +441,25 @@ open class UIView {
     /// - Parameter event: The mouse event.
     open func onMouseEvent(_ event: MouseEvent) { }
 
-    open func onKeyPressed(_ event: Set<KeyEvent>) { }
+    /// Called when the key event is received.
+    ///
+    /// - Parameter event: The key event.
+    open func onKeyEvent(_ event: KeyEvent) { }
+
+    /// Called when the text input event is received.
+    ///
+    /// - Parameter event: The text input event.
+    open func onTextInputEvent(_ event: TextInputEvent) { }
+
+    /// Called when a set of key events is received.
+    ///
+    /// - Parameter event: The key events.
+    @available(*, deprecated, message: "Use onKeyEvent(_:) instead.")
+    open func onKeyPressed(_ event: Set<KeyEvent>) {
+        for keyEvent in event {
+            self.onKeyEvent(keyEvent)
+        }
+    }
 
     /// Called when the event is received.
     ///
@@ -450,10 +468,14 @@ open class UIView {
         switch event {
         case let event as MouseEvent:
             self.onMouseEvent(event)
+        case let event as KeyEvent:
+            self.onKeyEvent(event)
+        case let event as TextInputEvent:
+            self.onTextInputEvent(event)
         case is TouchEvent:
-            let window = self.window?.id
 //            let touches = Input.shared.touches.filter({ $0.window == window })
 //            self.onTouchesEvent(touches)
+            break
         default:
             return
         }
