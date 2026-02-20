@@ -12,8 +12,6 @@ struct TextFieldExample: App {
     var body: some AppScene {
         WindowGroup {
             TextFieldDemoView()
-                ._debugDrawing(.drawViewOverlays)
-                .accentColor(.red)
         }
         .windowMode(.windowed)
     }
@@ -50,12 +48,14 @@ struct TextFieldDemoView: View {
                     placeholder: "Enter assignee",
                     text: $assignee
                 )
+                .accentColor(.green)
 
                 field(
                     title: "Notes",
                     placeholder: "Short note",
                     text: $notes
                 )
+                .accentColor(.red)
 
                 HStack(alignment: .center, spacing: 8) {
                     actionButton("Clear", background: Color.fromHex(0xE05252)) {
@@ -89,7 +89,7 @@ struct TextFieldDemoView: View {
                 }
             }
             .padding(18)
-            .frame(width: 560, height: 340)
+            .frame(width: 560)
             .background(.white)
             .border(Color.fromHex(0xC4CAD3))
         }

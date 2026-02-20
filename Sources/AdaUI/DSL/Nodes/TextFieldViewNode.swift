@@ -20,7 +20,7 @@ final class TextFieldViewNode: ViewNode {
         let selectionHead: Int
     }
 
-    private enum Constants {
+    enum Constants {
         static let horizontalInset: Float = 8
         static let verticalInset: Float = 6
         static let minimumWidth: Float = 140
@@ -44,22 +44,23 @@ final class TextFieldViewNode: ViewNode {
     private var placeholder: String
     private var textBinding: Binding<String>
 
-    private var text: String
+    var text: String
     private var textLayout: TextLayoutManager?
 
     private var isFocused: Bool = false
     private var isSelectingWithMouse: Bool = false
     private var isSelectingWithTouch: Bool = false
     private var horizontalOffset: Float = 0
+    private var wrapsTextToWidth: Bool = false
     private var caretVisible: Bool = true
     private var caretBlinkElapsed: AdaUtils.TimeInterval = 0
     private var mousePressStartPoint: Point?
     private var touchPressStartPoint: Point?
-    private var lastTapTime: AdaUtils.TimeInterval?
-    private var lastTapPosition: Point?
+    var lastTapTime: AdaUtils.TimeInterval?
+    var lastTapPosition: Point?
 
-    private var selectionAnchor: Int = 0
-    private var selectionHead: Int = 0
+    var selectionAnchor: Int = 0
+    var selectionHead: Int = 0
 
     private var undoStack: [Snapshot] = []
     private var redoStack: [Snapshot] = []
@@ -82,6 +83,9 @@ final class TextFieldViewNode: ViewNode {
         let maxCharacterCount = max(self.text.count, self.placeholder.count, 1)
         let measuredWidth = Float(maxCharacterCount) * self.characterAdvance(for: pointSize)
         let measuredHeight = pointSize * 1.2
+        let hasFixedWidth = proposal.width.map { $0 != .infinity } ?? false
+        let hasFixedHeight = proposal.height.map { $0 != .infinity } ?? false
+        self.wrapsTextToWidth = hasFixedWidth && !hasFixedHeight
 
         let ideal = Size(
             width: max(Constants.minimumWidth, measuredWidth + Constants.horizontalInset * 2),
@@ -95,6 +99,14 @@ final class TextFieldViewNode: ViewNode {
         if result.height == .infinity {
             result.height = ideal.height
         }
+
+        if self.wrapsTextToWidth {
+            let contentWidth = max(1, result.width - Constants.horizontalInset * 2)
+            let wrappedLines = max(1, Int(ceil(measuredWidth / contentWidth)))
+            let wrappedHeight = Float(wrappedLines) * measuredHeight + Constants.verticalInset * 2
+            result.height = max(result.height, max(Constants.minimumHeight, wrappedHeight))
+        }
+
         return result
     }
 
@@ -159,7 +171,8 @@ final class TextFieldViewNode: ViewNode {
         let contentRect = self.textContentRect()
         let pointSize = self.resolvedFontPointSize()
         self.refreshInteractiveTextLayoutIfPossible(size: contentRect.size)
-        let textX = localPoint.x - contentRect.origin.x + self.horizontalOffset
+        let horizontalOffset = self.wrapsTextToWidth ? 0 : self.horizontalOffset
+        let textX = localPoint.x - contentRect.origin.x + horizontalOffset
         let caretOffset = self.closestOffset(for: textX, pointSize: pointSize)
 
         switch event.phase {
@@ -209,7 +222,8 @@ final class TextFieldViewNode: ViewNode {
         let contentRect = self.textContentRect()
         let pointSize = self.resolvedFontPointSize()
         self.refreshInteractiveTextLayoutIfPossible(size: contentRect.size)
-        let textX = localPoint.x - contentRect.origin.x + self.horizontalOffset
+        let horizontalOffset = self.wrapsTextToWidth ? 0 : self.horizontalOffset
+        let textX = localPoint.x - contentRect.origin.x + horizontalOffset
         let caretOffset = self.closestOffset(for: textX, pointSize: pointSize)
 
         switch touch.phase {
@@ -339,15 +353,16 @@ final class TextFieldViewNode: ViewNode {
 
         let pointSize = self.resolvedFontPointSize()
         let textColor = self.resolvedTextColor()
-        self.ensureCaretVisible(availableWidth: contentRect.width, pointSize: pointSize)
 
         let hasUserText = !self.text.isEmpty
         let renderedText = hasUserText || self.isFocused ? self.text : self.placeholder
         let renderedColor = hasUserText || self.isFocused ? textColor : textColor.opacity(Constants.placeholderOpacity)
         let resolvedFont = self.resolvedFontForRendering()
         if let resolvedFont {
-            self.updateTextLayout(text: renderedText, font: resolvedFont, color: renderedColor, size: contentRect.size)
+            let layoutSize = self.wrapsTextToWidth ? contentRect.size : Size(width: .infinity, height: contentRect.height)
+            self.updateTextLayout(text: renderedText, font: resolvedFont, color: renderedColor, size: layoutSize)
         }
+        self.ensureCaretVisible(availableWidth: contentRect.width, pointSize: pointSize)
 
         context.clip(to: clipRect) { clipped in
             var clipped = clipped
@@ -355,8 +370,9 @@ final class TextFieldViewNode: ViewNode {
 
             if self.isFocused, self.hasSelection, hasUserText {
                 let range = self.selectionRange
-                let start = self.widthForOffset(range.lowerBound, pointSize: pointSize) - self.horizontalOffset
-                let end = self.widthForOffset(range.upperBound, pointSize: pointSize) - self.horizontalOffset
+                let horizontalOffset = self.wrapsTextToWidth ? 0 : self.horizontalOffset
+                let start = self.widthForOffset(range.lowerBound, pointSize: pointSize) - horizontalOffset
+                let end = self.widthForOffset(range.upperBound, pointSize: pointSize) - horizontalOffset
                 if end > start {
                     clipped.drawRect(
                         Rect(x: start, y: 0, width: end - start, height: contentRect.height),
@@ -366,7 +382,7 @@ final class TextFieldViewNode: ViewNode {
             }
 
             let verticalOffset = Self.verticalTextOffset(for: self.textLayout, height: contentRect.height)
-            let xOffset: Float = hasUserText ? -self.horizontalOffset : 0
+            let xOffset: Float = hasUserText && !self.wrapsTextToWidth ? -self.horizontalOffset : 0
             clipped.translateBy(x: xOffset, y: verticalOffset)
             if resolvedFont != nil {
                 self.drawText(using: &clipped)
@@ -393,7 +409,7 @@ final class TextFieldViewNode: ViewNode {
     }
 }
 
-private extension TextFieldViewNode {
+extension TextFieldViewNode {
 
     var hasSelection: Bool {
         self.selectionAnchor != self.selectionHead
@@ -726,6 +742,11 @@ private extension TextFieldViewNode {
     }
 
     func ensureCaretVisible(availableWidth: Float, pointSize: Float) {
+        if self.wrapsTextToWidth {
+            self.horizontalOffset = 0
+            return
+        }
+
         guard availableWidth > 0 else {
             self.horizontalOffset = 0
             return
@@ -797,150 +818,6 @@ private extension TextFieldViewNode {
         max(6, pointSize * 0.55)
     }
 
-    func isTap(at position: Point, start: Point?) -> Bool {
-        guard let start else {
-            return false
-        }
-
-        let dx = position.x - start.x
-        let dy = position.y - start.y
-        return dx * dx + dy * dy <= Constants.tapMovementToleranceSquared
-    }
-
-    func handleTapCompletion(at position: Point, time: AdaUtils.TimeInterval, caretOffset: Int) {
-        if self.isDoubleTap(at: position, time: time) {
-            self.selectWord(at: caretOffset)
-            self.clearTapCandidate()
-        } else {
-            self.storeTapCandidate(at: position, time: time)
-        }
-    }
-
-    func isDoubleTap(at position: Point, time: AdaUtils.TimeInterval) -> Bool {
-        guard let lastTapTime, let lastTapPosition else {
-            return false
-        }
-
-        let deltaTime = time - lastTapTime
-        guard deltaTime >= 0, deltaTime <= Constants.doubleTapMaxInterval else {
-            return false
-        }
-
-        let dx = position.x - lastTapPosition.x
-        let dy = position.y - lastTapPosition.y
-        return dx * dx + dy * dy <= Constants.doubleTapMovementToleranceSquared
-    }
-
-    func storeTapCandidate(at position: Point, time: AdaUtils.TimeInterval) {
-        self.lastTapPosition = position
-        self.lastTapTime = time
-    }
-
-    func clearTapCandidate() {
-        self.lastTapPosition = nil
-        self.lastTapTime = nil
-    }
-
-    func selectWord(at offset: Int) {
-        let range = self.wordRange(at: offset)
-        if range.isEmpty {
-            self.setSelection(to: offset)
-        } else {
-            self.selectionAnchor = range.lowerBound
-            self.selectionHead = range.upperBound
-        }
-        self.ensureCaretVisibleIfNeeded()
-        self.requestDisplay()
-    }
-
-    func wordRange(at offset: Int) -> Range<Int> {
-        let characters = Array(self.text)
-        let count = characters.count
-        guard count > 0 else {
-            let clamped = max(0, min(offset, count))
-            return clamped..<clamped
-        }
-
-        let clamped = max(0, min(offset, count))
-        var index = clamped
-        if index == count {
-            index = count - 1
-        }
-
-        if !Self.isWordCharacter(characters[index]) {
-            if index > 0, Self.isWordCharacter(characters[index - 1]) {
-                index -= 1
-            } else {
-                return clamped..<clamped
-            }
-        }
-
-        var start = index
-        var end = index + 1
-        while start > 0, Self.isWordCharacter(characters[start - 1]) {
-            start -= 1
-        }
-
-        while end < count, Self.isWordCharacter(characters[end]) {
-            end += 1
-        }
-
-        return start..<end
-    }
-
-    func wordBoundaryBefore(offset: Int) -> Int {
-        let characters = Array(self.text)
-        var index = max(0, min(offset, characters.count))
-        guard index > 0 else {
-            return 0
-        }
-
-        while index > 0, !Self.isWordCharacter(characters[index - 1]) {
-            index -= 1
-        }
-
-        while index > 0, Self.isWordCharacter(characters[index - 1]) {
-            index -= 1
-        }
-
-        return index
-    }
-
-    func wordBoundaryAfter(offset: Int) -> Int {
-        let characters = Array(self.text)
-        let count = characters.count
-        var index = max(0, min(offset, count))
-        guard index < count else {
-            return count
-        }
-
-        while index < count, !Self.isWordCharacter(characters[index]) {
-            index += 1
-        }
-
-        while index < count, Self.isWordCharacter(characters[index]) {
-            index += 1
-        }
-
-        return index
-    }
-
-    static func isWordCharacter(_ character: Character) -> Bool {
-        var hasScalars = false
-        for scalar in character.unicodeScalars {
-            hasScalars = true
-            if scalar == "_" {
-                continue
-            }
-
-            if !CharacterSet.alphanumerics.contains(scalar) {
-                return false
-            }
-        }
-
-        return hasScalars
-    }
-
     func updateTextLayout(text: String, font: Font, color: Color, size: Size) {
         let layout = self.textLayout ?? TextLayoutManager()
         self.textLayout = layout
@@ -950,7 +827,7 @@ private extension TextFieldViewNode {
             text: AttributedText(text, attributes: attributes),
             textAlignment: .leading
         )
-        container.numberOfLines = 1
+        container.numberOfLines = self.wrapsTextToWidth ? nil : 1
 
         layout.setTextContainer(container)
         layout.fitToSize(size)
@@ -961,11 +838,12 @@ private extension TextFieldViewNode {
             return
         }
 
+        let layoutSize = self.wrapsTextToWidth ? size : Size(width: .infinity, height: size.height)
         self.updateTextLayout(
             text: self.text,
             font: font,
             color: self.resolvedTextColor(),
-            size: size
+            size: layoutSize
         )
     }
 

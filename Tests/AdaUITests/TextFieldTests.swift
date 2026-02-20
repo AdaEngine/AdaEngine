@@ -219,4 +219,78 @@ struct TextFieldTests {
         tester.sendTextInput("X", time: 0.25)
         #expect(model.text == "hello X")
     }
+
+    @Test
+    func textField_fixedWidthWithoutHeightExpandsVerticallyForLongText() {
+        final class Model {
+            var text: String = "this is a very long value that should wrap into multiple visual rows"
+        }
+
+        let model = Model()
+
+        let tester = ViewTester {
+            TextField(
+                "Type here",
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                )
+            )
+            .frame(width: 120)
+        }
+        .setSize(Size(width: 300, height: 240))
+        .performLayout()
+
+        var textFieldNode: TextFieldViewNode?
+        for y in stride(from: Float(4), through: Float(220), by: Float(8)) {
+            for x in stride(from: Float(4), through: Float(280), by: Float(8)) {
+                if let node = tester.click(at: Point(x, y)) as? TextFieldViewNode {
+                    textFieldNode = node
+                    break
+                }
+            }
+            if textFieldNode != nil {
+                break
+            }
+        }
+        #expect(textFieldNode != nil)
+        #expect((textFieldNode?.frame.height ?? 0) > 36)
+    }
+
+    @Test
+    func textField_fixedHeightKeepsProvidedHeight() {
+        final class Model {
+            var text: String = "this is a very long value that should scroll horizontally"
+        }
+
+        let model = Model()
+
+        let tester = ViewTester {
+            TextField(
+                "Type here",
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                )
+            )
+            .frame(width: 120, height: 36)
+        }
+        .setSize(Size(width: 300, height: 120))
+        .performLayout()
+
+        var textFieldNode: TextFieldViewNode?
+        for y in stride(from: Float(4), through: Float(110), by: Float(8)) {
+            for x in stride(from: Float(4), through: Float(280), by: Float(8)) {
+                if let node = tester.click(at: Point(x, y)) as? TextFieldViewNode {
+                    textFieldNode = node
+                    break
+                }
+            }
+            if textFieldNode != nil {
+                break
+            }
+        }
+        #expect(textFieldNode != nil)
+        #expect(textFieldNode?.frame.height == 36)
+    }
 }
