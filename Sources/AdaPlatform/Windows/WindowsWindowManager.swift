@@ -13,6 +13,7 @@ import AdaECS
 import WinSDK
 import Math
 import AdaUtils
+import Foundation
 
 // Windows cursor resource identifiers
 nonisolated(unsafe) private let IDC_ARROW: LPCWSTR = unsafe UnsafePointer<WCHAR>(bitPattern: UInt(32512))!
