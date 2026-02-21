@@ -56,8 +56,8 @@ final class FrameViewNode: ViewModifierNode {
         case .size(let width, let height):
             var newSize = self.contentNode.sizeThatFits(
                 ProposedViewSize(
-                    width: width,
-                    height: height
+                    width: width ?? proposal.width,
+                    height: height ?? proposal.height
                 )
             )
             if let width {
