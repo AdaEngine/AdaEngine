@@ -133,8 +133,36 @@ open class UIWindow: UIView {
             return
         }
 
-        let responder = self.findFirstResponder(for: event) ?? self
+        let responder = self.findFirstResponder(for: event) ?? self.defaultResponder(for: event) ?? self
         responder.onEvent(event)
+    }
+
+    private func defaultResponder(for event: any InputEvent) -> UIView? {
+        switch event {
+        case is KeyEvent, is TextInputEvent:
+            if let focusedResponder = self.findFocusedInputResponderInSubviews(for: event) {
+                return focusedResponder
+            }
+
+            // Keyboard/text events have no hit-test point, route to topmost
+            // view container so it can forward input to the focused node.
+            for subview in self.zSortedChildren.reversed() where subview.canRespondToAction(event) {
+                return subview
+            }
+            return nil
+        default:
+            return nil
+        }
+    }
+
+    private func findFocusedInputResponderInSubviews(for event: any InputEvent) -> UIView? {
+        for subview in self.zSortedChildren.reversed() {
+            if let focusedResponder = subview.findFocusedInputResponder(for: event) {
+                return focusedResponder
+            }
+        }
+
+        return nil
     }
 
     // MARK: - Overriding
@@ -166,6 +194,26 @@ open class UIWindow: UIView {
         }
         
         super.removeSubview(view)
+    }
+}
+
+private extension UIView {
+    func findFocusedInputResponder(for event: any InputEvent) -> UIView? {
+        for subview in self.zSortedChildren.reversed() {
+            if let focusedResponder = subview.findFocusedInputResponder(for: event) {
+                return focusedResponder
+            }
+        }
+
+        guard
+            self.canRespondToAction(event),
+            let focusedContainer = self as? any FocusedInputContainer,
+            focusedContainer.hasFocusedInputNode
+        else {
+            return nil
+        }
+
+        return self
     }
 }
 

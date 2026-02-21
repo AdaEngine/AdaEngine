@@ -16,8 +16,6 @@ class ViewTester<Content: View> {
 
     let containerView: UIContainerView<Content>
     var size: Size = .zero
-    private weak var lastOnMouseEventNode: ViewNode?
-    private weak var activeMouseEventNode: ViewNode?
 
     /// Creates a tester with a concrete root view instance.
     ///
@@ -293,44 +291,55 @@ class ViewTester<Content: View> {
     ///   - event: Event to dispatch.
     ///   - hitNode: Node returned by hit-testing for this event.
     private func dispatchMouseEvent(_ event: MouseEvent, hitNode: ViewNode?) {
-        switch event.phase {
-        case .began:
-            self.activeMouseEventNode = hitNode
-            hitNode?.onMouseEvent(event)
-            if self.lastOnMouseEventNode !== hitNode {
-                self.lastOnMouseEventNode?.onMouseLeave()
-                self.lastOnMouseEventNode = hitNode
-            }
-        case .changed:
-            if event.button == .left, let activeMouseEventNode {
-                activeMouseEventNode.onMouseEvent(event)
-                if self.lastOnMouseEventNode !== activeMouseEventNode {
-                    self.lastOnMouseEventNode?.onMouseLeave()
-                    self.lastOnMouseEventNode = activeMouseEventNode
-                }
-            } else if let hitNode {
-                hitNode.onMouseEvent(event)
-                if self.lastOnMouseEventNode !== hitNode {
-                    self.lastOnMouseEventNode?.onMouseLeave()
-                    self.lastOnMouseEventNode = hitNode
-                }
-            }
-        case .ended, .cancelled:
-            if let activeMouseEventNode {
-                activeMouseEventNode.onMouseEvent(event)
-                if self.lastOnMouseEventNode !== activeMouseEventNode {
-                    self.lastOnMouseEventNode?.onMouseLeave()
-                    self.lastOnMouseEventNode = activeMouseEventNode
-                }
-            } else if let hitNode {
-                hitNode.onMouseEvent(event)
-                if self.lastOnMouseEventNode !== hitNode {
-                    self.lastOnMouseEventNode?.onMouseLeave()
-                    self.lastOnMouseEventNode = hitNode
-                }
-            }
-            self.activeMouseEventNode = nil
-        }
+        _ = hitNode
+        self.containerView.onMouseEvent(event)
+    }
+
+    @discardableResult
+    func sendKeyEvent(
+        _ keyCode: KeyCode,
+        modifiers: KeyModifier = [],
+        status: KeyEvent.Status = .down,
+        isRepeated: Bool = false,
+        time: Float = 0
+    ) -> Self {
+        let event = KeyEvent(
+            window: .empty,
+            keyCode: keyCode,
+            modifiers: modifiers,
+            status: status,
+            time: time,
+            isRepeated: isRepeated
+        )
+
+        self.containerView.onKeyEvent(event)
+        return self
+    }
+
+    @discardableResult
+    func sendTextInput(_ text: String, time: Float = 0) -> Self {
+        let event = TextInputEvent(
+            window: .empty,
+            text: text,
+            action: .insert,
+            time: time
+        )
+
+        self.containerView.onTextInputEvent(event)
+        return self
+    }
+
+    @discardableResult
+    func sendDeleteBackward(time: Float = 0) -> Self {
+        let event = TextInputEvent(
+            window: .empty,
+            text: "",
+            action: .deleteBackward,
+            time: time
+        )
+
+        self.containerView.onTextInputEvent(event)
+        return self
     }
 
     // MARK: Simulations
