@@ -13,6 +13,7 @@ import AdaECS
 import WinSDK
 import Math
 import AdaUtils
+import Foundation
 
 // Windows cursor resource identifiers
 nonisolated(unsafe) private let IDC_ARROW: LPCWSTR = unsafe UnsafePointer<WCHAR>(bitPattern: UInt(32512))!
@@ -28,6 +29,7 @@ final class WindowsWindowManager: UIWindowManager {
 
     private unowned let screenManager: WindowsScreenManager
     fileprivate var windowHandles: [UIWindow.ID: HWND] = unsafe [:]
+    private var textInputDecoderStates: [UIWindow.ID: WindowsUTF16TextInputDecoder.State] = [:]
 
     init(_ screenManager: WindowsScreenManager) {
         self.screenManager = screenManager
@@ -146,6 +148,7 @@ final class WindowsWindowManager: UIWindowManager {
             fatalError("System window not exist.")
         }
 
+        self.resetTextInputDecoderState(for: window.id)
         self.removeWindow(window, setActiveAnotherIfNeeded: true)
         unsafe DestroyWindow(systemWindow.hwnd)
     }
@@ -223,9 +226,54 @@ final class WindowsWindowManager: UIWindowManager {
             return false
         }
     }
+
+    func decodeTextInputScalar(from codeUnit: UInt16, for windowId: UIWindow.ID) -> UnicodeScalar? {
+        var state = self.textInputDecoderStates[windowId] ?? .init()
+        let scalar = WindowsUTF16TextInputDecoder.decode(codeUnit: codeUnit, state: &state)
+
+        if state.pendingHighSurrogate == nil {
+            self.textInputDecoderStates.removeValue(forKey: windowId)
+        } else {
+            self.textInputDecoderStates[windowId] = state
+        }
+
+        return scalar
+    }
+
+    func resetTextInputDecoderState(for windowId: UIWindow.ID) {
+        self.textInputDecoderStates.removeValue(forKey: windowId)
+    }
 }
 
 // MARK: - Input Handling Helpers
+
+enum WindowsUTF16TextInputDecoder {
+    struct State {
+        var pendingHighSurrogate: UInt16?
+    }
+
+    static func decode(codeUnit: UInt16, state: inout State) -> UnicodeScalar? {
+        if (0xD800...0xDBFF).contains(codeUnit) {
+            state.pendingHighSurrogate = codeUnit
+            return nil
+        }
+
+        if (0xDC00...0xDFFF).contains(codeUnit) {
+            guard let highSurrogate = state.pendingHighSurrogate else {
+                return nil
+            }
+
+            state.pendingHighSurrogate = nil
+            let high = UInt32(highSurrogate - 0xD800)
+            let low = UInt32(codeUnit - 0xDC00)
+            let scalarValue = 0x10000 + (high << 10) + low
+            return UnicodeScalar(scalarValue)
+        }
+
+        state.pendingHighSurrogate = nil
+        return UnicodeScalar(UInt32(codeUnit))
+    }
+}
 
 private func translateWindowsKeyCode(vkCode: UInt16) -> KeyCode {
     WindowsKeyboard.shared.translateKey(from: vkCode)
@@ -368,6 +416,7 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
         // This can happen if window is destroyed by system or by closeWindow
         Task { @MainActor in
             let windowManager = window.windowManager as? WindowsWindowManager
+            windowManager?.resetTextInputDecoderState(for: window.id)
             // Only remove if not already removed (to avoid double cleanup)
             // This handles the case when window is destroyed by system, not through closeWindow
             if windowManager?.windows[window.id] != nil {
@@ -438,6 +487,8 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
         
     case UInt32(WM_KILLFOCUS):
         Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            windowManager?.resetTextInputDecoderState(for: window.id)
             window.windowDidResignActive()
         }
         return 0
@@ -488,6 +539,62 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
             )
             
             inputRef.wrappedValue.receiveEvent(keyEvent)
+        }
+        return 0
+
+    case UInt32(WM_CHAR), UInt32(WM_SYSCHAR):
+        Task { @MainActor in
+            guard
+                let windowManager = window.windowManager as? WindowsWindowManager,
+                let inputRef = windowManager.inputRef
+            else {
+                return
+            }
+
+            let codeUnit = UInt16(truncatingIfNeeded: wParam & 0xFFFF)
+
+            if codeUnit == 0x08 {
+                windowManager.resetTextInputDecoderState(for: window.id)
+                let textEvent = TextInputEvent(
+                    window: window.id,
+                    text: "",
+                    action: .deleteBackward,
+                    time: getCurrentTime()
+                )
+                inputRef.wrappedValue.receiveEvent(textEvent)
+                return
+            }
+
+            guard let scalar = windowManager.decodeTextInputScalar(from: codeUnit, for: window.id) else {
+                return
+            }
+
+            let character = String(scalar)
+            let sanitizedText = character
+                .replacingOccurrences(of: "\r\n", with: " ")
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\r", with: " ")
+
+            guard !sanitizedText.isEmpty else {
+                return
+            }
+
+            let hasPrintableScalar = sanitizedText.unicodeScalars.contains { value in
+                value.value >= 0x20 && value.value != 0x7F
+            }
+
+            guard hasPrintableScalar else {
+                return
+            }
+
+            let textEvent = TextInputEvent(
+                window: window.id,
+                text: sanitizedText,
+                action: .insert,
+                time: getCurrentTime()
+            )
+
+            inputRef.wrappedValue.receiveEvent(textEvent)
         }
         return 0
         
@@ -772,4 +879,3 @@ extension String {
 }
 
 #endif
-

@@ -305,6 +305,16 @@ class ViewNode: Identifiable {
 
     func onMouseEvent(_ event: MouseEvent) { }
 
+    var canBecomeFocused: Bool {
+        false
+    }
+
+    func onFocusChanged(isFocused: Bool) { }
+
+    func onKeyEvent(_ event: KeyEvent) { }
+
+    func onTextInputEvent(_ event: TextInputEvent) { }
+
     func onMouseLeave() { }
 
     func findFirstResponder(for event: any InputEvent) -> ViewNode? {

@@ -52,10 +52,14 @@ final class FrameViewNode: ViewModifierNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        var newSize = super.sizeThatFits(proposal)
-
         switch frameRule {
         case .size(let width, let height):
+            var newSize = self.contentNode.sizeThatFits(
+                ProposedViewSize(
+                    width: width ?? proposal.width,
+                    height: height ?? proposal.height
+                )
+            )
             if let width {
                 newSize.width = width
             }
@@ -63,8 +67,8 @@ final class FrameViewNode: ViewModifierNode {
             if let height {
                 newSize.height = height
             }
-        }
 
-        return newSize
+            return newSize
+        }
     }
 }
