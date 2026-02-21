@@ -12,6 +12,7 @@ swift_test(
         "ViewModifiersTests.swift",
         "ViewStoragesTests.swift",
         "ViewVisibilityTest.swift",
+        "WindowsUTF16TextInputDecoderTests.swift",
     ],
     module_name = "AdaUITests",
     visibility = ["//visibility:public"],

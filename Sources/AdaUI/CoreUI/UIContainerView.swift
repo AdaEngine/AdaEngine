@@ -9,8 +9,13 @@ import AdaInput
 import AdaUtils
 import Math
 
+@MainActor
+protocol FocusedInputContainer: AnyObject {
+    var hasFocusedInputNode: Bool { get }
+}
+
 /// A container view that contains a view tree.
-public final class UIContainerView<Content: View>: UIView, ViewOwner {
+public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInputContainer {
 
     /// The container view of the container view.
     var containerView: UIView? {
@@ -76,6 +81,9 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
     private weak var activeMouseEventNode: ViewNode?
     /// Focused node that receives keyboard and text input events.
     private weak var focusedNode: ViewNode?
+    var hasFocusedInputNode: Bool {
+        self.focusedNode != nil
+    }
 
     /// Handle the mouse event.
     ///

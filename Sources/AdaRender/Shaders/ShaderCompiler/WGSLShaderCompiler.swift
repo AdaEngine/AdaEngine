@@ -2,7 +2,11 @@
 import WebGPU
 import Subprocess
 import Foundation
-import System
+#if canImport(System)
+@unsafe @preconcurrency import System
+#else
+@preconcurrency import SystemPackage
+#endif
 
 struct WGSLShaderCompiler: ShaderDeviceCompilerEngine {
     func compile(
@@ -18,7 +22,7 @@ struct WGSLShaderCompiler: ShaderDeviceCompilerEngine {
         let tempFileURL = try getTempFileURL(from: spirvData)
 
         let process = try await run(
-            .path(System.FilePath(toolExecutable.path())), 
+            .path(FilePath(toolExecutable.path())),
             arguments: [
                 tempFileURL.path(),
                 "--format", 

@@ -7,6 +7,7 @@
 
 @_spi(Internal) @testable import AdaUI
 @_spi(Internal) @testable import AdaPlatform
+import AdaInput
 import Math
 
 class TestApplication: Application {
@@ -21,7 +22,24 @@ class TestApplication: Application {
 }
 
 class MockUIWindowManager: UIWindowManager {
+    private var cursorShape: Input.CursorShape = .arrow
+    private var mouseMode: Input.MouseMode = .visible
 
+    override func setCursorShape(_ shape: Input.CursorShape) {
+        self.cursorShape = shape
+    }
+
+    override func getCursorShape() -> Input.CursorShape {
+        self.cursorShape
+    }
+
+    override func setMouseMode(_ mode: Input.MouseMode) {
+        self.mouseMode = mode
+    }
+
+    override func getMouseMode() -> Input.MouseMode {
+        self.mouseMode
+    }
 }
 
 private final class MockSystemScreen: SystemScreen {}
