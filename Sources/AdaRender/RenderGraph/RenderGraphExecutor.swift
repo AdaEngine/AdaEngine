@@ -11,6 +11,7 @@ import AdaECS
 import AdaUtils
 import Logging
 import Collections
+import DequeModule
 import Tracing
 
 /// Execute ``RenderGraph`` objects.

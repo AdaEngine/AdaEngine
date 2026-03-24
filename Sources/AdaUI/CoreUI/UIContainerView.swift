@@ -40,6 +40,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     public override func layoutSubviews() {
         super.layoutSubviews()
 
+        focusManager.setRootNode(viewTree.rootNode)
         viewTree.rootNode.place(
             in: .zero,
             anchor: .zero,
@@ -79,10 +80,10 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     private weak var lastOnMouseEventNode: ViewNode?
     /// Mouse-down capture target. Subsequent changed/ended events are routed here.
     private weak var activeMouseEventNode: ViewNode?
-    /// Focused node that receives keyboard and text input events.
-    private weak var focusedNode: ViewNode?
+    /// Manages keyboard-driven focus traversal across focusable nodes.
+    private let focusManager = UIFocusManager()
     var hasFocusedInputNode: Bool {
-        self.focusedNode != nil
+        self.focusManager.focusedNode != nil
     }
 
     /// Handle the mouse event.
@@ -139,7 +140,16 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     }
 
     public override func onKeyEvent(_ event: KeyEvent) {
-        if let focusedNode {
+        if event.keyCode == .tab, event.status == .down {
+            if event.modifiers.contains(.shift) {
+                focusManager.focusPrevious()
+            } else {
+                focusManager.focusNext()
+            }
+            return
+        }
+
+        if let focusedNode = focusManager.focusedNode {
             focusedNode.onKeyEvent(event)
         } else {
             self.viewTree.rootNode.onReceiveEvent(event)
@@ -147,7 +157,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     }
 
     public override func onTextInputEvent(_ event: TextInputEvent) {
-        if let focusedNode {
+        if let focusedNode = focusManager.focusedNode {
             focusedNode.onTextInputEvent(event)
         } else {
             self.viewTree.rootNode.onReceiveEvent(event)
@@ -156,13 +166,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 
     private func updateFocusedNode(with hitNode: ViewNode?) {
         let newFocusedNode = self.findFocusableNode(from: hitNode)
-        if self.focusedNode === newFocusedNode {
-            return
-        }
-
-        self.focusedNode?.onFocusChanged(isFocused: false)
-        self.focusedNode = newFocusedNode
-        self.focusedNode?.onFocusChanged(isFocused: true)
+        focusManager.focus(newFocusedNode)
     }
 
     private func findFocusableNode(from node: ViewNode?) -> ViewNode? {

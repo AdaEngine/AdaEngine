@@ -7,6 +7,7 @@
 
 import AdaUtils
 import Collections
+import DequeModule
 import Foundation
 
 public final class WorldCommandQueue: @unchecked Sendable {
