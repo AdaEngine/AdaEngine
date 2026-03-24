@@ -6,6 +6,7 @@
 //
 
 import Collections
+import OrderedCollections
 
 /// Contains information about relationship of entity.
 @Component

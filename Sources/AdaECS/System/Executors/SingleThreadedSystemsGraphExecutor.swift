@@ -5,6 +5,7 @@
 
 import AdaUtils
 import Collections
+import DequeModule
 
 /// The executor of the systems graph.
 public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
