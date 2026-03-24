@@ -1002,12 +1002,12 @@ private extension Target {
             dependencies: [
                 "AdaEngine"
             ],
-            path: "Demos/\(path)/",
+            path: "Demos/",
             sources: [
-                "\(name).swift"
+                "\(path)/\(name).swift"
             ],
             resources: [
-                .copy("../Resources/")
+                .copy("Resources/")
             ],
             packageAccess: false
         )
