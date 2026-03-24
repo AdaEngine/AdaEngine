@@ -25,7 +25,21 @@ public extension Gesture {
     func map<T>(_ block: @escaping (Value) -> T) -> _MapGesture<Self, T> {
         _MapGesture(gesture: self, map: block)
     }
+
+    func simultaneously<Other: Gesture>(with other: Other) -> SimultaneousGesture<Self, Other> {
+        SimultaneousGesture(first: self, second: other)
+    }
+
+    func sequenced<Other: Gesture>(before other: Other) -> SequenceGesture<Self, Other> {
+        SequenceGesture(first: self, second: other)
+    }
+
+    func exclusively<Other: Gesture>(before other: Other) -> ExclusiveGesture<Self, Other> {
+        ExclusiveGesture(first: self, second: other)
+    }
 }
+
+// MARK: - _OnChangedGesture
 
 public struct _OnChangedGesture<G: Gesture>: Gesture {
     public typealias Value = G.Value
@@ -35,8 +49,21 @@ public struct _OnChangedGesture<G: Gesture>: Gesture {
     let gesture: G
 }
 
-public struct _OnEndedGesture<G: Gesture>: Gesture {
+extension _OnChangedGesture: _RecognizableGesture where G: _RecognizableGesture {
+    func _makeRecognizer(onChanged: ((Value) -> Void)?, onEnded: ((Value) -> Void)?) -> GestureRecognizer {
+        gesture._makeRecognizer(onChanged: self.action, onEnded: onEnded)
+    }
+}
 
+extension _OnChangedGesture: _GestureRecognizerConvertible where G: _RecognizableGesture {
+    func _buildRecognizers() -> [GestureRecognizer] {
+        [_makeRecognizer(onChanged: nil, onEnded: nil)]
+    }
+}
+
+// MARK: - _OnEndedGesture
+
+public struct _OnEndedGesture<G: Gesture>: Gesture {
     public typealias Value = G.Value
     public typealias Body = Never
 
@@ -44,8 +71,21 @@ public struct _OnEndedGesture<G: Gesture>: Gesture {
     let gesture: G
 }
 
-public struct _MapGesture<G: Gesture, T> {
+extension _OnEndedGesture: _RecognizableGesture where G: _RecognizableGesture {
+    func _makeRecognizer(onChanged: ((Value) -> Void)?, onEnded: ((Value) -> Void)?) -> GestureRecognizer {
+        gesture._makeRecognizer(onChanged: onChanged, onEnded: self.action)
+    }
+}
 
+extension _OnEndedGesture: _GestureRecognizerConvertible where G: _RecognizableGesture {
+    func _buildRecognizers() -> [GestureRecognizer] {
+        [_makeRecognizer(onChanged: nil, onEnded: nil)]
+    }
+}
+
+// MARK: - _MapGesture
+
+public struct _MapGesture<G: Gesture, T>: Gesture {
     public typealias Value = T
     public typealias Body = Never
 

@@ -20,6 +20,13 @@ class ViewModifierNode: ViewNode {
         self.contentNode.parent = self
     }
 
+    override func didMove(to parent: ViewNode?) {
+        super.didMove(to: parent)
+        if parent == nil {
+            contentNode.parent = nil
+        }
+    }
+
     override func update(from newNode: ViewNode) {
         guard let otherNode = newNode as? Self else {
             return

@@ -250,6 +250,15 @@ class ViewContainerNode: ViewNode {
         return (node as? IDViewNodeModifier)?.identifier
     }
 
+    override func didMove(to parent: ViewNode?) {
+        super.didMove(to: parent)
+        if parent == nil {
+            for node in nodes {
+                node.parent = nil
+            }
+        }
+    }
+
     override func update(from newNode: ViewNode) {
         super.update(from: newNode)
 
