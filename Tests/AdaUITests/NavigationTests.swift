@@ -154,6 +154,27 @@ struct NavigationStackTests {
 
         #expect(stackNode?.navigationContext.path.isEmpty == true)
     }
+
+    @Test
+    func rootOnAppear_doesNotRefire_whenRootStateChanges() {
+        var rootAppearedCount = 0
+        let driver = NavigationRootStateDriver()
+
+        _ = ViewTester {
+            NavigationRootStateHost(driver: driver) {
+                rootAppearedCount += 1
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        #expect(rootAppearedCount == 1)
+        #expect(driver.counter != nil)
+
+        driver.counter?.wrappedValue += 1
+
+        #expect(rootAppearedCount == 1)
+    }
 }
 
 // Helper view that calls dismiss via environment
@@ -164,6 +185,45 @@ private struct DismissTestView: View {
         Color.blue
             .frame(width: 200, height: 200)
             .onAppear(perform: onAppear)
+    }
+}
+
+private struct NavigationRootStateHost: View {
+    @State private var counter = 0
+
+    let driver: NavigationRootStateDriver
+    let onAppear: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                Color.red
+                    .frame(width: 300, height: 120)
+                    .onAppear(perform: onAppear)
+
+                NavigationRootStateBindingProbe(counter: $counter, driver: driver)
+            }
+        }
+    }
+}
+
+private final class NavigationRootStateDriver {
+    var counter: Binding<Int>?
+}
+
+private struct NavigationRootStateBindingProbe: View {
+    @Binding var counter: Int
+
+    let driver: NavigationRootStateDriver
+
+    init(counter: Binding<Int>, driver: NavigationRootStateDriver) {
+        self._counter = counter
+        self.driver = driver
+        self.driver.counter = counter
+    }
+
+    var body: some View {
+        EmptyView()
     }
 }
 

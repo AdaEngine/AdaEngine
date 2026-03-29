@@ -9,6 +9,13 @@
 import AdaUI
 import Math
 import MetalKit
+import QuartzCore
+#if canImport(AppKit)
+import AppKit
+#endif
+#if canImport(UIKit)
+import UIKit
+#endif
 
 open class MetalView: MTKView {
     
@@ -22,10 +29,58 @@ open class MetalView: MTKView {
     public init(windowId: AdaUI.UIWindow.ID, frame: CGRect) {
         self.windowID = windowId
         super.init(frame: frame, device: nil)
+        self.isOpaque = true
+        self.isPaused = true
+        self.enableSetNeedsDisplay = false
+        self.autoResizeDrawable = true
+        self.presentsWithTransaction = false
+        updateDrawableMetrics()
     }
     
     public required init(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    #if canImport(UIKit)
+    open override func layoutSubviews() {
+        super.layoutSubviews()
+        updateDrawableMetrics()
+    }
+    #endif
+
+    #if canImport(AppKit)
+    open override func layout() {
+        super.layout()
+        updateDrawableMetrics()
+    }
+    #endif
+
+    private func updateDrawableMetrics() {
+        #if canImport(UIKit)
+        let scale = self.window?.screen.scale ?? UIScreen.main.scale
+        self.contentScaleFactor = scale
+        let drawableSize = CGSize(
+            width: bounds.width * scale,
+            height: bounds.height * scale
+        )
+        self.layer.contentsScale = scale
+        #elseif canImport(AppKit)
+        let scale = self.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1
+        let drawableSize = CGSize(
+            width: bounds.width * scale,
+            height: bounds.height * scale
+        )
+        self.layer?.contentsScale = scale
+        #endif
+
+        self.drawableSize = drawableSize
+
+        if let metalLayer = self.layer as? CAMetalLayer {
+            metalLayer.isOpaque = true
+            metalLayer.frame = bounds
+            metalLayer.contentsScale = scale
+            metalLayer.drawableSize = drawableSize
+        }
     }
     
 }

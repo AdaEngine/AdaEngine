@@ -38,6 +38,12 @@ extension String {
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
+#if canImport(Darwin)
+let miniaudioSources = ["miniaudio.c", "miniaudio_apple.m"]
+#else
+let miniaudioSources = ["miniaudio.c"]
+#endif
+
 var products: [Product] = [
     .executable(
         name: "AdaEditor",
@@ -665,7 +671,7 @@ targets += [
     ),
     .target(
         name: "miniaudio",
-        sources: ["miniaudio.c"],
+        sources: miniaudioSources,
         publicHeadersPath: "include",
         cSettings: [
             .unsafeFlags(["-w"])

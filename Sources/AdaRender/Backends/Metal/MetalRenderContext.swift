@@ -47,6 +47,10 @@ extension MetalRenderBackend {
             view.sampleCount = 1
 
             let layer = view.layer as? CAMetalLayer
+            layer?.frame = view.bounds
+            layer?.pixelFormat = view.colorPixelFormat
+            layer?.contentsScale = CGFloat(view.scaleFactor)
+            layer?.isOpaque = true
             layer?.maximumDrawableCount = unsafe RenderEngine.configurations.maxFramesInFlight
             layer?.allowsNextDrawableTimeout = true
 
