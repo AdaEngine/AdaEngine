@@ -27,12 +27,7 @@ extension MTKView: RenderSurface {
             .backingScaleFactor
         )
         #elseif canImport(UIKit)
-        return unsafe Float(
-            self.window
-            .unwrap(message: "MTKView must contains window.")
-            .screen
-            .scaleFactor
-        )
+        return Float(self.window?.screen.scale ?? UIScreen.main.scale)
         #else
         return 1
         #endif

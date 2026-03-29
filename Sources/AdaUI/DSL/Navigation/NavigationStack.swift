@@ -170,12 +170,16 @@ final class NavigationStackNode: ViewNode {
             newNode = contentBuilder(childInputs)
         }
 
-        currentContentNode.parent = nil
-        currentContentNode = newNode
-        currentContentNode.parent = self
+        if newNode.canUpdate(currentContentNode) {
+            currentContentNode.update(from: newNode)
+        } else {
+            currentContentNode.parent = nil
+            currentContentNode = newNode
+            currentContentNode.parent = self
 
-        if let owner {
-            currentContentNode.updateViewOwner(owner)
+            if let owner {
+                currentContentNode.updateViewOwner(owner)
+            }
         }
 
         currentContentNode.updateEnvironment(childInputs.environment)

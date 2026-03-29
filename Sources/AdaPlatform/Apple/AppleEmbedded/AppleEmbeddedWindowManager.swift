@@ -22,19 +22,30 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
     }
 
     override func createWindow(for window: AdaUI.UIWindow) {
-        let screen = UIScreen.main
-        let frame = screen.bounds.toEngineRect
+        let scene = activeWindowScene()
+        let screen = scene?.screen ?? UIScreen.main
+        let sceneBounds = scene?.coordinateSpace.bounds ?? screen.bounds
+        let frame = sceneBounds.toEngineRect
         
         // Register view in engine
         
-        let gameViewController = _GameViewController(window: window.id, frame: screen.bounds)
+        let gameViewController = _GameViewController(window: window.id, frame: sceneBounds)
 
 
         // Setup windowManager reference for input handling
         gameViewController.renderView.windowManager = self
         gameViewController.renderView.setupMouseTracking()
         
-        let systemWindow = _AdaUIWindow(frame: screen.bounds, windowManager: self)
+        let systemWindow: _AdaUIWindow
+        if let scene {
+            systemWindow = _AdaUIWindow(
+                windowScene: scene,
+                frame: sceneBounds,
+                windowManager: self
+            )
+        } else {
+            systemWindow = _AdaUIWindow(frame: sceneBounds, windowManager: self)
+        }
         systemWindow.rootViewController = gameViewController
         systemWindow.backgroundColor = .black
         
@@ -59,20 +70,21 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         guard let uiWindow = window.systemWindow as? UIKit.UIWindow else {
             fatalError("System window not exist.")
         }
-        
+
+        attachWindowToSceneIfNeeded(uiWindow)
         uiWindow.makeKeyAndVisible()
-        
+
+        if let appDelegate = UIApplication.shared.delegate as? AppleEmbeddedAppDelegate {
+            appDelegate.window = uiWindow
+        }
+
         window.windowDidAppear()
-        
+
         self.setActiveWindow(window)
     }
     
     override func setWindowMode(_ window: AdaUI.UIWindow, mode: AdaUI.UIWindow.Mode) {
-        guard let uiWindow = window.systemWindow as? UIKit.UIWindow else {
-            fatalError("System window not exist.")
-        }
-        
-        print("Method doesn't implemented", #function)
+        window.isFullscreen = mode == .fullscreen
     }
     
     override func closeWindow(_ window: AdaUI.UIWindow) {
@@ -95,11 +107,31 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
     }
 
     override func resizeWindow(_ window: AdaUI.UIWindow, size: Math.Size) {
-        print("Method doesn't implemented", #function)
+        guard let uiWindow = window.systemWindow as? UIKit.UIWindow else {
+            return
+        }
+
+        let currentOrigin = uiWindow.frame.origin
+        let newFrame = CGRect(origin: currentOrigin, size: size.toCGSize)
+
+        uiWindow.frame = newFrame
+        uiWindow.rootViewController?.view.frame = CGRect(origin: .zero, size: size.toCGSize)
     }
     
     override func setMinimumSize(_ size: Size, for window: AdaUI.UIWindow) {
-        print("Method doesn't implemented", #function)
+        guard let uiWindow = window.systemWindow as? UIKit.UIWindow else {
+            return
+        }
+
+        let currentSize = uiWindow.frame.size.toEngineSize
+        let clampedSize = Size(
+            width: max(currentSize.width, size.width),
+            height: max(currentSize.height, size.height)
+        )
+
+        if clampedSize != currentSize {
+            resizeWindow(window, size: clampedSize)
+        }
     }
     
     private(set) var currentShape: Input.CursorShape = .arrow
@@ -147,6 +179,34 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
             ($0.systemWindow as? UIKit.UIWindow) === nsWindow
         }
     }
+
+    private func attachWindowToSceneIfNeeded(_ window: UIKit.UIWindow) {
+        guard #available(iOS 13.0, tvOS 13.0, *), window.windowScene == nil else {
+            return
+        }
+
+        let scene = activeWindowScene()
+
+        guard let scene else {
+            return
+        }
+
+        window.windowScene = scene
+        window.frame = scene.coordinateSpace.bounds
+        window.rootViewController?.view.frame = scene.coordinateSpace.bounds
+    }
+
+    private func activeWindowScene() -> UIWindowScene? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first {
+                $0.activationState == .foregroundActive
+                    || $0.activationState == .foregroundInactive
+            }
+            ?? UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first
+    }
 }
 
 final class _AdaUIWindow: UIKit.UIWindow, SystemWindow, UIPointerInteractionDelegate {
@@ -183,6 +243,13 @@ final class _AdaUIWindow: UIKit.UIWindow, SystemWindow, UIPointerInteractionDele
     init(frame: CGRect, windowManager: AppleEmbeddedWindowManager) {
         self.windowManager = windowManager
         super.init(frame: frame)
+    }
+
+    @available(iOS 13.0, tvOS 13.0, *)
+    init(windowScene: UIWindowScene, frame: CGRect, windowManager: AppleEmbeddedWindowManager) {
+        self.windowManager = windowManager
+        super.init(windowScene: windowScene)
+        self.frame = frame
     }
 
     required init?(coder: NSCoder) {

@@ -29,7 +29,7 @@ public struct AppPlatformPlugin: Plugin {
 #endif
 
 #if os(iOS) || os(tvOS)
-            application = unsafe try iOSApplication(argc: argc, argv: argv)
+            application = unsafe try AppleEmbeddedApplication(argc: argc, argv: argv)
 #endif
 
 #if os(Android)

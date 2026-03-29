@@ -30,6 +30,7 @@ final class AppleEmbeddedApplication: Application {
 
         let screenManager = AppleEmbeddedScreenManager()
         self.screenManager = screenManager
+        unsafe Screen.screenManager = screenManager
         try unsafe super.init(argc: argc, argv: argv)
         self.windowManager = AppleEmbeddedWindowManager(screenManager: screenManager)
         UIWindowManager.setShared(self.windowManager)

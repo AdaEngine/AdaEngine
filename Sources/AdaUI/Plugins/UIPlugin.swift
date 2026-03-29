@@ -82,11 +82,18 @@ public struct WindowPlugin: Plugin {
         } else {
             let window = UIWindow()
             window.title = windowSettings.title ?? "App"
+            #if os(iOS) || os(tvOS) || os(watchOS)
+            let embeddedWindowSize = Screen.main?.size ?? windowSettings.minimumSize
+            window.minSize = embeddedWindowSize
+            window.frame = Rect(origin: .zero, size: embeddedWindowSize)
+            window.setWindowMode(.fullscreen)
+            #else
             window.minSize = windowSettings.minimumSize
             window.frame = Rect(origin: .zero, size: windowSettings.minimumSize)
             window.setWindowMode(
                 windowSettings.windowMode == .fullscreen ? .fullscreen : .windowed
             )
+            #endif
             window.showWindow(makeFocused: true)
             app
                 .insertResource(PrimaryWindow(window: window))
