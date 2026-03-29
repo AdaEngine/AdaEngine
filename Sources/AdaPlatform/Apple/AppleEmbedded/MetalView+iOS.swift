@@ -56,6 +56,10 @@ extension MetalView {
         return true
     }
 
+    open override var inputView: UIKit.UIView? {
+        showsKeyboard ? nil : UIKit.UIView(frame: .zero)
+    }
+
     public var keyboardType: UIKeyboardType {
         return .default
     }
@@ -72,7 +76,7 @@ extension MetalView {
 
     open override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         if !self.isFirstResponder {
-            self.becomeFirstResponder()
+            let _ = self.becomeFirstResponder()
         }
 
         for touch in touches {

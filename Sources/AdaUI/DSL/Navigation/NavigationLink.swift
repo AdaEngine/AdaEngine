@@ -84,6 +84,28 @@ final class NavigationLinkNode: ViewModifierNode {
         requestDisplay()
     }
 
+    override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        guard environment.isEnabled else { return }
+        guard let touch = touches.first else { return }
+
+        switch touch.phase {
+        case .began:
+            isHighlighted = true
+        case .moved:
+            break
+        case .ended:
+            let wasHighlighted = isHighlighted
+            isHighlighted = false
+            if wasHighlighted {
+                navigate()
+            }
+        case .cancelled:
+            isHighlighted = false
+        }
+
+        requestDisplay()
+    }
+
     private func navigate() {
         environment.navigationContext?.push(value)
     }

@@ -5,20 +5,32 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
-#if IOS || TVOS
+#if IOS || TVOS || VISIONOS
 import UIKit
 import AdaInput
 @_spi(Internal) import AdaUI
 import AdaRender
 import AdaUtils
 import Math
+import MetalKit
 
 // swiftlint:disable:next type_name
 final class AppleEmbeddedWindowManager: UIWindowManager {
     private let screenManager: any ScreenManager
+    private var isUIKitReady = false
+    private var pendingWindows: [(window: AdaUI.UIWindow, isFocused: Bool)] = []
 
     init(screenManager: any ScreenManager) {
         self.screenManager = screenManager
+    }
+
+    func sceneDidConnect(_ windowScene: UIWindowScene) {
+        isUIKitReady = true
+        let pending = pendingWindows
+        pendingWindows.removeAll()
+        for entry in pending {
+            presentWindow(entry.window, isFocused: entry.isFocused, scene: windowScene)
+        }
     }
 
     override func createWindow(for window: AdaUI.UIWindow) {
@@ -28,9 +40,7 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         let frame = sceneBounds.toEngineRect
         
         // Register view in engine
-        
-        let gameViewController = _GameViewController(window: window.id, frame: sceneBounds)
-
+        let gameViewController = _AdaEngineViewController(window: window.id, frame: sceneBounds)
 
         // Setup windowManager reference for input handling
         gameViewController.renderView.windowManager = self
@@ -55,6 +65,7 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         
         window.systemWindow = systemWindow
         window.minSize = frame.size
+        window.userInterfaceIdiom = Self.detectIdiom()
 
         unsafe try? RenderEngine.shared.createWindow(
             window.id,
@@ -67,11 +78,22 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
     
     // - TODO: (Vlad) I'm not really sure, that we should make window unfocused
     override func showWindow(_ window: AdaUI.UIWindow, isFocused: Bool) {
+        guard !isUIKitReady else {
+            presentWindow(window, isFocused: isFocused, scene: nil)
+            return
+        }
+        pendingWindows.append((window: window, isFocused: isFocused))
+    }
+
+    private func presentWindow(_ window: AdaUI.UIWindow, isFocused: Bool, scene: UIWindowScene?) {
         guard let uiWindow = window.systemWindow as? UIKit.UIWindow else {
             fatalError("System window not exist.")
         }
 
-        attachWindowToSceneIfNeeded(uiWindow)
+        attachWindowToSceneIfNeeded(uiWindow, preferredScene: scene)
+        if let sceneDelegate = uiWindow.windowScene?.delegate as? AppleEmbeddedSceneDelegate {
+            sceneDelegate.window = uiWindow
+        }
         uiWindow.makeKeyAndVisible()
 
         if let appDelegate = UIApplication.shared.delegate as? AppleEmbeddedAppDelegate {
@@ -174,26 +196,46 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         return self.currentShape
     }
     
+    override func textInputFocusDidChange(_ isFocused: Bool) {
+        guard let gameVC = (activeWindow?.systemWindow as? UIKit.UIWindow)?
+            .rootViewController as? _AdaEngineViewController else {
+            return
+        }
+        gameVC.renderView.showsKeyboard = isFocused
+        gameVC.renderView.reloadInputViews()
+        if isFocused, !gameVC.renderView.isFirstResponder {
+            gameVC.renderView.becomeFirstResponder()
+        }
+    }
+
     func findWindow(for nsWindow: UIKit.UIWindow) -> AdaUI.UIWindow? {
         return self.windows.first {
             ($0.systemWindow as? UIKit.UIWindow) === nsWindow
         }
     }
 
-    private func attachWindowToSceneIfNeeded(_ window: UIKit.UIWindow) {
-        guard #available(iOS 13.0, tvOS 13.0, *), window.windowScene == nil else {
-            return
-        }
+    private static func detectIdiom() -> UserInterfaceIdiom {
+        _AdaEngineViewController.idiom(from: .current)
+    }
 
-        let scene = activeWindowScene()
-
-        guard let scene else {
-            return
+    private func attachWindowToSceneIfNeeded(_ window: UIKit.UIWindow, preferredScene: UIWindowScene? = nil) {
+        let scene: UIWindowScene
+        if let preferredScene {
+            scene = preferredScene
+        } else {
+            guard window.windowScene == nil, let found = activeWindowScene() else {
+                return
+            }
+            scene = found
         }
 
         window.windowScene = scene
         window.frame = scene.coordinateSpace.bounds
         window.rootViewController?.view.frame = scene.coordinateSpace.bounds
+
+        if let sceneDelegate = scene.delegate as? AppleEmbeddedSceneDelegate {
+            sceneDelegate.window = window
+        }
     }
 
     private func activeWindowScene() -> UIWindowScene? {
@@ -284,7 +326,7 @@ final class _AdaUIWindow: UIKit.UIWindow, SystemWindow, UIPointerInteractionDele
     }
 }
 
-final class _GameViewController: UIViewController {
+final class _AdaEngineViewController: UIViewController {
     var renderView: MetalView
 
     init(window: AdaUI.UIWindow.ID, frame: CGRect) {
@@ -298,6 +340,78 @@ final class _GameViewController: UIViewController {
     
     override func loadView() {
         self.view = self.renderView
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        registerForTraitChanges(
+            [UITraitUserInterfaceIdiom.self, UITraitUserInterfaceStyle.self,
+             UITraitHorizontalSizeClass.self, UITraitVerticalSizeClass.self]
+        ) { [weak self] (_: _AdaEngineViewController, _: UITraitCollection) in
+            self?.propagateTraits()
+        }
+    }
+
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        propagateSafeAreaInsets()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+
+        guard let adaWindow = renderView.windowManager?.windows[renderView.windowID] else { return }
+        adaWindow.frame = self.view.frame.toEngineRect
+        adaWindow.layoutSubviews()
+    }
+
+    private func propagateTraits() {
+        guard let adaWindow = renderView.windowManager?.windows[renderView.windowID] else { return }
+        adaWindow.userInterfaceIdiom = Self.idiom(from: traitCollection)
+        adaWindow.colorScheme = Self.colorScheme(from: traitCollection)
+        adaWindow.setNeedsLayout()
+    }
+
+    static func idiom(from traits: UITraitCollection) -> UserInterfaceIdiom {
+        #if VISIONOS
+        return .xr
+        #elseif TVOS
+        return .tv
+        #else
+        switch traits.userInterfaceIdiom {
+        case .phone: return .phone
+        case .pad: return .pad
+        case .mac: return .desktop
+        default: return .phone
+        }
+        #endif
+    }
+
+    private static func colorScheme(from traits: UITraitCollection) -> ColorScheme {
+        traits.userInterfaceStyle == .dark ? .dark : .light
+    }
+
+    private func propagateSafeAreaInsets() {
+        let uiInsets = view.safeAreaInsets
+        let engineInsets = EdgeInsets(
+            top: Float(uiInsets.top),
+            leading: Float(uiInsets.left),
+            bottom: Float(uiInsets.bottom),
+            trailing: Float(uiInsets.right)
+        )
+        // Look up by window ID rather than activeWindow — activeWindow may be
+        // nil during the initial layout pass that precedes setActiveWindow.
+        guard let adaWindow = renderView.windowManager?.windows[renderView.windowID] else { return }
+        // Store on the window so UIContainerView can read it when attached later
+        // (WindowGroupUpdateSystem adds the container view on the first ECS tick,
+        // which is after the first viewSafeAreaInsetsDidChange call).
+        adaWindow.safeAreaInsets = engineInsets
+        for subview in adaWindow.subviews {
+            if let provider = subview as? SafeAreaProvider {
+                provider.safeAreaInsets = engineInsets
+                provider.setNeedsLayout()
+            }
+        }
     }
 }
 #endif

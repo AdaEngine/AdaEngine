@@ -11,105 +11,308 @@ import AdaText
 import AdaUtils
 import Math
 
+// MARK: - TabViewPosition
+
+/// The position of the tab bar relative to the content.
+public enum TabViewPosition: Sendable {
+    case top
+    case bottom
+    case left
+    case right
+}
+
+// MARK: - TabLabelStyle
+
+/// Controls which parts of a tab label are displayed.
+public enum TabLabelStyle: Sendable {
+    /// Show only the image.
+    case compact
+    /// Show both image and text.
+    case regular
+}
+
+// MARK: - TabBarElement
+
+enum TabBarElement {
+    case tab(
+        label: String?,
+        image: Image?,
+        value: AnyHashable,
+        makeContent: @MainActor (_ViewInputs) -> ViewNode
+    )
+    case sectionHeader(String)
+    case spacer
+    case divider
+}
+
+// MARK: - _TabItem
+
+@MainActor
+protocol _TabItem {
+    func _extractTabBarElements(inputs: _ViewInputs) -> [TabBarElement]
+}
+
+// MARK: - Tab
+
+/// A single tab item with a label, optional image, and associated content.
 @MainActor @preconcurrency
-public struct TabContainer<Selection: Hashable, Content: View>: View, ViewNodeBuilder {
+public struct Tab<Value: Hashable, Content: View>: View, ViewNodeBuilder {
 
     public typealias Body = Never
     public var body: Never { fatalError() }
 
-    let labels: [String]
-    let values: [Selection]
-    let selection: Binding<Selection>
-    let content: (Selection) -> Content
+    let label: String?
+    let image: Image?
+    let value: Value
+    let content: () -> Content
+
+    /// Creates a tab with a text label, optional image, and content.
+    public init(
+        _ label: String,
+        image: Image? = nil,
+        value: Value,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.label = label
+        self.image = image
+        self.value = value
+        self.content = content
+    }
+
+    /// Creates a tab with only an image and content.
+    public init(
+        image: Image,
+        value: Value,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.label = nil
+        self.image = image
+        self.value = value
+        self.content = content
+    }
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        Content._makeView(_ViewGraphNode(value: content()), inputs: context).node
+    }
+}
+
+extension Tab: _TabItem {
+    func _extractTabBarElements(inputs: _ViewInputs) -> [TabBarElement] {
+        let label = self.label
+        let image = self.image
+        let hashableValue = AnyHashable(value)
+        let contentClosure = content
+        let makeContent: @MainActor (_ViewInputs) -> ViewNode = { inputs in
+            Content._makeView(_ViewGraphNode(value: contentClosure()), inputs: inputs).node
+        }
+        return [.tab(label: label, image: image, value: hashableValue, makeContent: makeContent)]
+    }
+}
+
+// MARK: - TabSection
+
+/// A labeled group of tabs in a TabView.
+@MainActor @preconcurrency
+public struct TabSection<Content: View>: View, ViewNodeBuilder {
+
+    public typealias Body = Never
+    public var body: Never { fatalError() }
+
+    let title: String
+    let content: () -> Content
 
     public init(
-        _ tabs: [(label: String, value: Selection)],
-        selection: Binding<Selection>,
-        @ViewBuilder content: @escaping (Selection) -> Content
+        _ title: String,
+        @ViewBuilder content: @escaping () -> Content
     ) {
-        self.labels = tabs.map(\.label)
-        self.values = tabs.map(\.value)
+        self.title = title
+        self.content = content
+    }
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        Content._makeView(_ViewGraphNode(value: content()), inputs: context).node
+    }
+}
+
+extension TabSection: _TabItem {
+    func _extractTabBarElements(inputs: _ViewInputs) -> [TabBarElement] {
+        var elements: [TabBarElement] = [.sectionHeader(title)]
+        elements += extractTabBarElements(from: content(), inputs: inputs)
+        return elements
+    }
+}
+
+// MARK: - Spacer + Divider as tab bar items
+
+extension Spacer: _TabItem {
+    @MainActor func _extractTabBarElements(inputs: _ViewInputs) -> [TabBarElement] {
+        [.spacer]
+    }
+}
+
+extension Divider: _TabItem {
+    @MainActor func _extractTabBarElements(inputs: _ViewInputs) -> [TabBarElement] {
+        [.divider]
+    }
+}
+
+// MARK: - TabView
+
+/// A view that switches between multiple child views using a tab bar.
+@MainActor @preconcurrency
+public struct TabView<Selection: Hashable, Content: View>: View, ViewNodeBuilder {
+
+    public typealias Body = Never
+    public var body: Never { fatalError() }
+
+    let selection: Binding<Selection>
+    let content: () -> Content
+
+    public init(
+        selection: Binding<Selection>,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
         self.selection = selection
         self.content = content
     }
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
-        TabContainerNode(inputs: context, container: self)
+        let contentView = content()
+        let elements = extractTabBarElements(from: contentView, inputs: context)
+        return TabViewNode(inputs: context, tabView: self, elements: elements)
     }
 }
 
-public extension TabContainer where Selection == Int {
-    init(
-        _ labels: [String],
-        selection: Binding<Int>,
-        @ViewBuilder content: @escaping (Int) -> Content
-    ) {
-        self.labels = labels
-        self.values = Array(labels.indices)
-        self.selection = selection
-        self.content = content
+// MARK: - EnvironmentValues
+
+extension EnvironmentValues {
+    var tabViewPosition: TabViewPosition {
+        get { self[TabViewPositionKey.self] }
+        set { self[TabViewPositionKey.self] = newValue }
     }
+
+    var tabLabelStyle: TabLabelStyle {
+        get { self[TabLabelStyleKey.self] }
+        set { self[TabLabelStyleKey.self] = newValue }
+    }
+
+    private struct TabViewPositionKey: EnvironmentKey {
+        static let defaultValue: TabViewPosition = .top
+    }
+
+    private struct TabLabelStyleKey: EnvironmentKey {
+        static let defaultValue: TabLabelStyle = .regular
+    }
+}
+
+public extension View {
+    /// Sets the position of the tab bar in a TabView.
+    func tabViewPosition(_ position: TabViewPosition) -> some View {
+        self.environment(\.tabViewPosition, position)
+    }
+
+    /// Sets the label style for tabs in a TabView.
+    func tabLabelStyle(_ style: TabLabelStyle) -> some View {
+        self.environment(\.tabLabelStyle, style)
+    }
+}
+
+// MARK: - Tab bar element extraction
+
+@MainActor
+private func extractTabBarElements<V: View>(from view: V, inputs: _ViewInputs) -> [TabBarElement] {
+    if let item = view as? any _TabItem {
+        return item._extractTabBarElements(inputs: inputs)
+    }
+
+    let mirror = Mirror(reflecting: view)
+    var result: [TabBarElement] = []
+
+    for (_, child) in mirror.children {
+        if let childView = child as? any View {
+            result += extractTabBarElements(from: childView, inputs: inputs)
+        } else {
+            let childMirror = Mirror(reflecting: child)
+            for (_, grandchild) in childMirror.children {
+                if let grandchildView = grandchild as? any View {
+                    result += extractTabBarElements(from: grandchildView, inputs: inputs)
+                }
+            }
+        }
+    }
+
+    return result
 }
 
 // MARK: - Constants
 
-private enum TabContainerConstants {
-    static var tabBarHeight: Float { 40 }
-    static var tabHorizontalPadding: Float { 20 }
-    static var tabSpacing: Float { 0 }
-    static var tabBarBottomBorder: Float { 2 }
-    static var selectedIndicatorHeight: Float { 3 }
+private enum TabViewConstants {
+    static var tabBarHeight: Float { 48 }
+    static var tabBarWidth: Float { 200 }
+    static var tabBarBorderWidth: Float { 1 }
+    static var tabHorizontalPadding: Float { 16 }
+    static var iconSize: Float { 18 }
+    static var iconTextGap: Float { 4 }
+    static var selectedIndicatorThickness: Float { 3 }
+    static var sectionHeaderFontSize: Float { 11 }
+    static var sectionHeaderHeight: Float { 28 }
 
     static var tabTextColor: Color { .fromHex(0x666666) }
     static var selectedTabTextColor: Color { .fromHex(0xF0F0F0) }
     static var indicatorColor: Color { .fromHex(0xFF2D6F) }
     static var borderColor: Color { .fromHex(0x2A2A2A) }
+    static var sectionHeaderColor: Color { .fromHex(0x555555) }
+    static var highlightColor: Color { .fromHex(0x1A1A1A) }
+    static var tapMovementThreshold: Float { 10 }
 }
 
-// MARK: - Node
+// MARK: - TabViewNode
 
-final class TabContainerNode<Selection: Hashable, Content: View>: ViewNode {
+final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
 
-    private var labels: [String]
-    private var values: [Selection]
+    private var elements: [TabBarElement]
     private var selectionBinding: Binding<Selection>
-    private var contentBuilder: (Selection) -> Content
+    private var position: TabViewPosition
     private var viewInputs: _ViewInputs
 
     private var tabBarNode: LayoutViewContainerNode
     private var contentNode: ViewNode
 
-    init(inputs: _ViewInputs, container: TabContainer<Selection, Content>) {
-        self.labels = container.labels
-        self.values = container.values
-        self.selectionBinding = container.selection
-        self.contentBuilder = container.content
+    private var tabBarHeight: Float { TabViewConstants.tabBarHeight }
+    private var tabBarWidth: Float { TabViewConstants.tabBarWidth }
+    private var isHorizontalBar: Bool { position == .top || position == .bottom }
+
+    init(inputs: _ViewInputs, tabView: TabView<Selection, Content>, elements: [TabBarElement]) {
+        self.elements = elements
+        self.selectionBinding = tabView.selection
+        self.position = inputs.environment.tabViewPosition
         self.viewInputs = inputs
 
-        let selected = container.selection.wrappedValue
+        let selected = AnyHashable(tabView.selection.wrappedValue)
+
         self.tabBarNode = Self.buildTabBar(
-            labels: container.labels,
-            values: container.values,
+            elements: elements,
             selected: selected,
+            position: inputs.environment.tabViewPosition,
             inputs: inputs,
             onSelect: { _ in }
         )
         self.contentNode = Self.buildContent(
             for: selected,
-            builder: container.content,
+            from: elements,
             inputs: inputs
         )
 
-        super.init(content: container)
+        super.init(content: tabView)
 
         self.tabBarNode.parent = self
         self.contentNode.parent = self
 
-        let weakSelf = Weak(self)
+        let weakSelf = WeakBox(self)
         self.tabBarNode = Self.buildTabBar(
-            labels: container.labels,
-            values: container.values,
+            elements: elements,
             selected: selected,
+            position: inputs.environment.tabViewPosition,
             inputs: inputs,
             onSelect: { value in
                 weakSelf.value?.selectTab(value)
@@ -122,52 +325,99 @@ final class TabContainerNode<Selection: Hashable, Content: View>: ViewNode {
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         let width = proposal.width ?? 300
-        let tabBarSize = tabBarNode.sizeThatFits(
-            ProposedViewSize(width: width, height: TabContainerConstants.tabBarHeight)
-        )
-        let contentProposal = ProposedViewSize(
-            width: width,
-            height: proposal.height.map { max(0, $0 - tabBarSize.height) }
-        )
-        let contentSize = contentNode.sizeThatFits(contentProposal)
+        let height = proposal.height ?? 300
 
-        return Size(
-            width: max(tabBarSize.width, contentSize.width),
-            height: tabBarSize.height + contentSize.height
-        )
+        if isHorizontalBar {
+            let tabBarSize = tabBarNode.sizeThatFits(
+                ProposedViewSize(width: width, height: tabBarHeight)
+            )
+            let contentProposal = ProposedViewSize(
+                width: width,
+                height: proposal.height.map { max(0, $0 - tabBarHeight) }
+            )
+            let contentSize = contentNode.sizeThatFits(contentProposal)
+            return Size(
+                width: max(tabBarSize.width, contentSize.width),
+                height: tabBarSize.height + contentSize.height
+            )
+        } else {
+            let tabBarSize = tabBarNode.sizeThatFits(
+                ProposedViewSize(width: tabBarWidth, height: height)
+            )
+            let contentProposal = ProposedViewSize(
+                width: proposal.width.map { max(0, $0 - tabBarWidth) },
+                height: height
+            )
+            let contentSize = contentNode.sizeThatFits(contentProposal)
+            return Size(
+                width: tabBarSize.width + contentSize.width,
+                height: max(tabBarSize.height, contentSize.height)
+            )
+        }
     }
 
     override func performLayout() {
-        let tabBarProposal = ProposedViewSize(
-            width: frame.width,
-            height: TabContainerConstants.tabBarHeight
-        )
-        tabBarNode.place(
-            in: Point(x: frame.width * 0.5, y: TabContainerConstants.tabBarHeight * 0.5),
-            anchor: .center,
-            proposal: tabBarProposal
-        )
+        switch position {
+        case .top:
+            tabBarNode.place(
+                in: Point(x: frame.width * 0.5, y: tabBarHeight * 0.5),
+                anchor: .center,
+                proposal: ProposedViewSize(width: frame.width, height: tabBarHeight)
+            )
+            let contentHeight = max(0, frame.height - tabBarHeight)
+            contentNode.place(
+                in: Point(x: frame.width * 0.5, y: tabBarHeight + contentHeight * 0.5),
+                anchor: .center,
+                proposal: ProposedViewSize(width: frame.width, height: contentHeight)
+            )
 
-        let contentHeight = max(0, frame.height - TabContainerConstants.tabBarHeight)
-        let contentProposal = ProposedViewSize(width: frame.width, height: contentHeight)
-        contentNode.place(
-            in: Point(x: frame.width * 0.5, y: TabContainerConstants.tabBarHeight + contentHeight * 0.5),
-            anchor: .center,
-            proposal: contentProposal
-        )
+        case .bottom:
+            let contentHeight = max(0, frame.height - tabBarHeight)
+            contentNode.place(
+                in: Point(x: frame.width * 0.5, y: contentHeight * 0.5),
+                anchor: .center,
+                proposal: ProposedViewSize(width: frame.width, height: contentHeight)
+            )
+            tabBarNode.place(
+                in: Point(x: frame.width * 0.5, y: contentHeight + tabBarHeight * 0.5),
+                anchor: .center,
+                proposal: ProposedViewSize(width: frame.width, height: tabBarHeight)
+            )
+
+        case .left:
+            tabBarNode.place(
+                in: Point(x: tabBarWidth * 0.5, y: frame.height * 0.5),
+                anchor: .center,
+                proposal: ProposedViewSize(width: tabBarWidth, height: frame.height)
+            )
+            let contentWidth = max(0, frame.width - tabBarWidth)
+            contentNode.place(
+                in: Point(x: tabBarWidth + contentWidth * 0.5, y: frame.height * 0.5),
+                anchor: .center,
+                proposal: ProposedViewSize(width: contentWidth, height: frame.height)
+            )
+
+        case .right:
+            let contentWidth = max(0, frame.width - tabBarWidth)
+            contentNode.place(
+                in: Point(x: contentWidth * 0.5, y: frame.height * 0.5),
+                anchor: .center,
+                proposal: ProposedViewSize(width: contentWidth, height: frame.height)
+            )
+            tabBarNode.place(
+                in: Point(x: contentWidth + tabBarWidth * 0.5, y: frame.height * 0.5),
+                anchor: .center,
+                proposal: ProposedViewSize(width: tabBarWidth, height: frame.height)
+            )
+        }
     }
 
     override func update(from newNode: ViewNode) {
-        guard let other = newNode as? TabContainerNode<Selection, Content> else {
-            return
-        }
-
-        self.labels = other.labels
-        self.values = other.values
+        guard let other = newNode as? TabViewNode<Selection, Content> else { return }
+        self.elements = other.elements
         self.selectionBinding = other.selectionBinding
-        self.contentBuilder = other.contentBuilder
+        self.position = other.position
         self.viewInputs = other.viewInputs
-
         super.update(from: other)
         rebuildAll()
     }
@@ -179,7 +429,16 @@ final class TabContainerNode<Selection: Hashable, Content: View>: ViewNode {
     override func updateEnvironment(_ environment: EnvironmentValues) {
         super.updateEnvironment(environment)
         tabBarNode.updateEnvironment(environment)
-        contentNode.updateEnvironment(environment)
+        // Zero the safe area edge the tab bar occupies so content children
+        // don't add redundant inset for an edge the tab bar already covers.
+        var contentEnv = environment
+        switch position {
+        case .top:    contentEnv.safeAreaInsets.top = 0
+        case .bottom: contentEnv.safeAreaInsets.bottom = 0
+        case .left:   contentEnv.safeAreaInsets.leading = 0
+        case .right:  contentEnv.safeAreaInsets.trailing = 0
+        }
+        contentNode.updateEnvironment(contentEnv)
     }
 
     override func updateViewOwner(_ owner: ViewOwner) {
@@ -189,9 +448,7 @@ final class TabContainerNode<Selection: Hashable, Content: View>: ViewNode {
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
-        guard self.point(inside: point, with: event) else {
-            return nil
-        }
+        guard self.point(inside: point, with: event) else { return nil }
 
         let tabBarPoint = tabBarNode.convert(point, from: self)
         if let hit = tabBarNode.hitTest(tabBarPoint, with: event) {
@@ -203,21 +460,13 @@ final class TabContainerNode<Selection: Hashable, Content: View>: ViewNode {
     }
 
     override func draw(with context: UIGraphicsContext) {
-        var context = context
-        context.environment = environment
-        context.translateBy(x: frame.origin.x, y: -frame.origin.y)
+        var ctx = context
+        ctx.environment = environment
+        ctx.translateBy(x: frame.origin.x, y: -frame.origin.y)
 
-        tabBarNode.draw(with: context)
-
-        let borderY = -TabContainerConstants.tabBarHeight
-        context.drawLine(
-            start: Point(0, borderY),
-            end: Point(frame.width, borderY),
-            lineWidth: TabContainerConstants.tabBarBottomBorder,
-            color: TabContainerConstants.borderColor
-        )
-
-        contentNode.draw(with: context)
+        tabBarNode.draw(with: ctx)
+        drawSeparator(with: ctx)
+        contentNode.draw(with: ctx)
     }
 
     override func update(_ deltaTime: TimeInterval) {
@@ -230,56 +479,76 @@ final class TabContainerNode<Selection: Hashable, Content: View>: ViewNode {
     }
 
     override func findNodyByAccessibilityIdentifier(_ identifier: String) -> ViewNode? {
-        if let result = super.findNodyByAccessibilityIdentifier(identifier) {
-            return result
-        }
+        if let result = super.findNodyByAccessibilityIdentifier(identifier) { return result }
         return tabBarNode.findNodyByAccessibilityIdentifier(identifier)
             ?? contentNode.findNodyByAccessibilityIdentifier(identifier)
     }
 
     // MARK: - Private
 
-    private func selectTab(_ value: Selection) {
-        guard selectionBinding.wrappedValue != value else {
-            return
+    private func drawSeparator(with context: UIGraphicsContext) {
+        switch position {
+        case .top:
+            context.drawLine(
+                start: Point(0, -tabBarHeight),
+                end: Point(frame.width, -tabBarHeight),
+                lineWidth: TabViewConstants.tabBarBorderWidth,
+                color: TabViewConstants.borderColor
+            )
+        case .bottom:
+            let contentHeight = max(0, frame.height - tabBarHeight)
+            context.drawLine(
+                start: Point(0, -contentHeight),
+                end: Point(frame.width, -contentHeight),
+                lineWidth: TabViewConstants.tabBarBorderWidth,
+                color: TabViewConstants.borderColor
+            )
+        case .left:
+            context.drawLine(
+                start: Point(tabBarWidth, 0),
+                end: Point(tabBarWidth, -frame.height),
+                lineWidth: TabViewConstants.tabBarBorderWidth,
+                color: TabViewConstants.borderColor
+            )
+        case .right:
+            let contentWidth = max(0, frame.width - tabBarWidth)
+            context.drawLine(
+                start: Point(contentWidth, 0),
+                end: Point(contentWidth, -frame.height),
+                lineWidth: TabViewConstants.tabBarBorderWidth,
+                color: TabViewConstants.borderColor
+            )
         }
-        selectionBinding.wrappedValue = value
+    }
+
+    private func selectTab(_ value: AnyHashable) {
+        // Extract actual Selection value from AnyHashable
+        guard let typedValue = value.base as? Selection,
+              selectionBinding.wrappedValue != typedValue else { return }
+        selectionBinding.wrappedValue = typedValue
         rebuildAll()
     }
 
     private func rebuildAll() {
-        let selected = selectionBinding.wrappedValue
+        let selected = AnyHashable(selectionBinding.wrappedValue)
+        let weakSelf = WeakBox(self)
 
-        let weakSelf = Weak(self)
         let newTabBar = Self.buildTabBar(
-            labels: labels,
-            values: values,
+            elements: elements,
             selected: selected,
+            position: position,
             inputs: viewInputs,
-            onSelect: { value in
-                weakSelf.value?.selectTab(value)
-            }
+            onSelect: { value in weakSelf.value?.selectTab(value) }
         )
-
         tabBarNode.update(from: newTabBar)
         tabBarNode.parent = self
-        if let owner {
-            tabBarNode.updateViewOwner(owner)
-        }
+        if let owner { tabBarNode.updateViewOwner(owner) }
         tabBarNode.updateEnvironment(environment)
 
-        let newContent = Self.buildContent(
-            for: selected,
-            builder: contentBuilder,
-            inputs: viewInputs
-        )
-
         contentNode.parent = nil
-        contentNode = newContent
+        contentNode = Self.buildContent(for: selected, from: elements, inputs: viewInputs)
         contentNode.parent = self
-        if let owner {
-            contentNode.updateViewOwner(owner)
-        }
+        if let owner { contentNode.updateViewOwner(owner) }
         contentNode.updateEnvironment(environment)
 
         self.invalidateNearestLayer()
@@ -290,97 +559,141 @@ final class TabContainerNode<Selection: Hashable, Content: View>: ViewNode {
     }
 
     private static func buildTabBar(
-        labels: [String],
-        values: [Selection],
-        selected: Selection,
+        elements: [TabBarElement],
+        selected: AnyHashable,
+        position: TabViewPosition,
         inputs: _ViewInputs,
-        onSelect: @escaping (Selection) -> Void
+        onSelect: @escaping (AnyHashable) -> Void
     ) -> LayoutViewContainerNode {
-        let tabBarView = HStack(alignment: .center, spacing: TabContainerConstants.tabSpacing) {
-            ForEach(0..<labels.count, id: \.self) { index in
-                TabButton(
-                    label: labels[index],
-                    isSelected: values[index] == selected,
-                    action: {
-                        onSelect(values[index])
-                    }
+        let isHorizontal = position == .top || position == .bottom
+        let nodes = buildTabBarNodes(
+            elements: elements,
+            selected: selected,
+            isHorizontal: isHorizontal,
+            inputs: inputs,
+            onSelect: onSelect
+        )
+        let layout: any Layout = isHorizontal
+            ? HStackLayout(alignment: .center, spacing: 0)
+            : VStackLayout(alignment: .leading, spacing: 0)
+        return LayoutViewContainerNode(layout: layout, content: EmptyView(), nodes: nodes)
+    }
+
+    private static func buildTabBarNodes(
+        elements: [TabBarElement],
+        selected: AnyHashable,
+        isHorizontal: Bool,
+        inputs: _ViewInputs,
+        onSelect: @escaping (AnyHashable) -> Void
+    ) -> [ViewNode] {
+        var nodes: [ViewNode] = []
+        for element in elements {
+            switch element {
+            case .tab(let label, let image, let value, _):
+                let button = TabItemButton(
+                    label: label,
+                    image: image,
+                    value: value,
+                    isSelected: value == selected,
+                    isHorizontalBar: isHorizontal,
+                    action: { onSelect(value) }
                 )
+                let node = TabItemButtonNode(content: button, inputs: inputs)
+                nodes.append(node)
+            case .sectionHeader(let title):
+                guard !isHorizontal else { continue }
+                let header = TabSectionHeader(title: title)
+                let node = TabSectionHeaderNode(content: header, inputs: inputs)
+                nodes.append(node)
+            case .spacer:
+                nodes.append(SpacerViewNode(minLength: nil, content: Spacer()))
+            case .divider:
+                nodes.append(DividerNode(content: Divider()))
             }
         }
-
-        let output = HStack._makeView(
-            _ViewGraphNode(value: tabBarView),
-            inputs: inputs
-        )
-        let node = output.node as! LayoutViewContainerNode
-        return node
+        return nodes
     }
 
     private static func buildContent(
-        for selection: Selection,
-        builder: @escaping (Selection) -> Content,
+        for selected: AnyHashable,
+        from elements: [TabBarElement],
         inputs: _ViewInputs
     ) -> ViewNode {
-        let view = builder(selection)
-        return Content._makeView(_ViewGraphNode(value: view), inputs: inputs).node
+        for element in elements {
+            if case .tab(_, _, let value, let makeContent) = element, value == selected {
+                return makeContent(inputs)
+            }
+        }
+        return EmptyView._makeView(_ViewGraphNode(value: EmptyView()), inputs: inputs).node
     }
 }
 
-// MARK: - Tab Button
+// MARK: - Tab Item Button
 
-private struct TabButton: View, ViewNodeBuilder {
+private struct TabItemButton: View, ViewNodeBuilder {
     typealias Body = Never
     var body: Never { fatalError() }
 
-    let label: String
+    let label: String?
+    let image: Image?
+    let value: AnyHashable
     let isSelected: Bool
+    let isHorizontalBar: Bool
     let action: () -> Void
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
-        TabButtonNode(content: self, inputs: context)
+        TabItemButtonNode(content: self, inputs: context)
     }
 }
 
-private final class TabButtonNode: ViewNode {
+private final class TabItemButtonNode: ViewNode {
 
-    private var label: String
+    private var label: String?
+    private var image: Image?
     private var isSelected: Bool
+    private var isHorizontalBar: Bool
     private var action: () -> Void
     private var isHighlighted: Bool = false
+    private var iconTexture: Texture2D?
+    private var touchStartLocation: Point?
 
-    init(content: TabButton, inputs: _ViewInputs) {
+    init(content: TabItemButton, inputs: _ViewInputs) {
         self.label = content.label
+        self.image = content.image
         self.isSelected = content.isSelected
+        self.isHorizontalBar = content.isHorizontalBar
         self.action = content.action
+        self.iconTexture = content.image.map { Texture2D(image: $0) }
         super.init(content: content)
         self.updateEnvironment(inputs.environment)
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        let pointSize = resolvedPointSize()
-        let textWidth = Float(label.count) * pointSize * 0.55
-        let width = textWidth + TabContainerConstants.tabHorizontalPadding * 2
-        let height = proposal.height ?? TabContainerConstants.tabBarHeight
-        return Size(width: width, height: height)
+        if isHorizontalBar {
+            let width = buttonWidth()
+            let height = proposal.height ?? TabViewConstants.tabBarHeight
+            return Size(width: width, height: height)
+        } else {
+            let width = proposal.width ?? TabViewConstants.tabBarWidth
+            return Size(width: width, height: TabViewConstants.tabBarHeight)
+        }
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
-        guard self.point(inside: point, with: event) else {
-            return nil
-        }
+        guard self.point(inside: point, with: event) else { return nil }
         return self
     }
 
     override func onMouseEvent(_ event: MouseEvent) {
         switch event.phase {
-        case .began, .changed:
+        case .began:
             isHighlighted = true
+        case .changed:
+            break
         case .ended:
-            let wasHighlighted = isHighlighted
+            let was = isHighlighted
             isHighlighted = false
-            if wasHighlighted {
-                action()
-            }
+            if was { action() }
         case .cancelled:
             isHighlighted = false
         }
@@ -392,84 +705,208 @@ private final class TabButtonNode: ViewNode {
         requestDisplay()
     }
 
+    override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        guard let touch = touches.first else { return }
+
+        switch touch.phase {
+        case .began:
+            touchStartLocation = touch.location
+            isHighlighted = true
+        case .moved:
+            if let start = touchStartLocation {
+                let dx = touch.location.x - start.x
+                let dy = touch.location.y - start.y
+                let threshold = TabViewConstants.tapMovementThreshold
+                if dx * dx + dy * dy > threshold * threshold {
+                    isHighlighted = false
+                }
+            }
+        case .ended:
+            let was = isHighlighted
+            isHighlighted = false
+            touchStartLocation = nil
+            if was { action() }
+        case .cancelled:
+            isHighlighted = false
+            touchStartLocation = nil
+        }
+
+        requestDisplay()
+    }
+
     override func draw(with context: UIGraphicsContext) {
-        var context = context
-        context.environment = environment
-        context.translateBy(x: frame.origin.x, y: -frame.origin.y)
+        var ctx = context
+        ctx.environment = environment
+        ctx.translateBy(x: frame.origin.x, y: -frame.origin.y)
 
         let bounds = Rect(x: 0, y: 0, width: frame.width, height: frame.height)
 
         if isHighlighted {
-            context.drawRect(bounds, color: Color.fromHex(0x1A1A1A))
+            ctx.drawRect(bounds, color: TabViewConstants.highlightColor)
         }
 
-        let pointSize = resolvedPointSize()
-        let textWidth = Float(label.count) * pointSize * 0.55
-        let textColor = isSelected
-            ? TabContainerConstants.selectedTabTextColor
-            : TabContainerConstants.tabTextColor
-
-        if let font = resolvedFont() {
-            var attributes = TextAttributeContainer()
-            attributes.font = font
-            attributes.foregroundColor = textColor
-            let attributedText = AttributedText(label, attributes: attributes)
-
-            let container = TextContainer(
-                text: attributedText,
-                textAlignment: .center
-            )
-            let layoutManager = TextLayoutManager()
-            layoutManager.setTextContainer(container)
-            layoutManager.fitToSize(Size(width: bounds.width, height: bounds.height))
-
-            let textX = (bounds.width - textWidth) * 0.5
-            let textY = -bounds.height * 0.5 - pointSize * 0.35
-            context.translateBy(x: textX, y: textY)
-            for line in layoutManager.textLines {
-                for run in line {
-                    for glyph in run {
-                        context.draw(glyph)
-                    }
-                }
-            }
-            context.translateBy(x: -textX, y: -textY)
-        }
-
-        if isSelected {
-            let indicatorY = -bounds.height
-            let indicatorHeight = TabContainerConstants.selectedIndicatorHeight
-            context.drawRect(
-                Rect(x: 0, y: indicatorY, width: bounds.width, height: indicatorHeight),
-                color: TabContainerConstants.indicatorColor
-            )
-        }
+        drawContent(in: bounds, with: ctx)
+        drawIndicator(in: bounds, with: ctx)
     }
 
     override func update(from newNode: ViewNode) {
         super.update(from: newNode)
-        guard let other = newNode as? TabButtonNode else {
-            return
-        }
+        guard let other = newNode as? TabItemButtonNode else { return }
         self.label = other.label
+        self.image = other.image
         self.isSelected = other.isSelected
+        self.isHorizontalBar = other.isHorizontalBar
         self.action = other.action
+        if let img = other.image, self.iconTexture == nil {
+            self.iconTexture = Texture2D(image: img)
+        }
+    }
+
+    // MARK: - Drawing helpers
+
+    private func drawContent(in bounds: Rect, with context: UIGraphicsContext) {
+        let isCompact = environment.tabLabelStyle == .compact
+        let hasIcon = iconTexture != nil
+        let hasLabel = !isCompact && label != nil && !label!.isEmpty
+
+        switch (hasIcon, hasLabel) {
+        case (true, false):
+            drawIcon(centeredIn: bounds, with: context)
+        case (false, true):
+            drawLabel(centeredIn: bounds, with: context)
+        case (true, true):
+            if isHorizontalBar {
+                drawIconAboveLabel(in: bounds, with: context)
+            } else {
+                drawIconBesideLabel(in: bounds, with: context)
+            }
+        default:
+            break
+        }
+    }
+
+    private func drawIcon(centeredIn bounds: Rect, with context: UIGraphicsContext) {
+        guard let texture = iconTexture else { return }
+        let size = TabViewConstants.iconSize
+        let iconRect = Rect(
+            x: (bounds.width - size) * 0.5,
+            y: (bounds.height - size) * 0.5,
+            width: size,
+            height: size
+        )
+        let tint: Color = isSelected ? TabViewConstants.selectedTabTextColor : TabViewConstants.tabTextColor
+        context.drawRect(iconRect, texture: texture, color: tint)
+    }
+
+    private func drawLabel(centeredIn bounds: Rect, with context: UIGraphicsContext) {
+        guard let text = label, let font = resolvedFont() else { return }
+        let pointSize = resolvedPointSize()
+        let textColor: Color = isSelected ? TabViewConstants.selectedTabTextColor : TabViewConstants.tabTextColor
+        renderText(text, font: font, color: textColor, centerX: bounds.width * 0.5, centerY: bounds.height * 0.5, pointSize: pointSize, in: context)
+    }
+
+    private func drawIconAboveLabel(in bounds: Rect, with context: UIGraphicsContext) {
+        guard let texture = iconTexture, let text = label, let font = resolvedFont() else { return }
+        let pointSize = resolvedPointSize()
+        let tint: Color = isSelected ? TabViewConstants.selectedTabTextColor : TabViewConstants.tabTextColor
+        let iconSize = TabViewConstants.iconSize
+        let gap = TabViewConstants.iconTextGap
+        let totalH = iconSize + gap + pointSize
+        let startY = (bounds.height - totalH) * 0.5
+
+        let iconRect = Rect(x: (bounds.width - iconSize) * 0.5, y: startY, width: iconSize, height: iconSize)
+        context.drawRect(iconRect, texture: texture, color: tint)
+        renderText(text, font: font, color: tint, centerX: bounds.width * 0.5, centerY: startY + iconSize + gap + pointSize * 0.5, pointSize: pointSize, in: context)
+    }
+
+    private func drawIconBesideLabel(in bounds: Rect, with context: UIGraphicsContext) {
+        guard let texture = iconTexture, let text = label, let font = resolvedFont() else { return }
+        let pointSize = resolvedPointSize()
+        let tint: Color = isSelected ? TabViewConstants.selectedTabTextColor : TabViewConstants.tabTextColor
+        let iconSize = TabViewConstants.iconSize
+        let gap = TabViewConstants.iconTextGap
+        let startX = TabViewConstants.tabHorizontalPadding
+
+        let iconRect = Rect(x: startX, y: (bounds.height - iconSize) * 0.5, width: iconSize, height: iconSize)
+        context.drawRect(iconRect, texture: texture, color: tint)
+        renderText(text, font: font, color: tint, centerX: startX + iconSize + gap + estimatedTextWidth(text, pointSize: pointSize) * 0.5, centerY: bounds.height * 0.5, pointSize: pointSize, in: context)
+    }
+
+    private func drawIndicator(in bounds: Rect, with context: UIGraphicsContext) {
+        guard isSelected else { return }
+        let t = TabViewConstants.selectedIndicatorThickness
+        switch isHorizontalBar {
+        case true:
+            // Indicator at bottom of button
+            context.drawRect(
+                Rect(x: 0, y: bounds.height - t, width: bounds.width, height: t),
+                color: TabViewConstants.indicatorColor
+            )
+        case false:
+            // Indicator on left edge of button
+            context.drawRect(
+                Rect(x: 0, y: 0, width: t, height: bounds.height),
+                color: TabViewConstants.indicatorColor
+            )
+        }
+    }
+
+    private func renderText(
+        _ text: String,
+        font: Font,
+        color: Color,
+        centerX: Float,
+        centerY: Float,
+        pointSize: Float,
+        in context: UIGraphicsContext
+    ) {
+        var attributes = TextAttributeContainer()
+        attributes.font = font
+        attributes.foregroundColor = color
+        let attributedText = AttributedText(text, attributes: attributes)
+        let container = TextContainer(text: attributedText, textAlignment: .center)
+        let layoutManager = TextLayoutManager()
+        layoutManager.setTextContainer(container)
+        let textW = estimatedTextWidth(text, pointSize: pointSize)
+        layoutManager.fitToSize(Size(width: textW + 4, height: pointSize * 2))
+
+        let textX = centerX - textW * 0.5
+        let textY = -(centerY + pointSize * 0.35)
+        var ctx = context
+        ctx.translateBy(x: textX, y: textY)
+        for line in layoutManager.textLines {
+            for run in line {
+                for glyph in run {
+                    ctx.draw(glyph)
+                }
+            }
+        }
+    }
+
+    private func buttonWidth() -> Float {
+        let isCompact = environment.tabLabelStyle == .compact
+        let padding = TabViewConstants.tabHorizontalPadding * 2
+        let iconW: Float = iconTexture != nil ? TabViewConstants.iconSize + TabViewConstants.iconTextGap : 0
+        let textW: Float
+        if isCompact {
+            textW = 0
+        } else {
+            textW = label.map { estimatedTextWidth($0, pointSize: resolvedPointSize()) } ?? 0
+        }
+        return max(padding + iconW + textW, TabViewConstants.tabBarHeight)
+    }
+
+    private func estimatedTextWidth(_ text: String, pointSize: Float) -> Float {
+        Float(text.count) * pointSize * 0.55
     }
 
     private func resolvedPointSize() -> Float {
-        if let font = environment.font {
-            return Float(font.pointSize)
-        }
-        return 14
+        environment.font.map { Float($0.pointSize) } ?? 14
     }
 
     private func resolvedFont() -> Font? {
-        if let font = environment.font {
-            return font
-        }
-        if unsafe RenderEngine.shared != nil {
-            return .system(size: 14)
-        }
+        if let font = environment.font { return font }
+        if unsafe RenderEngine.shared != nil { return .system(size: 14) }
         return nil
     }
 
@@ -479,12 +916,71 @@ private final class TabButtonNode: ViewNode {
     }
 }
 
-// MARK: - Weak helper
+// MARK: - Tab Section Header
 
-private struct Weak<T: AnyObject> {
-    weak var value: T?
+private struct TabSectionHeader: View, ViewNodeBuilder {
+    typealias Body = Never
+    var body: Never { fatalError() }
+    let title: String
 
-    init(_ value: T) {
-        self.value = value
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        TabSectionHeaderNode(content: self, inputs: context)
+    }
+}
+
+private final class TabSectionHeaderNode: ViewNode {
+
+    private var title: String
+
+    init(content: TabSectionHeader, inputs: _ViewInputs) {
+        self.title = content.title
+        super.init(content: content)
+        self.updateEnvironment(inputs.environment)
+    }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        let width = proposal.width ?? TabViewConstants.tabBarWidth
+        return Size(width: width, height: TabViewConstants.sectionHeaderHeight)
+    }
+
+    override func draw(with context: UIGraphicsContext) {
+        var ctx = context
+        ctx.environment = environment
+        ctx.translateBy(x: frame.origin.x, y: -frame.origin.y)
+
+        guard let font = resolvedFont() else { return }
+        let pointSize = TabViewConstants.sectionHeaderFontSize
+        var attributes = TextAttributeContainer()
+        attributes.font = font
+        attributes.foregroundColor = TabViewConstants.sectionHeaderColor
+        let attributedText = AttributedText(title.uppercased(), attributes: attributes)
+        let container = TextContainer(text: attributedText, textAlignment: .leading)
+        let layoutManager = TextLayoutManager()
+        layoutManager.setTextContainer(container)
+        layoutManager.fitToSize(Size(width: frame.width, height: TabViewConstants.sectionHeaderHeight))
+
+        let startX = TabViewConstants.tabHorizontalPadding
+        let startY = -(frame.height * 0.5 + pointSize * 0.35)
+        ctx.translateBy(x: startX, y: startY)
+        for line in layoutManager.textLines {
+            for run in line {
+                for glyph in run {
+                    ctx.draw(glyph)
+                }
+            }
+        }
+    }
+
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+        guard let other = newNode as? TabSectionHeaderNode else { return }
+        self.title = other.title
+    }
+
+    private func resolvedFont() -> Font? {
+        if unsafe RenderEngine.shared != nil {
+            return .system(size: Double(TabViewConstants.sectionHeaderFontSize))
+        }
+        return nil
     }
 }

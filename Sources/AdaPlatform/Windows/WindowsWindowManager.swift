@@ -98,6 +98,7 @@ final class WindowsWindowManager: UIWindowManager {
         let systemWindow = unsafe WindowsSystemWindow(hwnd: hwnd, surface: windowsSurface)
         window.systemWindow = systemWindow
         window.minSize = minSize
+        window.userInterfaceIdiom = .desktop
         
         super.createWindow(for: window)
     }

@@ -54,19 +54,20 @@ final class ViewRootNode: ViewNode {
     }
 
     override func performLayout() {
-        let proposal = ProposedViewSize(
-            width: self.frame.width,
-            height: self.frame.height
-        )
-
-        self.contentNode.place(
-            in: Point(self.frame.midX, self.frame.midY),
+        let insets = environment.safeAreaInsets
+        let safeWidth  = max(0, frame.width  - insets.leading - insets.trailing)
+        let safeHeight = max(0, frame.height - insets.top     - insets.bottom)
+        let centerX = insets.leading + safeWidth  * 0.5
+        let centerY = insets.top     + safeHeight * 0.5
+        contentNode.place(
+            in: Point(centerX, centerY),
             anchor: .center,
-            proposal: proposal
+            proposal: ProposedViewSize(width: safeWidth, height: safeHeight)
         )
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
+        super.updateEnvironment(environment)
         contentNode.mergeEnvironment(environment)
     }
 

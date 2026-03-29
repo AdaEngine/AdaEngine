@@ -16,6 +16,15 @@ import Math
 // - TODO: (Vlad) Interaction (hit testing)
 // - TODO: (Vlad) Cropping
 
+/// A type-erased interface that allows the platform layer to push safe area insets
+/// into a UIContainerView without knowing its generic Content type.
+@_spi(Internal)
+@MainActor
+public protocol SafeAreaProvider: AnyObject {
+    var safeAreaInsets: EdgeInsets { get set }
+    func setNeedsLayout()
+}
+
 /// An object that manages the content for a rectangular area on the screen.
 ///
 /// Views are the fundamental building blocks of your app’s user interface, and the ``UIView`` class defines the behaviors that are common to all views.
@@ -32,6 +41,10 @@ open class UIView {
             self.setFrame(self.frame)
         }
     }
+
+    /// The safe area insets reported by the platform.
+    /// Set this from the platform layer; it is injected into the view environment on every layout pass.
+    public var safeAreaInsets: EdgeInsets = EdgeInsets()
 
     /// Contains size and position relative to self local coordinates.
     open var bounds: Rect = .zero
@@ -341,6 +354,13 @@ open class UIView {
             subview.window = window
             subview.viewWillMove(to: window)
         }
+
+        if let window = window {
+            safeAreaInsets = window.safeAreaInsets
+            setNeedsLayout()
+        }
+
+        viewDidMoveToWindow()
     }
 
     // MARK: - Interaction
@@ -472,10 +492,8 @@ open class UIView {
             self.onKeyEvent(event)
         case let event as TextInputEvent:
             self.onTextInputEvent(event)
-        case is TouchEvent:
-//            let touches = Input.shared.touches.filter({ $0.window == window })
-//            self.onTouchesEvent(touches)
-            break
+        case let event as TouchEvent:
+            self.onTouchesEvent(Set([event]))
         default:
             return
         }
@@ -620,3 +638,6 @@ public struct ProposedViewSize: Hashable, Equatable, Sendable {
     }
 
 }
+
+@_spi(Internal)
+extension UIView: SafeAreaProvider {}

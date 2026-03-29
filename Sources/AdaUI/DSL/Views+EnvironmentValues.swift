@@ -24,6 +24,9 @@ public extension EnvironmentValues {
 
     /// Returns accent color of the system.
     @Entry var accentColor: Color = Color.accentColor
+
+    /// The safe area insets of the nearest container or screen.
+    @Entry var safeAreaInsets: EdgeInsets = EdgeInsets()
 }
 
 public extension View {

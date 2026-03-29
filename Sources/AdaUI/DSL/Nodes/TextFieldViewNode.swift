@@ -150,6 +150,7 @@ final class TextFieldViewNode: ViewNode {
         }
         self.caretVisible = isFocused
         self.caretBlinkElapsed = 0
+        self.owner?.window?.windowManager.textInputFocusDidChange(isFocused)
         self.requestDisplay()
     }
 
