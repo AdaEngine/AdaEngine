@@ -328,30 +328,16 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         let height = proposal.height ?? 300
 
         if isHorizontalBar {
-            let tabBarSize = tabBarNode.sizeThatFits(
-                ProposedViewSize(width: width, height: tabBarHeight)
-            )
-            let contentProposal = ProposedViewSize(
-                width: width,
-                height: proposal.height.map { max(0, $0 - tabBarHeight) }
-            )
-            let contentSize = contentNode.sizeThatFits(contentProposal)
+            let contentHeight = proposal.height.map { max(0, $0 - tabBarHeight) }
             return Size(
-                width: max(tabBarSize.width, contentSize.width),
-                height: tabBarSize.height + contentSize.height
+                width: width,
+                height: tabBarHeight + (contentHeight ?? height)
             )
         } else {
-            let tabBarSize = tabBarNode.sizeThatFits(
-                ProposedViewSize(width: tabBarWidth, height: height)
-            )
-            let contentProposal = ProposedViewSize(
-                width: proposal.width.map { max(0, $0 - tabBarWidth) },
-                height: height
-            )
-            let contentSize = contentNode.sizeThatFits(contentProposal)
+            let contentWidth = proposal.width.map { max(0, $0 - tabBarWidth) }
             return Size(
-                width: tabBarSize.width + contentSize.width,
-                height: max(tabBarSize.height, contentSize.height)
+                width: tabBarWidth + (contentWidth ?? width),
+                height: height
             )
         }
     }
@@ -533,14 +519,14 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         let selected = AnyHashable(selectionBinding.wrappedValue)
         let weakSelf = WeakBox(self)
 
-        let newTabBar = Self.buildTabBar(
+        tabBarNode.parent = nil
+        tabBarNode = Self.buildTabBar(
             elements: elements,
             selected: selected,
             position: position,
             inputs: viewInputs,
             onSelect: { value in weakSelf.value?.selectTab(value) }
         )
-        tabBarNode.update(from: newTabBar)
         tabBarNode.parent = self
         if let owner { tabBarNode.updateViewOwner(owner) }
         tabBarNode.updateEnvironment(environment)
@@ -574,7 +560,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
             onSelect: onSelect
         )
         let layout: any Layout = isHorizontal
-            ? HStackLayout(alignment: .center, spacing: 0)
+            ? EqualWidthTabBarLayout()
             : VStackLayout(alignment: .leading, spacing: 0)
         return LayoutViewContainerNode(layout: layout, content: EmptyView(), nodes: nodes)
     }
@@ -628,6 +614,30 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     }
 }
 
+// MARK: - Equal Width Tab Bar Layout
+
+private struct EqualWidthTabBarLayout: Layout {
+    typealias AnimatableData = EmptyAnimatableData
+    static var layoutProperties = LayoutProperties(stackOrientation: .horizontal)
+
+    func sizeThatFits(_ proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> Size {
+        let width = proposal.width ?? (Float(subviews.count) * TabViewConstants.tabBarHeight)
+        let height = proposal.height ?? TabViewConstants.tabBarHeight
+        return Size(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        guard !subviews.isEmpty else { return }
+        let itemWidth = bounds.width / Float(subviews.count)
+        var x = bounds.minX
+        for subview in subviews {
+            let childProposal = ProposedViewSize(width: itemWidth, height: bounds.height)
+            subview.place(at: Point(x: x, y: bounds.midY), anchor: .leading, proposal: childProposal)
+            x += itemWidth
+        }
+    }
+}
+
 // MARK: - Tab Item Button
 
 private struct TabItemButton: View, ViewNodeBuilder {
@@ -670,7 +680,7 @@ private final class TabItemButtonNode: ViewNode {
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         if isHorizontalBar {
-            let width = buttonWidth()
+            let width = proposal.width ?? TabViewConstants.tabBarHeight
             let height = proposal.height ?? TabViewConstants.tabBarHeight
             return Size(width: width, height: height)
         } else {
@@ -881,19 +891,6 @@ private final class TabItemButtonNode: ViewNode {
                 }
             }
         }
-    }
-
-    private func buttonWidth() -> Float {
-        let isCompact = environment.tabLabelStyle == .compact
-        let padding = TabViewConstants.tabHorizontalPadding * 2
-        let iconW: Float = iconTexture != nil ? TabViewConstants.iconSize + TabViewConstants.iconTextGap : 0
-        let textW: Float
-        if isCompact {
-            textW = 0
-        } else {
-            textW = label.map { estimatedTextWidth($0, pointSize: resolvedPointSize()) } ?? 0
-        }
-        return max(padding + iconW + textW, TabViewConstants.tabBarHeight)
     }
 
     private func estimatedTextWidth(_ text: String, pointSize: Float) -> Float {

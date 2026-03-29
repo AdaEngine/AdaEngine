@@ -90,7 +90,9 @@ class ViewNode: Identifiable {
     func updateEnvironment(_ environment: EnvironmentValues) {
         self.environment = environment
         storages.forEach { storage in
-            (storage as? ViewContextStorage)?.values = self.environment
+            guard let viewContextStorage = storage as? ViewContextStorage else { return }
+            viewContextStorage.values = self.environment
+            viewContextStorage.update()
         }
     }
 

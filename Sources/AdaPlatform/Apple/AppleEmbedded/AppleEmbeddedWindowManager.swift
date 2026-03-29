@@ -360,9 +360,23 @@ final class _AdaEngineViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
 
-        guard let adaWindow = renderView.windowManager?.windows[renderView.windowID] else { return }
-        adaWindow.frame = self.view.frame.toEngineRect
-        adaWindow.layoutSubviews()
+        self.propagateTraits()
+        self.propagateSize()
+    }
+
+    private func propagateSize() {
+        guard let wm = renderView.windowManager,
+              let adaWindow = wm.windows[renderView.windowID] else {
+            return
+        }
+
+        let newSize = view.bounds.size.toEngineSize
+        guard adaWindow.frame.size != newSize else { return }
+
+        adaWindow.frame = Rect(origin: .zero, size: newSize)
+
+        let sizeInt = SizeInt(width: Int(newSize.width), height: Int(newSize.height))
+        unsafe try? RenderEngine.shared.resizeWindow(renderView.windowID, newSize: sizeInt)
     }
 
     private func propagateTraits() {

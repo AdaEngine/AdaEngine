@@ -124,7 +124,7 @@ public extension Image {
         PNGImageSerializer()
     ]
     
-    init(contentsOf file: URL) throws {
+    public init(contentsOf file: URL) throws {
         guard let loader = Self.loaders.first(where: { $0.canDecodeImage(with: file.pathExtension) }) else {
             throw LoadingError.formatNotSupported(file.pathExtension)
         }
