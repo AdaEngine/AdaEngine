@@ -60,6 +60,7 @@ final class MacOSWindowManager: UIWindowManager {
         systemWindow.backgroundColor = NSColor.black
         window.systemWindow = systemWindow
         window.minSize = minSize
+        window.userInterfaceIdiom = .desktop
 
         unsafe try? RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
         

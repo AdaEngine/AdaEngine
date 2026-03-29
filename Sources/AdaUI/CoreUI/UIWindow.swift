@@ -52,6 +52,10 @@ open class UIWindow: UIView {
     
     public var isFullscreen: Bool = false
 
+    public var userInterfaceIdiom: UserInterfaceIdiom = .desktop
+
+    public var colorScheme: ColorScheme = .light
+
     public var screen: Screen? {
         return windowManager.getScreen(for: self)
     }

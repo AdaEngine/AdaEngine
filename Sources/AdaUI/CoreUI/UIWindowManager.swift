@@ -117,7 +117,9 @@ open class UIWindowManager {
     open func updateCursor() {
         fatalErrorMethodNotImplemented()
     }
-    
+
+    open func textInputFocusDidChange(_ isFocused: Bool) { }
+
     public final func removeWindow(_ window: UIWindow, setActiveAnotherIfNeeded: Bool = true) {
         guard let window = self.windows[window.id] else {
             assertionFailure("We don't have window in windows stack. That strange problem.")

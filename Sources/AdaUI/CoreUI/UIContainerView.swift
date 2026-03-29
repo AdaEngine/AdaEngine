@@ -40,6 +40,12 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     public override func layoutSubviews() {
         super.layoutSubviews()
 
+        var env = EnvironmentValues()
+        env.safeAreaInsets = safeAreaInsets
+        env.userInterfaceIdiom = window?.userInterfaceIdiom ?? .desktop
+        env.colorScheme = window?.colorScheme ?? .light
+        viewTree.rootNode.mergeEnvironment(env)
+
         focusManager.setRootNode(viewTree.rootNode)
         viewTree.rootNode.place(
             in: .zero,
@@ -80,6 +86,8 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     private weak var lastOnMouseEventNode: ViewNode?
     /// Mouse-down capture target. Subsequent changed/ended events are routed here.
     private weak var activeMouseEventNode: ViewNode?
+    /// Touch-began capture target. Subsequent moved/ended/cancelled events are routed here.
+    private weak var activeTouchEventNode: ViewNode?
     /// Manages keyboard-driven focus traversal across focusable nodes.
     private let focusManager = UIFocusManager()
     var hasFocusedInputNode: Bool {
@@ -192,19 +200,31 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     ///
     /// - Parameter touches: The touches event to handle.
     public override func onTouchesEvent(_ touches: Set<TouchEvent>) {
-        if touches.isEmpty {
+        guard let firstTouch = touches.first else {
             return
         }
 
-        let firstTouch = touches.first!
         let localPoint = self.convert(firstTouch.location, from: self.window)
-        if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
-            if firstTouch.phase == .began {
-                self.updateFocusedNode(with: viewNode)
+
+        switch firstTouch.phase {
+        case .began:
+            let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch)
+            self.activeTouchEventNode = viewNode
+            self.updateFocusedNode(with: viewNode)
+            viewNode?.onTouchesEvent(touches)
+        case .moved:
+            if let activeTouchEventNode {
+                activeTouchEventNode.onTouchesEvent(touches)
+            } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
+                viewNode.onTouchesEvent(touches)
             }
-            viewNode.onTouchesEvent(touches)
-        } else if firstTouch.phase == .began {
-            self.updateFocusedNode(with: nil)
+        case .ended, .cancelled:
+            if let activeTouchEventNode {
+                activeTouchEventNode.onTouchesEvent(touches)
+            } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
+                viewNode.onTouchesEvent(touches)
+            }
+            self.activeTouchEventNode = nil
         }
     }
 

@@ -141,19 +141,19 @@ struct ViewVisibilityTests {
         var tabBAppeared = false
 
         let tester = ViewTester {
-            TabContainer(
-                ["A", "B"],
+            TabView(
                 selection: Binding(
                     get: { model.selected },
                     set: { model.selected = $0 }
                 )
-            ) { index in
-                if index == 0 {
+            ) {
+                Tab(value: 0) {
                     Color.red
                         .frame(width: 100, height: 100)
                         .onAppear { tabAAppeared = true }
                         .onDisappear { tabADisappeared = true }
-                } else {
+                }
+                Tab(value: 1) {
                     Color.blue
                         .frame(width: 100, height: 100)
                         .onAppear { tabBAppeared = true }
@@ -167,10 +167,8 @@ struct ViewVisibilityTests {
         #expect(!tabADisappeared)
         #expect(!tabBAppeared)
 
-        // Trigger tab switch by updating the model and rebuilding the TabContainerNode
         model.selected = 1
-        let tabNode = tester.containerView.viewTree.rootNode.contentNode
-        tabNode.invalidateContent()
+        tester.invalidateContent()
 
         #expect(tabADisappeared)
         #expect(tabBAppeared)

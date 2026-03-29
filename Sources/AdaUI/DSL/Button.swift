@@ -199,4 +199,29 @@ final class ButtonViewNode: ViewModifierNode {
         state = .normal
         self.invalidateContent()
     }
+
+    override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        guard self.state.isEnabled && self.environment.isEnabled else { return }
+        guard let touch = touches.first else { return }
+
+        switch touch.phase {
+        case .began:
+            state.insert(.highlighted)
+            state.insert(.selected)
+        case .moved:
+            break
+        case .ended:
+            let shouldInvokeAction = state.contains(.selected)
+            state.remove(.selected)
+            state.remove(.highlighted)
+            if shouldInvokeAction {
+                self.action()
+            }
+        case .cancelled:
+            state.remove(.selected)
+            state.remove(.highlighted)
+        }
+
+        self.invalidateContent()
+    }
 }

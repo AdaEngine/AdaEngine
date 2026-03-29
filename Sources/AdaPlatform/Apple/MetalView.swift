@@ -25,11 +25,23 @@ open class MetalView: MTKView {
     #if MACOS
     var currentTrackingArea: NSTrackingArea?
     #endif
-    
+
+    #if canImport(UIKit)
+    var showsKeyboard: Bool = false
+    #endif
+
+    #if MACOS
+    open override var isOpaque: Bool {
+        true
+    }
+    #endif
+
     public init(windowId: AdaUI.UIWindow.ID, frame: CGRect) {
         self.windowID = windowId
         super.init(frame: frame, device: nil)
+        #if canImport(UIKit)
         self.isOpaque = true
+        #endif
         self.isPaused = true
         self.enableSetNeedsDisplay = false
         self.autoResizeDrawable = true

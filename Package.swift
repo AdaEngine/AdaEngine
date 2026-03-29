@@ -883,8 +883,8 @@ let package = Package(
     name: "AdaEngine",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v17),
-        .tvOS(.v17),
+        .iOS(.v18),
+        .tvOS(.v18),
         .visionOS(.v2),
         .macOS(.v15),
     ],

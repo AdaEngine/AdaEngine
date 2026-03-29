@@ -10,6 +10,7 @@ import AdaUtils
 import Metal
 @unsafe @preconcurrency import MetalKit
 import Math
+import Synchronization
 
 final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 
@@ -87,18 +88,30 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
         let window = context.getRenderWindow(for: window)
             .unwrap(message: "RenderWindow not found")
 
-        return require(window.view.layer as? CAMetalLayer, message: "Expected that view layer is CAMetalLayer")
+        return MetalViewSwapchain(view: window.view)
     }
 }
 
-extension CAMetalLayer: Swapchain {
-    public var drawablePixelFormat: PixelFormat {
-        self.pixelFormat.toPixelFormat()
+private final class MetalViewSwapchain: Swapchain, @unchecked Sendable {
+    private let metalLayer: CAMetalLayer
+    private let pixelFormat: PixelFormat
+
+    @MainActor
+    init(view: MTKView) {
+        guard let layer = view.layer as? CAMetalLayer else {
+            fatalError("MTKView must be backed by CAMetalLayer")
+        }
+        self.metalLayer = layer
+        self.pixelFormat = view.colorPixelFormat.toPixelFormat()
     }
 
-    public func getNextDrawable(_ renderDevice: RenderDevice) -> (any Drawable)? {
+    var drawablePixelFormat: PixelFormat {
+        pixelFormat
+    }
+
+    func getNextDrawable(_ renderDevice: RenderDevice) -> (any Drawable)? {
         guard
-            let drawable = self.nextDrawable(),
+            let drawable = metalLayer.nextDrawable(),
             let mtlDevice = renderDevice as? MetalRenderDevice
         else {
             return nil
@@ -132,15 +145,22 @@ extension MTLPixelFormat {
     }
 }
 
-final class MetalDrawable: Drawable {
+final class MetalDrawable: Drawable, @unchecked Sendable {
     private let commandQueue: MTLCommandQueue
     private let mtlDrawable: CAMetalDrawable
+    private let isPresented = Mutex(false)
 
     public var texture: any GPUTexture {
         MetalGPUTexture(texture: self.mtlDrawable.texture)
     }
 
     public func present() throws {
+        let alreadyPresented = isPresented.withLock { value in
+            if value { return true }
+            value = true
+            return false
+        }
+        guard !alreadyPresented else { return }
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
             return
         }

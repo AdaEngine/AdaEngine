@@ -237,6 +237,11 @@ enum ShaderCache {
             let cacheFile = try self.getCacheDirectory()
                 .appending(path: path, directoryHint: .isDirectory)
                 .appending(path: "cache-\(stage.rawValue).\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
+            
+            guard fileSystem.itemExists(at: cacheFile) else {
+                return
+            }
+            
             try fileSystem.removeItem(at: cacheFile)
         } catch {
             logger.error("Failed to remove cached reflection: \(error)")
