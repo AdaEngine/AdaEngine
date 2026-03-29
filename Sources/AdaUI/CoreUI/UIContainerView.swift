@@ -42,8 +42,8 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 
         var env = EnvironmentValues()
         env.safeAreaInsets = safeAreaInsets
-        env.userInterfaceIdiom = window?.userInterfaceIdiom ?? .desktop
-        env.colorScheme = window?.colorScheme ?? .light
+        env.userInterfaceIdiom = userInterfaceIdiom
+        env.colorScheme = colorScheme
         viewTree.rootNode.mergeEnvironment(env)
 
         focusManager.setRootNode(viewTree.rootNode)

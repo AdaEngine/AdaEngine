@@ -58,6 +58,22 @@ open class UIView {
     /// A Boolean value indicating whether the view is interactive.
     open var isInteractionEnabled: Bool = true
 
+    public var userInterfaceIdiom: UserInterfaceIdiom = .desktop {
+        didSet {
+            if oldValue != userInterfaceIdiom {
+                self.setNeedsLayout()
+            }
+        }
+    }
+
+    public var colorScheme: ColorScheme = .light {
+        didSet {
+            if oldValue != colorScheme {
+                self.setNeedsLayout()
+            }
+        }
+    }
+
     /// A Boolean value indicating whether the view is hidden.
     open var isHidden: Bool = false {
         didSet {
@@ -278,6 +294,8 @@ open class UIView {
         self.updateAutoresizingFrameIfNeeded()
 
         for subview in subviews {
+            subview.userInterfaceIdiom = userInterfaceIdiom
+            subview.colorScheme = colorScheme
             subview.layoutSubviews()
         }
     }
