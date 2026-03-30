@@ -15,7 +15,7 @@ public protocol RenderSurface {
     var prefferedPixelFormat: PixelFormat { get }
 }
 
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
 import MetalKit
 
 extension MTKView: RenderSurface {
