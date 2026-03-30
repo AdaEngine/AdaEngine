@@ -50,6 +50,10 @@ enum ComponentStorage {
     static func addComponent<T: Component>(_ type: T.Type) {
         unsafe self.registeredComponents[T.swiftName] = type
     }
+
+    static func allRegisteredComponents() -> [String: any Component.Type] {
+        unsafe self.registeredComponents
+    }
 }
 
 // This hack can help us to find struct or classes in binary

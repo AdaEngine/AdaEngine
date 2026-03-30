@@ -117,6 +117,14 @@ extension World {
             return resource.pointer.get(at: 0, as: T.self)
         }
 
+        func getResource(_ resourceType: any Resource.Type) -> (any Resource)? {
+            guard let componentId = self.resourceIds[ObjectIdentifier(resourceType)],
+                  let resource = self.resourceData[componentId] else {
+                return nil
+            }
+            return resource.erasedResource
+        }
+
         func contains<T: Resource>(_ type: T.Type) -> Bool {
             if let componentId = self.resourceIds[T.identifier] {
                 return self.resourceData.contains(componentId)

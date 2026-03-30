@@ -34,6 +34,31 @@ public enum AssetError: LocalizedError {
 /// If asset was loaded to memory, you recive reference to this resource.
 public struct AssetsManager: Resource {
 
+    public struct CachedAssetInfo: Sendable, Hashable {
+        public let assetPath: String
+        public let assetName: String
+        public let typeName: String
+        public let isLoaded: Bool
+        public let handleCount: Int
+        public let assetID: String?
+
+        public init(
+            assetPath: String,
+            assetName: String,
+            typeName: String,
+            isLoaded: Bool,
+            handleCount: Int,
+            assetID: String?
+        ) {
+            self.assetPath = assetPath
+            self.assetName = assetName
+            self.typeName = typeName
+            self.isLoaded = isLoaded
+            self.handleCount = handleCount
+            self.assetID = assetID
+        }
+    }
+
     private static let logger = Logger(label: "org.adaengine.AssetsManager")
 
     private nonisolated(unsafe) static var resourceDirectory: URL!
@@ -299,6 +324,37 @@ public struct AssetsManager: Resource {
     public static func registerAssetType<T: Asset>(_ type: T.Type) {
         Task { @AssetActor in
             unsafe registredAssetTypes[String(reflecting: type)] = T.self
+        }
+    }
+
+    public static func registeredAssetTypes() -> [String: any Asset.Type] {
+        unsafe registredAssetTypes
+    }
+
+    @AssetActor
+    public static func cachedAssets() -> [CachedAssetInfo] {
+        storage.loadedAssets.flatMap { path, handles in
+            let grouped = Dictionary(grouping: handles.compactMap { $0.value as? AnyAssetHandleInfo }) {
+                $0.assetTypeName
+            }
+
+            return grouped.map { typeName, typedHandles in
+                let first = typedHandles[0]
+                return CachedAssetInfo(
+                    assetPath: path,
+                    assetName: first.assetMetaInfo?.assetName ?? URL(fileURLWithPath: path).lastPathComponent,
+                    typeName: typeName,
+                    isLoaded: typedHandles.contains(where: \.isLoaded),
+                    handleCount: typedHandles.count,
+                    assetID: first.assetMetaInfo?.assetId.description
+                )
+            }
+        }
+        .sorted {
+            if $0.assetPath == $1.assetPath {
+                return $0.typeName < $1.typeName
+            }
+            return $0.assetPath < $1.assetPath
         }
     }
 

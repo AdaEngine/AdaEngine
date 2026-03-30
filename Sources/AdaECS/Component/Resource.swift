@@ -73,4 +73,8 @@ enum ResourceStorage {
     static func addResource<T: Resource>(_ type: T.Type) {
         unsafe self.registeredResources[T.swiftName] = type
     }
+
+    static func allRegisteredResources() -> [String: any Resource.Type] {
+        unsafe self.registeredResources
+    }
 }
