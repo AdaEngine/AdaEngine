@@ -277,6 +277,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
 
     private var tabBarNode: LayoutViewContainerNode
     private var contentNode: ViewNode
+    private var cachedContentNodes: [AnyHashable: ViewNode] = [:]
 
     private var tabBarHeight: Float { TabViewConstants.tabBarHeight }
     private var tabBarWidth: Float { TabViewConstants.tabBarWidth }
@@ -305,6 +306,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
 
         super.init(content: tabView)
 
+        self.cachedContentNodes[selected] = self.contentNode
         self.tabBarNode.parent = self
         self.contentNode.parent = self
 
@@ -400,6 +402,12 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
 
     override func update(from newNode: ViewNode) {
         guard let other = newNode as? TabViewNode<Selection, Content> else { return }
+        let oldValues = Self.tabValues(from: elements)
+        let newValues = Self.tabValues(from: other.elements)
+        for key in oldValues.subtracting(newValues) {
+            cachedContentNodes[key]?.parent = nil
+            cachedContentNodes.removeValue(forKey: key)
+        }
         self.elements = other.elements
         self.selectionBinding = other.selectionBinding
         self.position = other.position
@@ -424,13 +432,17 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         case .left:   contentEnv.safeAreaInsets.leading = 0
         case .right:  contentEnv.safeAreaInsets.trailing = 0
         }
-        contentNode.updateEnvironment(contentEnv)
+        for cachedNode in cachedContentNodes.values {
+            cachedNode.updateEnvironment(contentEnv)
+        }
     }
 
     override func updateViewOwner(_ owner: ViewOwner) {
         super.updateViewOwner(owner)
         tabBarNode.updateViewOwner(owner)
-        contentNode.updateViewOwner(owner)
+        for cachedNode in cachedContentNodes.values {
+            cachedNode.updateViewOwner(owner)
+        }
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
@@ -531,17 +543,54 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         if let owner { tabBarNode.updateViewOwner(owner) }
         tabBarNode.updateEnvironment(environment)
 
-        contentNode.parent = nil
-        contentNode = Self.buildContent(for: selected, from: elements, inputs: viewInputs)
-        contentNode.parent = self
-        if let owner { contentNode.updateViewOwner(owner) }
-        contentNode.updateEnvironment(environment)
+        let newContentNode = getOrCreateContentNode(for: selected)
+        if contentNode !== newContentNode {
+            contentNode = newContentNode
+            contentNode.parent = self
+        }
+        var contentEnv = environment
+        switch position {
+        case .top:    contentEnv.safeAreaInsets.top = 0
+        case .bottom: contentEnv.safeAreaInsets.bottom = 0
+        case .left:   contentEnv.safeAreaInsets.leading = 0
+        case .right:  contentEnv.safeAreaInsets.trailing = 0
+        }
+        if let owner {
+            for cachedNode in cachedContentNodes.values {
+                cachedNode.updateViewOwner(owner)
+            }
+        }
+        for cachedNode in cachedContentNodes.values {
+            cachedNode.updateEnvironment(contentEnv)
+        }
 
         self.invalidateNearestLayer()
         if let containerView = self.owner?.containerView {
             containerView.setNeedsDisplay(in: self.absoluteFrame())
         }
         self.performLayout()
+    }
+
+    private func getOrCreateContentNode(for value: AnyHashable) -> ViewNode {
+        if let cached = cachedContentNodes[value] {
+            return cached
+        }
+        for element in elements {
+            if case .tab(_, _, let v, let makeContent) = element, v == value {
+                let node = makeContent(viewInputs)
+                node.parent = self
+                cachedContentNodes[value] = node
+                return node
+            }
+        }
+        return EmptyView._makeView(_ViewGraphNode(value: EmptyView()), inputs: viewInputs).node
+    }
+
+    private static func tabValues(from elements: [TabBarElement]) -> Set<AnyHashable> {
+        Set(elements.compactMap { elem -> AnyHashable? in
+            if case .tab(_, _, let v, _) = elem { return v }
+            return nil
+        })
     }
 
     private static func buildTabBar(
