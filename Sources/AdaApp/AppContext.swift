@@ -42,6 +42,7 @@ public struct AppContext<T: App>: ~Copyable {
         let appWorlds = AppWorlds(main: World(name: "MainWorld"))
         appWorlds
             .insertResource(WindowSettings())
+            .insertResource(SimulationControl())
             .addPlugin(MainSchedulerPlugin())
 
         let inputs = _SceneInputs(appWorlds: appWorlds)

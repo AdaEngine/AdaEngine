@@ -222,6 +222,23 @@ extension AssetHandle: AnyAssetHandle {
     }
 }
 
+public protocol AnyAssetHandleInfo: AnyObject, Sendable {
+    var assetPath: String { get }
+    var assetTypeName: String { get }
+    var assetMetaInfo: AssetMetaInfo? { get }
+    var isLoaded: Bool { get }
+}
+
+extension AssetHandle: AnyAssetHandleInfo {
+    public var assetTypeName: String {
+        self.type
+    }
+
+    public var assetMetaInfo: AssetMetaInfo? {
+        self.assetMeta
+    }
+}
+
 /// A protocol that represents an asset handle.
 ///
 /// This protocol is used to update the asset handle.

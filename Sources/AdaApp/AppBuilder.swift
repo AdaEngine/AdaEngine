@@ -105,7 +105,24 @@ public extension AppWorlds {
             return
         }
 
-        await main.runScheduler(updateScheduler)
+        let simulationControl = main.getOrInitRefResource(SimulationControl.self) {
+            SimulationControl()
+        }
+        let shouldRunMainWorld = switch simulationControl.wrappedValue.mode {
+        case .running:
+            true
+        case .paused:
+            if simulationControl.wrappedValue.pendingStepCount > 0 {
+                simulationControl.wrappedValue.pendingStepCount -= 1
+                true
+            } else {
+                false
+            }
+        }
+
+        if shouldRunMainWorld {
+            await main.runScheduler(updateScheduler)
+        }
 
         for world in self.subWorlds.values {
             unsafe await world.worldExctractor?.exctract(from: main, to: world.main)
@@ -120,6 +137,19 @@ public extension AppWorlds {
     /// - Returns: The subworld builder.
     func getSubworldBuilder(by name: AppWorldName) -> AppWorlds? {
         self.subWorlds[name.rawValue]
+    }
+
+    func getWorldBuilder(by name: AppWorldName) -> AppWorlds? {
+        if name == .main {
+            return self
+        }
+        return self.getSubworldBuilder(by: name)
+    }
+
+    func allWorldNames() -> [AppWorldName] {
+        [.main] + self.subWorlds.keys
+            .sorted()
+            .map(AppWorldName.init(rawValue:))
     }
 
     /// Add a new subworld.
