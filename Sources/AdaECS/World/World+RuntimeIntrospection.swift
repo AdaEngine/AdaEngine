@@ -1,4 +1,5 @@
 import Foundation
+import AdaUtils
 
 public extension World {
     func getComponents(for entity: Entity.ID) -> [(typeName: String, component: any Component)] {

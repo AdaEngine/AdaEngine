@@ -436,7 +436,7 @@ public extension World {
     /// - Complexity: O(1)
     /// - Returns: The resource if it exists, otherwise the initialized resource.
     func getOrInitResource<T: Resource & WorldInitable>(of type: T.Type) -> T {
-        if let resource = self.resources.getResource(T.self) {
+        if let resource = self.getResource(T.self) {
             return resource
         }
         let resource = type.init(from: self)

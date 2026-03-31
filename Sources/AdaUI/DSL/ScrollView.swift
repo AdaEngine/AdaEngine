@@ -449,6 +449,33 @@ final class ScrollViewNode: LayoutViewContainerNode {
         setContentOffset(clampedOffset)
     }
 
+    func scrollToNodeIfDescendant(_ node: ViewNode, anchor: AnchorPoint? = nil) -> Bool {
+        guard self.containsDescendant(node) else {
+            return false
+        }
+
+        let anchor = anchor ?? .zero
+        let position = node.convert(node.frame.origin, to: self)
+        let offset = Point(
+            x: position.x - contentSize.width * anchor.x,
+            y: position.y - contentSize.height * anchor.y
+        )
+        let clampedOffset = clampOffset(offset)
+        setContentOffset(clampedOffset)
+        return true
+    }
+
+    private func containsDescendant(_ node: ViewNode) -> Bool {
+        var current: ViewNode? = node
+        while let currentNode = current {
+            if currentNode === self {
+                return true
+            }
+            current = currentNode.parent
+        }
+        return false
+    }
+
     @inline(__always)
     private func finiteDimension(_ value: Float?) -> Float? {
         guard let value, value.isFinite else {

@@ -155,7 +155,7 @@ public final class AssetHandle<T: Asset>: Codable, @unchecked Sendable {
         self.asset = asset
         self.type = String(reflecting: Swift.type(of: self.asset))
         self.assetMeta = asset.assetMetaInfo
-        self.assetPath = asset.assetPath
+        self.storedAssetPath = asset.assetPath
     }
     
     enum CodingKeys: CodingKey {
@@ -165,7 +165,7 @@ public final class AssetHandle<T: Asset>: Codable, @unchecked Sendable {
     }
 
     private let type: String
-    private let assetPath: String
+    private let storedAssetPath: String
     private let assetMeta: AssetMetaInfo?
 
     /// Initialize a new asset handle from a decoder.
@@ -175,7 +175,7 @@ public final class AssetHandle<T: Asset>: Codable, @unchecked Sendable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.type = try container.decode(String.self, forKey: .type)
-        self.assetPath = try container.decode(String.self, forKey: .assetPath)
+        self.storedAssetPath = try container.decode(String.self, forKey: .assetPath)
         self.assetMeta = try container.decode(AssetMetaInfo.self, forKey: .meta)
     }
 
@@ -183,13 +183,13 @@ public final class AssetHandle<T: Asset>: Codable, @unchecked Sendable {
         let asset = if let assetMeta, let path = assetMeta.bundlePath, let bundle = Bundle(path: path) {
             try await AssetsManager.load(
                 T.self,
-                at: assetPath,
+                at: storedAssetPath,
                 from: bundle
             )
         } else {
             try await AssetsManager.load(
                 T.self,
-                at: assetPath
+                at: storedAssetPath
             )
         }
         self.asset = asset.asset
@@ -202,7 +202,7 @@ public final class AssetHandle<T: Asset>: Codable, @unchecked Sendable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(type, forKey: .type)
-        try container.encode(assetPath, forKey: .assetPath)
+        try container.encode(storedAssetPath, forKey: .assetPath)
         try container.encode(assetMeta, forKey: .meta)
     }
 
@@ -230,6 +230,10 @@ public protocol AnyAssetHandleInfo: AnyObject, Sendable {
 }
 
 extension AssetHandle: AnyAssetHandleInfo {
+    public var assetPath: String {
+        self.storedAssetPath
+    }
+
     public var assetTypeName: String {
         self.type
     }
