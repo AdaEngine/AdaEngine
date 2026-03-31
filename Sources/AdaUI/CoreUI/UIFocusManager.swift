@@ -9,7 +9,7 @@
 final class UIFocusManager {
 
     private weak var rootNode: ViewNode?
-    private(set) weak var focusedNode: ViewNode?
+    private(set) var focusedNode: ViewNode?
 
     init(rootNode: ViewNode? = nil) {
         self.rootNode = rootNode
@@ -70,7 +70,9 @@ final class UIFocusManager {
             result.append(node)
         }
 
-        if let container = node as? ViewContainerNode {
+        if let rootNode = node as? ViewRootNode {
+            collectFocusableNodes(from: rootNode.contentNode, into: &result)
+        } else if let container = node as? ViewContainerNode {
             for child in container.nodes {
                 collectFocusableNodes(from: child, into: &result)
             }

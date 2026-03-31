@@ -346,7 +346,7 @@ public struct AssetsManager: Resource {
                     typeName: typeName,
                     isLoaded: typedHandles.contains(where: \.isLoaded),
                     handleCount: typedHandles.count,
-                    assetID: first.assetMetaInfo?.assetId.description
+                    assetID: first.assetMetaInfo.map { String($0.assetId.id) }
                 )
             }
         }

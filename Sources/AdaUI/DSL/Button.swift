@@ -152,6 +152,19 @@ final class ButtonViewNode: ViewModifierNode {
         self.invalidateContent()
     }
 
+    override var canBecomeFocused: Bool {
+        self.state.isEnabled && self.environment.isEnabled
+    }
+
+    override func onFocusChanged(isFocused: Bool) {
+        if isFocused {
+            state.insert(.focused)
+        } else {
+            state.remove(.focused)
+        }
+        self.invalidateContent()
+    }
+
     // MARK: - Interaction
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {

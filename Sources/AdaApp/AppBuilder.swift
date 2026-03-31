@@ -108,15 +108,16 @@ public extension AppWorlds {
         let simulationControl = main.getOrInitRefResource(SimulationControl.self) {
             SimulationControl()
         }
-        let shouldRunMainWorld = switch simulationControl.wrappedValue.mode {
+        let shouldRunMainWorld: Bool
+        switch simulationControl.wrappedValue.mode {
         case .running:
-            true
+            shouldRunMainWorld = true
         case .paused:
             if simulationControl.wrappedValue.pendingStepCount > 0 {
                 simulationControl.wrappedValue.pendingStepCount -= 1
-                true
+                shouldRunMainWorld = true
             } else {
-                false
+                shouldRunMainWorld = false
             }
         }
 

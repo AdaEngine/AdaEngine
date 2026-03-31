@@ -25,6 +25,9 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     /// The view tree of the container view.
     let viewTree: ViewTree<Content>
 
+    var inspectionDebugOverlayMode: UIDebugOverlayMode = .off
+    weak var inspectionLastHitTestNode: ViewNode?
+
     /// Initialize a new container view.
     ///
     /// - Parameter rootView: The root view of the container view.
@@ -44,6 +47,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         env.safeAreaInsets = safeAreaInsets
         env.userInterfaceIdiom = userInterfaceIdiom
         env.colorScheme = colorScheme
+        env.debugViewDrawingOptions = self.inspectionDebugDrawingOptions()
         viewTree.rootNode.mergeEnvironment(env)
 
         focusManager.setRootNode(viewTree.rootNode)
@@ -89,7 +93,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     /// Touch-began capture target. Subsequent moved/ended/cancelled events are routed here.
     private weak var activeTouchEventNode: ViewNode?
     /// Manages keyboard-driven focus traversal across focusable nodes.
-    private let focusManager = UIFocusManager()
+    let focusManager = UIFocusManager()
     var hasFocusedInputNode: Bool {
         self.focusManager.focusedNode != nil
     }
@@ -102,6 +106,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         switch event.phase {
         case .began:
             let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event)
+            self.inspectionLastHitTestNode = viewNode
             self.activeMouseEventNode = viewNode
             self.updateFocusedNode(with: viewNode)
             viewNode?.onMouseEvent(event)
@@ -117,6 +122,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
                     lastOnMouseEventNode = activeMouseEventNode
                 }
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
+                self.inspectionLastHitTestNode = viewNode
                 viewNode.onMouseEvent(event)
                 if lastOnMouseEventNode !== viewNode {
                     lastOnMouseEventNode?.onMouseLeave()
@@ -134,6 +140,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
                     lastOnMouseEventNode = activeMouseEventNode
                 }
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
+                self.inspectionLastHitTestNode = viewNode
                 viewNode.onMouseEvent(event)
                 if lastOnMouseEventNode !== viewNode {
                     lastOnMouseEventNode?.onMouseLeave()
@@ -209,6 +216,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         switch firstTouch.phase {
         case .began:
             let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch)
+            self.inspectionLastHitTestNode = viewNode
             self.activeTouchEventNode = viewNode
             self.updateFocusedNode(with: viewNode)
             viewNode?.onTouchesEvent(touches)
@@ -216,12 +224,14 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             if let activeTouchEventNode {
                 activeTouchEventNode.onTouchesEvent(touches)
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
+                self.inspectionLastHitTestNode = viewNode
                 viewNode.onTouchesEvent(touches)
             }
         case .ended, .cancelled:
             if let activeTouchEventNode {
                 activeTouchEventNode.onTouchesEvent(touches)
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
+                self.inspectionLastHitTestNode = viewNode
                 viewNode.onTouchesEvent(touches)
             }
             self.activeTouchEventNode = nil
@@ -255,5 +265,14 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     public override func update(_ deltaTime: TimeInterval) {
         super.update(deltaTime)
         self.viewTree.rootNode.update(deltaTime)
+    }
+
+    func inspectionDebugDrawingOptions() -> _DebugViewDrawingOptions {
+        switch self.inspectionDebugOverlayMode {
+        case .off:
+            []
+        case .layoutBounds, .focusedNode, .hitTestTarget:
+            [.drawViewOverlays]
+        }
     }
 }
