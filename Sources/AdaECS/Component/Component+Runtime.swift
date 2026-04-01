@@ -25,11 +25,9 @@ extension Component {
 }
 
 extension Component {
-    
-    /// Return name with Bundle -> AdaEngine.ComponentName
-    /// - Note: We use reflection, we paid a huge cost for that.
+
     static var swiftName: String {
-        return String(reflecting: self)
+        TypeNameCache.name(for: self)
     }
     
     /// Return identifier of component based on Component.Type
