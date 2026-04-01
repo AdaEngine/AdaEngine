@@ -404,6 +404,9 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         guard let other = newNode as? TabViewNode<Selection, Content> else { return }
         let oldValues = Self.tabValues(from: elements)
         let newValues = Self.tabValues(from: other.elements)
+        let elementsChanged = oldValues != newValues
+        let positionChanged = self.position != other.position
+
         for key in oldValues.subtracting(newValues) {
             cachedContentNodes[key]?.parent = nil
             cachedContentNodes.removeValue(forKey: key)
@@ -413,7 +416,12 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         self.position = other.position
         self.viewInputs = other.viewInputs
         super.update(from: other)
-        rebuildAll()
+
+        if elementsChanged || positionChanged {
+            rebuildAll()
+        } else {
+            updateSelectionOnly()
+        }
     }
 
     override func invalidateContent() {
@@ -421,11 +429,15 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
+        let prevVersion = self.environment.version
         super.updateEnvironment(environment)
-        tabBarNode.updateEnvironment(environment)
+        guard self.environment.version != prevVersion else { return }
+
+        tabBarNode.updateEnvironment(self.environment)
+
         // Zero the safe area edge the tab bar occupies so content children
         // don't add redundant inset for an edge the tab bar already covers.
-        var contentEnv = environment
+        var contentEnv = self.environment
         switch position {
         case .top:    contentEnv.safeAreaInsets.top = 0
         case .bottom: contentEnv.safeAreaInsets.bottom = 0
@@ -520,11 +532,53 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     }
 
     private func selectTab(_ value: AnyHashable) {
-        // Extract actual Selection value from AnyHashable
         guard let typedValue = value.base as? Selection,
               selectionBinding.wrappedValue != typedValue else { return }
+        // Setting wrappedValue triggers StateStorage.update() → invalidateContent() on
+        // the parent State owner → body re-evaluation → TabViewNode.update(from:) →
+        // updateSelectionOnly(). The explicit rebuildAll() that used to follow was redundant.
         selectionBinding.wrappedValue = typedValue
-        rebuildAll()
+    }
+
+    /// Fast path: only selection changed, no structural change to elements.
+    /// Updates tab bar button states and swaps the content node without rebuilding nodes.
+    private func updateSelectionOnly() {
+        let selected = AnyHashable(selectionBinding.wrappedValue)
+
+        // Update selection state on existing tab bar buttons in-place (no rebuild)
+        for node in tabBarNode.nodes {
+            guard let button = node as? TabItemButtonNode else { continue }
+            button.updateSelection(selected)
+        }
+
+        // Swap content node only if selection actually changed
+        let wasAlreadyCached = cachedContentNodes[selected] != nil
+        let newContentNode = getOrCreateContentNode(for: selected)
+        if contentNode !== newContentNode {
+            contentNode = newContentNode
+            contentNode.parent = self
+        }
+
+        // Only propagate environment and owner to newly created content nodes.
+        // Cached nodes already have the correct environment and owner from when they were first shown.
+        // Phase 2's version guard in updateEnvironment also protects against redundant cascades.
+        if !wasAlreadyCached, let owner {
+            var contentEnv = environment
+            switch position {
+            case .top:    contentEnv.safeAreaInsets.top = 0
+            case .bottom: contentEnv.safeAreaInsets.bottom = 0
+            case .left:   contentEnv.safeAreaInsets.leading = 0
+            case .right:  contentEnv.safeAreaInsets.trailing = 0
+            }
+            newContentNode.updateViewOwner(owner)
+            newContentNode.updateEnvironment(contentEnv)
+        }
+
+        self.invalidateNearestLayer()
+        if let containerView = self.owner?.containerView {
+            containerView.setNeedsDisplay(in: self.absoluteFrame())
+        }
+        self.performLayout()
     }
 
     private func rebuildAll() {
@@ -560,9 +614,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
                 cachedNode.updateViewOwner(owner)
             }
         }
-        for cachedNode in cachedContentNodes.values {
-            cachedNode.updateEnvironment(contentEnv)
-        }
+        contentNode.updateEnvironment(contentEnv)
 
         self.invalidateNearestLayer()
         if let containerView = self.owner?.containerView {
@@ -715,6 +767,7 @@ private final class TabItemButtonNode: ViewNode {
     private var isHighlighted: Bool = false
     private var iconTexture: Texture2D?
     private var touchStartLocation: Point?
+    private(set) var value: AnyHashable
 
     init(content: TabItemButton, inputs: _ViewInputs) {
         self.label = content.label
@@ -722,6 +775,7 @@ private final class TabItemButtonNode: ViewNode {
         self.isSelected = content.isSelected
         self.isHorizontalBar = content.isHorizontalBar
         self.action = content.action
+        self.value = content.value
         self.iconTexture = content.image.map { Texture2D(image: $0) }
         super.init(content: content)
         self.updateEnvironment(inputs.environment)
@@ -816,9 +870,17 @@ private final class TabItemButtonNode: ViewNode {
         self.isSelected = other.isSelected
         self.isHorizontalBar = other.isHorizontalBar
         self.action = other.action
+        self.value = other.value
         if let img = other.image, self.iconTexture == nil {
             self.iconTexture = Texture2D(image: img)
         }
+    }
+
+    func updateSelection(_ selected: AnyHashable) {
+        let shouldBeSelected = AnyHashable(value) == selected
+        guard isSelected != shouldBeSelected else { return }
+        isSelected = shouldBeSelected
+        requestDisplay()
     }
 
     // MARK: - Drawing helpers

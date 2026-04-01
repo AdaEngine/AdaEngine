@@ -39,6 +39,11 @@ public struct _ViewInputs {
     var propertyStorages: [PropertyStoragable] = []
     var gestures: [_Gesture] = []
 
+    /// Accumulated environment transform from `.environment()` / `.transformEnvironment()` modifiers
+    /// in the current modifier chain. Set by `_ViewInputsViewModifier._makeModifier` and consumed by
+    /// `_ViewInputsViewModifier._makeView` to store on the resulting node.
+    var pendingEnvironmentTransform: ((inout EnvironmentValues) -> Void)?
+
     func makeNode<T: View>(from content: T) -> ViewNode {
         T._makeView(_ViewGraphNode(value: content), inputs: self).node
     }

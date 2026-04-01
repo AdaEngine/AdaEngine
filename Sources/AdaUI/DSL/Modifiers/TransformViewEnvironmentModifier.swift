@@ -56,8 +56,18 @@ struct TransformViewEnvironmentModifier<WrappedView: View, Value>: ViewModifier,
     }
 
     static func _makeModifier(_ modifier: _ViewGraphNode<Self>, inputs: inout _ViewInputs) {
-        var environment = inputs.environment
-        modifier.value.block(&environment[keyPath: modifier.value.keyPath])
-        inputs.environment = environment
+        let keyPath = modifier.value.keyPath
+        let block = modifier.value.block
+
+        // Apply immediately so child nodes see the updated environment during _makeView.
+        block(&inputs.environment[keyPath: keyPath])
+
+        // Accumulate transform for lazy re-application on environment updates.
+        // Multiple chained .environment() modifiers compose left-to-right.
+        let previous = inputs.pendingEnvironmentTransform
+        inputs.pendingEnvironmentTransform = { env in
+            previous?(&env)
+            block(&env[keyPath: keyPath])
+        }
     }
 }

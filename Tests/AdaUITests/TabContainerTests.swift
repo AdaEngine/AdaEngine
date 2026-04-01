@@ -26,12 +26,12 @@ struct TabContainerTests {
             TabView(
                 selection: Binding(get: { model.selected }, set: { model.selected = $0 })
             ) {
-                Tab(value: 0) {
+                Tab("", value: 0) {
                     Text("Content A")
                         .accessibilityIdentifier("content-a")
                         .frame(width: 200, height: 40)
                 }
-                Tab(value: 1) {
+                Tab("", value: 1) {
                     Text("Content B")
                         .accessibilityIdentifier("content-b")
                         .frame(width: 200, height: 40)

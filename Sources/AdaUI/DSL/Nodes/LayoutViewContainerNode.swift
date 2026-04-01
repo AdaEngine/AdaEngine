@@ -106,8 +106,11 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
+        let prevVersion = self.environment.version
         super.updateEnvironment(environment)
-        cacheNeedsUpdate = true
+        if self.environment.version != prevVersion {
+            cacheNeedsUpdate = true
+        }
     }
 
     override func update(from newNode: ViewNode) {

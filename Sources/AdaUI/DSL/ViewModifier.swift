@@ -224,13 +224,22 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
         var inputs = inputs
         Self._makeModifier(modifier, inputs: &inputs)
 
+        let outputs: _ViewOutputs
         if let builder = modifier.value as? ViewNodeBuilder {
             let node = builder.buildViewNode(in: inputs)
-            return _ViewOutputs(node: node)
+            outputs = _ViewOutputs(node: node)
+        } else {
+            let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeView(body)))
+            outputs = Self.Body._makeView(_ViewGraphNode(value: newBody), inputs: inputs)
         }
-        
-        let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeView(body)))
-        return Self.Body._makeView(_ViewGraphNode(value: newBody), inputs: inputs)
+
+        // Store the accumulated environment transform on the resulting node so it can
+        // re-apply its overrides lazily when the parent environment changes.
+        if let transform = inputs.pendingEnvironmentTransform {
+            outputs.node.environmentTransform = transform
+        }
+
+        return outputs
     }
 }
 

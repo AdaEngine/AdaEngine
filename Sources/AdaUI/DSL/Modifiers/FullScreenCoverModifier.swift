@@ -119,11 +119,13 @@ final class FullScreenCoverNode: ViewModifierNode {
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
+        let prevVersion = self.environment.version
         super.updateEnvironment(environment)
-        viewInputs.environment = environment
+        guard self.environment.version != prevVersion else { return }
+        viewInputs.environment = self.environment
 
         if var overlayNode {
-            var overlayEnv = environment
+            var overlayEnv = self.environment
             overlayEnv.dismiss = DismissAction { [weak self] in
                 self?.isPresented.wrappedValue = false
                 self?.rebuildOverlay()

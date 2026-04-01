@@ -350,7 +350,7 @@ final class TextFieldViewNode: ViewNode {
         guard contentRect.width > 0, contentRect.height > 0 else {
             return
         }
-        let clipRect = self.absoluteContentRect()
+        let clipRect = self.visualAbsoluteContentRect()
 
         let pointSize = self.resolvedFontPointSize()
         let textColor = self.resolvedTextColor()
@@ -961,6 +961,26 @@ extension TextFieldViewNode {
             y: absoluteFrame.origin.y + Constants.verticalInset,
             width: max(0, absoluteFrame.width - Constants.horizontalInset * 2),
             height: max(0, absoluteFrame.height - Constants.verticalInset * 2)
+        )
+    }
+
+    func visualAbsoluteContentRect() -> Rect {
+        var origin = self.frame.origin
+        var currentParent = self.parent
+        while let parent = currentParent {
+            origin.x += parent.frame.origin.x
+            origin.y += parent.frame.origin.y
+            if let scrollNode = parent as? ScrollViewNode {
+                origin.x -= scrollNode.contentOffset.x
+                origin.y -= scrollNode.contentOffset.y
+            }
+            currentParent = parent.parent
+        }
+        return Rect(
+            x: origin.x + Constants.horizontalInset,
+            y: origin.y + Constants.verticalInset,
+            width: max(0, self.frame.width - Constants.horizontalInset * 2),
+            height: max(0, self.frame.height - Constants.verticalInset * 2)
         )
     }
 

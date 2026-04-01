@@ -50,8 +50,13 @@ class ViewNode: Identifiable {
 
     var accessibilityIdentifier: String?
 
-    /// Contains current environment values.
+    /// Contains current environment values (post-transform).
     private(set) var environment = EnvironmentValues()
+
+    /// Optional transform applied on top of the parent environment.
+    /// Set by `.environment()` / `.transformEnvironment()` modifiers via `_ViewInputs.pendingEnvironmentTransform`.
+    /// Allows lazy re-derivation when the parent environment changes.
+    var environmentTransform: ((inout EnvironmentValues) -> Void)?
 
     /// Contains position and size relative to parent view.
     private(set) var frame: Rect = .zero
@@ -86,13 +91,39 @@ class ViewNode: Identifiable {
     }
 
     /// Updates stored environment.
-    /// Called each time, when environment values did change.
-    func updateEnvironment(_ environment: EnvironmentValues) {
-        self.environment = environment
+    /// Applies any stored `environmentTransform` on top of the incoming parent environment,
+    /// then short-circuits via the version guard if nothing actually changed.
+    /// For storages with known key subscriptions, only triggers a rebuild when a subscribed key value changed.
+    func updateEnvironment(_ parentEnvironment: EnvironmentValues) {
+        var env = parentEnvironment
+        environmentTransform?(&env)
+        guard env.version != self.environment.version else { return }
+        self.environment = env
+        storages.forEach { storage in
+            guard let viewContextStorage = storage as? ViewContextStorage else { return }
+            let subscribedKeyIDs = viewContextStorage.subscribedKeyIDs
+            // Compare subscribed key values between the storage's last-seen env and the new env.
+            // If subscription set is empty the storage subscribes to everything.
+            guard subscribedKeyIDs.isEmpty
+                    || self.environment.hasChangedValues(forKeyIDs: subscribedKeyIDs, comparedTo: viewContextStorage.values) else {
+                // Subscribed keys unchanged — skip rebuild but keep values in sync.
+                viewContextStorage.values = self.environment
+                return
+            }
+            viewContextStorage.values = self.environment
+            viewContextStorage.update()
+        }
+    }
+
+    /// Updates stored environment and VCS values without triggering re-renders.
+    /// Used during reconciliation (update(from:)) to avoid re-entrant invalidation.
+    private func applyEnvironmentSilently(_ parentEnvironment: EnvironmentValues) {
+        var env = parentEnvironment
+        environmentTransform?(&env)
+        self.environment = env
         storages.forEach { storage in
             guard let viewContextStorage = storage as? ViewContextStorage else { return }
             viewContextStorage.values = self.environment
-            viewContextStorage.update()
         }
     }
 
@@ -159,7 +190,7 @@ class ViewNode: Identifiable {
     /// Update current node with a new. This method called after ``invalidationContent()`` method
     /// and if view exists in tree, we should update exsiting view using ``ViewNode/update(_:)`` method.
     func update(from newNode: ViewNode) {
-        self.updateEnvironment(newNode.environment)
+        self.applyEnvironmentSilently(newNode.environment)
         self.setContent(newNode.content)
         self.rebindStorages()
     }

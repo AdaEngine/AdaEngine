@@ -137,9 +137,11 @@ private final class TabContainerNode<Selection: Hashable, Content: View>: ViewNo
     override func invalidateContent() { rebuildAll() }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
+        let prevVersion = self.environment.version
         super.updateEnvironment(environment)
-        tabBarNode.updateEnvironment(environment)
-        contentNode.updateEnvironment(environment)
+        guard self.environment.version != prevVersion else { return }
+        tabBarNode.updateEnvironment(self.environment)
+        contentNode.updateEnvironment(self.environment)
     }
 
     override func updateViewOwner(_ owner: ViewOwner) {
