@@ -48,11 +48,9 @@ extension Resource {
 }
 
 extension Resource {
-    
-    /// Return name with Bundle -> AdaEngine.ResourceName
-    /// - Note: We use reflection, we paid a huge cost for that.
+
     static var swiftName: String {
-        return String(reflecting: self)
+        TypeNameCache.name(for: self)
     }
     
     /// Return identifier of resource based on Resource.Type
