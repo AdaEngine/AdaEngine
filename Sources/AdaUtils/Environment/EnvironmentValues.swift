@@ -95,22 +95,86 @@ public struct EnvironmentValues: Sendable {
 
     private var values: [ObjectIdentifier: any Sendable] = [:]
 
+    /// Monotonically increasing counter — bumped on every mutation.
+    /// Used by nodes to detect stale caches without comparing dictionaries.
+    public private(set) var version: UInt64 = 0
+
+    /// Keys that changed in the most recent mutation batch.
+    /// Cleared and rebuilt each time a new mutation starts from version `version - 1`.
+    public private(set) var changedKeys: Set<ObjectIdentifier> = []
+
     /// Creates an environment values instance.
     public init() { }
+
+    /// When non-nil, every subscript READ reports the accessed key's ObjectIdentifier here.
+    /// Used once during `@Environment` initialisation to discover which keys it subscribes to.
+    /// All accesses occur on the main actor; `nonisolated(unsafe)` avoids a spurious concurrency error
+    /// from the nonisolated subscript getter context.
+    nonisolated(unsafe) package static var _recordKeyAccess: ((ObjectIdentifier) -> Void)?
 
     /// Accesses the environment value associated with a custom key.
     public subscript<K: EnvironmentKey>(_ type: K.Type) -> K.Value {
         get {
-            (self.values[ObjectIdentifier(type)] as? K.Value) ?? K.defaultValue
+            EnvironmentValues._recordKeyAccess?(ObjectIdentifier(type))
+            return (self.values[ObjectIdentifier(type)] as? K.Value) ?? K.defaultValue
         }
         set {
-            self.values[ObjectIdentifier(type)] = newValue
+            let id = ObjectIdentifier(type)
+            // Only bump version if the stored value actually differs.
+            // AnyHashable comparison works for all Hashable values (which covers
+            // virtually every environment key: Color, Float, Bool, enums, etc.).
+            // Non-Hashable values unconditionally mark changed.
+            let existing = values[id]
+            let actuallyChanged: Bool
+            if let existingHash = existing as? AnyHashable,
+               let newHash = newValue as? AnyHashable {
+                actuallyChanged = existingHash != newHash
+            } else {
+                actuallyChanged = true
+            }
+            values[id] = newValue
+            if actuallyChanged {
+                version &+= 1
+                changedKeys.insert(id)
+            }
         }
     }
 
     @_spi(Internal)
     public mutating func merge(_ newValue: EnvironmentValues) {
-        self.values.merge(newValue.values, uniquingKeysWith: { $1 })
+        for (key, value) in newValue.values {
+            let existing = self.values[key]
+            let actuallyChanged: Bool
+            if let existingHash = existing as? AnyHashable,
+               let newHash = value as? AnyHashable {
+                actuallyChanged = existingHash != newHash
+            } else {
+                actuallyChanged = true
+            }
+            self.values[key] = value
+            if actuallyChanged {
+                self.version &+= 1
+                self.changedKeys.insert(key)
+            }
+        }
+    }
+
+    /// Returns true if any key in `ids` has a different stored value between `self` and `other`.
+    /// Used by subscription filtering in `ViewNode.updateEnvironment` to skip rebuilds
+    /// when none of the keys a storage subscribes to actually changed.
+    package func hasChangedValues(forKeyIDs ids: Set<ObjectIdentifier>, comparedTo old: EnvironmentValues) -> Bool {
+        for id in ids {
+            let newVal = values[id]
+            let oldVal = old.values[id]
+            if let nh = newVal as? AnyHashable, let oh = oldVal as? AnyHashable {
+                if nh != oh { return true }
+            } else if (newVal == nil) != (oldVal == nil) {
+                return true
+            } else if newVal != nil {
+                return true  // non-Hashable value present; assume changed
+            }
+        }
+        return false
     }
 }
 

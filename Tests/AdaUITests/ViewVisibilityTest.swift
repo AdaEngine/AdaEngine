@@ -147,13 +147,13 @@ struct ViewVisibilityTests {
                     set: { model.selected = $0 }
                 )
             ) {
-                Tab(value: 0) {
+                Tab("", value: 0) {
                     Color.red
                         .frame(width: 100, height: 100)
                         .onAppear { tabAAppeared = true }
                         .onDisappear { tabADisappeared = true }
                 }
-                Tab(value: 1) {
+                Tab("", value: 1) {
                     Color.blue
                         .frame(width: 100, height: 100)
                         .onAppear { tabBAppeared = true }

@@ -175,7 +175,6 @@ class ViewContainerNode: ViewNode {
         let currentOwner = self.owner
         for node in nodes {
             node.updateLayoutProperties(layoutProperties)
-            node.updateEnvironment(environment)
 
             if let currentOwner, node.owner !== currentOwner {
                 node.updateViewOwner(currentOwner)
@@ -270,10 +269,15 @@ class ViewContainerNode: ViewNode {
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
+        let prevVersion = self.environment.version
         super.updateEnvironment(environment)
-
+        // Only cascade to children when this node's environment actually changed.
+        // super.updateEnvironment applies environmentTransform and skips storing if the
+        // resulting version is unchanged — so comparing prevVersion detects no-ops cheaply.
+        guard self.environment.version != prevVersion else { return }
         for node in nodes {
-            node.updateEnvironment(environment)
+            // Pass self.environment (post-transform) so children inherit the correct base.
+            node.updateEnvironment(self.environment)
         }
     }
 

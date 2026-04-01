@@ -121,7 +121,10 @@ private final class IgnoresSafeAreaNode: ViewNode {
         if edges.contains(.leading)  { env.safeAreaInsets.leading = 0 }
         if edges.contains(.bottom)   { env.safeAreaInsets.bottom = 0 }
         if edges.contains(.trailing) { env.safeAreaInsets.trailing = 0 }
+
+        let prevVersion = self.environment.version
         super.updateEnvironment(env)
+        guard self.environment.version != prevVersion else { return }
         contentNode.updateEnvironment(self.environment)
     }
 

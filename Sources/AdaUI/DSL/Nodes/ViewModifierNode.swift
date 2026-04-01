@@ -80,8 +80,11 @@ class ViewModifierNode: ViewNode {
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
-        contentNode.updateEnvironment(environment)
+        let prevVersion = self.environment.version
         super.updateEnvironment(environment)
+        guard self.environment.version != prevVersion else { return }
+        // Pass self.environment (post-transform) so content node inherits correctly.
+        contentNode.updateEnvironment(self.environment)
     }
 
     override func draw(with context: UIGraphicsContext) {

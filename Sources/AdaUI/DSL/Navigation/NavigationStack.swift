@@ -219,9 +219,11 @@ final class NavigationStackNode: ViewNode {
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
+        let prevVersion = self.environment.version
         super.updateEnvironment(environment)
-        viewInputs.environment = environment
-        var childEnv = environment
+        guard self.environment.version != prevVersion else { return }
+        viewInputs.environment = self.environment
+        var childEnv = self.environment
         childEnv.navigationContext = navigationContext
         childEnv.dismiss = dismissAction
         currentContentNode.updateEnvironment(childEnv)
