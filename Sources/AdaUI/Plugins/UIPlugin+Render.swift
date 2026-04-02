@@ -504,6 +504,29 @@ public struct UIRenderTesselationSystem {
                 renderDevice: renderDevice
             )
 
+        case let .drawGlassRect(transform, halfSize, configuration, scaleFactor):
+            // Flush any queued non-glass draws to preserve correct draw order.
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+
+            let vertexOffset = UInt32(state.renderData.glassVertexBuffer.count)
+            let vertices = tessellator.tessellateGlassQuad(
+                transform: transform,
+                halfSize: halfSize,
+                configuration: configuration,
+                scaleFactor: scaleFactor
+            )
+            state.renderData.glassVertexBuffer.elements.append(contentsOf: vertices)
+
+            let indexStart = state.renderData.glassIndexBuffer.count
+            let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            state.renderData.glassIndexBuffer.elements.append(contentsOf: indices)
+            state.renderData.glassBatches.append(
+                UIDrawData.IndexBatch(textureIndex: 0, indexOffset: indexStart, indexCount: indices.count)
+            )
+
+            // Flush immediately so that content drawn after this command renders on top.
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+
         case .commit:
             flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
         }
@@ -615,6 +638,8 @@ public struct UIRenderPipelines: Resource, WorldInitable {
     public var quadPipeline: RenderPipeline
     public var linePipeline: RenderPipeline
     public var circlePipeline: RenderPipeline
+    /// Glass pipeline — optional because `GlassPipeline` is only registered when glass is enabled.
+    public var glassPipeline: RenderPipeline?
 
     public init(from world: World) {
         let device = world.getResource(RenderDeviceHandler.self).unwrap().renderDevice
@@ -631,6 +656,10 @@ public struct UIRenderPipelines: Resource, WorldInitable {
             .pipeline(device: device)
 
         self.circlePipeline = world.getRefResource(RenderPipelines<CirclePipeline>.self)
+            .wrappedValue
+            .pipeline(device: device)
+
+        self.glassPipeline = world.getRefResource(RenderPipelines<GlassPipeline>.self)
             .wrappedValue
             .pipeline(device: device)
     }

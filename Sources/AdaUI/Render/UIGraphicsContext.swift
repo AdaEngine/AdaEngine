@@ -291,6 +291,7 @@ extension UIGraphicsContext {
 
         case drawText(textLayout: TextLayoutManager, transform: Transform3D)
         case drawGlyph(_ glyph: Glyph, transform: Transform3D)
+        case drawGlassRect(transform: Transform3D, halfSize: Vector2, configuration: GlassEffectConfiguration, scaleFactor: Float)
         case commit
     }
 }

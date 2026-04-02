@@ -48,6 +48,11 @@ public struct UIDrawData: Sendable {
     /// Index buffer for glyphs.
     public var glyphIndexBuffer: BufferData<UInt32>
 
+    /// Vertex buffer for glass quads.
+    public var glassVertexBuffer: BufferData<GlassVertexData>
+    /// Index buffer for glass quads.
+    public var glassIndexBuffer: BufferData<UInt32>
+
     /// Textures used for quad rendering (max 16 per batch).
     public var textures: [Texture2D] = []
 
@@ -59,6 +64,9 @@ public struct UIDrawData: Sendable {
 
     /// Batches for glyph rendering.
     public var glyphBatches: [IndexBatch] = []
+
+    /// Batches for glass rendering (always uses the background texture).
+    public var glassBatches: [IndexBatch] = []
 
     /// Optional clip rectangle in viewport coordinates.
     public var clipRect: Rect?
@@ -72,6 +80,8 @@ public struct UIDrawData: Sendable {
         self.lineIndexBuffer = BufferData(label: "UI_LineIndexBuffer", elements: [])
         self.glyphVertexBuffer = BufferData(label: "UI_GlyphVertexBuffer", elements: [])
         self.glyphIndexBuffer = BufferData(label: "UI_GlyphIndexBuffer", elements: [])
+        self.glassVertexBuffer = BufferData(label: "UI_GlassVertexBuffer", elements: [])
+        self.glassIndexBuffer = BufferData(label: "UI_GlassIndexBuffer", elements: [])
         self.clipRect = nil
     }
 
@@ -84,6 +94,8 @@ public struct UIDrawData: Sendable {
         self.lineIndexBuffer.write(to: device)
         self.glyphVertexBuffer.write(to: device)
         self.glyphIndexBuffer.write(to: device)
+        self.glassVertexBuffer.write(to: device)
+        self.glassIndexBuffer.write(to: device)
     }
 
     /// Clears all vertex, index, and texture data while keeping capacity.
@@ -96,11 +108,14 @@ public struct UIDrawData: Sendable {
         lineIndexBuffer.removeAll()
         glyphVertexBuffer.removeAll()
         glyphIndexBuffer.removeAll()
+        glassVertexBuffer.removeAll()
+        glassIndexBuffer.removeAll()
 
         textures.removeAll(keepingCapacity: true)
         fontAtlases.removeAll(keepingCapacity: true)
         quadBatches.removeAll(keepingCapacity: true)
         glyphBatches.removeAll(keepingCapacity: true)
+        glassBatches.removeAll(keepingCapacity: true)
     }
 
     public var isEmpty: Bool {
@@ -108,6 +123,7 @@ public struct UIDrawData: Sendable {
         && circleIndexBuffer.isEmpty
         && lineIndexBuffer.isEmpty
         && glyphIndexBuffer.isEmpty
+        && glassIndexBuffer.isEmpty
     }
 }
 
@@ -152,6 +168,18 @@ public struct UIDrawPass: DrawPass {
         // Note: The uniform buffer is already set by UIRenderNode with the
         // UI-specific orthographic projection (origin at top-left)
 
+        // Render glass quads first (they sample from the captured background, must be below UI content)
+        if !uiDrawData.glassIndexBuffer.isEmpty {
+            if let glassPipeline = item.renderPipeline.glassPipeline {
+                renderEncoder.setRenderPipelineState(glassPipeline)
+                renderGlass(
+                    renderEncoder: renderEncoder,
+                    uiDrawData: uiDrawData,
+                    world: world
+                )
+            }
+        }
+
         // Render quads
         if !uiDrawData.quadIndexBuffer.isEmpty {
             renderEncoder.setRenderPipelineState(item.renderPipeline.quadPipeline)
@@ -190,6 +218,47 @@ public struct UIDrawPass: DrawPass {
     }
 
     // MARK: - Private Render Methods
+
+    private func renderGlass(
+        renderEncoder: RenderCommandEncoder,
+        uiDrawData: UIDrawData,
+        world: World
+    ) {
+        renderEncoder.pushDebugName("UI Glass Render")
+        defer { renderEncoder.popDebugName() }
+
+        guard let bgTexture = world.getResource(GlassBackgroundTexture.self)?.texture else {
+            return
+        }
+
+        renderEncoder.setVertexBuffer(uiDrawData.glassVertexBuffer, offset: 0, slot: 0)
+        renderEncoder.setIndexBuffer(uiDrawData.glassIndexBuffer, indexFormat: .uInt32)
+
+        let resourceSet = RenderResourceSet(
+            bindings: [
+                RenderResourceSet.Binding(
+                    binding: 0,
+                    shaderStages: .fragment,
+                    resource: .texture(bgTexture)
+                ),
+                RenderResourceSet.Binding(
+                    binding: 1,
+                    shaderStages: .fragment,
+                    resource: .sampler(bgTexture.sampler)
+                )
+            ]
+        )
+        renderEncoder.setResourceSet(resourceSet, index: 0)
+
+        for batch in uiDrawData.glassBatches {
+            let indexBufferOffset = batch.indexOffset * MemoryLayout<UInt32>.stride
+            renderEncoder.drawIndexed(
+                indexCount: batch.indexCount,
+                indexBufferOffset: indexBufferOffset,
+                instanceCount: 1
+            )
+        }
+    }
 
     private func renderQuads(
         renderEncoder: RenderCommandEncoder,

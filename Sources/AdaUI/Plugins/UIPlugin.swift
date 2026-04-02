@@ -42,14 +42,22 @@ public struct UIPlugin: Plugin {
             .insertResource(UIViewUniform())
             .insertResource(UIRenderBuildState())
             .insertResource(UILayerDrawCache())
+            .insertResource(GlassBackgroundTexture())
+            .insertResource(RenderPipelines(configurator: GlassPipeline()))
 
         renderWorld.initResource(UIRenderPipelines.self)
 
         let renderGraph = renderWorld.getRefResource(RenderGraph.self)
         do {
             try renderGraph.wrappedValue.updateSubgraph(by: .main2D) { graph in
+                // Glass background capture must run after scene rendering and before UI.
+                graph.addNode(GlassBackgroundCaptureNode())
+                graph.addNodeEdge(from: Main2DRenderNode.self, to: GlassBackgroundCaptureNode.self)
                 graph.addNode(UIRenderNode())
-                graph.addNodeEdge(from: Main2DRenderNode.self, to: UIRenderNode.self)
+                graph.addNodeEdge(from: GlassBackgroundCaptureNode.self, to: UIRenderNode.self)
+                // Explicitly require UIRenderNode to complete before the end pass so that
+                // UpscaleNode always presents a fully composited frame (scene + UI).
+                graph.addNodeEdge(from: UIRenderNode.name, to: RenderNodeLabel.Main2D.endPass)
             }
 
             // Add UI rendering systems

@@ -207,6 +207,45 @@ public struct UITessellator {
         return generateQuadIndices(vertexOffset: vertexOffset)
     }
 
+    // MARK: - Glass Tessellation
+
+    /// Tessellates a glass quad into 4 vertices carrying all glass effect parameters.
+    ///
+    /// - Parameters:
+    ///   - transform: World-space transform with the context transform already baked in.
+    ///   - halfSize: Half-dimensions of the glass quad in logical pixels (used by the SDF in the shader).
+    ///   - configuration: Visual configuration for the glass effect.
+    ///   - scaleFactor: Display scale factor (points → physical pixels).
+    public func tessellateGlassQuad(
+        transform: Transform3D,
+        halfSize: Vector2,
+        configuration: GlassEffectConfiguration,
+        scaleFactor: Float
+    ) -> [GlassVertexData] {
+        let glassParams = Vector4(
+            configuration.blurRadius,
+            configuration.cornerRadius,
+            configuration.glassTintStrength,
+            configuration.edgeShadowStrength
+        )
+        let glassInfo = Vector4(
+            halfSize.x,
+            halfSize.y,
+            scaleFactor,
+            configuration.opacity
+        )
+
+        return Self.quadPositions.enumerated().map { index, quadPos in
+            GlassVertexData(
+                position: transform * quadPos,
+                color: Color(red: 0, green: 0, blue: 0, alpha: 0),
+                texCoord: Self.defaultTextureCoords[index],
+                glassParams: glassParams,
+                glassInfo: glassInfo
+            )
+        }
+    }
+
     // MARK: - Path Tessellation
 
     /// Tessellates a path into line vertices.
