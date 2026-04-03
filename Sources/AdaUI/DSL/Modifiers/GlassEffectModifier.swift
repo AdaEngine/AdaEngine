@@ -15,33 +15,35 @@ public extension View {
     /// Text("Hello")
     ///     .padding()
     ///     .glassEffect()
+    ///
+    /// Text("Hello")
+    ///     .padding()
+    ///     .glassEffect(.regular, in: .rect(cornerRadius: 16))
     /// ```
-    func glassEffect(_ style: GlassEffectStyle = .regular) -> some View {
-        self.modifier(GlassEffectModifier(content: self, configuration: style.configuration))
-    }
-
-    /// Applies the Liquid Glass effect using a custom configuration.
-    func glassEffect(configuration: GlassEffectConfiguration) -> some View {
-        self.modifier(GlassEffectModifier(content: self, configuration: configuration))
+    func glassEffect(_ style: Glass = .regular, in shape: some Shape = CapsuleShape()) -> some View {
+        self.modifier(GlassEffectModifier(content: self, configuration: style, shape: shape))
     }
 }
 
-struct GlassEffectModifier<Content: View>: ViewModifier, ViewNodeBuilder {
+struct GlassEffectModifier<Content: View, S: Shape>: ViewModifier, ViewNodeBuilder {
     typealias Body = Never
 
     let content: Content
-    let configuration: GlassEffectConfiguration
+    let configuration: Glass
+    let shape: S
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
         let contentNode = context.makeNode(from: content)
         let node = GlassEffectViewNode(contentNode: contentNode, content: content)
         node.configuration = configuration
+        node.shape = shape
         return node
     }
 }
 
 final class GlassEffectViewNode: ViewModifierNode {
-    var configuration: GlassEffectConfiguration = GlassEffectConfiguration()
+    var configuration: Glass = Glass()
+    var shape: any Shape = CapsuleShape()
 
     override func draw(with context: UIGraphicsContext) {
         var ctx = context
@@ -49,13 +51,16 @@ final class GlassEffectViewNode: ViewModifierNode {
 
         let scaleFactor = max(ctx.environment.scaleFactor, 1)
         let localFrame = Rect(origin: .zero, size: frame.size)
-        // Bake the current context transform into the draw command, mirroring how drawRect works.
         let worldTransform = ctx.transform * localFrame.toTransform3D
+
+        var config = configuration
+        config.cornerRadius = resolvedCornerRadius()
+
         ctx.commandQueue.push(
             .drawGlassRect(
                 transform: worldTransform,
                 halfSize: Vector2(frame.width * 0.5, frame.height * 0.5),
-                configuration: configuration,
+                configuration: config,
                 scaleFactor: scaleFactor
             )
         )
@@ -71,5 +76,17 @@ final class GlassEffectViewNode: ViewModifierNode {
         guard let other = newNode as? GlassEffectViewNode else { return }
         super.update(from: other)
         self.configuration = other.configuration
+        self.shape = other.shape
+    }
+
+    private func resolvedCornerRadius() -> Float {
+        switch shape {
+        case is RectangleShape:
+            return 0
+        case let rounded as RoundedRectangleShape:
+            return rounded.cornerRadius
+        default:
+            return min(frame.width, frame.height) * 0.5
+        }
     }
 }

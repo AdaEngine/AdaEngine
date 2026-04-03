@@ -141,20 +141,48 @@ extension Path {
     }
 
     /// Adds a rectangular subpath to the path.
-    ///
-    /// This is a convenience function that adds a rectangle to a path,
-    /// starting by moving to the bottom-left corner and then adding
-    /// lines counter-clockwise to create a rectangle, closing the
-    /// subpath.
-    ///
-    /// - Parameters:
-    ///   - rect: A rectangle, specified in user space coordinates.
-    ///   - transform: An affine transform to apply to the rectangle
-    ///     before adding to the path. Defaults to the identity
-    ///     transform if not specified.
-    ///
     public mutating func addRect(_ rect: Rect, transform: Transform2D = .identity) {
-        
+        move(to: Vector2(rect.minX, rect.minY))
+        addLine(to: Vector2(rect.maxX, rect.minY))
+        addLine(to: Vector2(rect.maxX, rect.maxY))
+        addLine(to: Vector2(rect.minX, rect.maxY))
+        closeSubpath()
+    }
+
+    /// Adds an ellipse inscribed in the given rect, approximated with 4 cubic Bézier curves.
+    public mutating func addEllipse(in rect: Rect) {
+        let kappa: Float = 0.5522847498
+        let cx = rect.midX
+        let cy = rect.midY
+        let rx = rect.width * 0.5
+        let ry = rect.height * 0.5
+        let ox = rx * kappa
+        let oy = ry * kappa
+
+        move(to: Vector2(cx, cy - ry))
+        addCurve(to: Point(cx + rx, cy), control1: Point(cx + ox, cy - ry), control2: Point(cx + rx, cy - oy))
+        addCurve(to: Point(cx, cy + ry), control1: Point(cx + rx, cy + oy), control2: Point(cx + ox, cy + ry))
+        addCurve(to: Point(cx - rx, cy), control1: Point(cx - ox, cy + ry), control2: Point(cx - rx, cy + oy))
+        addCurve(to: Point(cx, cy - ry), control1: Point(cx - rx, cy - oy), control2: Point(cx - ox, cy - ry))
+        closeSubpath()
+    }
+
+    /// Adds a rounded rectangle subpath with uniform corner radius.
+    public mutating func addRoundedRect(_ rect: Rect, cornerRadius: Float) {
+        let r = min(cornerRadius, min(rect.width, rect.height) * 0.5)
+        let kappa: Float = 0.5522847498
+        let k = r * kappa
+
+        move(to: Vector2(rect.minX + r, rect.minY))
+        addLine(to: Vector2(rect.maxX - r, rect.minY))
+        addCurve(to: Point(rect.maxX, rect.minY + r), control1: Point(rect.maxX - r + k, rect.minY), control2: Point(rect.maxX, rect.minY + r - k))
+        addLine(to: Vector2(rect.maxX, rect.maxY - r))
+        addCurve(to: Point(rect.maxX - r, rect.maxY), control1: Point(rect.maxX, rect.maxY - r + k), control2: Point(rect.maxX - r + k, rect.maxY))
+        addLine(to: Vector2(rect.minX + r, rect.maxY))
+        addCurve(to: Point(rect.minX, rect.maxY - r), control1: Point(rect.minX + r - k, rect.maxY), control2: Point(rect.minX, rect.maxY - r + k))
+        addLine(to: Vector2(rect.minX, rect.minY + r))
+        addCurve(to: Point(rect.minX + r, rect.minY), control1: Point(rect.minX, rect.minY + r - k), control2: Point(rect.minX + r - k, rect.minY))
+        closeSubpath()
     }
 
 }
