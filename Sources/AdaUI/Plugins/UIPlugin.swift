@@ -50,14 +50,15 @@ public struct UIPlugin: Plugin {
         let renderGraph = renderWorld.getRefResource(RenderGraph.self)
         do {
             try renderGraph.wrappedValue.updateSubgraph(by: .main2D) { graph in
-                // Glass background capture must run after scene rendering and before UI.
-                graph.addNode(GlassBackgroundCaptureNode())
-                graph.addNodeEdge(from: Main2DRenderNode.self, to: GlassBackgroundCaptureNode.self)
                 graph.addNode(UIRenderNode())
-                graph.addNodeEdge(from: GlassBackgroundCaptureNode.self, to: UIRenderNode.self)
-                // Explicitly require UIRenderNode to complete before the end pass so that
-                // UpscaleNode always presents a fully composited frame (scene + UI).
-                graph.addNodeEdge(from: UIRenderNode.name, to: RenderNodeLabel.Main2D.endPass)
+                graph.addNodeEdge(from: Main2DRenderNode.self, to: UIRenderNode.self)
+
+                // Capture runs AFTER UI so it grabs the full rendered frame (scene + UI).
+                // The glass effect samples from the PREVIOUS frame's capture (1-frame latency,
+                // imperceptible at 60 fps) and gets real content to blur/refract.
+                graph.addNode(GlassBackgroundCaptureNode())
+                graph.addNodeEdge(from: UIRenderNode.name, to: GlassBackgroundCaptureNode.name)
+                graph.addNodeEdge(from: GlassBackgroundCaptureNode.name, to: RenderNodeLabel.Main2D.endPass)
             }
 
             // Add UI rendering systems

@@ -40,18 +40,48 @@ struct _ShapeView<S: Shape>: View, ViewNodeBuilder {
 
 /// A circle shape.
 public struct CircleShape: Shape {
+    public init() {}
+
     public func path(in rect: Rect) -> Path {
-        Path { _ in
-            // FIXME: Make it
-        }
+        var path = Path()
+        path.addEllipse(in: rect)
+        return path
     }
 }
 
 /// A rectangle shape.
 public struct RectangleShape: Shape {
+    public init() {}
+
     public func path(in rect: Rect) -> Path {
         var path = Path()
         path.addRect(rect)
+        return path
+    }
+}
+
+/// A capsule shape — a rectangle with fully rounded ends.
+public struct CapsuleShape: Shape {
+    public init() {}
+
+    public func path(in rect: Rect) -> Path {
+        var path = Path()
+        path.addRoundedRect(rect, cornerRadius: min(rect.width, rect.height) * 0.5)
+        return path
+    }
+}
+
+/// A rectangle shape with a uniform corner radius.
+public struct RoundedRectangleShape: Shape {
+    public var cornerRadius: Float
+
+    public init(cornerRadius: Float) {
+        self.cornerRadius = cornerRadius
+    }
+
+    public func path(in rect: Rect) -> Path {
+        var path = Path()
+        path.addRoundedRect(rect, cornerRadius: cornerRadius)
         return path
     }
 }
@@ -120,5 +150,23 @@ public extension Shape {
     /// - Returns: The size that fits the shape.
     func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         return proposal.replacingUnspecifiedDimensions()
+    }
+}
+
+extension Shape where Self == CapsuleShape {
+    public static var capsule: CapsuleShape { CapsuleShape() }
+}
+
+extension Shape where Self == CircleShape {
+    public static var circle: CircleShape { CircleShape() }
+}
+
+extension Shape where Self == RectangleShape {
+    public static var rectangle: RectangleShape { RectangleShape() }
+}
+
+extension Shape where Self == RoundedRectangleShape {
+    public static func rect(cornerRadius: Float) -> RoundedRectangleShape {
+        RoundedRectangleShape(cornerRadius: cornerRadius)
     }
 }

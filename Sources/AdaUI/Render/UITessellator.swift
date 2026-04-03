@@ -219,7 +219,7 @@ public struct UITessellator {
     public func tessellateGlassQuad(
         transform: Transform3D,
         halfSize: Vector2,
-        configuration: GlassEffectConfiguration,
+        configuration: Glass,
         scaleFactor: Float
     ) -> [GlassVertexData] {
         let glassParams = Vector4(
@@ -235,10 +235,11 @@ public struct UITessellator {
             configuration.opacity
         )
 
+        let tintColor = configuration.tintColor ?? Color(red: 0, green: 0, blue: 0, alpha: 0)
         return Self.quadPositions.enumerated().map { index, quadPos in
             GlassVertexData(
                 position: transform * quadPos,
-                color: Color(red: 0, green: 0, blue: 0, alpha: 0),
+                color: tintColor,
                 texCoord: Self.defaultTextureCoords[index],
                 glassParams: glassParams,
                 glassInfo: glassInfo
