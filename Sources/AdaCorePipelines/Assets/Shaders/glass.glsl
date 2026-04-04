@@ -94,8 +94,8 @@ void glass_fragment() {
     float scaleFactor  = v_GlassInfo.z;
     float glassOpacity = v_GlassInfo.w;
 
-    float refractionStrength = 1.0;
-    float edgeBandMultiplier = 0.1;
+    float refractionStrength = 3.0;
+    float edgeBandMultiplier = 0.3;
     float chromeStrength     = 0.5;
 
     ivec2 bgTexSizeI = textureSize(sampler2D(u_BackgroundTexture, u_BackgroundSampler), 0);

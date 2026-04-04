@@ -8,18 +8,18 @@ import AdaUtils
 /// Configuration for the glass (blur + tint) effect applied to a view.
 public struct Glass: Sendable {
     /// Corner radius of the glass shape in logical pixels. Default: 32.
-    public var cornerRadius: Float = 32.0
+    var cornerRadius: Float = 32.0
     /// Gaussian blur radius applied to the background, in logical pixels. Default: 8.
-    public var blurRadius: Float = 8.0
+    var blurRadius: Float = 8.0
     /// Strength of the frosted glass tint [0, 1]. Default: 0.55.
-    public var glassTintStrength: Float = 0.8
+    var glassTintStrength: Float = 0.8
     /// Strength of the edge shadow [0, 1]. Default: 0.01.
-    public var edgeShadowStrength: Float = 0.01
+    var edgeShadowStrength: Float = 0.01
     /// Overall opacity of the glass surface [0, 1]. Default: 0.45.
     /// Lower values make the glass more transparent; 1.0 is fully opaque.
-    public var opacity: Float = 0.45
+    var opacity: Float = 0.45
     /// Optional tint color blended over the glass surface. Alpha is multiplied by 0.3 in the shader.
-    public var tintColor: Color?
+    var tintColor: Color?
 
     public init() {}
 }
@@ -54,6 +54,24 @@ extension Glass {
     public func tint(_ color: Color?) -> Glass {
         var newValue = self
         newValue.tintColor = color
+        return newValue
+    }
+
+    public func opacity(_ opacity: Float) -> Glass {
+        var newValue = self
+        newValue.opacity = opacity
+        return newValue
+    }
+
+    public func blurRadius(_ radius: Float) -> Glass {
+        var newValue = self
+        newValue.blurRadius = radius
+        return newValue
+    }
+
+    public func glassTintStrength(_ strength: Float) -> Glass {
+        var newValue = self
+        newValue.glassTintStrength = strength
         return newValue
     }
 }

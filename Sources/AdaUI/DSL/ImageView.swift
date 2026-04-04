@@ -26,8 +26,8 @@ extension Image: View, ViewNodeBuilder {
     func buildViewNode(in context: BuildContext) -> ViewNode {
         ImageViewNode(
             image: self,
-            isResizable: self.options[Keys.resizable.rawValue] as! Bool,
-            renderMode: self.options[Keys.renderMode.rawValue] as! ImageRenderMode,
+            isResizable: self.options[Keys.resizable.rawValue] as? Bool ?? false,
+            renderMode: self.options[Keys.renderMode.rawValue] as? ImageRenderMode ?? .original,
             tintColor: context.environment.foregroundColor,
             content: self
         )

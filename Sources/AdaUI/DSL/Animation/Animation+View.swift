@@ -72,20 +72,12 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
     }
 
     override func update(from newNode: ViewNode) {
-        var env = newNode.environment
-        env.animationController = self.animationController
-        newNode.updateEnvironment(env)
-        
         super.update(from: newNode)
 
         guard let node = newNode as? Self else {
             return
         }
 
-        // Move transaction from new to old
-        self.animationController = node.animationController
-
-        // Update current stored value and notify about that
         if node.currentValue != self.currentValue {
             self.currentValue = node.currentValue
             self.animationController.playAnimation()
