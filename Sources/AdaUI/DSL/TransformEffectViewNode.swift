@@ -79,13 +79,14 @@ final class TransformEffectViewNode<Value: VectorArithmetic>: ViewModifierNode {
     private var localTransform = Transform3D.identity
 
     override func update(from newNode: ViewNode) {
+        let animationController = self.environment.animationController
         super.update(from: newNode)
 
         guard let newNode = newNode as? Self else {
             return
         }
 
-        if let animationController = self.environment.animationController {
+        if let animationController = animationController {
             animationController.addTweenAnimation(
                 from: TweenValue(animatableData: self.value),
                 to: TweenValue(animatableData: newNode.value),
@@ -113,5 +114,85 @@ final class TransformEffectViewNode<Value: VectorArithmetic>: ViewModifierNode {
         var context = context
         context.concatenate(self.localTransform)
         contentNode.draw(with: context)
+    }
+}
+
+// MARK: - AnimatableOffset
+
+struct AnimatableOffsetModifier<Content: View>: ViewModifier, ViewNodeBuilder {
+    typealias Body = Never
+
+    let x: Float
+    let y: Float
+    let content: Content
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        AnimatableOffsetNode(
+            contentNode: context.makeNode(from: content),
+            content: content,
+            x: x,
+            y: y
+        )
+    }
+}
+
+final class AnimatableOffsetNode: ViewModifierNode {
+
+    private var targetX: Float
+    private var targetY: Float
+    private var visualX: Float
+    private var visualY: Float
+
+    init<Content: View>(contentNode: ViewNode, content: Content, x: Float, y: Float) {
+        self.targetX = x
+        self.targetY = y
+        self.visualX = x
+        self.visualY = y
+        super.init(contentNode: contentNode, content: content)
+    }
+
+    override func update(from newNode: ViewNode) {
+        let animationController = self.environment.animationController
+        super.update(from: newNode)
+        guard let node = newNode as? AnimatableOffsetNode else { return }
+
+        if let controller = animationController {
+            controller.addTweenAnimation(
+                from: TweenValue(animatableData: Vector2(visualX, visualY)),
+                to: TweenValue(animatableData: Vector2(node.targetX, node.targetY)),
+                label: self.id,
+                environment: self.environment,
+                updateBlock: { [weak self] val in
+                    guard let self else { return }
+                    self.visualX = val.animatableData.x
+                    self.visualY = val.animatableData.y
+                    self.invalidateNearestLayer()
+                    self.owner?.containerView?.setNeedsDisplay(in: self.absoluteFrame())
+                }
+            )
+        } else {
+            self.visualX = node.targetX
+            self.visualY = node.targetY
+        }
+
+        self.targetX = node.targetX
+        self.targetY = node.targetY
+    }
+
+    override func draw(with context: UIGraphicsContext) {
+        var ctx = context
+        ctx.environment = environment
+        ctx.translateBy(x: self.frame.origin.x + visualX, y: -(self.frame.origin.y + visualY))
+        contentNode.draw(with: ctx)
+    }
+}
+
+public extension View {
+
+    /// Offsets this view visually using a position that participates in the animation system.
+    ///
+    /// Unlike `.offset(x:y:)`, this modifier can be animated with `.animation(_:value:)`.
+    func animatableOffset(x: Float = 0, y: Float = 0) -> some View {
+        modifier(AnimatableOffsetModifier(x: x, y: y, content: self))
     }
 }

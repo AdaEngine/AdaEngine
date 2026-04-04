@@ -31,6 +31,89 @@ public enum TabLabelStyle: Sendable {
     case regular
 }
 
+// MARK: - TabViewStyleConfiguration
+
+/// The properties of a tab view style.
+public struct TabViewStyleConfiguration {
+
+    /// A single tab item exposed to the style.
+    public struct Tab: Identifiable {
+        /// The value that uniquely identifies this tab (matches the `Tab` view's `value`).
+        public let id: AnyHashable
+        /// The text label of the tab, if any.
+        public let label: String?
+        /// The image of the tab, if any.
+        public let image: Image?
+        /// Whether this tab is currently selected.
+        public let isSelected: Bool
+        /// Call to select this tab.
+        public let action: () -> Void
+    }
+
+    /// A view that displays the content of the currently selected tab.
+    /// Place this in your custom style body to control where tab content appears.
+    public struct Content: View, ViewNodeBuilder {
+        public typealias Body = Never
+        public var body: Never { fatalError() }
+
+        let proxy: TabContentProxyNode
+
+        func buildViewNode(in context: BuildContext) -> ViewNode {
+            proxy
+        }
+    }
+
+    /// All tabs in the tab bar (excludes structural elements like spacers and section headers).
+    public let tabs: [Tab]
+    /// The position of the tab bar.
+    public let position: TabViewPosition
+    /// The content of the currently selected tab.
+    public let content: Content
+}
+
+// MARK: - TabViewStyle
+
+/// A protocol that defines a tab view style, allowing full customisation of the tab bar.
+@_typeEraser(AnyTabViewStyle)
+@MainActor public protocol TabViewStyle: Sendable {
+    /// The body produced by this style.
+    associatedtype Body: View
+    /// The configuration type passed to `makeBody`.
+    typealias Configuration = TabViewStyleConfiguration
+    /// Build the view that represents the tab bar.
+    @ViewBuilder func makeBody(configuration: Configuration) -> Body
+}
+
+// MARK: - DefaultTabViewStyle
+
+/// The built-in tab bar appearance used when no custom style is applied.
+public struct DefaultTabViewStyle: TabViewStyle {
+
+    public init() {}
+
+    /// Not called at runtime — `TabViewNode` special-cases `DefaultTabViewStyle`
+    /// and uses its own imperative tab bar builder instead.
+    public func makeBody(configuration: Configuration) -> some View {
+        EmptyView()
+    }
+}
+
+// MARK: - AnyTabViewStyle
+
+/// A type-erased tab view style.
+public struct AnyTabViewStyle: TabViewStyle {
+
+    let style: any TabViewStyle
+
+    public init<S: TabViewStyle>(erasing style: S) {
+        self.style = style
+    }
+
+    public func makeBody(configuration: Configuration) -> AnyView {
+        AnyView(style.makeBody(configuration: configuration))
+    }
+}
+
 // MARK: - TabBarElement
 
 enum TabBarElement {
@@ -196,12 +279,21 @@ extension EnvironmentValues {
         set { self[TabLabelStyleKey.self] = newValue }
     }
 
+    var tabViewStyle: any TabViewStyle {
+        get { self[TabViewStyleKey.self] }
+        set { self[TabViewStyleKey.self] = newValue }
+    }
+
     private struct TabViewPositionKey: EnvironmentKey {
         static let defaultValue: TabViewPosition = .top
     }
 
     private struct TabLabelStyleKey: EnvironmentKey {
         static let defaultValue: TabLabelStyle = .regular
+    }
+
+    private struct TabViewStyleKey: @preconcurrency EnvironmentKey {
+        @MainActor static let defaultValue: any TabViewStyle = DefaultTabViewStyle()
     }
 }
 
@@ -214,6 +306,11 @@ public extension View {
     /// Sets the label style for tabs in a TabView.
     func tabLabelStyle(_ style: TabLabelStyle) -> some View {
         self.environment(\.tabLabelStyle, style)
+    }
+
+    /// Sets the style for tab views within this view.
+    func tabViewStyle<S: TabViewStyle>(_ style: S) -> some View {
+        self.environment(\.tabViewStyle, style)
     }
 }
 
@@ -266,6 +363,79 @@ private enum TabViewConstants {
     static var tapMovementThreshold: Float { 10 }
 }
 
+// MARK: - TabContentProxyNode
+
+/// A node that transparently delegates all rendering and event handling to a
+/// mutable target node. Used by custom `TabViewStyle` implementations to embed
+/// the currently-selected tab content anywhere in their view hierarchy.
+final class TabContentProxyNode: ViewNode {
+
+    init() {
+        super.init(content: EmptyView())
+    }
+
+    var target: ViewNode? {
+        didSet {
+            oldValue?.parent = nil
+            if let target {
+                target.parent = self
+                if let owner { target.updateViewOwner(owner) }
+            }
+            performLayout()
+            invalidateNearestLayer()
+            owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
+        }
+    }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        target?.sizeThatFits(proposal) ?? proposal.replacingUnspecifiedDimensions()
+    }
+
+    override func performLayout() {
+        guard let target else { return }
+        target.place(
+            in: Point(x: frame.width * 0.5, y: frame.height * 0.5),
+            anchor: .center,
+            proposal: ProposedViewSize(width: frame.width, height: frame.height)
+        )
+    }
+
+    override func draw(with context: UIGraphicsContext) {
+        var ctx = context
+        ctx.environment = environment
+        ctx.translateBy(x: frame.origin.x, y: -frame.origin.y)
+        target?.draw(with: ctx)
+    }
+
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
+        guard self.point(inside: point, with: event), let target else { return nil }
+        let targetPoint = target.convert(point, from: self)
+        return target.hitTest(targetPoint, with: event)
+    }
+
+    override func update(_ deltaTime: TimeInterval) {
+        target?.update(deltaTime)
+    }
+
+    override func updateViewOwner(_ owner: ViewOwner) {
+        super.updateViewOwner(owner)
+        target?.updateViewOwner(owner)
+    }
+
+    override func updateEnvironment(_ environment: EnvironmentValues) {
+        super.updateEnvironment(environment)
+        target?.updateEnvironment(environment)
+    }
+
+    override func findNodeById(_ id: AnyHashable) -> ViewNode? {
+        target?.findNodeById(id)
+    }
+
+    override func findNodyByAccessibilityIdentifier(_ identifier: String) -> ViewNode? {
+        target?.findNodyByAccessibilityIdentifier(identifier)
+    }
+}
+
 // MARK: - TabViewNode
 
 final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
@@ -275,13 +445,16 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     private var position: TabViewPosition
     private var viewInputs: _ViewInputs
 
-    private var tabBarNode: LayoutViewContainerNode
+    private var tabBarNode: ViewNode
     private var contentNode: ViewNode
     private var cachedContentNodes: [AnyHashable: ViewNode] = [:]
+    private var tabViewStyleTypeName: String
+    private let contentProxy = TabContentProxyNode()
 
     private var tabBarHeight: Float { TabViewConstants.tabBarHeight }
     private var tabBarWidth: Float { TabViewConstants.tabBarWidth }
     private var isHorizontalBar: Bool { position == .top || position == .bottom }
+    private var isCustomStyle: Bool { !(environment.tabViewStyle is DefaultTabViewStyle) }
 
     init(inputs: _ViewInputs, tabView: TabView<Selection, Content>, elements: [TabBarElement]) {
         self.elements = elements
@@ -290,12 +463,15 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         self.viewInputs = inputs
 
         let selected = AnyHashable(tabView.selection.wrappedValue)
+        let isCustom = !(inputs.environment.tabViewStyle is DefaultTabViewStyle)
 
-        self.tabBarNode = Self.buildTabBar(
+        self.tabViewStyleTypeName = String(describing: type(of: inputs.environment.tabViewStyle))
+        self.tabBarNode = Self.buildStyledTabBar(
             elements: elements,
             selected: selected,
             position: inputs.environment.tabViewPosition,
             inputs: inputs,
+            contentProxy: contentProxy,
             onSelect: { _ in }
         )
         self.contentNode = Self.buildContent(
@@ -308,14 +484,20 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
 
         self.cachedContentNodes[selected] = self.contentNode
         self.tabBarNode.parent = self
-        self.contentNode.parent = self
+        if isCustom {
+            contentProxy.parent = self
+            contentProxy.target = self.contentNode
+        } else {
+            self.contentNode.parent = self
+        }
 
         let weakSelf = WeakBox(self)
-        self.tabBarNode = Self.buildTabBar(
+        self.tabBarNode = Self.buildStyledTabBar(
             elements: elements,
             selected: selected,
             position: inputs.environment.tabViewPosition,
             inputs: inputs,
+            contentProxy: contentProxy,
             onSelect: { value in
                 weakSelf.value?.selectTab(value)
             }
@@ -328,6 +510,11 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         let width = proposal.width ?? 300
         let height = proposal.height ?? 300
+
+        guard environment.tabViewStyle is DefaultTabViewStyle else {
+            // Custom style: tab bar overlays content, total size equals content size.
+            return Size(width: width, height: height)
+        }
 
         if isHorizontalBar {
             let contentHeight = proposal.height.map { max(0, $0 - tabBarHeight) }
@@ -345,6 +532,15 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     }
 
     override func performLayout() {
+        guard environment.tabViewStyle is DefaultTabViewStyle else {
+            performOverlayLayout()
+            return
+        }
+        performDefaultLayout()
+    }
+
+    /// Side-by-side layout used by DefaultTabViewStyle.
+    private func performDefaultLayout() {
         switch position {
         case .top:
             tabBarNode.place(
@@ -400,12 +596,26 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         }
     }
 
+    /// Layout for custom styles: the style body (tabBarNode) fills the full frame.
+    /// The style is responsible for laying out both the tab bar UI and the content
+    /// (via `configuration.content`).
+    private func performOverlayLayout() {
+        tabBarNode.place(
+            in: Point(x: frame.width * 0.5, y: frame.height * 0.5),
+            anchor: .center,
+            proposal: ProposedViewSize(width: frame.width, height: frame.height)
+        )
+    }
+
+
     override func update(from newNode: ViewNode) {
         guard let other = newNode as? TabViewNode<Selection, Content> else { return }
         let oldValues = Self.tabValues(from: elements)
         let newValues = Self.tabValues(from: other.elements)
         let elementsChanged = oldValues != newValues
         let positionChanged = self.position != other.position
+        let newStyleTypeName = String(describing: type(of: other.viewInputs.environment.tabViewStyle))
+        let styleChanged = self.tabViewStyleTypeName != newStyleTypeName
 
         for key in oldValues.subtracting(newValues) {
             cachedContentNodes[key]?.parent = nil
@@ -415,9 +625,10 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         self.selectionBinding = other.selectionBinding
         self.position = other.position
         self.viewInputs = other.viewInputs
+        self.tabViewStyleTypeName = newStyleTypeName
         super.update(from: other)
 
-        if elementsChanged || positionChanged {
+        if elementsChanged || positionChanged || styleChanged {
             rebuildAll()
         } else {
             updateSelectionOnly()
@@ -452,6 +663,9 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     override func updateViewOwner(_ owner: ViewOwner) {
         super.updateViewOwner(owner)
         tabBarNode.updateViewOwner(owner)
+        if isCustomStyle {
+            contentProxy.updateViewOwner(owner)
+        }
         for cachedNode in cachedContentNodes.values {
             cachedNode.updateViewOwner(owner)
         }
@@ -465,6 +679,8 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
             return hit
         }
 
+        // For custom styles, content is embedded in tabBarNode via the proxy.
+        guard !isCustomStyle else { return nil }
         let contentPoint = contentNode.convert(point, from: self)
         return contentNode.hitTest(contentPoint, with: event)
     }
@@ -474,14 +690,22 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         ctx.environment = environment
         ctx.translateBy(x: frame.origin.x, y: -frame.origin.y)
 
-        tabBarNode.draw(with: ctx)
-        drawSeparator(with: ctx)
-        contentNode.draw(with: ctx)
+        if isCustomStyle {
+            // Custom style owns the entire layout (content is embedded via the proxy).
+            tabBarNode.draw(with: ctx)
+        } else {
+            tabBarNode.draw(with: ctx)
+            drawSeparator(with: ctx)
+            contentNode.draw(with: ctx)
+        }
     }
 
     override func update(_ deltaTime: TimeInterval) {
         tabBarNode.update(deltaTime)
-        contentNode.update(deltaTime)
+        // For custom styles, content is updated through the proxy inside tabBarNode.
+        if !isCustomStyle {
+            contentNode.update(deltaTime)
+        }
     }
 
     override func findNodeById(_ id: AnyHashable) -> ViewNode? {
@@ -545,10 +769,26 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     private func updateSelectionOnly() {
         let selected = AnyHashable(selectionBinding.wrappedValue)
 
-        // Update selection state on existing tab bar buttons in-place (no rebuild)
-        for node in tabBarNode.nodes {
-            guard let button = node as? TabItemButtonNode else { continue }
-            button.updateSelection(selected)
+        if let defaultBarNode = tabBarNode as? LayoutViewContainerNode {
+            // Default style: update selection state on existing tab bar buttons in-place (no rebuild)
+            for node in defaultBarNode.nodes {
+                guard let button = node as? TabItemButtonNode else { continue }
+                button.updateSelection(selected)
+            }
+        } else {
+            // Custom style: update the existing tab bar node in-place to preserve @State
+            // (e.g. indicator animation state). rebuildTabBar() would discard @State and
+            // prevent onChange(of: selectedTabIndex) from firing correctly.
+            let weakSelf = WeakBox(self)
+            let newTabBarNode = Self.buildStyledTabBar(
+                elements: elements,
+                selected: selected,
+                position: position,
+                inputs: viewInputs,
+                contentProxy: contentProxy,
+                onSelect: { value in weakSelf.value?.selectTab(value) }
+            )
+            tabBarNode.update(from: newTabBarNode)
         }
 
         // Swap content node only if selection actually changed
@@ -556,7 +796,11 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         let newContentNode = getOrCreateContentNode(for: selected)
         if contentNode !== newContentNode {
             contentNode = newContentNode
-            contentNode.parent = self
+            if isCustomStyle {
+                contentProxy.target = newContentNode
+            } else {
+                contentNode.parent = self
+            }
         }
 
         // Only propagate environment and owner to newly created content nodes.
@@ -581,26 +825,35 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         self.performLayout()
     }
 
-    private func rebuildAll() {
-        let selected = AnyHashable(selectionBinding.wrappedValue)
-        let weakSelf = WeakBox(self)
-
+    private func rebuildTabBar(selected: AnyHashable, onSelect: @escaping (AnyHashable) -> Void) {
         tabBarNode.parent = nil
-        tabBarNode = Self.buildTabBar(
+        tabBarNode = Self.buildStyledTabBar(
             elements: elements,
             selected: selected,
             position: position,
             inputs: viewInputs,
-            onSelect: { value in weakSelf.value?.selectTab(value) }
+            contentProxy: contentProxy,
+            onSelect: onSelect
         )
         tabBarNode.parent = self
         if let owner { tabBarNode.updateViewOwner(owner) }
         tabBarNode.updateEnvironment(environment)
+    }
+
+    private func rebuildAll() {
+        let selected = AnyHashable(selectionBinding.wrappedValue)
+        let weakSelf = WeakBox(self)
+
+        rebuildTabBar(selected: selected, onSelect: { value in weakSelf.value?.selectTab(value) })
 
         let newContentNode = getOrCreateContentNode(for: selected)
         if contentNode !== newContentNode {
             contentNode = newContentNode
-            contentNode.parent = self
+            if isCustomStyle {
+                contentProxy.target = newContentNode
+            } else {
+                contentNode.parent = self
+            }
         }
         var contentEnv = environment
         switch position {
@@ -630,7 +883,6 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         for element in elements {
             if case .tab(_, _, let v, let makeContent) = element, v == value {
                 let node = makeContent(viewInputs)
-                node.parent = self
                 cachedContentNodes[value] = node
                 return node
             }
@@ -643,6 +895,36 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
             if case .tab(_, _, let v, _) = elem { return v }
             return nil
         })
+    }
+
+    /// Routes tab bar construction to either the built-in imperative path (DefaultTabViewStyle)
+    /// or the style's `makeBody` for custom styles.
+    private static func buildStyledTabBar(
+        elements: [TabBarElement],
+        selected: AnyHashable,
+        position: TabViewPosition,
+        inputs: _ViewInputs,
+        contentProxy: TabContentProxyNode,
+        onSelect: @escaping (AnyHashable) -> Void
+    ) -> ViewNode {
+        let style = inputs.environment.tabViewStyle
+        guard !(style is DefaultTabViewStyle) else {
+            return buildTabBar(elements: elements, selected: selected, position: position, inputs: inputs, onSelect: onSelect)
+        }
+        let tabs = elements.compactMap { element -> TabViewStyleConfiguration.Tab? in
+            guard case .tab(let label, let image, let value, _) = element else { return nil }
+            return TabViewStyleConfiguration.Tab(
+                id: value,
+                label: label,
+                image: image,
+                isSelected: value == selected,
+                action: { onSelect(value) }
+            )
+        }
+        let content = TabViewStyleConfiguration.Content(proxy: contentProxy)
+        let configuration = TabViewStyleConfiguration(tabs: tabs, position: position, content: content)
+        let body = AnyView(style.makeBody(configuration: configuration))
+        return AnyView._makeView(_ViewGraphNode(value: body), inputs: inputs).node
     }
 
     private static func buildTabBar(
@@ -937,7 +1219,15 @@ private final class TabItemButtonNode: ViewNode {
 
         let iconRect = Rect(x: (bounds.width - iconSize) * 0.5, y: startY, width: iconSize, height: iconSize)
         context.drawRect(iconRect, texture: texture, color: tint)
-        renderText(text, font: font, color: tint, centerX: bounds.width * 0.5, centerY: startY + iconSize + gap + pointSize * 0.5, pointSize: pointSize, in: context)
+        renderText(
+            text,
+            font: font,
+            color: tint,
+            centerX: bounds.width * 0.5,
+            centerY: startY + iconSize + gap + pointSize * 0.5,
+            pointSize: pointSize,
+            in: context
+        )
     }
 
     private func drawIconBesideLabel(in bounds: Rect, with context: UIGraphicsContext) {
@@ -950,7 +1240,15 @@ private final class TabItemButtonNode: ViewNode {
 
         let iconRect = Rect(x: startX, y: (bounds.height - iconSize) * 0.5, width: iconSize, height: iconSize)
         context.drawRect(iconRect, texture: texture, color: tint)
-        renderText(text, font: font, color: tint, centerX: startX + iconSize + gap + estimatedTextWidth(text, pointSize: pointSize) * 0.5, centerY: bounds.height * 0.5, pointSize: pointSize, in: context)
+        renderText(
+            text,
+            font: font,
+            color: tint,
+            centerX: startX + iconSize + gap + estimatedTextWidth(text, pointSize: pointSize) * 0.5,
+            centerY: bounds.height * 0.5,
+            pointSize: pointSize,
+            in: context
+        )
     }
 
     private func drawIndicator(in bounds: Rect, with context: UIGraphicsContext) {
