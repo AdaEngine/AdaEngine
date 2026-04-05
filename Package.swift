@@ -836,6 +836,7 @@ targets += [
             "AdaPlatform",
             "AdaUtils",
             "AdaInput",
+            "AdaRender",
             "Math"
         ],
         exclude: [

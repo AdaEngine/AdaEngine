@@ -9,6 +9,7 @@ import Math
 @testable import AdaUI
 @testable import AdaPlatform
 import AdaInput
+import AdaUtils
 
 /// Object that test view
 @MainActor
@@ -351,6 +352,16 @@ class ViewTester<Content: View> {
     func simulateRenderOneFrame() -> Self {
 //        let context = UIGraphicsContext(window: UIWindow())
 //        self.containerView.draw(in: Rect(origin: .zero, size: self.size), with: context)
+        return self
+    }
+
+    /// Advances the mounted view tree by one update tick.
+    ///
+    /// - Parameter deltaTime: Frame delta to pass into the UI update loop.
+    /// - Returns: Self for fluent chaining.
+    @discardableResult
+    func advanceFrame(deltaTime: TimeInterval) -> Self {
+        self.containerView.internalUpdate(deltaTime)
         return self
     }
 }

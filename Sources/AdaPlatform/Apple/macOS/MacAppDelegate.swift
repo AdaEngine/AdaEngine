@@ -10,7 +10,11 @@ import AppKit
 import MetalKit
 
 final class MacAppDelegate: NSObject, NSApplicationDelegate {
-    
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            NotificationCenter.default.post(name: .adaEngineOpenURL, object: url)
+        }
+    }
 }
 
 #endif

@@ -83,7 +83,7 @@ extension View {
 }
 
 extension View where Body == Never {
-    var body: Never {
+    package var body: Never {
         fatalError()
     }
 }

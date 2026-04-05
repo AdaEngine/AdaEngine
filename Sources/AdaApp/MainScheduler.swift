@@ -10,6 +10,9 @@ import AdaUtils
 
 /// The plugin that sets up the main scheduler.
 package struct MainSchedulerPlugin: Plugin {
+
+    package init() {}
+
     /// Setup the main scheduler.
     /// - Parameter app: The app to setup the main scheduler for.
     package func setup(in app: AppWorlds) {

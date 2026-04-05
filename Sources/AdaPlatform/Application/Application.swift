@@ -10,6 +10,10 @@ import AdaECS
 @_spi(Internal) import AdaRender
 import Foundation
 import AdaUI
+
+public extension Notification.Name {
+    static let adaEngineOpenURL = Notification.Name("AdaEngine.OpenURL")
+}
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
 import Darwin
 #elseif os(Linux) || os(Android)
