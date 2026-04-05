@@ -147,6 +147,9 @@ final class TextFieldViewNode: ViewNode {
             self.mousePressStartPoint = nil
             self.touchPressStartPoint = nil
             self.clearTapCandidate()
+            #if canImport(UIKit)
+            self.hideEditMenu()
+            #endif
         }
         self.caretVisible = isFocused
         self.caretBlinkElapsed = 0
@@ -984,6 +987,18 @@ extension TextFieldViewNode {
         )
     }
 
+    func convertPointToRoot(_ point: Point) -> Point {
+        var convertedPoint = point
+        var node: ViewNode? = self
+
+        while let current = node {
+            convertedPoint = current.convert(convertedPoint, to: current.parent)
+            node = current.parent
+        }
+
+        return convertedPoint
+    }
+
     func convertPointFromRoot(_ point: Point) -> Point {
         var convertedPoint = point
         var node: ViewNode = self
@@ -1095,3 +1110,26 @@ extension TextFieldViewNode {
         return bottom...top
     }
 }
+
+#if canImport(UIKit)
+import UIKit
+
+extension TextFieldViewNode {
+    func showEditMenu(at position: Point) {
+        guard let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+              let window = windowScene.windows.first(where: { $0.isKeyWindow }),
+              let view = window.rootViewController?.view else {
+            return
+        }
+
+        let rootPoint = self.convertPointToRoot(position)
+        let cgRect = CGRect(x: CGFloat(rootPoint.x), y: CGFloat(rootPoint.y), width: 1, height: 1)
+        UIMenuController.shared.showMenu(from: view, rect: cgRect)
+    }
+
+    func hideEditMenu() {
+        UIMenuController.shared.hideMenu()
+        UIMenuController.shared.setMenuVisible(false, animated: true)
+    }
+}
+#endif

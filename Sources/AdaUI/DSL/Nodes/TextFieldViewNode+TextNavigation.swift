@@ -25,8 +25,20 @@ extension TextFieldViewNode {
         if self.isDoubleTap(at: position, time: time) {
             self.selectWord(at: caretOffset)
             self.clearTapCandidate()
+
+            #if canImport(UIKit)
+            self.showEditMenu(at: position)
+            #endif
         } else {
             self.storeTapCandidate(at: position, time: time)
+
+            #if canImport(UIKit)
+            if self.hasSelection {
+                self.showEditMenu(at: position)
+            } else {
+                self.hideEditMenu()
+            }
+            #endif
         }
     }
 

@@ -175,19 +175,19 @@ public final class TextLayoutManager: @unchecked Sendable {
                 maxAscent = max(maxAscent, metrics.ascenderY * fontScale)
                 maxDescent = max(maxDescent, abs(metrics.descenderY * fontScale))
 
-                // I'm not really think that we should for each loop here.
-                for scalarIndex in char.unicodeScalars.indices {
-                    let scalar = char.unicodeScalars[scalarIndex]
-                    var glyph = fontHandle.getGlyph(for: scalar.value)
-
-                    if glyph == nil {
-                        glyph = fontHandle.getGlyph(for: Constants.questionMark.value)
+                guard let firstScalar = char.unicodeScalars.first else {
+                    if index < lineEndIndex {
+                        index = attributedText.text.index(after: index)
                     }
+                    continue
+                }
 
-                    guard let glyph else {
-                        continue
-                    }
+                var resolvedGlyph = fontHandle.getGlyph(for: firstScalar.value)
+                if resolvedGlyph == nil {
+                    resolvedGlyph = fontHandle.getGlyph(for: Constants.questionMark.value)
+                }
 
+                if let glyph = resolvedGlyph {
                     var l: Double = 0, b: Double = 0, r: Double = 0, t: Double = 0
                     glyph.getQuadAtlasBounds(&l, &b, &r, &t)
 
@@ -195,13 +195,11 @@ public final class TextLayoutManager: @unchecked Sendable {
                     glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
 
                     if Float((pr * fontScale) + x) > availableSize.width {
-                        // Move to the next line
                         x = 0
                         y -= maxLineHeight
                     }
 
                     if abs(Float((pt * fontScale) + y)) > availableSize.height {
-                        // available lines did end
                         index = lineEndIndex
                         break
                     }
@@ -229,7 +227,6 @@ public final class TextLayoutManager: @unchecked Sendable {
                         )
                     )
 
-                    // Track the maximum width (rightmost edge of glyphs) before advance
                     maxWidth = max(maxWidth, pr)
 
                     var advance = glyph.advance
@@ -238,7 +235,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                     if nextIndex < lineEndIndex {
                         if let nextChar = nextIndex < attributedText.text.endIndex ? attributedText.text[nextIndex] : nil,
                            let nextScalar = nextChar.unicodeScalars.first {
-                            fontHandle.getAdvance(&advance, scalar.value, nextScalar.value)
+                            fontHandle.getAdvance(&advance, firstScalar.value, nextScalar.value)
                             x += fontScale * advance + kern
                         }
                     } else {
