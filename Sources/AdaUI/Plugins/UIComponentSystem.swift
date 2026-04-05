@@ -92,7 +92,8 @@ private extension UIComponentSystem {
         }
 
         if let input = self.input {
-            for event in input.getInputEvents() {
+            let events = input.getInputEvents()
+            for event in events {
                 guard view.canRespondToAction(event) else {
                     continue
                 }
