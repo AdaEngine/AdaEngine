@@ -23,6 +23,15 @@ final class AppleEmbeddedSceneDelegate: NSObject, UIWindowSceneDelegate {
             return
         }
         windowManager.sceneDidConnect(windowScene)
+
+        if let url = connectionOptions.urlContexts.first?.url {
+            NotificationCenter.default.post(name: .adaEngineOpenURL, object: url)
+        }
+    }
+
+    func scene(_ scene: UIScene, openURLContexts urlContexts: Set<UIOpenURLContext>) {
+        guard let url = urlContexts.first?.url else { return }
+        NotificationCenter.default.post(name: .adaEngineOpenURL, object: url)
     }
 }
 // swiftlint:enable type_name
