@@ -132,9 +132,10 @@ public func UpdateWindowManager(
     _ pendingViews: ResMut<UIWindowPendingDrawViews>,
     _ contexts: ResMut<UIContextPendingDraw>,
     _ redrawRequest: ResMut<UIRedrawRequest>,
-    _ input: Res<Input>,
+    _ input: ResMut<Input>,
     _ deltaTime: Res<DeltaTime>
 ) {
+    input.wrappedValue.flushPendingEvents()
     pendingViews.windows.removeAll(keepingCapacity: true)
     contexts.contexts.removeAll(keepingCapacity: true)
     redrawRequest.needsRedraw = false
@@ -144,8 +145,8 @@ public func UpdateWindowManager(
     for window in windows {
         let menuBuilder = windowManager.menuBuilder(for: window)
         menuBuilder?.updateIfNeeded()
-        
-        for event in input.eventsPool where event.window == window.id {
+
+        for event in input.wrappedValue.eventsPool where event.window == window.id {
             window.sendEvent(event)
         }
 
@@ -156,6 +157,7 @@ public func UpdateWindowManager(
             window.needsDisplay = false
         }
     }
+    input.wrappedValue.removeEvents()
 }
 
 public struct UIWindowPendingDrawViews: Resource {

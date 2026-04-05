@@ -48,6 +48,7 @@ public struct InputEventParseSystem {
 
     @MainActor
     public func update(context: UpdateContext) {
+        input.flushPendingEvents()
         for event in input.eventsPool {
             switch event {
             case let keyEvent as KeyEvent:

@@ -21,6 +21,9 @@ public struct Input: Resource, Sendable {
     @_spi(Internal)
     public internal(set) var eventsPool: [any InputEvent] = []
 
+    @_spi(Internal)
+    public var pendingEventsPool: [any InputEvent] = []
+
     // FIXME: (Vlad) Should think about capacity. We should store ~256 keycode events
     @_spi(Internal)
     public internal(set) var keyEvents: Set<KeyCode> = []
@@ -143,8 +146,14 @@ public struct Input: Resource, Sendable {
     }
 
     @MainActor
+    @_spi(Internal) public mutating func flushPendingEvents() {
+        self.eventsPool.append(contentsOf: self.pendingEventsPool)
+        self.pendingEventsPool.removeAll(keepingCapacity: true)
+    }
+
+    @MainActor
     @_spi(Internal) public mutating func receiveEvent<T: InputEvent>(_ event: T) {
-        self.eventsPool.append(event)
+        self.pendingEventsPool.append(event)
     }
 
     // MARK: - Gamepad Public Methods
@@ -255,6 +264,7 @@ extension Input {
         self.gamepads.removeAll()
         self.cursorStates.removeAll()
         self.eventsPool.removeAll()
+        self.pendingEventsPool.removeAll()
         self.keyEvents.removeAll()
         self.touches.removeAll()
         self.mouseEvents.removeAll()
