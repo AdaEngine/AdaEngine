@@ -62,18 +62,29 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     
     Charset charset;
     
-    // From ImGui
     static const uint32_t charsetRanges[] = {
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
+        0x0100, 0x024F, // Latin Extended-A + B
+        0x0370, 0x03FF, // Greek and Coptic
         0x0400, 0x052F, // Cyrillic + Cyrillic Supplement
+        0x2000, 0x206F, // General Punctuation
+        0x2070, 0x209F, // Superscripts and Subscripts
+        0x20A0, 0x20CF, // Currency Symbols
+        0x2100, 0x214F, // Letterlike Symbols
+        0x2190, 0x21FF, // Arrows
+        0x2200, 0x22FF, // Mathematical Operators
+        0x2300, 0x23FF, // Miscellaneous Technical
+        0x25A0, 0x25FF, // Geometric Shapes
+        0x2600, 0x26FF, // Miscellaneous Symbols
         0x2DE0, 0x2DFF, // Cyrillic Extended-A
         0xA640, 0xA69F, // Cyrillic Extended-B
+        0xFE00, 0xFE0F, // Variation Selectors
         0,
     };
     
     m_FontData->fontGeometry = FontGeometry(&m_FontData->glyphs);
     
-    for (int range = 0; range < 8; range += 2) {
+    for (int range = 0; charsetRanges[range]; range += 2) {
         for (uint32_t c = charsetRanges[range]; c <= charsetRanges[range + 1]; c++)
             charset.add(c);
     }

@@ -22,6 +22,8 @@ final class FontAtlasGenerator: Sendable {
 
     static let shared = FontAtlasGenerator()
 
+    private static let cacheVersion = 2
+
     private let logger = Logger(label: "org.adaengine.Font")
 
     private init() {}
@@ -56,7 +58,7 @@ final class FontAtlasGenerator: Sendable {
         }
         
         let fontData = unsafe font_atlas_generator_get_font_data(generator)!
-        let fileName = "\(fontName)-\(atlasFontDescriptor.emFontScale.rounded()).fontbin"
+        let fileName = "\(fontName)-\(atlasFontDescriptor.emFontScale.rounded())-v\(Self.cacheVersion).fontbin"
 
         if let (atlasHeader, data) = self.getAtlas(by: fileName) {
             let texture = self.makeTextureAtlas(from: data, width: atlasHeader.width, height: atlasHeader.height)

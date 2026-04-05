@@ -56,6 +56,11 @@ extension MetalView {
         return true
     }
 
+    open override func resignFirstResponder() -> Bool {
+        UIMenuController.shared.hideMenu()
+        return super.resignFirstResponder()
+    }
+
     open override var inputView: UIKit.UIView? {
         showsKeyboard ? nil : UIKit.UIView(frame: .zero)
     }
@@ -70,6 +75,51 @@ extension MetalView {
 
     public var autocapitalizationType: UITextAutocapitalizationType {
         return .none
+    }
+
+    // MARK: - Standard Edit Actions
+
+    open override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(copy(_:)) || action == #selector(paste(_:)) || action == #selector(cut(_:)) {
+            return true
+        }
+        return super.canPerformAction(action, withSender: sender)
+    }
+
+    open override func copy(_ sender: Any?) {
+        let keyEvent = KeyEvent(
+            window: self.windowID,
+            keyCode: .c,
+            modifiers: .main,
+            status: .down,
+            time: TimeInterval(CACurrentMediaTime()),
+            isRepeated: false
+        )
+        input?.wrappedValue.receiveEvent(keyEvent)
+    }
+
+    open override func paste(_ sender: Any?) {
+        let keyEvent = KeyEvent(
+            window: self.windowID,
+            keyCode: .v,
+            modifiers: .main,
+            status: .down,
+            time: TimeInterval(CACurrentMediaTime()),
+            isRepeated: false
+        )
+        input?.wrappedValue.receiveEvent(keyEvent)
+    }
+
+    open override func cut(_ sender: Any?) {
+        let keyEvent = KeyEvent(
+            window: self.windowID,
+            keyCode: .x,
+            modifiers: .main,
+            status: .down,
+            time: TimeInterval(CACurrentMediaTime()),
+            isRepeated: false
+        )
+        input?.wrappedValue.receiveEvent(keyEvent)
     }
 
     // MARK: - Touch Events

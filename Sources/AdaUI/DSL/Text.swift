@@ -187,11 +187,8 @@ extension Text {
                 idealHeight = height
             }
 
-            let size = self.layoutManager.boundingSize()
-            return Size(
-                width: min(idealWidth, size.width),
-                height: min(idealHeight, size.height)
-            )
+            self.layoutManager.fitToSize(Size(width: idealWidth, height: idealHeight))
+            return self.layoutManager.boundingSize()
         }
     }
 }
