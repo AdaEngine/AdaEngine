@@ -42,6 +42,11 @@ public struct VisibilitySystem {
                 if visibility == .hidden {
                     return
                 }
+                if entity.components.has(NoFrustumCulling.self) {
+                    entityIds.insert(entity.id)
+                    entities.append(entity)
+                    return
+                }
                 switch bounding.bounds {
                 case .aabb(let aabb):
                     if !frustum.intersectsAABB(aabb) {

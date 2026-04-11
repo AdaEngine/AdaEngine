@@ -130,6 +130,11 @@ final class NavigationStackNode: ViewNode {
         }
     }
 
+    /// Subtree searched for keyboard shortcut targets (matches visible stack content).
+    var shortcutContentSubtree: ViewNode {
+        currentContentNode
+    }
+
     init(
         inputs: _ViewInputs,
         pathBinding: Binding<NavigationPath>,

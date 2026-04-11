@@ -170,14 +170,12 @@ public struct UIDrawPass: DrawPass {
 
         // Render glass quads first (they sample from the captured background, must be below UI content)
         if !uiDrawData.glassIndexBuffer.isEmpty {
-            if let glassPipeline = item.renderPipeline.glassPipeline {
-                renderEncoder.setRenderPipelineState(glassPipeline)
-                renderGlass(
-                    renderEncoder: renderEncoder,
-                    uiDrawData: uiDrawData,
-                    world: world
-                )
-            }
+            renderEncoder.setRenderPipelineState(item.renderPipeline.glassPipeline)
+            renderGlass(
+                renderEncoder: renderEncoder,
+                uiDrawData: uiDrawData,
+                world: world
+            )
         }
 
         // Render quads
@@ -227,7 +225,16 @@ public struct UIDrawPass: DrawPass {
         renderEncoder.pushDebugName("UI Glass Render")
         defer { renderEncoder.popDebugName() }
 
-        guard let bgTexture = world.getResource(GlassBackgroundTexture.self)?.texture else {
+        guard let glassBG = world.getResource(GlassBackgroundTexture.self) else {
+            assertionFailure(
+                "GlassBackgroundTexture missing on render world. Ensure UIPlugin is applied to the render subworld."
+            )
+            return
+        }
+        guard let bgTexture = glassBG.texture else {
+            assertionFailure(
+                "Glass background texture was never blitted. UIRenderNode should blit the main target into GlassBackgroundTexture on the same command buffer before drawing glass."
+            )
             return
         }
 

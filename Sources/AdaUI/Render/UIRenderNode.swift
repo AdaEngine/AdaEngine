@@ -43,6 +43,9 @@ public struct UIRenderNode: RenderNode {
     @Res<RenderDeviceHandler>
     private var renderDevice
 
+    @ResMut<GlassBackgroundTexture>
+    private var glassBackground
+
     public init() {}
 
     public let inputResources: [RenderSlot] = [
@@ -54,6 +57,7 @@ public struct UIRenderNode: RenderNode {
         _renderItems.update(from: world)
         _uiViewUniform.update(from: world)
         _renderDevice.update(from: world)
+        _glassBackground.update(from: world)
     }
 
     public func execute(
@@ -69,10 +73,44 @@ public struct UIRenderNode: RenderNode {
                 return
             }
 
-            let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
-
             guard let texture = target.mainTexture else {
                 return
+            }
+
+            let texWidth = texture.width
+            let texHeight = texture.height
+
+            // Snapshot main target for glass (must complete before glass fragments sample it).
+            if glassBackground.texture == nil
+                || glassBackground.texture?.width != texWidth
+                || glassBackground.texture?.height != texHeight {
+                glassBackground.texture = RenderTexture(
+                    size: SizeInt(width: texWidth, height: texHeight),
+                    scaleFactor: texture.scaleFactor,
+                    format: .bgra8,
+                    debugLabel: "GlassBackground"
+                )
+            }
+
+            let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
+            commandBuffer.label = "UI Render + Glass Capture"
+
+            if let glassTex = glassBackground.texture {
+                let blitEncoder = commandBuffer.beginBlitPass(
+                    BlitPassDescriptor(label: "Glass Background Blit")
+                )
+                blitEncoder.copyTextureToTexture(
+                    source: texture,
+                    sourceOrigin: Origin3D(),
+                    sourceSize: Size3D(width: texWidth, height: texHeight),
+                    sourceMipLevel: 0,
+                    sourceSlice: 0,
+                    destination: glassTex,
+                    destinationOrigin: Origin3D(),
+                    destinationMipLevel: 0,
+                    destinationSlice: 0
+                )
+                blitEncoder.endBlitPass()
             }
 
             // Get viewport size

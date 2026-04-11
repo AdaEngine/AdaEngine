@@ -98,6 +98,18 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         self.focusManager.focusedNode != nil
     }
 
+    // MARK: - Keyboard shortcuts (before focused key dispatch)
+
+    private final class KeyboardShortcutWeakHandle {
+        weak var target: KeyboardShortcutModifierNode?
+
+        init(target: KeyboardShortcutModifierNode) {
+            self.target = target
+        }
+    }
+
+    private var keyboardShortcutHandles: [KeyboardShortcutWeakHandle] = []
+
     /// Handle the mouse event.
     ///
     /// - Parameter event: The mouse event to handle.
@@ -162,6 +174,18 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
                 focusManager.focusNext()
             }
             return
+        }
+
+        // Local shortcuts (`.keyboardShortcut`) run before focused controls so navigation keys
+        // still work when a ``TextField`` has focus. Remove dead weak entries opportunistically.
+        self.keyboardShortcutHandles.removeAll { $0.target == nil }
+        for handle in self.keyboardShortcutHandles {
+            guard let node = handle.target else {
+                continue
+            }
+            if node.handleShortcutIfNeeded(event: event) {
+                return
+            }
         }
 
         if let focusedNode = focusManager.focusedNode {
@@ -273,6 +297,29 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             []
         case .layoutBounds, .focusedNode, .hitTestTarget:
             [.drawViewOverlays]
+        }
+    }
+}
+
+extension UIContainerView: KeyboardShortcutRegistering {
+    func registerKeyboardShortcut(target: KeyboardShortcutModifierNode) {
+        let id = ObjectIdentifier(target)
+        self.keyboardShortcutHandles.removeAll {
+            guard let t = $0.target else {
+                return false
+            }
+            return ObjectIdentifier(t) == id
+        }
+        self.keyboardShortcutHandles.append(KeyboardShortcutWeakHandle(target: target))
+    }
+
+    func unregisterKeyboardShortcut(target: KeyboardShortcutModifierNode) {
+        let id = ObjectIdentifier(target)
+        self.keyboardShortcutHandles.removeAll {
+            guard let t = $0.target else {
+                return false
+            }
+            return ObjectIdentifier(t) == id
         }
     }
 }

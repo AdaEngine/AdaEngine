@@ -290,6 +290,23 @@ public struct RenderGraph: Resource {
         self.nodes[inputNode] = iNode
     }
 
+    /// Removes a node-to-node edge if it exists.
+    @discardableResult
+    public mutating func removeNodeEdge(from outputNode: RenderNodeLabel, to inputNode: RenderNodeLabel) -> Bool {
+        let edge = Edge.node(outputNode: outputNode, inputNode: inputNode)
+        guard var oNode = self.nodes[outputNode], var iNode = self.nodes[inputNode] else {
+            return false
+        }
+        if !self.hasEdge(edge) {
+            return false
+        }
+        oNode.outputEdges.removeAll(where: { $0 == edge })
+        iNode.inputEdges.removeAll(where: { $0 == edge })
+        self.nodes[outputNode] = oNode
+        self.nodes[inputNode] = iNode
+        return true
+    }
+
     @inline(__always)
     public mutating func removeNode<T: RenderNode>(by type: T.Type) -> Bool {
         self.removeNode(by: T.name)

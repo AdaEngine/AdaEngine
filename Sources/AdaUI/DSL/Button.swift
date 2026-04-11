@@ -237,4 +237,12 @@ final class ButtonViewNode: ViewModifierNode {
 
         self.invalidateContent()
     }
+
+    /// Invoked by ``keyboardShortcut`` when this button is the first enabled button in the subtree.
+    func performPrimaryActionForShortcut() {
+        guard self.canBecomeFocused else {
+            return
+        }
+        self.action()
+    }
 }
