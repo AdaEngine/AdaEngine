@@ -222,17 +222,41 @@ public struct UITessellator {
         configuration: Glass,
         scaleFactor: Float
     ) -> [GlassVertexData] {
-        let glassParams = Vector4(
+        let glassParams0 = Vector4(
             configuration.blurRadius,
             configuration.cornerRadius,
             configuration.glassTintStrength,
             configuration.edgeShadowStrength
         )
-        let glassInfo = Vector4(
+        let glassParams1 = Vector4(
+            configuration.cornerRoundnessExponent,
+            configuration.glassThickness,
+            configuration.refractiveIndex,
+            configuration.dispersionStrength
+        )
+        let glassParams2 = Vector4(
+            configuration.fresnelDistanceRange,
+            configuration.fresnelIntensity,
+            configuration.fresnelEdgeSharpness,
+            configuration.glareDistanceRange
+        )
+        let glassParams3 = Vector4(
+            configuration.glareAngleConvergence,
+            configuration.glareOppositeSideBias,
+            configuration.glareIntensity,
+            configuration.glareEdgeSharpness
+        )
+        let glassInfo0 = Vector4(
             halfSize.x,
             halfSize.y,
             scaleFactor,
             configuration.opacity
+        )
+        let glassInfo1 = Vector4(
+            configuration.glareDirectionOffset,
+            0,
+            0,
+            0
         )
 
         let tintColor = configuration.tintColor ?? Color(red: 0, green: 0, blue: 0, alpha: 0)
@@ -241,8 +265,12 @@ public struct UITessellator {
                 position: transform * quadPos,
                 color: tintColor,
                 texCoord: Self.defaultTextureCoords[index],
-                glassParams: glassParams,
-                glassInfo: glassInfo
+                glassParams0: glassParams0,
+                glassParams1: glassParams1,
+                glassParams2: glassParams2,
+                glassParams3: glassParams3,
+                glassInfo0: glassInfo0,
+                glassInfo1: glassInfo1
             )
         }
     }
