@@ -269,6 +269,7 @@ var targets: [Target] = [
             "AdaECS",
             "AdaApp",
             "AdaRender",
+            "AdaUtils",
             "Math"
         ],
         resources: [
@@ -377,6 +378,7 @@ var targets: [Target] = [
             "AdaECS",
             "AdaTransform",
             "AdaText",
+            "AdaUtils",
             "Math",
             "AdaRender",
             "AdaCorePipelines",
@@ -442,6 +444,7 @@ var targets: [Target] = [
             "AdaAssets",
             "AdaECS",
             "AdaText",
+            "AdaUtils",
             "Math",
             "AdaRender",
             "AdaCorePipelines"

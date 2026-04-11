@@ -22,7 +22,7 @@ public struct UIComponentSystem: Sendable {
     private var cameras
 
     @ResMut
-    private var input: Input?
+    private var input: Input
 
     @Res<DeltaTime>
     private var deltaTime
@@ -69,6 +69,9 @@ private extension UIComponentSystem {
         if let viewOwner = (view as? ViewOwner) {
             var environment = EnvironmentValues()
             environment.entity = WeakBox(value: entity)
+            if let world = entity.world {
+                environment.world = WeakBox(value: world)
+            }
             viewOwner.updateEnvironment(environment)
         }
 
@@ -77,10 +80,16 @@ private extension UIComponentSystem {
             if let window = windowManager
                 .windowManager
                 .windows[component.windowRef.getWindowId(from: primaryWindowId)] {
-                view.window = window
+                // Do not assign `view.window` before `addSubview`: `UIWindow.addSubview`
+                // treats `view.window === self` as “already added” and asserts.
+                if view.parentView !== window {
+                    view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
+                    window.addSubview(view)
+                }
                 let newSize = component.view.sizeThatFits(ProposedViewSize(window.frame.size))
-                if view.frame.size != newSize {
-                    view.frame.size = newSize
+                let newFrame = Rect(origin: .zero, size: newSize)
+                if view.frame != newFrame {
+                    view.frame = newFrame
                     view.layoutSubviews()
                 }
             }
@@ -91,16 +100,14 @@ private extension UIComponentSystem {
             }
         }
 
-        if let input = self.input {
-            let events = input.getInputEvents()
-            for event in events {
-                guard view.canRespondToAction(event) else {
-                    continue
-                }
-
-                let responder = view.findFirstResponder(for: event) ?? view
-                responder.onEvent(event)
+        let events = input.getInputEvents()
+        for event in events {
+            guard view.canRespondToAction(event) else {
+                continue
             }
+
+            let responder = view.findFirstResponder(for: event) ?? view
+            responder.onEvent(event)
         }
 
         view.update(deltaTime)

@@ -84,6 +84,9 @@ public extension RenderDevice {
 
 extension RenderEngine {
     package static func setupRenderEngine() throws {
+        // Guard: only the first caller creates the engine; subsequent callers (e.g. SceneView
+        // subworld) reuse the existing instance so the main window registration is preserved.
+        guard unsafe RenderEngine.shared == nil else { return }
         let preferredBackend = unsafe RenderEngine.configurations.preferredBackend ?? Self.defaultBackendType()
         let renderBackend: RenderBackend
         switch preferredBackend {

@@ -86,7 +86,10 @@ final class ViewRootNode: ViewNode {
     }
 
     override func point(inside point: Point, with event: any InputEvent) -> Bool {
-        contentNode.point(inside: point, with: event)
+        // Must match ``hitTest``: `contentNode` is placed with a non-zero origin (centered in
+        // the safe area), so root-local points must be converted before testing the subtree.
+        let newPoint = contentNode.convert(point, from: self)
+        return contentNode.point(inside: newPoint, with: event)
     }
 
     override func onMouseEvent(_ event: MouseEvent) {

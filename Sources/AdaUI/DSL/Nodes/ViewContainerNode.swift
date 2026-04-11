@@ -94,6 +94,7 @@ class ViewContainerNode: ViewNode {
         let listInputs = _ViewListInputs(input: inputs)
         self.invalidateContent(with: listInputs)
         self.invalidateNearestLayer()
+        owner?.containerView?.setNeedsLayout()
     }
 
     // swiftlint:disable cyclomatic_complexity

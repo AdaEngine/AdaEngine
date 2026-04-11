@@ -30,7 +30,12 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     private var isBootstrapping = false
     private var hasCalledSetup = false
-    private var isTickInFlight = false
+    /// When true, this coordinator's ``AppWorlds`` is a subworld of ``AppWorldsSession/current`` and is updated by the host ``AppWorlds/update()`` loop (no separate ``tick`` work).
+    private var isHostedSubworld = false
+    /// Fallback when no host session exists (e.g. unusual test harnesses).
+    private var standaloneTickInFlight = false
+
+    private let hostSubworldName: AppWorldName
     private var currentSize: SizeInt = .zero
     private var scaleFactor: Float = 1
 
@@ -40,6 +45,14 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     init(filePath: StaticString, setup: @escaping @MainActor (World) -> Void) {
         self.filePath = filePath
         self.setupClosure = setup
+        self.hostSubworldName = AppWorldName(rawValue: "SceneView.\(UUID().uuidString)")
+    }
+
+    deinit {
+        let name = hostSubworldName
+        Task { @MainActor in
+            AppWorldsSession.current?.removeSubworld(by: name)
+        }
     }
 
     // MARK: - OffscreenViewportDelegate
@@ -51,6 +64,12 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let app = self.buildAppWorlds()
+            if let host = AppWorldsSession.current {
+                host.addSubworld(app, by: self.hostSubworldName)
+                self.isHostedSubworld = true
+            } else {
+                self.isHostedSubworld = false
+            }
             try? await app.build()
             self.appWorlds = app
             self.isBootstrapping = false
@@ -80,33 +99,39 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     func tick(_ deltaTime: AdaUtils.TimeInterval) {
-        guard appWorlds != nil && hasCalledSetup && !isTickInFlight else { return }
-        isTickInFlight = true
-
-        Task { @MainActor [weak self] in
-            guard let self, let app = self.appWorlds else {
-                self?.isTickInFlight = false
-                return
-            }
-            defer { self.isTickInFlight = false }
-            app.main.insertResource(DeltaTime(deltaTime: deltaTime))
-            try? await app.update()
+        guard appWorlds != nil && hasCalledSetup else {
+            return
         }
+        if isHostedSubworld {
+            return
+        }
+        standaloneTick(deltaTime)
     }
 
     func receiveInputEvent(_ event: any InputEvent) {
         guard let app = appWorlds else { return }
-        var input = app.main.getRefResource(Input.self)
+        let input = app.main.getRefResource(Input.self)
         input.wrappedValue.receiveEvent(event)
     }
 
     func updateMousePosition(_ position: Point) {
         guard let app = appWorlds else { return }
-        var input = app.main.getRefResource(Input.self)
+        let input = app.main.getRefResource(Input.self)
         input.wrappedValue.mousePosition = position
     }
 
     // MARK: - Private
+
+    private func standaloneTick(_ deltaTime: AdaUtils.TimeInterval) {
+        guard !standaloneTickInFlight else { return }
+        standaloneTickInFlight = true
+        Task { @MainActor [weak self] in
+            defer { self?.standaloneTickInFlight = false }
+            guard let self, let app = self.appWorlds else { return }
+            app.main.insertResource(DeltaTime(deltaTime: deltaTime))
+            try? await app.update()
+        }
+    }
 
     private func finalizeSetupIfReady() {
         guard let app = appWorlds,
@@ -129,7 +154,9 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     private func spawnCamera(in app: AppWorlds) {
-        guard let texture = renderTexture as? RenderTexture else { return }
+        guard let texture = renderTexture as? RenderTexture else {
+            return
+        }
 
         let logicalSize = Size(
             width: Float(currentSize.width) / scaleFactor,

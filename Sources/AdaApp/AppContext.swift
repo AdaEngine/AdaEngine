@@ -40,6 +40,7 @@ public struct AppContext<T: App>: ~Copyable {
             ])
         }
         let appWorlds = AppWorlds(main: World(name: "MainWorld"))
+        AppWorldsSession.current = appWorlds
         appWorlds
             .insertResource(WindowSettings())
             .insertResource(SimulationControl())

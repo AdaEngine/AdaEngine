@@ -160,6 +160,12 @@ public extension AppWorlds {
         self.subWorlds[name.rawValue] = subworld
     }
 
+    /// Removes a subworld registered with ``addSubworld(_:by:)``.
+    @discardableResult
+    public func removeSubworld(by name: AppWorldName) -> AppWorlds? {
+        subWorlds.removeValue(forKey: name.rawValue)
+    }
+
     /// Add a plugin to the app.
     /// - Parameter plugin: The plugin to add.
     /// - Returns: The app builder.

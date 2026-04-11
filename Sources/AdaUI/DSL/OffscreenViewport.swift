@@ -113,6 +113,9 @@ private final class OffscreenViewportNode: ViewNode {
 
     override func update(_ deltaTime: AdaUtils.TimeInterval) {
         delegate.tick(deltaTime)
+        if delegate.renderTexture != nil {
+            owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
+        }
     }
 
     // MARK: Draw
