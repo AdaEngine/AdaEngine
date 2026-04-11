@@ -21,24 +21,47 @@ public struct GlassVertexData: Sendable {
     /// Glass visual parameters (vec4):
     /// x = blurRadius (logical pixels), y = cornerRadius (logical pixels),
     /// z = glassTintStrength [0,1], w = edgeShadowStrength [0,1].
-    public let glassParams: Vector4
+    public let glassParams0: Vector4
+    /// Advanced optical parameters (vec4):
+    /// x = cornerRoundnessExponent, y = glassThickness,
+    /// z = refractiveIndex, w = dispersionStrength.
+    public let glassParams1: Vector4
+    /// Fresnel and glare range parameters (vec4):
+    /// x = fresnelDistanceRange, y = fresnelIntensity,
+    /// z = fresnelEdgeSharpness, w = glareDistanceRange.
+    public let glassParams2: Vector4
+    /// Glare shaping parameters (vec4):
+    /// x = glareAngleConvergence, y = glareOppositeSideBias,
+    /// z = glareIntensity, w = glareEdgeSharpness.
+    public let glassParams3: Vector4
     /// Glass geometry and display info (vec4):
     /// x = halfWidth, y = halfHeight (logical pixels),
     /// z = display scaleFactor, w = opacity [0,1].
-    public let glassInfo: Vector4
+    public let glassInfo0: Vector4
+    /// Additional info (vec4):
+    /// x = glareDirectionOffset, yzw reserved.
+    public let glassInfo1: Vector4
 
     public init(
         position: Vector4,
         color: Color,
         texCoord: Vector2,
-        glassParams: Vector4,
-        glassInfo: Vector4
+        glassParams0: Vector4,
+        glassParams1: Vector4,
+        glassParams2: Vector4,
+        glassParams3: Vector4,
+        glassInfo0: Vector4,
+        glassInfo1: Vector4
     ) {
         self.position = position
         self.color = color
         self.texCoord = texCoord
-        self.glassParams = glassParams
-        self.glassInfo = glassInfo
+        self.glassParams0 = glassParams0
+        self.glassParams1 = glassParams1
+        self.glassParams2 = glassParams2
+        self.glassParams3 = glassParams3
+        self.glassInfo0 = glassInfo0
+        self.glassInfo1 = glassInfo1
     }
 }
 
@@ -65,8 +88,12 @@ public struct GlassPipeline: RenderPipelineConfigurator {
             .attribute(.vector4, name: "a_Position"),
             .attribute(.vector4, name: "a_Color"),
             .attribute(.vector2, name: "a_TexCoordinate"),
-            .attribute(.vector4, name: "a_GlassParams"),
-            .attribute(.vector4, name: "a_GlassInfo"),
+            .attribute(.vector4, name: "a_GlassParams0"),
+            .attribute(.vector4, name: "a_GlassParams1"),
+            .attribute(.vector4, name: "a_GlassParams2"),
+            .attribute(.vector4, name: "a_GlassParams3"),
+            .attribute(.vector4, name: "a_GlassInfo0"),
+            .attribute(.vector4, name: "a_GlassInfo1"),
         ])
 
         pipelineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<GlassVertexData>.stride

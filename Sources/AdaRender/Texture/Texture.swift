@@ -151,6 +151,8 @@ extension Texture: RuntimeRegistrable {
         AssetsManager.registerAssetType(TextureAtlas.self)
         AssetsManager.registerAssetType(TextureAtlas.Slice.self)
         AssetsManager.registerAssetType(AnimatedTexture.self)
+        AssetsManager.registerAssetType(NamedTextureAtlas.self)
+        AssetsManager.registerAssetType(NamedTextureAtlas.Slice.self)
         
         Texture2D.registerTextureType()
         TextureAtlas.registerTextureType()

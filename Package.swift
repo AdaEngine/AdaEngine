@@ -67,6 +67,16 @@ var products: [Product] = [
     ),
     .plugin(name: "WebGPUBuildPlugin", targets: [
         "WebGPUBuildPlugin"
+    ]),
+    .executable(
+        name: "TextureAtlasBuilderTool",
+        targets: ["TextureAtlasBuilderTool"]
+    ),
+    .plugin(name: "TextureAtlasBuildPlugin", targets: [
+        "TextureAtlasBuildPlugin"
+    ]),
+    .plugin(name: "TextureAtlasCommandPlugin", targets: [
+        "TextureAtlasCommandPlugin"
     ])
 ]
 
@@ -464,6 +474,43 @@ targets.append(
     )
 )
 
+targets.append(
+    .executableTarget(
+        name: "TextureAtlasBuilderTool",
+        dependencies: ["AdaRender"],
+        path: "Plugins/TextureAtlasBuilderTool",
+        swiftSettings: swiftSettings
+    )
+)
+
+targets.append(
+    .plugin(
+        name: "TextureAtlasBuildPlugin",
+        capability: .buildTool(),
+        dependencies: [
+            .target(name: "TextureAtlasBuilderTool")
+        ],
+        path: "Plugins/TextureAtlasBuildPlugin"
+    )
+)
+
+targets.append(
+    .plugin(
+        name: "TextureAtlasCommandPlugin",
+        capability: .command(
+            intent: .custom(
+                verb: "build-texture-atlas",
+                description: "Run TextureAtlasBuilderTool (pass --config and --output-swift)"
+            ),
+            permissions: []
+        ),
+        dependencies: [
+            .target(name: "TextureAtlasBuilderTool")
+        ],
+        path: "Plugins/TextureAtlasCommandPlugin"
+    )
+)
+
 // MARK: Build Plugins
 if isWGPUEnabled {
 
@@ -840,6 +887,7 @@ targets += [
             "AdaUtils",
             "AdaInput",
             "AdaRender",
+            "AdaCorePipelines",
             "Math"
         ],
         exclude: [
