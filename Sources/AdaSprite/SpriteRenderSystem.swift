@@ -126,9 +126,10 @@ func UpdateBoundings(
         guard let size = (sprite.size ?? sprite.texture?.asset.size.toSize())?.asVector2 else {
             return
         }
+        // Local quad is [-0.5,0.5]×size → centered at origin; AABB must match for frustum culling.
         bounds.bounds = .aabb(
             AABB(
-                center: Vector3(size, 0),
+                center: .zero,
                 halfExtents: Vector3(0.5 * size, 0)
             )
         )

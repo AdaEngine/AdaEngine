@@ -638,8 +638,8 @@ public struct UIRenderPipelines: Resource, WorldInitable {
     public var quadPipeline: RenderPipeline
     public var linePipeline: RenderPipeline
     public var circlePipeline: RenderPipeline
-    /// Glass pipeline — optional because `GlassPipeline` is only registered when glass is enabled.
-    public var glassPipeline: RenderPipeline?
+    /// Pipeline for ``GlassEffectModifier`` / `glass.glsl` (requires `RenderPipelines<GlassPipeline>` on the render world).
+    public var glassPipeline: RenderPipeline
 
     public init(from world: World) {
         let device = world.getResource(RenderDeviceHandler.self).unwrap().renderDevice
@@ -659,6 +659,7 @@ public struct UIRenderPipelines: Resource, WorldInitable {
             .wrappedValue
             .pipeline(device: device)
 
+        // Must succeed when UIPlugin registered `RenderPipelines<GlassPipeline>()` on this world.
         self.glassPipeline = world.getRefResource(RenderPipelines<GlassPipeline>.self)
             .wrappedValue
             .pipeline(device: device)

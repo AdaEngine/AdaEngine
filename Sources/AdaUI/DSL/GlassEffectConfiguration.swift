@@ -64,18 +64,15 @@ extension Glass {
     }
 
     /// Minimal glass: light blur, almost transparent. Mirrors Apple's `.clear`.
+    ///
+    /// Blur and tint strength are high enough for the shader to show visible lens warping;
+    /// opacity stays low so the panel still reads as “clear”.
     public static var clear: Glass {
         var glass = Glass()
-        glass.blurRadius = 0.25
-        glass.glassTintStrength = 0.08
-        glass.edgeShadowStrength = 0.0
-        glass.opacity = 0.28
-        glass.glassThickness = 10.0
-        glass.dispersionStrength = 0.10
-        glass.fresnelIntensity = 0.22
-        glass.glareIntensity = 0.12
-        glass.glareDistanceRange = 72.0
-        glass.tintColor = Color(red: 0.985, green: 0.99, blue: 1.0, alpha: 0.04)
+glass.blurRadius = 18.0
+        glass.glassTintStrength = 0.52
+        glass.edgeShadowStrength = 0.07
+        glass.opacity = 0.4
         return glass
     }
 
