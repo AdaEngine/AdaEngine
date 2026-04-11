@@ -28,7 +28,12 @@ extension Glass {
 
     /// Standard frosted glass: full blur and tinting. Mirrors Apple's `.regular`.
     public static var regular: Glass {
-        return Glass()
+        var glass = Glass()
+        glass.blurRadius = 16.0
+        glass.glassTintStrength = 1.0
+        glass.edgeShadowStrength = 0.15
+        glass.opacity = 0.75
+        return glass
     }
 
     /// Minimal glass: light blur, almost transparent. Mirrors Apple's `.clear`.

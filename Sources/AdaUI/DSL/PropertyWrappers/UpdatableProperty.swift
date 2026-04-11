@@ -73,7 +73,10 @@ class UpdatablePropertyStorage {
 
             $0.invalidateContent()
             if let containerView = $0.owner?.containerView {
-                containerView.setNeedsDisplay(in: $0.absoluteFrame())
+                // Content invalidation can change layout without changing the container frame.
+                // `setNeedsLayout()` schedules `layoutSubviews` → `place()` before the next draw;
+                // `setNeedsDisplay` alone only repaints with stale layout until something (e.g. resize) relayouts.
+                containerView.setNeedsLayout()
             }
         }
     }

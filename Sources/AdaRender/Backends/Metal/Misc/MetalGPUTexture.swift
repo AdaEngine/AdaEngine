@@ -77,17 +77,47 @@ final class MetalGPUTexture: GPUTexture {
                 size: MTLSize(width: image.width, height: image.height, depth: 1)
             )
 
-            let bytesPerRow = descriptor.pixelFormat.bytesPerComponent * image.width
+            guard let texelBytes = descriptor.pixelFormat.uncompressedColorBytesPerPixel else {
+                fatalError("MetalGPUTexture: cannot upload image data to format \(descriptor.pixelFormat).")
+            }
+            let minimumBytesPerRow = texelBytes * image.width
+            precondition(image.height > 0, "Image height must be positive.")
+            precondition(image.data.count % image.height == 0, "Image buffer size must be divisible by height.")
 
-            unsafe image.data.withUnsafeBytes { buffer in
-                unsafe precondition(buffer.baseAddress != nil, "Image should not contains empty address.")
-
-                unsafe texture.replace(
-                    region: region,
-                    mipmapLevel: 0,
-                    withBytes: buffer.baseAddress!,
-                    bytesPerRow: bytesPerRow
+            if image.format == .rgb8 {
+                let (rgbaData, rgbaBytesPerRow) = Self.rgbaDataExpandingRGB8(image)
+                precondition(
+                    rgbaBytesPerRow >= minimumBytesPerRow,
+                    "Expanded RGBA row size \(rgbaBytesPerRow) < Metal minimum \(minimumBytesPerRow)."
                 )
+                unsafe rgbaData.withUnsafeBytes { buffer in
+                    unsafe precondition(buffer.baseAddress != nil, "Image should not contains empty address.")
+                    unsafe texture.replace(
+                        region: region,
+                        mipmapLevel: 0,
+                        withBytes: buffer.baseAddress!,
+                        bytesPerRow: rgbaBytesPerRow
+                    )
+                }
+            } else {
+                let sourceBytesPerRow = image.data.count / image.height
+                precondition(
+                    sourceBytesPerRow >= minimumBytesPerRow,
+                    """
+                    Metal replaceRegion: bytesPerRow (\(sourceBytesPerRow)) must be >= \(minimumBytesPerRow) \
+                    (width \(image.width) × \(texelBytes) B for \(descriptor.pixelFormat)). \
+                    Check that Image.format matches the decoded buffer (e.g. 8-bit vs 16-bit PNG).
+                    """
+                )
+                unsafe image.data.withUnsafeBytes { buffer in
+                    unsafe precondition(buffer.baseAddress != nil, "Image should not contains empty address.")
+                    unsafe texture.replace(
+                        region: region,
+                        mipmapLevel: 0,
+                        withBytes: buffer.baseAddress!,
+                        bytesPerRow: sourceBytesPerRow
+                    )
+                }
             }
         }
 
@@ -132,6 +162,41 @@ final class MetalGPUTexture: GPUTexture {
             data: Data(imageBytes),
             format: imageFormat
         )
+    }
+
+    /// Packs `rgb8` rows (with possible row padding) into tight RGBA8 for Metal `replace`.
+    private static func rgbaDataExpandingRGB8(_ image: Image) -> (Data, Int) {
+        precondition(image.format == .rgb8)
+        let width = image.width
+        let height = image.height
+        precondition(width > 0 && height > 0)
+        let srcRowBytes = image.data.count / height
+        var out = Data(count: width * height * 4)
+        out.withUnsafeMutableBytes { dstRaw in
+            guard let dstBase = dstRaw.bindMemory(to: UInt8.self).baseAddress else {
+                return
+            }
+            image.data.withUnsafeBytes { srcRaw in
+                guard let srcBase = srcRaw.bindMemory(to: UInt8.self).baseAddress else {
+                    return
+                }
+                for y in 0..<height {
+                    let srow = srcBase.advanced(by: y * srcRowBytes)
+                    let drow = dstBase.advanced(by: y * width * 4)
+                    var sx = 0
+                    var dx = 0
+                    for _ in 0..<width {
+                        drow[dx] = srow[sx]
+                        drow[dx + 1] = srow[sx + 1]
+                        drow[dx + 2] = srow[sx + 2]
+                        drow[dx + 3] = 255
+                        sx += 3
+                        dx += 4
+                    }
+                }
+            }
+        }
+        return (out, width * 4)
     }
 }
 

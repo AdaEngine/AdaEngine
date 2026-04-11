@@ -7,7 +7,6 @@
 
 @_spi(Internal) import AdaECS
 import AdaTransform
-import AdaUtils
 import Math
 import AdaAssets
 
@@ -51,11 +50,14 @@ public struct CameraSystem: Sendable {
 
         switch camera.renderTarget {
         case .window(let windowRef):
-            guard let primaryWindow else { return }
+            guard let primaryWindow else {
+                return
+            }
             camera.renderTarget = .window(windowRef)
 
+            let resolvedWindowId = windowRef.getWindowId(from: primaryWindow)
             guard let renderWindow = unsafe RenderEngine.shared
-                .getRenderWindow(for: windowRef.getWindowId(from: primaryWindow))
+                .getRenderWindow(for: resolvedWindowId)
             else {
                 return
             }

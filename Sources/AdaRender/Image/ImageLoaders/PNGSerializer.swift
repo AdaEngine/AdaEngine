@@ -31,29 +31,9 @@ struct PNGImageSerializer: ImageLoaderStrategy {
             return unsafe png_image_begin_read_from_memory(&pngImage, bufferPtr.baseAddress, data.count) == 1
         }
         
-        let maskFormat: UInt32 = ~(
-            PNG_FORMAT_FLAG_BGR | PNG_FORMAT_FLAG_AFIRST |
-            PNG_FORMAT_FLAG_LINEAR | PNG_FORMAT_FLAG_COLORMAP
-        )
-        
-        unsafe pngImage.format &= maskFormat
-        unsafe pngImage.flags |= UInt32(PNG_IMAGE_FLAG_16BIT_sRGB)
+        unsafe pngImage.format = PNG_FORMAT_FLAG_COLOR | PNG_FORMAT_FLAG_ALPHA
 
-        let format: Image.Format
-        
-        switch unsafe pngImage.format {
-        case PNG_FORMAT_FLAG_COLOR:
-            format = .rgb8
-        case (PNG_FORMAT_FLAG_COLOR | PNG_FORMAT_FLAG_ALPHA): // rgba
-            format = .rgba8
-        case PNG_FORMAT_FLAG_BGR:
-            format = .bgra8
-        case UInt32(PNG_FORMAT_GRAY):
-            format = .gray
-        default:
-            unsafe png_image_free(&pngImage)
-            throw DecodingError.notSupportedImageFormat
-        }
+        let format: Image.Format = .rgba8
         
         if !isSuccess {
             unsafe png_image_free(&pngImage)

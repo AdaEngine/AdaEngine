@@ -23,15 +23,9 @@ import Math
 ///     world.spawn("Player") {
 ///         SpriteBundle(texture: playerTexture)
 ///     }
-/// }) { context in
-///     ZStack {
-///         context.viewport
-///         Text("Score: \(score)")
-///     }
-/// }
+/// })
 /// ```
 public struct SceneView<Content: View>: View {
-
     let filePath: StaticString
     let setup: @MainActor (World) -> Void
     let contentBuilder: @MainActor (SceneViewContext) -> Content
@@ -65,7 +59,6 @@ public struct SceneView<Content: View>: View {
 /// Provides access to the live viewport rendered by a ``SceneView``.
 @MainActor
 public struct SceneViewContext {
-
     let coordinator: SceneViewCoordinator
 
     /// A view displaying the rendered scene. Embed it in `ZStack`, `VStack`,

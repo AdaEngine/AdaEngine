@@ -307,4 +307,18 @@ public extension PixelFormat {
         self == .depth_32f_stencil8 || self == .depth_32f
         #endif
     }
+
+    /// Bytes per pixel for ordinary color textures (used for row pitch when uploading pixel data).
+    var uncompressedColorBytesPerPixel: Int? {
+        switch self {
+        case .bgra8, .bgra8_srgb, .rgba8:
+            return 4
+        case .rgba_16f:
+            return 8
+        case .rgba_32f:
+            return 16
+        case .none, .depth_32f_stencil8, .depth_32f, .depth24_stencil8:
+            return nil
+        }
+    }
 }
