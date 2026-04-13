@@ -39,6 +39,16 @@ public struct RenderViewTarget: @unchecked Sendable {
     public var mainTexture: RenderTexture?
     public var outputTexture: RenderTexture?
 
+    /// Scene albedo when the 2D lighting pipeline is active; otherwise unused.
+    public var sceneColorTexture: RenderTexture?
+    /// Additive light accumulation (same size as ``mainTexture``).
+    public var lightAccumTexture: RenderTexture?
+    /// Shadow mask written before each lit pass (same size as ``mainTexture``).
+    public var shadowMaskTexture: RenderTexture?
+
+    /// When true, ``Main2DRenderNode`` writes albedo to ``sceneColorTexture``; lighting composite writes ``mainTexture``.
+    public var lighting2DUsesDeferredTargets: Bool = false
+
     public init() {}
 }
 
@@ -58,13 +68,17 @@ func ConfigurateRenderViewTarget(
             return
         }
 
-        if renderViewTarget.mainTexture == nil {
+        let scale = camera.computedData.targetScaleFactor
+        if renderViewTarget.mainTexture == nil || renderViewTarget.mainTexture?.size != viewportSize {
             renderViewTarget.mainTexture = RenderTexture(
                 size: viewportSize,
-                scaleFactor: camera.computedData.targetScaleFactor,
+                scaleFactor: scale,
                 format: .bgra8,
                 debugLabel: "Camera Main Texture"
             )
+            renderViewTarget.sceneColorTexture = nil
+            renderViewTarget.lightAccumTexture = nil
+            renderViewTarget.shadowMaskTexture = nil
         }
 
         switch camera.renderTarget {

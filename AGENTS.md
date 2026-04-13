@@ -17,12 +17,13 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
 - Build docs: see Documentation section below.
 
 ### Test
+- **Use Swift Testing** for AdaEngine package tests: `import Testing`, `@Suite`, `@Test`, and `#expect` / `#require`. Do not add new **XCTest**-based tests in `AdaEngine/Tests/`.
 - Run all tests: `swift test --parallel`
 - Run a single test target:
   - `swift test --parallel --filter AdaEngineTests`
-- Run a single test case (SwiftPM filter supports type or type/method):
-  - `swift test --filter AdaEngineTests/SomeTestCase`
-  - `swift test --filter AdaEngineTests/SomeTestCase/testMethod`
+- Run a single test (SwiftPM `--filter` matches symbol names; Swift Testing suites are often filterable by suite string):
+  - `swift test --filter SomeSuiteName`
+  - `swift test --filter AdaSpriteTests`
 
 ### Lint
 - SwiftLint is wired as a SwiftPM build tool plugin for macOS/Linux.
@@ -115,9 +116,9 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
 - Use `assertionFailure` for unreachable paths in debug-only code.
 
 ### Testing
-- Keep test classes focused: SwiftLint `single_test_class` opt-in rule
-  encourages one test class per file.
-- Use descriptive test method names; `yoda_condition` and
+- Prefer **Swift Testing** (`@Suite`, `@Test`, `#expect`) over XCTest for new
+  and migrated tests under `AdaEngine/Tests/`.
+- Use descriptive suite and test names; `yoda_condition` and
   `optional_enum_case_matching` are enabled.
 
 ### Types and Access Control

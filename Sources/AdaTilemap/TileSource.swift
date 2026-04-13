@@ -79,9 +79,12 @@ struct TileData: Codable {
         case modulateColor = "mColor"
         case flipH = "f_h"
         case flipV = "f_v"
+        case occluderPolygon = "occ"
     }
     
     var modulateColor = Color(1.0, 1.0, 1.0, 1.0)
     var flipH: Bool = false
     var flipV: Bool = false
+    /// Optional CCW polygon in tile **local** space for ``LightOccluder2D`` when the tile is spawned.
+    var occluderPolygon: [Vector2]?
 }

@@ -3,12 +3,15 @@
 //
 
 import AdaRender
+import Foundation
 import Math
-import XCTest
+import Testing
 
-final class NamedTextureAtlasTests: XCTestCase {
+@Suite("NamedTextureAtlas")
+struct NamedTextureAtlasTests {
 
-    func testAtlasRegionCodableRoundTrip() throws {
+    @Test
+    func atlasRegionCodableRoundTrip() throws {
         let region = AtlasRegion(
             key: "home",
             atlasOrigin: PointInt(x: 2, y: 3),
@@ -20,10 +23,10 @@ final class NamedTextureAtlasTests: XCTestCase {
         )
         let data = try JSONEncoder().encode(region)
         let decoded = try JSONDecoder().decode(AtlasRegion.self, from: data)
-        XCTAssertEqual(decoded.key, region.key)
-        XCTAssertEqual(decoded.atlasOrigin.x, region.atlasOrigin.x)
-        XCTAssertEqual(decoded.uvMin.x, region.uvMin.x)
-        XCTAssertEqual(decoded.originalSize.width, region.originalSize.width)
-        XCTAssertEqual(decoded.contentOriginInAtlas.y, region.contentOriginInAtlas.y)
+        #expect(decoded.key == region.key)
+        #expect(decoded.atlasOrigin.x == region.atlasOrigin.x)
+        #expect(decoded.uvMin.x == region.uvMin.x)
+        #expect(decoded.originalSize.width == region.originalSize.width)
+        #expect(decoded.contentOriginInAtlas.y == region.contentOriginInAtlas.y)
     }
 }
