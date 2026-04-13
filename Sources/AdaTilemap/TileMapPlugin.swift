@@ -134,10 +134,16 @@ public struct TileMapSystem: Sendable {
                         )
                         Transform(position: position)
                     }
+                    if let ring = tileData.occluderPolygon, ring.count >= 3 {
+                        tileEntity.components += LightOccluder2D(points: ring)
+                    }
                 case let entitySource as TileEntityAtlasSource:
                     tileEntity = entitySource.getEntity(at: tile.atlasCoordinates)
                     tileEntity.components += Transform(position: position)
                     tileEntity.components[Sprite.self]?.size = tileSize
+                    if let ring = tileData.occluderPolygon, ring.count >= 3 {
+                        tileEntity.components += LightOccluder2D(points: ring)
+                    }
                 default:
                     logger.warning("TileSource isn't supported for id: \(tile.sourceId)")
                     continue

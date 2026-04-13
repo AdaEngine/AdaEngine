@@ -223,6 +223,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         app.addPlugin(Physics2DPlugin())
         app.addPlugin(TileMapPlugin())
         app.addPlugin(Core2DPlugin())
+        app.addPlugin(Light2DPlugin())
         app.addPlugin(UpscalePlugin())
 
         app.insertResource(PrimaryWindowId(windowId: RID()))
