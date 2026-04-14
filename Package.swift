@@ -62,6 +62,10 @@ var products: [Product] = [
         targets: ["AdaRender"]
     ),
     .library(
+        name: "AdaAnimation",
+        targets: ["AdaAnimation"]
+    ),
+    .library(
         name: "AdaEngineEmbeddable",
         targets: ["AdaEngineEmbeddable"]
     ),
@@ -175,6 +179,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "BitCollections", package: "swift-collections"),
     "AdaApp",
     "AdaECS",
+    "AdaAnimation",
     "AdaUI",
     "AdaEngineMacros",
     "AdaAssets",
@@ -269,6 +274,15 @@ var targets: [Target] = [
             .product(name: "Collections", package: "swift-collections"),
             .product(name: "BitCollections", package: "swift-collections"),
             "AdaEngineMacros",
+            "Math"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .adaTarget(
+        name: "AdaAnimation",
+        dependencies: [
+            "AdaECS",
+            "AdaUtils",
             "Math"
         ],
         swiftSettings: swiftSettings
@@ -384,6 +398,7 @@ var targets: [Target] = [
     .adaTarget(
         name: "AdaUI",
         dependencies: [
+            "AdaAnimation",
             "AdaApp",
             "AdaECS",
             "AdaTransform",
@@ -411,6 +426,7 @@ var targets: [Target] = [
         dependencies: [
             "AdaApp",
             "AdaECS",
+            "AdaAnimation",
             "box2d",
             "AdaTransform",
             "AdaText",
@@ -895,6 +911,13 @@ targets += [
         ]
     ),
     .testTarget(
+        name: "AdaAnimationTests",
+        dependencies: [
+            "AdaAnimation",
+            "Math"
+        ]
+    ),
+    .testTarget(
         name: "AdaRenderTests",
         dependencies: [
             "AdaRender",
@@ -1072,6 +1095,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "TransparencyExample", path: "2d"),
     .exampleTarget(name: "Lighting2DExample", path: "2d"),
     .exampleTarget(name: "ManySpritesExample", path: "2d"),
+    .exampleTarget(name: "KeyframeSpritesExample", path: "2d"),
     .exampleTarget(name: "Text2dExample", path: "2d"),
     .exampleTarget(name: "SpriteExample", path: "2d"),
     .exampleTarget(name: "WGSLExample", path: "2d"),

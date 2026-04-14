@@ -5,6 +5,7 @@
 //  Created by Codex on 24.03.2026.
 //
 
+import AdaAnimation
 import AdaInput
 import AdaRender
 import AdaText
