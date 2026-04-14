@@ -112,6 +112,7 @@ public struct InputEventParseSystem {
 func InputEventsCleanup(
     _ input: ResMut<Input>
 ) {
+    input.wrappedValue.removeEvents()
 }
 
 @System

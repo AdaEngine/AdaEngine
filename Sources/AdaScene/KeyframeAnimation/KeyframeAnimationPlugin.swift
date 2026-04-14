@@ -16,8 +16,6 @@ public struct KeyframeAnimationPlugin: Plugin, Sendable {
         app.main.insertResource(AnimationClock())
         app
             .addSystem(SyncAnimationClockSystem.self, on: .update)
-            .addSystem(KeyframeInputTriggerSystem.self, on: .update)
-            .addSystem(AnimationStateSyncSystem.self, on: .update)
             .addSystem(KeyframeAnimationApplySystem.self, on: .update)
     }
 }

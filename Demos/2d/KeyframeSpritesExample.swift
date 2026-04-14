@@ -9,119 +9,146 @@ import AdaEngine
 struct KeyframeSpritesExampleApp: App {
     var body: some AppScene {
         DefaultAppWindow()
-            .addPlugins(
-                KeyframeSpritesExamplePlugin()
-            )
+            .addPlugins(KeyframeSpritesExamplePlugin())
             .windowMode(.windowed)
-            .windowTitle("Keyframe Sprites Example")
+            .windowTitle("Keyframe Sprites Example  [1] idle  [2] burst")
     }
 }
+
+// MARK: - Animatable value structs
+
+/// Drives Transform on the entity that owns the KeyframeAnimator.
+struct TransformAnim: KeyframeAnimatable {
+    var transform: Transform = .init()
+
+    func apply(to entityId: Entity.ID, in world: World) {
+        world.insert(transform, for: entityId)
+    }
+}
+
+// MARK: - Plugin
 
 struct KeyframeSpritesExamplePlugin: Plugin {
     func setup(in app: AppWorlds) {
         let texture = try! AssetsManager.loadSync(Texture2D.self, at: "Resources/dog.png", from: .module)
 
-        app.main.spawn("HeroSprite") {
+        // Hero — white sprite, animates a bob up/down on idle
+        app.spawn("HeroSprite") {
             Sprite(texture: texture, tintColor: .white)
             Transform(scale: [1, 1, 1], position: [0, 0, 0])
+            heroAnimator()
         }
 
-        app.main.spawn("CompanionSprite") {
+        // Companion — blue sprite, rocks side to side on idle
+        app.spawn("CompanionSprite") {
             Sprite(texture: texture, tintColor: .blue)
             Transform(scale: [0.7, 0.7, 1], position: [180, 0, 0])
+            companionAnimator()
         }
 
-        app.main.spawn("DemoCamera", bundle: Camera2D())
+        app.spawn("DemoCamera", bundle: Camera2D())
+        
+        app.addSystem(KeyframeSpriteInputSystem.self)
+    }
+}
 
-        let idleClip = makeIdleClip()
-        let burstClip = makeBurstClip()
+// MARK: - Clip builders
 
-        app.main.spawn("AnimationController") {
-            KeyframeAnimator(clip: idleClip)
-            AnimationStateController(
-                state: "idle",
-                clipsByState: [
-                    "idle": idleClip,
-                    "burst": burstClip,
-                ]
-            )
-            KeyframeAnimationInputBindings(
-                bindings: [
-                    .init(keyCode: .num1, targetState: "idle"),
-                    .init(keyCode: .num2, targetState: "burst"),
-                ]
-            )
+private func heroAnimator() -> KeyframeAnimator {
+    let initial = TransformAnim()
+
+    let idle = KeyframeClip(
+        name: "idle",
+        initialValues: initial,
+        duration: 2,
+        repeatMode: .loop(reversed: true)
+    ) {
+        // Bob up and back down
+        KeyframeTrack(\.transform.position) {
+            LinearKeyframe(Vector3(0, 25, 0), duration: 0.5, curve: .cubicInOut)
+            LinearKeyframe(Vector3(0, 0, 0), duration: 0.5, curve: .cubicInOut)
+            LinearKeyframe(Vector3(0, 25, 0), duration: 0.5, curve: .cubicInOut)
+            LinearKeyframe(Vector3(0, 0, 0), duration: 0.5, curve: .cubicInOut)
         }
     }
 
-    private func makeIdleClip() -> KeyframeClip {
-        KeyframeClip(
-            name: "idle",
-            duration: 2,
-            repeatMode: .loop,
-            tracks: [
-                .transformPosition(
-                    .init(
-                        targetEntityName: "HeroSprite",
-                        keyframes: [
-                            .init(time: 0, value: [0, 0, 0], curveToNext: .cubicInOut),
-                            .init(time: 1, value: [0, 25, 0], curveToNext: .cubicInOut),
-                            .init(time: 2, value: [0, 0, 0], curveToNext: .cubicInOut),
-                        ]
-                    )
-                ),
-                .transformRotation(
-                    .init(
-                        targetEntityName: "CompanionSprite",
-                        keyframes: [
-                            .init(time: 0, value: Quat(axis: [0, 0, 1], angle: -0.15), curveToNext: .linear),
-                            .init(time: 1, value: Quat(axis: [0, 0, 1], angle: 0.15), curveToNext: .linear),
-                            .init(time: 2, value: Quat(axis: [0, 0, 1], angle: -0.15), curveToNext: .linear),
-                        ]
-                    )
-                ),
-            ]
-        )
+    let burst = KeyframeClip(
+        name: "burst",
+        initialValues: initial,
+        duration: 1.5,
+        repeatMode: .loop(reversed: true)
+    ) {
+        // Pulse scale
+        KeyframeTrack(\.transform.scale) {
+            LinearKeyframe(Vector3(1, 1, 1), duration: 0.5, curve: .cubicInOut)
+            LinearKeyframe(Vector3(1.35, 1.35, 1), duration: 0.5, curve: .cubicInOut)
+            LinearKeyframe(Vector3(0.9, 0.9, 1), duration: 0.5, curve: .cubicInOut)
+        }
     }
 
-    private func makeBurstClip() -> KeyframeClip {
-        KeyframeClip(
-            name: "burst",
-            duration: 1.5,
-            repeatMode: .loop,
-            tracks: [
-                .transformScale(
-                    .init(
-                        targetEntityName: "HeroSprite",
-                        keyframes: [
-                            .init(time: 0, value: [1, 1, 1], curveToNext: .cubicInOut),
-                            .init(time: 0.5, value: [1.35, 1.35, 1], curveToNext: .cubicInOut),
-                            .init(time: 1.0, value: [0.9, 0.9, 1], curveToNext: .cubicInOut),
-                            .init(time: 1.5, value: [1, 1, 1], curveToNext: .cubicInOut),
-                        ]
-                    )
-                ),
-                .transformPosition(
-                    .init(
-                        targetEntityName: "CompanionSprite",
-                        keyframes: [
-                            .init(time: 0, value: [180, 0, 0], curveToNext: .linear),
-                            .init(time: 0.75, value: [-180, 0, 0], curveToNext: .linear),
-                            .init(time: 1.5, value: [180, 0, 0], curveToNext: .linear),
-                        ]
-                    )
-                ),
-                .cameraOrthographicScale(
-                    .init(
-                        targetEntityName: "DemoCamera",
-                        keyframes: [
-                            .init(time: 0, value: 1, curveToNext: .cubicInOut),
-                            .init(time: 0.75, value: 1.25, curveToNext: .cubicInOut),
-                            .init(time: 1.5, value: 1, curveToNext: .cubicInOut),
-                        ]
-                    )
-                ),
-            ]
-        )
+    return KeyframeAnimator {
+        idle
+        burst
+    }
+}
+
+private func companionAnimator() -> KeyframeAnimator {
+    let initial = TransformAnim(transform: Transform(scale: [0.7, 0.7, 1], position: [180, 0, 0]))
+
+    let idle = KeyframeClip(
+        name: "idle",
+        initialValues: initial,
+        duration: 2,
+        repeatMode: .loop(reversed: true)
+    ) {
+        // Rock left and right
+        KeyframeTrack(\.transform.rotation) {
+            LinearKeyframe(Quat(axis: [0, 0, 1], angle: -0.15), duration: 1)
+            LinearKeyframe(Quat(axis: [0, 0, 1], angle:  0.15), duration: 1)
+        }
+    }
+
+    let burst = KeyframeClip(
+        name: "burst",
+        initialValues: initial,
+        duration: 1.5,
+        repeatMode: .loop(reversed: true)
+    ) {
+        // Sweep across screen
+        KeyframeTrack(\.transform.position) {
+            LinearKeyframe(Vector3( 180, 0, 0), duration: 0.75)
+            LinearKeyframe(Vector3(-180, 0, 0), duration: 0.75)
+        }
+    }
+
+    return KeyframeAnimator {
+        idle
+        burst
+    }
+}
+
+// MARK: - Input system (switch clips with 1 / 2)
+
+@System
+func KeyframeSpriteInput(
+    _ input: Res<Input>,
+    _ animators: Query<Ref<KeyframeAnimator>>
+) {
+    let keyDown = input.wrappedValue
+        .getInputEvents()
+        .compactMap { $0 as? KeyEvent }
+        .filter { $0.status == .down && !$0.isRepeated }
+        .map(\.keyCode)
+    guard !keyDown.isEmpty else { return }
+
+    animators.forEach { animator in
+        var a = animator
+        for key in keyDown {
+            if key == .num1 {
+                a.playClip(by: "idle")
+            } else if key == .num2 {
+                a.playClip(by: "burst")
+            }
+        }
     }
 }

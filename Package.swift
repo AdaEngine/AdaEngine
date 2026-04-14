@@ -952,6 +952,14 @@ targets += [
             "AdaSprite",
             "Math"
         ]
+    ),
+    .testTarget(
+        name: "AdaSceneTests",
+        dependencies: [
+            "AdaScene",
+            "AdaAnimation",
+            "AdaECS"
+        ]
     )
 ]
 

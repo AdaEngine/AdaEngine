@@ -7,30 +7,126 @@ import AdaAnimation
 import AdaECS
 import AdaUtils
 
-/// Plays a ``KeyframeClip`` on the world, updating named entities each frame.
+/// ECS component that plays ``KeyframeClip``s on the entity it is attached to.
+///
+/// Attach it to an entity whose components you want to animate:
+/// ```swift
+/// app.main.spawn("Hero") {
+///     Sprite(texture: tex)
+///     Transform()
+///     KeyframeAnimator {
+///         KeyframeClip(name: "idle", initialValues: HeroAnim(), duration: 2, repeatMode: .loop) {
+///             KeyframeTrack(\.transform.position) {
+///                 LinearKeyframe(Vector3(0, 25, 0), duration: 1)
+///                 LinearKeyframe(Vector3(0,  0, 0), duration: 1)
+///             }
+///         }
+///     }
+/// }
+/// ```
 @Component
-public struct KeyframeAnimator: Sendable {
+public struct KeyframeAnimator: @unchecked Sendable {
 
-    /// Timeline data (tracks reference entities by ``Entity/name``).
-    public var clip: KeyframeClip
+    public enum PlaybackState: Sendable, Hashable {
+        case playing
+        case stopped
+    }
 
-    /// Current position along the clip in seconds.
+    // MARK: - State
+
+    public var clipsByName: [String: AnyAnimatorClip]
+    public var currentClipName: String?
+    public var requestedClipName: String?
+    public var playbackState: PlaybackState
+
+    /// Current position along the active clip in seconds.
     public var localTime: TimeInterval
 
-    /// Multiplier for frame delta while ``isPlaying``.
+    /// Multiplier applied to the frame delta while playing.
     public var speed: Double
 
-    public var isPlaying: Bool
+    /// Incremented whenever a run is interrupted, finished, or stopped — used by `waitUntilFinished`.
+    public var runToken: UInt64
+
+    // MARK: - Init (builder)
+
+    /// Create an animator from a list of clips written with result-builder syntax.
+    ///
+    /// Clips are automatically type-erased from `KeyframeClip<Value>` to `AnyAnimatorClip`
+    /// via the `@KeyframeAnimatorBuilder`.
+    public init(
+        speed: Double = 1,
+        isPlaying: Bool = true,
+        @KeyframeAnimatorBuilder _ build: () -> [AnyAnimatorClip]
+    ) {
+        let clips = build()
+        var map: [String: AnyAnimatorClip] = [:]
+        for clip in clips where !clip.name.isEmpty {
+            map[clip.name] = clip
+        }
+        self.clipsByName = map
+        self.currentClipName = clips.first?.name
+        self.requestedClipName = nil
+        self.playbackState = isPlaying ? .playing : .stopped
+        self.localTime = 0
+        self.speed = speed
+        self.runToken = 0
+    }
+
+    // MARK: - Init (direct)
 
     public init(
-        clip: KeyframeClip,
-        localTime: TimeInterval = 0,
+        clips: [AnyAnimatorClip],
+        initialClipName: String? = nil,
         speed: Double = 1,
         isPlaying: Bool = true
     ) {
-        self.clip = clip
-        self.localTime = localTime
-        self.speed = speed
-        self.isPlaying = isPlaying
+        var map: [String: AnyAnimatorClip] = [:]
+        for clip in clips where !clip.name.isEmpty {
+            map[clip.name] = clip
+        }
+        self.clipsByName = map
+        self.currentClipName = initialClipName ?? clips.first?.name
+        self.requestedClipName = nil
+        self.playbackState = isPlaying ? .playing : .stopped
+        self.localTime = 0
+        self.speed = 1
+        self.runToken = 0
+    }
+
+    // MARK: - Control
+
+    /// Request playback of a named clip. Takes effect on the next ECS update tick.
+    public mutating func playClip(by name: String) {
+        requestedClipName = name
+        playbackState = .playing
+        runToken &+= 1
+    }
+
+    /// Stop playback immediately.
+    public mutating func stop() {
+        playbackState = .stopped
+        runToken &+= 1
+    }
+}
+
+// MARK: - Ref extensions (ECS live reference)
+
+public extension Ref where T == KeyframeAnimator {
+
+    mutating func playClip(by name: String) {
+        wrappedValue.playClip(by: name)
+    }
+
+    mutating func stopPlayback() {
+        wrappedValue.stop()
+    }
+
+    /// Suspends the caller until the current playback run is interrupted, stopped, or naturally completed.
+    mutating func waitUntilFinished() async {
+        let token = wrappedValue.runToken
+        while wrappedValue.runToken == token && wrappedValue.playbackState == .playing {
+            await Task.yield()
+        }
     }
 }
