@@ -121,7 +121,9 @@ public struct WindowManagerResource: Resource {
     }
 }
 
-@System
+@System(dependencies: [
+    .after(InputEventParseSystem.self)
+])
 @inline(__always)
 @MainActor
 public func UpdateWindowManager(
@@ -133,7 +135,6 @@ public func UpdateWindowManager(
     _ input: ResMut<Input>,
     _ deltaTime: Res<DeltaTime>
 ) {
-    input.wrappedValue.flushPendingEvents()
     pendingViews.windows.removeAll(keepingCapacity: true)
     contexts.contexts.removeAll(keepingCapacity: true)
     redrawRequest.needsRedraw = false
@@ -155,7 +156,6 @@ public func UpdateWindowManager(
             window.needsDisplay = false
         }
     }
-    input.wrappedValue.removeEvents()
 }
 
 public struct UIWindowPendingDrawViews: Resource {

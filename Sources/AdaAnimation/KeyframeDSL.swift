@@ -1,0 +1,207 @@
+//
+//  KeyframeDSL.swift
+//  AdaAnimation
+//
+
+import AdaUtils
+import Math
+
+// MARK: - LinearKeyframe
+
+/// A keyframe segment where the property linearly interpolates over `duration` seconds
+/// from the previous value to this `value`.
+public struct LinearKeyframe<Value>: Sendable where Value: Sendable {
+    public let value: Value
+    public let duration: TimeInterval
+    public let curve: KeyframeCurveKind
+
+    public init(_ value: Value, duration: TimeInterval, curve: KeyframeCurveKind = .linear) {
+        self.value = value
+        self.duration = duration
+        self.curve = curve
+    }
+}
+
+/// Spelling alias — matches the typo in the original snippet.
+public typealias LinearKeyrame<Value> = LinearKeyframe<Value> where Value: Sendable
+
+// MARK: - CubicKeyframe
+
+/// A keyframe segment that eases in/out using a cubic curve.
+public struct CubicKeyframe<Value>: Sendable where Value: Sendable {
+    public let value: Value
+    public let duration: TimeInterval
+
+    public init(_ value: Value, duration: TimeInterval) {
+        self.value = value
+        self.duration = duration
+    }
+}
+
+// MARK: - Result Builders
+
+@resultBuilder
+public enum KeyframeLinearVABuilder<T: VectorArithmetic & Sendable> {
+    public static func buildBlock(_ frames: LinearKeyframe<T>...) -> [LinearKeyframe<T>] { frames }
+    public static func buildBlock(_ frames: CubicKeyframe<T>...) -> [LinearKeyframe<T>] {
+        frames.map { LinearKeyframe($0.value, duration: $0.duration, curve: .cubicInOut) }
+    }
+}
+
+@resultBuilder
+public enum KeyframeLinearQuatBuilder {
+    public static func buildBlock(_ frames: LinearKeyframe<Quat>...) -> [LinearKeyframe<Quat>] { frames }
+    public static func buildBlock(_ frames: CubicKeyframe<Quat>...) -> [LinearKeyframe<Quat>] {
+        frames.map { LinearKeyframe($0.value, duration: $0.duration, curve: .cubicInOut) }
+    }
+}
+
+@resultBuilder
+public enum KeyframeTrackBuilder<Value: KeyframeAnimatable> {
+    public static func buildBlock(_ tracks: AnyKeyframeTrack<Value>...) -> [AnyKeyframeTrack<Value>] {
+        tracks
+    }
+    // Allow expression results to flow through.
+    public static func buildExpression(_ track: AnyKeyframeTrack<Value>) -> AnyKeyframeTrack<Value> { track }
+}
+
+@resultBuilder
+public enum KeyframeAnimatorBuilder {
+    /// Convert a concrete `KeyframeClip<Value>` to `AnyAnimatorClip` at the build site.
+    public static func buildExpression<Value: KeyframeAnimatable>(_ clip: KeyframeClip<Value>) -> AnyAnimatorClip {
+        AnyAnimatorClip(clip)
+    }
+
+    public static func buildBlock(_ clips: AnyAnimatorClip...) -> [AnyAnimatorClip] {
+        clips
+    }
+}
+
+@resultBuilder
+public enum KeyframeClipArrayBuilder {
+    public static func buildExpression<Value: KeyframeAnimatable>(_ clip: KeyframeClip<Value>) -> AnyAnimatorClip {
+        AnyAnimatorClip(clip)
+    }
+    public static func buildBlock(_ clips: AnyAnimatorClip...) -> [AnyAnimatorClip] { clips }
+}
+
+// MARK: - KeyframeTrack DSL functions
+
+// These produce `AnyKeyframeTrack<Value>` from a WritableKeyPath + array of LinearKeyframe segments.
+// Segments are accumulated in time order: each frame starts right after the previous ends.
+
+/// Track for any `VectorArithmetic` property (Float, Double, Vector2, Vector3, Vector4 …).
+public func KeyframeTrack<Value: KeyframeAnimatable, T: VectorArithmetic & Sendable>(
+    _ keyPath: WritableKeyPath<Value, T>,
+    identifier: String? = nil,
+    @KeyframeLinearVABuilder<T> _ build: () -> [LinearKeyframe<T>]
+) -> AnyKeyframeTrack<Value> {
+    let frames = build()
+    let id = identifier ?? "\(keyPath)"
+    var time: TimeInterval = 0
+    let keyframes: [(time: TimeInterval, value: T, curveToNext: KeyframeCurveKind)] = frames.map { f in
+        time += f.duration
+        return (time, f.value, f.curve)
+    }
+    let serialized = keyframes.map { kf -> SerializedKeyframe in
+        SerializedKeyframe(
+            time: Double(kf.time),
+            value: floatComponents(of: kf.value),
+            curveToNext: kf.curveToNext
+        )
+    }
+    let path = keyPath
+    return AnyKeyframeTrack<Value>(
+        identifier: id,
+        serializedKeyframes: serialized,
+        applyFn: { value, localTime in
+            let start = (time: TimeInterval(0), value: value[keyPath: path], curveToNext: keyframes.first?.curveToNext ?? .linear)
+            let resolved = [start] + keyframes
+            if let result = sampleVectorArithmetic(keyframes: resolved, localTime: localTime) {
+                value[keyPath: path] = result
+            }
+        }
+    )
+}
+
+/// Track for `Quat` (uses slerp interpolation, not linear).
+public func KeyframeTrack<Value: KeyframeAnimatable>(
+    _ keyPath: WritableKeyPath<Value, Quat>,
+    identifier: String? = nil,
+    @KeyframeLinearQuatBuilder _ build: () -> [LinearKeyframe<Quat>]
+) -> AnyKeyframeTrack<Value> {
+    let frames = build()
+    let id = identifier ?? "\(keyPath)"
+    var time: TimeInterval = 0
+    let keyframes: [QuaternionKeyframe] = frames.map { f in
+        time += f.duration
+        return QuaternionKeyframe(time: time, value: f.value, curveToNext: f.curve)
+    }
+    let serialized = keyframes.map { kf in
+        SerializedKeyframe(
+            time: Double(kf.time),
+            value: [kf.value.x, kf.value.y, kf.value.z, kf.value.w],
+            curveToNext: kf.curveToNext
+        )
+    }
+    let path = keyPath
+    return AnyKeyframeTrack<Value>(
+        identifier: id,
+        serializedKeyframes: serialized,
+        applyFn: { value, localTime in
+            let start = QuaternionKeyframe(
+                time: 0,
+                value: value[keyPath: path],
+                curveToNext: keyframes.first?.curveToNext ?? .linear
+            )
+            let resolved = [start] + keyframes
+            if let result = sampleQuaternionKeyframes(resolved, localTime: localTime) {
+                value[keyPath: path] = result
+            }
+        }
+    )
+}
+
+// MARK: - KeyframeClip DSL init
+
+public extension KeyframeClip {
+
+    /// Create a keyframe clip using result-builder syntax.
+    ///
+    /// ```swift
+    /// KeyframeClip(name: "idle", initialValues: MyAnim(), duration: 2, repeatMode: .loop) {
+    ///     KeyframeTrack(\.transform.position) {
+    ///         LinearKeyframe(Vector3(0, 25, 0), duration: 1)
+    ///         LinearKeyframe(Vector3(0,  0, 0), duration: 1)
+    ///     }
+    /// }
+    /// ```
+    init(
+        name: String,
+        initialValues: Value,
+        duration: TimeInterval,
+        repeatMode: KeyframeRepeatMode = .once,
+        @KeyframeTrackBuilder<Value> _ build: () -> [AnyKeyframeTrack<Value>]
+    ) {
+        self.init(
+            name: name,
+            initialValues: initialValues,
+            duration: duration,
+            repeatMode: repeatMode,
+            tracks: build()
+        )
+    }
+}
+
+// MARK: - Helpers
+
+/// Extracts float components from a `VectorArithmetic` value for JSON storage.
+/// Specialised for known types; falls back to a single zero component for unknown types.
+private func floatComponents<T: VectorArithmetic>(of value: T) -> [Float] {
+    if let v = value as? Vector3 { return [v.x, v.y, v.z] }
+    if let v = value as? Vector2 { return [v.x, v.y] }
+    if let v = value as? Vector4 { return [v.x, v.y, v.z, v.w] }
+    if let v = value as? Float { return [v] }
+    if let v = value as? Double { return [Float(v)] }
+    return [Float(value.magnitudeSquared)]
+}

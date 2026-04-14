@@ -4,116 +4,77 @@
 //
 
 import AdaUtils
-import Math
 
-/// How playback behaves after the clip passes ``KeyframeClip/duration``.
-public enum KeyframeRepeatMode: String, Codable, Sendable, Hashable {
-    case once
-    case loop
-    case pingPong
-}
+// MARK: - Track
 
-/// Easing between two consecutive keyframes (segment from this keyframe toward the next).
-public enum KeyframeCurveKind: String, Codable, Sendable, Hashable {
-    case linear
-    case hold
-    case cubicInOut
-}
+/// Type-erased keyframe track for a single property of `Value`.
+public struct AnyKeyframeTrack<Value>: @unchecked Sendable {
 
-// MARK: - Keyframe rows
+    /// String identifier used for JSON serialization (e.g. `"transform.position"`).
+    public let identifier: String
 
-public struct Vector3Keyframe: Sendable, Hashable {
-    public var time: TimeInterval
-    public var value: Vector3
-    public var curveToNext: KeyframeCurveKind
+    /// Keyframes in JSON-friendly form (raw float components + time + curve).
+    public let serializedKeyframes: [SerializedKeyframe]
 
-    public init(time: TimeInterval, value: Vector3, curveToNext: KeyframeCurveKind = .linear) {
-        self.time = time
-        self.value = value
-        self.curveToNext = curveToNext
+    /// Advances `value[keyPath]` to the interpolated result at `localTime`.
+    let applyFn: (inout Value, TimeInterval) -> Void
+
+    public init(
+        identifier: String,
+        serializedKeyframes: [SerializedKeyframe],
+        applyFn: @escaping (inout Value, TimeInterval) -> Void
+    ) {
+        self.identifier = identifier
+        self.serializedKeyframes = serializedKeyframes
+        self.applyFn = applyFn
     }
 }
 
-public struct QuaternionKeyframe: Sendable, Hashable {
-    public var time: TimeInterval
-    public var value: Quat
-    public var curveToNext: KeyframeCurveKind
+// MARK: - Clip
 
-    public init(time: TimeInterval, value: Quat, curveToNext: KeyframeCurveKind = .linear) {
-        self.time = time
-        self.value = value
-        self.curveToNext = curveToNext
-    }
-}
+/// A generic keyframe clip that drives properties of a user-defined `Value` struct over time.
+///
+/// ```swift
+/// struct MyAnim: KeyframeAnimatable {
+///     var transform = Transform()
+///     func apply(to entityId: Entity.ID, in world: World) { world.insert(transform, for: entityId) }
+/// }
+///
+/// let clip = KeyframeClip(name: "idle", initialValues: MyAnim(), duration: 2, repeatMode: .loop) {
+///     KeyframeTrack(\.transform.position) {
+///         LinearKeyframe(Vector3(0, 25, 0), duration: 1)
+///         LinearKeyframe(Vector3(0,  0, 0), duration: 1)
+///     }
+/// }
+/// ```
+public struct KeyframeClip<Value: KeyframeAnimatable>: Sendable {
 
-public struct ScalarKeyframe: Sendable, Hashable {
-    public var time: TimeInterval
-    public var value: Double
-    public var curveToNext: KeyframeCurveKind
-
-    public init(time: TimeInterval, value: Double, curveToNext: KeyframeCurveKind = .linear) {
-        self.time = time
-        self.value = value
-        self.curveToNext = curveToNext
-    }
-}
-
-// MARK: - Tracks
-
-public struct Vector3KeyframeTrack: Sendable, Hashable {
-    public var targetEntityName: String
-    public var keyframes: [Vector3Keyframe]
-
-    public init(targetEntityName: String, keyframes: [Vector3Keyframe]) {
-        self.targetEntityName = targetEntityName
-        self.keyframes = keyframes
-    }
-}
-
-public struct QuaternionKeyframeTrack: Sendable, Hashable {
-    public var targetEntityName: String
-    public var keyframes: [QuaternionKeyframe]
-
-    public init(targetEntityName: String, keyframes: [QuaternionKeyframe]) {
-        self.targetEntityName = targetEntityName
-        self.keyframes = keyframes
-    }
-}
-
-public struct ScalarKeyframeTrack: Sendable, Hashable {
-    public var targetEntityName: String
-    public var keyframes: [ScalarKeyframe]
-
-    public init(targetEntityName: String, keyframes: [ScalarKeyframe]) {
-        self.targetEntityName = targetEntityName
-        self.keyframes = keyframes
-    }
-}
-
-/// One animated property on a named entity.
-public enum KeyframeTrack: Sendable, Hashable {
-    case transformPosition(Vector3KeyframeTrack)
-    case transformScale(Vector3KeyframeTrack)
-    case transformRotation(QuaternionKeyframeTrack)
-    case cameraOrthographicScale(ScalarKeyframeTrack)
-}
-
-/// A keyframe clip driving multiple entity properties with one timeline.
-public struct KeyframeClip: Sendable, Hashable {
     public var name: String
     public var duration: TimeInterval
     public var repeatMode: KeyframeRepeatMode
-    public var tracks: [KeyframeTrack]
+    public var initialValues: Value
+    public var tracks: [AnyKeyframeTrack<Value>]
 
     public init(
-        name: String = "",
+        name: String,
+        initialValues: Value,
         duration: TimeInterval,
         repeatMode: KeyframeRepeatMode = .once,
-        tracks: [KeyframeTrack] = []
+        tracks: [AnyKeyframeTrack<Value>] = []
     ) {
         self.name = name
+        self.initialValues = initialValues
         self.duration = max(0, duration)
         self.repeatMode = repeatMode
         self.tracks = tracks
+    }
+
+    /// Returns `initialValues` mutated by all tracks evaluated at `localTime`.
+    public func evaluate(at localTime: TimeInterval) -> Value {
+        var result = initialValues
+        for track in tracks {
+            track.applyFn(&result, localTime)
+        }
+        return result
     }
 }
