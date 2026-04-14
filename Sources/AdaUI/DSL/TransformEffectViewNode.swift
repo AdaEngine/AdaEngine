@@ -5,6 +5,7 @@
 //  Created by vladislav.prusakov on 06.08.2024.
 //
 
+import AdaAnimation
 import Math
 
 public extension View {

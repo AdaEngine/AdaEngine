@@ -5,6 +5,7 @@
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
+import AdaAnimation
 import AdaUtils
 import Math
 

@@ -237,7 +237,7 @@ public extension World {
     /// - Note: Not efficient way to find an entity.
     /// - Complexity: O(n)
     /// - Returns: An entity with matched name or nil if entity with given name not exists.
-    func getEntityByName(_ name: String) -> Entity? {
+    public func getEntityByName(_ name: String) -> Entity? {
         for arch in archetypes.archetypes {
             if let ent = arch.entities.first(where: { $0.name == name }) {
                 return ent

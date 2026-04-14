@@ -1,8 +1,6 @@
 //
 //  Animatable.swift
-//  AdaEngine
-//
-//  Created by vladislav.prusakov on 08.08.2024.
+//  AdaAnimation
 //
 
 import Math
@@ -17,7 +15,7 @@ public protocol Animatable {
     var animatableData: AnimatableData { get set }
 }
 
-public extension Animatable where Self : VectorArithmetic {
+public extension Animatable where Self: VectorArithmetic {
 
     /// The data to animate.
     var animatableData: Self {

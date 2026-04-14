@@ -1,19 +1,17 @@
 //
 //  VectorArithmetic.swift
-//  AdaEngine
-//
-//  Created by vladislav.prusakov on 08.08.2024.
+//  AdaAnimation
 //
 
 import Math
 
 /// A type that can serve as the animatable data of an animatable type.
-/// 
+///
 /// VectorArithmetic extends the AdditiveArithmetic protocol with scalar multiplication and a way to query the vector magnitude of the value. Use this type as the animatableData associated type of a type that conforms to the Animatable protocol.
 public protocol VectorArithmetic: AdditiveArithmetic {
 
     /// The magnitude squared of the vector.
-    var magnitudeSquared: Double { get}
+    var magnitudeSquared: Double { get }
 
     /// Scale the vector by a given value.
     ///

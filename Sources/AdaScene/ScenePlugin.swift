@@ -6,6 +6,7 @@ public struct ScenePlugin: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
+        KeyframeAnimationPlugin().setup(in: app)
         app.addSystem(DynamicSceneInitSystem.self)
     }
 }

@@ -5,6 +5,7 @@
 //  Created by vladislav.prusakov on 08.08.2024.
 //
 
+import AdaAnimation
 import AdaUtils
 import Math
 
@@ -96,7 +97,7 @@ final class UIAnimationController {
             fromValue: beginValue,
             toValue: endValue,
             updateBlock: updateBlock,
-            animationContext: AnimationContext(environment: environment)
+            animationContext: AnimationContext()
         )
 
         if let index = self.transactions.firstIndex(where: { $0.label == label }) {
