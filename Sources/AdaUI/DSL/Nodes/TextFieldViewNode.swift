@@ -346,8 +346,11 @@ final class TextFieldViewNode: ViewNode {
         let borderColor = self.isFocused ? Constants.focusedBorderColor : Constants.borderColor
 
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-        context.drawRect(bounds, color: Constants.backgroundColor)
-        self.drawBorder(in: &context, rect: bounds, color: borderColor)
+        
+        if self.environment._textFieldDrawsBackground {
+            context.drawRect(bounds, color: Constants.backgroundColor)
+            self.drawBorder(in: &context, rect: bounds, color: borderColor)
+        }
 
         let contentRect = self.textContentRect()
         guard contentRect.width > 0, contentRect.height > 0 else {

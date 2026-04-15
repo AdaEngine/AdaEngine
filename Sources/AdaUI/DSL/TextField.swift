@@ -25,6 +25,17 @@ public struct TextField: View, ViewNodeBuilder {
     }
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
-        TextFieldViewNode(inputs: context, content: self)
+        if context.environment._isTextFieldPrimitive {
+            return TextFieldViewNode(inputs: context, content: self)
+        } else {
+            let viewInputs = context
+            let style = viewInputs.environment.textFieldStyle
+            let inputs = viewInputs.resolveStorages(in: style)
+            let body = AnyView(
+                style._body(configuration: self)
+                    .environment(\._isTextFieldPrimitive, true)
+            )
+            return AnyTextFieldStyle.Body._makeView(_ViewGraphNode(value: body), inputs: inputs).node
+        }
     }
 }
