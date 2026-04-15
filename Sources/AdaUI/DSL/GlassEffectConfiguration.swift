@@ -9,43 +9,43 @@ import AdaUtils
 public struct Glass: Sendable {
     /// Corner radius of the glass shape in logical pixels. Default: 32.
     public var cornerRadius: Float = 32.0
-    /// Gaussian blur radius applied to the background, in logical pixels. Default: 8.
-    public var blurRadius: Float = 8.0
-    /// Strength of the frosted glass tint [0, 1]. Default: 0.18.
-    public var glassTintStrength: Float = 0.18
-    /// Strength of the edge shadow [0, 1]. Default: 0.01.
-    public var edgeShadowStrength: Float = 0.0
-    /// Overall opacity of the glass surface [0, 1]. Default: 0.45.
+    /// Gaussian blur radius applied to the background, in logical pixels. Default: 10.
+    public var blurRadius: Float = 10.0
+    /// Strength of the frosted glass tint [0, 1]. Default: 0.14.
+    public var glassTintStrength: Float = 0.14
+    /// Strength of the edge shadow [0, 1]. Default: 0.03.
+    public var edgeShadowStrength: Float = 0.03
+    /// Overall opacity of the glass surface [0, 1]. Default: 0.36.
     /// Lower values make the glass more transparent; 1.0 is fully opaque.
-    public var opacity: Float = 0.52
+    public var opacity: Float = 0.36
     /// Optional tint color blended over the glass surface. Alpha is multiplied by 0.3 in the shader.
     public var tintColor: Color?
     /// Controls how square vs organic the corner profile feels. Higher values sharpen the superellipse.
-    public var cornerRoundnessExponent: Float = 4.0
+    public var cornerRoundnessExponent: Float = 4.8
     /// Simulated optical thickness of the glass in logical pixels.
-    public var glassThickness: Float = 22.0
+    public var glassThickness: Float = 28.0
     /// Base refractive index used for depth-based edge refraction.
-    public var refractiveIndex: Float = 1.06
+    public var refractiveIndex: Float = 1.12
     /// Chromatic dispersion strength applied to the refracted background.
-    public var dispersionStrength: Float = 0.42
+    public var dispersionStrength: Float = 0.24
     /// Distance range used to build the Fresnel reflection near the contour.
-    public var fresnelDistanceRange: Float = 120.0
+    public var fresnelDistanceRange: Float = 140.0
     /// Overall Fresnel contribution.
-    public var fresnelIntensity: Float = 0.92
+    public var fresnelIntensity: Float = 0.64
     /// Sharpness bias for the Fresnel falloff.
-    public var fresnelEdgeSharpness: Float = 0.08
+    public var fresnelEdgeSharpness: Float = 0.18
     /// Distance range used by the directional glare band.
-    public var glareDistanceRange: Float = 96.0
+    public var glareDistanceRange: Float = 104.0
     /// Concentrates the glare into a tighter angular band.
-    public var glareAngleConvergence: Float = 1.2
+    public var glareAngleConvergence: Float = 1.55
     /// Boosts the glare on the opposite side of the normal field.
-    public var glareOppositeSideBias: Float = 1.0
+    public var glareOppositeSideBias: Float = 1.18
     /// Overall glare intensity.
-    public var glareIntensity: Float = 0.72
+    public var glareIntensity: Float = 0.76
     /// Sharpness bias for glare falloff.
-    public var glareEdgeSharpness: Float = 0.06
+    public var glareEdgeSharpness: Float = 0.14
     /// Angular offset for the directional glare lobe in radians.
-    public var glareDirectionOffset: Float = -0.28
+    public var glareDirectionOffset: Float = -0.24
 
     public init() {}
 }
@@ -55,11 +55,24 @@ extension Glass {
     /// Standard frosted glass: full blur and tinting. Mirrors Apple's `.regular`.
     public static var regular: Glass {
         var glass = Glass()
-        glass.blurRadius = 16.0
-        glass.glassTintStrength = 1.0
-        glass.edgeShadowStrength = 0.15
-        glass.opacity = 0.75
-        glass.tintColor = Color(red: 0.97, green: 0.985, blue: 1.0, alpha: 0.08)
+        glass.blurRadius = 8.0
+        glass.glassTintStrength = 0.85
+        glass.edgeShadowStrength = 0.01
+        glass.opacity = 1.0
+        glass.cornerRoundnessExponent = 4.8
+        glass.glassThickness = 28.0
+        glass.refractiveIndex = 1.20
+        glass.dispersionStrength = 0.0
+        glass.fresnelDistanceRange = 156.0
+        glass.fresnelIntensity = 0.84
+        glass.fresnelEdgeSharpness = 0.24
+        glass.glareDistanceRange = 112.0
+        glass.glareAngleConvergence = 1.9
+        glass.glareOppositeSideBias = 1.22
+        glass.glareIntensity = 0.88
+        glass.glareEdgeSharpness = 0.18
+        glass.glareDirectionOffset = -0.34
+        glass.tintColor = Color(red: 0.97, green: 0.985, blue: 1.0, alpha: 0.07)
         return glass
     }
 
@@ -69,10 +82,24 @@ extension Glass {
     /// opacity stays low so the panel still reads as “clear”.
     public static var clear: Glass {
         var glass = Glass()
-glass.blurRadius = 18.0
-        glass.glassTintStrength = 0.52
-        glass.edgeShadowStrength = 0.07
-        glass.opacity = 0.4
+        glass.blurRadius = 2.5
+        glass.glassTintStrength = 0.10
+        glass.edgeShadowStrength = 0.01
+        glass.opacity = 1.0
+        glass.cornerRoundnessExponent = 4.4
+        glass.glassThickness = 22.0
+        glass.refractiveIndex = 1.12
+        glass.dispersionStrength = 0.0
+        glass.fresnelDistanceRange = 118.0
+        glass.fresnelIntensity = 0.38
+        glass.fresnelEdgeSharpness = 0.10
+        glass.glareDistanceRange = 84.0
+        glass.glareAngleConvergence = 1.45
+        glass.glareOppositeSideBias = 1.0
+        glass.glareIntensity = 0.28
+        glass.glareEdgeSharpness = 0.08
+        glass.glareDirectionOffset = -0.20
+        glass.tintColor = Color(red: 0.98, green: 0.99, blue: 1.0, alpha: 0.03)
         return glass
     }
 
@@ -112,6 +139,12 @@ glass.blurRadius = 18.0
     public func glassTintStrength(_ strength: Float) -> Glass {
         var newValue = self
         newValue.glassTintStrength = strength
+        return newValue
+    }
+
+    public func edgeShadowStrength(_ strength: Float) -> Glass {
+        var newValue = self
+        newValue.edgeShadowStrength = strength
         return newValue
     }
 
