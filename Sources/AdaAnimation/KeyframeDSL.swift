@@ -46,6 +46,9 @@ public enum KeyframeLinearVABuilder<T: VectorArithmetic & Sendable> {
     public static func buildBlock(_ frames: CubicKeyframe<T>...) -> [LinearKeyframe<T>] {
         frames.map { LinearKeyframe($0.value, duration: $0.duration, curve: .cubicInOut) }
     }
+
+    /// Allows programmatic tracks: `KeyframeTrack(path, identifier: id) { prebuiltFrames }`.
+    public static func buildExpression(_ frames: [LinearKeyframe<T>]) -> [LinearKeyframe<T>] { frames }
 }
 
 @resultBuilder
@@ -90,13 +93,11 @@ public enum KeyframeClipArrayBuilder {
 // These produce `AnyKeyframeTrack<Value>` from a WritableKeyPath + array of LinearKeyframe segments.
 // Segments are accumulated in time order: each frame starts right after the previous ends.
 
-/// Track for any `VectorArithmetic` property (Float, Double, Vector2, Vector3, Vector4 …).
-public func KeyframeTrack<Value: KeyframeAnimatable, T: VectorArithmetic & Sendable>(
+private func keyframeTrackFromLinearFrames<Value: KeyframeAnimatable, T: VectorArithmetic & Sendable>(
     _ keyPath: WritableKeyPath<Value, T>,
-    identifier: String? = nil,
-    @KeyframeLinearVABuilder<T> _ build: () -> [LinearKeyframe<T>]
+    identifier: String?,
+    frames: [LinearKeyframe<T>]
 ) -> AnyKeyframeTrack<Value> {
-    let frames = build()
     let id = identifier ?? "\(keyPath)"
     var time: TimeInterval = 0
     let keyframes: [(time: TimeInterval, value: T, curveToNext: KeyframeCurveKind)] = frames.map { f in
@@ -122,6 +123,24 @@ public func KeyframeTrack<Value: KeyframeAnimatable, T: VectorArithmetic & Senda
             }
         }
     )
+}
+
+/// Track for any `VectorArithmetic` property (Float, Double, Vector2, Vector3, Vector4 …).
+public func KeyframeTrack<Value: KeyframeAnimatable, T: VectorArithmetic & Sendable>(
+    _ keyPath: WritableKeyPath<Value, T>,
+    identifier: String? = nil,
+    @KeyframeLinearVABuilder<T> _ build: () -> [LinearKeyframe<T>]
+) -> AnyKeyframeTrack<Value> {
+    keyframeTrackFromLinearFrames(keyPath, identifier: identifier, frames: build())
+}
+
+/// Same as ``KeyframeTrack(_:identifier:_:)``, but accepts a runtime-built segment array (e.g. editor tooling).
+public func KeyframeTrack<Value: KeyframeAnimatable, T: VectorArithmetic & Sendable>(
+    _ keyPath: WritableKeyPath<Value, T>,
+    identifier: String? = nil,
+    linearFrames frames: [LinearKeyframe<T>]
+) -> AnyKeyframeTrack<Value> {
+    keyframeTrackFromLinearFrames(keyPath, identifier: identifier, frames: frames)
 }
 
 /// Track for `Quat` (uses slerp interpolation, not linear).

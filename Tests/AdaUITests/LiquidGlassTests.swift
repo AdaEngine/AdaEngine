@@ -9,21 +9,22 @@ struct LiquidGlassTests {
     @Test
     func regularClearAndIdentityExposeLiquidGlassDefaults() {
         let regular = Glass.regular
-        #expect(regular.cornerRoundnessExponent == 4.0)
-        #expect(regular.blurRadius == 1.25)
-        #expect(regular.glassThickness == 22.0)
-        #expect(regular.refractiveIndex == 1.06)
-        #expect(regular.dispersionStrength == 0.42)
-        #expect(regular.fresnelIntensity == 0.92)
-        #expect(regular.glareIntensity == 0.72)
-        #expect(regular.tintColor == Color(red: 0.97, green: 0.985, blue: 1.0, alpha: 0.08))
+        #expect(regular.cornerRoundnessExponent == 4.8)
+        #expect(regular.blurRadius == 8.0)
+        #expect(regular.glassThickness == 28.0)
+        #expect(regular.refractiveIndex == 1.20)
+        #expect(regular.dispersionStrength == 0.0)
+        #expect(regular.fresnelIntensity == 0.84)
+        #expect(regular.glareIntensity == 0.88)
+        #expect(regular.tintColor == Color(red: 0.97, green: 0.985, blue: 1.0, alpha: 0.07))
 
         let clear = Glass.clear
-        #expect(clear.blurRadius == 0.25)
-        #expect(clear.glassThickness == 10.0)
-        #expect(clear.dispersionStrength == 0.10)
-        #expect(clear.fresnelIntensity == 0.22)
-        #expect(clear.glareIntensity == 0.12)
+        #expect(clear.blurRadius == 2.5)
+        #expect(clear.glassThickness == 22.0)
+        #expect(clear.dispersionStrength == 0.0)
+        #expect(clear.fresnelIntensity == 0.38)
+        #expect(clear.glareIntensity == 0.28)
+        #expect(clear.tintColor == Color(red: 0.98, green: 0.99, blue: 1.0, alpha: 0.03))
 
         let identity = Glass.identity
         #expect(identity.blurRadius == 0.0)
@@ -42,6 +43,7 @@ struct LiquidGlassTests {
         let updated = base
             .blurRadius(14.0)
             .glassTintStrength(0.33)
+            .edgeShadowStrength(0.05)
             .cornerRoundnessExponent(5.5)
             .glassThickness(52.0)
             .refractiveIndex(1.2)
@@ -59,6 +61,7 @@ struct LiquidGlassTests {
 
         #expect(updated.blurRadius == 14.0)
         #expect(updated.glassTintStrength == 0.33)
+        #expect(updated.edgeShadowStrength == 0.05)
         #expect(updated.cornerRoundnessExponent == 5.5)
         #expect(updated.glassThickness == 52.0)
         #expect(updated.refractiveIndex == 1.2)
@@ -89,6 +92,7 @@ struct LiquidGlassTests {
             .glassThickness(42.0)
             .refractiveIndex(1.18)
             .dispersionStrength(0.27)
+            .edgeShadowStrength(0.01)
             .fresnelDistanceRange(310.0)
             .fresnelIntensity(0.55)
             .fresnelEdgeSharpness(0.12)
@@ -112,7 +116,7 @@ struct LiquidGlassTests {
 
         let first = try #require(vertices.first)
         #expect(first.color == .orange.opacity(0.4))
-        #expect(first.glassParams0 == Vector4(11.0, config.cornerRadius, 0.61, config.edgeShadowStrength))
+        #expect(first.glassParams0 == Vector4(11.0, config.cornerRadius, 0.61, 0.01))
         #expect(first.glassParams1 == Vector4(config.cornerRoundnessExponent, 42.0, 1.18, 0.27))
         #expect(first.glassParams2 == Vector4(310.0, 0.55, 0.12, 205.0))
         #expect(first.glassParams3 == Vector4(0.88, 1.31, 0.47, 0.16))
