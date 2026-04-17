@@ -126,6 +126,19 @@ public struct UIGraphicsContext: Sendable {
         )
     }
 
+    /// Paints the area contained within the provided rectangle, using the passed linear gradient.
+    func drawLinearGradient(_ gradient: ResolvedLinearGradient, in rect: Rect) {
+        let transform = self.transform * rect.toTransform3D
+        self.commandQueue.push(
+            .drawLinearGradient(
+                transform: transform,
+                startPoint: gradient.startPoint,
+                endPoint: gradient.endPoint,
+                stops: gradient.applyingOpacity(self.opacity).stops
+            )
+        )
+    }
+
     /// Draws line into the graphics context.
     public func drawLine(start: Vector2, end: Vector2, lineWidth: Float, color: Color) {
         let start = (transform * Vector4(start.x, start.y, 0, 1))
@@ -287,6 +300,7 @@ extension UIGraphicsContext {
             fade: Float,
             color: Color
         )
+        case drawLinearGradient(transform: Transform3D, startPoint: Vector2, endPoint: Vector2, stops: [Gradient.Stop])
         case drawPath(Path)
 
         case drawText(textLayout: TextLayoutManager, transform: Transform3D)

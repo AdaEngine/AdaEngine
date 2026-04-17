@@ -43,6 +43,7 @@ public struct UIPlugin: Plugin {
             .insertResource(UIRenderBuildState())
             .insertResource(UILayerDrawCache())
             .insertResource(GlassBackgroundTexture())
+            .insertResource(RenderPipelines(configurator: LinearGradientPipeline()))
             .insertResource(RenderPipelines(configurator: GlassPipeline()))
 
         renderWorld.initResource(UIRenderPipelines.self)
