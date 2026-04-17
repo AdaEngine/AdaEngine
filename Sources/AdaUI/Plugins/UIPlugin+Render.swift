@@ -393,6 +393,31 @@ public struct UIRenderTesselationSystem {
                 batches: &state.renderData.quadBatches
             )
 
+        case let .drawLinearGradient(transform, startPoint, endPoint, stops):
+            let vertexOffset = UInt32(state.renderData.gradientVertexBuffer.count)
+            let vertices = tessellator.tessellateLinearGradient(transform: transform)
+            state.renderData.gradientVertexBuffer.elements.append(contentsOf: vertices)
+
+            let indexStart = state.renderData.gradientIndexBuffer.count
+            let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            state.renderData.gradientIndexBuffer.elements.append(contentsOf: indices)
+
+            let uniformIndex = state.renderData.gradientUniformBuffer.count
+            state.renderData.gradientUniformBuffer.append(
+                LinearGradientUniform(
+                    startPoint: startPoint,
+                    endPoint: endPoint,
+                    stops: stops
+                )
+            )
+            state.renderData.gradientBatches.append(
+                UIDrawData.LinearGradientBatch(
+                    indexOffset: indexStart,
+                    indexCount: indices.count,
+                    uniformOffset: uniformIndex * MemoryLayout<LinearGradientUniform>.stride
+                )
+            )
+
         case let .drawCircle(transform, thickness, fade, color):
             let vertexOffset = UInt32(state.renderData.circleVertexBuffer.count)
             let vertices = tessellator.tessellateCircle(
@@ -636,6 +661,7 @@ public struct UIRenderTesselationSystem {
 public struct UIRenderPipelines: Resource, WorldInitable {
     public var textPipeline: RenderPipeline
     public var quadPipeline: RenderPipeline
+    public var gradientPipeline: RenderPipeline
     public var linePipeline: RenderPipeline
     public var circlePipeline: RenderPipeline
     /// Pipeline for ``GlassEffectModifier`` / `glass.glsl` (requires `RenderPipelines<GlassPipeline>` on the render world).
@@ -648,6 +674,10 @@ public struct UIRenderPipelines: Resource, WorldInitable {
             .pipeline(device: device)
 
         self.quadPipeline = world.getRefResource(RenderPipelines<QuadPipeline>.self)
+            .wrappedValue
+            .pipeline(device: device)
+
+        self.gradientPipeline = world.getRefResource(RenderPipelines<LinearGradientPipeline>.self)
             .wrappedValue
             .pipeline(device: device)
 

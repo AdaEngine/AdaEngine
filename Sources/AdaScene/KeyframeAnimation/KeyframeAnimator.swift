@@ -110,6 +110,24 @@ public struct KeyframeAnimator: @unchecked Sendable {
     }
 }
 
+// MARK: - Events
+
+/// Event raised by ``KeyframeAnimationApplySystem`` when a specific animator run
+/// completes (naturally or is interrupted by a new ``KeyframeAnimator/playClip(by:)``
+/// or ``KeyframeAnimator/stop()`` call).
+///
+/// `runToken` identifies the run that finished — it matches the value of
+/// ``KeyframeAnimator/runToken`` captured at the time the run was started.
+public struct KeyframeAnimatorRunDidFinish: Event {
+    public let entityID: Entity.ID
+    public let runToken: UInt64
+
+    public init(entityID: Entity.ID, runToken: UInt64) {
+        self.entityID = entityID
+        self.runToken = runToken
+    }
+}
+
 // MARK: - Ref extensions (ECS live reference)
 
 public extension Ref where T == KeyframeAnimator {
@@ -123,10 +141,15 @@ public extension Ref where T == KeyframeAnimator {
     }
 
     /// Suspends the caller until the current playback run is interrupted, stopped, or naturally completed.
-    mutating func waitUntilFinished() async {
+    ///
+    /// Implementation note: this does not poll the ECS world. It subscribes to
+    /// ``KeyframeAnimatorRunDidFinish`` on ``EventManager/default`` and awaits a
+    /// matching event emitted by ``KeyframeAnimationApplySystem``.
+    mutating func waitUntilFinished(for entityID: Entity.ID) async {
         let token = wrappedValue.runToken
-        while wrappedValue.runToken == token && wrappedValue.playbackState == .playing {
-            await Task.yield()
-        }
+        guard wrappedValue.playbackState == .playing else { return }
+
+        await KeyframeAnimatorWaitOnce.wait(entityID: entityID, runToken: token)
     }
 }
+

@@ -76,6 +76,18 @@ public struct UITessellator {
         ]
     }
 
+    /// Tessellates a linear gradient quad into 4 vertices.
+    public func tessellateLinearGradient(
+        transform: Transform3D
+    ) -> [QuadVertexData] {
+        tessellateQuad(
+            transform: transform,
+            texture: nil,
+            color: .white,
+            textureIndex: 0
+        )
+    }
+
     // MARK: - Circle Tessellation
 
     /// Tessellates a circle into 4 vertices (rendered using SDF in fragment shader).

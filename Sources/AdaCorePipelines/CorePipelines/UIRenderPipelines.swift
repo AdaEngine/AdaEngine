@@ -50,6 +50,44 @@ public struct QuadPipeline: RenderPipelineConfigurator {
     }
 }
 
+// MARK: - Gradient Pipeline
+
+/// Pipeline configurator for rendering UI linear gradients.
+public struct LinearGradientPipeline: RenderPipelineConfigurator {
+    private let shader: AssetHandle<ShaderModule>
+
+    public init() {
+        self.shader = try! AssetsManager.loadSync(
+            ShaderModule.self,
+            at: "Shaders/gradient.glsl",
+            from: .module
+        )
+    }
+
+    public func configurate(
+        with configuration: RenderPipelineEmptyConfiguration
+    ) -> RenderPipelineDescriptor {
+        var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
+        pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
+        pipelineDesc.debugName = "Linear Gradient Pipeline"
+
+        pipelineDesc.vertexDescriptor.attributes.append([
+            .attribute(.vector4, name: "a_Position"),
+            .attribute(.vector4, name: "a_Color"),
+            .attribute(.vector2, name: "a_TexCoordinate"),
+        ])
+
+        pipelineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
+        pipelineDesc.colorAttachments = [
+            RenderPipelineColorAttachmentDescriptor(
+                format: .bgra8,
+                isBlendingEnabled: true
+            )
+        ]
+        return pipelineDesc
+    }
+}
+
 // MARK: - Circle Pipeline
 
 /// Pipeline configurator for rendering UI circles.

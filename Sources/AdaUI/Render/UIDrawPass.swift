@@ -14,6 +14,89 @@ import Math
 
 // MARK: - UI Draw Data
 
+struct LinearGradientUniform: Sendable {
+    let startPoint: Vector2
+    let endPoint: Vector2
+    let stopCount: Int32
+    let _padding: Int32
+    let stopColor0: Vector4
+    let stopColor1: Vector4
+    let stopColor2: Vector4
+    let stopColor3: Vector4
+    let stopColor4: Vector4
+    let stopColor5: Vector4
+    let stopColor6: Vector4
+    let stopColor7: Vector4
+    let stopColor8: Vector4
+    let stopColor9: Vector4
+    let stopColor10: Vector4
+    let stopColor11: Vector4
+    let stopColor12: Vector4
+    let stopColor13: Vector4
+    let stopColor14: Vector4
+    let stopColor15: Vector4
+    let stopLocations0: Vector4
+    let stopLocations1: Vector4
+    let stopLocations2: Vector4
+    let stopLocations3: Vector4
+
+    init(startPoint: Vector2, endPoint: Vector2, stops: [Gradient.Stop]) {
+        let colors = Self.makeColors(from: stops)
+        let locations = Self.makeLocations(from: stops)
+
+        self.startPoint = startPoint
+        self.endPoint = endPoint
+        self.stopCount = Int32(stops.count)
+        self._padding = 0
+        self.stopColor0 = colors[0]
+        self.stopColor1 = colors[1]
+        self.stopColor2 = colors[2]
+        self.stopColor3 = colors[3]
+        self.stopColor4 = colors[4]
+        self.stopColor5 = colors[5]
+        self.stopColor6 = colors[6]
+        self.stopColor7 = colors[7]
+        self.stopColor8 = colors[8]
+        self.stopColor9 = colors[9]
+        self.stopColor10 = colors[10]
+        self.stopColor11 = colors[11]
+        self.stopColor12 = colors[12]
+        self.stopColor13 = colors[13]
+        self.stopColor14 = colors[14]
+        self.stopColor15 = colors[15]
+        self.stopLocations0 = locations[0]
+        self.stopLocations1 = locations[1]
+        self.stopLocations2 = locations[2]
+        self.stopLocations3 = locations[3]
+    }
+}
+
+private extension LinearGradientUniform {
+    static func makeColors(from stops: [Gradient.Stop]) -> [Vector4] {
+        var colors = Array(repeating: Color.clear.asVector, count: Gradient.maximumStops)
+        for (index, stop) in stops.enumerated() where index < Gradient.maximumStops {
+            colors[index] = stop.color.asVector
+        }
+        return colors
+    }
+
+    static func makeLocations(from stops: [Gradient.Stop]) -> [Vector4] {
+        var flatLocations = Array(repeating: Float(1), count: Gradient.maximumStops)
+        for (index, stop) in stops.enumerated() where index < Gradient.maximumStops {
+            flatLocations[index] = stop.location
+        }
+
+        return stride(from: 0, to: Gradient.maximumStops, by: 4).map { index in
+            Vector4(
+                flatLocations[index],
+                flatLocations[index + 1],
+                flatLocations[index + 2],
+                flatLocations[index + 3]
+            )
+        }
+    }
+}
+
 /// Resource that holds GPU buffers for UI rendering.
 public struct UIDrawData: Sendable {
     public struct IndexBatch: Sendable {
@@ -28,10 +111,29 @@ public struct UIDrawData: Sendable {
         }
     }
 
+    public struct LinearGradientBatch: Sendable {
+        public var indexOffset: Int
+        public var indexCount: Int
+        public var uniformOffset: Int
+
+        public init(indexOffset: Int, indexCount: Int, uniformOffset: Int) {
+            self.indexOffset = indexOffset
+            self.indexCount = indexCount
+            self.uniformOffset = uniformOffset
+        }
+    }
+
     /// Vertex buffer for quads.
     public var quadVertexBuffer: BufferData<QuadVertexData>
     /// Index buffer for quads.
     public var quadIndexBuffer: BufferData<UInt32>
+
+    /// Vertex buffer for linear gradients.
+    public var gradientVertexBuffer: BufferData<QuadVertexData>
+    /// Index buffer for linear gradients.
+    public var gradientIndexBuffer: BufferData<UInt32>
+    /// Uniform buffer for linear gradients.
+    var gradientUniformBuffer: BufferData<LinearGradientUniform>
 
     /// Vertex buffer for circles.
     public var circleVertexBuffer: BufferData<CircleVertexData>
@@ -59,6 +161,9 @@ public struct UIDrawData: Sendable {
     /// Batches for quad rendering.
     public var quadBatches: [IndexBatch] = []
 
+    /// Batches for linear gradient rendering.
+    public var gradientBatches: [LinearGradientBatch] = []
+
     /// Font atlas textures used for text rendering (max 16 per batch).
     public var fontAtlases: [Texture2D] = []
 
@@ -74,6 +179,9 @@ public struct UIDrawData: Sendable {
     public init() {
         self.quadVertexBuffer = BufferData(label: "UI_QuadVertexBuffer", elements: [])
         self.quadIndexBuffer = BufferData(label: "UI_QuadIndexBuffer", elements: [])
+        self.gradientVertexBuffer = BufferData(label: "UI_GradientVertexBuffer", elements: [])
+        self.gradientIndexBuffer = BufferData(label: "UI_GradientIndexBuffer", elements: [])
+        self.gradientUniformBuffer = BufferData(label: "UI_GradientUniformBuffer", elements: [])
         self.circleVertexBuffer = BufferData(label: "UI_CircleVertexBuffer", elements: [])
         self.circleIndexBuffer = BufferData(label: "UI_CircleIndexBuffer", elements: [])
         self.lineVertexBuffer = BufferData(label: "UI_LineVertexBuffer", elements: [])
@@ -88,6 +196,9 @@ public struct UIDrawData: Sendable {
     public mutating func write(to device: any RenderDevice) {
         self.quadVertexBuffer.write(to: device)
         self.quadIndexBuffer.write(to: device)
+        self.gradientVertexBuffer.write(to: device)
+        self.gradientIndexBuffer.write(to: device)
+        self.gradientUniformBuffer.write(to: device)
         self.circleVertexBuffer.write(to: device)
         self.circleIndexBuffer.write(to: device)
         self.lineVertexBuffer.write(to: device)
@@ -102,6 +213,9 @@ public struct UIDrawData: Sendable {
     public mutating func clear() {
         quadVertexBuffer.removeAll()
         quadIndexBuffer.removeAll()
+        gradientVertexBuffer.removeAll()
+        gradientIndexBuffer.removeAll()
+        gradientUniformBuffer.removeAll()
         circleVertexBuffer.removeAll()
         circleIndexBuffer.removeAll()
         lineVertexBuffer.removeAll()
@@ -114,12 +228,14 @@ public struct UIDrawData: Sendable {
         textures.removeAll(keepingCapacity: true)
         fontAtlases.removeAll(keepingCapacity: true)
         quadBatches.removeAll(keepingCapacity: true)
+        gradientBatches.removeAll(keepingCapacity: true)
         glyphBatches.removeAll(keepingCapacity: true)
         glassBatches.removeAll(keepingCapacity: true)
     }
 
     public var isEmpty: Bool {
         quadIndexBuffer.isEmpty
+        && gradientIndexBuffer.isEmpty
         && circleIndexBuffer.isEmpty
         && lineIndexBuffer.isEmpty
         && glyphIndexBuffer.isEmpty
@@ -182,6 +298,14 @@ public struct UIDrawPass: DrawPass {
         if !uiDrawData.quadIndexBuffer.isEmpty {
             renderEncoder.setRenderPipelineState(item.renderPipeline.quadPipeline)
             renderQuads(
+                renderEncoder: renderEncoder,
+                uiDrawData: uiDrawData
+            )
+        }
+
+        if !uiDrawData.gradientIndexBuffer.isEmpty {
+            renderEncoder.setRenderPipelineState(item.renderPipeline.gradientPipeline)
+            renderGradients(
                 renderEncoder: renderEncoder,
                 uiDrawData: uiDrawData
             )
@@ -298,6 +422,32 @@ public struct UIDrawPass: DrawPass {
                 ]
             )
             renderEncoder.setResourceSet(resourceSet, index: 0)
+
+            let indexBufferOffset = batch.indexOffset * MemoryLayout<UInt32>.stride
+            renderEncoder.drawIndexed(
+                indexCount: batch.indexCount,
+                indexBufferOffset: indexBufferOffset,
+                instanceCount: 1
+            )
+        }
+    }
+
+    private func renderGradients(
+        renderEncoder: RenderCommandEncoder,
+        uiDrawData: UIDrawData
+    ) {
+        renderEncoder.pushDebugName("UI Linear Gradient Render")
+        defer { renderEncoder.popDebugName() }
+
+        renderEncoder.setVertexBuffer(uiDrawData.gradientVertexBuffer, offset: 0, slot: 0)
+        renderEncoder.setIndexBuffer(uiDrawData.gradientIndexBuffer, indexFormat: .uInt32)
+
+        for batch in uiDrawData.gradientBatches {
+            renderEncoder.setFragmentBuffer(
+                uiDrawData.gradientUniformBuffer,
+                offset: batch.uniformOffset,
+                slot: 0
+            )
 
             let indexBufferOffset = batch.indexOffset * MemoryLayout<UInt32>.stride
             renderEncoder.drawIndexed(
