@@ -68,9 +68,9 @@ private extension UIComponentSystem {
 
         if let viewOwner = (view as? ViewOwner) {
             var environment = EnvironmentValues()
-            environment.entity = WeakBox(value: entity)
+            environment.entity = entity//WeakBox(value: entity)
             if let world = entity.world {
-                environment.world = WeakBox(value: world)
+                environment.world = world//WeakBox(value: world)
             }
             viewOwner.updateEnvironment(environment)
         }
@@ -121,10 +121,10 @@ private extension UIComponentSystem {
 public extension EnvironmentValues {
 
     /// The world where view attached.
-    @Entry internal(set) var world: WeakBox<World>?
+    @Entry internal(set) var world: World?
 
     /// The game scene where view attached.
-    @Entry internal(set) var entity: WeakBox<Entity>?
+    @Entry internal(set) var entity: Entity?
 
     @Entry internal(set) var input: Ref<Input>?
 }

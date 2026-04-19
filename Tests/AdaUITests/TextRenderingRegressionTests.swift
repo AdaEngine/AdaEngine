@@ -1,0 +1,50 @@
+import Testing
+@testable import AdaPlatform
+@testable import AdaUI
+import Math
+
+@MainActor
+struct TextRenderingRegressionTests {
+    init() async throws {
+        try Application.prepareForTest()
+    }
+
+    @Test
+    func geometryReader_placesChildIntoAvailableBounds() {
+        let tester = ViewTester {
+            GeometryReader { _ in
+                Color.red
+                    .accessibilityIdentifier("geometry-content")
+            }
+        }
+        .setSize(Size(width: 1200, height: 800))
+        .performLayout()
+
+        let contentNode = tester.findNodeByAccessibilityIdentifier("geometry-content")
+
+        #expect(contentNode?.frame == Rect(x: 0, y: 0, width: 1200, height: 800))
+    }
+
+    @Test
+    func geometryReader_childDrawsUsingContainerSize() {
+        let tester = ViewTester {
+            GeometryReader { _ in
+                Color.red
+            }
+        }
+        .setSize(Size(width: 1200, height: 800))
+        .performLayout()
+
+        let context = UIGraphicsContext()
+        tester.containerView.viewTree.rootNode.draw(with: context)
+
+        let hasVisibleQuad = context.getDrawCommands().contains { command in
+            guard case let .drawQuad(transform, _, _) = command else {
+                return false
+            }
+            return transform == Rect(x: 0, y: 0, width: 1200, height: 800).toTransform3D
+        }
+
+        #expect(hasVisibleQuad)
+    }
+}

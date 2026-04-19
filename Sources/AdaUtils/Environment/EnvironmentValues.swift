@@ -120,18 +120,8 @@ public struct EnvironmentValues: Sendable {
         }
         set {
             let id = ObjectIdentifier(type)
-            // Only bump version if the stored value actually differs.
-            // AnyHashable comparison works for all Hashable values (which covers
-            // virtually every environment key: Color, Float, Bool, enums, etc.).
-            // Non-Hashable values unconditionally mark changed.
             let existing = values[id]
-            let actuallyChanged: Bool
-            if let existingHash = existing as? AnyHashable,
-               let newHash = newValue as? AnyHashable {
-                actuallyChanged = existingHash != newHash
-            } else {
-                actuallyChanged = true
-            }
+            let actuallyChanged = !Self.areEquivalent(existing, newValue)
             values[id] = newValue
             if actuallyChanged {
                 version &+= 1
@@ -144,13 +134,7 @@ public struct EnvironmentValues: Sendable {
     public mutating func merge(_ newValue: EnvironmentValues) {
         for (key, value) in newValue.values {
             let existing = self.values[key]
-            let actuallyChanged: Bool
-            if let existingHash = existing as? AnyHashable,
-               let newHash = value as? AnyHashable {
-                actuallyChanged = existingHash != newHash
-            } else {
-                actuallyChanged = true
-            }
+            let actuallyChanged = !Self.areEquivalent(existing, value)
             self.values[key] = value
             if actuallyChanged {
                 self.version &+= 1
@@ -166,15 +150,53 @@ public struct EnvironmentValues: Sendable {
         for id in ids {
             let newVal = values[id]
             let oldVal = old.values[id]
-            if let nh = newVal as? AnyHashable, let oh = oldVal as? AnyHashable {
-                if nh != oh { return true }
-            } else if (newVal == nil) != (oldVal == nil) {
+            if !Self.areEquivalent(newVal, oldVal) {
                 return true
-            } else if newVal != nil {
-                return true  // non-Hashable value present; assume changed
             }
         }
         return false
+    }
+}
+
+private extension EnvironmentValues {
+    static func areEquivalent(_ lhs: (any Sendable)?, _ rhs: (any Sendable)?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil):
+            return true
+        case (nil, _), (_, nil):
+            return false
+        case let (lhs?, rhs?):
+            if let lhsHash = lhs as? AnyHashable, let rhsHash = rhs as? AnyHashable {
+                return lhsHash == rhsHash
+            }
+
+            if let lhsObjectID = objectIdentifierIfReference(lhs),
+               let rhsObjectID = objectIdentifierIfReference(rhs) {
+                return lhsObjectID == rhsObjectID
+            }
+
+            return false
+        }
+    }
+
+    static func objectIdentifierIfReference(_ value: some Sendable) -> ObjectIdentifier? {
+        objectIdentifierIfReference(value as Any)
+    }
+
+    static func objectIdentifierIfReference(_ value: Any) -> ObjectIdentifier? {
+        let mirror = Mirror(reflecting: value)
+        if mirror.displayStyle == .optional {
+            guard let wrapped = mirror.children.first?.value else {
+                return nil
+            }
+            return objectIdentifierIfReference(wrapped)
+        }
+
+        guard mirror.displayStyle == .class else {
+            return nil
+        }
+
+        return ObjectIdentifier(value as AnyObject)
     }
 }
 
