@@ -174,8 +174,9 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     override func performLayout() {
         self.invalidateContent()
 
+        let proposal = ProposedViewSize(width: self.frame.width, height: self.frame.height)
         for node in self.nodes {
-            node.performLayout()
+            node.place(in: .zero, anchor: .topLeading, proposal: proposal)
         }
         
         super.performLayout()
@@ -185,6 +186,7 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     ///
     /// - Returns: The invalidated content of the geometry reader view node.
     override func invalidateContent() {
+        let previousNodes = self.nodes
         let context = _ViewInputs(parentNode: self, environment: self.environment)
         let proxy = GeometryProxy(
             namedCoordinateSpaceContainer: self.environment.coordinateSpaces,
@@ -196,9 +198,17 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 
         for node in nodes {
             node.parent = self
+            node.updateLayoutProperties(self.layoutProperties)
+            if let owner = self.owner, node.owner !== owner {
+                node.updateViewOwner(owner)
+            }
         }
 
         self.nodes = nodes
+
+        for oldNode in previousNodes where !nodes.contains(where: { $0 === oldNode }) {
+            oldNode.parent = nil
+        }
     }
 }
 

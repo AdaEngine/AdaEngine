@@ -3,6 +3,7 @@ import Testing
 
 @Suite("EnvironmentValues versioning and key tracking")
 struct EnvironmentValuesTests {
+    private final class RefObject: @unchecked Sendable {}
 
     private struct IntKey: EnvironmentKey {
         static let defaultValue: Int = 0
@@ -10,6 +11,10 @@ struct EnvironmentValuesTests {
 
     private struct StringKey: EnvironmentKey {
         static let defaultValue: String = ""
+    }
+
+    private struct RefKey: EnvironmentKey {
+        static let defaultValue: RefObject? = nil
     }
 
     // MARK: - Version tracking
@@ -42,6 +47,18 @@ struct EnvironmentValuesTests {
         env[IntKey.self] = 1
         env[StringKey.self] = "hello"
         #expect(env.version == 2)
+    }
+
+    @Test("version does not increment when same reference is assigned again")
+    func versionStableOnSameReference() {
+        let object = RefObject()
+        var env = EnvironmentValues()
+        env[RefKey.self] = object
+
+        let v1 = env.version
+        env[RefKey.self] = object
+
+        #expect(env.version == v1)
     }
 
     // MARK: - changedKeys
@@ -87,6 +104,22 @@ struct EnvironmentValuesTests {
         #expect(base.version == vBefore + 1)
         // changedKeys accumulates all ever-changed keys; StringKey is newly added.
         #expect(base.changedKeys.contains(ObjectIdentifier(StringKey.self)))
+    }
+
+    @Test("merge does not bump version for the same reference")
+    func mergeVersionStableForSameReference() {
+        let object = RefObject()
+
+        var base = EnvironmentValues()
+        base[RefKey.self] = object
+
+        var patch = EnvironmentValues()
+        patch[RefKey.self] = object
+
+        let vBefore = base.version
+        base.merge(patch)
+
+        #expect(base.version == vBefore)
     }
 
     // MARK: - hasChangedValues

@@ -67,7 +67,9 @@ final class ViewRootNode: ViewNode {
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
+        let prevVersion = self.environment.version
         super.updateEnvironment(environment)
+        guard self.environment.version != prevVersion else { return }
         contentNode.mergeEnvironment(environment)
     }
 
