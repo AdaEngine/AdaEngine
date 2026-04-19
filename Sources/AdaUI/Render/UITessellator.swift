@@ -289,7 +289,7 @@ public struct UITessellator {
 
     // MARK: - Path Tessellation
 
-    /// Tessellates a path into line vertices.
+    /// Tessellates a path stroke into line vertices.
     /// Bezier curves are approximated with line segments.
     /// - Parameters:
     ///   - path: The path to tessellate.
@@ -297,7 +297,7 @@ public struct UITessellator {
     ///   - color: Color of the path.
     ///   - transform: The transformation matrix.
     /// - Returns: Tuple of vertices and indices for lines.
-    public func tessellatePath(
+    public func tessellatePathStroke(
         _ path: Path,
         lineWidth: Float,
         color: Color,
@@ -396,6 +396,57 @@ public struct UITessellator {
         return (vertices, indices)
     }
 
+    /// Compatibility alias for legacy stroked path rendering.
+    public func tessellatePath(
+        _ path: Path,
+        lineWidth: Float,
+        color: Color,
+        transform: Transform3D
+    ) -> (vertices: [LineVertexData], indices: [UInt32]) {
+        tessellatePathStroke(
+            path,
+            lineWidth: lineWidth,
+            color: color,
+            transform: transform
+        )
+    }
+
+    /// Tessellates a path fill into triangle vertices.
+    ///
+    /// Closed subpaths are flattened into polygons and triangulated using a
+    /// simple ear clipping pass. Open subpaths are ignored in fill mode.
+    public func tessellatePathFill(
+        _ path: Path,
+        color: Color,
+        transform: Transform3D,
+        textureIndex: Int = 0
+    ) -> (vertices: [QuadVertexData], indices: [UInt32]) {
+        var vertices: [QuadVertexData] = []
+        var indices: [UInt32] = []
+
+        for polygon in flattenClosedSubpaths(from: path) {
+            let polygonIndices = triangulatePolygon(polygon)
+            guard !polygonIndices.isEmpty else {
+                continue
+            }
+
+            let vertexOffset = UInt32(vertices.count)
+            for point in polygon {
+                vertices.append(
+                    QuadVertexData(
+                        position: transform * Vector4(point.x, point.y, 0, 1),
+                        color: color,
+                        textureCoordinate: .zero,
+                        textureIndex: textureIndex
+                    )
+                )
+            }
+            indices.append(contentsOf: polygonIndices.map { $0 + vertexOffset })
+        }
+
+        return (vertices, indices)
+    }
+
     // MARK: - Bezier Curve Helpers
 
     private func tessellateQuadraticBezier(
@@ -485,5 +536,222 @@ public struct UITessellator {
         }
 
         return (vertices, indices)
+    }
+
+    // MARK: - Fill Helpers
+
+    private func flattenClosedSubpaths(from path: Path) -> [[Vector2]] {
+        var closedSubpaths: [[Vector2]] = []
+        var currentSubpath: [Vector2] = []
+        var currentPoint: Vector2?
+
+        func appendPoint(_ point: Vector2) {
+            if let last = currentSubpath.last, arePointsEqual(last, point) {
+                return
+            }
+            currentSubpath.append(point)
+            currentPoint = point
+        }
+
+        func finishCurrentSubpath(closed: Bool) {
+            defer {
+                currentSubpath.removeAll(keepingCapacity: true)
+                currentPoint = nil
+            }
+
+            guard closed else {
+                return
+            }
+
+            let polygon = normalizedPolygon(currentSubpath)
+            if polygon.count >= 3 {
+                closedSubpaths.append(polygon)
+            }
+        }
+
+        path.forEach { element in
+            switch element {
+            case let .move(to: point):
+                finishCurrentSubpath(closed: false)
+                currentSubpath = [point]
+                currentPoint = point
+
+            case let .line(to: end):
+                guard currentPoint != nil else { break }
+                appendPoint(end)
+
+            case let .quadCurve(to: end, control: control):
+                guard let start = currentPoint else { break }
+                for segmentIndex in 1...Self.curveSegments {
+                    let t = Float(segmentIndex) / Float(Self.curveSegments)
+                    let oneMinusT = 1 - t
+                    let point = oneMinusT * oneMinusT * start
+                        + 2 * oneMinusT * t * control
+                        + t * t * end
+                    appendPoint(point)
+                }
+
+            case let .curve(to: end, control1: control1, control2: control2):
+                guard let start = currentPoint else { break }
+                for segmentIndex in 1...Self.curveSegments {
+                    let t = Float(segmentIndex) / Float(Self.curveSegments)
+                    let oneMinusT = 1 - t
+                    let oneMinusT2 = oneMinusT * oneMinusT
+                    let oneMinusT3 = oneMinusT2 * oneMinusT
+                    let t2 = t * t
+                    let t3 = t2 * t
+                    let point = oneMinusT3 * start
+                        + 3 * oneMinusT2 * t * control1
+                        + 3 * oneMinusT * t2 * control2
+                        + t3 * end
+                    appendPoint(point)
+                }
+
+            case .closeSubpath:
+                finishCurrentSubpath(closed: true)
+            }
+        }
+
+        finishCurrentSubpath(closed: false)
+        return closedSubpaths
+    }
+
+    private func normalizedPolygon(_ points: [Vector2]) -> [Vector2] {
+        var normalized: [Vector2] = []
+
+        for point in points {
+            if let last = normalized.last, arePointsEqual(last, point) {
+                continue
+            }
+            normalized.append(point)
+        }
+
+        if let first = normalized.first, let last = normalized.last, arePointsEqual(first, last) {
+            normalized.removeLast()
+        }
+
+        return normalized
+    }
+
+    private func triangulatePolygon(_ polygon: [Vector2]) -> [UInt32] {
+        guard polygon.count >= 3 else {
+            return []
+        }
+
+        let isCounterClockwise = signedArea(of: polygon) >= 0
+        var remainingIndices = Array(polygon.indices)
+        var triangleIndices: [UInt32] = []
+        var guardCounter = 0
+        let maxIterations = polygon.count * polygon.count
+
+        while remainingIndices.count > 3 && guardCounter < maxIterations {
+            var earIndexToRemove: Int?
+
+            for offset in remainingIndices.indices {
+                let previousOffset = (offset + remainingIndices.count - 1) % remainingIndices.count
+                let nextOffset = (offset + 1) % remainingIndices.count
+
+                let previousIndex = remainingIndices[previousOffset]
+                let currentIndex = remainingIndices[offset]
+                let nextIndex = remainingIndices[nextOffset]
+
+                let a = polygon[previousIndex]
+                let b = polygon[currentIndex]
+                let c = polygon[nextIndex]
+
+                guard isConvex(a: a, b: b, c: c, isCounterClockwise: isCounterClockwise) else {
+                    continue
+                }
+
+                var containsPointInsideEar = false
+                for candidateIndex in remainingIndices {
+                    if candidateIndex == previousIndex || candidateIndex == currentIndex || candidateIndex == nextIndex {
+                        continue
+                    }
+
+                    if pointInTriangle(polygon[candidateIndex], a: a, b: b, c: c) {
+                        containsPointInsideEar = true
+                        break
+                    }
+                }
+
+                if containsPointInsideEar {
+                    continue
+                }
+
+                triangleIndices.append(UInt32(previousIndex))
+                triangleIndices.append(UInt32(currentIndex))
+                triangleIndices.append(UInt32(nextIndex))
+                earIndexToRemove = offset
+                break
+            }
+
+            guard let earIndexToRemove else {
+                return []
+            }
+
+            remainingIndices.remove(at: earIndexToRemove)
+            guardCounter += 1
+        }
+
+        guard remainingIndices.count == 3 else {
+            return []
+        }
+
+        triangleIndices.append(UInt32(remainingIndices[0]))
+        triangleIndices.append(UInt32(remainingIndices[1]))
+        triangleIndices.append(UInt32(remainingIndices[2]))
+        return triangleIndices
+    }
+
+    private func arePointsEqual(_ lhs: Vector2, _ rhs: Vector2, epsilon: Float = 0.0001) -> Bool {
+        abs(lhs.x - rhs.x) <= epsilon && abs(lhs.y - rhs.y) <= epsilon
+    }
+
+    private func signedArea(of polygon: [Vector2]) -> Float {
+        guard polygon.count >= 3 else {
+            return 0
+        }
+
+        var area: Float = 0
+        for index in polygon.indices {
+            let nextIndex = (index + 1) % polygon.count
+            area += polygon[index].x * polygon[nextIndex].y
+            area -= polygon[nextIndex].x * polygon[index].y
+        }
+        return area * 0.5
+    }
+
+    private func isConvex(
+        a: Vector2,
+        b: Vector2,
+        c: Vector2,
+        isCounterClockwise: Bool
+    ) -> Bool {
+        let cross = crossProduct(a: a, b: b, c: c)
+        let epsilon: Float = 0.0001
+        return isCounterClockwise ? cross > epsilon : cross < -epsilon
+    }
+
+    private func pointInTriangle(
+        _ point: Vector2,
+        a: Vector2,
+        b: Vector2,
+        c: Vector2
+    ) -> Bool {
+        let epsilon: Float = 0.0001
+        let ab = crossProduct(a: point, b: a, c: b)
+        let bc = crossProduct(a: point, b: b, c: c)
+        let ca = crossProduct(a: point, b: c, c: a)
+
+        let hasNegative = ab < -epsilon || bc < -epsilon || ca < -epsilon
+        let hasPositive = ab > epsilon || bc > epsilon || ca > epsilon
+        return !(hasNegative && hasPositive)
+    }
+
+    private func crossProduct(a: Vector2, b: Vector2, c: Vector2) -> Float {
+        let ab = b - a
+        let ac = c - a
+        return ab.x * ac.y - ab.y * ac.x
     }
 }

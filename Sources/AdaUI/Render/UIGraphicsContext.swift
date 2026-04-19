@@ -37,6 +37,11 @@ import Collections
 ///
 /// The context has access to an ``AdaUtils/EnvironmentValues`` instance called ``environment`` that’s initially copied from the environment of its enclosing view or entity. You can also access values stored in the environment for your own purposes.
 public struct UIGraphicsContext: Sendable {
+    public enum PathDrawingMode: Sendable, Equatable {
+        case legacy
+        case fill(color: Color)
+        case stroke(color: Color, style: StrokeStyle)
+    }
 
     /// Returns current transform.
     public private(set) var transform: Transform3D = .identity
@@ -177,7 +182,25 @@ public struct UIGraphicsContext: Sendable {
 
     /// Draws path into the graphics context.
     public func draw(_ path: Path) {
-        self.commandQueue.push(.drawPath(path))
+        self.commandQueue.push(.drawPath(path, .legacy))
+    }
+
+    /// Fills a path with the provided color.
+    public func fill(_ path: Path, with color: Color) {
+        self.commandQueue.push(.drawPath(path, .fill(color: applyOpacityIfNeeded(color))))
+    }
+
+    /// Strokes a path with the provided color and style.
+    public func stroke(_ path: Path, with color: Color, style: StrokeStyle) {
+        self.commandQueue.push(
+            .drawPath(
+                path,
+                .stroke(
+                    color: applyOpacityIfNeeded(color),
+                    style: style
+                )
+            )
+        )
     }
 
     /// Draws text line into the graphics context.
@@ -301,7 +324,7 @@ extension UIGraphicsContext {
             color: Color
         )
         case drawLinearGradient(transform: Transform3D, startPoint: Vector2, endPoint: Vector2, stops: [Gradient.Stop])
-        case drawPath(Path)
+        case drawPath(Path, PathDrawingMode)
 
         case drawText(textLayout: TextLayoutManager, transform: Transform3D)
         case drawGlyph(_ glyph: Glyph, transform: Transform3D)

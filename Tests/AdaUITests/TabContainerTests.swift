@@ -7,7 +7,42 @@ import Testing
 @testable import AdaUI
 @testable import AdaPlatform
 import AdaInput
+import AdaUtils
 import Math
+
+private struct TabContainerMarkerKey: EnvironmentKey {
+    static let defaultValue: String = "default"
+}
+
+private extension EnvironmentValues {
+    var tabContainerTestMarker: String {
+        get { self[TabContainerMarkerKey.self] }
+        set { self[TabContainerMarkerKey.self] = newValue }
+    }
+}
+
+private struct TabContainerMarkerView: View {
+    @AdaUI.Environment(\.tabContainerTestMarker) private var marker
+    let baseID: String
+
+    var body: some View {
+        Text(marker)
+            .accessibilityIdentifier("\(baseID)-\(marker)")
+    }
+}
+
+private struct TabContainerTestStyle: TabViewStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                ForEach(configuration.tabs) { tab in
+                    Button(tab.label ?? "TAB", action: tab.action)
+                }
+            }
+            configuration.content
+        }
+    }
+}
 
 @MainActor
 struct TabContainerTests {
@@ -255,6 +290,53 @@ struct TabContainerTests {
         let rect = Rect(origin: .zero, size: Size(width: 420, height: 220))
         let ids = tester.collectHitAccessibilityIdentifiers(in: rect)
         #expect(ids.contains("main-spacer-content"))
+    }
+
+    @Test
+    func customStyledTabView_refreshesEnvironmentWhenReturningToCachedTab() {
+        enum Value: Hashable {
+            case first
+            case second
+        }
+
+        final class Model {
+            var selected: Value = .first
+            var marker: String = "A"
+        }
+
+        let model = Model()
+        let tester = ViewTester {
+            TabView(
+                selection: Binding(get: { model.selected }, set: { model.selected = $0 })
+            ) {
+                Tab("First", value: Value.first) {
+                    TabContainerMarkerView(baseID: "first-marker")
+                }
+                Tab("Second", value: Value.second) {
+                    TabContainerMarkerView(baseID: "second-marker")
+                }
+            }
+            .tabViewStyle(TabContainerTestStyle())
+            .environment(\.tabContainerTestMarker, model.marker)
+            .frame(width: 320, height: 120)
+        }
+        .setSize(Size(width: 320, height: 140))
+        .performLayout()
+
+        let rect = Rect(origin: .zero, size: Size(width: 320, height: 140))
+        #expect(tester.collectHitAccessibilityIdentifiers(in: rect).contains("first-marker-A"))
+
+        model.selected = .second
+        tester.invalidateContent().performLayout()
+        #expect(tester.collectHitAccessibilityIdentifiers(in: rect).contains("second-marker-A"))
+
+        model.marker = "B"
+        tester.invalidateContent().performLayout()
+        #expect(tester.collectHitAccessibilityIdentifiers(in: rect).contains("second-marker-B"))
+
+        model.selected = .first
+        tester.invalidateContent().performLayout()
+        #expect(tester.collectHitAccessibilityIdentifiers(in: rect).contains("first-marker-B"))
     }
 
     // MARK: - Backward compatibility (deprecated TabContainer)

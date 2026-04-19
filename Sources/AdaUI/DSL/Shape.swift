@@ -5,7 +5,28 @@
 //  Created by vladislav.prusakov on 31.07.2024.
 //
 
+import AdaUtils
 import Math
+
+/// A type that resolves into a concrete fill or stroke color for shapes.
+public protocol ShapeStyle {
+    func resolve(in environment: EnvironmentValues) -> Color
+}
+
+extension Color: ShapeStyle {
+    public func resolve(in environment: EnvironmentValues) -> Color {
+        self
+    }
+}
+
+/// A set of stroke attributes to apply when stroking a shape.
+public struct StrokeStyle: Sendable, Equatable {
+    public var lineWidth: Float
+
+    public init(lineWidth: Float = 1) {
+        self.lineWidth = lineWidth
+    }
+}
 
 /// A protocol that defines a shape.
 public protocol Shape: View {
@@ -28,13 +49,46 @@ extension Shape {
     }
 }
 
+enum ShapeRenderMode: Sendable, Equatable {
+    case legacy
+    case fill(Color)
+    case stroke(Color, StrokeStyle)
+}
+
 struct _ShapeView<S: Shape>: View, ViewNodeBuilder {
 
     let shape: S
     var body: Never { fatalError() }
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
-        ShapeViewNode(shape: shape, content: self)
+        ShapeViewNode(shape: shape, renderMode: .legacy, content: self)
+    }
+}
+
+struct _ShapeStyledView<S: Shape, Style: ShapeStyle>: View, ViewNodeBuilder {
+
+    enum Kind: Sendable, Equatable {
+        case fill
+        case stroke(StrokeStyle)
+    }
+
+    let shape: S
+    let style: Style
+    let kind: Kind
+    var body: Never { fatalError() }
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        let color = style.resolve(in: context.environment)
+        let renderMode: ShapeRenderMode
+
+        switch kind {
+        case .fill:
+            renderMode = .fill(color)
+        case let .stroke(strokeStyle):
+            renderMode = .stroke(color, strokeStyle)
+        }
+
+        return ShapeViewNode(shape: shape, renderMode: renderMode, content: self)
     }
 }
 
@@ -91,6 +145,7 @@ public struct RoundedRectangleShape: Shape {
 class ShapeViewNode<S: Shape>: ViewNode {
 
     private var shape: S
+    private var renderMode: ShapeRenderMode
     private var path: Path = Path()
 
     /// Initialize a new shape view node.
@@ -98,8 +153,9 @@ class ShapeViewNode<S: Shape>: ViewNode {
     /// - Parameters:
     ///   - shape: The shape.
     ///   - content: The content.
-    init<Content: View>(shape: S, content: Content) {
+    init<Content: View>(shape: S, renderMode: ShapeRenderMode, content: Content) {
         self.shape = shape
+        self.renderMode = renderMode
         super.init(content: content)
     }
 
@@ -117,7 +173,14 @@ class ShapeViewNode<S: Shape>: ViewNode {
         var context = context
         context.environment = self.environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-        context.draw(path)
+        switch renderMode {
+        case .legacy:
+            context.draw(path)
+        case let .fill(color):
+            context.fill(path, with: color)
+        case let .stroke(color, style):
+            context.stroke(path, with: color, style: style)
+        }
     }
 
     /// Update the shape view node from a new node.
@@ -131,6 +194,7 @@ class ShapeViewNode<S: Shape>: ViewNode {
         }
 
         self.shape = otherNode.shape
+        self.renderMode = otherNode.renderMode
     }
 
     /// The size that fits the shape view node.
@@ -143,6 +207,17 @@ class ShapeViewNode<S: Shape>: ViewNode {
 }
 
 public extension Shape {
+    func fill<S: ShapeStyle>(_ style: S) -> some View {
+        _ShapeStyledView(shape: self, style: style, kind: .fill)
+    }
+
+    func stroke<S: ShapeStyle>(_ style: S, style strokeStyle: StrokeStyle = .init()) -> some View {
+        _ShapeStyledView(shape: self, style: style, kind: .stroke(strokeStyle))
+    }
+
+    func stroke<S: ShapeStyle>(_ style: S, lineWidth: Float = 1) -> some View {
+        self.stroke(style, style: StrokeStyle(lineWidth: lineWidth))
+    }
 
     /// The size that fits the shape.
     ///

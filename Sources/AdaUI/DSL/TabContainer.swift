@@ -656,9 +656,10 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         case .left:   contentEnv.safeAreaInsets.leading = 0
         case .right:  contentEnv.safeAreaInsets.trailing = 0
         }
-        for cachedNode in cachedContentNodes.values {
-            cachedNode.updateEnvironment(contentEnv)
-        }
+        // Keep offscreen cached tabs lazy: propagating environment through every cached
+        // subtree on each layout/env tick makes tab switches scale with the total number
+        // of visited tabs instead of only the visible one.
+        contentNode.updateEnvironment(contentEnv)
     }
 
     override func updateViewOwner(_ owner: ViewOwner) {
@@ -769,6 +770,13 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     /// Updates tab bar button states and swaps the content node without rebuilding nodes.
     private func updateSelectionOnly() {
         let selected = AnyHashable(selectionBinding.wrappedValue)
+        var contentEnv = environment
+        switch position {
+        case .top:    contentEnv.safeAreaInsets.top = 0
+        case .bottom: contentEnv.safeAreaInsets.bottom = 0
+        case .left:   contentEnv.safeAreaInsets.leading = 0
+        case .right:  contentEnv.safeAreaInsets.trailing = 0
+        }
 
         if let defaultBarNode = tabBarNode as? LayoutViewContainerNode {
             // Default style: update selection state on existing tab bar buttons in-place (no rebuild)
@@ -796,6 +804,9 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         let wasAlreadyCached = cachedContentNodes[selected] != nil
         let newContentNode = getOrCreateContentNode(for: selected)
         if contentNode !== newContentNode {
+            if !isCustomStyle {
+                contentNode.parent = nil
+            }
             contentNode = newContentNode
             if isCustomStyle {
                 contentProxy.target = newContentNode
@@ -804,20 +815,12 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
             }
         }
 
-        // Only propagate environment and owner to newly created content nodes.
-        // Cached nodes already have the correct environment and owner from when they were first shown.
-        // Phase 2's version guard in updateEnvironment also protects against redundant cascades.
-        if !wasAlreadyCached, let owner {
-            var contentEnv = environment
-            switch position {
-            case .top:    contentEnv.safeAreaInsets.top = 0
-            case .bottom: contentEnv.safeAreaInsets.bottom = 0
-            case .left:   contentEnv.safeAreaInsets.leading = 0
-            case .right:  contentEnv.safeAreaInsets.trailing = 0
-            }
+        // Offscreen cached tabs no longer receive environment updates eagerly, so the
+        // newly selected tab must always be refreshed before it becomes visible.
+        if let owner, (!wasAlreadyCached || newContentNode.owner !== owner) {
             newContentNode.updateViewOwner(owner)
-            newContentNode.updateEnvironment(contentEnv)
         }
+        newContentNode.updateEnvironment(contentEnv)
 
         self.invalidateNearestLayer()
         if let containerView = self.owner?.containerView {
@@ -849,6 +852,9 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
 
         let newContentNode = getOrCreateContentNode(for: selected)
         if contentNode !== newContentNode {
+            if !isCustomStyle {
+                contentNode.parent = nil
+            }
             contentNode = newContentNode
             if isCustomStyle {
                 contentProxy.target = newContentNode
@@ -864,9 +870,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         case .right:  contentEnv.safeAreaInsets.trailing = 0
         }
         if let owner {
-            for cachedNode in cachedContentNodes.values {
-                cachedNode.updateViewOwner(owner)
-            }
+            contentNode.updateViewOwner(owner)
         }
         contentNode.updateEnvironment(contentEnv)
 
