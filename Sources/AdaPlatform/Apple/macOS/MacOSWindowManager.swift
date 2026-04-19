@@ -10,8 +10,8 @@ import AdaRender
 @_spi(Internal) import AdaUI
 import AppKit
 import AdaInput
-import Math
 import AdaUtils
+import Math
 
 // swiftlint:disable cyclomatic_complexity
 final class MacOSWindowManager: UIWindowManager {

@@ -16,6 +16,16 @@ final class IDViewNodeModifier: ViewModifierNode {
 
     var identifier: AnyHashable?
 
+    override func update(from newNode: ViewNode) {
+        guard let other = newNode as? IDViewNodeModifier else {
+            super.update(from: newNode)
+            return
+        }
+
+        self.identifier = other.identifier
+        super.update(from: newNode)
+    }
+
     override func debugColorKey() -> String {
         if let identifier {
             return "id:\(String(reflecting: identifier))"

@@ -9,7 +9,6 @@
 import Metal
 import QuartzCore
 import Math
-import AdaUtils
 import MetalKit
 
 extension MetalRenderBackend {
@@ -58,7 +57,15 @@ extension MetalRenderBackend {
         }
         
         func updateSizeForRenderWindow(_ windowId: WindowID, size: SizeInt) {
-            windows[windowId]?.size = size
+            // Must copy the struct out, mutate, and write back. Optional-chained field
+            // assignment on `Dictionary` value types does not reliably persist the change,
+            // so logical size could stay stuck at the initial window size → stale camera
+            // viewport / main render target while the NSWindow grows (black or frozen UI).
+            guard var window = windows[windowId] else {
+                return
+            }
+            window.size = size
+            windows[windowId] = window
         }
         
         func destroyWindow(by id: WindowID) {

@@ -211,6 +211,24 @@ struct AnimationTests {
     }
 
     @Test
+    func animationRequestsAnotherRedrawWhilePlaying() {
+        let state = BindingBox(false)
+        let tester = ViewTester(rootView: AnimatedOpacityView(isDimmed: state.binding))
+            .setSize(Size(width: 200, height: 200))
+            .performLayout()
+
+        _ = tester.containerView.consumeNeedsDisplay()
+
+        state.value = true
+        tester.invalidateContent()
+        _ = tester.containerView.consumeNeedsDisplay()
+
+        tester.advanceFrame(deltaTime: 0.1)
+
+        #expect(tester.containerView.consumeNeedsDisplay())
+    }
+
+    @Test
     func insertionAndRemovalStillSnapWithoutTransitions() {
         let state = BindingBox(false)
         let tester = ViewTester(rootView: ConditionalInsertionView(isPresented: state.binding))

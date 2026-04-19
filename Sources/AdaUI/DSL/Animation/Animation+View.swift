@@ -90,6 +90,12 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
 
         if animationController.isPlaying {
             animationController.update(deltaTime)
+            // Runtime redraws are pull-driven via `needsDisplay` / `needsLayout`.
+            // Tests advance the tree directly, but the real app only rebuilds render data
+            // when a container requests another frame. Without this, tween values update
+            // internally while the window stays visually frozen until some unrelated event
+            // (for example a resize) triggers layout again.
+            owner?.containerView?.setNeedsLayout()
         }
     }
 }
