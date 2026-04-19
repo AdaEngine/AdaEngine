@@ -178,8 +178,8 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
         for node in self.nodes {
             node.place(in: .zero, anchor: .topLeading, proposal: proposal)
         }
-        
-        super.performLayout()
+
+        self.invalidateLayerIfNeeded()
     }
 
     /// Invalidate the content of the geometry reader view node.

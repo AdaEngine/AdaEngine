@@ -44,4 +44,23 @@ struct FlexibleFrameTests {
         #expect(size.width == 150)
         #expect(size.height == 40)
     }
+
+    @Test
+    func frameMaxInfinityExpandsToParentProposal() {
+        let tester = ViewTester {
+            EmptyView()
+                .frame(width: 120, height: 40)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .accessibilityIdentifier("flex-frame")
+        }
+        .setSize(Size(width: 400, height: 300))
+        .performLayout()
+
+        let size = tester.containerView.viewTree.rootNode.contentNode.sizeThatFits(
+            ProposedViewSize(width: 400, height: 300)
+        )
+
+        #expect(size.width == 400)
+        #expect(size.height == 300)
+    }
 }
