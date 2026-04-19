@@ -357,7 +357,7 @@ public struct UIDrawPass: DrawPass {
         }
         guard let bgTexture = glassBG.texture else {
             assertionFailure(
-                "Glass background texture was never blitted. UIRenderNode should blit the main target into GlassBackgroundTexture on the same command buffer before drawing glass."
+                "Glass background texture was never blitted. UIRenderNode should end the UI pass, blit the main target into GlassBackgroundTexture, then resume before each glass batch."
             )
             return
         }

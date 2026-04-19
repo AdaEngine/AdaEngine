@@ -53,8 +53,9 @@ public struct UIPlugin: Plugin {
             try renderGraph.wrappedValue.updateSubgraph(by: .main2D) { graph in
                 graph.addNode(UIRenderNode())
 
-                // After Main2D, UIRenderNode blits scene color → GlassBackgroundTexture on the
-                // same command buffer as the UI pass (blur/refraction must see a completed snapshot).
+                // After Main2D, UIRenderNode draws UI; before each render item that contains glass
+                // it ends the pass, blits the main target → GlassBackgroundTexture on the same
+                // command buffer, then resumes (so blur samples ECS plus any UI drawn underneath).
                 graph.removeNodeEdge(from: Main2DRenderNode.name, to: RenderNodeLabel.Main2D.endPass)
                 graph.addNodeEdge(from: Main2DRenderNode.self, to: UIRenderNode.self)
                 graph.addNodeEdge(from: UIRenderNode.name, to: RenderNodeLabel.Main2D.endPass)
