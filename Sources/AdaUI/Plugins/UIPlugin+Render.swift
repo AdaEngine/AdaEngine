@@ -472,19 +472,76 @@ public struct UIRenderTesselationSystem {
             let indices = tessellator.generateLineIndices(vertexOffset: vertexOffset)
             state.renderData.lineIndexBuffer.elements.append(contentsOf: indices)
 
-        case let .drawPath(path):
-            let result = tessellator.tessellatePath(
-                path,
-                lineWidth: state.currentLineWidth,
-                color: .white,
-                transform: .identity
-            )
+        case let .drawPath(path, mode):
+            switch mode {
+            case .legacy:
+                let result = tessellator.tessellatePathStroke(
+                    path,
+                    lineWidth: state.currentLineWidth,
+                    color: .white,
+                    transform: .identity
+                )
 
-            let vertexOffset = UInt32(state.renderData.lineVertexBuffer.count)
-            state.renderData.lineVertexBuffer.elements.append(contentsOf: result.vertices)
+                let vertexOffset = UInt32(state.renderData.lineVertexBuffer.count)
+                state.renderData.lineVertexBuffer.elements.append(contentsOf: result.vertices)
 
-            let indices = result.indices.map { $0 + vertexOffset }
-            state.renderData.lineIndexBuffer.elements.append(contentsOf: indices)
+                let indices = result.indices.map { $0 + vertexOffset }
+                state.renderData.lineIndexBuffer.elements.append(contentsOf: indices)
+
+            case let .stroke(color, style):
+                let result = tessellator.tessellatePathStroke(
+                    path,
+                    lineWidth: style.lineWidth,
+                    color: color,
+                    transform: .identity
+                )
+
+                let vertexOffset = UInt32(state.renderData.lineVertexBuffer.count)
+                state.renderData.lineVertexBuffer.elements.append(contentsOf: result.vertices)
+
+                let indices = result.indices.map { $0 + vertexOffset }
+                state.renderData.lineIndexBuffer.elements.append(contentsOf: indices)
+
+            case let .fill(color):
+                let textureToUse = Texture2D.whiteTexture
+                var texIndex = findOrAddTexture(
+                    textureToUse,
+                    in: &state.renderData.textures
+                )
+                if texIndex == nil {
+                    flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+                    texIndex = findOrAddTexture(
+                        textureToUse,
+                        in: &state.renderData.textures
+                    )
+                }
+                guard let texIndex else {
+                    return
+                }
+
+                let result = tessellator.tessellatePathFill(
+                    path,
+                    color: color,
+                    transform: .identity,
+                    textureIndex: texIndex
+                )
+                guard !result.indices.isEmpty else {
+                    return
+                }
+
+                let vertexOffset = UInt32(state.renderData.quadVertexBuffer.count)
+                state.renderData.quadVertexBuffer.elements.append(contentsOf: result.vertices)
+
+                let indexStart = state.renderData.quadIndexBuffer.count
+                let indices = result.indices.map { $0 + vertexOffset }
+                state.renderData.quadIndexBuffer.elements.append(contentsOf: indices)
+                appendBatch(
+                    textureIndex: texIndex,
+                    indexStart: indexStart,
+                    indexCount: indices.count,
+                    batches: &state.renderData.quadBatches
+                )
+            }
 
         case let .drawText(textLayout, transform):
             // Calculate text centering offset
