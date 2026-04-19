@@ -47,4 +47,21 @@ struct TextRenderingRegressionTests {
 
         #expect(hasVisibleQuad)
     }
+
+    @Test
+    func geometryReader_keepsFixedSizeChildAtTopLeadingOrigin() {
+        let tester = ViewTester {
+            GeometryReader { _ in
+                Color.red
+                    .frame(width: 100, height: 50)
+                    .accessibilityIdentifier("geometry-fixed-child")
+            }
+        }
+        .setSize(Size(width: 1200, height: 800))
+        .performLayout()
+
+        let childNode = tester.findNodeByAccessibilityIdentifier("geometry-fixed-child")
+
+        #expect(childNode?.frame == Rect(x: 0, y: 0, width: 100, height: 50))
+    }
 }

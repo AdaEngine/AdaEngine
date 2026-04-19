@@ -157,6 +157,17 @@ final class FrameViewNode: ViewModifierNode {
                 maxBound: maxH,
                 parentCap: proposal.height
             )
+
+            measured.width = Self.expandFlexibleAxis(
+                measured.width,
+                maxBound: maxW,
+                parentCap: proposal.width
+            )
+            measured.height = Self.expandFlexibleAxis(
+                measured.height,
+                maxBound: maxH,
+                parentCap: proposal.height
+            )
             return measured
         }
     }
@@ -245,6 +256,20 @@ final class FrameViewNode: ViewModifierNode {
             v = Swift.min(v, cap)
         }
         return v
+    }
+
+    /// SwiftUI-style flexible frame: `maxWidth: .infinity` / `maxHeight: .infinity`
+    /// should expand the frame to the parent's finite proposal.
+    private static func expandFlexibleAxis(
+        _ value: Float,
+        maxBound: Float?,
+        parentCap: Float?
+    ) -> Float {
+        guard let maxBound, !maxBound.isFinite, let parentCap, parentCap.isFinite else {
+            return value
+        }
+
+        return parentCap
     }
 
     private static func placementOrigin(container: Size, alignment: Alignment) -> Point {
