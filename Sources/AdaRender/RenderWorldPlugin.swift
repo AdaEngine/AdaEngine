@@ -178,9 +178,10 @@ public func CreateWindowSurfaces(
                 } else {
                     .windowId(windowId)
                 }
+            let drawable = swapchain.getNextDrawable(device)
             surfaces.windows[ref] = WindowSurface(
                 swapchain: swapchain,
-                currentDrawable: swapchain.getNextDrawable(device)
+                currentDrawable: drawable
             )
         }
     } catch {

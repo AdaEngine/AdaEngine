@@ -86,11 +86,14 @@ private extension UIComponentSystem {
                     view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
                     window.addSubview(view)
                 }
-                let newSize = component.view.sizeThatFits(ProposedViewSize(window.frame.size))
-                let newFrame = Rect(origin: .zero, size: newSize)
+                // Overlay must match the window bounds during live resize. Using only
+                // `sizeThatFits` can under-fill the window while layout is settling, which
+                // breaks UI draw/compositing atop the scene (black or empty content region).
+                let newFrame = Rect(origin: .zero, size: window.frame.size)
                 if view.frame != newFrame {
                     view.frame = newFrame
                     view.layoutSubviews()
+                    redrawRequest.needsRedraw = true
                 }
             }
         case .default:

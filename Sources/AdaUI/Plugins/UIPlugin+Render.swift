@@ -9,6 +9,7 @@ import AdaApp
 import AdaCorePipelines
 import AdaECS
 import AdaRender
+@_spi(Internal) import AdaRender
 import AdaText
 import AdaUtils
 import Logging
@@ -24,6 +25,10 @@ public struct ExtractedUIContexts: Resource {
 
 public struct UIRenderBuildState: Resource {
     public var needsRebuild: Bool = true
+    /// Pixel size of the camera `mainTexture` last used for UI tessellation. When this
+    /// changes (window resize / scale), `UILayerDrawCache` must be cleared: cached quads
+    /// stay in the old pixel space while the UI projection targets the new size.
+    public var lastUITargetPixelSize: SizeInt?
 }
 
 /// Per-layer tessellation cache used during UI render build.
@@ -102,15 +107,38 @@ public struct PendingUIGraphicsContext: Resource {
     public var graphicContexts: ContiguousArray<UIGraphicsContext> = []
 }
 
-@System
+@System(
+    dependencies: [.after("AdaRender.ConfigurateRenderViewTargetSystem")]
+)
 @MainActor
 public func UIRenderPreparing(
-    _ cameras: Query<Camera>,
+    _ viewTargets: Query<Entity, Camera, Ref<RenderViewTarget>>,
     _ uiComponents: Res<ExtractedUIComponents>,
     _ contexts: ResMut<PendingUIGraphicsContext>,
     _ extractedUIContexts: ResMut<ExtractedUIContexts>,
-    _ buildState: Res<UIRenderBuildState>
+    _ buildState: ResMut<UIRenderBuildState>,
+    _ layerDrawCache: ResMut<UILayerDrawCache>
 ) {
+    var latestTargetSize: SizeInt?
+    viewTargets.forEach { _, camera, renderViewTarget in
+        guard camera.isActive else {
+            return
+        }
+        guard case .window = camera.renderTarget else {
+            return
+        }
+        guard let mainTexture = renderViewTarget.mainTexture else {
+            return
+        }
+        latestTargetSize = SizeInt(width: mainTexture.width, height: mainTexture.height)
+    }
+
+    if let latestTargetSize, buildState.lastUITargetPixelSize != latestTargetSize {
+        buildState.lastUITargetPixelSize = latestTargetSize
+        layerDrawCache.entries.removeAll(keepingCapacity: true)
+        buildState.needsRebuild = true
+    }
+
     guard buildState.needsRebuild else {
         return
     }
