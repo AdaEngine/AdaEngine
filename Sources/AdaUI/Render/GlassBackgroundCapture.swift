@@ -9,9 +9,11 @@ import Math
 
 /// Holds the captured background texture used by the glass effect.
 ///
-/// Filled each frame inside ``UIRenderNode`` (blit from the camera main target into this
-/// texture on the **same** command buffer as the UI pass) so GPU ordering is guaranteed.
-/// Glass quads sample from this texture to produce blur and refraction.
+/// Updated inside ``UIRenderNode`` immediately before drawing each UI batch that contains
+/// glass: the render pass is ended, the camera main target is blitted into this texture on
+/// the **same** command buffer, then the UI pass continues with ``loadAction`` so prior
+/// pixels (ECS, `.background()`, etc.) stay in the main target. Glass quads sample this
+/// texture for blur and refraction.
 public final class GlassBackgroundTexture: Resource, @unchecked Sendable {
     public var texture: RenderTexture?
 

@@ -95,7 +95,47 @@ public struct UIRenderNode: RenderNode {
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
             commandBuffer.label = "UI Render + Glass Capture"
 
-            if let glassTex = glassBackground.texture {
+            // Get viewport size
+            let viewportSize = camera.viewport.rect.size
+
+            // Create UI-specific orthographic projection with origin at top-left
+            let uiProjection = Transform3D.createUIProjection(
+                width: viewportSize.width,
+                height: viewportSize.height,
+                scaleFactor: texture.scaleFactor
+            )
+
+            // Update the UI view uniform buffer
+            let uiViewUniform = makeUIViewUniform(
+                projection: uiProjection
+            )
+
+            let uiRenderPassDescriptor = RenderPassDescriptor(
+                label: "UI Render Pass",
+                colorAttachments: [
+                    .init(
+                        texture: texture,
+                        operation: OperationDescriptor(
+                            loadAction: .load,  // Load existing content (don't clear)
+                            storeAction: .store
+                        ),
+                        clearColor: .clear
+                    )
+                ],
+                depthStencilAttachment: nil
+            )
+
+            let renderTargetScissor = Rect(
+                x: 0,
+                y: 0,
+                width: Float(texture.width),
+                height: Float(texture.height)
+            )
+
+            func blitMainTargetToGlassBackground() {
+                guard let glassTex = glassBackground.texture else {
+                    return
+                }
                 let blitEncoder = commandBuffer.beginBlitPass(
                     BlitPassDescriptor(label: "Glass Background Blit")
                 )
@@ -113,61 +153,40 @@ public struct UIRenderNode: RenderNode {
                 blitEncoder.endBlitPass()
             }
 
-            // Get viewport size
-            let viewportSize = camera.viewport.rect.size
-
-            // Create UI-specific orthographic projection with origin at top-left
-            let uiProjection = Transform3D.createUIProjection(
-                width: viewportSize.width,
-                height: viewportSize.height,
-                scaleFactor: texture.scaleFactor
-            )
-
-            // Update the UI view uniform buffer
-            let uiViewUniform = makeUIViewUniform(
-                projection: uiProjection
-            )
-
-            let renderPass = commandBuffer.beginRenderPass(
-                RenderPassDescriptor(
-                    label: "UI Render Pass",
-                    colorAttachments: [
-                        .init(
-                            texture: texture,
-                            operation: OperationDescriptor(
-                                loadAction: .load,  // Load existing content (don't clear)
-                                storeAction: .store
-                            ),
-                            clearColor: .clear
-                        )
-                    ],
-                    depthStencilAttachment: nil
-                )
-            )
-
-            // Set the UI view uniform (not the camera's uniform)
-            renderPass.setVertexBuffer(uiViewUniform, slot: GlobalBufferIndex.viewUniform)
-            renderPass.setViewport(camera.viewport.rect)
-            let renderTargetScissor = Rect(
-                x: 0,
-                y: 0,
-                width: Float(texture.width),
-                height: Float(texture.height)
-            )
+            var renderPass: RenderCommandEncoder?
 
             for item in renderItems.items {
-                // Reset scissor for each item so clip state from previous draws
-                // never leaks into non-clipped UI primitives.
-                renderPass.setScissorRect(renderTargetScissor)
-                try AnyDrawPass(item.drawPass).render(
-                    with: renderPass,
-                    world: context.world,
-                    view: view,
-                    item: item
-                )
+                let itemUsesGlass = !item.drawData.glassIndexBuffer.isEmpty
+
+                if itemUsesGlass {
+                    if let activePass = renderPass {
+                        activePass.endRenderPass()
+                        renderPass = nil
+                    }
+                    blitMainTargetToGlassBackground()
+                }
+
+                if renderPass == nil {
+                    let activePass = commandBuffer.beginRenderPass(uiRenderPassDescriptor)
+                    activePass.setVertexBuffer(uiViewUniform, slot: GlobalBufferIndex.viewUniform)
+                    activePass.setViewport(camera.viewport.rect)
+                    renderPass = activePass
+                }
+
+                if let activePass = renderPass {
+                    // Reset scissor for each item so clip state from previous draws
+                    // never leaks into non-clipped UI primitives.
+                    activePass.setScissorRect(renderTargetScissor)
+                    try AnyDrawPass(item.drawPass).render(
+                        with: activePass,
+                        world: context.world,
+                        view: view,
+                        item: item
+                    )
+                }
             }
 
-            renderPass.endRenderPass()
+            renderPass?.endRenderPass()
             commandBuffer.commit()
         }
 
