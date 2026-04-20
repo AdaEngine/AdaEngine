@@ -75,4 +75,7 @@ public struct TextureDescriptor {
 public protocol GPUTexture: AnyObject {
     var size: SizeInt { get }
     var label: String? { get set }
+
+    /// Replace a region of the texture with new data.
+    func replaceRegion(_ region: RectInt, mipmapLevel: Int, withBytes bytes: UnsafeRawPointer, bytesPerRow: Int)
 }

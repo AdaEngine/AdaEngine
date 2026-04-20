@@ -6,6 +6,7 @@
 //
 
 public struct PointInt: Codable, Equatable, Hashable, Comparable, Sendable {
+    public static let zero = PointInt(x: 0, y: 0)
     public var x: Int
     public var y: Int
 

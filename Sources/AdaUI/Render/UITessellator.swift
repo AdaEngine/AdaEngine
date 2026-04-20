@@ -318,8 +318,8 @@ public struct UITessellator {
             case let .line(to: end):
                 guard let start = currentPoint else { break }
 
-                let startWorld = transform * Vector4(start.x, start.y, 0, 1)
-                let endWorld = transform * Vector4(end.x, end.y, 0, 1)
+                let startWorld = transformedPathPoint(start, with: transform)
+                let endWorld = transformedPathPoint(end, with: transform)
 
                 let vertexOffset = UInt32(vertices.count)
                 vertices.append(contentsOf: tessellateLine(
@@ -376,8 +376,8 @@ public struct UITessellator {
             case .closeSubpath:
                 guard let start = currentPoint, let subStart = subpathStart else { break }
 
-                let startWorld = transform * Vector4(start.x, start.y, 0, 1)
-                let endWorld = transform * Vector4(subStart.x, subStart.y, 0, 1)
+                let startWorld = transformedPathPoint(start, with: transform)
+                let endWorld = transformedPathPoint(subStart, with: transform)
 
                 let vertexOffset = UInt32(vertices.count)
                 vertices.append(contentsOf: tessellateLine(
@@ -434,7 +434,7 @@ public struct UITessellator {
             for point in polygon {
                 vertices.append(
                     QuadVertexData(
-                        position: transform * Vector4(point.x, point.y, 0, 1),
+                        position: transformedPathPoint(point, with: transform),
                         color: color,
                         textureCoordinate: .zero,
                         textureIndex: textureIndex
@@ -472,8 +472,8 @@ public struct UITessellator {
                         2 * oneMinusT * t * control +
                         t * t * end
 
-            let startWorld = transform * Vector4(previousPoint.x, previousPoint.y, 0, 1)
-            let endWorld = transform * Vector4(point.x, point.y, 0, 1)
+            let startWorld = transformedPathPoint(previousPoint, with: transform)
+            let endWorld = transformedPathPoint(point, with: transform)
 
             let vertexOffset = UInt32(vertices.count)
             vertices.append(contentsOf: tessellateLine(
@@ -520,8 +520,8 @@ public struct UITessellator {
                         3 * oneMinusT * t2 * control2 +
                         t3 * end
 
-            let startWorld = transform * Vector4(previousPoint.x, previousPoint.y, 0, 1)
-            let endWorld = transform * Vector4(point.x, point.y, 0, 1)
+            let startWorld = transformedPathPoint(previousPoint, with: transform)
+            let endWorld = transformedPathPoint(point, with: transform)
 
             let vertexOffset = UInt32(vertices.count)
             vertices.append(contentsOf: tessellateLine(
@@ -753,5 +753,12 @@ public struct UITessellator {
         let ab = b - a
         let ac = c - a
         return ab.x * ac.y - ab.y * ac.x
+    }
+
+    private func transformedPathPoint(
+        _ point: Vector2,
+        with transform: Transform3D
+    ) -> Vector4 {
+        transform * Vector4(point.x, -point.y, 0, 1)
     }
 }

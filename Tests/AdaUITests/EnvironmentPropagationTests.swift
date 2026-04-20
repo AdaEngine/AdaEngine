@@ -7,6 +7,7 @@ import Testing
 @testable import AdaUI
 @testable import AdaPlatform
 @testable import AdaUtils
+import Observation
 import Math
 
 // MARK: - Test environment keys
@@ -27,6 +28,33 @@ extension EnvironmentValues {
     fileprivate var testLabel: String {
         get { self[LabelKey.self] }
         set { self[LabelKey.self] = newValue }
+    }
+}
+
+@Observable
+@MainActor
+private final class ObservableEnvironmentModel {
+    var count: Int = 0
+}
+
+@MainActor
+private final class RenderProbe {
+    private(set) var values: [Int] = []
+
+    func record(_ value: Int) {
+        values.append(value)
+    }
+}
+
+@MainActor
+private struct ObservableEnvironmentView: View {
+    @Environment(ObservableEnvironmentModel.self) private var model
+
+    let probe: RenderProbe
+
+    var body: some View {
+        probe.record(model.count)
+        return Text("\(model.count)")
     }
 }
 
@@ -117,5 +145,28 @@ struct EnvironmentPropagationTests {
         let shouldUpdate = subscribedIDs.isEmpty
             || newEnv.hasChangedValues(forKeyIDs: subscribedIDs, comparedTo: oldEnv)
         #expect(shouldUpdate)
+    }
+
+    @Test("@Environment observable invalidates when an observed property changes")
+    func observableEnvironmentTriggersRecomposeOnMemberMutation() async {
+        let model = ObservableEnvironmentModel()
+        let probe = RenderProbe()
+
+        _ = ViewTester {
+            ObservableEnvironmentView(probe: probe)
+                .environment(model)
+        }
+        .setSize(Size(width: 120, height: 60))
+        .performLayout()
+
+        let initialRenderCount = probe.values.count
+        #expect(initialRenderCount > 0)
+        #expect(probe.values.last == 0)
+
+        model.count = 1
+        await Task.yield()
+
+        #expect(probe.values.count > initialRenderCount)
+        #expect(probe.values.last == 1)
     }
 }

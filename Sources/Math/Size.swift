@@ -39,6 +39,16 @@ public extension Size {
     static let infinity = Size(width: .infinity, height: .infinity)
 }
 
+#if canImport(CoreGraphics)
+import CoreGraphics
+public extension Size {
+    @inline(__always)
+    var toCGSize: CGSize {
+        return CGSize(width: Double(self.width), height: Double(self.height))
+    }
+}
+#endif
+
 extension Size: ExpressibleByArrayLiteral {
     public init(arrayLiteral elements: Float...) {
         assert(elements.count == 2, "Array must be contains only two elements.")

@@ -163,7 +163,7 @@ class ShapeViewNode<S: Shape>: ViewNode {
     override func performLayout() {
         super.performLayout()
 
-        self.path = self.shape.path(in: self.frame)
+        self.path = self.shape.path(in: Rect(origin: .zero, size: self.frame.size))
     }
 
     /// Draw the shape view node.

@@ -46,15 +46,11 @@ extension Environment where Value: Observable & AnyObject {
         let storage = ViewContextStorage()
         self.container = storage
         self.readValue = { container in
-            let value = container.values.observableStorage.getValue(observable)
-
-            return withObservationTracking {
-                value
-            } onChange: {
-                MainActor.assumeIsolated {
-                    container.update()
-                }
-            }
+            // Return the injected observable directly.
+            // Member access tracking must happen at the view-body level where properties
+            // like `model.count` are actually read; wrapping only the object reference
+            // here subscribes to the reference itself, not to any of its properties.
+            container.values.observableStorage.getValue(observable)
         }
     }
 }
