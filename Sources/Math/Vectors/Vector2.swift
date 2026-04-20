@@ -90,7 +90,7 @@ public extension Vector2 {
     @inlinable
     @inline(__always)
     var normalized: Vector2 {
-        let length = self.squaredLength
+        let length = sqrt(self.squaredLength)
         if length < Float.ulpOfOne {
             return .zero
         }
@@ -279,6 +279,16 @@ public extension Point {
         )
     }
 }
+
+#if canImport(CoreGraphics)
+import CoreGraphics
+public extension Point {
+    @inline(__always)
+    var toCGPoint: CGPoint {
+        return CGPoint(x: Double(self.x), y: Double(self.y))
+    }
+}
+#endif
 
 /// Returns a vector containing the minimum values for each element of `lhs` and `rhs`.
 ///

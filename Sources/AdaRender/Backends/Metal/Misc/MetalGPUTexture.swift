@@ -124,6 +124,20 @@ final class MetalGPUTexture: GPUTexture {
         self.texture = texture
     }
 
+    public func replaceRegion(_ region: RectInt, mipmapLevel: Int, withBytes bytes: UnsafeRawPointer, bytesPerRow: Int) {
+        let mtlRegion = MTLRegion(
+            origin: MTLOrigin(x: region.origin.x, y: region.origin.y, z: 0),
+            size: MTLSize(width: region.size.width, height: region.size.height, depth: 1)
+        )
+        
+        unsafe self.texture.replace(
+            region: mtlRegion,
+            mipmapLevel: mipmapLevel,
+            withBytes: bytes,
+            bytesPerRow: bytesPerRow
+        )
+    }
+
     // TODO: (Vlad) think about it later
     func getImage() -> Image? {
         if self.texture.isFramebufferOnly {

@@ -472,14 +472,14 @@ public struct UIRenderTesselationSystem {
             let indices = tessellator.generateLineIndices(vertexOffset: vertexOffset)
             state.renderData.lineIndexBuffer.elements.append(contentsOf: indices)
 
-        case let .drawPath(path, mode):
+        case let .drawPath(path, transform, mode):
             switch mode {
             case .legacy:
                 let result = tessellator.tessellatePathStroke(
                     path,
                     lineWidth: state.currentLineWidth,
                     color: .white,
-                    transform: .identity
+                    transform: transform
                 )
 
                 let vertexOffset = UInt32(state.renderData.lineVertexBuffer.count)
@@ -493,7 +493,7 @@ public struct UIRenderTesselationSystem {
                     path,
                     lineWidth: style.lineWidth,
                     color: color,
-                    transform: .identity
+                    transform: transform
                 )
 
                 let vertexOffset = UInt32(state.renderData.lineVertexBuffer.count)
@@ -522,7 +522,7 @@ public struct UIRenderTesselationSystem {
                 let result = tessellator.tessellatePathFill(
                     path,
                     color: color,
-                    transform: .identity,
+                    transform: transform,
                     textureIndex: texIndex
                 )
                 guard !result.indices.isEmpty else {

@@ -182,12 +182,18 @@ public struct UIGraphicsContext: Sendable {
 
     /// Draws path into the graphics context.
     public func draw(_ path: Path) {
-        self.commandQueue.push(.drawPath(path, .legacy))
+        self.commandQueue.push(.drawPath(path, transform: self.transform, .legacy))
     }
 
     /// Fills a path with the provided color.
     public func fill(_ path: Path, with color: Color) {
-        self.commandQueue.push(.drawPath(path, .fill(color: applyOpacityIfNeeded(color))))
+        self.commandQueue.push(
+            .drawPath(
+                path,
+                transform: self.transform,
+                .fill(color: applyOpacityIfNeeded(color))
+            )
+        )
     }
 
     /// Strokes a path with the provided color and style.
@@ -195,6 +201,7 @@ public struct UIGraphicsContext: Sendable {
         self.commandQueue.push(
             .drawPath(
                 path,
+                transform: self.transform,
                 .stroke(
                     color: applyOpacityIfNeeded(color),
                     style: style
@@ -324,7 +331,7 @@ extension UIGraphicsContext {
             color: Color
         )
         case drawLinearGradient(transform: Transform3D, startPoint: Vector2, endPoint: Vector2, stops: [Gradient.Stop])
-        case drawPath(Path, PathDrawingMode)
+        case drawPath(Path, transform: Transform3D, PathDrawingMode)
 
         case drawText(textLayout: TextLayoutManager, transform: Transform3D)
         case drawGlyph(_ glyph: Glyph, transform: Transform3D)

@@ -152,7 +152,7 @@ public extension Transform2D {
     
     var scale: Vector2 {
         get {
-            Vector2(self[0, 0], self[1, 1])
+            Vector2(self.x.length, self.y.length)
         }
         
         set {
@@ -242,8 +242,8 @@ public extension Transform2D {
         return mm * (1 / self.determinant)
     }
     
-    var transpose: Transform3D {
-        return Transform3D(rows: [
+    var transpose: Transform2D {
+        return Transform2D(columns: [
             [self.x.x, self.y.x, self.z.x],
             [self.x.y, self.y.y, self.z.y],
             [self.x.z, self.y.z, self.z.z]

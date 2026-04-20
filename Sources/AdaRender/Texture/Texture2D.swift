@@ -82,6 +82,17 @@ open class Texture2D: Texture, @unchecked Sendable {
         
         super.init(gpuTexture: gpuTexture, sampler: sampler, textureType: .texture2D)
     }
+
+    /// Replace a region of the texture with new data.
+    ///
+    /// - Parameters:
+    ///   - region: The region of the texture to replace.
+    ///   - mipmapLevel: The mipmap level of the texture to replace.
+    ///   - bytes: The data to replace the region with.
+    ///   - bytesPerRow: The number of bytes per row of the data.
+    public func replaceRegion(_ region: RectInt, mipmapLevel: Int = 0, withBytes bytes: UnsafeRawPointer, bytesPerRow: Int) {
+        self.gpuTexture.replaceRegion(region, mipmapLevel: mipmapLevel, withBytes: bytes, bytesPerRow: bytesPerRow)
+    }
     
     // MARK: - Resource & Codable
     

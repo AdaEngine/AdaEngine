@@ -25,6 +25,16 @@ public extension Rect {
     }
 }
 
+#if canImport(CoreGraphics)
+import CoreGraphics
+public extension Rect {
+    @inline(__always)
+    var toCGRect: CGRect {
+        return CGRect(origin: self.origin.toCGPoint, size: self.size.toCGSize)
+    }
+}
+#endif
+
 public extension Rect {
     
     @inline(__always)
@@ -98,6 +108,19 @@ public extension Rect {
     func contains(point: Point) -> Bool {
         point.x >= self.minX && point.x < self.maxX &&
         point.y >= self.minY && point.y < self.maxY
+    }
+
+    /// Returns the intersection of two rectangles.
+    func intersection(_ other: Rect) -> Rect {
+        let minX = max(self.minX, other.minX)
+        let minY = max(self.minY, other.minY)
+        let maxX = min(self.maxX, other.maxX)
+        let maxY = min(self.maxY, other.maxY)
+
+        let width = max(0, maxX - minX)
+        let height = max(0, maxY - minY)
+
+        return Rect(x: minX, y: minY, width: width, height: height)
     }
 
     func intersects(_ other: Rect) -> Bool {

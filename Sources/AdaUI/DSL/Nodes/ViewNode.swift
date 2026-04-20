@@ -84,7 +84,29 @@ class ViewNode: Identifiable {
         self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(type(of: content))
     }
 
-    // MARK: Layout
+    /// Returns true if the node clips its children to its bounds.
+    open var isClipping: Bool {
+        return false
+    }
+
+    /// Calculates the visible frame of the node by intersecting it with all clipping parents.
+    public func calculateVisibleFrame() -> Rect {
+        var visibleFrame = self.absoluteFrame()
+        var currentParent = self.parent
+
+        while let parent = currentParent {
+            if parent.isClipping {
+                let parentFrame = parent.absoluteFrame()
+                visibleFrame = visibleFrame.intersection(parentFrame)
+            }
+            currentParent = parent.parent
+        }
+
+        return visibleFrame
+    }
+
+    // MARK: - Layout
+
 
     func updatePreference<K: PreferenceKey>(key: K.Type, value: K.Value) {
         self.parent?.updatePreference(key: K.self, value: value)

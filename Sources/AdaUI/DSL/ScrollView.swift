@@ -43,6 +43,10 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
 final class ScrollViewNode: LayoutViewContainerNode {
     var axis: Axis = .vertical
 
+    override var isClipping: Bool {
+        return true
+    }
+
     private(set) var contentOffset: Point = .zero
     private var contentSize: Size = .zero
 

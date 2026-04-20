@@ -37,15 +37,6 @@ public struct Path: Sendable {
         ///
         /// After closing the subpath, the current point becomes undefined.
         case closeSubpath
-
-        public static func == (a: Path.Element, b: Path.Element) -> Bool {
-            return false
-            //      switch (a, b) {
-            //      case let (.move(to: lhs), .move(to: rhs)):
-            //        return lhs == rhs
-            //      }
-        }
-
     }
 
     public init() {}
