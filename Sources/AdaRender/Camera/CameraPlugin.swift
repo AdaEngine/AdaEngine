@@ -38,6 +38,7 @@ public struct CameraPlugin: Plugin {
 public struct RenderViewTarget: @unchecked Sendable {
     public var mainTexture: RenderTexture?
     public var outputTexture: RenderTexture?
+    public var depthTexture: RenderTexture?
 
     /// Scene albedo when the 2D lighting pipeline is active; otherwise unused.
     public var sceneColorTexture: RenderTexture?
@@ -76,6 +77,14 @@ func ConfigurateRenderViewTarget(
                 format: .bgra8,
                 debugLabel: "Camera Main Texture"
             )
+            
+            renderViewTarget.depthTexture = RenderTexture(
+                size: viewportSize,
+                scaleFactor: scale,
+                format: .depth_32f_stencil8,
+                debugLabel: "Camera Depth Texture"
+            )
+            
             renderViewTarget.sceneColorTexture = nil
             renderViewTarget.lightAccumTexture = nil
             renderViewTarget.shadowMaskTexture = nil

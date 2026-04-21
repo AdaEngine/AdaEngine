@@ -14,7 +14,8 @@ public struct Mesh: Asset, Sendable {
     @_spi(Internal)
     public let models: [Mesh.Model]
 
-    internal init(models: [Model]) {
+    @_spi(Internal)
+    public init(models: [Model]) {
         self.models = models
         self.bounds = Self.computeAABB(models: models) ?? .empty
     }
@@ -68,6 +69,29 @@ extension Mesh {
         public var indexBuffer: IndexBuffer
         public var indexCount: Int
         public var vertexBuffer: VertexBuffer
+
+        @_spi(Internal)
+        public init(
+            id: Int,
+            materialIndex: Int,
+            primitiveTopology: Mesh.PrimitiveTopology,
+            isUInt32: Bool,
+            meshDescriptor: MeshDescriptor,
+            vertexDescriptor: VertexDescriptor,
+            indexBuffer: IndexBuffer,
+            indexCount: Int,
+            vertexBuffer: VertexBuffer
+        ) {
+            self.id = id
+            self.materialIndex = materialIndex
+            self.primitiveTopology = primitiveTopology
+            self.isUInt32 = isUInt32
+            self.meshDescriptor = meshDescriptor
+            self.vertexDescriptor = vertexDescriptor
+            self.indexBuffer = indexBuffer
+            self.indexCount = indexCount
+            self.vertexBuffer = vertexBuffer
+        }
     }
 
     /// A model consists of a list of parts.
@@ -77,6 +101,12 @@ extension Mesh {
 
         /// Table of parts composing this mesh.
         public var parts: [Part] = []
+
+        @_spi(Internal)
+        public init(name: String, parts: [Part]) {
+            self.name = name
+            self.parts = parts
+        }
     }
 }
 

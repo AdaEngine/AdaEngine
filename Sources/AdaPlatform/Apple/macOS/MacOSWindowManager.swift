@@ -39,9 +39,17 @@ final class MacOSWindowManager: UIWindowManager {
             height: CGFloat(size.height)
         )
         
+        let rootContentView = NSView(frame: NSRect(origin: .zero, size: contentRect.size))
+        rootContentView.autoresizesSubviews = true
+
         /// Register view in engine
-        let metalView = MetalView(windowId: window.id, frame: contentRect)
+        let metalView = MetalView(
+            windowId: window.id,
+            frame: NSRect(origin: .zero, size: contentRect.size)
+        )
         metalView.windowManager = self
+        metalView.autoresizingMask = [.width, .height]
+        rootContentView.addSubview(metalView)
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
 
         let systemWindow = NSWindow(
@@ -51,7 +59,7 @@ final class MacOSWindowManager: UIWindowManager {
             defer: false
         )
 
-        systemWindow.contentView = metalView
+        systemWindow.contentView = rootContentView
         systemWindow.collectionBehavior = .fullScreenPrimary
         systemWindow.center()
         systemWindow.isRestorable = false

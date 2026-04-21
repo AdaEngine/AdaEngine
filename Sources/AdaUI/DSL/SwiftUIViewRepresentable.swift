@@ -43,6 +43,8 @@ private struct AppKitWrapper<Content: SwiftUI.View>: AppKitViewRepresentable {
     let content: Content
     func makeNSView(context: Context) -> NSHostingView<Content> {
         let view = NSHostingView(rootView: content)
+        view.isFlipped = true
+        view.wantsLayer = true
         view.layer?.isOpaque = false
         return view
     }

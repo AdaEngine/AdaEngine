@@ -9,6 +9,9 @@
 @_spi(Internal) import AdaRender
 import AdaUtils
 import Math
+#if canImport(MapKit)
+import MapKit
+#endif
 
 #if canImport(AppKit) || canImport(UIKit)
 
@@ -19,6 +22,7 @@ protocol NativeViewRepresentableInternal {
     func updateNativeView(_ view: Any, context: NativeViewHostContext)
     func sizeThatFits(_ proposal: ProposedViewSize, view: Any, context: NativeViewHostContext) -> Size
     func makeNativeCoordinator() -> Any
+    func dismantleNativeView(_ view: Any, coordinator: Any)
 }
 
 struct NativeViewHostContext {
@@ -57,6 +61,10 @@ extension AppKitViewRepresentable {
     func makeNativeCoordinator() -> Any {
         return (self as Self).makeCoordinator()
     }
+
+    func dismantleNativeView(_ view: Any, coordinator: Any) {
+        Self.dismantleNSView(view as! NSViewType, coordinator: coordinator as! Coordinator)
+    }
 }
 
 extension AppKitViewRepresentableView: NativeViewRepresentableInternal {
@@ -71,6 +79,9 @@ extension AppKitViewRepresentableView: NativeViewRepresentableInternal {
     }
     func makeNativeCoordinator() -> Any {
         representable.makeNativeCoordinator()
+    }
+    func dismantleNativeView(_ view: Any, coordinator: Any) {
+        representable.dismantleNativeView(view, coordinator: coordinator)
     }
 }
 
@@ -107,6 +118,10 @@ extension UIKitViewRepresentable {
     func makeNativeCoordinator() -> Any {
         return (self as Self).makeCoordinator()
     }
+
+    func dismantleNativeView(_ view: Any, coordinator: Any) {
+        Self.dismantleUIView(view as! UIViewType, coordinator: coordinator as! Coordinator)
+    }
 }
 
 extension UIKitViewRepresentableView: NativeViewRepresentableInternal {
@@ -122,6 +137,9 @@ extension UIKitViewRepresentableView: NativeViewRepresentableInternal {
     func makeNativeCoordinator() -> Any {
         representable.makeNativeCoordinator()
     }
+    func dismantleNativeView(_ view: Any, coordinator: Any) {
+        representable.dismantleNativeView(view, coordinator: coordinator)
+    }
 }
 
 #endif
@@ -129,12 +147,18 @@ extension UIKitViewRepresentableView: NativeViewRepresentableInternal {
 @MainActor
 final class NativeViewHostNode: ViewNode {
     
-    let representable: any NativeViewRepresentableInternal
+    private var representable: any NativeViewRepresentableInternal
     private var nativeView: Any?
     private var coordinator: Any?
     
     private var offscreenTexture: Texture2D?
     private var isOverlayAttached = false
+    private let offscreenSupersamplingMultiplier: Float = 2
+    private let maxOffscreenScale: Float = 4
+    #if canImport(AppKit) && os(macOS)
+    private weak var activeAppKitMouseTarget: NSView?
+    private weak var activeAppKitPressedControl: NSControl?
+    #endif
     
     init<V: View>(representable: any NativeViewRepresentableInternal, content: V) {
         self.representable = representable
@@ -156,7 +180,7 @@ final class NativeViewHostNode: ViewNode {
         
         representable.updateNativeView(nativeView!, context: context)
         
-        let mode = environment.nativeRenderingMode
+        let mode = resolvedRenderingMode()
         switch mode {
         case .overlay:
             updateOverlay()
@@ -193,13 +217,13 @@ final class NativeViewHostNode: ViewNode {
         }
         
         #if canImport(AppKit) && os(macOS)
-        if let nsWindow = systemWindow as? NSWindow, let metalView = nsWindow.contentView, let nsView = nativeView as? NSView {
-            if nsView.superview != metalView {
-                metalView.addSubview(nsView)
+        if let nsWindow = systemWindow as? NSWindow, let overlayHostView = nsWindow.contentView, let nsView = nativeView as? NSView {
+            if unsafe nsView.superview != overlayHostView {
+                overlayHostView.addSubview(nsView)
                 isOverlayAttached = true
             }
             
-            let absoluteFrame = self.absoluteFrame()
+            let absoluteFrame = self.visualAbsoluteFrame()
             // In AppKit, Y-axis is flipped compared to AdaUI (which uses top-left origin)
             let windowHeight = Float(nsWindow.contentRect(forFrameRect: nsWindow.frame).height)
             nsView.frame = NSRect(
@@ -234,7 +258,7 @@ final class NativeViewHostNode: ViewNode {
                     parent.addSubview(uiView)
                     isOverlayAttached = true
                 }
-                let absoluteFrame = self.absoluteFrame()
+                let absoluteFrame = self.visualAbsoluteFrame()
                 uiView.frame = CGRect(
                     x: CGFloat(absoluteFrame.origin.x),
                     y: CGFloat(absoluteFrame.origin.y),
@@ -281,6 +305,25 @@ final class NativeViewHostNode: ViewNode {
     
     private func updateOffscreen() {
         detachFromOverlay()
+        prepareNativeViewForOffscreenRendering()
+    }
+
+    override func didMove(to parent: ViewNode?) {
+        super.didMove(to: parent)
+
+        if parent == nil {
+            cleanupNativeView()
+        }
+    }
+
+    override func update(from newNode: ViewNode) {
+        guard let newNode = newNode as? NativeViewHostNode else {
+            super.update(from: newNode)
+            return
+        }
+
+        self.representable = newNode.representable
+        super.update(from: newNode)
     }
     
     #if canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
@@ -301,7 +344,7 @@ final class NativeViewHostNode: ViewNode {
     }
     
     override func onMouseEvent(_ event: MouseEvent) {
-        if environment.nativeRenderingMode == .offscreen {
+        if resolvedRenderingMode() == .offscreen {
             if event.button == .scrollWheel {
                 forwardScrollEvent(event)
             } else {
@@ -313,47 +356,109 @@ final class NativeViewHostNode: ViewNode {
     private func forwardMouseEvent(_ event: MouseEvent) {
         guard let nativeView = self.nativeView else { return }
         
-        let absoluteOrigin = self.absoluteFrame().origin
-        let localPoint = Point(
-            x: event.mousePosition.x - absoluteOrigin.x,
-            y: event.mousePosition.y - absoluteOrigin.y
-        )
-        
         #if canImport(AppKit) && os(macOS)
-        if let nsView = nativeView as? NSView, let window = nsView.window {
-            let timestamp = ProcessInfo.processInfo.systemUptime
+        if let nsView = nativeView as? NSView, let nsWindow = owner?.window?.systemWindow as? NSWindow {
+            let timestamp = Double(event.time)
             let eventType: NSEvent.EventType
             
             switch event.phase {
-            case .began: 
-                eventType = .leftMouseDown
-            case .changed: 
-                eventType = .leftMouseDragged
-            case .ended: 
-                eventType = .leftMouseUp
-            case .cancelled: 
+            case .began:
+                switch event.button {
+                case .left:
+                    eventType = .leftMouseDown
+                case .right:
+                    eventType = .rightMouseDown
+                case .middle:
+                    eventType = .otherMouseDown
+                case .none, .scrollWheel:
+                    return
+                }
+            case .changed:
+                switch event.button {
+                case .left:
+                    eventType = .leftMouseDragged
+                case .right:
+                    eventType = .rightMouseDragged
+                case .middle:
+                    eventType = .otherMouseDragged
+                case .none, .scrollWheel:
+                    return
+                }
+            case .ended:
+                switch event.button {
+                case .left:
+                    eventType = .leftMouseUp
+                case .right:
+                    eventType = .rightMouseUp
+                case .middle:
+                    eventType = .otherMouseUp
+                case .none, .scrollWheel:
+                    return
+                }
+            case .cancelled:
+                activeAppKitMouseTarget = nil
+                activeAppKitPressedControl = nil
                 return
             }
             
-            let windowPoint = NSPoint(x: CGFloat(localPoint.x), y: CGFloat(nsView.bounds.height - CGFloat(localPoint.y)))
+            let windowPoint = appKitWindowPoint(from: event.mousePosition, in: nsWindow)
+            let localPoint = appKitLocalPoint(from: event.mousePosition, in: nsView)
+            let currentHitView = nsView.hitTest(localPoint)
+            let targetView: NSView
+
+            switch event.phase {
+            case .began:
+                targetView = currentHitView ?? nsView
+                activeAppKitMouseTarget = targetView
+                activeAppKitPressedControl = nearestAppKitControl(from: targetView)
+            case .changed, .ended:
+                targetView = activeAppKitMouseTarget ?? currentHitView ?? nsView
+            case .cancelled:
+                targetView = nsView
+            }
             
             if let nsEvent = NSEvent.mouseEvent(
                 with: eventType,
                 location: windowPoint,
-                modifierFlags: [],
+                modifierFlags: appKitModifierFlags(from: event.modifierKeys),
                 timestamp: timestamp,
-                windowNumber: window.windowNumber,
+                windowNumber: nsWindow.windowNumber,
                 context: nil,
                 eventNumber: 0,
                 clickCount: 1,
                 pressure: event.phase == .ended ? 0.0 : 1.0
             ) {
                 switch eventType {
-                case .leftMouseDown: nsView.mouseDown(with: nsEvent)
-                case .leftMouseUp: nsView.mouseUp(with: nsEvent)
-                case .leftMouseDragged: nsView.mouseDragged(with: nsEvent)
+                case .leftMouseDown:
+                    targetView.mouseDown(with: nsEvent)
+                case .leftMouseUp:
+                    targetView.mouseUp(with: nsEvent)
+                case .leftMouseDragged:
+                    targetView.mouseDragged(with: nsEvent)
+                case .rightMouseDown:
+                    targetView.rightMouseDown(with: nsEvent)
+                case .rightMouseUp:
+                    targetView.rightMouseUp(with: nsEvent)
+                case .rightMouseDragged:
+                    targetView.rightMouseDragged(with: nsEvent)
+                case .otherMouseDown:
+                    targetView.otherMouseDown(with: nsEvent)
+                case .otherMouseUp:
+                    targetView.otherMouseUp(with: nsEvent)
+                case .otherMouseDragged:
+                    targetView.otherMouseDragged(with: nsEvent)
                 default: break
                 }
+            }
+
+            if event.phase == .ended {
+                let releasedControl = currentHitView.flatMap { nearestAppKitControl(from: $0) }
+                if let pressedControl = activeAppKitPressedControl,
+                   releasedControl === pressedControl {
+                    triggerAppKitControlClickFallback(pressedControl)
+                }
+                activeAppKitMouseTarget = nil
+                activeAppKitPressedControl = nil
             }
         }
         #endif
@@ -361,14 +466,9 @@ final class NativeViewHostNode: ViewNode {
     
     private func forwardScrollEvent(_ event: MouseEvent) {
         #if canImport(AppKit) && os(macOS)
-        guard let nsView = nativeView as? NSView, let window = nsView.window else { return }
+        guard let nsView = nativeView as? NSView, let nsWindow = owner?.window?.systemWindow as? NSWindow else { return }
         
-        let absoluteOrigin = self.absoluteFrame().origin
-        let localPoint = Point(
-            x: event.mousePosition.x - absoluteOrigin.x,
-            y: event.mousePosition.y - absoluteOrigin.y
-        )
-        let windowPoint = NSPoint(x: CGFloat(localPoint.x), y: CGFloat(nsView.bounds.height - CGFloat(localPoint.y)))
+        let windowPoint = appKitWindowPoint(from: event.mousePosition, in: nsWindow)
         
         if let cgEvent = CGEvent(
             scrollWheelEvent2Source: nil,
@@ -378,7 +478,7 @@ final class NativeViewHostNode: ViewNode {
             wheel2: Int32(event.scrollDelta.x),
             wheel3: 0
         ) {
-            cgEvent.location = window.convertPoint(toScreen: windowPoint)
+            cgEvent.location = nsWindow.convertPoint(toScreen: windowPoint)
             if let nsEvent = NSEvent(cgEvent: cgEvent) {
                 nsView.scrollWheel(with: nsEvent)
             }
@@ -387,7 +487,7 @@ final class NativeViewHostNode: ViewNode {
     }
     
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
-        if environment.nativeRenderingMode == .offscreen {
+        if resolvedRenderingMode() == .offscreen {
             forwardTouchesEvent(touches)
         }
     }
@@ -415,7 +515,7 @@ final class NativeViewHostNode: ViewNode {
         // Simple tap simulation for offscreen
         for touch in touches {
             if touch.phase == .ended {
-                let absoluteOrigin = self.absoluteFrame().origin
+                let absoluteOrigin = self.visualAbsoluteFrame().origin
                 let localPoint = CGPoint(
                     x: CGFloat(touch.position.x - absoluteOrigin.x),
                     y: CGFloat(touch.position.y - absoluteOrigin.y)
@@ -447,7 +547,7 @@ final class NativeViewHostNode: ViewNode {
     #endif
     
     override func draw(with context: UIGraphicsContext) {
-        if environment.nativeRenderingMode == .offscreen {
+        if resolvedRenderingMode() == .offscreen {
             if let texture = offscreenTexture {
                 var context = context
                 context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
@@ -458,9 +558,10 @@ final class NativeViewHostNode: ViewNode {
     }
     
     override func update(_ deltaTime: AdaUtils.TimeInterval) {
-        if environment.nativeRenderingMode == .offscreen {
+        if resolvedRenderingMode() == .offscreen {
+            updateOffscreen()
             renderOffscreen()
-        } else if environment.nativeRenderingMode == .overlay {
+        } else if resolvedRenderingMode() == .overlay {
             updateOverlay()
         }
     }
@@ -471,7 +572,7 @@ final class NativeViewHostNode: ViewNode {
         let size = self.frame.size
         if size.width <= 0 || size.height <= 0 { return }
         
-        let scale = max(environment.scaleFactor, 1)
+        let scale = effectiveOffscreenScale()
         let pixelSize = SizeInt(
             width: Int(size.width * scale),
             height: Int(size.height * scale)
@@ -489,6 +590,7 @@ final class NativeViewHostNode: ViewNode {
         }
         
         guard let texture = offscreenTexture else { return }
+        prepareNativeViewForOffscreenRendering(scale: scale)
         
         #if canImport(AppKit) && os(macOS)
         if let nsView = nativeView as? NSView {
@@ -498,7 +600,7 @@ final class NativeViewHostNode: ViewNode {
             let colorSpace = CGColorSpaceCreateDeviceRGB()
             let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
             
-            guard let context = CGContext(
+            guard let context = unsafe CGContext(
                 data: nil,
                 width: width,
                 height: height,
@@ -515,13 +617,13 @@ final class NativeViewHostNode: ViewNode {
                 layer.render(in: context)
             } else {
                 let prevContext = NSGraphicsContext.current
-                NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+                NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: nsView.isFlipped)
                 nsView.displayIgnoringOpacity(nsView.bounds)
                 NSGraphicsContext.current = prevContext
             }
             
-            if let data = context.data {
-                texture.replaceRegion(
+            if let data = unsafe context.data {
+                unsafe texture.replaceRegion(
                     RectInt(origin: .zero, size: pixelSize),
                     withBytes: data,
                     bytesPerRow: width * 4
@@ -560,6 +662,175 @@ final class NativeViewHostNode: ViewNode {
             }
         }
         #endif
+    }
+
+    private func prepareNativeViewForOffscreenRendering(scale: Float? = nil) {
+        let size = self.frame.size
+        guard size.width > 0, size.height > 0 else { return }
+
+        #if canImport(AppKit) && os(macOS)
+        if let nsView = nativeView as? NSView {
+            let targetFrame = NSRect(
+                x: 0,
+                y: 0,
+                width: CGFloat(size.width),
+                height: CGFloat(size.height)
+            )
+
+            if nsView.frame != targetFrame {
+                nsView.frame = targetFrame
+            }
+            if nsView.bounds != targetFrame {
+                nsView.bounds = targetFrame
+            }
+
+            nsView.needsLayout = true
+            nsView.layoutSubtreeIfNeeded()
+            nsView.needsDisplay = true
+            nsView.displayIfNeeded()
+
+            if let layer = nsView.layer {
+                layer.contentsScale = CGFloat(scale ?? max(environment.scaleFactor, 1))
+                layer.setNeedsDisplay()
+                layer.displayIfNeeded()
+            }
+        }
+        #elseif canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
+        if let uiView = nativeView as? UIView {
+            let targetFrame = CGRect(
+                x: 0,
+                y: 0,
+                width: CGFloat(size.width),
+                height: CGFloat(size.height)
+            )
+
+            if uiView.frame != targetFrame {
+                uiView.frame = targetFrame
+            }
+            if uiView.bounds != targetFrame {
+                uiView.bounds = targetFrame
+            }
+
+            uiView.contentScaleFactor = CGFloat(scale ?? max(environment.scaleFactor, 1))
+            uiView.setNeedsLayout()
+            uiView.layoutIfNeeded()
+            uiView.setNeedsDisplay()
+        }
+        #endif
+    }
+
+    private func effectiveOffscreenScale() -> Float {
+        let baseScale = max(environment.scaleFactor, platformBackingScaleFactor(), 1)
+        return min(baseScale * offscreenSupersamplingMultiplier, maxOffscreenScale)
+    }
+
+    private func platformBackingScaleFactor() -> Float {
+        #if canImport(AppKit) && os(macOS)
+        if let nsWindow = owner?.window?.systemWindow as? NSWindow {
+            return Float(nsWindow.backingScaleFactor)
+        }
+        #elseif canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
+        if let uiWindow = owner?.window?.systemWindow as? UIWindow {
+            return Float(uiWindow.screen.scale)
+        }
+        #endif
+
+        return 1
+    }
+
+    #if canImport(AppKit) && os(macOS)
+    private func appKitWindowPoint(from windowPosition: Point, in nsWindow: NSWindow) -> NSPoint {
+        let windowHeight = Float(nsWindow.contentRect(forFrameRect: nsWindow.frame).height)
+        return NSPoint(
+            x: CGFloat(windowPosition.x),
+            y: CGFloat(windowHeight - windowPosition.y)
+        )
+    }
+
+    private func appKitLocalPoint(from windowPosition: Point, in nsView: NSView) -> NSPoint {
+        let absoluteOrigin = visualAbsoluteFrame().origin
+        let x = windowPosition.x - absoluteOrigin.x
+        let y = windowPosition.y - absoluteOrigin.y
+        let localY = nsView.isFlipped ? y : Float(nsView.bounds.height) - y
+        return NSPoint(x: CGFloat(x), y: CGFloat(localY))
+    }
+
+    private func appKitModifierFlags(from modifiers: KeyModifier) -> NSEvent.ModifierFlags {
+        var flags = NSEvent.ModifierFlags()
+
+        if modifiers.contains(.alt) {
+            flags.insert(.option)
+        }
+        if modifiers.contains(.main) {
+            flags.insert(.command)
+        }
+        if modifiers.contains(.control) {
+            flags.insert(.control)
+        }
+        if modifiers.contains(.shift) {
+            flags.insert(.shift)
+        }
+        if modifiers.contains(.capsLock) {
+            flags.insert(.capsLock)
+        }
+
+        return flags
+    }
+
+    private func nearestAppKitControl(from view: NSView) -> NSControl? {
+        var current: NSView? = view
+        while let node = current {
+            if let control = node as? NSControl {
+                return control
+            }
+            current = node.superview
+        }
+        return nil
+    }
+
+    private func triggerAppKitControlClickFallback(_ control: NSControl) {
+        if let button = control as? NSButton {
+            button.performClick(nil)
+            return
+        }
+
+        if let action = control.action {
+            NSApp.sendAction(action, to: control.target, from: control)
+        }
+    }
+    #endif
+
+    private func cleanupNativeView() {
+        detachFromOverlay()
+
+        if let nativeView, let coordinator {
+            representable.dismantleNativeView(nativeView, coordinator: coordinator)
+        }
+
+        self.nativeView = nil
+        self.coordinator = nil
+        self.offscreenTexture = nil
+    }
+
+    private func resolvedRenderingMode() -> NativeRenderingMode {
+        if requiresLiveOverlayRendering() {
+            return .overlay
+        }
+        return environment.nativeRenderingMode
+    }
+
+    private func requiresLiveOverlayRendering() -> Bool {
+        guard let nativeView else {
+            return false
+        }
+
+        #if canImport(MapKit)
+        if nativeView is MKMapView {
+            return true
+        }
+        #endif
+
+        return false
     }
 }
 

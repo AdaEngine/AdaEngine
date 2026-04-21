@@ -142,6 +142,15 @@ public extension Image {
             format: image.format
         )
     }
+    
+    /// Decode image from data.
+    /// - Parameter data: Image data.
+    /// - Returns: Decoded image.
+    public static func decode(from data: Data) throws -> Image {
+        // FIXME: (Vlad) We should detect the format of the image.
+        let loader = PNGImageSerializer()
+        return try loader.decodeImage(from: data)
+    }
 }
 
 extension Image: Asset {

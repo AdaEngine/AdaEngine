@@ -71,19 +71,25 @@ open class MetalView: MTKView {
         #if canImport(UIKit)
         let scale = self.window?.screen.scale ?? UIScreen.main.scale
         self.contentScaleFactor = scale
-        let drawableSize = CGSize(
-            width: bounds.width * scale,
-            height: bounds.height * scale
-        )
         self.layer.contentsScale = scale
         #elseif canImport(AppKit)
         let scale = self.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 1
-        let drawableSize = CGSize(
-            width: bounds.width * scale,
-            height: bounds.height * scale
-        )
         self.layer?.contentsScale = scale
         #endif
+
+        let drawableSize = CGSize(
+            width: ceil(bounds.width * scale),
+            height: ceil(bounds.height * scale)
+        )
+
+        guard drawableSize.width > 0, drawableSize.height > 0 else {
+            if let metalLayer = self.layer as? CAMetalLayer {
+                metalLayer.isOpaque = true
+                metalLayer.frame = bounds
+                metalLayer.contentsScale = scale
+            }
+            return
+        }
 
         self.drawableSize = drawableSize
 

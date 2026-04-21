@@ -59,6 +59,9 @@ public protocol UIKitViewRepresentable: View {
     ///
     /// - Returns: The coordinator.
     func makeCoordinator() -> Coordinator
+
+    /// Cleans up the UIKit view and coordinator before removal.
+    static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator)
 }
 
 public extension UIKitViewRepresentable where Coordinator == Void {
@@ -72,6 +75,10 @@ public extension UIKitViewRepresentable where Coordinator == Void {
 }
 
 public extension UIKitViewRepresentable {
+    static func dismantleUIView(_ uiView: UIViewType, coordinator: Coordinator) {
+        _ = uiView
+        _ = coordinator
+    }
 
     /// The size that fits the UIKitViewRepresentable.
     ///

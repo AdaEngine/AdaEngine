@@ -59,6 +59,9 @@ public protocol AppKitViewRepresentable: View {
     ///
     /// - Returns: The coordinator.
     func makeCoordinator() -> Coordinator
+
+    /// Cleans up the AppKit view and coordinator before removal.
+    static func dismantleNSView(_ nsView: NSViewType, coordinator: Coordinator)
 }
 
 public extension AppKitViewRepresentable where Coordinator == Void {
@@ -72,6 +75,10 @@ public extension AppKitViewRepresentable where Coordinator == Void {
 }
 
 public extension AppKitViewRepresentable {
+    static func dismantleNSView(_ nsView: NSViewType, coordinator: Coordinator) {
+        _ = nsView
+        _ = coordinator
+    }
 
     /// The size that fits the AppKitViewRepresentable.
     ///
