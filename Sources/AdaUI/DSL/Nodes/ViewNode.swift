@@ -91,12 +91,12 @@ class ViewNode: Identifiable {
 
     /// Calculates the visible frame of the node by intersecting it with all clipping parents.
     public func calculateVisibleFrame() -> Rect {
-        var visibleFrame = self.absoluteFrame()
+        var visibleFrame = self.visualAbsoluteFrame()
         var currentParent = self.parent
 
         while let parent = currentParent {
             if parent.isClipping {
-                let parentFrame = parent.absoluteFrame()
+                let parentFrame = parent.visualAbsoluteFrame()
                 visibleFrame = visibleFrame.intersection(parentFrame)
             }
             currentParent = parent.parent
@@ -137,12 +137,11 @@ class ViewNode: Identifiable {
         }
     }
 
-    /// Updates stored environment and VCS values without triggering re-renders.
-    /// Used during reconciliation (update(from:)) to avoid re-entrant invalidation.
-    private func applyEnvironmentSilently(_ parentEnvironment: EnvironmentValues) {
-        var env = parentEnvironment
-        environmentTransform?(&env)
-        self.environment = env
+    /// Stores an already-resolved environment and syncs VCS values without triggering re-renders.
+    /// Used during reconciliation (update(from:)) where `newNode.environment` already contains
+    /// all inherited and transformed values.
+    private func applyResolvedEnvironmentSilently(_ environment: EnvironmentValues) {
+        self.environment = environment
         storages.forEach { storage in
             guard let viewContextStorage = storage as? ViewContextStorage else { return }
             viewContextStorage.values = self.environment
@@ -212,7 +211,8 @@ class ViewNode: Identifiable {
     /// Update current node with a new. This method called after ``invalidationContent()`` method
     /// and if view exists in tree, we should update exsiting view using ``ViewNode/update(_:)`` method.
     func update(from newNode: ViewNode) {
-        self.applyEnvironmentSilently(newNode.environment)
+        self.environmentTransform = newNode.environmentTransform
+        self.applyResolvedEnvironmentSilently(newNode.environment)
         self.setContent(newNode.content)
         self.rebindStorages()
     }
@@ -264,6 +264,27 @@ class ViewNode: Identifiable {
             origin += parent.frame.origin
             currentParent = parent.parent
         }
+        return Rect(origin: origin, size: localFrame.size)
+    }
+
+    /// Returns the node frame in root coordinates after applying ancestor scroll offsets.
+    func visualAbsoluteFrame() -> Rect {
+        return visualAbsoluteFrame(using: self.frame)
+    }
+
+    func visualAbsoluteFrame(using localFrame: Rect) -> Rect {
+        var origin = localFrame.origin
+        var currentParent = self.parent
+
+        while let parent = currentParent {
+            origin += parent.frame.origin
+            if let scrollNode = parent as? ScrollViewNode {
+                origin.x -= scrollNode.contentOffset.x
+                origin.y -= scrollNode.contentOffset.y
+            }
+            currentParent = parent.parent
+        }
+
         return Rect(origin: origin, size: localFrame.size)
     }
 

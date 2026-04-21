@@ -313,6 +313,7 @@ var targets: [Target] = [
         dependencies: [
             "AdaApp",
             "AdaUtils",
+            "Math",
             "Yams"
         ],
         swiftSettings: swiftSettings
@@ -1130,6 +1131,9 @@ let examplesTargets: [Target] = [
 
     // MARK: Example
     .exampleTarget(name: "SimpleCollideEventExample", path: "Events"),
+
+    // MARK: 3D
+    .exampleTarget(name: "SimpleCubeExample", path: "3d"),
 ]
 
 package.targets.append(contentsOf: examplesTargets)

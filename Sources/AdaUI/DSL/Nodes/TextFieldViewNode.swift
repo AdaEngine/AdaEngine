@@ -971,20 +971,10 @@ extension TextFieldViewNode {
     }
 
     func visualAbsoluteContentRect() -> Rect {
-        var origin = self.frame.origin
-        var currentParent = self.parent
-        while let parent = currentParent {
-            origin.x += parent.frame.origin.x
-            origin.y += parent.frame.origin.y
-            if let scrollNode = parent as? ScrollViewNode {
-                origin.x -= scrollNode.contentOffset.x
-                origin.y -= scrollNode.contentOffset.y
-            }
-            currentParent = parent.parent
-        }
+        let absoluteFrame = self.visualAbsoluteFrame()
         return Rect(
-            x: origin.x + Constants.horizontalInset,
-            y: origin.y + Constants.verticalInset,
+            x: absoluteFrame.origin.x + Constants.horizontalInset,
+            y: absoluteFrame.origin.y + Constants.verticalInset,
             width: max(0, self.frame.width - Constants.horizontalInset * 2),
             height: max(0, self.frame.height - Constants.verticalInset * 2)
         )

@@ -13,6 +13,20 @@ public struct Quat: Codable, Sendable {
     public var y: Float
     public var z: Float
     public var w: Float
+
+    public init(x: Float, y: Float, z: Float, w: Float) {
+        self.x = x
+        self.y = y
+        self.z = z
+        self.w = w
+    }
+    
+    public init() {
+        self.x = 0
+        self.y = 0
+        self.z = 0
+        self.w = 0
+    }
 }
 
 extension Quat: Equatable, Hashable {}
@@ -25,13 +39,6 @@ extension Quat: CustomStringConvertible {
 
 public extension Quat {
     static let identity = Quat(x: 0, y: 0, z: 0, w: 1)
-    
-    init() {
-        self.x = 0
-        self.y = 0
-        self.z = 0
-        self.w = 0
-    }
     
     init(rotationMatrix matrix: Transform3D) {
         var quat = Quat.identity

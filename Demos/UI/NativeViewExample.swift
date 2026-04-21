@@ -27,7 +27,7 @@ struct NativeViewExample: AdaEngine.App {
 
 struct NativeViewDemo: AdaEngine.View {
     
-    @AdaEngine.State private var renderingMode: NativeRenderingMode = .offscreen
+    @AdaEngine.State private var renderingMode: NativeRenderingMode = .overlay
     @AdaEngine.State private var showMap = true
     
     var body: some AdaEngine.View {
@@ -126,7 +126,11 @@ struct NativeViewDemo: AdaEngine.View {
 struct NativeMapView: AppKitViewRepresentable {
     func makeNSView(context: Context) -> MKMapView {
         let map = MKMapView()
-        map.wantsLayer = true
+        map.mapType = .standard
+        map.region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
+            span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)
+        )
         return map
     }
     
@@ -137,7 +141,13 @@ struct NativeMapView: AppKitViewRepresentable {
 #elseif os(iOS) || os(tvOS) || os(visionOS)
 struct NativeMapView: UIKitViewRepresentable {
     func makeUIView(context: Context) -> MKMapView {
-        return MKMapView()
+        let map = MKMapView()
+        map.mapType = .standard
+        map.region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
+            span: MKCoordinateSpan(latitudeDelta: 0.15, longitudeDelta: 0.15)
+        )
+        return map
     }
     
     func updateUIView(_ uiView: MKMapView, in context: Context) {

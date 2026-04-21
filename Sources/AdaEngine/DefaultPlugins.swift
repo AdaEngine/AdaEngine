@@ -45,6 +45,7 @@ public struct DefaultPlugins: Plugin {
         insertPlugin(AudioPlugin(), into: &plugins)
         insertPlugin(WindowPlugin(), into: &plugins)
         insertPlugin(Core2DPlugin(), into: &plugins)
+        insertPlugin(Core3DPlugin(), into: &plugins)
         insertPlugin(Light2DPlugin(), into: &plugins)
         insertPlugin(UpscalePlugin(), into: &plugins)
         insertPlugin(UIPlugin(), into: &plugins)

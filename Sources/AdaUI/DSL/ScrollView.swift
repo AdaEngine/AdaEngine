@@ -142,41 +142,34 @@ final class ScrollViewNode: LayoutViewContainerNode {
     private var velocityTracker: [(time: TimeInterval, position: Point)] = []
     private var timeSinceLastScroll: Float = 0
 
-    static let decelerationFriction: Float = 2.0
+    static let decelerationFriction: Float = 1.0
     static let scrollTimeout: Float = 0.05
     static let springStiffness: Float = 400
     static let springDamping: Float = 40
-    static let rubberBandCoefficient: Float = 0.35
+    static let rubberBandCoefficient: Float = 0.02
     static let animationThreshold: Float = 0.5
 
     private var lastScrollEvent: TimeInterval?
+    private var wheelInteractionUsesExplicitPhases = false
 
     override func onMouseEvent(_ event: MouseEvent) {
         guard event.button == .scrollWheel else {
             return
         }
 
-        let isNewPhase: Bool
-        if let lastScroll = lastScrollEvent {
-            isNewPhase = event.time > lastScroll + Self.scrollTimeout
-        } else {
-            isNewPhase = true
-        }
-
-        timeSinceLastScroll = 0
-        lastScrollEvent = event.time
-
-        if isNewPhase {
-            accumulativePoint = .zero
-            velocity = .zero
-            state = .dragging(initialOffset: self.contentOffset)
-            return
-        }
-
-        self.accumulativePoint.x += event.scrollDelta.x * 100
-        self.accumulativePoint.y += event.scrollDelta.y * 100
-        if case .dragging(let initialOffset) = state {
-            setContentOffset(rubberBandOffset(initialOffset - accumulativePoint))
+        switch event.phase {
+        case .began:
+            beginWheelInteraction(explicitPhases: true)
+            recordWheelEvent(at: event.time)
+            applyWheelDelta(event.scrollDelta)
+        case .changed:
+            if !isWheelInteractionActive {
+                beginWheelInteraction(explicitPhases: false)
+            }
+            recordWheelEvent(at: event.time)
+            applyWheelDelta(event.scrollDelta)
+        case .ended, .cancelled:
+            finishWheelInteraction()
         }
     }
 
@@ -233,17 +226,10 @@ final class ScrollViewNode: LayoutViewContainerNode {
     override func update(_ deltaTime: TimeInterval) {
         super.update(deltaTime)
 
-        if lastScrollEvent != nil, case .dragging = state {
+        if !wheelInteractionUsesExplicitPhases, lastScrollEvent != nil, case .dragging = state {
             timeSinceLastScroll += deltaTime
             if timeSinceLastScroll >= Self.scrollTimeout {
-                lastScrollEvent = nil
-                timeSinceLastScroll = 0
-                if calculateOverscroll(contentOffset) != .zero {
-                    velocity = .zero
-                    state = .animating
-                } else {
-                    state = .idle
-                }
+                finishWheelInteraction()
             }
         }
 
@@ -324,6 +310,52 @@ final class ScrollViewNode: LayoutViewContainerNode {
         }
 
         return abs(velocity) < Self.animationThreshold && currentOverscroll < Self.animationThreshold
+    }
+
+    private var isWheelInteractionActive: Bool {
+        if case .dragging = state {
+            return true
+        }
+
+        return false
+    }
+
+    private func beginWheelInteraction(explicitPhases: Bool) {
+        accumulativePoint = .zero
+        velocity = .zero
+        timeSinceLastScroll = 0
+        lastScrollEvent = nil
+        wheelInteractionUsesExplicitPhases = explicitPhases
+        state = .dragging(initialOffset: self.contentOffset)
+    }
+
+    private func recordWheelEvent(at time: TimeInterval) {
+        timeSinceLastScroll = 0
+        lastScrollEvent = time
+    }
+
+    private func applyWheelDelta(_ delta: Point) {
+        guard case .dragging(let initialOffset) = state else {
+            return
+        }
+
+        accumulativePoint.x += delta.x * 100
+        accumulativePoint.y += delta.y * 100
+        setContentOffset(rubberBandOffset(initialOffset - accumulativePoint))
+    }
+
+    private func finishWheelInteraction() {
+        lastScrollEvent = nil
+        timeSinceLastScroll = 0
+        accumulativePoint = .zero
+        wheelInteractionUsesExplicitPhases = false
+
+        if calculateOverscroll(contentOffset) != .zero {
+            velocity = .zero
+            state = .animating
+        } else if case .dragging = state {
+            state = .idle
+        }
     }
 
     // MARK: - Rubber Band

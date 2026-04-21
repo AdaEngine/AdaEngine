@@ -77,7 +77,6 @@ struct ViewHitTests {
         .performLayout()
 
         let scrollPoint = Point(70, 32)
-        // First wheel event begins scroll phase, second applies delta.
         // Act: perform horizontal scroll.
         tester.sendMouseEvent(
             at: scrollPoint,
@@ -108,6 +107,142 @@ struct ViewHitTests {
         // Assert
         #expect(targetOnMouseDown?.accessibilityIdentifier == "third")
         #expect(recorder.taps.last == "third")
+    }
+
+    /// Verifies visual geometry includes ancestor scroll offset and clipping.
+    ///
+    /// Regression protected:
+    /// - overlay/native-host placement uses layout coordinates instead of on-screen coordinates;
+    /// - clipped rect ignores the current scroll viewport.
+    @Test
+    func visualAbsoluteFrame_usesScrollOffsetAndVisibleFrameClipsToViewport() {
+        struct ScrollGeometryView: View {
+            var body: some View {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(alignment: .center, spacing: 0) {}
+                            .frame(width: 80, height: 150)
+
+                        HStack(alignment: .center, spacing: 0) {}
+                            .frame(width: 80, height: 100)
+                            .accessibilityIdentifier("target")
+                    }
+                }
+                .frame(width: 100, height: 100)
+                .accessibilityIdentifier("scroll")
+            }
+        }
+
+        let tester = ViewTester {
+            ScrollGeometryView()
+        }
+        .setSize(Size(width: 100, height: 100))
+        .performLayout()
+
+        guard let scrollNode = tester.findNodeByAccessibilityIdentifier("scroll") as? ScrollViewNode else {
+            Issue.record("ScrollView node not found")
+            return
+        }
+
+        guard let targetNode = tester.findNodeByAccessibilityIdentifier("target") else {
+            Issue.record("Target node not found")
+            return
+        }
+
+        #expect(targetNode.absoluteFrame().origin == Point(0, 150))
+        #expect(targetNode.visualAbsoluteFrame().origin == Point(0, 150))
+
+        tester.sendMouseEvent(
+            at: Point(50, 50),
+            button: .scrollWheel,
+            phase: .changed,
+            scrollDelta: Point(0, -1.25),
+            time: 0
+        )
+
+        #expect(scrollNode.contentOffset.y == 125)
+        #expect(targetNode.absoluteFrame().origin == Point(0, 150))
+        #expect(targetNode.visualAbsoluteFrame().origin == Point(0, 25))
+
+        let visibleFrame = targetNode.calculateVisibleFrame()
+        #expect(visibleFrame.origin == Point(0, 25))
+        #expect(visibleFrame.size == Size(width: 80, height: 75))
+    }
+
+    /// Verifies wheel scrolling with explicit phases does not synthesize
+    /// a premature bounce just because there was a pause between events.
+    ///
+    /// Regression protected:
+    /// - long gaps between momentum wheel packets reset the interaction,
+    ///   clamp offset back to the edge, and start a second bounce cycle.
+    @Test
+    func scrollViewWheelGestureWithExplicitPhasesDoesNotTimeoutMidGesture() {
+        struct OverscrollView: View {
+            var body: some View {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(0..<20, id: \.self) { index in
+                            Text("Item \(index)")
+                                .frame(height: 24)
+                        }
+                    }
+                    .padding(8)
+                }
+                .frame(width: 160, height: 120)
+                .accessibilityIdentifier("scroll")
+            }
+        }
+
+        let tester = ViewTester {
+            OverscrollView()
+        }
+        .setSize(Size(width: 160, height: 120))
+        .performLayout()
+
+        guard let scrollNode = tester.findNodeByAccessibilityIdentifier("scroll") as? ScrollViewNode else {
+            Issue.record("ScrollView node not found")
+            return
+        }
+
+        let scrollPoint = Point(40, 40)
+
+        tester.sendMouseEvent(
+            at: scrollPoint,
+            button: .scrollWheel,
+            phase: .began,
+            time: 0
+        )
+        tester.sendMouseEvent(
+            at: scrollPoint,
+            button: .scrollWheel,
+            phase: .changed,
+            scrollDelta: Point(0, 1.5),
+            time: 0.01
+        )
+
+        let overscrolledOffset = scrollNode.contentOffset.y
+        #expect(overscrolledOffset < 0)
+
+        tester.advanceFrame(deltaTime: Double(ScrollViewNode.scrollTimeout) + 0.01)
+
+        #expect(scrollNode.contentOffset.y == overscrolledOffset)
+
+        tester.sendMouseEvent(
+            at: scrollPoint,
+            button: .scrollWheel,
+            phase: .changed,
+            scrollDelta: Point(0, 1.5),
+            time: 0.08
+        )
+
+        #expect(scrollNode.contentOffset.y < overscrolledOffset)
+
+        tester.sendMouseEvent(
+            at: scrollPoint,
+            button: .scrollWheel,
+            phase: .ended,
+            time: 0.09
+        )
     }
 
     /// Verifies vertical `ScrollView` consumes wheel ticks and updates hittable content.
