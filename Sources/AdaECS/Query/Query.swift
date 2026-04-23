@@ -289,6 +289,17 @@ public struct FilterQueryIterator<
 
             let currentChunk = archetype.chunks.chunks[cursor.currentChunkIndex]
             if needsUpdateData {
+                // #region agent log
+                DebugBenchmarkLogCounter.querySetChunkCount += 1
+                if DebugBenchmarkLogCounter.querySetChunkCount % 100 == 0 {
+                    DebugBenchmarkLog.write(
+                        location: "Query.swift:next setChunk",
+                        message: "query_set_chunk",
+                        data: ["count": DebugBenchmarkLogCounter.querySetChunkCount],
+                        hypothesisId: "H4"
+                    )
+                }
+                // #endregion
                 B.setChunk(
                     states: states,
                     fetches: &fetches,
@@ -318,6 +329,17 @@ public struct FilterQueryIterator<
                 continue
             }
 
+            // #region agent log
+            DebugBenchmarkLogCounter.queryEntityLookupCount += 1
+            if DebugBenchmarkLogCounter.queryEntityLookupCount % 25_000 == 0 {
+                DebugBenchmarkLog.write(
+                    location: "Query.swift:next entityLookup",
+                    message: "query_entity_lookup",
+                    data: ["count": DebugBenchmarkLogCounter.queryEntityLookupCount],
+                    hypothesisId: "H3"
+                )
+            }
+            // #endregion
             guard let location = state.entities.entities[entityId] else {
                 continue
             }

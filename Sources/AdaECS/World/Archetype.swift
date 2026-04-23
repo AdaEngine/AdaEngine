@@ -47,6 +47,17 @@ public final class Entities: @unchecked Sendable {
     }
 
     func insert(_ location: EntityLocation, for entity: Entity.ID) {
+        // #region agent log
+        DebugBenchmarkLogCounter.entitiesInsertCount += 1
+        if DebugBenchmarkLogCounter.entitiesInsertCount % 25_000 == 0 {
+            DebugBenchmarkLog.write(
+                location: "Archetype.swift:Entities.insert",
+                message: "entities_insert",
+                data: ["count": DebugBenchmarkLogCounter.entitiesInsertCount],
+                hypothesisId: "H1"
+            )
+        }
+        // #endregion
         lock.sync {
             entities[entity] = location
         }

@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/AdaEngine/AdaEngine/blob/main/LICENSE)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FAdaEngine%2FAdaEngine%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/AdaEngine/AdaEngine)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FAdaEngine%2FAdaEngine%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/AdaEngine/AdaEngine)
-
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AdaEngine/AdaEngine)
 
 ## What is AdaEngine?
 

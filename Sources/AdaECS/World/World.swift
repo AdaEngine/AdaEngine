@@ -734,6 +734,17 @@ extension World: EventSource {
 extension World {
     /// Insert entity to the world. Expect, that entity is already stored in `Entities`.
     func insertNewEntity(_ entity: Entity, components: [any Component]) {
+        // #region agent log
+        DebugBenchmarkLogCounter.insertNewEntityCount += 1
+        if DebugBenchmarkLogCounter.insertNewEntityCount % 25_000 == 0 {
+            DebugBenchmarkLog.write(
+                location: "World.swift:insertNewEntity",
+                message: "insert_new_entity",
+                data: ["count": DebugBenchmarkLogCounter.insertNewEntityCount],
+                hypothesisId: "H2"
+            )
+        }
+        // #endregion
         let components: [any Component] = components.reduce(into: []) { partialResult, component in
             for requiredComponent in componentsStorage.getRequiredComponents(for: component) {
                 partialResult.append(requiredComponent.constructor())
@@ -776,6 +787,17 @@ extension World {
         oldLocation location: EntityLocation,
         newArchetype: Archetype.ID
     ) {
+        // #region agent log
+        DebugBenchmarkLogCounter.moveEntityToArchetypeCount += 1
+        if DebugBenchmarkLogCounter.moveEntityToArchetypeCount % 25_000 == 0 {
+            DebugBenchmarkLog.write(
+                location: "World.swift:moveEntityToArchetype",
+                message: "move_entity_to_archetype",
+                data: ["count": DebugBenchmarkLogCounter.moveEntityToArchetypeCount],
+                hypothesisId: "H5"
+            )
+        }
+        // #endregion
         var archetype = self.archetypes.archetypes[location.archetypeId]
         let entity = archetype.entities[location.archetypeRow]
         var toArchetype = self.archetypes.archetypes[newArchetype]
