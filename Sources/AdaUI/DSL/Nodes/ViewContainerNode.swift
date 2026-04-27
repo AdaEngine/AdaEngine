@@ -64,9 +64,9 @@ class ViewContainerNode: ViewNode {
 
         let outputs = withObservationTracking {
             body(inputs)
-        } onChange: { [weak self] in
+        } onChange: {
             Task { @MainActor in
-                self?.invalidateContent()
+                self.invalidateContent()
             }
         }
 

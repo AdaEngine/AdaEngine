@@ -20,6 +20,14 @@ private struct LabelKey: EnvironmentKey {
     static let defaultValue: String = ""
 }
 
+private struct TestThemePayload: Hashable, Sendable {
+    var value: Int
+}
+
+private struct TestThemeKey: ThemeKey {
+    static let defaultValue = TestThemePayload(value: 0)
+}
+
 extension EnvironmentValues {
     fileprivate var testCounter: Int {
         get { self[CounterKey.self] }
@@ -147,6 +155,73 @@ struct EnvironmentPropagationTests {
         #expect(shouldUpdate)
     }
 
+    @Test("equivalent theme assignment does not bump environment version")
+    func equivalentThemeAssignmentDoesNotBumpVersion() {
+        var theme = Theme()
+        theme[TestThemeKey.self] = TestThemePayload(value: 7)
+
+        var env = EnvironmentValues()
+        env.theme = theme
+
+        let version = env.version
+        env.theme = theme
+
+        #expect(env.version == version)
+    }
+
+    @Test("changed theme assignment bumps environment version")
+    func changedThemeAssignmentBumpsVersion() {
+        var theme = Theme()
+        theme[TestThemeKey.self] = TestThemePayload(value: 7)
+
+        var env = EnvironmentValues()
+        env.theme = theme
+
+        var changedTheme = theme
+        changedTheme[TestThemeKey.self] = TestThemePayload(value: 8)
+
+        let version = env.version
+        env.theme = changedTheme
+
+        #expect(env.version == version + 1)
+    }
+
+    @Test("equivalent observable storage assignment does not bump environment version")
+    func equivalentObservableStorageAssignmentDoesNotBumpVersion() {
+        let model = ObservableEnvironmentModel()
+
+        var storage = ObservableStorageEnvironment()
+        storage.insertValue(model)
+
+        var env = EnvironmentValues()
+        env.observableStorage = storage
+
+        let version = env.version
+        env.observableStorage = storage
+
+        #expect(env.version == version)
+    }
+
+    @Test("replacing observable object bumps environment version")
+    func replacingObservableObjectBumpsVersion() {
+        let model = ObservableEnvironmentModel()
+        let replacement = ObservableEnvironmentModel()
+
+        var storage = ObservableStorageEnvironment()
+        storage.insertValue(model)
+
+        var env = EnvironmentValues()
+        env.observableStorage = storage
+
+        var replacementStorage = ObservableStorageEnvironment()
+        replacementStorage.insertValue(replacement)
+
+        let version = env.version
+        env.observableStorage = replacementStorage
+
+        #expect(env.version == version + 1)
+    }
+
     @Test("@Environment observable invalidates when an observed property changes")
     func observableEnvironmentTriggersRecomposeOnMemberMutation() async {
         let model = ObservableEnvironmentModel()
@@ -164,9 +239,15 @@ struct EnvironmentPropagationTests {
         #expect(probe.values.last == 0)
 
         model.count = 1
-        await Task.yield()
+        for _ in 0..<10 {
+            await Task.yield()
+            if probe.values.count > initialRenderCount {
+                break
+            }
+        }
 
         #expect(probe.values.count > initialRenderCount)
         #expect(probe.values.last == 1)
     }
+
 }
