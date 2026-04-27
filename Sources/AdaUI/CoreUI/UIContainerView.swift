@@ -348,7 +348,7 @@ extension UIContainerView: KeyboardShortcutRegistering {
         let id = ObjectIdentifier(target)
         self.keyboardShortcutHandles.removeAll {
             guard let t = $0.target else {
-                return false
+                return true
             }
             return ObjectIdentifier(t) == id
         }
@@ -359,7 +359,7 @@ extension UIContainerView: KeyboardShortcutRegistering {
         let id = ObjectIdentifier(target)
         self.keyboardShortcutHandles.removeAll {
             guard let t = $0.target else {
-                return false
+                return true
             }
             return ObjectIdentifier(t) == id
         }
