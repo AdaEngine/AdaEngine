@@ -72,6 +72,35 @@ struct TextFieldTests {
     }
 
     @Test
+    func plainTextFieldStyleKeepsPrimitiveBackgroundDisabledAfterEnvironmentUpdate() {
+        final class Model {
+            var text: String = "hello"
+        }
+
+        let model = Model()
+
+        let tester = ViewTester {
+            TextField(
+                "Type here",
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                )
+            )
+            .textFieldStyle(PlainTextFieldStyle())
+            .frame(width: 240, height: 36)
+        }
+        .setSize(Size(width: 260, height: 80))
+        .performLayout()
+
+        let hitNode = tester.click(at: Point(130, 40))
+        let textFieldNode = hitNode as? TextFieldViewNode
+
+        #expect(textFieldNode != nil)
+        #expect(textFieldNode?.environment._textFieldDrawsBackground == false)
+    }
+
+    @Test
     func textField_updatesSelectionInteractivelyOnMouseDragChanged() {
         final class Model {
             var text: String = "hello world"

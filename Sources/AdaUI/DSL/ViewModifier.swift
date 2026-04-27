@@ -234,8 +234,11 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
         }
 
         // Store the accumulated environment transform on the resulting node so it can
-        // re-apply its overrides lazily when the parent environment changes.
-        if let transform = inputs.pendingEnvironmentTransform {
+        // re-apply its overrides lazily when the parent environment changes. Nested
+        // environment modifiers have already stored a more specific transform on the
+        // node, so preserve it instead of replacing inner overrides.
+        if outputs.node.environmentTransform == nil,
+           let transform = inputs.pendingEnvironmentTransform {
             outputs.node.environmentTransform = transform
         }
 
@@ -261,10 +264,12 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
         }
 
         let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeViewList(body)))
-        var outputs = Self.Body._makeListView(_ViewGraphNode(value: newBody), inputs: _ViewListInputs(input: input))
+        let outputs = Self.Body._makeListView(_ViewGraphNode(value: newBody), inputs: _ViewListInputs(input: input))
         if let transform = input.pendingEnvironmentTransform {
             for index in outputs.outputs.indices {
-                outputs.outputs[index].node.environmentTransform = transform
+                if outputs.outputs[index].node.environmentTransform == nil {
+                    outputs.outputs[index].node.environmentTransform = transform
+                }
             }
         }
         return outputs
