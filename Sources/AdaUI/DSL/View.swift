@@ -35,7 +35,7 @@ extension View {
         }
 
         let body = view[\.body]
-        if let builder = body.value as? ViewNodeBuilder {
+        if let builder = body.value as? ViewNodeBuilder, resolvedInputs.propertyStorages.isEmpty {
             let node = builder.buildViewNode(in: inputs)
             node.updateEnvironment(inputs.environment)
             node.stateContainer = stateContainer
@@ -71,7 +71,7 @@ extension View {
         }
         
         let body = view[\.body]
-        if let builder = body.value as? ViewNodeBuilder {
+        if let builder = body.value as? ViewNodeBuilder, resolvedInputs.propertyStorages.isEmpty {
             let node = builder.buildViewNode(in: inputs.input)
             node.updateEnvironment(inputs.input.environment)
             node.stateContainer = stateContainer
