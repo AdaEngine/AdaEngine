@@ -53,4 +53,41 @@ struct KeyboardShortcutTests {
         tester.sendKeyEvent(KeyCode.arrowLeft, time: 0)
         #expect(count == 1)
     }
+
+    @Test
+    func keyboardShortcutEscapeInvokesExplicitAction() {
+        var count = 0
+        let tester = ViewTester {
+            Spacer()
+                .frame(width: 100, height: 100)
+                .keyboardShortcut(KeyCode.escape) {
+                    count += 1
+                }
+        }
+        .setSize(Size(width: 200, height: 200))
+        .performLayout()
+
+        tester.sendKeyEvent(KeyCode.escape, time: 0)
+        #expect(count == 1)
+    }
+
+    @Test
+    func keyboardShortcutDoesNotDuplicateAfterContentInvalidation() {
+        var count = 0
+        let tester = ViewTester {
+            Spacer()
+                .frame(width: 100, height: 100)
+                .keyboardShortcut(KeyCode.arrowRight) {
+                    count += 1
+                }
+        }
+        .setSize(Size(width: 200, height: 200))
+        .performLayout()
+
+        tester.invalidateContent().performLayout()
+        tester.invalidateContent().performLayout()
+        tester.sendKeyEvent(KeyCode.arrowRight, time: 0)
+
+        #expect(count == 1)
+    }
 }

@@ -136,6 +136,15 @@ final class KeyboardShortcutModifierNode: ViewModifierNode {
         }
     }
 
+    override func didMove(to parent: ViewNode?) {
+        super.didMove(to: parent)
+        guard parent == nil else {
+            return
+        }
+        shortcutRegistrationHost?.unregisterKeyboardShortcut(target: self)
+        shortcutRegistrationHost = nil
+    }
+
     /// Returns `true` if the shortcut was handled (action ran).
     func handleShortcutIfNeeded(event: KeyEvent) -> Bool {
         guard event.status == .down else {
