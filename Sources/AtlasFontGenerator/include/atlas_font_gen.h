@@ -61,6 +61,9 @@ typedef struct font_atlas_descriptor {
     AFG_ImageType atlasImageType;
     double atlasPixelRange;
     double miterLimit;
+    int includeDefaultCharset;
+    const uint32_t *additionalCodepoints;
+    int additionalCodepointsCount;
 } font_atlas_descriptor;
 
 typedef struct font_handle_s font_handle_t;

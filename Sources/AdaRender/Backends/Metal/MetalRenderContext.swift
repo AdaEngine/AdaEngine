@@ -39,9 +39,10 @@ extension MetalRenderBackend {
                 size: size,
                 scaleFactor: view.scaleFactor
             )
+            let isOpaque = view.isOpaque
             view.colorPixelFormat = .bgra8Unorm
             view.device = self.physicalDevice
-            view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+            view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: isOpaque ? 1 : 0)
             view.framebufferOnly = false
             view.sampleCount = 1
 
@@ -49,13 +50,14 @@ extension MetalRenderBackend {
             layer?.frame = view.bounds
             layer?.pixelFormat = view.colorPixelFormat
             layer?.contentsScale = CGFloat(view.scaleFactor)
-            layer?.isOpaque = true
+            layer?.isOpaque = isOpaque
             layer?.maximumDrawableCount = unsafe RenderEngine.configurations.maxFramesInFlight
             layer?.allowsNextDrawableTimeout = true
 
             self.windows[id] = window
         }
         
+        @MainActor
         func updateSizeForRenderWindow(_ windowId: WindowID, size: SizeInt) {
             // Must copy the struct out, mutate, and write back. Optional-chained field
             // assignment on `Dictionary` value types does not reliably persist the change,
@@ -65,6 +67,7 @@ extension MetalRenderBackend {
                 return
             }
             window.size = size
+            window.scaleFactor = window.view.scaleFactor
             windows[windowId] = window
         }
         

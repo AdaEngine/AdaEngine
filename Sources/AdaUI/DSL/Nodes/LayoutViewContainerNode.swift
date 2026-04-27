@@ -58,12 +58,6 @@ class LayoutViewContainerNode: ViewContainerNode {
     /// Subclasses like ``ScrollViewNode`` use this to place children within
     /// the content area instead of the visible frame.
     func performLayout(in bounds: Rect, proposal: ProposedViewSize) {
-        if shouldBypassLayout, let node = self.nodes.first {
-            node.place(in: bounds.origin, anchor: .topLeading, proposal: proposal)
-            self.invalidateLayerIfNeeded()
-            return
-        }
-
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
         ensureCache(for: subviews)
 
@@ -91,10 +85,6 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        if shouldBypassLayout, let node = self.nodes.first {
-            return node.sizeThatFits(proposal)
-        }
-
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
         ensureCache(for: subviews)
 

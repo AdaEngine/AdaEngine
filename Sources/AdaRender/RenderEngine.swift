@@ -105,7 +105,7 @@ extension RenderEngine {
             fallthrough
         #endif
         case .headless:
-            fatalErrorMethodNotImplemented()
+            renderBackend = HeadlessRenderBackend()
         }
         let engine = RenderEngine(renderBackend: renderBackend)
         unsafe RenderEngine.shared = engine

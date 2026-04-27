@@ -10,6 +10,7 @@ import Observation
 import Math
 import AdaInput
 import Logging
+import AdaAnimation
 
 // TODO: Add texture for drawing, to avoid rendering each time.
 
@@ -62,6 +63,15 @@ class ViewNode: Identifiable {
     private(set) var frame: Rect = .zero
     var transform: Transform3D = .identity
     private(set) var layoutProperties = LayoutProperties()
+    private var isPerformingAnimatedLayout = false
+
+    var participatesInFrameAnimation: Bool {
+        true
+    }
+
+    var allowsNestedFrameAnimation: Bool {
+        false
+    }
 
     init<Content: View>(content: Content) {
         self.content = content
@@ -167,7 +177,7 @@ class ViewNode: Identifiable {
     func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         return proposal.replacingUnspecifiedDimensions()
     }
-    
+
     /// Place view in specific point and anchor.
     /// After placement, automatically call ``performLayout()`` method.
     func place(in origin: Point, anchor: AnchorPoint, proposal: ProposedViewSize) {
@@ -179,9 +189,37 @@ class ViewNode: Identifiable {
 
         let newFrame = Rect(origin: offset, size: size)
         let oldFrame = self.frame
-        self.frame = newFrame
+        let isNestedAnimatedLayout = isInsideAnimatedLayoutPass()
+        let canAnimateInNestedLayout = allowsNestedFrameAnimation && oldFrame.size != newFrame.size
 
-        self.performLayout()
+        if participatesInFrameAnimation,
+           let animationController = self.environment.animationController,
+           self.frame != .zero,
+           oldFrame != newFrame,
+           (!isNestedAnimatedLayout || canAnimateInNestedLayout) {
+            animationController.addTweenAnimation(
+                from: self.frame,
+                to: newFrame,
+                label: "frame-\(self.id)",
+                environment: self.environment,
+                updateBlock: { [weak self] value in
+                    guard let self else { return }
+                    let previousFrame = self.frame
+                    self.frame = value
+                    self.isPerformingAnimatedLayout = true
+                    self.performLayout()
+                    self.isPerformingAnimatedLayout = false
+                    if previousFrame.size != value.size {
+                        self.parent?.performAnimatedLayoutPass()
+                    }
+                    self.invalidateNearestLayer()
+                }
+            )
+        } else {
+            self.frame = newFrame
+            self.performLayout()
+        }
+
         if oldFrame != newFrame, let containerView = self.owner?.containerView {
             let oldAbsolute = absoluteFrame(using: oldFrame)
             let newAbsolute = absoluteFrame(using: newFrame)
@@ -192,6 +230,36 @@ class ViewNode: Identifiable {
     /// Updates view layout. Called when needs update UI layout.
     func performLayout() { 
         invalidateLayerIfNeeded()
+    }
+
+    func performAnimatedLayoutPass() {
+        let wasPerformingAnimatedLayout = isPerformingAnimatedLayout
+        isPerformingAnimatedLayout = true
+        performLayout()
+        isPerformingAnimatedLayout = wasPerformingAnimatedLayout
+    }
+
+    func isInsideAnimatedLayoutPass() -> Bool {
+        var currentParent = parent
+        while let parent = currentParent {
+            if parent.isPerformingAnimatedLayout {
+                return true
+            }
+            currentParent = parent.parent
+        }
+        return false
+    }
+
+    func nearestAnimationController() -> UIAnimationController? {
+        var current: ViewNode? = self
+        while let node = current {
+            if let provider = node as? _AnimationControllerProvider,
+               let animationController = provider.providedAnimationController {
+                return animationController
+            }
+            current = node.parent
+        }
+        return nil
     }
 
     func canUpdate(_ node: ViewNode) -> Bool {
@@ -343,6 +411,111 @@ class ViewNode: Identifiable {
             context.drawDebugBorders(frame.size, color: debugNodeColor)
         }
     }
+
+    func drawInspectionDebugOverlay(
+        with context: UIGraphicsContext,
+        mode: UIDebugOverlayMode,
+        focusedNode: ViewNode?,
+        hitTestNode: ViewNode?
+    ) {
+        drawInspectionLayoutBounds(with: context)
+        drawInspectionSelectionBounds(
+            with: context,
+            mode: mode,
+            focusedNode: focusedNode,
+            hitTestNode: hitTestNode
+        )
+    }
+
+    func drawInspectionLayoutBounds(with context: UIGraphicsContext) {
+        let context = inspectionLocalContext(from: context)
+        drawInspectionLayoutBorder(with: context)
+        drawInspectionChildLayoutBounds(with: context)
+    }
+
+    func drawInspectionSelectionBounds(
+        with context: UIGraphicsContext,
+        mode: UIDebugOverlayMode,
+        focusedNode: ViewNode?,
+        hitTestNode: ViewNode?
+    ) {
+        let context = inspectionLocalContext(from: context)
+        drawInspectionSelectionBorderIfNeeded(
+            with: context,
+            mode: mode,
+            focusedNode: focusedNode,
+            hitTestNode: hitTestNode
+        )
+        drawInspectionChildSelectionBounds(
+            with: context,
+            mode: mode,
+            focusedNode: focusedNode,
+            hitTestNode: hitTestNode
+        )
+    }
+
+    func drawInspectionChildLayoutBounds(with context: UIGraphicsContext) { }
+
+    func drawInspectionChildSelectionBounds(
+        with context: UIGraphicsContext,
+        mode: UIDebugOverlayMode,
+        focusedNode: ViewNode?,
+        hitTestNode: ViewNode?
+    ) { }
+
+    func inspectionLocalContext(from context: UIGraphicsContext) -> UIGraphicsContext {
+        var context = context
+        context.environment = environment
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        return context
+    }
+
+    func drawInspectionLayoutBorder(with context: UIGraphicsContext) {
+        drawInspectionBounds(
+            with: context,
+            lineWidth: 1,
+            color: Self.inspectionLayoutBoundsColor
+        )
+    }
+
+    func drawInspectionSelectionBorderIfNeeded(
+        with context: UIGraphicsContext,
+        mode: UIDebugOverlayMode,
+        focusedNode: ViewNode?,
+        hitTestNode: ViewNode?
+    ) {
+        switch mode {
+        case .focusedNode where self === focusedNode:
+            drawInspectionBounds(
+                with: context,
+                lineWidth: 3,
+                color: Self.inspectionFocusedNodeColor,
+                fillColor: Self.inspectionFocusedNodeFillColor
+            )
+        case .hitTestTarget where self === hitTestNode:
+            drawInspectionBounds(
+                with: context,
+                lineWidth: 3,
+                color: Self.inspectionHitTestTargetColor,
+                fillColor: Self.inspectionHitTestTargetFillColor
+            )
+        default:
+            break
+        }
+    }
+
+    func drawInspectionBounds(
+        with context: UIGraphicsContext,
+        lineWidth: Float,
+        color: Color,
+        fillColor: Color? = nil
+    ) {
+        if let fillColor {
+            context.drawRect(Rect(origin: .zero, size: frame.size), color: fillColor)
+        }
+
+        context.drawDebugBorders(frame.size, lineWidth: lineWidth, color: color)
+    }
     
     // MARK: - Interaction
     
@@ -448,10 +621,17 @@ protocol ViewOwner: AnyObject {
 
 extension UIGraphicsContext {
     func drawDebugBorders(_ size: Size, lineWidth: Float = 1, color: Color = .random()) {
-        let lineWidth: Float = 1
         self.drawLine(start: Vector2(0, 0), end: Vector2(size.width, 0), lineWidth: lineWidth, color: color)
         self.drawLine(start: Vector2(0, 0), end: Vector2(0, -size.height), lineWidth: lineWidth, color: color)
         self.drawLine(start: Vector2(size.width, 0), end: Vector2(size.width, -size.height), lineWidth: lineWidth, color: color)
         self.drawLine(start: Vector2(0, -size.height), end: Vector2(size.width, -size.height), lineWidth: lineWidth, color: color)
     }
+}
+
+private extension ViewNode {
+    static let inspectionLayoutBoundsColor = Color.fromHex(0x00D9FF).opacity(0.72)
+    static let inspectionFocusedNodeColor = Color.fromHex(0x2D7EFF)
+    static let inspectionFocusedNodeFillColor = Color.fromHex(0x2D7EFF).opacity(0.12)
+    static let inspectionHitTestTargetColor = Color.fromHex(0xFF2D55)
+    static let inspectionHitTestTargetFillColor = Color.fromHex(0xFF2D55).opacity(0.12)
 }

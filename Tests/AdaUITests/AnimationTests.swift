@@ -94,12 +94,14 @@ struct AnimationTests {
 
         state.value = true
         tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
         tester.advanceFrame(deltaTime: 0.4)
         let halfwayX = node.absoluteFrame().origin.x
         #expect(abs((halfwayX - initialX) - 40) < 0.01)
 
         state.value = false
         tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
         tester.advanceFrame(deltaTime: 0.2)
         let retargetedX = node.absoluteFrame().origin.x
         #expect(retargetedX < halfwayX)
@@ -126,6 +128,7 @@ struct AnimationTests {
 
         state.value = true
         tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
         tester.advanceFrame(deltaTime: 0.5)
 
         #expect(abs(frameNode.absoluteFrame().width - 80) < 0.01)
@@ -134,6 +137,106 @@ struct AnimationTests {
         tester.advanceFrame(deltaTime: 0.5)
         #expect(abs(frameNode.absoluteFrame().width - 120) < 0.01)
         #expect(abs(contentNode.absoluteFrame().width - 120) < 0.01)
+    }
+
+    @Test
+    func nilAnimationSnapsImmediately() {
+        let state = BindingBox(false)
+        let tester = ViewTester(rootView: NilAnimationOpacityView(isDimmed: state.binding))
+            .setSize(Size(width: 200, height: 200))
+            .performLayout()
+
+        guard let node = tester.findNodeByAccessibilityIdentifier("nil-opacity") as? OpacityViewNodeModifier else {
+            Issue.record("Failed to locate nil animation opacity node.")
+            return
+        }
+
+        #expect(abs(node.opacity - 1) < 0.001)
+
+        state.value = true
+        tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
+
+        #expect(abs(node.opacity - 0.25) < 0.001)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.opacity - 0.25) < 0.001)
+    }
+
+    @Test
+    func roundedRectangleShapeAnimatesCornerRadius() {
+        let state = BindingBox(false)
+        let tester = ViewTester(rootView: AnimatedRoundedRectangleShapeView(isRounded: state.binding))
+            .setSize(Size(width: 200, height: 120))
+            .performLayout()
+
+        state.value = true
+        tester.invalidateContent()
+
+        guard let startPath = firstPath(in: tester) else {
+            Issue.record("Expected rounded rectangle path before animation advances.")
+            return
+        }
+
+        #expect(abs((firstMoveX(in: startPath) ?? -1) - 0) < 0.01)
+
+        tester.advanceFrame(deltaTime: 0.5)
+
+        guard let halfPath = firstPath(in: tester) else {
+            Issue.record("Expected rounded rectangle path during animation.")
+            return
+        }
+
+        #expect(abs((firstMoveX(in: halfPath) ?? -1) - 10) < 0.01)
+
+        tester.advanceFrame(deltaTime: 0.5)
+
+        guard let finalPath = firstPath(in: tester) else {
+            Issue.record("Expected rounded rectangle path after animation.")
+            return
+        }
+
+        #expect(abs((firstMoveX(in: finalPath) ?? -1) - 20) < 0.01)
+    }
+
+    @Test
+    func customShapeAnimatableDataAnimates() {
+        let state = BindingBox(false)
+        let tester = ViewTester(rootView: AnimatedCustomShapeView(isInset: state.binding))
+            .setSize(Size(width: 200, height: 120))
+            .performLayout()
+
+        state.value = true
+        tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
+        tester.advanceFrame(deltaTime: 0.5)
+
+        guard let path = firstPath(in: tester) else {
+            Issue.record("Expected custom shape path during animation.")
+            return
+        }
+
+        #expect(abs((firstMoveX(in: path) ?? -1) - 8) < 0.01)
+    }
+
+    @Test
+    func shapePathUpdatesDuringFrameAnimation() {
+        let state = BindingBox(false)
+        let tester = ViewTester(rootView: AnimatedShapeFrameView(isExpanded: state.binding))
+            .setSize(Size(width: 260, height: 120))
+            .performLayout()
+
+        state.value = true
+        tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
+        tester.advanceFrame(deltaTime: 0.5)
+
+        guard let path = firstPath(in: tester) else {
+            Issue.record("Expected shape path during frame animation.")
+            return
+        }
+
+        #expect(abs((maxLineX(in: path) ?? -1) - 140) < 0.01)
     }
 
     @Test
@@ -152,6 +255,7 @@ struct AnimationTests {
 
         state.value = true
         tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
 
         #expect(abs(siblingNode.absoluteFrame().origin.x - initialX) < 0.01)
 
@@ -178,6 +282,7 @@ struct AnimationTests {
 
         state.value = true
         tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
         tester.advanceFrame(deltaTime: 0.5)
 
         let presentedFrame = buttonNode.absoluteFrame()
@@ -185,6 +290,53 @@ struct AnimationTests {
 
         #expect(tester.click(at: originalCenter) == nil)
         #expect(tester.click(at: presentedCenter)?.id == buttonNode.id)
+    }
+
+    @Test
+    func hoverFrameInStackUsesAnimatedPresentationGeometryAfterExpansion() {
+        let state = BindingBox(false)
+        var hoverEvents: [Bool] = []
+        let tester = ViewTester(
+            rootView: AnimatedHoverIslandView(
+                isExpanded: state.binding,
+                onHover: { hoverEvents.append($0) }
+            )
+        )
+        .setSize(Size(width: 640, height: 124))
+        .performLayout()
+
+        guard let initialHoverNode = tester.findNodeByAccessibilityIdentifier("hover-island") else {
+            Issue.record("Failed to locate hover island.")
+            return
+        }
+        #expect(abs(initialHoverNode.absoluteFrame().width - 196) < 0.01)
+
+        state.value = true
+        tester.invalidateContent()
+        tester.performLayout()
+        tester.advanceFrame(deltaTime: 0)
+        tester.advanceFrame(deltaTime: 0.5)
+
+        guard let hoverNode = tester.findNodeByAccessibilityIdentifier("hover-island") else {
+            Issue.record("Failed to locate updated hover island.")
+            return
+        }
+
+        #expect(hoverNode.id == initialHoverNode.id)
+        #expect(hoverNode.environment.animationController != nil)
+
+        var frame = hoverNode.absoluteFrame()
+        #expect(abs(frame.width - 318) < 0.01)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        frame = hoverNode.absoluteFrame()
+        #expect(abs(frame.midX - 320) < 0.01)
+        #expect(abs(frame.width - 440) < 0.01)
+
+        tester.sendMouseEvent(at: Point(frame.midX, frame.midY), button: .none, phase: .changed)
+        tester.sendMouseEvent(at: Point(40, frame.midY), button: .none, phase: .changed)
+
+        #expect(hoverEvents == [true, false])
     }
 
     @Test
@@ -203,6 +355,7 @@ struct AnimationTests {
 
         state.value = true
         tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
 
         #expect(abs((node.absoluteFrame().origin.x - initialX) - 100) < 0.001)
 
@@ -239,6 +392,7 @@ struct AnimationTests {
 
         state.value = true
         tester.invalidateContent()
+        tester.advanceFrame(deltaTime: 0)
 
         guard let insertedNode = tester.findNodeByAccessibilityIdentifier("inserted-card") else {
             Issue.record("Inserted node should appear immediately.")
@@ -250,6 +404,55 @@ struct AnimationTests {
         state.value = false
         tester.invalidateContent()
         #expect(tester.findNodeByAccessibilityIdentifier("inserted-card") == nil)
+    }
+
+    private func firstPath<Content: View>(in tester: ViewTester<Content>) -> Path? {
+        let context = UIGraphicsContext()
+        tester.containerView.draw(
+            in: Rect(origin: .zero, size: tester.containerView.frame.size),
+            with: context
+        )
+
+        for command in context.getDrawCommands() {
+            if case let .drawPath(path, _, _) = command {
+                return path
+            }
+        }
+
+        return nil
+    }
+
+    private func firstMoveX(in path: Path) -> Float? {
+        var result: Float?
+        path.forEach { element in
+            guard result == nil else { return }
+            if case let .move(to: point) = element {
+                result = point.x
+            }
+        }
+        return result
+    }
+
+    private func maxLineX(in path: Path) -> Float? {
+        var result: Float?
+        path.forEach { element in
+            let x: Float?
+            switch element {
+            case let .move(to: point), let .line(to: point):
+                x = point.x
+            case let .quadCurve(to: point, control: control):
+                x = max(point.x, control.x)
+            case let .curve(to: point, control1: control1, control2: control2):
+                x = max(point.x, max(control1.x, control2.x))
+            case .closeSubpath:
+                x = nil
+            }
+
+            if let x {
+                result = max(result ?? x, x)
+            }
+        }
+        return result
     }
 }
 
@@ -329,6 +532,76 @@ private struct AnimatedFrameContainer: View {
     }
 }
 
+private struct NilAnimationOpacityView: View {
+    let isDimmed: Binding<Bool>
+
+    var body: some View {
+        Color.red
+            .frame(width: 40, height: 40)
+            .opacity(isDimmed.wrappedValue ? 0.25 : 1)
+            .accessibilityIdentifier("nil-opacity")
+            .animation(nil, value: isDimmed.wrappedValue)
+    }
+}
+
+private struct AnimatedRoundedRectangleShapeView: View {
+    let isRounded: Binding<Bool>
+
+    var body: some View {
+        RoundedRectangleShape(cornerRadius: isRounded.wrappedValue ? 20 : 0)
+            .fill(Color.red)
+            .frame(width: 100, height: 50)
+            .accessibilityIdentifier("rounded-shape")
+            .animation(Animation.linear(duration: 1), value: isRounded.wrappedValue)
+    }
+}
+
+private struct AnimatableInsetRectangleShape: Shape {
+    var inset: Float
+
+    var animatableData: Float {
+        get { inset }
+        set { inset = newValue }
+    }
+
+    func path(in rect: Rect) -> Path {
+        Path { path in
+            path.addRect(
+                Rect(
+                    x: inset,
+                    y: inset,
+                    width: max(0, rect.width - inset * 2),
+                    height: max(0, rect.height - inset * 2)
+                )
+            )
+        }
+    }
+}
+
+private struct AnimatedCustomShapeView: View {
+    let isInset: Binding<Bool>
+
+    var body: some View {
+        AnimatableInsetRectangleShape(inset: isInset.wrappedValue ? 16 : 0)
+            .fill(Color.blue)
+            .frame(width: 80, height: 40)
+            .accessibilityIdentifier("custom-shape")
+            .animation(Animation.linear(duration: 1), value: isInset.wrappedValue)
+    }
+}
+
+private struct AnimatedShapeFrameView: View {
+    let isExpanded: Binding<Bool>
+
+    var body: some View {
+        RectangleShape()
+            .fill(Color.green)
+            .frame(width: isExpanded.wrappedValue ? 180 : 100, height: 40)
+            .accessibilityIdentifier("shape-frame")
+            .animation(Animation.linear(duration: 1), value: isExpanded.wrappedValue)
+    }
+}
+
 private struct AnimatedReflowView: View {
     let isExpanded: Binding<Bool>
 
@@ -342,6 +615,7 @@ private struct AnimatedReflowView: View {
                 .frame(width: 40, height: 40)
                 .accessibilityIdentifier("reflow-sibling")
         }
+        .frame(width: 260, height: 40, alignment: .leading)
         .animation(Animation.linear(duration: 1), value: isExpanded.wrappedValue)
     }
 }
@@ -356,7 +630,26 @@ private struct AnimatedButtonOffsetView: View {
         }
         .accessibilityIdentifier("moving-button")
         .offset(x: isShifted.wrappedValue ? 100 : 0)
-        .animation(Animation.linear(duration: 1), value: isShifted.wrappedValue)
+            .animation(Animation.linear(duration: 1), value: isShifted.wrappedValue)
+    }
+}
+
+private struct AnimatedHoverIslandView: View {
+    let isExpanded: Binding<Bool>
+    let onHover: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Spacer()
+            Color.black
+                .frame(width: isExpanded.wrappedValue ? 440 : 196, height: isExpanded.wrappedValue ? 104 : 36)
+                .onHover(perform: onHover)
+                .onTap { }
+                .accessibilityIdentifier("hover-island")
+            Spacer()
+        }
+        .frame(width: 640, height: 124, alignment: .top)
+        .animation(Animation.linear(duration: 1), value: isExpanded.wrappedValue)
     }
 }
 
@@ -388,6 +681,7 @@ private struct ConditionalInsertionView: View {
                 .frame(width: 40, height: 40)
                 .accessibilityIdentifier("persistent-card")
         }
+        .frame(width: 240, height: 40, alignment: .leading)
         .animation(Animation.linear(duration: 1), value: isPresented.wrappedValue)
     }
 }

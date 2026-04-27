@@ -132,6 +132,8 @@ open class UIWindowManager {
         } catch {
             fatalError(error.localizedDescription)
         }
+        window.runtimeCameraEntity?.removeFromWorld()
+        window.runtimeCameraEntity = nil
         self.windows.remove(for: window.id)
         window.windowDidDisappear()
         

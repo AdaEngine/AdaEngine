@@ -42,21 +42,29 @@ public struct CubicKeyframe<Value>: Sendable where Value: Sendable {
 
 @resultBuilder
 public enum KeyframeLinearVABuilder<T: VectorArithmetic & Sendable> {
-    public static func buildBlock(_ frames: LinearKeyframe<T>...) -> [LinearKeyframe<T>] { frames }
-    public static func buildBlock(_ frames: CubicKeyframe<T>...) -> [LinearKeyframe<T>] {
-        frames.map { LinearKeyframe($0.value, duration: $0.duration, curve: .cubicInOut) }
+    public static func buildBlock(_ components: [LinearKeyframe<T>]...) -> [LinearKeyframe<T>] {
+        components.flatMap { $0 }
     }
 
+    public static func buildExpression(_ frame: LinearKeyframe<T>) -> [LinearKeyframe<T>] { [frame] }
+    public static func buildExpression(_ frame: CubicKeyframe<T>) -> [LinearKeyframe<T>] {
+        [LinearKeyframe(frame.value, duration: frame.duration, curve: .cubicInOut)]
+    }
     /// Allows programmatic tracks: `KeyframeTrack(path, identifier: id) { prebuiltFrames }`.
     public static func buildExpression(_ frames: [LinearKeyframe<T>]) -> [LinearKeyframe<T>] { frames }
 }
 
 @resultBuilder
 public enum KeyframeLinearQuatBuilder {
-    public static func buildBlock(_ frames: LinearKeyframe<Quat>...) -> [LinearKeyframe<Quat>] { frames }
-    public static func buildBlock(_ frames: CubicKeyframe<Quat>...) -> [LinearKeyframe<Quat>] {
-        frames.map { LinearKeyframe($0.value, duration: $0.duration, curve: .cubicInOut) }
+    public static func buildBlock(_ components: [LinearKeyframe<Quat>]...) -> [LinearKeyframe<Quat>] {
+        components.flatMap { $0 }
     }
+
+    public static func buildExpression(_ frame: LinearKeyframe<Quat>) -> [LinearKeyframe<Quat>] { [frame] }
+    public static func buildExpression(_ frame: CubicKeyframe<Quat>) -> [LinearKeyframe<Quat>] {
+        [LinearKeyframe(frame.value, duration: frame.duration, curve: .cubicInOut)]
+    }
+    public static func buildExpression(_ frames: [LinearKeyframe<Quat>]) -> [LinearKeyframe<Quat>] { frames }
 }
 
 @resultBuilder
@@ -101,7 +109,7 @@ private func keyframeTrackFromLinearFrames<Value: KeyframeAnimatable, T: VectorA
     let id = identifier ?? "\(keyPath)"
     var time: TimeInterval = 0
     let keyframes: [(time: TimeInterval, value: T, curveToNext: KeyframeCurveKind)] = frames.map { f in
-        time += f.duration
+        defer { time += f.duration }
         return (time, f.value, f.curve)
     }
     let serialized = keyframes.map { kf -> SerializedKeyframe in
@@ -116,9 +124,7 @@ private func keyframeTrackFromLinearFrames<Value: KeyframeAnimatable, T: VectorA
         identifier: id,
         serializedKeyframes: serialized,
         applyFn: { value, localTime in
-            let start = (time: TimeInterval(0), value: value[keyPath: path], curveToNext: keyframes.first?.curveToNext ?? .linear)
-            let resolved = [start] + keyframes
-            if let result = sampleVectorArithmetic(keyframes: resolved, localTime: localTime) {
+            if let result = sampleVectorArithmetic(keyframes: keyframes, localTime: localTime) {
                 value[keyPath: path] = result
             }
         }
@@ -153,7 +159,7 @@ public func KeyframeTrack<Value: KeyframeAnimatable>(
     let id = identifier ?? "\(keyPath)"
     var time: TimeInterval = 0
     let keyframes: [QuaternionKeyframe] = frames.map { f in
-        time += f.duration
+        defer { time += f.duration }
         return QuaternionKeyframe(time: time, value: f.value, curveToNext: f.curve)
     }
     let serialized = keyframes.map { kf in
@@ -168,13 +174,7 @@ public func KeyframeTrack<Value: KeyframeAnimatable>(
         identifier: id,
         serializedKeyframes: serialized,
         applyFn: { value, localTime in
-            let start = QuaternionKeyframe(
-                time: 0,
-                value: value[keyPath: path],
-                curveToNext: keyframes.first?.curveToNext ?? .linear
-            )
-            let resolved = [start] + keyframes
-            if let result = sampleQuaternionKeyframes(resolved, localTime: localTime) {
+            if let result = sampleQuaternionKeyframes(keyframes, localTime: localTime) {
                 value[keyPath: path] = result
             }
         }

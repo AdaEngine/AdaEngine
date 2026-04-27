@@ -91,7 +91,9 @@ public func ExtractUIComponents(
     extractedUIContexts.contexts.removeAll(keepingCapacity: true)
 
     pendingViews().windows.forEach {
-        extractedUIComponents.components.append(UIComponent(view: $0, behaviour: .default))
+        extractedUIComponents.components.append(
+            UIComponent(view: $0, behaviour: .default, windowRef: .windowId($0.id))
+        )
     }
     uiComponents().forEach {
         extractedUIComponents.components.append($0)
@@ -117,7 +119,8 @@ public func UIRenderPreparing(
     _ contexts: ResMut<PendingUIGraphicsContext>,
     _ extractedUIContexts: ResMut<ExtractedUIContexts>,
     _ buildState: ResMut<UIRenderBuildState>,
-    _ layerDrawCache: ResMut<UILayerDrawCache>
+    _ layerDrawCache: ResMut<UILayerDrawCache>,
+    _ primaryWindowId: Res<PrimaryWindowId>
 ) {
     var latestTargetSize: SizeInt?
     viewTargets.forEach { _, camera, renderViewTarget in
@@ -144,7 +147,8 @@ public func UIRenderPreparing(
     }
     contexts.graphicContexts.removeAll(keepingCapacity: true)
     uiComponents.components.forEach { component in
-        let context = UIGraphicsContext()
+        var context = UIGraphicsContext()
+        context.windowId = component.windowRef.getWindowId(from: primaryWindowId.wrappedValue)
         component.view.draw(with: context)
         context.commitDraw()
         contexts.graphicContexts.append(context)
@@ -195,6 +199,7 @@ public struct UIRenderTesselationSystem {
         var activeLayerIDs = Set<UInt64>()
 
         contexts.graphicContexts.forEach { graphicsContext in
+            let windowId = graphicsContext.windowId
             var rootState = DrawBuildState()
             var layerStack: [ActiveLayer] = []
 
@@ -205,18 +210,18 @@ public struct UIRenderTesselationSystem {
                     // Flush current state to preserve draw order.
                     if layerStack.isEmpty {
                         flushStateIfNeeded(&rootState, renderDevice: renderDevice.renderDevice).map { rootState.drawDataItems.append($0) }
-                        appendRenderItems(rootState.drawDataItems, sortKey: &sortKey)
+                        appendRenderItems(rootState.drawDataItems, sortKey: &sortKey, windowId: windowId)
                         rootState.drawDataItems.removeAll(keepingCapacity: true)
                     } else if layerStack[layerStack.count - 1].mode == .building {
                         flushStateIfNeeded(&layerStack[layerStack.count - 1].state, renderDevice: renderDevice.renderDevice).map {
                             layerStack[layerStack.count - 1].state.drawDataItems.append($0)
                         }
-                        appendRenderItems(layerStack[layerStack.count - 1].state.drawDataItems, sortKey: &sortKey)
+                        appendRenderItems(layerStack[layerStack.count - 1].state.drawDataItems, sortKey: &sortKey, windowId: windowId)
                         layerStack[layerStack.count - 1].state.drawDataItems.removeAll(keepingCapacity: true)
                     }
 
                     if cacheable, let cached = layerDrawCache.entries[id], cached.version == version, cached.cacheable {
-                        appendRenderItems(cached.drawDataItems, sortKey: &sortKey)
+                        appendRenderItems(cached.drawDataItems, sortKey: &sortKey, windowId: windowId)
                         layerStack.append(ActiveLayer(id: id, version: version, mode: .skipping, cacheable: cacheable))
                     } else {
                         layerStack.append(ActiveLayer(id: id, version: version, mode: .building, cacheable: cacheable))
@@ -236,7 +241,7 @@ public struct UIRenderTesselationSystem {
                         break
                     case .building:
                         flushStateIfNeeded(&layer.state, renderDevice: renderDevice.renderDevice).map { layer.state.drawDataItems.append($0) }
-                        appendRenderItems(layer.state.drawDataItems, sortKey: &sortKey)
+                        appendRenderItems(layer.state.drawDataItems, sortKey: &sortKey, windowId: windowId)
 
                         if layer.cacheable {
                             layerDrawCache.entries[id] = UILayerDrawCacheEntry(
@@ -275,7 +280,7 @@ public struct UIRenderTesselationSystem {
                 &rootState,
                 renderDevice: renderDevice.renderDevice
             ).map { rootState.drawDataItems.append($0) }
-            appendRenderItems(rootState.drawDataItems, sortKey: &sortKey)
+            appendRenderItems(rootState.drawDataItems, sortKey: &sortKey, windowId: windowId)
         }
 
         if !layerDrawCache.entries.isEmpty {
@@ -324,12 +329,14 @@ public struct UIRenderTesselationSystem {
 
     private func appendRenderItems(
         _ items: [UIDrawData],
-        sortKey: inout Float
+        sortKey: inout Float,
+        windowId: WindowID?
     ) {
         for drawData in items {
             self.renderItems.items.append(
                 UITransparentRenderItem(
                     sortKey: sortKey,
+                    windowId: windowId,
                     entity: .zero,
                     drawPass: uiDrawPass,
                     primitiveType: .quad,
@@ -786,6 +793,7 @@ public struct UIRenderPipelines: Resource, WorldInitable {
 /// Render item for UI primitives.
 public struct UITransparentRenderItem: RenderItem {
     public var sortKey: Float
+    public var windowId: WindowID?
     public var entity: Entity.ID
     public var drawPass: any DrawPass
     public var batchRange: Range<Int32>? = nil
@@ -804,6 +812,7 @@ public struct UITransparentRenderItem: RenderItem {
 
     public init(
         sortKey: Float,
+        windowId: WindowID? = nil,
         entity: Entity.ID,
         drawPass: any DrawPass,
         primitiveType: PrimitiveType,
@@ -812,6 +821,7 @@ public struct UITransparentRenderItem: RenderItem {
         drawData: UIDrawData
     ) {
         self.sortKey = sortKey
+        self.windowId = windowId
         self.entity = entity
         self.drawPass = drawPass
         self.primitiveType = primitiveType

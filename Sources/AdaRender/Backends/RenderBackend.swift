@@ -96,7 +96,7 @@ public protocol RenderDevice: AnyObject, Sendable {
 
     /// Create a new swapchain for specific window.
     @MainActor
-    func createSwapchain(from window: WindowID) -> Swapchain
+    func createSwapchain(from window: WindowID) -> (any Swapchain)?
 }
 
 public protocol Swapchain: AnyObject, Sendable {

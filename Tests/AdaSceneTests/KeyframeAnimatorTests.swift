@@ -11,6 +11,7 @@ private struct TestAnim: KeyframeAnimatable {
     func apply(to entityId: Entity.ID, in world: World) {}
 }
 
+@Suite(.serialized)
 struct KeyframeAnimatorTests {
 
     @Test

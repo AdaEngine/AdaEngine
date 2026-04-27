@@ -56,8 +56,10 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     FontHolder fontHandler;
     bool success = fontHandler.loadFont(filePath);
     
-    if (success) {
-        assert("Can't load font");
+    if (!success || fontHandler.getFont() == nullptr) {
+        delete m_FontData;
+        m_FontData = nullptr;
+        return;
     }
     
     Charset charset;
@@ -84,15 +86,24 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     
     m_FontData->fontGeometry = FontGeometry(&m_FontData->glyphs);
     
-    for (int range = 0; charsetRanges[range]; range += 2) {
-        for (uint32_t c = charsetRanges[range]; c <= charsetRanges[range + 1]; c++)
-            charset.add(c);
+    if (fontDescriptor.includeDefaultCharset) {
+        for (int range = 0; charsetRanges[range]; range += 2) {
+            for (uint32_t c = charsetRanges[range]; c <= charsetRanges[range + 1]; c++)
+                charset.add(c);
+        }
+    }
+
+    if (fontDescriptor.additionalCodepoints && fontDescriptor.additionalCodepointsCount > 0) {
+        for (int i = 0; i < fontDescriptor.additionalCodepointsCount; i++)
+            charset.add(fontDescriptor.additionalCodepoints[i]);
     }
     
     int loadedGlyphs = m_FontData->fontGeometry.loadCharset(fontHandler.getFont(), 1, charset);
     
-    if (loadedGlyphs < m_FontData->glyphs.size()) {
-        assert("Can't load all glyphs");
+    if (loadedGlyphs <= 0 || m_FontData->glyphs.empty()) {
+        delete m_FontData;
+        m_FontData = nullptr;
+        return;
     }
     
     m_FontData->fontGeometry.setName(fontName);
@@ -132,6 +143,10 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
 }
 
 AtlasBitmap* FontAtlasGenerator::generateAtlasBitmap() {
+    if (!isValid()) {
+        return nullptr;
+    }
+
     GenerationConfig config;
     config.width = m_AtlasInfo.width;
     config.height = m_AtlasInfo.height;

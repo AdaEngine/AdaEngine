@@ -59,6 +59,9 @@ public struct UIGraphicsContext: Sendable {
     /// Optional dirty rectangle in window coordinates.
     public var dirtyRect: Rect?
 
+    /// Window this draw context belongs to. A nil value renders into every window camera.
+    public var windowId: WindowID?
+
     private(set) var commandQueue = CommandQueue()
 
     /// Create graphics context.

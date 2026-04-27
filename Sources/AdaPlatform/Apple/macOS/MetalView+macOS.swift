@@ -23,12 +23,16 @@ extension MetalView {
         return true
     }
 
+    public override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        return true
+    }
+
     public override func updateTrackingAreas() {
         if let area = self.currentTrackingArea {
             self.removeTrackingArea(area)
         }
         
-        let options: NSTrackingArea.Options = [.mouseMoved, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect, .activeInKeyWindow]
+        let options: NSTrackingArea.Options = [.mouseMoved, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect, .activeAlways]
         
         let newTrackingArea = NSTrackingArea(rect: self.bounds, options: options, owner: self, userInfo: nil)
         self.addTrackingArea(newTrackingArea)
@@ -36,6 +40,103 @@ extension MetalView {
         self.currentTrackingArea = newTrackingArea
         
         super.updateTrackingAreas()
+    }
+
+    func updateMousePassthroughMonitoring() {
+        if let monitor = passthroughLocalMouseMonitor {
+            NSEvent.removeMonitor(monitor)
+            passthroughLocalMouseMonitor = nil
+        }
+        if let monitor = passthroughGlobalMouseMonitor {
+            NSEvent.removeMonitor(monitor)
+            passthroughGlobalMouseMonitor = nil
+        }
+
+        guard allowsTransparency else {
+            self.window?.ignoresMouseEvents = false
+            return
+        }
+
+        updateMousePassthrough(at: NSEvent.mouseLocation)
+
+        passthroughLocalMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] event in
+            self?.updateMousePassthrough(at: NSEvent.mouseLocation)
+            return event
+        }
+        passthroughGlobalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { [weak self] _ in
+            self?.updateMousePassthrough(at: NSEvent.mouseLocation)
+        }
+    }
+
+    private func updateMousePassthrough(at screenPoint: NSPoint) {
+        guard allowsTransparency,
+              let nsWindow = self.window,
+              let uiWindow = (windowManager as? MacOSWindowManager)?.findWindow(for: nsWindow),
+              uiWindow.canDraw else {
+            self.window?.ignoresMouseEvents = false
+            return
+        }
+
+        let pointInWindow = NSPoint(
+            x: screenPoint.x - nsWindow.frame.minX,
+            y: screenPoint.y - nsWindow.frame.minY
+        )
+        let localPoint = Point(
+            x: Float(pointInWindow.x),
+            y: Float(nsWindow.frame.height - pointInWindow.y)
+        )
+        let hasTarget = hasInteractiveAdaUITarget(at: localPoint, in: uiWindow)
+        let wasIgnoringMouseEvents = nsWindow.ignoresMouseEvents
+
+        if hasTarget {
+            nsWindow.ignoresMouseEvents = false
+            if wasIgnoringMouseEvents {
+                sendSyntheticMouseMoved(at: localPoint, to: uiWindow)
+            }
+        } else {
+            if !wasIgnoringMouseEvents {
+                sendSyntheticMouseMoved(at: localPoint, to: uiWindow)
+            }
+            nsWindow.ignoresMouseEvents = true
+        }
+    }
+
+    private func hasInteractiveAdaUITarget(at point: Point, in uiWindow: UIWindow) -> Bool {
+        let event = MouseEvent(
+            window: self.windowID,
+            button: .none,
+            mousePosition: point,
+            phase: .changed,
+            modifierKeys: [],
+            time: 0
+        )
+
+        for subview in uiWindow.subviews.reversed() {
+            let subviewPoint = subview.convert(point, from: uiWindow)
+            if subview.hitTest(subviewPoint, with: event) != nil {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func sendSyntheticMouseMoved(at point: Point, to uiWindow: UIWindow) {
+        let event = MouseEvent(
+            window: self.windowID,
+            button: .none,
+            mousePosition: point,
+            phase: .changed,
+            modifierKeys: [],
+            time: TimeInterval(CFAbsoluteTimeGetCurrent())
+        )
+
+        for subview in uiWindow.subviews {
+            guard let receiver = subview as? any UIMousePassthroughEventReceiving else {
+                continue
+            }
+            receiver.uiReceivePassthroughMouseMoved(event)
+        }
     }
     
     public override func touchesBegan(with event: NSEvent) {

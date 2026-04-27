@@ -5,8 +5,10 @@
 //  Created by v.prusakov on 5/29/22.
 //
 
+import AdaECS
 import AdaInput
 import AdaUtils
+import Foundation
 import Math
 
 /// The base class describes the window in the system.
@@ -21,6 +23,8 @@ open class UIWindow: UIView {
     /// Identifier using to register window in the render engine.
     /// We use this id to start drawing.
     nonisolated public let id: ID = RID()
+
+    public var configuration: Configuration
     
     public var title: String {
         get { self.systemWindow?.title ?? "" }
@@ -32,6 +36,7 @@ open class UIWindow: UIView {
     }
     
     @_spi(Internal) public var systemWindow: SystemWindow?
+    @_spi(Internal) public var runtimeCameraEntity: Entity?
     internal let eventManager = EventManager()
 
     /// Flag indicates that window can draw itself content in method ``UIView/draw(in:with:)``.
@@ -62,8 +67,20 @@ open class UIWindow: UIView {
     public convenience override init() {
         self.init(frame: .zero)
     }
+
+    public convenience init(configuration: Configuration) {
+        self.init(frame: configuration.frame, configuration: configuration)
+    }
     
     public required init(frame: Rect) {
+        self.configuration = Configuration(frame: frame)
+        super.init(frame: frame)
+        self.backgroundColor = .clear
+        self.windowManager.createWindow(for: self)
+    }
+
+    init(frame: Rect, configuration: Configuration) {
+        self.configuration = configuration
         super.init(frame: frame)
         self.backgroundColor = .clear
         self.windowManager.createWindow(for: self)
@@ -218,10 +235,80 @@ private extension UIView {
 }
 
 public extension UIWindow {
+    struct Configuration: Sendable {
+        public var title: String?
+        public var frame: Rect
+        public var minimumSize: Size
+        public var mode: Mode
+        public var chrome: Chrome
+        public var background: Background
+        public var level: Level
+        public var collectionBehavior: CollectionBehavior
+        public var showsImmediately: Bool
+        public var makeKey: Bool
+
+        public init(
+            title: String? = nil,
+            frame: Rect = .zero,
+            minimumSize: Size = UIWindow.defaultMinimumSize,
+            mode: Mode = .windowed,
+            chrome: Chrome = .standard,
+            background: Background = .opaque(.black),
+            level: Level = .normal,
+            collectionBehavior: CollectionBehavior = .standard,
+            showsImmediately: Bool = true,
+            makeKey: Bool = true
+        ) {
+            self.title = title
+            self.frame = frame
+            self.minimumSize = minimumSize
+            self.mode = mode
+            self.chrome = chrome
+            self.background = background
+            self.level = level
+            self.collectionBehavior = collectionBehavior
+            self.showsImmediately = showsImmediately
+            self.makeKey = makeKey
+        }
+    }
+
+    enum Chrome: Sendable {
+        case standard
+        case borderless
+    }
+
+    enum Background: Sendable, Equatable {
+        case opaque(Color)
+        case transparent
+
+        public var isTransparent: Bool {
+            if case .transparent = self {
+                return true
+            }
+            return false
+        }
+    }
+
+    enum Level: Sendable {
+        case normal
+        case floating
+        case statusBar
+    }
+
+    enum CollectionBehavior: Sendable {
+        case standard
+        case allSpacesStationary
+    }
+
     enum Mode: UInt64, Sendable {
         case windowed
         case fullscreen
     }
     
     nonisolated static let defaultMinimumSize = Size(width: 800, height: 600)
+}
+
+public extension Notification.Name {
+    static let adaEngineWindowDidMiniaturize = Notification.Name("AdaEngine.WindowDidMiniaturize")
+    static let adaEngineWindowDidDeminiaturize = Notification.Name("AdaEngine.WindowDidDeminiaturize")
 }

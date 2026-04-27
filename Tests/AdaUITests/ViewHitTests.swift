@@ -128,8 +128,8 @@ struct ViewHitTests {
                             .accessibilityIdentifier("target")
                     }
                 }
-                .frame(width: 100, height: 100)
                 .accessibilityIdentifier("scroll")
+                .frame(width: 100, height: 100)
             }
         }
 
@@ -188,8 +188,8 @@ struct ViewHitTests {
                     }
                     .padding(8)
                 }
-                .frame(width: 160, height: 120)
                 .accessibilityIdentifier("scroll")
+                .frame(width: 160, height: 120)
             }
         }
 
@@ -223,7 +223,7 @@ struct ViewHitTests {
         let overscrolledOffset = scrollNode.contentOffset.y
         #expect(overscrolledOffset < 0)
 
-        tester.advanceFrame(deltaTime: Double(ScrollViewNode.scrollTimeout) + 0.01)
+        tester.advanceFrame(deltaTime: ScrollViewNode.scrollTimeout + 0.01)
 
         #expect(scrollNode.contentOffset.y == overscrolledOffset)
 

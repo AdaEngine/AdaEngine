@@ -468,6 +468,47 @@ final class ScrollViewNode: LayoutViewContainerNode {
         context.popClipRect()
     }
 
+    override func drawInspectionLayoutBounds(with context: UIGraphicsContext) {
+        let viewportContext = inspectionLocalContext(from: context)
+        drawInspectionLayoutBorder(with: viewportContext)
+
+        var contentContext = context
+        contentContext.environment = environment
+        contentContext.pushClipRect(self.absoluteFrame())
+        contentContext.translateBy(x: -contentOffset.x, y: contentOffset.y)
+        contentContext.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        super.drawInspectionChildLayoutBounds(with: contentContext)
+        contentContext.popClipRect()
+    }
+
+    override func drawInspectionSelectionBounds(
+        with context: UIGraphicsContext,
+        mode: UIDebugOverlayMode,
+        focusedNode: ViewNode?,
+        hitTestNode: ViewNode?
+    ) {
+        let viewportContext = inspectionLocalContext(from: context)
+        drawInspectionSelectionBorderIfNeeded(
+            with: viewportContext,
+            mode: mode,
+            focusedNode: focusedNode,
+            hitTestNode: hitTestNode
+        )
+
+        var contentContext = context
+        contentContext.environment = environment
+        contentContext.pushClipRect(self.absoluteFrame())
+        contentContext.translateBy(x: -contentOffset.x, y: contentOffset.y)
+        contentContext.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        super.drawInspectionChildSelectionBounds(
+            with: contentContext,
+            mode: mode,
+            focusedNode: focusedNode,
+            hitTestNode: hitTestNode
+        )
+        contentContext.popClipRect()
+    }
+
     func scrollToViewNodeIfFoundIt(_ id: AnyHashable, anchor: AnchorPoint? = nil) {
         guard let foundedNode = self.findNodeById(id) else {
             return

@@ -25,9 +25,11 @@ final class MacOSWindowManager: UIWindowManager {
     }
 
     private var menus: [UIWindow.ID: MacOSUIMenuBuilder] = [:]
+    private var windowsPendingInitialCenter: Set<UIWindow.ID> = []
+    private var windowsSynchronizingFromSystem: Set<UIWindow.ID> = []
 
     override func createWindow(for window: UIWindow) {
-        let minSize = UIWindow.defaultMinimumSize
+        let minSize = window.configuration.minimumSize
         
         let frame = window.frame
         let size = frame.size == .zero ? minSize : frame.size
@@ -47,27 +49,48 @@ final class MacOSWindowManager: UIWindowManager {
             windowId: window.id,
             frame: NSRect(origin: .zero, size: contentRect.size)
         )
+        metalView.allowsTransparency = window.configuration.background.isTransparent
         metalView.windowManager = self
         metalView.autoresizingMask = [.width, .height]
         rootContentView.addSubview(metalView)
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
 
+        let styleMask: NSWindow.StyleMask = switch window.configuration.chrome {
+        case .standard:
+            [.titled, .closable, .resizable, .miniaturizable]
+        case .borderless:
+            [.borderless]
+        }
+
         let systemWindow = NSWindow(
             contentRect: contentRect,
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            styleMask: styleMask,
             backing: .buffered,
             defer: false
         )
 
         systemWindow.contentView = rootContentView
-        systemWindow.collectionBehavior = .fullScreenPrimary
-        systemWindow.center()
+        systemWindow.collectionBehavior = collectionBehavior(for: window.configuration.collectionBehavior)
+        if frame.origin == .zero {
+            systemWindow.center()
+            windowsPendingInitialCenter.insert(window.id)
+        }
         systemWindow.isRestorable = false
         systemWindow.acceptsMouseMovedEvents = true
         systemWindow.delegate = nsWindowDelegate
-        systemWindow.backgroundColor = NSColor.black
+        systemWindow.level = windowLevel(for: window.configuration.level)
+        systemWindow.isOpaque = !window.configuration.background.isTransparent
+        systemWindow.hasShadow = true
+        systemWindow.backgroundColor = backgroundColor(for: window.configuration.background)
         window.systemWindow = systemWindow
+        if let title = window.configuration.title {
+            window.title = title
+        }
+        if window.frame.origin != .zero {
+            window.frame = Rect(origin: .zero, size: size)
+        }
         window.minSize = minSize
+        window.setWindowMode(window.configuration.mode)
         window.userInterfaceIdiom = .desktop
 
         unsafe try? RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
@@ -89,9 +112,19 @@ final class MacOSWindowManager: UIWindowManager {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
+
+        if nsWindow.isMiniaturized {
+            nsWindow.deminiaturize(nil)
+        }
+
+        if windowsPendingInitialCenter.remove(window.id) != nil {
+            nsWindow.center()
+        }
         
         if isFocused {
             nsWindow.makeKeyAndOrderFront(nil)
+        } else if shouldOrderFrontRegardless(window) {
+            nsWindow.orderFrontRegardless()
         } else {
             nsWindow.orderFront(nil)
         }
@@ -119,15 +152,22 @@ final class MacOSWindowManager: UIWindowManager {
         }
 
         self.removeWindow(window, setActiveAnotherIfNeeded: true)
+        windowsPendingInitialCenter.remove(window.id)
         
         nsWindow.close()
     }
     
     override func resizeWindow(_ window: UIWindow, size: Size) {
+        guard !windowsSynchronizingFromSystem.contains(window.id) else {
+            return
+        }
+
         let nsWindow = window.systemWindow as? NSWindow
 
         let cgSize = CGSize(width: CGFloat(size.width), height: CGFloat(size.height))
-        nsWindow?.setContentSize(cgSize)
+        if nsWindow?.contentView?.frame.size != cgSize {
+            nsWindow?.setContentSize(cgSize)
+        }
     }
     
     override func setMinimumSize(_ size: Size, for window: UIWindow) {
@@ -310,6 +350,75 @@ final class MacOSWindowManager: UIWindowManager {
             ($0.systemWindow as? NSWindow) === nsWindow
         }
     }
+
+    func synchronizeRenderMetrics(for nsWindow: NSWindow, window: UIWindow, updateWindowFrame: Bool) {
+        let size = nsWindow.size
+
+        if updateWindowFrame && window.frame.size != size {
+            windowsSynchronizingFromSystem.insert(window.id)
+            defer {
+                windowsSynchronizingFromSystem.remove(window.id)
+            }
+            window.frame = Rect(origin: .zero, size: size)
+        }
+
+        if let metalView = nsWindow.contentView?.subviews.first(where: { $0 is MetalView }) as? MetalView {
+            metalView.updateDrawableMetrics()
+        }
+
+        window.setNeedsLayout()
+
+        let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
+        unsafe try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
+    }
+
+    private func backgroundColor(for background: UIWindow.Background) -> NSColor {
+        switch background {
+        case .transparent:
+            return .clear
+        case .opaque(let color):
+            return NSColor(
+                red: CGFloat(color.red),
+                green: CGFloat(color.green),
+                blue: CGFloat(color.blue),
+                alpha: CGFloat(color.alpha)
+            )
+        }
+    }
+
+    private func windowLevel(for level: UIWindow.Level) -> NSWindow.Level {
+        switch level {
+        case .normal:
+            return .normal
+        case .floating:
+            return .floating
+        case .statusBar:
+            return .screenSaver
+        }
+    }
+
+    private func collectionBehavior(for behavior: UIWindow.CollectionBehavior) -> NSWindow.CollectionBehavior {
+        switch behavior {
+        case .standard:
+            return .fullScreenPrimary
+        case .allSpacesStationary:
+            return [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        }
+    }
+
+    private func shouldOrderFrontRegardless(_ window: UIWindow) -> Bool {
+        switch window.configuration.level {
+        case .normal:
+            switch window.configuration.collectionBehavior {
+            case .standard:
+                return false
+            case .allSpacesStationary:
+                return true
+            }
+        case .floating, .statusBar:
+            return true
+        }
+    }
 }
 
 // MARK: - NSWindowDelegate
@@ -354,14 +463,40 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
             return
         }
         
-        let size = nsWindow.size
-        
-        if window.frame.size != nsWindow.size {
-            window.frame = Rect(origin: .zero, size: size)
+        windowManager.synchronizeRenderMetrics(for: nsWindow, window: window, updateWindowFrame: true)
+    }
+
+    func windowDidChangeBackingProperties(_ notification: Notification) {
+        guard
+            let nsWindow = notification.object as? NSWindow,
+            let window = self.windowManager.findWindow(for: nsWindow)
+        else {
+            return
         }
-    
-        let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-        unsafe try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
+
+        windowManager.synchronizeRenderMetrics(for: nsWindow, window: window, updateWindowFrame: false)
+    }
+
+    func windowDidMiniaturize(_ notification: Notification) {
+        guard
+            let nsWindow = notification.object as? NSWindow,
+            let window = self.windowManager.findWindow(for: nsWindow)
+        else {
+            return
+        }
+
+        NotificationCenter.default.post(name: .adaEngineWindowDidMiniaturize, object: window)
+    }
+
+    func windowDidDeminiaturize(_ notification: Notification) {
+        guard
+            let nsWindow = notification.object as? NSWindow,
+            let window = self.windowManager.findWindow(for: nsWindow)
+        else {
+            return
+        }
+
+        NotificationCenter.default.post(name: .adaEngineWindowDidDeminiaturize, object: window)
     }
     
     func windowDidExitFullScreen(_ notification: Notification) {

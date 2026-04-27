@@ -241,6 +241,34 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
 
         return outputs
     }
+
+    /// List builds (e.g. ``LayoutViewContainerNode`` / ``ViewContainerNode`` via ``invalidateContent``)
+    /// must apply the same input-side environment mutations as ``_makeView``; otherwise modifiers
+    /// like ``TransformViewEnvironmentModifier`` never run ``_makeModifier`` and values such as
+    /// ``View/environment(_:)`` for observables are missing for descendants.
+    @MainActor
+    static func _makeListView(
+        for modifier: _ViewGraphNode<Self>,
+        inputs: _ViewListInputs,
+        body: @escaping (_ViewListInputs) -> _ViewListOutputs
+    ) -> _ViewListOutputs {
+        var input = inputs.input
+        Self._makeModifier(modifier, inputs: &input)
+
+        if let builder = modifier.value as? ViewNodeBuilder {
+            let node = builder.buildViewNode(in: input)
+            return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
+        }
+
+        let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeViewList(body)))
+        var outputs = Self.Body._makeListView(_ViewGraphNode(value: newBody), inputs: _ViewListInputs(input: input))
+        if let transform = input.pendingEnvironmentTransform {
+            for index in outputs.outputs.indices {
+                outputs.outputs[index].node.environmentTransform = transform
+            }
+        }
+        return outputs
+    }
 }
 
 protocol _ViewOutputsViewModifier {
@@ -261,6 +289,27 @@ extension ViewModifier where Self: _ViewOutputsViewModifier {
         let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeView(body)))
         var outputs = Self.Body._makeView(_ViewGraphNode(value: newBody), inputs: inputs)
         self._makeModifier(modifier, outputs: &outputs)
+        return outputs
+    }
+
+    @MainActor
+    static func _makeListView(
+        for modifier: _ViewGraphNode<Self>,
+        inputs: _ViewListInputs,
+        body: @escaping (_ViewListInputs) -> _ViewListOutputs
+    ) -> _ViewListOutputs {
+        if let builder = modifier.value as? ViewNodeBuilder {
+            let node = builder.buildViewNode(in: inputs.input)
+            var output = _ViewOutputs(node: node)
+            self._makeModifier(modifier, outputs: &output)
+            return _ViewListOutputs(outputs: [output])
+        }
+
+        let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeViewList(body)))
+        var outputs = Self.Body._makeListView(_ViewGraphNode(value: newBody), inputs: inputs)
+        for index in outputs.outputs.indices {
+            self._makeModifier(modifier, outputs: &outputs.outputs[index])
+        }
         return outputs
     }
 }

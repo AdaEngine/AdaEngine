@@ -83,7 +83,7 @@ extension Gradient {
     }
 
     static func normalizeStops(_ stops: [Stop]) -> [Stop] {
-        let normalized = stops
+        var normalized = stops
             .map { Stop(color: $0.color, location: min(max($0.location, 0), 1)) }
             .sorted { lhs, rhs in
                 if lhs.location == rhs.location {
@@ -92,22 +92,26 @@ extension Gradient {
                 return lhs.location < rhs.location
             }
 
-        let limited = Array(normalized.prefix(maximumStops))
+        if normalized.count > maximumStops {
+            let last = normalized.last!
+            normalized = Array(normalized.prefix(maximumStops))
+            normalized[maximumStops - 1] = last
+        }
 
-        switch limited.count {
+        switch normalized.count {
         case 0:
             return [
                 Stop(color: .clear, location: 0),
                 Stop(color: .clear, location: 1)
             ]
         case 1:
-            let stop = limited[0]
+            let stop = normalized[0]
             return [
                 Stop(color: stop.color, location: 0),
                 Stop(color: stop.color, location: 1)
             ]
         default:
-            return limited
+            return normalized
         }
     }
 }

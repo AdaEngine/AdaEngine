@@ -141,6 +141,14 @@ public struct Camera: Sendable {
 }
 
 public extension Camera {
+    func targetWindowId(from primary: PrimaryWindowId) -> WindowID? {
+        switch renderTarget {
+        case .window(let windowRef):
+            return windowRef.getWindowId(from: primary)
+        case .texture:
+            return nil
+        }
+    }
 
     /// Normalized Device Coordinate to world point
     func ndcToWorld(cameraGlobalTransform: Transform3D, ndc: Vector3) -> Vector3 {

@@ -81,12 +81,13 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     @MainActor
-    func createSwapchain(from window: WindowID) -> any Swapchain {
+    func createSwapchain(from window: WindowID) -> (any Swapchain)? {
         guard let context else {
             fatalError("Context not found")
         }
-        let window = context.getRenderWindow(for: window)
-            .unwrap(message: "RenderWindow not found")
+        guard let window = context.getRenderWindow(for: window) else {
+            return nil
+        }
 
         return MetalViewSwapchain(view: window.view)
     }

@@ -9,6 +9,9 @@ import AdaAssets
 import AdaUtils
 import Foundation
 import AtlasFontGenerator
+#if canImport(CoreText)
+import CoreText
+#endif
 
 /// Contains font styles.
 public enum FontWeight: String {
@@ -96,6 +99,8 @@ public extension FontResource {
     private struct CacheKey: Hashable {
         let path: String
         let emFontScale: Double
+        var includeDefaultCharset: Bool = true
+        var additionalCodepoints: [UInt32] = []
     }
 
     private final class CacheStore: @unchecked Sendable {
@@ -124,15 +129,37 @@ public extension FontResource {
     /// Create custom font from file path.
     /// - Returns: Returns font if font available or null if something went wrong.
     static func custom(fontPath: URL, emFontScale: Double? = nil) -> FontResource? {
+        custom(
+            fontPath: fontPath,
+            emFontScale: emFontScale,
+            includeDefaultCharset: true,
+            additionalCodepoints: []
+        )
+    }
+
+    static func custom(
+        fontPath: URL,
+        emFontScale: Double? = nil,
+        includeDefaultCharset: Bool,
+        additionalCodepoints: [UInt32]
+    ) -> FontResource? {
         let resolvedScale = emFontScale ?? Constants.defaultEmFontScale
-        let key = CacheKey(path: fontPath.path, emFontScale: resolvedScale)
+        let normalizedCodepoints = Array(Set(additionalCodepoints)).sorted()
+        let key = CacheKey(
+            path: fontPath.path,
+            emFontScale: resolvedScale,
+            includeDefaultCharset: includeDefaultCharset,
+            additionalCodepoints: normalizedCodepoints
+        )
 
         if let cached = cacheStore.get(key) {
             return cached
         }
 
         let descriptor = FontDescriptor(
-            emFontScale: resolvedScale
+            emFontScale: resolvedScale,
+            includeDefaultCharset: includeDefaultCharset,
+            additionalCodepoints: normalizedCodepoints
         )
         guard let fontHandle = FontAtlasGenerator.shared.generateAtlas(fontPath: fontPath, fontDescriptor: descriptor) else {
             return nil
@@ -141,6 +168,62 @@ public extension FontResource {
         cacheStore.set(resource, for: key)
         return resource
     }
+
+    static func fallback(for scalar: UnicodeScalar, baseFont: FontResource) -> FontResource? {
+        #if canImport(CoreText)
+        guard let fontURL = fallbackFontURL(for: scalar, baseFontName: baseFont.handle.fontName) else {
+            return nil
+        }
+
+        return custom(
+            fontPath: fontURL,
+            emFontScale: baseFont.fontEmSize,
+            includeDefaultCharset: false,
+            additionalCodepoints: [scalar.value]
+        )
+        #else
+        return nil
+        #endif
+    }
+
+    #if canImport(CoreText)
+    private static func fallbackFontURL(for scalar: UnicodeScalar, baseFontName: String) -> URL? {
+        let character = String(scalar)
+        let baseFont = CTFontCreateWithName(baseFontName as CFString, 12, nil)
+        let fallbackFont = CTFontCreateForString(
+            baseFont,
+            character as CFString,
+            CFRange(location: 0, length: (character as NSString).length)
+        )
+
+        guard font(fallbackFont, contains: scalar) else {
+            return nil
+        }
+
+        return CTFontCopyAttribute(fallbackFont, kCTFontURLAttribute) as? URL
+    }
+
+    private static func font(_ font: CTFont, contains scalar: UnicodeScalar) -> Bool {
+        let characters = String(scalar).utf16.map { UniChar($0) }
+        guard !characters.isEmpty else {
+            return false
+        }
+
+        var glyphs = Array(repeating: CGGlyph(), count: characters.count)
+        let foundGlyphs = characters.withUnsafeBufferPointer { charactersBuffer in
+            glyphs.withUnsafeMutableBufferPointer { glyphsBuffer in
+                CTFontGetGlyphsForCharacters(
+                    font,
+                    charactersBuffer.baseAddress!,
+                    glyphsBuffer.baseAddress!,
+                    characters.count
+                )
+            }
+        }
+
+        return foundGlyphs && glyphs.allSatisfy { $0 != 0 }
+    }
+    #endif
     
 }
 

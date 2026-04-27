@@ -629,6 +629,13 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         self.tabViewStyleTypeName = newStyleTypeName
         super.update(from: other)
 
+        // Propagate environment to children
+        self.tabBarNode.updateEnvironment(self.environment)
+        self.contentNode.updateEnvironment(self.environment)
+        if isCustomStyle {
+            self.contentProxy.updateEnvironment(self.environment)
+        }
+
         if elementsChanged || positionChanged || styleChanged {
             rebuildAll()
         } else {
@@ -659,7 +666,9 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         // Keep offscreen cached tabs lazy: propagating environment through every cached
         // subtree on each layout/env tick makes tab switches scale with the total number
         // of visited tabs instead of only the visible one.
-        contentNode.updateEnvironment(contentEnv)
+        for node in cachedContentNodes.values {
+            node.updateEnvironment(contentEnv)
+        }
     }
 
     override func updateViewOwner(_ owner: ViewOwner) {
@@ -882,11 +891,14 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
     }
 
     private func getOrCreateContentNode(for value: AnyHashable) -> ViewNode {
-        if let cached = cachedContentNodes[value] {
-            return cached
-        }
         for element in elements {
             if case .tab(_, _, let v, let makeContent) = element, v == value {
+                if let cached = cachedContentNodes[value] {
+                    let newNode = makeContent(viewInputs)
+                    cached.update(from: newNode)
+                    return cached
+                }
+
                 let node = makeContent(viewInputs)
                 cachedContentNodes[value] = node
                 return node

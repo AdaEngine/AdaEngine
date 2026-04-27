@@ -41,12 +41,13 @@ struct LinearGradientUniform: Sendable {
     let stopLocations3: Vector4
 
     init(startPoint: Vector2, endPoint: Vector2, stops: [Gradient.Stop]) {
-        let colors = Self.makeColors(from: stops)
-        let locations = Self.makeLocations(from: stops)
+        let normalizedStops = Gradient.normalizeStops(stops)
+        let colors = Self.makeColors(from: normalizedStops)
+        let locations = Self.makeLocations(from: normalizedStops)
 
         self.startPoint = startPoint
         self.endPoint = endPoint
-        self.stopCount = Int32(stops.count)
+        self.stopCount = Int32(normalizedStops.count)
         self._padding = 0
         self.stopColor0 = colors[0]
         self.stopColor1 = colors[1]

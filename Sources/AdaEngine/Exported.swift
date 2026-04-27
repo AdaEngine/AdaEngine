@@ -16,6 +16,7 @@
 @_exported import AdaECS
 @_exported import AdaInput
 @_exported import AdaPhysics
+@_exported import AdaPlatform
 @_exported import AdaRender
 @_exported import AdaScene
 @_exported import AdaSprite

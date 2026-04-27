@@ -74,6 +74,9 @@ final class UIAnimationController {
             self.fromValue = tween.fromValue
             self.currentValue = tween.fromValue
             self.toValue = tween.toValue
+            self.currentDuration = 0
+            self.animationContext = AnimationContext()
+            self.state = .idle
         }
     }
 
@@ -102,15 +105,19 @@ final class UIAnimationController {
 
         if let index = self.transactions.firstIndex(where: { $0.label == label }) {
             if var transaction = self.transactions[index] as? TweenAnimation<T> {
-                if !transaction.shouldMerge(tween) {
+                if (transaction.toValue.animatableData - tween.toValue.animatableData).magnitudeSquared == 0 {
                     return
                 }
 
-                transaction.updateTween(tween)
-                transactions[index] = transaction
+                if transaction.shouldMerge(tween) {
+                    transaction.updateTween(tween)
+                    transactions[index] = transaction
+                } else {
+                    self.transactions[index] = tween
+                }
             } else {
                 // If we add same animation -> remove previous and add a new one.
-                self.transactions.remove(at: index)
+                self.transactions[index] = tween
             }
         } else {
             self.transactions.append(tween)
@@ -130,10 +137,12 @@ final class UIAnimationController {
             return
         }
 
-        for (index, transaction) in transactions.enumerated() {
-            var transaction = transaction
+        var index = 0
+        while index < transactions.count {
+            var transaction = transactions[index]
             transaction.updateAnimation(deltaTime)
             transactions[index] = transaction
+            index += 1
         }
 
         transactions.removeAll(where: { $0.state == .done })

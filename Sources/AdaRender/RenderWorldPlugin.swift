@@ -139,6 +139,9 @@ struct RenderWorldExctractor: WorldExctractor {
     func exctract(from mainWorld: World, to renderWorld: World) async {
         renderWorld.clear()
         renderWorld.insertResource(MainWorld(world: mainWorld))
+        if let primaryWindow = mainWorld.getResource(PrimaryWindowId.self) {
+            renderWorld.insertResource(primaryWindow)
+        }
         await renderWorld.runScheduler(.extract)
     }
 }
@@ -171,7 +174,11 @@ public func CreateWindowSurfaces(
     do {
         let renderWindows = try await renderInstance.renderEngine.getRenderWindows()
         for (windowId, _) in renderWindows.windows.values {
-            let swapchain = await device.createSwapchain(from: windowId)
+            guard let swapchain = await device.createSwapchain(from: windowId) else {
+                Logger(label: "org.adaengine.render")
+                    .debug("Swapchain not enable for \(windowId)")
+                continue
+            }
 
             let ref: WindowRef = if primaryWindow.wrappedValue.windowId == windowId {
                     .primary

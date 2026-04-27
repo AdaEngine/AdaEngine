@@ -53,7 +53,7 @@ public struct HStackLayout: Layout {
             cache.maxSizes.append(maxSize)
             cache.maxSize += maxSize
 
-            if index != subviews.startIndex {
+            if index != 0 {
                 let space = self.spacing ?? 8
                 cache.totalSubviewSpacing += space
                 cache.subviewSpacings.append(space)
@@ -81,7 +81,7 @@ public struct HStackLayout: Layout {
             )
         }
         let hasFlexibleSubviews = (0..<subviews.count).contains { index in
-            isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache)
+            isFlexibleSubview(index: index, cache: cache)
         }
 
         guard let proposedWidth = finiteDimension(proposal.width), hasFlexibleSubviews else {
@@ -120,7 +120,7 @@ public struct HStackLayout: Layout {
             return sanitizedSize
         }
         let hasFlexibleSubviews = (0..<subviews.count).contains { index in
-            isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache)
+            isFlexibleSubview(index: index, cache: cache)
         }
 
         let layoutWidth: Float
@@ -131,17 +131,26 @@ public struct HStackLayout: Layout {
         }
         origin.x = bounds.minX
 
-        var restOfFlexibleViews = (0..<subviews.count).reduce(Int.zero) { count, index in
-            return count + (isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache) ? 1 : 0)
+        let preferredFlexibleIndices = (0..<subviews.count).filter { index in
+            isFlexibleSubview(index: index, cache: cache) && !isSpacerSubview(subviews[index])
         }
+        let fallbackFlexibleIndices = (0..<subviews.count).filter { index in
+            isFlexibleSubview(index: index, cache: cache)
+        }
+
+        let distributedFlexibleIndices = preferredFlexibleIndices.isEmpty
+            ? fallbackFlexibleIndices
+            : preferredFlexibleIndices
+        var restOfFlexibleViews = distributedFlexibleIndices.count
 
         var availableSpace = max(layoutWidth - idealWidth - cache.totalSubviewSpacing, 0)
 
         for (index, subview) in subviews.enumerated() {
             var idealWidth = idealSizes[index].width
-            let isFlexible = isFlexibleSubview(index: index, idealSizes: idealSizes, cache: cache)
+            let isFlexible = isFlexibleSubview(index: index, cache: cache)
+            let participatesInDistribution = distributedFlexibleIndices.contains(index)
 
-            if isFlexible && restOfFlexibleViews > 0 {
+            if isFlexible && participatesInDistribution && restOfFlexibleViews > 0 {
                 let slot = max(availableSpace, 0) / Float(restOfFlexibleViews)
                 idealWidth += slot
                 availableSpace -= slot
@@ -183,13 +192,16 @@ public struct HStackLayout: Layout {
     @inline(__always)
     private func isFlexibleSubview(
         index: Int,
-        idealSizes: [Size],
         cache: Cache
     ) -> Bool {
         let maxWidth = cache.maxSizes[index].width
-        let idealWidth = idealSizes[index].width
         let minWidth = cache.minSizes[index].width
-        return maxWidth > idealWidth && minWidth == idealWidth
+        return maxWidth > minWidth
+    }
+
+    @inline(__always)
+    private func isSpacerSubview(_ subview: LayoutSubview) -> Bool {
+        subview.node is SpacerViewNode
     }
 
 }

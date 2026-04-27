@@ -121,8 +121,12 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     @MainActor
-    public func createSwapchain(from window: WindowID) -> any Swapchain {
-        WGPUSwapchain(renderWindow: context.getWGPURenderWindow(for: window)!)
+    func createSwapchain(from window: WindowID) -> (any Swapchain)? {
+        guard let renderWindow = context.getWGPURenderWindow(for: window) else {
+            return nil
+        }
+        
+        return WGPUSwapchain(renderWindow: renderWindow)
     }
 }
 

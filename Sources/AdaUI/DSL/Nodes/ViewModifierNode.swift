@@ -33,6 +33,7 @@ class ViewModifierNode: ViewNode {
         }
 
         super.update(from: otherNode)
+        self.contentNode.updateEnvironment(self.environment)
         self.contentNode.update(from: otherNode.contentNode)
     }
 
@@ -94,6 +95,24 @@ class ViewModifierNode: ViewNode {
         contentNode.draw(with: context)
     }
 
+    override func drawInspectionChildLayoutBounds(with context: UIGraphicsContext) {
+        contentNode.drawInspectionLayoutBounds(with: context)
+    }
+
+    override func drawInspectionChildSelectionBounds(
+        with context: UIGraphicsContext,
+        mode: UIDebugOverlayMode,
+        focusedNode: ViewNode?,
+        hitTestNode: ViewNode?
+    ) {
+        contentNode.drawInspectionSelectionBounds(
+            with: context,
+            mode: mode,
+            focusedNode: focusedNode,
+            hitTestNode: hitTestNode
+        )
+    }
+
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         contentNode.sizeThatFits(proposal)
     }
@@ -123,6 +142,10 @@ class ViewModifierNode: ViewNode {
 
     override func onMouseEvent(_ event: MouseEvent) {
         contentNode.onMouseEvent(event)
+    }
+
+    override func onMouseLeave() {
+        contentNode.onMouseLeave()
     }
 
     override func onReceiveEvent(_ event: any InputEvent) {
