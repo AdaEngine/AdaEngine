@@ -92,6 +92,31 @@ public final class TextLayoutManager: @unchecked Sendable {
 
     public init() {}
 
+    private struct ResolvedGlyph {
+        let glyph: FontHandle.Glyph
+        let fontResource: FontResource
+        let scalar: UnicodeScalar
+    }
+
+    private func resolveGlyph(for scalar: UnicodeScalar, primaryFontResource: FontResource) -> ResolvedGlyph? {
+        if let glyph = primaryFontResource.handle.getGlyph(for: scalar.value) {
+            return ResolvedGlyph(glyph: glyph, fontResource: primaryFontResource, scalar: scalar)
+        }
+
+        if
+            let fallbackFontResource = FontResource.fallback(for: scalar, baseFont: primaryFontResource),
+            let glyph = fallbackFontResource.handle.getGlyph(for: scalar.value)
+        {
+            return ResolvedGlyph(glyph: glyph, fontResource: fallbackFontResource, scalar: scalar)
+        }
+
+        guard let glyph = primaryFontResource.handle.getGlyph(for: Constants.questionMark.value) else {
+            return nil
+        }
+
+        return ResolvedGlyph(glyph: glyph, fontResource: primaryFontResource, scalar: Constants.questionMark)
+    }
+
     /// Set new text container to text layout.
     /// - Note: This method doesn't call ``invalidateLayout()`` method.
     public func setTextContainer(_ textContainer: TextContainer) {
@@ -165,11 +190,11 @@ public final class TextLayoutManager: @unchecked Sendable {
                 let kern = Double(attributes.kern)
 
                 let font = attributes.font
-                let fontHandle = font.fontResource.handle
+                let primaryFontResource = font.fontResource
+                let fontHandle = primaryFontResource.handle
                 let metrics = fontHandle.metrics
                 // Scale glyph positions based on font point size relative to em size
                 let fontScale: Double = font.pointSize / metrics.emSize
-                let fontSize = font.fontResource.getFontScale(for: font.pointSize)
                 let lineHeight = fontScale * metrics.lineHeight
                 maxLineHeight = max(maxLineHeight, lineHeight + lineHeightOffset)
                 maxAscent = max(maxAscent, metrics.ascenderY * fontScale)
@@ -182,35 +207,37 @@ public final class TextLayoutManager: @unchecked Sendable {
                     continue
                 }
 
-                var resolvedGlyph = fontHandle.getGlyph(for: firstScalar.value)
-                if resolvedGlyph == nil {
-                    resolvedGlyph = fontHandle.getGlyph(for: Constants.questionMark.value)
-                }
+                if let resolvedGlyph = resolveGlyph(for: firstScalar, primaryFontResource: primaryFontResource) {
+                    let glyph = resolvedGlyph.glyph
+                    let glyphFontResource = resolvedGlyph.fontResource
+                    let glyphFontHandle = glyphFontResource.handle
+                    let glyphMetrics = glyphFontHandle.metrics
+                    let glyphFontScale: Double = font.pointSize / glyphMetrics.emSize
+                    let glyphFontSize = glyphFontResource.getFontScale(for: font.pointSize)
 
-                if let glyph = resolvedGlyph {
                     var l: Double = 0, b: Double = 0, r: Double = 0, t: Double = 0
                     glyph.getQuadAtlasBounds(&l, &b, &r, &t)
 
                     var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
                     glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
 
-                    if Float((pr * fontScale) + x) > availableSize.width {
+                    if Float((pr * glyphFontScale) + x) > availableSize.width {
                         x = 0
                         y -= maxLineHeight
                     }
 
-                    if abs(Float((pt * fontScale) + y)) > availableSize.height {
+                    if abs(Float((pt * glyphFontScale) + y)) > availableSize.height {
                         index = lineEndIndex
                         break
                     }
 
-                    pl = (pl * fontScale) + x
-                    pb = (pb * fontScale) + y
-                    pr = (pr * fontScale) + x
-                    pt = (pt * fontScale) + y
+                    pl = (pl * glyphFontScale) + x
+                    pb = (pb * glyphFontScale) + y
+                    pr = (pr * glyphFontScale) + x
+                    pt = (pt * glyphFontScale) + y
 
-                    let texelWidth = 1 / Double(fontHandle.atlasTexture.width)
-                    let texelHeight = 1 / Double(fontHandle.atlasTexture.height)
+                    let texelWidth = 1 / Double(glyphFontHandle.atlasTexture.width)
+                    let texelHeight = 1 / Double(glyphFontHandle.atlasTexture.height)
                     l *= texelWidth
                     b *= texelHeight
                     r *= texelWidth
@@ -218,12 +245,12 @@ public final class TextLayoutManager: @unchecked Sendable {
 
                     textRun.glyphs.append(
                         Glyph(
-                            textureAtlas: fontHandle.atlasTexture,
+                            textureAtlas: glyphFontHandle.atlasTexture,
                             textureCoordinates: [Float(l), Float(b), Float(r), Float(t)],
                             attributes: attributes,
                             position: [Float(pl), Float(pb), Float(pr), Float(pt)],
-                            origin: Point(x: -Float(fontSize) / 2, y: Float(fontSize) / 2),
-                            size: Size(width: Float(fontSize), height: Float(fontSize))
+                            origin: Point(x: -Float(glyphFontSize) / 2, y: Float(glyphFontSize) / 2),
+                            size: Size(width: Float(glyphFontSize), height: Float(glyphFontSize))
                         )
                     )
 
@@ -235,11 +262,11 @@ public final class TextLayoutManager: @unchecked Sendable {
                     if nextIndex < lineEndIndex {
                         if let nextChar = nextIndex < attributedText.text.endIndex ? attributedText.text[nextIndex] : nil,
                            let nextScalar = nextChar.unicodeScalars.first {
-                            fontHandle.getAdvance(&advance, firstScalar.value, nextScalar.value)
-                            x += fontScale * advance + kern
+                            glyphFontHandle.getAdvance(&advance, resolvedGlyph.scalar.value, nextScalar.value)
+                            x += glyphFontScale * advance + kern
                         }
                     } else {
-                        x += fontScale * advance + kern
+                        x += glyphFontScale * advance + kern
                     }
                 }
                 

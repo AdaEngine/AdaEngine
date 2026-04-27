@@ -8,6 +8,7 @@
 @_spi(Internal) @testable import AdaUI
 @_spi(Internal) @testable import AdaPlatform
 import AdaInput
+@testable import AdaRender
 import Math
 
 class TestApplication: Application {
@@ -75,6 +76,10 @@ private final class MockScreenManager: ScreenManager {
 extension Application {
     @MainActor
     static func prepareForTest() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            try RenderEngine.setupRenderEngine()
+        }
         self.shared = try TestApplication()
         UIWindowManager.setShared(self.shared.windowManager)
         unsafe Screen.screenManager = MockScreenManager()

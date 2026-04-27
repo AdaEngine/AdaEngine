@@ -6,6 +6,7 @@
 //
 
 import AdaUtils
+import AdaAnimation
 import Math
 
 /// A type that resolves into a concrete fill or stroke color for shapes.
@@ -29,7 +30,7 @@ public struct StrokeStyle: Sendable, Equatable {
 }
 
 /// A protocol that defines a shape.
-public protocol Shape: View {
+public protocol Shape: View, Animatable {
     /// The path of the shape.
     ///
     /// - Parameter rect: The rect of the shape.
@@ -94,6 +95,8 @@ struct _ShapeStyledView<S: Shape, Style: ShapeStyle>: View, ViewNodeBuilder {
 
 /// A circle shape.
 public struct CircleShape: Shape {
+    public typealias AnimatableData = EmptyAnimatableData
+
     public init() {}
 
     public func path(in rect: Rect) -> Path {
@@ -105,6 +108,8 @@ public struct CircleShape: Shape {
 
 /// A rectangle shape.
 public struct RectangleShape: Shape {
+    public typealias AnimatableData = EmptyAnimatableData
+
     public init() {}
 
     public func path(in rect: Rect) -> Path {
@@ -116,6 +121,8 @@ public struct RectangleShape: Shape {
 
 /// A capsule shape — a rectangle with fully rounded ends.
 public struct CapsuleShape: Shape {
+    public typealias AnimatableData = EmptyAnimatableData
+
     public init() {}
 
     public func path(in rect: Rect) -> Path {
@@ -127,10 +134,17 @@ public struct CapsuleShape: Shape {
 
 /// A rectangle shape with a uniform corner radius.
 public struct RoundedRectangleShape: Shape {
+    public typealias AnimatableData = Float
+
     public var cornerRadius: Float
 
     public init(cornerRadius: Float) {
         self.cornerRadius = cornerRadius
+    }
+
+    public var animatableData: Float {
+        get { cornerRadius }
+        set { cornerRadius = newValue }
     }
 
     public func path(in rect: Rect) -> Path {
@@ -163,7 +177,7 @@ class ShapeViewNode<S: Shape>: ViewNode {
     override func performLayout() {
         super.performLayout()
 
-        self.path = self.shape.path(in: Rect(origin: .zero, size: self.frame.size))
+        updatePath()
     }
 
     /// Draw the shape view node.
@@ -187,14 +201,44 @@ class ShapeViewNode<S: Shape>: ViewNode {
     ///
     /// - Parameter newNode: The new node.
     override func update(from newNode: ViewNode) {
-        super.update(from: newNode)
-
         guard let otherNode = newNode as? Self else {
+            super.update(from: newNode)
             return
         }
 
-        self.shape = otherNode.shape
+        let startData = self.shape.animatableData
+        let endData = otherNode.shape.animatableData
+        let animationController = self.environment.animationController
+            ?? otherNode.environment.animationController
+            ?? nearestAnimationController()
+
+        super.update(from: newNode)
+
         self.renderMode = otherNode.renderMode
+
+        if let animationController, (startData - endData).magnitudeSquared > 0 {
+            self.shape = otherNode.shape
+            self.shape.animatableData = startData
+            updatePath()
+
+            animationController.addTweenAnimation(
+                from: TweenValue(animatableData: startData),
+                to: TweenValue(animatableData: endData),
+                label: "shape-\(self.id)",
+                environment: self.environment,
+                updateBlock: { [weak self] value in
+                    guard let self else { return }
+                    self.shape.animatableData = value.animatableData
+                    self.updatePath()
+                    self.invalidateNearestLayer()
+                    self.owner?.containerView?.setNeedsDisplay(in: self.absoluteFrame())
+                }
+            )
+        } else {
+            self.shape = otherNode.shape
+            updatePath()
+            invalidateNearestLayer()
+        }
     }
 
     /// The size that fits the shape view node.
@@ -203,6 +247,10 @@ class ShapeViewNode<S: Shape>: ViewNode {
     /// - Returns: The size that fits the shape view node.
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         return shape.sizeThatFits(proposal)
+    }
+
+    private func updatePath() {
+        self.path = self.shape.path(in: Rect(origin: .zero, size: self.frame.size))
     }
 }
 

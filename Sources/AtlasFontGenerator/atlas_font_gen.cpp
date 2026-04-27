@@ -26,6 +26,11 @@ font_generator_s* font_atlas_generator_create(const char* fontPath,
                                  const char* fontName,
                                  font_atlas_descriptor fontDescriptor) {
     auto font_generator = new ada::FontAtlasGenerator(fontPath, fontName, fontDescriptor);
+    if (!font_generator->isValid()) {
+        delete font_generator;
+        return nullptr;
+    }
+
     auto generator = new font_generator_s();
     generator->generator = font_generator;
     return generator;
@@ -41,7 +46,15 @@ void font_atlas_generator_destroy(font_generator_s* generator) {
 }
 
 font_handle_s* font_atlas_generator_get_font_data(font_generator_s* generator) {
+    if (!generator || !generator->generator) {
+        return nullptr;
+    }
+
     auto data = generator->generator->getFontData();
+    if (!data) {
+        return nullptr;
+    }
+
     font_handle_s* result = new font_handle_s();
     result->font_data = data;
     return result;
@@ -53,6 +66,10 @@ void font_handle_destroy(font_handle_s *fontHandle) {
 }
 
 AtlasBitmap* font_atlas_generator_generate_bitmap(font_generator_s* generator) {
+    if (!generator || !generator->generator) {
+        return nullptr;
+    }
+
     return generator->generator->generateAtlasBitmap();
 }
 

@@ -7,6 +7,7 @@
 
 import AdaAnimation
 import Math
+import AdaInput
 
 public extension View {
 
@@ -94,11 +95,11 @@ final class TransformEffectViewNode<Value: VectorArithmetic>: ViewModifierNode {
                 label: self.id,
                 environment: self.environment,
                 updateBlock: { [weak self] value in
+                    self?.value = value.animatableData
                     self?.updateTransform(value.animatableData)
+                    self?.invalidateNearestLayer()
                 }
             )
-
-            self.value = newNode.value
         } else {
             self.value = newNode.value
             updateTransform(self.value)
@@ -115,6 +116,13 @@ final class TransformEffectViewNode<Value: VectorArithmetic>: ViewModifierNode {
         var context = context
         context.concatenate(self.localTransform)
         contentNode.draw(with: context)
+    }
+
+    override func inspectionLocalContext(from context: UIGraphicsContext) -> UIGraphicsContext {
+        var context = context
+        context.environment = environment
+        context.concatenate(self.localTransform)
+        return context
     }
 }
 
@@ -154,6 +162,8 @@ final class AnimatableOffsetNode: ViewModifierNode {
 
     override func update(from newNode: ViewNode) {
         let animationController = self.environment.animationController
+            ?? newNode.environment.animationController
+            ?? nearestAnimationController()
         super.update(from: newNode)
         guard let node = newNode as? AnimatableOffsetNode else { return }
 
@@ -180,11 +190,30 @@ final class AnimatableOffsetNode: ViewModifierNode {
         self.targetY = node.targetY
     }
 
+    override func absoluteFrame() -> Rect {
+        var frame = self.frame
+        frame.origin.x += visualX
+        frame.origin.y += visualY
+        return super.absoluteFrame(using: frame)
+    }
+
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
+        let offsetPoint = Point(x: point.x - visualX, y: point.y - visualY)
+        return super.hitTest(offsetPoint, with: event)
+    }
+
     override func draw(with context: UIGraphicsContext) {
         var ctx = context
         ctx.environment = environment
         ctx.translateBy(x: self.frame.origin.x + visualX, y: -(self.frame.origin.y + visualY))
         contentNode.draw(with: ctx)
+    }
+
+    override func inspectionLocalContext(from context: UIGraphicsContext) -> UIGraphicsContext {
+        var context = context
+        context.environment = environment
+        context.translateBy(x: self.frame.origin.x + visualX, y: -(self.frame.origin.y + visualY))
+        return context
     }
 }
 

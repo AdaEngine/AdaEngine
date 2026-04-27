@@ -37,6 +37,9 @@ public struct UIRenderNode: RenderNode {
     @Res<RenderItems<UITransparentRenderItem>>
     private var renderItems
 
+    @Res<PrimaryWindowId>
+    private var primaryWindowId
+
     @ResMut<UIViewUniform>
     private var uiViewUniform
 
@@ -55,6 +58,7 @@ public struct UIRenderNode: RenderNode {
     public func update(from world: World) {
         query.update(from: world)
         _renderItems.update(from: world)
+        _primaryWindowId.update(from: world)
         _uiViewUniform.update(from: world)
         _renderDevice.update(from: world)
         _glassBackground.update(from: world)
@@ -76,6 +80,7 @@ public struct UIRenderNode: RenderNode {
             guard let texture = target.mainTexture else {
                 return
             }
+            let targetWindowId = camera.targetWindowId(from: primaryWindowId)
 
             let texWidth = texture.width
             let texHeight = texture.height
@@ -155,7 +160,7 @@ public struct UIRenderNode: RenderNode {
 
             var renderPass: RenderCommandEncoder?
 
-            for item in renderItems.items {
+            for item in renderItems.items where item.windowId == nil || item.windowId == targetWindowId {
                 let itemUsesGlass = !item.drawData.glassIndexBuffer.isEmpty
 
                 if itemUsesGlass {

@@ -20,10 +20,19 @@ import UIKit
 open class MetalView: MTKView {
     
     public var windowID: AdaUI.UIWindow.ID
+    var allowsTransparency: Bool = false {
+        didSet {
+            if oldValue != allowsTransparency {
+                updateDrawableMetrics()
+            }
+        }
+    }
     weak var windowManager: UIWindowManager?
 
     #if MACOS
     var currentTrackingArea: NSTrackingArea?
+    var passthroughLocalMouseMonitor: Any?
+    var passthroughGlobalMouseMonitor: Any?
     #endif
 
     #if canImport(UIKit)
@@ -32,7 +41,7 @@ open class MetalView: MTKView {
 
     #if MACOS
     open override var isOpaque: Bool {
-        true
+        !allowsTransparency
     }
     #endif
 
@@ -65,9 +74,21 @@ open class MetalView: MTKView {
         super.layout()
         updateDrawableMetrics()
     }
+
+    open override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        updateDrawableMetrics()
+        updateMousePassthroughMonitoring()
+    }
+
+    open override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        updateDrawableMetrics()
+    }
     #endif
 
-    private func updateDrawableMetrics() {
+    @discardableResult
+    func updateDrawableMetrics() -> CGSize {
         #if canImport(UIKit)
         let scale = self.window?.screen.scale ?? UIScreen.main.scale
         self.contentScaleFactor = scale
@@ -84,21 +105,23 @@ open class MetalView: MTKView {
 
         guard drawableSize.width > 0, drawableSize.height > 0 else {
             if let metalLayer = self.layer as? CAMetalLayer {
-                metalLayer.isOpaque = true
+                metalLayer.isOpaque = !allowsTransparency
                 metalLayer.frame = bounds
                 metalLayer.contentsScale = scale
             }
-            return
+            return drawableSize
         }
 
         self.drawableSize = drawableSize
 
         if let metalLayer = self.layer as? CAMetalLayer {
-            metalLayer.isOpaque = true
+            metalLayer.isOpaque = !allowsTransparency
             metalLayer.frame = bounds
             metalLayer.contentsScale = scale
             metalLayer.drawableSize = drawableSize
         }
+
+        return drawableSize
     }
     
 }

@@ -10,9 +10,7 @@ import AdaInput
 import AdaUtils
 import Observation
 import Math
-
-// FIXME: Check that container will handle ObservationTracking
-// FIXME: Merging trees after rebuild can be broken
+import Foundation
 
 /// View node that can store children.
 /// Most used for tuple, layout stacks and other containers.
@@ -44,18 +42,8 @@ class ViewContainerNode: ViewNode {
     init<Content: View>(content: @escaping () -> Content) {
         self.nodes = []
         super.init(content: content())
-        self.body = { [weak self] inputs in
-            guard let self else {
-                return _ViewListOutputs(outputs: [])
-            }
-            let content = withObservationTracking(content) { [weak self] in
-                guard let self else {
-                    return
-                }
-                MainActor.assumeIsolated {
-                    self.invalidateContent()
-                }
-            }
+        self.body = { inputs in
+            let content = content()
             return Content._makeListView(_ViewGraphNode(value: content), inputs: inputs)
         }
     }
@@ -70,8 +58,16 @@ class ViewContainerNode: ViewNode {
 
     /// Invalidate content with specific context.
     func invalidateContent(with inputs: _ViewListInputs) {
-        guard let outputs = body?(inputs) else {
+        guard let body = self.body else {
             return
+        }
+
+        let outputs = withObservationTracking {
+            body(inputs)
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.invalidateContent()
+            }
         }
 
         let outputNodes = outputs.outputs.map { $0.node }
@@ -79,11 +75,11 @@ class ViewContainerNode: ViewNode {
     }
 
     override func isEquals(_ otherNode: ViewNode) -> Bool {
-        guard let containerNode = otherNode as? ViewContainerNode else {
+        guard otherNode is ViewContainerNode else {
             return super.isEquals(otherNode)
         }
 
-        return self.nodes == containerNode.nodes
+        return super.isEquals(otherNode)
     }
 
     override func invalidateContent() {
@@ -266,6 +262,10 @@ class ViewContainerNode: ViewNode {
             return
         }
 
+        for node in nodes {
+            node.updateEnvironment(self.environment)
+        }
+
         self.updateChildNodes(from: container.nodes)
     }
 
@@ -321,7 +321,7 @@ class ViewContainerNode: ViewNode {
     }
 
     override func performLayout() {
-        let center = Point(x: frame.midX, y: frame.midY)
+        let center = Point(x: frame.width * 0.5, y: frame.height * 0.5)
         let proposal = ProposedViewSize(frame.size)
 
         for node in nodes {
@@ -329,7 +329,7 @@ class ViewContainerNode: ViewNode {
         }
     }
 
-    override func update(_ deltaTime: TimeInterval) {
+    override func update(_ deltaTime: AdaUtils.TimeInterval) {
         for node in nodes {
             node.update(deltaTime)
         }
@@ -371,6 +371,28 @@ class ViewContainerNode: ViewNode {
         // overwrite the whole surface while other nodes are skipped, causing "disappearing" UI.
         for node in self.nodes {
             node.draw(with: context)
+        }
+    }
+
+    override func drawInspectionChildLayoutBounds(with context: UIGraphicsContext) {
+        for node in nodes {
+            node.drawInspectionLayoutBounds(with: context)
+        }
+    }
+
+    override func drawInspectionChildSelectionBounds(
+        with context: UIGraphicsContext,
+        mode: UIDebugOverlayMode,
+        focusedNode: ViewNode?,
+        hitTestNode: ViewNode?
+    ) {
+        for node in nodes {
+            node.drawInspectionSelectionBounds(
+                with: context,
+                mode: mode,
+                focusedNode: focusedNode,
+                hitTestNode: hitTestNode
+            )
         }
     }
 

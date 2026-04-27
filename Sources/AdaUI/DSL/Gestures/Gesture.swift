@@ -136,6 +136,10 @@ class GestureRecognizer {
 
 class GestureAreaViewNode: ViewModifierNode {
 
+    override var allowsNestedFrameAnimation: Bool {
+        true
+    }
+
     var gestures: [GestureRecognizer]
 
     init<Content: View>(contentNode: ViewNode, content: Content, recognizers: [GestureRecognizer]) {

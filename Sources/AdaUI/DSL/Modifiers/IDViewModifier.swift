@@ -68,6 +68,30 @@ struct AccessibilityAttachmentModifier: ViewModifier, _ViewOutputsViewModifier {
         return content
     }
 
+    static func _makeView(
+        for modifier: _ViewGraphNode<AccessibilityAttachmentModifier>,
+        inputs: _ViewInputs,
+        body: @escaping (_ViewInputs) -> _ViewOutputs
+    ) -> _ViewOutputs {
+        let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeView(body)))
+        var outputs = Body._makeView(_ViewGraphNode(value: newBody), inputs: inputs)
+        _makeModifier(modifier, outputs: &outputs)
+        return outputs
+    }
+
+    static func _makeListView(
+        for modifier: _ViewGraphNode<AccessibilityAttachmentModifier>,
+        inputs: _ViewListInputs,
+        body: @escaping (_ViewListInputs) -> _ViewListOutputs
+    ) -> _ViewListOutputs {
+        let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeViewList(body)))
+        var outputs = Body._makeListView(_ViewGraphNode(value: newBody), inputs: inputs)
+        for index in outputs.outputs.indices {
+            _makeModifier(modifier, outputs: &outputs.outputs[index])
+        }
+        return outputs
+    }
+
     static func _makeModifier(_ modifier: _ViewGraphNode<AccessibilityAttachmentModifier>, outputs: inout _ViewOutputs) {
         outputs.node.accessibilityIdentifier = modifier[\.identifier].value
     }

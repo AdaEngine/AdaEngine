@@ -74,7 +74,8 @@ public struct AppPlatformPlugin: Plugin {
 public func ApplicationUpdate(
     _ windowManager: Res<WindowManagerResource>
 ) async {
-    if windowManager.windowManager.windows.isEmpty {
+    if windowManager.windowManager.windows.isEmpty,
+       Application.shared.lastWindowCloseBehavior == .terminateApplication {
         Application.shared.terminate()
     }
 }

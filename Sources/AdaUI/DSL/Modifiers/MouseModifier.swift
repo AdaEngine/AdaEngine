@@ -35,6 +35,10 @@ struct HoverViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
 
 final class HoverViewModifierNode: ViewModifierNode {
 
+    override var allowsNestedFrameAnimation: Bool {
+        true
+    }
+
     private let action: (Bool) -> Void
     private var isHovered: Bool = false
 

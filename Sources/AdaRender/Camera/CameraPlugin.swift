@@ -39,6 +39,7 @@ public struct RenderViewTarget: @unchecked Sendable {
     public var mainTexture: RenderTexture?
     public var outputTexture: RenderTexture?
     public var depthTexture: RenderTexture?
+    var retiredFrameTextures: [RenderTexture] = []
 
     /// Scene albedo when the 2D lighting pipeline is active; otherwise unused.
     public var sceneColorTexture: RenderTexture?
@@ -70,7 +71,23 @@ func ConfigurateRenderViewTarget(
         }
 
         let scale = camera.computedData.targetScaleFactor
-        if renderViewTarget.mainTexture == nil || renderViewTarget.mainTexture?.size != viewportSize {
+        if renderViewTarget.mainTexture == nil
+            || renderViewTarget.mainTexture?.size != viewportSize
+            || renderViewTarget.mainTexture?.scaleFactor != scale {
+            let retiredTextures = [
+                renderViewTarget.mainTexture,
+                renderViewTarget.depthTexture,
+                renderViewTarget.sceneColorTexture,
+                renderViewTarget.lightAccumTexture,
+                renderViewTarget.shadowMaskTexture,
+            ].compactMap { $0 }
+            renderViewTarget.retiredFrameTextures.append(contentsOf: retiredTextures)
+            let maxRetainedTextures = unsafe RenderEngine.configurations.maxFramesInFlight * 5
+            if renderViewTarget.retiredFrameTextures.count > maxRetainedTextures {
+                renderViewTarget.retiredFrameTextures.removeFirst(
+                    renderViewTarget.retiredFrameTextures.count - maxRetainedTextures
+                )
+            }
             renderViewTarget.mainTexture = RenderTexture(
                 size: viewportSize,
                 scaleFactor: scale,
@@ -94,6 +111,7 @@ func ConfigurateRenderViewTarget(
         case .texture(let asset):
             renderViewTarget.outputTexture = asset.asset
         case .window(let ref):
+            renderViewTarget.outputTexture = nil
             guard let surface = surfaces.windows[ref] else {
                 logger.error("Failed to configurate render view target for window \(ref). No surface.")
                 return

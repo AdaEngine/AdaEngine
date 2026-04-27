@@ -53,6 +53,18 @@ final class ViewRootNode: ViewNode {
         self.environment.coordinateSpaces.containers[Self.rootCoordinateSpace.name] = WeakBox(self)
     }
 
+    override func invalidateContent() {
+        let inputs = _ViewInputs(parentNode: nil, environment: self.environment)
+        
+        func makeView<V: View>(_ view: V) -> _ViewOutputs {
+            V._makeView(_ViewGraphNode(value: view), inputs: inputs)
+        }
+
+        let outputs = makeView(self.content)
+        self.contentNode.update(from: outputs.node)
+        owner?.containerView?.setNeedsLayout()
+    }
+
     override func performLayout() {
         let insets = environment.safeAreaInsets
         let safeWidth  = max(0, frame.width  - insets.leading - insets.trailing)
@@ -80,6 +92,24 @@ final class ViewRootNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         contentNode.draw(with: context)
         super.draw(with: context)
+    }
+
+    override func drawInspectionChildLayoutBounds(with context: UIGraphicsContext) {
+        contentNode.drawInspectionLayoutBounds(with: context)
+    }
+
+    override func drawInspectionChildSelectionBounds(
+        with context: UIGraphicsContext,
+        mode: UIDebugOverlayMode,
+        focusedNode: ViewNode?,
+        hitTestNode: ViewNode?
+    ) {
+        contentNode.drawInspectionSelectionBounds(
+            with: context,
+            mode: mode,
+            focusedNode: focusedNode,
+            hitTestNode: hitTestNode
+        )
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {

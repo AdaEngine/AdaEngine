@@ -218,7 +218,7 @@ final class NativeViewHostNode: ViewNode {
         
         #if canImport(AppKit) && os(macOS)
         if let nsWindow = systemWindow as? NSWindow, let overlayHostView = nsWindow.contentView, let nsView = nativeView as? NSView {
-            if unsafe nsView.superview != overlayHostView {
+            if unsafe nsView.superview !== overlayHostView {
                 overlayHostView.addSubview(nsView)
                 isOverlayAttached = true
             }
@@ -242,7 +242,11 @@ final class NativeViewHostNode: ViewNode {
                     origin: Point(x: visibleFrame.origin.x - absoluteFrame.origin.x, y: visibleFrame.origin.y - absoluteFrame.origin.y),
                     size: visibleFrame.size
                 )
-                maskLayer.path = NSBezierPath(rect: localVisibleFrame.toCGRect).cgPath
+                if nsView.layer == nil {
+                    nsView.wantsLayer = true
+                }
+                let maskRect = appKitMaskRectInBoundsCoordinates(from: localVisibleFrame, nsView: nsView)
+                maskLayer.path = NSBezierPath(rect: maskRect).cgPath
                 nsView.layer?.mask = maskLayer
             } else {
                 nsView.layer?.mask = nil
@@ -568,6 +572,7 @@ final class NativeViewHostNode: ViewNode {
     
     private func renderOffscreen() {
         guard let nativeView = self.nativeView else { return }
+        guard let _ = unsafe RenderEngine.shared as RenderEngine? else { return }
         
         let size = self.frame.size
         if size.width <= 0 || size.height <= 0 { return }
@@ -739,6 +744,20 @@ final class NativeViewHostNode: ViewNode {
     }
 
     #if canImport(AppKit) && os(macOS)
+    /// Converts a rectangle from AdaUI local space (origin top-left, +Y down) into `NSView.bounds`
+    /// coordinates for use with `CALayer` masking. Non-flipped AppKit views use a bottom-left origin in bounds.
+    private func appKitMaskRectInBoundsCoordinates(from adaLocalRect: Rect, nsView: NSView) -> CGRect {
+        if nsView.isFlipped {
+            return adaLocalRect.toCGRect
+        }
+        let b = nsView.bounds
+        let x = CGFloat(adaLocalRect.origin.x)
+        let w = CGFloat(adaLocalRect.size.width)
+        let h = CGFloat(adaLocalRect.size.height)
+        let y = b.height - CGFloat(adaLocalRect.origin.y) - CGFloat(adaLocalRect.size.height)
+        return CGRect(x: x, y: y, width: w, height: h)
+    }
+
     private func appKitWindowPoint(from windowPosition: Point, in nsWindow: NSWindow) -> NSPoint {
         let windowHeight = Float(nsWindow.contentRect(forFrameRect: nsWindow.frame).height)
         return NSPoint(

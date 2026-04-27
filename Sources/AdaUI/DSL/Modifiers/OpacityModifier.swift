@@ -30,6 +30,31 @@ struct _OpacityView<Content: View>: ViewModifier, ViewNodeBuilder {
 final class OpacityViewNodeModifier: ViewModifierNode {
     var opacity: Float = 1
 
+    override func update(from newNode: ViewNode) {
+        let animationController = self.environment.animationController
+        super.update(from: newNode)
+
+        guard let node = newNode as? OpacityViewNodeModifier else {
+            return
+        }
+
+        if let animationController = animationController {
+            animationController.addTweenAnimation(
+                from: TweenValue(animatableData: self.opacity),
+                to: TweenValue(animatableData: node.opacity),
+                label: self.id,
+                environment: self.environment,
+                updateBlock: { [weak self] value in
+                    self?.opacity = value.animatableData
+                    self?.invalidateNearestLayer()
+                }
+            )
+        } else {
+            self.opacity = node.opacity
+            self.invalidateNearestLayer()
+        }
+    }
+
     override func draw(with context: UIGraphicsContext) {
         if let layer = layer {
             var context = context

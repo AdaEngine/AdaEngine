@@ -1077,17 +1077,25 @@ private extension Target {
         name: String,
         path: String,
     ) -> Target {
-        .executableTarget(
+        let sourcePath = "\(path)/\(name).swift"
+        let excludedExampleSources = (
+            try? FileManager.default
+                .subpathsOfDirectory(atPath: "Demos")
+                .filter { $0.hasSuffix(".swift") && $0 != sourcePath }
+        ) ?? []
+
+        return .executableTarget(
             name: name,
             dependencies: [
                 "AdaEngine"
             ],
-            path: "Demos/\(path)/",
+            path: "Demos",
+            exclude: excludedExampleSources,
             sources: [
-                "\(name).swift"
+                sourcePath
             ],
             resources: [
-                .copy("../Resources/")
+                .copy("Resources")
             ],
             packageAccess: false
         )
@@ -1104,7 +1112,6 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "TransparencyExample", path: "2d"),
     .exampleTarget(name: "Lighting2DExample", path: "2d"),
     .exampleTarget(name: "ManySpritesExample", path: "2d"),
-    .exampleTarget(name: "KeyframeSpritesExample", path: "2d"),
     .exampleTarget(name: "Text2dExample", path: "2d"),
     .exampleTarget(name: "SpriteExample", path: "2d"),
     .exampleTarget(name: "WGSLExample", path: "2d"),

@@ -12,11 +12,21 @@ public extension View {
     /// - Parameter width: A fixed width for the resulting view. If width is nil, the resulting view assumes this view’s sizing behavior.
     /// - Parameter height: A fixed height for the resulting view. If height is nil, the resulting view assumes this view’s sizing behavior.
     /// - Returns: A view with fixed dimensions of width and height, for the parameters that are non-nil.
+    func frame(width: Float? = nil, height: Float? = nil, alignment: Alignment = .center) -> some View {
+        self.modifier(
+            _FrameViewModifier(
+                content: self,
+                frame: .size(width: width, height: height, alignment: alignment)
+            )
+        )
+    }
+
+    /// Backward-compatible fixed-size frame overload.
     func frame(width: Float? = nil, height: Float? = nil) -> some View {
         self.modifier(
             _FrameViewModifier(
                 content: self,
-                frame: .size(width: width, height: height)
+                frame: .size(width: width, height: height, alignment: .center)
             )
         )
     }
@@ -69,8 +79,12 @@ struct _FrameViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
 
 final class FrameViewNode: ViewModifierNode {
 
+    override var allowsNestedFrameAnimation: Bool {
+        true
+    }
+
     enum Frame {
-        case size(width: Float?, height: Float?)
+        case size(width: Float?, height: Float?, alignment: Alignment)
         case constraints(
             minWidth: Float?,
             idealWidth: Float?,
@@ -100,7 +114,7 @@ final class FrameViewNode: ViewModifierNode {
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         switch frameRule {
-        case .size(let width, let height):
+        case .size(let width, let height, _):
             var newSize = self.contentNode.sizeThatFits(
                 ProposedViewSize(
                     width: width ?? proposal.width,
@@ -174,8 +188,14 @@ final class FrameViewNode: ViewModifierNode {
 
     override func performLayout() {
         switch frameRule {
-        case .size:
-            super.performLayout()
+        case .size(_, _, let alignment):
+            let proposal = ProposedViewSize(self.frame.size)
+            let origin = Self.placementOrigin(container: self.frame.size, alignment: alignment)
+            self.contentNode.place(
+                in: origin,
+                anchor: alignment.anchorPoint,
+                proposal: proposal
+            )
         case .constraints(_, _, _, _, _, _, let alignment):
             if Self.isOpenConstraintsFromFrame(frameRule) {
                 super.performLayout()
@@ -265,11 +285,23 @@ final class FrameViewNode: ViewModifierNode {
         maxBound: Float?,
         parentCap: Float?
     ) -> Float {
-        guard let maxBound, !maxBound.isFinite, let parentCap, parentCap.isFinite else {
+        guard let maxBound, !maxBound.isFinite else {
             return value
         }
 
-        return parentCap
+        guard let parentCap else {
+            return value
+        }
+
+        if parentCap == .infinity {
+            return .infinity
+        }
+
+        if parentCap.isFinite {
+            return parentCap
+        }
+
+        return value
     }
 
     private static func placementOrigin(container: Size, alignment: Alignment) -> Point {

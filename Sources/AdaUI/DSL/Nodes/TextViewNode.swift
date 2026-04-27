@@ -7,6 +7,7 @@
 
 import AdaText
 import Math
+import AdaInput
 
 final class TextViewNode: ViewNode {
 
@@ -57,7 +58,15 @@ final class TextViewNode: ViewNode {
         context.environment = environment
         super.draw(with: context)
 
-        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        let scale = max(environment.scaleFactor, 1)
+        func snapToPixel(_ value: Float) -> Float {
+            ((value * scale).rounded()) / scale
+        }
+
+        context.translateBy(
+            x: snapToPixel(self.frame.origin.x),
+            y: -snapToPixel(self.frame.origin.y)
+        )
 
         // Calculate vertical offset to center text within the frame (render coordinates: +Y is up)
         var verticalOffset: Float = 0
@@ -81,7 +90,7 @@ final class TextViewNode: ViewNode {
             verticalOffset = frameCenterY - textCenterY
         }
         
-        context.translateBy(x: 0, y: verticalOffset)
+        context.translateBy(x: 0, y: snapToPixel(verticalOffset))
 
         let layout = Text.Layout(lines: self.layoutManager.textLines)
         self.textRenderer.draw(layout: layout, in: &context)
@@ -97,6 +106,13 @@ final class TextViewNode: ViewNode {
         self.textRenderer = textNode.textRenderer
         self.textContainer = textNode.textContainer
         self.updateEnvironment(textNode.environment)
+    }
+
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
+        if self.point(inside: point, with: event) {
+            return self
+        }
+        return nil
     }
 }
 

@@ -9,12 +9,26 @@ import AdaAnimation
 import AdaUtils
 import Math
 
+@MainActor
+protocol _AnimationControllerProvider: AnyObject {
+    var providedAnimationController: UIAnimationController? { get }
+}
+
 public extension View {
     /// Applies the given animation to this view when the specified value changes.
     /// - Parameter animation: The animation to apply. If animation is nil, the view doesn’t animate.
     /// - Parameter value: A value to monitor for changes.
-  @MainActor func animation<V: Equatable>(_ animation: Animation, value: V) -> some View {
+    @MainActor
+    func animation<V: Equatable>(_ animation: Animation?, value: V) -> some View {
         modifier(_AnimatedViewModifier(content: self, animation: animation, value: value))
+    }
+
+    /// Applies the given animation to this view when the specified value changes.
+    /// - Parameter animation: The animation to apply.
+    /// - Parameter value: A value to monitor for changes.
+    @MainActor
+    func animation<V: Equatable>(_ animation: Animation, value: V) -> some View {
+        self.animation(Optional(animation), value: value)
     }
 
     /// Disable any animation for view and their child.
@@ -28,16 +42,17 @@ struct _AnimatedViewModifier<Content: View, Value: Equatable>: ViewModifier, Vie
     typealias Body = Never
 
     let content: Content
-    let animation: Animation
+    let animation: Animation?
     let value: Value
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
+        let animationController = animation.map { UIAnimationController(animation: $0) }
         let node = AnimatedViewNode(
             contentNode: context.makeNode(from: content),
             content: content,
             value: self.value,
             animation: animation,
-            animationController: UIAnimationController(animation: animation)
+            animationController: animationController
         )
 
         node.updateEnvironment(context.environment)
@@ -50,15 +65,20 @@ struct _AnimatedViewModifier<Content: View, Value: Equatable>: ViewModifier, Vie
 class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
 
     var currentValue: Value
-    let animation: Animation
-    private var animationController: UIAnimationController
+    private var animation: Animation?
+    private var animationController: UIAnimationController?
+    private var transientAnimationController: UIAnimationController?
+
+    override var participatesInFrameAnimation: Bool {
+        false
+    }
 
     init<Content: View>(
         contentNode: ViewNode,
         content: Content,
         value: Value,
-        animation: Animation,
-        animationController: UIAnimationController
+        animation: Animation?,
+        animationController: UIAnimationController?
     ) {
         self.currentValue = value
         self.animation = animation
@@ -73,23 +93,56 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
     }
 
     override func update(from newNode: ViewNode) {
-        super.update(from: newNode)
-
         guard let node = newNode as? Self else {
+            super.update(from: newNode)
             return
         }
 
-        if node.currentValue != self.currentValue {
+        let valueChanged = node.currentValue != self.currentValue
+
+        if node.animationController == nil {
+            self.animationController = nil
+        } else if self.animationController == nil {
+            self.animationController = node.animationController
+        }
+
+        super.update(from: newNode)
+
+        self.animation = node.animation
+
+        if valueChanged {
             self.currentValue = node.currentValue
-            self.animationController.playAnimation()
+            if let nextAnimationController = node.animationController,
+               let animationController = self.animationController,
+               nextAnimationController !== animationController {
+                self.transientAnimationController = nextAnimationController
+                nextAnimationController.playAnimation()
+            }
+            self.animationController?.playAnimation()
+            owner?.containerView?.setNeedsLayout()
         }
     }
 
     override func update(_ deltaTime: TimeInterval) {
         super.update(deltaTime)
 
-        if animationController.isPlaying {
+        var needsAnotherFrame = false
+
+        if let animationController, animationController.isPlaying {
             animationController.update(deltaTime)
+            needsAnotherFrame = true
+        }
+
+        if let transientAnimationController {
+            if transientAnimationController.isPlaying {
+                transientAnimationController.update(deltaTime)
+                needsAnotherFrame = true
+            } else {
+                self.transientAnimationController = nil
+            }
+        }
+
+        if needsAnotherFrame {
             // Runtime redraws are pull-driven via `needsDisplay` / `needsLayout`.
             // Tests advance the tree directly, but the real app only rebuilds render data
             // when a container requests another frame. Without this, tween values update
@@ -97,5 +150,11 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
             // (for example a resize) triggers layout again.
             owner?.containerView?.setNeedsLayout()
         }
+    }
+}
+
+extension AnimatedViewNode: _AnimationControllerProvider {
+    var providedAnimationController: UIAnimationController? {
+        animationController
     }
 }

@@ -63,6 +63,8 @@ open class Application: Resource {
     @MainActor @preconcurrency
     public var windowManager: UIWindowManager = UIWindowManager()
 
+    public var lastWindowCloseBehavior: LastWindowCloseBehavior = .terminateApplication
+
     // MARK: - Internal
     
     public init(
@@ -107,9 +109,18 @@ open class Application: Resource {
     open func showAlert(_ alert: Alert) {
         assertionFailure("Not implemented")
     }
+
+    @MainActor
+    public func setLastWindowCloseBehavior(_ behavior: LastWindowCloseBehavior) {
+        self.lastWindowCloseBehavior = behavior
+    }
 }
 
 public extension Application {
+    enum LastWindowCloseBehavior: Hashable, Sendable {
+        case terminateApplication
+        case keepApplicationRunning
+    }
     
     /// The collection of available Application States.
     enum State: Hashable, Sendable {

@@ -14,8 +14,19 @@ protocol FocusedInputContainer: AnyObject {
     var hasFocusedInputNode: Bool { get }
 }
 
+@MainActor
+protocol UIInspectionOverlayStateProviding: AnyObject {
+    var inspectionFocusedNode: ViewNode? { get }
+    var inspectionHitTestNode: ViewNode? { get }
+}
+
+@MainActor
+public protocol UIMousePassthroughEventReceiving: AnyObject {
+    func uiReceivePassthroughMouseMoved(_ event: MouseEvent)
+}
+
 /// A container view that contains a view tree.
-public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInputContainer {
+public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInputContainer, UIInspectionOverlayStateProviding, UIMousePassthroughEventReceiving {
 
     /// The container view of the container view.
     var containerView: UIView? {
@@ -47,7 +58,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         env.safeAreaInsets = safeAreaInsets
         env.userInterfaceIdiom = userInterfaceIdiom
         env.colorScheme = colorScheme
-        env.debugViewDrawingOptions = self.inspectionDebugDrawingOptions()
+        env.scaleFactor = window?.screen?.scale ?? Screen.main?.scale ?? 1
         viewTree.rootNode.mergeEnvironment(env)
 
         focusManager.setRootNode(viewTree.rootNode)
@@ -83,7 +94,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             return self
         }
 
-        return self
+        return nil
     }
 
     /// The last on mouse event node.
@@ -96,6 +107,12 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     let focusManager = UIFocusManager()
     var hasFocusedInputNode: Bool {
         self.focusManager.focusedNode != nil
+    }
+    var inspectionFocusedNode: ViewNode? {
+        self.focusManager.focusedNode
+    }
+    var inspectionHitTestNode: ViewNode? {
+        self.inspectionLastHitTestNode
     }
 
     // MARK: - Keyboard shortcuts (before focused key dispatch)
@@ -122,6 +139,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             self.activeMouseEventNode = viewNode
             self.updateFocusedNode(with: viewNode)
             viewNode?.onMouseEvent(event)
+            self.invalidateInspectionOverlayIfNeeded()
             if lastOnMouseEventNode !== viewNode {
                 lastOnMouseEventNode?.onMouseLeave()
                 lastOnMouseEventNode = viewNode
@@ -136,6 +154,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
                 self.inspectionLastHitTestNode = viewNode
                 viewNode.onMouseEvent(event)
+                self.invalidateInspectionOverlayIfNeeded()
                 if lastOnMouseEventNode !== viewNode {
                     lastOnMouseEventNode?.onMouseLeave()
                     lastOnMouseEventNode = viewNode
@@ -154,6 +173,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
                 self.inspectionLastHitTestNode = viewNode
                 viewNode.onMouseEvent(event)
+                self.invalidateInspectionOverlayIfNeeded()
                 if lastOnMouseEventNode !== viewNode {
                     lastOnMouseEventNode?.onMouseLeave()
                     lastOnMouseEventNode = viewNode
@@ -166,6 +186,11 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         }
     }
 
+    @_spi(Internal)
+    public func uiReceivePassthroughMouseMoved(_ event: MouseEvent) {
+        onMouseEvent(event)
+    }
+
     public override func onKeyEvent(_ event: KeyEvent) {
         if event.keyCode == .tab, event.status == .down {
             if event.modifiers.contains(.shift) {
@@ -173,6 +198,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             } else {
                 focusManager.focusNext()
             }
+            self.invalidateInspectionOverlayIfNeeded()
             return
         }
 
@@ -204,8 +230,12 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     }
 
     private func updateFocusedNode(with hitNode: ViewNode?) {
+        let previousFocusedNode = focusManager.focusedNode
         let newFocusedNode = self.findFocusableNode(from: hitNode)
         focusManager.focus(newFocusedNode)
+        if previousFocusedNode !== focusManager.focusedNode {
+            self.invalidateInspectionOverlayIfNeeded()
+        }
     }
 
     private func findFocusableNode(from node: ViewNode?) -> ViewNode? {
@@ -244,12 +274,14 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             self.activeTouchEventNode = viewNode
             self.updateFocusedNode(with: viewNode)
             viewNode?.onTouchesEvent(touches)
+            self.invalidateInspectionOverlayIfNeeded()
         case .moved:
             if let activeTouchEventNode {
                 activeTouchEventNode.onTouchesEvent(touches)
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
                 self.inspectionLastHitTestNode = viewNode
                 viewNode.onTouchesEvent(touches)
+                self.invalidateInspectionOverlayIfNeeded()
             }
         case .ended, .cancelled:
             if let activeTouchEventNode {
@@ -257,6 +289,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
                 self.inspectionLastHitTestNode = viewNode
                 viewNode.onTouchesEvent(touches)
+                self.invalidateInspectionOverlayIfNeeded()
             }
             self.activeTouchEventNode = nil
         }
@@ -281,6 +314,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         var context = context
         context.dirtyRect = window?.consumeDirtyRect()
         viewTree.renderGraph(renderContext: context)
+        drawInspectionDebugOverlay(with: context)
     }
 
     /// Update the container view.
@@ -291,13 +325,21 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         self.viewTree.rootNode.update(deltaTime)
     }
 
-    func inspectionDebugDrawingOptions() -> _DebugViewDrawingOptions {
-        switch self.inspectionDebugOverlayMode {
-        case .off:
-            []
-        case .layoutBounds, .focusedNode, .hitTestTarget:
-            [.drawViewOverlays]
+    private func drawInspectionDebugOverlay(with context: UIGraphicsContext) {
+        guard inspectionDebugOverlayMode != .off else {
+            return
         }
+
+        viewTree.rootNode.drawInspectionDebugOverlay(
+            with: context,
+            mode: inspectionDebugOverlayMode,
+            focusedNode: focusManager.focusedNode,
+            hitTestNode: inspectionLastHitTestNode
+        )
+    }
+
+    private func invalidateInspectionOverlayIfNeeded() {
+        self.setNeedsDisplay()
     }
 }
 

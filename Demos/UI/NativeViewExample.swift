@@ -79,9 +79,12 @@ struct NativeViewDemo: AdaEngine.View {
                                     .font(.headline)
                                 
                                 SwiftUI.HStack {
-                                    SwiftUI.Circle().fill(SwiftUI.Color.red).frame(width: 20, height: 20)
-                                    SwiftUI.Circle().fill(SwiftUI.Color.green).frame(width: 20, height: 20)
-                                    SwiftUI.Circle().fill(SwiftUI.Color.blue).frame(width: 20, height: 20)
+                                    SwiftUI.Circle()
+                                        .fill(SwiftUI.Color.red).frame(width: 20, height: 20)
+                                    SwiftUI.Circle()
+                                        .fill(SwiftUI.Color.green).frame(width: 20, height: 20)
+                                    SwiftUI.Circle()
+                                        .fill(SwiftUI.Color.blue).frame(width: 20, height: 20)
                                 }
                                 
                                 SwiftUI.Button("Native SwiftUI Button") {
@@ -111,9 +114,10 @@ struct NativeViewDemo: AdaEngine.View {
                             .fontSize(12)
                             .foregroundColor(.gray)
                     }
+                    .frame(maxWidth: .infinity)
                     .padding()
                 }
-                .frame(height: 500)
+                .frame(maxHeight: 500)
                 .border(AdaEngine.Color.black, lineWidth: 1)
             }
             .padding(40)

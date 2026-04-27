@@ -42,11 +42,13 @@ extension View {
             resolvedInputs.registerNodeForStorages(node)
             return _ViewOutputs(node: node)
         } else {
-            let bodyNode = Self.Body._makeView(body, inputs: inputs).node
             let node = LayoutViewContainerNode(
                 layout: AnyLayout(inputs.layout),
                 content: view.value,
-                nodes: [bodyNode]
+                body: { inputs in
+                    let body = _ViewGraphNode(value: view.value)[\.body]
+                    return Self.Body._makeListView(body, inputs: inputs)
+                }
             )
             node.updateEnvironment(inputs.environment)
             node.stateContainer = stateContainer

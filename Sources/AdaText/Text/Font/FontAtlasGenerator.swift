@@ -15,6 +15,8 @@ import Logging
 public struct FontDescriptor {
     /// The em font scale.
     public var emFontScale: Double
+    var includeDefaultCharset: Bool = true
+    var additionalCodepoints: [UInt32] = []
 }
 
 /// Generate MTSDF atlas texture from font.
@@ -22,7 +24,7 @@ final class FontAtlasGenerator: Sendable {
 
     static let shared = FontAtlasGenerator()
 
-    private static let cacheVersion = 2
+    private static let cacheVersion = 4
 
     private let logger = Logger(label: "org.adaengine.Font")
 
@@ -36,35 +38,48 @@ final class FontAtlasGenerator: Sendable {
     func generateAtlas(fontPath: URL, fontDescriptor: FontDescriptor) -> FontHandle? {
         var atlasFontDescriptor = font_atlas_descriptor()
         atlasFontDescriptor.angleThreshold = 3.0
-        atlasFontDescriptor.atlasPixelRange = 2.0
+        atlasFontDescriptor.atlasPixelRange = 4.0
         atlasFontDescriptor.coloringSeed = 3
         atlasFontDescriptor.threads = 8
         atlasFontDescriptor.expensiveColoring = 1
         atlasFontDescriptor.emFontScale = fontDescriptor.emFontScale
         atlasFontDescriptor.atlasImageType = AFG_IMAGE_TYPE_MTSDF
         atlasFontDescriptor.miterLimit = 1.0
+        atlasFontDescriptor.includeDefaultCharset = fontDescriptor.includeDefaultCharset ? 1 : 0
         
         let fontPathString = fontPath.path
         let fontName = fontPath.lastPathComponent
-        
-        let generator = unsafe fontPathString.withCString { fontPathPtr in
-            unsafe fontName.withCString { fontNamePtr in
-                unsafe font_atlas_generator_create(fontPathPtr, fontNamePtr, atlasFontDescriptor)!
+
+        guard let generator = unsafe fontDescriptor.additionalCodepoints.withUnsafeBufferPointer({ codepoints in
+            atlasFontDescriptor.additionalCodepoints = codepoints.baseAddress
+            atlasFontDescriptor.additionalCodepointsCount = Int32(codepoints.count)
+
+            return unsafe fontPathString.withCString { fontPathPtr in
+                unsafe fontName.withCString { fontNamePtr in
+                    unsafe font_atlas_generator_create(fontPathPtr, fontNamePtr, atlasFontDescriptor)
+                }
             }
+        }) else {
+            return nil
         }
         
         defer {
             unsafe font_atlas_generator_destroy(generator)
         }
         
-        let fontData = unsafe font_atlas_generator_get_font_data(generator)!
-        let fileName = "\(fontName)-\(atlasFontDescriptor.emFontScale.rounded())-v\(Self.cacheVersion).fontbin"
+        guard let fontData = unsafe font_atlas_generator_get_font_data(generator) else {
+            return nil
+        }
+        let charsetHash = self.charsetCacheKey(for: fontDescriptor)
+        let fileName = "\(fontName)-\(atlasFontDescriptor.emFontScale.rounded())-\(charsetHash)-v\(Self.cacheVersion).fontbin"
 
         if let (atlasHeader, data) = self.getAtlas(by: fileName) {
             let texture = self.makeTextureAtlas(from: data, width: atlasHeader.width, height: atlasHeader.height)
             return unsafe FontHandle(atlasTexture: texture, fontData: fontData)
         } else {
-            let bitmap = unsafe font_atlas_generator_generate_bitmap(generator)!
+            guard let bitmap = unsafe font_atlas_generator_generate_bitmap(generator) else {
+                return nil
+            }
 
             defer {
                 unsafe font_atlas_bitmap_destroy(bitmap)
@@ -97,7 +112,7 @@ final class FontAtlasGenerator: Sendable {
         
         var textSamplerDesc = SamplerDescriptor()
         textSamplerDesc.magFilter = .linear
-        textSamplerDesc.mipFilter = .linear
+        textSamplerDesc.mipFilter = .notMipmapped
         textSamplerDesc.minFilter = .linear
         
         let descriptor = TextureDescriptor(
@@ -112,6 +127,17 @@ final class FontAtlasGenerator: Sendable {
         )
         
         return Texture2D(descriptor: descriptor)
+    }
+
+    private func charsetCacheKey(for descriptor: FontDescriptor) -> String {
+        if descriptor.includeDefaultCharset && descriptor.additionalCodepoints.isEmpty {
+            return "default"
+        }
+
+        let sortedCodepoints = descriptor.additionalCodepoints.sorted()
+        let joinedCodepoints = sortedCodepoints.map { String($0, radix: 16) }.joined(separator: "-")
+        let mode = descriptor.includeDefaultCharset ? "default" : "custom"
+        return "\(mode)-\(joinedCodepoints)"
     }
     
     private func getCacheDirectory() throws -> URL {

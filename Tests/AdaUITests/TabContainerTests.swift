@@ -133,6 +133,17 @@ struct TabContainerTests {
 
         let rect = Rect(origin: .zero, size: Size(width: 320, height: 140))
         let ids = tester.collectHitAccessibilityIdentifiers(in: rect)
+        if ids.isEmpty {
+            Issue.record(
+                Comment(
+                    rawValue: tester
+                        .containerView
+                        .viewTree
+                        .rootNode
+                        .debugDescription()
+                )
+            )
+        }
         #expect(ids.contains("alpha-content"))
     }
 
