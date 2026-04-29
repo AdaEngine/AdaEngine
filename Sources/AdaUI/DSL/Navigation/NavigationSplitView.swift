@@ -462,6 +462,10 @@ private final class NavigationSplitViewNode: ViewContainerNode {
     }
 
     func setWidthPreference(_ preference: NavigationSplitViewColumnWidth?, for column: NavigationSplitViewColumn) {
+        guard widthPreferences[column] != preference else {
+            return
+        }
+
         if let preference {
             widthPreferences[column] = preference
         } else {

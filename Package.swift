@@ -391,6 +391,7 @@ var targets: [Target] = [
             "Math",
             "AdaRender",
             "AtlasFontGenerator",
+            .product(name: "Markdown", package: "swift-markdown"),
         ],
         resources: [
             .copy("Assets")
@@ -893,6 +894,12 @@ targets += [
         ]
     ),
     .testTarget(
+        name: "AdaTextTests",
+        dependencies: [
+            "AdaText"
+        ]
+    ),
+    .testTarget(
         name: "AdaTransformTests",
         dependencies: [
             "AdaECS", 
@@ -1007,6 +1014,7 @@ package.dependencies += [
     .package(url: "https://github.com/apple/swift-atomics", from: "1.3.0"),
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
     .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "0.2.1"),
+    .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.7.3"),
     // TODO: SpectralDragon packages should move to AdaEngine
     .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     .package(

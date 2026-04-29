@@ -25,6 +25,7 @@ class ViewContainerNode: ViewNode {
 
     /// Builder method returns a new children.
     private var body: ((_ViewListInputs) -> _ViewListOutputs)?
+    private var hasScheduledObservedContentInvalidation = false
 
     init<Content: View>(content: Content, nodes: [ViewNode]) {
         self.nodes = nodes
@@ -66,12 +67,24 @@ class ViewContainerNode: ViewNode {
             body(inputs)
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.invalidateContent()
+                self?.scheduleObservedContentInvalidation()
             }
         }
 
         let outputNodes = outputs.outputs.map { $0.node }
         self.updateChildNodes(from: outputNodes)
+    }
+
+    private func scheduleObservedContentInvalidation() {
+        guard !hasScheduledObservedContentInvalidation else {
+            return
+        }
+
+        hasScheduledObservedContentInvalidation = true
+        Task { @MainActor in
+            self.hasScheduledObservedContentInvalidation = false
+            self.invalidateContent()
+        }
     }
 
     override func isEquals(_ otherNode: ViewNode) -> Bool {

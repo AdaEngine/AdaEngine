@@ -24,12 +24,19 @@ class ViewNode: Identifiable {
     }
     
     /// Contains ref to parent view
-    weak var parent: ViewNode? {
-        willSet {
-            willMove(to: newValue)
+    private weak var _parent: ViewNode?
+    var parent: ViewNode? {
+        get {
+            _parent
         }
-        didSet {
-            didMove(to: self.parent)
+        set {
+            guard _parent !== newValue else {
+                return
+            }
+
+            willMove(to: newValue)
+            _parent = newValue
+            didMove(to: _parent)
         }
     }
 
