@@ -94,6 +94,18 @@ struct EnvironmentPropagationTests {
         #expect(counterWrapper.container.subscribedKeyIDs != labelWrapper.container.subscribedKeyIDs)
     }
 
+    @Test("@Environment observable subscribes only to observable storage")
+    func observableEnvironmentCapturesObservableStorageKeyID() {
+        var capturedIDs = Set<ObjectIdentifier>()
+        EnvironmentValues._recordKeyAccess = { capturedIDs.insert($0) }
+        _ = EnvironmentValues().observableStorage
+        EnvironmentValues._recordKeyAccess = nil
+
+        let wrapper = Environment(ObservableEnvironmentModel.self)
+        #expect(wrapper.container.subscribedKeyIDs == capturedIDs)
+        #expect(!wrapper.container.subscribedKeyIDs.contains(ObjectIdentifier(CounterKey.self)))
+    }
+
     // MARK: version guard
 
     @Test("updateEnvironment is a no-op when version is unchanged")

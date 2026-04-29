@@ -21,12 +21,32 @@ import AdaUtils
 ///     }
 /// }
 /// ```
-public struct DismissAction: Sendable {
-    @MainActor let action: @MainActor () -> Void
+public struct DismissAction: Sendable, Hashable {
+    private final class Storage: @unchecked Sendable {
+        let action: @MainActor () -> Void
+
+        init(action: @escaping @MainActor () -> Void) {
+            self.action = action
+        }
+    }
+
+    private let storage: Storage
+
+    public init(_ action: @escaping @MainActor () -> Void) {
+        self.storage = Storage(action: action)
+    }
 
     @MainActor
     public func callAsFunction() {
-        action()
+        storage.action()
+    }
+
+    public static func == (lhs: DismissAction, rhs: DismissAction) -> Bool {
+        ObjectIdentifier(lhs.storage) == ObjectIdentifier(rhs.storage)
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(ObjectIdentifier(storage))
     }
 }
 

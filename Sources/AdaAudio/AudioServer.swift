@@ -56,6 +56,13 @@ public final class AudioServer: Resource {
             fatalError("[AudioServer] Can't create sound from resource \(error)")
         }
     }
+
+    /// Create a microphone capture session that records raw PCM audio.
+    public func makeMicrophoneCapture(
+        configuration: AudioCaptureConfiguration = .default
+    ) throws -> AudioCaptureSession {
+        try self.engine.makeMicrophoneCapture(configuration: configuration)
+    }
 }
 
 /// Interface describes audio listener entity in spatial audio scene.

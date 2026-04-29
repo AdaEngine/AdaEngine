@@ -43,7 +43,13 @@ public struct Environment<Value>: PropertyStoragable, UpdatableProperty {
 
 extension Environment where Value: Observable & AnyObject {
     public init(_ observable: Value.Type) where Value: Observable & AnyObject {
+        var capturedIDs = Set<ObjectIdentifier>()
+        EnvironmentValues._recordKeyAccess = { capturedIDs.insert($0) }
+        _ = EnvironmentValues().observableStorage
+        EnvironmentValues._recordKeyAccess = nil
+
         let storage = ViewContextStorage()
+        storage.subscribedKeyIDs = capturedIDs
         self.container = storage
         self.readValue = { container in
             // Return the injected observable directly.

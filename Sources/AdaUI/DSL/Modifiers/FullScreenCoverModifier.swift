@@ -63,6 +63,10 @@ final class FullScreenCoverNode: ViewModifierNode {
     private let overlayBuilder: (_ViewInputs) -> ViewNode
     private var overlayNode: ViewNode?
     private var viewInputs: _ViewInputs
+    private lazy var dismissAction = DismissAction { [weak self] in
+        self?.isPresented.wrappedValue = false
+        self?.rebuildOverlay()
+    }
 
     init<Content: View>(
         contentNode: ViewNode,
@@ -80,10 +84,6 @@ final class FullScreenCoverNode: ViewModifierNode {
 
     private func rebuildOverlay() {
         if isPresented.wrappedValue {
-            let dismissAction = DismissAction { [weak self] in
-                self?.isPresented.wrappedValue = false
-                self?.rebuildOverlay()
-            }
             var inputs = viewInputs
             inputs.environment.dismiss = dismissAction
             let node = overlayBuilder(inputs)
@@ -124,12 +124,9 @@ final class FullScreenCoverNode: ViewModifierNode {
         guard self.environment.version != prevVersion else { return }
         viewInputs.environment = self.environment
 
-        if var overlayNode {
+        if let overlayNode {
             var overlayEnv = self.environment
-            overlayEnv.dismiss = DismissAction { [weak self] in
-                self?.isPresented.wrappedValue = false
-                self?.rebuildOverlay()
-            }
+            overlayEnv.dismiss = dismissAction
             overlayNode.updateEnvironment(overlayEnv)
         }
     }

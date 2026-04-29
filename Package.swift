@@ -327,7 +327,8 @@ var targets: [Target] = [
             "AdaAssets",
             "AdaTransform",
             "miniaudio",
-            "Math"
+            "Math",
+            .product(name: "Atomics", package: "swift-atomics")
         ],
         swiftSettings: swiftSettings
     ),
@@ -883,6 +884,12 @@ targets += [
         ],
         exclude: [
             "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
+        name: "AdaAudioTests",
+        dependencies: [
+            "AdaAudio"
         ]
     ),
     .testTarget(
