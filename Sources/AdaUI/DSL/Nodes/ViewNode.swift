@@ -135,6 +135,7 @@ class ViewNode: Identifiable {
         environmentTransform?(&env)
         guard env.version != self.environment.version else { return }
         self.environment = env
+        var shouldInvalidateForEnvironmentChange = false
         storages.forEach { storage in
             guard let viewContextStorage = storage as? ViewContextStorage else { return }
             let subscribedKeyIDs = viewContextStorage.subscribedKeyIDs
@@ -147,7 +148,12 @@ class ViewNode: Identifiable {
                 return
             }
             viewContextStorage.values = self.environment
-            viewContextStorage.update()
+            shouldInvalidateForEnvironmentChange = true
+        }
+
+        if shouldInvalidateForEnvironmentChange {
+            self.invalidateContent()
+            owner?.containerView?.setNeedsLayout()
         }
     }
 

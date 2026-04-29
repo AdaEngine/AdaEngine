@@ -25,6 +25,9 @@ protocol AudioEngine: Resource {
     
     /// Create a new sound instance from data.
     func makeSound(from data: Data) throws -> Sound
+
+    /// Create a microphone capture session.
+    func makeMicrophoneCapture(configuration: AudioCaptureConfiguration) throws -> AudioCaptureSession
     
     /// Returns audio listener object at index.
     /// Max count of listeners depends on implementation of ``AudioEngine``.

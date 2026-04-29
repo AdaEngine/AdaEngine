@@ -283,7 +283,11 @@ extension MetalView {
     public override func scrollWheel(with event: NSEvent) {
         var deltaX = Float(event.scrollingDeltaX)
         var deltaY = Float(event.scrollingDeltaY)
-        let phase = event.phase == [] ? event.momentumPhase : event.phase
+        let phase = if event.phase == [] && event.momentumPhase == [] {
+            MouseEvent.Phase.changed
+        } else {
+            self.inputPhase(from: event.phase == [] ? event.momentumPhase : event.phase)
+        }
 
         if event.hasPreciseScrollingDeltas {
             deltaX *= 0.03
@@ -295,7 +299,7 @@ extension MetalView {
             button: .scrollWheel,
             scrollDelta: Point(x: deltaX, y: deltaY),
             mousePosition: self.mousePosition(for: event),
-            phase: self.inputPhase(from: phase),
+            phase: phase,
             modifierKeys: KeyModifier(modifiers: event.modifierFlags),
             time: TimeInterval(event.timestamp)
         )

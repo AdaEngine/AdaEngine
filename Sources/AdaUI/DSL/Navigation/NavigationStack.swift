@@ -124,10 +124,8 @@ final class NavigationStackNode: ViewNode {
     private let contentBuilder: (_ViewInputs) -> ViewNode
     private var currentContentNode: ViewNode
 
-    private var dismissAction: DismissAction {
-        DismissAction { [weak self] in
-            self?.navigationContext.pop()
-        }
+    private lazy var dismissAction = DismissAction { [weak self] in
+        self?.navigationContext.pop()
     }
 
     /// Subtree searched for keyboard shortcut targets (matches visible stack content).

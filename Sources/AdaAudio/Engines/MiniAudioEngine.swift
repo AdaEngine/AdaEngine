@@ -80,6 +80,10 @@ struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
     func makeSound(from data: Data) throws -> Sound {
         unsafe try MiniSound(from: data, engine: engine.enginePtr)
     }
+
+    func makeMicrophoneCapture(configuration: AudioCaptureConfiguration) throws -> AudioCaptureSession {
+        try AudioCaptureSession(backend: MiniAudioCaptureSession(configuration: configuration))
+    }
     
     func getAudioListener(at index: Int) -> AudioEngineListener {
         if unsafe index > ma_engine_get_listener_count(engine.enginePtr) - 1 {
