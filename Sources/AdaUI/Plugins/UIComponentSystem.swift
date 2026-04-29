@@ -68,9 +68,10 @@ private extension UIComponentSystem {
 
         if let viewOwner = (view as? ViewOwner) {
             var environment = EnvironmentValues()
-            environment.entity = entity//WeakBox(value: entity)
+            environment.entity = entity
+            environment.windowManager = windowManager.windowManager
             if let world = entity.world {
-                environment.world = world//WeakBox(value: world)
+                environment.world = world
             }
             viewOwner.updateEnvironment(environment)
         }
@@ -130,4 +131,7 @@ public extension EnvironmentValues {
     @Entry internal(set) var entity: Entity?
 
     @Entry internal(set) var input: Ref<Input>?
+    
+    /// The windowManager where view attached.
+    @Entry internal(set) var windowManager: UIWindowManager?
 }

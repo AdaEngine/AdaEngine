@@ -141,34 +141,66 @@ public struct HStackLayout: Layout {
         let distributedFlexibleIndices = preferredFlexibleIndices.isEmpty
             ? fallbackFlexibleIndices
             : preferredFlexibleIndices
-        var restOfFlexibleViews = distributedFlexibleIndices.count
 
-        var availableSpace = max(layoutWidth - idealWidth - cache.totalSubviewSpacing, 0)
+        let layoutPriorities = subviews.map(\.layoutPriority)
+        let distributedPriorityCount = Set(distributedFlexibleIndices.map { layoutPriorities[$0] }).count
 
-        for (index, subview) in subviews.enumerated() {
-            var idealWidth = idealSizes[index].width
-            let isFlexible = isFlexibleSubview(index: index, cache: cache)
-            let participatesInDistribution = distributedFlexibleIndices.contains(index)
+        if distributedPriorityCount > 1 {
+            let assignedWidths = stackAssignedMainAxisSizes(
+                idealSizes: idealSizes.map(\.width),
+                minSizes: cache.minSizes.map(\.width),
+                maxSizes: cache.maxSizes.map(\.width),
+                layoutPriorities: layoutPriorities,
+                flexibleIndices: distributedFlexibleIndices,
+                availableSpace: layoutWidth - idealWidth - cache.totalSubviewSpacing
+            )
 
-            if isFlexible && participatesInDistribution && restOfFlexibleViews > 0 {
-                let slot = max(availableSpace, 0) / Float(restOfFlexibleViews)
-                idealWidth += slot
-                availableSpace -= slot
-                restOfFlexibleViews -= 1
+            for (index, subview) in subviews.enumerated() {
+                let assignedWidth = assignedWidths[index]
+
+                origin.x += cache.subviewSpacings[index]
+
+                let proposal = ProposedViewSize(width: assignedWidth, height: idealSizes[index].height)
+                subview.place(at: origin, anchor: anchor, proposal: proposal)
+
+                let newWidth = subview.dimensions(in: proposal).width
+                origin.x += newWidth
             }
+        } else {
+            let equalizedSpacerWidths = equalizedSpacerMainAxisSizes(
+                idealSizes: idealSizes.map(\.width),
+                maxSizes: cache.maxSizes.map(\.width),
+                spacerIndices: distributedFlexibleIndices.filter { isSpacerSubview(subviews[$0]) },
+                availableSpace: max(layoutWidth - idealWidth - cache.totalSubviewSpacing, 0)
+            )
+            var restOfFlexibleViews = distributedFlexibleIndices.count
+            var availableSpace = max(layoutWidth - idealWidth - cache.totalSubviewSpacing, 0)
 
-            origin.x += cache.subviewSpacings[index]
+            for (index, subview) in subviews.enumerated() {
+                var idealWidth = equalizedSpacerWidths?[index] ?? idealSizes[index].width
+                let isFlexible = isFlexibleSubview(index: index, cache: cache)
+                let participatesInDistribution = distributedFlexibleIndices.contains(index)
 
-            let proposal = ProposedViewSize(width: idealWidth, height: idealSizes[index].height)
-            subview.place(at: origin, anchor: anchor, proposal: proposal)
+                if equalizedSpacerWidths == nil && isFlexible && participatesInDistribution && restOfFlexibleViews > 0 {
+                    let slot = max(availableSpace, 0) / Float(restOfFlexibleViews)
+                    idealWidth += slot
+                    availableSpace -= slot
+                    restOfFlexibleViews -= 1
+                }
 
-            let newWidth = subview.dimensions(in: proposal).width
+                origin.x += cache.subviewSpacings[index]
 
-            if isFlexible {
-                availableSpace -= newWidth - idealWidth
+                let proposal = ProposedViewSize(width: idealWidth, height: idealSizes[index].height)
+                subview.place(at: origin, anchor: anchor, proposal: proposal)
+
+                let newWidth = subview.dimensions(in: proposal).width
+
+                if isFlexible {
+                    availableSpace -= newWidth - idealWidth
+                }
+
+                origin.x += newWidth
             }
-
-            origin.x += newWidth
         }
     }
 

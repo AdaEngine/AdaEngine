@@ -28,9 +28,9 @@ final class TextFieldViewNode: ViewNode {
         static let placeholderOpacity: Float = 0.45
         static let selectionOpacity: Float = 0.25
         static let maxUndoDepth: Int = 128
-        static let caretPadding: Float = 2
-        static let minimumCaretHeight: Float = 12
-        static let caretLineWidth: Float = 2
+        static let caretPadding: Float = 0
+        static let minimumCaretHeight: Float = 15
+        static let caretLineWidth: Float = 1.5
         static let caretBlinkInterval: AdaUtils.TimeInterval = 1.15
         static let tapMovementToleranceSquared: Float = 36
         static let doubleTapMovementToleranceSquared: Float = 100

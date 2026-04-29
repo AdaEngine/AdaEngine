@@ -23,7 +23,6 @@ import Math
 
 @MainActor
 final class SceneViewCoordinator: OffscreenViewportDelegate {
-
     private(set) var appWorlds: AppWorlds?
     private var cameraEntity: Entity?
     private(set) var renderTexture: Texture2D?

@@ -30,6 +30,10 @@ public struct ScrollViewProxy {
         }
     }
 
+    public func isNearBottom(threshold: Float = 48) -> Bool {
+        _proxy.subscribedScrollViewNodes.first(where: { _ in true })?.isNearBottom(threshold: threshold) ?? true
+    }
+
     // FIXME: Should trigger when content offset did change.
     func scrollOffset(in coordinateSpace: NamedViewCoordinateSpace? = nil) -> Point {
         _proxy.subscribedScrollViewNodes.first(where: {

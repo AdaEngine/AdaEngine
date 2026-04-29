@@ -65,6 +65,10 @@ class ViewNode: Identifiable {
     private(set) var layoutProperties = LayoutProperties()
     private var isPerformingAnimatedLayout = false
 
+    var layoutPriority: Double {
+        0
+    }
+
     var participatesInFrameAnimation: Bool {
         true
     }

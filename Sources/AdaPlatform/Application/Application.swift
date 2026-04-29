@@ -9,7 +9,7 @@ import AdaApp
 import AdaECS
 @_spi(Internal) import AdaRender
 import Foundation
-import AdaUI
+@_spi(Internal) import AdaUI
 
 public extension Notification.Name {
     static let adaEngineOpenURL = Notification.Name("AdaEngine.OpenURL")
@@ -70,7 +70,25 @@ open class Application: Resource {
     public init(
         argc: Int32,
         argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
-    ) throws { }
+    ) throws {
+        AlertPresentationCenter.showAlert = { [weak self] presentation in
+            let alert = Alert(
+                title: presentation.title,
+                message: presentation.message,
+                buttons: presentation.buttons.map { button in
+                    let action = button.action
+
+                    switch button.role {
+                    case .cancel:
+                        return .cancel(button.title, action: action)
+                    case .destructive, .none:
+                        return .button(button.title, action: action)
+                    }
+                }
+            )
+            self?.showAlert(alert)
+        }
+    }
 
     #if ENABLE_RUN_IN_CONCURRENCY
     /// Call this method to start main loop.

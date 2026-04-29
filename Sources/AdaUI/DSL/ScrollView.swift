@@ -71,8 +71,21 @@ final class ScrollViewNode: LayoutViewContainerNode {
             self.contentOffset = clampOffset(self.contentOffset)
         }
 
+        let contentOrigin = Point(
+            x: crossAxisOrigin(
+                scrollsOnAxis: axis.contains(.horizontal),
+                measured: measuredWidth,
+                viewport: viewportSize.width
+            ),
+            y: crossAxisOrigin(
+                scrollsOnAxis: axis.contains(.vertical),
+                measured: measuredHeight,
+                viewport: viewportSize.height
+            )
+        )
+
         super.performLayout(
-            in: Rect(origin: .zero, size: contentSize),
+            in: Rect(origin: contentOrigin, size: contentSize),
             proposal: ProposedViewSize(contentSize)
         )
     }
@@ -453,6 +466,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
         }
 
         contentOffset = newValue
+        refreshLazyScrollContent()
         self.invalidateNearestLayer()
         if let containerView = self.owner?.containerView {
             containerView.setNeedsDisplay(in: self.absoluteFrame())
@@ -510,20 +524,17 @@ final class ScrollViewNode: LayoutViewContainerNode {
     }
 
     func scrollToViewNodeIfFoundIt(_ id: AnyHashable, anchor: AnchorPoint? = nil) {
-        guard let foundedNode = self.findNodeById(id) else {
+        if let foundedNode = self.findNodeById(id) {
+            let targetFrame = frameInScrollContent(for: foundedNode)
+            scrollToContentFrame(targetFrame, anchor: anchor)
             return
         }
 
-        let anchor = anchor ?? .zero
-        let position = foundedNode.convert(foundedNode.frame.origin, to: self)
+        guard let targetFrame = lazyScrollTargetFrame(for: id) else {
+            return
+        }
 
-        let offset = Point(
-            x: position.x - contentSize.width * anchor.x,
-            y: position.y - contentSize.height * anchor.y
-        )
-
-        let clampedOffset = clampOffset(offset)
-        setContentOffset(clampedOffset)
+        scrollToContentFrame(targetFrame, anchor: anchor)
     }
 
     func scrollToNodeIfDescendant(_ node: ViewNode, anchor: AnchorPoint? = nil) -> Bool {
@@ -531,15 +542,13 @@ final class ScrollViewNode: LayoutViewContainerNode {
             return false
         }
 
-        let anchor = anchor ?? .zero
-        let position = node.convert(node.frame.origin, to: self)
-        let offset = Point(
-            x: position.x - contentSize.width * anchor.x,
-            y: position.y - contentSize.height * anchor.y
-        )
-        let clampedOffset = clampOffset(offset)
-        setContentOffset(clampedOffset)
+        scrollToContentFrame(frameInScrollContent(for: node), anchor: anchor)
         return true
+    }
+
+    func isNearBottom(threshold: Float) -> Bool {
+        let remaining = contentSize.height - frame.height - contentOffset.y
+        return remaining <= threshold
     }
 
     private func containsDescendant(_ node: ViewNode) -> Bool {
@@ -583,5 +592,92 @@ final class ScrollViewNode: LayoutViewContainerNode {
         }
 
         return measured.isFinite ? measured : 0
+    }
+
+    private func crossAxisOrigin(
+        scrollsOnAxis: Bool,
+        measured: Float,
+        viewport: Float
+    ) -> Float {
+        guard !scrollsOnAxis, measured.isFinite, measured < viewport else {
+            return 0
+        }
+
+        return (viewport - measured) * 0.5
+    }
+
+    private func scrollToContentFrame(_ frame: Rect, anchor: AnchorPoint?) {
+        let anchor = anchor ?? .zero
+        let offset = Point(
+            x: frame.minX + frame.width * anchor.x - self.frame.width * anchor.x,
+            y: frame.minY + frame.height * anchor.y - self.frame.height * anchor.y
+        )
+
+        setContentOffset(clampOffset(offset))
+    }
+
+    private func frameInScrollContent(for node: ViewNode) -> Rect {
+        var origin = node.frame.origin
+        var current = node.parent
+        while let currentNode = current, currentNode !== self {
+            origin += currentNode.frame.origin
+            current = currentNode.parent
+        }
+
+        return Rect(origin: origin, size: node.frame.size)
+    }
+
+    private func lazyScrollTargetFrame(for id: AnyHashable) -> Rect? {
+        lazyScrollTargetFrame(in: self, for: id)
+    }
+
+    private func lazyScrollTargetFrame(in node: ViewNode, for id: AnyHashable) -> Rect? {
+        if let resolver = node as? LazyScrollTargetResolving,
+           let frame = resolver.estimatedFrameForScrollTarget(id: id) {
+            var origin = frame.origin
+            var current: ViewNode? = node
+            while let currentNode = current, currentNode !== self {
+                origin += currentNode.frame.origin
+                current = currentNode.parent
+            }
+            return Rect(origin: origin, size: frame.size)
+        }
+
+        guard let container = node as? ViewContainerNode else {
+            if let modifier = node as? ViewModifierNode {
+                return lazyScrollTargetFrame(in: modifier.contentNode, for: id)
+            }
+            return nil
+        }
+
+        for child in container.nodes {
+            if let frame = lazyScrollTargetFrame(in: child, for: id) {
+                return frame
+            }
+        }
+
+        return nil
+    }
+
+    private func refreshLazyScrollContent() {
+        refreshLazyScrollContent(in: self)
+    }
+
+    private func refreshLazyScrollContent(in node: ViewNode) {
+        if node !== self, let resolver = node as? LazyScrollTargetResolving {
+            resolver.refreshVisibleContent()
+            return
+        }
+
+        guard let container = node as? ViewContainerNode else {
+            if let modifier = node as? ViewModifierNode {
+                refreshLazyScrollContent(in: modifier.contentNode)
+            }
+            return
+        }
+
+        for child in container.nodes {
+            refreshLazyScrollContent(in: child)
+        }
     }
 }
