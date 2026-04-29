@@ -60,6 +60,8 @@ public struct Button: View, ViewNodeBuilder {
     /// The action of the button.
     let action: () -> Void
     let label: ButtonStyleConfiguration.Label.Storage
+    let role: ButtonRole?
+    let alertTitle: String?
 
     /// Initialize a new button.
     ///
@@ -67,9 +69,21 @@ public struct Button: View, ViewNodeBuilder {
     /// - Parameter label: The label of the button.
     @MainActor
     public init<Label: View>(action: @escaping () -> Void, @ViewBuilder label: () -> Label) {
+        self.init(role: nil, action: action, label: label)
+    }
+
+    /// Initialize a new button.
+    ///
+    /// - Parameter role: The semantic role of the button.
+    /// - Parameter action: The action of the button.
+    /// - Parameter label: The label of the button.
+    @MainActor
+    public init<Label: View>(role: ButtonRole?, action: @escaping () -> Void, @ViewBuilder label: () -> Label) {
         self.action = action
         let label = label()
         self.label = .makeView({ Label._makeView(_ViewGraphNode(value: label), inputs: $0) })
+        self.role = role
+        self.alertTitle = (label as? Text)?.plainText
     }
 
     /// Initialize a new button.
@@ -78,8 +92,20 @@ public struct Button: View, ViewNodeBuilder {
     /// - Parameter action: The action of the button.
     @MainActor
     public init(_ text: String, action: @escaping () -> Void) {
+        self.init(text, role: nil, action: action)
+    }
+
+    /// Initialize a new button.
+    ///
+    /// - Parameter text: The text of the button.
+    /// - Parameter role: The semantic role of the button.
+    /// - Parameter action: The action of the button.
+    @MainActor
+    public init(_ text: String, role: ButtonRole?, action: @escaping () -> Void) {
         self.action = action
         self.label = .makeView({ Text._makeView(_ViewGraphNode(value: Text(text)), inputs: $0) })
+        self.role = role
+        self.alertTitle = text
     }
 
     // MARK: - ViewNodeBuilder
@@ -92,6 +118,22 @@ public struct Button: View, ViewNodeBuilder {
             action: self.action
         )
     }
+}
+
+/// The semantic role of a button.
+public struct ButtonRole: Equatable, Hashable, Sendable {
+    enum Storage: Equatable, Hashable, Sendable {
+        case cancel
+        case destructive
+    }
+
+    let storage: Storage
+
+    /// A role that indicates the button cancels the current operation.
+    public static let cancel = ButtonRole(storage: .cancel)
+
+    /// A role that indicates the button performs a destructive action.
+    public static let destructive = ButtonRole(storage: .destructive)
 }
 
 final class ButtonViewNode: ViewModifierNode {

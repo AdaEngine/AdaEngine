@@ -192,7 +192,7 @@ public struct UIRenderTesselationSystem {
         guard buildState.needsRebuild else {
             return
         }
-        renderItems.items.removeAll()
+        removeStaleRenderItems()
 
         let tessellator = UITessellator()
         var sortKey: Float = 0
@@ -289,6 +289,23 @@ public struct UIRenderTesselationSystem {
         }
 
         buildState.needsRebuild = false
+    }
+
+    private func removeStaleRenderItems() {
+        let rebuiltWindowIds = Set(contexts.graphicContexts.compactMap(\.windowId))
+        let rebuildsGlobalItems = contexts.graphicContexts.contains { $0.windowId == nil }
+
+        guard !rebuiltWindowIds.isEmpty, !rebuildsGlobalItems else {
+            renderItems.items.removeAll()
+            return
+        }
+
+        renderItems.items.removeAll { item in
+            guard let windowId = item.windowId else {
+                return false
+            }
+            return rebuiltWindowIds.contains(windowId)
+        }
     }
 
     private struct DrawBuildState {

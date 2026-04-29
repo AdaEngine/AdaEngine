@@ -14,6 +14,10 @@ class ViewModifierNode: ViewNode {
 
     var contentNode: ViewNode
 
+    override var layoutPriority: Double {
+        contentNode.layoutPriority
+    }
+
     init<Content: View>(contentNode: ViewNode, content: Content) {
         self.contentNode = contentNode
         super.init(content: content)

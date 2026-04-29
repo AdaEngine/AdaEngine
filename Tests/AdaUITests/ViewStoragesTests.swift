@@ -6,6 +6,8 @@
 //
 
 import Testing
+import AdaUtils
+import Observation
 @testable import AdaUI
 @testable import AdaPlatform
 
@@ -38,5 +40,37 @@ struct ViewStoragesTests {
         reboundState.bind(to: container, key: "_value")
 
         #expect(reboundState.wrappedValue == 42)
+    }
+
+    @Test
+    func observedDetachedContainer_isNotRetainedByObservationCallback() {
+        let model = ObservationRetentionModel()
+        weak var weakNode: ViewNode?
+
+        do {
+            let view = ObservationRetentionView(model: model)
+            let inputs = _ViewInputs(parentNode: nil, environment: EnvironmentValues())
+            let output = ObservationRetentionView._makeView(
+                _ViewGraphNode(value: view),
+                inputs: inputs
+            )
+            weakNode = output.node
+        }
+
+        #expect(weakNode == nil)
+    }
+}
+
+@Observable
+private final class ObservationRetentionModel {
+    var counter = 0
+}
+
+private struct ObservationRetentionView: View {
+    let model: ObservationRetentionModel
+
+    var body: some View {
+        let _ = model.counter
+        EmptyView()
     }
 }

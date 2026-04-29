@@ -243,6 +243,60 @@ struct SwiftUILayoutOracleTests {
     }
 
     @Test
+    func fixedSizeMatchesSwiftUIInsideSmallerFrame() {
+        assertLayoutMatchesSwiftUI(
+            size: Size(width: 160, height: 120),
+            ids: ["root", "outer", "inner"],
+            swiftUI: {
+                fixedSwiftUIView("inner", width: 80, height: 30)
+                    .fixedSize()
+                    .frame(width: 40, height: 10, alignment: .topLeading)
+                    .oracleFrame("outer")
+            },
+            adaUI: {
+                fixedAdaUIView("inner", width: 80, height: 30)
+                    .fixedSize()
+                    .frame(width: 40, height: 10, alignment: .topLeading)
+                    .accessibilityIdentifier("outer")
+            }
+        )
+    }
+
+    @Test
+    func hStackLayoutPriorityMatchesSwiftUI() {
+        assertLayoutMatchesSwiftUI(
+            size: Size(width: 300, height: 80),
+            ids: ["root", "primary", "secondary"],
+            swiftUI: {
+                SwiftUI.HStack(alignment: .center, spacing: 0) {
+                    SwiftUI.Color.clear
+                        .frame(height: 20)
+                        .frame(maxWidth: .infinity)
+                        .layoutPriority(1)
+                        .oracleFrame("primary")
+                    SwiftUI.Color.clear
+                        .frame(height: 20)
+                        .frame(maxWidth: .infinity)
+                        .oracleFrame("secondary")
+                }
+            },
+            adaUI: {
+                AdaUI.HStack(alignment: .center, spacing: 0) {
+                    AdaUI.EmptyView()
+                        .frame(height: 20)
+                        .frame(maxWidth: .infinity)
+                        .layoutPriority(1)
+                        .accessibilityIdentifier("primary")
+                    AdaUI.EmptyView()
+                        .frame(height: 20)
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("secondary")
+                }
+            }
+        )
+    }
+
+    @Test
     func geometryReaderMatchesSwiftUITopLeadingPlacement() {
         assertLayoutMatchesSwiftUI(
             size: Size(width: 180, height: 120),
@@ -275,6 +329,7 @@ struct SwiftUILayoutOracleTests {
                     }
                     .oracleFrame("content")
                 }
+                .scrollIndicators(.hidden)
                 .frame(width: 120, height: 80)
                 .oracleFrame("scroll")
             },

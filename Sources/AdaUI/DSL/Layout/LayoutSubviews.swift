@@ -13,6 +13,12 @@ public struct LayoutSubview: Equatable {
     /// The node.
     unowned let node: ViewNode
 
+    /// The priority this subview receives when its parent layout apportions space.
+    @MainActor
+    public var layoutPriority: Double {
+        node.layoutPriority
+    }
+
     /// Check if two layout subviews are equal.
     ///
     /// - Parameter lhs: The left layout subview.
