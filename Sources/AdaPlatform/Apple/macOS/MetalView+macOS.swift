@@ -170,6 +170,22 @@ extension MetalView {
         input?.mousePosition = position
         input?.wrappedValue.receiveEvent(mouseEvent)
     }
+
+    public override func rightMouseUp(with event: NSEvent) {
+        let position = self.mousePosition(for: event)
+
+        let mouseEvent = MouseEvent(
+            window: self.windowID,
+            button: .right,
+            mousePosition: position,
+            phase: .ended,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
+            time: TimeInterval(event.timestamp)
+        )
+
+        input?.mousePosition = position
+        input?.wrappedValue.receiveEvent(mouseEvent)
+    }
     
     open override func cursorUpdate(with event: NSEvent) {
         Application.shared.windowManager.updateCursor()
@@ -196,6 +212,28 @@ extension MetalView {
         input?.mousePosition = position
         input?.wrappedValue.receiveEvent(mouseEvent)
     }
+
+    public override func rightMouseDown(with event: NSEvent) {
+        if let eventWindow = event.window, eventWindow.firstResponder !== self {
+            eventWindow.makeFirstResponder(self)
+        }
+
+        let position = self.mousePosition(for: event)
+
+        let isContinious = input?.wrappedValue.mouseEvents[.right]?.phase == .began
+
+        let mouseEvent = MouseEvent(
+            window: self.windowID,
+            button: .right,
+            mousePosition: position,
+            phase: isContinious ? .changed : .began,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
+            time: TimeInterval(event.timestamp)
+        )
+
+        input?.mousePosition = position
+        input?.wrappedValue.receiveEvent(mouseEvent)
+    }
     
     public override func mouseMoved(with event: NSEvent) {
         let position = self.mousePosition(for: event)
@@ -219,6 +257,21 @@ extension MetalView {
         let event = MouseEvent(
             window: self.windowID,
             button: .none,
+            mousePosition: position,
+            phase: .changed,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
+            time: TimeInterval(event.timestamp)
+        )
+        input?.wrappedValue.receiveEvent(event)
+    }
+
+    open override func rightMouseDragged(with event: NSEvent) {
+        let position = self.mousePosition(for: event)
+        input?.mousePosition = position
+
+        let event = MouseEvent(
+            window: self.windowID,
+            button: .right,
             mousePosition: position,
             phase: .changed,
             modifierKeys: KeyModifier(modifiers: event.modifierFlags),
