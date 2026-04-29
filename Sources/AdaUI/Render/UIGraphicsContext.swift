@@ -116,6 +116,12 @@ public struct UIGraphicsContext: Sendable {
         let transform = self.transform * rect.toTransform3D
         self.commandQueue.push(.drawQuad(transform: transform, texture: texture, color: applyOpacityIfNeeded(color)))
     }
+
+    /// Paints the provided rectangle using a reflected UI shader material.
+    public func drawShaderEffect(_ rect: Rect, material: Material) {
+        let transform = self.transform * rect.toTransform3D
+        self.commandQueue.push(.drawShaderEffect(transform: transform, material: material))
+    }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
     public func drawEllipse(
@@ -327,6 +333,7 @@ extension UIGraphicsContext {
         case drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color)
 
         case drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color)
+        case drawShaderEffect(transform: Transform3D, material: Material)
         case drawCircle(
             transform: Transform3D,
             thickness: Float,

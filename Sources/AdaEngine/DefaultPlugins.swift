@@ -49,6 +49,7 @@ public struct DefaultPlugins: Plugin {
         insertPlugin(Light2DPlugin(), into: &plugins)
         insertPlugin(UpscalePlugin(), into: &plugins)
         insertPlugin(UIPlugin(), into: &plugins)
+        insertPlugin(ContextMenuPlugin(), into: &plugins)
         insertPlugin(Physics2DPlugin(), into: &plugins)
         insertPlugin(TileMapPlugin(), into: &plugins)
         self.plugins = plugins

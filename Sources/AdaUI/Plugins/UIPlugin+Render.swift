@@ -445,6 +445,28 @@ public struct UIRenderTesselationSystem {
                 batches: &state.renderData.quadBatches
             )
 
+        case let .drawShaderEffect(transform, material):
+            // Keep custom material draws in their own item so each material can bind
+            // its own pipeline and reflected resources without reordering UI content.
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+
+            let vertexOffset = UInt32(state.renderData.shaderEffectVertexBuffer.count)
+            let vertices = tessellator.tessellateShaderEffect(transform: transform)
+            state.renderData.shaderEffectVertexBuffer.elements.append(contentsOf: vertices)
+
+            let indexStart = state.renderData.shaderEffectIndexBuffer.count
+            let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            state.renderData.shaderEffectIndexBuffer.elements.append(contentsOf: indices)
+            state.renderData.shaderEffectBatches.append(
+                UIDrawData.ShaderEffectBatch(
+                    material: material,
+                    indexOffset: indexStart,
+                    indexCount: indices.count
+                )
+            )
+
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+
         case let .drawLinearGradient(transform, startPoint, endPoint, stops):
             let vertexOffset = UInt32(state.renderData.gradientVertexBuffer.count)
             let vertices = tessellator.tessellateLinearGradient(transform: transform)

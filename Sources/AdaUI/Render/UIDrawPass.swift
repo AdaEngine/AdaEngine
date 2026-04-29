@@ -124,6 +124,18 @@ public struct UIDrawData: Sendable {
         }
     }
 
+    public struct ShaderEffectBatch: Sendable {
+        public var material: Material
+        public var indexOffset: Int
+        public var indexCount: Int
+
+        public init(material: Material, indexOffset: Int, indexCount: Int) {
+            self.material = material
+            self.indexOffset = indexOffset
+            self.indexCount = indexCount
+        }
+    }
+
     /// Vertex buffer for quads.
     public var quadVertexBuffer: BufferData<QuadVertexData>
     /// Index buffer for quads.
@@ -135,6 +147,11 @@ public struct UIDrawData: Sendable {
     public var gradientIndexBuffer: BufferData<UInt32>
     /// Uniform buffer for linear gradients.
     var gradientUniformBuffer: BufferData<LinearGradientUniform>
+
+    /// Vertex buffer for shader effect quads.
+    public var shaderEffectVertexBuffer: BufferData<QuadVertexData>
+    /// Index buffer for shader effect quads.
+    public var shaderEffectIndexBuffer: BufferData<UInt32>
 
     /// Vertex buffer for circles.
     public var circleVertexBuffer: BufferData<CircleVertexData>
@@ -165,6 +182,9 @@ public struct UIDrawData: Sendable {
     /// Batches for linear gradient rendering.
     public var gradientBatches: [LinearGradientBatch] = []
 
+    /// Batches for custom shader effect rendering.
+    public var shaderEffectBatches: [ShaderEffectBatch] = []
+
     /// Font atlas textures used for text rendering (max 16 per batch).
     public var fontAtlases: [Texture2D] = []
 
@@ -183,6 +203,8 @@ public struct UIDrawData: Sendable {
         self.gradientVertexBuffer = BufferData(label: "UI_GradientVertexBuffer", elements: [])
         self.gradientIndexBuffer = BufferData(label: "UI_GradientIndexBuffer", elements: [])
         self.gradientUniformBuffer = BufferData(label: "UI_GradientUniformBuffer", elements: [])
+        self.shaderEffectVertexBuffer = BufferData(label: "UI_ShaderEffectVertexBuffer", elements: [])
+        self.shaderEffectIndexBuffer = BufferData(label: "UI_ShaderEffectIndexBuffer", elements: [])
         self.circleVertexBuffer = BufferData(label: "UI_CircleVertexBuffer", elements: [])
         self.circleIndexBuffer = BufferData(label: "UI_CircleIndexBuffer", elements: [])
         self.lineVertexBuffer = BufferData(label: "UI_LineVertexBuffer", elements: [])
@@ -200,6 +222,8 @@ public struct UIDrawData: Sendable {
         self.gradientVertexBuffer.write(to: device)
         self.gradientIndexBuffer.write(to: device)
         self.gradientUniformBuffer.write(to: device)
+        self.shaderEffectVertexBuffer.write(to: device)
+        self.shaderEffectIndexBuffer.write(to: device)
         self.circleVertexBuffer.write(to: device)
         self.circleIndexBuffer.write(to: device)
         self.lineVertexBuffer.write(to: device)
@@ -217,6 +241,8 @@ public struct UIDrawData: Sendable {
         gradientVertexBuffer.removeAll()
         gradientIndexBuffer.removeAll()
         gradientUniformBuffer.removeAll()
+        shaderEffectVertexBuffer.removeAll()
+        shaderEffectIndexBuffer.removeAll()
         circleVertexBuffer.removeAll()
         circleIndexBuffer.removeAll()
         lineVertexBuffer.removeAll()
@@ -230,6 +256,7 @@ public struct UIDrawData: Sendable {
         fontAtlases.removeAll(keepingCapacity: true)
         quadBatches.removeAll(keepingCapacity: true)
         gradientBatches.removeAll(keepingCapacity: true)
+        shaderEffectBatches.removeAll(keepingCapacity: true)
         glyphBatches.removeAll(keepingCapacity: true)
         glassBatches.removeAll(keepingCapacity: true)
     }
@@ -237,6 +264,7 @@ public struct UIDrawData: Sendable {
     public var isEmpty: Bool {
         quadIndexBuffer.isEmpty
         && gradientIndexBuffer.isEmpty
+        && shaderEffectIndexBuffer.isEmpty
         && circleIndexBuffer.isEmpty
         && lineIndexBuffer.isEmpty
         && glyphIndexBuffer.isEmpty
@@ -309,6 +337,14 @@ public struct UIDrawPass: DrawPass {
             renderGradients(
                 renderEncoder: renderEncoder,
                 uiDrawData: uiDrawData
+            )
+        }
+
+        if !uiDrawData.shaderEffectIndexBuffer.isEmpty {
+            renderShaderEffects(
+                renderEncoder: renderEncoder,
+                uiDrawData: uiDrawData,
+                world: world
             )
         }
 
@@ -456,6 +492,94 @@ public struct UIDrawPass: DrawPass {
                 indexBufferOffset: indexBufferOffset,
                 instanceCount: 1
             )
+        }
+    }
+
+    private func renderShaderEffects(
+        renderEncoder: RenderCommandEncoder,
+        uiDrawData: UIDrawData,
+        world: World
+    ) {
+        renderEncoder.pushDebugName("UI Shader Effect Render")
+        defer { renderEncoder.popDebugName() }
+
+        guard let renderDevice = world.getResource(RenderDeviceHandler.self)?.renderDevice else {
+            return
+        }
+
+        renderEncoder.setVertexBuffer(uiDrawData.shaderEffectVertexBuffer, offset: 0, slot: 0)
+        renderEncoder.setIndexBuffer(uiDrawData.shaderEffectIndexBuffer, indexFormat: .uInt32)
+
+        for batch in uiDrawData.shaderEffectBatches {
+            guard let pipeline = batch.material.getOrCreateUIShaderEffectPipeline(device: renderDevice),
+                  let materialData = unsafe MaterialStorage.shared.getMaterialData(for: batch.material) else {
+                continue
+            }
+
+            renderEncoder.setRenderPipelineState(pipeline)
+            setMaterialResourceSets(
+                renderEncoder: renderEncoder,
+                materialData: materialData
+            )
+
+            let indexBufferOffset = batch.indexOffset * MemoryLayout<UInt32>.stride
+            renderEncoder.drawIndexed(
+                indexCount: batch.indexCount,
+                indexBufferOffset: indexBufferOffset,
+                instanceCount: 1
+            )
+        }
+    }
+
+    private func setMaterialResourceSets(
+        renderEncoder: RenderCommandEncoder,
+        materialData: MaterialStorageData
+    ) {
+        for (groupIndex, descriptorSet) in materialData.reflectionData.descriptorSets.enumerated() {
+            var bindings: [RenderResourceSet.Binding] = []
+
+            for (_, buffer) in descriptorSet.uniformsBuffers {
+                guard let uniformBuffer = materialData.uniformBufferSet[buffer.name] else {
+                    continue
+                }
+
+                bindings.append(
+                    RenderResourceSet.Binding(
+                        binding: buffer.binding,
+                        shaderStages: buffer.shaderStage,
+                        resource: .uniformBuffer(uniformBuffer, offset: 0)
+                    )
+                )
+            }
+
+            for (_, sampler) in descriptorSet.sampledImages {
+                guard let materialTexture = materialData.textures[sampler.name] else {
+                    continue
+                }
+
+                bindings.append(
+                    RenderResourceSet.Binding(
+                        binding: sampler.binding,
+                        shaderStages: sampler.shaderStage,
+                        arrayLength: sampler.arraySize,
+                        resource: .texture(materialTexture.texture)
+                    )
+                )
+
+                if let samplerResource = materialData.reflectionData.samplers[materialTexture.samplerName] {
+                    bindings.append(
+                        RenderResourceSet.Binding(
+                            binding: samplerResource.binding,
+                            shaderStages: samplerResource.shaderStage,
+                            resource: .sampler(materialTexture.texture.sampler)
+                        )
+                    )
+                }
+            }
+
+            if !bindings.isEmpty {
+                renderEncoder.setResourceSet(RenderResourceSet(bindings: bindings), index: groupIndex)
+            }
         }
     }
 
