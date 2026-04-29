@@ -65,4 +65,20 @@ struct TextRenderingRegressionTests {
 
         #expect(childNode?.frame == Rect(x: 0, y: 0, width: 100, height: 50))
     }
+
+    @Test
+    func wrappedTextReportsVisualLineHeight() {
+        let tester = ViewTester {
+            Text("This is a long chat message that should wrap into multiple visual rows.")
+                .font(.system(size: 17))
+                .frame(width: 120, alignment: .leading)
+                .accessibilityIdentifier("wrapped-text")
+        }
+        .setSize(Size(width: 240, height: 240))
+        .performLayout()
+
+        let textNode = tester.findNodeByAccessibilityIdentifier("wrapped-text")
+
+        #expect((textNode?.frame.height ?? 0) > 40)
+    }
 }

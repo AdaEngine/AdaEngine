@@ -20,6 +20,11 @@ public struct Text {
         self.storage = Storage(string: text)
     }
 
+    /// Creates a text view that displays Markdown content.
+    public init(markdown: String) {
+        self.storage = Storage(markdown: markdown)
+    }
+
     /// Creates a text view that displays styled attributed content.
     public init(_ attributedText: AttributedText) {
         self.storage = Storage(attributedText: attributedText)
@@ -44,7 +49,7 @@ public extension Text {
     /// Sets the default font for text in this view.
     func font(_ font: Font?) -> Text {
         if let font = font {
-            self.storage.text.font = font
+            self.storage.text.setFont(font, preservingSemanticTraits: true)
         }
         return self
     }
@@ -102,6 +107,10 @@ extension Text {
             self.text = AttributedText(string)
         }
 
+        init(markdown: String) {
+            self.text = AttributedText(markdown: markdown)
+        }
+
         init(attributedText: AttributedText) {
             self.text = attributedText
         }
@@ -114,7 +123,7 @@ extension Text {
 
         func applyingEnvironment(_ environment: EnvironmentValues) -> AttributedText {
             if let font = environment.font {
-                self.text.font = font
+                self.text.setFont(font, preservingSemanticTraits: true)
             }
 
             if lineLimit == nil {

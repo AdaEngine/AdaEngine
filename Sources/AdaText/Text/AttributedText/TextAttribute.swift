@@ -51,6 +51,33 @@ public struct KernColorTextAttribute: TextAttributeKey {
     public static let defaultValue: Float = 0
 }
 
+/// Semantic font traits produced by text parsers.
+public struct TextFontTraits: OptionSet, Hashable, Sendable {
+    public let rawValue: Int
+
+    public init(rawValue: Int) {
+        self.rawValue = rawValue
+    }
+
+    public static let strong = TextFontTraits(rawValue: 1 << 0)
+    public static let emphasis = TextFontTraits(rawValue: 1 << 1)
+    public static let code = TextFontTraits(rawValue: 1 << 2)
+}
+
+/// A text attribute key for semantic font traits.
+public struct FontTraitsTextAttribute: TextAttributeKey {
+    /// The value type.
+    public typealias Value = TextFontTraits
+    public static let defaultValue: TextFontTraits = []
+}
+
+/// A text attribute key for relative font scaling.
+public struct FontScaleTextAttribute: TextAttributeKey {
+    /// The value type.
+    public typealias Value = Double
+    public static let defaultValue: Double = 1
+}
+
 public extension TextAttributeContainer {
     
     /// Set foreground color for text.
@@ -105,6 +132,28 @@ public extension TextAttributeContainer {
         
         set {
             self[KernColorTextAttribute.self] = newValue
+        }
+    }
+
+    /// Set semantic font traits for text.
+    var fontTraits: TextFontTraits {
+        get {
+            self[FontTraitsTextAttribute.self] ?? FontTraitsTextAttribute.defaultValue
+        }
+
+        set {
+            self[FontTraitsTextAttribute.self] = newValue
+        }
+    }
+
+    /// Set relative font scale for text.
+    var fontScale: Double {
+        get {
+            self[FontScaleTextAttribute.self] ?? FontScaleTextAttribute.defaultValue
+        }
+
+        set {
+            self[FontScaleTextAttribute.self] = newValue
         }
     }
     

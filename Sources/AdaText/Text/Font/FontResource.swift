@@ -17,6 +17,7 @@ import CoreText
 public enum FontWeight: String {
     case regular
     case bold
+    case boldItalic
     case semibold
     case italic
     case light
@@ -235,7 +236,7 @@ public extension FontResource {
     static func system(weight: FontWeight = .regular, emFontScale: Double? = nil) -> FontResource {
         do {
             let resolvedScale = emFontScale ?? Constants.defaultEmFontScale
-            var path = "Assets/Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf"
+            var path = "Assets/Fonts/opensans/OpenSans-\(weight.fileNameComponent).ttf"
 
             path.append("#emSize=\(resolvedScale)")
 
@@ -256,6 +257,17 @@ public extension FontResource {
             return resource
         } catch {
             fatalError("[Font]: Something went wrong \(error)")
+        }
+    }
+}
+
+private extension FontWeight {
+    var fileNameComponent: String {
+        switch self {
+        case .boldItalic:
+            return "BoldItalic"
+        default:
+            return self.rawValue.capitalized
         }
     }
 }

@@ -31,6 +31,15 @@ public struct AttributedText: Hashable, Sendable {
         }
     }
 
+    /// Creates attributed text by parsing Markdown.
+    public init(
+        markdown: String,
+        attributes: TextAttributeContainer = TextAttributeContainer(),
+        options: TextMarkdownOptions = TextMarkdownOptions()
+    ) {
+        self = TextMarkdownPlugin.parse(markdown, attributes: attributes, options: options)
+    }
+
     public subscript<T>(dynamicMember keyPath: WritableKeyPath<TextAttributeContainer, T>) -> T {
         get {
             self.attributes(at: self.startIndex)[keyPath: keyPath]
@@ -103,6 +112,21 @@ public extension AttributedText {
         at index: String.Index
     ) {
         self.attributes[index] = container
+    }
+
+    /// Applies a base font while preserving semantic font traits and relative scales.
+    mutating func setFont(_ font: Font, preservingSemanticTraits: Bool) {
+        let range = startIndex ..< endIndex
+
+        for index in text[range].indices {
+            var container = self.attributes(at: index)
+            if preservingSemanticTraits {
+                container.font = font.applyingTraits(container.fontTraits, scale: container.fontScale)
+            } else {
+                container.font = font
+            }
+            self.setAttributes(container, at: index)
+        }
     }
 }
 

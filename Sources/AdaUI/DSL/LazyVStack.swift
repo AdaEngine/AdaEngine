@@ -123,7 +123,7 @@ final class LazyVStackNode<Data: RandomAccessCollection, ID: Hashable, Row: View
 
         let currentIDs = Set(items.map(idProvider))
         measuredHeights = measuredHeights.filter { currentIDs.contains($0.key) }
-        refreshVisibleContent()
+        rebuildVisibleRows(updateExistingRows: true)
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
@@ -154,7 +154,7 @@ final class LazyVStackNode<Data: RandomAccessCollection, ID: Hashable, Row: View
     }
 
     override func performLayout() {
-        rebuildVisibleRows()
+        rebuildVisibleRows(updateExistingRows: false)
 
         let width = frame.width
         let xOrigin: Float
@@ -300,11 +300,10 @@ final class LazyVStackNode<Data: RandomAccessCollection, ID: Hashable, Row: View
     }
 
     func refreshVisibleContent() {
-        rebuildVisibleRows()
         performLayout()
     }
 
-    private func rebuildVisibleRows() {
+    private func rebuildVisibleRows(updateExistingRows: Bool) {
         let range = visibleRange()
         let oldNodes = nodes
         var oldNodesByID: [AnyHashable: ViewNode] = [:]
@@ -319,14 +318,22 @@ final class LazyVStackNode<Data: RandomAccessCollection, ID: Hashable, Row: View
 
         for index in range {
             let id = idProvider(items[index])
-            let newNode = makeRowNode(at: index, id: id)
             let resolvedNode: ViewNode
 
-            if let oldNode = oldNodesByID.removeValue(forKey: id), newNode.canUpdate(oldNode) {
-                oldNode.update(from: newNode)
-                resolvedNode = oldNode
+            if let oldNode = oldNodesByID.removeValue(forKey: id) {
+                if updateExistingRows {
+                    let newNode = makeRowNode(at: index, id: id)
+                    if newNode.canUpdate(oldNode) {
+                        oldNode.update(from: newNode)
+                        resolvedNode = oldNode
+                    } else {
+                        resolvedNode = newNode
+                    }
+                } else {
+                    resolvedNode = oldNode
+                }
             } else {
-                resolvedNode = newNode
+                resolvedNode = makeRowNode(at: index, id: id)
             }
 
             resolvedNode.parent = self

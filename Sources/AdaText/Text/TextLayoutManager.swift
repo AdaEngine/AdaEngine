@@ -279,10 +279,14 @@ public final class TextLayoutManager: @unchecked Sendable {
 
             textLine.runs.append(textRun)
 
+            // Soft-wrapped visual rows share the same source line, so include
+            // every row in the measured height instead of only the first row.
+            let visualHeight = maxLineHeight > 0 ? (lineStartY - y) + maxLineHeight : 0
+
             // Calculate bounding box for this line
             let boundingBox = Rect(
                 origin: Point(x: 0, y: Float(lineStartY)),
-                size: Size(width: Float(maxWidth), height: Float(maxLineHeight))
+                size: Size(width: Float(maxWidth), height: Float(visualHeight))
             )
             
             textLine.typographicBounds.ascent = maxAscent

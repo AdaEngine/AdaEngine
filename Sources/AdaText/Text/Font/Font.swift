@@ -31,8 +31,42 @@ public extension Font {
     /// - Parameter size: The size of the font.
     /// - Returns: The system font.
     static func system(size: Double) -> Font {
-        let resource = FontResource.system(weight: FontWeight.regular, emFontScale: 74)
+        system(size: size, weight: .regular)
+    }
+
+    /// Create a font from the system resources.
+    ///
+    /// - Parameters:
+    ///   - size: The size of the font.
+    ///   - weight: The weight of the font.
+    /// - Returns: The system font.
+    static func system(size: Double, weight: FontWeight) -> Font {
+        let resource = FontResource.system(weight: weight, emFontScale: 74)
         return Font(fontResource: resource, pointSize: size)
+    }
+
+    /// Returns a copy of this font with semantic text traits applied.
+    func applyingTraits(_ traits: TextFontTraits, scale: Double = 1) -> Font {
+        guard !traits.isEmpty else {
+            var font = self
+            font.pointSize *= scale
+            return font
+        }
+
+        let weight: FontWeight
+        if traits.contains(.strong) && traits.contains(.emphasis) {
+            weight = .boldItalic
+        } else if traits.contains(.strong) {
+            weight = .bold
+        } else if traits.contains(.emphasis) {
+            weight = .italic
+        } else if traits.contains(.code) {
+            weight = .semibold
+        } else {
+            weight = .regular
+        }
+
+        return Font.system(size: self.pointSize * scale, weight: weight)
     }
 }
 
