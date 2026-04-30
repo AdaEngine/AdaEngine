@@ -93,7 +93,12 @@ public struct UIRenderNode: RenderNode {
                     size: SizeInt(width: texWidth, height: texHeight),
                     scaleFactor: texture.scaleFactor,
                     format: .bgra8,
-                    debugLabel: "GlassBackground"
+                    debugLabel: "GlassBackground",
+                    samplerDescription: SamplerDescriptor(
+                        minFilter: .linear,
+                        magFilter: .linear,
+                        mipFilter: .notMipmapped
+                    )
                 )
             }
 
