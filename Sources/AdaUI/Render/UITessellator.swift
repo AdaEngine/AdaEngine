@@ -30,6 +30,16 @@ public struct UITessellator {
         [0.0, 1.0]
     ]
 
+    /// Texture coordinates for UI gradients. `Rect.toTransform3D` flips the
+    /// local Y axis for UI rendering, so gradients need vertically flipped UVs
+    /// to keep UnitPoint.top and UnitPoint.bottom visually correct.
+    public static let gradientTextureCoords: [Vector2] = [
+        [0.0, 1.0],
+        [1.0, 1.0],
+        [1.0, 0.0],
+        [0.0, 0.0]
+    ]
+
     /// Number of segments for Bezier curve tessellation.
     public static let curveSegments: Int = 16
 
@@ -80,12 +90,14 @@ public struct UITessellator {
     public func tessellateLinearGradient(
         transform: Transform3D
     ) -> [QuadVertexData] {
-        tessellateQuad(
-            transform: transform,
-            texture: nil,
-            color: .white,
-            textureIndex: 0
-        )
+        Self.quadPositions.enumerated().map { index, quadPos in
+            QuadVertexData(
+                position: transform * quadPos,
+                color: .white,
+                textureCoordinate: Self.gradientTextureCoords[index],
+                textureIndex: 0
+            )
+        }
     }
 
     /// Tessellates a custom shader effect quad into 4 vertices.

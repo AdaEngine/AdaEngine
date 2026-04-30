@@ -6,7 +6,6 @@
 //
 
 import AdaUtils
-import Math
 
 /// A protocol that defines a button style.
 @_typeEraser(AnyButtonStyle)
@@ -100,6 +99,33 @@ public struct DefaultButtonStyle: ButtonStyle {
     /// - Returns: The body of the default button style.
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
+    }
+}
+
+/// The default button style used inside navigation bars.
+public struct NavigationBarButtonStyle: ButtonStyle {
+    private enum Constants {
+        static let height: Float = 44
+        static let horizontalPadding: Float = 12
+    }
+
+    /// Initialize a new navigation bar button style.
+    public init() {}
+
+    /// Make the body of the navigation bar button style.
+    ///
+    /// - Parameter configuration: The configuration of the navigation bar button style.
+    /// - Returns: The body of the navigation bar button style.
+    public func makeBody(configuration: Configuration) -> some View {
+        let isPressed = configuration.isSelected
+        let isHoveredOrFocused = configuration.isHighlighted || configuration.state.contains(.focused)
+        let glass = isPressed ? Glass.interaction : (isHoveredOrFocused ? Glass.regular : Glass.clear)
+
+        return configuration.label
+            .padding(.horizontal, Constants.horizontalPadding)
+            .frame(height: Constants.height)
+            .fixedSize(horizontal: true, vertical: false)
+            .glassEffect(glass, in: .capsule)
     }
 }
 

@@ -76,6 +76,18 @@ extension Glass {
         return glass
     }
 
+    /// Brighter glass for pressed interactive controls.
+    public static var interaction: Glass {
+        var glass = Glass.regular
+        glass.blurRadius = 9.5
+        glass.glassTintStrength = 1.0
+        glass.edgeShadowStrength = 0.02
+        glass.fresnelIntensity = 0.96
+        glass.glareIntensity = 1.0
+        glass.tintColor = Color(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.16)
+        return glass
+    }
+
     /// Minimal glass: light blur, almost transparent. Mirrors Apple's `.clear`.
     ///
     /// Blur and tint strength are high enough for the shader to show visible lens warping;

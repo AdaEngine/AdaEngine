@@ -52,6 +52,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
 
     override func performLayout() {
         let viewportSize = self.frame.size
+        let contentInsets = resolvedContentInsets()
         let proposedWidth: Float? = axis.contains(.horizontal) ? nil : viewportSize.width
         let proposedHeight: Float? = axis.contains(.vertical) ? nil : viewportSize.height
         let proposal = ProposedViewSize(width: proposedWidth, height: proposedHeight)
@@ -60,8 +61,10 @@ final class ScrollViewNode: LayoutViewContainerNode {
         let measuredWidth = measuredContentSize.width.isFinite ? measuredContentSize.width : viewportSize.width
         let measuredHeight = measuredContentSize.height.isFinite ? measuredContentSize.height : viewportSize.height
 
-        let contentWidth = axis.contains(.horizontal) ? max(measuredWidth, viewportSize.width) : viewportSize.width
-        let contentHeight = axis.contains(.vertical) ? max(measuredHeight, viewportSize.height) : viewportSize.height
+        let insetWidth = contentInsets.leading + contentInsets.trailing
+        let insetHeight = contentInsets.top + contentInsets.bottom
+        let contentWidth = axis.contains(.horizontal) ? max(measuredWidth + insetWidth, viewportSize.width) : viewportSize.width
+        let contentHeight = axis.contains(.vertical) ? max(measuredHeight + insetHeight, viewportSize.height) : viewportSize.height
         self.contentSize = Size(width: contentWidth, height: contentHeight)
 
         let width = max(0, contentSize.width - viewportSize.width)
@@ -84,9 +87,20 @@ final class ScrollViewNode: LayoutViewContainerNode {
             )
         )
 
+        let insetContentSize = Size(
+            width: max(0, contentSize.width - insetWidth),
+            height: max(0, contentSize.height - insetHeight)
+        )
+
         super.performLayout(
-            in: Rect(origin: contentOrigin, size: contentSize),
-            proposal: ProposedViewSize(contentSize)
+            in: Rect(
+                origin: Point(
+                    x: contentOrigin.x + contentInsets.leading,
+                    y: contentOrigin.y + contentInsets.top
+                ),
+                size: insetContentSize
+            ),
+            proposal: ProposedViewSize(insetContentSize)
         )
     }
 
@@ -471,6 +485,16 @@ final class ScrollViewNode: LayoutViewContainerNode {
         if let containerView = self.owner?.containerView {
             containerView.setNeedsDisplay(in: self.absoluteFrame())
         }
+    }
+
+    private func resolvedContentInsets() -> EdgeInsets {
+        let safeAreaInsets = environment.safeAreaInsets
+        return EdgeInsets(
+            top: axis.contains(.vertical) ? safeAreaInsets.top : 0,
+            leading: axis.contains(.horizontal) ? safeAreaInsets.leading : 0,
+            bottom: axis.contains(.vertical) ? safeAreaInsets.bottom : 0,
+            trailing: axis.contains(.horizontal) ? safeAreaInsets.trailing : 0
+        )
     }
 
     override func draw(with context: UIGraphicsContext) {

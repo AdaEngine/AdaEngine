@@ -19,6 +19,8 @@ struct LinearGradientUniform: Sendable {
     let endPoint: Vector2
     let stopCount: Int32
     let _padding: Int32
+    let _padding1: Int32
+    let _padding2: Int32
     let stopColor0: Vector4
     let stopColor1: Vector4
     let stopColor2: Vector4
@@ -49,6 +51,8 @@ struct LinearGradientUniform: Sendable {
         self.endPoint = endPoint
         self.stopCount = Int32(normalizedStops.count)
         self._padding = 0
+        self._padding1 = 0
+        self._padding2 = 0
         self.stopColor0 = colors[0]
         self.stopColor1 = colors[1]
         self.stopColor2 = colors[2]
