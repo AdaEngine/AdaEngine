@@ -18,6 +18,13 @@ struct LiquidGlassTests {
         #expect(regular.glareIntensity == 0.88)
         #expect(regular.tintColor == Color(red: 0.97, green: 0.985, blue: 1.0, alpha: 0.07))
 
+        let interaction = Glass.interaction
+        #expect(interaction.blurRadius == 9.5)
+        #expect(interaction.glassTintStrength == 1.0)
+        #expect(interaction.fresnelIntensity == 0.96)
+        #expect(interaction.glareIntensity == 1.0)
+        #expect(interaction.tintColor == Color(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.16))
+
         let clear = Glass.clear
         #expect(clear.blurRadius == 2.5)
         #expect(clear.glassThickness == 22.0)

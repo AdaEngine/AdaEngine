@@ -6,6 +6,7 @@
 //
 
 import Testing
+import AdaCorePipelines
 @testable import AdaPlatform
 @testable import AdaUI
 import AdaUtils
@@ -175,5 +176,24 @@ struct LinearGradientTests {
         #expect(degenerate.stopCount == 2)
         #expect(degenerate.stopColor0 == Color.green.asVector)
         #expect(degenerate.stopColor1 == Color.green.asVector)
+    }
+
+    @Test
+    func linearGradientUniform_matchesShaderUniformLayout() {
+        #expect(MemoryLayout<LinearGradientUniform>.stride == 352)
+        #expect(MemoryLayout<LinearGradientUniform>.offset(of: \.stopColor0) == 32)
+        #expect(MemoryLayout<LinearGradientUniform>.offset(of: \.stopLocations3) == 336)
+    }
+
+    @Test
+    func linearGradientTessellation_flipsTextureCoordinatesForUIKitStyleY() {
+        let vertices = UITessellator().tessellateLinearGradient(transform: .identity)
+
+        #expect(vertices.map(\.textureCoordinate) == [
+            Vector2(0, 1),
+            Vector2(1, 1),
+            Vector2(1, 0),
+            Vector2(0, 0),
+        ])
     }
 }

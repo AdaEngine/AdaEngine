@@ -235,7 +235,6 @@ final class ButtonViewNode: ViewModifierNode {
         case .ended:
             let shouldInvokeAction = event.button == .left && state.contains(.selected)
             state.remove(.selected)
-            state.remove(.focused)
             state.remove(.highlighted)
 
             if shouldInvokeAction {
@@ -243,7 +242,6 @@ final class ButtonViewNode: ViewModifierNode {
             }
         case .cancelled:
             state.remove(.selected)
-            state.remove(.focused)
             state.remove(.highlighted)
         }
 
@@ -251,7 +249,8 @@ final class ButtonViewNode: ViewModifierNode {
     }
 
     override func onMouseLeave() {
-        state = .normal
+        state.remove(.selected)
+        state.remove(.highlighted)
         self.invalidateContent()
     }
 

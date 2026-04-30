@@ -175,6 +175,67 @@ struct NavigationStackTests {
 
         #expect(rootAppearedCount == 1)
     }
+
+    @Test
+    func navigationStack_nestedScrollContentExtendsUnderNavigationBar() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                ZStack(anchor: .topLeading) {
+                    VStack {
+                        ScrollViewReader { _ in
+                            ScrollView {
+                                Color.red
+                                    .frame(width: 320, height: 640)
+                            }
+                        }
+                        .frame(minHeight: 0, maxHeight: .infinity)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .navigationTitle("Chat")
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let scrollNode = try #require(firstScrollView(in: tester.containerView.viewTree.rootNode))
+        #expect(scrollNode.absoluteFrame().origin.y == 0)
+    }
+
+    @Test
+    func navigationBar_buttonStyleKeepsToolbarItemsCompact() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                Color.clear
+                    .navigationTitle("New Chat")
+                    .navigationTitlePosition(.center)
+                    .navigationBarLeadingItems {
+                        Button(action: {}) {
+                            Text("Agent")
+                        }
+                    }
+                    .navigationBarTrailingItems {
+                        HStack(spacing: 10) {
+                            Button("History") {}
+                            Button("Settings") {}
+                        }
+                    }
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let textNodes = textNodes(in: tester.containerView.viewTree.rootNode)
+        let agent = try #require(textNodes.first { $0.text == "Agent" })
+        let history = try #require(textNodes.first { $0.text == "History" })
+        let settings = try #require(textNodes.first { $0.text == "Settings" })
+
+        #expect(agent.frame.origin.x < 80)
+        #expect(history.frame.origin.y < 60)
+        #expect(settings.frame.origin.y < 60)
+        #expect(abs(history.frame.origin.y - settings.frame.origin.y) < 1)
+        #expect(history.frame.origin.x < settings.frame.origin.x)
+    }
 }
 
 // Helper view that calls dismiss via environment
@@ -209,6 +270,73 @@ private struct NavigationRootStateHost: View {
 
 private final class NavigationRootStateDriver {
     var counter: Binding<Int>?
+}
+
+@MainActor
+private func firstScrollView(in node: ViewNode) -> ScrollViewNode? {
+    if let scrollView = node as? ScrollViewNode {
+        return scrollView
+    }
+
+    if let root = node as? ViewRootNode {
+        return firstScrollView(in: root.contentNode)
+    }
+
+    if let navigationStack = node as? NavigationStackNode {
+        return firstScrollView(in: navigationStack.shortcutContentSubtree)
+    }
+
+    if let modifier = node as? ViewModifierNode {
+        return firstScrollView(in: modifier.contentNode)
+    }
+
+    if let container = node as? ViewContainerNode {
+        for child in container.nodes {
+            if let scrollView = firstScrollView(in: child) {
+                return scrollView
+            }
+        }
+    }
+
+    return nil
+}
+
+@MainActor
+private func textNodes(in node: ViewNode) -> [(text: String, frame: Rect)] {
+    var result: [(String, Rect)] = []
+
+    if let text = node.content as? Text {
+        result.append((text.plainText, node.absoluteFrame()))
+    }
+
+    if let root = node as? ViewRootNode {
+        result += textNodes(in: root.contentNode)
+    } else if let modifier = node as? ViewModifierNode {
+        result += textNodes(in: modifier.contentNode)
+    } else if let container = node as? ViewContainerNode {
+        for child in container.nodes {
+            result += textNodes(in: child)
+        }
+    } else {
+        for child in reflectedChildNodes(of: node) {
+            result += textNodes(in: child)
+        }
+    }
+
+    return result
+}
+
+@MainActor
+private func reflectedChildNodes(of node: ViewNode) -> [ViewNode] {
+    Mirror(reflecting: node).children.flatMap { child -> [ViewNode] in
+        if let node = child.value as? ViewNode {
+            return [node]
+        }
+        if let node = child.value as? ViewNode? {
+            return node.map { [$0] } ?? []
+        }
+        return []
+    }
 }
 
 private struct NavigationRootStateBindingProbe: View {
