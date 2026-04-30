@@ -10,16 +10,16 @@ struct LiquidGlassTests {
     func regularClearAndIdentityExposeLiquidGlassDefaults() {
         let regular = Glass.regular
         #expect(regular.cornerRoundnessExponent == 4.8)
-        #expect(regular.blurRadius == 8.0)
-        #expect(regular.glassThickness == 28.0)
-        #expect(regular.refractiveIndex == 1.20)
+        #expect(regular.blurRadius == 14.0)
+        #expect(regular.glassThickness == 6.0)
+        #expect(regular.refractiveIndex == 1.10)
         #expect(regular.dispersionStrength == 0.0)
-        #expect(regular.fresnelIntensity == 0.84)
-        #expect(regular.glareIntensity == 0.88)
+        #expect(regular.fresnelIntensity == 0.52)
+        #expect(regular.glareIntensity == 0.30)
         #expect(regular.tintColor == Color(red: 0.97, green: 0.985, blue: 1.0, alpha: 0.07))
 
         let interaction = Glass.interaction
-        #expect(interaction.blurRadius == 9.5)
+        #expect(interaction.blurRadius == 15.5)
         #expect(interaction.glassTintStrength == 1.0)
         #expect(interaction.fresnelIntensity == 0.96)
         #expect(interaction.glareIntensity == 1.0)
@@ -48,7 +48,7 @@ struct LiquidGlassTests {
     func fluentSettersOnlyChangeTargetValues() {
         let base = Glass.regular
         let updated = base
-            .blurRadius(14.0)
+            .blurRadius(18.0)
             .glassTintStrength(0.33)
             .edgeShadowStrength(0.05)
             .cornerRoundnessExponent(5.5)
@@ -66,7 +66,7 @@ struct LiquidGlassTests {
             .glareDirectionOffset(0.42)
             .tint(.mint.opacity(0.5))
 
-        #expect(updated.blurRadius == 14.0)
+        #expect(updated.blurRadius == 18.0)
         #expect(updated.glassTintStrength == 0.33)
         #expect(updated.edgeShadowStrength == 0.05)
         #expect(updated.cornerRoundnessExponent == 5.5)

@@ -30,14 +30,21 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
     ///   - size: The size of the texture.
     ///   - scaleFactor: The scale factor of the texture.
     ///   - format: The pixel format of the texture.
-    public init(size: SizeInt, scaleFactor: Float, format: PixelFormat, debugLabel: String? = nil) {
+    public init(
+        size: SizeInt,
+        scaleFactor: Float,
+        format: PixelFormat,
+        debugLabel: String? = nil,
+        samplerDescription: SamplerDescriptor = SamplerDescriptor()
+    ) {
         let descriptor = TextureDescriptor(
             width: size.width,
             height: size.height,
             pixelFormat: format,
             textureUsage: [.renderTarget, .read],
             textureType: .texture2D,
-            debugLabel: debugLabel
+            debugLabel: debugLabel,
+            samplerDescription: samplerDescription
         )
 
         self.pixelFormat = format

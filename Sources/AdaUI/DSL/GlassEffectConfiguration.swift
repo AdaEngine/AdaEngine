@@ -55,21 +55,21 @@ extension Glass {
     /// Standard frosted glass: full blur and tinting. Mirrors Apple's `.regular`.
     public static var regular: Glass {
         var glass = Glass()
-        glass.blurRadius = 8.0
+        glass.blurRadius = 14.0
         glass.glassTintStrength = 0.85
         glass.edgeShadowStrength = 0.01
         glass.opacity = 1.0
         glass.cornerRoundnessExponent = 4.8
-        glass.glassThickness = 28.0
-        glass.refractiveIndex = 1.20
+        glass.glassThickness = 6.0
+        glass.refractiveIndex = 1.10
         glass.dispersionStrength = 0.0
         glass.fresnelDistanceRange = 156.0
-        glass.fresnelIntensity = 0.84
+        glass.fresnelIntensity = 0.52
         glass.fresnelEdgeSharpness = 0.24
         glass.glareDistanceRange = 112.0
         glass.glareAngleConvergence = 1.9
         glass.glareOppositeSideBias = 1.22
-        glass.glareIntensity = 0.88
+        glass.glareIntensity = 0.30
         glass.glareEdgeSharpness = 0.18
         glass.glareDirectionOffset = -0.34
         glass.tintColor = Color(red: 0.97, green: 0.985, blue: 1.0, alpha: 0.07)
@@ -79,7 +79,7 @@ extension Glass {
     /// Brighter glass for pressed interactive controls.
     public static var interaction: Glass {
         var glass = Glass.regular
-        glass.blurRadius = 9.5
+        glass.blurRadius = 15.5
         glass.glassTintStrength = 1.0
         glass.edgeShadowStrength = 0.02
         glass.fresnelIntensity = 0.96

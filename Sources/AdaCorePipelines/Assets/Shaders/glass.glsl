@@ -52,8 +52,7 @@ layout (location = 7) in vec4 v_GlassInfo1;
 layout (binding = 0) uniform texture2D u_BackgroundTexture;
 layout (binding = 1) uniform sampler u_BackgroundSampler;
 
-const float kGoldenAngle = 2.39996323;
-const int kBlurSamples = 32;
+const int kBlurGridRadius = 10;
 
 float saturate(float v) { return clamp(v, 0.0, 1.0); }
 
@@ -70,17 +69,20 @@ float sampleBlurredChannel(vec2 uv, vec2 texelSize, float radius, int channel) {
     if (radius < 0.5) {
         return sampleBg(uv)[channel];
     }
-    float value = sampleBg(uv)[channel];
-    float totalWeight = 1.0;
-    for (int i = 1; i < kBlurSamples; i++) {
-        float t = float(i) / float(kBlurSamples - 1);
-        float r = sqrt(t) * radius;
-        float theta = float(i) * kGoldenAngle;
-        vec2 offset = vec2(cos(theta), sin(theta)) * r * texelSize;
-        vec2 sUV = clamp(uv + offset, vec2(0.001), vec2(0.999));
-        float w = 1.0 - t * 0.7;
-        value += sampleBg(sUV)[channel] * w;
-        totalWeight += w;
+    float value = 0.0;
+    float totalWeight = 0.0;
+    float sigma = max(radius * 0.42, 1.0);
+    float stepPx = max(radius / float(kBlurGridRadius), 1.0);
+
+    for (int y = -kBlurGridRadius; y <= kBlurGridRadius; y++) {
+        for (int x = -kBlurGridRadius; x <= kBlurGridRadius; x++) {
+            vec2 offsetPx = vec2(float(x), float(y)) * stepPx;
+            float w = exp(-dot(offsetPx, offsetPx) / (2.0 * sigma * sigma));
+            vec2 offset = offsetPx * texelSize;
+            vec2 sUV = clamp(uv + offset, vec2(0.001), vec2(0.999));
+            value += sampleBg(sUV)[channel] * w;
+            totalWeight += w;
+        }
     }
     return value / totalWeight;
 }
@@ -89,17 +91,20 @@ vec3 sampleBlurredAll(vec2 uv, vec2 texelSize, float radius) {
     if (radius < 0.5) {
         return sampleBg(uv).rgb;
     }
-    vec3 value = sampleBg(uv).rgb;
-    float totalWeight = 1.0;
-    for (int i = 1; i < kBlurSamples; i++) {
-        float t = float(i) / float(kBlurSamples - 1);
-        float r = sqrt(t) * radius;
-        float theta = float(i) * kGoldenAngle;
-        vec2 offset = vec2(cos(theta), sin(theta)) * r * texelSize;
-        vec2 sUV = clamp(uv + offset, vec2(0.001), vec2(0.999));
-        float w = 1.0 - t * 0.7;
-        value += sampleBg(sUV).rgb * w;
-        totalWeight += w;
+    vec3 value = vec3(0.0);
+    float totalWeight = 0.0;
+    float sigma = max(radius * 0.42, 1.0);
+    float stepPx = max(radius / float(kBlurGridRadius), 1.0);
+
+    for (int y = -kBlurGridRadius; y <= kBlurGridRadius; y++) {
+        for (int x = -kBlurGridRadius; x <= kBlurGridRadius; x++) {
+            vec2 offsetPx = vec2(float(x), float(y)) * stepPx;
+            float w = exp(-dot(offsetPx, offsetPx) / (2.0 * sigma * sigma));
+            vec2 offset = offsetPx * texelSize;
+            vec2 sUV = clamp(uv + offset, vec2(0.001), vec2(0.999));
+            value += sampleBg(sUV).rgb * w;
+            totalWeight += w;
+        }
     }
     return value / totalWeight;
 }
