@@ -6,13 +6,13 @@
 //
 
 #if canImport(WebGPU)
-import WebGPU
+@unsafe @preconcurrency import WebGPU
 
 @_spi(Internal)
 public final class WGPUCommandQueue: CommandQueue {
-    let device: WebGPU.Device
+    let device: WebGPU.GPUDevice
 
-    public init(device: WebGPU.Device) {
+    public init(device: WebGPU.GPUDevice) {
         self.device = device
     }
 

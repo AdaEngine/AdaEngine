@@ -361,7 +361,7 @@ var targets: [Target] = [
             ),
             .product(
                 name: "WebGPU",
-                package: "swift-webgpu",
+                package: "swan",
                 condition: .when(traits: [
                     .wgpuTrait
                 ])
@@ -371,12 +371,7 @@ var targets: [Target] = [
             .copy("Assets/Shaders")
         ],
         swiftSettings: swiftSettings,
-        plugins: {
-           if isWGPUEnabled {
-                return ["WebGPUBuildPlugin"]
-           }
-           return []
-        }()
+        plugins: commonPlugins
     ),
     .adaTarget(
         name: "AdaText",
@@ -982,10 +977,7 @@ package.dependencies += [
     .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.7.3"),
     // TODO: SpectralDragon packages should move to AdaEngine
     .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
-    .package(
-        url: "https://github.com/SpectralDragon/swift-webgpu",
-        branch: "update_bindings"
-    ),
+    .package(url: "https://github.com/adobe/swan", from: "0.0.8"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),

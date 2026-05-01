@@ -8,39 +8,38 @@
 #if canImport(WebGPU)
 import AdaUtils
 import Foundation
-import WebGPU
-import CWebGPU
+@unsafe @preconcurrency import WebGPU
 
 @_spi(Internal)
 public class WGPUBuffer: Buffer, @unchecked Sendable {
-    let buffer: WebGPU.Buffer
-    let device: WebGPU.Device
-    
+    let buffer: WebGPU.GPUBuffer
+    let device: WebGPU.GPUDevice
+
     public var label: String? {
         didSet {
-            self.buffer.setLabel(label ?? "")
+            self.buffer.setLabel(label: label ?? "")
         }
     }
-    
-    init(buffer: WebGPU.Buffer, device: WebGPU.Device) {
+
+    init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice) {
         self.buffer = buffer
         self.device = device
     }
-    
+
     public var length: Int { return Int(buffer.size) }
 
-    private var mappedBuffer: WebGPU.Buffer?
+    private var mappedBuffer: WebGPU.GPUBuffer?
 
     public func contents() -> UnsafeMutableRawPointer {
         let mappedBuffer = self.device.createBuffer(
-            descriptor: BufferDescriptor(
-                usage: [.mapWrite, .copySrc], 
+            descriptor: WebGPU.GPUBufferDescriptor(
+                usage: [.mapWrite, .copySrc],
                 size: UInt64(self.length),
                 mappedAtCreation: true
             )
         ).unwrap(message: "Failed to create mapped buffer")
         self.mappedBuffer = mappedBuffer
-        return unsafe mappedBuffer.getMappedRange()
+        return unsafe mappedBuffer.getMappedRange(offset: 0, size: self.length)
     }
 
     public func unmap() {
@@ -48,8 +47,7 @@ public class WGPUBuffer: Buffer, @unchecked Sendable {
             return
         }
 
-        unsafe device.queue.writeBuffer(
-            buffer,
+        unsafe device.queue.writeBuffer(buffer: buffer,
             bufferOffset: 0,
             data: UnsafeRawBufferPointer(start: self.contents(), count: self.length)
         )
@@ -57,11 +55,10 @@ public class WGPUBuffer: Buffer, @unchecked Sendable {
         mappedBuffer.unmap()
         self.mappedBuffer = nil
     }
-    
+
     public func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
-        unsafe device.queue.writeBuffer(
-            self.buffer, 
-            bufferOffset: UInt64(offset), 
+        unsafe device.queue.writeBuffer(buffer: self.buffer,
+            bufferOffset: UInt64(offset),
             data: UnsafeRawBufferPointer(start: bytes, count: byteCount)
         )
     }
@@ -73,7 +70,7 @@ public class WGPUBuffer: Buffer, @unchecked Sendable {
 }
 
 extension BufferMapMode {
-    var toWebGPU: WebGPU.MapMode {
+    var toWebGPU: WebGPU.GPUMapMode {
         switch self {
         case .read:
             return .read

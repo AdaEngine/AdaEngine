@@ -7,16 +7,15 @@
 
 #if canImport(WebGPU)
 import Foundation
-import WebGPU
-import CWebGPU
+@unsafe @preconcurrency import WebGPU
 
 final class WGPUBlitCommandEncoder: BlitCommandEncoder {
-    let blitEncoder: WebGPU.CommandEncoder
-    let device: WebGPU.Device
+    let blitEncoder: WebGPU.GPUCommandEncoder
+    let device: WebGPU.GPUDevice
 
     init(
-        blitEncoder: WebGPU.CommandEncoder,
-        device: WebGPU.Device
+        blitEncoder: WebGPU.GPUCommandEncoder,
+        device: WebGPU.GPUDevice
     ) {
         self.blitEncoder = blitEncoder
         self.device = device
@@ -47,21 +46,21 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
         else { fatalError("Textures must be WGPU textures") }
 
         blitEncoder.copyTextureToTexture(
-            source: TexelCopyTextureInfo(
-                texture: src.texture, 
-                mipLevel: UInt32(sourceMipLevel), 
-                origin: Origin3d(x: UInt32(sourceOrigin.x), y: UInt32(sourceOrigin.y), z: UInt32(sourceOrigin.z)), 
-                aspect: TextureAspect.all
-            ), 
-            destination: TexelCopyTextureInfo(
+            source: WebGPU.GPUTexelCopyTextureInfo(
+                texture: src.texture,
+                mipLevel: UInt32(sourceMipLevel),
+                origin: WebGPU.GPUOrigin3D(x: UInt32(sourceOrigin.x), y: UInt32(sourceOrigin.y), z: UInt32(sourceOrigin.z)),
+                aspect: WebGPU.GPUTextureAspect.all
+            ),
+            destination: WebGPU.GPUTexelCopyTextureInfo(
                 texture: dst.texture,
-                mipLevel: UInt32(destinationMipLevel), 
-                origin: Origin3d(x: UInt32(destinationOrigin.x), y: UInt32(destinationOrigin.y), z: UInt32(destinationOrigin.z)), 
-                aspect: TextureAspect.all
-            ), 
-            copySize: Extent3d(
-                width: UInt32(sourceSize.width), 
-                height: UInt32(sourceSize.height), 
+                mipLevel: UInt32(destinationMipLevel),
+                origin: WebGPU.GPUOrigin3D(x: UInt32(destinationOrigin.x), y: UInt32(destinationOrigin.y), z: UInt32(destinationOrigin.z)),
+                aspect: WebGPU.GPUTextureAspect.all
+            ),
+            copySize: WebGPU.GPUExtent3D(
+                width: UInt32(sourceSize.width),
+                height: UInt32(sourceSize.height),
                 depthOrArrayLayers: 1
             )
         )
@@ -79,10 +78,10 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
             let dst = destination as? WGPUBuffer
         else { fatalError("Buffers must be WGPU buffers") }
         blitEncoder.copyBufferToBuffer(
-            source: src.buffer, 
-            sourceOffset: UInt64(sourceOffset), 
-            destination: dst.buffer, 
-            destinationOffset: UInt64(destinationOffset), 
+            source: src.buffer,
+            sourceOffset: UInt64(sourceOffset),
+            destination: dst.buffer,
+            destinationOffset: UInt64(destinationOffset),
             size: UInt64(size)
         )
     }
@@ -104,22 +103,22 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
         else { fatalError("Invalid WGPU resources") }
 
         blitEncoder.copyBufferToTexture(
-            source: TexelCopyBufferInfo(
-                layout: TexelCopyBufferLayout(
-                    offset: UInt64(sourceOffset), 
-                    bytesPerRow: UInt32(sourceBytesPerRow), 
-                    rowsPerImage: UInt32(sourceBytesPerImage)), 
+            source: WebGPU.GPUTexelCopyBufferInfo(
+                layout: WebGPU.GPUTexelCopyBufferLayout(
+                    offset: UInt64(sourceOffset),
+                    bytesPerRow: UInt32(sourceBytesPerRow),
+                    rowsPerImage: UInt32(sourceBytesPerImage)),
                     buffer: src.buffer
-                ), 
-            destination: TexelCopyTextureInfo(
-                texture: dst.texture, 
-                mipLevel: UInt32(destinationMipLevel), 
-                origin: Origin3d(x: UInt32(destinationOrigin.x), y: UInt32(destinationOrigin.y), z: UInt32(destinationOrigin.z)), 
-                aspect: TextureAspect.all
-            ), 
-            copySize: Extent3d(
-                width: UInt32(sourceSize.width), 
-                height: UInt32(sourceSize.height), 
+                ),
+            destination: WebGPU.GPUTexelCopyTextureInfo(
+                texture: dst.texture,
+                mipLevel: UInt32(destinationMipLevel),
+                origin: WebGPU.GPUOrigin3D(x: UInt32(destinationOrigin.x), y: UInt32(destinationOrigin.y), z: UInt32(destinationOrigin.z)),
+                aspect: WebGPU.GPUTextureAspect.all
+            ),
+            copySize: WebGPU.GPUExtent3D(
+                width: UInt32(sourceSize.width),
+                height: UInt32(sourceSize.height),
                 depthOrArrayLayers: 1
             )
         )
@@ -142,22 +141,22 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
         else { fatalError("Invalid WGPU resources") }
 
         blitEncoder.copyTextureToBuffer(
-            source: TexelCopyTextureInfo(
-                texture: src.texture, 
-                mipLevel: UInt32(sourceMipLevel), 
-                origin: Origin3d(x: UInt32(sourceOrigin.x), y: UInt32(sourceOrigin.y), z: UInt32(sourceOrigin.z)), 
-                aspect: TextureAspect.all
-            ), 
-            destination: TexelCopyBufferInfo(
-                layout: TexelCopyBufferLayout(
-                    offset: UInt64(destinationOffset), 
-                    bytesPerRow: UInt32(destinationBytesPerRow), 
-                    rowsPerImage: UInt32(destinationBytesPerImage)), 
+            source: WebGPU.GPUTexelCopyTextureInfo(
+                texture: src.texture,
+                mipLevel: UInt32(sourceMipLevel),
+                origin: WebGPU.GPUOrigin3D(x: UInt32(sourceOrigin.x), y: UInt32(sourceOrigin.y), z: UInt32(sourceOrigin.z)),
+                aspect: WebGPU.GPUTextureAspect.all
+            ),
+            destination: WebGPU.GPUTexelCopyBufferInfo(
+                layout: WebGPU.GPUTexelCopyBufferLayout(
+                    offset: UInt64(destinationOffset),
+                    bytesPerRow: UInt32(destinationBytesPerRow),
+                    rowsPerImage: UInt32(destinationBytesPerImage)),
                     buffer: dst.buffer
-                ), 
-            copySize: Extent3d(
-                width: UInt32(sourceSize.width), 
-                height: UInt32(sourceSize.height), 
+                ),
+            copySize: WebGPU.GPUExtent3D(
+                width: UInt32(sourceSize.width),
+                height: UInt32(sourceSize.height),
                 depthOrArrayLayers: 1
             )
         )

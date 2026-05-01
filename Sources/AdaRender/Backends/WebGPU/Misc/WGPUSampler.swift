@@ -6,21 +6,21 @@
 //
 
 #if canImport(WebGPU)
-import WebGPU
+@unsafe @preconcurrency import WebGPU
 
-final class WGPUSampler: Sampler, Sendable {
-    
+final class WGPUSampler: Sampler, @unchecked Sendable {
+
     let descriptor: SamplerDescriptor
-    let wgpuSampler: WebGPU.Sampler
-    
-    init(descriptor: SamplerDescriptor, wgpuSampler: WebGPU.Sampler) {
+    let wgpuSampler: WebGPU.GPUSampler
+
+    init(descriptor: SamplerDescriptor, wgpuSampler: WebGPU.GPUSampler) {
         self.descriptor = descriptor
         self.wgpuSampler = wgpuSampler
     }
 }
 
 extension SamplerMinMagFilter {
-    var toWebGPU: WebGPU.FilterMode {
+    var toWebGPU: WebGPU.GPUFilterMode {
         switch self {
         case .nearest: return .nearest
         case .linear: return .linear
@@ -29,7 +29,7 @@ extension SamplerMinMagFilter {
 }
 
 extension SamplerMipFilter {
-    var toWebGPU: WebGPU.MipmapFilterMode {
+    var toWebGPU: WebGPU.GPUMipmapFilterMode {
         switch self {
         case .nearest: return .nearest
         case .linear: return .linear

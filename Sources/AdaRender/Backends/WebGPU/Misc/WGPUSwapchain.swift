@@ -1,5 +1,5 @@
 #if canImport(WebGPU)
-import WebGPU
+@unsafe @preconcurrency import WebGPU
 import AdaUtils
 import Logging
 import Foundation
@@ -19,33 +19,30 @@ final class WGPUSwapchain: Swapchain, @unchecked Sendable {
     }
 
     func getNextDrawable(_ renderDevice: RenderDevice) -> (any Drawable)? {
-        do {
-            let surfaceTexture: SurfaceTexture = try renderWindow.surface.getCurrentTexture() 
-            guard surfaceTexture.status == .successOptimal || surfaceTexture.status == .successSuboptimal else {
-                return nil
-            }
-            return WGPUSwapchainDrawable(
-                surface: renderWindow.surface,
-                surfaceTexture: surfaceTexture
-            )
-        } catch {
-            Logger(label: "org.adaengine.webgpu").error("\(error.localizedDescription)")
+        var surfaceTexture = WGPUSurfaceTexture()
+        renderWindow.surface.getCurrentTexture(surfaceTexture: &surfaceTexture)
+        let textureStatus = surfaceTexture.status
+        guard textureStatus == .successOptimal || textureStatus == .successSuboptimal else {
             return nil
         }
+        return WGPUSwapchainDrawable(
+            surface: renderWindow.surface,
+            surfaceTexture: WebGPU.GPUSurfaceTexture(wgpuStruct: surfaceTexture)
+        )
     }
 }
 
 final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
     let texture: any GPUTexture
-    let surface: WebGPU.Surface
-    let surfaceTexture: WebGPU.SurfaceTexture
+    let surface: WebGPU.GPUSurface
+    let surfaceTexture: WebGPU.GPUSurfaceTexture
     var isPresented: Bool = false
 
-    init(surface: WebGPU.Surface, surfaceTexture: WebGPU.SurfaceTexture) {
+    init(surface: WebGPU.GPUSurface, surfaceTexture: WebGPU.GPUSurfaceTexture) {
         self.surface = surface
         self.surfaceTexture = surfaceTexture
         self.texture = WGPUGPUTexture(
-            texture: surfaceTexture.texture, 
+            texture: surfaceTexture.texture,
             textureView: surfaceTexture.texture.createView()
         )
     }
@@ -64,15 +61,15 @@ enum DrawableError: Error {
     case failedToPresentDrawable
 }
 
-extension WebGPU.TextureDimension {
-    var toTextureViewDimension: TextureViewDimension {
+extension WebGPU.GPUTextureDimension {
+    var toTextureViewDimension: WebGPU.GPUTextureViewDimension {
         switch self {
-        case .type1d: return .type1d
-        case .type2d: return .type2d
-        case .type3d: return .type3d
-        case .typeUndefined: return .typeUndefined
-
-}
+        case ._1D: return ._1D
+        case ._2D: return ._2D
+        case ._3D: return ._3D
+        case .undefined: return .undefined
+        default: return .undefined
+        }
     }
 }
 #endif

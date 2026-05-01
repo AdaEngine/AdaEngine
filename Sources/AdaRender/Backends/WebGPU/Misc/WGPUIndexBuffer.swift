@@ -6,19 +6,19 @@
 //
 
 #if canImport(WebGPU)
-import WebGPU
+@unsafe @preconcurrency import WebGPU
 
 @_spi(Internal)
 public final class WGPUIndexBuffer: WGPUBuffer, IndexBuffer, @unchecked Sendable {
 
     public let indexFormat: IndexBufferFormat
-    
-    init(buffer: WebGPU.Buffer, device: WebGPU.Device, indexFormat: IndexBufferFormat) {
+
+    init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice, indexFormat: IndexBufferFormat) {
         self.indexFormat = indexFormat
-        
+
         super.init(buffer: buffer, device: device)
     }
-    
+
 }
 
 #endif

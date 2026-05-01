@@ -8,57 +8,57 @@
 #if canImport(WebGPU)
 import AdaUtils
 import Math
-import WebGPU
+@unsafe @preconcurrency import WebGPU
 
 final class WGPUCommandEncoder: CommandBuffer {
     var label: String? {
         didSet {
-            commandEncoder.setLabel(label ?? "")
+            commandEncoder.setLabel(label: label ?? "")
         }
     }
-    let device: WebGPU.Device
-    let commandEncoder: WebGPU.CommandEncoder
+    let device: WebGPU.GPUDevice
+    let commandEncoder: WebGPU.GPUCommandEncoder
 
-    init(device: WebGPU.Device) {
+    init(device: WebGPU.GPUDevice) {
         self.device = device
-        self.commandEncoder = device.createCommandEncoder()
+        self.commandEncoder = device.createCommandEncoder(descriptor: nil)
     }
 
     func commit() {
-        let commandBuffer = commandEncoder.finish()
+        let commandBuffer: WebGPU.GPUCommandBuffer = commandEncoder.finish(descriptor: nil as WebGPU.GPUCommandBufferDescriptor?)
         device.queue.submit(commands: [commandBuffer])
     }
 
     func beginRenderPass(_ desc: RenderPassDescriptor) -> RenderCommandEncoder {
-        var wgpuAttachment: WebGPU.RenderPassDepthStencilAttachment?
+        var wgpuAttachment: WebGPU.GPURenderPassDepthStencilAttachment?
         if let depthStencilAttachment = desc.depthStencilAttachment {
             let view = (depthStencilAttachment.texture.gpuTexture as! WGPUGPUTexture).textureView
-            wgpuAttachment = WebGPU.RenderPassDepthStencilAttachment(
-                view: view, 
-                depthLoadOp: depthStencilAttachment.depthOperation?.loadAction.toWebGPU ?? .undefined, 
-                depthStoreOp: depthStencilAttachment.depthOperation?.storeAction.toWebGPU ?? .undefined, 
-                depthClearValue: 1, 
-                depthReadOnly: false, 
-                stencilLoadOp: depthStencilAttachment.stencilOperation?.loadAction.toWebGPU ?? .undefined, 
-                stencilStoreOp: depthStencilAttachment.stencilOperation?.storeAction.toWebGPU ?? .undefined, 
-                stencilClearValue: 1, 
+            wgpuAttachment = WebGPU.GPURenderPassDepthStencilAttachment(
+                view: view,
+                depthLoadOp: depthStencilAttachment.depthOperation?.loadAction.toWebGPU ?? .undefined,
+                depthStoreOp: depthStencilAttachment.depthOperation?.storeAction.toWebGPU ?? .undefined,
+                depthClearValue: 1,
+                depthReadOnly: false,
+                stencilLoadOp: depthStencilAttachment.stencilOperation?.loadAction.toWebGPU ?? .undefined,
+                stencilStoreOp: depthStencilAttachment.stencilOperation?.storeAction.toWebGPU ?? .undefined,
+                stencilClearValue: 1,
                 stencilReadOnly: false,
                 nextInChain: nil
             )
         }
 
         let colorAttachments = desc.colorAttachments.map { attachment in
-            WebGPU.RenderPassColorAttachment(
-                view: (attachment.texture.gpuTexture as! WGPUGPUTexture).textureView, 
+            WebGPU.GPURenderPassColorAttachment(
+                view: (attachment.texture.gpuTexture as! WGPUGPUTexture).textureView,
                 resolveTarget: (attachment.resolveTexture?.gpuTexture as? WGPUGPUTexture)?.textureView,
-                loadOp: attachment.operation?.loadAction.toWebGPU ?? .clear, 
-                storeOp: attachment.operation?.storeAction.toWebGPU ?? .store, 
+                loadOp: attachment.operation?.loadAction.toWebGPU ?? .clear,
+                storeOp: attachment.operation?.storeAction.toWebGPU ?? .store,
                 clearValue: attachment.clearColor?.toWebGPU ?? AdaUtils.Color.black.toWebGPU
             )
         }
 
-        let renderPassDescriptor = WebGPU.RenderPassDescriptor(
-            label: desc.label, 
+        let renderPassDescriptor = WebGPU.GPURenderPassDescriptor(
+            label: desc.label,
             colorAttachments: colorAttachments,
             depthStencilAttachment: wgpuAttachment
         )
@@ -80,7 +80,7 @@ final class WGPUCommandEncoder: CommandBuffer {
 }
 
 extension AttachmentLoadAction {
-    var toWebGPU: WebGPU.LoadOp {
+    var toWebGPU: WebGPU.GPULoadOp {
         switch self {
         case .load: return .load
         case .clear: return .clear
@@ -90,7 +90,7 @@ extension AttachmentLoadAction {
 }
 
 extension AttachmentStoreAction {
-    var toWebGPU: WebGPU.StoreOp {
+    var toWebGPU: WebGPU.GPUStoreOp {
         switch self {
         case .store: return .store
         case .dontCare: return .discard
@@ -99,8 +99,8 @@ extension AttachmentStoreAction {
 }
 
 extension AdaUtils.Color {
-    var toWebGPU: WebGPU.Color {
-        return WebGPU.Color(r: Double(red), g: Double(green), b: Double(blue), a: Double(alpha))
+    var toWebGPU: WebGPU.GPUColor {
+        return WebGPU.GPUColor(r: Double(red), g: Double(green), b: Double(blue), a: Double(alpha))
     }
 }
 

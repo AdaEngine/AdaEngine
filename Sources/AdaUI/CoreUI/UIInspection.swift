@@ -450,7 +450,7 @@ extension UIContainerView: UIInspectableViewContainer {
             mousePosition: point,
             phase: phase,
             modifierKeys: [],
-            time: Float(CFAbsoluteTimeGetCurrent())
+            time: Float(Date().timeIntervalSinceReferenceDate)
         )
     }
 }

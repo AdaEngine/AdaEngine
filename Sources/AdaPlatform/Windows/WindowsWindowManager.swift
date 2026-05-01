@@ -308,8 +308,8 @@ private func getWindowsKeyModifiers() -> KeyModifier {
     return modifiers
 }
 
-private func getCurrentTime() -> TimeInterval {
-    return TimeInterval(GetTickCount64()) / 1000.0
+private func getCurrentTime() -> AdaUtils.TimeInterval {
+    return AdaUtils.TimeInterval(GetTickCount64()) / 1000.0
 }
 
 @MainActor

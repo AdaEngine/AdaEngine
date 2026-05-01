@@ -6,8 +6,7 @@
 //
 
 #if canImport(WebGPU)
-import WebGPU
-import CWebGPU
+@unsafe @preconcurrency import WebGPU
 import Math
 import AdaUtils
 import Synchronization
@@ -20,14 +19,14 @@ import QuartzCore
 import WinSDK
 #endif
 
-public final class WGPUContext: Sendable {
-    public let device: WebGPU.Device
-    public let adapter: WebGPU.Adapter
-    let instance: WebGPU.Instance
+public final class WGPUContext: @unchecked Sendable {
+    public let device: WebGPU.GPUDevice
+    public let adapter: WebGPU.GPUAdapter
+    let instance: WebGPU.GPUInstance
 
     private let windows = Mutex<[WindowID: WGPURenderWindow]>([:])
 
-    init(device: WebGPU.Device, adapter: WebGPU.Adapter, instance: WebGPU.Instance) {
+    init(device: WebGPU.GPUDevice, adapter: WebGPU.GPUAdapter, instance: WebGPU.GPUInstance) {
         self.device = device
         self.adapter = adapter
         self.instance = instance
@@ -43,15 +42,13 @@ public final class WGPUContext: Sendable {
         let surfaceDescriptor = surface.createWebGPUSurface()
         let wgpuSurface = instance.createSurface(descriptor: surfaceDescriptor)
         configureSurface(surface: wgpuSurface, size: size, pixelFormat: surface.prefferedPixelFormat)
-        self.windows.withLock { @MainActor windows in
-            windows[windowId] = WGPURenderWindow(
-                windowId: windowId,
-                surface: wgpuSurface,
-                pixelFormat: surface.prefferedPixelFormat,
-                size: size,
-                scaleFactor: surface.scaleFactor
-            )
-        }
+        storeWindow(WGPURenderWindow(
+            windowId: windowId,
+            surface: wgpuSurface,
+            pixelFormat: surface.prefferedPixelFormat,
+            size: size,
+            scaleFactor: surface.scaleFactor
+        ))
     }
 
     @MainActor
@@ -59,15 +56,33 @@ public final class WGPUContext: Sendable {
         guard newSize.width > 0 && newSize.height > 0 else {
             return
         }
-        
+
+        try resizeStoredWindow(
+            windowId,
+            newSize: newSize,
+            pixelFormat: nil
+        )
+    }
+
+    private func storeWindow(_ window: WGPURenderWindow) {
+        self.windows.withLock { windows in
+            windows[window.windowId] = window
+        }
+    }
+
+    private func resizeStoredWindow(
+        _ windowId: WindowID,
+        newSize: Math.SizeInt,
+        pixelFormat: PixelFormat?
+    ) throws {
         try self.windows.withLock { windows in
             guard var window = windows[windowId] else {
                 throw ContextError.windowNotFound
             }
             configureSurface(
-                surface: window.surface, 
-                size: newSize, 
-                pixelFormat: window.pixelFormat
+                surface: window.surface,
+                size: newSize,
+                pixelFormat: pixelFormat ?? window.pixelFormat
             )
             window.size = newSize
             windows[windowId] = window
@@ -120,12 +135,12 @@ public final class WGPUContext: Sendable {
     }
 
     private func configureSurface(
-        surface: WebGPU.Surface, 
-        size: Math.SizeInt, 
+        surface: WebGPU.GPUSurface,
+        size: Math.SizeInt,
         pixelFormat: PixelFormat
     ) {
         surface.configure(
-            config: SurfaceConfiguration(
+            config: WebGPU.GPUSurfaceConfiguration(
                 device: device,
                 format: pixelFormat.toWebGPU,
                 usage: .renderAttachment,
@@ -133,15 +148,14 @@ public final class WGPUContext: Sendable {
                 height: UInt32(size.height),
                 viewFormats: [],
                 alphaMode: .auto,
-                presentMode: PresentMode.fifo
+                presentMode: .fifo
             )
         )
     }
 
-    @safe
-    public struct WGPURenderWindow {
+    public struct WGPURenderWindow: @unchecked Sendable {
         public let windowId: WindowID
-        public let surface: WebGPU.Surface
+        public let surface: WebGPU.GPUSurface
         public let pixelFormat: PixelFormat
         public var size: Math.SizeInt
         public let scaleFactor: Float
@@ -170,22 +184,22 @@ public final class WGPUContext: Sendable {
 
 extension RenderSurface {
     @MainActor
-    func createWebGPUSurface() -> WebGPU.SurfaceDescriptor {
-        var surfaceDescriptor = SurfaceDescriptor()
+    func createWebGPUSurface() -> WebGPU.GPUSurfaceDescriptor {
+        var surfaceDescriptor = WebGPU.GPUSurfaceDescriptor()
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
         let view = (self as! MTKView)
-        surfaceDescriptor.nextInChain = unsafe SurfaceSourceMetalLayer(
+        surfaceDescriptor.nextInChain = unsafe WebGPU.GPUSurfaceSourceMetalLayer(
             layer: Unmanaged.passUnretained(view.layer!).toOpaque()
         )
 #elseif os(Linux)
-        surfaceDescriptor.nextInChain = unsafe SurfaceSourceXlibWindow(
+        surfaceDescriptor.nextInChain = unsafe WebGPU.GPUSurfaceSourceXlibWindow(
             display: UnsafeMutableRawPointer(glfwGetX11Display()),
             window: UInt64(glfwGetX11Window(handle))
         )
 #elseif os(Windows)
         let surface = (self as! WindowsSurface)
-        surfaceDescriptor.nextInChain = unsafe SurfaceSourceWindowsHwnd(
+        surfaceDescriptor.nextInChain = unsafe WebGPU.GPUSurfaceSourceWindowsHWND(
             hinstance: GetModuleHandleW(nil),
             hwnd: surface.windowHwnd
         )

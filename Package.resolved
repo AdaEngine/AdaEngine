@@ -1,6 +1,15 @@
 {
-  "originHash" : "d63738298fbc4af08ea847817194191a36ec716dc72bd8bd590f77500ba656d5",
+  "originHash" : "44df0dcb901513bd55526912e5aa04570ab5996041957d860dbd4c2dba7728d2",
   "pins" : [
+    {
+      "identity" : "swan",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/adobe/swan",
+      "state" : {
+        "revision" : "1eb45a22c79439b50e9cde774454450e50147149",
+        "version" : "0.0.8"
+      }
+    },
     {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
@@ -65,6 +74,15 @@
       }
     },
     {
+      "identity" : "swift-format",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-format.git",
+      "state" : {
+        "revision" : "62eaad2822b865407b8cde56c36386c00800f7ec",
+        "version" : "602.0.0"
+      }
+    },
+    {
       "identity" : "swift-log",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log",
@@ -125,15 +143,6 @@
       "state" : {
         "revision" : "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
         "version" : "1.6.4"
-      }
-    },
-    {
-      "identity" : "swift-webgpu",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SpectralDragon/swift-webgpu",
-      "state" : {
-        "branch" : "update_bindings",
-        "revision" : "0e99dfae69c45e79695c3ab56024001129c971c4"
       }
     },
     {

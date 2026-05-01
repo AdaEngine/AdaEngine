@@ -386,9 +386,12 @@ private extension ViewNode {
         switch self {
         case is ButtonViewNode,
              is GestureAreaViewNode,
-             is TextFieldViewNode,
-             is NativeViewHostNode:
+             is TextFieldViewNode:
             return true
+#if canImport(AppKit) || canImport(UIKit)
+        case is NativeViewHostNode:
+            return true
+#endif
         default:
             return false
         }
