@@ -9,7 +9,7 @@ import Foundation
 
 public extension Bundle {
     static var engineBundle: Bundle {
-#if SWIFT_PACKAGE && !BAZEL_BUILD
+#if SWIFT_PACKAGE
         return Bundle.module
 #else
         return Bundle(for: BundleToken.self)
@@ -17,6 +17,6 @@ public extension Bundle {
     }
 }
 
-#if !SWIFT_PACKAGE || BAZEL_BUILD
+#if !SWIFT_PACKAGE
 class BundleToken {}
 #endif

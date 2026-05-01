@@ -21,7 +21,7 @@ struct AdaEditorApp: App {
 
 public extension Foundation.Bundle {
     static var editor: Foundation.Bundle {
-#if SWIFT_PACKAGE && !BAZEL_BUILD
+#if SWIFT_PACKAGE
         return Foundation.Bundle.module
 #else
         return Foundation.Bundle(for: BundleToken.self)
@@ -29,6 +29,6 @@ public extension Foundation.Bundle {
     }
 }
 
-#if !SWIFT_PACKAGE || BAZEL_BUILD
+#if !SWIFT_PACKAGE
 class BundleToken {}
 #endif
