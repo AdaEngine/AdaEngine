@@ -66,9 +66,6 @@ vec4 sampleBg(vec2 uv) {
 }
 
 float sampleBlurredChannel(vec2 uv, vec2 texelSize, float radius, int channel) {
-    if (radius < 0.5) {
-        return sampleBg(uv)[channel];
-    }
     float value = 0.0;
     float totalWeight = 0.0;
     float sigma = max(radius * 0.42, 1.0);
@@ -88,9 +85,6 @@ float sampleBlurredChannel(vec2 uv, vec2 texelSize, float radius, int channel) {
 }
 
 vec3 sampleBlurredAll(vec2 uv, vec2 texelSize, float radius) {
-    if (radius < 0.5) {
-        return sampleBg(uv).rgb;
-    }
     vec3 value = vec3(0.0);
     float totalWeight = 0.0;
     float sigma = max(radius * 0.42, 1.0);
@@ -137,10 +131,6 @@ void glass_fragment() {
     float sdf = sdRoundedBox(localPos, halfSize, cornerRadius);
     float edgeAA = max(length(vec2(dFdx(sdf), dFdy(sdf))), 0.5);
 
-    if (sdf > edgeAA * 2.0) {
-        discard;
-    }
-
     float distFromEdge = -sdf;
     float effectiveSize = min(halfW * 2.0, halfH * 2.0);
 
@@ -180,24 +170,17 @@ void glass_fragment() {
     float blurPhysical = max(blurRadius * scaleFactor, 0.0);
     vec2 fragPx = gl_FragCoord.xy;
 
-    vec3 color;
-    if (chrome < 0.001) {
-        vec2 uv = (fragPx + greenOff * scaleFactor) / bgTexSize;
-        uv = clamp(uv, vec2(0.001), vec2(0.999));
-        color = sampleBlurredAll(uv, texelSize, blurPhysical);
-    } else {
-        vec2 redOff  = toCenter * (disp + chrome) + magOffset;
-        vec2 blueOff = toCenter * (disp - chrome) + magOffset;
+    vec2 redOff  = toCenter * (disp + chrome) + magOffset;
+    vec2 blueOff = toCenter * (disp - chrome) + magOffset;
 
-        vec2 redUV   = clamp((fragPx + redOff   * scaleFactor) / bgTexSize, vec2(0.001), vec2(0.999));
-        vec2 greenUV = clamp((fragPx + greenOff  * scaleFactor) / bgTexSize, vec2(0.001), vec2(0.999));
-        vec2 blueUV  = clamp((fragPx + blueOff  * scaleFactor) / bgTexSize, vec2(0.001), vec2(0.999));
+    vec2 redUV   = clamp((fragPx + redOff   * scaleFactor) / bgTexSize, vec2(0.001), vec2(0.999));
+    vec2 greenUV = clamp((fragPx + greenOff  * scaleFactor) / bgTexSize, vec2(0.001), vec2(0.999));
+    vec2 blueUV  = clamp((fragPx + blueOff  * scaleFactor) / bgTexSize, vec2(0.001), vec2(0.999));
 
-        float r = sampleBlurredChannel(redUV,   texelSize, blurPhysical, 0);
-        float g = sampleBlurredChannel(greenUV, texelSize, blurPhysical, 1);
-        float b = sampleBlurredChannel(blueUV,  texelSize, blurPhysical, 2);
-        color = vec3(r, g, b);
-    }
+    float r = sampleBlurredChannel(redUV,   texelSize, blurPhysical, 0);
+    float g = sampleBlurredChannel(greenUV, texelSize, blurPhysical, 1);
+    float b = sampleBlurredChannel(blueUV,  texelSize, blurPhysical, 2);
+    vec3 color = vec3(r, g, b);
 
     // --- Luminance-adaptive tinting (OpenGlass light-mode path) ---
     float lum = dot(color, vec3(0.299, 0.587, 0.114));

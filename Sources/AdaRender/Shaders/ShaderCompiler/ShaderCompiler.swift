@@ -148,6 +148,21 @@ public final class ShaderCompiler {
         }
 
         let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
+        #if canImport(WebGPU)
+        if unsafe RenderEngine.shared.type.deviceLang == .wgsl {
+            let shader = try Shader(spirv: binary, compiler: self)
+            let spirvCompiler = try SpirvCompiler(spriv: binary.data, stage: stage, deviceLang: .glsl)
+            shader.reflectionData = spirvCompiler.reflection()
+            try shader.compile()
+            do {
+                try ShaderCache.saveReflection(shader.reflectionData, for: self.shaderSource, stage: stage)
+            } catch {
+                self.logger.warning("Failed to save reflection: \(error)")
+            }
+            return shader
+        }
+        #endif
+
         let deviceShaderCompiler = self.makeDeviceShaderCompiler()
         let compiledShaderData = try UnsafeTask { [deviceShaderCompiler, macros] in
             try await deviceShaderCompiler.compile(

@@ -92,9 +92,7 @@ extension RenderEngine {
         switch preferredBackend {
         case .webgpu:
         #if WEBGPU_ENABLED
-            renderBackend = try UnsafeTask {
-                return try await WebGPURenderBackend.createBackend()
-            }.get()
+            renderBackend = try WebGPURenderBackend.createBackend()
         #else
             fallthrough
         #endif

@@ -40,6 +40,9 @@ final class WindowsApplication: Application {
                 var hasMessage: Bool = false
                 hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
                 while hasMessage {
+                    if msg.message == UInt32(WM_QUIT) {
+                        return
+                    }
                     unsafe TranslateMessage(&msg)
                     unsafe DispatchMessageW(&msg)
                     hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))

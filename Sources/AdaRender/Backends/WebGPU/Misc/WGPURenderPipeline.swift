@@ -77,7 +77,7 @@ final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
 
             return WebGPU.GPUFragmentState(
                 module: wgpuShader.shader,
-                entryPoint: shader.entryPoint,
+                entryPoint: wgpuShader.entryPoint,
                 constants: [],
                 targets: targets
             )
@@ -120,7 +120,7 @@ final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
                 layout: nil,
                 vertex: WebGPU.GPUVertexState(
                     module: vertex.shader,
-                    entryPoint: descriptor.vertex.entryPoint,
+                    entryPoint: vertex.entryPoint,
                     constants: [],
                     buffers: vertexBuffers
                 ),

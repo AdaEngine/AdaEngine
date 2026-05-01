@@ -43,7 +43,7 @@ final class WebGPURenderBackend: RenderBackend, @unchecked Sendable {
 }
 
 extension WebGPURenderBackend {
-    static func createBackend() async throws -> WebGPURenderBackend {
+    static func createBackend() throws -> WebGPURenderBackend {
         let instanceDescriptor = WebGPU.GPUInstanceDescriptor(
                 requiredFeatures: [.shaderSourceSPIRV]
         )
@@ -55,26 +55,34 @@ extension WebGPURenderBackend {
             throw WebGPUBackendError.instanceCreationFailed
         }
         let logger = Logger(label: "org.adaengine.webgpu")
-        let adapter = try await requestAdapter(instance: instance, logger: logger)
-        let device = try await requestDevice(adapter: adapter, logger: logger)
+        let adapter = try requestAdapter(instance: instance, logger: logger)
+        let device = try requestDevice(instance: instance, adapter: adapter, logger: logger)
 
         return WebGPURenderBackend(device: device, adapter: adapter, instance: instance)
     }
 
-    private static func requestAdapter(instance: WebGPU.GPUInstance, logger: Logger) async throws -> WebGPU.GPUAdapter {
-        try await withCheckedThrowingContinuation { continuation in
-            instance.requestAdapter(
-                options: adapterOptions,
-                callbackInfo: WebGPU.GPURequestAdapterCallbackInfo(mode: .allowProcessEvents) { status, adapter, message in
-                    guard status == .success, let adapter else {
-                        continuation.resume(throwing: WebGPUBackendError.requestAdapterFailed(message ?? "unknown error"))
-                        return
-                    }
-                    logAdapterInfo(adapter, logger: logger)
-                    continuation.resume(returning: adapter)
-                }
-            )
+    private static func requestAdapter(instance: WebGPU.GPUInstance, logger: Logger) throws -> WebGPU.GPUAdapter {
+        var requestStatus: WebGPU.GPURequestAdapterStatus?
+        var requestedAdapter: WebGPU.GPUAdapter?
+        var requestMessage: String?
+        _ = instance.requestAdapter(
+            options: adapterOptions,
+            callbackInfo: WebGPU.GPURequestAdapterCallbackInfo(mode: .allowProcessEvents) { status, adapter, message in
+                requestStatus = status
+                requestedAdapter = adapter
+                requestMessage = message
+            }
+        )
+
+        while requestStatus == nil {
+            instance.processEvents()
         }
+
+        guard requestStatus == .success, let adapter = requestedAdapter else {
+            throw WebGPUBackendError.requestAdapterFailed(requestMessage ?? "unknown error")
+        }
+
+        return adapter
     }
 
     private static var adapterOptions: WebGPU.GPURequestAdapterOptions {
@@ -110,31 +118,44 @@ extension WebGPURenderBackend {
         )
     }
 
-    private static func requestDevice(adapter: WebGPU.GPUAdapter, logger: Logger) async throws -> WebGPU.GPUDevice {
-        try await withCheckedThrowingContinuation { continuation in
-            adapter.requestDevice(
-                descriptor: WebGPU.GPUDeviceDescriptor(
-                    label: "AdaEngine WebGPU Device",
-                    requiredFeatures: [.float32Filterable],
-                    requiredLimits: nil,
-                    defaultQueue: WebGPU.GPUQueueDescriptor(),
-                    deviceLostCallbackInfo: WebGPU.GPUDeviceLostCallbackInfo(mode: .allowSpontaneous) { _, deviceLostReason, message in
-                        logger.info("Device lost: \(deviceLostReason.rawValue): \(message)")
-                    },
-                    uncapturedErrorCallbackInfo: WebGPU.GPUUncapturedErrorCallbackInfo { _, logType, message in
-                        logger.error("\(logType.rawValue): \(message)")
-                    },
-                    nextInChain: nil
-                ),
-                callbackInfo: WebGPU.GPURequestDeviceCallbackInfo(mode: .allowProcessEvents) { status, device, message in
-                    guard status == .success, let device else {
-                        continuation.resume(throwing: WebGPUBackendError.requestDeviceFailed(message ?? "unknown error"))
-                        return
-                    }
-                    continuation.resume(returning: device)
-                }
-            )
+    private static func requestDevice(
+        instance: WebGPU.GPUInstance,
+        adapter: WebGPU.GPUAdapter,
+        logger: Logger
+    ) throws -> WebGPU.GPUDevice {
+        var requestStatus: WebGPU.GPURequestDeviceStatus?
+        var requestedDevice: WebGPU.GPUDevice?
+        var requestMessage: String?
+        _ = adapter.requestDevice(
+            descriptor: WebGPU.GPUDeviceDescriptor(
+                label: "AdaEngine WebGPU Device",
+                requiredFeatures: [.depth32FloatStencil8, .float32Filterable],
+                requiredLimits: nil,
+                defaultQueue: WebGPU.GPUQueueDescriptor(),
+                deviceLostCallbackInfo: WebGPU.GPUDeviceLostCallbackInfo(mode: .allowProcessEvents) { _, deviceLostReason, message in
+                    logger.info("Device lost: \(deviceLostReason.rawValue): \(message)")
+                },
+                uncapturedErrorCallbackInfo: WebGPU.GPUUncapturedErrorCallbackInfo { _, logType, message in
+                    logger.error("\(logType.rawValue): \(message)")
+                },
+                nextInChain: nil
+            ),
+            callbackInfo: WebGPU.GPURequestDeviceCallbackInfo(mode: .allowProcessEvents) { status, device, message in
+                requestStatus = status
+                requestedDevice = device
+                requestMessage = message
+            }
+        )
+
+        while requestStatus == nil {
+            instance.processEvents()
         }
+
+        guard requestStatus == .success, let device = requestedDevice else {
+            throw WebGPUBackendError.requestDeviceFailed(requestMessage ?? "unknown error")
+        }
+
+        return device
     }
 }
 

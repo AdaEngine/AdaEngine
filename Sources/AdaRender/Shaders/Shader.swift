@@ -40,7 +40,7 @@ public final class Shader: Asset, @unchecked Sendable {
     
     public internal(set) var reflectionData: ShaderReflectionData = ShaderReflectionData()
     
-    fileprivate init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
+    init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
         self.source = .spirv(spirv.data)
         self.entryPoint = spirv.entryPoint
         self.stage = spirv.stage

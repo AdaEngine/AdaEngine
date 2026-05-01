@@ -76,7 +76,7 @@ public final class WGPUContext: @unchecked Sendable {
         pixelFormat: PixelFormat?
     ) throws {
         try self.windows.withLock { windows in
-            guard var window = windows[windowId] else {
+            guard let window = windows[windowId] else {
                 throw ContextError.windowNotFound
             }
             configureSurface(
@@ -153,12 +153,26 @@ public final class WGPUContext: @unchecked Sendable {
         )
     }
 
-    public struct WGPURenderWindow: @unchecked Sendable {
+    public final class WGPURenderWindow: @unchecked Sendable {
         public let windowId: WindowID
         public let surface: WebGPU.GPUSurface
         public let pixelFormat: PixelFormat
         public var size: Math.SizeInt
         public let scaleFactor: Float
+
+        init(
+            windowId: WindowID,
+            surface: WebGPU.GPUSurface,
+            pixelFormat: PixelFormat,
+            size: Math.SizeInt,
+            scaleFactor: Float
+        ) {
+            self.windowId = windowId
+            self.surface = surface
+            self.pixelFormat = pixelFormat
+            self.size = size
+            self.scaleFactor = scaleFactor
+        }
     }
 
     enum ContextError: LocalizedError {
@@ -199,8 +213,9 @@ extension RenderSurface {
         )
 #elseif os(Windows)
         let surface = (self as! WindowsSurface)
+        let hwnd = surface.windowHwnd.assumingMemoryBound(to: HWND__.self)
         surfaceDescriptor.nextInChain = unsafe WebGPU.GPUSurfaceSourceWindowsHWND(
-            hinstance: GetModuleHandleW(nil),
+            hinstance: UnsafeMutableRawPointer(bitPattern: Int(GetWindowLongPtrW(hwnd, GWLP_HINSTANCE))),
             hwnd: surface.windowHwnd
         )
 #endif
