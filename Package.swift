@@ -148,7 +148,6 @@ let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
     dependencies: ["AdaEngine", "Math"],
     exclude: [
-        "BUILD.bazel",
         "Platforms/iOS/Info.plist",
         "Platforms/macOS/Info.plist"
     ],
@@ -224,9 +223,6 @@ let adaEngineMacros: Target = .macro(
     dependencies: [
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
         .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
-    ],
-    exclude: [
-        "BUILD.bazel"
     ]
 )
 
@@ -855,36 +851,24 @@ targets += [
 targets += [
     .testTarget(
         name: "AdaEngineTests",
-        dependencies: ["AdaEngine"],
-        exclude: [
-            "BUILD.bazel"
-        ]
+        dependencies: ["AdaEngine"]
     ),
     .testTarget(
         name: "MathTests",
         dependencies: [
             .product(name: "Numerics", package: "swift-numerics"),
             "Math"
-        ],
-        exclude: [
-            "BUILD.bazel"
         ]
     ),
     .testTarget(
         name: "AdaECSTests",
-        dependencies: ["AdaECS", "Math"],
-        exclude: [
-            "BUILD.bazel"
-        ]
+        dependencies: ["AdaECS", "Math"]
     ),
     .testTarget(
         name: "AdaAssetsTests",
         dependencies: [
             "AdaAssets",
             "Math"
-        ],
-        exclude: [
-            "BUILD.bazel"
         ]
     ),
     .testTarget(
@@ -905,9 +889,6 @@ targets += [
             "AdaECS", 
             "AdaTransform",
             "Math"
-        ],
-        exclude: [
-            "BUILD.bazel"
         ]
     ),
     .testTarget(
@@ -920,9 +901,6 @@ targets += [
             "AdaRender",
             "AdaCorePipelines",
             "Math"
-        ],
-        exclude: [
-            "BUILD.bazel"
         ]
     ),
     .testTarget(
@@ -946,9 +924,6 @@ targets += [
             "AdaInput",
             "AdaUI",
             "Math"
-        ],
-        exclude: [
-            "BUILD.bazel"
         ]
     ),
     .testTarget(
@@ -956,9 +931,6 @@ targets += [
         dependencies: [
             "AdaUtils",
             "Math"
-        ],
-        exclude: [
-            "BUILD.bazel"
         ]
     ),
     .testTarget(
@@ -1075,7 +1047,7 @@ private extension Target {
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
             ] + dependencies,
             path: path,
-            exclude: ["BUILD.bazel"] + exclude,
+            exclude: exclude,
             sources: sources,
             resources: resources,
             publicHeadersPath: publicHeadersPath,

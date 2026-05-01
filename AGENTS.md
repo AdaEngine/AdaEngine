@@ -5,8 +5,7 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
 
 ## Project Overview
 - Language: Swift 6.2 (swift-tools-version: 6.2).
-- Build system: Swift Package Manager (SwiftPM). Bazel exists but is
-  experimental and not used in CI.
+- Build system: Swift Package Manager (SwiftPM).
 - CI: SwiftPM tests on macOS 26 and Windows using `swift test --parallel`.
 - Linting: SwiftLint via SwiftLintPlugins and `.swiftlint.yml`.
 
@@ -45,7 +44,7 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
 
 ## Platform and Tooling Notes
 - Recommended editor: Xcode 26.2 or VSCode with Swift extension.
-- Bazel: present but marked as early development in README.
+- Swift Package Manager is the supported build system.
 
 ## Swift 6.2 + Concurrency Rules (Agent Requirements)
 
@@ -142,7 +141,7 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
 - Analyzer rules: `capture_variable`, `unused_declaration`, `unused_import`.
 
 ## Agent Workflow Expectations
-- Use SwiftPM for builds/tests unless explicitly asked to use Bazel.
+- Use SwiftPM for builds/tests.
 - Avoid editing vendored or third-party sources under `Sources/*` that are
   not part of AdaEngine (e.g., glslang, libpng) unless required.
 - Keep changes local to relevant targets; avoid sweeping refactors.
