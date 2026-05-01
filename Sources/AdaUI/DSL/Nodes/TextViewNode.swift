@@ -26,6 +26,8 @@ final class TextViewNode: ViewNode {
         let text = content.storage.applyingEnvironment(inputs.environment)
         self.textContainer = TextContainer(text: text)
         self.textContainer.numberOfLines = content.storage.lineLimit
+        self.textContainer.lineBreakMode = content.storage.lineBreakMode ?? .byWordWrapping
+        self.textContainer.textAlignment = content.storage.multilineTextAlignment ?? .center
         self.layoutManager = TextLayoutManager()
         self.layoutManager.setTextContainer(self.textContainer)
         self.layoutManager.invalidateLayout()

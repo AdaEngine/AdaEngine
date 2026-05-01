@@ -89,20 +89,27 @@ public struct WindowPlugin: Plugin {
                 .insertResource(PrimaryWindow(window: primaryWindow))
                 .insertResource(PrimaryWindowId(windowId: primaryWindow.id))
         } else {
-            let window = UIWindow()
-            window.title = windowSettings.title ?? "App"
             #if os(iOS) || os(tvOS) || os(watchOS)
             let embeddedWindowSize = Screen.main?.size ?? windowSettings.minimumSize
-            window.minSize = embeddedWindowSize
-            window.frame = Rect(origin: .zero, size: embeddedWindowSize)
-            window.setWindowMode(.fullscreen)
+            let configuration = UIWindow.Configuration(
+                title: windowSettings.title ?? "App",
+                frame: Rect(origin: .zero, size: embeddedWindowSize),
+                minimumSize: embeddedWindowSize,
+                mode: .fullscreen,
+                titleBar: UIWindow.TitleBar(windowSettings.titleBar),
+                showsImmediately: false
+            )
             #else
-            window.minSize = windowSettings.minimumSize
-            window.frame = Rect(origin: .zero, size: windowSettings.minimumSize)
-            window.setWindowMode(
-                windowSettings.windowMode == .fullscreen ? .fullscreen : .windowed
+            let configuration = UIWindow.Configuration(
+                title: windowSettings.title ?? "App",
+                frame: Rect(origin: .zero, size: windowSettings.minimumSize),
+                minimumSize: windowSettings.minimumSize,
+                mode: UIWindow.Mode(windowSettings.windowMode),
+                titleBar: UIWindow.TitleBar(windowSettings.titleBar),
+                showsImmediately: false
             )
             #endif
+            let window = UIWindow(configuration: configuration)
             window.showWindow(makeFocused: true)
             app
                 .insertResource(PrimaryWindow(window: window))
@@ -120,6 +127,38 @@ public struct WindowManagerResource: Resource {
 
     public init(windowManager: UIWindowManager) {
         self.windowManager = windowManager
+    }
+}
+
+private extension UIWindow.Mode {
+    init(_ mode: WindowMode) {
+        switch mode {
+        case .windowed:
+            self = .windowed
+        case .fullscreen:
+            self = .fullscreen
+        }
+    }
+}
+
+private extension UIWindow.TitleBar {
+    init(_ titleBar: WindowTitleBar) {
+        switch titleBar.background {
+        case .system:
+            self.init(
+                background: .system,
+                reservesSafeArea: titleBar.reservesSafeArea,
+                dragRegionHeight: titleBar.dragRegionHeight,
+                trafficLightOffset: titleBar.trafficLightOffset
+            )
+        case .transparent:
+            self.init(
+                background: .transparent,
+                reservesSafeArea: titleBar.reservesSafeArea,
+                dragRegionHeight: titleBar.dragRegionHeight,
+                trafficLightOffset: titleBar.trafficLightOffset
+            )
+        }
     }
 }
 

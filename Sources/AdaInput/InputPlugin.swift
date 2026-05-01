@@ -65,6 +65,8 @@ public struct InputEventParseSystem {
                 input.mouseEvents[mouseEvent.button] = mouseEvent
             case let touchEvent as TouchEvent:
                 input.touches.insert(touchEvent)
+            case let keyboardEvent as KeyboardEvent:
+                input.keyboardState = Input.KeyboardState(event: keyboardEvent)
             case let gamepadConnectionEvent as GamepadConnectionEvent:
                 if gamepadConnectionEvent.isConnected {
                     let controllerType = gamepadConnectionEvent.gamepadInfo?.type ?? "Unknown"

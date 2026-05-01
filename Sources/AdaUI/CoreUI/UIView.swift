@@ -489,6 +489,11 @@ open class UIView {
     /// - Parameter event: The text input event.
     open func onTextInputEvent(_ event: TextInputEvent) { }
 
+    /// Called when an input event is received without a more specific handler.
+    ///
+    /// - Parameter event: The input event.
+    open func onReceiveEvent(_ event: any InputEvent) { }
+
     /// Called when a set of key events is received.
     ///
     /// - Parameter event: The key events.
@@ -513,7 +518,7 @@ open class UIView {
         case let event as TouchEvent:
             self.onTouchesEvent(Set([event]))
         default:
-            return
+            self.onReceiveEvent(event)
         }
     }
 

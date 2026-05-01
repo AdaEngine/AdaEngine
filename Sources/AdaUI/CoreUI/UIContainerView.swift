@@ -25,8 +25,13 @@ public protocol UIMousePassthroughEventReceiving: AnyObject {
     func uiReceivePassthroughMouseMoved(_ event: MouseEvent)
 }
 
+@MainActor
+public protocol UIWindowDragRegionResolving: AnyObject {
+    func uiAllowsWindowDrag(at windowPoint: Point, with event: MouseEvent) -> Bool
+}
+
 /// A container view that contains a view tree.
-public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInputContainer, UIInspectionOverlayStateProviding, UIMousePassthroughEventReceiving {
+public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInputContainer, UIInspectionOverlayStateProviding, UIMousePassthroughEventReceiving, UIWindowDragRegionResolving {
 
     /// The container view of the container view.
     var containerView: UIView? {
@@ -56,6 +61,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 
         var env = EnvironmentValues()
         env.safeAreaInsets = safeAreaInsets
+        env.navigationBarChromeInsets = navigationBarChromeInsets()
         env.userInterfaceIdiom = userInterfaceIdiom
         env.colorScheme = colorScheme
         env.scaleFactor = window?.screen?.scale ?? Screen.main?.scale ?? 1
@@ -67,6 +73,24 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             anchor: .zero,
             proposal: ProposedViewSize(self.frame.size)
         )
+    }
+
+    private func navigationBarChromeInsets() -> EdgeInsets {
+        guard let titleBar = window?.configuration.titleBar,
+              titleBar.background == .transparent,
+              !titleBar.reservesSafeArea else {
+            return EdgeInsets()
+        }
+
+        var insets = EdgeInsets()
+        insets.top = titleBar.dragRegionHeight ?? 0
+
+        #if os(macOS)
+        let trafficLightOffset = titleBar.trafficLightOffset?.x ?? 0
+        insets.leading = 92 + max(trafficLightOffset, 0)
+        #endif
+
+        return insets
     }
 
     /// Build the menu.
@@ -191,6 +215,16 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         onMouseEvent(event)
     }
 
+    @_spi(Internal)
+    public func uiAllowsWindowDrag(at windowPoint: Point, with event: MouseEvent) -> Bool {
+        let localPoint = self.convert(windowPoint, from: self.window)
+        guard let node = self.viewTree.rootNode.hitTest(localPoint, with: event) else {
+            return true
+        }
+
+        return !node.blocksWindowDrag
+    }
+
     public override func onKeyEvent(_ event: KeyEvent) {
         if event.keyCode == .tab, event.status == .down {
             if event.modifiers.contains(.shift) {
@@ -227,6 +261,10 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         } else {
             self.viewTree.rootNode.onReceiveEvent(event)
         }
+    }
+
+    public override func onReceiveEvent(_ event: any InputEvent) {
+        self.viewTree.rootNode.onReceiveEvent(event)
     }
 
     private func updateFocusedNode(with hitNode: ViewNode?) {
@@ -340,6 +378,20 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 
     private func invalidateInspectionOverlayIfNeeded() {
         self.setNeedsDisplay()
+    }
+}
+
+private extension ViewNode {
+    var blocksWindowDrag: Bool {
+        switch self {
+        case is ButtonViewNode,
+             is GestureAreaViewNode,
+             is TextFieldViewNode,
+             is NativeViewHostNode:
+            return true
+        default:
+            return false
+        }
     }
 }
 

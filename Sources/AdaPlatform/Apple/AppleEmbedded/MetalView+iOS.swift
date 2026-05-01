@@ -287,10 +287,25 @@ extension MetalView {
 
        // MARK: - Mouse/Trackpad Hover Events (iPadOS)
 
+       open override func didMoveToWindow() {
+           super.didMoveToWindow()
+           setupMouseTracking()
+       }
+
        /// Setup mouse tracking for iPadOS pointer support.
-       /// Call this method after the view is added to the window.
        func setupMouseTracking() {
+           guard self.window != nil else {
+               return
+           }
+           guard !(self.gestureRecognizers?.contains { $0 is UIHoverGestureRecognizer } ?? false) else {
+               return
+           }
+
            let hoverGesture = UIHoverGestureRecognizer(target: self, action: #selector(handleHover(_:)))
+           hoverGesture.cancelsTouchesInView = false
+           hoverGesture.delaysTouchesBegan = false
+           hoverGesture.delaysTouchesEnded = false
+           hoverGesture.requiresExclusiveTouchType = false
            self.addGestureRecognizer(hoverGesture)
        }
 

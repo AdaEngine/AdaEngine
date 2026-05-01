@@ -27,6 +27,8 @@ final class MacOSWindowManager: UIWindowManager {
     private var menus: [UIWindow.ID: MacOSUIMenuBuilder] = [:]
     private var windowsPendingInitialCenter: Set<UIWindow.ID> = []
     private var windowsSynchronizingFromSystem: Set<UIWindow.ID> = []
+    private var trafficLightDefaultOrigins: [ObjectIdentifier: [NSWindow.ButtonType: NSPoint]] = [:]
+    private var trafficLightAppliedOrigins: [ObjectIdentifier: [NSWindow.ButtonType: NSPoint]] = [:]
 
     override func createWindow(for window: UIWindow) {
         let minSize = window.configuration.minimumSize
@@ -55,11 +57,14 @@ final class MacOSWindowManager: UIWindowManager {
         rootContentView.addSubview(metalView)
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
 
-        let styleMask: NSWindow.StyleMask = switch window.configuration.chrome {
+        var styleMask: NSWindow.StyleMask = switch window.configuration.chrome {
         case .standard:
             [.titled, .closable, .resizable, .miniaturizable]
         case .borderless:
             [.borderless]
+        }
+        if window.configuration.titleBar.background == .transparent, window.configuration.chrome == .standard {
+            styleMask.insert(.fullSizeContentView)
         }
 
         let systemWindow = NSWindow(
@@ -70,6 +75,7 @@ final class MacOSWindowManager: UIWindowManager {
         )
 
         systemWindow.contentView = rootContentView
+        configureTitleBar(for: systemWindow, configuration: window.configuration.titleBar)
         systemWindow.collectionBehavior = collectionBehavior(for: window.configuration.collectionBehavior)
         if frame.origin == .zero {
             systemWindow.center()
@@ -92,6 +98,7 @@ final class MacOSWindowManager: UIWindowManager {
         window.minSize = minSize
         window.setWindowMode(window.configuration.mode)
         window.userInterfaceIdiom = .desktop
+        synchronizeSafeAreaInsets(for: systemWindow, window: window)
 
         unsafe try? RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
         
@@ -128,6 +135,8 @@ final class MacOSWindowManager: UIWindowManager {
         } else {
             nsWindow.orderFront(nil)
         }
+
+        applyTrafficLightOffset(window.configuration.titleBar.trafficLightOffset, to: nsWindow)
         
         window.windowDidAppear()
         self.setActiveWindow(window)
@@ -153,6 +162,7 @@ final class MacOSWindowManager: UIWindowManager {
 
         self.removeWindow(window, setActiveAnotherIfNeeded: true)
         windowsPendingInitialCenter.remove(window.id)
+        removeTrafficLightState(for: nsWindow)
         
         nsWindow.close()
     }
@@ -367,9 +377,106 @@ final class MacOSWindowManager: UIWindowManager {
         }
 
         window.setNeedsLayout()
+        synchronizeSafeAreaInsets(for: nsWindow, window: window)
+        applyTrafficLightOffset(window.configuration.titleBar.trafficLightOffset, to: nsWindow)
 
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
         unsafe try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
+    }
+
+    private func configureTitleBar(for nsWindow: NSWindow, configuration: UIWindow.TitleBar) {
+        switch configuration.background {
+        case .system:
+            nsWindow.titlebarAppearsTransparent = false
+        case .transparent:
+            nsWindow.titlebarAppearsTransparent = true
+        }
+        applyTrafficLightOffset(configuration.trafficLightOffset, to: nsWindow)
+    }
+
+    private func applyTrafficLightOffset(_ offset: Point?, to nsWindow: NSWindow) {
+        let windowID = ObjectIdentifier(nsWindow)
+        let buttons: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
+
+        guard let offset else {
+            if let defaultOrigins = trafficLightDefaultOrigins[windowID] {
+                for buttonType in buttons {
+                    guard
+                        let button = nsWindow.standardWindowButton(buttonType),
+                        let defaultOrigin = defaultOrigins[buttonType]
+                    else {
+                        continue
+                    }
+
+                    button.setFrameOrigin(defaultOrigin)
+                }
+            }
+
+            trafficLightDefaultOrigins.removeValue(forKey: windowID)
+            trafficLightAppliedOrigins.removeValue(forKey: windowID)
+            return
+        }
+
+        nsWindow.layoutIfNeeded()
+        unsafe nsWindow.standardWindowButton(.closeButton)?.superview?.layoutSubtreeIfNeeded()
+
+        var defaultOrigins = trafficLightDefaultOrigins[windowID, default: [:]]
+        var appliedOrigins = trafficLightAppliedOrigins[windowID, default: [:]]
+
+        for buttonType in buttons {
+            guard let button = nsWindow.standardWindowButton(buttonType) else {
+                continue
+            }
+
+            let currentOrigin = button.frame.origin
+            let defaultOrigin: NSPoint
+            if let previousAppliedOrigin = appliedOrigins[buttonType],
+               previousAppliedOrigin == currentOrigin,
+               let previousDefaultOrigin = defaultOrigins[buttonType] {
+                defaultOrigin = previousDefaultOrigin
+            } else {
+                defaultOrigin = currentOrigin
+            }
+
+            let appliedOrigin = NSPoint(
+                x: defaultOrigin.x + CGFloat(offset.x),
+                y: defaultOrigin.y - CGFloat(offset.y)
+            )
+
+            defaultOrigins[buttonType] = defaultOrigin
+            appliedOrigins[buttonType] = appliedOrigin
+            button.setFrameOrigin(appliedOrigin)
+        }
+
+        trafficLightDefaultOrigins[windowID] = defaultOrigins
+        trafficLightAppliedOrigins[windowID] = appliedOrigins
+    }
+
+    func removeTrafficLightState(for nsWindow: NSWindow) {
+        let windowID = ObjectIdentifier(nsWindow)
+        trafficLightDefaultOrigins.removeValue(forKey: windowID)
+        trafficLightAppliedOrigins.removeValue(forKey: windowID)
+    }
+
+    private func synchronizeSafeAreaInsets(for nsWindow: NSWindow, window: UIWindow) {
+        let titleBarOverlaysContent = nsWindow.styleMask.contains(.fullSizeContentView)
+        let topInset: Float
+        if titleBarOverlaysContent && window.configuration.titleBar.reservesSafeArea {
+            topInset = Float(max(0, nsWindow.frame.height - nsWindow.contentLayoutRect.height))
+        } else {
+            topInset = 0
+        }
+
+        let insets = EdgeInsets(top: topInset, leading: 0, bottom: 0, trailing: 0)
+        guard window.safeAreaInsets != insets else {
+            return
+        }
+
+        window.safeAreaInsets = insets
+        for subview in window.subviews {
+            subview.safeAreaInsets = insets
+            subview.setNeedsLayout()
+        }
     }
 
     private func backgroundColor(for background: UIWindow.Background) -> NSColor {
@@ -441,6 +548,7 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
             return
         }
         
+        self.windowManager.removeTrafficLightState(for: nsWindow)
         self.windowManager.removeWindow(window)
     }
     

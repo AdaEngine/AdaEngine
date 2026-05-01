@@ -76,6 +76,16 @@ public extension AppScene {
         self.modifier(WindowTitleSceneModifier(title: title))
     }
 
+    /// Set the platform title bar presentation.
+    func windowTitleBar(_ titleBar: WindowTitleBar) -> some AppScene {
+        self.modifier(WindowTitleBarSceneModifier(titleBar: titleBar))
+    }
+
+    /// Offset macOS traffic light buttons. Positive `x` moves right, positive `y` moves down.
+    func windowTrafficLightOffset(x: Float, y: Float) -> some AppScene {
+        self.modifier(WindowTrafficLightOffsetSceneModifier(offset: Point(x: x, y: y)))
+    }
+
     /// Add new plugin for app
     func addPlugins<each T: Plugin>(_ plugin: repeat each T) -> some AppScene {
         return modifier(AddPluginsModifier(plugins: (repeat (each plugin))))

@@ -105,7 +105,7 @@ public struct DefaultButtonStyle: ButtonStyle {
 /// The default button style used inside navigation bars.
 public struct NavigationBarButtonStyle: ButtonStyle {
     private enum Constants {
-        static let height: Float = 44
+        static let height: Float = 32
         static let horizontalPadding: Float = 12
     }
 
@@ -124,8 +124,8 @@ public struct NavigationBarButtonStyle: ButtonStyle {
         return configuration.label
             .padding(.horizontal, Constants.horizontalPadding)
             .frame(height: Constants.height)
-            .fixedSize(horizontal: true, vertical: false)
             .glassEffect(glass, in: .capsule)
+            .fixedSize(horizontal: true, vertical: false)
     }
 }
 

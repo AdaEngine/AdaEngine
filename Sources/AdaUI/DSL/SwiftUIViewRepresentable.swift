@@ -73,14 +73,14 @@ private struct UIKitWrapper<Content: SwiftUI.View>: UIKitViewRepresentable {
 }
 
 // Minimal UIKit hosting view wrapper
-final class _UIHostingView<Content: SwiftUI.View>: UIView {
-    private let hostingController: UIHostingController<Content>
+final class _UIHostingView<Content: SwiftUI.View>: UIKit.UIView {
+    private let hostingController: SwiftUI.UIHostingController<Content>
     var rootView: Content {
         get { hostingController.rootView }
         set { hostingController.rootView = newValue }
     }
     init(rootView: Content) {
-        self.hostingController = UIHostingController(rootView: rootView)
+        self.hostingController = SwiftUI.UIHostingController(rootView: rootView)
         super.init(frame: .zero)
         self.addSubview(hostingController.view)
         hostingController.view.backgroundColor = .clear

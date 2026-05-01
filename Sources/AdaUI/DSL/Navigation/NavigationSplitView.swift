@@ -386,6 +386,7 @@ private final class NavigationSplitViewNode: ViewContainerNode {
         self.preferredCompactColumn = preferredCompactColumn
         self.hasContentColumn = hasContentColumn
         super.init(content: content, nodes: nodes)
+        syncColumnWidthPreferences()
         configureDividerCallbacks()
     }
 
@@ -399,6 +400,7 @@ private final class NavigationSplitViewNode: ViewContainerNode {
         preferredCompactColumn = other.preferredCompactColumn
         hasContentColumn = other.hasContentColumn
         super.update(from: other)
+        syncColumnWidthPreferences()
         configureDividerCallbacks()
     }
 
@@ -461,6 +463,22 @@ private final class NavigationSplitViewNode: ViewContainerNode {
         return self
     }
 
+    override func draw(with context: UIGraphicsContext) {
+        var context = context
+        context.environment = environment
+        context.translateBy(x: frame.origin.x, y: -frame.origin.y)
+
+        let visibleDividers = visibleDividerNodes(for: frame.width)
+        for column in visibleColumns(for: frame.width) {
+            columnNode(for: column)?.draw(with: context)
+
+            if let divider = dividerNode(after: column),
+               visibleDividers.contains(where: { $0 === divider }) {
+                divider.draw(with: context)
+            }
+        }
+    }
+
     func setWidthPreference(_ preference: NavigationSplitViewColumnWidth?, for column: NavigationSplitViewColumn) {
         guard widthPreferences[column] != preference else {
             return
@@ -494,6 +512,16 @@ private final class NavigationSplitViewNode: ViewContainerNode {
 
     private func configureDividerCallbacks() {
         // Dividers reach back to their parent dynamically during drag.
+    }
+
+    private func syncColumnWidthPreferences() {
+        for columnNode in columnNodes() {
+            if let preference = columnNode.widthPreference {
+                widthPreferences[columnNode.column] = preference
+            } else {
+                widthPreferences.removeValue(forKey: columnNode.column)
+            }
+        }
     }
 
     private func visibleColumns(for width: Float) -> [NavigationSplitViewColumn] {
@@ -612,11 +640,15 @@ private final class NavigationSplitViewNode: ViewContainerNode {
     }
 
     private func columnNode(for column: NavigationSplitViewColumn) -> NavigationSplitColumnNode? {
-        nodes.compactMap { $0 as? NavigationSplitColumnNode }.first { $0.column == column }
+        columnNodes().first { $0.column == column }
     }
 
     private func dividerNode(after column: NavigationSplitViewColumn) -> NavigationSplitDividerNode? {
         nodes.compactMap { $0 as? NavigationSplitDividerNode }.first { $0.leadingColumn == column }
+    }
+
+    private func columnNodes() -> [NavigationSplitColumnNode] {
+        nodes.compactMap { $0 as? NavigationSplitColumnNode }
     }
 
     private func clamp(_ value: Float, min minValue: Float, max maxValue: Float) -> Float {

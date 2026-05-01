@@ -12,6 +12,11 @@ public extension View {
     func onHover(perform action: @escaping (Bool) -> Void) -> some View {
         self.modifier(HoverViewModifier(action: action, content: self))
     }
+
+    /// Controls whether this view participates in hit testing.
+    func allowsHitTesting(_ enabled: Bool) -> some View {
+        self.modifier(HitTestingModifier(enabled: enabled, content: self))
+    }
 }
 
 // MARK: - HoverViewModifier
@@ -68,6 +73,50 @@ final class HoverViewModifierNode: ViewModifierNode {
             action(false)
         }
         super.onMouseLeave()
+    }
+}
+
+// MARK: - HitTestingModifier
+
+private struct HitTestingModifier<Content: View>: ViewModifier, ViewNodeBuilder {
+    typealias Body = Never
+
+    let enabled: Bool
+    let content: Content
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        HitTestingModifierNode(
+            enabled: enabled,
+            contentNode: context.makeNode(from: content),
+            content: content
+        )
+    }
+}
+
+private final class HitTestingModifierNode: ViewModifierNode {
+    private var enabled: Bool
+
+    init<Content: View>(enabled: Bool, contentNode: ViewNode, content: Content) {
+        self.enabled = enabled
+        super.init(contentNode: contentNode, content: content)
+    }
+
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+
+        guard let node = newNode as? HitTestingModifierNode else {
+            return
+        }
+
+        enabled = node.enabled
+    }
+
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
+        guard enabled else {
+            return nil
+        }
+
+        return super.hitTest(point, with: event)
     }
 }
 

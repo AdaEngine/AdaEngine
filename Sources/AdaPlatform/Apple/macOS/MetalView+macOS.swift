@@ -197,6 +197,10 @@ extension MetalView {
         }
 
         let position = self.mousePosition(for: event)
+        if shouldPerformWindowDrag(at: position, with: event) {
+            event.window?.performDrag(with: event)
+            return
+        }
         
         let isContinious = input?.wrappedValue.mouseEvents[.left]?.phase == .began
 
@@ -380,6 +384,51 @@ extension MetalView {
         let position = Point(x, y)
         
         return position
+    }
+
+    private func shouldPerformWindowDrag(at position: Point, with event: NSEvent) -> Bool {
+        guard
+            event.clickCount == 1,
+            let nsWindow = event.window,
+            nsWindow.styleMask.contains(.fullSizeContentView),
+            let uiWindow = (windowManager as? MacOSWindowManager)?.findWindow(for: nsWindow)
+        else {
+            return false
+        }
+
+        let systemTitleBarHeight = Float(max(0, nsWindow.frame.height - nsWindow.contentLayoutRect.height))
+        let dragRegionHeight = uiWindow.configuration.titleBar.dragRegionHeight ?? systemTitleBarHeight
+        guard dragRegionHeight > 0, position.y <= dragRegionHeight else {
+            return false
+        }
+
+        return allowsWindowDrag(at: position, in: uiWindow)
+    }
+
+    private func allowsWindowDrag(at point: Point, in uiWindow: UIWindow) -> Bool {
+        let event = MouseEvent(
+            window: self.windowID,
+            button: .left,
+            mousePosition: point,
+            phase: .began,
+            modifierKeys: [],
+            time: 0
+        )
+
+        for subview in uiWindow.subviews.reversed() {
+            let subviewPoint = subview.convert(point, from: uiWindow)
+            if let resolver = subview as? any UIWindowDragRegionResolving {
+                if !resolver.uiAllowsWindowDrag(at: point, with: event) {
+                    return false
+                }
+                continue
+            }
+            if subview.hitTest(subviewPoint, with: event) != nil {
+                return false
+            }
+        }
+
+        return true
     }
     
     private func inputPhase(from phase: NSEvent.Phase) -> MouseEvent.Phase {

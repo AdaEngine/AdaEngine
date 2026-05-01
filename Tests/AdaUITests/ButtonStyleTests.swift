@@ -69,6 +69,25 @@ struct ButtonStyleTests {
         let updatedButton = try #require(buttonNodes(in: tester.containerView.viewTree.rootNode).first)
         #expect(updatedButton.environment.buttonStyle is NavigationBarButtonStyle)
     }
+
+    @Test
+    func buttonHoverInvalidationMarksContainerForRedraw() throws {
+        let tester = ViewTester {
+            Button(action: {}) {
+                Text("Hover")
+                    .frame(width: 100, height: 44)
+            }
+        }
+        .setSize(Size(width: 200, height: 100))
+        .performLayout()
+
+        _ = tester.containerView.consumeNeedsDisplay()
+        #expect(!tester.containerView.needsDisplay)
+
+        tester.sendMouseEvent(at: Point(100, 50), button: .none, phase: .changed)
+
+        #expect(tester.containerView.needsDisplay)
+    }
 }
 
 private final class ButtonStyleStateRecorder: @unchecked Sendable {

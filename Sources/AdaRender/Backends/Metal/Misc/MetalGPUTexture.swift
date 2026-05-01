@@ -64,6 +64,9 @@ final class MetalGPUTexture: GPUTexture {
         textureDesc.width = descriptor.width
         textureDesc.height = descriptor.height
         textureDesc.pixelFormat = descriptor.pixelFormat.toMetal
+        if descriptor.pixelFormat.isDepthFormat {
+            textureDesc.storageMode = .private
+        }
 
         guard let texture = device.makeTexture(descriptor: textureDesc) else {
             fatalError("Cannot create texture")

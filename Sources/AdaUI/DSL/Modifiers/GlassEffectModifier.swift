@@ -49,6 +49,14 @@ final class GlassEffectViewNode: ViewModifierNode {
         var ctx = context
         ctx.translateBy(x: frame.origin.x, y: -frame.origin.y)
 
+        guard configuration.opacity > 0 else {
+            contentNode.draw(with: ctx)
+            if ctx.environment.debugViewDrawingOptions.contains(.drawViewOverlays) {
+                ctx.drawDebugBorders(frame.size, color: debugNodeColor)
+            }
+            return
+        }
+
         let scaleFactor = max(ctx.environment.scaleFactor, 1)
         let localFrame = Rect(origin: .zero, size: frame.size)
         let worldTransform = ctx.transform * localFrame.toTransform3D

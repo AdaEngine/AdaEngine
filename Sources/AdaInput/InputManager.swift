@@ -34,6 +34,9 @@ public struct Input: Resource, Sendable {
     @_spi(Internal)
     public var touches: Set<TouchEvent> = []
 
+    @_spi(Internal)
+    public internal(set) var keyboardState: KeyboardState = KeyboardState()
+
     var gamepads: [Int: Gamepad] = [:]
 
     var cursorStates: [CursorShape] = [.arrow]
@@ -59,6 +62,16 @@ public struct Input: Resource, Sendable {
     /// Returns text input events from software keyboard (iOS) or IME.
     public func getTextInputEvents() -> [TextInputEvent] {
         return self.eventsPool.compactMap { $0 as? TextInputEvent }
+    }
+
+    /// Returns keyboard visibility/frame events from the software keyboard.
+    public func getKeyboardEvents() -> [KeyboardEvent] {
+        return self.eventsPool.compactMap { $0 as? KeyboardEvent }
+    }
+
+    /// Returns the latest known software keyboard state.
+    public func getKeyboardState() -> KeyboardState {
+        return keyboardState
     }
 
     /// Returns `true` if you are pressing the Latin key in the current keyboard layout.
@@ -269,6 +282,46 @@ extension Input {
         self.touches.removeAll()
         self.mouseEvents.removeAll()
         self.mousePosition = .zero
+        self.keyboardState = KeyboardState()
+    }
+}
+
+public extension Input {
+    /// The latest known software keyboard geometry for the active window.
+    struct KeyboardState: Hashable, Sendable {
+        public var isVisible: Bool
+        public var frame: Rect
+        public var occludedFrame: Rect
+        public var occludedHeight: Float
+        public var animationDuration: AdaUtils.TimeInterval
+        public var animationCurve: Int
+
+        public init(
+            isVisible: Bool = false,
+            frame: Rect = .zero,
+            occludedFrame: Rect = .zero,
+            occludedHeight: Float = 0,
+            animationDuration: AdaUtils.TimeInterval = 0,
+            animationCurve: Int = 0
+        ) {
+            self.isVisible = isVisible
+            self.frame = frame
+            self.occludedFrame = occludedFrame
+            self.occludedHeight = occludedHeight
+            self.animationDuration = animationDuration
+            self.animationCurve = animationCurve
+        }
+
+        public init(event: KeyboardEvent) {
+            self.init(
+                isVisible: event.isVisible,
+                frame: event.endFrame,
+                occludedFrame: event.occludedFrame,
+                occludedHeight: event.occludedHeight,
+                animationDuration: event.animationDuration,
+                animationCurve: event.animationCurve
+            )
+        }
     }
 }
 

@@ -156,7 +156,7 @@ open class UIWindow: UIView {
 
     private func defaultResponder(for event: any InputEvent) -> UIView? {
         switch event {
-        case is KeyEvent, is TextInputEvent:
+        case is KeyEvent, is TextInputEvent, is KeyboardEvent:
             if let focusedResponder = self.findFocusedInputResponderInSubviews(for: event) {
                 return focusedResponder
             }
@@ -241,6 +241,7 @@ public extension UIWindow {
         public var minimumSize: Size
         public var mode: Mode
         public var chrome: Chrome
+        public var titleBar: TitleBar
         public var background: Background
         public var level: Level
         public var collectionBehavior: CollectionBehavior
@@ -253,6 +254,7 @@ public extension UIWindow {
             minimumSize: Size = UIWindow.defaultMinimumSize,
             mode: Mode = .windowed,
             chrome: Chrome = .standard,
+            titleBar: TitleBar = .standard,
             background: Background = .opaque(.black),
             level: Level = .normal,
             collectionBehavior: CollectionBehavior = .standard,
@@ -264,6 +266,7 @@ public extension UIWindow {
             self.minimumSize = minimumSize
             self.mode = mode
             self.chrome = chrome
+            self.titleBar = titleBar
             self.background = background
             self.level = level
             self.collectionBehavior = collectionBehavior
@@ -272,9 +275,37 @@ public extension UIWindow {
         }
     }
 
-    enum Chrome: Sendable {
+    enum Chrome: Sendable, Equatable {
         case standard
         case borderless
+    }
+
+    struct TitleBar: Sendable, Equatable {
+        public var background: TitleBarBackground
+        public var reservesSafeArea: Bool
+        public var dragRegionHeight: Float?
+        public var trafficLightOffset: Point?
+
+        public static let standard = TitleBar(background: .system, reservesSafeArea: true, dragRegionHeight: nil, trafficLightOffset: nil)
+        public static let transparent = TitleBar(background: .transparent, reservesSafeArea: true, dragRegionHeight: nil, trafficLightOffset: nil)
+        public static let overlay = TitleBar(background: .transparent, reservesSafeArea: false, dragRegionHeight: 52, trafficLightOffset: nil)
+
+        public init(
+            background: TitleBarBackground,
+            reservesSafeArea: Bool = true,
+            dragRegionHeight: Float? = nil,
+            trafficLightOffset: Point? = nil
+        ) {
+            self.background = background
+            self.reservesSafeArea = reservesSafeArea
+            self.dragRegionHeight = dragRegionHeight
+            self.trafficLightOffset = trafficLightOffset
+        }
+    }
+
+    enum TitleBarBackground: Sendable, Equatable {
+        case system
+        case transparent
     }
 
     enum Background: Sendable, Equatable {

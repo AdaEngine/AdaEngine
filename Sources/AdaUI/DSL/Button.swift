@@ -142,6 +142,11 @@ final class ButtonViewNode: ViewModifierNode {
     private var body: (Button.State, EnvironmentValues) -> ViewNode
 
     private var state: Button.State = .normal
+    private var touchStartLocation: Point?
+    private var didMoveOutsideTapSlop = false
+    private weak var activeTouchScrollView: ScrollViewNode?
+
+    private static let tapMovementToleranceSquared: Float = 100
 
     init<Content: View>(content: Content, label: ButtonStyleConfiguration.Label.Storage, viewInputs: _ViewInputs, action: @escaping () -> Void) {
         self.action = action
@@ -171,6 +176,7 @@ final class ButtonViewNode: ViewModifierNode {
             self.contentNode.updateViewOwner(owner)
         }
         self.performLayout()
+        owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
     }
 
     override func performLayout() {
@@ -260,20 +266,42 @@ final class ButtonViewNode: ViewModifierNode {
 
         switch touch.phase {
         case .began:
+            touchStartLocation = touch.location
+            didMoveOutsideTapSlop = false
+            activeTouchScrollView = nearestScrollView()
+            activeTouchScrollView?.onTouchesEvent(touches)
             state.insert(.highlighted)
             state.insert(.selected)
         case .moved:
+            activeTouchScrollView?.onTouchesEvent(touches)
+            if let touchStartLocation {
+                let dx = touch.location.x - touchStartLocation.x
+                let dy = touch.location.y - touchStartLocation.y
+                if dx * dx + dy * dy > Self.tapMovementToleranceSquared {
+                    didMoveOutsideTapSlop = true
+                    state.remove(.selected)
+                    state.remove(.highlighted)
+                }
+            }
             break
         case .ended:
-            let shouldInvokeAction = state.contains(.selected)
+            activeTouchScrollView?.onTouchesEvent(touches)
+            let shouldInvokeAction = state.contains(.selected) && !didMoveOutsideTapSlop
             state.remove(.selected)
             state.remove(.highlighted)
+            touchStartLocation = nil
+            didMoveOutsideTapSlop = false
+            activeTouchScrollView = nil
             if shouldInvokeAction {
                 self.action()
             }
         case .cancelled:
+            activeTouchScrollView?.onTouchesEvent(touches)
             state.remove(.selected)
             state.remove(.highlighted)
+            touchStartLocation = nil
+            didMoveOutsideTapSlop = false
+            activeTouchScrollView = nil
         }
 
         self.invalidateContent()
@@ -285,5 +313,16 @@ final class ButtonViewNode: ViewModifierNode {
             return
         }
         self.action()
+    }
+
+    private func nearestScrollView() -> ScrollViewNode? {
+        var current = self.parent
+        while let node = current {
+            if let scrollView = node as? ScrollViewNode {
+                return scrollView
+            }
+            current = node.parent
+        }
+        return nil
     }
 }

@@ -25,7 +25,7 @@ public struct UIKitViewRepresentableContext<View: UIKitViewRepresentable> {
 public protocol UIKitViewRepresentable: View {
 
     /// The type of the view.
-    associatedtype UIViewType: UIView
+    associatedtype UIViewType: UIKit.UIView
 
     /// The type of the coordinator.
     associatedtype Coordinator = Void
@@ -93,8 +93,8 @@ public extension UIKitViewRepresentable {
     ) -> Size {
         let size = uiView.systemLayoutSizeFitting(
             proposal.replacingUnspecifiedDimensions().toCGSize,
-            withHorizontalFittingPriority: .defaultLow,
-            verticalFittingPriority: .defaultLow
+            withHorizontalFittingPriority: UIKit.UILayoutPriority.defaultLow,
+            verticalFittingPriority: UIKit.UILayoutPriority.defaultLow
         )
         return Size(width: Float(size.width), height: Float(size.height))
     }

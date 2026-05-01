@@ -66,6 +66,23 @@ public extension Text {
         return self
     }
 
+    /// Sets the line break mode for text in this view.
+    func lineBreakMode(_ mode: LineBreakMode) -> Text {
+        self.storage.lineBreakMode = mode
+        return self
+    }
+
+    /// Sets the alignment of text lines in this view.
+    func multilineTextAlignment(_ alignment: TextAlignment) -> Text {
+        self.storage.multilineTextAlignment = alignment
+        return self
+    }
+
+    /// Sets the alignment of text lines in this view.
+    func multilineTextAligment(_ alignment: TextAlignment) -> Text {
+        self.multilineTextAlignment(alignment)
+    }
+
     /// Concatenates the text in two text views in a new text view.
     static func + (lhs: Text, rhs: Text) -> Text {
         let newStorage = lhs.storage.concatinating(other: rhs.storage)
@@ -95,6 +112,21 @@ public extension View {
     func lineLimit(_ number: Int?) -> some View {
         return self.environment(\.lineLimit, number)
     }
+
+    /// Sets the line break mode for text in this view.
+    func lineBreakMode(_ mode: LineBreakMode) -> some View {
+        return self.environment(\.lineBreakMode, mode)
+    }
+
+    /// Sets the alignment of text lines in this view.
+    func multilineTextAlignment(_ alignment: TextAlignment) -> some View {
+        return self.environment(\.multilineTextAlignment, alignment)
+    }
+
+    /// Sets the alignment of text lines in this view.
+    func multilineTextAligment(_ alignment: TextAlignment) -> some View {
+        self.multilineTextAlignment(alignment)
+    }
 }
 
 extension Text {
@@ -102,6 +134,8 @@ extension Text {
         fileprivate(set) var text: AttributedText
         var foregroundColor: Color?
         var lineLimit: Int?
+        var lineBreakMode: LineBreakMode?
+        var multilineTextAlignment: TextAlignment?
 
         init(string: String) {
             self.text = AttributedText(string)
@@ -128,6 +162,14 @@ extension Text {
 
             if lineLimit == nil {
                 self.lineLimit = environment.lineLimit
+            }
+
+            if lineBreakMode == nil {
+                self.lineBreakMode = environment.lineBreakMode
+            }
+
+            if multilineTextAlignment == nil {
+                self.multilineTextAlignment = environment.multilineTextAlignment
             }
 
             if let foregroundColor = self.foregroundColor {

@@ -1,10 +1,16 @@
 import Testing
 @testable import AdaUI
+@testable import AdaPlatform
 import AdaCorePipelines
 import AdaUtils
 import Math
 
+@MainActor
 struct LiquidGlassTests {
+
+    init() async throws {
+        try Application.prepareForTest()
+    }
 
     @Test
     func regularClearAndIdentityExposeLiquidGlassDefaults() {
@@ -129,5 +135,75 @@ struct LiquidGlassTests {
         #expect(first.glassParams3 == Vector4(0.88, 1.31, 0.47, 0.16))
         #expect(first.glassInfo0 == Vector4(120.0, 36.0, 2.0, config.opacity))
         #expect(first.glassInfo1 == Vector4(-0.21, 0.0, 0.0, 0.0))
+    }
+
+    @Test
+    func identityGlassDoesNotEmitGlassDrawCommand() {
+        let tester = ViewTester {
+            Text("Glass")
+                .glassEffect(.identity, in: .rect(cornerRadius: 8))
+        }
+        .setSize(Size(width: 200, height: 100))
+        .performLayout()
+
+        let context = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: context)
+
+        #expect(!context.getDrawCommands().containsGlassDraw)
+        #expect(context.getDrawCommands().containsTextDraw)
+    }
+
+    @Test
+    func regularGlassKeepsTextDrawAfterGlassCommand() {
+        let tester = ViewTester {
+            Text("Glass")
+                .glassEffect(.regular, in: .rect(cornerRadius: 8))
+        }
+        .setSize(Size(width: 200, height: 100))
+        .performLayout()
+
+        let context = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: context)
+        let commands = context.getDrawCommands()
+
+        let glassIndex = commands.firstIndexOfGlassDraw
+        let textIndex = commands.firstIndexOfTextDraw
+
+        #expect(glassIndex != nil)
+        #expect(textIndex != nil)
+        if let glassIndex, let textIndex {
+            #expect(glassIndex < textIndex)
+        }
+    }
+}
+
+private extension [UIGraphicsContext.DrawCommand] {
+    var containsGlassDraw: Bool {
+        firstIndexOfGlassDraw != nil
+    }
+
+    var containsTextDraw: Bool {
+        firstIndexOfTextDraw != nil
+    }
+
+    var firstIndexOfGlassDraw: Int? {
+        firstIndex {
+            if case .drawGlassRect = $0 {
+                return true
+            }
+            return false
+        }
+    }
+
+    var firstIndexOfTextDraw: Int? {
+        firstIndex {
+            if case .drawText = $0 {
+                return true
+            }
+            if case .drawGlyph = $0 {
+                return true
+            }
+            return false
+        }
     }
 }

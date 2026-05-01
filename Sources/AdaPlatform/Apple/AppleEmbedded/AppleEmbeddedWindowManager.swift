@@ -7,12 +7,13 @@
 
 #if IOS || TVOS || VISIONOS
 import UIKit
-import AdaInput
+@_spi(Internal) import AdaInput
 @_spi(Internal) import AdaUI
 import AdaRender
 import AdaUtils
 import Math
 import MetalKit
+import AdaECS
 
 // swiftlint:disable:next type_name
 final class AppleEmbeddedWindowManager: UIWindowManager {
@@ -44,7 +45,6 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
 
         // Setup windowManager reference for input handling
         gameViewController.renderView.windowManager = self
-        gameViewController.renderView.setupMouseTracking()
         
         let systemWindow: _AdaUIWindow
         if let scene {
@@ -328,6 +328,7 @@ final class _AdaUIWindow: UIKit.UIWindow, SystemWindow, UIPointerInteractionDele
 
 final class _AdaEngineViewController: UIViewController {
     var renderView: MetalView
+    nonisolated(unsafe) private var keyboardNotificationObservers: [NSObjectProtocol] = []
 
     init(window: AdaUI.UIWindow.ID, frame: CGRect) {
         self.renderView = MetalView(windowId: window, frame: frame)
@@ -337,6 +338,12 @@ final class _AdaEngineViewController: UIViewController {
     required init?(coder: NSCoder) {
         fatalErrorMethodNotImplemented()
     }
+
+    deinit {
+        for observer in keyboardNotificationObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
     
     override func loadView() {
         self.view = self.renderView
@@ -344,12 +351,94 @@ final class _AdaEngineViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        registerKeyboardNotifications()
         registerForTraitChanges(
             [UITraitUserInterfaceIdiom.self, UITraitUserInterfaceStyle.self,
              UITraitHorizontalSizeClass.self, UITraitVerticalSizeClass.self]
         ) { [weak self] (_: _AdaEngineViewController, _: UITraitCollection) in
             self?.propagateTraits()
         }
+    }
+
+    private func registerKeyboardNotifications() {
+        #if IOS
+        let notifications: [(Notification.Name, KeyboardEvent.Phase)] = [
+            (UIResponder.keyboardWillShowNotification, .willShow),
+            (UIResponder.keyboardDidShowNotification, .didShow),
+            (UIResponder.keyboardWillHideNotification, .willHide),
+            (UIResponder.keyboardDidHideNotification, .didHide),
+            (UIResponder.keyboardWillChangeFrameNotification, .willChangeFrame),
+            (UIResponder.keyboardDidChangeFrameNotification, .didChangeFrame),
+        ]
+
+        keyboardNotificationObservers = notifications.map { name, phase in
+            NotificationCenter.default.addObserver(
+                forName: name,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let userInfo = notification.userInfo ?? [:]
+                let beginScreenFrame = (userInfo[UIResponder.keyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue ?? .zero
+                let endScreenFrame = (userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? .zero
+                let animationDuration = (userInfo[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue ?? 0
+                let animationCurve = (userInfo[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.intValue ?? 0
+
+                MainActor.assumeIsolated {
+                    self?.receiveKeyboardNotification(
+                        phase: phase,
+                        beginScreenFrame: beginScreenFrame,
+                        endScreenFrame: endScreenFrame,
+                        animationDuration: animationDuration,
+                        animationCurve: animationCurve
+                    )
+                }
+            }
+        }
+        #endif
+    }
+
+    @MainActor
+    private func receiveKeyboardNotification(
+        phase: KeyboardEvent.Phase,
+        beginScreenFrame: CGRect,
+        endScreenFrame: CGRect,
+        animationDuration: Double,
+        animationCurve: Int
+    ) {
+        #if IOS
+        guard let input = renderView.input else {
+            return
+        }
+
+        let beginFrame = convertKeyboardFrameToView(beginScreenFrame)
+        let endFrame = convertKeyboardFrameToView(endScreenFrame)
+        let occludedFrame = view.bounds.intersection(endFrame)
+        let normalizedOccludedFrame = occludedFrame.isNull ? .zero : occludedFrame
+        let occludedHeight = max(0, view.bounds.maxY - normalizedOccludedFrame.minY)
+
+        input.wrappedValue.receiveEvent(
+            KeyboardEvent(
+                window: renderView.windowID,
+                phase: phase,
+                beginFrame: beginFrame.toEngineRect,
+                endFrame: endFrame.toEngineRect,
+                occludedFrame: normalizedOccludedFrame.toEngineRect,
+                occludedHeight: Float(occludedHeight),
+                animationDuration: AdaUtils.TimeInterval(animationDuration),
+                animationCurve: animationCurve,
+                time: AdaUtils.TimeInterval(CACurrentMediaTime())
+            )
+        )
+        #endif
+    }
+
+    private func convertKeyboardFrameToView(_ screenFrame: CGRect) -> CGRect {
+        #if IOS
+        let windowFrame = view.window?.convert(screenFrame, from: nil) ?? screenFrame
+        return view.convert(windowFrame, from: nil)
+        #else
+        return .zero
+        #endif
     }
 
     override func viewSafeAreaInsetsDidChange() {

@@ -136,10 +136,14 @@ public func UIRenderPreparing(
         latestTargetSize = SizeInt(width: mainTexture.width, height: mainTexture.height)
     }
 
+    let hasDrawSources = !uiComponents.components.isEmpty || !extractedUIContexts.contexts.isEmpty
+
     if let latestTargetSize, buildState.lastUITargetPixelSize != latestTargetSize {
         buildState.lastUITargetPixelSize = latestTargetSize
         layerDrawCache.entries.removeAll(keepingCapacity: true)
-        buildState.needsRebuild = true
+        if hasDrawSources {
+            buildState.needsRebuild = true
+        }
     }
 
     guard buildState.needsRebuild else {

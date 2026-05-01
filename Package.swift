@@ -728,13 +728,6 @@ targets += [
         ],
         publicHeadersPath: "libpng/include",
         cSettings: [
-            .define("PNG_ARM_NEON_OPT", to: {
-#if (arch(arm64) || arch(arm))
-                return "2"
-#else
-                return "0"
-#endif
-            }()),
             .unsafeFlags(["-w"])
         ]
     ),

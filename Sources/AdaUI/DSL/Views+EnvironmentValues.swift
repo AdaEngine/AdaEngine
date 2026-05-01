@@ -22,11 +22,20 @@ public extension EnvironmentValues {
     /// The maximum number of lines that text can occupy in a view.
     @Entry var lineLimit: Int?
 
+    /// The line break mode that text uses when it reaches the available width.
+    @Entry var lineBreakMode: LineBreakMode = .byWordWrapping
+
+    /// The alignment of wrapped text lines.
+    @Entry var multilineTextAlignment: TextAlignment = .center
+
     /// Returns accent color of the system.
     @Entry var accentColor: Color = Color.accentColor
 
     /// The safe area insets of the nearest container or screen.
     @Entry var safeAreaInsets: EdgeInsets = EdgeInsets()
+
+    /// Insets reserved by platform window chrome that overlays app content.
+    @Entry internal var navigationBarChromeInsets: EdgeInsets = EdgeInsets()
 }
 
 public extension View {

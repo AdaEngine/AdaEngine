@@ -155,6 +155,9 @@ final class NativeViewHostNode: ViewNode {
     private var isOverlayAttached = false
     private let offscreenSupersamplingMultiplier: Float = 2
     private let maxOffscreenScale: Float = 4
+    #if canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
+    private var lastOffscreenTouchLocation: Point?
+    #endif
     #if canImport(AppKit) && os(macOS)
     private weak var activeAppKitMouseTarget: NSView?
     private weak var activeAppKitPressedControl: NSControl?
@@ -255,7 +258,7 @@ final class NativeViewHostNode: ViewNode {
             nsView.isHidden = false
         }
         #elseif canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
-        if let uiView = nativeView as? UIView {
+        if let uiView = nativeView as? UIKit.UIView {
             // UIKit implementation
             if let parent = findUIKitParentView() {
                 if uiView.superview != parent {
@@ -273,7 +276,7 @@ final class NativeViewHostNode: ViewNode {
                 // Clipping
                 let visibleFrame = self.calculateVisibleFrame()
                 if visibleFrame.size.width < absoluteFrame.size.width || visibleFrame.size.height < absoluteFrame.size.height {
-                    let maskView = UIView()
+                    let maskView = UIKit.UIView()
                     let localVisibleFrame = Rect(
                         origin: Point(x: visibleFrame.origin.x - absoluteFrame.origin.x, y: visibleFrame.origin.y - absoluteFrame.origin.y),
                         size: visibleFrame.size
@@ -299,7 +302,7 @@ final class NativeViewHostNode: ViewNode {
             nsView.removeFromSuperview()
         }
         #elseif canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
-        if let uiView = nativeView as? UIView {
+        if let uiView = nativeView as? UIKit.UIView {
             uiView.removeFromSuperview()
         }
         #endif
@@ -331,7 +334,7 @@ final class NativeViewHostNode: ViewNode {
     }
     
     #if canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
-    private func findUIKitParentView() -> UIView? {
+    private func findUIKitParentView() -> UIKit.UIView? {
         return nil // To be implemented
     }
     #endif
@@ -498,47 +501,49 @@ final class NativeViewHostNode: ViewNode {
     
     private func forwardTouchesEvent(_ touches: Set<TouchEvent>) {
         #if canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
-        guard let uiView = nativeView as? UIView else { return }
-        
-        // Very basic scroll support for offscreen UIKit
-        if let scrollView = findScrollView(in: uiView) {
-            for touch in touches {
-                if touch.phase == .changed {
-                    let deltaX = touch.position.x - touch.previousPosition.x
-                    let deltaY = touch.position.y - touch.previousPosition.y
-                    
+        guard let uiView = nativeView as? UIKit.UIView else { return }
+
+        let scrollView = findScrollView(in: uiView)
+        for touch in touches {
+            switch touch.phase {
+            case .began:
+                lastOffscreenTouchLocation = touch.location
+            case .moved:
+                if let previousLocation = lastOffscreenTouchLocation, let scrollView {
+                    let deltaX = touch.location.x - previousLocation.x
+                    let deltaY = touch.location.y - previousLocation.y
+
                     var offset = scrollView.contentOffset
                     offset.x -= CGFloat(deltaX)
                     offset.y -= CGFloat(deltaY)
-                    
+
                     scrollView.setContentOffset(offset, animated: false)
                 }
-            }
-        }
-        
-        // Simple tap simulation for offscreen
-        for touch in touches {
-            if touch.phase == .ended {
+                lastOffscreenTouchLocation = touch.location
+            case .ended:
                 let absoluteOrigin = self.visualAbsoluteFrame().origin
                 let localPoint = CGPoint(
-                    x: CGFloat(touch.position.x - absoluteOrigin.x),
-                    y: CGFloat(touch.position.y - absoluteOrigin.y)
+                    x: CGFloat(touch.location.x - absoluteOrigin.x),
+                    y: CGFloat(touch.location.y - absoluteOrigin.y)
                 )
-                
+
                 if let hitView = uiView.hitTest(localPoint, with: nil) {
                     // Try to trigger actions if it's a control
-                    if let control = hitView as? UIControl {
-                        control.sendActions(for: .touchUpInside)
+                    if let control = hitView as? UIKit.UIControl {
+                        control.sendActions(for: UIKit.UIControl.Event.touchUpInside)
                     }
                 }
+                lastOffscreenTouchLocation = nil
+            case .cancelled:
+                lastOffscreenTouchLocation = nil
             }
         }
         #endif
     }
 
     #if canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
-    private func findScrollView(in view: UIView) -> UIScrollView? {
-        if let scrollView = view as? UIScrollView {
+    private func findScrollView(in view: UIKit.UIView) -> UIKit.UIScrollView? {
+        if let scrollView = view as? UIKit.UIScrollView {
             return scrollView
         }
         for subview in view.subviews {
@@ -636,7 +641,7 @@ final class NativeViewHostNode: ViewNode {
             }
         }
         #elseif canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
-        if let uiView = nativeView as? UIView {
+        if let uiView = nativeView as? UIKit.UIView {
             let width = pixelSize.width
             let height = pixelSize.height
             
@@ -701,7 +706,7 @@ final class NativeViewHostNode: ViewNode {
             }
         }
         #elseif canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
-        if let uiView = nativeView as? UIView {
+        if let uiView = nativeView as? UIKit.UIView {
             let targetFrame = CGRect(
                 x: 0,
                 y: 0,
@@ -735,7 +740,7 @@ final class NativeViewHostNode: ViewNode {
             return Float(nsWindow.backingScaleFactor)
         }
         #elseif canImport(UIKit) && (os(iOS) || os(tvOS) || os(visionOS))
-        if let uiWindow = owner?.window?.systemWindow as? UIWindow {
+        if let uiWindow = owner?.window?.systemWindow as? UIKit.UIWindow {
             return Float(uiWindow.screen.scale)
         }
         #endif

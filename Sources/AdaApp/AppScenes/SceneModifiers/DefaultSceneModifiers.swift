@@ -57,6 +57,30 @@ struct WindowTitleSceneModifier: SceneModifier {
     }
 }
 
+/// Set the title bar presentation for the window.
+struct WindowTitleBarSceneModifier: SceneModifier {
+    let titleBar: WindowTitleBar
+
+    func body(content: Content) -> some AppScene {
+        content.transformAppWorlds { worlds in
+            let resource = worlds.main.getRefResource(WindowSettings.self)
+            let existingOffset = resource.wrappedValue.titleBar.trafficLightOffset
+            var titleBar = titleBar
+            titleBar.trafficLightOffset = titleBar.trafficLightOffset ?? existingOffset
+            resource.wrappedValue.titleBar = titleBar
+        }
+    }
+}
+
+/// Offset macOS traffic light buttons.
+struct WindowTrafficLightOffsetSceneModifier: SceneModifier {
+    let offset: Point
+
+    func body(content: Content) -> some AppScene {
+        content.updateResource(of: WindowSettings.self, keyPath: \.titleBar.trafficLightOffset, value: offset)
+    }
+}
+
 /// Add plugins to app.
 struct AddPluginsModifier<each T: Plugin>: SceneModifier {
     let plugins: (repeat (each T))

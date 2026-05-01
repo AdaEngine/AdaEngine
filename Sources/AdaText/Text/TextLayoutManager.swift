@@ -12,23 +12,17 @@ import AtlasFontGenerator
 import Foundation
 
 // FIXME: Fix TextRun, that should equals AttributedString.Run
-// TODO: Add line break mode by word
-
 /// A region where text layout occurs.
 public struct TextContainer: Hashable {
     
     /// The text for rendering.
     public var text: AttributedText
 
-    // FIXME: Fix text alignment for multiline text.
-
     /// The alignment of text in the box.
     /// - Warning: Under development.
     public var textAlignment: TextAlignment
     
-    // FIXME: Break mode doesn't work currently
-    
-    /// The behavior of the last line inside the text container.
+    /// The wrapping behavior inside the text container.
     /// - Warning: Under development.
     public var lineBreakMode: LineBreakMode
     
@@ -117,6 +111,118 @@ public final class TextLayoutManager: @unchecked Sendable {
         return ResolvedGlyph(glyph: glyph, fontResource: primaryFontResource, scalar: Constants.questionMark)
     }
 
+    private func isWhitespace(_ character: Character) -> Bool {
+        character.unicodeScalars.allSatisfy { CharacterSet.whitespaces.contains($0) }
+    }
+
+    private func nextNonWhitespaceIndex(
+        from startIndex: String.Index,
+        in string: String,
+        limitedBy endIndex: String.Index
+    ) -> String.Index {
+        var index = startIndex
+        while index < endIndex && isWhitespace(string[index]) {
+            index = string.index(after: index)
+        }
+        return index
+    }
+
+    private func nextWordEndIndex(
+        from startIndex: String.Index,
+        in string: String,
+        limitedBy endIndex: String.Index
+    ) -> String.Index {
+        var index = startIndex
+        while index < endIndex && !isWhitespace(string[index]) {
+            index = string.index(after: index)
+        }
+        return index
+    }
+
+    private func isWordStart(
+        at index: String.Index,
+        in string: String,
+        lineStartIndex: String.Index
+    ) -> Bool {
+        if isWhitespace(string[index]) {
+            return false
+        }
+
+        if index == lineStartIndex {
+            return true
+        }
+
+        let previousIndex = string.index(before: index)
+        return isWhitespace(string[previousIndex])
+    }
+
+    private func typographicWidth(
+        of range: Range<String.Index>,
+        in attributedText: AttributedText
+    ) -> Float {
+        var x: Double = 0
+        var maxWidth: Double = 0
+        var index = range.lowerBound
+
+        while index < range.upperBound {
+            let attributes = attributedText.attributes(at: index)
+            let char = attributedText.text[index]
+            let kern = Double(attributes.kern)
+            let font = attributes.font
+            let primaryFontResource = font.fontResource
+
+            guard let firstScalar = char.unicodeScalars.first else {
+                index = attributedText.text.index(after: index)
+                continue
+            }
+
+            if let resolvedGlyph = resolveGlyph(for: firstScalar, primaryFontResource: primaryFontResource) {
+                let glyph = resolvedGlyph.glyph
+                let glyphFontResource = resolvedGlyph.fontResource
+                let glyphFontHandle = glyphFontResource.handle
+                let glyphMetrics = glyphFontHandle.metrics
+                let glyphFontScale = font.pointSize / glyphMetrics.emSize
+
+                var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
+                glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
+                maxWidth = max(maxWidth, (pr * glyphFontScale) + x)
+
+                var advance = glyph.advance
+                let nextIndex = attributedText.text.index(after: index)
+                if nextIndex < range.upperBound,
+                   let nextScalar = attributedText.text[nextIndex].unicodeScalars.first {
+                    glyphFontHandle.getAdvance(&advance, resolvedGlyph.scalar.value, nextScalar.value)
+                }
+                x += glyphFontScale * advance + kern
+            } else {
+                let nextIndex = attributedText.text.index(after: index)
+                if nextIndex < range.upperBound {
+                    x += kern
+                }
+            }
+
+            index = attributedText.text.index(after: index)
+        }
+
+        return Float(maxWidth)
+    }
+
+    private func shiftedGlyph(_ glyph: Glyph, offsetByX offset: Float) -> Glyph {
+        Glyph(
+            textureAtlas: glyph.textureAtlas,
+            textureCoordinates: glyph.textureCoordinates,
+            attributes: glyph.attributes,
+            position: [
+                glyph.position.x + offset,
+                glyph.position.y,
+                glyph.position.z + offset,
+                glyph.position.w
+            ],
+            origin: glyph.origin,
+            size: glyph.size
+        )
+    }
+
     /// Set new text container to text layout.
     /// - Note: This method doesn't call ``invalidateLayout()`` method.
     public func setTextContainer(_ textContainer: TextContainer) {
@@ -181,9 +287,90 @@ public final class TextLayoutManager: @unchecked Sendable {
             var maxAscent: Double = 0
             var maxDescent: Double = 0
             var maxLineHeight: Double = 0
+            var visualRowStartGlyphIndex = 0
+            var visualRowMaxWidth: Double = 0
+
+            func alignCurrentVisualRow() {
+                guard visualRowStartGlyphIndex < textRun.glyphs.count else {
+                    visualRowMaxWidth = 0
+                    visualRowStartGlyphIndex = textRun.glyphs.count
+                    return
+                }
+
+                let rowWidth = Float(visualRowMaxWidth)
+                var offset: Float = 0
+
+                if self.availableSize.width.isFinite && self.availableSize.width > rowWidth {
+                    switch self.textContainer.textAlignment {
+                    case .leading:
+                        offset = 0
+                    case .center:
+                        offset = (self.availableSize.width - rowWidth) / 2
+                    case .trailing:
+                        offset = self.availableSize.width - rowWidth
+                    }
+                }
+
+                if offset != 0 {
+                    for glyphIndex in visualRowStartGlyphIndex..<textRun.glyphs.count {
+                        textRun.glyphs[glyphIndex] = shiftedGlyph(textRun.glyphs[glyphIndex], offsetByX: offset)
+                    }
+                }
+
+                maxWidth = max(maxWidth, Double(offset) + visualRowMaxWidth)
+                visualRowMaxWidth = 0
+                visualRowStartGlyphIndex = textRun.glyphs.count
+            }
 
             var index = lineStartIndex
             while index < lineEndIndex {
+                let shouldWrapByWord = self.textContainer.lineBreakMode == .byWordWrapping
+                    && self.availableSize.width.isFinite
+                    && self.availableSize.width > 0
+
+                if shouldWrapByWord && x > 0 {
+                    let char = attributedText.text[index]
+
+                    if isWhitespace(char) {
+                        let wordStartIndex = nextNonWhitespaceIndex(
+                            from: index,
+                            in: attributedText.text,
+                            limitedBy: lineEndIndex
+                        )
+
+                        if wordStartIndex < lineEndIndex {
+                            let wordEndIndex = nextWordEndIndex(
+                                from: wordStartIndex,
+                                in: attributedText.text,
+                                limitedBy: lineEndIndex
+                            )
+                            let width = typographicWidth(of: index..<wordEndIndex, in: attributedText)
+
+                            if Float(x) + width > self.availableSize.width {
+                                alignCurrentVisualRow()
+                                x = 0
+                                y -= maxLineHeight
+                                index = wordStartIndex
+                                continue
+                            }
+                        }
+                    } else if isWordStart(at: index, in: attributedText.text, lineStartIndex: lineStartIndex) {
+                        let wordEndIndex = nextWordEndIndex(
+                            from: index,
+                            in: attributedText.text,
+                            limitedBy: lineEndIndex
+                        )
+                        let width = typographicWidth(of: index..<wordEndIndex, in: attributedText)
+
+                        if Float(x) + width > self.availableSize.width {
+                            alignCurrentVisualRow()
+                            x = 0
+                            y -= maxLineHeight
+                            continue
+                        }
+                    }
+                }
+
                 let attributes = attributedText.attributes(at: index)
                 let char = attributedText.text[index]
 
@@ -222,6 +409,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                     glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
 
                     if Float((pr * glyphFontScale) + x) > availableSize.width {
+                        alignCurrentVisualRow()
                         x = 0
                         y -= maxLineHeight
                     }
@@ -254,7 +442,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                         )
                     )
 
-                    maxWidth = max(maxWidth, pr)
+                    visualRowMaxWidth = max(visualRowMaxWidth, pr)
 
                     var advance = glyph.advance
                     let nextIndex = attributedText.text.index(after: index)
@@ -277,16 +465,21 @@ public final class TextLayoutManager: @unchecked Sendable {
                 }
             }
 
+            alignCurrentVisualRow()
+
             textLine.runs.append(textRun)
 
             // Soft-wrapped visual rows share the same source line, so include
             // every row in the measured height instead of only the first row.
             let visualHeight = maxLineHeight > 0 ? (lineStartY - y) + maxLineHeight : 0
+            let boundingWidth = self.availableSize.width.isFinite && !textRun.glyphs.isEmpty
+                ? Double(self.availableSize.width)
+                : maxWidth
 
             // Calculate bounding box for this line
             let boundingBox = Rect(
                 origin: Point(x: 0, y: Float(lineStartY)),
-                size: Size(width: Float(maxWidth), height: Float(visualHeight))
+                size: Size(width: Float(boundingWidth), height: Float(visualHeight))
             )
             
             textLine.typographicBounds.ascent = maxAscent
