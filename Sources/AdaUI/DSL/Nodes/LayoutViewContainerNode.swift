@@ -13,30 +13,48 @@ class LayoutViewContainerNode: ViewContainerNode {
     
     let layout: AnyLayout
     private let inherentLayoutProperties: LayoutProperties
+    private let bypassSingleChildLayout: Bool
     private var cache: AnyLayout.Cache?
     private var cacheNeedsUpdate = true
 
     private var shouldBypassLayout: Bool {
-        nodes.count == 1 && inherentLayoutProperties.stackOrientation == nil
+        bypassSingleChildLayout && nodes.count == 1
     }
 
-    init<L: Layout, Content: View>(layout: L, content: Content, nodes: [ViewNode]) {
+    init<L: Layout, Content: View>(
+        layout: L,
+        content: Content,
+        nodes: [ViewNode],
+        bypassSingleChildLayout: Bool = false
+    ) {
         self.layout = AnyLayout(layout)
         self.inherentLayoutProperties = L.layoutProperties
+        self.bypassSingleChildLayout = bypassSingleChildLayout
         super.init(content: content, nodes: nodes)
         super.updateLayoutProperties(inherentLayoutProperties)
     }
 
-    init<L: Layout, Content: View>(layout: L, content: @escaping () -> Content) {
+    init<L: Layout, Content: View>(
+        layout: L,
+        content: @escaping () -> Content,
+        bypassSingleChildLayout: Bool = false
+    ) {
         self.layout = AnyLayout(layout)
         self.inherentLayoutProperties = L.layoutProperties
+        self.bypassSingleChildLayout = bypassSingleChildLayout
         super.init(content: content)
         super.updateLayoutProperties(inherentLayoutProperties)
     }
 
-    init<L: Layout, Content: View>(layout: L, content: Content, body: @escaping (_ViewListInputs) -> _ViewListOutputs) {
+    init<L: Layout, Content: View>(
+        layout: L,
+        content: Content,
+        bypassSingleChildLayout: Bool = false,
+        body: @escaping (_ViewListInputs) -> _ViewListOutputs
+    ) {
         self.layout = AnyLayout(layout)
         self.inherentLayoutProperties = L.layoutProperties
+        self.bypassSingleChildLayout = bypassSingleChildLayout
         super.init(content: content, body: body)
         super.updateLayoutProperties(inherentLayoutProperties)
     }
@@ -48,6 +66,14 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func performLayout() {
+        if shouldBypassLayout, let node = nodes.first {
+            let center = Point(x: frame.width * 0.5, y: frame.height * 0.5)
+            let proposal = ProposedViewSize(frame.size)
+            node.place(in: center, anchor: .center, proposal: proposal)
+            self.invalidateLayerIfNeeded()
+            return
+        }
+
         performLayout(
             in: Rect(origin: .zero, size: self.frame.size),
             proposal: ProposedViewSize(width: self.frame.width, height: self.frame.height)
@@ -85,6 +111,10 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        if shouldBypassLayout, let node = nodes.first {
+            return node.sizeThatFits(proposal)
+        }
+
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
         ensureCache(for: subviews)
 

@@ -10,7 +10,6 @@ import AdaUtils
 @unsafe @preconcurrency import WebGPU
 
 final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
-
     let descriptor: RenderPipelineDescriptor
     let renderPipeline: WebGPU.GPURenderPipeline
 
@@ -19,96 +18,9 @@ final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
         device: WebGPU.GPUDevice
     ) {
         let vertex = (descriptor.vertex.compiledShader as? WGPUShader).unwrap(message: "Vertex shader is not a WGPUShader")
-
-        // Build vertex buffer layouts - group attributes by buffer index
-        var bufferAttributes: [Int: [WebGPU.GPUVertexAttribute]] = [:]
-        var bufferStrides: [Int: Int] = [:]
-
-        for (attrIndex, attribute) in descriptor.vertexDescriptor.attributes.buffer.enumerated() {
-            let bufferIndex = attribute.bufferIndex
-            let wgpuAttribute = WebGPU.GPUVertexAttribute(
-                format: attribute.format.toWebGPU,
-                offset: UInt64(attribute.offset),
-                shaderLocation: UInt32(attrIndex)
-            )
-            bufferAttributes[bufferIndex, default: []].append(wgpuAttribute)
-        }
-
-        // Get strides for each buffer (using buffer directly to avoid mutating getter)
-        for bufferIndex in bufferAttributes.keys {
-            if bufferIndex < descriptor.vertexDescriptor.layouts.buffer.count {
-                bufferStrides[bufferIndex] = descriptor.vertexDescriptor.layouts.buffer[bufferIndex].stride
-            }
-        }
-
-        // Fallback: if stride not found, use 0 or calculate from attributes
-        let vertexBuffers = bufferAttributes.keys.sorted().map { bufferIndex in
-            let stride = bufferStrides[bufferIndex] ?? 0
-            return WebGPU.GPUVertexBufferLayout(
-                stepMode: WebGPU.GPUVertexStepMode.vertex,
-                arrayStride: UInt64(stride),
-                attributes: bufferAttributes[bufferIndex] ?? [],
-                nextInChain: nil
-            )
-        }
-
-        // Build fragment state
-        let fragmentState: WebGPU.GPUFragmentState? = descriptor.fragment.map { shader in
-            let wgpuShader = (shader.compiledShader as? WGPUShader).unwrap(message: "Fragment shader is not a WGPUShader")
-
-            let targets = descriptor.colorAttachments.map { attachment in
-                WebGPU.GPUColorTargetState(
-                    format: attachment.format.toWebGPU,
-                    blend: attachment.isBlendingEnabled ? WebGPU.GPUBlendState(
-                        color: WebGPU.GPUBlendComponent(
-                            operation: attachment.rgbBlendOperation.toWebGPU,
-                            srcFactor: attachment.sourceRGBBlendFactor.toWebGPU,
-                            dstFactor: attachment.destinationRGBBlendFactor.toWebGPU
-                        ),
-                        alpha: WebGPU.GPUBlendComponent(
-                            operation: attachment.alphaBlendOperation.toWebGPU,
-                            srcFactor: attachment.sourceAlphaBlendFactor.toWebGPU,
-                            dstFactor: attachment.destinationAlphaBlendFactor.toWebGPU
-                        )
-                    ) : nil,
-                    writeMask: WebGPU.GPUColorWriteMask.all
-                )
-            }
-
-            return WebGPU.GPUFragmentState(
-                module: wgpuShader.shader,
-                entryPoint: wgpuShader.entryPoint,
-                constants: [],
-                targets: targets
-            )
-        }
-
-        // Build depth stencil state
-        let depthStencilState: WebGPU.GPUDepthStencilState? = descriptor.depthStencilDescriptor.map { depthDesc in
-            let stencilOp = depthDesc.stencilOperationDescriptor
-            return WebGPU.GPUDepthStencilState(
-                format: descriptor.depthPixelFormat.toWebGPU,
-                depthWriteEnabled: depthDesc.isDepthWriteEnabled ? .true : .false,
-                depthCompare: depthDesc.depthCompareOperator.toWebGPU,
-                stencilFront: WebGPU.GPUStencilFaceState(
-                    compare: stencilOp?.compare.toWebGPU ?? .always,
-                    failOp: stencilOp?.fail.toWebGPU ?? .keep,
-                    depthFailOp: stencilOp?.depthFail.toWebGPU ?? .keep,
-                    passOp: stencilOp?.pass.toWebGPU ?? .keep
-                ),
-                stencilBack: WebGPU.GPUStencilFaceState(
-                    compare: stencilOp?.compare.toWebGPU ?? .always,
-                    failOp: stencilOp?.fail.toWebGPU ?? .keep,
-                    depthFailOp: stencilOp?.depthFail.toWebGPU ?? .keep,
-                    passOp: stencilOp?.pass.toWebGPU ?? .keep
-                ),
-                stencilReadMask: 0xFFFFFFFF,
-                stencilWriteMask: 0xFFFFFFFF,
-                depthBias: 0,
-                depthBiasSlopeScale: 0,
-                depthBiasClamp: 0
-            )
-        }
+        let vertexBuffers = Self.makeVertexBuffers(from: descriptor)
+        let fragmentState = Self.makeFragmentState(from: descriptor)
+        let depthStencilState = Self.makeDepthStencilState(from: descriptor)
 
         self.descriptor = descriptor
         let topology = descriptor.primitive.toWebGPU
@@ -140,6 +52,93 @@ final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
                 fragment: fragmentState,
                 nextInChain: nil
             )
+        )
+    }
+
+    private static func makeVertexBuffers(from descriptor: RenderPipelineDescriptor) -> [WebGPU.GPUVertexBufferLayout] {
+        var bufferAttributes: [Int: [WebGPU.GPUVertexAttribute]] = [:]
+        var bufferStrides: [Int: Int] = [:]
+
+        for (attrIndex, attribute) in descriptor.vertexDescriptor.attributes.buffer.enumerated() {
+            let bufferIndex = attribute.bufferIndex
+            let wgpuAttribute = WebGPU.GPUVertexAttribute(
+                format: attribute.format.toWebGPU,
+                offset: UInt64(attribute.offset),
+                shaderLocation: UInt32(attrIndex)
+            )
+            bufferAttributes[bufferIndex, default: []].append(wgpuAttribute)
+        }
+
+        for bufferIndex in bufferAttributes.keys where bufferIndex < descriptor.vertexDescriptor.layouts.buffer.count {
+            bufferStrides[bufferIndex] = descriptor.vertexDescriptor.layouts.buffer[bufferIndex].stride
+        }
+
+        return bufferAttributes.keys.sorted().map { bufferIndex in
+            let stride = bufferStrides[bufferIndex] ?? 0
+            return WebGPU.GPUVertexBufferLayout(
+                stepMode: WebGPU.GPUVertexStepMode.vertex,
+                arrayStride: UInt64(stride),
+                attributes: bufferAttributes[bufferIndex] ?? [],
+                nextInChain: nil
+            )
+        }
+    }
+
+    private static func makeFragmentState(from descriptor: RenderPipelineDescriptor) -> WebGPU.GPUFragmentState? {
+        descriptor.fragment.map { shader in
+            let wgpuShader = (shader.compiledShader as? WGPUShader).unwrap(message: "Fragment shader is not a WGPUShader")
+            return WebGPU.GPUFragmentState(
+                module: wgpuShader.shader,
+                entryPoint: wgpuShader.entryPoint,
+                constants: [],
+                targets: descriptor.colorAttachments.map(makeColorTargetState)
+            )
+        }
+    }
+
+    private static func makeColorTargetState(from attachment: RenderPipelineColorAttachmentDescriptor) -> WebGPU.GPUColorTargetState {
+        WebGPU.GPUColorTargetState(
+            format: attachment.format.toWebGPU,
+            blend: attachment.isBlendingEnabled ? WebGPU.GPUBlendState(
+                color: WebGPU.GPUBlendComponent(
+                    operation: attachment.rgbBlendOperation.toWebGPU,
+                    srcFactor: attachment.sourceRGBBlendFactor.toWebGPU,
+                    dstFactor: attachment.destinationRGBBlendFactor.toWebGPU
+                ),
+                alpha: WebGPU.GPUBlendComponent(
+                    operation: attachment.alphaBlendOperation.toWebGPU,
+                    srcFactor: attachment.sourceAlphaBlendFactor.toWebGPU,
+                    dstFactor: attachment.destinationAlphaBlendFactor.toWebGPU
+                )
+            ) : nil,
+            writeMask: WebGPU.GPUColorWriteMask.all
+        )
+    }
+
+    private static func makeDepthStencilState(from descriptor: RenderPipelineDescriptor) -> WebGPU.GPUDepthStencilState? {
+        descriptor.depthStencilDescriptor.map { depthDesc in
+            let stencilOp = depthDesc.stencilOperationDescriptor
+            return WebGPU.GPUDepthStencilState(
+                format: descriptor.depthPixelFormat.toWebGPU,
+                depthWriteEnabled: depthDesc.isDepthWriteEnabled ? .true : .false,
+                depthCompare: depthDesc.depthCompareOperator.toWebGPU,
+                stencilFront: Self.makeStencilFaceState(from: stencilOp),
+                stencilBack: Self.makeStencilFaceState(from: stencilOp),
+                stencilReadMask: 0xFFFFFFFF,
+                stencilWriteMask: 0xFFFFFFFF,
+                depthBias: 0,
+                depthBiasSlopeScale: 0,
+                depthBiasClamp: 0
+            )
+        }
+    }
+
+    private static func makeStencilFaceState(from stencilOp: StencilOperationDescriptor?) -> WebGPU.GPUStencilFaceState {
+        WebGPU.GPUStencilFaceState(
+            compare: stencilOp?.compare.toWebGPU ?? .always,
+            failOp: stencilOp?.fail.toWebGPU ?? .keep,
+            depthFailOp: stencilOp?.depthFail.toWebGPU ?? .keep,
+            passOp: stencilOp?.pass.toWebGPU ?? .keep
         )
     }
 }

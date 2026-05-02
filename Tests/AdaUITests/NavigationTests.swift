@@ -236,6 +236,135 @@ struct NavigationStackTests {
         #expect(abs(history.frame.origin.y - settings.frame.origin.y) < 1)
         #expect(history.frame.origin.x < settings.frame.origin.x)
     }
+
+    @Test
+    func navigationBar_isCreatedByDefaultWithoutItems() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                Text("Content")
+                    .frame(width: 100, height: 40)
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let content = try #require(textNodes(in: tester.containerView.viewTree.rootNode).first { $0.text == "Content" })
+        #expect(content.frame.origin.y > 150)
+    }
+
+    @Test
+    func navigationBarHidden_removesBarEvenWithToolbarItems() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                Text("Content")
+                    .frame(width: 100, height: 40)
+                    .navigationBarTrailingItems {
+                        Text("Hidden Toolbar")
+                    }
+                    .navigationBarHidden(true)
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let textNodes = textNodes(in: tester.containerView.viewTree.rootNode)
+        let content = try #require(textNodes.first { $0.text == "Content" })
+        #expect(content.frame.origin.y < 190)
+        #expect(!textNodes.contains { $0.text == "Hidden Toolbar" })
+    }
+
+    @Test
+    func navigationBar_readsToolbarItemsThroughOuterModifiers() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                Color.red
+                    .navigationBarLeadingItems {
+                        Button(action: {}) {
+                            Text("Agent")
+                        }
+                    }
+                    .navigationBarTrailingItems {
+                        Button("Settings") {}
+                    }
+                    .onAppear {}
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let textNodes = textNodes(in: tester.containerView.viewTree.rootNode)
+        let agent = try #require(textNodes.first { $0.text == "Agent" })
+        let settings = try #require(textNodes.first { $0.text == "Settings" })
+
+        #expect(agent.frame.origin.x < 80)
+        #expect(settings.frame.origin.x > 300)
+        #expect(agent.frame.origin.y < 80)
+        #expect(settings.frame.origin.y < 80)
+    }
+
+    @Test
+    func navigationBar_respectsOverlayTitleBarChromeInset() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                Color.clear
+                    .navigationTitle("Overlay")
+                    .navigationTitlePosition(.center)
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let chromeTopInset: Float = 52
+        var environment = EnvironmentValues()
+        environment.navigationBarChromeInsets.top = chromeTopInset
+        tester.containerView.viewTree.rootNode.mergeEnvironment(environment)
+        tester.containerView.viewTree.rootNode.place(
+            in: .zero,
+            anchor: .zero,
+            proposal: ProposedViewSize(Size(width: 400, height: 400))
+        )
+
+        let title = try #require(textNodes(in: tester.containerView.viewTree.rootNode).first { $0.text == "Overlay" })
+        #expect(title.frame.origin.y >= chromeTopInset)
+        #expect(title.frame.origin.y < chromeTopInset + 60)
+    }
+
+    @Test
+    func navigationSplitView_detailNavigationBarShowsToolbarItemsWithChromeInset() throws {
+        let tester = ViewTester {
+            NavigationSplitView(
+                columnVisibility: .constant(.automatic),
+                preferredCompactColumn: .constant(.detail)
+            ) {
+                Color.clear
+                    .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
+            } detail: {
+                NavigationStack {
+                    Color.red
+                        .navigationBarTrailingItems {
+                            Text("Toolbar")
+                        }
+                }
+            }
+        }
+        .setSize(Size(width: 640, height: 400))
+        .performLayout()
+
+        let chromeTopInset: Float = 52
+        var environment = EnvironmentValues()
+        environment.navigationBarChromeInsets.top = chromeTopInset
+        tester.containerView.viewTree.rootNode.mergeEnvironment(environment)
+        tester.containerView.viewTree.rootNode.place(
+            in: .zero,
+            anchor: .zero,
+            proposal: ProposedViewSize(Size(width: 640, height: 400))
+        )
+
+        let toolbar = try #require(textNodes(in: tester.containerView.viewTree.rootNode).first { $0.text == "Toolbar" })
+        #expect(toolbar.frame.origin.x > 180)
+        #expect(toolbar.frame.origin.y >= chromeTopInset)
+        #expect(toolbar.frame.origin.y < chromeTopInset + 60)
+    }
 }
 
 // Helper view that calls dismiss via environment

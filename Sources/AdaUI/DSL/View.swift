@@ -45,6 +45,7 @@ extension View {
             let node = LayoutViewContainerNode(
                 layout: AnyLayout(inputs.layout),
                 content: view.value,
+                bypassSingleChildLayout: true,
                 body: { inputs in
                     let body = _ViewGraphNode(value: view.value)[\.body]
                     return Self.Body._makeListView(body, inputs: inputs)

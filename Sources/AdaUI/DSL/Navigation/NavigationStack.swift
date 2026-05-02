@@ -80,6 +80,7 @@ struct NavigationBarConfiguration: Hashable, Sendable {
     var title: String?
     var titlePosition: NavigationTitlePosition = .automatic
     var titleDisplayMode: NavigationBarTitleDisplayMode = .automatic
+    var isHidden = false
     var backButtonHidden = false
 }
 
@@ -121,6 +122,12 @@ public extension View {
     func navigationBarBackButtonHidden(_ hidden: Bool = true) -> some View {
         self.transformEnvironment(\.navigationBarConfiguration) { configuration in
             configuration.backButtonHidden = hidden
+        }
+    }
+
+    func navigationBarHidden(_ hidden: Bool = true) -> some View {
+        self.transformEnvironment(\.navigationBarConfiguration) { configuration in
+            configuration.isHidden = hidden
         }
     }
 
@@ -205,6 +212,18 @@ final class NavigationStackNode: ViewNode {
 
     private enum Constants {
         static let navigationBarHeight: Float = 92
+    }
+
+    private struct NavigationBarState {
+        var configuration: NavigationBarConfiguration
+        var leadingItems: NavigationBarItemContent?
+        var trailingItems: NavigationBarItemContent?
+
+        var hasExplicitValues: Bool {
+            configuration != NavigationBarConfiguration()
+                || leadingItems != nil
+                || trailingItems != nil
+        }
     }
 
     private var pathBinding: Binding<NavigationPath>
@@ -311,20 +330,28 @@ final class NavigationStackNode: ViewNode {
         return inputs
     }
 
+    private var navigationBarChromeTopInset: Float {
+        max(0, viewInputs.environment.navigationBarChromeInsets.top)
+    }
+
+    private var totalNavigationBarReservedHeight: Float {
+        navigationBarChromeTopInset + Constants.navigationBarHeight
+    }
+
     private func syncNavigationBar() {
-        let configuration = currentContentNode.environment.navigationBarConfiguration
+        var state = Self.navigationBarState(in: currentContentNode)
+        let configuration = state.configuration
         let showsBackButton = !navigationContext.path.isEmpty && !configuration.backButtonHidden
-        let hasTitle = !(configuration.title?.isEmpty ?? true)
-        let hasLeadingItems = currentContentNode.environment.navigationBarLeadingItems != nil
-        let hasTrailingItems = currentContentNode.environment.navigationBarTrailingItems != nil
-        let showsNavigationBar = hasTitle || showsBackButton || hasLeadingItems || hasTrailingItems
+        let showsNavigationBar = !configuration.isHidden
 
         let contentReceivesTopSafeArea = showsNavigationBar && Self.nodeConsumesTopSafeArea(currentContentNode)
-        let contentSafeAreaHeight = contentReceivesTopSafeArea ? Constants.navigationBarHeight : 0
-        reservedNavigationBarHeight = showsNavigationBar ? Constants.navigationBarHeight : 0
+        let reservedHeight = showsNavigationBar ? totalNavigationBarReservedHeight : 0
+        let contentSafeAreaHeight = contentReceivesTopSafeArea ? reservedHeight : 0
+        reservedNavigationBarHeight = reservedHeight
 
         let contentInputs = makeContentInputs(reservingNavigationBarHeight: contentSafeAreaHeight)
         currentContentNode.updateEnvironment(contentInputs.environment)
+        state = Self.navigationBarState(in: currentContentNode)
 
         guard showsNavigationBar else {
             navigationBarNode?.parent = nil
@@ -343,17 +370,17 @@ final class NavigationStackNode: ViewNode {
 
         if let navigationBarNode {
             navigationBarNode.update(
-                configuration: configuration,
-                leadingItems: currentContentNode.environment.navigationBarLeadingItems,
-                trailingItems: currentContentNode.environment.navigationBarTrailingItems,
+                configuration: state.configuration,
+                leadingItems: state.leadingItems,
+                trailingItems: state.trailingItems,
                 showsBackButton: showsBackButton,
                 inputs: barInputs
             )
         } else {
             let node = NavigationBarNode(
-                configuration: configuration,
-                leadingItems: currentContentNode.environment.navigationBarLeadingItems,
-                trailingItems: currentContentNode.environment.navigationBarTrailingItems,
+                configuration: state.configuration,
+                leadingItems: state.leadingItems,
+                trailingItems: state.trailingItems,
                 showsBackButton: showsBackButton,
                 navigationContext: navigationContext,
                 inputs: barInputs
@@ -388,7 +415,7 @@ final class NavigationStackNode: ViewNode {
         navigationBarNode?.place(
             in: .zero,
             anchor: .topLeading,
-            proposal: ProposedViewSize(width: frame.width, height: Constants.navigationBarHeight)
+            proposal: ProposedViewSize(width: frame.width, height: totalNavigationBarReservedHeight)
         )
     }
 
@@ -399,11 +426,35 @@ final class NavigationStackNode: ViewNode {
         viewInputs.environment = self.environment
         let childInputs = makeContentInputs(
             reservingNavigationBarHeight: navigationBarNode != nil && Self.nodeConsumesTopSafeArea(currentContentNode)
-                ? Constants.navigationBarHeight
+                ? totalNavigationBarReservedHeight
                 : 0
         )
         currentContentNode.updateEnvironment(childInputs.environment)
         syncNavigationBar()
+    }
+
+    private static func navigationBarState(in node: ViewNode) -> NavigationBarState {
+        if let modifier = node as? ViewModifierNode {
+            let childState = navigationBarState(in: modifier.contentNode)
+            if childState.hasExplicitValues {
+                return childState
+            }
+        }
+
+        if let container = node as? ViewContainerNode {
+            for child in container.nodes {
+                let childState = navigationBarState(in: child)
+                if childState.hasExplicitValues {
+                    return childState
+                }
+            }
+        }
+
+        return NavigationBarState(
+            configuration: node.environment.navigationBarConfiguration,
+            leadingItems: node.environment.navigationBarLeadingItems,
+            trailingItems: node.environment.navigationBarTrailingItems
+        )
     }
 
     private static func nodeConsumesTopSafeArea(_ node: ViewNode) -> Bool {
@@ -519,6 +570,10 @@ private final class NavigationBarNode: ViewNode {
     private var leadingItemsNode: ViewNode?
     private var trailingItemsNode: ViewNode?
 
+    private var chromeTopInset: Float {
+        max(0, environment.navigationBarChromeInsets.top)
+    }
+
     init(
         configuration: NavigationBarConfiguration,
         leadingItems: NavigationBarItemContent?,
@@ -556,12 +611,12 @@ private final class NavigationBarNode: ViewNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        Size(width: proposal.width ?? 0, height: Constants.height)
+        Size(width: proposal.width ?? 0, height: chromeTopInset + Constants.height)
     }
 
     override func performLayout() {
         let titlePosition = resolvedTitlePosition()
-        let centerY = Constants.titleBaselineY
+        let centerY = chromeTopInset + Constants.titleBaselineY
         var leadingX = Constants.horizontalPadding
         let reservedTitleWidth = titlePosition == .center || titlePosition == .automatic
             ? Constants.minimumCenteredTitleWidth
