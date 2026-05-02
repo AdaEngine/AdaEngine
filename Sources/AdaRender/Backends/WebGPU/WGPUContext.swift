@@ -41,7 +41,12 @@ public final class WGPUContext: @unchecked Sendable {
 
         let surfaceDescriptor = surface.createWebGPUSurface()
         let wgpuSurface = instance.createSurface(descriptor: surfaceDescriptor)
-        configureSurface(surface: wgpuSurface, size: size, pixelFormat: surface.prefferedPixelFormat)
+        configureSurface(
+            surface: wgpuSurface,
+            size: size,
+            scaleFactor: surface.scaleFactor,
+            pixelFormat: surface.prefferedPixelFormat
+        )
         storeWindow(WGPURenderWindow(
             windowId: windowId,
             surface: wgpuSurface,
@@ -53,6 +58,16 @@ public final class WGPUContext: @unchecked Sendable {
 
     @MainActor
     public func resizeWindow(_ windowId: WindowID, newSize: Math.SizeInt) throws {
+        try resizeWindow(windowId, newSize: newSize, scaleFactor: nil)
+    }
+
+    @MainActor
+    public func resizeWindow(_ windowId: WindowID, newSize: Math.SizeInt, scaleFactor: Float) throws {
+        try resizeWindow(windowId, newSize: newSize, scaleFactor: scaleFactor as Float?)
+    }
+
+    @MainActor
+    private func resizeWindow(_ windowId: WindowID, newSize: Math.SizeInt, scaleFactor: Float?) throws {
         guard newSize.width > 0 && newSize.height > 0 else {
             return
         }
@@ -60,6 +75,7 @@ public final class WGPUContext: @unchecked Sendable {
         try resizeStoredWindow(
             windowId,
             newSize: newSize,
+            scaleFactor: scaleFactor,
             pixelFormat: nil
         )
     }
@@ -73,6 +89,7 @@ public final class WGPUContext: @unchecked Sendable {
     private func resizeStoredWindow(
         _ windowId: WindowID,
         newSize: Math.SizeInt,
+        scaleFactor: Float?,
         pixelFormat: PixelFormat?
     ) throws {
         try self.windows.withLock { windows in
@@ -82,9 +99,13 @@ public final class WGPUContext: @unchecked Sendable {
             configureSurface(
                 surface: window.surface,
                 size: newSize,
+                scaleFactor: scaleFactor ?? window.scaleFactor,
                 pixelFormat: pixelFormat ?? window.pixelFormat
             )
             window.size = newSize
+            if let scaleFactor {
+                window.scaleFactor = scaleFactor
+            }
             windows[windowId] = window
         }
     }
@@ -137,15 +158,18 @@ public final class WGPUContext: @unchecked Sendable {
     private func configureSurface(
         surface: WebGPU.GPUSurface,
         size: Math.SizeInt,
+        scaleFactor: Float,
         pixelFormat: PixelFormat
     ) {
+        let physicalWidth = max(Int((Float(size.width) * scaleFactor).rounded()), 1)
+        let physicalHeight = max(Int((Float(size.height) * scaleFactor).rounded()), 1)
         surface.configure(
             config: WebGPU.GPUSurfaceConfiguration(
                 device: device,
                 format: pixelFormat.toWebGPU,
                 usage: .renderAttachment,
-                width: UInt32(size.width),
-                height: UInt32(size.height),
+                width: UInt32(physicalWidth),
+                height: UInt32(physicalHeight),
                 viewFormats: [],
                 alphaMode: .auto,
                 presentMode: .fifo
@@ -158,7 +182,7 @@ public final class WGPUContext: @unchecked Sendable {
         public let surface: WebGPU.GPUSurface
         public let pixelFormat: PixelFormat
         public var size: Math.SizeInt
-        public let scaleFactor: Float
+        public var scaleFactor: Float
 
         init(
             windowId: WindowID,

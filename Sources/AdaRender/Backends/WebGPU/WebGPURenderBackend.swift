@@ -20,6 +20,11 @@ final class WebGPURenderBackend: RenderBackend, @unchecked Sendable {
         try context.resizeWindow(windowId, newSize: newSize)
     }
 
+    @MainActor
+    func resizeWindow(_ windowId: WindowID, newSize: Math.SizeInt, scaleFactor: Float) throws {
+        try context.resizeWindow(windowId, newSize: newSize, scaleFactor: scaleFactor)
+    }
+
     func destroyWindow(_ windowId: WindowID) throws {
         try context.destroyWindow(windowId)
     }

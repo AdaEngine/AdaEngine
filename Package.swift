@@ -9,6 +9,16 @@ import CompilerPluginSupport
 import AppleProductTypes
 #endif
 
+let isHeadlessCIEnabled: Bool = {
+    let environment = ProcessInfo.processInfo.environment
+    let headlessValue = environment["ADAENGINE_HEADLESS"]?.lowercased()
+    let disableSwanValue = environment["ADAENGINE_DISABLE_SWAN"]?.lowercased()
+    let enabledValues: Set<String> = ["1", "true", "yes", "on"]
+
+    return headlessValue.map(enabledValues.contains) == true
+        || disableSwanValue.map(enabledValues.contains) == true
+}()
+
 #if canImport(Darwin)
 import Darwin.C
 
@@ -29,7 +39,7 @@ import Glibc
 import WinSDK
 #endif
 
-let isWGPUEnabled = true
+let isWGPUEnabled = !isHeadlessCIEnabled
 #endif
 
 extension String {
@@ -197,6 +207,40 @@ var adaEngineDependencies: [Target.Dependency] = [
 adaEngineDependencies += ["X11"]
 #endif
 
+var adaRenderDependencies: [Target.Dependency] = [
+    "AdaApp",
+    "AdaECS",
+    "AdaAssets",
+    "AdaTransform",
+    "Math",
+    "Yams",
+    "SPIRV-Cross",
+    "SPIRVCompiler",
+    "libpng",
+    .product(
+        name: "Subprocess",
+        package: "swift-subprocess",
+        condition: .when(platforms: [
+            .macOS,
+            .linux,
+            .windows,
+            .wasi
+        ])
+    ),
+]
+
+if !isHeadlessCIEnabled {
+    adaRenderDependencies.append(
+        .product(
+            name: "WebGPU",
+            package: "swan",
+            condition: .when(traits: [
+                .wgpuTrait
+            ])
+        )
+    )
+}
+
 let adaEngineTarget: Target = .adaTarget(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
@@ -339,34 +383,7 @@ var targets: [Target] = [
     ),
     .adaTarget(
         name: "AdaRender",
-        dependencies: [
-            "AdaApp",
-            "AdaECS",
-            "AdaAssets",
-            "AdaTransform",
-            "Math",
-            "Yams",
-            "SPIRV-Cross",
-            "SPIRVCompiler",
-            "libpng",
-            .product(
-                name: "Subprocess",
-                package: "swift-subprocess",
-                condition: .when(platforms: [
-                    .macOS,
-                    .linux,
-                    .windows,
-                    .wasi
-                ])
-            ),
-            .product(
-                name: "WebGPU",
-                package: "swan",
-                condition: .when(traits: [
-                    .wgpuTrait
-                ])
-            ),
-        ],
+        dependencies: adaRenderDependencies,
         resources: [
             .copy("Assets/Shaders")
         ],
@@ -977,12 +994,17 @@ package.dependencies += [
     .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.7.3"),
     // TODO: SpectralDragon packages should move to AdaEngine
     .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
-    .package(url: "https://github.com/adobe/swan", from: "0.0.8"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),
     .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.62.1"),
 ]
+
+if !isHeadlessCIEnabled {
+    package.dependencies.append(
+        .package(url: "https://github.com/adobe/swan", from: "0.0.8")
+    )
+}
 
 private extension Target {
     /// Creates a regular target.

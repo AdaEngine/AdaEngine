@@ -14,9 +14,11 @@ import WinSDK
 import Math
 import AdaUtils
 import Foundation
+import Dispatch
 
 // Windows cursor resource identifiers
 nonisolated(unsafe) private let IDC_ARROW: LPCWSTR = unsafe UnsafePointer<WCHAR>(bitPattern: UInt(32512))!
+private let adaEngineWorkMessage = UINT(WM_APP + 1)
 
 // Static storage for window class name (must persist for RegisterClassW)
 private let windowClassName: [WCHAR] = "AdaEngineWindow".wide
@@ -28,6 +30,7 @@ private var windowClassNamePtr: LPCWSTR {
 final class WindowsWindowManager: UIWindowManager {
 
     private unowned let screenManager: WindowsScreenManager
+    private let uiThread = WindowsUIThread()
     fileprivate var windowHandles: [UIWindow.ID: HWND] = unsafe [:]
     private var textInputDecoderStates: [UIWindow.ID: WindowsUTF16TextInputDecoder.State] = [:]
 
@@ -44,55 +47,64 @@ final class WindowsWindowManager: UIWindowManager {
         
         let width = Int32(size.width)
         let height = Int32(size.height)
+        let initialScale = screenManager.getMainScreen()?.scale ?? 1
+        let initialDPI = UINT(max((initialScale * 96).rounded(), 96))
         
         // Create Windows surface for rendering
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
         
-        // Create Win32 window
-        let className = "AdaEngineWindow"
-        let hInstance = unsafe GetModuleHandleW(nil)
-        
-        // Register window class if not already registered
-        var wc = unsafe WNDCLASSW()
-        unsafe wc.lpfnWndProc = unsafe WindowsWindowProc
-        unsafe wc.hInstance = unsafe hInstance
-        unsafe wc.lpszClassName = windowClassNamePtr
-        unsafe wc.hCursor = LoadCursorW(nil, IDC_ARROW)
-        unsafe wc.hbrBackground = UnsafeMutablePointer<HBRUSH__>(bitPattern: UInt(COLOR_WINDOW + 1))!
-        unsafe RegisterClassW(&wc)
-        
-        // Calculate window size including non-client area
-        var rect = RECT(left: 0, top: 0, right: width, bottom: height)
-        unsafe AdjustWindowRect(&rect, DWORD(WS_OVERLAPPEDWINDOW), false)
-        let windowWidth = rect.right - rect.left
-        let windowHeight = rect.bottom - rect.top
-        
-        let hwnd = unsafe CreateWindowExW(
-            0,
-            className.wide,
-            window.title.wide,
-            DWORD(WS_OVERLAPPEDWINDOW),
-            CW_USEDEFAULT,
-            CW_USEDEFAULT,
-            windowWidth,
-            windowHeight,
-            nil,
-            nil,
-            hInstance,
-            Unmanaged.passUnretained(self).toOpaque()
-        )
-        
-        guard let hwnd = unsafe hwnd else {
-            fatalError("Failed to create window")
+        let hwnd = self.uiThread.sync {
+            let className = "AdaEngineWindow"
+            let hInstance = unsafe GetModuleHandleW(nil)
+            
+            // Register window class if not already registered
+            var wc = unsafe WNDCLASSW()
+            unsafe wc.lpfnWndProc = unsafe WindowsWindowProc
+            unsafe wc.hInstance = unsafe hInstance
+            unsafe wc.lpszClassName = windowClassNamePtr
+            unsafe wc.hCursor = LoadCursorW(nil, IDC_ARROW)
+            unsafe wc.hbrBackground = UnsafeMutablePointer<HBRUSH__>(bitPattern: UInt(COLOR_WINDOW + 1))!
+            unsafe RegisterClassW(&wc)
+            
+            // Calculate window size including non-client area
+            let windowStyle = DWORD(WS_OVERLAPPEDWINDOW)
+            var rect = RECT(
+                left: 0,
+                top: 0,
+                right: LONG((Float(width) * initialScale).rounded()),
+                bottom: LONG((Float(height) * initialScale).rounded())
+            )
+            unsafe AdjustWindowRectExForDpi(&rect, windowStyle, false, 0, initialDPI)
+            let windowWidth = rect.right - rect.left
+            let windowHeight = rect.bottom - rect.top
+            
+            guard let hwnd = unsafe CreateWindowExW(
+                0,
+                className.wide,
+                window.title.wide,
+                windowStyle,
+                CW_USEDEFAULT,
+                CW_USEDEFAULT,
+                windowWidth,
+                windowHeight,
+                nil,
+                nil,
+                hInstance,
+                Unmanaged.passUnretained(self).toOpaque()
+            ) else {
+                fatalError("Failed to create window")
+            }
+
+            let windowPtr = unsafe Unmanaged.passUnretained(window).toOpaque()
+            let ptrValue = UInt64(UInt(bitPattern: OpaquePointer(windowPtr)))
+            unsafe SetWindowLongPtrW(hwnd, GWLP_USERDATA, LONG_PTR(bitPattern: ptrValue))
+            return hwnd
         }
 
         let windowsSurface = unsafe WindowsSurface(windowId: window.id, windowHwnd: hwnd)
         unsafe try? RenderEngine.shared.createWindow(window.id, for: windowsSurface, size: sizeInt)
         
         // Store window handle
-        let windowPtr = unsafe Unmanaged.passUnretained(window).toOpaque()
-        let ptrValue = UInt64(UInt(bitPattern: OpaquePointer(windowPtr)))
-        unsafe SetWindowLongPtrW(hwnd, GWLP_USERDATA, LONG_PTR(bitPattern: ptrValue))
         unsafe self.windowHandles[window.id] = hwnd
         
         let systemWindow = unsafe WindowsSystemWindow(hwnd: hwnd, surface: windowsSurface)
@@ -109,11 +121,15 @@ final class WindowsWindowManager: UIWindowManager {
         }
         
         if isFocused {
-            unsafe ShowWindow(systemWindow.hwnd, SW_SHOW)
-            unsafe SetForegroundWindow(systemWindow.hwnd)
-            unsafe SetFocus(systemWindow.hwnd)
+            self.uiThread.sync {
+                unsafe ShowWindow(systemWindow.hwnd, SW_SHOW)
+                unsafe SetForegroundWindow(systemWindow.hwnd)
+                unsafe SetFocus(systemWindow.hwnd)
+            }
         } else {
-            unsafe ShowWindow(systemWindow.hwnd, SW_SHOWNOACTIVATE)
+            _ = self.uiThread.sync {
+                unsafe ShowWindow(systemWindow.hwnd, SW_SHOWNOACTIVATE)
+            }
         }
         
         window.windowDidAppear()
@@ -125,21 +141,23 @@ final class WindowsWindowManager: UIWindowManager {
             fatalError("System window not exist.")
         }
         
-        let hwnd = unsafe systemWindow.hwnd
-        let style = unsafe GetWindowLongW(hwnd, GWL_STYLE)
-        
-        switch mode {
-        case .windowed:
-            if window.isFullscreen {
-                unsafe SetWindowLongW(hwnd, GWL_STYLE, style | Int32(WS_OVERLAPPEDWINDOW))
-                unsafe ShowWindow(hwnd, SW_RESTORE)
-                window.isFullscreen = false
-            }
-        case .fullscreen:
-            if !window.isFullscreen {
-                unsafe SetWindowLongW(hwnd, GWL_STYLE, style & ~Int32(WS_OVERLAPPEDWINDOW))
-                unsafe ShowWindow(hwnd, SW_MAXIMIZE)
-                window.isFullscreen = true
+        self.uiThread.sync {
+            let hwnd = unsafe systemWindow.hwnd
+            let style = unsafe GetWindowLongW(hwnd, GWL_STYLE)
+            
+            switch mode {
+            case .windowed:
+                if window.isFullscreen {
+                    unsafe SetWindowLongW(hwnd, GWL_STYLE, style | Int32(WS_OVERLAPPEDWINDOW))
+                    unsafe ShowWindow(hwnd, SW_RESTORE)
+                    window.isFullscreen = false
+                }
+            case .fullscreen:
+                if !window.isFullscreen {
+                    unsafe SetWindowLongW(hwnd, GWL_STYLE, style & ~Int32(WS_OVERLAPPEDWINDOW))
+                    unsafe ShowWindow(hwnd, SW_MAXIMIZE)
+                    window.isFullscreen = true
+                }
             }
         }
     }
@@ -151,7 +169,9 @@ final class WindowsWindowManager: UIWindowManager {
 
         self.resetTextInputDecoderState(for: window.id)
         self.removeWindow(window, setActiveAnotherIfNeeded: true)
-        unsafe DestroyWindow(systemWindow.hwnd)
+        _ = self.uiThread.sync {
+            unsafe DestroyWindow(systemWindow.hwnd)
+        }
     }
     
     override func resizeWindow(_ window: UIWindow, size: Size) {
@@ -159,20 +179,25 @@ final class WindowsWindowManager: UIWindowManager {
             return
         }
         
-        var rect = RECT()
-        unsafe GetClientRect(systemWindow.hwnd, &rect)
-        rect.right = LONG(size.width)
-        rect.bottom = LONG(size.height)
-        
-        unsafe AdjustWindowRect(&rect, DWORD(WS_OVERLAPPEDWINDOW), false)
-        unsafe SetWindowPos(
-            systemWindow.hwnd,
-            nil,
-            0, 0,
-            rect.right - rect.left,
-            rect.bottom - rect.top,
-            UINT(SWP_NOMOVE | SWP_NOZORDER)
-        )
+        self.uiThread.sync {
+            let scaleFactor = getWindowScaleFactor(systemWindow.hwnd)
+            let dpi = UINT(max((scaleFactor * 96).rounded(), 96))
+            let style = DWORD(WS_OVERLAPPEDWINDOW)
+            var rect = RECT()
+            unsafe GetClientRect(systemWindow.hwnd, &rect)
+            rect.right = LONG((size.width * scaleFactor).rounded())
+            rect.bottom = LONG((size.height * scaleFactor).rounded())
+            
+            unsafe AdjustWindowRectExForDpi(&rect, style, false, 0, dpi)
+            unsafe SetWindowPos(
+                systemWindow.hwnd,
+                nil,
+                0, 0,
+                rect.right - rect.left,
+                rect.bottom - rect.top,
+                UINT(SWP_NOMOVE | SWP_NOZORDER)
+            )
+        }
     }
     
     override func setMinimumSize(_ size: Size, for window: UIWindow) {
@@ -312,6 +337,100 @@ private func getCurrentTime() -> AdaUtils.TimeInterval {
     return AdaUtils.TimeInterval(GetTickCount64()) / 1000.0
 }
 
+private func getWindowScaleFactor(_ hwnd: HWND) -> Float {
+    let dpi = unsafe GetDpiForWindow(hwnd)
+    guard dpi > 0 else {
+        return 1
+    }
+    return max(Float(dpi) / 96.0, 1)
+}
+
+private func logicalSize(fromPhysicalWidth width: UInt16, height: UInt16, scaleFactor: Float) -> SizeInt {
+    SizeInt(
+        width: max(Int((Float(width) / scaleFactor).rounded()), 1),
+        height: max(Int((Float(height) / scaleFactor).rounded()), 1)
+    )
+}
+
+private func logicalMousePosition(lParam: LPARAM, hwnd: HWND, scaleFactor: Float) -> Point {
+    let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF)) / scaleFactor
+    let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF)) / scaleFactor
+    var rect = RECT()
+    unsafe GetClientRect(hwnd, &rect)
+    let clientHeight = Float(rect.bottom - rect.top) / scaleFactor
+    return Point(x, clientHeight - y)
+}
+
+private final class WindowsUIThread: @unchecked Sendable {
+    private let ready = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private var workItems: [() -> Void] = []
+    private var threadId: DWORD = 0
+
+    init() {
+        Thread.detachNewThread { [weak self] in
+            self?.run()
+        }
+        ready.wait()
+    }
+
+    func sync<T>(_ work: @escaping () -> T) -> T {
+        if GetCurrentThreadId() == threadId {
+            return work()
+        }
+
+        let semaphore = DispatchSemaphore(value: 0)
+        var result: T?
+        enqueue {
+            result = work()
+            semaphore.signal()
+        }
+        semaphore.wait()
+        return result!
+    }
+
+    private func enqueue(_ work: @escaping () -> Void) {
+        lock.lock()
+        workItems.append(work)
+        lock.unlock()
+        PostThreadMessageW(threadId, adaEngineWorkMessage, 0, 0)
+    }
+
+    private func run() {
+        threadId = GetCurrentThreadId()
+        var bootstrapMessage = MSG()
+        PeekMessageW(&bootstrapMessage, nil, 0, 0, UINT(PM_NOREMOVE))
+        ready.signal()
+
+        var msg = MSG()
+        while GetMessageW(&msg, nil, 0, 0) {
+            if msg.message == adaEngineWorkMessage {
+                drainWorkItems()
+            } else {
+                TranslateMessage(&msg)
+                DispatchMessageW(&msg)
+            }
+        }
+    }
+
+    private func drainWorkItems() {
+        while true {
+            lock.lock()
+            let items = workItems
+            workItems.removeAll(keepingCapacity: true)
+            lock.unlock()
+
+            guard !items.isEmpty else {
+                return
+            }
+
+            for item in items {
+                item()
+            }
+        }
+    }
+}
+
 @MainActor
 private func handleMouseButtonDown(
     window: UIWindow,
@@ -324,12 +443,12 @@ private func handleMouseButtonDown(
         return
     }
     
-    let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF))
-    let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF))
-    var rect = RECT()
-    unsafe GetClientRect(systemWindow.hwnd, &rect)
-    let clientHeight = Float(rect.bottom - rect.top)
-    let position = Point(x, clientHeight - y)
+    let scaleFactor = getWindowScaleFactor(systemWindow.hwnd)
+    let position = logicalMousePosition(
+        lParam: lParam,
+        hwnd: systemWindow.hwnd,
+        scaleFactor: scaleFactor
+    )
     
     inputRef.wrappedValue.mousePosition = position
     let modifiers = getWindowsKeyModifiers()
@@ -359,12 +478,12 @@ private func handleMouseButtonUp(
         return
     }
     
-    let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF))
-    let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF))
-    var rect = RECT()
-    unsafe GetClientRect(systemWindow.hwnd, &rect)
-    let clientHeight = Float(rect.bottom - rect.top)
-    let position = Point(x, clientHeight - y)
+    let scaleFactor = getWindowScaleFactor(systemWindow.hwnd)
+    let position = logicalMousePosition(
+        lParam: lParam,
+        hwnd: systemWindow.hwnd,
+        scaleFactor: scaleFactor
+    )
     
     inputRef.wrappedValue.mousePosition = position
     let modifiers = getWindowsKeyModifiers()
@@ -468,14 +587,60 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
     case UInt32(WM_SIZE):
         let width = UInt16(truncatingIfNeeded: lParam & 0xFFFF)
         let height = UInt16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF)
-        let newSize = Size(width: Float(width), height: Float(height))
-        let sizeInt = SizeInt(width: Int(width), height: Int(height))
+        let scaleFactor = getWindowScaleFactor(hwnd)
+        let sizeInt = logicalSize(
+            fromPhysicalWidth: width,
+            height: height,
+            scaleFactor: scaleFactor
+        )
+        let newSize = sizeInt.toSize()
         
         Task { @MainActor in
             if window.frame.size != newSize {
                 window.frame = Rect(origin: .zero, size: newSize)
             }
-            unsafe try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
+            unsafe try? RenderEngine.shared.resizeWindow(
+                window.id,
+                newSize: sizeInt,
+                scaleFactor: scaleFactor
+            )
+        }
+        return 0
+
+    case UInt32(WM_DPICHANGED):
+        let dpi = UInt32(wParam & 0xFFFF)
+        let scaleFactor = max(Float(dpi) / 96.0, 1)
+
+        if let suggestedRect = unsafe UnsafePointer<RECT>(bitPattern: Int(lParam)) {
+            unsafe SetWindowPos(
+                hwnd,
+                nil,
+                suggestedRect.pointee.left,
+                suggestedRect.pointee.top,
+                suggestedRect.pointee.right - suggestedRect.pointee.left,
+                suggestedRect.pointee.bottom - suggestedRect.pointee.top,
+                UINT(SWP_NOZORDER | SWP_NOACTIVATE)
+            )
+        }
+
+        var clientRect = RECT()
+        unsafe GetClientRect(hwnd, &clientRect)
+        let sizeInt = logicalSize(
+            fromPhysicalWidth: UInt16(truncatingIfNeeded: clientRect.right - clientRect.left),
+            height: UInt16(truncatingIfNeeded: clientRect.bottom - clientRect.top),
+            scaleFactor: scaleFactor
+        )
+        let newSize = sizeInt.toSize()
+
+        Task { @MainActor in
+            if window.frame.size != newSize {
+                window.frame = Rect(origin: .zero, size: newSize)
+            }
+            unsafe try? RenderEngine.shared.resizeWindow(
+                window.id,
+                newSize: sizeInt,
+                scaleFactor: scaleFactor
+            )
         }
         return 0
         
@@ -607,12 +772,12 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
                 return
             }
             
-            let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF))
-            let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF))
-            var rect = RECT()
-            unsafe GetClientRect(systemWindow.hwnd, &rect)
-            let clientHeight = Float(rect.bottom - rect.top)
-            let position = Point(x, clientHeight - y)
+            let scaleFactor = getWindowScaleFactor(systemWindow.hwnd)
+            let position = logicalMousePosition(
+                lParam: lParam,
+                hwnd: systemWindow.hwnd,
+                scaleFactor: scaleFactor
+            )
             
             inputRef.wrappedValue.mousePosition = position
             let modifiers = getWindowsKeyModifiers()
@@ -701,12 +866,12 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
             let delta = Int16(truncatingIfNeeded: (wParam >> 16) & 0xFFFF)
             let scrollDelta = Point(x: 0, y: Float(delta) / 120.0)
             
-            let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF))
-            let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF))
-            var rect = RECT()
-            unsafe GetClientRect(systemWindow.hwnd, &rect)
-            let clientHeight = Float(rect.bottom - rect.top)
-            let position = Point(x, clientHeight - y)
+            let scaleFactor = getWindowScaleFactor(systemWindow.hwnd)
+            let position = logicalMousePosition(
+                lParam: lParam,
+                hwnd: systemWindow.hwnd,
+                scaleFactor: scaleFactor
+            )
             
             let modifiers = getWindowsKeyModifiers()
             
@@ -753,13 +918,25 @@ final class WindowsSystemWindow: SystemWindow {
     
     var size: Size {
         get {
+            let scaleFactor = getWindowScaleFactor(hwnd)
             var rect = RECT()
             unsafe GetClientRect(hwnd, &rect)
-            return Size(width: Float(rect.right - rect.left), height: Float(rect.bottom - rect.top))
+            return Size(
+                width: Float(rect.right - rect.left) / scaleFactor,
+                height: Float(rect.bottom - rect.top) / scaleFactor
+            )
         }
         set {
-            var rect = RECT(left: 0, top: 0, right: LONG(newValue.width), bottom: LONG(newValue.height))
-            unsafe AdjustWindowRect(&rect, DWORD(WS_OVERLAPPEDWINDOW), false)
+            let scaleFactor = getWindowScaleFactor(hwnd)
+            let dpi = UINT(max((scaleFactor * 96).rounded(), 96))
+            let style = DWORD(WS_OVERLAPPEDWINDOW)
+            var rect = RECT(
+                left: 0,
+                top: 0,
+                right: LONG((newValue.width * scaleFactor).rounded()),
+                bottom: LONG((newValue.height * scaleFactor).rounded())
+            )
+            unsafe AdjustWindowRectExForDpi(&rect, style, false, 0, dpi)
             unsafe SetWindowPos(hwnd, nil, 0, 0, rect.right - rect.left, rect.bottom - rect.top, UINT(SWP_NOMOVE | SWP_NOZORDER))
         }
     }

@@ -62,6 +62,18 @@ public final class RenderEngine: RenderBackend, Sendable {
     public func resizeWindow(_ windowId: WindowID, newSize: SizeInt) throws {
         try self.renderBackend.resizeWindow(windowId, newSize: newSize)
     }
+
+    @MainActor
+    public func resizeWindow(_ windowId: WindowID, newSize: SizeInt, scaleFactor: Float) throws {
+        #if WEBGPU_ENABLED
+        if let webGPUBackend = self.renderBackend as? WebGPURenderBackend {
+            try webGPUBackend.resizeWindow(windowId, newSize: newSize, scaleFactor: scaleFactor)
+            return
+        }
+        #endif
+
+        try self.renderBackend.resizeWindow(windowId, newSize: newSize)
+    }
     
     public func destroyWindow(_ windowId: WindowID) throws {
         try self.renderBackend.destroyWindow(windowId)

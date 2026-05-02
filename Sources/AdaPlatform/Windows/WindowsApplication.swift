@@ -20,6 +20,7 @@ final class WindowsApplication: Application {
     private let screenManager: WindowsScreenManager
 
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
+        Self.enableDPIAwareness()
         self.screenManager = WindowsScreenManager()
         unsafe WindowsScreenManager.shared = screenManager
         unsafe Screen.screenManager = screenManager
@@ -102,6 +103,14 @@ final class WindowsApplication: Application {
     private func setupInput(for app: AppWorlds) {
         let mutableInput = app.main.getRefResource(Input.self)
         self.windowManager.inputRef = mutableInput
+    }
+
+    private static func enableDPIAwareness() {
+        if SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) {
+            return
+        }
+
+        SetProcessDPIAware()
     }
 }
 

@@ -50,7 +50,14 @@ public final class WindowsSurface: RenderSurface {
     public let windowId: WindowID
     public let windowHwnd: UnsafeMutableRawPointer
 
-    public var scaleFactor: Float { 1 }
+    public var scaleFactor: Float {
+        let hwnd = windowHwnd.assumingMemoryBound(to: HWND__.self)
+        let dpi = unsafe GetDpiForWindow(hwnd)
+        guard dpi > 0 else {
+            return 1
+        }
+        return max(Float(dpi) / 96.0, 1)
+    }
     public var prefferedPixelFormat: PixelFormat { .bgra8 }
 
     public init(windowId: WindowID, windowHwnd: UnsafeMutableRawPointer) {
