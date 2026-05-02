@@ -23,6 +23,10 @@ class ViewContainerNode: ViewNode {
     /// Virtual container nodes used to move their child from this nodes to another.
     var isVirtual: Bool = false
 
+    override var transientEnvironmentChildren: [ViewNode] {
+        nodes
+    }
+
     /// Builder method returns a new children.
     private var body: ((_ViewListInputs) -> _ViewListOutputs)?
     private var hasScheduledObservedContentInvalidation = false

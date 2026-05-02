@@ -167,11 +167,35 @@ class ViewNode: Identifiable {
     /// Stores an already-resolved environment and syncs VCS values without triggering re-renders.
     /// Used during reconciliation (update(from:)) where `newNode.environment` already contains
     /// all inherited and transformed values.
-    private func applyResolvedEnvironmentSilently(_ environment: EnvironmentValues) {
+    func applyResolvedEnvironmentSilently(_ environment: EnvironmentValues) {
         self.environment = environment
         storages.forEach { storage in
             guard let viewContextStorage = storage as? ViewContextStorage else { return }
             viewContextStorage.values = self.environment
+        }
+    }
+
+    var transientEnvironmentChildren: [ViewNode] {
+        []
+    }
+
+    func performWithTransientAnimationController(_ animationController: UIAnimationController, _ operation: () -> Void) {
+        let originalEnvironment = self.environment
+        var animatedEnvironment = originalEnvironment
+        animatedEnvironment.animationController = animationController
+
+        applyTransientEnvironmentTree(animatedEnvironment)
+        operation()
+        applyTransientEnvironmentTree(originalEnvironment)
+    }
+
+    private func applyTransientEnvironmentTree(_ resolvedEnvironment: EnvironmentValues) {
+        applyResolvedEnvironmentSilently(resolvedEnvironment)
+
+        for child in transientEnvironmentChildren {
+            var childEnvironment = resolvedEnvironment
+            child.environmentTransform?(&childEnvironment)
+            child.applyTransientEnvironmentTree(childEnvironment)
         }
     }
 
@@ -207,7 +231,7 @@ class ViewNode: Identifiable {
         let newFrame = Rect(origin: offset, size: size)
         let oldFrame = self.frame
         let isNestedAnimatedLayout = isInsideAnimatedLayoutPass()
-        let canAnimateInNestedLayout = allowsNestedFrameAnimation && oldFrame.size != newFrame.size
+        let canAnimateInNestedLayout = allowsNestedFrameAnimation && oldFrame != newFrame
 
         if participatesInFrameAnimation,
            let animationController = self.environment.animationController,
@@ -634,6 +658,8 @@ protocol ViewOwner: AnyObject {
     var containerView: UIView? { get }
 
     func updateEnvironment(_ env: EnvironmentValues)
+
+    func addTransientAnimationController(_ animationController: UIAnimationController)
 }
 
 extension UIGraphicsContext {

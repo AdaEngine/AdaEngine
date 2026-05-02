@@ -18,6 +18,10 @@ class ViewModifierNode: ViewNode {
         contentNode.layoutPriority
     }
 
+    override var transientEnvironmentChildren: [ViewNode] {
+        [contentNode]
+    }
+
     init<Content: View>(contentNode: ViewNode, content: Content) {
         self.contentNode = contentNode
         super.init(content: content)

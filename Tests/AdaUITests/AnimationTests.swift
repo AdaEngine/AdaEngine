@@ -45,6 +45,51 @@ struct AnimationTests {
     }
 
     @Test
+    func bindingAnimationProgressesAndCompletes() {
+        let capture = CapturedBoolBindings()
+        let tester = ViewTester(rootView: BindingAnimatedOpacityStateView(capture: capture))
+            .setSize(Size(width: 200, height: 200))
+            .performLayout()
+
+        guard let node = tester.findNodeByAccessibilityIdentifier("binding-opacity") as? OpacityViewNodeModifier else {
+            Issue.record("Failed to locate binding opacity node.")
+            return
+        }
+
+        #expect(abs(node.opacity - 1) < 0.001)
+
+        capture.animated.wrappedValue = true
+
+        #expect(abs(node.opacity - 1) < 0.001)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.opacity - 0.625) < 0.01)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.opacity - 0.25) < 0.001)
+    }
+
+    @Test
+    func plainBindingUpdateAfterBindingAnimationDoesNotAnimate() {
+        let capture = CapturedBoolBindings()
+        let tester = ViewTester(rootView: BindingAnimatedOpacityStateView(capture: capture))
+            .setSize(Size(width: 200, height: 200))
+            .performLayout()
+
+        guard let node = tester.findNodeByAccessibilityIdentifier("binding-opacity") as? OpacityViewNodeModifier else {
+            Issue.record("Failed to locate binding opacity node.")
+            return
+        }
+
+        capture.animated.wrappedValue = true
+        tester.advanceFrame(deltaTime: 1)
+        #expect(abs(node.opacity - 0.25) < 0.001)
+
+        capture.plain.wrappedValue = false
+        #expect(abs(node.opacity - 1) < 0.001)
+    }
+
+    @Test
     func scaleAndRotationAnimateThroughTransformPresentationValue() {
         let scaleState = BindingBox(false)
         let scaleTester = ViewTester(rootView: AnimatedScaleView(isScaled: scaleState.binding))
@@ -469,6 +514,27 @@ private final class BindingBox<Value> {
             get: { self.value },
             set: { self.value = $0 }
         )
+    }
+}
+
+@MainActor
+private final class CapturedBoolBindings {
+    var animated: Binding<Bool>!
+    var plain: Binding<Bool>!
+}
+
+private struct BindingAnimatedOpacityStateView: View {
+    let capture: CapturedBoolBindings
+    @State private var isDimmed = false
+
+    var body: some View {
+        let _ = capture.animated = $isDimmed.animation(Animation.linear(duration: 1))
+        let _ = capture.plain = $isDimmed
+
+        Color.red
+            .frame(width: 40, height: 40)
+            .opacity(isDimmed ? 0.25 : 1)
+            .accessibilityIdentifier("binding-opacity")
     }
 }
 

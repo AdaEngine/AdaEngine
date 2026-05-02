@@ -44,6 +44,10 @@ final class ViewRootNode: ViewNode {
 
     static let rootCoordinateSpace = NamedViewCoordinateSpace(UUID().uuidString)
 
+    override var transientEnvironmentChildren: [ViewNode] {
+        [contentNode]
+    }
+
     init<Root: View>(contentNode: ViewNode, content: Root) {
         self.contentNode = contentNode
         super.init(content: content)

@@ -5,6 +5,20 @@
 //  Created by Vladislav Prusakov on 28.06.2024.
 //
 
+import AdaAnimation
+
+@MainActor
+enum BindingAnimationTransaction {
+    private(set) static var currentController: UIAnimationController?
+
+    static func withAnimation(_ animation: Animation, _ operation: () -> Void) {
+        let previousController = currentController
+        currentController = UIAnimationController(animation: animation)
+        operation()
+        currentController = previousController
+    }
+}
+
 /// A property wrapper type that can read and write a value owned by a source of truth.
 /// 
 /// Use a binding to create a two-way connection between a property that stores data, and a view that displays and changes the data. 
@@ -53,6 +67,29 @@ public struct Binding<T>: UpdatableProperty {
     ///
     /// - Returns: The binding.
     public func update() { }
+
+    /// Returns a binding that applies an animation to changes made through it.
+    ///
+    /// - Parameter animation: The animation to apply. Pass `nil` to leave changes unanimated.
+    /// - Returns: An animated binding.
+    @MainActor
+    public func animation(_ animation: Animation? = .default) -> Binding<T> {
+        Binding<T>(
+            get: {
+                self.wrappedValue
+            },
+            set: { @MainActor newValue in
+                guard let animation else {
+                    self.wrappedValue = newValue
+                    return
+                }
+
+                BindingAnimationTransaction.withAnimation(animation) {
+                    self.wrappedValue = newValue
+                }
+            }
+        )
+    }
 
     /// Create a constant binding.
     ///

@@ -265,6 +265,10 @@ private final class NavigationSplitColumnNode: ViewModifierNode {
     let column: NavigationSplitViewColumn
     private(set) var widthPreference: NavigationSplitViewColumnWidth?
 
+    override var allowsNestedFrameAnimation: Bool {
+        true
+    }
+
     init<Content: View>(
         column: NavigationSplitViewColumn,
         contentNode: ViewNode,
@@ -292,6 +296,10 @@ private final class NavigationSplitDividerNode: ViewNode {
     let leadingColumn: NavigationSplitViewColumn
     private var lastDragX: Float?
     private var lastTouchX: Float?
+
+    override var allowsNestedFrameAnimation: Bool {
+        true
+    }
 
     init(leadingColumn: NavigationSplitViewColumn) {
         self.leadingColumn = leadingColumn
@@ -413,7 +421,7 @@ private final class NavigationSplitViewNode: ViewContainerNode {
         let columns = visibleColumns(for: frame.width)
         let widths = resolvedWidths(for: columns, totalWidth: frame.width)
 
-        hideNodes(except: columns)
+        layoutHiddenNodes(except: columns, in: bounds)
 
         var x = bounds.minX
         for (index, column) in columns.enumerated() {
@@ -445,15 +453,14 @@ private final class NavigationSplitViewNode: ViewContainerNode {
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         guard self.point(inside: point, with: event) else { return nil }
 
-        for divider in visibleDividerNodes(for: frame.width).reversed() {
+        for divider in drawableDividerNodes(for: frame.width).reversed() {
             let newPoint = divider.convert(point, from: self)
             if let hit = divider.hitTest(newPoint, with: event) {
                 return hit
             }
         }
 
-        for column in visibleColumns(for: frame.width).reversed() {
-            guard let node = columnNode(for: column) else { continue }
+        for node in drawableColumnNodes(for: frame.width).reversed() {
             let newPoint = node.convert(point, from: self)
             if let hit = node.hitTest(newPoint, with: event) {
                 return hit
@@ -468,13 +475,17 @@ private final class NavigationSplitViewNode: ViewContainerNode {
         context.environment = environment
         context.translateBy(x: frame.origin.x, y: -frame.origin.y)
 
-        let visibleDividers = visibleDividerNodes(for: frame.width)
-        for column in visibleColumns(for: frame.width) {
-            columnNode(for: column)?.draw(with: context)
+        let drawableDividers = drawableDividerNodes(for: frame.width)
+        for node in nodes {
+            if let columnNode = node as? NavigationSplitColumnNode,
+               shouldDrawColumnNode(columnNode, width: frame.width) {
+                columnNode.draw(with: context)
+                continue
+            }
 
-            if let divider = dividerNode(after: column),
-               visibleDividers.contains(where: { $0 === divider }) {
-                divider.draw(with: context)
+            if let dividerNode = node as? NavigationSplitDividerNode,
+               drawableDividers.contains(where: { $0 === dividerNode }) {
+                dividerNode.draw(with: context)
             }
         }
     }
@@ -620,7 +631,7 @@ private final class NavigationSplitViewNode: ViewContainerNode {
         )
     }
 
-    private func hideNodes(except visibleColumns: [NavigationSplitViewColumn]) {
+    private func layoutHiddenNodes(except visibleColumns: [NavigationSplitViewColumn], in bounds: Rect) {
         let visibleColumnSet = Set(visibleColumns)
         let visibleDividerSet = Set(visibleColumns.dropLast())
 
@@ -635,8 +646,96 @@ private final class NavigationSplitViewNode: ViewContainerNode {
                 continue
             }
 
+            if let columnNode = node as? NavigationSplitColumnNode {
+                let hiddenFrame = hiddenFrame(for: columnNode.column, in: bounds)
+                node.place(
+                    in: hiddenFrame.origin,
+                    anchor: .topLeading,
+                    proposal: ProposedViewSize(width: hiddenFrame.width, height: hiddenFrame.height)
+                )
+                continue
+            }
+
+            if let dividerNode = node as? NavigationSplitDividerNode {
+                let hiddenFrame = hiddenDividerFrame(after: dividerNode.leadingColumn, in: bounds)
+                node.place(
+                    in: hiddenFrame.origin,
+                    anchor: .topLeading,
+                    proposal: ProposedViewSize(width: hiddenFrame.width, height: hiddenFrame.height)
+                )
+                continue
+            }
+
             node.place(in: .zero, anchor: .topLeading, proposal: .zero)
         }
+    }
+
+    private func hiddenFrame(for column: NavigationSplitViewColumn, in bounds: Rect) -> Rect {
+        let width = hiddenWidth(for: column, totalWidth: bounds.width)
+
+        switch column {
+        case .sidebar:
+            return Rect(x: bounds.minX - width, y: bounds.minY, width: width, height: bounds.height)
+        case .content:
+            return Rect(x: bounds.minX - width, y: bounds.minY, width: width, height: bounds.height)
+        case .detail:
+            return Rect(x: bounds.maxX, y: bounds.minY, width: width, height: bounds.height)
+        }
+    }
+
+    private func hiddenDividerFrame(after column: NavigationSplitViewColumn, in bounds: Rect) -> Rect {
+        switch column {
+        case .sidebar, .content:
+            return Rect(
+                x: bounds.minX - Self.dividerWidth,
+                y: bounds.minY,
+                width: Self.dividerWidth,
+                height: bounds.height
+            )
+        case .detail:
+            return Rect(
+                x: bounds.maxX,
+                y: bounds.minY,
+                width: Self.dividerWidth,
+                height: bounds.height
+            )
+        }
+    }
+
+    private func hiddenWidth(for column: NavigationSplitViewColumn, totalWidth: Float) -> Float {
+        let spec = spec(for: column)
+        let preferred = userWidths[column] ?? spec.ideal
+        return min(clamp(preferred, min: spec.min, max: spec.max), totalWidth)
+    }
+
+    private func drawableColumnNodes(for width: Float) -> [NavigationSplitColumnNode] {
+        columnNodes().filter { shouldDrawColumnNode($0, width: width) }
+    }
+
+    private func drawableDividerNodes(for width: Float) -> [NavigationSplitDividerNode] {
+        let visibleDividers = visibleDividerNodes(for: width)
+        return nodes.compactMap { node -> NavigationSplitDividerNode? in
+            guard let divider = node as? NavigationSplitDividerNode else { return nil }
+            if visibleDividers.contains(where: { $0 === divider }) {
+                return divider
+            }
+            return isTransitionFrameVisible(divider.frame) ? divider : nil
+        }
+    }
+
+    private func shouldDrawColumnNode(_ node: NavigationSplitColumnNode, width: Float) -> Bool {
+        if visibleColumns(for: width).contains(node.column) {
+            return true
+        }
+
+        return isTransitionFrameVisible(node.frame)
+    }
+
+    private func isTransitionFrameVisible(_ frame: Rect) -> Bool {
+        frame.width > 0
+            && frame.height > 0
+            && frame.maxX > 0
+            && frame.minX < self.frame.width
     }
 
     private func columnNode(for column: NavigationSplitViewColumn) -> NavigationSplitColumnNode? {

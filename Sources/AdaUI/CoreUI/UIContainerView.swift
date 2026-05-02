@@ -43,6 +43,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 
     var inspectionDebugOverlayMode: UIDebugOverlayMode = .off
     weak var inspectionLastHitTestNode: ViewNode?
+    private var transientAnimationControllers: [UIAnimationController] = []
 
     /// Initialize a new container view.
     ///
@@ -68,11 +69,19 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         viewTree.rootNode.mergeEnvironment(env)
 
         focusManager.setRootNode(viewTree.rootNode)
-        viewTree.rootNode.place(
-            in: .zero,
-            anchor: .zero,
-            proposal: ProposedViewSize(self.frame.size)
-        )
+        let placeRootNode = {
+            self.viewTree.rootNode.place(
+                in: .zero,
+                anchor: .zero,
+                proposal: ProposedViewSize(self.frame.size)
+            )
+        }
+
+        if let animationController = activeTransientAnimationController {
+            viewTree.rootNode.performWithTransientAnimationController(animationController, placeRootNode)
+        } else {
+            placeRootNode()
+        }
     }
 
     private func navigationBarChromeInsets() -> EdgeInsets {
@@ -361,6 +370,39 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     public override func update(_ deltaTime: TimeInterval) {
         super.update(deltaTime)
         self.viewTree.rootNode.update(deltaTime)
+        self.updateTransientAnimationControllers(deltaTime)
+    }
+
+    func addTransientAnimationController(_ animationController: UIAnimationController) {
+        if !transientAnimationControllers.contains(where: { $0 === animationController }) {
+            transientAnimationControllers.append(animationController)
+        }
+
+        animationController.playAnimation()
+        setNeedsLayout()
+    }
+
+    private func updateTransientAnimationControllers(_ deltaTime: TimeInterval) {
+        var needsAnotherFrame = false
+
+        for animationController in transientAnimationControllers where animationController.isPlaying {
+            viewTree.rootNode.performWithTransientAnimationController(animationController) {
+                animationController.update(deltaTime)
+            }
+            if animationController.isPlaying {
+                needsAnotherFrame = true
+            }
+        }
+
+        transientAnimationControllers.removeAll { !$0.isPlaying }
+
+        if needsAnotherFrame {
+            setNeedsLayout()
+        }
+    }
+
+    private var activeTransientAnimationController: UIAnimationController? {
+        transientAnimationControllers.first(where: { $0.isPlaying })
     }
 
     private func drawInspectionDebugOverlay(with context: UIGraphicsContext) {

@@ -65,14 +65,24 @@ class UpdatablePropertyStorage {
     ///
     /// - Returns: The property.
     func update() {
-        nodes.forEach {
-            if $0.shouldNotifyAboutChanges {
+        let animationController = BindingAnimationTransaction.currentController
+
+        nodes.forEach { node in
+            if node.shouldNotifyAboutChanges {
                  Logger(label: "org.adaengine.AdaUI")
-                     .info("\(type(of: $0.content)): \(propertyName) changed.")
+                     .info("\(type(of: node.content)): \(propertyName) changed.")
             }
 
-            $0.invalidateContent()
-            if let containerView = $0.owner?.containerView {
+            if let animationController {
+                node.performWithTransientAnimationController(animationController) {
+                    node.invalidateContent()
+                }
+                node.owner?.addTransientAnimationController(animationController)
+            } else {
+                node.invalidateContent()
+            }
+
+            if let containerView = node.owner?.containerView {
                 // Content invalidation can change layout without changing the container frame.
                 // `setNeedsLayout()` schedules `layoutSubviews` → `place()` before the next draw;
                 // `setNeedsDisplay` alone only repaints with stale layout until something (e.g. resize) relayouts.
