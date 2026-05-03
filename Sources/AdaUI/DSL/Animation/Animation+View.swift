@@ -14,6 +14,19 @@ protocol _AnimationControllerProvider: AnyObject {
     var providedAnimationController: UIAnimationController? { get }
 }
 
+/// Performs state changes with an animation transaction.
+///
+/// Mutations made inside the body rebuild affected views with a transient animation
+/// controller. Pass `nil` to disable animation for the body, including inside an
+/// outer animated transaction.
+@MainActor
+public func withAnimation<Result>(
+    _ animation: Animation? = .default,
+    _ body: () throws -> Result
+) rethrows -> Result {
+    try BindingAnimationTransaction.withAnimation(animation, body)
+}
+
 public extension View {
     /// Applies the given animation to this view when the specified value changes.
     /// - Parameter animation: The animation to apply. If animation is nil, the view doesn’t animate.

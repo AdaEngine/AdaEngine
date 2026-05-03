@@ -11,11 +11,11 @@ import AdaAnimation
 enum BindingAnimationTransaction {
     private(set) static var currentController: UIAnimationController?
 
-    static func withAnimation(_ animation: Animation, _ operation: () -> Void) {
+    static func withAnimation<Result>(_ animation: Animation?, _ operation: () throws -> Result) rethrows -> Result {
         let previousController = currentController
-        currentController = UIAnimationController(animation: animation)
-        operation()
-        currentController = previousController
+        currentController = animation.map { UIAnimationController(animation: $0) }
+        defer { currentController = previousController }
+        return try operation()
     }
 }
 
@@ -79,11 +79,6 @@ public struct Binding<T>: UpdatableProperty {
                 self.wrappedValue
             },
             set: { @MainActor newValue in
-                guard let animation else {
-                    self.wrappedValue = newValue
-                    return
-                }
-
                 BindingAnimationTransaction.withAnimation(animation) {
                     self.wrappedValue = newValue
                 }

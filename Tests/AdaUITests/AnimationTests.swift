@@ -70,6 +70,84 @@ struct AnimationTests {
     }
 
     @Test
+    func withAnimationProgressesAndCompletes() {
+        let capture = CapturedBoolBindings()
+        let tester = ViewTester(rootView: BindingAnimatedOpacityStateView(capture: capture))
+            .setSize(Size(width: 200, height: 200))
+            .performLayout()
+
+        guard let node = tester.findNodeByAccessibilityIdentifier("binding-opacity") as? OpacityViewNodeModifier else {
+            Issue.record("Failed to locate binding opacity node.")
+            return
+        }
+
+        #expect(abs(node.opacity - 1) < 0.001)
+
+        withAnimation(Animation.linear(duration: 1)) {
+            capture.plain.wrappedValue = true
+        }
+
+        #expect(abs(node.opacity - 1) < 0.001)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.opacity - 0.625) < 0.01)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.opacity - 0.25) < 0.001)
+    }
+
+    @Test
+    func nilWithAnimationSnapsWithoutAnimation() {
+        let capture = CapturedBoolBindings()
+        let tester = ViewTester(rootView: BindingAnimatedOpacityStateView(capture: capture))
+            .setSize(Size(width: 200, height: 200))
+            .performLayout()
+
+        guard let node = tester.findNodeByAccessibilityIdentifier("binding-opacity") as? OpacityViewNodeModifier else {
+            Issue.record("Failed to locate binding opacity node.")
+            return
+        }
+
+        withAnimation(nil) {
+            capture.plain.wrappedValue = true
+        }
+
+        #expect(abs(node.opacity - 0.25) < 0.001)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.opacity - 0.25) < 0.001)
+    }
+
+    @Test
+    func nestedNilWithAnimationRestoresOuterAnimation() {
+        let capture = CapturedBoolBindings()
+        let tester = ViewTester(rootView: BindingAnimatedOpacityStateView(capture: capture))
+            .setSize(Size(width: 200, height: 200))
+            .performLayout()
+
+        guard let node = tester.findNodeByAccessibilityIdentifier("binding-opacity") as? OpacityViewNodeModifier else {
+            Issue.record("Failed to locate binding opacity node.")
+            return
+        }
+
+        withAnimation(Animation.linear(duration: 1)) {
+            withAnimation(nil) {
+                capture.plain.wrappedValue = true
+            }
+
+            capture.plain.wrappedValue = false
+        }
+
+        #expect(abs(node.opacity - 0.25) < 0.001)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.opacity - 0.625) < 0.01)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.opacity - 1) < 0.001)
+    }
+
+    @Test
     func plainBindingUpdateAfterBindingAnimationDoesNotAnimate() {
         let capture = CapturedBoolBindings()
         let tester = ViewTester(rootView: BindingAnimatedOpacityStateView(capture: capture))
