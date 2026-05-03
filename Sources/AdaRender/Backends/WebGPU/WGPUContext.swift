@@ -19,6 +19,8 @@ import QuartzCore
 import WinSDK
 #endif
 
+let webGPUDeviceLock = Mutex(())
+
 public final class WGPUContext: @unchecked Sendable {
     public let device: WebGPU.GPUDevice
     public let adapter: WebGPU.GPUAdapter
@@ -96,15 +98,20 @@ public final class WGPUContext: @unchecked Sendable {
             guard let window = windows[windowId] else {
                 throw ContextError.windowNotFound
             }
-            configureSurface(
-                surface: window.surface,
-                size: newSize,
-                scaleFactor: scaleFactor ?? window.scaleFactor,
-                pixelFormat: pixelFormat ?? window.pixelFormat
-            )
-            window.size = newSize
-            if let scaleFactor {
-                window.scaleFactor = scaleFactor
+            window.surfaceLock.withLock { _ in
+                webGPUDeviceLock.withLock { _ in
+                    configureSurface(
+                        surface: window.surface,
+                        size: newSize,
+                        scaleFactor: scaleFactor ?? window.scaleFactor,
+                        pixelFormat: pixelFormat ?? window.pixelFormat
+                    )
+                }
+                window.size = newSize
+                if let scaleFactor {
+                    window.scaleFactor = scaleFactor
+                }
+                window.pendingDrawableSkips = 2
             }
             windows[windowId] = window
         }
@@ -181,6 +188,8 @@ public final class WGPUContext: @unchecked Sendable {
         public let windowId: WindowID
         public let surface: WebGPU.GPUSurface
         public let pixelFormat: PixelFormat
+        let surfaceLock = Mutex(())
+        var pendingDrawableSkips: Int = 0
         public var size: Math.SizeInt
         public var scaleFactor: Float
 

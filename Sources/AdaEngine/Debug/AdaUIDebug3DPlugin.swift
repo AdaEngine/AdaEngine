@@ -1,33 +1,146 @@
 import AdaApp
 import AdaECS
 import AdaInput
-import AdaText
+@_spi(Internal) import AdaRender
+import AdaSprite
+import AdaTransform
 import AdaUI
 import AdaUtils
 import Math
 
 /// Opens a separate AdaUI debug window that visualizes live AdaUI trees as spaced 2.5D layers.
 public struct AdaUIDebug3DPlugin: Plugin {
+    public enum Presentation: Sendable {
+        case separateWindow
+        case primaryWindowOverlay
+        case separateWindowAndOverlay
+    }
+
     private let title: String
     private let size: Size
+    private let presentation: Presentation
 
     public init(
         title: String = "AdaUI 3D Debug View",
-        size: Size = Size(width: 1280, height: 820)
+        size: Size = Size(width: 1280, height: 820),
+        presentation: Presentation = .separateWindow
     ) {
         self.title = title
         self.size = size
+        self.presentation = presentation
     }
 
     @MainActor
     public func setup(in app: borrowing AppWorlds) {
         let model = AdaUIDebug3DModel()
+        app
+            .insertResource(AdaUIDebug3DResource(title: title, size: size, presentation: presentation, model: model))
+            .addSystem(StartupAdaUIDebug3DSystem.self, on: .startup)
+            .addSystem(UpdateAdaUIDebug3DSystem.self, on: .postUpdate)
+    }
+
+    @MainActor
+    public func finish(for app: borrowing AppWorlds) {
+        guard let debug = app.getResource(AdaUIDebug3DResource.self) else {
+            return
+        }
+
+        debug.ensureSurfaces()
+        debug.synchronizeOverlayFrame()
+        debug.window?.setNeedsLayout()
+        debug.window?.setNeedsDisplay()
+        debug.overlayView?.setNeedsLayout()
+        debug.overlayView?.setNeedsDisplay()
+    }
+}
+
+public final class AdaUIDebug3DResource: Resource, @unchecked Sendable {
+    @MainActor let title: String
+    @MainActor let size: Size
+    @MainActor let presentation: AdaUIDebug3DPlugin.Presentation
+    @MainActor let model: AdaUIDebug3DModel
+    @MainActor weak var window: UIWindow?
+    @MainActor weak var overlayView: UIView?
+    @MainActor private var didCreateWindow = false
+    @MainActor private var didCreateOverlay = false
+    @MainActor private var refreshAccumulator: TimeInterval = 0
+    @MainActor private let autoRefreshInterval: TimeInterval = 0.35
+
+    @MainActor
+    init(
+        title: String,
+        size: Size,
+        presentation: AdaUIDebug3DPlugin.Presentation,
+        model: AdaUIDebug3DModel
+    ) {
+        self.title = title
+        self.size = size
+        self.presentation = presentation
+        self.model = model
+    }
+
+    @MainActor
+    func ensureSurfaces() {
+        switch presentation {
+        case .separateWindow:
+            ensureWindow()
+        case .primaryWindowOverlay:
+            ensurePrimaryWindowOverlay()
+        case .separateWindowAndOverlay:
+            ensureWindow()
+            ensurePrimaryWindowOverlay()
+        }
+    }
+
+    @MainActor
+    func synchronizeOverlayFrame() {
+        guard let overlayView,
+              let appWorlds = AppWorldsSession.current,
+              let primaryWindow = appWorlds.getResource(PrimaryWindow.self)?.window else {
+            return
+        }
+
+        let expectedFrame = Rect(origin: .zero, size: primaryWindow.frame.size)
+        guard overlayView.frame != expectedFrame else {
+            return
+        }
+
+        overlayView.frame = expectedFrame
+        overlayView.setNeedsLayout()
+        overlayView.setNeedsDisplay()
+    }
+
+    @MainActor
+    func autoRefreshIfNeeded(deltaTime: TimeInterval) -> Bool {
+        guard model.autoRefresh else {
+            refreshAccumulator = 0
+            return false
+        }
+
+        refreshAccumulator += deltaTime
+        guard refreshAccumulator >= autoRefreshInterval else {
+            return false
+        }
+
+        refreshAccumulator = 0
+        model.refresh()
+        return true
+    }
+
+    @MainActor
+    private func ensureWindow() {
+        guard !didCreateWindow, window == nil else {
+            return
+        }
+        didCreateWindow = true
+
         let window = UIWindow(configuration: UIWindow.Configuration(
             title: title,
-            frame: Rect(origin: .zero, size: size),
+            frame: Rect(x: 80, y: 80, width: size.width, height: size.height),
             minimumSize: Size(width: 900, height: 580),
             mode: .windowed,
             background: .opaque(Color.fromHex(0x202327)),
+            level: .floating,
             showsImmediately: false,
             makeKey: false
         ))
@@ -38,53 +151,88 @@ public struct AdaUIDebug3DPlugin: Plugin {
         container.autoresizingRules = [.flexibleWidth, .flexibleHeight]
         container.backgroundColor = Color.fromHex(0x202327)
         window.addSubview(container)
-        window.showWindow(makeFocused: false)
+        window.showWindow(makeFocused: true)
 
         model.refresh()
-        app
-            .insertResource(AdaUIDebug3DResource(model: model, window: window))
-            .addSystem(UpdateAdaUIDebug3DSystem.self, on: .postUpdate)
+        self.window = window
     }
-}
-
-public final class AdaUIDebug3DResource: Resource, @unchecked Sendable {
-    @MainActor let model: AdaUIDebug3DModel
-    @MainActor weak var window: UIWindow?
 
     @MainActor
-    init(model: AdaUIDebug3DModel, window: UIWindow) {
-        self.model = model
-        self.window = window
+    private func ensurePrimaryWindowOverlay() {
+        guard !didCreateOverlay, overlayView == nil else {
+            return
+        }
+        guard let appWorlds = AppWorldsSession.current,
+              let primaryWindow = appWorlds.getResource(PrimaryWindow.self)?.window else {
+            return
+        }
+
+        didCreateOverlay = true
+
+        let overlay = UIContainerView(rootView: AdaUIDebug3DView(model: model))
+        overlay.frame = Rect(origin: .zero, size: primaryWindow.frame.size)
+        overlay.autoresizingRules = [.flexibleWidth, .flexibleHeight]
+        overlay.backgroundColor = Color.fromHex(0x202327)
+        overlay.zIndex = Int.max
+        primaryWindow.addSubview(overlay)
+        model.ignoredContainerIds.insert(ObjectIdentifier(overlay))
+        model.refresh()
+        overlay.setNeedsLayout()
+        overlay.setNeedsDisplay()
+        self.overlayView = overlay
     }
 }
 
 @System
 @MainActor
-func UpdateAdaUIDebug3D(_ resource: Res<AdaUIDebug3DResource>) {
+func StartupAdaUIDebug3D(_ resource: Res<AdaUIDebug3DResource>) {
     let debug = resource.wrappedValue
-    guard debug.model.autoRefresh else {
-        return
-    }
-
-    debug.model.refresh()
+    debug.ensureSurfaces()
+    debug.synchronizeOverlayFrame()
     debug.window?.setNeedsLayout()
     debug.window?.setNeedsDisplay()
+    debug.overlayView?.setNeedsLayout()
+    debug.overlayView?.setNeedsDisplay()
+}
+
+@System
+@MainActor
+func UpdateAdaUIDebug3D(_ resource: Res<AdaUIDebug3DResource>, _ deltaTime: Res<DeltaTime>) {
+    let debug = resource.wrappedValue
+    debug.ensureSurfaces()
+    debug.synchronizeOverlayFrame()
+
+    guard debug.autoRefreshIfNeeded(deltaTime: deltaTime.deltaTime) else {
+        return
+    }
+    debug.window?.setNeedsLayout()
+    debug.window?.setNeedsDisplay()
+    debug.overlayView?.setNeedsLayout()
+    debug.overlayView?.setNeedsDisplay()
 }
 
 @MainActor
 final class AdaUIDebug3DModel {
     var debugWindowId: UIWindow.ID?
+    var ignoredContainerIds: Set<ObjectIdentifier> = []
     var autoRefresh = true
     var selectedRuntimeId: String?
-    var zoom: Float = 0.72
-    var layerSpacing: Float = 34
-    var depthLimit: Int = 80
-    var pan = Point(96, 112)
+    var zoom: Float = 0.44
+    var layerSpacing: Float = 24
+    var depthLimit: Int = 36
+    var pan = Point(48, 72)
 
     private(set) var windows: [AdaUIDebug3DWindowSnapshot] = []
     private(set) var lastItems: [AdaUIDebug3DLayout.Item] = []
     private(set) var selectedNode: UINodeSnapshot?
     private(set) var selectedPath: [UINodeSummary] = []
+    private var snapshotVersion = 0
+    private var cachedProjectionKey: ProjectionCacheKey?
+    private var cachedProjectedItems: [AdaUIDebug3DLayout.Item] = []
+    private weak var sceneWorld: World?
+    private var sceneEntityId: Entity.ID?
+    private var sceneMaterial = CustomMaterial(AdaUIDebugVertexColorMaterial())
+    private var sceneKey: ProjectionCacheKey?
 
     var selectedDescriptionLines: [String] {
         guard let node = selectedNode else {
@@ -121,16 +269,19 @@ final class AdaUIDebug3DModel {
             windows = []
             selectedNode = nil
             selectedPath = []
+            invalidateProjection()
             return
         }
 
-        windows = manager.windows.values.compactMap { element in
+        let nextWindows: [AdaUIDebug3DWindowSnapshot] = manager.windows.values.compactMap { element in
             let window = element.value
             guard window.id != debugWindowId else {
                 return nil
             }
 
-            let roots = window.uiInspectableContainers().flatMap { container in
+            let roots = window.uiInspectableContainers().filter { container in
+                !ignoredContainerIds.contains(ObjectIdentifier(container))
+            }.flatMap { container in
                 container.uiTreeRoots()
             }
 
@@ -146,6 +297,13 @@ final class AdaUIDebug3DModel {
             )
         }
 
+        guard !nextWindows.isEmpty || windows.isEmpty else {
+            return
+        }
+
+        windows = nextWindows
+        snapshotVersion += 1
+        invalidateProjection()
         resolveSelectedNode()
     }
 
@@ -157,41 +315,221 @@ final class AdaUIDebug3DModel {
             viewportSize: size,
             depthLimit: depthLimit
         )
+        let key = ProjectionCacheKey(
+            snapshotVersion: snapshotVersion,
+            projection: projection,
+            selectedRuntimeId: selectedRuntimeId
+        )
+        if cachedProjectionKey == key {
+            lastItems = cachedProjectedItems
+            syncSceneIfNeeded(items: cachedProjectedItems, viewportSize: size, key: key)
+            return cachedProjectedItems
+        }
+
         lastItems = AdaUIDebug3DLayout.project(
             windows: windows,
             projection: projection,
             selectedRuntimeId: selectedRuntimeId
         )
+        cachedProjectionKey = key
+        cachedProjectedItems = lastItems
+        syncSceneIfNeeded(items: lastItems, viewportSize: size, key: key)
         return lastItems
     }
 
+    func attachSceneWorld(_ world: World) {
+        sceneWorld = world
+        configureSceneCamera(viewportSize: Size(width: 1280, height: 820))
+        sceneKey = nil
+        if !cachedProjectedItems.isEmpty, let cachedProjectionKey {
+            syncSceneIfNeeded(items: cachedProjectedItems, viewportSize: cachedProjectionKey.projection.viewportSize, key: cachedProjectionKey)
+        }
+    }
+
     func select(at point: Point, viewportSize: Size) {
-        let items = project(size: viewportSize)
+        let items = lastItems.isEmpty ? project(size: viewportSize) : lastItems
         guard let item = AdaUIDebug3DLayout.pick(point, in: items) else {
             return
         }
 
         selectedRuntimeId = item.runtimeId
+        invalidateProjection()
         resolveSelectedNode()
         highlightSelectedNode()
     }
 
     func resetCamera() {
-        zoom = 0.72
-        layerSpacing = 34
-        pan = Point(96, 112)
+        zoom = 0.44
+        layerSpacing = 24
+        depthLimit = 36
+        pan = Point(48, 72)
+        invalidateProjection()
     }
 
     func zoomBy(_ delta: Float) {
         zoom = min(2.5, max(0.2, zoom + delta))
+        invalidateProjection()
     }
 
     func layerSpacingBy(_ delta: Float) {
         layerSpacing = min(140, max(6, layerSpacing + delta))
+        invalidateProjection()
     }
 
     func depthLimitBy(_ delta: Int) {
         depthLimit = min(240, max(1, depthLimit + delta))
+        invalidateProjection()
+    }
+
+    func setPan(_ newPan: Point) {
+        pan = newPan
+        invalidateProjection()
+    }
+
+    private func invalidateProjection() {
+        cachedProjectionKey = nil
+        sceneKey = nil
+    }
+
+    private func syncSceneIfNeeded(items: [AdaUIDebug3DLayout.Item], viewportSize: Size, key: ProjectionCacheKey) {
+        guard sceneKey != key else {
+            return
+        }
+        sceneKey = key
+        rebuildScene(items: items, viewportSize: viewportSize)
+    }
+
+    private func rebuildScene(items: [AdaUIDebug3DLayout.Item], viewportSize: Size) {
+        guard let world = sceneWorld,
+              let device = world.getResource(RenderDeviceHandler.self) else {
+            return
+        }
+
+        configureSceneCamera(viewportSize: viewportSize)
+
+        let worldScale = sceneWorldScale(viewportSize: viewportSize)
+        let mesh = makeBatchedLayerMesh(items: items, viewportSize: viewportSize, worldScale: worldScale, renderDevice: device.renderDevice)
+
+        if let sceneEntityId, let entity = world.getEntityByID(sceneEntityId) {
+            entity.components += Mesh2D(mesh: mesh, materials: [sceneMaterial])
+            entity.components += Transform()
+            return
+        }
+
+        let entity = world.spawn("AdaUI Debug Layers") {
+            Mesh2D(mesh: mesh, materials: [sceneMaterial])
+            Transform()
+        }
+        sceneEntityId = entity.id
+        world.flush()
+    }
+
+    private func makeBatchedLayerMesh(
+        items: [AdaUIDebug3DLayout.Item],
+        viewportSize: Size,
+        worldScale: Float,
+        renderDevice: RenderDevice
+    ) -> Mesh {
+        var descriptor = MeshDescriptor(name: "AdaUI Debug Layers")
+        descriptor.primitiveTopology = .triangleList
+
+        var positions: [Vector3] = []
+        var colors: [Color] = []
+        var indices: [UInt32] = []
+        positions.reserveCapacity(items.count * 4)
+        colors.reserveCapacity(items.count * 4)
+        indices.reserveCapacity(items.count * 6)
+
+        let sortedItems = items.sorted { lhs, rhs in
+            if lhs.depth == rhs.depth {
+                return lhs.rect.area > rhs.rect.area
+            }
+            return lhs.depth < rhs.depth
+        }
+
+        for item in sortedItems {
+            let rect = item.rect
+            guard rect.width > 0, rect.height > 0 else {
+                continue
+            }
+
+            let depth = Float(item.depth)
+            let depthOffset = depth * max(12, layerSpacing * 1.8)
+            let parallax = depth * layerSpacing * 0.35
+            let x = (rect.midX - viewportSize.width * 0.5 + parallax) * worldScale
+            let y = (viewportSize.height * 0.5 - rect.midY + parallax * 0.22) * worldScale
+            let z = -depthOffset * worldScale
+            let fillAlpha: Float = item.isSelected ? 0.86 : (item.isInteractable ? 0.42 : 0.2)
+            let color = item.isSelected ? Color.fromHex(0x2D7EFF).opacity(fillAlpha) : item.color.opacity(fillAlpha)
+
+            let halfWidth = max(0.5, rect.width * worldScale * 0.5)
+            let halfHeight = max(0.5, rect.height * worldScale * 0.5)
+            let skew = halfWidth * 0.18
+            let vertexStart = UInt32(positions.count)
+            positions.append(contentsOf: [
+                Vector3(x - halfWidth + skew, y - halfHeight, z),
+                Vector3(x + halfWidth + skew, y - halfHeight, z),
+                Vector3(x + halfWidth - skew, y + halfHeight, z),
+                Vector3(x - halfWidth - skew, y + halfHeight, z)
+            ])
+            colors.append(contentsOf: [color, color, color, color])
+            indices.append(contentsOf: [
+                vertexStart, vertexStart + 1, vertexStart + 2,
+                vertexStart + 2, vertexStart + 3, vertexStart
+            ])
+        }
+
+        if positions.isEmpty {
+            positions = [
+                Vector3(-1, -1, -1),
+                Vector3(1, -1, -1),
+                Vector3(1, 1, -1),
+                Vector3(-1, 1, -1)
+            ]
+            colors = Array(repeating: Color.clear, count: 4)
+            indices = [0, 1, 2, 2, 3, 0]
+        }
+
+        descriptor.positions = MeshBuffer(positions)
+        descriptor.colors = MeshBuffer(colors)
+        descriptor.indicies = indices
+        return Mesh.generate(from: [descriptor], renderDevice: renderDevice)
+    }
+
+    private func configureSceneCamera(viewportSize: Size) {
+        guard let world = sceneWorld else {
+            return
+        }
+
+        let safeWidth = max(1, viewportSize.width)
+        let safeHeight = max(1, viewportSize.height)
+        let distance = max(safeWidth, safeHeight) * max(1.0, 1.28 / max(0.2, zoom))
+
+        for entity in world.getEntities() {
+            guard var camera = entity.components[Camera.self],
+                  var transform = entity.components[Transform.self] else {
+                continue
+            }
+
+            var projection = PerspectiveProjection(near: 0.1, far: 10_000, fieldOfView: .degrees(54), aspectRation: safeWidth / safeHeight)
+            projection.updateView(width: safeWidth, height: safeHeight)
+            camera.projection = .perspective(projection)
+            camera.backgroundColor = Color.fromHex(0x171A1F)
+            transform.position = Vector3(0, 0, distance)
+            transform.rotation = Quat.identity
+            entity.components += camera
+            entity.components += transform
+            return
+        }
+    }
+
+    private func sceneWorldScale(viewportSize: Size) -> Float {
+        let safeWidth = max(1, viewportSize.width)
+        let safeHeight = max(1, viewportSize.height)
+        let distance = max(safeWidth, safeHeight) * max(1.0, 1.28 / max(0.2, zoom))
+        let fieldOfView = Float(54.0 * .pi / 180.0)
+        let focalLength = safeHeight / (2 * tan(fieldOfView * 0.5))
+        return max(0.1, distance / max(1, focalLength))
     }
 
     private func resolveSelectedNode() {
@@ -237,6 +575,12 @@ final class AdaUIDebug3DModel {
             }
         }
     }
+}
+
+private struct ProjectionCacheKey: Hashable {
+    let snapshotVersion: Int
+    let projection: AdaUIDebug3DProjection
+    let selectedRuntimeId: String?
 }
 
 struct AdaUIDebug3DWindowSnapshot: Hashable {
@@ -294,7 +638,7 @@ enum AdaUIDebug3DLayout {
             yOffset += height
         }
 
-        return items
+        return items.sorted { $0.depth < $1.depth }
     }
 
     static func pick(_ point: Point, in items: [Item]) -> Item? {
@@ -332,18 +676,26 @@ enum AdaUIDebug3DLayout {
                 height: max(1, source.height * projection.zoom)
             )
 
-            items.append(Item(
-                id: "\(window.id.id)-\(node.runtimeId)",
-                windowId: window.id,
-                runtimeId: node.runtimeId,
-                label: shortType(node.viewType),
-                rect: rect,
-                sourceFrame: source,
-                depth: depth,
-                color: color(for: node),
-                isSelected: node.runtimeId == selectedRuntimeId,
-                isInteractable: node.isInteractable
-            ))
+            let viewport = Rect(
+                x: -320,
+                y: -320,
+                width: projection.viewportSize.width + 640,
+                height: projection.viewportSize.height + 640
+            )
+            if rect.intersects(viewport) {
+                items.append(Item(
+                    id: "\(window.id.id)-\(node.runtimeId)",
+                    windowId: window.id,
+                    runtimeId: node.runtimeId,
+                    label: shortType(node.viewType),
+                    rect: rect,
+                    sourceFrame: source,
+                    depth: depth,
+                    color: color(for: node),
+                    isSelected: node.runtimeId == selectedRuntimeId,
+                    isInteractable: node.isInteractable
+                ))
+            }
         }
 
         for child in node.children {
@@ -367,7 +719,7 @@ enum AdaUIDebug3DLayout {
             value &*= 0x100000001b3
         }
         let hue = Int(value & 0x00FFFFFF)
-        return Color.fromHex(hue).opacity(node.isInteractable ? 0.34 : 0.18)
+        return Color.fromHex(hue).opacity(node.isInteractable ? 0.16 : 0.045)
     }
 }
 
@@ -383,112 +735,119 @@ struct AdaUIDebug3DView: View {
                 viewport
             }
             .padding(12)
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
             .background(Color.fromHex(0x202327))
 
             inspector
                 .frame(width: 360)
                 .background(Color.fromHex(0x292D33))
         }
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.fromHex(0x202327))
         .onInputEvent(KeyEvent.self) { event in
             handleKey(event)
         }
     }
 
     private var toolbar: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Button(action: {
+        HStack(alignment: .center, spacing: 10) {
+            toolbarButton("Refresh") {
                 model.refresh()
                 revision += 1
-            }) {
-                Text("Refresh")
-                    .font(.system(size: 13))
             }
 
-            Button(action: {
+            toolbarButton(model.autoRefresh ? "Auto On" : "Auto Off") {
                 model.autoRefresh.toggle()
                 revision += 1
-            }) {
-                Text(model.autoRefresh ? "Auto On" : "Auto Off")
-                    .font(.system(size: 13))
             }
 
-            Button(action: {
+            toolbarButton("Reset") {
                 model.resetCamera()
                 revision += 1
-            }) {
-                Text("Reset")
-                    .font(.system(size: 13))
             }
 
             Text("Zoom \(format(model.zoom))")
-                .font(.system(size: 13))
-                .foregroundColor(Color.white.opacity(0.78))
+                .font(.system(size: 14))
+                .foregroundColor(Color.white.opacity(0.82))
 
-            Button(action: {
+            toolbarButton("-", minWidth: 38) {
                 model.zoomBy(-0.1)
                 revision += 1
-            }) {
-                Text("-")
-                    .font(.system(size: 16))
             }
 
-            Button(action: {
+            toolbarButton("+", minWidth: 38) {
                 model.zoomBy(0.1)
                 revision += 1
-            }) {
-                Text("+")
-                    .font(.system(size: 16))
             }
 
             Text("Layer \(Int(model.layerSpacing))")
-                .font(.system(size: 13))
-                .foregroundColor(Color.white.opacity(0.78))
+                .font(.system(size: 14))
+                .foregroundColor(Color.white.opacity(0.82))
 
-            Button(action: {
+            toolbarButton("-", minWidth: 38) {
                 model.layerSpacingBy(-6)
                 revision += 1
-            }) {
-                Text("-")
-                    .font(.system(size: 16))
             }
 
-            Button(action: {
+            toolbarButton("+", minWidth: 38) {
                 model.layerSpacingBy(6)
                 revision += 1
-            }) {
-                Text("+")
-                    .font(.system(size: 16))
             }
 
             Text("Depth \(model.depthLimit)")
-                .font(.system(size: 13))
-                .foregroundColor(Color.white.opacity(0.78))
+                .font(.system(size: 14))
+                .foregroundColor(Color.white.opacity(0.82))
 
-            Button(action: {
+            toolbarButton("-", minWidth: 38) {
                 model.depthLimitBy(-8)
                 revision += 1
-            }) {
-                Text("-")
-                    .font(.system(size: 16))
             }
 
-            Button(action: {
+            toolbarButton("+", minWidth: 38) {
                 model.depthLimitBy(8)
                 revision += 1
-            }) {
-                Text("+")
-                    .font(.system(size: 16))
             }
 
             Spacer()
         }
-        .frame(height: 36)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.fromHex(0x171A1F))
+        .border(Color.white.opacity(0.08), lineWidth: 1)
+        .frame(height: 64, alignment: .leading)
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        .zIndex(10)
+    }
+
+    private func toolbarButton(_ title: String, minWidth: Float = 72, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 14))
+                .foregroundColor(Color.white.opacity(0.9))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(minWidth: minWidth, minHeight: 36)
+                .background(Color.fromHex(0x252A31))
+                .border(Color.white.opacity(0.16), lineWidth: 1)
+        }
     }
 
     private var viewport: some View {
-        ZStack {
-            Canvas { context, size in
-                drawScene(context: &context, size: size)
+        GeometryReader { proxy in
+            viewportContent(size: proxy.size)
+        }
+        .background(Color.fromHex(0x1A1D21))
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+    }
+
+    private func viewportContent(size: Size) -> some View {
+        let _ = revision
+        let _ = model.project(size: size)
+        return ZStack {
+            SceneView(setup: { world in
+                model.attachSceneWorld(world)
+            }) { context in
+                context.viewport
             }
 
             Color.clear
@@ -496,10 +855,10 @@ struct AdaUIDebug3DView: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
                             if let lastDragLocation {
-                                model.pan = Point(
+                                model.setPan(Point(
                                     model.pan.x + value.location.x - lastDragLocation.x,
                                     model.pan.y + value.location.y - lastDragLocation.y
-                                )
+                                ))
                             }
                             lastDragLocation = value.location
                             revision += 1
@@ -507,13 +866,14 @@ struct AdaUIDebug3DView: View {
                         .onEnded { value in
                             lastDragLocation = nil
                             if abs(value.translation.width) < 3, abs(value.translation.height) < 3 {
-                                model.select(at: value.location, viewportSize: Size(width: 1, height: 1))
+                                model.select(at: value.location, viewportSize: size)
                             }
                             revision += 1
                         }
                 )
         }
         .background(Color.fromHex(0x1A1D21))
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
     }
 
     private var inspector: some View {
@@ -553,60 +913,7 @@ struct AdaUIDebug3DView: View {
             Spacer()
         }
         .padding(14)
-    }
-
-    private func drawScene(context: inout UIGraphicsContext, size: Size) {
-        let _ = revision
-        context.drawRect(Rect(origin: .zero, size: size), color: Color.fromHex(0x1A1D21))
-        drawGrid(context: &context, size: size)
-
-        let items = model.project(size: size)
-        for item in items.sorted(by: { $0.depth < $1.depth }) {
-            drawItem(item, context: &context)
-        }
-
-        if items.isEmpty {
-            drawText("No AdaUI windows to inspect", in: Rect(x: 28, y: 36, width: 360, height: 28), color: Color.white.opacity(0.7), context: context)
-        }
-    }
-
-    private func drawGrid(context: inout UIGraphicsContext, size: Size) {
-        let color = Color.white.opacity(0.06)
-        var x: Float = 0
-        while x < size.width {
-            context.drawLine(start: Vector2(x, 0), end: Vector2(x, -size.height), lineWidth: 1, color: color)
-            x += 80
-        }
-        var y: Float = 0
-        while y < size.height {
-            context.drawLine(start: Vector2(0, -y), end: Vector2(size.width, -y), lineWidth: 1, color: color)
-            y += 80
-        }
-    }
-
-    private func drawItem(_ item: AdaUIDebug3DLayout.Item, context: inout UIGraphicsContext) {
-        let rect = item.rect
-        let stroke = item.isSelected ? Color.fromHex(0x2D7EFF) : Color.white.opacity(item.isInteractable ? 0.44 : 0.22)
-        context.drawRect(rect, color: item.isSelected ? Color.fromHex(0x2D7EFF).opacity(0.22) : item.color)
-        drawBorder(rect, color: stroke, lineWidth: item.isSelected ? 3 : 1, context: context)
-
-        if rect.width > 42, rect.height > 18 {
-            drawText(item.label, in: Rect(x: rect.origin.x + 5, y: rect.origin.y + 4, width: rect.width - 10, height: 18), color: Color.white.opacity(0.78), context: context)
-        }
-    }
-
-    private func drawBorder(_ rect: Rect, color: Color, lineWidth: Float, context: UIGraphicsContext) {
-        context.drawLine(start: Vector2(rect.minX, -rect.minY), end: Vector2(rect.maxX, -rect.minY), lineWidth: lineWidth, color: color)
-        context.drawLine(start: Vector2(rect.minX, -rect.maxY), end: Vector2(rect.maxX, -rect.maxY), lineWidth: lineWidth, color: color)
-        context.drawLine(start: Vector2(rect.minX, -rect.minY), end: Vector2(rect.minX, -rect.maxY), lineWidth: lineWidth, color: color)
-        context.drawLine(start: Vector2(rect.maxX, -rect.minY), end: Vector2(rect.maxX, -rect.maxY), lineWidth: lineWidth, color: color)
-    }
-
-    private func drawText(_ string: String, in rect: Rect, color: Color, context: UIGraphicsContext) {
-        var attributes = TextAttributeContainer()
-        attributes.font = Font.system(size: 11)
-        attributes.foregroundColor = color
-        context.drawText(AttributedText(string, attributes: attributes), in: rect)
+        .frame(minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func handleKey(_ event: KeyEvent) {
@@ -625,6 +932,8 @@ struct AdaUIDebug3DView: View {
         revision += 1
     }
 }
+
+private struct AdaUIDebugVertexColorMaterial: CanvasMaterial {}
 
 private extension UINodeSnapshot {
     var summary: UINodeSummary {

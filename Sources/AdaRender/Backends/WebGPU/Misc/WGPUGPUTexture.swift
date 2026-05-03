@@ -9,6 +9,7 @@
 import Math
 @unsafe @preconcurrency import WebGPU
 import Foundation
+import Synchronization
 
 public final class WGPUGPUTexture: GPUTexture {
 
@@ -38,32 +39,34 @@ public final class WGPUGPUTexture: GPUTexture {
             fatalError("Cannot replace a region on a WebGPU texture without a device")
         }
 
-        device.queue.writeTexture(
-            destination: WebGPU.GPUTexelCopyTextureInfo(
-                texture: texture,
-                mipLevel: UInt32(mipmapLevel),
-                origin: WebGPU.GPUOrigin3D(
-                    x: UInt32(region.origin.x),
-                    y: UInt32(region.origin.y),
-                    z: 0
+        webGPUDeviceLock.withLock { _ in
+            device.queue.writeTexture(
+                destination: WebGPU.GPUTexelCopyTextureInfo(
+                    texture: texture,
+                    mipLevel: UInt32(mipmapLevel),
+                    origin: WebGPU.GPUOrigin3D(
+                        x: UInt32(region.origin.x),
+                        y: UInt32(region.origin.y),
+                        z: 0
+                    ),
+                    aspect: WebGPU.GPUTextureAspect.all
                 ),
-                aspect: WebGPU.GPUTextureAspect.all
-            ),
-            data: UnsafeRawBufferPointer(
-                start: bytes,
-                count: bytesPerRow * region.size.height
-            ),
-            dataLayout: WebGPU.GPUTexelCopyBufferLayout(
-                offset: 0,
-                bytesPerRow: UInt32(bytesPerRow),
-                rowsPerImage: UInt32(region.size.height)
-            ),
-            writeSize: WebGPU.GPUExtent3D(
-                width: UInt32(region.size.width),
-                height: UInt32(region.size.height),
-                depthOrArrayLayers: 1
+                data: UnsafeRawBufferPointer(
+                    start: bytes,
+                    count: bytesPerRow * region.size.height
+                ),
+                dataLayout: WebGPU.GPUTexelCopyBufferLayout(
+                    offset: 0,
+                    bytesPerRow: UInt32(bytesPerRow),
+                    rowsPerImage: UInt32(region.size.height)
+                ),
+                writeSize: WebGPU.GPUExtent3D(
+                    width: UInt32(region.size.width),
+                    height: UInt32(region.size.height),
+                    depthOrArrayLayers: 1
+                )
             )
-        )
+        }
     }
 
     init(descriptor: TextureDescriptor, device: WebGPU.GPUDevice) {
@@ -105,7 +108,9 @@ public final class WGPUGPUTexture: GPUTexture {
             nextInChain: nil
         )
 
-        let texture = device.createTexture(descriptor: textureDesc)
+        let texture = webGPUDeviceLock.withLock { _ in
+            device.createTexture(descriptor: textureDesc)
+        }
         if let image = descriptor.image {
             let origin = WebGPU.GPUOrigin3D(x: 0, y: 0, z: 0)
             let writeSize = WebGPU.GPUExtent3D(
@@ -119,21 +124,23 @@ public final class WGPUGPUTexture: GPUTexture {
             unsafe image.data.withUnsafeBytes { buffer in
                 unsafe precondition(buffer.baseAddress != nil, "Image should not contains empty address.")
 
-                unsafe device.queue.writeTexture(
-                    destination: WebGPU.GPUTexelCopyTextureInfo(
-                        texture: texture,
-                        mipLevel: 0,
-                        origin: origin,
-                        aspect: WebGPU.GPUTextureAspect.all
-                    ),
-                    data: buffer,
-                    dataLayout: WebGPU.GPUTexelCopyBufferLayout(
-                        offset: 0,
-                        bytesPerRow: UInt32(bytesPerRow),
-                        rowsPerImage: UInt32(image.height)
-                    ),
-                    writeSize: writeSize
-                )
+                webGPUDeviceLock.withLock { _ in
+                    unsafe device.queue.writeTexture(
+                        destination: WebGPU.GPUTexelCopyTextureInfo(
+                            texture: texture,
+                            mipLevel: 0,
+                            origin: origin,
+                            aspect: WebGPU.GPUTextureAspect.all
+                        ),
+                        data: buffer,
+                        dataLayout: WebGPU.GPUTexelCopyBufferLayout(
+                            offset: 0,
+                            bytesPerRow: UInt32(bytesPerRow),
+                            rowsPerImage: UInt32(image.height)
+                        ),
+                        writeSize: writeSize
+                    )
+                }
             }
         }
 
@@ -159,10 +166,16 @@ public final class WGPUGPUTexture: GPUTexture {
         let bytesPerRow = self.texture.width * bytesInPixel
         let pixelCount = UInt32(self.texture.width * self.texture.height)
         let count = Int(pixelCount * bytesInPixel)
-        guard let buffer = device.createBuffer(descriptor: WebGPU.GPUBufferDescriptor(usage: .copyDst, size: UInt64(count))) else {
+        nonisolated(unsafe) var readbackBuffer: WebGPU.GPUBuffer?
+        webGPUDeviceLock.withLock { _ in
+            readbackBuffer = device.createBuffer(descriptor: WebGPU.GPUBufferDescriptor(usage: .copyDst, size: UInt64(count)))
+        }
+        guard let buffer = readbackBuffer else {
             return nil
         }
-        let encoder = device.createCommandEncoder(descriptor: nil as WebGPU.GPUCommandEncoderDescriptor?)
+        let encoder = webGPUDeviceLock.withLock { _ in
+            device.createCommandEncoder(descriptor: nil as WebGPU.GPUCommandEncoderDescriptor?)
+        }
         encoder.copyTextureToBuffer(
             source: WebGPU.GPUTexelCopyTextureInfo(
                 texture: texture,
@@ -181,7 +194,9 @@ public final class WGPUGPUTexture: GPUTexture {
             )
         )
         let commandBuffer: WebGPU.GPUCommandBuffer = encoder.finish(descriptor: nil as WebGPU.GPUCommandBufferDescriptor?)
-        device.queue.submit(commands: [commandBuffer])
+        webGPUDeviceLock.withLock { _ in
+            device.queue.submit(commands: [commandBuffer])
+        }
 
         return unsafe Image(
             width: Int(self.texture.width),

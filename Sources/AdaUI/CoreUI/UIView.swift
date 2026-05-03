@@ -400,7 +400,7 @@ open class UIView {
             return self
         }
 
-        for subview in self.subviews.reversed() {
+        for subview in self.zSortedChildren.reversed() {
             let newPoint = subview.convert(point, from: self)
             if let view = subview.hitTest(newPoint, with: event) {
                 return view

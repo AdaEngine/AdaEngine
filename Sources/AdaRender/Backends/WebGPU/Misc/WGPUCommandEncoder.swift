@@ -9,6 +9,7 @@
 import AdaUtils
 import Math
 @unsafe @preconcurrency import WebGPU
+import Synchronization
 
 final class WGPUCommandEncoder: CommandBuffer {
     var label: String? {
@@ -21,12 +22,16 @@ final class WGPUCommandEncoder: CommandBuffer {
 
     init(device: WebGPU.GPUDevice) {
         self.device = device
-        self.commandEncoder = device.createCommandEncoder(descriptor: nil)
+        self.commandEncoder = webGPUDeviceLock.withLock { _ in
+            device.createCommandEncoder(descriptor: nil)
+        }
     }
 
     func commit() {
         let commandBuffer: WebGPU.GPUCommandBuffer = commandEncoder.finish(descriptor: nil as WebGPU.GPUCommandBufferDescriptor?)
-        device.queue.submit(commands: [commandBuffer])
+        webGPUDeviceLock.withLock { _ in
+            device.queue.submit(commands: [commandBuffer])
+        }
     }
 
     func beginRenderPass(_ desc: RenderPassDescriptor) -> RenderCommandEncoder {

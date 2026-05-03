@@ -8,6 +8,7 @@
 #if canImport(WebGPU)
 import AdaUtils
 @unsafe @preconcurrency import WebGPU
+import Synchronization
 
 final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
     let descriptor: RenderPipelineDescriptor
@@ -26,33 +27,35 @@ final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
         let topology = descriptor.primitive.toWebGPU
         let stripIndexFormat: WebGPU.GPUIndexFormat = (topology == .triangleStrip || topology == .lineStrip) ? .uint32 : .undefined
 
-        self.renderPipeline = device.createRenderPipeline(
-            descriptor: WebGPU.GPURenderPipelineDescriptor(
-                label: descriptor.debugName,
-                layout: nil,
-                vertex: WebGPU.GPUVertexState(
-                    module: vertex.shader,
-                    entryPoint: vertex.entryPoint,
-                    constants: [],
-                    buffers: vertexBuffers
-                ),
-                primitive: WebGPU.GPUPrimitiveState(
-                    topology: topology,
-                    stripIndexFormat: stripIndexFormat,
-                    frontFace: .CCW,
-                    cullMode: descriptor.backfaceCulling ? .back : .none,
-                    unclippedDepth: false
-                ),
-                depthStencil: depthStencilState,
-                multisample: WebGPU.GPUMultisampleState(
-                    count: 1,
-                    mask: ~0,
-                    alphaToCoverageEnabled: false
-                ),
-                fragment: fragmentState,
-                nextInChain: nil
+        self.renderPipeline = webGPUDeviceLock.withLock { _ in
+            device.createRenderPipeline(
+                descriptor: WebGPU.GPURenderPipelineDescriptor(
+                    label: descriptor.debugName,
+                    layout: nil,
+                    vertex: WebGPU.GPUVertexState(
+                        module: vertex.shader,
+                        entryPoint: vertex.entryPoint,
+                        constants: [],
+                        buffers: vertexBuffers
+                    ),
+                    primitive: WebGPU.GPUPrimitiveState(
+                        topology: topology,
+                        stripIndexFormat: stripIndexFormat,
+                        frontFace: .CCW,
+                        cullMode: descriptor.backfaceCulling ? .back : .none,
+                        unclippedDepth: false
+                    ),
+                    depthStencil: depthStencilState,
+                    multisample: WebGPU.GPUMultisampleState(
+                        count: 1,
+                        mask: ~0,
+                        alphaToCoverageEnabled: false
+                    ),
+                    fragment: fragmentState,
+                    nextInChain: nil
+                )
             )
-        )
+        }
     }
 
     private static func makeVertexBuffers(from descriptor: RenderPipelineDescriptor) -> [WebGPU.GPUVertexBufferLayout] {

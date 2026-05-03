@@ -19,6 +19,7 @@ import Dispatch
 // Windows cursor resource identifiers
 nonisolated(unsafe) private let IDC_ARROW: LPCWSTR = unsafe UnsafePointer<WCHAR>(bitPattern: UInt(32512))!
 private let adaEngineWorkMessage = UINT(WM_APP + 1)
+nonisolated(unsafe) private var windowMinimumSizes: [UIWindow.ID: Size] = [:]
 
 // Static storage for window class name (must persist for RegisterClassW)
 private let windowClassName: [WCHAR] = "AdaEngineWindow".wide
@@ -33,6 +34,7 @@ final class WindowsWindowManager: UIWindowManager {
     private let uiThread = WindowsUIThread()
     fileprivate var windowHandles: [UIWindow.ID: HWND] = unsafe [:]
     private var textInputDecoderStates: [UIWindow.ID: WindowsUTF16TextInputDecoder.State] = [:]
+    private var windowsSynchronizingFromSystem: Set<UIWindow.ID> = []
 
     init(_ screenManager: WindowsScreenManager) {
         self.screenManager = screenManager
@@ -40,10 +42,15 @@ final class WindowsWindowManager: UIWindowManager {
     }
 
     override func createWindow(for window: UIWindow) {
-        let minSize = UIWindow.defaultMinimumSize
+        let minSize = window.configuration.minimumSize
         
         let frame = window.frame
-        let size = frame.size == .zero ? minSize : frame.size
+        let size = frame.size == .zero
+            ? minSize
+            : Size(
+                width: max(frame.size.width, minSize.width),
+                height: max(frame.size.height, minSize.height)
+            )
         
         let width = Int32(size.width)
         let height = Int32(size.height)
@@ -109,6 +116,7 @@ final class WindowsWindowManager: UIWindowManager {
         
         let systemWindow = unsafe WindowsSystemWindow(hwnd: hwnd, surface: windowsSurface)
         window.systemWindow = systemWindow
+        unsafe windowMinimumSizes[window.id] = minSize
         window.minSize = minSize
         window.userInterfaceIdiom = .desktop
         
@@ -168,6 +176,7 @@ final class WindowsWindowManager: UIWindowManager {
         }
 
         self.resetTextInputDecoderState(for: window.id)
+        unsafe windowMinimumSizes.removeValue(forKey: window.id)
         self.removeWindow(window, setActiveAnotherIfNeeded: true)
         _ = self.uiThread.sync {
             unsafe DestroyWindow(systemWindow.hwnd)
@@ -175,6 +184,10 @@ final class WindowsWindowManager: UIWindowManager {
     }
     
     override func resizeWindow(_ window: UIWindow, size: Size) {
+        guard !windowsSynchronizingFromSystem.contains(window.id) else {
+            return
+        }
+
         guard let systemWindow = window.systemWindow as? WindowsSystemWindow else {
             return
         }
@@ -201,12 +214,21 @@ final class WindowsWindowManager: UIWindowManager {
     }
     
     override func setMinimumSize(_ size: Size, for window: UIWindow) {
-        guard let _ = window.systemWindow as? WindowsSystemWindow else {
+        guard let systemWindow = window.systemWindow as? WindowsSystemWindow else {
             fatalError("System window not exist.")
         }
         
-        // Store minimum size - will be enforced in window proc
-        // This is a simplified implementation
+        unsafe windowMinimumSizes[window.id] = size
+
+        let currentSize = systemWindow.size
+        let clampedSize = Size(
+            width: max(currentSize.width, size.width),
+            height: max(currentSize.height, size.height)
+        )
+
+        if clampedSize != currentSize {
+            resizeWindow(window, size: clampedSize)
+        }
     }
     
     override func getScreen(for window: UIWindow) -> Screen? {
@@ -268,6 +290,30 @@ final class WindowsWindowManager: UIWindowManager {
 
     func resetTextInputDecoderState(for windowId: UIWindow.ID) {
         self.textInputDecoderStates.removeValue(forKey: windowId)
+    }
+
+    func synchronizeRenderMetrics(
+        for window: UIWindow,
+        sizeInt: SizeInt,
+        scaleFactor: Float,
+        updateWindowFrame: Bool
+    ) {
+        let newSize = sizeInt.toSize()
+
+        if updateWindowFrame && window.frame.size != newSize {
+            windowsSynchronizingFromSystem.insert(window.id)
+            defer {
+                windowsSynchronizingFromSystem.remove(window.id)
+            }
+            window.frame = Rect(origin: .zero, size: newSize)
+        }
+
+        window.setNeedsLayout()
+        unsafe try? RenderEngine.shared.resizeWindow(
+            window.id,
+            newSize: sizeInt,
+            scaleFactor: scaleFactor
+        )
     }
 }
 
@@ -345,6 +391,20 @@ private func getWindowScaleFactor(_ hwnd: HWND) -> Float {
     return max(Float(dpi) / 96.0, 1)
 }
 
+private func adjustedWindowSize(forClientSize size: Size, hwnd: HWND, scaleFactor: Float) -> (width: LONG, height: LONG) {
+    let dpi = UINT(max((scaleFactor * 96).rounded(), 96))
+    let style = DWORD(unsafe GetWindowLongW(hwnd, GWL_STYLE))
+    let exStyle = DWORD(unsafe GetWindowLongW(hwnd, GWL_EXSTYLE))
+    var rect = RECT(
+        left: 0,
+        top: 0,
+        right: LONG((size.width * scaleFactor).rounded()),
+        bottom: LONG((size.height * scaleFactor).rounded())
+    )
+    unsafe AdjustWindowRectExForDpi(&rect, style, false, exStyle, dpi)
+    return (rect.right - rect.left, rect.bottom - rect.top)
+}
+
 private func logicalSize(fromPhysicalWidth width: UInt16, height: UInt16, scaleFactor: Float) -> SizeInt {
     SizeInt(
         width: max(Int((Float(width) / scaleFactor).rounded()), 1),
@@ -352,13 +412,22 @@ private func logicalSize(fromPhysicalWidth width: UInt16, height: UInt16, scaleF
     )
 }
 
-private func logicalMousePosition(lParam: LPARAM, hwnd: HWND, scaleFactor: Float) -> Point {
-    let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF)) / scaleFactor
-    let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF)) / scaleFactor
-    var rect = RECT()
-    unsafe GetClientRect(hwnd, &rect)
-    let clientHeight = Float(rect.bottom - rect.top) / scaleFactor
-    return Point(x, clientHeight - y)
+private func logicalMousePosition(
+    lParam: LPARAM,
+    hwnd: HWND,
+    scaleFactor: Float,
+    isScreenPosition: Bool = false
+) -> Point {
+    var point = POINT(
+        x: LONG(Int16(truncatingIfNeeded: lParam & 0xFFFF)),
+        y: LONG(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF))
+    )
+
+    if isScreenPosition {
+        unsafe ScreenToClient(hwnd, &point)
+    }
+
+    return Point(Float(point.x) / scaleFactor, Float(point.y) / scaleFactor)
 }
 
 private final class WindowsUIThread: @unchecked Sendable {
@@ -449,6 +518,8 @@ private func handleMouseButtonDown(
         hwnd: systemWindow.hwnd,
         scaleFactor: scaleFactor
     )
+
+    unsafe SetCapture(systemWindow.hwnd)
     
     inputRef.wrappedValue.mousePosition = position
     let modifiers = getWindowsKeyModifiers()
@@ -484,6 +555,8 @@ private func handleMouseButtonUp(
         hwnd: systemWindow.hwnd,
         scaleFactor: scaleFactor
     )
+
+    unsafe ReleaseCapture()
     
     inputRef.wrappedValue.mousePosition = position
     let modifiers = getWindowsKeyModifiers()
@@ -519,6 +592,22 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
     let window = unsafe Unmanaged<UIWindow>.fromOpaque(rawPtr).takeUnretainedValue()
     
     switch uMsg {
+    case UInt32(WM_GETMINMAXINFO):
+        guard let minMaxInfo = unsafe UnsafeMutablePointer<MINMAXINFO>(bitPattern: Int(lParam)) else {
+            return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
+        }
+
+        let scaleFactor = getWindowScaleFactor(hwnd)
+        let minSize = unsafe windowMinimumSizes[window.id] ?? UIWindow.defaultMinimumSize
+        let minimumWindowSize = adjustedWindowSize(
+            forClientSize: minSize,
+            hwnd: hwnd,
+            scaleFactor: scaleFactor
+        )
+        unsafe minMaxInfo.pointee.ptMinTrackSize.x = minimumWindowSize.width
+        unsafe minMaxInfo.pointee.ptMinTrackSize.y = minimumWindowSize.height
+        return 0
+
     case UInt32(WM_CLOSE):
         let shouldClose = MainActor.assumeIsolated {
             window.windowShouldClose()
@@ -545,6 +634,7 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
                 guard let systemWindow = window.systemWindow as? WindowsSystemWindow else {
                     return
                 }
+                unsafe windowMinimumSizes.removeValue(forKey: window.id)
                 
                 // Remove from render engine
                 do {
@@ -585,25 +675,59 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
         return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
         
     case UInt32(WM_SIZE):
+        guard wParam != WPARAM(SIZE_MINIMIZED) else {
+            return 0
+        }
+
         let width = UInt16(truncatingIfNeeded: lParam & 0xFFFF)
         let height = UInt16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF)
+        guard width > 0 && height > 0 else {
+            return 0
+        }
+
         let scaleFactor = getWindowScaleFactor(hwnd)
         let sizeInt = logicalSize(
             fromPhysicalWidth: width,
             height: height,
             scaleFactor: scaleFactor
         )
-        let newSize = sizeInt.toSize()
         
         Task { @MainActor in
-            if window.frame.size != newSize {
-                window.frame = Rect(origin: .zero, size: newSize)
-            }
-            unsafe try? RenderEngine.shared.resizeWindow(
-                window.id,
-                newSize: sizeInt,
-                scaleFactor: scaleFactor
+            let windowManager = window.windowManager as? WindowsWindowManager
+            windowManager?.synchronizeRenderMetrics(
+                for: window,
+                sizeInt: sizeInt,
+                scaleFactor: scaleFactor,
+                updateWindowFrame: true
             )
+        }
+        return 0
+
+    case UInt32(WM_EXITSIZEMOVE):
+        let scaleFactor = getWindowScaleFactor(hwnd)
+        var clientRect = RECT()
+        unsafe GetClientRect(hwnd, &clientRect)
+        let width = UInt16(truncatingIfNeeded: clientRect.right - clientRect.left)
+        let height = UInt16(truncatingIfNeeded: clientRect.bottom - clientRect.top)
+        guard width > 0 && height > 0 else {
+            return 0
+        }
+
+        let sizeInt = logicalSize(
+            fromPhysicalWidth: width,
+            height: height,
+            scaleFactor: scaleFactor
+        )
+
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            windowManager?.synchronizeRenderMetrics(
+                for: window,
+                sizeInt: sizeInt,
+                scaleFactor: scaleFactor,
+                updateWindowFrame: true
+            )
+            windowManager?.setActiveWindow(window)
         }
         return 0
 
@@ -633,13 +757,12 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
         let newSize = sizeInt.toSize()
 
         Task { @MainActor in
-            if window.frame.size != newSize {
-                window.frame = Rect(origin: .zero, size: newSize)
-            }
-            unsafe try? RenderEngine.shared.resizeWindow(
-                window.id,
-                newSize: sizeInt,
-                scaleFactor: scaleFactor
+            let windowManager = window.windowManager as? WindowsWindowManager
+            windowManager?.synchronizeRenderMetrics(
+                for: window,
+                sizeInt: sizeInt,
+                scaleFactor: scaleFactor,
+                updateWindowFrame: window.frame.size != newSize
             )
         }
         return 0
@@ -870,7 +993,8 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
             let position = logicalMousePosition(
                 lParam: lParam,
                 hwnd: systemWindow.hwnd,
-                scaleFactor: scaleFactor
+                scaleFactor: scaleFactor,
+                isScreenPosition: true
             )
             
             let modifiers = getWindowsKeyModifiers()

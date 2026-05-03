@@ -8,6 +8,7 @@
 #if canImport(WebGPU)
 import Math
 @unsafe @preconcurrency import WebGPU
+import Synchronization
 
 final class WGPURenderCommandEncoder: RenderCommandEncoder {
 
@@ -162,18 +163,24 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     }
 
     func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, slot: Int) {
-        guard let buffer = device.createBuffer(
-            descriptor: WebGPU.GPUBufferDescriptor(
-                usage: [.uniform, .copyDst],
-                size: UInt64(length)
+        nonisolated(unsafe) var createdBuffer: WebGPU.GPUBuffer?
+        webGPUDeviceLock.withLock { _ in
+            createdBuffer = device.createBuffer(
+                descriptor: WebGPU.GPUBufferDescriptor(
+                    usage: [.uniform, .copyDst],
+                    size: UInt64(length)
+                )
             )
-        ) else {
+        }
+        guard let buffer = createdBuffer else {
             return
         }
-        unsafe device.queue.writeBuffer(buffer: buffer,
-            bufferOffset: 0,
-            data: UnsafeRawBufferPointer(start: bytes, count: length)
-        )
+        webGPUDeviceLock.withLock { _ in
+            unsafe device.queue.writeBuffer(buffer: buffer,
+                bufferOffset: 0,
+                data: UnsafeRawBufferPointer(start: bytes, count: length)
+            )
+        }
         updateBindGroupResources(setIndex: 0) { resources in
             resources.uniformBuffers[slot] = (
                 buffer: buffer,
@@ -357,13 +364,15 @@ extension WGPURenderCommandEncoder {
             guard let layout = pipeline.renderPipeline.getBindGroupLayout(groupIndex: UInt32(setIndex)) else {
                 continue
             }
-            let bindGroup = device.createBindGroup(
-                descriptor: WebGPU.GPUBindGroupDescriptor(
-                    label: pipeline.descriptor.debugName + " Bind Group \(setIndex)",
-                    layout: layout,
-                    entries: entries
+            let bindGroup = webGPUDeviceLock.withLock { _ in
+                device.createBindGroup(
+                    descriptor: WebGPU.GPUBindGroupDescriptor(
+                        label: pipeline.descriptor.debugName + " Bind Group \(setIndex)",
+                        layout: layout,
+                        entries: entries
+                    )
                 )
-            )
+            }
 
             renderEncoder.setBindGroup(
                 groupIndex: UInt32(setIndex),

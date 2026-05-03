@@ -162,7 +162,7 @@ public extension AppWorlds {
 
     /// Removes a subworld registered with ``addSubworld(_:by:)``.
     @discardableResult
-    public func removeSubworld(by name: AppWorldName) -> AppWorlds? {
+    func removeSubworld(by name: AppWorldName) -> AppWorlds? {
         subWorlds.removeValue(forKey: name.rawValue)
     }
 

@@ -18,7 +18,7 @@ layout (location = 2) in vec2 a_UV;
 #endif
 
 #ifdef VERTEX_COLORS
-layout (location = 3) in vec2 a_VertexColor;
+layout (location = 3) in vec4 a_VertexColor;
 #endif
 
 struct VertexOut

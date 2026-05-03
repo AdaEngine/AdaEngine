@@ -9,6 +9,7 @@
 import AdaUtils
 @unsafe @preconcurrency import WebGPU
 import Foundation
+import Synchronization
 
 @_spi(Internal)
 public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
@@ -22,60 +23,70 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     public func createUniformBuffer(length: Int, binding: Int) -> any UniformBuffer {
         // WebGPU requires uniform buffers to be aligned to 16 bytes for proper struct alignment
         let alignedLength = (length + 15) & ~15
-        let _buffer = context.device.createBuffer(
-            descriptor: WebGPU.GPUBufferDescriptor(
-                usage: [.indirect, .copyDst, .copySrc, .uniform],
-                size: UInt64(alignedLength)
+        let _buffer = webGPUDeviceLock.withLock { _ in
+            context.device.createBuffer(
+                descriptor: WebGPU.GPUBufferDescriptor(
+                    usage: [.indirect, .copyDst, .copySrc, .uniform],
+                    size: UInt64(alignedLength)
+                )
             )
-        ).unwrap(message: "Failed to create uniform buffer")
+        }.unwrap(message: "Failed to create uniform buffer")
         return WGPUUniformBuffer(buffer: _buffer, device: context.device, binding: binding)
     }
 
     public func createVertexBuffer(label: String?, length: Int, binding: Int) -> any VertexBuffer {
-        let _buffer = context.device.createBuffer(
-            descriptor: WebGPU.GPUBufferDescriptor(
-                label: label,
-                usage: [.vertex, .copyDst, .copySrc],
-                size: UInt64(length)
+        let _buffer = webGPUDeviceLock.withLock { _ in
+            context.device.createBuffer(
+                descriptor: WebGPU.GPUBufferDescriptor(
+                    label: label,
+                    usage: [.vertex, .copyDst, .copySrc],
+                    size: UInt64(length)
+                )
             )
-        ).unwrap(message: "Failed to create vertex buffer")
+        }.unwrap(message: "Failed to create vertex buffer")
         return WGPUVertexBuffer(buffer: _buffer, device: context.device, binding: binding)
     }
 
     public func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> any IndexBuffer {
-        let _buffer = context.device.createBuffer(
-            descriptor: WebGPU.GPUBufferDescriptor(
-                label: label,
-                usage: [.index, .copyDst],
-                size: UInt64(length)
+        let _buffer = webGPUDeviceLock.withLock { _ in
+            context.device.createBuffer(
+                descriptor: WebGPU.GPUBufferDescriptor(
+                    label: label,
+                    usage: [.index, .copyDst],
+                    size: UInt64(length)
+                )
             )
-        ).unwrap(message: "Failed to create index buffer")
+        }.unwrap(message: "Failed to create index buffer")
         let buffer = WGPUIndexBuffer(buffer: _buffer, device: context.device, indexFormat: format)
         unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
         return buffer
     }
 
     public func createBuffer(label: String?, bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> any Buffer {
-        let _buffer = context.device.createBuffer(
-            descriptor: WebGPU.GPUBufferDescriptor(
-                label: label,
-                usage: options.toWebGPU,
-                size: UInt64(length)
+        let _buffer = webGPUDeviceLock.withLock { _ in
+            context.device.createBuffer(
+                descriptor: WebGPU.GPUBufferDescriptor(
+                    label: label,
+                    usage: options.toWebGPU,
+                    size: UInt64(length)
+                )
             )
-        ).unwrap(message: "Failed to create buffer")
+        }.unwrap(message: "Failed to create buffer")
         let buffer = WGPUBuffer(buffer: _buffer, device: context.device)
         unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
         return buffer
     }
 
     public func createBuffer(label: String?, length: Int, options: ResourceOptions) -> any Buffer {
-        let buffer = context.device.createBuffer(
-            descriptor: WebGPU.GPUBufferDescriptor(
-                label: label,
-                usage: options.toWebGPU,
-                size: UInt64(length)
+        let buffer = webGPUDeviceLock.withLock { _ in
+            context.device.createBuffer(
+                descriptor: WebGPU.GPUBufferDescriptor(
+                    label: label,
+                    usage: options.toWebGPU,
+                    size: UInt64(length)
+                )
             )
-        ).unwrap(message: "Failed to create buffer")
+        }.unwrap(message: "Failed to create buffer")
         return WGPUBuffer(buffer: buffer, device: context.device)
     }
 
@@ -91,16 +102,18 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     public func createSampler(from descriptor: SamplerDescriptor) -> any Sampler {
-        let wgpuSampler = context.device.createSampler(
-            descriptor: WebGPU.GPUSamplerDescriptor(
-                label: nil,
-                magFilter: descriptor.magFilter.toWebGPU,
-                minFilter: descriptor.minFilter.toWebGPU,
-                mipmapFilter: descriptor.mipFilter.toWebGPU,
-                lodMinClamp: Float(descriptor.lodMinClamp),
-                lodMaxClamp: Float(descriptor.lodMaxClamp)
+        let wgpuSampler = webGPUDeviceLock.withLock { _ in
+            context.device.createSampler(
+                descriptor: WebGPU.GPUSamplerDescriptor(
+                    label: nil,
+                    magFilter: descriptor.magFilter.toWebGPU,
+                    minFilter: descriptor.minFilter.toWebGPU,
+                    mipmapFilter: descriptor.mipFilter.toWebGPU,
+                    lodMinClamp: Float(descriptor.lodMinClamp),
+                    lodMaxClamp: Float(descriptor.lodMaxClamp)
+                )
             )
-        )
+        }
         return WGPUSampler(descriptor: descriptor, wgpuSampler: wgpuSampler)
     }
 

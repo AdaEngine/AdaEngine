@@ -9,6 +9,7 @@
 @unsafe @preconcurrency import WebGPU
 import Foundation
 import AdaUtils
+import Synchronization
 
 @_spi(Internal)
 public final class WGPUShader: CompiledShader {
@@ -31,12 +32,14 @@ public final class WGPUShader: CompiledShader {
             entryPoint = "main"
         }
 
-        let module = device.createShaderModule(
-            descriptor: WebGPU.GPUShaderModuleDescriptor(
-                label: shader.entryPoint,
-                nextInChain: shaderData
+        let module = webGPUDeviceLock.withLock { _ in
+            device.createShaderModule(
+                descriptor: WebGPU.GPUShaderModuleDescriptor(
+                    label: shader.entryPoint,
+                    nextInChain: shaderData
+                )
             )
-        )
+        }
 
         self.shader = module
         self.entryPoint = entryPoint

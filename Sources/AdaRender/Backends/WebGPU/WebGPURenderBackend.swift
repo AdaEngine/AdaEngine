@@ -131,26 +131,35 @@ extension WebGPURenderBackend {
         var requestStatus: WebGPU.GPURequestDeviceStatus?
         var requestedDevice: WebGPU.GPUDevice?
         var requestMessage: String?
-        _ = adapter.requestDevice(
-            descriptor: WebGPU.GPUDeviceDescriptor(
-                label: "AdaEngine WebGPU Device",
-                requiredFeatures: [.depth32FloatStencil8, .float32Filterable],
-                requiredLimits: nil,
-                defaultQueue: WebGPU.GPUQueueDescriptor(),
-                deviceLostCallbackInfo: WebGPU.GPUDeviceLostCallbackInfo(mode: .allowProcessEvents) { _, deviceLostReason, message in
-                    logger.info("Device lost: \(deviceLostReason.rawValue): \(message)")
-                },
-                uncapturedErrorCallbackInfo: WebGPU.GPUUncapturedErrorCallbackInfo { _, logType, message in
-                    logger.error("\(logType.rawValue): \(message)")
-                },
-                nextInChain: nil
-            ),
-            callbackInfo: WebGPU.GPURequestDeviceCallbackInfo(mode: .allowProcessEvents) { status, device, message in
+        let descriptor = WebGPU.GPUDeviceDescriptor(
+            label: "AdaEngine WebGPU Device",
+            requiredFeatures: [.depth32FloatStencil8, .float32Filterable],
+            requiredLimits: nil,
+            defaultQueue: WebGPU.GPUQueueDescriptor(),
+            deviceLostCallbackInfo: WebGPU.GPUDeviceLostCallbackInfo(mode: .allowProcessEvents) { _, deviceLostReason, message in
+                logger.info("Device lost: \(deviceLostReason.rawValue): \(message)")
+            },
+            // Swan's generated uncaptured-error callback wrapper releases its userdata
+            // after invocation, but Dawn may call this callback many times over a device's
+            // lifetime. Disable it here to avoid dangling Swift callback userdata.
+            uncapturedErrorCallbackInfo: WebGPU.GPUUncapturedErrorCallbackInfo { _, _, _ in },
+            nextInChain: nil
+        )
+        let requestCallbackInfo = WebGPU.GPURequestDeviceCallbackInfo(mode: .allowProcessEvents) { status, device, message in
                 requestStatus = status
                 requestedDevice = device
                 requestMessage = message
+        }
+        _ = descriptor.withWGPUStruct { descriptor in
+            var descriptor = descriptor
+            descriptor.uncapturedErrorCallbackInfo.callback = nil
+            descriptor.uncapturedErrorCallbackInfo.userdata1 = nil
+            descriptor.uncapturedErrorCallbackInfo.userdata2 = nil
+
+            return requestCallbackInfo.withWGPUStruct { callbackInfo in
+                adapter.requestDevice(descriptor: &descriptor, callbackInfo: callbackInfo)
             }
-        )
+        }
 
         while requestStatus == nil {
             instance.processEvents()

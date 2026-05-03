@@ -3,6 +3,7 @@
 import AdaUtils
 import Logging
 import Foundation
+import Synchronization
 
 final class WGPUSwapchain: Swapchain, @unchecked Sendable {
 
@@ -19,16 +20,25 @@ final class WGPUSwapchain: Swapchain, @unchecked Sendable {
     }
 
     func getNextDrawable(_ renderDevice: RenderDevice) -> (any Drawable)? {
-        var surfaceTexture = WGPUSurfaceTexture()
-        renderWindow.surface.getCurrentTexture(surfaceTexture: &surfaceTexture)
-        let textureStatus = surfaceTexture.status
-        guard textureStatus == .successOptimal || textureStatus == .successSuboptimal else {
-            return nil
+        renderWindow.surfaceLock.withLock { _ in
+            if renderWindow.pendingDrawableSkips > 0 {
+                renderWindow.pendingDrawableSkips -= 1
+                return nil
+            }
+
+            var surfaceTexture = WGPUSurfaceTexture()
+            webGPUDeviceLock.withLock { _ in
+                renderWindow.surface.getCurrentTexture(surfaceTexture: &surfaceTexture)
+            }
+            let textureStatus = surfaceTexture.status
+            guard textureStatus == .successOptimal || textureStatus == .successSuboptimal else {
+                return nil
+            }
+            return WGPUSwapchainDrawable(
+                surface: renderWindow.surface,
+                surfaceTexture: WebGPU.GPUSurfaceTexture(wgpuStruct: surfaceTexture)
+            )
         }
-        return WGPUSwapchainDrawable(
-            surface: renderWindow.surface,
-            surfaceTexture: WebGPU.GPUSurfaceTexture(wgpuStruct: surfaceTexture)
-        )
     }
 }
 
@@ -49,7 +59,9 @@ final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
 
     func present() throws {
         assert(!isPresented, "Drawable is already presented")
-        let value = surface.present()
+        let value = webGPUDeviceLock.withLock { _ in
+            surface.present()
+        }
         self.isPresented = true
         if value != .success {
             throw DrawableError.failedToPresentDrawable

@@ -9,6 +9,7 @@
 import AdaUtils
 import Foundation
 @unsafe @preconcurrency import WebGPU
+import Synchronization
 
 @_spi(Internal)
 public class WGPUBuffer: Buffer, @unchecked Sendable {
@@ -31,13 +32,15 @@ public class WGPUBuffer: Buffer, @unchecked Sendable {
     private var mappedBuffer: WebGPU.GPUBuffer?
 
     public func contents() -> UnsafeMutableRawPointer {
-        let mappedBuffer = self.device.createBuffer(
-            descriptor: WebGPU.GPUBufferDescriptor(
-                usage: [.mapWrite, .copySrc],
-                size: UInt64(self.length),
-                mappedAtCreation: true
+        let mappedBuffer = webGPUDeviceLock.withLock { _ in
+            self.device.createBuffer(
+                descriptor: WebGPU.GPUBufferDescriptor(
+                    usage: [.mapWrite, .copySrc],
+                    size: UInt64(self.length),
+                    mappedAtCreation: true
+                )
             )
-        ).unwrap(message: "Failed to create mapped buffer")
+        }.unwrap(message: "Failed to create mapped buffer")
         self.mappedBuffer = mappedBuffer
         return unsafe mappedBuffer.getMappedRange(offset: 0, size: self.length)
     }
@@ -47,20 +50,25 @@ public class WGPUBuffer: Buffer, @unchecked Sendable {
             return
         }
 
-        unsafe device.queue.writeBuffer(buffer: buffer,
-            bufferOffset: 0,
-            data: UnsafeRawBufferPointer(start: self.contents(), count: self.length)
-        )
+        let data = unsafe mappedBuffer.getMappedRange(offset: 0, size: self.length)
+        webGPUDeviceLock.withLock { _ in
+            unsafe device.queue.writeBuffer(buffer: buffer,
+                bufferOffset: 0,
+                data: UnsafeRawBufferPointer(start: data, count: self.length)
+            )
+        }
 
         mappedBuffer.unmap()
         self.mappedBuffer = nil
     }
 
     public func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
-        unsafe device.queue.writeBuffer(buffer: self.buffer,
-            bufferOffset: UInt64(offset),
-            data: UnsafeRawBufferPointer(start: bytes, count: byteCount)
-        )
+        webGPUDeviceLock.withLock { _ in
+            unsafe device.queue.writeBuffer(buffer: self.buffer,
+                bufferOffset: UInt64(offset),
+                data: UnsafeRawBufferPointer(start: bytes, count: byteCount)
+            )
+        }
     }
 
     enum MapError: Error {
