@@ -120,6 +120,119 @@ struct TextRenderingRegressionTests {
     }
 
     @Test
+    func unboundedTextMeasurementIsNotReusedFromClippedLayout() {
+        let layoutManager = TextLayoutManager()
+        layoutManager.setTextContainer(
+            TextContainer(
+                text: AttributedText("line one\nline two\nline three\nline four"),
+                textAlignment: .leading,
+                lineBreakMode: .byWordWrapping
+            )
+        )
+        layoutManager.fitToSize(Size(width: 180, height: 18))
+
+        let measured = Text.Proxy(layoutManager: layoutManager).sizeThatFits(.infinity)
+
+        #expect(measured.height > 50)
+    }
+
+    @Test
+    func flexibleFramedTextKeepsWrappedHeightInsideScrollView() {
+        let longMessage = """
+        Что сделал:
+        Проанализировал текущий сайт: Swift Package + Ignite generator.
+        Content/blog/*.md с frontmatter.
+        Assets/ со статикой: styles/images/fonts/js/README.
+        Принял архитектурное решение: Vite + TypeScript как build-платформа.
+        Static SSG без SPA runtime: генерация реальных HTML-файлов для GitHub Pages.
+        """
+
+        let tester = ViewTester {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(markdown: longMessage)
+                        .font(.system(size: 17))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("assistant-message")
+
+                    Color.red
+                        .frame(width: 100, height: 24)
+                        .accessibilityIdentifier("next-row")
+                }
+            }
+            .frame(width: 320, height: 180)
+        }
+        .setSize(Size(width: 320, height: 180))
+        .performLayout()
+        .performLayout()
+
+        let messageNode = tester.findNodeByAccessibilityIdentifier("assistant-message")
+        let nextRow = tester.findNodeByAccessibilityIdentifier("next-row")
+        let messageMaxY = (messageNode?.absoluteFrame().maxY ?? 0)
+        let nextMinY = (nextRow?.absoluteFrame().minY ?? 0)
+
+        #expect((messageNode?.frame.height ?? 0) > 120)
+        #expect(nextMinY >= messageMaxY + 12)
+    }
+
+    @Test
+    func chatBubbleLikeVStackKeepsWrappedAssistantHeightInsideScrollView() {
+        let longMessage = """
+        Что сделал:
+        Проанализировал текущий сайт: Swift Package + Ignite generator.
+        **Content/blog/*.md** с frontmatter.
+        **Assets/** со статикой: styles/images/fonts/js/README.
+        Принял архитектурное решение: **Vite + TypeScript как build-платформа.**
+        **Static SSG без SPA runtime:** генерация реальных HTML-файлов для GitHub Pages.
+        """
+
+        let tester = ViewTester {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 8) {
+                            Text("SLOPPY")
+                                .font(.system(size: 13))
+                            Text("->")
+                                .font(.system(size: 11))
+                        }
+
+                        Color.clear
+                            .frame(height: 1)
+
+                        Text(markdown: longMessage)
+                            .font(.system(size: 17))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                            .accessibilityIdentifier("assistant-message-text")
+                    }
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("assistant-bubble")
+
+                    Color.red
+                        .frame(width: 100, height: 24)
+                        .accessibilityIdentifier("next-row")
+                }
+            }
+            .frame(width: 360, height: 180)
+        }
+        .setSize(Size(width: 360, height: 180))
+        .performLayout()
+        .performLayout()
+
+        let bubbleNode = tester.findNodeByAccessibilityIdentifier("assistant-bubble")
+        let textNode = tester.findNodeByAccessibilityIdentifier("assistant-message-text")
+        let nextRow = tester.findNodeByAccessibilityIdentifier("next-row")
+        let bubbleMaxY = (bubbleNode?.absoluteFrame().maxY ?? 0)
+        let nextMinY = (nextRow?.absoluteFrame().minY ?? 0)
+
+        #expect((bubbleNode?.frame.height ?? 0) > 160)
+        #expect((textNode?.frame.height ?? 0) > 120)
+        #expect(nextMinY >= bubbleMaxY + 24)
+    }
+
+    @Test
     func wordWrappingMovesWholeWordToNextVisualRow() {
         let width = "MMMM W".size().width + 1
 

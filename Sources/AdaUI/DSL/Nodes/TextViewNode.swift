@@ -5,17 +5,20 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
+import AdaInput
 import AdaText
 import Math
-import AdaInput
 
 final class TextViewNode: ViewNode {
 
     var layoutManager: TextLayoutManager
+    private var drawLayoutManager: TextLayoutManager
     private var textContainer: TextContainer {
         didSet {
             self.layoutManager.setTextContainer(self.textContainer)
+            self.drawLayoutManager.setTextContainer(self.textContainer)
             self.layoutManager.invalidateLayout()
+            self.drawLayoutManager.invalidateLayout()
             self.sizeCache = [:]
         }
     }
@@ -31,6 +34,9 @@ final class TextViewNode: ViewNode {
         self.layoutManager = TextLayoutManager()
         self.layoutManager.setTextContainer(self.textContainer)
         self.layoutManager.invalidateLayout()
+        self.drawLayoutManager = TextLayoutManager()
+        self.drawLayoutManager.setTextContainer(self.textContainer)
+        self.drawLayoutManager.invalidateLayout()
         self.textRenderer = inputs.environment.textRenderer ?? DefaultRichTextRenderer()
 
         super.init(content: content)
@@ -59,6 +65,7 @@ final class TextViewNode: ViewNode {
         var context = context
         context.environment = environment
         super.draw(with: context)
+        self.drawLayoutManager.fitToSize(self.frame.size)
 
         let scale = max(environment.scaleFactor, 1)
         func snapToPixel(_ value: Float) -> Float {
@@ -72,12 +79,12 @@ final class TextViewNode: ViewNode {
 
         // Calculate vertical offset to center text within the frame (render coordinates: +Y is up)
         var verticalOffset: Float = 0
-        if !self.layoutManager.textLines.isEmpty {
+        if !self.drawLayoutManager.textLines.isEmpty {
             // Find the maximum pt (top) and minimum pb (bottom) values among all glyphs
             var maxTopY: Float = -Float.infinity
             var minBottomY: Float = Float.infinity
             
-            for line in self.layoutManager.textLines {
+            for line in self.drawLayoutManager.textLines {
                 for run in line {
                     for glyph in run {
                         // glyph.position.w is pt (top Y coordinate), glyph.position.y is pb (bottom Y coordinate)
@@ -92,10 +99,13 @@ final class TextViewNode: ViewNode {
             verticalOffset = frameCenterY - textCenterY
         }
         
-        context.translateBy(x: 0, y: snapToPixel(verticalOffset))
+        context.clip(to: self.calculateVisibleFrame()) { clipped in
+            var clipped = clipped
+            clipped.translateBy(x: 0, y: snapToPixel(verticalOffset))
 
-        let layout = Text.Layout(lines: self.layoutManager.textLines)
-        self.textRenderer.draw(layout: layout, in: &context)
+            let layout = Text.Layout(lines: self.drawLayoutManager.textLines)
+            self.textRenderer.draw(layout: layout, in: &clipped)
+        }
     }
 
     override func update(from newNode: ViewNode) {

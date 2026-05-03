@@ -77,7 +77,8 @@ public struct VStackLayout: Layout {
             return Size(width: idealSize.width, height: idealSize.height + cache.totalSubviewSpacing)
         }
 
-        let height = min(max(idealSize.height, proposedHeight - cache.totalSubviewSpacing), cache.maxSize.height)
+        let maximumContentHeight = max(cache.maxSize.height, idealSize.height)
+        let height = min(max(idealSize.height, proposedHeight - cache.totalSubviewSpacing), maximumContentHeight)
 
         return Size(
             width: idealSize.width,
@@ -114,7 +115,8 @@ public struct VStackLayout: Layout {
 
         let layoutHeight: Float
         if hasFlexibleSubviews {
-            layoutHeight = min(cache.maxSize.height + cache.totalSubviewSpacing, bounds.height)
+            let maximumLayoutHeight = max(cache.maxSize.height, idealHeight) + cache.totalSubviewSpacing
+            layoutHeight = min(maximumLayoutHeight, bounds.height)
         } else {
             layoutHeight = min(idealHeight + cache.totalSubviewSpacing, bounds.height)
         }

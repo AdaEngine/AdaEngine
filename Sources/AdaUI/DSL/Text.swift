@@ -224,8 +224,8 @@ extension Text {
 
         public func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
             if proposal == .zero || proposal == .infinity {
-                let size = self.layoutManager.boundingSize()
-                return size
+                self.layoutManager.fitToSize(Size(width: .infinity, height: .infinity))
+                return self.layoutManager.boundingSize()
             }
 
             var idealWidth: Float = .infinity
