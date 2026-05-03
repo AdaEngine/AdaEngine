@@ -68,9 +68,15 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         // We only clear if there WAS a previous pipeline - if oldPipeline was nil,
         // resources might have been set FOR this new pipeline before setRenderPipelineState.
         if pipelineChanged && oldPipeline != nil {
-            for setIndex in bindGroupResources.keys {
+            for setIndex in Array(bindGroupResources.keys) {
                 bindGroupResources[setIndex]?.textures.removeAll()
                 bindGroupResources[setIndex]?.samplers.removeAll()
+                guard let uniformBindings = bindGroupResources[setIndex]?.uniformBuffers.keys else {
+                    continue
+                }
+                for binding in Array(uniformBindings) where binding != GlobalBufferIndex.viewUniform {
+                    bindGroupResources[setIndex]?.uniformBuffers.removeValue(forKey: binding)
+                }
             }
         }
 
@@ -319,6 +325,12 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
 }
 
 extension WGPURenderCommandEncoder {
+    private enum BindingResourceKind {
+        case uniformBuffer
+        case texture
+        case sampler
+    }
+
     private func commitBindGroup() {
         guard let pipeline = currentPipeline else {
             // Pipeline not set yet, will commit when it's set
@@ -333,22 +345,35 @@ extension WGPURenderCommandEncoder {
             }
 
             var entries: [WebGPU.GPUBindGroupEntry] = []
+            let expectedResources = expectedResourceKinds(for: pipeline, setIndex: setIndex)
 
-            for (bindingSlot, texture) in resources.textures {
+            for (bindingSlot, texture) in resources.textures where shouldBind(
+                bindingSlot,
+                as: .texture,
+                expectedResources: expectedResources
+            ) {
                 entries.append(WebGPU.GPUBindGroupEntry(
                     binding: UInt32(bindingSlot),
                     textureView: texture.textureView
                 ))
             }
 
-            for (bindingSlot, sampler) in resources.samplers {
+            for (bindingSlot, sampler) in resources.samplers where shouldBind(
+                bindingSlot,
+                as: .sampler,
+                expectedResources: expectedResources
+            ) {
                 entries.append(WebGPU.GPUBindGroupEntry(
                     binding: UInt32(bindingSlot),
                     sampler: sampler.wgpuSampler
                 ))
             }
 
-            for (bindingSlot, uniform) in resources.uniformBuffers {
+            for (bindingSlot, uniform) in resources.uniformBuffers where shouldBind(
+                bindingSlot,
+                as: .uniformBuffer,
+                expectedResources: expectedResources
+            ) {
                 entries.append(WebGPU.GPUBindGroupEntry(
                     binding: UInt32(bindingSlot),
                     buffer: uniform.buffer,
@@ -382,6 +407,51 @@ extension WGPURenderCommandEncoder {
         }
     }
 
+    private func expectedResourceKinds(
+        for pipeline: WGPURenderPipeline,
+        setIndex: Int
+    ) -> [Int: BindingResourceKind] {
+        var expected: [Int: BindingResourceKind] = [:]
+
+        func collect(from reflection: ShaderReflectionData) {
+            guard reflection.descriptorSets.indices.contains(setIndex) else {
+                return
+            }
+
+            let descriptorSet = reflection.descriptorSets[setIndex]
+            for binding in descriptorSet.uniformsBuffers.keys {
+                expected[binding] = .uniformBuffer
+            }
+            for binding in descriptorSet.sampledImages.keys {
+                expected[binding] = .texture
+            }
+            for binding in descriptorSet.samplers.keys {
+                expected[binding] = .sampler
+            }
+        }
+
+        collect(from: pipeline.descriptor.vertex.reflectionData)
+        if let fragment = pipeline.descriptor.fragment {
+            collect(from: fragment.reflectionData)
+        }
+
+        if setIndex == 0 {
+            expected[GlobalBufferIndex.viewUniform] = .uniformBuffer
+        }
+
+        return expected
+    }
+
+    private func shouldBind(
+        _ binding: Int,
+        as kind: BindingResourceKind,
+        expectedResources: [Int: BindingResourceKind]
+    ) -> Bool {
+        guard let expectedKind = expectedResources[binding] else {
+            return expectedResources.isEmpty
+        }
+        return expectedKind == kind
+    }
 }
 
 #endif

@@ -32,6 +32,7 @@ public struct QuadPipeline: RenderPipelineConfigurator {
         var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
         pipelineDesc.debugName = "Quad Pipeline"
+        pipelineDesc.backfaceCulling = false
 
         pipelineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "a_Position"),
@@ -70,6 +71,7 @@ public struct LinearGradientPipeline: RenderPipelineConfigurator {
         var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
         pipelineDesc.debugName = "Linear Gradient Pipeline"
+        pipelineDesc.backfaceCulling = false
 
         pipelineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "a_Position"),
@@ -108,6 +110,7 @@ public struct CirclePipeline: RenderPipelineConfigurator {
         var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
         pipelineDesc.debugName = "Circle Pipeline"
+        pipelineDesc.backfaceCulling = false
 
         pipelineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector3, name: "a_WorldPosition"),
@@ -148,6 +151,7 @@ public struct LinePipeline: RenderPipelineConfigurator {
         var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
         pipelineDesc.debugName = "Line Pipeline"
+        pipelineDesc.backfaceCulling = false
         pipelineDesc.primitive = .line
 
         pipelineDesc.vertexDescriptor.attributes.append([

@@ -75,12 +75,10 @@ final class WGPUCommandEncoder: CommandBuffer {
     }
 
     func beginBlitPass(_ desc: BlitPassDescriptor) -> BlitCommandEncoder {
-        fatalError()
-        // guard let encoder = commandBuffer.makeBlitCommandEncoder() else {
-        //     fatalError("Failed to create MTLBlitCommandEncoder")
-        // }
-        // encoder.label = desc.label
-        // return MetalBlitCommandEncoder(blitEncoder: encoder)
+        return WGPUBlitCommandEncoder(
+            blitEncoder: commandEncoder,
+            device: device
+        )
     }
 }
 

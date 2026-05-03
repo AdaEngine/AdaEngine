@@ -99,13 +99,10 @@ final class TextViewNode: ViewNode {
             verticalOffset = frameCenterY - textCenterY
         }
         
-        context.clip(to: self.calculateVisibleFrame()) { clipped in
-            var clipped = clipped
-            clipped.translateBy(x: 0, y: snapToPixel(verticalOffset))
+        context.translateBy(x: 0, y: snapToPixel(verticalOffset))
 
-            let layout = Text.Layout(lines: self.drawLayoutManager.textLines)
-            self.textRenderer.draw(layout: layout, in: &clipped)
-        }
+        let layout = Text.Layout(lines: self.drawLayoutManager.textLines)
+        self.textRenderer.draw(layout: layout, in: &context)
     }
 
     override func update(from newNode: ViewNode) {

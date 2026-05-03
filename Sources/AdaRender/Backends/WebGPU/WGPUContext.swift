@@ -174,7 +174,7 @@ public final class WGPUContext: @unchecked Sendable {
             config: WebGPU.GPUSurfaceConfiguration(
                 device: device,
                 format: pixelFormat.toWebGPU,
-                usage: .renderAttachment,
+                usage: [.renderAttachment, .copySrc],
                 width: UInt32(physicalWidth),
                 height: UInt32(physicalHeight),
                 viewFormats: [],

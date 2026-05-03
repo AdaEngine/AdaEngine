@@ -53,6 +53,7 @@ public struct TextPipeline: RenderPipelineConfigurator {
         var piplineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         piplineDesc.fragment = shader.asset.getShader(for: .fragment)
         piplineDesc.debugName = "Text Pipeline"
+        piplineDesc.backfaceCulling = false
 
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "position"),

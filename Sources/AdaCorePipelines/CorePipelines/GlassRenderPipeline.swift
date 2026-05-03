@@ -83,6 +83,7 @@ public struct GlassPipeline: RenderPipelineConfigurator {
         var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
         pipelineDesc.debugName = "Glass Pipeline"
+        pipelineDesc.backfaceCulling = false
 
         pipelineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "a_Position"),

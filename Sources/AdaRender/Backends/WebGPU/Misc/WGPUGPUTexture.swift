@@ -83,6 +83,7 @@ public final class WGPUGPUTexture: GPUTexture {
 
         if descriptor.textureUsage.contains(.renderTarget) {
             wgpuUsage.insert(.renderAttachment)
+            wgpuUsage.insert(.copySrc)
         }
 
         // Always add textureBinding for textures that will be sampled in shaders
