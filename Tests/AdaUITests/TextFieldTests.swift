@@ -10,6 +10,9 @@ import Testing
 @testable import AdaPlatform
 import AdaInput
 import Math
+#if canImport(AppKit)
+import AppKit
+#endif
 
 @MainActor
 struct TextFieldTests {
@@ -70,6 +73,24 @@ struct TextFieldTests {
         tester.sendDeleteBackward(time: 0.11)
         #expect(model.text == "worl")
     }
+
+    #if canImport(AppKit)
+    @Test
+    func uiClipboardReadsCopiedFileURLsAsPaths() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "AdaUIClipboard-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects([directory as NSURL])
+
+        #expect(UIClipboard.getString() == directory.path)
+    }
+    #endif
 
     @Test
     func plainTextFieldStyleKeepsPrimitiveBackgroundDisabledAfterEnvironmentUpdate() {

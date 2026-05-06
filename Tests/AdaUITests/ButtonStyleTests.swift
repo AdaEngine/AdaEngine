@@ -88,6 +88,31 @@ struct ButtonStyleTests {
 
         #expect(tester.containerView.needsDisplay)
     }
+
+    @Test
+    func visibleButtonRowsReuseStyledContentWhenSelectionChanges() throws {
+        let driver = ButtonListSelectionDriver()
+
+        let tester = ViewTester {
+            ButtonListSelectionHost(driver: driver)
+        }
+        .setSize(Size(width: 180, height: 220))
+        .performLayout()
+
+        let buttonsBefore = buttonNodes(in: tester.containerView.viewTree.rootNode)
+        let contentNodeIDsBefore = buttonsBefore.map { $0.contentNode.id }
+        #expect(!contentNodeIDsBefore.isEmpty)
+
+        let selection = try #require(driver.selection)
+        selection.wrappedValue = 3
+        tester.performLayout()
+
+        let buttonsAfter = buttonNodes(in: tester.containerView.viewTree.rootNode)
+        let contentNodeIDsAfter = buttonsAfter.map { $0.contentNode.id }
+
+        #expect(contentNodeIDsAfter.count == contentNodeIDsBefore.count)
+        #expect(contentNodeIDsAfter == contentNodeIDsBefore)
+    }
 }
 
 private final class ButtonStyleStateRecorder: @unchecked Sendable {
@@ -100,6 +125,50 @@ private struct RecordingButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         recorder.states.append(configuration.state)
         return configuration.label
+    }
+}
+
+@MainActor
+private final class ButtonListSelectionDriver {
+    var selection: Binding<Int>?
+}
+
+private struct ButtonListSelectionHost: View {
+    @State private var selection = 0
+
+    let driver: ButtonListSelectionDriver
+    let items = Array(0..<40)
+
+    var body: some View {
+        VStack {
+            ButtonListSelectionProbe(selection: $selection, driver: driver)
+
+            ScrollView(.vertical) {
+                LazyVStack(items, id: \.self, estimatedRowHeight: 32, overscan: 2) { item in
+                    Button(action: { selection = item }) {
+                        Text(selection == item ? "Selected \(item)" : "Row \(item)")
+                            .frame(width: 140, height: 32)
+                    }
+                }
+            }
+        }
+        .frame(width: 180, height: 220)
+    }
+}
+
+private struct ButtonListSelectionProbe: View {
+    @Binding var selection: Int
+
+    let driver: ButtonListSelectionDriver
+
+    init(selection: Binding<Int>, driver: ButtonListSelectionDriver) {
+        self._selection = selection
+        self.driver = driver
+        self.driver.selection = selection
+    }
+
+    var body: some View {
+        EmptyView()
     }
 }
 

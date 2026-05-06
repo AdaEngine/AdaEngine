@@ -168,13 +168,7 @@ final class ButtonViewNode: ViewModifierNode {
     }
 
     override func invalidateContent() {
-        let body = self.body(self.state, self.environment)
-        self.contentNode = body
-        self.contentNode.parent = self
-        self.contentNode.updateEnvironment(self.environment)
-        if let owner = self.owner {
-            self.contentNode.updateViewOwner(owner)
-        }
+        self.reconcileContentNode()
         self.performLayout()
         owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
     }
@@ -197,7 +191,9 @@ final class ButtonViewNode: ViewModifierNode {
         self.action = otherNode.action
         self.body = otherNode.body
         super.update(from: otherNode)
-        self.invalidateContent()
+        self.reconcileContentNode()
+        self.performLayout()
+        owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
     }
 
     override var canBecomeFocused: Bool {
@@ -324,5 +320,21 @@ final class ButtonViewNode: ViewModifierNode {
             current = node.parent
         }
         return nil
+    }
+
+    private func reconcileContentNode() {
+        let newContentNode = self.body(self.state, self.environment)
+        if newContentNode.canUpdate(contentNode) {
+            contentNode.update(from: newContentNode)
+        } else {
+            contentNode.parent = nil
+            contentNode = newContentNode
+            contentNode.parent = self
+        }
+
+        contentNode.updateEnvironment(self.environment)
+        if let owner, contentNode.owner !== owner {
+            contentNode.updateViewOwner(owner)
+        }
     }
 }

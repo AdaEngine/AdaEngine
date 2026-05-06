@@ -36,7 +36,6 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
         return MetalCommandQueue(commandQueue: self.commandQueue)
     }
 
-    // swiftlint:disable:next function_body_length
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
         do {
             return try MetalRenderPipeline(descriptor: descriptor, device: device)

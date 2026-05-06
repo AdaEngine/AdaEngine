@@ -63,6 +63,10 @@ final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
         var bufferStrides: [Int: Int] = [:]
 
         for (attrIndex, attribute) in descriptor.vertexDescriptor.attributes.buffer.enumerated() {
+            guard attribute.format != .invalid else {
+                continue
+            }
+
             let bufferIndex = attribute.bufferIndex
             let wgpuAttribute = WebGPU.GPUVertexAttribute(
                 format: attribute.format.toWebGPU,

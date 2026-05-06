@@ -28,6 +28,9 @@ final class MockViewportDelegate: OffscreenViewportDelegate {
         bootstrapCallCount += 1
     }
 
+    func shutdown() {
+    }
+
     func tick(_ deltaTime: AdaUtils.TimeInterval) {
         tickCount += 1
         lastTickDelta = deltaTime

@@ -239,7 +239,7 @@ struct EnvironmentPropagationTests {
         let model = ObservableEnvironmentModel()
         let probe = RenderProbe()
 
-        _ = ViewTester {
+        let tester = ViewTester {
             ObservableEnvironmentView(probe: probe)
                 .environment(model)
         }
@@ -260,6 +260,7 @@ struct EnvironmentPropagationTests {
 
         #expect(probe.values.count > initialRenderCount)
         #expect(probe.values.last == 1)
+        withExtendedLifetime(tester) {}
     }
 
 }

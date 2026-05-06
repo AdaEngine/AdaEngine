@@ -6,8 +6,12 @@
 //
 
 import Testing
-import AdaRender
+@_spi(Internal) @testable import AdaRender
+import AdaUtils
 import Math
+#if canImport(Metal)
+import Metal
+#endif
 
 @Suite
 struct MeshBufferTests {
@@ -142,6 +146,93 @@ struct MeshBufferTests {
         #expect(buffer.count == 3)
         #expect(buffer.elements == values)
     }
+
+    @Test func `mesh vertex descriptor keeps standard shader locations for sparse attributes`() {
+        var mesh = MeshDescriptor(name: "colored mesh")
+        mesh.positions = MeshBuffer<Vector3>([
+            Vector3(x: 0, y: 0, z: 0),
+            Vector3(x: 1, y: 0, z: 0),
+        ])
+        mesh.colors = MeshBuffer<Color>([
+            .red,
+            .blue,
+        ])
+
+        let attributes = Array(mesh.getMeshVertexBufferDescriptor().attributes)
+
+        #expect(attributes.count == 4)
+        #expect(attributes[0].name == MeshDescriptor.positions.id.name)
+        #expect(attributes[0].format == .vector3)
+        #expect(attributes[0].offset == 0)
+        #expect(attributes[1].format == .invalid)
+        #expect(attributes[2].format == .invalid)
+        #expect(attributes[3].name == MeshDescriptor.colors.id.name)
+        #expect(attributes[3].format == .vector4)
+        #expect(attributes[3].offset == MemoryLayout<Vector3>.stride)
+    }
+
+    #if canImport(Metal)
+    @Test func `mesh2d positions and colors pipeline compiles on Metal`() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            return
+        }
+
+        var mesh = MeshDescriptor(name: "colored mesh")
+        mesh.positions = MeshBuffer<Vector3>([
+            Vector3(x: 0, y: 0, z: 0),
+            Vector3(x: 1, y: 0, z: 0),
+        ])
+        mesh.colors = MeshBuffer<Color>([
+            .red,
+            .blue,
+        ])
+
+        let shaderURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/AdaRender/Assets/Shaders/mesh2d/mesh2d.glsl")
+        let shaderSource = try ShaderSource(from: shaderURL)
+        let compiler = ShaderCompiler(shaderSource: shaderSource)
+        for stage in [ShaderStage.vertex, .fragment] {
+            compiler.setMacro("VERTEX_POSITIONS", value: "1", for: stage)
+            compiler.setMacro("VERTEX_COLORS", value: "1", for: stage)
+        }
+
+        let vertexShader = try Self.makeMetalShader(stage: .vertex, compiler: compiler, device: device)
+        let fragmentShader = try Self.makeMetalShader(stage: .fragment, compiler: compiler, device: device)
+
+        let descriptor = RenderPipelineDescriptor(
+            vertex: vertexShader,
+            fragment: fragmentShader,
+            vertexDescriptor: mesh.getMeshVertexBufferDescriptor(),
+            colorAttachments: [
+                RenderPipelineColorAttachmentDescriptor(format: .bgra8),
+            ]
+        )
+
+        _ = try MetalRenderPipeline(descriptor: descriptor, device: device)
+    }
+
+    private static func makeMetalShader(
+        stage: ShaderStage,
+        compiler: ShaderCompiler,
+        device: MTLDevice
+    ) throws -> Shader {
+        let spirv = try compiler.compileSpirvBin(for: stage, ignoreCache: true)
+        let compiled = try SpirvCompiler(
+            spriv: spirv.data,
+            stage: stage,
+            deviceLang: .msl
+        ).compile()
+        let entryPoint = try #require(compiled.entryPoints.first?.name)
+        let shader = Shader(
+            source: compiled.source,
+            entryPoint: entryPoint,
+            stage: stage,
+            reflectionData: compiled.reflection
+        )
+        shader.compiledShader = try MetalShader(shader: shader, device: device)
+        return shader
+    }
+    #endif
 
     // MARK: - Iterator Tests
 

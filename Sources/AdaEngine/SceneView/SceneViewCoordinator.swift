@@ -28,6 +28,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private(set) var renderTexture: Texture2D?
 
     private var isBootstrapping = false
+    private var isShutdown = false
     private var hasCalledSetup = false
     /// When true, this coordinator's ``AppWorlds`` is a subworld of ``AppWorldsSession/current`` and is updated by the host ``AppWorlds/update()`` loop (no separate ``tick`` work).
     private var isHostedSubworld = false
@@ -39,10 +40,12 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var scaleFactor: Float = 1
 
     private let filePath: StaticString
+    private let pluginPreset: SceneViewPluginPreset
     private let setupClosure: @MainActor (World) -> Void
 
-    init(filePath: StaticString, setup: @escaping @MainActor (World) -> Void) {
+    init(filePath: StaticString, pluginPreset: SceneViewPluginPreset, setup: @escaping @MainActor (World) -> Void) {
         self.filePath = filePath
+        self.pluginPreset = pluginPreset
         self.setupClosure = setup
         self.hostSubworldName = AppWorldName(rawValue: "SceneView.\(UUID().uuidString)")
     }
@@ -57,12 +60,16 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     // MARK: - OffscreenViewportDelegate
 
     func bootstrapIfNeeded() {
-        guard appWorlds == nil && !isBootstrapping else { return }
+        guard appWorlds == nil && !isBootstrapping && !isShutdown else { return }
         isBootstrapping = true
 
         Task { @MainActor [weak self] in
-            guard let self else { return }
+            guard let self, !self.isShutdown else { return }
             let app = self.buildAppWorlds()
+            guard !self.isShutdown else {
+                self.isBootstrapping = false
+                return
+            }
             if let host = AppWorldsSession.current {
                 host.addSubworld(app, by: self.hostSubworldName)
                 self.isHostedSubworld = true
@@ -70,10 +77,27 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 self.isHostedSubworld = false
             }
             try? await app.build()
+            guard !self.isShutdown else {
+                AppWorldsSession.current?.removeSubworld(by: self.hostSubworldName)
+                self.isBootstrapping = false
+                return
+            }
             self.appWorlds = app
             self.isBootstrapping = false
             self.finalizeSetupIfReady()
         }
+    }
+
+    func shutdown() {
+        isShutdown = true
+        AppWorldsSession.current?.removeSubworld(by: hostSubworldName)
+        appWorlds = nil
+        cameraEntity = nil
+        renderTexture = nil
+        isBootstrapping = false
+        hasCalledSetup = false
+        isHostedSubworld = false
+        standaloneTickInFlight = false
     }
 
     func updateSize(_ size: SizeInt, scaleFactor: Float) {
@@ -214,16 +238,24 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         app.addPlugin(CameraPlugin())
         app.addPlugin(AssetsPlugin(filePath: filePath))
         app.addPlugin(VisibilityPlugin())
-        app.addPlugin(SpritePlugin())
-        app.addPlugin(Mesh2DPlugin())
-        app.addPlugin(TextPlugin())
-        app.addPlugin(ScenePlugin())
-        app.addPlugin(ScriptableObjectPlugin())
-        app.addPlugin(Physics2DPlugin())
-        app.addPlugin(TileMapPlugin())
-        app.addPlugin(Core2DPlugin())
-        app.addPlugin(Light2DPlugin())
-        app.addPlugin(UpscalePlugin())
+
+        switch pluginPreset {
+        case .standard:
+            app.addPlugin(SpritePlugin())
+            app.addPlugin(Mesh2DPlugin())
+            app.addPlugin(TextPlugin())
+            app.addPlugin(ScenePlugin())
+            app.addPlugin(ScriptableObjectPlugin())
+            app.addPlugin(Physics2DPlugin())
+            app.addPlugin(TileMapPlugin())
+            app.addPlugin(Core2DPlugin())
+            app.addPlugin(Light2DPlugin())
+            app.addPlugin(UpscalePlugin())
+        case .mesh2D:
+            app.addPlugin(SpritePlugin())
+            app.addPlugin(Mesh2DPlugin())
+            app.addPlugin(Core2DPlugin())
+        }
 
         app.insertResource(PrimaryWindowId(windowId: RID()))
 

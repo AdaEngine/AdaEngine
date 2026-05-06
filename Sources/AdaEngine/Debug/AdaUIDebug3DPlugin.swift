@@ -19,20 +19,26 @@ public struct AdaUIDebug3DPlugin: Plugin {
     private let title: String
     private let size: Size
     private let presentation: Presentation
+    private let isEnabled: Bool
 
     public init(
         title: String = "AdaUI 3D Debug View",
         size: Size = Size(width: 1280, height: 820),
-        presentation: Presentation = .separateWindow
+        presentation: Presentation = .separateWindow,
+        isEnabled: Bool = false
     ) {
         self.title = title
         self.size = size
         self.presentation = presentation
+        self.isEnabled = isEnabled
     }
 
     @MainActor
     public func setup(in app: borrowing AppWorlds) {
         let model = AdaUIDebug3DModel()
+        if app.getResource(AdaUIDebug3DVisibility.self) == nil {
+            app.insertResource(AdaUIDebug3DVisibility(isEnabled: isEnabled))
+        }
         app
             .insertResource(AdaUIDebug3DResource(title: title, size: size, presentation: presentation, model: model))
             .addSystem(StartupAdaUIDebug3DSystem.self, on: .startup)
@@ -45,12 +51,22 @@ public struct AdaUIDebug3DPlugin: Plugin {
             return
         }
 
-        debug.ensureSurfaces()
+        let visibility = app.getResource(AdaUIDebug3DVisibility.self)
+        debug.updateSurfaces(isEnabled: visibility?.isEnabled ?? false)
         debug.synchronizeOverlayFrame()
         debug.window?.setNeedsLayout()
         debug.window?.setNeedsDisplay()
         debug.overlayView?.setNeedsLayout()
         debug.overlayView?.setNeedsDisplay()
+    }
+}
+
+public final class AdaUIDebug3DVisibility: Resource, @unchecked Sendable {
+    @MainActor public var isEnabled: Bool
+
+    @MainActor
+    public init(isEnabled: Bool = false) {
+        self.isEnabled = isEnabled
     }
 }
 
@@ -80,6 +96,16 @@ public final class AdaUIDebug3DResource: Resource, @unchecked Sendable {
     }
 
     @MainActor
+    func updateSurfaces(isEnabled: Bool) {
+        guard isEnabled else {
+            removeSurfaces()
+            return
+        }
+
+        ensureSurfaces()
+    }
+
+    @MainActor
     func ensureSurfaces() {
         switch presentation {
         case .separateWindow:
@@ -90,6 +116,29 @@ public final class AdaUIDebug3DResource: Resource, @unchecked Sendable {
             ensureWindow()
             ensurePrimaryWindowOverlay()
         }
+    }
+
+    @MainActor
+    func removeSurfaces() {
+        model.releaseScene()
+        model.clearSnapshots()
+
+        if let overlayView {
+            model.ignoredContainerIds.remove(ObjectIdentifier(overlayView))
+            overlayView.removeFromParentView()
+            self.overlayView = nil
+        }
+        didCreateOverlay = false
+
+        if let window {
+            if model.debugWindowId == window.id {
+                model.debugWindowId = nil
+            }
+            window.close()
+            self.window = nil
+        }
+        didCreateWindow = false
+        refreshAccumulator = 0
     }
 
     @MainActor
@@ -127,6 +176,10 @@ public final class AdaUIDebug3DResource: Resource, @unchecked Sendable {
         return true
     }
 
+    @MainActor
+    func updateCamera(deltaTime: TimeInterval) -> Bool { model.updateCamera(deltaTime: deltaTime) }
+    @MainActor
+    func syncScene() { model.syncScene() }
     @MainActor
     private func ensureWindow() {
         guard !didCreateWindow, window == nil else {
@@ -185,9 +238,9 @@ public final class AdaUIDebug3DResource: Resource, @unchecked Sendable {
 
 @System
 @MainActor
-func StartupAdaUIDebug3D(_ resource: Res<AdaUIDebug3DResource>) {
+func StartupAdaUIDebug3D(_ resource: Res<AdaUIDebug3DResource>, _ visibility: Res<AdaUIDebug3DVisibility>) {
     let debug = resource.wrappedValue
-    debug.ensureSurfaces()
+    debug.updateSurfaces(isEnabled: visibility.isEnabled)
     debug.synchronizeOverlayFrame()
     debug.window?.setNeedsLayout()
     debug.window?.setNeedsDisplay()
@@ -197,18 +250,33 @@ func StartupAdaUIDebug3D(_ resource: Res<AdaUIDebug3DResource>) {
 
 @System
 @MainActor
-func UpdateAdaUIDebug3D(_ resource: Res<AdaUIDebug3DResource>, _ deltaTime: Res<DeltaTime>) {
+func UpdateAdaUIDebug3D(
+    _ resource: Res<AdaUIDebug3DResource>,
+    _ visibility: Res<AdaUIDebug3DVisibility>,
+    _ deltaTime: Res<DeltaTime>
+) {
     let debug = resource.wrappedValue
-    debug.ensureSurfaces()
-    debug.synchronizeOverlayFrame()
-
-    guard debug.autoRefreshIfNeeded(deltaTime: deltaTime.deltaTime) else {
+    debug.updateSurfaces(isEnabled: visibility.isEnabled)
+    guard visibility.isEnabled else {
         return
     }
-    debug.window?.setNeedsLayout()
-    debug.window?.setNeedsDisplay()
-    debug.overlayView?.setNeedsLayout()
-    debug.overlayView?.setNeedsDisplay()
+
+    debug.synchronizeOverlayFrame()
+    let cameraDidUpdate = debug.updateCamera(deltaTime: deltaTime.deltaTime)
+    let didRefresh = debug.autoRefreshIfNeeded(deltaTime: deltaTime.deltaTime)
+    debug.syncScene()
+
+    guard cameraDidUpdate || didRefresh else {
+        return
+    }
+
+    if didRefresh {
+        debug.window?.setNeedsLayout()
+        debug.overlayView?.setNeedsLayout()
+    } else {
+        debug.window?.setNeedsDisplay()
+        debug.overlayView?.setNeedsDisplay()
+    }
 }
 
 @MainActor
@@ -221,6 +289,10 @@ final class AdaUIDebug3DModel {
     var layerSpacing: Float = 24
     var depthLimit: Int = 36
     var pan = Point(48, 72)
+    var yaw: Float = -0.42
+    var pitch: Float = 0.24
+    private var currentYaw: Float = -0.42
+    private var currentPitch: Float = 0.24
 
     private(set) var windows: [AdaUIDebug3DWindowSnapshot] = []
     private(set) var lastItems: [AdaUIDebug3DLayout.Item] = []
@@ -233,6 +305,8 @@ final class AdaUIDebug3DModel {
     private var sceneEntityId: Entity.ID?
     private var sceneMaterial = CustomMaterial(AdaUIDebugVertexColorMaterial())
     private var sceneKey: ProjectionCacheKey?
+    private var sceneRotation = Quat.identity
+    private var viewportSize = Size(width: 1280, height: 820)
 
     var selectedDescriptionLines: [String] {
         guard let node = selectedNode else {
@@ -297,7 +371,7 @@ final class AdaUIDebug3DModel {
             )
         }
 
-        guard !nextWindows.isEmpty || windows.isEmpty else {
+        guard nextWindows != windows else {
             return
         }
 
@@ -322,7 +396,6 @@ final class AdaUIDebug3DModel {
         )
         if cachedProjectionKey == key {
             lastItems = cachedProjectedItems
-            syncSceneIfNeeded(items: cachedProjectedItems, viewportSize: size, key: key)
             return cachedProjectedItems
         }
 
@@ -333,19 +406,43 @@ final class AdaUIDebug3DModel {
         )
         cachedProjectionKey = key
         cachedProjectedItems = lastItems
-        syncSceneIfNeeded(items: lastItems, viewportSize: size, key: key)
         return lastItems
     }
 
     func attachSceneWorld(_ world: World) {
-        sceneWorld = world
-        configureSceneCamera(viewportSize: Size(width: 1280, height: 820))
-        sceneKey = nil
-        if !cachedProjectedItems.isEmpty, let cachedProjectionKey {
-            syncSceneIfNeeded(items: cachedProjectedItems, viewportSize: cachedProjectionKey.projection.viewportSize, key: cachedProjectionKey)
+        if sceneWorld !== world {
+            releaseScene()
         }
+        sceneWorld = world
+        configureSceneCamera(viewportSize: viewportSize)
+        sceneKey = nil
+        syncScene()
     }
 
+    func setViewportSize(_ size: Size) {
+        guard size.width > 0, size.height > 0, viewportSize != size else { return }
+        viewportSize = size
+        invalidateProjection()
+    }
+    func releaseScene() {
+        if let world = sceneWorld, let sceneEntityId {
+            world.removeEntity(sceneEntityId, recursively: true)
+            world.flush()
+        }
+        sceneWorld = nil
+        sceneEntityId = nil
+        sceneKey = nil
+    }
+    func clearSnapshots() {
+        windows.removeAll(keepingCapacity: false)
+        lastItems.removeAll(keepingCapacity: false)
+        cachedProjectedItems.removeAll(keepingCapacity: false)
+        selectedNode = nil
+        selectedPath.removeAll(keepingCapacity: false)
+        selectedRuntimeId = nil
+        cachedProjectionKey = nil
+        snapshotVersion += 1
+    }
     func select(at point: Point, viewportSize: Size) {
         let items = lastItems.isEmpty ? project(size: viewportSize) : lastItems
         guard let item = AdaUIDebug3DLayout.pick(point, in: items) else {
@@ -363,6 +460,11 @@ final class AdaUIDebug3DModel {
         layerSpacing = 24
         depthLimit = 36
         pan = Point(48, 72)
+        yaw = -0.42
+        pitch = 0.24
+        currentYaw = yaw
+        currentPitch = pitch
+        applySceneTransform()
         invalidateProjection()
     }
 
@@ -386,17 +488,67 @@ final class AdaUIDebug3DModel {
         invalidateProjection()
     }
 
+    func rotateBy(deltaX: Float, deltaY: Float) {
+        yaw += deltaX * 0.008
+        pitch = min(1.15, max(-1.15, pitch + deltaY * 0.008))
+    }
+
+    func updateCamera(deltaTime: TimeInterval) -> Bool {
+        let difference = abs(yaw - currentYaw) + abs(pitch - currentPitch)
+        guard difference > 0.0001 else {
+            return false
+        }
+
+        let interpolation = min(1, max(0.08, Float(deltaTime) * 18))
+        currentYaw = lerpf(currentYaw, yaw, interpolation)
+        currentPitch = lerpf(currentPitch, pitch, interpolation)
+
+        if abs(yaw - currentYaw) + abs(pitch - currentPitch) < 0.0001 {
+            currentYaw = yaw
+            currentPitch = pitch
+        }
+
+        applySceneTransform()
+        return true
+    }
+
     private func invalidateProjection() {
         cachedProjectionKey = nil
         sceneKey = nil
     }
 
+    func syncScene() {
+        let _ = project(size: viewportSize)
+        guard let cachedProjectionKey else { return }
+        syncSceneIfNeeded(items: cachedProjectedItems, viewportSize: viewportSize, key: cachedProjectionKey)
+    }
     private func syncSceneIfNeeded(items: [AdaUIDebug3DLayout.Item], viewportSize: Size, key: ProjectionCacheKey) {
-        guard sceneKey != key else {
-            return
-        }
+        guard sceneKey != key else { return }
         sceneKey = key
         rebuildScene(items: items, viewportSize: viewportSize)
+    }
+
+    private func applySceneTransform() {
+        guard let world = sceneWorld,
+              let sceneEntityId,
+              let entity = world.getEntityByID(sceneEntityId) else {
+            return
+        }
+
+        let rotation = sceneRotationValue()
+        guard rotation != sceneRotation else {
+            return
+        }
+        sceneRotation = rotation
+        entity.components += sceneTransform()
+    }
+
+    private func sceneTransform() -> Transform {
+        Transform(rotation: sceneRotation)
+    }
+
+    private func sceneRotationValue() -> Quat {
+        Quat.euler(Vector3(currentPitch, currentYaw, 0)).normalized
     }
 
     private func rebuildScene(items: [AdaUIDebug3DLayout.Item], viewportSize: Size) {
@@ -409,16 +561,22 @@ final class AdaUIDebug3DModel {
 
         let worldScale = sceneWorldScale(viewportSize: viewportSize)
         let mesh = makeBatchedLayerMesh(items: items, viewportSize: viewportSize, worldScale: worldScale, renderDevice: device.renderDevice)
+        sceneRotation = sceneRotationValue()
 
         if let sceneEntityId, let entity = world.getEntityByID(sceneEntityId) {
             entity.components += Mesh2D(mesh: mesh, materials: [sceneMaterial])
-            entity.components += Transform()
+            entity.components += sceneTransform()
+            entity.components += Visibility.visible
+            entity.components += NoFrustumCulling()
+            world.flush()
             return
         }
 
         let entity = world.spawn("AdaUI Debug Layers") {
             Mesh2D(mesh: mesh, materials: [sceneMaterial])
-            Transform()
+            sceneTransform()
+            Visibility.visible
+            NoFrustumCulling()
         }
         sceneEntityId = entity.id
         world.flush()
@@ -436,9 +594,9 @@ final class AdaUIDebug3DModel {
         var positions: [Vector3] = []
         var colors: [Color] = []
         var indices: [UInt32] = []
-        positions.reserveCapacity(items.count * 4)
-        colors.reserveCapacity(items.count * 4)
-        indices.reserveCapacity(items.count * 6)
+        positions.reserveCapacity(items.count * 16)
+        colors.reserveCapacity(items.count * 16)
+        indices.reserveCapacity(items.count * 24)
 
         let sortedItems = items.sorted { lhs, rhs in
             if lhs.depth == rhs.depth {
@@ -453,38 +611,36 @@ final class AdaUIDebug3DModel {
                 continue
             }
 
-            let depth = Float(item.depth)
-            let depthOffset = depth * max(12, layerSpacing * 1.8)
-            let parallax = depth * layerSpacing * 0.35
-            let x = (rect.midX - viewportSize.width * 0.5 + parallax) * worldScale
-            let y = (viewportSize.height * 0.5 - rect.midY + parallax * 0.22) * worldScale
-            let z = -depthOffset * worldScale
-            let fillAlpha: Float = item.isSelected ? 0.86 : (item.isInteractable ? 0.42 : 0.2)
-            let color = item.isSelected ? Color.fromHex(0x2D7EFF).opacity(fillAlpha) : item.color.opacity(fillAlpha)
+            let depth = Float((sortedItems.last?.depth ?? 0) - item.depth)
+            let depthOffset = depth * layerSpacing
+            let x = (rect.midX - viewportSize.width * 0.5) * worldScale
+            let y = (viewportSize.height * 0.5 - rect.midY) * worldScale
+            let z = depthOffset * worldScale
+            let color = layerColor(for: item)
 
             let halfWidth = max(0.5, rect.width * worldScale * 0.5)
             let halfHeight = max(0.5, rect.height * worldScale * 0.5)
-            let skew = halfWidth * 0.18
-            let vertexStart = UInt32(positions.count)
-            positions.append(contentsOf: [
-                Vector3(x - halfWidth + skew, y - halfHeight, z),
-                Vector3(x + halfWidth + skew, y - halfHeight, z),
-                Vector3(x + halfWidth - skew, y + halfHeight, z),
-                Vector3(x - halfWidth - skew, y + halfHeight, z)
-            ])
-            colors.append(contentsOf: [color, color, color, color])
-            indices.append(contentsOf: [
-                vertexStart, vertexStart + 1, vertexStart + 2,
-                vertexStart + 2, vertexStart + 3, vertexStart
-            ])
+            let thickness = min(max(1.8 * worldScale, min(halfWidth, halfHeight) * 0.025), 5.5 * worldScale)
+            appendOutline(
+                minX: x - halfWidth,
+                maxX: x + halfWidth,
+                minY: y - halfHeight,
+                maxY: y + halfHeight,
+                z: z,
+                thickness: thickness,
+                color: color,
+                positions: &positions,
+                colors: &colors,
+                indices: &indices
+            )
         }
 
         if positions.isEmpty {
             positions = [
-                Vector3(-1, -1, -1),
-                Vector3(1, -1, -1),
-                Vector3(1, 1, -1),
-                Vector3(-1, 1, -1)
+                Vector3(-1, -1, 1),
+                Vector3(1, -1, 1),
+                Vector3(1, 1, 1),
+                Vector3(-1, 1, 1)
             ]
             colors = Array(repeating: Color.clear, count: 4)
             indices = [0, 1, 2, 2, 3, 0]
@@ -515,7 +671,7 @@ final class AdaUIDebug3DModel {
             projection.updateView(width: safeWidth, height: safeHeight)
             camera.projection = .perspective(projection)
             camera.backgroundColor = Color.fromHex(0x171A1F)
-            transform.position = Vector3(0, 0, distance)
+            transform.position = Vector3(0, 0, -distance)
             transform.rotation = Quat.identity
             entity.components += camera
             entity.components += transform
@@ -575,6 +731,68 @@ final class AdaUIDebug3DModel {
             }
         }
     }
+}
+
+private func appendOutline(
+    minX: Float,
+    maxX: Float,
+    minY: Float,
+    maxY: Float,
+    z: Float,
+    thickness: Float,
+    color: Color,
+    positions: inout [Vector3],
+    colors: inout [Color],
+    indices: inout [UInt32]
+) {
+    let edges = [
+        (minX, maxX, minY, minY + thickness),
+        (minX, maxX, maxY - thickness, maxY),
+        (minX, minX + thickness, minY, maxY),
+        (maxX - thickness, maxX, minY, maxY)
+    ]
+    for edge in edges {
+        appendQuad(minX: edge.0, maxX: edge.1, minY: edge.2, maxY: edge.3, z: z, color: color, positions: &positions, colors: &colors, indices: &indices)
+    }
+}
+
+private func appendQuad(
+    minX: Float,
+    maxX: Float,
+    minY: Float,
+    maxY: Float,
+    z: Float,
+    color: Color,
+    positions: inout [Vector3],
+    colors: inout [Color],
+    indices: inout [UInt32]
+) {
+    guard maxX > minX, maxY > minY else {
+        return
+    }
+
+    let vertexStart = UInt32(positions.count)
+    positions.append(contentsOf: [
+        Vector3(minX, minY, z),
+        Vector3(maxX, minY, z),
+        Vector3(maxX, maxY, z),
+        Vector3(minX, maxY, z)
+    ])
+    colors.append(contentsOf: [color, color, color, color])
+    indices.append(contentsOf: [
+        vertexStart, vertexStart + 1, vertexStart + 2,
+        vertexStart + 2, vertexStart + 3, vertexStart
+    ])
+}
+
+private func layerColor(for item: AdaUIDebug3DLayout.Item) -> Color {
+    if item.isSelected {
+        return Color.fromHex(0x5EA1FF).opacity(0.96)
+    }
+
+    let palette = [0x5ED3F3, 0x6EA8FE, 0x9D8CFF, 0xF4B860, 0x74D99F, 0xF17EA8]
+    let base = Color.fromHex(palette[item.depth % palette.count])
+    return base.opacity(item.isInteractable ? 0.78 : 0.48)
 }
 
 private struct ProjectionCacheKey: Hashable {
@@ -719,7 +937,7 @@ enum AdaUIDebug3DLayout {
             value &*= 0x100000001b3
         }
         let hue = Int(value & 0x00FFFFFF)
-        return Color.fromHex(hue).opacity(node.isInteractable ? 0.16 : 0.045)
+        return Color.fromHex(hue)
     }
 }
 
@@ -833,46 +1051,44 @@ struct AdaUIDebug3DView: View {
     }
 
     private var viewport: some View {
-        GeometryReader { proxy in
-            viewportContent(size: proxy.size)
-        }
-        .background(Color.fromHex(0x1A1D21))
-        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-    }
-
-    private func viewportContent(size: Size) -> some View {
-        let _ = revision
-        let _ = model.project(size: size)
-        return ZStack {
-            SceneView(setup: { world in
+        ZStack {
+            SceneView(pluginPreset: .mesh2D, setup: { world in
                 model.attachSceneWorld(world)
             }) { context in
                 context.viewport
             }
 
-            Color.clear
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            if let lastDragLocation {
-                                model.setPan(Point(
-                                    model.pan.x + value.location.x - lastDragLocation.x,
-                                    model.pan.y + value.location.y - lastDragLocation.y
-                                ))
-                            }
-                            lastDragLocation = value.location
-                            revision += 1
-                        }
-                        .onEnded { value in
-                            lastDragLocation = nil
-                            if abs(value.translation.width) < 3, abs(value.translation.height) < 3 {
-                                model.select(at: value.location, viewportSize: size)
-                            }
-                            revision += 1
-                        }
-                )
+            GeometryReader { proxy in
+                viewportOverlay(size: proxy.size)
+            }
         }
         .background(Color.fromHex(0x1A1D21))
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+    }
+
+    private func viewportOverlay(size: Size) -> some View {
+        let _ = revision
+        let _ = model.setViewportSize(size)
+        return Color.clear
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        if let lastDragLocation {
+                            model.rotateBy(
+                                deltaX: value.location.x - lastDragLocation.x,
+                                deltaY: value.location.y - lastDragLocation.y
+                            )
+                        }
+                        lastDragLocation = value.location
+                    }
+                    .onEnded { value in
+                        lastDragLocation = nil
+                        if abs(value.translation.width) < 3, abs(value.translation.height) < 3 {
+                            model.select(at: value.location, viewportSize: size)
+                            revision += 1
+                        }
+                    }
+            )
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
     }
 
@@ -967,24 +1183,15 @@ private extension UINodeSnapshot {
 }
 
 private extension Rect {
-    var center: Point {
-        Point(midX, midY)
-    }
-
-    var area: Float {
-        width * height
-    }
+    var center: Point { Point(midX, midY) }
+    var area: Float { width * height }
 }
-
 private func shortType(_ type: String) -> String {
     type.split(separator: ".").last.map(String.init) ?? type
 }
-
 private func format(_ rect: Rect) -> String {
     "x:\(Int(rect.origin.x)) y:\(Int(rect.origin.y)) w:\(Int(rect.width)) h:\(Int(rect.height))"
 }
-
 private func format(_ value: Float) -> String {
-    let scaled = (value * 100).rounded() / 100
-    return "\(scaled)"
+    "\((value * 100).rounded() / 100)"
 }

@@ -196,6 +196,32 @@ public struct NavigationSplitViewColumnWidth: Sendable, Equatable {
     }
 }
 
+/// The drawing behavior for separators in a navigation split view.
+public enum NavigationSplitViewSeparatorVisibility: Sendable, Hashable {
+    case visible
+    case hidden
+}
+
+/// Configuration for separators in a navigation split view.
+public struct NavigationSplitViewSeparatorConfiguration: Sendable, Equatable {
+    public var visibility: NavigationSplitViewSeparatorVisibility
+    public var color: Color
+    public var allowsDragging: Bool
+    public var hitOutset: Float
+
+    public init(
+        visibility: NavigationSplitViewSeparatorVisibility = .visible,
+        color: Color = .gray,
+        allowsDragging: Bool = true,
+        hitOutset: Float = 5
+    ) {
+        self.visibility = visibility
+        self.color = color
+        self.allowsDragging = allowsDragging
+        self.hitOutset = hitOutset
+    }
+}
+
 public extension View {
     /// Sets a fixed, preferred width for the column containing this view.
     func navigationSplitViewColumnWidth(_ width: Float) -> some View {
@@ -214,6 +240,32 @@ public extension View {
     func navigationSplitViewStyle<S: NavigationSplitViewStyle>(_ style: S) -> some View {
         self
     }
+
+    /// Sets the separator configuration for navigation split views within this view.
+    func navigationSplitViewSeparators(_ configuration: NavigationSplitViewSeparatorConfiguration) -> some View {
+        self.environment(\.navigationSplitViewSeparators, configuration)
+    }
+
+    /// Sets separator visibility, color, and drag behavior for navigation split views within this view.
+    func navigationSplitViewSeparators(
+        _ visibility: NavigationSplitViewSeparatorVisibility = .visible,
+        color: Color = .gray,
+        allowsDragging: Bool = true,
+        hitOutset: Float = 5
+    ) -> some View {
+        navigationSplitViewSeparators(
+            NavigationSplitViewSeparatorConfiguration(
+                visibility: visibility,
+                color: color,
+                allowsDragging: allowsDragging,
+                hitOutset: hitOutset
+            )
+        )
+    }
+}
+
+public extension EnvironmentValues {
+    @Entry var navigationSplitViewSeparators: NavigationSplitViewSeparatorConfiguration = NavigationSplitViewSeparatorConfiguration()
 }
 
 public protocol NavigationSplitViewStyle {}
@@ -291,8 +343,6 @@ private final class NavigationSplitColumnNode: ViewModifierNode {
 }
 
 private final class NavigationSplitDividerNode: ViewNode {
-    private static let hitOutset: Float = 5
-
     let leadingColumn: NavigationSplitViewColumn
     private var lastDragX: Float?
     private var lastTouchX: Float?
@@ -313,20 +363,27 @@ private final class NavigationSplitDividerNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         guard frame.width > 0, frame.height > 0 else { return }
 
+        let separators = environment.navigationSplitViewSeparators
+        guard separators.visibility == .visible, separators.color.alpha > 0 else { return }
+
         var context = context
         context.environment = environment
         context.translateBy(x: frame.origin.x, y: -frame.origin.y)
         context.drawRect(
             Rect(origin: .zero, size: Size(width: 1, height: frame.height)),
-            color: .gray
+            color: separators.color
         )
     }
 
     override func point(inside point: Point, with event: any InputEvent) -> Bool {
+        let separators = environment.navigationSplitViewSeparators
+        guard separators.allowsDragging else { return false }
+
+        let hitOutset = max(separators.hitOutset, 0)
         let extended = Rect(
-            x: frame.minX - Self.hitOutset,
+            x: frame.minX - hitOutset,
             y: frame.minY,
-            width: frame.width + Self.hitOutset * 2,
+            width: frame.width + hitOutset * 2,
             height: frame.height
         )
         return extended.contains(point: point)
@@ -337,6 +394,8 @@ private final class NavigationSplitDividerNode: ViewNode {
     }
 
     override func onMouseEvent(_ event: MouseEvent) {
+        guard environment.navigationSplitViewSeparators.allowsDragging else { return }
+
         switch event.phase {
         case .began:
             guard event.button == .left else { return }
@@ -352,6 +411,7 @@ private final class NavigationSplitDividerNode: ViewNode {
     }
 
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        guard environment.navigationSplitViewSeparators.allowsDragging else { return }
         guard let first = touches.first else { return }
 
         switch first.phase {
@@ -370,6 +430,18 @@ private final class NavigationSplitDividerNode: ViewNode {
     private func resizeLeadingColumn(by delta: Float) {
         guard delta != 0 else { return }
         (parent as? NavigationSplitViewNode)?.resizeColumn(leadingColumn, by: delta)
+    }
+
+    override func updateEnvironment(_ parentEnvironment: EnvironmentValues) {
+        let previousSeparators = environment.navigationSplitViewSeparators
+        super.updateEnvironment(parentEnvironment)
+
+        guard environment.navigationSplitViewSeparators != previousSeparators else {
+            return
+        }
+
+        invalidateNearestLayer()
+        owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
     }
 }
 

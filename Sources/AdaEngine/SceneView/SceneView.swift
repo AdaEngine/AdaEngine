@@ -9,6 +9,11 @@ import AdaECS
 import AdaUI
 import Math
 
+public enum SceneViewPluginPreset: Sendable {
+    case standard
+    case mesh2D
+}
+
 /// A view that creates a separate offscreen runtime with its own `World`, renders it
 /// into a `RenderTexture`, and exposes the result as a reactive viewport embeddable
 /// into the AdaUI view hierarchy.
@@ -27,23 +32,26 @@ import Math
 /// ```
 public struct SceneView<Content: View>: View {
     let filePath: StaticString
+    let pluginPreset: SceneViewPluginPreset
     let setup: @MainActor (World) -> Void
     let contentBuilder: @MainActor (SceneViewContext) -> Content
 
     public init(
         filePath: StaticString = #filePath,
+        pluginPreset: SceneViewPluginPreset = .standard,
         setup: @escaping @MainActor (World) -> Void,
         @ViewBuilder content: @escaping @MainActor (SceneViewContext) -> Content
     ) {
         self.filePath = filePath
+        self.pluginPreset = pluginPreset
         self.setup = setup
         self.contentBuilder = content
     }
 
     public var body: some View {
         OffscreenViewportContainer(
-            delegateFactory: { [filePath, setup] in
-                SceneViewCoordinator(filePath: filePath, setup: setup)
+            delegateFactory: { [filePath, pluginPreset, setup] in
+                SceneViewCoordinator(filePath: filePath, pluginPreset: pluginPreset, setup: setup)
             },
             contentBuilder: { [contentBuilder] delegate in
                 let coordinator = delegate as! SceneViewCoordinator

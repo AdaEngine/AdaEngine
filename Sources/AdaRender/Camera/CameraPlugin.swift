@@ -26,6 +26,7 @@ public struct CameraPlugin: Plugin {
         }
 
         renderWorld
+            .insertResource(ExtractedCameraRenderViewTargets())
             .addSystem(ExtractCameraSystem.self, on: .extract)
             .addSystem(ConfigurateRenderViewTargetSystem.self, on: .prepare)
             .getRefResource(RenderGraph.self)
@@ -54,16 +55,26 @@ public struct RenderViewTarget: @unchecked Sendable {
     public init() {}
 }
 
+public struct ExtractedCameraRenderViewTargets: Resource {
+    var targets: [Entity.ID: RenderViewTarget] = [:]
+}
+
+@Component
+public struct ExtractedCameraSource: Sendable {
+    let entityId: Entity.ID
+}
+
 @System(
     dependencies: [.after("AdaRender.CreateWindowSurfacesSystem")]
 )
 func ConfigurateRenderViewTarget(
-    _ query: Query<Entity, Camera, Ref<RenderViewTarget>>,
+    _ query: Query<Entity, Camera, Ref<RenderViewTarget>, ExtractedCameraSource>,
     _ surfaces: Res<WindowSurfaces>,
-    _ renderDevice: Res<RenderDeviceHandler>
+    _ renderDevice: Res<RenderDeviceHandler>,
+    _ cachedViewTargets: ResMut<ExtractedCameraRenderViewTargets>
 ) {
     let logger = Logger(label: "org.adaengine.AdaRender.ConfigurateRenderViewTarget")
-    query.forEach { entity, camera, renderViewTarget in
+    query.forEach { entity, camera, renderViewTarget, source in
         let viewportSize = camera.viewport.rect.size.toSizeInt()
 
         guard viewportSize.width != 0 && viewportSize.height != 0 else {
@@ -129,6 +140,8 @@ func ConfigurateRenderViewTarget(
                 format: swapchain.drawablePixelFormat
             )
         }
+
+        cachedViewTargets.targets[source.entityId] = renderViewTarget.wrappedValue
     }
 }
 
@@ -170,6 +183,7 @@ public struct CameraRenderGraph {
 public func ExtractCamera(
     _ world: World,
     _ commands: Commands,
+    _ cachedViewTargets: ResMut<ExtractedCameraRenderViewTargets>,
     _ query: Extract<
         Query<
         Entity,
@@ -181,16 +195,24 @@ public func ExtractCamera(
         >
     >
 ) {
+    var activeCameraIds = Set<Entity.ID>()
+
     query.wrappedValue.forEach {
         entity, camera, transform,
         visibleEntities, uniform, graph in
+        activeCameraIds.insert(entity.id)
+
+        let renderViewTarget = cachedViewTargets.targets[entity.id] ?? RenderViewTarget()
         commands.spawn("ExtractedCameraEntity") {
             camera
             transform
             visibleEntities
             uniform
-            RenderViewTarget()
+            renderViewTarget
+            ExtractedCameraSource(entityId: entity.id)
             graph
         }
     }
+
+    cachedViewTargets.targets = cachedViewTargets.targets.filter { activeCameraIds.contains($0.key) }
 }

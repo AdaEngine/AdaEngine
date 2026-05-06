@@ -22,9 +22,32 @@ public enum UIClipboard {
     /// Returns plain text from the system clipboard if available.
     public static func getString() -> String? {
         #if canImport(AppKit)
-        NSPasteboard.general.string(forType: .string)
+        let pasteboard = NSPasteboard.general
+        if let text = pasteboard.string(forType: .string) {
+            return text
+        }
+        if let urls = pasteboard.readObjects(
+            forClasses: [NSURL.self],
+            options: [.urlReadingFileURLsOnly: true]
+        ) as? [URL],
+           !urls.isEmpty {
+            return urls.map(\.path).joined(separator: "\n")
+        }
+        if let fileURLString = pasteboard.string(forType: .fileURL),
+           let url = URL(string: fileURLString),
+           url.isFileURL {
+            return url.path
+        }
+        return nil
         #elseif canImport(UIKit)
-        UIPasteboard.general.string
+        let pasteboard = UIPasteboard.general
+        if let text = pasteboard.string {
+            return text
+        }
+        if let urls = pasteboard.urls, !urls.isEmpty {
+            return urls.map { $0.isFileURL ? $0.path : $0.absoluteString }.joined(separator: "\n")
+        }
+        return nil
         #else
         fallbackString
         #endif

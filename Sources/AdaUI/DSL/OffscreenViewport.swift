@@ -16,6 +16,7 @@ import Math
 package protocol OffscreenViewportDelegate: AnyObject {
     var renderTexture: Texture2D? { get }
     func bootstrapIfNeeded()
+    func shutdown()
     func tick(_ deltaTime: AdaUtils.TimeInterval)
     func receiveInputEvent(_ event: any InputEvent)
     func updateMousePosition(_ position: Point)
@@ -199,6 +200,14 @@ private final class OffscreenViewportNode: ViewNode {
         }
     }
 
+    override func didMove(to parent: ViewNode?) {
+        super.didMove(to: parent)
+        if parent == nil, Self.currentActiveViewport === self {
+            isActive = false
+            Self.currentActiveViewport = nil
+        }
+    }
+
     // MARK: Private
 
     private func viewportLocalPosition(_ windowPosition: Point) -> Point {
@@ -224,8 +233,8 @@ private final class OffscreenViewportNode: ViewNode {
 private final class OffscreenViewportContainerNode<Content: View>: ViewContainerNode {
 
     private var delegate: (any OffscreenViewportDelegate)?
-    private let delegateFactory: @MainActor () -> any OffscreenViewportDelegate
-    private let contentBuilder: @MainActor (any OffscreenViewportDelegate) -> Content
+    private var delegateFactory: @MainActor () -> any OffscreenViewportDelegate
+    private var contentBuilder: @MainActor (any OffscreenViewportDelegate) -> Content
 
     init<Root: View>(
         delegateFactory: @escaping @MainActor () -> any OffscreenViewportDelegate,
@@ -250,27 +259,60 @@ private final class OffscreenViewportContainerNode<Content: View>: ViewContainer
         ).outputs
         let nodes = outputs.map { $0.node }
 
-        for node in nodes {
-            node.parent = self
-        }
-
-        self.nodes = nodes
+        updateChildNodes(from: nodes)
     }
 
     override func update(from newNode: ViewNode) {
-        super.update(from: newNode)
-
         guard let other = newNode as? OffscreenViewportContainerNode<Content> else {
+            super.update(from: newNode)
             return
         }
-        self.updateChildNodes(from: other.nodes)
+        self.environmentTransform = other.environmentTransform
+        self.applyResolvedEnvironmentSilently(other.environment)
+        self.setContent(other.content)
+        self.delegateFactory = other.delegateFactory
+        self.contentBuilder = other.contentBuilder
+        self.invalidateContent()
     }
 
     private func updateChildNodes(from newNodes: [ViewNode]) {
-        for node in newNodes {
-            node.parent = self
+        if nodes.count == newNodes.count {
+            for (index, newNode) in newNodes.enumerated() {
+                let oldNode = nodes[index]
+                if newNode.canUpdate(oldNode) {
+                    oldNode.update(from: newNode)
+                    oldNode.parent = self
+                } else {
+                    oldNode.parent = nil
+                    newNode.parent = self
+                    nodes[index] = newNode
+                }
+            }
+        } else {
+            for node in nodes {
+                node.parent = nil
+            }
+            nodes = newNodes
+            for node in nodes {
+                node.parent = self
+            }
         }
-        self.nodes = newNodes
+
+        for node in nodes {
+            node.updateLayoutProperties(layoutProperties)
+            if let owner, node.owner !== owner {
+                node.updateViewOwner(owner)
+            }
+        }
         self.performLayout()
+    }
+
+    override func didMove(to parent: ViewNode?) {
+        super.didMove(to: parent)
+        guard parent == nil else {
+            return
+        }
+        delegate?.shutdown()
+        delegate = nil
     }
 }

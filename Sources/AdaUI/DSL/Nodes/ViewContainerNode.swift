@@ -279,10 +279,6 @@ class ViewContainerNode: ViewNode {
             return
         }
 
-        for node in nodes {
-            node.updateEnvironment(self.environment)
-        }
-
         self.updateChildNodes(from: container.nodes)
     }
 

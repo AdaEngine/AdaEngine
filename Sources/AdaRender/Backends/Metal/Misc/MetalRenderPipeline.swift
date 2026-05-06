@@ -24,6 +24,10 @@ final class MetalRenderPipeline: RenderPipeline {
         let vertexDescriptor = MTLVertexDescriptor()
 
         for (index, attribute) in descriptor.vertexDescriptor.attributes.enumerated() {
+            guard attribute.format != .invalid else {
+                continue
+            }
+
             vertexDescriptor.attributes[index].offset = attribute.offset
             vertexDescriptor.attributes[index].bufferIndex = attribute.bufferIndex
             vertexDescriptor.attributes[index].format = attribute.format.metalFormat

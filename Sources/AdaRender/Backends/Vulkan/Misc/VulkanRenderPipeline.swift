@@ -208,7 +208,11 @@ class VulkanRenderPipeline: RenderPipeline {
             )
         }
         
-        let attributes = descriptor.vertexDescriptor.attributes.enumerated().map { (index, attribute) in
+        let attributes = descriptor.vertexDescriptor.attributes.enumerated().compactMap { (index, attribute) in
+            guard attribute.format != .invalid else {
+                return nil
+            }
+
             VkVertexInputAttributeDescription(
                 location: UInt32(index),
                 binding: UInt32(attribute.bufferIndex),

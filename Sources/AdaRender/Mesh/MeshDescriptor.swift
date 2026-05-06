@@ -224,17 +224,24 @@ public extension MeshDescriptor {
         var vertexDescriptor = VertexDescriptor()
         
         var offset: Int = 0
-        var index: Int = 0
+        var usedLocations = Set(buffers.elements.compactMap { $0.key.vertexShaderLocation })
+        var nextCustomLocation = 0
         for value in buffers.elements {
             let buffer = value.value.buffer
             let attribute = value.key
+            let location = attribute.vertexShaderLocation ?? {
+                while usedLocations.contains(nextCustomLocation) {
+                    nextCustomLocation += 1
+                }
+                return nextCustomLocation
+            }()
             
-            vertexDescriptor.attributes[index].name = attribute.name
-            vertexDescriptor.attributes[index].format = buffer.elementType.vertexFormat
-            vertexDescriptor.attributes[index].offset = offset
+            vertexDescriptor.attributes[location].name = attribute.name
+            vertexDescriptor.attributes[location].format = buffer.elementType.vertexFormat
+            vertexDescriptor.attributes[location].offset = offset
             
+            usedLocations.insert(location)
             offset += buffer.elementSize
-            index += 1
         }
         
         vertexDescriptor.layouts[0].stride = offset
@@ -291,6 +298,23 @@ public extension MeshDescriptor {
         }
         
         return vertexBuffer
+    }
+}
+
+private extension MeshDescriptor.Identifier {
+    var vertexShaderLocation: Int? {
+        switch self {
+        case .positions:
+            return 0
+        case .normals:
+            return 1
+        case .textureCoordinates:
+            return 2
+        case .colors:
+            return 3
+        default:
+            return nil
+        }
     }
 }
 

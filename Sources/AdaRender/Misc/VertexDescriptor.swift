@@ -37,16 +37,18 @@ public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable, Send
     /// - Returns: The attribute at the given index.
     public subscript(index: Int) -> VertexDescriptor.Attribute {
         mutating get {
-            if self.buffer.indices.contains(index) {
-                return self.buffer[index]
+            while !self.buffer.indices.contains(index) {
+                self.buffer.append(Self.invalidAttribute())
             }
-            
-            let attribute = VertexDescriptor.Attribute(name: "", offset: 0, bufferIndex: 0, format: .invalid)
-            self.buffer.insert(attribute, at: index)
-            return attribute
+
+            return self.buffer[index]
         }
         
         set {
+            while !self.buffer.indices.contains(index) {
+                self.buffer.append(Self.invalidAttribute())
+            }
+
             self.buffer[index] = newValue
         }
     }
@@ -81,6 +83,10 @@ public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable, Send
             
             self.buffer.append(attribute)
         }
+    }
+
+    private static func invalidAttribute() -> VertexDescriptor.Attribute {
+        VertexDescriptor.Attribute(name: "", offset: 0, bufferIndex: 0, format: .invalid)
     }
 }
 

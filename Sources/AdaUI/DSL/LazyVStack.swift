@@ -126,15 +126,6 @@ final class LazyVStackNode<Data: RandomAccessCollection, ID: Hashable, Row: View
         rebuildVisibleRows(updateExistingRows: true)
     }
 
-    override func updateEnvironment(_ environment: EnvironmentValues) {
-        let previousVersion = self.environment.version
-        super.updateEnvironment(environment)
-        guard self.environment.version != previousVersion else { return }
-        for node in nodes {
-            node.updateEnvironment(self.environment)
-        }
-    }
-
     override func updateViewOwner(_ owner: ViewOwner) {
         super.updateViewOwner(owner)
         for node in nodes {

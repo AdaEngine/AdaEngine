@@ -480,7 +480,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
         }
 
         contentOffset = newValue
-        refreshLazyScrollContent()
+        _ = refreshLazyScrollContent()
         self.invalidateNearestLayer()
         if let containerView = self.owner?.containerView {
             containerView.setNeedsDisplay(in: self.absoluteFrame())
@@ -548,6 +548,10 @@ final class ScrollViewNode: LayoutViewContainerNode {
     }
 
     func scrollToViewNodeIfFoundIt(_ id: AnyHashable, anchor: AnchorPoint? = nil) {
+        if refreshLazyScrollContent() {
+            performLayout()
+        }
+
         if let foundedNode = self.findNodeById(id) {
             let targetFrame = frameInScrollContent(for: foundedNode)
             scrollToContentFrame(targetFrame, anchor: anchor)
@@ -683,25 +687,27 @@ final class ScrollViewNode: LayoutViewContainerNode {
         return nil
     }
 
-    private func refreshLazyScrollContent() {
+    private func refreshLazyScrollContent() -> Bool {
         refreshLazyScrollContent(in: self)
     }
 
-    private func refreshLazyScrollContent(in node: ViewNode) {
+    private func refreshLazyScrollContent(in node: ViewNode) -> Bool {
         if node !== self, let resolver = node as? LazyScrollTargetResolving {
             resolver.refreshVisibleContent()
-            return
+            return true
         }
 
         guard let container = node as? ViewContainerNode else {
             if let modifier = node as? ViewModifierNode {
-                refreshLazyScrollContent(in: modifier.contentNode)
+                return refreshLazyScrollContent(in: modifier.contentNode)
             }
-            return
+            return false
         }
 
+        var didRefresh = false
         for child in container.nodes {
-            refreshLazyScrollContent(in: child)
+            didRefresh = refreshLazyScrollContent(in: child) || didRefresh
         }
+        return didRefresh
     }
 }
