@@ -38,10 +38,15 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         return self
     }
 
+    var isInspectionRedrawOverlayEnabled: Bool {
+        inspectionDebugOverlayMode == .redraw
+    }
+
     /// The view tree of the container view.
     let viewTree: ViewTree<Content>
 
     var inspectionDebugOverlayMode: UIDebugOverlayMode = .off
+    var inspectionRedrawBaselineRevision: UInt64 = ViewNode.currentInspectionRedrawRevision()
     weak var inspectionLastHitTestNode: ViewNode?
     private var transientAnimationControllers: [UIAnimationController] = []
 
@@ -413,6 +418,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
         viewTree.rootNode.drawInspectionDebugOverlay(
             with: context,
             mode: inspectionDebugOverlayMode,
+            redrawBaselineRevision: inspectionRedrawBaselineRevision,
             focusedNode: focusManager.focusedNode,
             hitTestNode: inspectionLastHitTestNode
         )

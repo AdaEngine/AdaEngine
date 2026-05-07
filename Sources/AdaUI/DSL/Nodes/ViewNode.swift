@@ -49,6 +49,7 @@ enum UILayoutDebugCounters {
 /// Node represents a view that can be render, layout and interact.
 @MainActor
 class ViewNode: Identifiable {
+    private static var inspectionRedrawRevisionCounter: UInt64 = 0
 
     nonisolated var id: ObjectIdentifier {
         ObjectIdentifier(self)
@@ -103,6 +104,7 @@ class ViewNode: Identifiable {
     private(set) var layoutProperties = LayoutProperties()
     private var isPerformingAnimatedLayout = false
     private var needsLayoutPass = true
+    private var inspectionRedrawRevision: UInt64 = 0
 
     var layoutPriority: Double {
         0
@@ -388,6 +390,7 @@ class ViewNode: Identifiable {
     /// Update current node with a new. This method called after ``invalidationContent()`` method
     /// and if view exists in tree, we should update exsiting view using ``ViewNode/update(_:)`` method.
     func update(from newNode: ViewNode) {
+        self.markInspectionRedraw()
         let shouldInvalidateForEnvironmentChange = shouldInvalidateContent(forResolvedEnvironment: newNode.environment)
         self.environmentTransform = newNode.environmentTransform
         self.accessibilityIdentifier = newNode.accessibilityIdentifier
@@ -462,6 +465,19 @@ class ViewNode: Identifiable {
     }
 
     func createLayer() -> UILayer? { return nil }
+
+    static func currentInspectionRedrawRevision() -> UInt64 {
+        inspectionRedrawRevisionCounter
+    }
+
+    func markInspectionRedraw() {
+        Self.inspectionRedrawRevisionCounter += 1
+        self.inspectionRedrawRevision = Self.inspectionRedrawRevisionCounter
+
+        if owner?.isInspectionRedrawOverlayEnabled == true {
+            owner?.containerView?.setNeedsDisplay(in: visualAbsoluteFrame())
+        }
+    }
 
     func absoluteFrame() -> Rect {
         return absoluteFrame(using: self.frame)
@@ -557,15 +573,39 @@ class ViewNode: Identifiable {
     func drawInspectionDebugOverlay(
         with context: UIGraphicsContext,
         mode: UIDebugOverlayMode,
+        redrawBaselineRevision: UInt64,
         focusedNode: ViewNode?,
         hitTestNode: ViewNode?
     ) {
+        if mode == .redraw {
+            drawInspectionRedrawFlashes(
+                with: context,
+                baselineRevision: redrawBaselineRevision
+            )
+            return
+        }
+
         drawInspectionLayoutBounds(with: context)
         drawInspectionSelectionBounds(
             with: context,
             mode: mode,
             focusedNode: focusedNode,
             hitTestNode: hitTestNode
+        )
+    }
+
+    func drawInspectionRedrawFlashes(
+        with context: UIGraphicsContext,
+        baselineRevision: UInt64
+    ) {
+        let context = inspectionLocalContext(from: context)
+        drawInspectionRedrawFlashIfNeeded(
+            with: context,
+            baselineRevision: baselineRevision
+        )
+        drawInspectionChildRedrawFlashes(
+            with: context,
+            baselineRevision: baselineRevision
         )
     }
 
@@ -597,6 +637,11 @@ class ViewNode: Identifiable {
     }
 
     func drawInspectionChildLayoutBounds(with context: UIGraphicsContext) { }
+
+    func drawInspectionChildRedrawFlashes(
+        with context: UIGraphicsContext,
+        baselineRevision: UInt64
+    ) { }
 
     func drawInspectionChildSelectionBounds(
         with context: UIGraphicsContext,
@@ -644,6 +689,27 @@ class ViewNode: Identifiable {
         default:
             break
         }
+    }
+
+    func drawInspectionRedrawFlashIfNeeded(
+        with context: UIGraphicsContext,
+        baselineRevision: UInt64
+    ) {
+        guard inspectionRedrawRevision > baselineRevision else {
+            return
+        }
+
+        context.drawRect(
+            Rect(origin: .zero, size: frame.size),
+            color: Self.inspectionRedrawFillColor
+        )
+        context.drawDebugBorders(
+            frame.size,
+            lineWidth: 2,
+            color: Self.inspectionRedrawBorderColor
+        )
+        inspectionRedrawRevision = 0
+        owner?.containerView?.setNeedsDisplay(in: visualAbsoluteFrame())
     }
 
     func drawInspectionBounds(
@@ -758,6 +824,8 @@ protocol ViewOwner: AnyObject {
 
     var containerView: UIView? { get }
 
+    var isInspectionRedrawOverlayEnabled: Bool { get }
+
     func updateEnvironment(_ env: EnvironmentValues)
 
     func addTransientAnimationController(_ animationController: UIAnimationController)
@@ -778,4 +846,6 @@ private extension ViewNode {
     static let inspectionFocusedNodeFillColor = Color.fromHex(0x2D7EFF).opacity(0.12)
     static let inspectionHitTestTargetColor = Color.fromHex(0xFF2D55)
     static let inspectionHitTestTargetFillColor = Color.fromHex(0xFF2D55).opacity(0.12)
+    static let inspectionRedrawBorderColor = Color.fromHex(0xFF2D55).opacity(0.92)
+    static let inspectionRedrawFillColor = Color.fromHex(0xFF2D55).opacity(0.26)
 }

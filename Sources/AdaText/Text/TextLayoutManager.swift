@@ -53,6 +53,158 @@ public struct TextContainer: Hashable {
 
 }
 
+struct TextLineBreakRules {
+    static func isJapaneseWrappingContext(
+        at index: String.Index,
+        in string: String,
+        rowStartIndex: String.Index
+    ) -> Bool {
+        guard index < string.endIndex else {
+            return false
+        }
+
+        if isJapaneseLike(string[index]) {
+            return true
+        }
+
+        guard index > rowStartIndex else {
+            return false
+        }
+
+        let previousIndex = string.index(before: index)
+        return isJapaneseLike(string[previousIndex])
+    }
+
+    static func canBreakJapaneseLine(
+        before index: String.Index,
+        in string: String,
+        rowStartIndex: String.Index
+    ) -> Bool {
+        guard index > rowStartIndex && index < string.endIndex else {
+            return false
+        }
+
+        let current = string[index]
+        let previous = string[string.index(before: index)]
+
+        if isProhibitedLineStart(current) {
+            return false
+        }
+
+        if isProhibitedLineEnd(previous) {
+            return false
+        }
+
+        return true
+    }
+
+    private static func isJapaneseLike(_ character: Character) -> Bool {
+        character.unicodeScalars.contains { scalar in
+            isJapaneseScalar(scalar) || isJapanesePunctuationScalar(scalar)
+        }
+    }
+
+    private static func isJapaneseScalar(_ scalar: UnicodeScalar) -> Bool {
+        switch scalar.value {
+        case 0x3040...0x309F, // Hiragana
+             0x30A0...0x30FF, // Katakana
+             0x31F0...0x31FF, // Katakana Phonetic Extensions
+             0x3400...0x4DBF, // CJK Unified Ideographs Extension A
+             0x4E00...0x9FFF, // CJK Unified Ideographs
+             0xF900...0xFAFF: // CJK Compatibility Ideographs
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func isJapanesePunctuationScalar(_ scalar: UnicodeScalar) -> Bool {
+        switch scalar.value {
+        case 0x3000...0x303F, 0xFE30...0xFE4F:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func isProhibitedLineStart(_ character: Character) -> Bool {
+        character.unicodeScalars.contains { scalar in
+            switch scalar.value {
+            case 0x3001, // 、
+                 0x3002, // 。
+                 0x3009, // 〉
+                 0x300B, // 》
+                 0x300D, // 」
+                 0x300F, // 』
+                 0x3011, // 】
+                 0x3015, // 〕
+                 0x3017, // 〗
+                 0x3019, // 〙
+                 0x301B, // 〛
+                 0x30FB, // ・
+                 0x30FC, // ー
+                 0xFF09, // ）
+                 0xFF0C, // ，
+                 0xFF0E, // ．
+                 0xFF1A, // ：
+                 0xFF1B, // ；
+                 0xFF1F, // ？
+                 0xFF3D, // ］
+                 0xFF5D, // ｝
+                 0xFF60, // ｣
+                 0xFF61: // ｡
+                return true
+            case 0x3041, 0x3043, 0x3045, 0x3047, 0x3049,
+                 0x3063, 0x3083, 0x3085, 0x3087, 0x308E,
+                 0x3095, 0x3096,
+                 0x30A1, 0x30A3, 0x30A5, 0x30A7, 0x30A9,
+                 0x30C3, 0x30E3, 0x30E5, 0x30E7, 0x30EE,
+                 0x30F5, 0x30F6:
+                return true
+            case 0x3008, // 〈
+                 0x300A, // 《
+                 0x300C, // 「
+                 0x300E, // 『
+                 0x3010, // 【
+                 0x3014, // 〔
+                 0x3016, // 〖
+                 0x3018, // 〘
+                 0x301A, // 〚
+                 0xFF08, // （
+                 0xFF3B, // ［
+                 0xFF5B, // ｛
+                 0xFF5F: // ｟
+                return true
+            default:
+                return false
+            }
+        }
+    }
+
+    private static func isProhibitedLineEnd(_ character: Character) -> Bool {
+        character.unicodeScalars.contains { scalar in
+            switch scalar.value {
+            case 0x3008, // 〈
+                 0x300A, // 《
+                 0x300C, // 「
+                 0x300E, // 『
+                 0x3010, // 【
+                 0x3014, // 〔
+                 0x3016, // 〖
+                 0x3018, // 〘
+                 0x301A, // 〚
+                 0xFF08, // （
+                 0xFF3B, // ［
+                 0xFF5B, // ｛
+                 0xFF5F: // ｟
+                return true
+            default:
+                return false
+            }
+        }
+    }
+}
+
 /// An object that coordinates the layout and display of text characters.
 /// TextLayoutManager maps unicods characters codes to glyphs.
 public final class TextLayoutManager: @unchecked Sendable {
@@ -288,6 +440,7 @@ public final class TextLayoutManager: @unchecked Sendable {
             var maxDescent: Double = 0
             var maxLineHeight: Double = 0
             var visualRowStartGlyphIndex = 0
+            var visualRowStartTextIndex = lineStartIndex
             var visualRowMaxWidth: Double = 0
 
             func alignCurrentVisualRow() {
@@ -350,6 +503,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                                 alignCurrentVisualRow()
                                 x = 0
                                 y -= maxLineHeight
+                                visualRowStartTextIndex = wordStartIndex
                                 index = wordStartIndex
                                 continue
                             }
@@ -366,6 +520,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                             alignCurrentVisualRow()
                             x = 0
                             y -= maxLineHeight
+                            visualRowStartTextIndex = index
                             continue
                         }
                     }
@@ -408,10 +563,25 @@ public final class TextLayoutManager: @unchecked Sendable {
                     var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
                     glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
 
-                    if Float((pr * glyphFontScale) + x) > availableSize.width {
+                    let shouldWrapBeforeGlyph = Float((pr * glyphFontScale) + x) > availableSize.width
+                    let isJapaneseWrappingContext = TextLineBreakRules.isJapaneseWrappingContext(
+                        at: index,
+                        in: attributedText.text,
+                        rowStartIndex: visualRowStartTextIndex
+                    )
+                    let canWrapBeforeGlyph = self.textContainer.lineBreakMode != .byWordWrapping
+                        || !isJapaneseWrappingContext
+                        || TextLineBreakRules.canBreakJapaneseLine(
+                            before: index,
+                            in: attributedText.text,
+                            rowStartIndex: visualRowStartTextIndex
+                        )
+
+                    if shouldWrapBeforeGlyph && canWrapBeforeGlyph {
                         alignCurrentVisualRow()
                         x = 0
                         y -= maxLineHeight
+                        visualRowStartTextIndex = index
                     }
 
                     if abs(Float((pt * glyphFontScale) + y)) > availableSize.height {
@@ -579,6 +749,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                             position: transform * Vector4(x: adjustedX2, y: adjustedY1, z: 0, w: 1),
                             foregroundColor: foregroundColor,
                             outlineColor: outlineColor,
+                            outlineWidth: glyph.attributes.outlineWidth,
                             textureCoordinate: [ textureCoordinate.z, textureCoordinate.y ],
                             textureIndex: textureIndex
                         )
@@ -589,6 +760,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                             position: transform * Vector4(x: adjustedX2, y: adjustedY2, z: 0, w: 1),
                             foregroundColor: foregroundColor,
                             outlineColor: outlineColor,
+                            outlineWidth: glyph.attributes.outlineWidth,
                             textureCoordinate: [ textureCoordinate.z, textureCoordinate.w ],
                             textureIndex: textureIndex
                         )
@@ -599,6 +771,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                             position: transform * Vector4(x: adjustedX1, y: adjustedY2, z: 0, w: 1),
                             foregroundColor: foregroundColor,
                             outlineColor: outlineColor,
+                            outlineWidth: glyph.attributes.outlineWidth,
                             textureCoordinate: [ textureCoordinate.x, textureCoordinate.w ],
                             textureIndex: textureIndex
                         )
@@ -609,6 +782,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                             position: transform * Vector4(x: adjustedX1, y: adjustedY1, z: 0, w: 1),
                             foregroundColor: foregroundColor,
                             outlineColor: outlineColor,
+                            outlineWidth: glyph.attributes.outlineWidth,
                             textureCoordinate: [ textureCoordinate.x, textureCoordinate.y ],
                             textureIndex: textureIndex
                         )

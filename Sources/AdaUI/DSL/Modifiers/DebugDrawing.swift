@@ -49,6 +49,7 @@ struct DebugOverlayModifier<Content: View>: ViewModifier, ViewNodeBuilder {
 
 final class DebugOverlayModifierNode: ViewModifierNode {
     private var mode: UIDebugOverlayMode
+    private var redrawBaselineRevision = ViewNode.currentInspectionRedrawRevision()
 
     init<Content: View>(
         contentNode: ViewNode,
@@ -67,6 +68,10 @@ final class DebugOverlayModifierNode: ViewModifierNode {
         }
 
         if self.mode != node.mode {
+            if self.mode != .redraw, node.mode == .redraw {
+                self.redrawBaselineRevision = ViewNode.currentInspectionRedrawRevision()
+            }
+
             self.mode = node.mode
             self.invalidateNearestLayer()
         }
@@ -86,6 +91,7 @@ final class DebugOverlayModifierNode: ViewModifierNode {
         drawInspectionDebugOverlay(
             with: context,
             mode: mode,
+            redrawBaselineRevision: redrawBaselineRevision,
             focusedNode: overlayState?.inspectionFocusedNode,
             hitTestNode: overlayState?.inspectionHitTestNode
         )

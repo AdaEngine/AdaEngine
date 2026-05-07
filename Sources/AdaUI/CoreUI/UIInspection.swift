@@ -8,6 +8,7 @@ public enum UIDebugOverlayMode: String, Codable, Sendable {
     case layoutBounds = "layout_bounds"
     case focusedNode = "focused_node"
     case hitTestTarget = "hit_test_target"
+    case redraw
 }
 
 public enum UINodeSelector: Hashable, Sendable {
@@ -350,6 +351,10 @@ extension UIContainerView: UIInspectableViewContainer {
     }
 
     public func uiSetDebugOverlay(_ mode: UIDebugOverlayMode) {
+        if self.inspectionDebugOverlayMode != .redraw, mode == .redraw {
+            self.inspectionRedrawBaselineRevision = ViewNode.currentInspectionRedrawRevision()
+        }
+
         self.inspectionDebugOverlayMode = mode
         self.setNeedsLayout()
         self.setNeedsDisplay()

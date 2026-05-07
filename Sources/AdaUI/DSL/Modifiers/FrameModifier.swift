@@ -21,16 +21,6 @@ public extension View {
         )
     }
 
-    /// Backward-compatible fixed-size frame overload.
-    func frame(width: Float? = nil, height: Float? = nil) -> some View {
-        self.modifier(
-            _FrameViewModifier(
-                content: self,
-                frame: .size(width: width, height: height, alignment: .center)
-            )
-        )
-    }
-
     /// Positions this view within an invisible frame having the specified size constraints.
     ///
     /// Behavior follows SwiftUI: `min`/`max` bound the measured size along each axis; `ideal` fills in when the parent proposal is unspecified.

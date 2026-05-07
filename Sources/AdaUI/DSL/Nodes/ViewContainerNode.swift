@@ -146,6 +146,7 @@ class ViewContainerNode: ViewNode {
                 } else {
                     oldNode.parent = nil
                     newNode.parent = self
+                    newNode.markInspectionRedraw()
                     self.nodes[index] = newNode
                     needsLayout = true
                 }
@@ -167,6 +168,7 @@ class ViewContainerNode: ViewNode {
                     } else {
                         oldNode.parent = nil
                         newNode.parent = self
+                        newNode.markInspectionRedraw()
                         self.nodes[index] = newNode
                     }
                 }
@@ -181,6 +183,7 @@ class ViewContainerNode: ViewNode {
                 for index in oldCount..<newCount {
                     let newNode = allNewNodes[index]
                     newNode.parent = self
+                    newNode.markInspectionRedraw()
                     self.nodes.append(newNode)
                 }
             }
@@ -235,6 +238,7 @@ class ViewContainerNode: ViewNode {
                     reconciledNodes.append(oldNode)
                 } else {
                     newNode.parent = self
+                    newNode.markInspectionRedraw()
                     reconciledNodes.append(newNode)
                 }
                 continue
@@ -250,10 +254,12 @@ class ViewContainerNode: ViewNode {
                     reconciledNodes.append(oldNode)
                 } else {
                     newNode.parent = self
+                    newNode.markInspectionRedraw()
                     reconciledNodes.append(newNode)
                 }
             } else {
                 newNode.parent = self
+                newNode.markInspectionRedraw()
                 reconciledNodes.append(newNode)
             }
         }
@@ -397,6 +403,18 @@ class ViewContainerNode: ViewNode {
     override func drawInspectionChildLayoutBounds(with context: UIGraphicsContext) {
         for node in nodes {
             node.drawInspectionLayoutBounds(with: context)
+        }
+    }
+
+    override func drawInspectionChildRedrawFlashes(
+        with context: UIGraphicsContext,
+        baselineRevision: UInt64
+    ) {
+        for node in nodes {
+            node.drawInspectionRedrawFlashes(
+                with: context,
+                baselineRevision: baselineRevision
+            )
         }
     }
 

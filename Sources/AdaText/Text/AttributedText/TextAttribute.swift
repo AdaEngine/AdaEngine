@@ -37,6 +37,16 @@ public struct OutlineColorTextAttribute: TextAttributeKey {
     public static let defaultValue: Color = Color(red: 0, green: 0, blue: 0, alpha: 0)
 }
 
+/// A text attribute key for outline width, in screen pixels.
+public struct OutlineWidthTextAttribute: TextAttributeKey {
+    /// The value type.
+    public typealias Value = Float
+    /// A visible default makes setting only ``TextAttributeContainer/outlineColor`` enough
+    /// to request outlined text, while the transparent default outline color keeps normal
+    /// text rendering unchanged.
+    public static let defaultValue: Float = 1
+}
+
 /// A text attribute key for background color.
 public struct BackgroundColorTextAttribute: TextAttributeKey {
     /// The value type.
@@ -110,6 +120,17 @@ public extension TextAttributeContainer {
         
         set {
             self[OutlineColorTextAttribute.self] = newValue
+        }
+    }
+
+    /// Set outline width for text, in screen pixels.
+    var outlineWidth: Float {
+        get {
+            self[OutlineWidthTextAttribute.self] ?? OutlineWidthTextAttribute.defaultValue
+        }
+
+        set {
+            self[OutlineWidthTextAttribute.self] = newValue
         }
     }
     

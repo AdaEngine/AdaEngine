@@ -209,6 +209,7 @@ public struct UITessellator {
                 position: transform * Vector4(x: x2, y: y1, z: 0, w: 1),
                 foregroundColor: foregroundColor,
                 outlineColor: outlineColor,
+                outlineWidth: glyph.attributes.outlineWidth,
                 textureCoordinate: Vector2(texCoord.z, texCoord.y),
                 textureIndex: textureIndex
             ),
@@ -216,6 +217,7 @@ public struct UITessellator {
                 position: transform * Vector4(x: x2, y: y2, z: 0, w: 1),
                 foregroundColor: foregroundColor,
                 outlineColor: outlineColor,
+                outlineWidth: glyph.attributes.outlineWidth,
                 textureCoordinate: Vector2(texCoord.z, texCoord.w),
                 textureIndex: textureIndex
             ),
@@ -223,6 +225,7 @@ public struct UITessellator {
                 position: transform * Vector4(x: x1, y: y2, z: 0, w: 1),
                 foregroundColor: foregroundColor,
                 outlineColor: outlineColor,
+                outlineWidth: glyph.attributes.outlineWidth,
                 textureCoordinate: Vector2(texCoord.x, texCoord.w),
                 textureIndex: textureIndex
             ),
@@ -230,6 +233,7 @@ public struct UITessellator {
                 position: transform * Vector4(x: x1, y: y1, z: 0, w: 1),
                 foregroundColor: foregroundColor,
                 outlineColor: outlineColor,
+                outlineWidth: glyph.attributes.outlineWidth,
                 textureCoordinate: Vector2(texCoord.x, texCoord.y),
                 textureIndex: textureIndex
             )

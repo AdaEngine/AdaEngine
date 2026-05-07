@@ -26,7 +26,7 @@ public extension EnvironmentValues {
     @Entry var lineBreakMode: LineBreakMode = .byWordWrapping
 
     /// The alignment of wrapped text lines.
-    @Entry var multilineTextAlignment: TextAlignment = .center
+    @Entry var multilineTextAlignment: TextAlignment = .leading
 
     /// Returns accent color of the system.
     @Entry var accentColor: Color = Color.accentColor

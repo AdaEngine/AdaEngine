@@ -107,6 +107,16 @@ class ViewModifierNode: ViewNode {
         contentNode.drawInspectionLayoutBounds(with: context)
     }
 
+    override func drawInspectionChildRedrawFlashes(
+        with context: UIGraphicsContext,
+        baselineRevision: UInt64
+    ) {
+        contentNode.drawInspectionRedrawFlashes(
+            with: context,
+            baselineRevision: baselineRevision
+        )
+    }
+
     override func drawInspectionChildSelectionBounds(
         with context: UIGraphicsContext,
         mode: UIDebugOverlayMode,

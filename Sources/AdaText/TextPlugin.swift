@@ -59,6 +59,7 @@ public struct TextPipeline: RenderPipelineConfigurator {
             .attribute(.vector4, name: "position"),
             .attribute(.vector4, name: "foregroundColor"),
             .attribute(.vector4, name: "outlineColor"),
+            .attribute(.float, name: "outlineWidth"),
             .attribute(.vector2, name: "textureCoordinate"),
             .attribute(.int, name: "textureIndex")
         ])
@@ -83,6 +84,8 @@ public struct GlyphVertexData: Sendable {
     public let foregroundColor: Color
     /// Outline color of the text (vec4).
     public let outlineColor: Color
+    /// Outline width in screen pixels.
+    public let outlineWidth: Float
     /// Texture coordinates for the glyph atlas (vec2).
     public let textureCoordinate: Vector2
     /// Index into the font atlas texture array.
@@ -92,12 +95,14 @@ public struct GlyphVertexData: Sendable {
         position: Vector4,
         foregroundColor: Color,
         outlineColor: Color,
+        outlineWidth: Float,
         textureCoordinate: Vector2,
         textureIndex: Int
     ) {
         self.position = position
         self.foregroundColor = foregroundColor
         self.outlineColor = outlineColor
+        self.outlineWidth = outlineWidth
         self.textureCoordinate = textureCoordinate
         self.textureIndex = textureIndex
     }

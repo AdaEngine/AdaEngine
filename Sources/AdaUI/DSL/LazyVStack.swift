@@ -261,6 +261,18 @@ final class LazyVStackNode<Data: RandomAccessCollection, ID: Hashable, Row: View
         }
     }
 
+    override func drawInspectionChildRedrawFlashes(
+        with context: UIGraphicsContext,
+        baselineRevision: UInt64
+    ) {
+        for node in nodes {
+            node.drawInspectionRedrawFlashes(
+                with: context,
+                baselineRevision: baselineRevision
+            )
+        }
+    }
+
     override func drawInspectionChildSelectionBounds(
         with context: UIGraphicsContext,
         mode: UIDebugOverlayMode,

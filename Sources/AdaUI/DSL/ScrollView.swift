@@ -574,6 +574,28 @@ final class ScrollViewNode: LayoutViewContainerNode {
         contentContext.popClipRect()
     }
 
+    override func drawInspectionRedrawFlashes(
+        with context: UIGraphicsContext,
+        baselineRevision: UInt64
+    ) {
+        let viewportContext = inspectionLocalContext(from: context)
+        drawInspectionRedrawFlashIfNeeded(
+            with: viewportContext,
+            baselineRevision: baselineRevision
+        )
+
+        var contentContext = context
+        contentContext.environment = environment
+        contentContext.pushClipRect(self.absoluteFrame())
+        contentContext.translateBy(x: -contentOffset.x, y: contentOffset.y)
+        contentContext.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        super.drawInspectionChildRedrawFlashes(
+            with: contentContext,
+            baselineRevision: baselineRevision
+        )
+        contentContext.popClipRect()
+    }
+
     func scrollToViewNodeIfFoundIt(_ id: AnyHashable, anchor: AnchorPoint? = nil) {
         if refreshLazyScrollContent() {
             performLayout()
