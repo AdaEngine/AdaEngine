@@ -174,6 +174,7 @@ extension ModifiedContent: View where Modifier: ViewModifier, Content: View {
             let content = view[\.content]
             if let builder = content.value as? ViewNodeBuilder {
                 let node = builder.buildViewNode(in: inputs.input)
+                node.updateEnvironment(inputs.input.environment)
                 let output = _ViewOutputs(node: node)
                 return _ViewListOutputs(outputs: [output])
             }

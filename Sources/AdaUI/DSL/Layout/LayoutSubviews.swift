@@ -7,11 +7,33 @@
 
 import Math
 
+@MainActor
+final class LayoutMeasurementCache {
+    private struct Key: Hashable {
+        let nodeID: ObjectIdentifier
+        let proposal: ProposedViewSize
+    }
+
+    private var sizes: [Key: Size] = [:]
+
+    func size(for node: ViewNode, proposal: ProposedViewSize) -> Size {
+        let key = Key(nodeID: node.id, proposal: proposal)
+        if let size = sizes[key] {
+            return size
+        }
+
+        let size = node.sizeThatFits(proposal)
+        sizes[key] = size
+        return size
+    }
+}
+
 /// A layout subview.
 public struct LayoutSubview: Equatable {
 
     /// The node.
     unowned let node: ViewNode
+    private let measurementCache: LayoutMeasurementCache?
 
     /// The priority this subview receives when its parent layout apportions space.
     @MainActor
@@ -28,6 +50,11 @@ public struct LayoutSubview: Equatable {
         return lhs.node.id == rhs.node.id
     }
 
+    init(node: ViewNode, measurementCache: LayoutMeasurementCache? = nil) {
+        self.node = node
+        self.measurementCache = measurementCache
+    }
+
     /// Place the layout subview at a specific point.
     ///
     /// - Parameter point: The point to place the layout subview at.
@@ -35,7 +62,8 @@ public struct LayoutSubview: Equatable {
     /// - Parameter proposal: The proposed view size.
     @MainActor
     public func place(at point: Point, anchor: AnchorPoint, proposal: ProposedViewSize) {
-        node.place(in: point, anchor: anchor, proposal: proposal)
+        let size = self.sizeThatFits(proposal)
+        node.place(in: point, anchor: anchor, proposal: proposal, measuredSize: size)
     }
 
     /// Calculate the size that fits the proposal.
@@ -44,6 +72,10 @@ public struct LayoutSubview: Equatable {
     /// - Returns: The size that fits the proposal.
     @MainActor
     public func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        if let measurementCache {
+            return measurementCache.size(for: node, proposal: proposal)
+        }
+
         return self.node.sizeThatFits(proposal)
     }
 

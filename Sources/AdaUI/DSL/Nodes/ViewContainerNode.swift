@@ -67,6 +67,7 @@ class ViewContainerNode: ViewNode {
             return
         }
 
+        UILayoutDebugCounters.recordContentInvalidation()
         let outputs = withObservationTracking {
             body(inputs)
         } onChange: { [weak self] in
@@ -76,7 +77,7 @@ class ViewContainerNode: ViewNode {
         }
 
         let outputNodes = outputs.outputs.map { $0.node }
-        self.updateChildNodes(from: outputNodes)
+        self.reconcileChildNodes(from: outputNodes)
     }
 
     private func scheduleObservedContentInvalidation() {
@@ -106,13 +107,14 @@ class ViewContainerNode: ViewNode {
         )
         let listInputs = _ViewListInputs(input: inputs)
         self.invalidateContent(with: listInputs)
+        self.markNeedsLayout()
         self.invalidateNearestLayer()
         owner?.containerView?.setNeedsLayout()
     }
 
     // swiftlint:disable cyclomatic_complexity
     /// Compare and update old child nodes with a new nodes.
-    private func updateChildNodes(from newNodes: [ViewNode]) {
+    func reconcileChildNodes(from newNodes: [ViewNode]) {
         var needsLayout = false
         var allNewNodes = [ViewNode]()
         allNewNodes.reserveCapacity(newNodes.count)
@@ -200,7 +202,7 @@ class ViewContainerNode: ViewNode {
         }
 
         if needsLayout {
-            self.performLayout()
+            self.markNeedsLayout()
         }
     }
     // swiftlint:enable cyclomatic_complexity
@@ -279,7 +281,8 @@ class ViewContainerNode: ViewNode {
             return
         }
 
-        self.updateChildNodes(from: container.nodes)
+        self.body = container.body
+        self.reconcileChildNodes(from: container.nodes)
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
@@ -326,7 +329,11 @@ class ViewContainerNode: ViewNode {
     }
 
     override func updateLayoutProperties(_ props: LayoutProperties) {
+        let previousProps = layoutProperties
         super.updateLayoutProperties(props)
+        guard previousProps != layoutProperties else {
+            return
+        }
 
         for node in nodes {
             node.updateLayoutProperties(props)

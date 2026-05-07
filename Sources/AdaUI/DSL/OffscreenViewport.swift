@@ -243,7 +243,15 @@ private final class OffscreenViewportContainerNode<Content: View>: ViewContainer
     ) {
         self.delegateFactory = delegateFactory
         self.contentBuilder = contentBuilder
-        super.init(content: content, body: { _ in fatalError() })
+        super.init(content: content, nodes: [])
+    }
+
+    override func performLayout() {
+        if delegate == nil {
+            invalidateContent()
+        }
+
+        super.performLayout()
     }
 
     override func invalidateContent() {
@@ -259,7 +267,7 @@ private final class OffscreenViewportContainerNode<Content: View>: ViewContainer
         ).outputs
         let nodes = outputs.map { $0.node }
 
-        updateChildNodes(from: nodes)
+        reconcileChildNodes(from: nodes)
     }
 
     override func update(from newNode: ViewNode) {
@@ -273,38 +281,6 @@ private final class OffscreenViewportContainerNode<Content: View>: ViewContainer
         self.delegateFactory = other.delegateFactory
         self.contentBuilder = other.contentBuilder
         self.invalidateContent()
-    }
-
-    private func updateChildNodes(from newNodes: [ViewNode]) {
-        if nodes.count == newNodes.count {
-            for (index, newNode) in newNodes.enumerated() {
-                let oldNode = nodes[index]
-                if newNode.canUpdate(oldNode) {
-                    oldNode.update(from: newNode)
-                    oldNode.parent = self
-                } else {
-                    oldNode.parent = nil
-                    newNode.parent = self
-                    nodes[index] = newNode
-                }
-            }
-        } else {
-            for node in nodes {
-                node.parent = nil
-            }
-            nodes = newNodes
-            for node in nodes {
-                node.parent = self
-            }
-        }
-
-        for node in nodes {
-            node.updateLayoutProperties(layoutProperties)
-            if let owner, node.owner !== owner {
-                node.updateViewOwner(owner)
-            }
-        }
-        self.performLayout()
     }
 
     override func didMove(to parent: ViewNode?) {

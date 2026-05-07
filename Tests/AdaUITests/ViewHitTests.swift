@@ -149,8 +149,8 @@ struct ViewHitTests {
             return
         }
 
-        #expect(targetNode.absoluteFrame().origin == Point(0, 150))
-        #expect(targetNode.visualAbsoluteFrame().origin == Point(0, 150))
+        #expect(targetNode.absoluteFrame().origin == Point(10, 150))
+        #expect(targetNode.visualAbsoluteFrame().origin == Point(10, 150))
 
         tester.sendMouseEvent(
             at: Point(50, 50),
@@ -161,11 +161,11 @@ struct ViewHitTests {
         )
 
         #expect(scrollNode.contentOffset.y == 125)
-        #expect(targetNode.absoluteFrame().origin == Point(0, 150))
-        #expect(targetNode.visualAbsoluteFrame().origin == Point(0, 25))
+        #expect(targetNode.absoluteFrame().origin == Point(10, 150))
+        #expect(targetNode.visualAbsoluteFrame().origin == Point(10, 25))
 
         let visibleFrame = targetNode.calculateVisibleFrame()
-        #expect(visibleFrame.origin == Point(0, 25))
+        #expect(visibleFrame.origin == Point(10, 25))
         #expect(visibleFrame.size == Size(width: 80, height: 75))
     }
 
@@ -243,6 +243,60 @@ struct ViewHitTests {
             phase: .ended,
             time: 0.09
         )
+    }
+
+    /// Verifies a high-velocity release from overscroll snaps back to the
+    /// nearest content edge instead of carrying spring velocity into the body.
+    @Test
+    func scrollViewHighVelocityOverscrollSettlesAtNearestBoundary() {
+        struct OverscrollView: View {
+            var body: some View {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(0..<40, id: \.self) { index in
+                            Text("Item \(index)")
+                                .frame(height: 24)
+                        }
+                    }
+                    .padding(8)
+                }
+                .accessibilityIdentifier("scroll")
+                .frame(width: 160, height: 120)
+            }
+        }
+
+        let tester = ViewTester {
+            OverscrollView()
+        }
+        .setSize(Size(width: 160, height: 120))
+        .performLayout()
+
+        guard let scrollNode = tester.findNodeByAccessibilityIdentifier("scroll") as? ScrollViewNode else {
+            Issue.record("ScrollView node not found")
+            return
+        }
+
+        tester.containerView.onTouchesEvent([
+            TouchEvent(window: .empty, location: Point(40, 40), phase: .began, time: 0)
+        ])
+        tester.containerView.onTouchesEvent([
+            TouchEvent(window: .empty, location: Point(40, 120), phase: .moved, time: 0.01)
+        ])
+        tester.containerView.onTouchesEvent([
+            TouchEvent(window: .empty, location: Point(40, 260), phase: .moved, time: 0.02)
+        ])
+
+        #expect(scrollNode.contentOffset.y < 0)
+
+        tester.containerView.onTouchesEvent([
+            TouchEvent(window: .empty, location: Point(40, 260), phase: .ended, time: 0.021)
+        ])
+
+        for _ in 0..<120 {
+            tester.advanceFrame(deltaTime: 1.0 / 60.0)
+        }
+
+        #expect(abs(scrollNode.contentOffset.y) <= 0.5)
     }
 
     /// Verifies vertical `ScrollView` consumes wheel ticks and updates hittable content.

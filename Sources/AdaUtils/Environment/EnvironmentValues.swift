@@ -94,10 +94,16 @@ public protocol EnvironmentKey {
 public struct EnvironmentValues: Sendable {
 
     private var values: [ObjectIdentifier: any Sendable] = [:]
+    private var valueFingerprints: [ObjectIdentifier: Int] = [:]
 
     /// Monotonically increasing counter — bumped on every mutation.
     /// Used by nodes to detect stale caches without comparing dictionaries.
     public private(set) var version: UInt64 = 0
+
+    /// Incremental fingerprint of stored environment values.
+    /// Used together with `version` because independently-created snapshots can have
+    /// equal local versions while carrying different values.
+    package private(set) var environmentHash: Int = 0
 
     /// Keys that changed in the most recent mutation batch.
     /// Cleared and rebuilt each time a new mutation starts from version `version - 1`.
@@ -124,8 +130,11 @@ public struct EnvironmentValues: Sendable {
             let actuallyChanged = !Self.areEquivalent(existing, newValue)
             values[id] = newValue
             if actuallyChanged {
+                replaceFingerprint(for: id, with: Self.makeFingerprint(for: id, value: newValue))
                 version &+= 1
                 changedKeys.insert(id)
+            } else if valueFingerprints[id] == nil {
+                replaceFingerprint(for: id, with: Self.makeFingerprint(for: id, value: newValue))
             }
         }
     }
@@ -137,8 +146,13 @@ public struct EnvironmentValues: Sendable {
             let actuallyChanged = !Self.areEquivalent(existing, value)
             self.values[key] = value
             if actuallyChanged {
+                let fingerprint = newValue.valueFingerprints[key] ?? Self.makeFingerprint(for: key, value: value)
+                replaceFingerprint(for: key, with: fingerprint)
                 self.version &+= 1
                 self.changedKeys.insert(key)
+            } else if valueFingerprints[key] == nil {
+                let fingerprint = newValue.valueFingerprints[key] ?? Self.makeFingerprint(for: key, value: value)
+                replaceFingerprint(for: key, with: fingerprint)
             }
         }
     }
@@ -156,9 +170,76 @@ public struct EnvironmentValues: Sendable {
         }
         return false
     }
+
+    package func hasSameSnapshot(as other: EnvironmentValues) -> Bool {
+        version == other.version && environmentHash == other.environmentHash
+    }
+
+    package mutating func ensureVersionDiffers(from oldVersion: UInt64) {
+        if version == oldVersion {
+            version &+= 1
+        }
+    }
+
+    private mutating func replaceFingerprint(for id: ObjectIdentifier, with newFingerprint: Int) {
+        if let oldFingerprint = valueFingerprints[id] {
+            environmentHash ^= oldFingerprint
+        }
+
+        valueFingerprints[id] = newFingerprint
+        environmentHash ^= newFingerprint
+    }
 }
 
 private extension EnvironmentValues {
+    static func makeFingerprint(for id: ObjectIdentifier, value: some Sendable) -> Int {
+        var hasher = Hasher()
+        hasher.combine(id)
+
+        if let hashable = value as? AnyHashable {
+            hasher.combine(0)
+            hasher.combine(hashable)
+        } else if let objectID = objectIdentifierIfReference(value) {
+            hasher.combine(1)
+            hasher.combine(objectID)
+        } else {
+            // Some Sendable environment values are neither Hashable nor references.
+            // Build a stable structural fingerprint on assignment; hot environment
+            // propagation still compares only `version` and `environmentHash`.
+            hasher.combine(2)
+            combineStructuralFingerprint(value, into: &hasher)
+        }
+
+        return hasher.finalize()
+    }
+
+    static func combineStructuralFingerprint(_ value: Any, into hasher: inout Hasher, depth: Int = 0) {
+        hasher.combine(ObjectIdentifier(type(of: value)))
+
+        guard depth < 4 else {
+            return
+        }
+
+        if let hashable = value as? AnyHashable {
+            hasher.combine(0)
+            hasher.combine(hashable)
+            return
+        }
+
+        if let objectID = objectIdentifierIfReference(value) {
+            hasher.combine(1)
+            hasher.combine(objectID)
+            return
+        }
+
+        let mirror = Mirror(reflecting: value)
+        hasher.combine(mirror.children.count)
+        for child in mirror.children {
+            hasher.combine(child.label)
+            combineStructuralFingerprint(child.value, into: &hasher, depth: depth + 1)
+        }
+    }
+
     static func areEquivalent(_ lhs: (any Sendable)?, _ rhs: (any Sendable)?) -> Bool {
         switch (lhs, rhs) {
         case (nil, nil):

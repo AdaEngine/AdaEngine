@@ -131,6 +131,7 @@ private final class TabContainerNode<Selection: Hashable, Content: View>: ViewNo
         self.contentBuilder = other.contentBuilder
         self.viewInputs = other.viewInputs
         super.update(from: other)
+        self.viewInputs.environment = self.environment
         rebuildAll()
     }
 
@@ -140,6 +141,7 @@ private final class TabContainerNode<Selection: Hashable, Content: View>: ViewNo
         let prevVersion = self.environment.version
         super.updateEnvironment(environment)
         guard self.environment.version != prevVersion else { return }
+        viewInputs.environment = self.environment
         tabBarNode.updateEnvironment(self.environment)
         contentNode.updateEnvironment(self.environment)
     }
@@ -363,4 +365,3 @@ private final class LegacyTabButtonNode: ViewNode {
         self.owner?.containerView?.setNeedsDisplay(in: self.absoluteFrame())
     }
 }
-

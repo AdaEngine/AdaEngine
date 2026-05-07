@@ -139,7 +139,7 @@ public struct ButtonRole: Equatable, Hashable, Sendable {
 final class ButtonViewNode: ViewModifierNode {
 
     private(set) var action: () -> Void
-    private var body: (Button.State, EnvironmentValues) -> ViewNode
+    private var body: (Button.State, EnvironmentValues) -> StyledButtonContent
 
     private var state: Button.State = .normal
     private var touchStartLocation: Point?
@@ -151,19 +151,17 @@ final class ButtonViewNode: ViewModifierNode {
     init<Content: View>(content: Content, label: ButtonStyleConfiguration.Label.Storage, viewInputs: _ViewInputs, action: @escaping () -> Void) {
         self.action = action
         self.body = { state, environment in
-            let configuration = ButtonStyleConfiguration(
-                label: ButtonStyleConfiguration.Label(storage: label),
-                state: state
+            Self.makeStyledContent(
+                state: state,
+                environment: environment,
+                label: label,
+                viewInputs: viewInputs
             )
-
-            var viewInputs = viewInputs
-            viewInputs.environment = environment
-            let inputs = viewInputs.resolveStorages(in: environment.buttonStyle)
-            let body = AnyView(environment.buttonStyle.makeBody(configuration: configuration))
-            return AnyButtonStyle.Body._makeView(_ViewGraphNode(value: body), inputs: inputs).node
         }
 
-        super.init(contentNode: body(.normal, viewInputs.environment), content: content)
+        let initialContent = body(.normal, viewInputs.environment)
+        super.init(contentNode: initialContent.node, content: content)
+        self.registerStyleStorages(initialContent.styleStorages)
         self.updateEnvironment(viewInputs.environment)
     }
 
@@ -323,12 +321,14 @@ final class ButtonViewNode: ViewModifierNode {
     }
 
     private func reconcileContentNode() {
-        let newContentNode = self.body(self.state, self.environment)
-        if newContentNode.canUpdate(contentNode) {
-            contentNode.update(from: newContentNode)
+        let newContent = self.body(self.state, self.environment)
+        self.registerStyleStorages(newContent.styleStorages)
+
+        if newContent.node.canUpdate(contentNode) {
+            contentNode.update(from: newContent.node)
         } else {
             contentNode.parent = nil
-            contentNode = newContentNode
+            contentNode = newContent.node
             contentNode.parent = self
         }
 
@@ -337,4 +337,40 @@ final class ButtonViewNode: ViewModifierNode {
             contentNode.updateViewOwner(owner)
         }
     }
+
+    private func registerStyleStorages(_ storages: [PropertyStoragable]) {
+        for storage in storages {
+            storage.storage.registerNodeToUpdate(self)
+        }
+    }
+
+    private static func makeStyledContent(
+        state: Button.State,
+        environment: EnvironmentValues,
+        label: ButtonStyleConfiguration.Label.Storage,
+        viewInputs: _ViewInputs
+    ) -> StyledButtonContent {
+        let configuration = ButtonStyleConfiguration(
+            label: ButtonStyleConfiguration.Label(storage: label),
+            state: state
+        )
+
+        var baseInputs = viewInputs
+        baseInputs.environment = environment
+
+        // ButtonStyle is not itself the rendered content node. Subscribe the button
+        // node to the style's @Environment storages so environment changes rebuild
+        // makeBody(configuration:) instead of only invalidating the already-built body.
+        let styledInputs = baseInputs.resolveStorages(in: environment.buttonStyle)
+        let styleStorages = Array(styledInputs.propertyStorages.dropFirst(baseInputs.propertyStorages.count))
+
+        let body = AnyView(environment.buttonStyle.makeBody(configuration: configuration))
+        let node = AnyButtonStyle.Body._makeView(_ViewGraphNode(value: body), inputs: baseInputs).node
+        return StyledButtonContent(node: node, styleStorages: styleStorages)
+    }
+}
+
+private struct StyledButtonContent {
+    let node: ViewNode
+    let styleStorages: [PropertyStoragable]
 }

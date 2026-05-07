@@ -61,6 +61,10 @@ class LayoutViewContainerNode: ViewContainerNode {
 
     override func updateLayoutProperties(_ props: LayoutProperties) {
         let resolvedProps = inherentLayoutProperties.stackOrientation == nil ? props : inherentLayoutProperties
+        guard resolvedProps != layoutProperties else {
+            return
+        }
+
         super.updateLayoutProperties(resolvedProps)
         cacheNeedsUpdate = true
     }
@@ -84,7 +88,8 @@ class LayoutViewContainerNode: ViewContainerNode {
     /// Subclasses like ``ScrollViewNode`` use this to place children within
     /// the content area instead of the visible frame.
     func performLayout(in bounds: Rect, proposal: ProposedViewSize) {
-        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
+        let measurementCache = LayoutMeasurementCache()
+        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0, measurementCache: measurementCache) })
         ensureCache(for: subviews)
 
         guard var cache else {
@@ -115,7 +120,8 @@ class LayoutViewContainerNode: ViewContainerNode {
             return node.sizeThatFits(proposal)
         }
 
-        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
+        let measurementCache = LayoutMeasurementCache()
+        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0, measurementCache: measurementCache) })
         ensureCache(for: subviews)
 
         guard var cache else {
@@ -130,11 +136,13 @@ class LayoutViewContainerNode: ViewContainerNode {
         super.updateEnvironment(environment)
         if self.environment.version != prevVersion {
             cacheNeedsUpdate = true
+            markNeedsLayout()
         }
     }
 
     override func update(from newNode: ViewNode) {
         cacheNeedsUpdate = true
+        markNeedsLayout()
         super.update(from: newNode)
     }
 

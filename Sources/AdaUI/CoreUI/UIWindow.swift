@@ -334,6 +334,7 @@ public extension UIWindow {
     enum Mode: UInt64, Sendable {
         case windowed
         case fullscreen
+        case fullScreenWindowed
     }
     
     nonisolated static let defaultMinimumSize = Size(width: 800, height: 600)

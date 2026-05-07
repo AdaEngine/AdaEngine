@@ -316,6 +316,8 @@ final class ScrollViewNode: LayoutViewContainerNode {
         } else {
             overscroll = 0
         }
+        let startedBelowBounds = offset < minBound
+        let startedAboveBounds = offset > maxBound
 
         if overscroll != 0 {
             let springForce = -Self.springStiffness * overscroll
@@ -326,6 +328,31 @@ final class ScrollViewNode: LayoutViewContainerNode {
         }
 
         offset += velocity * dt
+
+        if startedBelowBounds && offset >= minBound {
+            offset = minBound
+            velocity = .zero
+            return true
+        }
+
+        if startedAboveBounds && offset <= maxBound {
+            offset = maxBound
+            velocity = .zero
+            return true
+        }
+
+        if overscroll == 0 {
+            if offset < minBound {
+                offset = minBound
+                velocity = .zero
+                return true
+            }
+            if offset > maxBound {
+                offset = maxBound
+                velocity = .zero
+                return true
+            }
+        }
 
         let currentOverscroll: Float
         if offset < minBound {

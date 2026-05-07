@@ -118,6 +118,7 @@ final class WindowsWindowManager: UIWindowManager {
         window.systemWindow = systemWindow
         unsafe windowMinimumSizes[window.id] = minSize
         window.minSize = minSize
+        window.setWindowMode(window.configuration.mode)
         window.userInterfaceIdiom = .desktop
         
         super.createWindow(for: window)
@@ -166,6 +167,10 @@ final class WindowsWindowManager: UIWindowManager {
                     unsafe ShowWindow(hwnd, SW_MAXIMIZE)
                     window.isFullscreen = true
                 }
+            case .fullScreenWindowed:
+                unsafe SetWindowLongW(hwnd, GWL_STYLE, style | Int32(WS_OVERLAPPEDWINDOW))
+                unsafe ShowWindow(hwnd, SW_MAXIMIZE)
+                window.isFullscreen = false
             }
         }
     }

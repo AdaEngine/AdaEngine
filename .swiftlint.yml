@@ -49,7 +49,6 @@ opt_in_rules:
   - sorted_first_last
   - sorted_imports
   - strict_fileprivate
-  - type_contents_order
   - unavailable_function
   - unneeded_parentheses_in_closure_argument
   - untyped_error_in_catch

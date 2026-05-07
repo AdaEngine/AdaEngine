@@ -12,6 +12,37 @@ import AdaInput
 import Logging
 import AdaAnimation
 
+@MainActor
+enum UILayoutDebugCounters {
+    struct Snapshot: Equatable {
+        var contentInvalidations = 0
+        var layoutPasses = 0
+        var sizeThatFitsCalls = 0
+    }
+
+    static var isEnabled = false
+    private(set) static var snapshot = Snapshot()
+
+    static func reset() {
+        snapshot = Snapshot()
+    }
+
+    static func recordContentInvalidation() {
+        guard isEnabled else { return }
+        snapshot.contentInvalidations += 1
+    }
+
+    static func recordPerformLayout() {
+        guard isEnabled else { return }
+        snapshot.layoutPasses += 1
+    }
+
+    static func recordSizeThatFits() {
+        guard isEnabled else { return }
+        snapshot.sizeThatFitsCalls += 1
+    }
+}
+
 // TODO: Add texture for drawing, to avoid rendering each time.
 
 /// Build block for all system Views in AdaEngine.
@@ -71,6 +102,7 @@ class ViewNode: Identifiable {
     var transform: Transform3D = .identity
     private(set) var layoutProperties = LayoutProperties()
     private var isPerformingAnimatedLayout = false
+    private var needsLayoutPass = true
 
     var layoutPriority: Double {
         0
@@ -103,6 +135,7 @@ class ViewNode: Identifiable {
     func setContent<Content: View>(_ content: Content) {
         self.content = content
         self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(type(of: content))
+        self.markNeedsLayout()
     }
 
     /// Returns true if the node clips its children to its bounds.
@@ -140,8 +173,12 @@ class ViewNode: Identifiable {
     func updateEnvironment(_ parentEnvironment: EnvironmentValues) {
         var env = parentEnvironment
         environmentTransform?(&env)
-        guard env.version != self.environment.version else { return }
+        let previousEnvironment = self.environment
+        let didChangeEnvironment = !env.hasSameSnapshot(as: previousEnvironment)
+        guard didChangeEnvironment else { return }
+        env.ensureVersionDiffers(from: previousEnvironment.version)
         self.environment = env
+        self.markNeedsLayout(propagateToParent: false)
         var shouldInvalidateForEnvironmentChange = false
         storages.forEach { storage in
             guard let viewContextStorage = storage as? ViewContextStorage else { return }
@@ -168,7 +205,16 @@ class ViewNode: Identifiable {
     /// Used during reconciliation (update(from:)) where `newNode.environment` already contains
     /// all inherited and transformed values.
     func applyResolvedEnvironmentSilently(_ environment: EnvironmentValues) {
+        let previousEnvironment = self.environment
+        var environment = environment
+        let didChangeEnvironment = !environment.hasSameSnapshot(as: previousEnvironment)
+        if didChangeEnvironment {
+            environment.ensureVersionDiffers(from: previousEnvironment.version)
+        }
         self.environment = environment
+        if didChangeEnvironment {
+            self.markNeedsLayout(propagateToParent: false)
+        }
         storages.forEach { storage in
             guard let viewContextStorage = storage as? ViewContextStorage else { return }
             viewContextStorage.values = self.environment
@@ -210,12 +256,17 @@ class ViewNode: Identifiable {
     /// Update layout properties for view. 
     /// Called each time, when parent container view did change layout direction.
     func updateLayoutProperties(_ props: LayoutProperties) {
+        guard self.layoutProperties != props else {
+            return
+        }
         self.layoutProperties = props
+        self.markNeedsLayout()
     }
 
     /// Returns size for view node in measuring cycle.
     /// Parent view proposal sizes and views should calculate theirs sizes for given constraints.
     func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        UILayoutDebugCounters.recordSizeThatFits()
         return proposal.replacingUnspecifiedDimensions()
     }
 
@@ -223,6 +274,10 @@ class ViewNode: Identifiable {
     /// After placement, automatically call ``performLayout()`` method.
     func place(in origin: Point, anchor: AnchorPoint, proposal: ProposedViewSize) {
         let size = self.sizeThatFits(proposal)
+        self.place(in: origin, anchor: anchor, proposal: proposal, measuredSize: size)
+    }
+
+    func place(in origin: Point, anchor: AnchorPoint, proposal: ProposedViewSize, measuredSize size: Size) {
         let offset = Point(
             x: origin.x - size.width * anchor.x,
             y: origin.y - size.height * anchor.y
@@ -230,8 +285,9 @@ class ViewNode: Identifiable {
 
         let newFrame = Rect(origin: offset, size: size)
         let oldFrame = self.frame
+        let shouldPerformLayout = oldFrame != newFrame || needsLayoutPass
         let isNestedAnimatedLayout = isInsideAnimatedLayoutPass()
-        let canAnimateInNestedLayout = allowsNestedFrameAnimation && oldFrame != newFrame
+        let canAnimateInNestedLayout = canAnimateNestedFrameChange(from: oldFrame, to: newFrame)
 
         if participatesInFrameAnimation,
            let animationController = self.environment.animationController,
@@ -248,7 +304,9 @@ class ViewNode: Identifiable {
                     let previousFrame = self.frame
                     self.frame = value
                     self.isPerformingAnimatedLayout = true
+                    UILayoutDebugCounters.recordPerformLayout()
                     self.performLayout()
+                    self.markLayoutClean()
                     self.isPerformingAnimatedLayout = false
                     if previousFrame.size != value.size {
                         self.parent?.performAnimatedLayoutPass()
@@ -258,7 +316,11 @@ class ViewNode: Identifiable {
             )
         } else {
             self.frame = newFrame
-            self.performLayout()
+            if shouldPerformLayout {
+                UILayoutDebugCounters.recordPerformLayout()
+                self.performLayout()
+                self.markLayoutClean()
+            }
         }
 
         if oldFrame != newFrame, let containerView = self.owner?.containerView {
@@ -276,7 +338,9 @@ class ViewNode: Identifiable {
     func performAnimatedLayoutPass() {
         let wasPerformingAnimatedLayout = isPerformingAnimatedLayout
         isPerformingAnimatedLayout = true
+        UILayoutDebugCounters.recordPerformLayout()
         performLayout()
+        markLayoutClean()
         isPerformingAnimatedLayout = wasPerformingAnimatedLayout
     }
 
@@ -289,6 +353,10 @@ class ViewNode: Identifiable {
             currentParent = parent.parent
         }
         return false
+    }
+
+    func canAnimateNestedFrameChange(from oldFrame: Rect, to newFrame: Rect) -> Bool {
+        allowsNestedFrameAnimation && oldFrame.size != newFrame.size
     }
 
     func nearestAnimationController() -> UIAnimationController? {
@@ -320,10 +388,25 @@ class ViewNode: Identifiable {
     /// Update current node with a new. This method called after ``invalidationContent()`` method
     /// and if view exists in tree, we should update exsiting view using ``ViewNode/update(_:)`` method.
     func update(from newNode: ViewNode) {
+        let shouldInvalidateForEnvironmentChange = shouldInvalidateContent(forResolvedEnvironment: newNode.environment)
         self.environmentTransform = newNode.environmentTransform
+        self.accessibilityIdentifier = newNode.accessibilityIdentifier
         self.applyResolvedEnvironmentSilently(newNode.environment)
         self.setContent(newNode.content)
         self.rebindStorages()
+        if shouldInvalidateForEnvironmentChange {
+            self.invalidateContent()
+            owner?.containerView?.setNeedsLayout()
+        }
+    }
+
+    private func shouldInvalidateContent(forResolvedEnvironment environment: EnvironmentValues) -> Bool {
+        storages.contains { storage in
+            guard let viewContextStorage = storage as? ViewContextStorage else { return false }
+            let subscribedKeyIDs = viewContextStorage.subscribedKeyIDs
+            return subscribedKeyIDs.isEmpty
+                || environment.hasChangedValues(forKeyIDs: subscribedKeyIDs, comparedTo: viewContextStorage.values)
+        }
     }
 
     private func rebindStorages() {
@@ -335,6 +418,24 @@ class ViewNode: Identifiable {
 
     /// This method invalidate all stored views and create a new one.
     func invalidateContent() {}
+
+    func markNeedsLayout(propagateToParent: Bool = true) {
+        guard !needsLayoutPass else {
+            if propagateToParent {
+                parent?.markNeedsLayout()
+            }
+            return
+        }
+
+        needsLayoutPass = true
+        if propagateToParent {
+            parent?.markNeedsLayout()
+        }
+    }
+
+    func markLayoutClean() {
+        needsLayoutPass = false
+    }
 
     func invalidateNearestLayer() {
         var current: ViewNode? = self

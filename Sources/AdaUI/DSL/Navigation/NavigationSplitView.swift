@@ -321,6 +321,10 @@ private final class NavigationSplitColumnNode: ViewModifierNode {
         true
     }
 
+    override func canAnimateNestedFrameChange(from oldFrame: Rect, to newFrame: Rect) -> Bool {
+        oldFrame != newFrame
+    }
+
     init<Content: View>(
         column: NavigationSplitViewColumn,
         contentNode: ViewNode,
@@ -349,6 +353,10 @@ private final class NavigationSplitDividerNode: ViewNode {
 
     override var allowsNestedFrameAnimation: Bool {
         true
+    }
+
+    override func canAnimateNestedFrameChange(from oldFrame: Rect, to newFrame: Rect) -> Bool {
+        oldFrame != newFrame
     }
 
     init(leadingColumn: NavigationSplitViewColumn) {

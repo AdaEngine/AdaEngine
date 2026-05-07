@@ -106,7 +106,7 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
     }
     
     override func setWindowMode(_ window: AdaUI.UIWindow, mode: AdaUI.UIWindow.Mode) {
-        window.isFullscreen = mode == .fullscreen
+        window.isFullscreen = mode != .windowed
     }
     
     override func closeWindow(_ window: AdaUI.UIWindow) {

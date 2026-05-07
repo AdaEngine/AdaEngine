@@ -41,8 +41,8 @@ class ViewModifierNode: ViewNode {
         }
 
         super.update(from: otherNode)
-        self.contentNode.updateEnvironment(self.environment)
         self.contentNode.update(from: otherNode.contentNode)
+        self.contentNode.updateEnvironment(self.environment)
     }
 
     override func performLayout() {

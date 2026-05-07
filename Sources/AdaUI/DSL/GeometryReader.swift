@@ -158,6 +158,13 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 
     /// The content proxy.
     let contentProxy: (GeometryProxy) -> Content
+    private var lastContentSignature: ContentSignature?
+    private var contentNeedsRebuild = true
+
+    private struct ContentSignature: Equatable {
+        let frame: Rect
+        let environmentVersion: UInt64
+    }
 
     /// Initialize a new geometry reader view node.
     ///
@@ -172,7 +179,10 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     ///
     /// - Returns: The layout of the geometry reader view node.
     override func performLayout() {
-        self.invalidateContent()
+        let signature = self.currentContentSignature()
+        if contentNeedsRebuild || lastContentSignature != signature {
+            self.rebuildContent(for: signature)
+        }
 
         let proposal = ProposedViewSize(width: self.frame.width, height: self.frame.height)
         for node in self.nodes {
@@ -186,7 +196,18 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     ///
     /// - Returns: The invalidated content of the geometry reader view node.
     override func invalidateContent() {
-        let previousNodes = self.nodes
+        self.rebuildContent(for: currentContentSignature())
+        self.markNeedsLayout()
+        self.invalidateNearestLayer()
+        owner?.containerView?.setNeedsLayout()
+    }
+
+    private func currentContentSignature() -> ContentSignature {
+        ContentSignature(frame: self.frame, environmentVersion: self.environment.version)
+    }
+
+    private func rebuildContent(for signature: ContentSignature) {
+        UILayoutDebugCounters.recordContentInvalidation()
         let context = _ViewInputs(parentNode: self, environment: self.environment)
         let proxy = GeometryProxy(
             namedCoordinateSpaceContainer: self.environment.coordinateSpaces,
@@ -196,19 +217,9 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
         let outputs = Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: context)).outputs
         let nodes = outputs.map { $0.node }
 
-        for node in nodes {
-            node.parent = self
-            node.updateLayoutProperties(self.layoutProperties)
-            if let owner = self.owner, node.owner !== owner {
-                node.updateViewOwner(owner)
-            }
-        }
-
-        self.nodes = nodes
-
-        for oldNode in previousNodes where !nodes.contains(where: { $0 === oldNode }) {
-            oldNode.parent = nil
-        }
+        self.reconcileChildNodes(from: nodes)
+        self.lastContentSignature = signature
+        self.contentNeedsRebuild = false
     }
 }
 

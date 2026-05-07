@@ -44,6 +44,36 @@ private struct TabContainerTestStyle: TabViewStyle {
     }
 }
 
+private enum TabContainerEnvironmentValue: Hashable {
+    case first
+    case second
+}
+
+private final class TabContainerEnvironmentModel {
+    var selected: TabContainerEnvironmentValue = .first
+    var marker: String = "A"
+}
+
+private struct TabContainerEnvironmentRoot: View {
+    let model: TabContainerEnvironmentModel
+
+    var body: some View {
+        TabView(
+            selection: Binding(get: { model.selected }, set: { model.selected = $0 })
+        ) {
+            Tab("First", value: TabContainerEnvironmentValue.first) {
+                TabContainerMarkerView(baseID: "first-marker")
+            }
+            Tab("Second", value: TabContainerEnvironmentValue.second) {
+                TabContainerMarkerView(baseID: "second-marker")
+            }
+        }
+        .tabViewStyle(TabContainerTestStyle())
+        .environment(\.tabContainerTestMarker, model.marker)
+        .frame(width: 320, height: 120)
+    }
+}
+
 @MainActor
 struct TabContainerTests {
     init() async throws {
@@ -305,32 +335,8 @@ struct TabContainerTests {
 
     @Test
     func customStyledTabView_refreshesEnvironmentWhenReturningToCachedTab() {
-        enum Value: Hashable {
-            case first
-            case second
-        }
-
-        final class Model {
-            var selected: Value = .first
-            var marker: String = "A"
-        }
-
-        let model = Model()
-        let tester = ViewTester {
-            TabView(
-                selection: Binding(get: { model.selected }, set: { model.selected = $0 })
-            ) {
-                Tab("First", value: Value.first) {
-                    TabContainerMarkerView(baseID: "first-marker")
-                }
-                Tab("Second", value: Value.second) {
-                    TabContainerMarkerView(baseID: "second-marker")
-                }
-            }
-            .tabViewStyle(TabContainerTestStyle())
-            .environment(\.tabContainerTestMarker, model.marker)
-            .frame(width: 320, height: 120)
-        }
+        let model = TabContainerEnvironmentModel()
+        let tester = ViewTester(rootView: TabContainerEnvironmentRoot(model: model))
         .setSize(Size(width: 320, height: 140))
         .performLayout()
 

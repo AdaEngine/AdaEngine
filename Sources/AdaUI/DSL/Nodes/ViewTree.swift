@@ -66,6 +66,7 @@ final class ViewRootNode: ViewNode {
 
         let outputs = makeView(self.content)
         self.contentNode.update(from: outputs.node)
+        self.markNeedsLayout()
         owner?.containerView?.setNeedsLayout()
     }
 

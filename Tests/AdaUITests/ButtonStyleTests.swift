@@ -10,6 +10,17 @@ import AdaInput
 import AdaUtils
 import Math
 
+private struct ButtonStyleCounterKey: EnvironmentKey {
+    static let defaultValue = 0
+}
+
+extension EnvironmentValues {
+    fileprivate var buttonStyleCounter: Int {
+        get { self[ButtonStyleCounterKey.self] }
+        set { self[ButtonStyleCounterKey.self] = newValue }
+    }
+}
+
 @MainActor
 struct ButtonStyleTests {
 
@@ -39,6 +50,45 @@ struct ButtonStyleTests {
         #expect(recorder.states.last?.contains(.focused) == true)
         #expect(recorder.states.last?.contains(.highlighted) == false)
         #expect(recorder.states.last?.contains(.selected) == false)
+    }
+
+    @Test
+    func buttonStyle_receivesHighlightedStateOnHover() {
+        let recorder = ButtonStyleStateRecorder()
+
+        let tester = ViewTester {
+            Button(action: {}) {
+                Text("Hover")
+                    .frame(width: 100, height: 44)
+            }
+            .buttonStyle(RecordingButtonStyle(recorder: recorder))
+        }
+        .setSize(Size(width: 200, height: 100))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(100, 50), button: .none, phase: .changed)
+
+        #expect(recorder.states.last?.contains(.highlighted) == true)
+        #expect(recorder.states.last?.contains(.selected) == false)
+    }
+
+    @Test
+    func buttonStyleEnvironmentChangeRebuildsStyleBody() {
+        let recorder = ButtonStyleEnvironmentRecorder()
+
+        let tester = ViewTester {
+            ButtonStyleEnvironmentHost(recorder: recorder)
+        }
+        .setSize(Size(width: 200, height: 100))
+        .performLayout()
+
+        #expect(recorder.values.contains(0))
+
+        tester.sendMouseEvent(at: Point(100, 50), button: .left, phase: .began)
+        tester.sendMouseEvent(at: Point(100, 50), button: .left, phase: .ended)
+        tester.performLayout()
+
+        #expect(recorder.values.contains(1))
     }
 
     @Test
@@ -125,6 +175,38 @@ private struct RecordingButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         recorder.states.append(configuration.state)
         return configuration.label
+    }
+}
+
+private final class ButtonStyleEnvironmentRecorder: @unchecked Sendable {
+    var values: [Int] = []
+    var states: [Button.State] = []
+}
+
+private struct EnvironmentRecordingButtonStyle: ButtonStyle {
+    @Environment(\.buttonStyleCounter) private var counter
+
+    let recorder: ButtonStyleEnvironmentRecorder
+
+    func makeBody(configuration: Configuration) -> some View {
+        recorder.values.append(counter)
+        recorder.states.append(configuration.state)
+        return configuration.label
+            .frame(width: 100, height: 44)
+    }
+}
+
+private struct ButtonStyleEnvironmentHost: View {
+    @State private var counter = 0
+
+    let recorder: ButtonStyleEnvironmentRecorder
+
+    var body: some View {
+        Button("Increment") {
+            counter += 1
+        }
+        .buttonStyle(EnvironmentRecordingButtonStyle(recorder: recorder))
+        .environment(\.buttonStyleCounter, counter)
     }
 }
 

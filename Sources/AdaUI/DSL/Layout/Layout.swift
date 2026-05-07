@@ -9,7 +9,7 @@ import AdaAnimation
 import Math
 
 /// Layout-specific properties of a layout container.
-public struct LayoutProperties {
+public struct LayoutProperties: Equatable {
     /// The orientation of the containing stack-like container.
     var stackOrientation: Axis?
 

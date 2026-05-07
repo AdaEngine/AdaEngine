@@ -137,6 +137,8 @@ private extension UIWindow.Mode {
             self = .windowed
         case .fullscreen:
             self = .fullscreen
+        case .fullScreenWindowed:
+            self = .fullScreenWindowed
         }
     }
 }

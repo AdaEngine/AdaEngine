@@ -628,6 +628,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         self.viewInputs = other.viewInputs
         self.tabViewStyleTypeName = newStyleTypeName
         super.update(from: other)
+        self.viewInputs.environment = self.environment
 
         // Propagate environment to children
         self.tabBarNode.updateEnvironment(self.environment)
@@ -651,6 +652,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
         let prevVersion = self.environment.version
         super.updateEnvironment(environment)
         guard self.environment.version != prevVersion else { return }
+        viewInputs.environment = self.environment
 
         tabBarNode.updateEnvironment(self.environment)
 
@@ -896,6 +898,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode {
                 if let cached = cachedContentNodes[value] {
                     let newNode = makeContent(viewInputs)
                     cached.update(from: newNode)
+                    cached.invalidateContent()
                     return cached
                 }
 

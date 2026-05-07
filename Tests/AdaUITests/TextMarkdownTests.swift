@@ -39,6 +39,40 @@ struct TextMarkdownTests {
         #expect(attributes.font.pointSize == 32)
     }
 
+    @Test
+    func attributedTextInitializerPreservesExplicitRunColors() {
+        var firstAttributes = TextAttributeContainer()
+        firstAttributes.foregroundColor = .red
+
+        var secondAttributes = TextAttributeContainer()
+        secondAttributes.foregroundColor = .blue
+
+        var source = AttributedText("red", attributes: firstAttributes)
+        source += AttributedText(" blue", attributes: secondAttributes)
+
+        let text = Text(source)
+        var environment = EnvironmentValues()
+        environment.foregroundColor = .black
+
+        let attributedText = text.storage.applyingEnvironment(environment)
+
+        #expect(attributedText.attributes(at: attributedText.startIndex).foregroundColor == .red)
+        #expect(attributedText.attributes(at: attributedText.text.index(before: attributedText.endIndex)).foregroundColor == .blue)
+    }
+
+    @Test
+    func foregroundColorModifierStillOverridesAttributedTextRunColors() {
+        var attributes = TextAttributeContainer()
+        attributes.foregroundColor = .red
+
+        let text = Text(AttributedText("red", attributes: attributes))
+            .foregroundColor(.blue)
+
+        let attributedText = text.storage.applyingEnvironment(EnvironmentValues())
+
+        #expect(firstAttributes(in: attributedText).foregroundColor == .blue)
+    }
+
     private func firstAttributes(in text: AttributedText) -> TextAttributeContainer {
         text.attributes(at: text.startIndex)
     }

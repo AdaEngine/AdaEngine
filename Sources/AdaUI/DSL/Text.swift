@@ -132,6 +132,7 @@ public extension View {
 extension Text {
     final class Storage {
         fileprivate(set) var text: AttributedText
+        private let preservesExplicitAttributes: Bool
         var foregroundColor: Color?
         var lineLimit: Int?
         var lineBreakMode: LineBreakMode?
@@ -139,24 +140,30 @@ extension Text {
 
         init(string: String) {
             self.text = AttributedText(string)
+            self.preservesExplicitAttributes = false
         }
 
         init(markdown: String) {
             self.text = AttributedText(markdown: markdown)
+            self.preservesExplicitAttributes = false
         }
 
-        init(attributedText: AttributedText) {
+        init(attributedText: AttributedText, preservesExplicitAttributes: Bool = true) {
             self.text = attributedText
+            self.preservesExplicitAttributes = preservesExplicitAttributes
         }
 
         func concatinating(other: Storage) -> Storage {
             var newText = self.text
             newText.append(other.text)
-            return Storage(attributedText: newText)
+            return Storage(
+                attributedText: newText,
+                preservesExplicitAttributes: self.preservesExplicitAttributes || other.preservesExplicitAttributes
+            )
         }
 
         func applyingEnvironment(_ environment: EnvironmentValues) -> AttributedText {
-            if let font = environment.font {
+            if let font = environment.font, !preservesExplicitAttributes {
                 self.text.setFont(font, preservingSemanticTraits: true)
             }
 
@@ -174,7 +181,7 @@ extension Text {
 
             if let foregroundColor = self.foregroundColor {
                 self.text.foregroundColor = foregroundColor
-            } else {
+            } else if !preservesExplicitAttributes {
                 self.text.foregroundColor = environment.foregroundColor ?? .black
             }
 

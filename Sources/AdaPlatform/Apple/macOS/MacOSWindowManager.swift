@@ -55,7 +55,6 @@ final class MacOSWindowManager: UIWindowManager {
         metalView.windowManager = self
         metalView.autoresizingMask = [.width, .height]
         rootContentView.addSubview(metalView)
-        let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
 
         var styleMask: NSWindow.StyleMask = switch window.configuration.chrome {
         case .standard:
@@ -97,9 +96,16 @@ final class MacOSWindowManager: UIWindowManager {
         }
         window.minSize = minSize
         window.setWindowMode(window.configuration.mode)
+        let renderSize = systemWindow.size
+        if window.frame.size != renderSize {
+            windowsSynchronizingFromSystem.insert(window.id)
+            window.frame = Rect(origin: .zero, size: renderSize)
+            windowsSynchronizingFromSystem.remove(window.id)
+        }
         window.userInterfaceIdiom = .desktop
         synchronizeSafeAreaInsets(for: systemWindow, window: window)
 
+        let sizeInt = SizeInt(width: Int(renderSize.width), height: Int(renderSize.height))
         unsafe try? RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
         
         super.createWindow(for: window)
@@ -146,12 +152,32 @@ final class MacOSWindowManager: UIWindowManager {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
-        
+
         let isFullScreen = nsWindow.styleMask.contains(.fullScreen)
-        let shouldToggleFullScreen = isFullScreen != (mode == .fullscreen)
-        
-        if shouldToggleFullScreen {
-            nsWindow.toggleFullScreen(nil)
+
+        switch mode {
+        case .windowed:
+            if isFullScreen {
+                nsWindow.toggleFullScreen(nil)
+            }
+            window.isFullscreen = false
+
+        case .fullscreen:
+            if !isFullScreen {
+                nsWindow.toggleFullScreen(nil)
+            }
+            window.isFullscreen = true
+
+        case .fullScreenWindowed:
+            if isFullScreen {
+                nsWindow.toggleFullScreen(nil)
+            }
+            windowsPendingInitialCenter.remove(window.id)
+            let screenFrame = nsWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+            if let screenFrame {
+                nsWindow.setFrame(screenFrame, display: true)
+            }
+            window.isFullscreen = false
         }
     }
     

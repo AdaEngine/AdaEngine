@@ -16,6 +16,9 @@ public enum WindowMode: UInt64, Sendable {
 
     /// The fullscreen mode.
     case fullscreen
+
+    /// A platform window expanded to fill the screen without entering native exclusive fullscreen.
+    case fullScreenWindowed
 }
 
 /// The title bar background behavior.
