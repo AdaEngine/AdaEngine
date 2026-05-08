@@ -13,6 +13,9 @@ public struct AnimationContext<V: VectorArithmetic>: Sendable {
 /// A protocol that defines the behavior of a custom animation.
 public protocol CustomAnimation: Hashable {
 
+    /// The finite duration of this animation, if it has one.
+    var finiteDuration: TimeInterval? { get }
+
     /// Calculates the value of the animation at the specified time.
     func animate<V: VectorArithmetic>(_ value: V, time: TimeInterval, context: inout AnimationContext<V>) -> V?
 
@@ -29,6 +32,10 @@ public protocol CustomAnimation: Hashable {
 }
 
 public extension CustomAnimation {
+    var finiteDuration: TimeInterval? {
+        nil
+    }
+
     func velocity<V>(_ value: V, time: TimeInterval, context: inout AnimationContext<V>) -> V? where V: VectorArithmetic {
         return nil
     }
@@ -42,6 +49,10 @@ public extension CustomAnimation {
 struct LinearAnimation: CustomAnimation {
 
     let duration: TimeInterval
+
+    var finiteDuration: TimeInterval? {
+        duration
+    }
 
     func animate<V: VectorArithmetic>(_ value: V, time: TimeInterval, context: inout AnimationContext<V>) -> V? {
         guard time < duration else {
@@ -93,12 +104,23 @@ public extension Animation {
         let delay = Animation(DelayAnimation(duration: duration))
         return Animation(CombineAnimation(left: delay, right: self))
     }
+
+    /// Repeats this animation indefinitely.
+    ///
+    /// When `autoreverses` is true, every odd cycle plays the finite base animation backward.
+    func repeatForever(autoreverses: Bool = true) -> Animation {
+        Animation(RepeatForeverAnimation(base: self, autoreverses: autoreverses))
+    }
 }
 
 /// A delay animation.
 struct DelayAnimation: CustomAnimation {
 
     let duration: TimeInterval
+
+    var finiteDuration: TimeInterval? {
+        duration
+    }
 
     func animate<V: VectorArithmetic>(_ value: V, time: TimeInterval, context: inout AnimationContext<V>) -> V? {
         guard time < duration else {
@@ -115,6 +137,15 @@ struct CombineAnimation: CustomAnimation {
     let left: Animation
     let right: Animation
 
+    var finiteDuration: TimeInterval? {
+        switch (left.base.finiteDuration, right.base.finiteDuration) {
+        case (.some(let leftDuration), .some(let rightDuration)):
+            return max(leftDuration, rightDuration)
+        default:
+            return nil
+        }
+    }
+
     func animate<V>(_ value: V, time: TimeInterval, context: inout AnimationContext<V>) -> V? where V: VectorArithmetic {
         if let value = left.base.animate(value, time: time, context: &context) {
             return value
@@ -126,5 +157,42 @@ struct CombineAnimation: CustomAnimation {
     func hash(into hasher: inout Hasher) {
         hasher.combine(left.base)
         hasher.combine(right.base)
+    }
+}
+
+/// An animation that loops a finite base animation forever.
+struct RepeatForeverAnimation: CustomAnimation {
+
+    let base: Animation
+    let autoreverses: Bool
+
+    static func == (lhs: RepeatForeverAnimation, rhs: RepeatForeverAnimation) -> Bool {
+        lhs.base == rhs.base && lhs.autoreverses == rhs.autoreverses
+    }
+
+    func animate<V>(_ value: V, time: TimeInterval, context: inout AnimationContext<V>) -> V? where V: VectorArithmetic {
+        guard let duration = base.base.finiteDuration, duration > 0 else {
+            return base.base.animate(value, time: time, context: &context)
+        }
+
+        let cycleDuration = autoreverses ? duration * 2 : duration
+        var cycleTime = time.truncatingRemainder(dividingBy: cycleDuration)
+        if cycleTime < 0 {
+            cycleTime += cycleDuration
+        }
+
+        let localTime: TimeInterval
+        if autoreverses && cycleTime >= duration {
+            localTime = cycleDuration - cycleTime
+        } else {
+            localTime = cycleTime
+        }
+
+        return base.base.animate(value, time: localTime, context: &context) ?? value
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(base.base)
+        hasher.combine(autoreverses)
     }
 }

@@ -108,6 +108,37 @@ struct HotReloadViewTests {
     }
 
     @Test
+    func hotReloadingModifierBuildsAsRegularAdaUIView() {
+        let tester = ViewTester {
+            EmptyView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .hotReloading()
+        }
+        .setSize(Size(width: 320, height: 240))
+        .performLayout()
+
+        #expect(tester.containerView.viewTree.rootNode.frame.size == Size(width: 320, height: 240))
+    }
+
+    @Test
+    func automaticHotReloadIDIsStableForSourceLocation() {
+        let first = UIHotReloadRuntime.automaticID(
+            fileID: "Deck.swift",
+            function: "body",
+            line: 42,
+            column: 9
+        )
+        let second = UIHotReloadRuntime.automaticID(
+            fileID: "Deck.swift",
+            function: "body",
+            line: 42,
+            column: 9
+        )
+
+        #expect(first == second)
+    }
+
+    @Test
     func uiViewRepresentableReceivesPlacedFrame() {
         let view = TestHotReloadUIView(name: "represented")
 

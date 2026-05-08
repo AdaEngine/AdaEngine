@@ -63,6 +63,19 @@ public enum UIHotReloadRuntime {
         return factory?(id)
     }
 
+    /// Creates a stable private identifier for a source location.
+    ///
+    /// This is used by ``View/hotReloading(fileID:function:line:column:)`` so callers do not have to
+    /// coordinate public string identifiers for redraw-only hot reload boundaries.
+    public static func automaticID(
+        fileID: StaticString,
+        function: StaticString,
+        line: UInt,
+        column: UInt
+    ) -> String {
+        "ada-ui.hot-reload.\(fileID).\(function).\(line).\(column)"
+    }
+
     private static func compactHosts() {
         hosts.removeAll { $0.value == nil }
     }
@@ -123,6 +136,29 @@ public struct HotReloadView<Fallback: View>: UIViewRepresentable {
 }
 
 public extension View {
+    /// Wraps this view in a hot reload redraw boundary.
+    ///
+    /// Unlike ``hotReload(id:)``, this modifier does not require a manually coordinated identifier or
+    /// an exported C factory symbol. Automatic hot reload runtimes can use the boundary to recreate the
+    /// view after injected Swift implementations have been loaded.
+    func hotReloading(
+        fileID: StaticString = #fileID,
+        function: StaticString = #function,
+        line: UInt = #line,
+        column: UInt = #column
+    ) -> some View {
+        HotReloadView(
+            id: UIHotReloadRuntime.automaticID(
+                fileID: fileID,
+                function: function,
+                line: line,
+                column: column
+            )
+        ) {
+            self
+        }
+    }
+
     /// Wraps this view in a hot reload host with the supplied identifier.
     func hotReload(id: String) -> some View {
         HotReloadView(id: id) {

@@ -5,6 +5,8 @@
 //  Created by AdaEngine on 08.05.2026.
 //
 
+// swiftlint:disable file_length
+
 import AdaApp
 import AdaAssets
 import AdaUI
@@ -14,13 +16,18 @@ import Logging
 
 #if canImport(Darwin)
 import Darwin.C
+import MachO
 #elseif canImport(Glibc)
 import Glibc
 #endif
 
-/// Plugin that loads AdaUI views from a hot-reload dylib and installs them into ``HotReloadView`` hosts.
+/// Plugin that reloads AdaUI hot reload boundaries after source changes.
 ///
-/// The dylib must export a C symbol with this shape:
+/// The preferred ``ReloadStrategy/automatic`` mode recompiles a changed Swift file, loads a small dynamic
+/// library, interposes matching Swift symbols when the debug binary supports `-interposable`, and redraws
+/// ``View/hotReloading(fileID:function:line:column:)`` boundaries.
+///
+/// The legacy product-build mode still supports dynamic libraries that export a C symbol with this shape:
 /// ```swift
 /// @_cdecl("ada_ui_hot_reload_make_view")
 /// public func adaUIHotReloadMakeView(_ id: UnsafePointer<CChar>) -> UnsafeMutableRawPointer? {
@@ -37,6 +44,18 @@ import Glibc
 ///
 /// The returned pointer must be retained with ``retainedOpaqueView(_:)``. The plugin consumes that retain.
 public struct AdaUIHotReloadPlugin: Plugin {
+    /// Selects how source saves are converted into live UI updates.
+    public enum ReloadStrategy: Sendable, Equatable {
+        /// Try the single-file injection path first, then fall back to the legacy dynamic product build.
+        case automatic
+
+        /// Only use the single-file injection path.
+        case fastInjectionOnly
+
+        /// Only use the legacy dynamic product build and exported C factory symbol.
+        case legacyProductBuild
+    }
+
     public static let defaultEnvironmentKey = "ADAUI_HOT_RELOAD_DYLIB"
     public static let defaultBuildProductEnvironmentKey = "ADAUI_HOT_RELOAD_PRODUCT"
     public static let defaultBuildCommandEnvironmentKey = "ADAUI_HOT_RELOAD_BUILD_COMMAND"
@@ -57,6 +76,8 @@ public struct AdaUIHotReloadPlugin: Plugin {
     ///   - symbolName: Exported C symbol used to create views.
     ///   - watchPaths: Paths to watch. If omitted, `sourcePaths` are watched.
     ///   - reloadIDs: Specific hot-reload ids to reload when the dylib changes. Pass `nil` to reload all hosts.
+    ///   - reloadStrategy: Strategy used after a source save.
+    ///   - retainedDylibGenerationCount: Number of old dylib generations to keep loaded after hosts are reloaded.
     ///   - latency: File watcher debounce latency.
     public init(
         filePath: StaticString = #filePath,
@@ -69,6 +90,8 @@ public struct AdaUIHotReloadPlugin: Plugin {
         symbolName: String = Self.defaultSymbolName,
         watchPaths: [String]? = nil,
         reloadIDs: [String]? = nil,
+        reloadStrategy: ReloadStrategy = .automatic,
+        retainedDylibGenerationCount: Int = 1,
         latency: Double = 0.1
     ) {
         let discoveredProjectDirectory = try? AssetsManager
@@ -86,6 +109,8 @@ public struct AdaUIHotReloadPlugin: Plugin {
             symbolName: symbolName,
             watchPaths: watchPaths,
             reloadIDs: reloadIDs,
+            reloadStrategy: reloadStrategy,
+            retainedDylibGenerationCount: retainedDylibGenerationCount,
             latency: latency
         )
     }
@@ -114,14 +139,18 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
     private let symbolName: String
     private let explicitWatchPaths: [String]?
     private let reloadIDs: [String]?
+    private let reloadStrategy: AdaUIHotReloadPlugin.ReloadStrategy
+    private let retainedDylibGenerationCount: Int
     private let latency: Double
     private let logger = Logger(label: "org.adaengine.AdaUIHotReloadPlugin")
 
     private var library: AdaUIHotReloadDynamicLibrary?
+    private var injectedLibrary: AdaUIHotReloadInjectedLibrary?
     private var watcher: FileWatcher?
     private var sourceSnapshot: AdaUIHotReloadSourceSnapshot?
+    private var isSetup = false
     private var isBuildRunning = false
-    private var needsBuildAfterCurrent = false
+    private var pendingChangedFiles: Set<URL> = []
 
     init(
         projectDirectory: String,
@@ -133,6 +162,8 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
         symbolName: String,
         watchPaths: [String]?,
         reloadIDs: [String]?,
+        reloadStrategy: AdaUIHotReloadPlugin.ReloadStrategy,
+        retainedDylibGenerationCount: Int,
         latency: Double
     ) {
         self.projectDirectory = projectDirectory
@@ -144,18 +175,31 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
         self.symbolName = symbolName
         self.explicitWatchPaths = watchPaths
         self.reloadIDs = reloadIDs
+        self.reloadStrategy = reloadStrategy
+        self.retainedDylibGenerationCount = max(0, retainedDylibGenerationCount)
         self.latency = latency
     }
 
     @MainActor
     func setup() {
+        guard !isSetup else {
+            logger.debug("Ignoring duplicate AdaUI hot reload setup.")
+            return
+        }
+
+        isSetup = true
         let projectURL = URL(fileURLWithPath: projectDirectory, isDirectory: true)
             .resolvingSymlinksInPath()
         let library = AdaUIHotReloadDynamicLibrary(
             symbolName: symbolName,
+            retainedGenerationCount: retainedDylibGenerationCount,
             logger: logger
         )
         self.library = library
+        self.injectedLibrary = AdaUIHotReloadInjectedLibrary(
+            retainedGenerationCount: retainedDylibGenerationCount,
+            logger: logger
+        )
 
         UIHotReloadRuntime.setFactory { id in
             library.makeView(id: id)
@@ -168,17 +212,25 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
             let sourceURL = URL(fileURLWithPath: dylibPath).resolvingSymlinksInPath()
             library.reload(from: sourceURL)
             reloadHosts()
+            library.releaseRetiredGenerations()
+        } else if reloadStrategy == .legacyProductBuild {
+            scheduleLegacyBuildAndReload(projectURL: projectURL)
         } else {
-            scheduleBuildAndReload(projectURL: projectURL)
+            logger.info("AdaUI automatic hot reload is ready and will build after the next source save.")
         }
     }
 
     @MainActor
     func destroy() {
+        isSetup = false
         watcher?.stop()
         watcher = nil
-        library = nil
         UIHotReloadRuntime.setFactory(nil)
+        reloadHosts()
+        injectedLibrary?.releaseAllGenerations()
+        injectedLibrary = nil
+        library?.releaseAllGenerations()
+        library = nil
     }
 
     @MainActor
@@ -191,24 +243,25 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
 
         watcher = FileWatcher(paths: paths, latency: latency) { [weak self] changedPaths in
             Task { @MainActor [weak self] in
-                self?.logger.info("AdaUI hot reload file event: \(changedPaths.map(\.pathString).joined(separator: ", "))")
+                self?.logger.info("✍️ AdaUI hot reload file event: \(Self.uniquePathStrings(changedPaths).joined(separator: ", "))")
                 guard let self else {
                     return
                 }
 
                 if let dylibPath = self.dylibPath, !dylibPath.isEmpty {
-                    guard self.consumeSaveEvent(projectURL: projectURL) else {
+                    guard self.consumeSaveEvent(projectURL: projectURL) != nil else {
                         return
                     }
 
                     self.library?.reload(from: URL(fileURLWithPath: dylibPath).resolvingSymlinksInPath())
                     self.reloadHosts()
+                    self.library?.releaseRetiredGenerations()
                 } else {
-                    guard self.consumeSaveEvent(projectURL: projectURL) else {
+                    guard let changes = self.consumeSaveEvent(projectURL: projectURL) else {
                         return
                     }
 
-                    self.scheduleBuildAndReload(projectURL: projectURL)
+                    self.scheduleReload(projectURL: projectURL, changedFiles: changes.changedFiles)
                 }
             }
         }
@@ -217,9 +270,13 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
             try watcher?.start()
             logger.info("Started AdaUI hot reload watcher for \(paths.map(\.pathString).joined(separator: ", "))")
         } catch {
-            logger.error("Failed to start AdaUI hot reload watcher: \(error)")
+            logger.error("❌ Failed to start AdaUI hot reload watcher: \(error)")
             watcher = nil
         }
+    }
+
+    private static func uniquePathStrings(_ paths: [AbsolutePath]) -> [String] {
+        Array(Set(paths.map(\.pathString))).sorted()
     }
 
     @MainActor
@@ -238,32 +295,142 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
     }
 
     @MainActor
-    private func consumeSaveEvent(projectURL: URL) -> Bool {
+    private func consumeSaveEvent(projectURL: URL) -> AdaUIHotReloadSourceChanges? {
         let nextSnapshot = AdaUIHotReloadSourceSnapshot.capture(paths: watchPaths(projectURL: projectURL))
         defer {
             sourceSnapshot = nextSnapshot
         }
 
         guard let sourceSnapshot else {
-            return true
+            return AdaUIHotReloadSourceChanges(changedFiles: nextSnapshot.allFiles())
         }
 
-        let didSave = sourceSnapshot != nextSnapshot
-        if !didSave {
+        let changedFiles = nextSnapshot.changedFiles(comparedTo: sourceSnapshot)
+        if changedFiles.isEmpty {
             logger.debug("Ignoring AdaUI hot reload file event because watched file save state did not change.")
+            return nil
         }
 
-        return didSave
+        return AdaUIHotReloadSourceChanges(changedFiles: changedFiles)
     }
 
     @MainActor
-    private func scheduleBuildAndReload(projectURL: URL) {
+    private func scheduleReload(projectURL: URL, changedFiles: [URL]) {
         if isBuildRunning {
-            needsBuildAfterCurrent = true
+            pendingChangedFiles.formUnion(changedFiles)
             return
         }
 
         isBuildRunning = true
+        let changedFiles = Array(Set(changedFiles))
+
+        Task {
+            let result = await self.reloadResult(projectURL: projectURL, changedFiles: changedFiles)
+            await MainActor.run {
+                self.isBuildRunning = false
+
+                switch result {
+                case .injected(let dylibURL):
+                    self.injectedLibrary?.reload(from: dylibURL)
+                    self.reloadHosts()
+                    self.injectedLibrary?.releaseRetiredGenerations()
+                case .legacy(let dylibURL):
+                    self.library?.reload(from: dylibURL)
+                    self.reloadHosts()
+                    self.library?.releaseRetiredGenerations()
+                case .failure(let error):
+                    self.logger.error("❌ \(error)")
+                }
+
+                if !self.pendingChangedFiles.isEmpty {
+                    let pendingChangedFiles = Array(self.pendingChangedFiles)
+                    self.pendingChangedFiles.removeAll()
+                    self.scheduleReload(projectURL: projectURL, changedFiles: pendingChangedFiles)
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func scheduleLegacyBuildAndReload(projectURL: URL) {
+        if isBuildRunning {
+            pendingChangedFiles.insert(projectURL)
+            return
+        }
+
+        isBuildRunning = true
+        Task {
+            let result = await self.legacyBuildResult(projectURL: projectURL)
+            await MainActor.run {
+                self.isBuildRunning = false
+
+                switch result {
+                case .success(let dylibURL):
+                    self.library?.reload(from: dylibURL)
+                    self.reloadHosts()
+                    self.library?.releaseRetiredGenerations()
+                case .failure(let error):
+                    self.logger.error("❌ \(error)")
+                }
+
+                if !self.pendingChangedFiles.isEmpty {
+                    self.pendingChangedFiles.removeAll()
+                    self.scheduleLegacyBuildAndReload(projectURL: projectURL)
+                }
+            }
+        }
+    }
+
+    private func reloadResult(projectURL: URL, changedFiles: [URL]) async -> AdaUIHotReloadResult {
+        switch reloadStrategy {
+        case .automatic:
+            let fastResult = await fastInjectionResult(projectURL: projectURL, changedFiles: changedFiles)
+            switch fastResult {
+            case .success(let dylibURL):
+                return .injected(dylibURL)
+            case .failure(let fastError):
+                logger.warning("AdaUI fast hot reload unavailable, falling back to legacy build: \(fastError)")
+                let legacyResult = await legacyBuildResult(projectURL: projectURL)
+                switch legacyResult {
+                case .success(let dylibURL):
+                    return .legacy(dylibURL)
+                case .failure(let legacyError):
+                    return .failure(legacyError)
+                }
+            }
+        case .fastInjectionOnly:
+            let fastResult = await fastInjectionResult(projectURL: projectURL, changedFiles: changedFiles)
+            switch fastResult {
+            case .success(let dylibURL):
+                return .injected(dylibURL)
+            case .failure(let error):
+                return .failure(error)
+            }
+        case .legacyProductBuild:
+            let legacyResult = await legacyBuildResult(projectURL: projectURL)
+            switch legacyResult {
+            case .success(let dylibURL):
+                return .legacy(dylibURL)
+            case .failure(let error):
+                return .failure(error)
+            }
+        }
+    }
+
+    private func fastInjectionResult(
+        projectURL: URL,
+        changedFiles: [URL]
+    ) async -> Result<URL, AdaUIHotReloadFastInjectionError> {
+        let runner = AdaUIHotReloadFastInjectionRunner(
+            projectURL: projectURL,
+            sourcePaths: sourcePaths,
+            changedFiles: changedFiles
+        )
+
+        return await runner.build()
+    }
+
+    private func legacyBuildResult(projectURL: URL) async -> Result<URL, AdaUIHotReloadBuildError> {
         let runner = AdaUIHotReloadBuildRunner(
             projectURL: projectURL,
             sourcePaths: sourcePaths,
@@ -272,25 +439,7 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
             dylibName: dylibName ?? buildProduct
         )
 
-        Task {
-            let result = await runner.build()
-            await MainActor.run {
-                self.isBuildRunning = false
-
-                switch result {
-                case .success(let dylibURL):
-                    self.library?.reload(from: dylibURL)
-                    self.reloadHosts()
-                case .failure(let error):
-                    self.logger.error("\(error)")
-                }
-
-                if self.needsBuildAfterCurrent {
-                    self.needsBuildAfterCurrent = false
-                    self.scheduleBuildAndReload(projectURL: projectURL)
-                }
-            }
-        }
+        return await runner.build()
     }
 
     @MainActor
@@ -303,6 +452,16 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
             UIHotReloadRuntime.reloadAll()
         }
     }
+}
+
+private struct AdaUIHotReloadSourceChanges {
+    var changedFiles: [URL]
+}
+
+private enum AdaUIHotReloadResult {
+    case injected(URL)
+    case legacy(URL)
+    case failure(any Error)
 }
 
 private struct AdaUIHotReloadSourceSnapshot: Equatable {
@@ -322,6 +481,20 @@ private struct AdaUIHotReloadSourceSnapshot: Equatable {
         }
 
         return Self(files: files)
+    }
+
+    func allFiles() -> [URL] {
+        files.keys
+            .sorted()
+            .map(URL.init(fileURLWithPath:))
+    }
+
+    func changedFiles(comparedTo previous: Self) -> [URL] {
+        Set(files.keys)
+            .union(previous.files.keys)
+            .filter { files[$0] != previous.files[$0] }
+            .sorted()
+            .map(URL.init(fileURLWithPath:))
     }
 
     private static func collectFiles(
@@ -371,6 +544,291 @@ private struct AdaUIHotReloadSourceSnapshot: Equatable {
             modificationDate: modificationDate
         )
     }
+}
+
+private struct AdaUIHotReloadFastInjectionRunner: Sendable {
+    let projectURL: URL
+    let sourcePaths: [String]
+    let changedFiles: [URL]
+
+    func build() async -> Result<URL, AdaUIHotReloadFastInjectionError> {
+        do {
+            let changedFile = try changedSwiftSourceFile()
+            let buildDescription = try readSwiftPMBuildDescription()
+            guard buildDescription.contains("\"-interposable\"") else {
+                throw AdaUIHotReloadFastInjectionError.interposableMissing
+            }
+
+            let command = try swiftModuleBuildCommand(
+                for: changedFile,
+                in: buildDescription
+            )
+            try run(executable: command.executable, arguments: command.arguments)
+
+            let objectURL = try objectURL(
+                for: changedFile,
+                outputFileMapURL: command.outputFileMapURL
+            )
+            let dylibURL = try linkInjectedDylib(
+                objectURL: objectURL,
+                command: command
+            )
+
+            return .success(dylibURL)
+        } catch let error as AdaUIHotReloadFastInjectionError {
+            return .failure(error)
+        } catch {
+            return .failure(.failed("\(error)"))
+        }
+    }
+
+    private func changedSwiftSourceFile() throws -> URL {
+        let swiftFiles = changedFiles
+            .map { $0.standardizedFileURL }
+            .filter { $0.pathExtension == "swift" }
+            .filter(isWatchedSourceFile(_:))
+
+        guard swiftFiles.count == 1, let changedFile = swiftFiles.first else {
+            throw AdaUIHotReloadFastInjectionError.unsupportedChangedFiles(changedFiles.map(\.path))
+        }
+
+        return changedFile
+    }
+
+    private func isWatchedSourceFile(_ fileURL: URL) -> Bool {
+        let filePath = fileURL.standardizedFileURL.path
+        return sourcePaths.contains { sourcePath in
+            let sourceURL = URL(fileURLWithPath: sourcePath, relativeTo: projectURL)
+                .standardizedFileURL
+            return filePath == sourceURL.path || filePath.hasPrefix(sourceURL.path + "/")
+        }
+    }
+
+    private func readSwiftPMBuildDescription() throws -> String {
+        let candidates = [
+            projectURL.appendingPathComponent(".build/debug.yaml"),
+            projectURL.appendingPathComponent(".build/arm64-apple-macosx/debug.yaml")
+        ]
+
+        for candidate in candidates where FileManager.default.fileExists(atPath: candidate.path) {
+            return try String(contentsOf: candidate, encoding: .utf8)
+        }
+
+        throw AdaUIHotReloadFastInjectionError.buildDescriptionMissing
+    }
+
+    private func swiftModuleBuildCommand(
+        for changedFile: URL,
+        in buildDescription: String
+    ) throws -> SwiftModuleBuildCommand {
+        let changedPath = changedFile.standardizedFileURL.path
+        let blocks = buildDescription.components(separatedBy: "\n\n")
+
+        for block in blocks where block.contains(changedPath) && block.contains("args: [") {
+            guard let args = parseArguments(from: block),
+                  let executable = args.first,
+                  executable.hasSuffix("/swiftc"),
+                  let outputFileMap = value(after: "-output-file-map", in: args) else {
+                continue
+            }
+
+            let outputFileMapURL = URL(fileURLWithPath: outputFileMap, relativeTo: projectURL)
+                .standardizedFileURL
+
+            guard FileManager.default.fileExists(atPath: outputFileMapURL.path) else {
+                continue
+            }
+
+            return SwiftModuleBuildCommand(
+                executable: URL(fileURLWithPath: executable),
+                arguments: Array(args.dropFirst()),
+                outputFileMapURL: outputFileMapURL
+            )
+        }
+
+        throw AdaUIHotReloadFastInjectionError.compilationCommandMissing(changedPath)
+    }
+
+    private func parseArguments(from block: String) -> [String]? {
+        guard let argsRange = block.range(of: "args: [") else {
+            return nil
+        }
+
+        let start = block.index(before: argsRange.upperBound)
+        let lineEnd = block[start...].firstIndex(of: "\n") ?? block.endIndex
+        let arrayText = String(block[start..<lineEnd])
+
+        guard let data = arrayText.data(using: .utf8),
+              let value = try? JSONSerialization.jsonObject(with: data),
+              let arguments = value as? [String] else {
+            return nil
+        }
+
+        return arguments
+    }
+
+    private func objectURL(
+        for changedFile: URL,
+        outputFileMapURL: URL
+    ) throws -> URL {
+        let data = try Data(contentsOf: outputFileMapURL)
+        guard let value = try JSONSerialization.jsonObject(with: data) as? [String: [String: String]] else {
+            throw AdaUIHotReloadFastInjectionError.outputFileMapInvalid(outputFileMapURL.path)
+        }
+
+        let changedPath = changedFile.standardizedFileURL.path
+        let entry = value.first { key, _ in
+            URL(fileURLWithPath: key, relativeTo: projectURL).standardizedFileURL.path == changedPath
+        }?.value
+
+        guard let objectPath = entry?["object"] else {
+            throw AdaUIHotReloadFastInjectionError.objectFileMissing(changedPath)
+        }
+
+        let objectURL = URL(fileURLWithPath: objectPath, relativeTo: projectURL)
+            .standardizedFileURL
+        guard FileManager.default.fileExists(atPath: objectURL.path) else {
+            throw AdaUIHotReloadFastInjectionError.objectFileMissing(objectURL.path)
+        }
+
+        return objectURL
+    }
+
+    private func linkInjectedDylib(
+        objectURL: URL,
+        command: SwiftModuleBuildCommand
+    ) throws -> URL {
+        let outputDirectory = projectURL
+            .appendingPathComponent(".build/ada-ui-hot-reload", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: outputDirectory,
+            withIntermediateDirectories: true
+        )
+
+        let outputURL = outputDirectory
+            .appendingPathComponent("\(objectURL.deletingPathExtension().lastPathComponent)-\(UUID().uuidString)")
+            .appendingPathExtension("dylib")
+
+        let objectPaths = [objectURL.path] + requiredSupportObjectPaths(for: objectURL)
+        var arguments = [
+            "swiftc",
+            "-emit-library",
+        ] + objectPaths + [
+            "-o",
+            outputURL.path,
+            "-Xlinker",
+            "-undefined",
+            "-Xlinker",
+            "dynamic_lookup",
+            "-Xlinker",
+            "-install_name",
+            "-Xlinker",
+            "@rpath/\(outputURL.lastPathComponent)"
+        ]
+        arguments.append(contentsOf: command.linkerContextArguments())
+
+        try run(
+            executable: URL(fileURLWithPath: "/usr/bin/xcrun"),
+            arguments: arguments
+        )
+
+        return outputURL
+    }
+
+    private func requiredSupportObjectPaths(for objectURL: URL) -> [String] {
+        let objectDirectory = objectURL.deletingLastPathComponent()
+        let supportObjectNames = [
+            "resource_bundle_accessor.swift.o"
+        ]
+
+        return supportObjectNames
+            .map { objectDirectory.appendingPathComponent($0).path }
+            .filter { $0 != objectURL.path }
+            .filter { FileManager.default.fileExists(atPath: $0) }
+    }
+
+    private func run(executable: URL, arguments: [String]) throws {
+        let process = Process()
+        process.currentDirectoryURL = projectURL
+        process.executableURL = executable
+        process.arguments = arguments
+
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = outputPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(decoding: outputData, as: UTF8.self)
+        guard process.terminationStatus == 0 else {
+            throw AdaUIHotReloadFastInjectionError.commandFailed(
+                command: Self.shellCommand([executable.path] + arguments),
+                exitCode: process.terminationStatus,
+                output: output
+            )
+        }
+    }
+
+    private func value(after option: String, in arguments: [String]) -> String? {
+        guard let index = arguments.firstIndex(of: option) else {
+            return nil
+        }
+
+        let valueIndex = arguments.index(after: index)
+        guard valueIndex < arguments.endIndex else {
+            return nil
+        }
+
+        return arguments[valueIndex]
+    }
+
+    private static func shellEscaped(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    private static func shellCommand(_ arguments: [String]) -> String {
+        arguments.map(shellEscaped(_:)).joined(separator: " ")
+    }
+}
+
+private struct SwiftModuleBuildCommand {
+    let executable: URL
+    let arguments: [String]
+    let outputFileMapURL: URL
+
+    func linkerContextArguments() -> [String] {
+        var result: [String] = []
+        var index = arguments.startIndex
+
+        while index < arguments.endIndex {
+            let argument = arguments[index]
+            if Self.linkerContextOptions.contains(argument) {
+                let valueIndex = arguments.index(after: index)
+                if valueIndex < arguments.endIndex {
+                    result.append(argument)
+                    result.append(arguments[valueIndex])
+                    index = arguments.index(after: valueIndex)
+                    continue
+                }
+            } else if argument == "-g" {
+                result.append(argument)
+            }
+
+            index = arguments.index(after: index)
+        }
+
+        return result
+    }
+
+    private static let linkerContextOptions: Set<String> = [
+        "-target",
+        "-sdk",
+        "-F",
+        "-I",
+        "-L"
+    ]
 }
 
 private struct AdaUIHotReloadBuildRunner: Sendable {
@@ -723,27 +1181,336 @@ private struct AdaUIHotReloadBuildRunner: Sendable {
 
 @safe
 @MainActor
+private final class AdaUIHotReloadInjectedLibrary {
+    @safe
+    private struct LoadedGeneration: @unchecked Sendable {
+        let handle: UnsafeMutableRawPointer
+        let copiedURL: URL
+    }
+
+    @unsafe private struct InterposeTuple {
+        let replacement: UnsafeRawPointer
+        let replacee: UnsafeRawPointer
+    }
+
+    private typealias DyldDynamicInterposeFunction = @convention(c) (
+        UnsafeRawPointer,
+        UnsafeRawPointer,
+        Int
+    ) -> Void
+
+    private let retainedGenerationCount: Int
+    private let logger: Logger
+    private let copiedLibrariesDirectory: URL
+
+    private var sourceURL: URL?
+    private var generation = 0
+    private var activeGeneration: LoadedGeneration?
+    private var retiredGenerations: [LoadedGeneration] = []
+
+    init(
+        retainedGenerationCount: Int,
+        logger: Logger
+    ) {
+        self.retainedGenerationCount = retainedGenerationCount
+        self.logger = logger
+        self.copiedLibrariesDirectory = FileManager.default
+            .temporaryDirectory
+            .appendingPathComponent("AdaUIHotReloadInjected", isDirectory: true)
+    }
+
+    deinit {
+        let logger = logger
+        for generation in retiredGenerations {
+            Self.close(generation: generation, logger: logger)
+        }
+    }
+
+    func reload(from sourceURL: URL) {
+        self.sourceURL = sourceURL
+
+        do {
+            let loaded = try loadAndInterpose(from: sourceURL)
+            if let activeGeneration {
+                retiredGenerations.append(activeGeneration)
+            }
+
+            activeGeneration = loaded
+            logger.info("✅ Loaded AdaUI injected hot reload dylib \(sourceURL.path)")
+        } catch {
+            logger.error("❌ Failed to inject AdaUI hot reload dylib \(sourceURL.path): \(error)")
+        }
+    }
+
+    func releaseRetiredGenerations() {
+        closeRetiredGenerations(keeping: retainedGenerationCount)
+    }
+
+    func releaseAllGenerations() {
+        closeRetiredGenerations(keeping: 0)
+
+        if let activeGeneration {
+            Self.close(generation: activeGeneration, logger: logger)
+            self.activeGeneration = nil
+        }
+    }
+
+    private func loadAndInterpose(from sourceURL: URL) throws -> LoadedGeneration {
+        #if canImport(Darwin)
+        let copiedURL = try copySourceDylib(sourceURL)
+        guard let handle = unsafe dlopen(copiedURL.path, RTLD_NOW | RTLD_LOCAL) else {
+            throw AdaUIHotReloadPluginError.dynamicLibraryOpenFailed(Self.lastDynamicLibraryError())
+        }
+
+        do {
+            let tuples = try interposeTuples(for: copiedURL, handle: handle)
+            try applyInterposeTuples(tuples)
+            return LoadedGeneration(handle: handle, copiedURL: copiedURL)
+        } catch {
+            unsafe Self.close(
+                generation: LoadedGeneration(handle: handle, copiedURL: copiedURL),
+                logger: logger
+            )
+            throw error
+        }
+        #else
+        throw AdaUIHotReloadPluginError.unsupportedPlatform
+        #endif
+    }
+
+    private func interposeTuples(
+        for dylibURL: URL,
+        handle: UnsafeMutableRawPointer
+    ) throws -> [InterposeTuple] {
+        let symbols = try exportedSwiftSymbols(in: dylibURL)
+        let defaultHandle = Self.defaultDynamicLookupHandle()
+        var tuples: [InterposeTuple] = []
+
+        for symbol in symbols {
+            guard let replacement = unsafe dlsym(handle, symbol),
+                  let replacee = unsafe dlsym(defaultHandle, symbol),
+                  replacement != replacee else {
+                continue
+            }
+
+            tuples.append(InterposeTuple(
+                replacement: UnsafeRawPointer(replacement),
+                replacee: UnsafeRawPointer(replacee)
+            ))
+        }
+
+        guard !tuples.isEmpty else {
+            throw AdaUIHotReloadPluginError.noInterposableSymbols(dylibURL.path)
+        }
+
+        return tuples
+    }
+
+    private func exportedSwiftSymbols(in dylibURL: URL) throws -> [String] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        process.arguments = ["nm", "-gU", dylibURL.path]
+
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = outputPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(decoding: outputData, as: UTF8.self)
+        guard process.terminationStatus == 0 else {
+            throw AdaUIHotReloadPluginError.symbolListingFailed(output)
+        }
+
+        return output
+            .split(whereSeparator: \.isNewline)
+            .compactMap { line -> String? in
+                let parts = line.split(whereSeparator: \.isWhitespace)
+                guard parts.count >= 3,
+                      parts[1] == "T" || parts[1] == "t" else {
+                    return nil
+                }
+
+                var symbol = String(parts[2])
+                if symbol.hasPrefix("_") {
+                    symbol.removeFirst()
+                }
+
+                guard symbol.hasPrefix("$s") || symbol.hasPrefix("$S") else {
+                    return nil
+                }
+
+                return symbol
+            }
+    }
+
+    private func applyInterposeTuples(_ tuples: [InterposeTuple]) throws {
+        #if canImport(Darwin)
+        guard let dyldDynamicInterpose = Self.dyldDynamicInterpose() else {
+            throw AdaUIHotReloadPluginError.dynamicInterposeUnavailable
+        }
+
+        tuples.withUnsafeBufferPointer { buffer in
+            guard let baseAddress = buffer.baseAddress else {
+                return
+            }
+
+            for index in 0..<_dyld_image_count() {
+                guard let header = _dyld_get_image_header(index) else {
+                    continue
+                }
+
+                dyldDynamicInterpose(
+                    UnsafeRawPointer(header),
+                    UnsafeRawPointer(baseAddress),
+                    buffer.count
+                )
+            }
+        }
+        #else
+        throw AdaUIHotReloadPluginError.unsupportedPlatform
+        #endif
+    }
+
+    private func closeRetiredGenerations(keeping retainedCount: Int) {
+        let generationsToCloseCount = retiredGenerations.count - retainedCount
+        guard generationsToCloseCount > 0 else {
+            return
+        }
+
+        let generationsToClose = Array(retiredGenerations.prefix(generationsToCloseCount))
+        retiredGenerations.removeFirst(generationsToCloseCount)
+
+        for generation in generationsToClose {
+            Self.close(generation: generation, logger: logger)
+        }
+    }
+
+    private func copySourceDylib(_ sourceURL: URL) throws -> URL {
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
+            throw AdaUIHotReloadPluginError.dynamicLibraryMissing(sourceURL.path)
+        }
+
+        try FileManager.default.createDirectory(
+            at: copiedLibrariesDirectory,
+            withIntermediateDirectories: true,
+            attributes: nil
+        )
+
+        generation += 1
+        let processID = ProcessInfo.processInfo.processIdentifier
+        let sourceName = sourceURL.deletingPathExtension().lastPathComponent
+        let pathExtension = sourceURL.pathExtension.isEmpty ? "dylib" : sourceURL.pathExtension
+        let copiedURL = copiedLibrariesDirectory
+            .appendingPathComponent("\(sourceName)-\(processID)-\(generation)")
+            .appendingPathExtension(pathExtension)
+
+        if FileManager.default.fileExists(atPath: copiedURL.path) {
+            try FileManager.default.removeItem(at: copiedURL)
+        }
+
+        try FileManager.default.copyItem(at: sourceURL, to: copiedURL)
+        return copiedURL
+    }
+
+    nonisolated private static func close(generation: LoadedGeneration, logger: Logger) {
+        #if canImport(Darwin) || canImport(Glibc)
+        if unsafe dlclose(generation.handle) != 0 {
+            logger.warning("❌ Failed to close AdaUI injected hot reload dylib \(generation.copiedURL.path): \(Self.lastDynamicLibraryError())")
+        }
+        #endif
+
+        do {
+            if FileManager.default.fileExists(atPath: generation.copiedURL.path) {
+                try FileManager.default.removeItem(at: generation.copiedURL)
+            }
+        } catch {
+            logger.warning("❌ Failed to remove AdaUI injected hot reload dylib copy \(generation.copiedURL.path): \(error)")
+        }
+    }
+
+    nonisolated private static func dyldDynamicInterpose() -> DyldDynamicInterposeFunction? {
+        #if canImport(Darwin)
+        let defaultHandle = defaultDynamicLookupHandle()
+        guard let symbol = unsafe dlsym(defaultHandle, "dyld_dynamic_interpose") else {
+            return nil
+        }
+
+        return unsafe unsafeBitCast(symbol, to: DyldDynamicInterposeFunction.self)
+        #else
+        return nil
+        #endif
+    }
+
+    nonisolated private static func defaultDynamicLookupHandle() -> UnsafeMutableRawPointer? {
+        #if canImport(Darwin)
+        UnsafeMutableRawPointer(bitPattern: -2)
+        #else
+        nil
+        #endif
+    }
+
+    nonisolated private static func lastDynamicLibraryError() -> String {
+        #if canImport(Darwin) || canImport(Glibc)
+        guard let error = unsafe dlerror() else {
+            return "Unknown dynamic library loading error."
+        }
+
+        return unsafe String(cString: error)
+        #else
+        return "Dynamic library loading is not available on this platform."
+        #endif
+    }
+}
+
+@safe
+@MainActor
 private final class AdaUIHotReloadDynamicLibrary {
     typealias MakeViewFunction = @convention(c) (UnsafePointer<CChar>) -> UnsafeMutableRawPointer?
 
+    @safe
+    private struct LoadedGeneration: @unchecked Sendable {
+        let handle: UnsafeMutableRawPointer
+        let copiedURL: URL
+    }
+
+    @safe
+    private struct LoadedMakeViewFunction {
+        let function: MakeViewFunction
+        let generation: LoadedGeneration
+    }
+
     private var sourceURL: URL?
     private let symbolName: String
+    private let retainedGenerationCount: Int
     private let logger: Logger
     private let copiedLibrariesDirectory: URL
 
     private var generation = 0
     private var makeViewFunction: MakeViewFunction?
-    private var handles: [UnsafeMutableRawPointer] = unsafe []
+    private var activeGeneration: LoadedGeneration?
+    private var retiredGenerations: [LoadedGeneration] = []
 
     init(
         symbolName: String,
+        retainedGenerationCount: Int,
         logger: Logger
     ) {
         self.symbolName = symbolName
+        self.retainedGenerationCount = retainedGenerationCount
         self.logger = logger
         self.copiedLibrariesDirectory = FileManager.default
             .temporaryDirectory
             .appendingPathComponent("AdaUIHotReload", isDirectory: true)
+    }
+
+    deinit {
+        let logger = logger
+        for generation in retiredGenerations {
+            Self.close(generation: generation, logger: logger)
+        }
     }
 
     func reload(from sourceURL: URL) {
@@ -751,14 +1518,32 @@ private final class AdaUIHotReloadDynamicLibrary {
         reload()
     }
 
-    private func reload() {
-        unsafe makeViewFunction = nil
+    func releaseRetiredGenerations() {
+        closeRetiredGenerations(keeping: retainedGenerationCount)
+    }
 
+    func releaseAllGenerations() {
+        unsafe makeViewFunction = nil
+        closeRetiredGenerations(keeping: 0)
+
+        if let activeGeneration {
+            Self.close(generation: activeGeneration, logger: logger)
+            self.activeGeneration = nil
+        }
+    }
+
+    private func reload() {
         do {
-            unsafe makeViewFunction = try loadMakeViewFunction()
-            logger.info("Loaded AdaUI hot reload dylib \(sourceURL?.path ?? "<missing>")")
+            let loaded = try loadMakeViewFunction()
+            if let activeGeneration {
+                retiredGenerations.append(activeGeneration)
+            }
+
+            unsafe makeViewFunction = loaded.function
+            activeGeneration = loaded.generation
+            logger.info("✅ Loaded AdaUI hot reload dylib \(sourceURL?.path ?? "<missing>")")
         } catch {
-            logger.error("Failed to load AdaUI hot reload dylib \(sourceURL?.path ?? "<missing>"): \(error)")
+            logger.error("❌ Failed to load AdaUI hot reload dylib \(sourceURL?.path ?? "<missing>"): \(error)")
         }
     }
 
@@ -786,7 +1571,7 @@ private final class AdaUIHotReloadDynamicLibrary {
         return unsafe Unmanaged<UIView>.fromOpaque(rawView).takeRetainedValue()
     }
 
-    private func loadMakeViewFunction() throws -> MakeViewFunction {
+    private func loadMakeViewFunction() throws -> LoadedMakeViewFunction {
         #if canImport(Darwin) || canImport(Glibc)
         let copiedURL = try copySourceDylib()
         guard let handle = unsafe dlopen(copiedURL.path, RTLD_NOW | RTLD_LOCAL) else {
@@ -794,14 +1579,53 @@ private final class AdaUIHotReloadDynamicLibrary {
         }
 
         guard let symbol = unsafe dlsym(handle, symbolName) else {
+            unsafe Self.close(
+                generation: LoadedGeneration(handle: handle, copiedURL: copiedURL),
+                logger: logger
+            )
             throw AdaUIHotReloadPluginError.symbolNotFound(symbolName)
         }
 
-        unsafe handles.append(handle)
-        return unsafe unsafeBitCast(symbol, to: MakeViewFunction.self)
+        return unsafe LoadedMakeViewFunction(
+            function: unsafeBitCast(symbol, to: MakeViewFunction.self),
+            generation: LoadedGeneration(
+                handle: handle,
+                copiedURL: copiedURL
+            )
+        )
         #else
         throw AdaUIHotReloadPluginError.unsupportedPlatform
         #endif
+    }
+
+    private func closeRetiredGenerations(keeping retainedCount: Int) {
+        let generationsToCloseCount = retiredGenerations.count - retainedCount
+        guard generationsToCloseCount > 0 else {
+            return
+        }
+
+        let generationsToClose = Array(retiredGenerations.prefix(generationsToCloseCount))
+        retiredGenerations.removeFirst(generationsToCloseCount)
+
+        for generation in generationsToClose {
+            Self.close(generation: generation, logger: logger)
+        }
+    }
+
+    nonisolated private static func close(generation: LoadedGeneration, logger: Logger) {
+        #if canImport(Darwin) || canImport(Glibc)
+        if unsafe dlclose(generation.handle) != 0 {
+            logger.warning("❌ Failed to close AdaUI hot reload dylib \(generation.copiedURL.path): \(Self.lastDynamicLibraryError())")
+        }
+        #endif
+
+        do {
+            if FileManager.default.fileExists(atPath: generation.copiedURL.path) {
+                try FileManager.default.removeItem(at: generation.copiedURL)
+            }
+        } catch {
+            logger.warning("❌ Failed to remove AdaUI hot reload dylib copy \(generation.copiedURL.path): \(error)")
+        }
     }
 
     private func copySourceDylib() throws -> URL {
@@ -835,7 +1659,7 @@ private final class AdaUIHotReloadDynamicLibrary {
         return copiedURL
     }
 
-    private static func lastDynamicLibraryError() -> String {
+    nonisolated private static func lastDynamicLibraryError() -> String {
         #if canImport(Darwin) || canImport(Glibc)
         guard let error = unsafe dlerror() else {
             return "Unknown dynamic library loading error."
@@ -851,6 +1675,9 @@ private final class AdaUIHotReloadDynamicLibrary {
 private enum AdaUIHotReloadPluginError: Error, CustomStringConvertible {
     case dynamicLibraryMissing(String)
     case dynamicLibraryOpenFailed(String)
+    case dynamicInterposeUnavailable
+    case noInterposableSymbols(String)
+    case symbolListingFailed(String)
     case symbolNotFound(String)
     case unsupportedPlatform
 
@@ -860,10 +1687,48 @@ private enum AdaUIHotReloadPluginError: Error, CustomStringConvertible {
             return "Dynamic library does not exist at \(path)."
         case .dynamicLibraryOpenFailed(let message):
             return message
+        case .dynamicInterposeUnavailable:
+            return "dyld_dynamic_interpose is unavailable in this process."
+        case .noInterposableSymbols(let path):
+            return "No matching Swift symbols from \(path) were available for interposing."
+        case .symbolListingFailed(let output):
+            return "Failed to list injected dylib symbols.\n\(output)"
         case .symbolNotFound(let symbol):
             return "Symbol \(symbol) was not found."
         case .unsupportedPlatform:
             return "Dynamic library hot reload is not supported on this platform."
+        }
+    }
+}
+
+private enum AdaUIHotReloadFastInjectionError: Error, CustomStringConvertible {
+    case buildDescriptionMissing
+    case compilationCommandMissing(String)
+    case commandFailed(command: String, exitCode: Int32, output: String)
+    case failed(String)
+    case interposableMissing
+    case objectFileMissing(String)
+    case outputFileMapInvalid(String)
+    case unsupportedChangedFiles([String])
+
+    var description: String {
+        switch self {
+        case .buildDescriptionMissing:
+            return "SwiftPM build description .build/debug.yaml was not found. Run one normal Debug build first."
+        case .compilationCommandMissing(let path):
+            return "No Swift compile command was found for changed file \(path)."
+        case .commandFailed(let command, let exitCode, let output):
+            return "AdaUI fast hot reload command failed (\(exitCode)) for `\(command)`.\n\(output)"
+        case .failed(let message):
+            return message
+        case .interposableMissing:
+            return "Debug binary was not linked with -Xlinker -interposable."
+        case .objectFileMissing(let path):
+            return "No object file was found for \(path)."
+        case .outputFileMapInvalid(let path):
+            return "Swift output file map is invalid at \(path)."
+        case .unsupportedChangedFiles(let files):
+            return "Fast hot reload requires exactly one changed watched Swift source file. Changed files: \(files.joined(separator: ", "))"
         }
     }
 }
