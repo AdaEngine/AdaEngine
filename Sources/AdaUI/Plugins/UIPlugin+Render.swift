@@ -472,6 +472,10 @@ public struct UIRenderTesselationSystem {
             flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
 
         case let .drawLinearGradient(transform, startPoint, endPoint, stops):
+            // Gradients use their own pipeline, so keep them in a dedicated
+            // draw item to preserve their position in the view hierarchy.
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+
             let vertexOffset = UInt32(state.renderData.gradientVertexBuffer.count)
             let vertices = tessellator.tessellateLinearGradient(transform: transform)
             state.renderData.gradientVertexBuffer.elements.append(contentsOf: vertices)
@@ -495,6 +499,8 @@ public struct UIRenderTesselationSystem {
                     uniformOffset: uniformIndex * MemoryLayout<LinearGradientUniform>.stride
                 )
             )
+
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
 
         case let .drawCircle(transform, thickness, fade, color):
             let vertexOffset = UInt32(state.renderData.circleVertexBuffer.count)

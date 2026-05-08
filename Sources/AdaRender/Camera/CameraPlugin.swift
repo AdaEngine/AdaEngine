@@ -53,6 +53,12 @@ public struct RenderViewTarget: @unchecked Sendable {
     public var lighting2DUsesDeferredTargets: Bool = false
 
     public init() {}
+
+    fileprivate var cacheableCopy: RenderViewTarget {
+        var copy = self
+        copy.outputTexture = nil
+        return copy
+    }
 }
 
 public struct ExtractedCameraRenderViewTargets: Resource {
@@ -141,7 +147,7 @@ func ConfigurateRenderViewTarget(
             )
         }
 
-        cachedViewTargets.targets[source.entityId] = renderViewTarget.wrappedValue
+        cachedViewTargets.targets[source.entityId] = renderViewTarget.wrappedValue.cacheableCopy
     }
 }
 
@@ -202,7 +208,7 @@ public func ExtractCamera(
         visibleEntities, uniform, graph in
         activeCameraIds.insert(entity.id)
 
-        let renderViewTarget = cachedViewTargets.targets[entity.id] ?? RenderViewTarget()
+        let renderViewTarget = cachedViewTargets.targets[entity.id]?.cacheableCopy ?? RenderViewTarget()
         commands.spawn("ExtractedCameraEntity") {
             camera
             transform

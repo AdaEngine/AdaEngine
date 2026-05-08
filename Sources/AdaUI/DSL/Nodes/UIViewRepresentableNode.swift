@@ -31,7 +31,16 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
             self.view = representable.makeUIView(in: context)
         }
 
-        self.representable.updateUIView(view!, in: context)
+        guard let view else {
+            return
+        }
+
+        view.frame = self.frame
+        view.safeAreaInsets = self.environment.safeAreaInsets
+        view.userInterfaceIdiom = self.environment.userInterfaceIdiom
+        view.colorScheme = self.environment.colorScheme
+        self.representable.updateUIView(view, in: context)
+        view.layoutSubviews()
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
@@ -63,7 +72,34 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
         view?.draw(with: context)
     }
 
+    override func onReceiveEvent(_ event: any InputEvent) {
+        view?.onEvent(event)
+    }
+
+    override func onKeyEvent(_ event: KeyEvent) {
+        view?.onKeyEvent(event)
+    }
+
+    override func onTextInputEvent(_ event: TextInputEvent) {
+        view?.onTextInputEvent(event)
+    }
+
+    override func onMouseEvent(_ event: MouseEvent) {
+        view?.onMouseEvent(event)
+    }
+
+    override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        view?.onTouchesEvent(touches)
+    }
+
     override func update(_ deltaTime: TimeInterval) {
-        view?.update(deltaTime)
+        guard let view else {
+            return
+        }
+
+        view.updateHierarchy(deltaTime)
+        if view.consumeNeedsDisplayInHierarchy() {
+            owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
+        }
     }
 }

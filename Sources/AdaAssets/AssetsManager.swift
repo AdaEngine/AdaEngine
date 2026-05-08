@@ -369,25 +369,26 @@ public struct AssetsManager: Resource {
         self.storage.loadedAssets.removeAll()
     }
 
+    public static func resolveProjectDirectories(
+        filePath: StaticString,
+        assetDirectoryNames: [String] = ["Assets", "Resources"]
+    ) throws -> ProjectDirectories {
+        for name in assetDirectoryNames {
+            if let found = URL.findProjectDirectories(from: filePath, for: name) {
+                return found
+            }
+        }
+
+        throw AssetError.message("Missing package directory")
+    }
+
     // MARK: - Internal
 
     // TODO: (Vlad) where we should call this method in embeddable view?
     // TODO: (Vlad) We must set current dev path to the asset manager
     @_spi(AdaEngine)
     public static func initialize(filePath: StaticString) throws {
-        let probablyNames = ["Assets", "Resources"]
-        var projectDirectories: ProjectDirectories?
-        for name in probablyNames {
-            if let found = URL.findProjectDirectories(from: filePath, for: name) {
-                projectDirectories = found
-                break
-            }
-        }
-
-        guard let projectDirectories else {
-            throw AssetError.message("Missing package directory")
-        }
-
+        let projectDirectories = try resolveProjectDirectories(filePath: filePath)
         unsafe self.projectDirectories = projectDirectories
 
         #if DEBUG
@@ -736,10 +737,14 @@ extension URL {
     }
 }
 
-struct ProjectDirectories {
+public struct ProjectDirectories: Sendable {
     /// Source directory is a directory where we store all source code for the project.
-    let source: URL
+    public let source: URL
 
     /// Assets directory is a directory where we store all assets for the project.
-    let assetsDirectory: URL
+    public let assetsDirectory: URL
+
+    public var packageDirectory: URL {
+        source
+    }
 }

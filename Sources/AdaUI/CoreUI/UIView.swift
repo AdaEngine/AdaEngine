@@ -247,6 +247,15 @@ open class UIView {
         return needsDisplay
     }
 
+    internal func consumeNeedsDisplayInHierarchy() -> Bool {
+        let isCurrentViewDirty = consumeNeedsDisplay()
+        let isSubviewDirty = subviews.reduce(false) { result, subview in
+            subview.consumeNeedsDisplayInHierarchy() || result
+        }
+
+        return isCurrentViewDirty || isSubviewDirty
+    }
+
     /// Layout the view if needed.
     public func layoutIfNeeded() {
         if needsLayout {
@@ -619,6 +628,15 @@ open class UIView {
         for subview in self.subviews {
             subview.internalUpdate(deltaTime)
             subview.update(deltaTime)
+        }
+    }
+
+    func updateHierarchy(_ deltaTime: TimeInterval) {
+        self.layoutIfNeeded()
+        self.update(deltaTime)
+
+        for subview in self.subviews {
+            subview.updateHierarchy(deltaTime)
         }
     }
 

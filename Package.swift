@@ -64,12 +64,44 @@ var products: [Product] = [
         targets: ["AdaEngine"]
     ),
     .library(
+        name: "AdaApp",
+        targets: ["AdaApp"]
+    ),
+    .library(
         name: "AdaECS",
         targets: ["AdaECS"]
     ),
     .library(
+        name: "AdaUI",
+        targets: ["AdaUI"]
+    ),
+    .library(
         name: "AdaRender",
         targets: ["AdaRender"]
+    ),
+    .library(
+        name: "AdaScene",
+        targets: ["AdaScene"]
+    ),
+    .library(
+        name: "AdaSprite",
+        targets: ["AdaSprite"]
+    ),
+    .library(
+        name: "AdaText",
+        targets: ["AdaText"]
+    ),
+    .library(
+        name: "AdaTransform",
+        targets: ["AdaTransform"]
+    ),
+    .library(
+        name: "AdaUtils",
+        targets: ["AdaUtils"]
+    ),
+    .library(
+        name: "Math",
+        targets: ["Math"]
     ),
     .library(
         name: "AdaAnimation",
@@ -225,6 +257,8 @@ var adaRenderDependencies: [Target.Dependency] = [
             .linux,
             .windows,
             .wasi
+        ], traits: [
+            .wgpuTrait
         ])
     ),
 ]
