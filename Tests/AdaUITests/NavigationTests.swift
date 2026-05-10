@@ -497,6 +497,38 @@ extension FullScreenCoverDismissCaptureView: ViewNodeBuilder {
     }
 }
 
+private final class FullScreenCoverLayoutCounter {
+    var layoutPasses = 0
+}
+
+private struct FullScreenCoverCountingView: View, ViewNodeBuilder {
+    typealias Body = Never
+
+    let counter: FullScreenCoverLayoutCounter
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        FullScreenCoverCountingViewNode(content: self, counter: counter)
+    }
+}
+
+private final class FullScreenCoverCountingViewNode: ViewNode {
+    private let counter: FullScreenCoverLayoutCounter
+
+    init(content: FullScreenCoverCountingView, counter: FullScreenCoverLayoutCounter) {
+        self.counter = counter
+        super.init(content: content)
+    }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        Size(width: 100, height: 100)
+    }
+
+    override func performLayout() {
+        counter.layoutPasses += 1
+        super.performLayout()
+    }
+}
+
 @MainActor
 struct FullScreenCoverTests {
 
@@ -518,6 +550,26 @@ struct FullScreenCoverTests {
         }
 
         #expect(!overlayAppeared)
+    }
+
+    @Test
+    func fullScreenCover_notPresented_updateDoesNotRelayoutContent() {
+        let counter = FullScreenCoverLayoutCounter()
+
+        let tester = ViewTester {
+            FullScreenCoverCountingView(counter: counter)
+                .fullScreenCover(isPresented: Binding<Bool>.constant(false)) {
+                    Color.blue
+                }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let layoutPassesAfterInitialLayout = counter.layoutPasses
+
+        tester.invalidateContent()
+
+        #expect(counter.layoutPasses == layoutPassesAfterInitialLayout)
     }
 
     @Test

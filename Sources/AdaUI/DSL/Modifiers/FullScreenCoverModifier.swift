@@ -186,9 +186,17 @@ final class FullScreenCoverNode: ViewModifierNode {
     }
 
     override func update(from newNode: ViewNode) {
+        let wasPresented = isPresented.wrappedValue
+
         super.update(from: newNode)
         guard let other = newNode as? FullScreenCoverNode else { return }
         self.isPresented = other.isPresented
+
+        let isPresented = isPresented.wrappedValue
+        guard wasPresented || isPresented else {
+            return
+        }
+
         rebuildOverlay()
     }
 
