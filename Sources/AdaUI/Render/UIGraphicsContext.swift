@@ -175,7 +175,8 @@ public struct UIGraphicsContext: Sendable {
         self.commandQueue.push(
             .drawText(
                 textLayout: textLayout,
-                transform: transform
+                transform: transform,
+                opacity: self.opacity
             )
         )
     }
@@ -186,7 +187,7 @@ public struct UIGraphicsContext: Sendable {
         layout.setTextContainer(TextContainer(text: text))
         layout.fitToSize(rect.size)
         let transform = self.transform * rect.toTransform3D
-        self.commandQueue.push(.drawText(textLayout: layout, transform: transform))
+        self.commandQueue.push(.drawText(textLayout: layout, transform: transform, opacity: self.opacity))
     }
 
     /// Draws path into the graphics context.
@@ -239,7 +240,7 @@ public struct UIGraphicsContext: Sendable {
     public func draw(_ glyph: Glyph) {
         // Use identity transform - glyph.position already contains correct pixel coordinates
         // The current context transform will be applied during tessellation
-        self.commandQueue.push(.drawGlyph(glyph, transform: self.transform))
+        self.commandQueue.push(.drawGlyph(glyph, transform: self.transform, opacity: self.opacity))
     }
 
     /// Commits draws.
@@ -287,7 +288,7 @@ public struct UIGraphicsContext: Sendable {
             return color
         }
 
-        return color.opacity(self.opacity)
+        return color.opacity(color.alpha * self.opacity)
     }
 
 }
@@ -343,8 +344,8 @@ extension UIGraphicsContext {
         case drawLinearGradient(transform: Transform3D, startPoint: Vector2, endPoint: Vector2, stops: [Gradient.Stop])
         case drawPath(Path, transform: Transform3D, PathDrawingMode)
 
-        case drawText(textLayout: TextLayoutManager, transform: Transform3D)
-        case drawGlyph(_ glyph: Glyph, transform: Transform3D)
+        case drawText(textLayout: TextLayoutManager, transform: Transform3D, opacity: Float)
+        case drawGlyph(_ glyph: Glyph, transform: Transform3D, opacity: Float)
         case drawGlassRect(transform: Transform3D, halfSize: Vector2, configuration: Glass, scaleFactor: Float)
         case commit
     }

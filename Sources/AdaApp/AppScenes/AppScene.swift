@@ -76,6 +76,11 @@ public extension AppScene {
         self.modifier(WindowTitleSceneModifier(title: title))
     }
 
+    /// Set the preferred display for the window.
+    func windowScreen(_ preference: WindowScreenPreference) -> some AppScene {
+        self.modifier(WindowScreenSceneModifier(preference: preference))
+    }
+
     /// Set the platform title bar presentation.
     func windowTitleBar(_ titleBar: WindowTitleBar) -> some AppScene {
         self.modifier(WindowTitleBarSceneModifier(titleBar: titleBar))

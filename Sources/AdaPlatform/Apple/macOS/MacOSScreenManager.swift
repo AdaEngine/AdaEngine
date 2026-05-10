@@ -18,7 +18,7 @@ class MacOSScreenManager: ScreenManager {
     }
     
     func getMainScreen() -> Screen? {
-        return NSScreen.main.flatMap(makeScreen(from:))
+        return activeScreen().flatMap(makeScreen(from:))
     }
     
     func makeScreen(from systemScreen: SystemScreen) -> Screen {
@@ -35,6 +35,31 @@ class MacOSScreenManager: ScreenManager {
     func getScreenScale(for screen: Screen) -> Float {
         let scale = Float((screen.systemScreen as? NSScreen)?.backingScaleFactor ?? 0.0)
         return max(1.0, scale)
+    }
+
+    func primaryScreen() -> NSScreen? {
+        return NSScreen.screens.first ?? NSScreen.main
+    }
+
+    func activeScreen() -> NSScreen? {
+        return NSScreen.main ?? primaryScreen()
+    }
+
+    func screen(containing windowFrame: NSRect) -> NSScreen? {
+        let screens = NSScreen.screens
+        guard !screens.isEmpty else {
+            return nil
+        }
+
+        let bestMatch = screens
+            .map { screen in (screen, screen.frame.intersectionArea(with: windowFrame)) }
+            .max { lhs, rhs in lhs.1 < rhs.1 }
+
+        guard let bestMatch, bestMatch.1 > 0 else {
+            return nil
+        }
+
+        return bestMatch.0
     }
     
     // FIXME: Currently returns birghtness for first screen
@@ -59,5 +84,16 @@ class MacOSScreenManager: ScreenManager {
 
 @_spi(Internal)
 extension NSScreen: SystemScreen {}
+
+private extension NSRect {
+    func intersectionArea(with rect: NSRect) -> CGFloat {
+        let intersection = self.intersection(rect)
+        guard !intersection.isNull, !intersection.isEmpty else {
+            return 0
+        }
+
+        return intersection.width * intersection.height
+    }
+}
 
 #endif

@@ -12,6 +12,7 @@ import Testing
 @testable import AdaUI
 
 @MainActor
+@Suite(.serialized)
 struct HotReloadViewTests {
     init() async throws {
         try Application.prepareForTest()
@@ -73,6 +74,41 @@ struct HotReloadViewTests {
     }
 
     @Test
+    func reloadSeedsRuntimeContainerWithHostEnvironment() throws {
+        let host = UIHotReloadHostView(id: "deck") {
+            TestHotReloadUIView(name: "fallback")
+        }
+        host.safeAreaInsets = EdgeInsets(top: 12, leading: 8, bottom: 4, trailing: 2)
+        host.colorScheme = .dark
+
+        UIHotReloadRuntime.setFactory { id in
+            guard id == "deck" else {
+                return nil
+            }
+
+            return UIContainerView(rootView: EmptyView())
+        }
+
+        UIHotReloadRuntime.reload(id: "deck")
+
+        let container = try #require(host.subviews.first as? UIContainerView<EmptyView>)
+        #expect(container.viewTree.rootNode.environment.safeAreaInsets == host.safeAreaInsets)
+        #expect(container.viewTree.rootNode.environment.colorScheme == .dark)
+    }
+
+    @Test
+    func containerUsesInitialHostScaleEnvironment() {
+        var environment = EnvironmentValues()
+        environment.scaleFactor = 2.5
+
+        let container = UIHotReloadRuntime.withInitialHostEnvironment(environment) {
+            UIContainerView(rootView: EmptyView())
+        }
+
+        #expect(container.viewTree.rootNode.environment.scaleFactor == 2.5)
+    }
+
+    @Test
     func reloadOnlyAffectsMatchingID() throws {
         let deckRuntimeView = TestHotReloadUIView(name: "deck-runtime")
         let panelRuntimeView = TestHotReloadUIView(name: "panel-runtime")
@@ -92,6 +128,32 @@ struct HotReloadViewTests {
 
         #expect(deckHost.subviews.first === deckRuntimeView)
         #expect(panelHost.subviews.first === panelFallback)
+    }
+
+    @Test
+    func reloadAllAffectsAutomaticallyIdentifiedHost() throws {
+        let automaticID = UIHotReloadRuntime.automaticID(
+            fileID: "Deck.swift",
+            function: "body",
+            line: 42,
+            column: 9
+        )
+        let fallback = TestHotReloadUIView(name: "fallback")
+        let runtimeView = TestHotReloadUIView(name: "runtime")
+        let host = UIHotReloadHostView(id: automaticID) {
+            fallback
+        }
+
+        UIHotReloadRuntime.setFactory { id in
+            id == automaticID ? runtimeView : nil
+        }
+
+        UIHotReloadRuntime.reloadAll()
+
+        let activeView = try #require(host.subviews.first)
+        #expect(host.subviews.count == 1)
+        #expect(activeView === runtimeView)
+        #expect(activeView !== fallback)
     }
 
     @Test

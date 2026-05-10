@@ -57,6 +57,15 @@ struct WindowTitleSceneModifier: SceneModifier {
     }
 }
 
+/// Set the preferred display for the window.
+struct WindowScreenSceneModifier: SceneModifier {
+    let preference: WindowScreenPreference
+
+    func body(content: Content) -> some AppScene {
+        content.updateResource(of: WindowSettings.self, keyPath: \.screenPreference, value: preference)
+    }
+}
+
 /// Set the title bar presentation for the window.
 struct WindowTitleBarSceneModifier: SceneModifier {
     let titleBar: WindowTitleBar

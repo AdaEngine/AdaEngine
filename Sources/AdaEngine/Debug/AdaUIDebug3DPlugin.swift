@@ -1052,20 +1052,21 @@ struct AdaUIDebug3DView: View {
 
     private var viewport: some View {
         ZStack {
-            SceneView(pluginPreset: .mesh2D, setup: { world in
-                model.attachSceneWorld(world)
-            }) { context in
-                context.viewport
-            }
-
+            SceneView(
+                pluginPreset: .mesh2D,
+                setup: { world in
+                    model.attachSceneWorld(world)
+                }, content: { context in
+                    context.viewport
+                })
+            
             GeometryReader { proxy in
                 viewportOverlay(size: proxy.size)
             }
         }
-        .background(Color.fromHex(0x1A1D21))
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
     }
-
+    
     private func viewportOverlay(size: Size) -> some View {
         let _ = revision
         let _ = model.setViewportSize(size)

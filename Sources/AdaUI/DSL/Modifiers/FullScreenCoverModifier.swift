@@ -32,6 +32,33 @@ public extension View {
     ) -> some View {
         modifier(FullScreenCoverModifier(content: self, isPresented: isPresented, overlay: content))
     }
+
+    /// Presents a modal view when a bound optional item contains a value.
+    ///
+    /// The presented view receives the unwrapped item and can be dismissed via
+    /// the ``DismissAction`` from the environment. Dismissing the view sets the
+    /// item binding back to `nil`.
+    func fullScreenCover<Item: Hashable, Content: View>(
+        item: Binding<Item?>,
+        @ViewBuilder content: @escaping (Item) -> Content
+    ) -> some View {
+        let isPresented = Binding<Bool>(
+            get: {
+                item.wrappedValue != nil
+            },
+            set: { isPresented in
+                if !isPresented {
+                    item.wrappedValue = nil
+                }
+            }
+        )
+
+        return fullScreenCover(isPresented: isPresented) {
+            if let item = item.wrappedValue {
+                content(item)
+            }
+        }
+    }
 }
 
 struct FullScreenCoverModifier<WrappedContent: View, Overlay: View>: ViewModifier, ViewNodeBuilder {
@@ -87,11 +114,11 @@ final class FullScreenCoverNode: ViewModifierNode {
             var inputs = viewInputs
             inputs.environment.dismiss = dismissAction
             let node = overlayBuilder(inputs)
+            node.updateEnvironment(inputs.environment)
             node.parent = self
             if let owner {
                 node.updateViewOwner(owner)
             }
-            node.updateEnvironment(inputs.environment)
             overlayNode = node
         } else {
             overlayNode?.parent = nil

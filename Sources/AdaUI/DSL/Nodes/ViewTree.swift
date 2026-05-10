@@ -16,16 +16,17 @@ final class ViewTree<Content: View> {
     let rootView: Content
     private(set) var rootNode: ViewRootNode
 
-    init(rootView: Content) {
+    init(rootView: Content, environment: EnvironmentValues = EnvironmentValues()) {
         self.rootView = rootView
         
         let inputs = _ViewInputs(
             parentNode: nil,
-            environment: EnvironmentValues()
+            environment: environment
         )
 
         let contentNode = Content._makeView(_ViewGraphNode(value: rootView), inputs: inputs)
         self.rootNode = ViewRootNode(contentNode: contentNode.node, content: rootView)
+        self.rootNode.mergeEnvironment(environment)
     }
 
     func setViewOwner(_ owner: ViewOwner) {

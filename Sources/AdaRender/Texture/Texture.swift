@@ -58,6 +58,10 @@ open class Texture: Asset, @unchecked Sendable, CustomStringConvertible {
     
     /// Returns an ``Image`` instance.
     public var image: Image {
+        if let texture2D = self as? Texture2D {
+            return Image(texture: texture2D)
+        }
+
         if let image = unsafe RenderEngine.shared.renderDevice.getImage(from: self) {
             return image
         }

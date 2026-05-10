@@ -79,7 +79,7 @@ final class OpacityViewNodeModifier: ViewModifierNode {
             }
 
             var context = context
-            context.opacity = self.opacity
+            context.opacity *= self.opacity
             self.contentNode.draw(with: context)
         }
         layer.debugLabel = "opacity"

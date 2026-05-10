@@ -50,4 +50,49 @@ struct TextOutlineAttributeTests {
         #expect(shader.contains("layout (location = 2) in float v_OutlineWidth;"))
         #expect(shader.contains("layout (location = 3) in vec2 v_TexCoordinate;"))
     }
+
+    @Test
+    func fontResource_canLoadPrebuiltAtlasWithoutSourceFont() throws {
+        let emSize = 12.0
+        #expect(FontResource.prebuildSystemAtlas(weight: .regular, emFontScale: emSize))
+
+        let sourceFileName = FontResource.prebuiltAtlasFileName(
+            fontFileName: "OpenSans-Regular.ttf",
+            emFontScale: emSize
+        )
+        let fakeFileName = FontResource.prebuiltAtlasFileName(
+            fontFileName: "PrebuiltOnly.ttf",
+            emFontScale: emSize
+        )
+        let cacheDirectory = try FileManager.default.url(
+            for: .cachesDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        .appendingPathComponent("AdaEngine")
+        .appendingPathComponent("FontGeneratedAtlases")
+        let sourceFile = cacheDirectory.appendingPathComponent(sourceFileName)
+        #expect(FileManager.default.fileExists(atPath: sourceFile.path))
+
+        let bundleURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("bundle")
+        let prebuiltSubdirectory = "Resources/FontGeneratedAtlases"
+        let prebuiltDirectory = bundleURL.appendingPathComponent(prebuiltSubdirectory)
+        try FileManager.default.createDirectory(at: prebuiltDirectory, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(
+            at: sourceFile,
+            to: prebuiltDirectory.appendingPathComponent(fakeFileName)
+        )
+        defer {
+            try? FileManager.default.removeItem(at: bundleURL)
+        }
+
+        let bundle = try #require(Bundle(url: bundleURL))
+        FontResource.registerPrebuiltAtlasBundle(bundle, subdirectory: prebuiltSubdirectory)
+
+        let fakeFontPath = bundleURL.appendingPathComponent("PrebuiltOnly.ttf")
+        #expect(FontResource.hasPrebuiltAtlas(fontPath: fakeFontPath, emFontScale: emSize))
+    }
 }

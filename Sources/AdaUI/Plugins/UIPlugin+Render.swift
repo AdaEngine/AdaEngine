@@ -599,7 +599,7 @@ public struct UIRenderTesselationSystem {
                 )
             }
 
-        case let .drawText(textLayout, transform):
+        case let .drawText(textLayout, transform, opacity):
             // Calculate text centering offset
             let textSize = textLayout.boundingSize()
             let textAlignment = textLayout.textAlignment
@@ -653,6 +653,7 @@ public struct UIRenderTesselationSystem {
                             glyph,
                             transform: transform,
                             offset: glyphOffset,
+                            opacity: opacity,
                             tessellator: tessellator,
                             state: &state,
                             renderDevice: renderDevice
@@ -661,10 +662,11 @@ public struct UIRenderTesselationSystem {
                 }
             }
 
-        case let .drawGlyph(glyph, transform):
+        case let .drawGlyph(glyph, transform, opacity):
             tessellateGlyph(
                 glyph,
                 transform: transform,
+                opacity: opacity,
                 tessellator: tessellator,
                 state: &state,
                 renderDevice: renderDevice
@@ -723,6 +725,7 @@ public struct UIRenderTesselationSystem {
         _ glyph: Glyph,
         transform: Transform3D,
         offset: Vector2 = .zero,
+        opacity: Float = 1,
         tessellator: UITessellator,
         state: inout DrawBuildState,
         renderDevice: any RenderDevice
@@ -747,7 +750,8 @@ public struct UIRenderTesselationSystem {
             glyph,
             transform: transform,
             textureIndex: texIndex,
-            offset: offset
+            offset: offset,
+            opacity: opacity
         )
         state.renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
         let indexStart = state.renderData.glyphIndexBuffer.count

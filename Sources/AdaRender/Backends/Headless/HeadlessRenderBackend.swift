@@ -97,7 +97,7 @@ private final class HeadlessRenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     func getImage(from texture: Texture) -> Image? {
-        nil
+        (texture.gpuTexture as? HeadlessGPUTexture)?.getImage()
     }
 
     func createCommandQueue() -> CommandQueue {
@@ -168,13 +168,19 @@ private final class HeadlessUniformBuffer: HeadlessBuffer, UniformBuffer {
 private final class HeadlessGPUTexture: GPUTexture, @unchecked Sendable {
     let size: SizeInt
     var label: String?
+    private var image: Image?
 
     init(descriptor: TextureDescriptor) {
         self.size = SizeInt(width: descriptor.width, height: descriptor.height)
         self.label = descriptor.debugLabel
+        self.image = descriptor.image
     }
 
     func replaceRegion(_ region: RectInt, mipmapLevel: Int, withBytes bytes: UnsafeRawPointer, bytesPerRow: Int) {}
+
+    func getImage() -> Image? {
+        self.image
+    }
 }
 
 private final class HeadlessSampler: Sampler {

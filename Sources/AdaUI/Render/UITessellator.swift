@@ -189,10 +189,13 @@ public struct UITessellator {
         _ glyph: Glyph,
         transform: Transform3D,
         textureIndex: Int,
-        offset: Vector2 = .zero
+        offset: Vector2 = .zero,
+        opacity: Float = 1
     ) -> [GlyphVertexData] {
         let foregroundColor = glyph.attributes.foregroundColor
+            .opacity(glyph.attributes.foregroundColor.alpha * opacity)
         let outlineColor = glyph.attributes.outlineColor
+            .opacity(glyph.attributes.outlineColor.alpha * opacity)
         let texCoord = glyph.textureCoordinates
 
         // Glyph position: [x: pl, y: pb, z: pr, w: pt]

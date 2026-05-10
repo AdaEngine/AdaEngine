@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import AdaApp
 import AdaInput
 import AdaUtils
 import Foundation
@@ -245,6 +246,7 @@ public extension UIWindow {
         public var background: Background
         public var level: Level
         public var collectionBehavior: CollectionBehavior
+        public var screenPreference: WindowScreenPreference?
         public var showsImmediately: Bool
         public var makeKey: Bool
 
@@ -258,6 +260,7 @@ public extension UIWindow {
             background: Background = .opaque(.black),
             level: Level = .normal,
             collectionBehavior: CollectionBehavior = .standard,
+            screenPreference: WindowScreenPreference? = nil,
             showsImmediately: Bool = true,
             makeKey: Bool = true
         ) {
@@ -270,6 +273,7 @@ public extension UIWindow {
             self.background = background
             self.level = level
             self.collectionBehavior = collectionBehavior
+            self.screenPreference = screenPreference
             self.showsImmediately = showsImmediately
             self.makeKey = makeKey
         }

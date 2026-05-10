@@ -484,6 +484,19 @@ private struct NavigationRootStateBindingProbe: View {
     }
 }
 
+private struct FullScreenCoverDismissCaptureView: View {
+    typealias Body = Never
+
+    let onBuild: (DismissAction) -> Void
+}
+
+extension FullScreenCoverDismissCaptureView: ViewNodeBuilder {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        onBuild(context.environment.dismiss)
+        return context.makeNode(from: Color.blue)
+    }
+}
+
 @MainActor
 struct FullScreenCoverTests {
 
@@ -577,5 +590,60 @@ struct FullScreenCoverTests {
 
         let coverNode = tester.containerView.viewTree.rootNode.contentNode as? FullScreenCoverNode
         #expect(coverNode != nil)
+    }
+
+    @Test
+    func fullScreenCover_itemNil_overlayHidden() {
+        var selectedItem: Int?
+        let item = Binding<Int?>(
+            get: { selectedItem },
+            set: { selectedItem = $0 }
+        )
+        var overlayAppeared = false
+
+        _ = ViewTester {
+            Color.red
+                .frame(width: 100, height: 100)
+                .fullScreenCover(item: item) { value in
+                    Color.blue
+                        .onAppear {
+                            overlayAppeared = true
+                            selectedItem = value
+                        }
+                }
+        }
+
+        #expect(!overlayAppeared)
+        #expect(selectedItem == nil)
+    }
+
+    @Test
+    func fullScreenCover_itemPresented_passesItemAndDismissSetsNil() throws {
+        var selectedItem: Int? = 42
+        let item = Binding<Int?>(
+            get: { selectedItem },
+            set: { selectedItem = $0 }
+        )
+        var presentedItem: Int?
+        var dismiss: DismissAction?
+
+        let tester = ViewTester {
+            Color.red
+                .frame(width: 100, height: 100)
+                .fullScreenCover(item: item) { value in
+                    FullScreenCoverDismissCaptureView { dismissAction in
+                        presentedItem = value
+                        dismiss = dismissAction
+                    }
+                }
+        }
+
+        #expect(presentedItem == 42)
+        #expect(tester.containerView.viewTree.rootNode.contentNode is FullScreenCoverNode)
+
+        let dismissAction = try #require(dismiss)
+        dismissAction()
+
+        #expect(selectedItem == nil)
     }
 }

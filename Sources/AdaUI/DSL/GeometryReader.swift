@@ -157,7 +157,7 @@ public struct GeometryReader<Content: View>: View, ViewNodeBuilder {
 final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 
     /// The content proxy.
-    let contentProxy: (GeometryProxy) -> Content
+    private let contentProxy: (GeometryProxy) -> Content
     private var lastContentSignature: ContentSignature?
     private var contentNeedsRebuild = true
 

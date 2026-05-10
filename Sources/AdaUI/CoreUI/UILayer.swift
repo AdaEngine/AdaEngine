@@ -17,6 +17,7 @@ open class UILayer {
     private var cachedCommands: [UIGraphicsContext.DrawCommand]?
     private var cachedCommandsVersion: UInt64 = 0
     private var cachedCommandsTransform: Transform3D?
+    private var cachedCommandsOpacity: Float = 1
     private(set) var commandVersion: UInt64 = 0
     var allowsCaching: Bool = true
     var propagatesInvalidation: Bool = true
@@ -53,7 +54,11 @@ open class UILayer {
             return
         }
 
-        let snapshot = commandSnapshot(environment: context.environment, transform: context.transform)
+        let snapshot = commandSnapshot(
+            environment: context.environment,
+            transform: context.transform,
+            opacity: context.opacity
+        )
         context.commandQueue.push(.beginLayer(id: self.id, version: snapshot.version, cacheable: snapshot.cacheable))
         context.commandQueue.commands.append(contentsOf: snapshot.commands)
         context.commandQueue.push(.endLayer(id: self.id))
@@ -61,14 +66,19 @@ open class UILayer {
 
     private func commandSnapshot(
         environment: EnvironmentValues,
-        transform: Transform3D
+        transform: Transform3D,
+        opacity: Float
     ) -> (commands: [UIGraphicsContext.DrawCommand], version: UInt64, cacheable: Bool) {
-        if let cachedCommands, cachedCommandsVersion == commandVersion, cachedCommandsTransform == transform {
+        if let cachedCommands,
+           cachedCommandsVersion == commandVersion,
+           cachedCommandsTransform == transform,
+           cachedCommandsOpacity == opacity {
             return (cachedCommands, commandVersion, true)
         }
 
         var layerContext = UIGraphicsContext()
         layerContext.setTransform(transform)
+        layerContext.opacity = opacity
         layerContext.environment = environment
         self.drawBlock(&layerContext, self.frame.size)
         layerContext.commitDraw()
@@ -78,9 +88,11 @@ open class UILayer {
             self.cachedCommands = recordedCommands
             self.cachedCommandsVersion = commandVersion
             self.cachedCommandsTransform = transform
+            self.cachedCommandsOpacity = opacity
         } else {
             self.cachedCommands = nil
             self.cachedCommandsTransform = nil
+            self.cachedCommandsOpacity = 1
         }
         return (recordedCommands, commandVersion, cacheable)
     }

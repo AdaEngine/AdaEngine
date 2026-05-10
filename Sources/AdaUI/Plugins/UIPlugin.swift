@@ -106,6 +106,7 @@ public struct WindowPlugin: Plugin {
                 minimumSize: windowSettings.minimumSize,
                 mode: UIWindow.Mode(windowSettings.windowMode),
                 titleBar: UIWindow.TitleBar(windowSettings.titleBar),
+                screenPreference: windowSettings.screenPreference,
                 showsImmediately: false
             )
             #endif

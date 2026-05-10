@@ -59,6 +59,22 @@ public struct Image: Sendable {
         self.height = height
         self.format = format
     }
+
+    /// Create an image by reading pixel data from a texture.
+    ///
+    /// If the active render backend can't read the texture data, this initializer returns an empty image.
+    public init(texture: Texture2D) {
+        if var image = unsafe RenderEngine.shared.renderDevice.getImage(from: texture) {
+            image.assetMetaInfo = texture.assetMetaInfo
+            image.samplerDescription = texture.sampler.descriptor
+            self = image
+            return
+        }
+
+        self.init()
+        self.assetMetaInfo = texture.assetMetaInfo
+        self.samplerDescription = texture.sampler.descriptor
+    }
     
     /// Set pixel color for specific X and Y position.
     public mutating func setPixel(in position: Point, color: Color) {
@@ -124,7 +140,7 @@ public extension Image {
         PNGImageSerializer()
     ]
     
-    public init(contentsOf file: URL) throws {
+    init(contentsOf file: URL) throws {
         guard let loader = Self.loaders.first(where: { $0.canDecodeImage(with: file.pathExtension) }) else {
             throw LoadingError.formatNotSupported(file.pathExtension)
         }
@@ -146,7 +162,7 @@ public extension Image {
     /// Decode image from data.
     /// - Parameter data: Image data.
     /// - Returns: Decoded image.
-    public static func decode(from data: Data) throws -> Image {
+    static func decode(from data: Data) throws -> Image {
         // FIXME: (Vlad) We should detect the format of the image.
         let loader = PNGImageSerializer()
         return try loader.decodeImage(from: data)

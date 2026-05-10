@@ -202,7 +202,8 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
         )
 
         UIHotReloadRuntime.setFactory { id in
-            library.makeView(id: id)
+            let view = library.makeView(id: id)
+            return view
         }
 
         sourceSnapshot = AdaUIHotReloadSourceSnapshot.capture(paths: watchPaths(projectURL: projectURL))
@@ -211,7 +212,7 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
         if let dylibPath, !dylibPath.isEmpty {
             let sourceURL = URL(fileURLWithPath: dylibPath).resolvingSymlinksInPath()
             library.reload(from: sourceURL)
-            reloadHosts()
+            reloadConfiguredHosts()
             library.releaseRetiredGenerations()
         } else if reloadStrategy == .legacyProductBuild {
             scheduleLegacyBuildAndReload(projectURL: projectURL)
@@ -226,7 +227,7 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
         watcher?.stop()
         watcher = nil
         UIHotReloadRuntime.setFactory(nil)
-        reloadHosts()
+        reloadConfiguredHosts()
         injectedLibrary?.releaseAllGenerations()
         injectedLibrary = nil
         library?.releaseAllGenerations()
@@ -254,7 +255,7 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
                     }
 
                     self.library?.reload(from: URL(fileURLWithPath: dylibPath).resolvingSymlinksInPath())
-                    self.reloadHosts()
+                    self.reloadConfiguredHosts()
                     self.library?.releaseRetiredGenerations()
                 } else {
                     guard let changes = self.consumeSaveEvent(projectURL: projectURL) else {
@@ -332,11 +333,11 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
                 switch result {
                 case .injected(let dylibURL):
                     self.injectedLibrary?.reload(from: dylibURL)
-                    self.reloadHosts()
+                    self.reloadAllHosts()
                     self.injectedLibrary?.releaseRetiredGenerations()
                 case .legacy(let dylibURL):
                     self.library?.reload(from: dylibURL)
-                    self.reloadHosts()
+                    self.reloadConfiguredHosts()
                     self.library?.releaseRetiredGenerations()
                 case .failure(let error):
                     self.logger.error("❌ \(error)")
@@ -367,7 +368,7 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
                 switch result {
                 case .success(let dylibURL):
                     self.library?.reload(from: dylibURL)
-                    self.reloadHosts()
+                    self.reloadConfiguredHosts()
                     self.library?.releaseRetiredGenerations()
                 case .failure(let error):
                     self.logger.error("❌ \(error)")
@@ -443,7 +444,7 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
     }
 
     @MainActor
-    private func reloadHosts() {
+    private func reloadConfiguredHosts() {
         if let reloadIDs {
             for id in reloadIDs {
                 UIHotReloadRuntime.reload(id: id)
@@ -451,6 +452,11 @@ private final class AdaUIHotReloadPluginStorage: @unchecked Sendable {
         } else {
             UIHotReloadRuntime.reloadAll()
         }
+    }
+
+    @MainActor
+    private func reloadAllHosts() {
+        UIHotReloadRuntime.reloadAll()
     }
 }
 
@@ -1285,11 +1291,21 @@ private final class AdaUIHotReloadInjectedLibrary {
         let symbols = try exportedSwiftSymbols(in: dylibURL)
         let defaultHandle = Self.defaultDynamicLookupHandle()
         var tuples: [InterposeTuple] = []
+        var missingReplaceeCount = 0
+        var identicalAddressCount = 0
+        var missingReplacementCount = 0
 
         for symbol in symbols {
-            guard let replacement = unsafe dlsym(handle, symbol),
-                  let replacee = unsafe dlsym(defaultHandle, symbol),
-                  replacement != replacee else {
+            guard let replacement = unsafe dlsym(handle, symbol) else {
+                missingReplacementCount += 1
+                continue
+            }
+            guard let replacee = unsafe dlsym(defaultHandle, symbol) else {
+                missingReplaceeCount += 1
+                continue
+            }
+            guard replacement != replacee else {
+                identicalAddressCount += 1
                 continue
             }
 
@@ -1298,6 +1314,7 @@ private final class AdaUIHotReloadInjectedLibrary {
                 replacee: UnsafeRawPointer(replacee)
             ))
         }
+
 
         guard !tuples.isEmpty else {
             throw AdaUIHotReloadPluginError.noInterposableSymbols(dylibURL.path)
@@ -1352,6 +1369,7 @@ private final class AdaUIHotReloadInjectedLibrary {
             throw AdaUIHotReloadPluginError.dynamicInterposeUnavailable
         }
 
+        var imageCount = 0
         tuples.withUnsafeBufferPointer { buffer in
             guard let baseAddress = buffer.baseAddress else {
                 return
@@ -1362,6 +1380,7 @@ private final class AdaUIHotReloadInjectedLibrary {
                     continue
                 }
 
+                imageCount += 1
                 dyldDynamicInterpose(
                     UnsafeRawPointer(header),
                     UnsafeRawPointer(baseAddress),
@@ -1369,6 +1388,7 @@ private final class AdaUIHotReloadInjectedLibrary {
                 )
             }
         }
+
         #else
         throw AdaUIHotReloadPluginError.unsupportedPlatform
         #endif

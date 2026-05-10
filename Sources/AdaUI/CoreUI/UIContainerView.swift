@@ -54,7 +54,10 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     ///
     /// - Parameter rootView: The root view of the container view.
     public init(rootView: Content) {
-        self.viewTree = ViewTree(rootView: rootView)
+        self.viewTree = ViewTree(
+            rootView: rootView,
+            environment: UIHotReloadRuntime.initialHostEnvironment ?? EnvironmentValues()
+        )
         super.init()
         viewTree.setViewOwner(self)
     }
@@ -65,12 +68,8 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     public override func layoutSubviews() {
         super.layoutSubviews()
 
-        var env = EnvironmentValues()
-        env.safeAreaInsets = safeAreaInsets
+        var env = rootEnvironmentValues()
         env.navigationBarChromeInsets = navigationBarChromeInsets()
-        env.userInterfaceIdiom = userInterfaceIdiom
-        env.colorScheme = colorScheme
-        env.scaleFactor = window?.screen?.scale ?? Screen.main?.scale ?? 1
         viewTree.rootNode.mergeEnvironment(env)
 
         focusManager.setRootNode(viewTree.rootNode)
@@ -426,6 +425,17 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 
     private func invalidateInspectionOverlayIfNeeded() {
         self.setNeedsDisplay()
+    }
+}
+
+extension UIView {
+    func rootEnvironmentValues() -> EnvironmentValues {
+        var env = EnvironmentValues()
+        env.safeAreaInsets = safeAreaInsets
+        env.userInterfaceIdiom = userInterfaceIdiom
+        env.colorScheme = colorScheme
+        env.scaleFactor = window?.screen?.scale ?? Screen.main?.scale ?? 1
+        return env
     }
 }
 

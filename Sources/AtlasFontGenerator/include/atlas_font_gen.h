@@ -49,6 +49,20 @@ typedef struct FontMetrics {
     double underlineY, underlineThickness;
 } FontMetrics;
 
+typedef struct FontCachedGlyph {
+    uint32_t codepoint;
+    int glyphIndex;
+    double advance;
+    double atlasLeft, atlasBottom, atlasRight, atlasTop;
+    double planeLeft, planeBottom, planeRight, planeTop;
+} FontCachedGlyph;
+
+typedef struct FontCachedKerning {
+    uint32_t currentUnicode;
+    uint32_t nextUnicode;
+    double advanceDelta;
+} FontCachedKerning;
+
 typedef struct font_atlas_descriptor {
     double emFontScale;
     double minimumScale;
@@ -76,6 +90,18 @@ void font_atlas_generator_destroy(struct font_generator_s* generator);
 
 struct font_handle_s* font_atlas_generator_get_font_data(struct font_generator_s* generator);
 void font_handle_destroy(struct font_handle_s *fontHandle);
+
+struct font_handle_s* font_handle_create_cached(const char* fontName,
+                                                double geometryScale,
+                                                FontMetrics metrics,
+                                                const FontCachedGlyph* glyphs,
+                                                unsigned long glyphsCount,
+                                                const FontCachedKerning* kernings,
+                                                unsigned long kerningsCount);
+
+unsigned long font_handle_get_kerning_count(struct font_handle_s* fontData);
+int font_handle_copy_cached_glyph(struct font_handle_s* fontData, unsigned long index, FontCachedGlyph* outGlyph);
+int font_handle_copy_cached_kerning(struct font_handle_s* fontData, unsigned long index, FontCachedKerning* outKerning);
 
 AtlasBitmap* font_atlas_generator_generate_bitmap(struct font_generator_s* generator);
 void font_atlas_bitmap_destroy(AtlasBitmap* bitmap);

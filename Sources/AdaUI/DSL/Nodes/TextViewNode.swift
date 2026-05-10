@@ -7,6 +7,7 @@
 
 import AdaInput
 import AdaText
+import AdaUtils
 import Math
 
 final class TextViewNode: ViewNode {
@@ -15,6 +16,10 @@ final class TextViewNode: ViewNode {
     private var drawLayoutManager: TextLayoutManager
     private var textContainer: TextContainer {
         didSet {
+            guard self.textContainer != oldValue else {
+                return
+            }
+
             self.layoutManager.setTextContainer(self.textContainer)
             self.drawLayoutManager.setTextContainer(self.textContainer)
             self.layoutManager.invalidateLayout()
@@ -26,11 +31,7 @@ final class TextViewNode: ViewNode {
     private var textRenderer: any TextRenderer
 
     init(inputs: _ViewInputs, content: Text) {
-        let text = content.storage.applyingEnvironment(inputs.environment)
-        self.textContainer = TextContainer(text: text)
-        self.textContainer.numberOfLines = content.storage.lineLimit
-        self.textContainer.lineBreakMode = content.storage.lineBreakMode ?? .byWordWrapping
-        self.textContainer.textAlignment = content.storage.multilineTextAlignment ?? .center
+        self.textContainer = Self.makeTextContainer(content: content, environment: inputs.environment)
         self.layoutManager = TextLayoutManager()
         self.layoutManager.setTextContainer(self.textContainer)
         self.layoutManager.invalidateLayout()
@@ -114,7 +115,16 @@ final class TextViewNode: ViewNode {
 
         self.textRenderer = textNode.textRenderer
         self.textContainer = textNode.textContainer
-        self.updateEnvironment(textNode.environment)
+    }
+
+    override func updateEnvironment(_ environment: EnvironmentValues) {
+        let previousVersion = self.environment.version
+        super.updateEnvironment(environment)
+        guard self.environment.version != previousVersion else {
+            return
+        }
+
+        self.refreshTextContainer()
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
@@ -122,6 +132,25 @@ final class TextViewNode: ViewNode {
             return self
         }
         return nil
+    }
+
+    private func refreshTextContainer() {
+        guard let content = self.content as? Text else {
+            return
+        }
+
+        self.textContainer = Self.makeTextContainer(content: content, environment: self.environment)
+        self.invalidateNearestLayer()
+        owner?.containerView?.setNeedsLayout()
+    }
+
+    private static func makeTextContainer(content: Text, environment: EnvironmentValues) -> TextContainer {
+        let text = content.storage.applyingEnvironment(environment)
+        var container = TextContainer(text: text)
+        container.numberOfLines = content.storage.lineLimit
+        container.lineBreakMode = content.storage.lineBreakMode ?? .byWordWrapping
+        container.textAlignment = content.storage.multilineTextAlignment ?? .center
+        return container
     }
 }
 

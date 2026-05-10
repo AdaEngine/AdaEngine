@@ -5,8 +5,8 @@
 //  Created by AdaEngine on 07.05.2026.
 //
 
-import AdaUtils
 import AdaInput
+import AdaUtils
 import Math
 
 /// A factory that creates a hot-reloaded AdaUI host view for the supplied identifier.
@@ -17,6 +17,7 @@ public typealias UIHotReloadFactory = @MainActor (_ id: String) -> UIView?
 public enum UIHotReloadRuntime {
     private static var factory: UIHotReloadFactory?
     private static var hosts: [WeakHotReloadHost] = []
+    static var initialHostEnvironment: EnvironmentValues?
 
     /// Sets the factory used to create hot-reloaded views.
     ///
@@ -61,6 +62,19 @@ public enum UIHotReloadRuntime {
 
     static func makeView(id: String) -> UIView? {
         return factory?(id)
+    }
+
+    static func withInitialHostEnvironment<T>(
+        _ environment: EnvironmentValues,
+        _ body: () -> T
+    ) -> T {
+        let previousEnvironment = initialHostEnvironment
+        initialHostEnvironment = environment
+        defer {
+            initialHostEnvironment = previousEnvironment
+        }
+
+        return body()
     }
 
     /// Creates a stable private identifier for a source location.
@@ -258,7 +272,10 @@ final class UIHotReloadHostView: UIView {
     }
 
     func reload() {
-        let nextView = UIHotReloadRuntime.makeView(id: id) ?? fallback()
+        let nextView = UIHotReloadRuntime.withInitialHostEnvironment(rootEnvironmentValues()) {
+            let factoryView = UIHotReloadRuntime.makeView(id: id)
+            return factoryView ?? fallback()
+        }
         replaceActiveView(with: nextView)
     }
 

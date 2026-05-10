@@ -218,7 +218,6 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
-    .product(name: "ServiceContextModule", package: "swift-service-context"),
     "AdaApp",
     "AdaECS",
     "AdaAnimation",
@@ -1088,6 +1087,7 @@ private extension Target {
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Tracing", package: "swift-distributed-tracing"),
+                .product(name: "ServiceContextModule", package: "swift-service-context"),
             ] + dependencies,
             path: path,
             exclude: exclude,

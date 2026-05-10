@@ -263,6 +263,34 @@ struct TextRenderingRegressionTests {
     }
 
     @Test
+    func textNodeRefreshesInheritedForegroundColorWhenEnvironmentChanges() throws {
+        var environment = EnvironmentValues()
+        environment.foregroundColor = .red
+        let node = TextViewNode(
+            inputs: _ViewInputs(parentNode: nil, environment: environment),
+            content: Text("Theme title")
+                .font(.system(size: 17))
+        )
+
+        node.place(
+            in: Point(x: 100, y: 30),
+            anchor: .center,
+            proposal: ProposedViewSize(Size(width: 200, height: 60))
+        )
+        #expect(try firstDrawnGlyphColor(from: node) == .red)
+
+        environment.foregroundColor = .blue
+        node.updateEnvironment(environment)
+        node.place(
+            in: Point(x: 100, y: 30),
+            anchor: .center,
+            proposal: ProposedViewSize(Size(width: 200, height: 60))
+        )
+
+        #expect(try firstDrawnGlyphColor(from: node) == .blue)
+    }
+
+    @Test
     func multilineTextAlignmentShiftsWrappedRowsInsideAvailableWidth() {
         let width = "MMMM".size().width + 40
         let leadingMinX = firstRowMinX(text: "MMMM", width: width, alignment: .leading)
@@ -361,4 +389,22 @@ struct TextRenderingRegressionTests {
 
         return glyphs.map(\.position.x).min() ?? 0
     }
+
+    private func firstDrawnGlyphColor(from node: TextViewNode) throws -> Color {
+        let context = UIGraphicsContext()
+        node.draw(with: context)
+
+        for command in context.getDrawCommands() {
+            if case let .drawGlyph(glyph, _) = command {
+                return glyph.attributes.foregroundColor
+            }
+        }
+
+        Issue.record("Expected text node to draw at least one glyph")
+        throw TextRenderingRegressionTestError.missingGlyph
+    }
+}
+
+private enum TextRenderingRegressionTestError: Error {
+    case missingGlyph
 }

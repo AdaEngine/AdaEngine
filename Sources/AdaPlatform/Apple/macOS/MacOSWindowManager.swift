@@ -6,6 +6,7 @@
 //
 
 #if MACOS
+import AdaApp
 import AdaRender
 @_spi(Internal) import AdaUI
 import AppKit
@@ -76,7 +77,9 @@ final class MacOSWindowManager: UIWindowManager {
         systemWindow.contentView = rootContentView
         configureTitleBar(for: systemWindow, configuration: window.configuration.titleBar)
         systemWindow.collectionBehavior = collectionBehavior(for: window.configuration.collectionBehavior)
-        if frame.origin == .zero {
+        if let preferredScreen = preferredScreen(for: window.configuration.screenPreference), frame.origin == .zero {
+            center(systemWindow, on: preferredScreen)
+        } else if frame.origin == .zero {
             systemWindow.center()
             windowsPendingInitialCenter.insert(window.id)
         }
@@ -173,7 +176,9 @@ final class MacOSWindowManager: UIWindowManager {
                 nsWindow.toggleFullScreen(nil)
             }
             windowsPendingInitialCenter.remove(window.id)
-            let screenFrame = nsWindow.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+            let screenFrame = preferredScreen(for: window.configuration.screenPreference)?.visibleFrame
+                ?? nsWindow.screen?.visibleFrame
+                ?? screenManager.primaryScreen()?.visibleFrame
             if let screenFrame {
                 nsWindow.setFrame(screenFrame, display: true)
             }
@@ -220,7 +225,7 @@ final class MacOSWindowManager: UIWindowManager {
     override func getScreen(for window: UIWindow) -> Screen? {
         guard
             let nsWindow = window.systemWindow as? NSWindow,
-            let screen = nsWindow.screen
+            let screen = screenManager.screen(containing: nsWindow.frame) ?? nsWindow.screen
         else {
             return nil
         }
@@ -551,6 +556,49 @@ final class MacOSWindowManager: UIWindowManager {
         case .floating, .statusBar:
             return true
         }
+    }
+
+    private func preferredScreen(for preference: WindowScreenPreference?) -> NSScreen? {
+        guard let preference else {
+            return nil
+        }
+
+        let screens = NSScreen.screens
+        switch preference {
+        case .main:
+            return screenManager.primaryScreen()
+        case .index(let index):
+            return screen(at: index, in: screens)
+        case .external(let index):
+            let mainScreen = screenManager.primaryScreen()
+            let externalScreens = screens.filter { screen in
+                guard let mainScreen else {
+                    return true
+                }
+
+                return screen !== mainScreen
+            }
+
+            return screen(at: index, in: externalScreens) ?? screen(at: index, in: screens)
+        }
+    }
+
+    private func screen(at index: Int, in screens: [NSScreen]) -> NSScreen? {
+        guard index >= 0 && index < screens.count else {
+            return nil
+        }
+
+        return screens[index]
+    }
+
+    private func center(_ window: NSWindow, on screen: NSScreen) {
+        let screenFrame = screen.visibleFrame
+        let windowFrame = window.frame
+        let origin = NSPoint(
+            x: screenFrame.midX - windowFrame.width / 2,
+            y: screenFrame.midY - windowFrame.height / 2
+        )
+        window.setFrameOrigin(origin)
     }
 }
 

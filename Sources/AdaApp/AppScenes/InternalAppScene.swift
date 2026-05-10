@@ -21,6 +21,18 @@ public enum WindowMode: UInt64, Sendable {
     case fullScreenWindowed
 }
 
+/// Preferred display for the primary platform window.
+public enum WindowScreenPreference: Sendable, Equatable {
+    /// Use the platform main screen.
+    case main
+
+    /// Use a screen by index in the platform screen list.
+    case index(Int)
+
+    /// Use a non-main screen by index, falling back to the platform screen list.
+    case external(Int)
+}
+
 /// The title bar background behavior.
 public enum WindowTitleBarBackground: Sendable, Equatable {
     /// Use the platform default title bar background.
@@ -83,4 +95,7 @@ public struct WindowSettings: Resource {
 
     /// Platform title bar presentation settings.
     public var titleBar: WindowTitleBar = .standard
+
+    /// Preferred display for the window.
+    public var screenPreference: WindowScreenPreference?
 }

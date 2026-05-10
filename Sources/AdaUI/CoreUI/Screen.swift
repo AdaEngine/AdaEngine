@@ -40,8 +40,8 @@ public final class Screen: @unchecked Sendable {
 extension Screen {
     package static nonisolated(unsafe) var screenManager: (any ScreenManager)?
 
-    /// Returns the screen object containing the window with the keyboard focus.
-    /// - Returns: Returns the main sreen or nil if we run in headless mode.
+    /// Returns the platform primary screen.
+    /// - Returns: Returns the main screen or nil if we run in headless mode.
     public static var main: Screen? {
         return unsafe screenManager?.getMainScreen()
     }

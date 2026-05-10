@@ -97,11 +97,83 @@ public extension FontResource {
         static let defaultEmFontScale: Double = 52
     }
 
+    static func registerPrebuiltAtlasBundle(_ bundle: Bundle, subdirectory: String) {
+        FontAtlasGenerator.shared.registerPrebuiltAtlasBundle(bundle, subdirectory: subdirectory)
+    }
+
+    static func prebuiltAtlasFileName(
+        fontFileName: String,
+        emFontScale: Double,
+        includeDefaultCharset: Bool = true,
+        additionalCodepoints: [UInt32] = []
+    ) -> String {
+        let descriptor = FontDescriptor(
+            emFontScale: emFontScale,
+            includeDefaultCharset: includeDefaultCharset,
+            additionalCodepoints: Array(Set(additionalCodepoints)).sorted()
+        )
+        return FontAtlasGenerator.cacheFileName(fontName: fontFileName, fontDescriptor: descriptor)
+    }
+
+    static func prebuildCustomAtlas(
+        fontPath: URL,
+        emFontScale: Double? = nil,
+        includeDefaultCharset: Bool = true,
+        additionalCodepoints: [UInt32] = []
+    ) -> Bool {
+        let descriptor = FontDescriptor(
+            emFontScale: emFontScale ?? Constants.defaultEmFontScale,
+            includeDefaultCharset: includeDefaultCharset,
+            additionalCodepoints: Array(Set(additionalCodepoints)).sorted()
+        )
+        return FontAtlasGenerator.shared.ensureCachedAtlas(fontPath: fontPath, fontDescriptor: descriptor)
+    }
+
+    static func hasPrebuiltAtlas(
+        fontPath: URL,
+        emFontScale: Double? = nil,
+        includeDefaultCharset: Bool = true,
+        additionalCodepoints: [UInt32] = []
+    ) -> Bool {
+        let descriptor = FontDescriptor(
+            emFontScale: emFontScale ?? Constants.defaultEmFontScale,
+            includeDefaultCharset: includeDefaultCharset,
+            additionalCodepoints: Array(Set(additionalCodepoints)).sorted()
+        )
+        return FontAtlasGenerator.shared.hasPrebuiltCachedAtlas(fontPath: fontPath, fontDescriptor: descriptor)
+    }
+
+    static func prebuildSystemAtlas(weight: FontWeight = .regular, emFontScale: Double? = nil) -> Bool {
+        let resolvedScale = emFontScale ?? Constants.defaultEmFontScale
+        let fontName = "OpenSans-\(weight.fileNameComponent)"
+        guard let fontPath = Bundle.module.url(
+            forResource: fontName,
+            withExtension: "ttf",
+            subdirectory: "Assets/Fonts/opensans"
+        ) else {
+            return false
+        }
+
+        return prebuildCustomAtlas(fontPath: fontPath, emFontScale: resolvedScale)
+    }
+
     private struct CacheKey: Hashable {
         let path: String
         let emFontScale: Double
         var includeDefaultCharset: Bool = true
         var additionalCodepoints: [UInt32] = []
+
+        func covers(_ key: Self) -> Bool {
+            guard path == key.path && emFontScale == key.emFontScale else {
+                return false
+            }
+
+            guard includeDefaultCharset || !key.includeDefaultCharset else {
+                return false
+            }
+
+            return Set(additionalCodepoints).isSuperset(of: key.additionalCodepoints)
+        }
     }
 
     private final class CacheStore: @unchecked Sendable {
@@ -114,6 +186,17 @@ public extension FontResource {
                 lock.unlock()
             }
             return values[key]
+        }
+
+        func getResourceCovering(_ key: CacheKey) -> FontResource? {
+            lock.lock()
+            defer {
+                lock.unlock()
+            }
+
+            return values.first { cachedKey, _ in
+                cachedKey.covers(key)
+            }?.value
         }
 
         func set(_ value: FontResource, for key: CacheKey) {
@@ -153,7 +236,7 @@ public extension FontResource {
             additionalCodepoints: normalizedCodepoints
         )
 
-        if let cached = cacheStore.get(key) {
+        if let cached = cacheStore.getResourceCovering(key) {
             return cached
         }
 
