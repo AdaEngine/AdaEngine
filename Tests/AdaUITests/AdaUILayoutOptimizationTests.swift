@@ -52,6 +52,27 @@ struct AdaUILayoutOptimizationTests {
     }
 
     @Test
+    func geometryReaderUsesParentProposalForOwnSize() {
+        let counter = LayoutOptimizationCounter()
+        let tester = ViewTester {
+            GeometryReader { proxy in
+                CountingFixedView(
+                    counter: counter,
+                    size: counter.recordGeometryBuild(size: proxy.size)
+                )
+                .frame(width: 960, height: 600)
+            }
+        }
+        .setSize(Size(width: 320, height: 180))
+        .performLayout()
+
+        let rootContent = tester.containerView.viewTree.rootNode.contentNode
+
+        #expect(rootContent.frame.size == Size(width: 320, height: 180))
+        #expect(counter.geometryBuilds >= 1)
+    }
+
+    @Test
     func geometryReaderRebuildsContentWhenGeometryChanges() {
         let counter = LayoutOptimizationCounter()
         let tester = ViewTester {
@@ -68,6 +89,37 @@ struct AdaUILayoutOptimizationTests {
             .performLayout()
 
         #expect(counter.geometryBuilds > buildsAfterInitialLayout)
+    }
+
+    @Test
+    func geometryReaderReportsOwnFrameInCoordinateSpaces() {
+        let recorder = GeometryFrameRecorder()
+        let namedSpace = NamedViewCoordinateSpace.named("geometry-container")
+
+        _ = ViewTester {
+            ZStack(anchor: .topLeading) {
+                GeometryReader { proxy in
+                    GeometryFrameProbe(
+                        recorder: recorder,
+                        localFrame: proxy.frame(in: .local),
+                        globalFrame: proxy.frame(in: .global),
+                        namedFrame: proxy.frame(in: namedSpace),
+                        size: proxy.size
+                    )
+                }
+                .frame(width: 80, height: 40)
+                .offset(x: 25, y: 15)
+            }
+            .frame(width: 200, height: 100, alignment: .topLeading)
+            .coordinateSpace(namedSpace)
+        }
+        .setSize(Size(width: 300, height: 200))
+        .performLayout()
+
+        #expect(recorder.size == Size(width: 80, height: 40))
+        #expect(recorder.localFrame == Rect(x: 0, y: 0, width: 80, height: 40))
+        #expect(recorder.namedFrame == Rect(x: 25, y: 15, width: 80, height: 40))
+        #expect(recorder.globalFrame == Rect(x: 75, y: 65, width: 80, height: 40))
     }
 
     @Test
@@ -122,6 +174,40 @@ private final class LayoutOptimizationCounter {
     func recordGeometryBuild(size: Size) -> Size {
         geometryBuilds += 1
         return size
+    }
+}
+
+@MainActor
+private final class GeometryFrameRecorder {
+    var localFrame = Rect.zero
+    var globalFrame = Rect.zero
+    var namedFrame = Rect.zero
+    var size = Size.zero
+}
+
+private struct GeometryFrameProbe: View, ViewNodeBuilder {
+    let recorder: GeometryFrameRecorder
+    let localFrame: Rect
+    let globalFrame: Rect
+    let namedFrame: Rect
+    let size: Size
+
+    var body: Never {
+        fatalError()
+    }
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        recorder.localFrame = localFrame
+        recorder.globalFrame = globalFrame
+        recorder.namedFrame = namedFrame
+        recorder.size = size
+        return GeometryFrameProbeNode(content: self)
+    }
+}
+
+private final class GeometryFrameProbeNode: ViewNode {
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        proposal.replacingUnspecifiedDimensions()
     }
 }
 

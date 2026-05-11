@@ -103,6 +103,9 @@ public struct GeometryProxy {
     /// The local frame of the geometry proxy.
     let localFrame: Rect
 
+    /// The global frame of the geometry proxy.
+    let globalFrame: Rect
+
     /// The size of the geometry proxy.
     ///
     /// - Returns: The size of the geometry proxy.
@@ -120,12 +123,26 @@ public struct GeometryProxy {
         case .local:
             return self.localFrame
         case .global:
-            return namedCoordinateSpaceContainer.containers[ViewRootNode.rootCoordinateSpace.name]?.value?.frame ?? .zero
+            return self.globalFrame
         case .scrollView:
-            return namedCoordinateSpaceContainer.containers[ViewCoordinateSpace.scrollViewId]?.value?.frame ?? .zero
+            return frame(relativeTo: ViewCoordinateSpace.scrollViewId)
         case .named(let value):
-            return namedCoordinateSpaceContainer.containers[value]?.value?.frame ?? .zero
+            return frame(relativeTo: value)
         }
+    }
+
+    private func frame(relativeTo coordinateSpace: AnyHashable) -> Rect {
+        guard let container = namedCoordinateSpaceContainer.containers[coordinateSpace]?.value else {
+            return .zero
+        }
+
+        let containerFrame = container.visualAbsoluteFrame()
+        return Rect(
+            x: globalFrame.origin.x - containerFrame.origin.x,
+            y: globalFrame.origin.y - containerFrame.origin.y,
+            width: globalFrame.width,
+            height: globalFrame.height
+        )
     }
 }
 
@@ -157,7 +174,7 @@ public struct GeometryReader<Content: View>: View, ViewNodeBuilder {
 final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 
     /// The content proxy.
-    private let contentProxy: (GeometryProxy) -> Content
+    private var contentProxy: (GeometryProxy) -> Content
     private var lastContentSignature: ContentSignature?
     private var contentNeedsRebuild = true
 
@@ -173,6 +190,22 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     init<Root: View>(contentProxy: @escaping (GeometryProxy) -> Content, content: Root) {
         self.contentProxy = contentProxy
         super.init(content: content, body: { _ in fatalError() })
+    }
+
+    override func update(from newNode: ViewNode) {
+        guard let geometryReaderNode = newNode as? GeometryReaderViewNode<Content> else {
+            super.update(from: newNode)
+            return
+        }
+
+        let hadNodesBeforeUpdate = !self.nodes.isEmpty
+        self.contentProxy = geometryReaderNode.contentProxy
+        super.update(from: newNode)
+        if hadNodesBeforeUpdate && self.nodes.isEmpty {
+            self.contentNeedsRebuild = true
+            self.markNeedsLayout()
+            owner?.containerView?.setNeedsLayout()
+        }
     }
 
     /// Perform the layout of the geometry reader view node.
@@ -192,11 +225,16 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
         self.invalidateLayerIfNeeded()
     }
 
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        let resolvedSize = proposal.replacingUnspecifiedDimensions()
+        return resolvedSize
+    }
+
     /// Invalidate the content of the geometry reader view node.
     ///
     /// - Returns: The invalidated content of the geometry reader view node.
     override func invalidateContent() {
-        self.rebuildContent(for: currentContentSignature())
+        self.contentNeedsRebuild = true
         self.markNeedsLayout()
         self.invalidateNearestLayer()
         owner?.containerView?.setNeedsLayout()
@@ -208,10 +246,16 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 
     private func rebuildContent(for signature: ContentSignature) {
         UILayoutDebugCounters.recordContentInvalidation()
-        let context = _ViewInputs(parentNode: self, environment: self.environment)
+        var environment = self.environment
+        let disablesAnimation = shouldDisableAnimation(for: signature)
+        if disablesAnimation {
+            environment.animationController = nil
+        }
+        let context = _ViewInputs(parentNode: self, environment: environment)
         let proxy = GeometryProxy(
-            namedCoordinateSpaceContainer: self.environment.coordinateSpaces,
-            localFrame: self.frame
+            namedCoordinateSpaceContainer: environment.coordinateSpaces,
+            localFrame: Rect(origin: .zero, size: self.frame.size),
+            globalFrame: self.visualAbsoluteFrame()
         )
         let content = self.contentProxy(proxy)
         let outputs = Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: context)).outputs
@@ -220,6 +264,14 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
         self.reconcileChildNodes(from: nodes)
         self.lastContentSignature = signature
         self.contentNeedsRebuild = false
+    }
+
+    private func shouldDisableAnimation(for signature: ContentSignature) -> Bool {
+        guard let lastContentSignature else {
+            return false
+        }
+
+        return lastContentSignature.frame.size != signature.frame.size
     }
 }
 
