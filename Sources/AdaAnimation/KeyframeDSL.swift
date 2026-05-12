@@ -68,7 +68,7 @@ public enum KeyframeLinearQuatBuilder {
 }
 
 @resultBuilder
-public enum KeyframeTrackBuilder<Value: KeyframeAnimatable> {
+public enum KeyframeTrackBuilder<Value: Sendable> {
     public static func buildBlock(_ tracks: AnyKeyframeTrack<Value>...) -> [AnyKeyframeTrack<Value>] {
         tracks
     }
@@ -101,7 +101,7 @@ public enum KeyframeClipArrayBuilder {
 // These produce `AnyKeyframeTrack<Value>` from a WritableKeyPath + array of LinearKeyframe segments.
 // Segments are accumulated in time order: each frame starts right after the previous ends.
 
-private func keyframeTrackFromLinearFrames<Value: KeyframeAnimatable, T: VectorArithmetic & Sendable>(
+private func keyframeTrackFromLinearFrames<Value: Sendable, T: VectorArithmetic & Sendable>(
     _ keyPath: WritableKeyPath<Value, T>,
     identifier: String?,
     frames: [LinearKeyframe<T>]
@@ -132,7 +132,7 @@ private func keyframeTrackFromLinearFrames<Value: KeyframeAnimatable, T: VectorA
 }
 
 /// Track for any `VectorArithmetic` property (Float, Double, Vector2, Vector3, Vector4 …).
-public func KeyframeTrack<Value: KeyframeAnimatable, T: VectorArithmetic & Sendable>(
+public func KeyframeTrack<Value: Sendable, T: VectorArithmetic & Sendable>(
     _ keyPath: WritableKeyPath<Value, T>,
     identifier: String? = nil,
     @KeyframeLinearVABuilder<T> _ build: () -> [LinearKeyframe<T>]
@@ -141,7 +141,7 @@ public func KeyframeTrack<Value: KeyframeAnimatable, T: VectorArithmetic & Senda
 }
 
 /// Same as ``KeyframeTrack(_:identifier:_:)``, but accepts a runtime-built segment array (e.g. editor tooling).
-public func KeyframeTrack<Value: KeyframeAnimatable, T: VectorArithmetic & Sendable>(
+public func KeyframeTrack<Value: Sendable, T: VectorArithmetic & Sendable>(
     _ keyPath: WritableKeyPath<Value, T>,
     identifier: String? = nil,
     linearFrames frames: [LinearKeyframe<T>]
@@ -150,7 +150,7 @@ public func KeyframeTrack<Value: KeyframeAnimatable, T: VectorArithmetic & Senda
 }
 
 /// Track for `Quat` (uses slerp interpolation, not linear).
-public func KeyframeTrack<Value: KeyframeAnimatable>(
+public func KeyframeTrack<Value: Sendable>(
     _ keyPath: WritableKeyPath<Value, Quat>,
     identifier: String? = nil,
     @KeyframeLinearQuatBuilder _ build: () -> [LinearKeyframe<Quat>]

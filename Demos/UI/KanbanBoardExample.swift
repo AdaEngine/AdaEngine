@@ -227,6 +227,8 @@ struct TagView: View {
     var body: some View {
         Text(text)
             .fontSize(10)
+            .fixedSize()
+            .padding(4)
             .foregroundColor(color)
             .padding(EdgeInsets(top: 2, leading: 6, bottom: 2, trailing: 6))
             .background(color.opacity(0.12))

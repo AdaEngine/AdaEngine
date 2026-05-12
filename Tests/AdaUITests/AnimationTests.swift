@@ -6,6 +6,7 @@
 //
 
 import Testing
+import AdaAnimation
 @testable import AdaPlatform
 @testable import AdaUI
 import AdaUtils
@@ -145,6 +146,36 @@ struct AnimationTests {
 
         tester.advanceFrame(deltaTime: 0.5)
         #expect(abs(node.opacity - 1) < 0.001)
+    }
+
+    @Test
+    func keyframeAnimatorAppliesEvaluatedValuesToViewNode() {
+        let clip = KeyframeClip(name: "fade", initialValues: NodeOpacityKeyframeValue(opacity: 1), duration: 1) {
+            KeyframeTrack(\.opacity) {
+                LinearKeyframe(Float(1), duration: 1)
+                LinearKeyframe(Float(0.25), duration: 0)
+            }
+        }
+        let tester = ViewTester(
+            rootView: Color.red
+                .frame(width: 40, height: 40)
+                .keyframeAnimator(clip)
+        )
+        .setSize(Size(width: 200, height: 200))
+        .performLayout()
+
+        guard let node = tester.containerView.viewTree.rootNode.contentNode as? KeyframeAnimatorViewNode<NodeOpacityKeyframeValue> else {
+            Issue.record("Failed to locate keyframe animator node.")
+            return
+        }
+
+        #expect(abs(node.animatedOpacity - 1) < 0.001)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.animatedOpacity - 0.625) < 0.01)
+
+        tester.advanceFrame(deltaTime: 0.5)
+        #expect(abs(node.animatedOpacity - 0.25) < 0.001)
     }
 
     @Test
@@ -625,6 +656,15 @@ private struct AnimatedOpacityView: View {
             .opacity(isDimmed.wrappedValue ? 0.25 : 1)
             .accessibilityIdentifier("opacity")
             .animation(Animation.linear(duration: 1), value: isDimmed.wrappedValue)
+    }
+}
+
+private struct NodeOpacityKeyframeValue: UIKeyframeAnimatable {
+    var opacity: Float
+
+    @MainActor
+    func apply(to node: KeyframeAnimatorNodeProxy) {
+        node.opacity = opacity
     }
 }
 

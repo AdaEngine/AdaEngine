@@ -26,7 +26,7 @@ private struct SchemaEntry<Value>: @unchecked Sendable {
 /// schema.registerQuat("transform.rotation", keyPath: \.transform.rotation)
 /// let clip = try KeyframeClip(jsonData: data, schema: schema)
 /// ```
-public struct KeyframeClipSchema<Value: KeyframeAnimatable>: @unchecked Sendable {
+public struct KeyframeClipSchema<Value: Sendable>: @unchecked Sendable {
 
     private var entries: [String: SchemaEntry<Value>] = [:]
 

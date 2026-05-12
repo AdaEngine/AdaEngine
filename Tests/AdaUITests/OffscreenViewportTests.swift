@@ -142,6 +142,22 @@ struct OffscreenViewportTests {
     }
 
     @Test
+    func sizeUpdate_roundsPhysicalPixels() {
+        let delegate = MockViewportDelegate()
+
+        _ = ViewTester {
+            OffscreenViewportView(delegate: delegate)
+                .frame(width: 10.75, height: 8.25)
+                .environment(\.scaleFactor, 2)
+        }
+        .setSize(Size(width: 40, height: 40))
+        .performLayout()
+
+        #expect(delegate.lastSize == SizeInt(width: 22, height: 17))
+        #expect(delegate.lastScaleFactor == 2)
+    }
+
+    @Test
     func viewport_isHitTestable() {
         let delegate = MockViewportDelegate()
 

@@ -76,6 +76,10 @@ private final class OffscreenViewportNode: ViewNode {
 
     private static weak var currentActiveViewport: OffscreenViewportNode?
 
+    override var participatesInFrameAnimation: Bool {
+        false
+    }
+
     init<C: View>(delegate: any OffscreenViewportDelegate, content: C) {
         self.delegate = delegate
         super.init(content: content)
@@ -94,8 +98,8 @@ private final class OffscreenViewportNode: ViewNode {
         let size = frame.size
         let scale = max(environment.scaleFactor, 1)
         let pixelSize = SizeInt(
-            width: Int(size.width * scale),
-            height: Int(size.height * scale)
+            width: Int((size.width * scale).rounded()),
+            height: Int((size.height * scale).rounded())
         )
 
         guard pixelSize.width > 0 && pixelSize.height > 0 else { return }
@@ -235,6 +239,10 @@ private final class OffscreenViewportContainerNode<Content: View>: ViewContainer
     private var delegate: (any OffscreenViewportDelegate)?
     private var delegateFactory: @MainActor () -> any OffscreenViewportDelegate
     private var contentBuilder: @MainActor (any OffscreenViewportDelegate) -> Content
+
+    override var participatesInFrameAnimation: Bool {
+        false
+    }
 
     init<Root: View>(
         delegateFactory: @escaping @MainActor () -> any OffscreenViewportDelegate,

@@ -6,7 +6,7 @@
 //
 
 import AdaECS
-import AdaRender
+@_spi(Internal) import AdaRender
 import AdaTransform
 import AdaCorePipelines
 import Math
@@ -325,8 +325,7 @@ public struct SpriteRenderSystem {
         return coords
     }
 
-    @inlinable
     func isSameTexture(_ lhs: Texture2D, _ rhs: Texture2D) -> Bool {
-        return lhs.assetMetaInfo?.assetId != .empty && lhs.assetMetaInfo?.assetId == rhs.assetMetaInfo?.assetId
+        return lhs.gpuTexture === rhs.gpuTexture && lhs.sampler === rhs.sampler
     }
 }

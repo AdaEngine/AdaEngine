@@ -35,9 +35,8 @@ public struct AnyKeyframeTrack<Value>: @unchecked Sendable {
 /// A generic keyframe clip that drives properties of a user-defined `Value` struct over time.
 ///
 /// ```swift
-/// struct MyAnim: KeyframeAnimatable {
+/// struct MyAnim: Sendable {
 ///     var transform = Transform()
-///     func apply(to entityId: Entity.ID, in world: World) { world.insert(transform, for: entityId) }
 /// }
 ///
 /// let clip = KeyframeClip(name: "idle", initialValues: MyAnim(), duration: 2, repeatMode: .loop) {
@@ -47,7 +46,7 @@ public struct AnyKeyframeTrack<Value>: @unchecked Sendable {
 ///     }
 /// }
 /// ```
-public struct KeyframeClip<Value: KeyframeAnimatable>: Sendable {
+public struct KeyframeClip<Value: Sendable>: Sendable {
 
     public var name: String
     public var duration: TimeInterval
