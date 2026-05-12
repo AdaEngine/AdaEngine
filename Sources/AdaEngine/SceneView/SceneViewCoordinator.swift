@@ -7,6 +7,7 @@
 
 import AdaApp
 import AdaAssets
+import AdaAudio
 import AdaECS
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaRender
@@ -90,6 +91,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     func shutdown() {
         isShutdown = true
+        stopAudioPlaybacks()
         AppWorldsSession.current?.removeSubworld(by: hostSubworldName)
         appWorlds = nil
         cameraEntity = nil
@@ -153,6 +155,17 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             guard let self, let app = self.appWorlds else { return }
             app.main.insertResource(DeltaTime(deltaTime: deltaTime))
             try? await app.update()
+        }
+    }
+
+    private func stopAudioPlaybacks() {
+        guard let appWorlds else {
+            return
+        }
+
+        for entity in appWorlds.main.getEntities() {
+            entity.components[AudioComponent.self]?.playbackController.stop()
+            entity.stopAllAudio()
         }
     }
 
