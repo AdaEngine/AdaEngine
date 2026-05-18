@@ -56,8 +56,86 @@ extension EditorCenterWorkbench {
     }
     
     private func viewport(metrics: AdaEngineStyleLayoutMetrics) -> some View {
+        GeometryReader { geometry in
+            let viewportSize = geometry.size
+
+            ZStack {
+                theme.editorColors.background
+                viewportGrid(size: viewportSize, metrics: metrics)
+                viewportGizmo(size: viewportSize, metrics: metrics)
+                viewportStatus
+                    .padding(16)
+            }
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+            .accessibilityIdentifier("AdaEditor.Viewport")
+        }
+    }
+
+    private func viewportGrid(size: Size, metrics: AdaEngineStyleLayoutMetrics) -> some View {
         ZStack {
-            Color.red.opacity(0.2)
+            VStack(spacing: metrics.gridRowSpacing(for: size)) {
+                ForEach(0..<14) { index in
+                    RectangleShape()
+                        .fill(index == 7 ? theme.editorColors.blue.opacity(0.20) : theme.editorColors.border.opacity(0.32))
+                        .frame(height: index == 7 ? 2 : 1)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal, metrics.gridHorizontalPadding(for: size))
+            .padding(.vertical, metrics.gridBottomPadding(for: size))
+
+            HStack(spacing: metrics.gridColumnSpacing(for: size)) {
+                ForEach(0..<18) { index in
+                    RectangleShape()
+                        .fill(index == 9 ? theme.editorColors.purple.opacity(0.18) : theme.editorColors.border.opacity(0.28))
+                        .frame(width: index == 9 ? 2 : 1)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            .padding(.horizontal, metrics.gridHorizontalPadding(for: size))
+            .padding(.vertical, metrics.gridBottomPadding(for: size))
+        }
+    }
+
+    private func viewportGizmo(size: Size, metrics: AdaEngineStyleLayoutMetrics) -> some View {
+        let scale = metrics.gizmoScale(for: size)
+
+        return VStack {
+            Spacer(minLength: metrics.gizmoTopPadding(for: size))
+            HStack {
+                Spacer()
+                ZStack {
+                    CircleShape()
+                        .fill(theme.editorColors.blue.opacity(0.16))
+                        .frame(width: 86 * scale, height: 86 * scale)
+                    RectangleShape()
+                        .fill(theme.editorColors.blue.opacity(0.72))
+                        .frame(width: 72 * scale, height: 2)
+                    RectangleShape()
+                        .fill(theme.editorColors.purple.opacity(0.70))
+                        .frame(width: 2, height: 72 * scale)
+                    CircleShape()
+                        .fill(theme.editorColors.text.opacity(0.82))
+                        .frame(width: 8 * scale, height: 8 * scale)
+                }
+                Spacer()
+            }
+            Spacer()
+        }
+    }
+
+    private var viewportStatus: some View {
+        VStack {
+            HStack {
+                Text("Scene")
+                    .font(.system(size: 11))
+                    .foregroundColor(theme.editorColors.muted)
+                    .padding(.horizontal, 10)
+                    .frame(height: 26)
+                    .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surface.opacity(0.88)))
+                Spacer()
+            }
+            Spacer()
         }
     }
     

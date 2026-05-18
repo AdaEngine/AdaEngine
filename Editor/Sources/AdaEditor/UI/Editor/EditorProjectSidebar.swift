@@ -7,7 +7,9 @@ struct EditorProjectSidebar: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        NavigationStack {
+        VStack(alignment: .leading, spacing: 0) {
+            adaEditorPanelTitle("PROJECT", trailing: "", theme: theme)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(viewModel.items, id: \.title) { item in
@@ -16,18 +18,11 @@ struct EditorProjectSidebar: View {
                 }
                 .padding(8)
             }
-            .background(
-                theme.editorColors.surfaceElevated
-                    .ignoresSafeArea()
-            )
-            .navigationBarColor(theme.editorColors.surfaceElevated)
-            .navigationBarLeadingItems {
-                Text("Project")
-            }
-//            .navigationBarTrailingItems {
-//                
-//            }
         }
+        .background(
+            RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner)
+                .fill(theme.editorColors.surfaceElevated)
+        )
         .mask(RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner))
     }
 

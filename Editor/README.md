@@ -14,8 +14,7 @@ AdaEditor — отдельный SwiftPM-пакет редактора AdaEngine
 
 Пакет подключает:
 
-- локальный `AdaEngine` из родительской директории (`.package(path: "..")`);
-- `AdaMCP` из `https://github.com/AdaEngine/AdaMCP`.
+- локальный `AdaEngine` из родительской директории (`.package(path: "..")`).
 
 ## Сборка и тесты
 
@@ -36,4 +35,4 @@ xcodegen generate
 open AdaEditor.xcodeproj
 ```
 
-Сгенерированный проект использует локальный SwiftPM-пакет `AdaEditor` и схему `AdaEditor` для запуска редактора.
+Сгенерированный проект использует локальный SwiftPM-пакет `AdaEditor` и схему `AdaEditorHost` для запуска редактора. Схема называется иначе, чем SwiftPM-продукт `AdaEditor`, чтобы Xcode не смешивал пакетную схему и схему сгенерированного проекта.

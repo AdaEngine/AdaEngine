@@ -36,7 +36,7 @@ struct EditorWorkspaceView<
         
         Self._printChanges()
         
-        return VStack {
+        return VStack(spacing: 0) {
             HStack(spacing: 0) {
                 if viewModel.showLeftPanel {
                     leftPanel()
@@ -86,8 +86,12 @@ struct EditorWorkspaceView<
                     )
                 }
             }
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+            .layoutPriority(100)
+
             bottomPanel(geometry)
         }
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
@@ -95,9 +99,6 @@ extension EditorWorkspaceView {
     @ViewBuilder
     private func bottomPanel(_ geometry: GeometryProxy) -> some View {
         if viewModel.showBottomPanel {
-            bottomPanel()
-                .frame(height: outputPanelHeight)
-
             EditorResizeHandle(
                 axis: .vertical,
                 onResize: { translation in
@@ -107,6 +108,9 @@ extension EditorWorkspaceView {
                     outputPanelHeightAtDragStart = nil
                 }
             )
+
+            bottomPanel()
+                .frame(height: outputPanelHeight)
         }
     }
     

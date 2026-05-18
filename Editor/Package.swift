@@ -17,8 +17,8 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(path: ".."),
-        .package(url: "https://github.com/AdaEngine/AdaMCP", branch: "main")
+        .package(name: "AdaEngine", path: ".."),
+        .package(url: "https://github.com/AdaEngine/AdaMCP.git", branch: "main")
     ],
     targets: [
         .executableTarget(
@@ -26,8 +26,6 @@ let package = Package(
             dependencies: [
                 .product(name: "AdaEngine", package: "AdaEngine"),
                 .product(name: "Math", package: "AdaEngine"),
-                .product(name: "AdaMCPCore", package: "AdaMCP"),
-                .product(name: "AdaMCPServer", package: "AdaMCP"),
                 .product(name: "AdaMCPPlugin", package: "AdaMCP")
             ],
             exclude: [

@@ -3,17 +3,15 @@ import Testing
 
 @Suite("AdaEditor package configuration")
 struct EditorPackageConfigurationTests {
-    @Test("editor package declares local AdaEngine and AdaMCP dependencies")
+    @Test("editor package declares local AdaEngine dependency")
     func packageManifestDeclaresRequiredDependencies() throws {
         let editorRoot = try editorPackageRoot()
         let manifest = try String(contentsOf: editorRoot.appendingPathComponent("Package.swift"), encoding: .utf8)
 
         #expect(manifest.contains("name: \"AdaEditor\""))
         #expect(manifest.contains(".package(path: \"..\")"))
-        #expect(manifest.contains("https://github.com/AdaEngine/AdaMCP"))
         #expect(manifest.contains("name: \"AdaEditor\""))
         #expect(manifest.contains(".product(name: \"AdaEngine\", package: \"AdaEngine\")"))
-        #expect(manifest.contains(".product(name: \"AdaMCPCore\", package: \"AdaMCP\")"))
         #expect(manifest.contains(".copy(\"Assets\")"))
     }
 
@@ -24,6 +22,7 @@ struct EditorPackageConfigurationTests {
 
         #expect(project.contains("name: AdaEditor"))
         #expect(project.contains("AdaEditor:"))
+        #expect(project.contains("AdaEditorHost:"))
         #expect(project.contains("path: ."))
         #expect(project.contains("product: AdaEditor"))
     }

@@ -1,10 +1,10 @@
 {
-  "originHash" : "23fc1052745c5e60071f4fe1408aa541b61fa20a0533e12e148bff9f6f8a52ca",
+  "originHash" : "7a6f819c340fcca85554552610ff4ba1337006b18db23d99c384b080eac9bea8",
   "pins" : [
     {
       "identity" : "adamcp",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AdaEngine/AdaMCP",
+      "location" : "https://github.com/AdaEngine/AdaMCP.git",
       "state" : {
         "branch" : "main",
         "revision" : "b5692ff04458fb821ccaa6946788c05e5e40749e"
@@ -49,7 +49,7 @@
     {
       "identity" : "swift-log",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-log.git",
+      "location" : "https://github.com/apple/swift-log",
       "state" : {
         "revision" : "5073617dac96330a486245e4c0179cb0a6fd2256",
         "version" : "1.12.0"
@@ -67,7 +67,7 @@
     {
       "identity" : "swift-service-context",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-service-context.git",
+      "location" : "https://github.com/apple/swift-service-context",
       "state" : {
         "revision" : "d0997351b0c7779017f88e7a93bc30a1878d7f29",
         "version" : "1.3.0"
