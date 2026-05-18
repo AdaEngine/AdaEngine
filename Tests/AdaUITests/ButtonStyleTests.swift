@@ -166,6 +166,36 @@ struct ButtonStyleTests {
     }
 
     @Test
+    func glassButtonStyleScalesUpWhenSelected() throws {
+        let tester = ViewTester {
+            Button("Press") {}
+                .buttonStyle(GlassButtonStyle())
+        }
+        .setSize(Size(width: 220, height: 120))
+        .performLayout()
+
+        let initialContext = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: initialContext)
+        let initialTransform = try #require(initialContext.getDrawCommands().glassTransforms.first)
+
+        let button = try #require(buttonNodes(in: tester.containerView.viewTree.rootNode).first)
+        let buttonFrame = button.absoluteFrame()
+        let buttonCenter = Point(
+            x: buttonFrame.origin.x + buttonFrame.width * 0.5,
+            y: buttonFrame.origin.y + buttonFrame.height * 0.5
+        )
+
+        tester.sendMouseEvent(at: buttonCenter, button: .left, phase: .began)
+
+        let pressedContext = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: pressedContext)
+        let pressedTransform = try #require(pressedContext.getDrawCommands().glassTransforms.first)
+
+        #expect(pressedTransform.x.x > initialTransform.x.x)
+        #expect(pressedTransform.y.y > initialTransform.y.y)
+    }
+
+    @Test
     func buttonHoverInvalidationMarksContainerForRedraw() throws {
         let tester = ViewTester {
             Button(action: {}) {
@@ -354,6 +384,15 @@ private extension [UIGraphicsContext.DrawCommand] {
         compactMap { command in
             if case let .drawGlassRect(_, _, configuration, _) = command {
                 return configuration
+            }
+            return nil
+        }
+    }
+
+    var glassTransforms: [Transform3D] {
+        compactMap { command in
+            if case let .drawGlassRect(transform, _, _, _) = command {
+                return transform
             }
             return nil
         }

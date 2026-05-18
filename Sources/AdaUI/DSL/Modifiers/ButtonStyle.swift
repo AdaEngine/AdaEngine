@@ -173,7 +173,7 @@ public struct GlassButtonStyle<S: Shape>: ButtonStyle, @unchecked Sendable {
         verticalPadding: Float = 0,
         minHeight: Float = 36,
         highlightedScale: Float = 1.02,
-        pressedScale: Float = 0.98,
+        pressedScale: Float = 1.06,
         disabledOpacity: Float = 0.48
     ) {
         self.glass = glass
@@ -260,7 +260,7 @@ public extension GlassButtonStyle where S == CapsuleShape {
         verticalPadding: Float = 0,
         minHeight: Float = 36,
         highlightedScale: Float = 1.02,
-        pressedScale: Float = 0.98,
+        pressedScale: Float = 1.06,
         disabledOpacity: Float = 0.48
     ) {
         self.init(

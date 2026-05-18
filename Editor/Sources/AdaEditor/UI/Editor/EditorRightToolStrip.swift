@@ -7,24 +7,18 @@ struct EditorRightToolStrip: View {
 
     var body: some View {
         VStack(spacing: 7) {
-            adaEditorStripButton(
-                "AI",
-                icon: "△",
-                active: viewModel.activeRightTool == "AI",
-                hoveredTool: viewModel.hoveredTool,
-                setHoveredTool: { viewModel.hoveredTool = $0 },
-                theme: theme,
-                accent: theme.editorColors.purple
-            )
+            ForEach(viewModel.rightTools, id: \.identifier) { item in
+                adaEditorStripButton(
+                    item,
+                    active: viewModel.activeRightTool == item.identifier,
+                    theme: theme,
+                    accent: item.identifier == "swiftPackageTasks" ? theme.editorColors.purple : nil,
+                    action: {
+                        viewModel.selectRightTool(item)
+                    }
+                )
+            }
             Spacer()
-            adaEditorStripButton(
-                "Settings",
-                icon: "⚙",
-                active: viewModel.activeRightTool == "Settings",
-                hoveredTool: viewModel.hoveredTool,
-                setHoveredTool: { viewModel.hoveredTool = $0 },
-                theme: theme
-            )
         }
         .padding(.vertical, 10)
         .background(theme.editorColors.background)
@@ -38,31 +32,27 @@ struct EditorLeftToolStrip: View {
 
     var body: some View {
         VStack(spacing: 7) {
-            adaEditorStripButton(
-                "Project",
-                icon: "▣",
-                active: viewModel.activeLeftTool == "Project",
-                hoveredTool: viewModel.hoveredTool,
-                setHoveredTool: { viewModel.hoveredTool = $0 },
-                theme: theme
-            )
-            adaEditorStripButton(
-                "Add",
-                icon: "+",
-                active: viewModel.activeLeftTool == "Add",
-                hoveredTool: viewModel.hoveredTool,
-                setHoveredTool: { viewModel.hoveredTool = $0 },
-                theme: theme
-            )
-            adaEditorStripButton(
-                "Git",
-                icon: "⎇",
-                active: viewModel.activeLeftTool == "Git",
-                hoveredTool: viewModel.hoveredTool,
-                setHoveredTool: { viewModel.hoveredTool = $0 },
-                theme: theme
-            )
+            ForEach(viewModel.leftTopTools, id: \.identifier) { item in
+                adaEditorStripButton(
+                    item,
+                    active: viewModel.activeLeftTool == item.identifier,
+                    theme: theme,
+                    action: {
+                        viewModel.selectLeftTool(item)
+                    }
+                )
+            }
             Spacer()
+            ForEach(viewModel.leftBottomTools, id: \.identifier) { item in
+                adaEditorStripButton(
+                    item,
+                    active: viewModel.activeLeftTool == item.identifier,
+                    theme: theme,
+                    action: {
+                        viewModel.selectLeftTool(item)
+                    }
+                )
+            }
         }
         .padding(.vertical, 10)
         .background(theme.editorColors.background)

@@ -749,8 +749,15 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
     private weak var window: UIWindow?
     private var isNeedsUpdate = true
 
-    private var menu: NSMenu? {
-        return (window?.systemWindow as? NSWindow)?.menu
+    private var menu: NSMenu {
+        if let mainMenu = NSApp.mainMenu {
+            return mainMenu
+        }
+
+        let mainMenu = NSMenu(title: "")
+        mainMenu.addItem(makeApplicationMenuItem())
+        NSApp.mainMenu = mainMenu
+        return mainMenu
     }
 
     init(window: UIWindow) {
@@ -758,16 +765,24 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
     }
 
     func insert(_ menu: UIMenu) {
+        menu.setMenuOwner(self)
+        remove(menu.id)
+
         let nsMenu = makeNSMenu(from: menu)
 
         let menuItem = NSMenuItem()
         menuItem.title = menu.title
-        self.menu?.addItem(menuItem)
-        self.menu?.setSubmenu(nsMenu, for: menuItem)
+        self.menu.addItem(menuItem)
+        self.menu.setSubmenu(nsMenu, for: menuItem)
+        configureSystemMenu(nsMenu, for: menu)
     }
 
     func remove(_ menu: UIMenu.ID) {
+        guard let item = self.menu.items.first(where: { $0.title == menu }) else {
+            return
+        }
 
+        self.menu.removeItem(item)
     }
 
     func setNeedsUpdate() {
@@ -785,6 +800,7 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
 
     private func makeNSMenu(from menu: UIMenu) -> NSMenu {
         let nsMenu = NSMenu(title: menu.title)
+        nsMenu.autoenablesItems = false
         let items = menu.items.map(makeNSMenuItem(from:))
 
         for item in items {
@@ -805,6 +821,7 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
         nsItem.action = #selector(onActionPressed)
         nsItem.submenu = item.submenu.flatMap { self.makeNSMenu(from: $0) }
         nsItem.representedObject = item
+        nsItem.isEnabled = item.isEnabled
         if let key = item.keyEquivalent?.rawValue {
             nsItem.keyEquivalent = key
         }
@@ -839,6 +856,53 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
         }
 
         return keyModifiers
+    }
+
+    private func configureSystemMenu(_ nsMenu: NSMenu, for menu: UIMenu) {
+        switch menu.title {
+        case "Window":
+            NSApp.windowsMenu = nsMenu
+        case "Help":
+            NSApp.helpMenu = nsMenu
+        default:
+            break
+        }
+    }
+
+    private func makeApplicationMenuItem() -> NSMenuItem {
+        let appName = ProcessInfo.processInfo.processName
+        let appMenu = NSMenu(title: appName)
+        appMenu.addItem(
+            withTitle: "About \(appName)",
+            action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+            keyEquivalent: ""
+        )
+        appMenu.addItem(.separator())
+        appMenu.addItem(
+            withTitle: "Hide \(appName)",
+            action: #selector(NSApplication.hide(_:)),
+            keyEquivalent: "h"
+        )
+        appMenu.addItem(
+            withTitle: "Hide Others",
+            action: #selector(NSApplication.hideOtherApplications(_:)),
+            keyEquivalent: "h"
+        ).keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(
+            withTitle: "Show All",
+            action: #selector(NSApplication.unhideAllApplications(_:)),
+            keyEquivalent: ""
+        )
+        appMenu.addItem(.separator())
+        appMenu.addItem(
+            withTitle: "Quit \(appName)",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+
+        let appMenuItem = NSMenuItem()
+        appMenuItem.submenu = appMenu
+        return appMenuItem
     }
 
     @objc func onActionPressed(_ nsItem: NSMenuItem) {

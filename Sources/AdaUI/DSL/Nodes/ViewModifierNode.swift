@@ -41,8 +41,21 @@ class ViewModifierNode: ViewNode {
         }
 
         super.update(from: otherNode)
-        self.contentNode.update(from: otherNode.contentNode)
-        self.contentNode.updateEnvironment(self.environment)
+        if otherNode.contentNode.canUpdate(self.contentNode) {
+            self.contentNode.update(from: otherNode.contentNode)
+            self.contentNode.updateEnvironment(self.environment)
+        } else {
+            self.contentNode.parent = nil
+            self.contentNode = otherNode.contentNode
+            self.contentNode.parent = self
+            self.contentNode.updateLayoutProperties(layoutProperties)
+            self.contentNode.updateEnvironment(self.environment)
+            if let owner, self.contentNode.owner !== owner {
+                self.contentNode.updateViewOwner(owner)
+            }
+            self.contentNode.markInspectionRedraw()
+            self.markNeedsLayout()
+        }
     }
 
     override func performLayout() {

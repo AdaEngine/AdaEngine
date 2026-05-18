@@ -46,6 +46,10 @@ public struct Glass: Sendable {
     public var glareEdgeSharpness: Float = 0.14
     /// Angular offset for the directional glare lobe in radians.
     public var glareDirectionOffset: Float = -0.24
+    /// A Boolean value indicating whether the glass surface reacts to direct press interaction.
+    public var isInteractive: Bool = false
+    /// Scale applied while an interactive glass surface is pressed.
+    public var interactiveScale: Float = 1.06
 
     public init() {}
 }
@@ -235,6 +239,13 @@ extension Glass {
     public func glareDirectionOffset(_ offset: Float) -> Glass {
         var newValue = self
         newValue.glareDirectionOffset = offset
+        return newValue
+    }
+
+    public func interactive(_ isInteractive: Bool = true, scale: Float = 1.06) -> Glass {
+        var newValue = self
+        newValue.isInteractive = isInteractive
+        newValue.interactiveScale = scale
         return newValue
     }
 }

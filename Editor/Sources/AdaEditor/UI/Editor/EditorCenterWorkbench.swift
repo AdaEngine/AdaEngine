@@ -10,12 +10,14 @@ struct EditorCenterWorkbench: View {
         VStack(spacing: 0) {
             editorTabs
                 .frame(height: AdaEngineStyleLayoutSpec.editorTabHeight)
-            viewport(metrics: metrics)
+            activeDocumentView(metrics: metrics)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .layoutPriority(100)
                 .overlay(anchor: .bottomTrailing) {
-                    aiFlightBox(metrics: metrics)
-                        .padding(metrics.size.height < 520 ? 8 : 18)
+                    if showsSceneControls {
+                        aiFlightBox(metrics: metrics)
+                            .padding(metrics.size.height < 520 ? 8 : 18)
+                    }
                 }
         }
         .background(
@@ -29,46 +31,159 @@ struct EditorCenterWorkbench: View {
 extension EditorCenterWorkbench {
     private var editorTabs: some View {
         HStack(spacing: 0) {
-            ForEach(AdaEngineStyleContent.editorTabs, id: \.self) { tab in
-                editorTab(tab, active: tab == viewModel.activeEditorTab)
+            ForEach(viewModel.openDocuments, id: \.id) { document in
+                editorTab(document, active: document.id == viewModel.activeDocumentID)
             }
             Spacer()
         }
     }
     
-    private func editorTab(_ title: String, active: Bool) -> some View {
-        Text(title)
-            .font(.system(size: 12))
-            .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
-            .padding(.horizontal, 16)
-            .frame(height: AdaEngineStyleLayoutSpec.editorTabHeight)
-            .background(active ? theme.editorColors.background : Color.clear)
-            .overlay {
-                VStack(spacing: 0) {
-                    Spacer()
-                    if active {
-                        RectangleShape()
-                            .fill(theme.editorColors.blue)
-                            .frame(height: 2)
+    private func editorTab(_ document: EditorWorkbenchDocument, active: Bool) -> some View {
+        Button(action: { viewModel.selectDocument(id: document.id) }) {
+            Text(document.title)
+                .font(.system(size: 12))
+                .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
+                .padding(.horizontal, 16)
+                .frame(height: AdaEngineStyleLayoutSpec.editorTabHeight)
+                .background(active ? theme.editorColors.background : Color.clear)
+                .overlay {
+                    VStack(spacing: 0) {
+                        Spacer()
+                        if active {
+                            RectangleShape()
+                                .fill(theme.editorColors.blue)
+                                .frame(height: 2)
+                        }
                     }
                 }
-            }
-    }
-    
-    private func viewport(metrics: AdaEngineStyleLayoutMetrics) -> some View {
-        GeometryReader { geometry in
-            let viewportSize = geometry.size
-
-            ZStack {
-                theme.editorColors.background
-                viewportGrid(size: viewportSize, metrics: metrics)
-                viewportGizmo(size: viewportSize, metrics: metrics)
-                viewportStatus
-                    .padding(16)
-            }
-            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
-            .accessibilityIdentifier("AdaEditor.Viewport")
         }
+        .buttonStyle(DefaultButtonStyle())
+    }
+
+    @ViewBuilder
+    private func activeDocumentView(metrics: AdaEngineStyleLayoutMetrics) -> some View {
+        switch viewModel.activeDocument {
+        case .scene(let document):
+            sceneDocumentEditor(document: document)
+        case .text(let document):
+            EditorCodeFileView(
+                document: document,
+                text: viewModel.textDocumentBinding(documentID: document.id),
+                fontSize: viewModel.codeFontSize
+            )
+        case nil:
+            emptyWorkbench
+        }
+    }
+
+    private var showsSceneControls: Bool {
+        false
+    }
+
+    private var emptyWorkbench: some View {
+        ZStack {
+            theme.editorColors.background
+            Text("No file selected")
+                .font(.system(size: 12))
+                .foregroundColor(theme.editorColors.muted)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func sceneDocumentEditor(document: EditorSceneDocument) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sceneDocumentHeader(document: document)
+
+            if let errorMessage = document.errorMessage {
+                sceneDocumentError(message: errorMessage)
+            } else {
+                sceneDocumentTextEditor(document: document)
+            }
+        }
+        .background(theme.editorColors.background)
+        .accessibilityIdentifier("AdaEditor.SceneDocument.\(document.title)")
+    }
+
+    private func sceneDocumentHeader(document: EditorSceneDocument) -> some View {
+        HStack(spacing: 8) {
+            Text(document.title)
+                .font(.system(size: 12))
+                .foregroundColor(theme.editorColors.text)
+            Text(document.relativePath)
+                .font(.system(size: 11))
+                .foregroundColor(theme.editorColors.muted)
+            Spacer()
+            if let status = document.statusMessage {
+                Text(status)
+                    .font(.system(size: 10))
+                    .foregroundColor(document.isDirty ? theme.editorColors.purple : theme.editorColors.muted)
+            }
+            Button(action: { viewModel.appendSceneLine(documentID: document.id) }) {
+                Text("+")
+                    .font(.system(size: 14))
+                    .foregroundColor(theme.editorColors.text)
+                    .frame(width: 26, height: 22)
+                    .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surfaceElevated))
+            }
+            .buttonStyle(DefaultButtonStyle())
+            Button(action: { viewModel.saveSceneDocument(id: document.id) }) {
+                Text(document.isDirty ? "Save *" : "Save")
+                    .font(.system(size: 10))
+                    .foregroundColor(theme.editorColors.blue)
+                    .padding(.horizontal, 8)
+                    .frame(height: 22)
+                    .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.blue.opacity(0.12)))
+            }
+            .buttonStyle(DefaultButtonStyle())
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 34)
+        .background(theme.editorColors.surface)
+    }
+
+    private func sceneDocumentTextEditor(document: EditorSceneDocument) -> some View {
+        ScrollView([.horizontal, .vertical]) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(viewModel.sceneLines(for: document).indices), id: \.self) { index in
+                    sceneDocumentLine(document: document, lineIndex: index)
+                }
+            }
+            .padding(.vertical, 10)
+            .padding(.trailing, 28)
+            .fixedSize(horizontal: true, vertical: true)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func sceneDocumentLine(document: EditorSceneDocument, lineIndex: Int) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(String(lineIndex + 1))
+                .font(AdaEditorCodeFont.font(size: viewModel.codeFontSize - 1))
+                .foregroundColor(viewModel.codeColorPalette.lineNumber)
+                .frame(width: 46, alignment: .trailing)
+            TextField("", text: viewModel.sceneLineBinding(documentID: document.id, lineIndex: lineIndex))
+                .font(AdaEditorCodeFont.font(size: viewModel.codeFontSize))
+                .foregroundColor(theme.editorColors.text)
+                .textFieldStyle(PlainTextFieldStyle())
+                .frame(width: 820, height: max(22, Float(viewModel.codeFontSize * 1.8)), alignment: .leading)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: max(24, Float(viewModel.codeFontSize * 2)))
+        .background(lineIndex == 0 ? viewModel.codeColorPalette.currentLineBackground.opacity(0.55) : Color.clear)
+    }
+
+    private func sceneDocumentError(message: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Unable to open scene")
+                .font(.system(size: 13))
+                .foregroundColor(theme.editorColors.text)
+            Text(message)
+                .font(.system(size: 11))
+                .foregroundColor(theme.editorColors.muted)
+            Spacer()
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func viewportGrid(size: Size, metrics: AdaEngineStyleLayoutMetrics) -> some View {
@@ -124,10 +239,10 @@ extension EditorCenterWorkbench {
         }
     }
 
-    private var viewportStatus: some View {
+    private func viewportStatus(document: EditorSceneDocument) -> some View {
         VStack {
             HStack {
-                Text("Scene")
+                Text("Scene · \(document.relativePath)")
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(.horizontal, 10)

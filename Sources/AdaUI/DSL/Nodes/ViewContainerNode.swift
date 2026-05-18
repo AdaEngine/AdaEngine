@@ -112,10 +112,8 @@ class ViewContainerNode: ViewNode {
         owner?.containerView?.setNeedsLayout()
     }
 
-    // swiftlint:disable cyclomatic_complexity
     /// Compare and update old child nodes with a new nodes.
     func reconcileChildNodes(from newNodes: [ViewNode]) {
-        var needsLayout = false
         var allNewNodes = [ViewNode]()
         allNewNodes.reserveCapacity(newNodes.count)
 
@@ -130,66 +128,15 @@ class ViewContainerNode: ViewNode {
             allNewNodes.append(node)
         }
 
-        // We have same count, merge new nodes into old by index.
-        if let reconciled = self.reconcileNodesById(allNewNodes) {
-            for oldNode in self.nodes where !reconciled.contains(where: { $0 === oldNode }) {
-                oldNode.parent = nil
-            }
-            self.nodes = reconciled
-            needsLayout = true
-        } else if self.nodes.count == allNewNodes.count {
-            for (index, (oldNode, newNode)) in zip(self.nodes, allNewNodes).enumerated() {
-                if newNode.canUpdate(oldNode) {
-                    oldNode.update(from: newNode)
-                    oldNode.parent = self
-                    needsLayout = true
-                } else {
-                    oldNode.parent = nil
-                    newNode.parent = self
-                    newNode.markInspectionRedraw()
-                    self.nodes[index] = newNode
-                    needsLayout = true
-                }
-            }
-        } else {
-            // Different count: keep reconciliation linear and avoid expensive CollectionDifference.
-            let oldCount = self.nodes.count
-            let newCount = allNewNodes.count
-            let sharedCount = min(oldCount, newCount)
+        let oldNodes = self.nodes
+        let reconciliation = self.reconcileNodesById(allNewNodes)
+            ?? self.reconcileNodesByStructuralPosition(oldNodes: oldNodes, newNodes: allNewNodes)
 
-            if sharedCount > 0 {
-                for index in 0..<sharedCount {
-                    let oldNode = self.nodes[index]
-                    let newNode = allNewNodes[index]
-
-                    if newNode.canUpdate(oldNode) {
-                        oldNode.update(from: newNode)
-                        oldNode.parent = self
-                    } else {
-                        oldNode.parent = nil
-                        newNode.parent = self
-                        newNode.markInspectionRedraw()
-                        self.nodes[index] = newNode
-                    }
-                }
-            }
-
-            if oldCount > newCount {
-                for _ in 0..<(oldCount - newCount) {
-                    let removedNode = self.nodes.removeLast()
-                    removedNode.parent = nil
-                }
-            } else if newCount > oldCount {
-                for index in oldCount..<newCount {
-                    let newNode = allNewNodes[index]
-                    newNode.parent = self
-                    newNode.markInspectionRedraw()
-                    self.nodes.append(newNode)
-                }
-            }
-
-            needsLayout = true
+        for oldNode in oldNodes where !reconciliation.reusedNodeIDs.contains(ObjectIdentifier(oldNode)) {
+            oldNode.parent = nil
         }
+
+        self.nodes = reconciliation.nodes
 
         let currentOwner = self.owner
         for node in nodes {
@@ -204,19 +151,29 @@ class ViewContainerNode: ViewNode {
 //            self._printDebugNode()
         }
 
-        if needsLayout {
+        if !oldNodes.isEmpty || !allNewNodes.isEmpty {
             self.markNeedsLayout()
         }
     }
-    // swiftlint:enable cyclomatic_complexity
 
-    private func reconcileNodesById(_ newNodes: [ViewNode]) -> [ViewNode]? {
+    private struct Reconciliation {
+        var nodes: [ViewNode]
+        var reusedNodeIDs: Set<ObjectIdentifier>
+    }
+
+    private func reconcileNodesById(_ newNodes: [ViewNode]) -> Reconciliation? {
         var oldNodesById: [AnyHashable: ViewNode] = [:]
+        var oldIdCounts: [AnyHashable: Int] = [:]
         var oldNodesWithoutId: [ViewNode] = []
 
         for node in self.nodes {
             if let id = nodeIdentity(node) {
-                oldNodesById[id] = node
+                oldIdCounts[id, default: 0] += 1
+                if oldIdCounts[id] == 1 {
+                    oldNodesById[id] = node
+                } else {
+                    oldNodesById[id] = nil
+                }
             } else {
                 oldNodesWithoutId.append(node)
             }
@@ -226,49 +183,96 @@ class ViewContainerNode: ViewNode {
             return nil
         }
 
+        let newNodesWithoutId = newNodes.filter { nodeIdentity($0) == nil }
+        let unkeyedReconciliation = self.reconcileNodesByStructuralPosition(
+            oldNodes: oldNodesWithoutId,
+            newNodes: newNodesWithoutId
+        )
+        var unkeyedNodesByNewNodeID: [ObjectIdentifier: ViewNode] = [:]
+        for (newNode, resolvedNode) in zip(newNodesWithoutId, unkeyedReconciliation.nodes) {
+            unkeyedNodesByNewNodeID[ObjectIdentifier(newNode)] = resolvedNode
+        }
+
         var reconciledNodes: [ViewNode] = []
         reconciledNodes.reserveCapacity(newNodes.count)
+        var reusedNodeIDs = unkeyedReconciliation.reusedNodeIDs
 
-        var fallbackIndex = 0
         for newNode in newNodes {
             if let id = nodeIdentity(newNode), let oldNode = oldNodesById.removeValue(forKey: id) {
                 if newNode.canUpdate(oldNode) {
-                    oldNode.update(from: newNode)
-                    oldNode.parent = self
-                    reconciledNodes.append(oldNode)
+                    reconciledNodes.append(reuse(oldNode, with: newNode))
+                    reusedNodeIDs.insert(ObjectIdentifier(oldNode))
                 } else {
-                    newNode.parent = self
-                    newNode.markInspectionRedraw()
-                    reconciledNodes.append(newNode)
+                    reconciledNodes.append(prepareNewNode(newNode))
                 }
                 continue
             }
 
-            if fallbackIndex < oldNodesWithoutId.count {
-                let oldNode = oldNodesWithoutId[fallbackIndex]
-                fallbackIndex += 1
-
-                if newNode.canUpdate(oldNode) {
-                    oldNode.update(from: newNode)
-                    oldNode.parent = self
-                    reconciledNodes.append(oldNode)
-                } else {
-                    newNode.parent = self
-                    newNode.markInspectionRedraw()
-                    reconciledNodes.append(newNode)
-                }
+            if let resolvedNode = unkeyedNodesByNewNodeID[ObjectIdentifier(newNode)] {
+                reconciledNodes.append(resolvedNode)
             } else {
-                newNode.parent = self
-                newNode.markInspectionRedraw()
-                reconciledNodes.append(newNode)
+                reconciledNodes.append(prepareNewNode(newNode))
             }
         }
 
-        return reconciledNodes
+        return Reconciliation(nodes: reconciledNodes, reusedNodeIDs: reusedNodeIDs)
+    }
+
+    private func reconcileNodesByStructuralPosition(
+        oldNodes: [ViewNode],
+        newNodes: [ViewNode]
+    ) -> Reconciliation {
+        var resolvedNodes = Array<ViewNode?>(repeating: nil, count: newNodes.count)
+        var reusedNodeIDs = Set<ObjectIdentifier>()
+
+        var prefixEnd = 0
+        while prefixEnd < oldNodes.count,
+              prefixEnd < newNodes.count,
+              newNodes[prefixEnd].canUpdate(oldNodes[prefixEnd]) {
+            let oldNode = oldNodes[prefixEnd]
+            resolvedNodes[prefixEnd] = reuse(oldNode, with: newNodes[prefixEnd])
+            reusedNodeIDs.insert(ObjectIdentifier(oldNode))
+            prefixEnd += 1
+        }
+
+        var oldSuffixIndex = oldNodes.count - 1
+        var newSuffixIndex = newNodes.count - 1
+        while oldSuffixIndex >= prefixEnd,
+              newSuffixIndex >= prefixEnd,
+              newNodes[newSuffixIndex].canUpdate(oldNodes[oldSuffixIndex]) {
+            let oldNode = oldNodes[oldSuffixIndex]
+            resolvedNodes[newSuffixIndex] = reuse(oldNode, with: newNodes[newSuffixIndex])
+            reusedNodeIDs.insert(ObjectIdentifier(oldNode))
+            oldSuffixIndex -= 1
+            newSuffixIndex -= 1
+        }
+
+        if prefixEnd <= newSuffixIndex {
+            for index in prefixEnd...newSuffixIndex where resolvedNodes[index] == nil {
+                resolvedNodes[index] = prepareNewNode(newNodes[index])
+            }
+        }
+
+        return Reconciliation(
+            nodes: resolvedNodes.map { $0! },
+            reusedNodeIDs: reusedNodeIDs
+        )
     }
 
     private func nodeIdentity(_ node: ViewNode) -> AnyHashable? {
         return (node as? IDViewNodeModifier)?.identifier
+    }
+
+    private func reuse(_ oldNode: ViewNode, with newNode: ViewNode) -> ViewNode {
+        oldNode.update(from: newNode)
+        oldNode.parent = self
+        return oldNode
+    }
+
+    private func prepareNewNode(_ newNode: ViewNode) -> ViewNode {
+        newNode.parent = self
+        newNode.markInspectionRedraw()
+        return newNode
     }
 
     override func didMove(to parent: ViewNode?) {
@@ -288,6 +292,11 @@ class ViewContainerNode: ViewNode {
         }
 
         self.body = container.body
+        if self.stateContainer != nil {
+            self.invalidateContent()
+            return
+        }
+
         self.reconcileChildNodes(from: container.nodes)
     }
 

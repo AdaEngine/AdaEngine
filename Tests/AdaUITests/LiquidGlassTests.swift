@@ -175,6 +175,65 @@ struct LiquidGlassTests {
             #expect(glassIndex < textIndex)
         }
     }
+
+    @Test
+    func interactiveGlassScalesWhilePressed() throws {
+        let tester = ViewTester {
+            Text("Glass")
+                .frame(width: 120, height: 44)
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 8))
+        }
+        .setSize(Size(width: 200, height: 100))
+        .performLayout()
+
+        let initialContext = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: initialContext)
+        let initialTransform = try #require(initialContext.getDrawCommands().glassTransforms.first)
+
+        let hitNode = tester.sendMouseEvent(at: Point(100, 50), button: .left, phase: .began)
+        #expect(hitNode is GlassEffectViewNode)
+
+        let pressedContext = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: pressedContext)
+        let pressedTransform = try #require(pressedContext.getDrawCommands().glassTransforms.first)
+
+        #expect(pressedTransform.x.x > initialTransform.x.x)
+        #expect(pressedTransform.y.y > initialTransform.y.y)
+
+        tester.sendMouseEvent(at: Point(100, 50), button: .left, phase: .ended)
+
+        let releasedContext = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: releasedContext)
+        let releasedTransform = try #require(releasedContext.getDrawCommands().glassTransforms.first)
+
+        #expect(releasedTransform.x.x == initialTransform.x.x)
+        #expect(releasedTransform.y.y == initialTransform.y.y)
+    }
+
+    @Test
+    func regularGlassRemainsNonInteractive() throws {
+        let tester = ViewTester {
+            Text("Glass")
+                .frame(width: 120, height: 44)
+                .glassEffect(.regular, in: .rect(cornerRadius: 8))
+        }
+        .setSize(Size(width: 200, height: 100))
+        .performLayout()
+
+        let initialContext = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: initialContext)
+        let initialTransform = try #require(initialContext.getDrawCommands().glassTransforms.first)
+
+        let hitNode = tester.sendMouseEvent(at: Point(100, 50), button: .left, phase: .began)
+        #expect(hitNode is TextViewNode)
+
+        let pressedContext = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: pressedContext)
+        let pressedTransform = try #require(pressedContext.getDrawCommands().glassTransforms.first)
+
+        #expect(pressedTransform.x.x == initialTransform.x.x)
+        #expect(pressedTransform.y.y == initialTransform.y.y)
+    }
 }
 
 private extension [UIGraphicsContext.DrawCommand] {
@@ -204,6 +263,15 @@ private extension [UIGraphicsContext.DrawCommand] {
                 return true
             }
             return false
+        }
+    }
+
+    var glassTransforms: [Transform3D] {
+        compactMap { command in
+            if case let .drawGlassRect(transform, _, _, _) = command {
+                return transform
+            }
+            return nil
         }
     }
 }

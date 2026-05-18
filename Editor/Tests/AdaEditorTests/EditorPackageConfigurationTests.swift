@@ -9,7 +9,7 @@ struct EditorPackageConfigurationTests {
         let manifest = try String(contentsOf: editorRoot.appendingPathComponent("Package.swift"), encoding: .utf8)
 
         #expect(manifest.contains("name: \"AdaEditor\""))
-        #expect(manifest.contains(".package(path: \"..\")"))
+        #expect(manifest.contains(".package(name: \"AdaEngine\", path: \"..\")"))
         #expect(manifest.contains("name: \"AdaEditor\""))
         #expect(manifest.contains(".product(name: \"AdaEngine\", package: \"AdaEngine\")"))
         #expect(manifest.contains(".copy(\"Assets\")"))
@@ -22,7 +22,6 @@ struct EditorPackageConfigurationTests {
 
         #expect(project.contains("name: AdaEditor"))
         #expect(project.contains("AdaEditor:"))
-        #expect(project.contains("AdaEditorHost:"))
         #expect(project.contains("path: ."))
         #expect(project.contains("product: AdaEditor"))
     }

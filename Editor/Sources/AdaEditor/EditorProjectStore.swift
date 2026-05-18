@@ -99,6 +99,7 @@ public struct EditorProjectStore {
     private func createInitialProjectFiles(named projectName: String, at projectURL: URL) throws {
         try createSwiftPackage(named: projectName, at: projectURL)
         try createAssetsDirectory(at: projectURL)
+        try createDefaultScene(named: projectName, at: projectURL)
         try createReadme(named: projectName, at: projectURL)
     }
 
@@ -152,6 +153,22 @@ public struct EditorProjectStore {
         }
     }
 
+    private func createDefaultScene(named projectName: String, at projectURL: URL) throws {
+        let sceneURL = projectURL.appendingPathComponent(SceneDocumentFormat.defaultScenePath, isDirectory: false)
+        let scenesDirectory = sceneURL.deletingLastPathComponent()
+        try fileManager.createDirectory(at: scenesDirectory, withIntermediateDirectories: true)
+
+        guard !fileManager.fileExists(atPath: sceneURL.path) else {
+            return
+        }
+
+        try SceneDocumentFormat.defaultSceneYAML(projectName: projectName).write(
+            to: sceneURL,
+            atomically: true,
+            encoding: .utf8
+        )
+    }
+
     private func createReadme(named projectName: String, at projectURL: URL) throws {
         let readmeURL = projectURL.appendingPathComponent("README.md", isDirectory: false)
         guard !fileManager.fileExists(atPath: readmeURL.path) else {
@@ -168,7 +185,7 @@ public struct EditorProjectStore {
         - `Package.swift` — SwiftPM package manifest.
         - `.ada/project.json` — AdaEditor project metadata.
         - `Sources/` — game source files.
-        - `Assets/` — game assets.
+        - `Assets/` — game assets and scene documents.
         """
         try readme.write(to: readmeURL, atomically: true, encoding: .utf8)
     }

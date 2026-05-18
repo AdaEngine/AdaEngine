@@ -89,7 +89,7 @@ public enum ProjectSystem {
             ),
             build: .init(system: .swiftpm),
             run: .init(executable: nil, arguments: [], environment: [:], workingDirectory: "."),
-            editor: .init(startupScene: nil),
+            editor: .init(startupScene: SceneDocumentFormat.defaultScenePath),
             ai: .init(mcp: .init(enabled: true))
         )
     }

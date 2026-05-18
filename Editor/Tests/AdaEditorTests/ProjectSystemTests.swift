@@ -200,7 +200,7 @@ private let expectedDefaultProjectJSON = """
     ]
   },
   "editor" : {
-
+    "startupScene" : "Assets/Scenes/Main.ascn"
   },
   "engine" : {
 

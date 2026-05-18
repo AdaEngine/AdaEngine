@@ -72,6 +72,22 @@ extension View {
         }
         
         let body = view[\.body]
+        if stateContainer != nil {
+            let node = LayoutViewContainerNode(
+                layout: AnyLayout(inputs.input.layout),
+                content: view.value,
+                bypassSingleChildLayout: true,
+                body: { inputs in
+                    let body = _ViewGraphNode(value: view.value)[\.body]
+                    return Self.Body._makeListView(body, inputs: inputs)
+                }
+            )
+            node.updateEnvironment(inputs.input.environment)
+            node.stateContainer = stateContainer
+            resolvedInputs.registerNodeForStorages(node)
+            return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
+        }
+
         if let builder = body.value as? ViewNodeBuilder, resolvedInputs.propertyStorages.isEmpty {
             let node = builder.buildViewNode(in: inputs.input)
             node.updateEnvironment(inputs.input.environment)

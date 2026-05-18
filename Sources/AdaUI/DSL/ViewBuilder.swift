@@ -85,21 +85,50 @@ extension _ConditionalContent: View where TrueContent: View, FalseContent: View 
 
     @MainActor @preconcurrency
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
+        let branchIdentity = view.value.branchIdentity
+        var output: _ViewOutputs
         switch view[\.storage].value {
         case .trueContent(let trueContent):
-            return TrueContent._makeView(_ViewGraphNode(value: trueContent), inputs: inputs)
+            output = TrueContent._makeView(_ViewGraphNode(value: trueContent), inputs: inputs)
         case .falseContent(let falseContent):
-            return FalseContent._makeView(_ViewGraphNode(value: falseContent), inputs: inputs)
+            output = FalseContent._makeView(_ViewGraphNode(value: falseContent), inputs: inputs)
         }
+        output.node.prependStructuralIdentity(branchIdentity)
+        return output
     }
 
     @MainActor @preconcurrency
     public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
+        let branchIdentity = view.value.branchIdentity
+        var outputs: _ViewListOutputs
         switch view[\.storage].value {
         case .trueContent(let trueContent):
-            return TrueContent._makeListView(_ViewGraphNode(value: trueContent), inputs: inputs)
+            outputs = TrueContent._makeListView(_ViewGraphNode(value: trueContent), inputs: inputs)
         case .falseContent(let falseContent):
-            return FalseContent._makeListView(_ViewGraphNode(value: falseContent), inputs: inputs)
+            outputs = FalseContent._makeListView(_ViewGraphNode(value: falseContent), inputs: inputs)
+        }
+        for index in outputs.outputs.indices {
+            outputs.outputs[index].node.prependStructuralIdentity(branchIdentity)
+        }
+        return outputs
+    }
+
+    private var branchIdentity: AnyHashable {
+        switch storage {
+        case .trueContent:
+            return "_ConditionalContent.true:\(ObjectIdentifier(TrueContent.self)):\(ObjectIdentifier(FalseContent.self))"
+        case .falseContent:
+            return "_ConditionalContent.false:\(ObjectIdentifier(TrueContent.self)):\(ObjectIdentifier(FalseContent.self))"
+        }
+    }
+}
+
+private extension ViewNode {
+    func prependStructuralIdentity(_ identity: AnyHashable) {
+        if let structuralIdentity {
+            self.structuralIdentity = "\(identity)|\(structuralIdentity)"
+        } else {
+            self.structuralIdentity = identity
         }
     }
 }

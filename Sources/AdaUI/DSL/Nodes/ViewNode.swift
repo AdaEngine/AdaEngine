@@ -77,6 +77,9 @@ class ViewNode: Identifiable {
 
     /// Content relative a view node. We use this copy of content to compare views.
     private(set) var content: any View
+    /// Structural identity component supplied by result-builder constructs that
+    /// are not represented by a concrete node in the rendered tree.
+    var structuralIdentity: AnyHashable?
 
     var layer: UILayer?
     private(set) weak var owner: ViewOwner?
@@ -374,7 +377,9 @@ class ViewNode: Identifiable {
     }
 
     func canUpdate(_ node: ViewNode) -> Bool {
-        return self.isEquals(node) && self.id != node.id
+        return self.isEquals(node)
+            && self.id != node.id
+            && self.structuralIdentity == node.structuralIdentity
     }
 
     func isEquals(_ otherNode: ViewNode) -> Bool {
@@ -393,6 +398,7 @@ class ViewNode: Identifiable {
         self.markInspectionRedraw()
         let shouldInvalidateForEnvironmentChange = shouldInvalidateContent(forResolvedEnvironment: newNode.environment)
         self.environmentTransform = newNode.environmentTransform
+        self.structuralIdentity = newNode.structuralIdentity
         self.accessibilityIdentifier = newNode.accessibilityIdentifier
         self.applyResolvedEnvironmentSilently(newNode.environment)
         self.setContent(newNode.content)

@@ -31,6 +31,9 @@ struct EditorProjectStoreTests {
         #expect(ProjectSystem.isAdaProject(at: projectURL))
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("README.md").path))
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Assets", isDirectory: true).appendingPathComponent(".gitkeep").path))
+        let sceneURL = projectURL.appendingPathComponent("Assets/Scenes/Main.ascn", isDirectory: false)
+        #expect(FileManager.default.fileExists(atPath: sceneURL.path))
+        #expect(try String(contentsOf: sceneURL, encoding: .utf8).contains("format: ada.scene"))
         let loadedProjects = try store.loadProjects()
         #expect(loadedProjects == [reference])
     }
@@ -54,6 +57,7 @@ struct EditorProjectStoreTests {
         let projects = try store.loadProjects()
 
         #expect(ProjectSystem.isAdaProject(at: projectURL))
+        #expect(try ProjectSystem.loadProject(at: projectURL).editor.startupScene == "Assets/Scenes/Main.ascn")
         #expect(projects.count == 1)
         #expect(projects.first == secondReference)
         #expect(projects.first?.lastOpenedAt == secondDate)

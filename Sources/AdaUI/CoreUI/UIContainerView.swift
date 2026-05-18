@@ -240,6 +240,11 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 
     public override func onKeyEvent(_ event: KeyEvent) {
         if event.keyCode == .tab, event.status == .down {
+            if let focusedNode = focusManager.focusedNode as? TextEditorViewNode {
+                focusedNode.onKeyEvent(event)
+                return
+            }
+
             if event.modifiers.contains(.shift) {
                 focusManager.focusPrevious()
             } else {
