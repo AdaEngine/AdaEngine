@@ -46,6 +46,8 @@ final class MacOSWindowManager: UIWindowManager {
         
         let rootContentView = NSView(frame: NSRect(origin: .zero, size: contentRect.size))
         rootContentView.autoresizesSubviews = true
+        rootContentView.wantsLayer = true
+        rootContentView.layer?.backgroundColor = NSColor(red: 30 / 255, green: 31 / 255, blue: 34 / 255, alpha: 1).cgColor
 
         /// Register view in engine
         let metalView = MetalView(
@@ -62,6 +64,9 @@ final class MacOSWindowManager: UIWindowManager {
             [.titled, .closable, .resizable, .miniaturizable]
         case .borderless:
             [.borderless]
+        }
+        if !window.configuration.isResizable {
+            styleMask.remove(.resizable)
         }
         if window.configuration.titleBar.background == .transparent, window.configuration.chrome == .standard {
             styleMask.insert(.fullSizeContentView)
@@ -88,7 +93,7 @@ final class MacOSWindowManager: UIWindowManager {
         systemWindow.delegate = nsWindowDelegate
         systemWindow.level = windowLevel(for: window.configuration.level)
         systemWindow.isOpaque = !window.configuration.background.isTransparent
-        systemWindow.hasShadow = true
+        systemWindow.hasShadow = window.configuration.hasShadow
         systemWindow.backgroundColor = backgroundColor(for: window.configuration.background)
         window.systemWindow = systemWindow
         if let title = window.configuration.title {
@@ -419,8 +424,10 @@ final class MacOSWindowManager: UIWindowManager {
         switch configuration.background {
         case .system:
             nsWindow.titlebarAppearsTransparent = false
+            nsWindow.titleVisibility = .visible
         case .transparent:
             nsWindow.titlebarAppearsTransparent = true
+            nsWindow.titleVisibility = .hidden
         }
         applyTrafficLightOffset(configuration.trafficLightOffset, to: nsWindow)
     }

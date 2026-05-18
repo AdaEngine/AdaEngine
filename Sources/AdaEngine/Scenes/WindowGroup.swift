@@ -38,25 +38,57 @@ package struct WindowGroupPlugin<Content: View>: Plugin, @unchecked Sendable {
 
     package func setup(in app: borrowing AppWorlds) {
         app.insertResource(
-            InitialContainerView(view: UIContainerView(rootView: self.content))
+            InitialContainerView {
+                UIContainerView(rootView: self.content)
+            }
         )
         app.addSystem(WindowGroupUpdateSystem.self, on: .startup)
         app.spawn(bundle: Camera2D())
     }
 }
 
-struct InitialContainerView: Resource {
-    let view: UIView
+struct InitialContainerView: Resource, @unchecked Sendable {
+    var view: UIView?
+    let makeView: @MainActor () -> UIView
+
+    init(makeView: @escaping @MainActor () -> UIView) {
+        self.makeView = makeView
+    }
 }
 
 @System
 @MainActor
 func WindowGroupUpdate(
     _ context: WorldUpdateContext,
-    _ primaryWindow: ResMut<PrimaryWindow>,
-    _ containerView: Res<InitialContainerView>
+    _ primaryWindow: Res<PrimaryWindow>,
+    _ containerView: ResMut<InitialContainerView>
 ) {
-    let view = containerView.view
+    let targetWindow = primaryWindow.window
+    let view: UIView
+    if let existingView = containerView.wrappedValue.view {
+        view = existingView
+    } else {
+        view = containerView.wrappedValue.makeView()
+        containerView.wrappedValue.view = view
+    }
+
+    guard let currentPrimaryWindow = context.world.getResource(PrimaryWindow.self)?.window,
+          currentPrimaryWindow === targetWindow,
+          targetWindow.windowManager.windows[targetWindow.id] != nil
+    else {
+        return
+    }
+
+    if view.parentView === targetWindow {
+        return
+    }
+
+    if view.parentView != nil {
+        view.removeFromParentView()
+    }
+
     view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
-    primaryWindow.wrappedValue.window.addSubview(view)
+    view.frame = targetWindow.bounds
+    targetWindow.addSubview(view)
+    view.layoutSubviews()
 }

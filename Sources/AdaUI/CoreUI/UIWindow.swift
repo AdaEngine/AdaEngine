@@ -80,7 +80,7 @@ open class UIWindow: UIView {
         self.windowManager.createWindow(for: self)
     }
 
-    init(frame: Rect, configuration: Configuration) {
+    public init(frame: Rect, configuration: Configuration) {
         self.configuration = configuration
         super.init(frame: frame)
         self.backgroundColor = .clear
@@ -249,6 +249,8 @@ public extension UIWindow {
         public var screenPreference: WindowScreenPreference?
         public var showsImmediately: Bool
         public var makeKey: Bool
+        public var hasShadow: Bool
+        public var isResizable: Bool
 
         public init(
             title: String? = nil,
@@ -262,7 +264,9 @@ public extension UIWindow {
             collectionBehavior: CollectionBehavior = .standard,
             screenPreference: WindowScreenPreference? = nil,
             showsImmediately: Bool = true,
-            makeKey: Bool = true
+            makeKey: Bool = true,
+            hasShadow: Bool = true,
+            isResizable: Bool = true
         ) {
             self.title = title
             self.frame = frame
@@ -276,6 +280,8 @@ public extension UIWindow {
             self.screenPreference = screenPreference
             self.showsImmediately = showsImmediately
             self.makeKey = makeKey
+            self.hasShadow = hasShadow
+            self.isResizable = isResizable
         }
     }
 

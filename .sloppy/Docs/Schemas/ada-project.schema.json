@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adaengine.dev/schemas/ada-project.schema.json",
+  "title": "AdaEngine .ada/project.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "displayName": { "type": "string" },
+        "bundleIdentifier": { "type": "string" }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minimumVersion": { "type": "string" },
+        "package": { "type": "string" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sources": { "$ref": "#/$defs/relativePath" },
+        "assets": { "$ref": "#/$defs/relativePath" },
+        "build": { "$ref": "#/$defs/relativePath" },
+        "generated": { "$ref": "#/$defs/relativePath" },
+        "run": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "workingDirectory": { "$ref": "#/$defs/relativePath" } }
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "system": { "enum": ["swiftpm"] },
+        "configuration": { "type": "string" },
+        "targets": { "type": "array", "items": { "$ref": "#/$defs/relativePath" } }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "executable": { "$ref": "#/$defs/relativePath" },
+        "arguments": { "type": "array", "items": { "type": "string" } },
+        "environment": { "type": "object", "additionalProperties": { "type": "string" } },
+        "workingDirectory": { "$ref": "#/$defs/relativePath" }
+      }
+    },
+    "editor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "startupScene": { "$ref": "#/$defs/relativePath" } }
+    },
+    "ai": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mcp": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "allowedResourceRoots": { "type": "array", "items": { "$ref": "#/$defs/relativePath" } }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "anyOf": [
+        { "pattern": "^/" },
+        { "pattern": "^[A-Za-z]:[\\\\/]" },
+        { "pattern": "^~" },
+        { "pattern": "(^|/)\\.\\.(/|$)" },
+        { "pattern": "\\\\" },
+        { "pattern": "//" }
+      ] }
+    }
+  }
+}

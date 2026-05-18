@@ -1,0 +1,23 @@
+name: AdaEditor
+options:
+  bundleIdPrefix: com.adaengine
+  deploymentTarget:
+    macOS: "15.0"
+packages:
+  AdaEditor:
+    path: .
+targets:
+  AdaEditor:
+    type: tool
+    platform: macOS
+    sources: []
+    dependencies:
+      - package: AdaEditor
+        product: AdaEditor
+schemes:
+  AdaEditor:
+    build:
+      targets:
+        AdaEditor: all
+    run:
+      config: Debug

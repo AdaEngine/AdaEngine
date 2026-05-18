@@ -67,6 +67,11 @@ enum TextureAtlasBuilderEntry {
         let configPath = URL(fileURLWithPath: args[cfgIdx + 1], isDirectory: false)
         let outputPath = URL(fileURLWithPath: args[outIdx + 1], isDirectory: false)
 
+        if configPath.lastPathComponent.hasSuffix(".fonts.json") {
+            try buildFontConstants(configPath: configPath, outputPath: outputPath)
+            return
+        }
+
         let data = try Data(contentsOf: configPath)
         let config = try JSONDecoder().decode(AtlasConfig.self, from: data)
 
@@ -424,13 +429,13 @@ private func renderSwift(
     """
 }
 
-private func escapeStr(_ s: String) -> String {
+func escapeStr(_ s: String) -> String {
     s
         .replacingOccurrences(of: "\\", with: "\\\\")
         .replacingOccurrences(of: "\"", with: "\\\"")
 }
 
-private func swiftEnumCaseName(_ key: String) -> String {
+func swiftEnumCaseName(_ key: String) -> String {
     var s = key
     if let f = s.first, f.isNumber {
         s = "_" + s

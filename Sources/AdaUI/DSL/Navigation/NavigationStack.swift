@@ -80,6 +80,7 @@ struct NavigationBarConfiguration: Hashable, Sendable {
     var title: String?
     var titlePosition: NavigationTitlePosition = .automatic
     var titleDisplayMode: NavigationBarTitleDisplayMode = .automatic
+    var navigationBarColor: Color? = nil
     var isHidden = false
     var backButtonHidden = false
 }
@@ -110,6 +111,12 @@ public extension View {
     func navigationTitlePosition(_ position: NavigationTitlePosition) -> some View {
         self.transformEnvironment(\.navigationBarConfiguration) { configuration in
             configuration.titlePosition = position
+        }
+    }
+    
+    func navigationBarColor(_ color: Color?) -> some View {
+        self.transformEnvironment(\.navigationBarConfiguration) { configuration in
+            configuration.navigationBarColor = color
         }
     }
 
@@ -143,10 +150,13 @@ public extension View {
         self.environment(\.navigationBarTrailingItems, NavigationBarItemContent(content: content))
     }
 
-    func navigationBar<Content: View>(
-        @ViewBuilder trailingItems: @MainActor @escaping () -> Content
+    func navigationBar<Leading: View, Trailing: View>(
+        @ViewBuilder leadingItems: @MainActor @escaping () -> Leading,
+        @ViewBuilder trailingItems: @MainActor @escaping () -> Trailing
     ) -> some View {
-        self.navigationBarTrailingItems(trailingItems)
+        self
+            .environment(\.navigationBarLeadingItems, NavigationBarItemContent(content: leadingItems))
+            .environment(\.navigationBarTrailingItems, NavigationBarItemContent(content: trailingItems))
     }
 }
 
@@ -719,15 +729,17 @@ private final class NavigationBarNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = environment
+        let config = context.environment.navigationBarConfiguration
+        let navigationBarColor = config.navigationBarColor ?? .black
         context.translateBy(x: frame.origin.x, y: -frame.origin.y)
         context.drawLinearGradient(
             ResolvedLinearGradient(
                 startPoint: .top,
                 endPoint: .bottom,
                 stops: [
-                    Gradient.Stop(color: .black.opacity(0.98), location: 0),
-                    Gradient.Stop(color: .black.opacity(0.72), location: 0.48),
-                    Gradient.Stop(color: .black.opacity(0), location: 1),
+                    Gradient.Stop(color: navigationBarColor.opacity(0.98), location: 0),
+                    Gradient.Stop(color: navigationBarColor.opacity(0.72), location: 0.48),
+                    Gradient.Stop(color: navigationBarColor.opacity(0), location: 1),
                 ]
             ),
             in: Rect(origin: .zero, size: frame.size)

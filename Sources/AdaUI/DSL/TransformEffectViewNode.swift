@@ -114,14 +114,34 @@ final class TransformEffectViewNode<Value: VectorArithmetic>: ViewModifierNode {
 
     override func draw(with context: UIGraphicsContext) {
         var context = context
-        context.concatenate(self.localTransform)
+        context.environment = environment
+        applyLocalTransform(to: &context)
         contentNode.draw(with: context)
     }
 
     override func inspectionLocalContext(from context: UIGraphicsContext) -> UIGraphicsContext {
         var context = context
         context.environment = environment
-        context.concatenate(self.localTransform)
+        applyLocalTransform(to: &context)
         return context
+    }
+
+    private func applyLocalTransform(to context: inout UIGraphicsContext) {
+        let anchorPoint = Point(
+            x: self.frame.width * anchor.x,
+            y: self.frame.height * anchor.y
+        )
+
+        let frameTranslation = Transform3D(translation: [self.frame.origin.x, -self.frame.origin.y, 0])
+        let anchorTranslation = Transform3D(translation: [anchorPoint.x, -anchorPoint.y, 0])
+        let inverseAnchorTranslation = Transform3D(translation: [-anchorPoint.x, anchorPoint.y, 0])
+
+        context.setTransform(
+            context.transform
+            * frameTranslation
+            * anchorTranslation
+            * self.localTransform
+            * inverseAnchorTranslation
+        )
     }
 }

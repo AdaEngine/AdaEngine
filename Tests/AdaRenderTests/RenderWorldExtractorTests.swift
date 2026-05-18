@@ -18,4 +18,33 @@ struct RenderWorldExtractorTests {
 
         #expect(renderWorld.getResource(PrimaryWindowId.self)?.windowId == windowId)
     }
+
+    @Test("Explicit primary window id resolves to primary surface")
+    func explicitPrimaryWindowIdResolvesToPrimarySurface() {
+        let windowId = RID()
+        var surfaces = WindowSurfaces(windows: [:])
+        surfaces.windows[.primary] = WindowSurface(swapchain: nil, currentDrawable: nil)
+
+        let resolvedSurface = resolveWindowSurface(
+            for: .windowId(windowId),
+            in: surfaces,
+            primaryWindow: PrimaryWindowId(windowId: windowId)
+        )
+
+        #expect(resolvedSurface != nil)
+    }
+
+    @Test("Unregistered non-primary window id has no surface")
+    func unregisteredNonPrimaryWindowIdHasNoSurface() {
+        var surfaces = WindowSurfaces(windows: [:])
+        surfaces.windows[.primary] = WindowSurface(swapchain: nil, currentDrawable: nil)
+
+        let resolvedSurface = resolveWindowSurface(
+            for: .windowId(RID()),
+            in: surfaces,
+            primaryWindow: PrimaryWindowId(windowId: RID())
+        )
+
+        #expect(resolvedSurface == nil)
+    }
 }

@@ -152,14 +152,12 @@ final class FrameViewNode: ViewModifierNode {
             measured.width = Self.clampAxis(
                 measured.width,
                 min: minW,
-                maxBound: maxW,
-                parentCap: proposal.width
+                maxBound: maxW
             )
             measured.height = Self.clampAxis(
                 measured.height,
                 min: minH,
-                maxBound: maxH,
-                parentCap: proposal.height
+                maxBound: maxH
             )
 
             measured.width = Self.expandFlexibleAxis(
@@ -252,8 +250,7 @@ final class FrameViewNode: ViewModifierNode {
     private static func clampAxis(
         _ value: Float,
         min: Float?,
-        maxBound: Float?,
-        parentCap: Float?
+        maxBound: Float?
     ) -> Float {
         var v = value
         if let min {
@@ -261,9 +258,6 @@ final class FrameViewNode: ViewModifierNode {
         }
         if let maxBound, maxBound.isFinite {
             v = Swift.min(v, maxBound)
-        }
-        if let cap = parentCap, cap.isFinite {
-            v = Swift.min(v, cap)
         }
         return v
     }

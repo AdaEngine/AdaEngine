@@ -12,10 +12,15 @@ import Logging
 struct AdaEditorApp: App {
     var body: some AppScene {
         WindowGroup {
-            Text("See you later")
+            ProjectOpeningView()
         }
         .windowMode(.windowed)
-        .windowTitle("AdaEngine")
+        .windowTitle("AdaEditor")
+        .windowTitleBar(WindowTitleBar(background: .transparent, reservesSafeArea: false, dragRegionHeight: 52))
+        .windowTrafficLightOffset(x: 0, y: ProjectOpeningLayout.trafficLightOffsetY)
+        .windowShadow(ProjectOpeningWindowConfiguration.hasShadow)
+        .windowResizable(ProjectOpeningWindowConfiguration.isResizable)
+        .minimumSize(width: ProjectOpeningLayout.windowWidth, height: ProjectOpeningLayout.windowHeight)
     }
 }
 

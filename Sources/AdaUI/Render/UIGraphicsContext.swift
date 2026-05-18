@@ -12,8 +12,6 @@ import AdaUtils
 import Math
 import Collections
 
-// TODO: Clip Mask
-
 /// An immediate mode drawing destination, and its current state.
 ///
 /// Use a context to execute 2D drawing primitives.
@@ -35,7 +33,10 @@ import Collections
 /// }
 /// ```
 ///
-/// The context has access to an ``AdaUtils/EnvironmentValues`` instance called ``environment`` that’s initially copied from the environment of its enclosing view or entity. You can also access values stored in the environment for your own purposes.
+/// The context has access to an ``AdaUtils/EnvironmentValues`` instance called
+/// ``environment`` that’s initially copied from the environment of its enclosing
+/// view or entity. You can also access values stored in the environment for your
+/// own purposes.
 public struct UIGraphicsContext: Sendable {
     public enum PathDrawingMode: Sendable, Equatable {
         case legacy
@@ -275,11 +276,28 @@ public struct UIGraphicsContext: Sendable {
         commandQueue.push(.popClipRect)
     }
 
+    /// Pushes a clipping path in the current coordinate space.
+    public func pushClipPath(_ path: Path) {
+        commandQueue.push(.pushClipPath(path, transform: self.transform))
+    }
+
+    /// Pops the current clipping path.
+    public func popClipPath() {
+        commandQueue.push(.popClipPath)
+    }
+
     /// Executes drawing with a clipping rectangle.
     public mutating func clip(to rect: Rect, draw: (inout UIGraphicsContext) -> Void) {
         pushClipRect(rect)
         draw(&self)
         popClipRect()
+    }
+
+    /// Executes drawing with a clipping path.
+    public mutating func clip(to path: Path, draw: (inout UIGraphicsContext) -> Void) {
+        pushClipPath(path)
+        draw(&self)
+        popClipPath()
     }
 
     @inlinable
@@ -330,6 +348,8 @@ extension UIGraphicsContext {
         case endLayer(id: UInt64)
         case pushClipRect(Rect)
         case popClipRect
+        case pushClipPath(Path, transform: Transform3D)
+        case popClipPath
         case setLineWidth(Float)
         case drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color)
 

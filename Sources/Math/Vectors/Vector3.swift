@@ -93,6 +93,15 @@ public extension Vector3 {
     }
 }
 
+extension Vector3: ExpressibleByFloatLiteral {
+    public typealias FloatLiteralType = Float
+
+    public init(floatLiteral value: Float) {
+        self.init(value)
+    }
+}
+
+
 extension Vector3: ExpressibleByArrayLiteral {
     public init(arrayLiteral elements: Float...) {
         assert(elements.count == 3)
@@ -135,42 +144,49 @@ public extension Vector3 {
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func * (lhs: borrowing Vector3, rhs: Float) -> Vector3 {
         return [lhs.x * rhs, lhs.y * rhs, lhs.z * rhs]
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func + (lhs: borrowing Vector3, rhs: Float) -> Vector3 {
         return [lhs.x + rhs, lhs.y + rhs, lhs.z + rhs]
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func - (lhs: borrowing Vector3, rhs: Float) -> Vector3 {
         return [lhs.x - rhs, lhs.y - rhs, lhs.z - rhs]
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func * (lhs: Float, rhs: borrowing Vector3) -> Vector3 {
         return [lhs * rhs.x, lhs * rhs.y, lhs * rhs.z]
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func + (lhs: Float, rhs: borrowing Vector3) -> Vector3 {
         return [lhs + rhs.x, lhs + rhs.y, lhs + rhs.z]
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func - (lhs: Float, rhs: borrowing Vector3) -> Vector3 {
         return [lhs - rhs.x, lhs - rhs.y, lhs - rhs.z]
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func / (lhs: Float, rhs: borrowing Vector3) -> Vector3 {
         return [lhs / rhs.x, lhs / rhs.y, lhs / rhs.z]
     }
@@ -221,6 +237,7 @@ public extension Vector3 {
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func / (lhs: borrowing Vector3, rhs: Float) -> Vector3 {
         return Vector3(lhs.x / rhs, lhs.y / rhs, lhs.z / rhs)
     }

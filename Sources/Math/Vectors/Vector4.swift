@@ -70,6 +70,15 @@ public extension Vector4 {
     }
 }
 
+extension Vector4: ExpressibleByFloatLiteral {
+    public typealias FloatLiteralType = Float
+
+    public init(floatLiteral value: Float) {
+        self.init(value)
+    }
+}
+
+
 extension Vector4: ExpressibleByArrayLiteral {
     public init(arrayLiteral elements: Float...) {
         assert(elements.count == 4)
@@ -133,24 +142,28 @@ public extension Vector4 {
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func * (lhs: borrowing Vector4, rhs: Float) -> Vector4 {
         return Vector4(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func + (lhs: borrowing Vector4, rhs: Float) -> Vector4 {
         return Vector4(lhs.x + rhs, lhs.y + rhs, lhs.z + rhs, lhs.w + rhs)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func - (lhs: borrowing Vector4, rhs: Float) -> Vector4 {
         return Vector4(lhs.x - rhs, lhs.y - rhs, lhs.z - rhs, lhs.w - rhs)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func * (lhs: Float, rhs: borrowing Vector4) -> Vector4 {
         return Vector4(lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w)
     }
@@ -163,12 +176,14 @@ public extension Vector4 {
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func - (lhs: Float, rhs: borrowing Vector4) -> Vector4 {
         return Vector4(lhs - rhs.x, lhs - rhs.y, lhs - rhs.z, lhs - rhs.w)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func / (lhs: Float, rhs: borrowing Vector4) -> Vector4 {
         return Vector4(lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w)
     }
@@ -199,6 +214,7 @@ public extension Vector4 {
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func / (lhs: borrowing Vector4, rhs: Float) -> Vector4 {
         return Vector4(lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs)
     }

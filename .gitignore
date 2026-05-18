@@ -36,5 +36,8 @@ Derived/
 .idea/
 .ijwb/
 
+# Sloppy
+.sloppy-worktrees/
+
 # Compiled Shaders
 /Sources/AdaEngine/Rendering/Shaders/*.spv

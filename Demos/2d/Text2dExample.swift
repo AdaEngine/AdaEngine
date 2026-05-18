@@ -109,7 +109,7 @@ func AnimateScaleText(
     _ time: Res<ElapsedTime>
 ) {
     query.forEach { transform in
-        let scale = (Math.sin(time.elapsedTime) + 1.1) * 2.0
+        let scale = (Math.sin(time.elapsedTime) + Float(1.1)) * Float(2.0)
         transform.scale.x = scale
         transform.scale.y = scale
     }

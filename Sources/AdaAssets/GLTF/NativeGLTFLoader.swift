@@ -34,8 +34,7 @@ public struct NativeGLTFLoader: GLTFLoader {
     
     private func parseGLB(_ data: Data) throws -> (GLTF, Data?) {
         let magic = data.subdata(in: 0..<4)
-        let version = data.subdata(in: 4..<8).withUnsafeBytes { $0.load(as: UInt32.self) }
-        let length = data.subdata(in: 8..<12).withUnsafeBytes { $0.load(as: UInt32.self) }
+        let version = unsafe data.subdata(in: 4..<8).withUnsafeBytes { unsafe $0.load(as: UInt32.self) }
         
         if magic != Data("glTF".utf8) || version != 2 {
             throw GLTFError.invalidGLB
@@ -46,8 +45,8 @@ public struct NativeGLTFLoader: GLTFLoader {
         var binaryBuffer: Data?
         
         while offset < data.count {
-            let chunkLength = data.subdata(in: offset..<offset+4).withUnsafeBytes { $0.load(as: UInt32.self) }
-            let chunkType = data.subdata(in: offset+4..<offset+8).withUnsafeBytes { $0.load(as: UInt32.self) }
+            let chunkLength = unsafe data.subdata(in: offset..<offset+4).withUnsafeBytes { unsafe $0.load(as: UInt32.self) }
+            let chunkType = unsafe data.subdata(in: offset+4..<offset+8).withUnsafeBytes { unsafe $0.load(as: UInt32.self) }
             let chunkData = data.subdata(in: offset+8..<offset+8+Int(chunkLength))
             
             if chunkType == 0x4E4F534A { // JSON

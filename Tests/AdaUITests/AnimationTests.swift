@@ -20,6 +20,47 @@ struct AnimationTests {
     }
 
     @Test
+    func scaleEffectDrawsAroundAnchorWithoutShiftingCenter() throws {
+        let recorder = TransformRecordingStore()
+
+        let tester = ViewTester {
+            HStack {
+                Button(action: {}) {
+                    TransformRecordingCanvas(store: recorder)
+                        .frame(width: 40, height: 40)
+                }
+                .buttonStyle(TransformRecordingButtonStyle())
+                .scaleEffect(Vector2(1.1, 1.1))
+                .accessibilityIdentifier("scaled-button")
+            }
+        }
+        .setSize(Size(width: 200, height: 100))
+        .performLayout()
+
+        let scaledCenter = try renderRecordedCanvasCenter(in: tester, store: recorder)
+
+        let unscaledRecorder = TransformRecordingStore()
+        let unscaledTester = ViewTester {
+            HStack {
+                Button(action: {}) {
+                    TransformRecordingCanvas(store: unscaledRecorder)
+                        .frame(width: 40, height: 40)
+                }
+                .buttonStyle(TransformRecordingButtonStyle())
+                .scaleEffect(Vector2.one)
+                .accessibilityIdentifier("unscaled-button")
+            }
+        }
+        .setSize(Size(width: 200, height: 100))
+        .performLayout()
+
+        let unscaledCenter = try renderRecordedCanvasCenter(in: unscaledTester, store: unscaledRecorder)
+
+        #expect(abs(scaledCenter.x - unscaledCenter.x) < 0.01)
+        #expect(abs(scaledCenter.y - unscaledCenter.y) < 0.01)
+    }
+
+    @Test
     func opacityAnimationProgressesAndCompletes() {
         let state = BindingBox(false)
         let tester = ViewTester(rootView: AnimatedOpacityView(isDimmed: state.binding))
@@ -611,6 +652,38 @@ struct AnimationTests {
 }
 
 @MainActor
+private final class TransformRecordingStore: @unchecked Sendable {
+    var transforms: [Transform3D] = []
+}
+
+private struct TransformRecordingCanvas: View {
+    let store: TransformRecordingStore
+
+    var body: some View {
+        Canvas { context, _ in
+            store.transforms.append(context.transform)
+        }
+    }
+}
+
+private struct TransformRecordingButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+    }
+}
+
+@MainActor
+private func renderRecordedCanvasCenter<Content: View>(in tester: ViewTester<Content>, store: TransformRecordingStore) throws -> Point {
+    tester.containerView.viewTree.rootNode.draw(with: UIGraphicsContext())
+    let transform = try #require(store.transforms.last)
+    return transformedPoint(Point(x: 20, y: -20), by: transform)
+}
+
+private func transformedPoint(_ point: Point, by transform: Transform3D) -> Point {
+    let vector = transform * Vector4(point.x, point.y, 0, 1)
+    return Point(x: vector.x, y: vector.y)
+}
+
 private final class BindingBox<Value> {
     var value: Value
 

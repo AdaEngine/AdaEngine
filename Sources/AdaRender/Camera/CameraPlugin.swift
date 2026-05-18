@@ -76,6 +76,7 @@ public struct ExtractedCameraSource: Sendable {
 func ConfigurateRenderViewTarget(
     _ query: Query<Entity, Camera, Ref<RenderViewTarget>, ExtractedCameraSource>,
     _ surfaces: Res<WindowSurfaces>,
+    _ primaryWindow: Res<PrimaryWindowId?>,
     _ renderDevice: Res<RenderDeviceHandler>,
     _ cachedViewTargets: ResMut<ExtractedCameraRenderViewTargets>
 ) {
@@ -129,7 +130,7 @@ func ConfigurateRenderViewTarget(
             renderViewTarget.outputTexture = asset.asset
         case .window(let ref):
             renderViewTarget.outputTexture = nil
-            guard let surface = surfaces.windows[ref] else {
+            guard let surface = resolveWindowSurface(for: ref, in: surfaces.wrappedValue, primaryWindow: primaryWindow.wrappedValue) else {
                 logger.error("Failed to configurate render view target for window \(ref). No surface.")
                 return
             }
@@ -149,6 +150,24 @@ func ConfigurateRenderViewTarget(
 
         cachedViewTargets.targets[source.entityId] = renderViewTarget.wrappedValue.cacheableCopy
     }
+}
+
+func resolveWindowSurface(
+    for ref: WindowRef,
+    in surfaces: WindowSurfaces,
+    primaryWindow: PrimaryWindowId?
+) -> WindowSurface? {
+    if let surface = surfaces.windows[ref] {
+        return surface
+    }
+
+    guard case .windowId(let windowId) = ref,
+          primaryWindow?.windowId == windowId
+    else {
+        return nil
+    }
+
+    return surfaces.windows[.primary]
 }
 
 struct CameraRenderNode: RenderNode {

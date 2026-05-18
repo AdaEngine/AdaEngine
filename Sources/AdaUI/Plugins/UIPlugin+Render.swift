@@ -211,24 +211,28 @@ public struct UIRenderTesselationSystem {
                 switch command {
                 case let .beginLayer(id, version, cacheable):
                     activeLayerIDs.insert(id)
+                    var inheritedState = layerStack.last?.state ?? rootState
                     // Flush current state to preserve draw order.
                     if layerStack.isEmpty {
                         flushStateIfNeeded(&rootState, renderDevice: renderDevice.renderDevice).map { rootState.drawDataItems.append($0) }
                         appendRenderItems(rootState.drawDataItems, sortKey: &sortKey, windowId: windowId)
                         rootState.drawDataItems.removeAll(keepingCapacity: true)
+                        inheritedState = rootState
                     } else if layerStack[layerStack.count - 1].mode == .building {
                         flushStateIfNeeded(&layerStack[layerStack.count - 1].state, renderDevice: renderDevice.renderDevice).map {
                             layerStack[layerStack.count - 1].state.drawDataItems.append($0)
                         }
                         appendRenderItems(layerStack[layerStack.count - 1].state.drawDataItems, sortKey: &sortKey, windowId: windowId)
                         layerStack[layerStack.count - 1].state.drawDataItems.removeAll(keepingCapacity: true)
+                        inheritedState = layerStack[layerStack.count - 1].state
                     }
 
-                    if cacheable, let cached = layerDrawCache.entries[id], cached.version == version, cached.cacheable {
+                    let canUseLayerCache = cacheable && inheritedState.currentClipPolygons == nil
+                    if canUseLayerCache, let cached = layerDrawCache.entries[id], cached.version == version, cached.cacheable {
                         appendRenderItems(cached.drawDataItems, sortKey: &sortKey, windowId: windowId)
-                        layerStack.append(ActiveLayer(id: id, version: version, mode: .skipping, cacheable: cacheable))
+                        layerStack.append(ActiveLayer(id: id, version: version, mode: .skipping, cacheable: cacheable, state: inheritedState))
                     } else {
-                        layerStack.append(ActiveLayer(id: id, version: version, mode: .building, cacheable: cacheable))
+                        layerStack.append(ActiveLayer(id: id, version: version, mode: .building, cacheable: canUseLayerCache, state: inheritedState))
                     }
 
                 case let .endLayer(id):
@@ -318,10 +322,19 @@ public struct UIRenderTesselationSystem {
         var currentLineWidth: Float = 1.0
         var currentClipRect: Rect?
         var clipStack: [Rect?] = []
+        var currentClipPolygons: [[Vector2]]?
+        var clipPolygonStack: [[[Vector2]]?] = []
 
-        init(currentClipRect: Rect? = nil, clipStack: [Rect?] = []) {
+        init(
+            currentClipRect: Rect? = nil,
+            clipStack: [Rect?] = [],
+            currentClipPolygons: [[Vector2]]? = nil,
+            clipPolygonStack: [[[Vector2]]?] = []
+        ) {
             self.currentClipRect = currentClipRect
             self.clipStack = clipStack
+            self.currentClipPolygons = currentClipPolygons
+            self.clipPolygonStack = clipPolygonStack
             renderData.textures = [.whiteTexture]
             renderData.fontAtlases = []
             renderData.clipRect = currentClipRect
@@ -338,13 +351,14 @@ public struct UIRenderTesselationSystem {
         var version: UInt64
         var mode: Mode
         var cacheable: Bool
-        var state: DrawBuildState = DrawBuildState()
+        var state: DrawBuildState
 
-        init(id: UInt64, version: UInt64, mode: Mode, cacheable: Bool) {
+        init(id: UInt64, version: UInt64, mode: Mode, cacheable: Bool, state: DrawBuildState = DrawBuildState()) {
             self.id = id
             self.version = version
             self.mode = mode
             self.cacheable = cacheable
+            self.state = state
         }
     }
 
@@ -382,7 +396,9 @@ public struct UIRenderTesselationSystem {
         let flushed = state.renderData
         state = DrawBuildState(
             currentClipRect: state.currentClipRect,
-            clipStack: state.clipStack
+            clipStack: state.clipStack,
+            currentClipPolygons: state.currentClipPolygons,
+            clipPolygonStack: state.clipPolygonStack
         )
         state.drawDataItems = accumulatedDrawDataItems
         return flushed
@@ -410,6 +426,18 @@ public struct UIRenderTesselationSystem {
             flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
             state.currentClipRect = state.clipStack.popLast() ?? nil
             state.renderData.clipRect = state.currentClipRect
+        case let .pushClipPath(path, transform):
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+            state.clipPolygonStack.append(state.currentClipPolygons)
+            let polygons = tessellator.clipPathPolygons(path, transform: transform)
+            if let currentClipPolygons = state.currentClipPolygons {
+                state.currentClipPolygons = tessellator.clipPolygons(currentClipPolygons, to: polygons)
+            } else {
+                state.currentClipPolygons = polygons
+            }
+        case .popClipPath:
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+            state.currentClipPolygons = state.clipPolygonStack.popLast() ?? nil
         case let .setLineWidth(lineWidth):
             state.currentLineWidth = lineWidth
 
@@ -430,17 +458,33 @@ public struct UIRenderTesselationSystem {
                 return
             }
 
-            let vertexOffset = UInt32(state.renderData.quadVertexBuffer.count)
-            let vertices = tessellator.tessellateQuad(
-                transform: transform,
-                texture: texture,
-                color: color,
-                textureIndex: texIndex
-            )
-            state.renderData.quadVertexBuffer.elements.append(contentsOf: vertices)
-
             let indexStart = state.renderData.quadIndexBuffer.count
-            let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            let indices: [UInt32]
+            if let clipPolygons = state.currentClipPolygons {
+                let result = tessellator.tessellateClippedQuad(
+                    transform: transform,
+                    texture: texture,
+                    color: color,
+                    textureIndex: texIndex,
+                    clipPolygons: clipPolygons
+                )
+                let vertexOffset = UInt32(state.renderData.quadVertexBuffer.count)
+                state.renderData.quadVertexBuffer.elements.append(contentsOf: result.vertices)
+                indices = result.indices.map { $0 + vertexOffset }
+            } else {
+                let vertexOffset = UInt32(state.renderData.quadVertexBuffer.count)
+                let vertices = tessellator.tessellateQuad(
+                    transform: transform,
+                    texture: texture,
+                    color: color,
+                    textureIndex: texIndex
+                )
+                state.renderData.quadVertexBuffer.elements.append(contentsOf: vertices)
+                indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            }
+            guard !indices.isEmpty else {
+                return
+            }
             state.renderData.quadIndexBuffer.elements.append(contentsOf: indices)
             appendBatch(
                 textureIndex: texIndex,
@@ -454,12 +498,25 @@ public struct UIRenderTesselationSystem {
             // its own pipeline and reflected resources without reordering UI content.
             flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
 
-            let vertexOffset = UInt32(state.renderData.shaderEffectVertexBuffer.count)
-            let vertices = tessellator.tessellateShaderEffect(transform: transform)
-            state.renderData.shaderEffectVertexBuffer.elements.append(contentsOf: vertices)
-
             let indexStart = state.renderData.shaderEffectIndexBuffer.count
-            let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            let indices: [UInt32]
+            if let clipPolygons = state.currentClipPolygons {
+                let result = tessellator.tessellateClippedShaderEffect(
+                    transform: transform,
+                    clipPolygons: clipPolygons
+                )
+                let vertexOffset = UInt32(state.renderData.shaderEffectVertexBuffer.count)
+                state.renderData.shaderEffectVertexBuffer.elements.append(contentsOf: result.vertices)
+                indices = result.indices.map { $0 + vertexOffset }
+            } else {
+                let vertexOffset = UInt32(state.renderData.shaderEffectVertexBuffer.count)
+                let vertices = tessellator.tessellateShaderEffect(transform: transform)
+                state.renderData.shaderEffectVertexBuffer.elements.append(contentsOf: vertices)
+                indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            }
+            guard !indices.isEmpty else {
+                return
+            }
             state.renderData.shaderEffectIndexBuffer.elements.append(contentsOf: indices)
             state.renderData.shaderEffectBatches.append(
                 UIDrawData.ShaderEffectBatch(
@@ -476,12 +533,25 @@ public struct UIRenderTesselationSystem {
             // draw item to preserve their position in the view hierarchy.
             flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
 
-            let vertexOffset = UInt32(state.renderData.gradientVertexBuffer.count)
-            let vertices = tessellator.tessellateLinearGradient(transform: transform)
-            state.renderData.gradientVertexBuffer.elements.append(contentsOf: vertices)
-
             let indexStart = state.renderData.gradientIndexBuffer.count
-            let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            let indices: [UInt32]
+            if let clipPolygons = state.currentClipPolygons {
+                let result = tessellator.tessellateClippedLinearGradient(
+                    transform: transform,
+                    clipPolygons: clipPolygons
+                )
+                let vertexOffset = UInt32(state.renderData.gradientVertexBuffer.count)
+                state.renderData.gradientVertexBuffer.elements.append(contentsOf: result.vertices)
+                indices = result.indices.map { $0 + vertexOffset }
+            } else {
+                let vertexOffset = UInt32(state.renderData.gradientVertexBuffer.count)
+                let vertices = tessellator.tessellateLinearGradient(transform: transform)
+                state.renderData.gradientVertexBuffer.elements.append(contentsOf: vertices)
+                indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
+            }
+            guard !indices.isEmpty else {
+                return
+            }
             state.renderData.gradientIndexBuffer.elements.append(contentsOf: indices)
 
             let uniformIndex = state.renderData.gradientUniformBuffer.count
@@ -579,7 +649,8 @@ public struct UIRenderTesselationSystem {
                     path,
                     color: color,
                     transform: transform,
-                    textureIndex: texIndex
+                    textureIndex: texIndex,
+                    clipPolygons: state.currentClipPolygons
                 )
                 guard !result.indices.isEmpty else {
                     return
@@ -745,17 +816,35 @@ public struct UIRenderTesselationSystem {
             return
         }
 
-        let vertexOffset = UInt32(state.renderData.glyphVertexBuffer.count)
-        let vertices = tessellator.tessellateGlyph(
-            glyph,
-            transform: transform,
-            textureIndex: texIndex,
-            offset: offset,
-            opacity: opacity
-        )
-        state.renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
         let indexStart = state.renderData.glyphIndexBuffer.count
-        let indices = tessellator.generateGlyphIndices(vertexOffset: vertexOffset)
+        let indices: [UInt32]
+        if let clipPolygons = state.currentClipPolygons {
+            let result = tessellator.tessellateClippedGlyph(
+                glyph,
+                transform: transform,
+                textureIndex: texIndex,
+                offset: offset,
+                opacity: opacity,
+                clipPolygons: clipPolygons
+            )
+            let vertexOffset = UInt32(state.renderData.glyphVertexBuffer.count)
+            state.renderData.glyphVertexBuffer.elements.append(contentsOf: result.vertices)
+            indices = result.indices.map { $0 + vertexOffset }
+        } else {
+            let vertexOffset = UInt32(state.renderData.glyphVertexBuffer.count)
+            let vertices = tessellator.tessellateGlyph(
+                glyph,
+                transform: transform,
+                textureIndex: texIndex,
+                offset: offset,
+                opacity: opacity
+            )
+            state.renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
+            indices = tessellator.generateGlyphIndices(vertexOffset: vertexOffset)
+        }
+        guard !indices.isEmpty else {
+            return
+        }
         state.renderData.glyphIndexBuffer.elements.append(contentsOf: indices)
         appendBatch(
             textureIndex: texIndex,

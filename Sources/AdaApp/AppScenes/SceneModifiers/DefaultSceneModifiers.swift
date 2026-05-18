@@ -66,6 +66,24 @@ struct WindowScreenSceneModifier: SceneModifier {
     }
 }
 
+/// Set the native platform window shadow visibility.
+struct WindowShadowSceneModifier: SceneModifier {
+    let hasShadow: Bool
+
+    func body(content: Content) -> some AppScene {
+        content.updateResource(of: WindowSettings.self, keyPath: \.hasShadow, value: hasShadow)
+    }
+}
+
+/// Set whether the native platform window can be resized by the user.
+struct WindowResizableSceneModifier: SceneModifier {
+    let isResizable: Bool
+
+    func body(content: Content) -> some AppScene {
+        content.updateResource(of: WindowSettings.self, keyPath: \.isResizable, value: isResizable)
+    }
+}
+
 /// Set the title bar presentation for the window.
 struct WindowTitleBarSceneModifier: SceneModifier {
     let titleBar: WindowTitleBar

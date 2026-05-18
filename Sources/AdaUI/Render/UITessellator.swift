@@ -86,6 +86,22 @@ public struct UITessellator {
         ]
     }
 
+    func tessellateClippedQuad(
+        transform: Transform3D,
+        texture: Texture2D?,
+        color: Color,
+        textureIndex: Int,
+        clipPolygons: [[Vector2]]
+    ) -> (vertices: [QuadVertexData], indices: [UInt32]) {
+        let vertices = tessellateQuad(
+            transform: transform,
+            texture: texture,
+            color: color,
+            textureIndex: textureIndex
+        )
+        return clipQuadVertices(vertices, to: clipPolygons)
+    }
+
     /// Tessellates a linear gradient quad into 4 vertices.
     public func tessellateLinearGradient(
         transform: Transform3D
@@ -100,6 +116,13 @@ public struct UITessellator {
         }
     }
 
+    func tessellateClippedLinearGradient(
+        transform: Transform3D,
+        clipPolygons: [[Vector2]]
+    ) -> (vertices: [QuadVertexData], indices: [UInt32]) {
+        clipQuadVertices(tessellateLinearGradient(transform: transform), to: clipPolygons)
+    }
+
     /// Tessellates a custom shader effect quad into 4 vertices.
     public func tessellateShaderEffect(
         transform: Transform3D
@@ -110,6 +133,13 @@ public struct UITessellator {
             color: .white,
             textureIndex: 0
         )
+    }
+
+    func tessellateClippedShaderEffect(
+        transform: Transform3D,
+        clipPolygons: [[Vector2]]
+    ) -> (vertices: [QuadVertexData], indices: [UInt32]) {
+        clipQuadVertices(tessellateShaderEffect(transform: transform), to: clipPolygons)
     }
 
     // MARK: - Circle Tessellation
@@ -248,6 +278,24 @@ public struct UITessellator {
     /// - Returns: Array of 6 indices forming 2 triangles.
     public func generateGlyphIndices(vertexOffset: UInt32) -> [UInt32] {
         return generateQuadIndices(vertexOffset: vertexOffset)
+    }
+
+    func tessellateClippedGlyph(
+        _ glyph: Glyph,
+        transform: Transform3D,
+        textureIndex: Int,
+        offset: Vector2 = .zero,
+        opacity: Float = 1,
+        clipPolygons: [[Vector2]]
+    ) -> (vertices: [GlyphVertexData], indices: [UInt32]) {
+        let vertices = tessellateGlyph(
+            glyph,
+            transform: transform,
+            textureIndex: textureIndex,
+            offset: offset,
+            opacity: opacity
+        )
+        return clipGlyphVertices(vertices, to: clipPolygons)
     }
 
     // MARK: - Glass Tessellation
@@ -450,32 +498,308 @@ public struct UITessellator {
         _ path: Path,
         color: Color,
         transform: Transform3D,
-        textureIndex: Int = 0
+        textureIndex: Int = 0,
+        clipPolygons: [[Vector2]]? = nil
     ) -> (vertices: [QuadVertexData], indices: [UInt32]) {
         var vertices: [QuadVertexData] = []
         var indices: [UInt32] = []
 
         for polygon in flattenClosedSubpaths(from: path) {
-            let polygonIndices = triangulatePolygon(polygon)
-            guard !polygonIndices.isEmpty else {
-                continue
+            let polygons: [[Vector2]]
+            if let clipPolygons {
+                let transformedPolygon = polygon.map { point in
+                    let transformed = transformedPathPoint(point, with: transform)
+                    return Vector2(transformed.x, transformed.y)
+                }
+                polygons = self.clipPolygons([transformedPolygon], to: clipPolygons)
+            } else {
+                polygons = [polygon]
             }
 
-            let vertexOffset = UInt32(vertices.count)
-            for point in polygon {
-                vertices.append(
-                    QuadVertexData(
-                        position: transformedPathPoint(point, with: transform),
-                        color: color,
-                        textureCoordinate: .zero,
-                        textureIndex: textureIndex
+            for polygon in polygons {
+                let polygonIndices = triangulatePolygon(polygon)
+                guard !polygonIndices.isEmpty else {
+                    continue
+                }
+
+                let vertexOffset = UInt32(vertices.count)
+                for point in polygon {
+                    let position: Vector4
+                    if clipPolygons == nil {
+                        position = transformedPathPoint(point, with: transform)
+                    } else {
+                        position = Vector4(point.x, point.y, 0, 1)
+                    }
+                    vertices.append(
+                        QuadVertexData(
+                            position: position,
+                            color: color,
+                            textureCoordinate: .zero,
+                            textureIndex: textureIndex
+                        )
                     )
-                )
+                }
+                indices.append(contentsOf: polygonIndices.map { $0 + vertexOffset })
             }
-            indices.append(contentsOf: polygonIndices.map { $0 + vertexOffset })
         }
 
         return (vertices, indices)
+    }
+
+    func clipPathPolygons(_ path: Path, transform: Transform3D) -> [[Vector2]] {
+        flattenClosedSubpaths(from: path).map { polygon in
+            polygon.map { point in
+                let transformed = transformedPathPoint(point, with: transform)
+                return Vector2(transformed.x, transformed.y)
+            }
+        }
+    }
+
+    func clipPolygons(_ polygons: [[Vector2]], to clipPolygons: [[Vector2]]) -> [[Vector2]] {
+        var result: [[Vector2]] = []
+
+        for polygon in polygons {
+            for clipPolygon in clipPolygons {
+                let clipped = clipVectorPolygon(polygon, to: clipPolygon)
+                if clipped.count >= 3 {
+                    result.append(clipped)
+                }
+            }
+        }
+
+        return result
+    }
+
+    private func clipQuadVertices(
+        _ vertices: [QuadVertexData],
+        to clipPolygons: [[Vector2]]
+    ) -> (vertices: [QuadVertexData], indices: [UInt32]) {
+        var resultVertices: [QuadVertexData] = []
+        var resultIndices: [UInt32] = []
+
+        for clipped in clipVertexPolygon(vertices, to: clipPolygons, position: quadPosition, interpolate: interpolateQuad) {
+            appendFan(for: clipped, vertices: &resultVertices, indices: &resultIndices)
+        }
+
+        return (resultVertices, resultIndices)
+    }
+
+    private func clipGlyphVertices(
+        _ vertices: [GlyphVertexData],
+        to clipPolygons: [[Vector2]]
+    ) -> (vertices: [GlyphVertexData], indices: [UInt32]) {
+        var resultVertices: [GlyphVertexData] = []
+        var resultIndices: [UInt32] = []
+
+        for clipped in clipVertexPolygon(vertices, to: clipPolygons, position: glyphPosition, interpolate: interpolateGlyph) {
+            appendFan(for: clipped, vertices: &resultVertices, indices: &resultIndices)
+        }
+
+        return (resultVertices, resultIndices)
+    }
+
+    private func clipVertexPolygon<Vertex>(
+        _ vertices: [Vertex],
+        to clipPolygons: [[Vector2]],
+        position: (Vertex) -> Vector2,
+        interpolate: (Vertex, Vertex, Float) -> Vertex
+    ) -> [[Vertex]] {
+        var result: [[Vertex]] = []
+
+        for clipPolygon in clipPolygons {
+            var output = vertices
+            let isCounterClockwise = signedArea(of: clipPolygon) >= 0
+
+            for index in clipPolygon.indices {
+                let edgeStart = clipPolygon[index]
+                let edgeEnd = clipPolygon[(index + 1) % clipPolygon.count]
+                output = clipAgainstEdge(
+                    output,
+                    edgeStart: edgeStart,
+                    edgeEnd: edgeEnd,
+                    isCounterClockwise: isCounterClockwise,
+                    position: position,
+                    interpolate: interpolate
+                )
+
+                if output.isEmpty {
+                    break
+                }
+            }
+
+            if output.count >= 3 {
+                result.append(output)
+            }
+        }
+
+        return result
+    }
+
+    private func clipVectorPolygon(_ polygon: [Vector2], to clipPolygon: [Vector2]) -> [Vector2] {
+        let isCounterClockwise = signedArea(of: clipPolygon) >= 0
+        var output = polygon
+
+        for index in clipPolygon.indices {
+            let edgeStart = clipPolygon[index]
+            let edgeEnd = clipPolygon[(index + 1) % clipPolygon.count]
+            output = clipAgainstEdge(
+                output,
+                edgeStart: edgeStart,
+                edgeEnd: edgeEnd,
+                isCounterClockwise: isCounterClockwise,
+                position: { $0 },
+                interpolate: { start, end, t in start + (end - start) * t }
+            )
+
+            if output.isEmpty {
+                break
+            }
+        }
+
+        return output
+    }
+
+    private func clipAgainstEdge<Vertex>(
+        _ vertices: [Vertex],
+        edgeStart: Vector2,
+        edgeEnd: Vector2,
+        isCounterClockwise: Bool,
+        position: (Vertex) -> Vector2,
+        interpolate: (Vertex, Vertex, Float) -> Vertex
+    ) -> [Vertex] {
+        guard let last = vertices.last else {
+            return []
+        }
+
+        var output: [Vertex] = []
+        var previousVertex = last
+        var previousPosition = position(previousVertex)
+        var previousInside = isInsideClipEdge(
+            previousPosition,
+            edgeStart: edgeStart,
+            edgeEnd: edgeEnd,
+            isCounterClockwise: isCounterClockwise
+        )
+
+        for currentVertex in vertices {
+            let currentPosition = position(currentVertex)
+            let currentInside = isInsideClipEdge(
+                currentPosition,
+                edgeStart: edgeStart,
+                edgeEnd: edgeEnd,
+                isCounterClockwise: isCounterClockwise
+            )
+
+            if currentInside {
+                if !previousInside {
+                    let t = intersectionParameter(
+                        from: previousPosition,
+                        to: currentPosition,
+                        edgeStart: edgeStart,
+                        edgeEnd: edgeEnd
+                    )
+                    output.append(interpolate(previousVertex, currentVertex, t))
+                }
+                output.append(currentVertex)
+            } else if previousInside {
+                let t = intersectionParameter(
+                    from: previousPosition,
+                    to: currentPosition,
+                    edgeStart: edgeStart,
+                    edgeEnd: edgeEnd
+                )
+                output.append(interpolate(previousVertex, currentVertex, t))
+            }
+
+            previousVertex = currentVertex
+            previousPosition = currentPosition
+            previousInside = currentInside
+        }
+
+        return output
+    }
+
+    private func appendFan<Vertex>(
+        for polygon: [Vertex],
+        vertices: inout [Vertex],
+        indices: inout [UInt32]
+    ) {
+        guard polygon.count >= 3 else {
+            return
+        }
+
+        let vertexOffset = UInt32(vertices.count)
+        vertices.append(contentsOf: polygon)
+
+        for index in 1..<(polygon.count - 1) {
+            indices.append(vertexOffset)
+            indices.append(vertexOffset + UInt32(index))
+            indices.append(vertexOffset + UInt32(index + 1))
+        }
+    }
+
+    private func isInsideClipEdge(
+        _ point: Vector2,
+        edgeStart: Vector2,
+        edgeEnd: Vector2,
+        isCounterClockwise: Bool
+    ) -> Bool {
+        let edge = edgeEnd - edgeStart
+        let candidate = point - edgeStart
+        let cross = edge.x * candidate.y - edge.y * candidate.x
+        let epsilon: Float = 0.0001
+        return isCounterClockwise ? cross >= -epsilon : cross <= epsilon
+    }
+
+    private func intersectionParameter(
+        from start: Vector2,
+        to end: Vector2,
+        edgeStart: Vector2,
+        edgeEnd: Vector2
+    ) -> Float {
+        let segment = end - start
+        let edge = edgeEnd - edgeStart
+        let denominator = segment.x * edge.y - segment.y * edge.x
+
+        guard abs(denominator) > 0.0001 else {
+            return 0
+        }
+
+        let distance = edgeStart - start
+        let t = (distance.x * edge.y - distance.y * edge.x) / denominator
+        return min(max(t, 0), 1)
+    }
+
+    private func quadPosition(_ vertex: QuadVertexData) -> Vector2 {
+        Vector2(vertex.position.x, vertex.position.y)
+    }
+
+    private func glyphPosition(_ vertex: GlyphVertexData) -> Vector2 {
+        Vector2(vertex.position.x, vertex.position.y)
+    }
+
+    private func interpolateQuad(_ start: QuadVertexData, _ end: QuadVertexData, _ t: Float) -> QuadVertexData {
+        QuadVertexData(
+            position: interpolate(start.position, end.position, t),
+            color: start.color,
+            textureCoordinate: start.textureCoordinate + (end.textureCoordinate - start.textureCoordinate) * t,
+            textureIndex: start.textureIndex
+        )
+    }
+
+    private func interpolateGlyph(_ start: GlyphVertexData, _ end: GlyphVertexData, _ t: Float) -> GlyphVertexData {
+        GlyphVertexData(
+            position: interpolate(start.position, end.position, t),
+            foregroundColor: start.foregroundColor,
+            outlineColor: start.outlineColor,
+            outlineWidth: start.outlineWidth,
+            textureCoordinate: start.textureCoordinate + (end.textureCoordinate - start.textureCoordinate) * t,
+            textureIndex: start.textureIndex
+        )
+    }
+
+    private func interpolate(_ start: Vector4, _ end: Vector4, _ t: Float) -> Vector4 {
+        start + (end - start) * t
     }
 
     // MARK: - Bezier Curve Helpers

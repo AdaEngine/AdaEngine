@@ -21,6 +21,13 @@ struct WindowSceneModifierTests {
     }
 
     @Test
+    func windowResizableModifierUpdatesSettings() {
+        let settings = makeWindowSettings(from: EmptyScene().windowResizable(false))
+
+        #expect(settings.isResizable == false)
+    }
+
+    @Test
     func titleBarSurvivesTrafficLightOffsetModifierOrder() {
         let scene = EmptyScene()
             .windowTrafficLightOffset(x: 24, y: 8)

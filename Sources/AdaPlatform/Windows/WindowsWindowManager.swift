@@ -74,7 +74,10 @@ final class WindowsWindowManager: UIWindowManager {
             unsafe RegisterClassW(&wc)
             
             // Calculate window size including non-client area
-            let windowStyle = DWORD(WS_OVERLAPPEDWINDOW)
+            var windowStyle = DWORD(WS_OVERLAPPEDWINDOW)
+            if !window.configuration.isResizable {
+                windowStyle &= ~DWORD(WS_THICKFRAME | WS_MAXIMIZEBOX)
+            }
             var rect = RECT(
                 left: 0,
                 top: 0,
@@ -200,7 +203,10 @@ final class WindowsWindowManager: UIWindowManager {
         self.uiThread.sync {
             let scaleFactor = getWindowScaleFactor(systemWindow.hwnd)
             let dpi = UINT(max((scaleFactor * 96).rounded(), 96))
-            let style = DWORD(WS_OVERLAPPEDWINDOW)
+            var style = DWORD(WS_OVERLAPPEDWINDOW)
+            if !window.configuration.isResizable {
+                style &= ~DWORD(WS_THICKFRAME | WS_MAXIMIZEBOX)
+            }
             var rect = RECT()
             unsafe GetClientRect(systemWindow.hwnd, &rect)
             rect.right = LONG((size.width * scaleFactor).rounded())

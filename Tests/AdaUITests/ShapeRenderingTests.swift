@@ -93,6 +93,42 @@ struct ShapeRenderingTests {
     }
 
     @Test
+    func graphicsContext_clipPath_recordsPushAndPopCommands() {
+        var path = Path()
+        path.addRect(Rect(x: 0, y: 0, width: 20, height: 20))
+
+        let context = makeContext { context in
+            context.clip(to: path) { clipped in
+                clipped.drawRect(Rect(x: 0, y: 0, width: 40, height: 40), color: .red)
+            }
+        }
+
+        let commands = context.getDrawCommands()
+        guard commands.count == 3 else {
+            Issue.record("Expected push clip path, draw command, and pop clip path.")
+            return
+        }
+
+        guard case let .pushClipPath(recordedPath, transform) = commands[0] else {
+            Issue.record("Expected first command to push a clip path.")
+            return
+        }
+
+        #expect(!recordedPath.isEmpty)
+        #expect(transform == .identity)
+
+        guard case .drawQuad = commands[1] else {
+            Issue.record("Expected clipped body to draw between push and pop.")
+            return
+        }
+
+        guard case .popClipPath = commands[2] else {
+            Issue.record("Expected final command to pop the clip path.")
+            return
+        }
+    }
+
+    @Test
     func tessellator_fillRectProducesTriangleGeometry() {
         var path = Path()
         path.addRect(Rect(x: 0, y: 0, width: 100, height: 60))
@@ -107,6 +143,31 @@ struct ShapeRenderingTests {
         #expect(result.indices.count == 6)
         #expect(result.vertices.allSatisfy { $0.color == .green })
         #expect(result.vertices.map(\.position.y).min() == -60)
+        #expect(result.vertices.map(\.position.y).max() == 0)
+    }
+
+    @Test
+    func tessellator_clipsQuadGeometryAgainstMaskPolygon() {
+        let clipPolygon = [
+            Vector2(0, 0),
+            Vector2(50, 0),
+            Vector2(50, -100),
+            Vector2(0, -100)
+        ]
+
+        let result = UITessellator().tessellateClippedQuad(
+            transform: Rect(x: 0, y: 0, width: 100, height: 100).toTransform3D,
+            texture: nil,
+            color: .red,
+            textureIndex: 0,
+            clipPolygons: [clipPolygon]
+        )
+
+        #expect(!result.vertices.isEmpty)
+        #expect(!result.indices.isEmpty)
+        #expect(result.vertices.map(\.position.x).min() == 0)
+        #expect(result.vertices.map(\.position.x).max() == 50)
+        #expect(result.vertices.map(\.position.y).min() == -100)
         #expect(result.vertices.map(\.position.y).max() == 0)
     }
 
@@ -187,6 +248,51 @@ struct ShapeRenderingTests {
 
         #expect(firstPoint == Vector2.zero)
         #expect(transform != .identity)
+    }
+
+    @Test
+    func maskShapeModifier_wrapsContentDrawingInClipPath() {
+        let tester = ViewTester {
+            Color.red
+                .frame(width: 80, height: 80)
+                .mask(RoundedRectangleShape(cornerRadius: 12))
+        }
+        .setSize(Size(width: 120, height: 120))
+        .performLayout()
+
+        let context = UIGraphicsContext()
+        tester.containerView.draw(
+            in: Rect(origin: .zero, size: tester.containerView.frame.size),
+            with: context
+        )
+
+        let commands = context.getDrawCommands()
+        guard let pushIndex = commands.firstIndex(where: {
+            if case .pushClipPath = $0 { return true }
+            return false
+        }) else {
+            Issue.record("Expected mask modifier to push a clip path.")
+            return
+        }
+
+        guard let drawIndex = commands.firstIndex(where: {
+            if case .drawQuad = $0 { return true }
+            return false
+        }) else {
+            Issue.record("Expected masked content to draw a quad.")
+            return
+        }
+
+        guard let popIndex = commands.firstIndex(where: {
+            if case .popClipPath = $0 { return true }
+            return false
+        }) else {
+            Issue.record("Expected mask modifier to pop the clip path.")
+            return
+        }
+
+        #expect(pushIndex < drawIndex)
+        #expect(drawIndex < popIndex)
     }
 
     private func makeContext(

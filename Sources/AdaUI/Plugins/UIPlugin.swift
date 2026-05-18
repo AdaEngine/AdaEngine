@@ -97,7 +97,9 @@ public struct WindowPlugin: Plugin {
                 minimumSize: embeddedWindowSize,
                 mode: .fullscreen,
                 titleBar: UIWindow.TitleBar(windowSettings.titleBar),
-                showsImmediately: false
+                showsImmediately: false,
+                hasShadow: windowSettings.hasShadow,
+                isResizable: windowSettings.isResizable
             )
             #else
             let configuration = UIWindow.Configuration(
@@ -107,7 +109,9 @@ public struct WindowPlugin: Plugin {
                 mode: UIWindow.Mode(windowSettings.windowMode),
                 titleBar: UIWindow.TitleBar(windowSettings.titleBar),
                 screenPreference: windowSettings.screenPreference,
-                showsImmediately: false
+                showsImmediately: false,
+                hasShadow: windowSettings.hasShadow,
+                isResizable: windowSettings.isResizable
             )
             #endif
             let window = UIWindow(configuration: configuration)
@@ -121,6 +125,10 @@ public struct WindowPlugin: Plugin {
 
 public struct PrimaryWindow: Resource {
     public let window: UIWindow
+
+    public init(window: UIWindow) {
+        self.window = window
+    }
 }
 
 public struct WindowManagerResource: Resource {

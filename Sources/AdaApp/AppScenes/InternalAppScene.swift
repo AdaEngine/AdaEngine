@@ -93,6 +93,12 @@ public struct WindowSettings: Resource {
     /// The title of the window.
     public var title: String?
 
+    /// Whether the native platform window should draw a drop shadow.
+    public var hasShadow: Bool = true
+
+    /// Whether users can resize the native platform window.
+    public var isResizable: Bool = true
+
     /// Platform title bar presentation settings.
     public var titleBar: WindowTitleBar = .standard
 

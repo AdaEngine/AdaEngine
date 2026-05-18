@@ -55,10 +55,6 @@ let miniaudioSources = ["miniaudio.c"]
 #endif
 
 var products: [Product] = [
-    .executable(
-        name: "AdaEditor",
-        targets: ["AdaEditor"]
-    ),
     .library(
         name: "AdaEngine",
         targets: ["AdaEngine"]
@@ -128,33 +124,6 @@ var products: [Product] = [
 
 // Check that we target on vulkan dependency
 
-// TODO: It's works if we wrap sources to .swiftpm container and run in Swift Plaground App
-#if canImport(AppleProductTypes)
-let ios = Product.iOSApplication(
-    name: "AdaEditor-iOS",
-    targets: ["AdaEditor"],
-    bundleIdentifier: "com.adaengine.editor",
-    teamIdentifier: "",
-    displayVersion: "1.0",
-    bundleVersion: "1",
-    iconAssetName: "AppIcon",
-    accentColorAssetName: "AccentColor",
-    supportedDeviceFamilies: [
-        .pad,
-        .phone
-    ],
-    supportedInterfaceOrientations: [
-        .portrait,
-        .landscapeRight,
-        .landscapeLeft,
-        .portraitUpsideDown(.when(deviceFamilies: [.pad]))
-    ]
-)
-
-// Xcode crashed after that move...
-// products.append(ios)
-#endif
-
 // MARK: - Targets
 
 // MARK: Editor Target
@@ -185,30 +154,6 @@ var swiftSettings: [SwiftSetting] = [
     .strictMemorySafety(),
     .unsafeFlags(["-Xfrontend", "-validate-tbd-against-ir=none"]),
 ]
-
-let editorTarget: Target = .executableTarget(
-    name: "AdaEditor",
-    dependencies: ["AdaEngine", "Math"],
-    exclude: [
-        "Platforms/iOS/Info.plist",
-        "Platforms/macOS/Info.plist"
-    ],
-    resources: [
-        .copy("Assets")
-    ],
-    swiftSettings: swiftSettings + [
-        .define("EDITOR_DEBUG", .when(configuration: .debug)),
-
-        // List of defines availables only for editor
-        .define("EDITOR_MACOS", .when(platforms: [.macOS])),
-        .define("EDITOR_WINDOWS", .when(platforms: [.windows])),
-        .define("EDITOR_IOS", .when(platforms: [.iOS])),
-        .define("EDITOR_TVOS", .when(platforms: [.tvOS])),
-        .define("EDITOR_ANDROID", .when(platforms: [.android])),
-        .define("EDITOR_LINUX", .when(platforms: [.linux])),
-    ],
-    plugins: commonPlugins
-)
 
 // MARK: Ada Engine SDK
 
@@ -307,7 +252,6 @@ let adaEngineMacros: Target = .macro(
 // MARK: Other Targets
 
 var targets: [Target] = [
-    editorTarget,
     adaEngineTarget,
     adaEngineEmbeddable,
     adaEngineMacros,

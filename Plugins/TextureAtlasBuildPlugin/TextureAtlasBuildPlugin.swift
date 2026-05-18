@@ -25,7 +25,7 @@ struct TextureAtlasBuildPlugin: BuildToolPlugin {
 
         var configs: [URL] = []
         while let item = enumerator.nextObject() as? URL {
-            if item.lastPathComponent.hasSuffix(".atlas.json") {
+            if item.lastPathComponent.hasSuffix(".atlas.json") || item.lastPathComponent.hasSuffix(".fonts.json") {
                 configs.append(item)
             }
         }
@@ -35,27 +35,29 @@ struct TextureAtlasBuildPlugin: BuildToolPlugin {
 
         for configURL in configs {
             let data = try Data(contentsOf: configURL)
-            let lite = try JSONDecoder().decode(AtlasConfigLite.self, from: data)
+            let lite = try JSONDecoder().decode(AssetConstantsConfigLite.self, from: data)
             let baseDir = configURL.deletingLastPathComponent()
             let inputDir = baseDir.appendingPathComponent(lite.inputDirectory, isDirectory: true)
+            let isFontsConfig = configURL.lastPathComponent.hasSuffix(".fonts.json")
 
             var inputs: [Path] = [Path(configURL.path)]
             if fileManager.fileExists(atPath: inputDir.path) {
-                let pngs = try fileManager.contentsOfDirectory(
+                let resourceExtensions = isFontsConfig ? AssetConstantsConfigLite.fontExtensions : AssetConstantsConfigLite.pngExtensions
+                let resources = try fileManager.contentsOfDirectory(
                     at: inputDir,
                     includingPropertiesForKeys: nil,
                     options: [.skipsHiddenFiles]
-                ).filter { $0.pathExtension.lowercased() == "png" }.sorted { $0.path < $1.path }
-                inputs.append(contentsOf: pngs.map { Path($0.path) })
+                ).filter { resourceExtensions.contains($0.pathExtension.lowercased()) }.sorted { $0.path < $1.path }
+                inputs.append(contentsOf: resources.map { Path($0.path) })
             }
 
-            let safeName = lite.atlasName.replacingOccurrences(of: " ", with: "_")
-            let outName = "\(safeName)Atlas+Generated.swift"
+            let safeName = lite.outputName.replacingOccurrences(of: " ", with: "_")
+            let outName = isFontsConfig ? "\(safeName)Fonts+Generated.swift" : "\(safeName)Atlas+Generated.swift"
             let outPath = context.pluginWorkDirectory.appending(outName)
 
             commands.append(
                 .buildCommand(
-                    displayName: "Pack texture atlas \(lite.atlasName)",
+                    displayName: isFontsConfig ? "Generate font constants \(lite.outputName)" : "Pack texture atlas \(lite.outputName)",
                     executable: tool.path,
                     arguments: [
                         "--config", configURL.path,
@@ -72,7 +74,15 @@ struct TextureAtlasBuildPlugin: BuildToolPlugin {
     }
 }
 
-private struct AtlasConfigLite: Codable, Sendable {
-    var atlasName: String
+private struct AssetConstantsConfigLite: Codable, Sendable {
+    static let fontExtensions: Set<String> = ["ttf", "otf", "ttc"]
+    static let pngExtensions: Set<String> = ["png"]
+
+    var atlasName: String?
+    var fontSetName: String?
     var inputDirectory: String
+
+    var outputName: String {
+        fontSetName ?? atlasName ?? "Assets"
+    }
 }

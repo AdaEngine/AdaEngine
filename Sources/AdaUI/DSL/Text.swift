@@ -247,7 +247,35 @@ extension Text {
             }
 
             self.layoutManager.fitToSize(Size(width: idealWidth, height: idealHeight))
-            return self.layoutManager.boundingSize()
+            return self.visualBoundingSize()
+        }
+
+        private func visualBoundingSize() -> Size {
+            let layoutSize = self.layoutManager.boundingSize()
+            var minX = Float.infinity
+            var maxX = -Float.infinity
+
+            for line in self.layoutManager.textLines {
+                for run in line {
+                    for glyph in run {
+                        minX = min(minX, glyph.position.x)
+                        maxX = max(maxX, glyph.position.z)
+                    }
+                }
+            }
+
+            guard minX.isFinite, maxX.isFinite else {
+                return layoutSize
+            }
+
+            let visibleWidth = max(0, maxX - minX)
+            let originWidth = max(maxX, visibleWidth)
+            let width = minX > 0 ? visibleWidth : originWidth
+
+            return Size(
+                width: width.rounded(.up) + 1,
+                height: layoutSize.height
+            )
         }
     }
 }

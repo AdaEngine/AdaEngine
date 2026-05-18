@@ -46,6 +46,15 @@ public extension Vector2 {
     }
 }
 
+extension Vector2: ExpressibleByFloatLiteral {
+    public typealias FloatLiteralType = Float
+
+    public init(floatLiteral value: Float) {
+        self.init(value)
+    }
+}
+
+
 extension Vector2: ExpressibleByArrayLiteral {
     public init(arrayLiteral elements: Float...) {
         assert(elements.count == 2)
@@ -134,48 +143,56 @@ public extension Vector2 {
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func * (lhs: borrowing Vector2, rhs: Float) -> Vector2 {
         return Vector2(lhs.x * rhs, lhs.y * rhs)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func + (lhs: borrowing Vector2, rhs: Float) -> Vector2 {
         return Vector2(lhs.x + rhs, lhs.y + rhs)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func - (lhs: borrowing Vector2, rhs: Float) -> Vector2 {
         return Vector2(lhs.x - rhs, lhs.y - rhs)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func / (lhs: borrowing Vector2, rhs: Float) -> Vector2 {
         return Vector2(lhs.x / rhs, lhs.y / rhs)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func * (lhs: Float, rhs: borrowing Vector2) -> Vector2 {
         return Vector2(lhs * rhs.x, lhs * rhs.y)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func + (lhs: Float, rhs: borrowing Vector2) -> Vector2 {
         return Vector2(lhs + rhs.x, lhs + rhs.y)
     }
     
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func - (lhs: Float, rhs: borrowing Vector2) -> Vector2 {
         return Vector2(lhs - rhs.x, lhs - rhs.y)
     }
 
     @inlinable
     @inline(__always)
+    @_disfavoredOverload
     static func / (lhs: Float, rhs: borrowing Vector2) -> Vector2 {
         return Vector2(lhs / rhs.x, lhs / rhs.y)
     }

@@ -121,6 +121,51 @@ struct ButtonStyleTests {
     }
 
     @Test
+    func glassButtonStyleEmitsGlassDrawCommand() throws {
+        let tester = ViewTester {
+            Button("Glass") {}
+                .buttonStyle(GlassButtonStyle())
+        }
+        .setSize(Size(width: 220, height: 120))
+        .performLayout()
+
+        let context = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: context)
+
+        let glassConfiguration = try #require(context.getDrawCommands().glassConfigurations.first)
+        #expect(glassConfiguration.blurRadius == AdaColorPalette.landingButtonGlass.blurRadius)
+        #expect(context.getDrawCommands().containsTextDraw)
+    }
+
+    @Test
+    func glassButtonStyleUsesPressedGlassWhenSelected() throws {
+        let normalGlass = Glass.regular.blurRadius(7)
+        let pressedGlass = Glass.interaction.blurRadius(19)
+
+        let tester = ViewTester {
+            Button("Press") {}
+                .buttonStyle(GlassButtonStyle(glass: normalGlass, highlightedGlass: normalGlass, pressedGlass: pressedGlass))
+        }
+        .setSize(Size(width: 220, height: 120))
+        .performLayout()
+
+        let button = try #require(buttonNodes(in: tester.containerView.viewTree.rootNode).first)
+        let buttonFrame = button.absoluteFrame()
+        let buttonCenter = Point(
+            x: buttonFrame.origin.x + buttonFrame.width * 0.5,
+            y: buttonFrame.origin.y + buttonFrame.height * 0.5
+        )
+
+        tester.sendMouseEvent(at: buttonCenter, button: .left, phase: .began)
+
+        let context = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: context)
+
+        let glassConfiguration = try #require(context.getDrawCommands().glassConfigurations.first)
+        #expect(glassConfiguration.blurRadius == pressedGlass.blurRadius)
+    }
+
+    @Test
     func buttonHoverInvalidationMarksContainerForRedraw() throws {
         let tester = ViewTester {
             Button(action: {}) {
@@ -289,5 +334,28 @@ private func reflectedButtonChildNodes(of node: ViewNode) -> [ViewNode] {
             return node.map { [$0] } ?? []
         }
         return []
+    }
+}
+
+private extension [UIGraphicsContext.DrawCommand] {
+    var containsTextDraw: Bool {
+        contains {
+            if case .drawText = $0 {
+                return true
+            }
+            if case .drawGlyph = $0 {
+                return true
+            }
+            return false
+        }
+    }
+
+    var glassConfigurations: [Glass] {
+        compactMap { command in
+            if case let .drawGlassRect(_, _, configuration, _) = command {
+                return configuration
+            }
+            return nil
+        }
     }
 }

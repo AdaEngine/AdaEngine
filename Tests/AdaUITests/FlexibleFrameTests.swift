@@ -63,4 +63,23 @@ struct FlexibleFrameTests {
         #expect(size.width == 400)
         #expect(size.height == 300)
     }
+
+    @Test
+    func frameMinWidthWithParentProposalKeepsContentAtRequestedMinimum() {
+        let tester = ViewTester {
+            EmptyView()
+                .frame(width: 120, height: 40)
+                .frame(minWidth: 900, minHeight: 560, alignment: .topLeading)
+        }
+        .setSize(Size(width: 100, height: 100))
+        .performLayout()
+
+        let size = tester.containerView.viewTree.rootNode.contentNode.sizeThatFits(
+            ProposedViewSize(width: 100, height: 100)
+        )
+
+        #expect(size.width == 900)
+        #expect(size.height == 560)
+    }
+
 }

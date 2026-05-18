@@ -120,6 +120,27 @@ struct TextRenderingRegressionTests {
     }
 
     @Test
+    func fixedWidthFrameCentersTextWithoutRewrappingMeasuredWidth() {
+        let tester = ViewTester {
+            Text("Create new project")
+                .font(.system(size: 15))
+                .accessibilityIdentifier("button-title")
+                .frame(width: 220, height: 48)
+        }
+        .setSize(Size(width: 220, height: 80))
+        .performLayout()
+
+        let textNode = tester.findNodeByAccessibilityIdentifier("button-title")
+        #expect((textNode?.frame.width ?? 220) < 220)
+
+        let context = UIGraphicsContext()
+        tester.containerView.viewTree.rootNode.draw(with: context)
+        let rows = drawnGlyphRowCenters(in: context.getDrawCommands())
+
+        #expect(rows.count == 1)
+    }
+
+    @Test
     func unboundedTextMeasurementIsNotReusedFromClippedLayout() {
         let layoutManager = TextLayoutManager()
         layoutManager.setTextContainer(
@@ -313,13 +334,13 @@ struct TextRenderingRegressionTests {
     }
 
     @Test
-    func multilineTextAlignmentDefaultsToCenter() {
+    func multilineTextAlignmentDefaultsToLeading() {
         let text = Text("Hello world")
         let environment = EnvironmentValues()
 
         _ = text.storage.applyingEnvironment(environment)
 
-        #expect(text.storage.multilineTextAlignment == .center)
+        #expect(text.storage.multilineTextAlignment == .leading)
     }
 
     private func visualRowGlyphCounts(
@@ -395,13 +416,40 @@ struct TextRenderingRegressionTests {
         node.draw(with: context)
 
         for command in context.getDrawCommands() {
-            if case let .drawGlyph(glyph, _) = command {
+            if case let .drawGlyph(glyph, _, _) = command {
                 return glyph.attributes.foregroundColor
             }
         }
 
         Issue.record("Expected text node to draw at least one glyph")
         throw TextRenderingRegressionTestError.missingGlyph
+    }
+
+    private func drawnGlyphRowCenters(in commands: [UIGraphicsContext.DrawCommand]) -> [Float] {
+        var centers: [Float] = []
+
+        for command in commands {
+            guard case let .drawGlyph(glyph, transform, _) = command else {
+                continue
+            }
+
+            centers.append(transform.w.y + ((glyph.position.y + glyph.position.w) / 2))
+        }
+
+        var rows: [Float] = []
+
+        for center in centers.sorted(by: >) {
+            guard let last = rows.last else {
+                rows.append(center)
+                continue
+            }
+
+            if abs(last - center) > 8 {
+                rows.append(center)
+            }
+        }
+
+        return rows
     }
 }
 

@@ -71,6 +71,16 @@ public extension AppScene {
         return self.modifier(IsSingleWindowSceneModifier(isSingleWindow: isSingleWindow))
     }
 
+    /// Set whether the native platform window should draw a drop shadow.
+    func windowShadow(_ hasShadow: Bool) -> some AppScene {
+        self.modifier(WindowShadowSceneModifier(hasShadow: hasShadow))
+    }
+
+    /// Set whether the native platform window can be resized by the user.
+    func windowResizable(_ isResizable: Bool) -> some AppScene {
+        self.modifier(WindowResizableSceneModifier(isResizable: isResizable))
+    }
+
     /// Set the window title.
     func windowTitle(_ title: String) -> some AppScene {
         self.modifier(WindowTitleSceneModifier(title: title))

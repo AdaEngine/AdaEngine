@@ -6,6 +6,7 @@
 //
 
 import AdaUtils
+import Math
 
 /// A protocol that defines a button style.
 @_typeEraser(AnyButtonStyle)
@@ -126,6 +127,165 @@ public struct NavigationBarButtonStyle: ButtonStyle {
             .frame(height: Constants.height)
             .glassEffect(glass, in: .capsule)
             .fixedSize(horizontal: true, vertical: false)
+    }
+}
+
+private enum GlassButtonStyleDefaults {
+    static var highlightedGlass: Glass {
+        var glass = AdaColorPalette.landingButtonGlass
+        glass.glassTintStrength = 0.92
+        glass.glareIntensity = 0.62
+        glass.tintColor = Color(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.18)
+        return glass
+    }
+}
+
+/// A liquid glass button style for prominent Ada UI controls.
+public struct GlassButtonStyle<S: Shape>: ButtonStyle, @unchecked Sendable {
+    @Environment(\.isEnabled) private var isEnabled
+
+    public var glass: Glass
+    public var highlightedGlass: Glass
+    public var pressedGlass: Glass
+    public var disabledGlass: Glass
+    public var shape: S
+    public var foregroundColor: Color
+    public var borderColor: Color
+    public var borderWidth: Float
+    public var horizontalPadding: Float
+    public var verticalPadding: Float
+    public var minHeight: Float
+    public var highlightedScale: Float
+    public var pressedScale: Float
+    public var disabledOpacity: Float
+
+    /// Initialize a new glass button style.
+    public init(
+        glass: Glass = AdaColorPalette.landingButtonGlass,
+        highlightedGlass: Glass? = nil,
+        pressedGlass: Glass = .interaction,
+        disabledGlass: Glass = .clear,
+        shape: S,
+        foregroundColor: Color = .white,
+        borderColor: Color = AdaColorPalette.landingGlassBorder,
+        borderWidth: Float = 1,
+        horizontalPadding: Float = 16,
+        verticalPadding: Float = 0,
+        minHeight: Float = 36,
+        highlightedScale: Float = 1.02,
+        pressedScale: Float = 0.98,
+        disabledOpacity: Float = 0.48
+    ) {
+        self.glass = glass
+        self.highlightedGlass = highlightedGlass ?? GlassButtonStyleDefaults.highlightedGlass
+        self.pressedGlass = pressedGlass
+        self.disabledGlass = disabledGlass
+        self.shape = shape
+        self.foregroundColor = foregroundColor
+        self.borderColor = borderColor
+        self.borderWidth = borderWidth
+        self.horizontalPadding = horizontalPadding
+        self.verticalPadding = verticalPadding
+        self.minHeight = minHeight
+        self.highlightedScale = highlightedScale
+        self.pressedScale = pressedScale
+        self.disabledOpacity = disabledOpacity
+    }
+
+    /// Make the body of the glass button style.
+    ///
+    /// - Parameter configuration: The configuration of the glass button style.
+    /// - Returns: The body of the glass button style.
+    public func makeBody(configuration: Configuration) -> some View {
+        let controlIsEnabled = isEnabled && configuration.state.isEnabled
+        let activeOrFocused = configuration.isHighlighted || configuration.state.contains(.focused)
+
+        return configuration.label
+            .foregroundColor(foregroundColor)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .frame(minHeight: minHeight)
+            .glassEffect(glass(for: configuration, isEnabled: controlIsEnabled, isActiveOrFocused: activeOrFocused), in: shape)
+            .overlay {
+                shape.stroke(borderColor, lineWidth: borderWidth)
+            }
+            .scaleEffect(scale(for: configuration, isEnabled: controlIsEnabled, isActiveOrFocused: activeOrFocused))
+            .opacity(controlIsEnabled ? 1.0 : disabledOpacity)
+    }
+
+    private func glass(for configuration: Configuration, isEnabled: Bool, isActiveOrFocused: Bool) -> Glass {
+        guard isEnabled else {
+            return disabledGlass
+        }
+
+        if configuration.isSelected {
+            return pressedGlass
+        }
+
+        if isActiveOrFocused {
+            return highlightedGlass
+        }
+
+        return glass
+    }
+
+    private func scale(for configuration: Configuration, isEnabled: Bool, isActiveOrFocused: Bool) -> Vector2 {
+        guard isEnabled else {
+            return .one
+        }
+
+        if configuration.isSelected {
+            return Vector2(pressedScale)
+        }
+
+        if isActiveOrFocused {
+            return Vector2(highlightedScale)
+        }
+
+        return .one
+    }
+}
+
+public extension GlassButtonStyle where S == CapsuleShape {
+    /// Initialize a new capsule-shaped glass button style.
+    init(
+        glass: Glass = AdaColorPalette.landingButtonGlass,
+        highlightedGlass: Glass? = nil,
+        pressedGlass: Glass = .interaction,
+        disabledGlass: Glass = .clear,
+        foregroundColor: Color = .white,
+        borderColor: Color = AdaColorPalette.landingGlassBorder,
+        borderWidth: Float = 1,
+        horizontalPadding: Float = 16,
+        verticalPadding: Float = 0,
+        minHeight: Float = 36,
+        highlightedScale: Float = 1.02,
+        pressedScale: Float = 0.98,
+        disabledOpacity: Float = 0.48
+    ) {
+        self.init(
+            glass: glass,
+            highlightedGlass: highlightedGlass,
+            pressedGlass: pressedGlass,
+            disabledGlass: disabledGlass,
+            shape: CapsuleShape(),
+            foregroundColor: foregroundColor,
+            borderColor: borderColor,
+            borderWidth: borderWidth,
+            horizontalPadding: horizontalPadding,
+            verticalPadding: verticalPadding,
+            minHeight: minHeight,
+            highlightedScale: highlightedScale,
+            pressedScale: pressedScale,
+            disabledOpacity: disabledOpacity
+        )
+    }
+}
+
+public extension ButtonStyle where Self == GlassButtonStyle<CapsuleShape> {
+    /// The default capsule-shaped liquid glass button style.
+    static var glass: GlassButtonStyle<CapsuleShape> {
+        GlassButtonStyle()
     }
 }
 
