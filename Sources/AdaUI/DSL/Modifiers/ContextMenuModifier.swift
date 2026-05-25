@@ -35,12 +35,14 @@ public struct ContextMenuPresentation {
         public let title: String
         public let role: Role?
         public let action: (() -> Void)?
+        public let submenu: [Item]
 
-        public init(id: Int, title: String, role: Role? = nil, action: (() -> Void)? = nil) {
+        public init(id: Int, title: String, role: Role? = nil, action: (() -> Void)? = nil, submenu: [Item] = []) {
             self.id = id
             self.title = title
             self.role = role
             self.action = action
+            self.submenu = submenu
         }
     }
 
@@ -59,6 +61,22 @@ public struct ContextMenuPresentation {
 @MainActor
 public enum ContextMenuPresentationCenter {
     public static var present: ((ContextMenuPresentation) -> Void)?
+    public static var dismissAll: (() -> Bool)?
+    public static var dismissForInteraction: ((UIWindow?) -> Void)?
+}
+
+/// A submenu entry for ``View/contextMenu(menuItems:)``.
+public struct ContextMenuSubmenu<MenuItems: View>: View {
+    public typealias Body = Never
+    public var body: Never { fatalError() }
+
+    let title: String
+    let menuItems: () -> MenuItems
+
+    public init(_ title: String, @ViewBuilder menuItems: @escaping () -> MenuItems) {
+        self.title = title
+        self.menuItems = menuItems
+    }
 }
 
 private struct ContextMenuViewModifier<WrappedContent: View, MenuItems: View>: ViewModifier, ViewNodeBuilder {
@@ -232,7 +250,8 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                         id: index,
                         title: item.title,
                         role: item.role,
-                        action: item.action
+                        action: item.action,
+                        submenu: item.submenu.presentationItems()
                     )
                 }
             )
@@ -244,6 +263,19 @@ private struct ContextMenuItemDescription {
     let title: String
     let role: ContextMenuPresentation.Item.Role?
     let action: (() -> Void)?
+    let submenu: [ContextMenuItemDescription]
+
+    init(
+        title: String,
+        role: ContextMenuPresentation.Item.Role? = nil,
+        action: (() -> Void)? = nil,
+        submenu: [ContextMenuItemDescription] = []
+    ) {
+        self.title = title
+        self.role = role
+        self.action = action
+        self.submenu = submenu
+    }
 }
 
 @MainActor
@@ -269,6 +301,18 @@ extension Button: ContextMenuItemsConvertible {
                 title: title,
                 role: role == .destructive ? .destructive : nil,
                 action: action
+            )
+        ]
+    }
+}
+
+@MainActor
+extension ContextMenuSubmenu: ContextMenuItemsConvertible {
+    fileprivate var contextMenuItems: [ContextMenuItemDescription] {
+        [
+            ContextMenuItemDescription(
+                title: title,
+                submenu: menuItems().contextMenuItems
             )
         ]
     }
@@ -318,5 +362,19 @@ extension _ConditionalContent: ContextMenuItemsConvertible where TrueContent: Vi
 extension AnyView: ContextMenuItemsConvertible {
     fileprivate var contextMenuItems: [ContextMenuItemDescription] {
         content.contextMenuItems
+    }
+}
+
+private extension [ContextMenuItemDescription] {
+    func presentationItems() -> [ContextMenuPresentation.Item] {
+        self.enumerated().map { index, item in
+            ContextMenuPresentation.Item(
+                id: index,
+                title: item.title,
+                role: item.role,
+                action: item.action,
+                submenu: item.submenu.presentationItems()
+            )
+        }
     }
 }

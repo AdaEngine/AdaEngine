@@ -6,6 +6,10 @@
 //
 
 /// A type-erased list of data representing the content of a navigation stack.
+///
+/// The path is a value type and AdaUI mutates it on the UI actor through
+/// bindings/state. `AnyHashable` does not express Sendable, so the conformance is
+/// unchecked and relies on the stored values being UI-bound navigation data.
 public struct NavigationPath: @unchecked Sendable {
 
     private var elements: [AnyHashable] = []

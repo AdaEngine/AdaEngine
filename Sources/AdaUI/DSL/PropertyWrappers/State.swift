@@ -25,11 +25,11 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
 
     public var wrappedValue: Value {
         _read {
-            yield unsafe currentStorage().value
+            yield currentStorage().value
         }
         nonmutating _modify {
             let storage = currentStorage()
-            yield unsafe &storage.value
+            yield &storage.value
             storage.update()
         }
     }
@@ -59,16 +59,20 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
     }
 }
 
-final class StateStorage<Value>: UpdatablePropertyStorage {
-    nonisolated(unsafe) var value: Value
+final class StateStorage<Value>: UpdatablePropertyStorage, AnyStateStorage {
+    var value: Value
 
-    nonisolated init(value: Value) {
-        unsafe self.value = value
+    init(value: Value) {
+        self.value = value
     }
 }
 
 extension State: ViewStateBindable {
-    func bind(to container: ViewStateContainer, key: String) {
+    var stateValueType: ObjectIdentifier {
+        ObjectIdentifier(Value.self)
+    }
+
+    func bind(to container: ViewStateContainer, key: ViewStatePropertyKey) {
         let storage = container.storage(
             for: key,
             initialValue: self.handle.storage ?? StateStorage(value: handle.initialValue)

@@ -21,6 +21,9 @@ extension Component {
     @MainActor
     public static func registerComponent() {
         ComponentStorage.addComponent(self)
+        if let inspectableType = self as? any EditorInspectableComponent.Type {
+            EditorComponentReflectionRegistry.register(inspectableType.editorComponentDescriptor)
+        }
     }
 }
 

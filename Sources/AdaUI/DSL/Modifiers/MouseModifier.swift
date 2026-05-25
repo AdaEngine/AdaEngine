@@ -13,6 +13,10 @@ public extension View {
         self.modifier(HoverViewModifier(action: action, content: self))
     }
 
+    func cursorShape(_ shape: Input.CursorShape) -> some View {
+        CursorShapeModifier(shape: shape, content: self)
+    }
+
     /// Controls whether this view participates in hit testing.
     func allowsHitTesting(_ enabled: Bool) -> some View {
         self.modifier(HitTestingModifier(enabled: enabled, content: self))
@@ -120,7 +124,7 @@ private final class HitTestingModifierNode: ViewModifierNode {
     }
 }
 
-// MARK: - CursorShapeModifier (preserved, not yet active)
+// MARK: - CursorShapeModifier
 
 struct CursorShapeModifier<Content: View>: View, ViewNodeBuilder {
     typealias Body = Never
@@ -138,17 +142,72 @@ struct CursorShapeModifier<Content: View>: View, ViewNodeBuilder {
 }
 
 class CursorShapeModifierNode: ViewModifierNode {
-    let shape: Input.CursorShape
+    private var shape: Input.CursorShape
+    private var isCursorActive = false
 
     init<Content>(shape: Input.CursorShape, contentNode: ViewNode, content: Content) where Content: View {
         self.shape = shape
         super.init(contentNode: contentNode, content: content)
     }
 
-    override func onMouseEvent(_ event: MouseEvent) {
-        if event.button == .none && event.phase == .changed {
-            // Input.pushCursorShape(shape)
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+
+        guard let node = newNode as? CursorShapeModifierNode else {
+            return
         }
-        // Input.popCursorShape()
+
+        shape = node.shape
+        if isCursorActive {
+            setCursorShape(shape)
+        }
+    }
+
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
+        guard self.point(inside: point, with: event) else {
+            return nil
+        }
+
+        let newPoint = contentNode.convert(point, from: self)
+        guard contentNode.point(inside: newPoint, with: event) else {
+            return nil
+        }
+
+        return self
+    }
+
+    override func onMouseEvent(_ event: MouseEvent) {
+        switch event.phase {
+        case .began, .changed:
+            isCursorActive = true
+            setCursorShape(shape)
+        case .ended, .cancelled:
+            if absoluteFrame().contains(point: event.mousePosition) {
+                isCursorActive = true
+                setCursorShape(shape)
+            } else {
+                resetCursorShape()
+            }
+        }
+
+        contentNode.onMouseEvent(event)
+    }
+
+    override func onMouseLeave() {
+        resetCursorShape()
+        super.onMouseLeave()
+    }
+
+    private func setCursorShape(_ shape: Input.CursorShape) {
+        owner?.window?.windowManager.setCursorShape(shape)
+    }
+
+    private func resetCursorShape() {
+        guard isCursorActive else {
+            return
+        }
+
+        isCursorActive = false
+        owner?.window?.windowManager.setCursorShape(.arrow)
     }
 }

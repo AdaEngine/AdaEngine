@@ -407,15 +407,26 @@ private final class NavigationSplitDividerNode: ViewNode {
         switch event.phase {
         case .began:
             guard event.button == .left else { return }
+            setResizeCursor()
             lastDragX = event.mousePosition.x
         case .changed:
+            setResizeCursor()
             guard event.button == .left || event.button == .none, let lastDragX else { return }
             let delta = event.mousePosition.x - lastDragX
             self.lastDragX = event.mousePosition.x
             resizeLeadingColumn(by: delta)
         case .ended, .cancelled:
             lastDragX = nil
+            if absoluteFrame().contains(point: event.mousePosition) {
+                setResizeCursor()
+            } else {
+                resetCursor()
+            }
         }
+    }
+
+    override func onMouseLeave() {
+        resetCursor()
     }
 
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
@@ -438,6 +449,14 @@ private final class NavigationSplitDividerNode: ViewNode {
     private func resizeLeadingColumn(by delta: Float) {
         guard delta != 0 else { return }
         (parent as? NavigationSplitViewNode)?.resizeColumn(leadingColumn, by: delta)
+    }
+
+    private func setResizeCursor() {
+        owner?.window?.windowManager.setCursorShape(.resizeLeftRight)
+    }
+
+    private func resetCursor() {
+        owner?.window?.windowManager.setCursorShape(.arrow)
     }
 
     override func updateEnvironment(_ parentEnvironment: EnvironmentValues) {

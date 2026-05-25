@@ -1,5 +1,11 @@
 // swift-tools-version: 6.2
+import Foundation
 import PackageDescription
+
+let adaMCPLocalPath = "../../AdaMCP"
+let adaMCPPackage: Package.Dependency = true/*ProcessInfo.processInfo.environment["ADA_MCP_LOCAL"] == "1"*/
+    ? .package(name: "AdaMCP", path: adaMCPLocalPath)
+    : .package(url: "https://github.com/AdaEngine/AdaMCP.git", branch: "main")
 
 let package = Package(
     name: "AdaEditor",
@@ -18,15 +24,36 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "AdaEngine", path: ".."),
-        .package(url: "https://github.com/AdaEngine/AdaMCP.git", branch: "main")
+        adaMCPPackage,
+        .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
+        .package(url: "https://github.com/TeamSloppy/swift-acp", branch: "main"),
+        .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0")
     ],
     targets: [
+        .target(
+            name: "AdaPackageManifestTool",
+            dependencies: [
+                .product(name: "SwiftParser", package: "swift-syntax")
+            ]
+        ),
+        .executableTarget(
+            name: "AdaPackageTool",
+            dependencies: [
+                "AdaPackageManifestTool"
+            ]
+        ),
         .executableTarget(
             name: "AdaEditor",
             dependencies: [
                 .product(name: "AdaEngine", package: "AdaEngine"),
                 .product(name: "Math", package: "AdaEngine"),
-                .product(name: "AdaMCPPlugin", package: "AdaMCP")
+                .product(name: "AdaMCPPlugin", package: "AdaMCP"),
+                .product(name: "ACP", package: "swift-acp"),
+                .product(name: "ACPModel", package: "swift-acp"),
+                .product(name: "SwiftParser", package: "swift-syntax"),
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                "Yams",
+                "AdaPackageManifestTool"
             ],
             exclude: [
                 "Platforms/iOS/Info.plist",
@@ -41,6 +68,7 @@ let package = Package(
             name: "AdaEditorTests",
             dependencies: [
                 "AdaEditor",
+                "AdaPackageManifestTool",
                 .product(name: "AdaEngine", package: "AdaEngine"),
                 .product(name: "Math", package: "AdaEngine")
             ],

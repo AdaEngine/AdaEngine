@@ -12,7 +12,7 @@ import SPIRVCompiler
 
 public enum ShaderLanguage: String, Sendable, Codable {
     
-    /// Vulkan, OpenGL, WebGL
+    /// OpenGL/WebGL-style GLSL.
     case glsl
     
     /// High Level Shading Language (DirectX)

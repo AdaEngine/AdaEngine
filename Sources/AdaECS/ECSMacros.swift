@@ -9,6 +9,10 @@ import AdaUtils
 
 // TODO: Add reflrection support
 
+public protocol EditorInspectableComponent: Component {
+    static var editorComponentDescriptor: EditorComponentDescriptor { get }
+}
+
 /// A macro for creating a component.
 /// A component macro is more preffered way to create a component.
 /// When you use a component macro, you will atomatically conforms ``Component`` protocol
@@ -25,7 +29,7 @@ import AdaUtils
 ///                     .setPosition(Vector3(0, 0, 0))
 /// ```
 @attached(member)
-@attached(extension, names: arbitrary, conformances: Component)
+@attached(extension, conformances: Component, EditorInspectableComponent, names: arbitrary)
 public macro Component(
     required: [any (Component & DefaultValue).Type] = []
 ) = #externalMacro(module: "AdaEngineMacros", type: "ComponentMacro")
@@ -109,4 +113,3 @@ public macro PlainSystem(
 public macro System(
     dependencies: [SystemDependency] = []
 ) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
-

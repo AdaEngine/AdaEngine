@@ -22,6 +22,8 @@ import AdaUtils
 /// }
 /// ```
 public struct DismissAction: Sendable, Hashable {
+    /// Stores a main-actor-only dismissal closure behind stable identity so the
+    /// public value can be copied through EnvironmentValues.
     private final class Storage: @unchecked Sendable {
         let action: @MainActor () -> Void
 

@@ -561,7 +561,18 @@ public extension World {
 
         var components: [any Component] = []
         for requiredComponent in componentsStorage.getRequiredComponents(for: T.self) {
+            guard !newLayout.maskSet.contains(requiredComponent.id) else {
+                continue
+            }
             let newComponent = requiredComponent.constructor()
+            components.append(newComponent)
+            newLayout.insert(type(of: newComponent))
+        }
+        for requiredComponent in T.requiredComponents.components {
+            guard !newLayout.maskSet.contains(requiredComponent.identifier) else {
+                continue
+            }
+            let newComponent = requiredComponent.defaultValue
             components.append(newComponent)
             newLayout.insert(type(of: newComponent))
         }

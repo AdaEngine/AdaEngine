@@ -128,6 +128,8 @@ public enum ProjectSystem {
         try validateRelativePath(project.editor.startupScene, keyPath: "editor.startupScene")
         try validatePathArray(project.build.targets, keyPath: "build.targets")
         try validatePathArray(project.ai.mcp.allowedResourceRoots, keyPath: "ai.mcp.allowedResourceRoots")
+        try validateRelativePath(project.ai.agent.target.cwd, keyPath: "ai.agent.target.cwd")
+        try validatePathArray(project.ai.agent.skillsDirectories, keyPath: "ai.agent.skillsDirectories")
 
         return project
     }
@@ -427,9 +429,27 @@ public struct AdaProjectEditor: Codable, Equatable, Sendable {
 
 public struct AdaProjectAI: Codable, Equatable, Sendable {
     public var mcp: AdaProjectMCP
+    public var agent: AdaProjectAgent
 
-    public init(mcp: AdaProjectMCP = AdaProjectMCP()) {
+    public init(mcp: AdaProjectMCP = AdaProjectMCP(), agent: AdaProjectAgent = AdaProjectAgent()) {
         self.mcp = mcp
+        self.agent = agent
+    }
+
+    private enum CodingKeys: String, CodingKey { case mcp, agent }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        mcp = try container.decodeIfPresent(AdaProjectMCP.self, forKey: .mcp) ?? AdaProjectMCP()
+        agent = try container.decodeIfPresent(AdaProjectAgent.self, forKey: .agent) ?? AdaProjectAgent()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(mcp, forKey: .mcp)
+        if agent != AdaProjectAgent() {
+            try container.encode(agent, forKey: .agent)
+        }
     }
 }
 
@@ -455,6 +475,80 @@ public struct AdaProjectMCP: Codable, Equatable, Sendable {
         try container.encode(enabled, forKey: .enabled)
         try container.encode(allowedResourceRoots, forKey: .allowedResourceRoots)
     }
+}
+
+public struct AdaProjectAgent: Codable, Equatable, Sendable {
+    public var enabled: Bool
+    public var target: AdaProjectAgentTarget
+    public var permissionMode: AdaProjectAgentPermissionMode
+    public var skillsDirectories: [String]
+
+    public init(
+        enabled: Bool = false,
+        target: AdaProjectAgentTarget = AdaProjectAgentTarget(),
+        permissionMode: AdaProjectAgentPermissionMode = .allowOnce,
+        skillsDirectories: [String] = [".skills", ".codex/skills"]
+    ) {
+        self.enabled = enabled
+        self.target = target
+        self.permissionMode = permissionMode
+        self.skillsDirectories = skillsDirectories
+    }
+
+    private enum CodingKeys: String, CodingKey { case enabled, target, permissionMode, skillsDirectories }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        target = try container.decodeIfPresent(AdaProjectAgentTarget.self, forKey: .target) ?? AdaProjectAgentTarget()
+        permissionMode = try container.decodeIfPresent(AdaProjectAgentPermissionMode.self, forKey: .permissionMode) ?? .allowOnce
+        skillsDirectories = try container.decodeIfPresent([String].self, forKey: .skillsDirectories) ?? [".skills", ".codex/skills"]
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(enabled, forKey: .enabled)
+        try container.encode(target, forKey: .target)
+        try container.encode(permissionMode, forKey: .permissionMode)
+        try container.encode(skillsDirectories, forKey: .skillsDirectories)
+    }
+}
+
+public struct AdaProjectAgentTarget: Codable, Equatable, Sendable {
+    public var command: String?
+    public var arguments: [String]
+    public var environment: [String: String]
+    public var cwd: String?
+
+    public init(command: String? = nil, arguments: [String] = [], environment: [String: String] = [:], cwd: String? = nil) {
+        self.command = command
+        self.arguments = arguments
+        self.environment = environment
+        self.cwd = cwd
+    }
+
+    private enum CodingKeys: String, CodingKey { case command, arguments, environment, cwd }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        command = try container.decodeIfPresent(String.self, forKey: .command)
+        arguments = try container.decodeIfPresent([String].self, forKey: .arguments) ?? []
+        environment = try container.decodeIfPresent([String: String].self, forKey: .environment) ?? [:]
+        cwd = try container.decodeIfPresent(String.self, forKey: .cwd)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(command, forKey: .command)
+        try container.encode(arguments, forKey: .arguments)
+        try container.encode(environment, forKey: .environment)
+        try container.encodeIfPresent(cwd, forKey: .cwd)
+    }
+}
+
+public enum AdaProjectAgentPermissionMode: String, Codable, Equatable, Sendable {
+    case allowOnce
+    case deny
 }
 
 public struct AdaProjectBuildSystem: RawRepresentable, Codable, Equatable, Hashable, Sendable {

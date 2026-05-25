@@ -90,4 +90,31 @@ struct KeyboardShortcutTests {
 
         #expect(count == 1)
     }
+
+    @Test
+    func keyboardShortcutsInvokesExplicitActionsFromSingleModifier() {
+        var saveCount = 0
+        var zoomCount = 0
+        let tester = ViewTester {
+            Spacer()
+                .frame(width: 100, height: 100)
+                .keyboardShortcuts([
+                    KeyboardShortcutAction(.s, modifiers: .command) {
+                        saveCount += 1
+                    },
+                    KeyboardShortcutAction(.plus, modifiers: .command) {
+                        zoomCount += 1
+                    }
+                ])
+        }
+        .setSize(Size(width: 200, height: 200))
+        .performLayout()
+
+        tester.sendKeyEvent(.s, modifiers: .main, time: 0)
+        tester.sendKeyEvent(.plus, modifiers: .main, time: 0.01)
+        tester.sendKeyEvent(.plus, modifiers: .control, time: 0.02)
+
+        #expect(saveCount == 1)
+        #expect(zoomCount == 1)
+    }
 }

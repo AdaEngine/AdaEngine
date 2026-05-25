@@ -19,7 +19,7 @@ public extension World {
 
     func getComponent(named typeName: String, from entity: Entity.ID) -> (any Component)? {
         guard let componentType = RuntimeTypeRegistry.componentType(named: typeName) else {
-            return nil
+            return getComponents(for: entity).first { $0.typeName == typeName }?.component
         }
         guard let location = self.entities.entities[entity] else {
             return nil

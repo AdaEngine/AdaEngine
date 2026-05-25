@@ -82,6 +82,6 @@ extension Application {
         }
         self.shared = try TestApplication()
         UIWindowManager.setShared(self.shared.windowManager)
-        unsafe Screen.screenManager = MockScreenManager()
+        Screen.screenManager = MockScreenManager()
     }
 }

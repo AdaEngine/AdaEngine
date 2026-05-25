@@ -12,6 +12,7 @@ enum AdaEngineStyleLayoutSpec {
     static let minimumHeight: Float = 420
     static let topToolbarHeight: Float = 52
     static let toolStripWidth: Float = 40
+    static let panelSpacing: Float = 8
     static let projectSidebarWidth: Float = 260
     static let inspectorWidth: Float = 300
     static let outputPanelHeight: Float = 42

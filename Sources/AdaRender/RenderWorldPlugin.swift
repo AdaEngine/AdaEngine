@@ -30,6 +30,7 @@ public struct RenderWorldPlugin: Plugin {
         renderWorld.updateScheduler = .renderRunner
         renderWorld
             .insertResource(RenderGraph(label: "RenderWorld_Root"))
+            .insertResource(RenderGraphDiagnostics())
             .insertResource(DefaultSchedulerOrder(order: [
                 .preUpdate,
                 .prepare,
@@ -99,6 +100,9 @@ public struct RenderSystem {
     @Res<RenderDeviceHandler?>
     private var renderDevice
 
+    @Res<RenderGraphDiagnostics?>
+    private var renderGraphDiagnostics
+
     public init(world: World) { }
 
     public func update(context: UpdateContext) async {
@@ -129,7 +133,12 @@ public struct RenderSystem {
             return
         }
         let renderGraphExecutor = RenderGraphExecutor()
-        try await renderGraphExecutor.execute(renderGraph, renderDevice: renderDevice, in: world)
+        try await renderGraphExecutor.execute(
+            renderGraph,
+            renderDevice: renderDevice,
+            in: world,
+            diagnostics: renderGraphDiagnostics
+        )
     }
 }
 
@@ -156,8 +165,12 @@ public struct WindowSurface: Sendable {
     public var currentDrawable: (any Drawable)?
 }
 
-public struct WindowSurfaces: Resource {
+public final class WindowSurfaces: Resource, @unchecked Sendable {
     public var windows: SparseSet<WindowRef, WindowSurface>
+
+    public init(windows: SparseSet<WindowRef, WindowSurface>) {
+        self.windows = windows
+    }
 }
 
 @System

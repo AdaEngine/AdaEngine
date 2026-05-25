@@ -40,17 +40,26 @@ final class TextEditorViewNode: ViewNode {
         static let caretLineWidth: Float = 1.5
         static let caretBlinkInterval: AdaUtils.TimeInterval = 1.15
         static let tapMovementToleranceSquared: Float = 36
-        static let scrollWheelScale: Float = 100
+        static let doubleTapMovementToleranceSquared: Float = 100
+        static let doubleTapMaxInterval: AdaUtils.TimeInterval = 0.35
+        static let caretScrollPadding: Float = 24
     }
 
     var placeholder: String
     var textBinding: Binding<String>
+    var tokenSpans: [TextEditorTokenSpan]
+    var sourceInteraction: TextEditorSourceInteraction?
     var text: String
 
     var isFocused = false
+    var isCursorActive = false
+    var isSourceCursorActive = false
     var isSelectingWithMouse = false
     var mousePressStartPoint: Point?
-    var scrollOffset: Point = .zero
+    var lastTapTime: AdaUtils.TimeInterval?
+    var lastTapPosition: Point?
+    var lastHoveredSourcePosition: TextEditorSourcePosition?
+    var appliedFocusedRange: TextEditorSourceRange?
     var preferredColumn: Int?
     var caretVisible = true
     var caretBlinkElapsed: AdaUtils.TimeInterval = 0
@@ -60,13 +69,16 @@ final class TextEditorViewNode: ViewNode {
     var undoStack: [Snapshot] = []
     var redoStack: [Snapshot] = []
 
-    init(inputs: _ViewInputs, content: TextEditor) {
+    init(inputs: _ViewInputs, content: TextEditorPrimitive) {
         self.placeholder = content.placeholder
         self.textBinding = content.text
+        self.tokenSpans = content.tokenSpans
+        self.sourceInteraction = content.sourceInteraction
         self.text = Self.normalizeInputText(content.text.wrappedValue)
         super.init(content: content)
         self.updateEnvironment(inputs.environment)
         self.clampSelectionToBounds()
+        self.applyFocusedRangeIfNeeded()
     }
 
     override var canBecomeFocused: Bool {
@@ -76,10 +88,12 @@ final class TextEditorViewNode: ViewNode {
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         let pointSize = self.resolvedFontPointSize()
         let lineHeight = self.lineHeight(for: pointSize)
-        let maxLineWidth = Float(self.lines().map(\.text.count).max() ?? max(self.placeholder.count, 1)) * self.characterAdvance(for: pointSize)
+        let lines = self.lines()
+        let maxLineCharacterCount = max(lines.map(\.text.count).max() ?? 0, self.placeholder.count, 1)
+        let maxLineWidth = Float(maxLineCharacterCount) * self.characterAdvance(for: pointSize)
         let ideal = Size(
             width: max(Constants.minimumWidth, Constants.horizontalInset * 2 + Constants.gutterWidth + Constants.gutterSpacing + maxLineWidth),
-            height: max(Constants.minimumHeight, Constants.verticalInset * 2 + lineHeight * 6)
+            height: max(Constants.minimumHeight, Constants.verticalInset * 2 + lineHeight * Float(max(lines.count, 1)))
         )
 
         var result = proposal.replacingUnspecifiedDimensions(by: ideal)
@@ -102,15 +116,19 @@ final class TextEditorViewNode: ViewNode {
 
         self.placeholder = node.placeholder
         self.textBinding = node.textBinding
+        self.tokenSpans = node.tokenSpans
+        self.sourceInteraction = node.sourceInteraction
 
         let externalText = Self.normalizeInputText(node.textBinding.wrappedValue)
         if externalText != self.text {
             self.text = externalText
             self.undoStack.removeAll(keepingCapacity: true)
             self.redoStack.removeAll(keepingCapacity: true)
+            self.appliedFocusedRange = nil
         }
 
         self.clampSelectionToBounds()
+        self.applyFocusedRangeIfNeeded()
         self.ensureCaretVisibleIfNeeded()
         self.requestDisplay()
     }
@@ -127,6 +145,7 @@ final class TextEditorViewNode: ViewNode {
         if !isFocused {
             self.isSelectingWithMouse = false
             self.mousePressStartPoint = nil
+            self.clearTapCandidate()
         }
         self.caretVisible = isFocused
         self.caretBlinkElapsed = 0
@@ -135,12 +154,11 @@ final class TextEditorViewNode: ViewNode {
     }
 
     override func onMouseEvent(_ event: MouseEvent) {
-        if event.button == .scrollWheel {
-            self.scroll(by: Point(event.scrollDelta.x * Constants.scrollWheelScale, event.scrollDelta.y * Constants.scrollWheelScale))
+        if self.handleSourceInteractionMouseEvent(event) {
             return
         }
 
-        self.owner?.window?.windowManager.setCursorShape(.iBeam)
+        self.activateTextCursorIfNeeded()
 
         let shouldHandleSelectionEvent: Bool = switch event.phase {
         case .began, .ended, .cancelled:
@@ -176,6 +194,9 @@ final class TextEditorViewNode: ViewNode {
             self.isSelectingWithMouse = false
             if !self.isTap(at: localPoint, start: self.mousePressStartPoint) {
                 self.selectionHead = caretOffset
+                self.clearTapCandidate()
+            } else if event.phase == .ended {
+                self.handleTapCompletion(at: localPoint, time: event.time, caretOffset: caretOffset)
             }
             self.mousePressStartPoint = nil
             self.preferredColumn = nil
@@ -188,7 +209,9 @@ final class TextEditorViewNode: ViewNode {
     }
 
     override func onMouseLeave() {
-        self.owner?.window?.windowManager.setCursorShape(.arrow)
+        self.notifySourceHover(nil)
+        self.resetSourceCursorIfNeeded()
+        self.resetTextCursorIfNeeded()
     }
 
     override func onTextInputEvent(_ event: TextInputEvent) {
@@ -283,6 +306,7 @@ final class TextEditorViewNode: ViewNode {
         super.draw(with: context)
 
         let bounds = Rect(x: 0, y: 0, width: self.frame.width, height: self.frame.height)
+        let viewportBounds = self.viewportChromeRect()
         let contentRect = self.textContentRect()
         let textRect = self.textRect()
         let pointSize = self.resolvedFontPointSize()
@@ -292,7 +316,7 @@ final class TextEditorViewNode: ViewNode {
 
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         context.drawRect(bounds, color: editorColors.background)
-        self.drawBorder(in: &context, rect: bounds, color: borderColor)
+        self.drawBorder(in: &context, rect: viewportBounds, color: borderColor)
 
         guard contentRect.width > 0, contentRect.height > 0 else {
             return
@@ -308,7 +332,8 @@ final class TextEditorViewNode: ViewNode {
         let clipRect = self.visualAbsoluteContentRect()
         context.clip(to: clipRect) { clippedContext in
             var clippedContext = clippedContext
-            let visibleLines = self.visibleLineRange(lineHeight: lineHeight, viewportHeight: contentRect.height)
+            let viewportHeight = min(contentRect.height, self.nearestScrollView()?.frame.height ?? contentRect.height)
+            let visibleLines = self.visibleLineRange(lineHeight: lineHeight, viewportHeight: viewportHeight)
             let lines = self.lines()
             let caretPosition = self.position(forOffset: self.selectionHead, lines: lines)
             let textColor = self.resolvedTextColor()
@@ -316,12 +341,22 @@ final class TextEditorViewNode: ViewNode {
 
             for lineIndex in visibleLines where lines.indices.contains(lineIndex) {
                 let line = lines[lineIndex]
-                let rowY = contentRect.origin.y + Float(lineIndex) * lineHeight - self.scrollOffset.y
+                let rowY = contentRect.origin.y + Float(lineIndex) * lineHeight
                 let rowRect = Rect(x: contentRect.minX, y: rowY, width: contentRect.width, height: lineHeight)
 
                 if self.isFocused, caretPosition.line == lineIndex {
                     clippedContext.drawRect(rowRect, color: editorColors.currentLineBackground)
                 }
+
+                self.drawSourceHighlightsIfNeeded(
+                    in: &clippedContext,
+                    line: line,
+                    lineIndex: lineIndex,
+                    rowY: rowY,
+                    lineHeight: lineHeight,
+                    pointSize: pointSize,
+                    font: resolvedFont
+                )
 
                 self.drawSelectionIfNeeded(
                     in: &clippedContext,
@@ -329,7 +364,8 @@ final class TextEditorViewNode: ViewNode {
                     lineIndex: lineIndex,
                     rowY: rowY,
                     lineHeight: lineHeight,
-                    pointSize: pointSize
+                    pointSize: pointSize,
+                    font: resolvedFont
                 )
 
                 if let resolvedFont {
@@ -341,12 +377,13 @@ final class TextEditorViewNode: ViewNode {
                         in: &clippedContext,
                         at: Point(contentRect.minX + Constants.gutterWidth - Float(number.count) * self.characterAdvance(for: pointSize), rowY)
                     )
-                    self.drawString(
+                    self.drawLineText(
                         line.text,
+                        lineIndex: lineIndex,
                         font: resolvedFont,
-                        color: textColor,
+                        fallbackColor: textColor,
                         in: &clippedContext,
-                        at: Point(textRect.minX - self.scrollOffset.x, rowY)
+                        at: Point(textRect.minX, rowY)
                     )
                 }
             }
@@ -362,8 +399,9 @@ final class TextEditorViewNode: ViewNode {
             }
 
             if self.isFocused, self.caretVisible, !self.hasSelection {
-                let caretX = textRect.minX + Float(caretPosition.column) * self.characterAdvance(for: pointSize) - self.scrollOffset.x
-                let caretY = contentRect.minY + Float(caretPosition.line) * lineHeight - self.scrollOffset.y
+                let caretLineText = lines.indices.contains(caretPosition.line) ? lines[caretPosition.line].text : ""
+                let caretX = textRect.minX + self.caretXOffset(forColumn: caretPosition.column, in: caretLineText, font: resolvedFont, pointSize: pointSize)
+                let caretY = contentRect.minY + Float(caretPosition.line) * lineHeight
                 clippedContext.drawRect(
                     Rect(
                         x: caretX - Constants.caretLineWidth * 0.5,

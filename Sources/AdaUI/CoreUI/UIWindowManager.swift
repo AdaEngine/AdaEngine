@@ -81,7 +81,7 @@ open class UIWindowManager {
     
     /// Get screen instance for window.
     open func getScreen(for window: UIWindow) -> Screen? {
-        fatalErrorMethodNotImplemented()
+        Screen.main
     }
     
     open func setActiveWindow(_ window: UIWindow) {
@@ -130,7 +130,8 @@ open class UIWindowManager {
         do {
             unsafe try RenderEngine.shared!.destroyWindow(window.id)
         } catch {
-            fatalError(error.localizedDescription)
+            assertionFailure(error.localizedDescription)
+            return
         }
         window.runtimeCameraEntity?.removeFromWorld()
         window.runtimeCameraEntity = nil

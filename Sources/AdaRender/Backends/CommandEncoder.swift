@@ -120,6 +120,9 @@ public protocol CommandBuffer: AnyObject {
     /// After calling this method, the command buffer is submitted to the GPU
     /// and cannot be modified further.
     func commit()
+
+    /// Registers a callback that runs after the command buffer has finished.
+    func addCompletedHandler(_ handler: @escaping @Sendable () -> Void)
 }
 
 // MARK: - Blit Command Encoder

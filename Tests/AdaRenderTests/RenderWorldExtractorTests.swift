@@ -22,7 +22,7 @@ struct RenderWorldExtractorTests {
     @Test("Explicit primary window id resolves to primary surface")
     func explicitPrimaryWindowIdResolvesToPrimarySurface() {
         let windowId = RID()
-        var surfaces = WindowSurfaces(windows: [:])
+        let surfaces = WindowSurfaces(windows: [:])
         surfaces.windows[.primary] = WindowSurface(swapchain: nil, currentDrawable: nil)
 
         let resolvedSurface = resolveWindowSurface(
@@ -36,13 +36,19 @@ struct RenderWorldExtractorTests {
 
     @Test("Unregistered non-primary window id has no surface")
     func unregisteredNonPrimaryWindowIdHasNoSurface() {
-        var surfaces = WindowSurfaces(windows: [:])
+        let requestedWindowId = RID()
+        var primaryWindowId = RID()
+        while primaryWindowId == requestedWindowId {
+            primaryWindowId = RID()
+        }
+
+        let surfaces = WindowSurfaces(windows: [:])
         surfaces.windows[.primary] = WindowSurface(swapchain: nil, currentDrawable: nil)
 
         let resolvedSurface = resolveWindowSurface(
-            for: .windowId(RID()),
+            for: .windowId(requestedWindowId),
             in: surfaces,
-            primaryWindow: PrimaryWindowId(windowId: RID())
+            primaryWindow: PrimaryWindowId(windowId: primaryWindowId)
         )
 
         #expect(resolvedSurface == nil)

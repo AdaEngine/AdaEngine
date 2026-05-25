@@ -6,11 +6,12 @@
 //
 
 import AdaApp
-import AdaText
 import AdaRender
+import AdaText
 import AdaUtils
-import Math
 import Collections
+import Foundation
+import Math
 
 /// An immediate mode drawing destination, and its current state.
 ///
@@ -326,19 +327,30 @@ extension UIGraphicsContext {
     /// Returns recorded draw commands.
     /// Use it for tesselation.
     public func getDrawCommands() -> [DrawCommand] {
-        self.commandQueue.commands
+        self.commandQueue.snapshot()
     }
 
+    /// Thread-safe draw command buffer used by Sendable graphics contexts.
     final class CommandQueue: @unchecked Sendable {
-        @usableFromInline
-        var commands: [DrawCommand] = []
+        private let lock = NSLock()
+        private var commands: [DrawCommand] = []
 
-        // We expected, that draw commands will be added only on main thread
-        @inlinable
         func push(_ command: DrawCommand) {
-            MainActor.assumeIsolated { [command] in
-                self.commands.append(command)
-            }
+            lock.lock()
+            defer { lock.unlock() }
+            commands.append(command)
+        }
+
+        func push(contentsOf newCommands: [DrawCommand]) {
+            lock.lock()
+            defer { lock.unlock() }
+            commands.append(contentsOf: newCommands)
+        }
+
+        func snapshot() -> [DrawCommand] {
+            lock.lock()
+            defer { lock.unlock() }
+            return commands
         }
     }
 

@@ -106,6 +106,11 @@ public struct GeometryProxy {
     /// The global frame of the geometry proxy.
     let globalFrame: Rect
 
+    /// The node that owns this proxy. When available, coordinate-space queries
+    /// resolve against the current tree position so ancestor relayouts do not
+    /// leave captured proxies with stale global origins.
+    weak var node: ViewNode?
+
     /// The size of the geometry proxy.
     ///
     /// - Returns: The size of the geometry proxy.
@@ -123,12 +128,16 @@ public struct GeometryProxy {
         case .local:
             return self.localFrame
         case .global:
-            return self.globalFrame
+            return self.resolvedGlobalFrame
         case .scrollView:
             return frame(relativeTo: ViewCoordinateSpace.scrollViewId)
         case .named(let value):
             return frame(relativeTo: value)
         }
+    }
+
+    private var resolvedGlobalFrame: Rect {
+        node?.visualAbsoluteFrame() ?? globalFrame
     }
 
     private func frame(relativeTo coordinateSpace: AnyHashable) -> Rect {
@@ -137,6 +146,7 @@ public struct GeometryProxy {
         }
 
         let containerFrame = container.visualAbsoluteFrame()
+        let globalFrame = resolvedGlobalFrame
         return Rect(
             x: globalFrame.origin.x - containerFrame.origin.x,
             y: globalFrame.origin.y - containerFrame.origin.y,
@@ -180,6 +190,7 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 
     private struct ContentSignature: Equatable {
         let frame: Rect
+        let globalFrame: Rect
         let environmentVersion: UInt64
     }
 
@@ -225,6 +236,18 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
         self.invalidateLayerIfNeeded()
     }
 
+    override func place(in origin: Point, anchor: AnchorPoint, proposal: ProposedViewSize, measuredSize size: Size) {
+        super.place(in: origin, anchor: anchor, proposal: proposal, measuredSize: size)
+
+        let signature = self.currentContentSignature()
+        guard !contentNeedsRebuild, lastContentSignature != signature else {
+            return
+        }
+
+        self.performLayout()
+        self.markLayoutClean()
+    }
+
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         let resolvedSize = proposal.replacingUnspecifiedDimensions()
         return resolvedSize
@@ -241,11 +264,16 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     }
 
     private func currentContentSignature() -> ContentSignature {
-        ContentSignature(frame: self.frame, environmentVersion: self.environment.version)
+        ContentSignature(
+            frame: self.frame,
+            globalFrame: self.visualAbsoluteFrame(),
+            environmentVersion: self.environment.version
+        )
     }
 
     private func rebuildContent(for signature: ContentSignature) {
         UILayoutDebugCounters.recordContentInvalidation()
+        UILayoutDebugCounters.recordRebuild()
         var environment = self.environment
         let disablesAnimation = shouldDisableAnimation(for: signature)
         if disablesAnimation {
@@ -255,7 +283,8 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
         let proxy = GeometryProxy(
             namedCoordinateSpaceContainer: environment.coordinateSpaces,
             localFrame: Rect(origin: .zero, size: self.frame.size),
-            globalFrame: self.visualAbsoluteFrame()
+            globalFrame: signature.globalFrame,
+            node: self
         )
         let content = self.contentProxy(proxy)
         let outputs = Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: context)).outputs
@@ -278,6 +307,9 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 // MARK: - Environment
 
 /// A named view coordinate space container.
+/// Environment propagation and coordinate-space registration run on the UI
+/// actor; the unchecked conformance only lets EnvironmentValues store the
+/// reference as a Sendable value.
 final class NamedViewCoordinateSpaceContainer: @unchecked Sendable {
     /// The containers of the named view coordinate space.
     var containers: [AnyHashable: WeakBox<ViewNode>] = [:]
@@ -315,14 +347,40 @@ struct CoordinateSpaceViewModifier<Content: View>: ViewModifier, ViewNodeBuilder
     let content: Content
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
-        let node = context.makeNode(from: content)
-        context.environment.coordinateSpaces.compact()
+        let node = CoordinateSpaceViewModifierNode(
+            named: named,
+            contentNode: context.makeNode(from: content),
+            content: content
+        )
+        node.updateEnvironment(context.environment)
+        return node
+    }
+}
 
-        if node is ScrollViewNode {
-            context.environment.coordinateSpaces.containers[ViewCoordinateSpace.scrollViewId] = WeakBox(node)
+private final class CoordinateSpaceViewModifierNode: ViewModifierNode {
+    private let named: NamedViewCoordinateSpace
+
+    init<Content: View>(named: NamedViewCoordinateSpace, contentNode: ViewNode, content: Content) {
+        self.named = named
+        super.init(contentNode: contentNode, content: content)
+    }
+
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+        updateEnvironment(environment)
+    }
+
+    override func updateEnvironment(_ environment: EnvironmentValues) {
+        var environment = environment
+        let previousVersion = environment.version
+        environment.coordinateSpaces.compact()
+
+        if contentNode is ScrollViewNode {
+            environment.coordinateSpaces.containers[ViewCoordinateSpace.scrollViewId] = WeakBox(contentNode)
         }
 
-        context.environment.coordinateSpaces.containers[named.name] = WeakBox(node)
-        return ViewModifierNode(contentNode: node, content: content)
+        environment.coordinateSpaces.containers[named.name] = WeakBox(contentNode)
+        environment.ensureVersionDiffers(from: previousVersion)
+        super.updateEnvironment(environment)
     }
 }

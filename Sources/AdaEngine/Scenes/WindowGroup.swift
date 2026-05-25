@@ -9,6 +9,7 @@ import AdaApp
 import AdaECS
 import AdaScene
 import AdaUtils
+import Foundation
 import Math
 
 /// A scene that presents a group of identically structured windows.
@@ -18,18 +19,20 @@ public struct WindowGroup<Content: View>: AppScene {
 
     /// The file path to use for the `AssetsPlugin`.
     let filePath: StaticString
+    let assetBundle: Bundle?
 
     public var body: some AppScene {
-        DefaultAppWindow()
+        DefaultAppWindow(filePath: filePath, assetBundle: assetBundle)
             .addPlugins(WindowGroupPlugin(content: self.content))
     }
 
     /// Creates a window group.
     /// - Parameter contentView: A closure that creates the content for each instance of the group.
     /// - Parameter filePath: The file path to use for the `AssetsPlugin`.
-    public init(@ViewBuilder content: () -> Content, filePath: StaticString = #filePath) {
+    public init(@ViewBuilder content: () -> Content, filePath: StaticString = #filePath, assetBundle: Bundle? = nil) {
         self.content = content()
         self.filePath = filePath
+        self.assetBundle = assetBundle
     }
 }
 
@@ -37,6 +40,9 @@ package struct WindowGroupPlugin<Content: View>: Plugin, @unchecked Sendable {
     let content: Content
 
     package func setup(in app: borrowing AppWorlds) {
+        if app.getResource(ApplicationFramePacing.self) == nil {
+            app.insertResource(ApplicationFramePacing(maximumFramesPerSecond: 60))
+        }
         app.insertResource(
             InitialContainerView {
                 UIContainerView(rootView: self.content)

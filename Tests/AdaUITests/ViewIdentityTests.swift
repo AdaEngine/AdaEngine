@@ -8,6 +8,7 @@
 import AdaAnimation
 @testable import AdaPlatform
 @testable import AdaUI
+import AdaUtils
 import Math
 import Testing
 
@@ -36,6 +37,31 @@ struct ViewIdentityTests {
         #expect(recorder.values["a"] == 0)
         #expect(recorder.values["b"] == 11)
         #expect(recorder.values["c"] == 0)
+    }
+
+    @Test
+    func forEachInsideStackBuildsHittableChildrenOnInitialLayout() {
+        let tester = ViewTester(rootView: VStack(spacing: 0) {
+            ForEach(["fileTree", "inspector"], id: \.self) { identifier in
+                Button(action: {}) {
+                    RectangleShape()
+                        .fill(Color.blue)
+                        .frame(width: 30, height: 30)
+                }
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("tool-\(identifier)")
+            }
+        })
+        .setSize(Size(width: 40, height: 80))
+        .performLayout()
+
+        let fileTreeNode = tester.findNodeByAccessibilityIdentifier("tool-fileTree")
+        let inspectorNode = tester.findNodeByAccessibilityIdentifier("tool-inspector")
+
+        #expect(fileTreeNode?.absoluteFrame().size == Size(width: 30, height: 30))
+        #expect(inspectorNode?.absoluteFrame().size == Size(width: 30, height: 30))
+        #expect(tester.findHitPoint(forAccessibilityIdentifier: "tool-fileTree", in: Rect(x: 0, y: 0, width: 40, height: 40), step: 2) != nil)
+        #expect(tester.findHitPoint(forAccessibilityIdentifier: "tool-inspector", in: Rect(x: 0, y: 30, width: 40, height: 40), step: 2) != nil)
     }
 
     @Test

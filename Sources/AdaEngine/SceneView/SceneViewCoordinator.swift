@@ -26,6 +26,11 @@ import Math
 final class SceneViewCoordinator: OffscreenViewportDelegate {
     private(set) var appWorlds: AppWorlds?
     private var cameraEntity: Entity?
+    private var targetRenderTexture: RenderTexture?
+    private var renderTexturePool: [RenderTexture] = []
+    private var pendingDisplayTargets: [PendingDisplayTarget] = []
+    private var retiredDisplayTargets: [RetiredDisplayTarget] = []
+    private var nextRenderTextureIndex = 0
     private(set) var renderTexture: Texture2D?
 
     private var isBootstrapping = false
@@ -43,11 +48,31 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private let filePath: StaticString
     private let pluginPreset: SceneViewPluginPreset
     private let setupClosure: @MainActor (World) -> Void
+    private let updateClosure: @MainActor (World, AdaUtils.TimeInterval) -> Void
+    private let inputClosure: @MainActor (any InputEvent, World) -> Bool
 
-    init(filePath: StaticString, pluginPreset: SceneViewPluginPreset, setup: @escaping @MainActor (World) -> Void) {
+    private struct PendingDisplayTarget {
+        var texture: RenderTexture
+        var isCompleted = false
+    }
+
+    private struct RetiredDisplayTarget {
+        var texture: RenderTexture
+        var remainingFrames: Int
+    }
+
+    init(
+        filePath: StaticString,
+        pluginPreset: SceneViewPluginPreset,
+        setup: @escaping @MainActor (World) -> Void,
+        update: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void,
+        input: @escaping @MainActor (any InputEvent, World) -> Bool
+    ) {
         self.filePath = filePath
         self.pluginPreset = pluginPreset
         self.setupClosure = setup
+        self.updateClosure = update
+        self.inputClosure = input
         self.hostSubworldName = AppWorldName(rawValue: "SceneView.\(UUID().uuidString)")
     }
 
@@ -95,6 +120,11 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         AppWorldsSession.current?.removeSubworld(by: hostSubworldName)
         appWorlds = nil
         cameraEntity = nil
+        targetRenderTexture = nil
+        renderTexturePool.removeAll()
+        pendingDisplayTargets.removeAll()
+        retiredDisplayTargets.removeAll()
+        nextRenderTextureIndex = 0
         renderTexture = nil
         isBootstrapping = false
         hasCalledSetup = false
@@ -108,25 +138,25 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         currentSize = size
         self.scaleFactor = scaleFactor
 
-        let texture = RenderTexture(
-            size: size,
-            scaleFactor: scaleFactor,
-            format: .bgra8,
-            debugLabel: "SceneView_RenderTarget"
-        )
-        self.renderTexture = texture
+        rebuildRenderTexturePool(size: size, scaleFactor: scaleFactor)
 
         if let entity = cameraEntity, let app = appWorlds {
-            updateCameraTarget(app: app, entity: entity, texture: texture)
+            if let targetRenderTexture {
+                updateCameraTarget(app: app, entity: entity, texture: targetRenderTexture)
+            }
         } else {
             finalizeSetupIfReady()
         }
     }
 
     func tick(_ deltaTime: AdaUtils.TimeInterval) {
-        guard appWorlds != nil && hasCalledSetup else {
+        guard let appWorlds, hasCalledSetup else {
             return
         }
+        updateClosure(appWorlds.main, deltaTime)
+        ageRetiredDisplayTargets()
+        prepareNextRenderTarget()
+
         if isHostedSubworld {
             return
         }
@@ -135,6 +165,10 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     func receiveInputEvent(_ event: any InputEvent) {
         guard let app = appWorlds else { return }
+        if inputClosure(event, app.main) {
+            return
+        }
+
         let input = app.main.getRefResource(Input.self)
         input.wrappedValue.receiveEvent(event)
     }
@@ -174,14 +208,8 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
               currentSize.width > 0 && currentSize.height > 0,
               !hasCalledSetup else { return }
 
-        if renderTexture == nil {
-            let texture = RenderTexture(
-                size: currentSize,
-                scaleFactor: scaleFactor,
-                format: .bgra8,
-                debugLabel: "SceneView_RenderTarget"
-            )
-            self.renderTexture = texture
+        if targetRenderTexture == nil {
+            rebuildRenderTexturePool(size: currentSize, scaleFactor: scaleFactor)
         }
 
         spawnCamera(in: app)
@@ -190,7 +218,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     private func spawnCamera(in app: AppWorlds) {
-        guard let texture = renderTexture as? RenderTexture else {
+        guard let texture = targetRenderTexture else {
             return
         }
 
@@ -238,6 +266,145 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         }
     }
 
+    private func rebuildRenderTexturePool(size: SizeInt, scaleFactor: Float) {
+        let poolSize = max(3, unsafe RenderEngine.configurations.maxFramesInFlight + 2)
+        renderTexturePool = (0..<poolSize).map { index in
+            let texture = RenderTexture(
+                size: size,
+                scaleFactor: scaleFactor,
+                format: .bgra8,
+                debugLabel: "SceneView_RenderTarget_\(index)"
+            )
+            texture.renderCompletedHandler = { [weak self] texture in
+                Task { @MainActor in
+                    self?.completeRenderTexture(texture)
+                }
+            }
+            return texture
+        }
+        pendingDisplayTargets.removeAll()
+        retiredDisplayTargets.removeAll()
+        nextRenderTextureIndex = 0
+        renderTexture = nil
+
+        if let texture = nextAvailableRenderTexture() {
+            setTargetRenderTexture(texture)
+        }
+    }
+
+    private func setTargetRenderTexture(_ texture: RenderTexture) {
+        targetRenderTexture = texture
+    }
+
+    @discardableResult
+    private func publishRenderTextureIfReady() -> Bool {
+        guard !pendingDisplayTargets.isEmpty else {
+            return false
+        }
+
+        var didPublish = false
+        while let firstTarget = pendingDisplayTargets.first,
+              firstTarget.isCompleted {
+            let completedTarget = pendingDisplayTargets.removeFirst()
+            if let currentFront = renderTexture as? RenderTexture,
+               currentFront !== completedTarget.texture {
+                retiredDisplayTargets.append(
+                    RetiredDisplayTarget(
+                        texture: currentFront,
+                        remainingFrames: max(1, unsafe RenderEngine.configurations.maxFramesInFlight)
+                    )
+                )
+            }
+            renderTexture = completedTarget.texture
+            didPublish = true
+        }
+        return didPublish
+    }
+
+    private func completeRenderTexture(_ texture: RenderTexture) {
+        guard let index = pendingDisplayTargets.firstIndex(where: { $0.texture === texture }) else {
+            return
+        }
+
+        pendingDisplayTargets[index].isCompleted = true
+        publishRenderTextureIfReady()
+    }
+
+    private func prepareNextRenderTarget() {
+        if let targetRenderTexture,
+           !isDisplayUnavailable(targetRenderTexture),
+           !pendingDisplayTargets.contains(where: { $0.texture === targetRenderTexture }) {
+            scheduleForDisplay(targetRenderTexture)
+            return
+        }
+
+        guard let texture = nextAvailableRenderTexture() else {
+            return
+        }
+
+        setTargetRenderTexture(texture)
+        if let entity = cameraEntity, let app = appWorlds {
+            updateCameraTarget(app: app, entity: entity, texture: texture)
+        }
+        scheduleForDisplay(texture)
+    }
+
+    private func scheduleForDisplay(_ texture: RenderTexture) {
+        guard !pendingDisplayTargets.contains(where: { $0.texture === texture }) else {
+            return
+        }
+
+        pendingDisplayTargets.append(PendingDisplayTarget(texture: texture))
+    }
+
+    private func nextAvailableRenderTexture() -> RenderTexture? {
+        guard !renderTexturePool.isEmpty else {
+            return nil
+        }
+
+        let unavailable = Set((pendingDisplayTargets.map { ObjectIdentifier($0.texture) })
+            + retiredDisplayTargets.map { ObjectIdentifier($0.texture) }
+            + [renderTexture].compactMap { texture -> ObjectIdentifier? in
+                guard let texture = texture as? RenderTexture else {
+                    return nil
+                }
+                return ObjectIdentifier(texture)
+            })
+
+        for offset in 0..<renderTexturePool.count {
+            let index = (nextRenderTextureIndex + offset) % renderTexturePool.count
+            let texture = renderTexturePool[index]
+            guard !unavailable.contains(ObjectIdentifier(texture)) else {
+                continue
+            }
+
+            nextRenderTextureIndex = (index + 1) % renderTexturePool.count
+            return texture
+        }
+
+        return nil
+    }
+
+    private func isDisplayUnavailable(_ texture: RenderTexture) -> Bool {
+        if let frontTexture = renderTexture as? RenderTexture, frontTexture === texture {
+            return true
+        }
+        if pendingDisplayTargets.contains(where: { $0.texture === texture }) {
+            return true
+        }
+        if retiredDisplayTargets.contains(where: { $0.texture === texture }) {
+            return true
+        }
+        return false
+    }
+
+    private func ageRetiredDisplayTargets() {
+        for index in retiredDisplayTargets.indices {
+            retiredDisplayTargets[index].remainingFrames -= 1
+        }
+        retiredDisplayTargets.removeAll { $0.remainingFrames <= 0 }
+    }
+
     private func buildAppWorlds() -> AppWorlds {
         let world = World(name: "SceneView")
         let app = AppWorlds(main: world)
@@ -262,6 +429,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             app.addPlugin(Physics2DPlugin())
             app.addPlugin(TileMapPlugin())
             app.addPlugin(Core2DPlugin())
+            app.addPlugin(Core3DPlugin())
             app.addPlugin(Light2DPlugin())
             app.addPlugin(UpscalePlugin())
         case .mesh2D:

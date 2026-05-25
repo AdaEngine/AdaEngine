@@ -17,6 +17,9 @@ enum ProjectOpenPicker {
     static let projectLocationTitle = "Choose Project Location"
     static let projectLocationPrompt = "Choose"
     static let projectLocationMessage = "Choose the parent folder where AdaEditor should create the new project directory."
+    static let assetImportTitle = "Import Assets"
+    static let assetImportPrompt = "Import"
+    static let assetImportMessage = "Choose asset files to copy into the project's Assets directory."
 
     @MainActor
     static func pickProjectURL() -> URL? {
@@ -65,6 +68,29 @@ enum ProjectOpenPicker {
         }
 
         return projectLocationURL(fromPickerSelection: selectedURL)
+        #else
+        return nil
+        #endif
+    }
+
+    @MainActor
+    static func pickAssetImportURLs() -> [URL]? {
+        #if canImport(AppKit)
+        let panel = NSOpenPanel()
+        panel.title = assetImportTitle
+        panel.prompt = assetImportPrompt
+        panel.message = assetImportMessage
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = true
+        panel.canCreateDirectories = false
+        panel.resolvesAliases = true
+
+        guard panel.runModal() == .OK else {
+            return nil
+        }
+
+        return panel.urls
         #else
         return nil
         #endif

@@ -226,6 +226,12 @@ open class UIView {
         setNeedsDisplay()
     }
 
+    /// Set the needs layout flag while limiting the scheduled redraw to a known dirty rect.
+    func setNeedsLayout(in rect: Rect) {
+        self.needsLayout = true
+        setNeedsDisplay(in: rect)
+    }
+
     /// Set the needs display flag.
     public func setNeedsDisplay() {
         setNeedsDisplay(in: bounds)
@@ -233,6 +239,7 @@ open class UIView {
 
     /// Set the needs display flag for specific rect.
     public func setNeedsDisplay(in rect: Rect) {
+        UILayoutDebugCounters.recordDisplayInvalidation()
         self.needsDisplay = true
         guard let window else {
             return
@@ -576,12 +583,14 @@ open class UIView {
     ///
     /// - Parameter view: The view to add.
     open func addSubview(_ view: UIView) {
-        if self === view {
-            fatalError("Can't add self as subview")
+        guard self !== view else {
+            assertionFailure("Can't add self as subview")
+            return
         }
 
-        if view.parentView != nil {
-            fatalError("Can't add view if view attached to another view")
+        guard view.parentView == nil else {
+            assertionFailure("Can't add view if view attached to another view")
+            return
         }
 
         view.viewWillMove(to: self)

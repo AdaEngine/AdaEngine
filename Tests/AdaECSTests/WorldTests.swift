@@ -202,6 +202,16 @@ extension WorldTests {
         #expect(world.get(ComponentA.self, from: entity.id) == ComponentA(value: 0))
     }
 
+    @Test
+    func `insert component adds macro required dependencies`() {
+        let entity = world.spawn("Requires")
+
+        entity.components += ComponentWithRequirement()
+
+        #expect(world.get(ComponentWithRequirement.self, from: entity.id) != nil)
+        #expect(world.get(ComponentA.self, from: entity.id) == ComponentA(value: 0))
+    }
+
     @Test("Query all")
     func queryAll() {
         let e = world.spawn {

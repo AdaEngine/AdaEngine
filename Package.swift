@@ -107,6 +107,13 @@ var products: [Product] = [
         name: "AdaEngineEmbeddable",
         targets: ["AdaEngineEmbeddable"]
     ),
+    .library(
+        name: "AdaWeb",
+        targets: ["AdaWeb"]
+    ),
+    .plugin(name: "AdaWebExportPlugin", targets: [
+        "AdaWebExportPlugin"
+    ]),
     .plugin(name: "WebGPUBuildPlugin", targets: [
         "WebGPUBuildPlugin"
     ]),
@@ -121,8 +128,6 @@ var products: [Product] = [
         "TextureAtlasCommandPlugin"
     ])
 ]
-
-// Check that we target on vulkan dependency
 
 // MARK: - Targets
 
@@ -148,6 +153,7 @@ var swiftSettings: [SwiftSetting] = [
     .define("METAL", .when(platforms: applePlatforms)),
     .define("WEBGPU_ENABLED", .when(traits: [.wgpuTrait])),
     .define("WASM", .when(platforms: [.wasi])),
+    .define("BROWSER", .when(platforms: [.wasi])),
     .define("ENABLE_DEBUG_DYLIB", .when(configuration: .debug)),
     .define("ENABLE_RUN_IN_CONCURRENCY", .when(platforms: [.windows, .wasi, .android, .linux])),
     .enableUpcomingFeature("MemberImportVisibility"),
@@ -271,7 +277,17 @@ var targets: [Target] = [
             "AdaUtils",
             "AdaECS",
             "AdaApp",
-            "AdaUI"
+            "AdaUI",
+            .product(
+                name: "JavaScriptKit",
+                package: "JavaScriptKit",
+                condition: .when(platforms: [.wasi])
+            ),
+            .product(
+                name: "JavaScriptEventLoop",
+                package: "JavaScriptKit",
+                condition: .when(platforms: [.wasi])
+            )
         ],
         swiftSettings: swiftSettings
     ),
@@ -282,7 +298,8 @@ var targets: [Target] = [
             .product(name: "BitCollections", package: "swift-collections"),
             .product(name: "Atomics", package: "swift-atomics"),
             "AdaEngineMacros",
-            "AdaUtils"
+            "AdaUtils",
+            "Math"
         ],
         swiftSettings: swiftSettings
     ),
@@ -332,7 +349,17 @@ var targets: [Target] = [
             "AdaApp",
             "AdaUtils",
             "Math",
-            "Yams"
+            "Yams",
+            .product(
+                name: "JavaScriptKit",
+                package: "JavaScriptKit",
+                condition: .when(platforms: [.wasi])
+            ),
+            .product(
+                name: "JavaScriptFoundationCompat",
+                package: "JavaScriptKit",
+                condition: .when(platforms: [.wasi])
+            )
         ],
         swiftSettings: swiftSettings
     ),
@@ -469,7 +496,45 @@ var targets: [Target] = [
         ],
         swiftSettings: swiftSettings
     ),
+    .adaTarget(
+        name: "AdaWeb",
+        dependencies: [
+            "AdaApp",
+            "AdaAssets",
+            "AdaPlatform",
+            "AdaRender",
+            "AdaUI",
+            .product(
+                name: "JavaScriptKit",
+                package: "JavaScriptKit",
+                condition: .when(platforms: [.wasi])
+            ),
+            .product(
+                name: "JavaScriptEventLoop",
+                package: "JavaScriptKit",
+                condition: .when(platforms: [.wasi])
+            )
+        ],
+        swiftSettings: swiftSettings
+    ),
 ]
+
+targets.append(
+    .plugin(
+        name: "AdaWebExportPlugin",
+        capability: .command(
+            intent: .custom(
+                verb: "export-web",
+                description: "Export an AdaEngine executable target as a browser WebAssembly app"
+            ),
+            permissions: [
+                .writeToPackageDirectory(reason: "Write the exported web app bundle to the requested output directory")
+            ]
+        ),
+        dependencies: [],
+        path: "Plugins/AdaWebExportPlugin"
+    )
+)
 
 targets.append(
     .plugin(
@@ -971,6 +1036,7 @@ package.dependencies += [
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
     .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "0.2.1"),
     .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.7.3"),
+    .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", from: "0.36.0"),
     // TODO: SpectralDragon packages should move to AdaEngine
     .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     // Plugins
@@ -1109,6 +1175,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "KanbanBoardExample", path: "UI"),
     .exampleTarget(name: "TextFieldExample", path: "UI"),
     .exampleTarget(name: "NativeViewExample", path: "UI"),
+    .exampleTarget(name: "SceneViewExample", path: "UI"),
 
     // MARK: Example
     .exampleTarget(name: "SimpleCollideEventExample", path: "Events"),

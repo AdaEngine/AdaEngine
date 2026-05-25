@@ -60,7 +60,7 @@ open class UILayer {
             opacity: context.opacity
         )
         context.commandQueue.push(.beginLayer(id: self.id, version: snapshot.version, cacheable: snapshot.cacheable))
-        context.commandQueue.commands.append(contentsOf: snapshot.commands)
+        context.commandQueue.push(contentsOf: snapshot.commands)
         context.commandQueue.push(.endLayer(id: self.id))
     }
 

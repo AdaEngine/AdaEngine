@@ -48,6 +48,41 @@ struct ContextMenuModifierTests {
     }
 
     @Test
+    func contextMenuPresentsSubmenus() {
+        var captured: ContextMenuPresentation?
+        var didOpenRecent = false
+
+        ContextMenuPresentationCenter.present = { presentation in
+            captured = presentation
+        }
+
+        let tester = ViewTester {
+            Color.red
+                .frame(width: 100, height: 100)
+                .contextMenu {
+                    ContextMenuSubmenu("Open") {
+                        Button("Recent") {
+                            didOpenRecent = true
+                        }
+                    }
+                    Button("Close") {}
+                }
+        }
+        .setSize(Size(width: 100, height: 100))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(50, 50), button: .right, phase: .began)
+
+        #expect(captured?.items.map(\.title) == ["Open", "Close"])
+        #expect(captured?.items.first?.submenu.map(\.title) == ["Recent"])
+
+        captured?.items.first?.submenu.first?.action?()
+        #expect(didOpenRecent)
+
+        ContextMenuPresentationCenter.present = nil
+    }
+
+    @Test
     func contextMenuPresentsAfterLongPress() {
         var captured: ContextMenuPresentation?
 

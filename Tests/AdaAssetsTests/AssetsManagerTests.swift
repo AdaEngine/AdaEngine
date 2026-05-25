@@ -25,6 +25,34 @@ struct AssetsManagerTests: Sendable {
         AssetsManager.registerAssetType(TestAsset.self)
     }
 
+    @Test("Resource URLs resolve under the active asset directory")
+    @AssetActor
+    func resourceURLsResolveUnderAssetDirectory() throws {
+        let assetDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("Assets")
+        try AssetsManager.setAssetDirectory(assetDirectory)
+
+        let resolved = AssetsManager.resolveAssetURL(at: "@res://Textures/player.png")
+
+        #expect(resolved == assetDirectory.appendingPathComponent("Textures/player.png"))
+    }
+
+    @Test("Explicit bundled asset root controls resource URL mapping")
+    @AssetActor
+    func bundledAssetRootControlsResourceURLMapping() throws {
+        let assetsURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("WebBundle")
+            .appendingPathComponent("Assets")
+
+        try AssetsManager.initialize(filePath: #filePath, assetBundleResourceURL: assetsURL)
+
+        let resolved = AssetsManager.resolveAssetURL(at: "@res://sprites/hero.png")
+
+        #expect(resolved == assetsURL.appendingPathComponent("sprites/hero.png"))
+    }
+
     // FIXME: Im tired to fix it right now
     
     // @Test("Loading non-existent asset should throw error")

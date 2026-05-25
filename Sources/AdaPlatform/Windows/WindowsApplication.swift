@@ -23,7 +23,7 @@ final class WindowsApplication: Application {
         Self.enableDPIAwareness()
         self.screenManager = WindowsScreenManager()
         unsafe WindowsScreenManager.shared = screenManager
-        unsafe Screen.screenManager = screenManager
+        Screen.screenManager = screenManager
         unsafe try super.init(argc: argc, argv: argv)
         self.windowManager = WindowsWindowManager(screenManager)
         UIWindowManager.setShared(self.windowManager)
@@ -35,6 +35,7 @@ final class WindowsApplication: Application {
         do {
             var msg = unsafe MSG()
             while true {
+                let frameStartedAt = Time.absolute
                 try Task.checkCancellation()
                     
                 // Process Windows messages
@@ -50,7 +51,7 @@ final class WindowsApplication: Application {
                 }
                     
                 try await appWorlds.update()
-                await Task.yield()
+                try await waitForNextFrameIfNeeded(startedAt: frameStartedAt, appWorlds: appWorlds)
             }
         } catch {
             let alert = Alert(
@@ -105,6 +106,21 @@ final class WindowsApplication: Application {
         self.windowManager.inputRef = mutableInput
     }
 
+    private func waitForNextFrameIfNeeded(startedAt frameStartedAt: LongTimeInterval, appWorlds: AppWorlds) async throws {
+        guard let framePacing = appWorlds.getResource(ApplicationFramePacing.self) else {
+            await Task.yield()
+            return
+        }
+
+        let remainingTime = framePacing.minimumFrameDuration - (Time.absolute - frameStartedAt)
+        guard remainingTime > 0 else {
+            await Task.yield()
+            return
+        }
+
+        try await Task.sleep(nanoseconds: UInt64(remainingTime * 1_000_000_000))
+    }
+
     private static func enableDPIAwareness() {
         if SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) {
             return
@@ -115,4 +131,3 @@ final class WindowsApplication: Application {
 }
 
 #endif
-

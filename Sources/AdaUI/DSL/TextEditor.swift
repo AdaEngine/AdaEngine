@@ -47,32 +47,138 @@ public struct TextEditorColors: Hashable, Sendable {
     )
 }
 
+/// A colored token span rendered by ``TextEditor``.
+public struct TextEditorTokenSpan: Hashable, Sendable {
+    public var line: Int
+    public var startColumn: Int
+    public var length: Int
+    public var color: Color
+
+    public init(line: Int, startColumn: Int, length: Int, color: Color) {
+        self.line = line
+        self.startColumn = startColumn
+        self.length = length
+        self.color = color
+    }
+}
+
+/// A zero-based source position inside ``TextEditor`` content.
+public struct TextEditorSourcePosition: Hashable, Sendable {
+    public var line: Int
+    public var column: Int
+
+    public init(line: Int, column: Int) {
+        self.line = line
+        self.column = column
+    }
+}
+
+/// A zero-based source range inside ``TextEditor`` content.
+public struct TextEditorSourceRange: Hashable, Sendable {
+    public var start: TextEditorSourcePosition
+    public var end: TextEditorSourcePosition
+
+    public init(start: TextEditorSourcePosition, end: TextEditorSourcePosition) {
+        self.start = start
+        self.end = end
+    }
+}
+
+/// A context menu item emitted by ``TextEditor`` source interactions.
+public struct TextEditorContextMenuItem {
+    public var title: String
+    public var action: (() -> Void)?
+    public var submenu: [TextEditorContextMenuItem]
+
+    public init(title: String, action: (() -> Void)? = nil, submenu: [TextEditorContextMenuItem] = []) {
+        self.title = title
+        self.action = action
+        self.submenu = submenu
+    }
+}
+
+/// Optional source-aware interactions for ``TextEditor``.
+public struct TextEditorSourceInteraction {
+    public var highlightedRanges: [TextEditorSourceRange]
+    public var focusedRange: TextEditorSourceRange?
+    public var onHover: ((TextEditorSourcePosition?) -> Void)?
+    public var onPrimaryClick: ((TextEditorSourcePosition) -> Void)?
+    public var contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])?
+
+    public init(
+        highlightedRanges: [TextEditorSourceRange] = [],
+        focusedRange: TextEditorSourceRange? = nil,
+        onHover: ((TextEditorSourcePosition?) -> Void)? = nil,
+        onPrimaryClick: ((TextEditorSourcePosition) -> Void)? = nil,
+        contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])? = nil
+    ) {
+        self.highlightedRanges = highlightedRanges
+        self.focusedRange = focusedRange
+        self.onHover = onHover
+        self.onPrimaryClick = onPrimaryClick
+        self.contextMenuItems = contextMenuItems
+    }
+}
+
 /// A multi-line text editing view.
-public struct TextEditor: View, ViewNodeBuilder {
-
-    public typealias Body = Never
-    public var body: Never { fatalError() }
-
+public struct TextEditor: View {
     let placeholder: String
     let text: Binding<String>
+    let tokenSpans: [TextEditorTokenSpan]
+    let sourceInteraction: TextEditorSourceInteraction?
+
+    public var body: some View {
+        ScrollView([.horizontal, .vertical]) {
+            TextEditorPrimitive(
+                placeholder: placeholder,
+                text: text,
+                tokenSpans: tokenSpans,
+                sourceInteraction: sourceInteraction
+            )
+        }
+    }
 
     /// Creates a text editor.
     ///
     /// - Parameters:
     ///   - placeholder: Text displayed when the editor is empty.
     ///   - text: Two-way binding for the editor content.
-    public init(_ placeholder: String = "", text: Binding<String>) {
+    public init(
+        _ placeholder: String = "",
+        text: Binding<String>,
+        tokenSpans: [TextEditorTokenSpan] = [],
+        sourceInteraction: TextEditorSourceInteraction? = nil
+    ) {
         self.placeholder = placeholder
         self.text = text
+        self.tokenSpans = tokenSpans
+        self.sourceInteraction = sourceInteraction
     }
 
     /// Creates a text editor.
     ///
     /// - Parameter text: Two-way binding for the editor content.
-    public init(text: Binding<String>) {
+    public init(
+        text: Binding<String>,
+        tokenSpans: [TextEditorTokenSpan] = [],
+        sourceInteraction: TextEditorSourceInteraction? = nil
+    ) {
         self.placeholder = ""
         self.text = text
+        self.tokenSpans = tokenSpans
+        self.sourceInteraction = sourceInteraction
     }
+
+}
+
+struct TextEditorPrimitive: View, ViewNodeBuilder {
+    typealias Body = Never
+    var body: Never { fatalError() }
+
+    let placeholder: String
+    let text: Binding<String>
+    let tokenSpans: [TextEditorTokenSpan]
+    let sourceInteraction: TextEditorSourceInteraction?
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
         TextEditorViewNode(inputs: context, content: self)

@@ -17,4 +17,5 @@ public enum RuntimePlatform: String, Codable {
     
     case linux
     case android
+    case web
 }

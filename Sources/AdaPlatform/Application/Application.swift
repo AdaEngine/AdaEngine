@@ -56,6 +56,8 @@ open class Application: Resource {
         return .linux
         #elseif os(Android)
         return .android
+        #elseif WASM
+        return .web
         #endif
     }
     
@@ -107,7 +109,9 @@ open class Application: Resource {
     /// Call this method to terminate app execution with 0 status code.
     @MainActor 
     open func terminate() {
-        #if os(Windows)
+        #if WASM
+        return
+        #elseif os(Windows)
         exit(0)
         #else
         exit(EXIT_SUCCESS)

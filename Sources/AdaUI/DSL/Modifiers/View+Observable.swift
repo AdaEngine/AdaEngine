@@ -25,6 +25,9 @@ public extension View {
 }
 
 struct ObservableStorageEnvironment: @unchecked Sendable, Hashable {
+    // AdaUI environment propagation is MainActor-only. `@unchecked Sendable` is
+    // limited to storing Observation object references inside EnvironmentValues,
+    // whose key values must be Sendable even when the observable itself is UI-bound.
     private var storedValues: [ObjectIdentifier: any Observable & AnyObject] = [:]
 
     mutating func insertValue<T: Observable & AnyObject>(_ value: T?) {

@@ -51,6 +51,11 @@ public struct ViewTuple<Content>: View {
     }
 }
 
+@MainActor
+protocol AnyViewTuple { }
+
+extension ViewTuple: AnyViewTuple { }
+
 extension Array {
     static func fromTuple<Tuple>(_ tuple: Tuple) -> [Element] {
         return Mirror(reflecting: tuple).children.compactMap { $0.value as? Element }

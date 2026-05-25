@@ -1,14 +1,21 @@
 @_spi(AdaEngine) import AdaEngine
-import Foundation
 
 @MainActor
 func adaEditorPanelTitle(_ title: String, trailing: String, theme: Theme) -> some View {
     let colors = theme.editorColors
-    return HStack {
-        Text(title).font(.system(size: 12)).foregroundColor(colors.muted)
-        Spacer()
+    return HStack(spacing: 8) {
+        Text(title)
+            .font(.system(size: 12))
+            .foregroundColor(colors.muted)
+            .lineLimit(1)
         if !trailing.isEmpty {
-            Text(trailing).font(.system(size: 11)).foregroundColor(colors.muted)
+            Text(trailing)
+                .font(.system(size: 11))
+                .foregroundColor(colors.muted)
+                .lineLimit(1)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .trailing)
+        } else {
+            Spacer()
         }
     }
     .padding(.horizontal, 12)
@@ -37,6 +44,8 @@ func adaEditorStripButton(
 ) -> some View {
     Button(action: action) {
         Text(item.icon)
+            .font(AdaEditorMaterialSymbolFont.font(size: 18))
+            .frame(width: 30, height: 30)
     }
     .buttonStyle(
         AdaEditorStripButtonStyle(
@@ -48,54 +57,23 @@ func adaEditorStripButton(
     .accessibilityIdentifier("AdaEditor.ToolStrip.\(item.identifier)")
 }
 
-private struct AdaEditorStripButtonStyle: ButtonStyle {
-    let active: Bool
-    let theme: Theme
-    let accent: Color?
-
-    func makeBody(configuration: Configuration) -> some View {
-        let colors = theme.editorColors
-        let accentColor = accent ?? colors.blue
-        let isHighlighted = configuration.state.isHighlighted || configuration.state.isSelected
-
-        return configuration.label
-            .font(AdaEditorMaterialSymbols.font(size: 18))
-            .foregroundColor(active ? accentColor : (isHighlighted ? colors.text : colors.muted))
-            .frame(width: 30, height: 30)
-            .background(RoundedRectangleShape(cornerRadius: 6).fill(active ? accentColor.opacity(0.16) : (isHighlighted ? colors.surfaceElevated : Color.clear)))
-            .overlay {
-                HStack(spacing: 0) {
-                    if active { RectangleShape().fill(accentColor).frame(width: 3, height: 18) }
-                    Spacer()
-                }
-            }
-        }
-}
-
-enum AdaEditorMaterialSymbols {
-    private static let codepoints: [UInt32] = [
-        0xE24D,
+enum AdaEditorMaterialSymbolFont {
+    static let codepoints: [UInt32] = [
+        0xE0CA,
         0xE2C7,
-        0xE2C8,
-        0xE53F,
-        0xE5CC,
-        0xE5CF,
-        0xE86F,
-        0xE873,
-        0xE97A,
-        0xEA60,
-        0xF06C,
-        0xF1C4,
-        0xEAF5,
-        0xEA4B,
-        0xEB8E,
-        0xE869,
+        0xE48F,
+        0xE5CD,
         0xE71C,
-        0xE88E,
-        0xE9F4,
-        0xF569,
+        0xE869,
+        0xE86C,
         0xE87B,
-        0xE8B8
+        0xE88E,
+        0xE8B6,
+        0xE8B8,
+        0xE97A,
+        0xEB8E,
+        0xF1C4,
+        0xF720
     ]
 
     private static let resource: FontResource? = {
@@ -109,8 +87,8 @@ enum AdaEditorMaterialSymbols {
 
         return FontResource.custom(
             fontPath: fontURL,
-            emFontScale: 74,
-            includeDefaultCharset: true,
+            emFontScale: 96,
+            includeDefaultCharset: false,
             additionalCodepoints: codepoints
         )
     }()
@@ -122,4 +100,27 @@ enum AdaEditorMaterialSymbols {
 
         return Font(fontResource: resource, pointSize: size)
     }
+}
+
+private struct AdaEditorStripButtonStyle: ButtonStyle {
+    let active: Bool
+    let theme: Theme
+    let accent: Color?
+
+    func makeBody(configuration: Configuration) -> some View {
+        let colors = theme.editorColors
+        let accentColor = accent ?? colors.blue
+        let isHighlighted = configuration.state.isHighlighted || configuration.state.isSelected
+
+        return configuration.label
+            .foregroundColor(active ? accentColor : (isHighlighted ? colors.text : colors.muted))
+            .frame(width: 30, height: 30)
+            .background(RoundedRectangleShape(cornerRadius: 6).fill(active ? accentColor.opacity(0.16) : (isHighlighted ? colors.surfaceElevated : Color.clear)))
+            .overlay {
+                HStack(spacing: 0) {
+                    if active { RectangleShape().fill(accentColor).frame(width: 3, height: 18) }
+                    Spacer()
+                }
+            }
+        }
 }

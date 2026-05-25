@@ -21,10 +21,10 @@ public protocol UpdatableProperty {
 /// A container that keeps state storages for a specific view node.
 @MainActor
 final class ViewStateContainer {
-    private var storages: [String: UpdatablePropertyStorage] = [:]
+    private var storages: [ViewStatePropertyKey: UpdatablePropertyStorage] = [:]
 
     func storage<Value>(
-        for key: String,
+        for key: ViewStatePropertyKey,
         initialValue: @autoclosure () -> StateStorage<Value>
     ) -> StateStorage<Value> {
         if let storage = storages[key] as? StateStorage<Value> {
@@ -37,9 +37,17 @@ final class ViewStateContainer {
     }
 }
 
+struct ViewStatePropertyKey: Hashable {
+    let ordinal: Int
+    let label: String
+    let valueType: ObjectIdentifier
+}
+
 @MainActor
 protocol ViewStateBindable {
-    func bind(to container: ViewStateContainer, key: String)
+    var stateValueType: ObjectIdentifier { get }
+
+    func bind(to container: ViewStateContainer, key: ViewStatePropertyKey)
 }
 
 /// A protocol that defines a property that can be stored.
@@ -73,20 +81,26 @@ class UpdatablePropertyStorage {
                      .info("\(type(of: node.content)): \(propertyName) changed.")
             }
 
+            let isStateUpdate = self is AnyStateStorage
+
             if let animationController {
                 node.performWithTransientAnimationController(animationController) {
-                    node.invalidateContent()
+                    node.invalidateContent(propagateLayout: !isStateUpdate)
                 }
                 node.owner?.addTransientAnimationController(animationController)
             } else {
-                node.invalidateContent()
+                node.invalidateContent(propagateLayout: !isStateUpdate)
             }
 
             if let containerView = node.owner?.containerView {
                 // Content invalidation can change layout without changing the container frame.
                 // `setNeedsLayout()` schedules `layoutSubviews` → `place()` before the next draw;
                 // `setNeedsDisplay` alone only repaints with stale layout until something (e.g. resize) relayouts.
-                containerView.setNeedsLayout()
+                if isStateUpdate {
+                    containerView.setNeedsDisplay(in: node.visualAbsoluteFrame())
+                } else {
+                    containerView.setNeedsLayout()
+                }
             }
         }
     }
@@ -100,3 +114,6 @@ class UpdatablePropertyStorage {
         viewNode.storages.insert(self)
     }
 }
+
+@MainActor
+protocol AnyStateStorage: AnyObject { }

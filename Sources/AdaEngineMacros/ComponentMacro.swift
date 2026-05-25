@@ -129,12 +129,39 @@ private extension ComponentMacro {
         }
         """
         }
+
+        let editorFields = properties.map { propertyName, propertyType, _ in
+        """
+        AdaECS.EditorComponentFieldDescriptor(
+            key: "\(propertyName)",
+            label: "\(propertyName.editorFieldLabel)",
+            kind: AdaECS.EditorComponentReflection.kind(for: \(propertyType).self),
+            isEditable: AdaECS.EditorComponentReflection.isEditable(\(propertyType).self),
+            read: { component in
+                guard let typedComponent = component as? Self else {
+                    return nil
+                }
+                return AdaECS.EditorComponentReflection.read(typedComponent.\(propertyName))
+            },
+            write: { component, fieldValue in
+                guard var typedComponent = component as? Self else {
+                    return nil
+                }
+                guard AdaECS.EditorComponentReflection.write(fieldValue, to: &typedComponent.\(propertyName)) else {
+                    return nil
+                }
+                return typedComponent
+            }
+        )
+        """
+        }
         
         return generateDeclaration(
             type: type,
             availability: structDecl.modifiers,
             functions: functions,
-            requiredComponents: requiredComponents
+            requiredComponents: requiredComponents,
+            editorFields: editorFields
         )
     }
     
@@ -142,18 +169,30 @@ private extension ComponentMacro {
         type: T,
         availability: DeclModifierListSyntax?,
         functions: [String],
-        requiredComponents: [String] = []
+        requiredComponents: [String] = [],
+        editorFields: [String] = []
     ) -> [SwiftSyntax.ExtensionDeclSyntax] {
         // Process modifiers: if private or fileprivate, change to internal
         let processedAvailability = processModifiers(availability)
+        let requiredComponentTypeNames = requiredComponents.map { "String(reflecting: \($0))" }.joined(separator: ", ")
         
-        let proto = "AdaECS.Component"
+        let proto = "AdaECS.Component, AdaECS.EditorInspectableComponent"
         let ext: DeclSyntax =
         """
         extension \(type.trimmed): \(raw: proto) { 
             \(raw: functions.joined(separator: "\n"))
             \(processedAvailability) static var requiredComponents: RequiredComponents {
                 RequiredComponents(components: [\(raw: requiredComponents.joined(separator: ", "))])
+            }
+            \(processedAvailability) static var editorComponentDescriptor: AdaECS.EditorComponentDescriptor {
+                AdaECS.EditorComponentDescriptor(
+                    type: Self.self,
+                    displayName: String(describing: Self.self),
+                    requiredComponentTypeNames: [\(raw: requiredComponentTypeNames)],
+                    fields: [
+                        \(raw: editorFields.joined(separator: ",\n"))
+                    ]
+                )
             }
         }
         """
@@ -210,5 +249,20 @@ extension ComponentMacro: MemberMacro {
 extension String {
     func capitalizingFirstLetter() -> String {
         return prefix(1).capitalized + dropFirst()
+    }
+
+    var editorFieldLabel: String {
+        guard !isEmpty else {
+            return self
+        }
+
+        var result = ""
+        for character in self {
+            if character.isUppercase && !result.isEmpty {
+                result.append(" ")
+            }
+            result.append(character)
+        }
+        return result.capitalizingFirstLetter()
     }
 }

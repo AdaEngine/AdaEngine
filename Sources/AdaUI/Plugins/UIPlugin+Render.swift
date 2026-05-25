@@ -207,7 +207,7 @@ public struct UIRenderTesselationSystem {
             var rootState = DrawBuildState()
             var layerStack: [ActiveLayer] = []
 
-            for command in graphicsContext.commandQueue.commands {
+            for command in graphicsContext.getDrawCommands() {
                 switch command {
                 case let .beginLayer(id, version, cacheable):
                     activeLayerIDs.insert(id)

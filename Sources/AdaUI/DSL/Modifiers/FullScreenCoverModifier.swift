@@ -110,6 +110,7 @@ final class FullScreenCoverNode: ViewModifierNode {
     }
 
     private func rebuildOverlay() {
+        let hadOverlay = overlayNode != nil
         if isPresented.wrappedValue {
             var inputs = viewInputs
             inputs.environment.dismiss = dismissAction
@@ -127,7 +128,9 @@ final class FullScreenCoverNode: ViewModifierNode {
 
         invalidateNearestLayer()
         owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
-        performLayout()
+        if isPresented.wrappedValue || hadOverlay {
+            performLayout()
+        }
     }
 
     override func performLayout() {

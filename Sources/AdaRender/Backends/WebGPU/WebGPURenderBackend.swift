@@ -102,10 +102,7 @@ extension WebGPURenderBackend {
             backendType: .metal
         )
 #elseif os(Linux)
-        WebGPU.GPURequestAdapterOptions(
-            powerPreference: .highPerformance,
-            backendType: .vulkan
-        )
+        WebGPU.GPURequestAdapterOptions(powerPreference: .highPerformance)
 #else
         WebGPU.GPURequestAdapterOptions(powerPreference: .highPerformance)
 #endif

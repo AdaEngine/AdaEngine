@@ -5,8 +5,8 @@
 //  Created by Vladislav Prusakov on 01.07.2024.
 //
 
-import AdaUtils
 import AdaInput
+import AdaUtils
 import Math
 
 // MARK: - Gesture Protocol
@@ -205,7 +205,7 @@ public struct TapGesture: Gesture {
 }
 
 extension TapGesture: _RecognizableGesture {
-    func _makeRecognizer(onChanged: ((Void) -> Void)?, onEnded: ((Void) -> Void)?) -> GestureRecognizer {
+    func _makeRecognizer(onChanged: ((()) -> Void)?, onEnded: ((()) -> Void)?) -> GestureRecognizer {
         TapGestureRecognizer(count: count, onEnded: { onEnded?(()) })
     }
 }
@@ -223,7 +223,7 @@ public struct LongPressGesture: Gesture {
 }
 
 extension LongPressGesture: _RecognizableGesture {
-    func _makeRecognizer(onChanged: ((Void) -> Void)?, onEnded: ((Void) -> Void)?) -> GestureRecognizer {
+    func _makeRecognizer(onChanged: ((()) -> Void)?, onEnded: ((()) -> Void)?) -> GestureRecognizer {
         LongPressGestureRecognizer(minimumDuration: minimumDuration, onEnded: { onEnded?(()) })
     }
 }

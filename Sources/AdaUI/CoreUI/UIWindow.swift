@@ -191,16 +191,18 @@ open class UIWindow: UIView {
     }
     
     public override func addSubview(_ view: UIView) {
-        if view is UIWindow {
-            fatalError("You cannot add window as subview to another window")
+        guard !(view is UIWindow) else {
+            assertionFailure("You cannot add window as subview to another window")
+            return
         }
         
         if let anotherWindow = view.window {
             if anotherWindow === self {
                 assertionFailure("View already added on this window.")
             } else {
-                fatalError("You cannot add view as subview, because view holded by another window.")
+                assertionFailure("You cannot add view as subview, because view holded by another window.")
             }
+            return
         }
 
         super.addSubview(view)
@@ -208,7 +210,8 @@ open class UIWindow: UIView {
     
     public override func removeSubview(_ view: UIView) {
         if let window = view.window, window !== self {
-            fatalError("You cant remove view from another window instance.")
+            assertionFailure("You cant remove view from another window instance.")
+            return
         }
         
         super.removeSubview(view)

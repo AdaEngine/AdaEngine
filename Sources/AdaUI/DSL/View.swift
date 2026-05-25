@@ -46,6 +46,7 @@ extension View {
                 layout: AnyLayout(inputs.layout),
                 content: view.value,
                 bypassSingleChildLayout: true,
+                buildImmediately: false,
                 body: { inputs in
                     let body = _ViewGraphNode(value: view.value)[\.body]
                     return Self.Body._makeListView(body, inputs: inputs)
@@ -54,6 +55,7 @@ extension View {
             node.updateEnvironment(inputs.environment)
             node.stateContainer = stateContainer
             resolvedInputs.registerNodeForStorages(node)
+            node.invalidateContent()
             return _ViewOutputs(node: node)
         }
     }
@@ -77,6 +79,7 @@ extension View {
                 layout: AnyLayout(inputs.input.layout),
                 content: view.value,
                 bypassSingleChildLayout: true,
+                buildImmediately: false,
                 body: { inputs in
                     let body = _ViewGraphNode(value: view.value)[\.body]
                     return Self.Body._makeListView(body, inputs: inputs)
@@ -85,6 +88,7 @@ extension View {
             node.updateEnvironment(inputs.input.environment)
             node.stateContainer = stateContainer
             resolvedInputs.registerNodeForStorages(node)
+            node.invalidateContent()
             return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
         }
 

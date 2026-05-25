@@ -264,6 +264,38 @@ struct GestureTests {
         #expect(hoverEvents.contains(false))
     }
 
+    @Test
+    func cursorShape_setsWindowCursorWhilePointerIsInside() {
+        let container = UIContainerView(
+            rootView: HStack(spacing: 0) {
+                Color.red
+                    .frame(width: 100, height: 100)
+                    .cursorShape(.resizeLeftRight)
+
+                Color.blue
+                    .frame(width: 100, height: 100)
+            }
+        )
+        container.frame = Rect(x: 0, y: 0, width: 200, height: 100)
+
+        let window = UIWindow(frame: Rect(x: 0, y: 0, width: 200, height: 100))
+        window.addSubview(container)
+        window.layoutSubviews()
+
+        window.sendEvent(
+            MouseEvent(
+                window: window.id,
+                button: .none,
+                mousePosition: Point(50, 50),
+                phase: .changed,
+                modifierKeys: [],
+                time: 0
+            )
+        )
+        #expect(window.windowManager.getCursorShape() == .resizeLeftRight)
+
+    }
+
     // MARK: - Gesture Combining
 
     @Test

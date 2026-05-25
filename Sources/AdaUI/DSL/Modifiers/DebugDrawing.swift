@@ -74,6 +74,8 @@ final class DebugOverlayModifierNode: ViewModifierNode {
 
             self.mode = node.mode
             self.invalidateNearestLayer()
+            self.owner?.containerView?.setNeedsLayout()
+            self.owner?.containerView?.setNeedsDisplay()
         }
     }
 

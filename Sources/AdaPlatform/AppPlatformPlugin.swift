@@ -43,6 +43,10 @@ public struct AppPlatformPlugin: Plugin {
 #if os(Windows)
             application = unsafe try WindowsApplication(argc: argc, argv: argv)
 #endif
+
+#if WASM
+            application = unsafe try BrowserApplication(argc: argc, argv: argv)
+#endif
             
             Application.shared = application
             app.insertResource(application)

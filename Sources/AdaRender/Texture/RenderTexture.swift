@@ -23,6 +23,9 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
     
     /// A Boolean value indicating whether the texture is active.
     public private(set) var isActive: Bool = true
+
+    @_spi(Internal)
+    public var renderCompletedHandler: (@Sendable (RenderTexture) -> Void)?
     
     /// Initialize a new render texture.
     ///
@@ -78,5 +81,10 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
 
     func setActive(_ isActive: Bool) {
         self.isActive = isActive
+    }
+
+    @_spi(Internal)
+    public func notifyRenderCompleted() {
+        renderCompletedHandler?(self)
     }
 }

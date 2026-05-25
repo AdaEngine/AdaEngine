@@ -6,8 +6,13 @@
 //
 
 import Math
+import Foundation
 
 /// An object represents user physical display.
+///
+/// `Screen` instances are immutable wrappers around platform screen identity. The
+/// manager reference is installed during app bootstrap and platform managers own
+/// their native synchronization/main-thread requirements.
 public final class Screen: @unchecked Sendable {
 
     private unowned let screenManager: any ScreenManager
@@ -38,17 +43,43 @@ public final class Screen: @unchecked Sendable {
 }
 
 extension Screen {
-    package static nonisolated(unsafe) var screenManager: (any ScreenManager)?
+    /// Protects the process-wide screen manager slot used by environment defaults
+    /// and headless tests. The manager itself is still responsible for native API
+    /// threading rules.
+    private final class ScreenManagerStorage: @unchecked Sendable {
+        private let lock = NSLock()
+        private var manager: (any ScreenManager)?
+
+        var value: (any ScreenManager)? {
+            get {
+                lock.lock()
+                defer { lock.unlock() }
+                return manager
+            }
+            set {
+                lock.lock()
+                defer { lock.unlock() }
+                manager = newValue
+            }
+        }
+    }
+
+    private static let screenManagerStorage = ScreenManagerStorage()
+
+    package static var screenManager: (any ScreenManager)? {
+        get { screenManagerStorage.value }
+        set { screenManagerStorage.value = newValue }
+    }
 
     /// Returns the platform primary screen.
     /// - Returns: Returns the main screen or nil if we run in headless mode.
     public static var main: Screen? {
-        return unsafe screenManager?.getMainScreen()
+        return screenManager?.getMainScreen()
     }
 
     /// Returns list of available screens.
     public static var screens: [Screen] {
-        unsafe screenManager?.getScreens() ?? []
+        screenManager?.getScreens() ?? []
     }
 }
 

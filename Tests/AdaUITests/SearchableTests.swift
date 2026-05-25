@@ -145,7 +145,7 @@ struct SearchableTests {
             .frame(width: 320, height: 120)
             .searchable(text: binding, placement: .overlay(alignment: .topLeading), prompt: "Find")
 
-        #expect(SearchBarDefaults.height == 46)
+        #expect(SearchBarDefaults.height == 32)
         #expect(SearchBarDefaults.modifierWidth == 280)
         #expect(SearchFieldPlacement.bottom == .bottom)
     }

@@ -5,6 +5,7 @@
 //  Created by Codex on 18.05.2026.
 //
 
+import AdaInput
 import AdaRender
 import AdaText
 import AdaUtils
@@ -19,7 +20,8 @@ extension TextEditorViewNode {
         lineIndex: Int,
         rowY: Float,
         lineHeight: Float,
-        pointSize: Float
+        pointSize: Float,
+        font: Font?
     ) {
         guard self.isFocused, self.hasSelection else {
             return
@@ -41,8 +43,14 @@ extension TextEditorViewNode {
         let textRect = self.textRect()
         let startColumn = max(0, min(start - lineStart, line.text.count))
         let endColumn = end > lineEnd ? line.text.count + 1 : max(0, min(end - lineStart, line.text.count))
-        let startX = textRect.minX + Float(startColumn) * characterAdvance - self.scrollOffset.x
-        let endX = textRect.minX + Float(endColumn) * characterAdvance - self.scrollOffset.x
+        let startX = textRect.minX + self.caretXOffset(forColumn: startColumn, in: line.text, font: font, pointSize: pointSize)
+        let endX = textRect.minX + {
+            if end > lineEnd {
+                return self.caretXOffset(forColumn: line.text.count, in: line.text, font: font, pointSize: pointSize) + characterAdvance
+            }
+
+            return self.caretXOffset(forColumn: endColumn, in: line.text, font: font, pointSize: pointSize)
+        }()
 
         context.drawRect(
             Rect(x: startX, y: rowY, width: max(characterAdvance, endX - startX), height: lineHeight),
@@ -50,17 +58,65 @@ extension TextEditorViewNode {
         )
     }
 
+    func drawSourceHighlightsIfNeeded(
+        in context: inout UIGraphicsContext,
+        line: LineInfo,
+        lineIndex: Int,
+        rowY: Float,
+        lineHeight: Float,
+        pointSize: Float,
+        font: Font?
+    ) {
+        guard let sourceInteraction, !sourceInteraction.highlightedRanges.isEmpty else {
+            return
+        }
+
+        let characterAdvance = self.characterAdvance(for: pointSize)
+        let textRect = self.textRect()
+
+        for sourceRange in sourceInteraction.highlightedRanges {
+            let range = self.rangeOffsets(for: sourceRange)
+            let lineStart = line.startOffset
+            let lineEnd = line.startOffset + line.text.count
+            let start = max(range.lowerBound, lineStart)
+            let end = min(range.upperBound, lineEnd)
+
+            guard end > start else {
+                continue
+            }
+
+            let startColumn = max(0, min(start - lineStart, line.text.count))
+            let endColumn = max(0, min(end - lineStart, line.text.count))
+            let startX = textRect.minX + self.caretXOffset(forColumn: startColumn, in: line.text, font: font, pointSize: pointSize)
+            let endX = textRect.minX + self.caretXOffset(forColumn: endColumn, in: line.text, font: font, pointSize: pointSize)
+            let highlightRect = Rect(
+                x: startX,
+                y: rowY + max(0, lineHeight - 3),
+                width: max(characterAdvance, endX - startX),
+                height: 2
+            )
+            context.drawRect(highlightRect, color: self.environment.accentColor.opacity(0.72))
+        }
+    }
+
     func drawString(_ string: String, font: Font, color: Color, in context: inout UIGraphicsContext, at point: Point) {
         guard !string.isEmpty else {
             return
         }
 
-        let layout = TextLayoutManager()
         var attributes = TextAttributeContainer()
         attributes.font = font
         attributes.foregroundColor = color
+        self.drawAttributedString(AttributedText(string, attributes: attributes), font: font, in: &context, at: point)
+    }
 
-        var container = TextContainer(text: AttributedText(string, attributes: attributes), textAlignment: .leading)
+    func drawAttributedString(_ string: AttributedText, font: Font, in context: inout UIGraphicsContext, at point: Point) {
+        guard !string.text.isEmpty else {
+            return
+        }
+
+        let layout = TextLayoutManager()
+        var container = TextContainer(text: string, textAlignment: .leading)
         container.numberOfLines = 1
         layout.setTextContainer(container)
         layout.fitToSize(Size(width: .infinity, height: self.lineHeight(for: Float(font.pointSize))))
@@ -75,6 +131,60 @@ extension TextEditorViewNode {
             }
         }
         context.translateBy(x: -point.x, y: point.y - verticalOffset)
+    }
+
+    func drawLineText(
+        _ lineText: String,
+        lineIndex: Int,
+        font: Font,
+        fallbackColor: Color,
+        in context: inout UIGraphicsContext,
+        at point: Point
+    ) {
+        let lineSpans = tokenSpans
+            .filter { $0.line == lineIndex && $0.length > 0 }
+            .sorted { lhs, rhs in
+                if lhs.startColumn == rhs.startColumn {
+                    lhs.length < rhs.length
+                } else {
+                    lhs.startColumn < rhs.startColumn
+                }
+            }
+
+        guard !lineSpans.isEmpty else {
+            drawString(lineText, font: font, color: fallbackColor, in: &context, at: point)
+            return
+        }
+
+        let attributedText = self.attributedLineText(lineText, lineSpans: lineSpans, font: font, fallbackColor: fallbackColor)
+        self.drawAttributedString(attributedText, font: font, in: &context, at: point)
+    }
+
+    func attributedLineText(_ lineText: String, lineSpans: [TextEditorTokenSpan], font: Font, fallbackColor: Color) -> AttributedText {
+        var fallbackAttributes = TextAttributeContainer()
+        fallbackAttributes.font = font
+        fallbackAttributes.foregroundColor = fallbackColor
+
+        var attributedText = AttributedText(lineText, attributes: fallbackAttributes)
+        guard !lineText.isEmpty else {
+            return attributedText
+        }
+
+        for span in lineSpans {
+            let start = max(0, min(span.startColumn, lineText.count))
+            let end = max(start, min(span.startColumn + span.length, lineText.count))
+            guard start < end else {
+                continue
+            }
+
+            var spanAttributes = fallbackAttributes
+            spanAttributes.foregroundColor = span.color
+            let startIndex = lineText.index(lineText.startIndex, offsetBy: start)
+            let endIndex = lineText.index(lineText.startIndex, offsetBy: end)
+            attributedText.setAttributes(spanAttributes, at: startIndex..<endIndex)
+        }
+
+        return attributedText
     }
 
     func drawBorder(in context: inout UIGraphicsContext, rect: Rect, color: Color) {
@@ -118,21 +228,59 @@ extension TextEditorViewNode {
         )
     }
 
-    func convertPointFromRoot(_ point: Point) -> Point {
-        var convertedPoint = point
-        var node: ViewNode = self
-
-        while let parent = node.parent {
-            convertedPoint = node.convert(convertedPoint, from: parent)
-            node = parent
+    func viewportChromeRect() -> Rect {
+        guard let scrollView = self.nearestScrollView() else {
+            return Rect(origin: .zero, size: self.frame.size)
         }
 
-        return convertedPoint
+        return Rect(origin: scrollView.contentOffset, size: scrollView.frame.size)
+    }
+
+    func convertPointFromRoot(_ point: Point) -> Point {
+        let visualFrame = self.visualAbsoluteFrame()
+        return Point(x: point.x - visualFrame.minX, y: point.y - visualFrame.minY)
     }
 
     func requestDisplay() {
         self.invalidateNearestLayer()
-        self.owner?.containerView?.setNeedsDisplay(in: self.absoluteFrame())
+        self.owner?.containerView?.setNeedsDisplay(in: self.visualAbsoluteFrame())
+    }
+
+    func activateTextCursorIfNeeded() {
+        guard !self.isCursorActive else {
+            return
+        }
+
+        self.isCursorActive = true
+        self.owner?.window?.windowManager.setCursorShape(.iBeam)
+    }
+
+    func resetTextCursorIfNeeded() {
+        guard self.isCursorActive else {
+            return
+        }
+
+        self.isCursorActive = false
+        self.owner?.window?.windowManager.setCursorShape(.arrow)
+    }
+
+    func activateSourceCursorIfNeeded() {
+        guard !self.isSourceCursorActive else {
+            return
+        }
+
+        self.isSourceCursorActive = true
+        self.isCursorActive = false
+        self.owner?.window?.windowManager.setCursorShape(.pointingHand)
+    }
+
+    func resetSourceCursorIfNeeded() {
+        guard self.isSourceCursorActive else {
+            return
+        }
+
+        self.isSourceCursorActive = false
+        self.owner?.window?.windowManager.setCursorShape(.arrow)
     }
 
     func resetCaretBlink() {
@@ -170,6 +318,41 @@ extension TextEditorViewNode {
         max(6, pointSize * 0.58)
     }
 
+    func caretXOffset(forColumn column: Int, in lineText: String, font: Font?, pointSize: Float) -> Float {
+        let clamped = max(0, min(column, lineText.count))
+        guard let caretStops = self.layoutCaretStops(for: lineText, font: font, pointSize: pointSize), !caretStops.isEmpty else {
+            return Float(clamped) * self.characterAdvance(for: pointSize)
+        }
+
+        let scalarOffset = Self.scalarOffset(forCharacterOffset: clamped, in: lineText)
+        let safeIndex = max(0, min(scalarOffset, caretStops.count - 1))
+        return caretStops[safeIndex]
+    }
+
+    func closestColumn(toX x: Float, in lineText: String, font: Font?, pointSize: Float) -> Int {
+        guard let caretStops = self.layoutCaretStops(for: lineText, font: font, pointSize: pointSize), !caretStops.isEmpty else {
+            let advance = self.characterAdvance(for: pointSize)
+            guard advance > 0 else {
+                return 0
+            }
+
+            return max(0, min(Int((x / advance).rounded()), lineText.count))
+        }
+
+        if x <= 0 {
+            return 0
+        }
+
+        for index in 0..<(caretStops.count - 1) {
+            let middle = (caretStops[index] + caretStops[index + 1]) * 0.5
+            if x < middle {
+                return Self.characterOffset(forScalarOffset: index, in: lineText)
+            }
+        }
+
+        return Self.characterOffset(forScalarOffset: caretStops.count - 1, in: lineText)
+    }
+
     func lineHeight(for pointSize: Float) -> Float {
         max(18, pointSize * 1.45)
     }
@@ -202,5 +385,74 @@ extension TextEditorViewNode {
         let textCenterY = (maxTopY + minBottomY) / 2
         let frameCenterY = -height / 2
         return frameCenterY - textCenterY
+    }
+
+    private func layoutCaretStops(for lineText: String, font: Font?, pointSize: Float) -> [Float]? {
+        guard let font else {
+            return nil
+        }
+
+        guard !lineText.isEmpty else {
+            return [0]
+        }
+
+        let layout = TextLayoutManager()
+        var attributes = TextAttributeContainer()
+        attributes.font = font
+        attributes.foregroundColor = self.resolvedTextColor()
+
+        var container = TextContainer(text: AttributedText(lineText, attributes: attributes), textAlignment: .leading)
+        container.numberOfLines = 1
+        layout.setTextContainer(container)
+        layout.fitToSize(Size(width: .infinity, height: self.lineHeight(for: pointSize)))
+
+        var stops: [Float] = [0]
+        stops.reserveCapacity(lineText.unicodeScalars.count + 1)
+
+        for line in layout.textLines {
+            for run in line {
+                for glyph in run {
+                    let rightEdge = max(glyph.position.x, glyph.position.z)
+                    stops.append(max(stops.last ?? 0, rightEdge))
+                }
+            }
+        }
+
+        return stops.isEmpty ? [0] : stops
+    }
+
+    private static func scalarOffset(forCharacterOffset offset: Int, in text: String) -> Int {
+        let clamped = max(0, min(offset, text.count))
+        if clamped == 0 {
+            return 0
+        }
+
+        let index = text.index(text.startIndex, offsetBy: clamped)
+        return text[..<index].unicodeScalars.count
+    }
+
+    private static func characterOffset(forScalarOffset offset: Int, in text: String) -> Int {
+        let clamped = max(0, min(offset, text.unicodeScalars.count))
+        if clamped == 0 {
+            return 0
+        }
+
+        var scalarCount = 0
+        var characterCount = 0
+
+        for character in text {
+            let count = character.unicodeScalars.count
+            if scalarCount + count > clamped {
+                break
+            }
+
+            scalarCount += count
+            characterCount += 1
+            if scalarCount == clamped {
+                break
+            }
+        }
+
+        return characterCount
     }
 }

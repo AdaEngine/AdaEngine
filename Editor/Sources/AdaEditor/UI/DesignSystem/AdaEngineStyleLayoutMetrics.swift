@@ -66,6 +66,10 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
     
     var workspaceSpacer: Float = 8
 
+    var panelSpacing: Float {
+        size.width < 700 ? 6 : AdaEngineStyleLayoutSpec.panelSpacing
+    }
+
     var showsToolbarSceneName: Bool {
         size.width >= 620
     }
@@ -116,10 +120,10 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
 
     var outputTabs: [String] {
         if size.width < 620 {
-            return ["Problems", "Output", "Terminal"]
+            return ["Problems", "Output"]
         }
         if size.width < 900 {
-            return ["Problems", "Output", "Terminal", "AI Chat History"]
+            return ["Problems", "Build", "Output"]
         }
         return AdaEngineStyleContent.outputTabs
     }

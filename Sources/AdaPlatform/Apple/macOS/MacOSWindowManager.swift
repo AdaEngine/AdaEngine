@@ -89,12 +89,16 @@ final class MacOSWindowManager: UIWindowManager {
             windowsPendingInitialCenter.insert(window.id)
         }
         systemWindow.isRestorable = false
+        systemWindow.isReleasedWhenClosed = false
         systemWindow.acceptsMouseMovedEvents = true
         systemWindow.delegate = nsWindowDelegate
         systemWindow.level = windowLevel(for: window.configuration.level)
         systemWindow.isOpaque = !window.configuration.background.isTransparent
         systemWindow.hasShadow = window.configuration.hasShadow
         systemWindow.backgroundColor = backgroundColor(for: window.configuration.background)
+        if window.configuration.chrome == .borderless {
+            systemWindow.animationBehavior = .none
+        }
         window.systemWindow = systemWindow
         if let title = window.configuration.title {
             window.title = title
@@ -196,11 +200,18 @@ final class MacOSWindowManager: UIWindowManager {
             fatalError("System window not exist.")
         }
 
-        self.removeWindow(window, setActiveAnotherIfNeeded: true)
+        let isTransientBorderlessWindow = window.configuration.chrome == .borderless && window.configuration.background.isTransparent
+        if isTransientBorderlessWindow {
+            nsWindow.orderOut(nil)
+        }
+
+        self.removeWindow(window, setActiveAnotherIfNeeded: !isTransientBorderlessWindow)
         windowsPendingInitialCenter.remove(window.id)
         removeTrafficLightState(for: nsWindow)
-        
-        nsWindow.close()
+
+        if !isTransientBorderlessWindow {
+            nsWindow.close()
+        }
     }
     
     override func resizeWindow(_ window: UIWindow, size: Size) {

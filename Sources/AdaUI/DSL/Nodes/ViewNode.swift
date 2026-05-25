@@ -16,14 +16,27 @@ import AdaAnimation
 enum UILayoutDebugCounters {
     struct Snapshot: Equatable {
         var contentInvalidations = 0
+        var environmentInvalidations = 0
+        var layoutInvalidations = 0
+        var displayInvalidations = 0
+        var rebuilds = 0
         var layoutPasses = 0
+        var drawPasses = 0
         var sizeThatFitsCalls = 0
     }
 
     static var isEnabled = false
     private(set) static var snapshot = Snapshot()
+    private(set) static var lastFrameSnapshot = Snapshot()
 
     static func reset() {
+        snapshot = Snapshot()
+        lastFrameSnapshot = Snapshot()
+    }
+
+    static func finishFrame() {
+        guard isEnabled else { return }
+        lastFrameSnapshot = snapshot
         snapshot = Snapshot()
     }
 
@@ -32,9 +45,34 @@ enum UILayoutDebugCounters {
         snapshot.contentInvalidations += 1
     }
 
+    static func recordEnvironmentInvalidation() {
+        guard isEnabled else { return }
+        snapshot.environmentInvalidations += 1
+    }
+
+    static func recordLayoutInvalidation() {
+        guard isEnabled else { return }
+        snapshot.layoutInvalidations += 1
+    }
+
+    static func recordDisplayInvalidation() {
+        guard isEnabled else { return }
+        snapshot.displayInvalidations += 1
+    }
+
+    static func recordRebuild() {
+        guard isEnabled else { return }
+        snapshot.rebuilds += 1
+    }
+
     static func recordPerformLayout() {
         guard isEnabled else { return }
         snapshot.layoutPasses += 1
+    }
+
+    static func recordDrawPass() {
+        guard isEnabled else { return }
+        snapshot.drawPasses += 1
     }
 
     static func recordSizeThatFits() {
@@ -50,6 +88,7 @@ enum UILayoutDebugCounters {
 @MainActor
 class ViewNode: Identifiable {
     private static var inspectionRedrawRevisionCounter: UInt64 = 0
+    private static var suppressedLayoutPropagationDepth = 0
 
     nonisolated var id: ObjectIdentifier {
         ObjectIdentifier(self)
@@ -178,9 +217,11 @@ class ViewNode: Identifiable {
     func updateEnvironment(_ parentEnvironment: EnvironmentValues) {
         var env = parentEnvironment
         environmentTransform?(&env)
+        env.viewProxy = ViewProxy(target: self)
         let previousEnvironment = self.environment
         let didChangeEnvironment = !env.hasSameSnapshot(as: previousEnvironment)
         guard didChangeEnvironment else { return }
+        UILayoutDebugCounters.recordEnvironmentInvalidation()
         env.ensureVersionDiffers(from: previousEnvironment.version)
         self.environment = env
         self.markNeedsLayout(propagateToParent: false)
@@ -212,6 +253,7 @@ class ViewNode: Identifiable {
     func applyResolvedEnvironmentSilently(_ environment: EnvironmentValues) {
         let previousEnvironment = self.environment
         var environment = environment
+        environment.viewProxy = ViewProxy(target: self)
         let didChangeEnvironment = !environment.hasSameSnapshot(as: previousEnvironment)
         if didChangeEnvironment {
             environment.ensureVersionDiffers(from: previousEnvironment.version)
@@ -428,16 +470,36 @@ class ViewNode: Identifiable {
     /// This method invalidate all stored views and create a new one.
     func invalidateContent() {}
 
+    /// Invalidates content while allowing callers to keep the resulting layout dirtiness local.
+    /// The default full path preserves historical behavior; state storage uses the local path
+    /// to avoid rebuilding or laying out unrelated ancestors when the subtree's measured size
+    /// is unchanged.
+    func invalidateContent(propagateLayout: Bool) {
+        guard !propagateLayout else {
+            self.invalidateContent()
+            return
+        }
+
+        Self.withSuppressedLayoutPropagation {
+            self.invalidateContent()
+        }
+        self.markNeedsLayout()
+        self.invalidateNearestLayer()
+        owner?.containerView?.setNeedsLayout(in: visualAbsoluteFrame())
+    }
+
     func markNeedsLayout(propagateToParent: Bool = true) {
+        UILayoutDebugCounters.recordLayoutInvalidation()
+        let shouldPropagate = propagateToParent && Self.suppressedLayoutPropagationDepth == 0
         guard !needsLayoutPass else {
-            if propagateToParent {
+            if shouldPropagate {
                 parent?.markNeedsLayout()
             }
             return
         }
 
         needsLayoutPass = true
-        if propagateToParent {
+        if shouldPropagate {
             parent?.markNeedsLayout()
         }
     }
@@ -813,6 +875,14 @@ class ViewNode: Identifiable {
     }
 }
 
+extension ViewNode {
+    static func withSuppressedLayoutPropagation(_ operation: () -> Void) {
+        suppressedLayoutPropagationDepth += 1
+        defer { suppressedLayoutPropagationDepth -= 1 }
+        operation()
+    }
+}
+
 extension ViewNode: @preconcurrency Hashable {
     static func == (lhs: ViewNode, rhs: ViewNode) -> Bool {
         return lhs.isEquals(rhs)
@@ -835,6 +905,8 @@ protocol ViewOwner: AnyObject {
     func updateEnvironment(_ env: EnvironmentValues)
 
     func addTransientAnimationController(_ animationController: UIAnimationController)
+
+    func enqueueLifecycleAction(_ action: @escaping @MainActor () -> Void)
 }
 
 extension UIGraphicsContext {

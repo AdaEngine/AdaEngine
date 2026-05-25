@@ -5,6 +5,7 @@
 //  Created by Codex on 18.05.2026.
 //
 
+import AdaUtils
 import Foundation
 import Math
 
@@ -63,13 +64,30 @@ extension TextEditorViewNode {
         let textRect = self.textRect()
         let pointSize = self.resolvedFontPointSize()
         let lineHeight = self.lineHeight(for: pointSize)
-        let characterAdvance = self.characterAdvance(for: pointSize)
+        let font = self.resolvedFontForRendering()
 
-        let y = max(0, point.y - textRect.origin.y + self.scrollOffset.y)
-        let x = max(0, point.x - textRect.origin.x + self.scrollOffset.x)
+        let y = max(0, point.y - textRect.origin.y)
+        let x = max(0, point.x - textRect.origin.x)
         let line = max(0, min(Int(y / max(1, lineHeight)), lines.count - 1))
-        let column = max(0, min(Int((x / characterAdvance).rounded()), lines[line].text.count))
+        let column = self.closestColumn(toX: x, in: lines[line].text, font: font, pointSize: pointSize)
         return self.offset(line: line, column: column, lines: lines)
+    }
+
+    func sourcePosition(at point: Point) -> TextEditorSourcePosition {
+        let lines = self.lines()
+        let offset = self.closestOffset(to: point)
+        let position = self.position(forOffset: offset, lines: lines)
+        return TextEditorSourcePosition(line: position.line, column: position.column)
+    }
+
+    func offset(for sourcePosition: TextEditorSourcePosition) -> Int {
+        self.offset(line: sourcePosition.line, column: sourcePosition.column, lines: self.lines())
+    }
+
+    func rangeOffsets(for sourceRange: TextEditorSourceRange) -> Range<Int> {
+        let start = self.offset(for: sourceRange.start)
+        let end = self.offset(for: sourceRange.end)
+        return min(start, end)..<max(start, end)
     }
 
     func wordBoundaryBefore(offset: Int) -> Int {
@@ -131,49 +149,32 @@ extension TextEditorViewNode {
         let pointSize = self.resolvedFontPointSize()
         let lineHeight = self.lineHeight(for: pointSize)
         let characterAdvance = self.characterAdvance(for: pointSize)
+        let font = self.resolvedFontForRendering()
         let textRect = self.textRect()
+        let lineText = lines.indices.contains(position.line) ? lines[position.line].text : ""
+        let caretRect = Rect(
+            x: textRect.minX + self.caretXOffset(forColumn: position.column, in: lineText, font: font, pointSize: pointSize),
+            y: textRect.minY + Float(position.line) * lineHeight,
+            width: characterAdvance,
+            height: lineHeight
+        )
+        let padding = EdgeInsets(
+            top: Constants.caretScrollPadding,
+            leading: Constants.caretScrollPadding,
+            bottom: Constants.caretScrollPadding,
+            trailing: Constants.caretScrollPadding
+        )
 
-        let caretX = Float(position.column) * characterAdvance
-        let caretY = Float(position.line) * lineHeight
-
-        if caretX < self.scrollOffset.x {
-            self.scrollOffset.x = caretX
-        } else if caretX > self.scrollOffset.x + textRect.width - characterAdvance {
-            self.scrollOffset.x = caretX - textRect.width + characterAdvance
-        }
-
-        if caretY < self.scrollOffset.y {
-            self.scrollOffset.y = caretY
-        } else if caretY + lineHeight > self.scrollOffset.y + textRect.height {
-            self.scrollOffset.y = caretY + lineHeight - textRect.height
-        }
-
-        self.clampScrollOffset(lines: lines)
-    }
-
-    func scroll(by delta: Point) {
-        self.scrollOffset.x += delta.x
-        self.scrollOffset.y += delta.y
-        self.clampScrollOffset(lines: self.lines())
-        self.requestDisplay()
-    }
-
-    func clampScrollOffset(lines: [LineInfo]) {
-        let pointSize = self.resolvedFontPointSize()
-        let lineHeight = self.lineHeight(for: pointSize)
-        let maxLineWidth = Float(lines.map(\.text.count).max() ?? 0) * self.characterAdvance(for: pointSize)
-        let textRect = self.textRect()
-        let contentHeight = Float(lines.count) * lineHeight
-
-        self.scrollOffset.x = max(0, min(self.scrollOffset.x, max(0, maxLineWidth - textRect.width)))
-        self.scrollOffset.y = max(0, min(self.scrollOffset.y, max(0, contentHeight - textRect.height)))
+        _ = self.nearestScrollView()?.scrollToVisibleRect(caretRect, in: self, padding: padding)
     }
 
     func visibleLineRange(lineHeight: Float, viewportHeight: Float) -> Range<Int> {
         let lines = self.lines()
-        let firstLine = max(0, Int(self.scrollOffset.y / max(1, lineHeight)))
+        let scrollY = self.nearestScrollView()?.contentOffset.y ?? 0
+        let firstLine = max(0, Int(max(0, scrollY - self.textContentRect().minY) / max(1, lineHeight)))
         let visibleCount = max(1, Int(ceil(viewportHeight / max(1, lineHeight))) + 2)
-        return firstLine..<min(lines.count, firstLine + visibleCount)
+        let lowerBound = min(lines.count, firstLine)
+        return lowerBound..<min(lines.count, lowerBound + visibleCount)
     }
 
     func isTap(at position: Point, start: Point?) -> Bool {
@@ -184,5 +185,98 @@ extension TextEditorViewNode {
         let dx = position.x - start.x
         let dy = position.y - start.y
         return dx * dx + dy * dy <= Constants.tapMovementToleranceSquared
+    }
+
+    func handleTapCompletion(at position: Point, time: AdaUtils.TimeInterval, caretOffset: Int) {
+        if self.isDoubleTap(at: position, time: time) {
+            self.selectWord(at: caretOffset)
+            self.clearTapCandidate()
+        } else {
+            self.storeTapCandidate(at: position, time: time)
+        }
+    }
+
+    func isDoubleTap(at position: Point, time: AdaUtils.TimeInterval) -> Bool {
+        guard let lastTapTime, let lastTapPosition else {
+            return false
+        }
+
+        let deltaTime = time - lastTapTime
+        guard deltaTime >= 0, deltaTime <= Constants.doubleTapMaxInterval else {
+            return false
+        }
+
+        let dx = position.x - lastTapPosition.x
+        let dy = position.y - lastTapPosition.y
+        return dx * dx + dy * dy <= Constants.doubleTapMovementToleranceSquared
+    }
+
+    func storeTapCandidate(at position: Point, time: AdaUtils.TimeInterval) {
+        self.lastTapPosition = position
+        self.lastTapTime = time
+    }
+
+    func clearTapCandidate() {
+        self.lastTapPosition = nil
+        self.lastTapTime = nil
+    }
+
+    func selectWord(at offset: Int) {
+        let range = self.wordRange(at: offset)
+        if range.isEmpty {
+            self.setSelection(to: offset)
+        } else {
+            self.selectionAnchor = range.lowerBound
+            self.selectionHead = range.upperBound
+        }
+        self.ensureCaretVisibleIfNeeded()
+        self.requestDisplay()
+    }
+
+    func wordRange(at offset: Int) -> Range<Int> {
+        let characters = Array(self.text)
+        let count = characters.count
+        guard count > 0 else {
+            let clamped = max(0, min(offset, count))
+            return clamped..<clamped
+        }
+
+        let clamped = max(0, min(offset, count))
+        var index = clamped
+        if index == count {
+            index = count - 1
+        }
+
+        if !Self.isWordCharacter(characters[index]) {
+            if index > 0, Self.isWordCharacter(characters[index - 1]) {
+                index -= 1
+            } else {
+                return clamped..<clamped
+            }
+        }
+
+        var start = index
+        var end = index + 1
+        while start > 0, Self.isWordCharacter(characters[start - 1]) {
+            start -= 1
+        }
+
+        while end < count, Self.isWordCharacter(characters[end]) {
+            end += 1
+        }
+
+        return start..<end
+    }
+
+    func nearestScrollView() -> ScrollViewNode? {
+        var current = self.parent
+        while let node = current {
+            if let scrollView = node as? ScrollViewNode {
+                return scrollView
+            }
+            current = node.parent
+        }
+
+        return nil
     }
 }

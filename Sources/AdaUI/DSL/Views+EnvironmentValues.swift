@@ -29,7 +29,8 @@ public extension EnvironmentValues {
     @Entry var multilineTextAlignment: TextAlignment = .leading
 
     /// Returns accent color of the system.
-    @Entry var accentColor: Color = Color.accentColor
+    /// `Color.accentColor` is process-global platform state updated during app startup.
+    @Entry var accentColor: Color = unsafe Color.accentColor
 
     /// The safe area insets of the nearest container or screen.
     @Entry var safeAreaInsets: EdgeInsets = EdgeInsets()

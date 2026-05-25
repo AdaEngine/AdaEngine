@@ -54,7 +54,7 @@ public final class FSWatch: @unchecked Sendable {
         self.paths = paths
         self.latency = latency
 
-      #if os(OpenBSD) || os(FreeBSD)
+      #if WASM || os(OpenBSD) || os(FreeBSD)
         self._watcher = NoOpWatcher(paths: paths, latency: latency, delegate: _WatcherDelegate(block: block))
       #elseif os(Windows)
         self._watcher = RDCWatcher(paths: paths, latency: latency, delegate: _WatcherDelegate(block: block))
@@ -111,7 +111,7 @@ private protocol _FileWatcher {
     func stop()
 }
 
-#if os(OpenBSD) || os(FreeBSD) || (!os(macOS) && canImport(Darwin))
+#if WASM || os(OpenBSD) || os(FreeBSD) || (!os(macOS) && canImport(Darwin))
 extension FSWatch._WatcherDelegate: NoOpWatcherDelegate {}
 extension NoOpWatcher: _FileWatcher{}
 #elseif os(Windows)
@@ -129,7 +129,7 @@ extension FSEventStream: _FileWatcher{}
 
 // MARK:- inotify
 
-#if os(FreeBSD) || os(OpenBSD) || (!os(macOS) && canImport(Darwin))
+#if WASM || os(FreeBSD) || os(OpenBSD) || (!os(macOS) && canImport(Darwin))
 
 public protocol NoOpWatcherDelegate {
     func pathsDidReceiveEvent(_ paths: [AbsolutePath])

@@ -50,12 +50,13 @@ class LayoutViewContainerNode: ViewContainerNode {
         layout: L,
         content: Content,
         bypassSingleChildLayout: Bool = false,
+        buildImmediately: Bool = true,
         body: @escaping (_ViewListInputs) -> _ViewListOutputs
     ) {
         self.layout = AnyLayout(layout)
         self.inherentLayoutProperties = L.layoutProperties
         self.bypassSingleChildLayout = bypassSingleChildLayout
-        super.init(content: content, body: body)
+        super.init(content: content, buildImmediately: buildImmediately, body: body)
         super.updateLayoutProperties(inherentLayoutProperties)
     }
 
@@ -70,6 +71,8 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func performLayout() {
+        flushDeferredInitialContentBuildIfNeeded()
+
         if shouldBypassLayout, let node = nodes.first {
             let center = Point(x: frame.width * 0.5, y: frame.height * 0.5)
             let proposal = ProposedViewSize(frame.size)
@@ -88,6 +91,8 @@ class LayoutViewContainerNode: ViewContainerNode {
     /// Subclasses like ``ScrollViewNode`` use this to place children within
     /// the content area instead of the visible frame.
     func performLayout(in bounds: Rect, proposal: ProposedViewSize) {
+        flushDeferredInitialContentBuildIfNeeded()
+
         let measurementCache = LayoutMeasurementCache()
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0, measurementCache: measurementCache) })
         ensureCache(for: subviews)
@@ -108,14 +113,34 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func invalidateContent() {
+        self.invalidateContent(propagateLayout: true)
+    }
+
+    override func invalidateContent(propagateLayout: Bool) {
         var inputs = _ViewInputs(parentNode: self, environment: self.environment)
         inputs.layout = self.layout
         let listInputs = _ViewListInputs(input: inputs)
         cacheNeedsUpdate = true
-        self.invalidateContent(with: listInputs)
+        if propagateLayout {
+            self.invalidateContent(with: listInputs)
+            self.markNeedsLayout()
+            self.invalidateNearestLayer()
+            owner?.containerView?.setNeedsLayout()
+            return
+        }
+
+        Self.withSuppressedLayoutPropagation {
+            self.invalidateContent(with: listInputs, propagateLayout: false)
+        }
+
+        self.markNeedsLayout()
+        self.invalidateNearestLayer()
+        owner?.containerView?.setNeedsLayout(in: visualAbsoluteFrame())
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        flushDeferredInitialContentBuildIfNeeded()
+
         if shouldBypassLayout, let node = nodes.first {
             return node.sizeThatFits(proposal)
         }
@@ -161,4 +186,5 @@ class LayoutViewContainerNode: ViewContainerNode {
         self.cache = cache
         cacheNeedsUpdate = false
     }
+
 }

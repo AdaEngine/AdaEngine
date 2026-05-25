@@ -209,6 +209,7 @@ private final class HeadlessCommandQueue: CommandQueue {
 
 private final class HeadlessCommandBuffer: CommandBuffer {
     var label: String?
+    private var completedHandlers: [@Sendable () -> Void] = []
 
     func beginRenderPass(_ desc: RenderPassDescriptor) -> RenderCommandEncoder {
         HeadlessRenderCommandEncoder()
@@ -218,7 +219,14 @@ private final class HeadlessCommandBuffer: CommandBuffer {
         HeadlessBlitCommandEncoder()
     }
 
-    func commit() {}
+    func commit() {
+        completedHandlers.forEach { $0() }
+        completedHandlers.removeAll()
+    }
+
+    func addCompletedHandler(_ handler: @escaping @Sendable () -> Void) {
+        completedHandlers.append(handler)
+    }
 }
 
 private class HeadlessCommonCommandEncoder: CommonCommandEncoder {

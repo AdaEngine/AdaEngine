@@ -88,15 +88,20 @@ enum KeyboardShortcutTargetFinder {
 // MARK: - Registry host
 
 @MainActor
+protocol KeyboardShortcutHandling: AnyObject {
+    func handleShortcutIfNeeded(event: KeyEvent) -> Bool
+}
+
+@MainActor
 protocol KeyboardShortcutRegistering: AnyObject {
-    func registerKeyboardShortcut(target: KeyboardShortcutModifierNode)
-    func unregisterKeyboardShortcut(target: KeyboardShortcutModifierNode)
+    func registerKeyboardShortcut(target: any KeyboardShortcutHandling)
+    func unregisterKeyboardShortcut(target: any KeyboardShortcutHandling)
 }
 
 // MARK: - Modifier node
 
 @MainActor
-final class KeyboardShortcutModifierNode: ViewModifierNode {
+final class KeyboardShortcutModifierNode: ViewModifierNode, KeyboardShortcutHandling {
 
     private(set) var keyCode: KeyCode
     private(set) var requiredModifiers: KeyModifier
@@ -168,6 +173,97 @@ final class KeyboardShortcutModifierNode: ViewModifierNode {
     }
 }
 
+public struct KeyboardShortcutAction {
+    let keyCode: KeyCode
+    let requiredModifiers: KeyModifier
+    let action: () -> Void
+
+    public init(
+        _ keyCode: KeyCode,
+        modifiers: KeyModifier = [],
+        action: @escaping () -> Void
+    ) {
+        self.keyCode = keyCode
+        self.requiredModifiers = modifiers
+        self.action = action
+    }
+
+    public init?(
+        _ key: Character,
+        modifiers: KeyModifier = [],
+        action: @escaping () -> Void
+    ) {
+        guard let keyCode = KeyboardShortcutKeyParsing.keyCode(forCharacter: key) else {
+            return nil
+        }
+
+        self.init(keyCode, modifiers: modifiers, action: action)
+    }
+}
+
+@MainActor
+final class KeyboardShortcutsModifierNode: ViewModifierNode, KeyboardShortcutHandling {
+    private var shortcuts: [KeyboardShortcutAction]
+    private weak var shortcutRegistrationHost: KeyboardShortcutRegistering?
+
+    init(
+        contentNode: ViewNode,
+        content: some View,
+        shortcuts: [KeyboardShortcutAction]
+    ) {
+        self.shortcuts = shortcuts
+        super.init(contentNode: contentNode, content: content)
+    }
+
+    override func update(from newNode: ViewNode) {
+        guard let other = newNode as? KeyboardShortcutsModifierNode else {
+            return
+        }
+
+        self.shortcuts = other.shortcuts
+        super.update(from: other)
+    }
+
+    override func updateViewOwner(_ owner: ViewOwner) {
+        self.shortcutRegistrationHost?.unregisterKeyboardShortcut(target: self)
+        self.shortcutRegistrationHost = nil
+        super.updateViewOwner(owner)
+        if let host = owner as? KeyboardShortcutRegistering {
+            host.registerKeyboardShortcut(target: self)
+            self.shortcutRegistrationHost = host
+        }
+    }
+
+    override func didMove(to parent: ViewNode?) {
+        super.didMove(to: parent)
+        guard parent == nil else {
+            return
+        }
+        shortcutRegistrationHost?.unregisterKeyboardShortcut(target: self)
+        shortcutRegistrationHost = nil
+    }
+
+    func handleShortcutIfNeeded(event: KeyEvent) -> Bool {
+        guard event.status == .down else {
+            return false
+        }
+
+        for shortcut in shortcuts {
+            guard event.keyCode == shortcut.keyCode else {
+                continue
+            }
+            guard KeyboardShortcutKeyParsing.matchesModifiers(event: event, required: shortcut.requiredModifiers) else {
+                continue
+            }
+
+            shortcut.action()
+            return true
+        }
+
+        return false
+    }
+}
+
 // MARK: - ViewModifier + View extension
 
 struct KeyboardShortcutViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
@@ -185,6 +281,21 @@ struct KeyboardShortcutViewModifier<Content: View>: ViewModifier, ViewNodeBuilde
             keyCode: keyCode,
             requiredModifiers: requiredModifiers,
             explicitAction: explicitAction
+        )
+    }
+}
+
+struct KeyboardShortcutsViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
+    typealias Body = Never
+
+    let content: Content
+    let shortcuts: [KeyboardShortcutAction]
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        KeyboardShortcutsModifierNode(
+            contentNode: context.makeNode(from: content),
+            content: content,
+            shortcuts: shortcuts
         )
     }
 }
@@ -228,6 +339,16 @@ public extension View {
                 keyCode: keyCode,
                 requiredModifiers: modifiers,
                 explicitAction: action
+            )
+        )
+    }
+
+    /// Associates multiple explicit keyboard shortcut actions with this view using a single modifier node.
+    func keyboardShortcuts(_ shortcuts: [KeyboardShortcutAction]) -> some View {
+        modifier(
+            KeyboardShortcutsViewModifier(
+                content: self,
+                shortcuts: shortcuts
             )
         )
     }

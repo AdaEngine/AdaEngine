@@ -28,9 +28,17 @@ struct EditorProjectStoreTests {
         #expect(reference.name == "My-Game")
         #expect(reference.path == projectURL.standardizedFileURL.path)
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
+        let manifest = try String(contentsOf: projectURL.appendingPathComponent("Package.swift"), encoding: .utf8)
+        #expect(manifest.contains(#".package(path: "\#(adaEnginePackageURL().path)")"#))
+        #expect(!manifest.contains(#".package(path: "../../AdaEngine")"#))
+        #expect(manifest.contains(#"path: ".""#))
+        #expect(manifest.contains(#"sources: ["Sources/My_Game"]"#))
+        #expect(manifest.contains(#"resources: [.copy("Assets")]"#))
         #expect(ProjectSystem.isAdaProject(at: projectURL))
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("README.md").path))
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Assets", isDirectory: true).appendingPathComponent(".gitkeep").path))
+        let main = try String(contentsOf: projectURL.appendingPathComponent("Sources/My_Game/main.swift"), encoding: .utf8)
+        #expect(main.contains("WindowGroup(assetBundle: .module)"))
         let sceneURL = projectURL.appendingPathComponent("Assets/Scenes/Main.ascn", isDirectory: false)
         #expect(FileManager.default.fileExists(atPath: sceneURL.path))
         #expect(try String(contentsOf: sceneURL, encoding: .utf8).contains("format: ada.scene"))
@@ -152,6 +160,26 @@ struct EditorProjectStoreTests {
         let handoffProject = try #require(viewModel.consumeProjectToOpenInEditor())
         #expect(handoffProject.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditor == nil)
+    }
+
+    @Test("editor view model imports assets into project assets directory")
+    @MainActor
+    func editorViewModelImportsAssets() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorAssetImport")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let project = try store.createProject(named: "Asset Game", at: rootURL)
+        let projectURL = URL(fileURLWithPath: project.path, isDirectory: true)
+        let sourceAssetURL = rootURL.appendingPathComponent("player.png", isDirectory: false)
+        try Data([0x89, 0x50, 0x4E, 0x47]).write(to: sourceAssetURL)
+
+        let viewModel = EditorViewModel(project: project)
+        viewModel.importAssets(from: [sourceAssetURL])
+
+        #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Assets/player.png").path))
+        #expect(viewModel.projectSidebar.items.contains { $0.relativePath == "Assets/player.png" && $0.kind == .image })
+        #expect(EditorViewModel.assetReference(for: "Assets/player.png") == "@res://player.png")
     }
 
     @Test("launcher layout matches design and fits minimum window")
@@ -340,6 +368,15 @@ private func makeEditorStoreTemporaryDirectory(named name: String? = nil) throws
 
 private func removeEditorStoreTemporaryDirectory(_ url: URL) {
     try? FileManager.default.removeItem(at: url)
+}
+
+private func adaEnginePackageURL() -> URL {
+    URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .standardizedFileURL
 }
 
 private func createSwiftPMManifest(at projectURL: URL) throws {

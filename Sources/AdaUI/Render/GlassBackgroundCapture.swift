@@ -14,6 +14,9 @@ import Math
 /// the **same** command buffer, then the UI pass continues with ``loadAction`` so prior
 /// pixels (ECS, `.background()`, etc.) stay in the main target. Glass quads sample this
 /// texture for blur and refraction.
+///
+/// Rendering owns mutation of this resource during the draw pass; the unchecked
+/// conformance mirrors other render resources passed through ECS storage.
 public final class GlassBackgroundTexture: Resource, @unchecked Sendable {
     public var texture: RenderTexture?
 

@@ -22,7 +22,7 @@ final class MacApplication: Application {
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         unsafe Color.accentColor = NSColor.controlAccentColor.toColor
         self.screenManager = MacOSScreenManager()
-        unsafe Screen.screenManager = screenManager
+        Screen.screenManager = screenManager
         unsafe try super.init(argc: argc, argv: argv)
         self.windowManager = MacOSWindowManager(screenManager)
         UIWindowManager.setShared(self.windowManager)
@@ -45,10 +45,11 @@ final class MacApplication: Application {
         task = Task(priority: .userInitiated) {
             do {
                 while true {
+                    let frameStartedAt = Time.absolute
                     try Task.checkCancellation()
                     self.processEvents()
                     try await appWorlds.update()
-                    await Task.yield()
+                    try await self.waitForNextFrameIfNeeded(startedAt: frameStartedAt, appWorlds: appWorlds)
                 }
             } catch {
                 let alert = Alert(
@@ -121,6 +122,21 @@ final class MacApplication: Application {
 
             NSApp.sendEvent(event)
         }
+    }
+
+    private func waitForNextFrameIfNeeded(startedAt frameStartedAt: LongTimeInterval, appWorlds: AppWorlds) async throws {
+        guard let framePacing = appWorlds.getResource(ApplicationFramePacing.self) else {
+            await Task.yield()
+            return
+        }
+
+        let remainingTime = framePacing.minimumFrameDuration - (Time.absolute - frameStartedAt)
+        guard remainingTime > 0 else {
+            await Task.yield()
+            return
+        }
+
+        try await Task.sleep(nanoseconds: UInt64(remainingTime * 1_000_000_000))
     }
 }
 

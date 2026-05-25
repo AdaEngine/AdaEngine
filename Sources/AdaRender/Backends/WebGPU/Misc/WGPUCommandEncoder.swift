@@ -19,6 +19,7 @@ final class WGPUCommandEncoder: CommandBuffer {
     }
     let device: WebGPU.GPUDevice
     let commandEncoder: WebGPU.GPUCommandEncoder
+    private var completedHandlers: [@Sendable () -> Void] = []
 
     init(device: WebGPU.GPUDevice) {
         self.device = device
@@ -32,6 +33,12 @@ final class WGPUCommandEncoder: CommandBuffer {
         webGPUDeviceLock.withLock { _ in
             device.queue.submit(commands: [commandBuffer])
         }
+        completedHandlers.forEach { $0() }
+        completedHandlers.removeAll()
+    }
+
+    func addCompletedHandler(_ handler: @escaping @Sendable () -> Void) {
+        completedHandlers.append(handler)
     }
 
     func beginRenderPass(_ desc: RenderPassDescriptor) -> RenderCommandEncoder {

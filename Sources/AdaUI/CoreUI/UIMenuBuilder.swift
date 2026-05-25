@@ -5,9 +5,9 @@
 //  Created by vladislav.prusakov on 04.08.2024.
 //
 
-import AdaUtils
 import AdaInput
 import AdaRender
+import AdaUtils
 
 /// A protocol that represents a menu builder. 
 @MainActor
@@ -34,13 +34,14 @@ public protocol UIMenuBuilder: AnyObject {
 /// Custom menu items appear in the menu after any validated system items. 
 /// A ``MenuItem`` object has two properties: a title and an action block identifying the method to invoke in the handling responder object.
 /// To have custom menu items appear in the menu, you must add them to the ``UIMenuBuilder/insert(_:)`` method.
+@MainActor
 public final class MenuItem: Identifiable {
 
     /// A separator item title.
     private static let separatorTitle = "_SEPARATOR_"
 
     /// A separator item.
-    nonisolated(unsafe) public static let separator: MenuItem = MenuItem()
+    public static let separator: MenuItem = MenuItem()
     
     /// The menu item’s title.
     public let title: String
@@ -122,6 +123,7 @@ public final class MenuItem: Identifiable {
 }
 
 /// A menu that contains menu items.
+@MainActor
 public class UIMenu: Identifiable {
 
     /// The menu’s identifier.

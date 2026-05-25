@@ -120,12 +120,15 @@ public struct EditorProjectStore {
                 .executable(name: "\(projectName)", targets: ["\(safeTargetName)"])
             ],
             dependencies: [
-                .package(path: "../../AdaEngine")
+                .package(path: "\(Self.escapedManifestString(Self.adaEnginePackageURL().path))")
             ],
             targets: [
                 .executableTarget(
                     name: "\(safeTargetName)",
-                    dependencies: [.product(name: "AdaEngine", package: "AdaEngine")]
+                    dependencies: [.product(name: "AdaEngine", package: "AdaEngine")],
+                    path: ".",
+                    sources: ["Sources/\(safeTargetName)"],
+                    resources: [.copy("Assets")]
                 )
             ]
         )
@@ -136,11 +139,26 @@ public struct EditorProjectStore {
             .appendingPathComponent("Sources", isDirectory: true)
             .appendingPathComponent(safeTargetName, isDirectory: true)
         try fileManager.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
-        try "import AdaEngine\n\n@main\nstruct Game: App {\n    var body: some AppScene {\n        WindowGroup {\n            Text(\"Hello, AdaEngine!\")\n        }\n    }\n}\n".write(
+        try "import AdaEngine\nimport Foundation\n\n@main\nstruct Game: App {\n    var body: some AppScene {\n        WindowGroup(assetBundle: .module) {\n            Text(\"Hello, AdaEngine!\")\n        }\n    }\n}\n".write(
             to: sourcesURL.appendingPathComponent("main.swift", isDirectory: false),
             atomically: true,
             encoding: .utf8
         )
+    }
+
+    private static func adaEnginePackageURL() -> URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .standardizedFileURL
+    }
+
+    private static func escapedManifestString(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     private func createAssetsDirectory(at projectURL: URL) throws {

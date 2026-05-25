@@ -88,3 +88,36 @@ swift package plugin build-tint
 ```
 
 SwiftPM will ask to allow network access for the plugin. Confirm the prompt to let it download the Dawn/Tint sources.
+
+## Exporting a Web app
+
+AdaEngine includes an experimental WebAssembly export command for browser-hosted games.
+
+Requirements:
+
+- Swift 6.2 or newer.
+- A matching Swift WebAssembly SDK installed with `swift sdk install`.
+- A game executable product that depends on `AdaEngine`. Add `AdaWeb` if the app needs browser-specific helpers.
+
+Swift.org documents the current WebAssembly SDK installation flow at:
+<https://www.swift.org/documentation/articles/wasm-getting-started.html>
+
+Export a package product:
+
+```bash
+swift package plugin --allow-writing-to-package-directory \
+  export-web \
+  --target MyGame \
+  --output dist/web
+```
+
+If several WASM SDKs are installed, pass the SDK id explicitly:
+
+```bash
+swift package plugin --allow-writing-to-package-directory \
+  export-web \
+  --target MyGame \
+  --swift-sdk swift-6.3.2-RELEASE_wasm
+```
+
+The plugin emits `index.html`, `main.js`, the built `.wasm`, `package.json`, `ada-web-manifest.json`, and copies a package-level `Assets` directory when present. Use `npm install && npm run serve` in the output directory to serve the bundle locally.

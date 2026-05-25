@@ -49,6 +49,8 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     var inspectionRedrawBaselineRevision: UInt64 = ViewNode.currentInspectionRedrawRevision()
     weak var inspectionLastHitTestNode: ViewNode?
     private var transientAnimationControllers: [UIAnimationController] = []
+    private var lifecycleActions: [@MainActor () -> Void] = []
+    private var isLifecycleFlushScheduled = false
 
     /// Initialize a new container view.
     ///
@@ -155,9 +157,9 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     // MARK: - Keyboard shortcuts (before focused key dispatch)
 
     private final class KeyboardShortcutWeakHandle {
-        weak var target: KeyboardShortcutModifierNode?
+        weak var target: (any KeyboardShortcutHandling)?
 
-        init(target: KeyboardShortcutModifierNode) {
+        init(target: any KeyboardShortcutHandling) {
             self.target = target
         }
     }
@@ -168,6 +170,10 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     ///
     /// - Parameter event: The mouse event to handle.
     public override func onMouseEvent(_ event: MouseEvent) {
+        if event.phase == .began {
+            ContextMenuPresentationCenter.dismissForInteraction?(self.window)
+        }
+
         let localPoint = self.convert(event.mousePosition, from: self.window)
         switch event.phase {
         case .began:
@@ -239,6 +245,12 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     }
 
     public override func onKeyEvent(_ event: KeyEvent) {
+        if event.status == .down, event.keyCode == .escape {
+            if ContextMenuPresentationCenter.dismissAll?() == true {
+                return
+            }
+        }
+
         if event.keyCode == .tab, event.status == .down {
             if let focusedNode = focusManager.focusedNode as? TextEditorViewNode {
                 focusedNode.onKeyEvent(event)
@@ -369,8 +381,10 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     override public func draw(in rect: Rect, with context: UIGraphicsContext) {
         var context = context
         context.dirtyRect = window?.consumeDirtyRect()
+        UILayoutDebugCounters.recordDrawPass()
         viewTree.renderGraph(renderContext: context)
         drawInspectionDebugOverlay(with: context)
+        UILayoutDebugCounters.finishFrame()
     }
 
     /// Update the container view.
@@ -389,6 +403,36 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 
         animationController.playAnimation()
         setNeedsLayout()
+    }
+
+    func enqueueLifecycleAction(_ action: @escaping @MainActor () -> Void) {
+        lifecycleActions.append(action)
+        scheduleLifecycleFlushIfNeeded()
+    }
+
+    private func scheduleLifecycleFlushIfNeeded() {
+        guard !isLifecycleFlushScheduled else {
+            return
+        }
+
+        isLifecycleFlushScheduled = true
+        Task { @MainActor in
+            self.flushLifecycleActions()
+        }
+    }
+
+    private func flushLifecycleActions() {
+        let actions = lifecycleActions
+        lifecycleActions.removeAll(keepingCapacity: true)
+        isLifecycleFlushScheduled = false
+
+        for action in actions {
+            action()
+        }
+
+        if !lifecycleActions.isEmpty {
+            scheduleLifecycleFlushIfNeeded()
+        }
     }
 
     private func updateTransientAnimationControllers(_ deltaTime: TimeInterval) {
@@ -462,7 +506,7 @@ private extension ViewNode {
 }
 
 extension UIContainerView: KeyboardShortcutRegistering {
-    func registerKeyboardShortcut(target: KeyboardShortcutModifierNode) {
+    func registerKeyboardShortcut(target: any KeyboardShortcutHandling) {
         let id = ObjectIdentifier(target)
         self.keyboardShortcutHandles.removeAll {
             guard let t = $0.target else {
@@ -473,7 +517,7 @@ extension UIContainerView: KeyboardShortcutRegistering {
         self.keyboardShortcutHandles.append(KeyboardShortcutWeakHandle(target: target))
     }
 
-    func unregisterKeyboardShortcut(target: KeyboardShortcutModifierNode) {
+    func unregisterKeyboardShortcut(target: any KeyboardShortcutHandling) {
         let id = ObjectIdentifier(target)
         self.keyboardShortcutHandles.removeAll {
             guard let t = $0.target else {

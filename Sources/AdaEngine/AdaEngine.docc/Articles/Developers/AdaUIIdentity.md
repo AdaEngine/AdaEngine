@@ -32,6 +32,14 @@ Reordering identified data preserves the child nodes associated with those IDs, 
 
 `if` / `else` branches add a structural branch discriminator. This prevents state from moving between two branches that happen to produce the same view type at the same sibling position. Switching from one branch to the other recreates that branch's node; explicit IDs are still scoped by the active branch structure.
 
+## `@State` Properties
+
+`@State` storage belongs to the preserved view node and to the exact property wrapper slot inside that view. The slot key includes the wrapper's declaration order among state-like wrappers, its reflected property label, and its value type.
+
+Renaming a `@State` property creates a new storage slot. Reordering `@State` properties also creates new slots for the moved wrappers. Adding or removing a state wrapper preserves only wrappers whose slot key is unchanged.
+
+This rule intentionally resets state after source-level declaration edits rather than migrating values between properties. It prevents a rebuild from moving state between different properties or between different view instances. Dynamic or reorderable view instances still need `.id(_:)` or `ForEach(_:id:)` so the owning view node has stable identity.
+
 ## Unkeyed Children
 
 Children without explicit IDs are matched by structural sibling position. AdaUI uses common-prefix and common-suffix matching for unkeyed runs, which preserves unaffected nodes around an insertion or deletion in the middle. Reordering unkeyed siblings has no semantic identity signal, so state is not guaranteed to follow a particular data item; use `.id(_:)` or `ForEach(_:id:)` for reorderable content.

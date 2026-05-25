@@ -59,6 +59,8 @@ final class ViewRootNode: ViewNode {
     }
 
     override func invalidateContent() {
+        UILayoutDebugCounters.recordContentInvalidation()
+        UILayoutDebugCounters.recordRebuild()
         let inputs = _ViewInputs(parentNode: nil, environment: self.environment)
         
         func makeView<V: View>(_ view: V) -> _ViewOutputs {

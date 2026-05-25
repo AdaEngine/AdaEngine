@@ -807,7 +807,8 @@ final class NativeViewHostNode: ViewNode {
             if let control = node as? NSControl {
                 return control
             }
-            current = node.superview
+            // AppKit owns the superview chain while this synchronous fallback walks it.
+            current = unsafe node.superview
         }
         return nil
     }

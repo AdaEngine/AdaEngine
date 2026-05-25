@@ -141,6 +141,9 @@ private enum GlassButtonStyleDefaults {
 }
 
 /// A liquid glass button style for prominent Ada UI controls.
+///
+/// Styles are copied through Sendable environment/modifier storage, but all
+/// stateful property-wrapper access is evaluated on the UI actor.
 public struct GlassButtonStyle<S: Shape>: ButtonStyle, @unchecked Sendable {
     @Environment(\.isEnabled) private var isEnabled
 

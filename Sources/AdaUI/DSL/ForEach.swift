@@ -38,6 +38,7 @@ public struct ForEach<Data: RandomAccessCollection, ID: Hashable, Content: View>
 
         node.isVirtual = true
         node.updateEnvironment(inputs.environment)
+        node.invalidateContent()
 
         return _ViewOutputs(node: node)
     }

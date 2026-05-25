@@ -1,20 +1,21 @@
 @_spi(AdaEngine) import AdaEngine
 
 struct EditorRightToolStrip: View {
-    let viewModel: EditorToolStripViewModel
+    let viewModel: EditorViewModel
+    let onSelectTool: (EditorToolStripItem) -> Void
 
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(spacing: 7) {
-            ForEach(viewModel.rightTools, id: \.identifier) { item in
+            ForEach(viewModel.toolStrip.rightTools, id: \.identifier) { item in
                 adaEditorStripButton(
                     item,
-                    active: viewModel.activeRightTool == item.identifier,
+                    active: viewModel.isRightToolPresented(item),
                     theme: theme,
                     accent: item.identifier == "swiftPackageTasks" ? theme.editorColors.purple : nil,
                     action: {
-                        viewModel.selectRightTool(item)
+                        onSelectTool(item)
                     }
                 )
             }
@@ -26,30 +27,32 @@ struct EditorRightToolStrip: View {
 }
 
 struct EditorLeftToolStrip: View {
-    @State var viewModel: EditorToolStripViewModel
+    let viewModel: EditorViewModel
+    let onSelectTopTool: (EditorToolStripItem) -> Void
+    let onSelectBottomTool: (EditorToolStripItem) -> Void
 
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(spacing: 7) {
-            ForEach(viewModel.leftTopTools, id: \.identifier) { item in
+            ForEach(viewModel.toolStrip.leftTopTools, id: \.identifier) { item in
                 adaEditorStripButton(
                     item,
-                    active: viewModel.activeLeftTool == item.identifier,
+                    active: viewModel.isLeftTopToolPresented(item),
                     theme: theme,
                     action: {
-                        viewModel.selectLeftTool(item)
+                        onSelectTopTool(item)
                     }
                 )
             }
             Spacer()
-            ForEach(viewModel.leftBottomTools, id: \.identifier) { item in
+            ForEach(viewModel.toolStrip.leftBottomTools, id: \.identifier) { item in
                 adaEditorStripButton(
                     item,
-                    active: viewModel.activeLeftTool == item.identifier,
+                    active: viewModel.isLeftBottomToolPresented(item),
                     theme: theme,
                     action: {
-                        viewModel.selectLeftTool(item)
+                        onSelectBottomTool(item)
                     }
                 )
             }

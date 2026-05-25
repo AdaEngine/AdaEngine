@@ -30,6 +30,10 @@ class ViewContainerNode: ViewNode {
     /// Builder method returns a new children.
     private var body: ((_ViewListInputs) -> _ViewListOutputs)?
     private var hasScheduledObservedContentInvalidation = false
+    private var hasBuiltContent = false
+    private var hasDeferredInitialContentBuild = false
+
+    private static var observationTrackingDepth = 0
 
     init<Content: View>(content: Content, nodes: [ViewNode]) {
         self.nodes = nodes
@@ -53,21 +57,34 @@ class ViewContainerNode: ViewNode {
         }
     }
 
-    init<Content>(content: Content, body: @escaping (_ViewListInputs) -> _ViewListOutputs) where Content : View {
+    init<Content>(
+        content: Content,
+        buildImmediately: Bool = true,
+        body: @escaping (_ViewListInputs) -> _ViewListOutputs
+    ) where Content: View {
         self.nodes = []
         self.body = body
         super.init(content: content)
 
-        self.invalidateContent()
+        if buildImmediately {
+            self.invalidateContent()
+        }
     }
 
     /// Invalidate content with specific context.
-    func invalidateContent(with inputs: _ViewListInputs) {
+    func invalidateContent(with inputs: _ViewListInputs, propagateLayout: Bool = true) {
         guard let body = self.body else {
             return
         }
 
+        guard !deferInitialContentBuildIfNeeded() else {
+            return
+        }
+
+        hasBuiltContent = true
         UILayoutDebugCounters.recordContentInvalidation()
+        UILayoutDebugCounters.recordRebuild()
+        ViewContainerNode.observationTrackingDepth += 1
         let outputs = withObservationTracking {
             body(inputs)
         } onChange: { [weak self] in
@@ -75,9 +92,10 @@ class ViewContainerNode: ViewNode {
                 self?.scheduleObservedContentInvalidation()
             }
         }
+        ViewContainerNode.observationTrackingDepth -= 1
 
         let outputNodes = outputs.outputs.map { $0.node }
-        self.reconcileChildNodes(from: outputNodes)
+        self.reconcileChildNodes(from: outputNodes, propagateLayout: propagateLayout)
     }
 
     private func scheduleObservedContentInvalidation() {
@@ -88,8 +106,33 @@ class ViewContainerNode: ViewNode {
         hasScheduledObservedContentInvalidation = true
         Task { @MainActor in
             self.hasScheduledObservedContentInvalidation = false
-            self.invalidateContent()
+            self.invalidateContent(propagateLayout: false)
         }
+    }
+
+    private func deferInitialContentBuildIfNeeded() -> Bool {
+        guard !hasBuiltContent,
+              !isVirtual,
+              !(content is any AnyViewTuple),
+              ViewContainerNode.observationTrackingDepth > 0 else {
+            return false
+        }
+
+        guard !hasDeferredInitialContentBuild else {
+            return true
+        }
+
+        hasDeferredInitialContentBuild = true
+        return true
+    }
+
+    func flushDeferredInitialContentBuildIfNeeded() {
+        guard hasDeferredInitialContentBuild, !hasBuiltContent else {
+            return
+        }
+
+        hasDeferredInitialContentBuild = false
+        invalidateContent()
     }
 
     override func isEquals(_ otherNode: ViewNode) -> Bool {
@@ -101,19 +144,34 @@ class ViewContainerNode: ViewNode {
     }
 
     override func invalidateContent() {
+        self.invalidateContent(propagateLayout: true)
+    }
+
+    override func invalidateContent(propagateLayout: Bool) {
         let inputs = _ViewInputs(
             parentNode: self,
             environment: self.environment
         )
         let listInputs = _ViewListInputs(input: inputs)
-        self.invalidateContent(with: listInputs)
+        if propagateLayout {
+            self.invalidateContent(with: listInputs)
+            self.markNeedsLayout()
+            self.invalidateNearestLayer()
+            owner?.containerView?.setNeedsLayout()
+            return
+        }
+
+        Self.withSuppressedLayoutPropagation {
+            self.invalidateContent(with: listInputs, propagateLayout: false)
+        }
+
         self.markNeedsLayout()
         self.invalidateNearestLayer()
-        owner?.containerView?.setNeedsLayout()
+        owner?.containerView?.setNeedsLayout(in: visualAbsoluteFrame())
     }
 
     /// Compare and update old child nodes with a new nodes.
-    func reconcileChildNodes(from newNodes: [ViewNode]) {
+    func reconcileChildNodes(from newNodes: [ViewNode], propagateLayout: Bool = true) {
         var allNewNodes = [ViewNode]()
         allNewNodes.reserveCapacity(newNodes.count)
 
@@ -152,7 +210,7 @@ class ViewContainerNode: ViewNode {
         }
 
         if !oldNodes.isEmpty || !allNewNodes.isEmpty {
-            self.markNeedsLayout()
+            self.markNeedsLayout(propagateToParent: propagateLayout)
         }
     }
 
@@ -292,7 +350,7 @@ class ViewContainerNode: ViewNode {
         }
 
         self.body = container.body
-        if self.stateContainer != nil {
+        if self.stateContainer != nil || container.nodes.isEmpty {
             self.invalidateContent()
             return
         }
@@ -379,6 +437,7 @@ class ViewContainerNode: ViewNode {
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
+        flushDeferredInitialContentBuildIfNeeded()
         for node in self.nodes.reversed() {
             let newPoint = node.convert(point, from: self)
             if let node = node.hitTest(newPoint, with: event) {
@@ -398,6 +457,7 @@ class ViewContainerNode: ViewNode {
     }
 
     override func draw(with context: UIGraphicsContext) {
+        flushDeferredInitialContentBuildIfNeeded()
         var context = context
         context.environment = environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)

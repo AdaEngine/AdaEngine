@@ -56,7 +56,7 @@ final class NavigationContext {
 }
 
 extension EnvironmentValues {
-    @Entry internal(set) var navigationContext: NavigationContext? = nil
+    @Entry var navigationContext: NavigationContext? = nil
     @Entry internal var navigationBarConfiguration: NavigationBarConfiguration = NavigationBarConfiguration()
     @Entry internal var navigationBarLeadingItems: NavigationBarItemContent? = nil
     @Entry internal var navigationBarTrailingItems: NavigationBarItemContent? = nil
@@ -85,6 +85,8 @@ struct NavigationBarConfiguration: Hashable, Sendable {
     var backButtonHidden = false
 }
 
+/// Captures toolbar item builders that are evaluated only while constructing the
+/// main-actor view tree.
 final class NavigationBarItemContent: @unchecked Sendable {
     let makeNode: @MainActor (_ViewInputs) -> ViewNode
 

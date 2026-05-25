@@ -4,6 +4,7 @@
 # Ignore Swift Package Manager build artifacts directory.
 .build/
 **/.build/
+.build-codex/
 
 # Ignore generated Xcode projects
 *.xcodeproj
@@ -37,6 +38,7 @@ Derived/
 .ijwb/
 
 # Sloppy
+.sloppy/
 .sloppy-worktrees/
 
 # Compiled Shaders

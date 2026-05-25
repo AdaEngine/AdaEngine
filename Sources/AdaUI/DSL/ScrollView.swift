@@ -623,6 +623,47 @@ final class ScrollViewNode: LayoutViewContainerNode {
         return true
     }
 
+    func scrollToVisibleRect(_ rect: Rect, in node: ViewNode, padding: EdgeInsets = .zero) -> Bool {
+        guard self.containsDescendant(node) else {
+            return false
+        }
+
+        var origin = rect.origin + node.frame.origin
+        var current = node.parent
+        while let currentNode = current, currentNode !== self {
+            origin += currentNode.frame.origin
+            current = currentNode.parent
+        }
+
+        let target = Rect(origin: origin, size: rect.size)
+        var offset = contentOffset
+
+        if axis.contains(.horizontal) {
+            let visibleMinX = contentOffset.x + padding.leading
+            let visibleMaxX = contentOffset.x + frame.width - padding.trailing
+
+            if target.minX < visibleMinX {
+                offset.x = target.minX - padding.leading
+            } else if target.maxX > visibleMaxX {
+                offset.x = target.maxX - frame.width + padding.trailing
+            }
+        }
+
+        if axis.contains(.vertical) {
+            let visibleMinY = contentOffset.y + padding.top
+            let visibleMaxY = contentOffset.y + frame.height - padding.bottom
+
+            if target.minY < visibleMinY {
+                offset.y = target.minY - padding.top
+            } else if target.maxY > visibleMaxY {
+                offset.y = target.maxY - frame.height + padding.bottom
+            }
+        }
+
+        setContentOffset(clampOffset(offset))
+        return true
+    }
+
     func isNearBottom(threshold: Float) -> Bool {
         let remaining = contentSize.height - frame.height - contentOffset.y
         return remaining <= threshold

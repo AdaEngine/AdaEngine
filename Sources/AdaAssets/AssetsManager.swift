@@ -12,6 +12,11 @@ import Foundation
 import Logging
 import Tracing
 
+#if WASM && canImport(JavaScriptFoundationCompat) && canImport(JavaScriptKit)
+import JavaScriptFoundationCompat
+import JavaScriptKit
+#endif
+
 public enum AssetError: LocalizedError {
     case notExistAtPath(String)
     case message(String)
@@ -118,8 +123,10 @@ public struct AssetsManager: Resource {
             throw AssetError.notExistAtPath(processedPath.url.path)
         }
         
-        guard FileSystem.current.itemExists(at: processedPath.url) else {
-            throw AssetError.notExistAtPath(processedPath.url.path)
+        if shouldCheckAssetFileExistence {
+            guard FileSystem.current.itemExists(at: processedPath.url) else {
+                throw AssetError.notExistAtPath(processedPath.url.path)
+            }
         }
         
         if handleChanges {
@@ -196,7 +203,7 @@ public struct AssetsManager: Resource {
         let processedPath = self.processPath(path)
         guard
             let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil),
-            FileSystem.current.itemExists(at: uri)
+            !shouldCheckAssetFileExistence || FileSystem.current.itemExists(at: uri)
         else {
             throw AssetError.notExistAtPath(processedPath.url.relativeString)
         }
@@ -387,7 +394,26 @@ public struct AssetsManager: Resource {
     // TODO: (Vlad) where we should call this method in embeddable view?
     // TODO: (Vlad) We must set current dev path to the asset manager
     @_spi(AdaEngine)
-    public static func initialize(filePath: StaticString) throws {
+    public static func initialize(filePath: StaticString, assetBundleResourceURL: URL? = nil) throws {
+        if let resources = assetBundleResourceURL {
+            unsafe self.resourceDirectory = resources
+            unsafe self.projectDirectories = ProjectDirectories(
+                source: resources.deletingLastPathComponent(),
+                assetsDirectory: resources
+            )
+            return
+        }
+
+        #if WASM
+        let resources = URL(string: "Assets")!
+        unsafe self.resourceDirectory = resources
+        unsafe self.projectDirectories = ProjectDirectories(
+            source: URL(string: ".")!,
+            assetsDirectory: resources
+        )
+        return
+        #endif
+
         let projectDirectories = try resolveProjectDirectories(filePath: filePath)
         unsafe self.projectDirectories = projectDirectories
 
@@ -475,9 +501,7 @@ public struct AssetsManager: Resource {
         from path: Path,
         originalPath: String
     ) async throws {
-        guard let data = FileSystem.current.readFile(at: path.url) else {
-            throw AssetError.notExistAtPath(path.url.path)
-        }
+        let data = try await self.readData(from: path)
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = TextAssetDecoder(meta: meta, data: data)
         try await assetType.loadAndUpdateInternal(from: decoder, oldResource: oldResource)
@@ -487,9 +511,7 @@ public struct AssetsManager: Resource {
     private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Bundle?)
         async throws -> A
     {
-        guard let data = FileSystem.current.readFile(at: path.url) else {
-            throw AssetError.notExistAtPath(path.url.path)
-        }
+        let data = try await self.readData(from: path)
 
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = TextAssetDecoder(meta: meta, data: data)
@@ -503,6 +525,57 @@ public struct AssetsManager: Resource {
         )
 
         return resource
+    }
+
+    private static func readData(from path: Path) async throws -> Data {
+        #if WASM && canImport(JavaScriptFoundationCompat) && canImport(JavaScriptKit)
+        let responseValue: JSValue
+        do {
+            guard let fetchPromise = JSPromise.construct(from: JSObject.global.fetch(path.url.relativeString)) else {
+                throw AssetError.message("Browser fetch did not return a promise for \(path.url.relativeString)")
+            }
+            responseValue = try await fetchPromise.value
+        } catch {
+            throw AssetError.message("Browser fetch failed for \(path.url.relativeString): \(error)")
+        }
+
+        guard let response = responseValue.object else {
+            throw AssetError.message("Browser fetch returned an invalid response for \(path.url.relativeString)")
+        }
+        guard response.ok.boolean == true else {
+            throw AssetError.notExistAtPath(path.url.relativeString)
+        }
+
+        do {
+            guard let arrayBufferPromise = JSPromise.construct(from: response.arrayBuffer()) else {
+                throw AssetError.message("Browser response did not return an ArrayBuffer promise for \(path.url.relativeString)")
+            }
+            let arrayBuffer = try await arrayBufferPromise.value
+            guard let uint8ArrayConstructor = JSObject.global.Uint8Array.function else {
+                throw AssetError.message("Browser Uint8Array constructor is unavailable")
+            }
+            let uint8Array = uint8ArrayConstructor.new(arrayBuffer)
+            guard let data = Data.construct(from: uint8Array) else {
+                throw AssetError.message("Browser response could not be converted to Data for \(path.url.relativeString)")
+            }
+            return data
+        } catch {
+            throw AssetError.message("Browser response read failed for \(path.url.relativeString): \(error)")
+        }
+        #else
+        guard let data = FileSystem.current.readFile(at: path.url) else {
+            throw AssetError.notExistAtPath(path.url.path)
+        }
+        return data
+        #endif
+    }
+
+    private static var shouldCheckAssetFileExistence: Bool {
+        #if WASM && canImport(JavaScriptKit)
+        false
+        #else
+        true
+        #endif
     }
 }
 
@@ -523,6 +596,11 @@ extension AssetsManager {
         }
 
         return processedPath
+    }
+
+    @_spi(AdaEngine)
+    public static func resolveAssetURL(at path: String) -> URL {
+        self.processPath(path).url
     }
 
     @AssetActor

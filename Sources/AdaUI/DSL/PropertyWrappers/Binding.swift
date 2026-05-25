@@ -26,41 +26,57 @@ enum BindingAnimationTransaction {
 /// For example, a button that toggles between play and pause can create a binding to a property of its parent view using the Binding property wrapper.
 @propertyWrapper
 public struct Binding<T>: UpdatableProperty {
+    private enum Storage {
+        case closures(get: () -> T, set: (T) -> Void)
+        case mainActorClosures(get: @MainActor () -> T, set: @MainActor (T) -> Void)
+        case state(StateStorage<T>)
+    }
 
     /// The underlying value referenced by the binding variable.
+    @MainActor
     public var wrappedValue: T {
         get {
-            return getValue()
+            switch storage {
+            case .closures(let getValue, _):
+                return getValue()
+            case .mainActorClosures(let getValue, _):
+                return getValue()
+            case .state(let stateStorage):
+                return stateStorage.value
+            }
         }
         nonmutating set {
-            setValue(newValue)
+            switch storage {
+            case .closures(_, let setValue):
+                setValue(newValue)
+            case .mainActorClosures(_, let setValue):
+                setValue(newValue)
+            case .state(let stateStorage):
+                stateStorage.value = newValue
+                stateStorage.update()
+            }
         }
     }
 
-    private let getValue: () -> T
-    private let setValue: (T) -> Void
+    private let storage: Storage
 
     /// Initialize a new binding.
     ///
     /// - Parameter get: The getter function.
     /// - Parameter set: The setter function.
     @preconcurrency
-    public init(get: @escaping @isolated(any) () -> T, set: @escaping @isolated(any) (T) -> Void) {
-        self.getValue = get
-        self.setValue = set
+    public init(get: @escaping () -> T, set: @escaping (T) -> Void) {
+        self.storage = .closures(get: get, set: set)
+    }
+
+    private init(mainActorGet get: @escaping @MainActor () -> T, set: @escaping @MainActor (T) -> Void) {
+        self.storage = .mainActorClosures(get: get, set: set)
     }
 
     @preconcurrency
+    @MainActor
     init(storage: StateStorage<T>) {
-        self.getValue = {
-            unsafe storage.value
-        }
-        self.setValue = { newValue in
-            unsafe storage.value = newValue
-            MainActor.assumeIsolated {
-                storage.update()
-            }
-        }
+        self.storage = .state(storage)
     }
 
     /// Update the binding.
@@ -75,7 +91,7 @@ public struct Binding<T>: UpdatableProperty {
     @MainActor
     public func animation(_ animation: Animation? = .default) -> Binding<T> {
         Binding<T>(
-            get: {
+            mainActorGet: {
                 self.wrappedValue
             },
             set: { @MainActor newValue in
@@ -101,9 +117,10 @@ public struct Binding<T>: UpdatableProperty {
     ///
     /// - Parameter reference: The reference to bind.
     /// - Returns: A binding from a reference.
+    @MainActor
     subscript<Subject>(dynamicMember keyPath: WritableKeyPath<T, Subject>) -> Binding<Subject> {
         return Binding<Subject>(
-            get: { self.wrappedValue[keyPath: keyPath] },
+            mainActorGet: { self.wrappedValue[keyPath: keyPath] },
             set: { self.wrappedValue[keyPath: keyPath] = $0 }
         )
     }

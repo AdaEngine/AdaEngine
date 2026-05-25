@@ -56,6 +56,14 @@ final class OffsetViewNodeModifier: ViewModifierNode {
         super.place(in: origin, anchor: anchor, proposal: proposal)
     }
 
+    override func place(in origin: Point, anchor: AnchorPoint, proposal: ProposedViewSize, measuredSize size: Size) {
+        var origin = origin
+        origin.x += offsetByX
+        origin.y += offsetByY
+
+        super.place(in: origin, anchor: anchor, proposal: proposal, measuredSize: size)
+    }
+
     override func update(from newNode: ViewNode) {
         super.update(from: newNode)
         

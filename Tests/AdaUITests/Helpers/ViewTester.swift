@@ -45,6 +45,7 @@ class ViewTester<Content: View> {
     func setSize(_ size: Size) -> Self {
         self.size = size
         self.containerView.frame.size = size
+        self.containerView.viewTree.rootNode.invalidateContent()
         return self
     }
 
@@ -96,6 +97,7 @@ class ViewTester<Content: View> {
             button: .left,
             phase: phase,
             scrollDelta: .zero,
+            modifierKeys: [],
             time: 0
         )
 
@@ -120,6 +122,7 @@ class ViewTester<Content: View> {
         button: MouseButton = .left,
         phase: MouseEvent.Phase,
         scrollDelta: Point = .zero,
+        modifierKeys: KeyModifier = [],
         time: Float = 0
     ) -> ViewNode? {
         let event = makeMouseEvent(
@@ -127,6 +130,7 @@ class ViewTester<Content: View> {
             button: button,
             phase: phase,
             scrollDelta: scrollDelta,
+            modifierKeys: modifierKeys,
             time: time
         )
 
@@ -162,6 +166,7 @@ class ViewTester<Content: View> {
             button: button,
             phase: phase,
             scrollDelta: .zero,
+            modifierKeys: [],
             time: 0
         )
 
@@ -273,6 +278,7 @@ class ViewTester<Content: View> {
         button: MouseButton,
         phase: MouseEvent.Phase,
         scrollDelta: Point,
+        modifierKeys: KeyModifier,
         time: Float
     ) -> MouseEvent {
         MouseEvent(
@@ -281,7 +287,7 @@ class ViewTester<Content: View> {
             scrollDelta: scrollDelta,
             mousePosition: point,
             phase: phase,
-            modifierKeys: [],
+            modifierKeys: modifierKeys,
             time: time
         )
     }

@@ -296,6 +296,10 @@ private final class OffscreenViewportContainerNode<Content: View>: ViewContainer
         guard parent == nil else {
             return
         }
+        shutdownDelegate()
+    }
+
+    private func shutdownDelegate() {
         delegate?.shutdown()
         delegate = nil
     }

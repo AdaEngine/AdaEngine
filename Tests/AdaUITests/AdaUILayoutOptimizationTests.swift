@@ -4,6 +4,7 @@
 //
 
 import Math
+import Observation
 import Testing
 @testable import AdaPlatform
 @testable import AdaUI
@@ -163,6 +164,120 @@ struct AdaUILayoutOptimizationTests {
 
         #expect(counter.sizeThatFitsCalls <= 9)
     }
+
+    @Test
+    func leafStateChangeWithStableSizeDoesNotRelayoutLargeScreen() {
+        let staticCounter = LayoutOptimizationCounter()
+        let leafCounter = LayoutOptimizationCounter()
+        let recorder = LeafStateRecorder()
+        let tester = ViewTester {
+            VStack(spacing: 0) {
+                CountingFixedView(counter: staticCounter, size: Size(width: 280, height: 120))
+                    .accessibilityIdentifier("large-static-panel")
+                StableSizeStateLeaf(recorder: recorder, counter: leafCounter)
+            }
+            .frame(width: 320, height: 240)
+        }
+        .setSize(Size(width: 320, height: 240))
+        .performLayout()
+
+        staticCounter.layoutPasses = 0
+        leafCounter.layoutPasses = 0
+        UILayoutDebugCounters.isEnabled = true
+        UILayoutDebugCounters.reset()
+
+        recorder.binding?.wrappedValue += 1
+        tester.performLayout()
+
+        let snapshot = UILayoutDebugCounters.snapshot
+        UILayoutDebugCounters.isEnabled = false
+
+        #expect(recorder.renderedValues.last == 1)
+        #expect(staticCounter.layoutPasses == 0)
+        #expect(leafCounter.layoutPasses >= 1)
+        #expect(snapshot.rebuilds == 1)
+    }
+
+    @Test
+    func stableSizeStateChangeSchedulesLayoutIfNeededForRebuiltSubtree() {
+        let counter = LayoutOptimizationCounter()
+        let recorder = LeafStateRecorder()
+        let tester = ViewTester {
+            StableSizeSwappingStateLeaf(recorder: recorder, counter: counter)
+                .frame(width: 120, height: 60)
+        }
+        .setSize(Size(width: 160, height: 100))
+        .performLayout()
+
+        recorder.binding?.wrappedValue = 1
+        tester.containerView.layoutIfNeeded()
+
+        let updatedNode = tester.findNodeByAccessibilityIdentifier("stable-swap-b")
+        #expect(updatedNode?.frame.size == Size(width: 80, height: 30))
+    }
+
+    @Test
+    func observableLeafChangeWithStableSizeDoesNotRelayoutLargeScreen() async {
+        let counter = LayoutOptimizationCounter()
+        let model = StableSizeObservableModel()
+        let recorder = StableSizeObservableRecorder()
+        let tester = ViewTester {
+            VStack(spacing: 0) {
+                CountingFixedView(counter: counter, size: Size(width: 280, height: 120))
+                    .accessibilityIdentifier("large-static-panel")
+                StableSizeObservableLeaf(model: model, recorder: recorder, counter: counter)
+            }
+            .frame(width: 320, height: 240)
+        }
+        .setSize(Size(width: 320, height: 240))
+        .performLayout()
+
+        model.value = 1
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+
+        counter.layoutPasses = 0
+        tester.performLayout()
+
+        #expect(recorder.renderedValues.last == 1)
+        #expect(counter.layoutPasses == 0)
+    }
+
+    @Test
+    func nestedObservableChangeDoesNotInvalidateParentSiblings() async throws {
+        let model = NestedObservablePanelModel()
+        let topCounter = LayoutOptimizationCounter()
+        let workspaceCounter = LayoutOptimizationCounter()
+        let window = UIWindow(frame: Rect(x: 0, y: 0, width: 320, height: 240))
+        let containerView = UIContainerView(
+            rootView: NestedObservableInvalidationRoot(
+                model: model,
+                topCounter: topCounter,
+                workspaceCounter: workspaceCounter
+            )
+        )
+
+        containerView.frame = Rect(x: 0, y: 0, width: 320, height: 240)
+        window.addSubview(containerView)
+        window.layoutIfNeeded()
+        _ = window.consumeDirtyRect()
+
+        topCounter.updatePasses = 0
+        workspaceCounter.updatePasses = 0
+
+        model.showPanel = false
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+
+        let dirtyRect = try #require(window.consumeDirtyRect())
+        containerView.layoutIfNeeded()
+
+        #expect(topCounter.updatePasses == 0)
+        #expect(workspaceCounter.updatePasses > 0)
+        #expect(dirtyRect == Rect(x: 0, y: 40, width: 320, height: 200))
+    }
 }
 
 @MainActor
@@ -170,6 +285,7 @@ private final class LayoutOptimizationCounter {
     var geometryBuilds = 0
     var layoutPasses = 0
     var sizeThatFitsCalls = 0
+    var updatePasses = 0
 
     func recordGeometryBuild(size: Size) -> Size {
         geometryBuilds += 1
@@ -183,6 +299,38 @@ private final class GeometryFrameRecorder {
     var globalFrame = Rect.zero
     var namedFrame = Rect.zero
     var size = Size.zero
+}
+
+@MainActor
+private final class LeafStateRecorder {
+    var binding: Binding<Int>?
+    var renderedValues: [Int] = []
+
+    func record(value: Int, binding: Binding<Int>) {
+        self.binding = binding
+        self.renderedValues.append(value)
+    }
+}
+
+@Observable
+@MainActor
+private final class StableSizeObservableModel {
+    var value = 0
+}
+
+@Observable
+@MainActor
+private final class NestedObservablePanelModel {
+    var showPanel = true
+}
+
+@MainActor
+private final class StableSizeObservableRecorder {
+    var renderedValues: [Int] = []
+
+    func record(value: Int) {
+        renderedValues.append(value)
+    }
 }
 
 private struct GeometryFrameProbe: View, ViewNodeBuilder {
@@ -238,6 +386,7 @@ private final class CountingFixedViewNode: ViewNode {
         if let other = newNode as? CountingFixedViewNode {
             self.fixedSize = other.fixedSize
         }
+        counter.updatePasses += 1
         super.update(from: newNode)
     }
 
@@ -269,6 +418,85 @@ private struct StatefulLayoutOptimizationView: View {
                 size: Size(width: 80, height: expanded ? 80 : 30)
             )
             .accessibilityIdentifier("state-child")
+        }
+    }
+}
+
+private struct StableSizeStateLeaf: View {
+    let recorder: LeafStateRecorder
+    let counter: LayoutOptimizationCounter
+
+    @State private var value = 0
+
+    var body: some View {
+        let _ = recorder.record(value: value, binding: $value)
+        CountingFixedView(counter: counter, size: Size(width: 80, height: 30))
+            .accessibilityIdentifier("stable-state-leaf")
+    }
+}
+
+private struct StableSizeSwappingStateLeaf: View {
+    let recorder: LeafStateRecorder
+    let counter: LayoutOptimizationCounter
+
+    @State private var value = 0
+
+    var body: some View {
+        let _ = recorder.record(value: value, binding: $value)
+        if value == 0 {
+            CountingFixedView(counter: counter, size: Size(width: 80, height: 30))
+                .accessibilityIdentifier("stable-swap-a")
+        } else {
+            CountingFixedView(counter: counter, size: Size(width: 80, height: 30))
+                .accessibilityIdentifier("stable-swap-b")
+        }
+    }
+}
+
+private struct StableSizeObservableLeaf: View {
+    let model: StableSizeObservableModel
+    let recorder: StableSizeObservableRecorder
+    let counter: LayoutOptimizationCounter
+
+    var body: some View {
+        let _ = recorder.record(value: model.value)
+        VStack(spacing: 0) {
+            CountingFixedView(counter: counter, size: Size(width: 80, height: 30))
+                .accessibilityIdentifier("stable-observable-leaf")
+        }
+    }
+}
+
+private struct NestedObservableInvalidationRoot: View {
+    let model: NestedObservablePanelModel
+    let topCounter: LayoutOptimizationCounter
+    let workspaceCounter: LayoutOptimizationCounter
+
+    var body: some View {
+        VStack(spacing: 0) {
+            CountingFixedView(counter: topCounter, size: Size(width: 320, height: 40))
+                .accessibilityIdentifier("unchanged-topbar")
+
+            NestedObservableInvalidationWorkspace(model: model, counter: workspaceCounter)
+                .frame(width: 320, height: 200)
+                .accessibilityIdentifier("workspace")
+        }
+    }
+}
+
+private struct NestedObservableInvalidationWorkspace: View {
+    let model: NestedObservablePanelModel
+    let counter: LayoutOptimizationCounter
+
+    var body: some View {
+        HStack(spacing: 0) {
+            if model.showPanel {
+                CountingFixedView(counter: counter, size: Size(width: 80, height: 200))
+                    .accessibilityIdentifier("left-panel")
+            }
+
+            CountingFixedView(counter: counter, size: Size(width: model.showPanel ? 240 : 320, height: 200))
+                .accessibilityIdentifier("main-panel")
         }
     }
 }

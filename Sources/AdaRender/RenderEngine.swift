@@ -6,6 +6,7 @@
 //
 
 import AdaUtils
+import Foundation
 import OrderedCollections
 import Math
 
@@ -106,7 +107,11 @@ extension RenderEngine {
         #if WEBGPU_ENABLED
             renderBackend = try WebGPURenderBackend.createBackend()
         #else
+            #if WASM
+            throw RenderEngineSetupError.browserWebGPUBackendUnavailable
+            #else
             fallthrough
+            #endif
         #endif
         case .metal:
         #if METAL
@@ -122,12 +127,25 @@ extension RenderEngine {
     }
 
     private static func defaultBackendType() -> RenderBackendType {
-        #if WEBGPU_ENABLED
+        #if WASM
+        return .webgpu
+        #elseif WEBGPU_ENABLED
         return .webgpu
         #elseif METAL
         return .metal
         #else
         return .headless
         #endif
+    }
+}
+
+private enum RenderEngineSetupError: LocalizedError {
+    case browserWebGPUBackendUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .browserWebGPUBackendUnavailable:
+            "Browser WebGPU backend is not linked. Add a WASM/browser WebGPU implementation before using RenderWorldPlugin in web exports."
+        }
     }
 }

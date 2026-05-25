@@ -6,7 +6,9 @@
 //
 
 import AdaECS
+import AdaInput
 import AdaUI
+import AdaUtils
 import Math
 
 public enum SceneViewPluginPreset: Sendable {
@@ -34,24 +36,36 @@ public struct SceneView<Content: View>: View {
     let filePath: StaticString
     let pluginPreset: SceneViewPluginPreset
     let setup: @MainActor (World) -> Void
+    let update: @MainActor (World, AdaUtils.TimeInterval) -> Void
+    let input: @MainActor (any InputEvent, World) -> Bool
     let contentBuilder: @MainActor (SceneViewContext) -> Content
 
     public init(
         filePath: StaticString = #filePath,
         pluginPreset: SceneViewPluginPreset = .standard,
         setup: @escaping @MainActor (World) -> Void,
+        update: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void = { _, _ in },
+        input: @escaping @MainActor (any InputEvent, World) -> Bool = { _, _ in false },
         @ViewBuilder content: @escaping @MainActor (SceneViewContext) -> Content
     ) {
         self.filePath = filePath
         self.pluginPreset = pluginPreset
         self.setup = setup
+        self.update = update
+        self.input = input
         self.contentBuilder = content
     }
 
     public var body: some View {
         OffscreenViewportContainer(
-            delegateFactory: { [filePath, pluginPreset, setup] in
-                SceneViewCoordinator(filePath: filePath, pluginPreset: pluginPreset, setup: setup)
+            delegateFactory: { [filePath, pluginPreset, setup, update, input] in
+                SceneViewCoordinator(
+                    filePath: filePath,
+                    pluginPreset: pluginPreset,
+                    setup: setup,
+                    update: update,
+                    input: input
+                )
             },
             contentBuilder: { [contentBuilder] delegate in
                 let coordinator = delegate as! SceneViewCoordinator

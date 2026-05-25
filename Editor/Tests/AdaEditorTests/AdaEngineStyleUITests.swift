@@ -1,4 +1,5 @@
 @testable import AdaEditor
+@_spi(AdaEngine) import AdaEngine
 import AdaInput
 @_spi(Internal) import AdaUI
 import AdaUtils
@@ -12,6 +13,7 @@ struct AdaEngineStyleUITests {
     func desktopGridDimensions() {
         #expect(AdaEngineStyleLayoutSpec.topToolbarHeight == 52)
         #expect(AdaEngineStyleLayoutSpec.toolStripWidth == 40)
+        #expect(AdaEngineStyleLayoutSpec.panelSpacing == 8)
         #expect(AdaEngineStyleLayoutSpec.projectSidebarWidth == 260)
         #expect(AdaEngineStyleLayoutSpec.inspectorWidth == 300)
         #expect(AdaEngineStyleLayoutSpec.footerHeight == 24)
@@ -39,19 +41,24 @@ struct AdaEngineStyleUITests {
     func requiredReferenceLabels() {
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("Search Everywhere"))
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("main_scene"))
-        #expect(AdaEngineStyleContent.leftTopSidebarTools.map(\.title) == ["File Tree", "Entity Tree", "Agent Chat", "Source Control", "Tests"])
+        #expect(AdaEngineStyleContent.leftTopSidebarTools.map(\.title) == ["File Tree", "Entity Tree", "Source Control", "Tests"])
         #expect(AdaEngineStyleContent.leftBottomSidebarTools.map(\.title) == ["Logs", "Build", "Animator"])
-        #expect(AdaEngineStyleContent.rightSidebarTools.map(\.title) == ["Inspector", "Project Dependencies", "Swift Package Tasks", "Plugins", "Project Settings"])
+        #expect(AdaEngineStyleContent.rightSidebarTools.map(\.title) == ["Agent Chat", "Inspector", "Project Dependencies", "Swift Package Tasks", "Plugins", "Project Settings"])
         #expect(AdaEngineStyleContent.projectTreeItems == ["src", "EngineLoop.ada", "Renderer.ada", "Main.ascn"])
         #expect(AdaEngineStyleContent.editorTabs.contains("Main.ascn"))
-        #expect(AdaEngineStyleContent.outputTabs == ["Problems", "Output", "Terminal", "Vulkan Profiler", "AI Chat History"])
+        #expect(AdaEngineStyleContent.outputTabs == ["Problems", "Build", "Tests", "References", "Output"])
     }
 
-    @Test("sidebar tools use Material Symbols codepoints")
-    func sidebarToolsUseMaterialSymbolsCodepoints() {
-        #expect(AdaEngineStyleContent.leftTopSidebarTools.map(\.icon) == ["\u{E2C7}", "\u{E97A}", "\u{F06C}", "\u{EAF5}", "\u{EA4B}"])
-        #expect(AdaEngineStyleContent.leftBottomSidebarTools.map(\.icon) == ["\u{EB8E}", "\u{E869}", "\u{E71C}"])
-        #expect(AdaEngineStyleContent.rightSidebarTools.map(\.icon) == ["\u{E88E}", "\u{E9F4}", "\u{F569}", "\u{E87B}", "\u{E8B8}"])
+    @Test("sidebar tools use renderable compact glyphs")
+    func sidebarToolsUseRenderableCompactGlyphs() {
+        let allIcons = AdaEngineStyleContent.leftTopSidebarTools
+            + AdaEngineStyleContent.leftBottomSidebarTools
+            + AdaEngineStyleContent.rightSidebarTools
+        let iconCodepoints = allIcons.compactMap { $0.icon.unicodeScalars.first?.value }
+
+        #expect(iconCodepoints.count == allIcons.count)
+        #expect(Set(iconCodepoints).isSubset(of: Set(AdaEditorMaterialSymbolFont.codepoints)))
+        #expect(allIcons.allSatisfy { $0.icon.unicodeScalars.count == 1 })
     }
 
     @Test("AI flight box and inspector include requested interactive copy")
@@ -59,7 +66,7 @@ struct AdaEngineStyleUITests {
         #expect(AdaEngineStyleContent.aiTitle == "Ada Intelligence")
         #expect(AdaEngineStyleContent.aiHint == "⌘L to Focus")
         #expect(AdaEngineStyleContent.aiPlaceholder == "Ask to generate logic, optimize shaders, or place objects...")
-        #expect(AdaEngineStyleContent.aiChips == ["Refactor current scene", "Optimize Vulkan DrawCalls", "Auto-light"])
+        #expect(AdaEngineStyleContent.aiChips == ["Refactor current scene", "Optimize render batches", "Auto-light"])
         #expect(AdaEngineStyleContent.inspectorScript == "DynamicBouncer.ada")
         #expect(AdaEngineStyleContent.inspectorScriptDescription == "Object bounces on contact")
     }
@@ -68,7 +75,7 @@ struct AdaEngineStyleUITests {
     func statusAndOutputMessages() {
         #expect(AdaEngineStyleContent.logLines.contains { $0.contains("Ada Engine initialized") })
         #expect(AdaEngineStyleContent.logLines.contains { $0.contains("AI optimization note") })
-        #expect(AdaEngineStyleContent.footerLeft == ["Built in 142ms", "Vulkan Enabled"])
+        #expect(AdaEngineStyleContent.footerLeft == ["Built in 142ms", "Renderer Ready"])
         #expect(AdaEngineStyleContent.footerRight == ["3:12 LF UTF-8", "Git: main*"])
     }
 
@@ -158,8 +165,9 @@ struct AdaEngineStyleUITests {
         let viewModel = EditorViewModel()
 
         #expect(viewModel.toolbar.sceneName == "main_scene")
-        #expect(viewModel.toolStrip.activeLeftTool == "fileTree")
-        #expect(viewModel.toolStrip.activeRightTool == "inspector")
+        #expect(viewModel.toolStrip.activeLeftTopTool == "fileTree")
+        #expect(viewModel.toolStrip.activeLeftBottomTool == "logs")
+        #expect(viewModel.toolStrip.activeRightTool == "agentChat")
         #expect(viewModel.toolStrip.leftTopTools == AdaEngineStyleContent.leftTopSidebarTools)
         #expect(viewModel.toolStrip.leftBottomTools == AdaEngineStyleContent.leftBottomSidebarTools)
         #expect(viewModel.toolStrip.rightTools == AdaEngineStyleContent.rightSidebarTools)
@@ -170,7 +178,8 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.workbench.codeColorPalette == EditorCodeColorPalette.dark)
         #expect(viewModel.inspectorSidebar.scriptName == AdaEngineStyleContent.inspectorScript)
         #expect(viewModel.footer.rightItems == AdaEngineStyleContent.footerRight)
-        #expect(!viewModel.showsDebugOverlay)
+        #expect(viewModel.showsDebugOverlay == nil)
+        #expect(viewModel.playModeState == .editing)
     }
 
     @Test("editor view model mutates interaction state")
@@ -180,19 +189,234 @@ struct AdaEngineStyleUITests {
         let hotReloadState = EditorHotReloadState(isEnabled: true, watchedPathCount: 2, lastReloadedPath: nil, errorMessage: nil)
 
         viewModel.toolbar.searchText = "Renderer"
-        viewModel.toolStrip.selectRightTool(AdaEngineStyleContent.rightSidebarTools[4])
-        viewModel.toolStrip.selectLeftTool(AdaEngineStyleContent.leftBottomSidebarTools[0])
+        viewModel.toolStrip.selectRightTool(AdaEngineStyleContent.rightSidebarTools[5])
+        viewModel.toolStrip.selectLeftBottomTool(AdaEngineStyleContent.leftBottomSidebarTools[0])
+        viewModel.selectOutputTab("Terminal")
         viewModel.workbench.aiPrompt = "Generate a platformer controller"
         viewModel.workbench.hoveredChip = AdaEngineStyleContent.aiChips.first
-        viewModel.toggleDebugOverlay()
+        viewModel.toggleDebugOverlay(.layoutBounds)
 
         #expect(viewModel.toolbar.searchText == "Renderer")
         #expect(viewModel.toolStrip.activeRightTool == "projectSettings")
-        #expect(viewModel.toolStrip.activeLeftTool == "logs")
+        #expect(viewModel.toolStrip.activeLeftTopTool == "fileTree")
+        #expect(viewModel.toolStrip.activeLeftBottomTool == "logs")
+        #expect(viewModel.activeOutputTab == "Terminal")
+        #expect(viewModel.workbench.activeOutputTab == "Terminal")
         #expect(viewModel.workbench.aiPrompt == "Generate a platformer controller")
         #expect(viewModel.workbench.hoveredChip == "Refactor current scene")
-        #expect(viewModel.footer.leftItems(hotReloadState: hotReloadState) == ["Built in 142ms", "Vulkan Enabled", "Hot Reload: 2 paths"])
-        #expect(viewModel.showsDebugOverlay)
+        #expect(viewModel.footer.leftItems(hotReloadState: hotReloadState) == ["Built in 142ms", "Renderer Ready", "Hot Reload: 2 paths"])
+        #expect(viewModel.showsDebugOverlay == .layoutBounds)
+    }
+
+    @Test("editor play mode runs active scene document from memory")
+    @MainActor
+    func editorPlayModeRunsActiveSceneDocumentFromMemory() throws {
+        let viewModel = EditorViewModel()
+        let sceneDocument = try #require(viewModel.workbench.activeSceneDocument)
+
+        var editedDocument = sceneDocument
+        editedDocument.content = SceneDocumentFormat.defaultSceneYAML(projectName: "UnsavedPlayScene")
+        editedDocument.sceneModel = EditorSceneFileLoader.model(from: editedDocument.content)
+        editedDocument.loadSummary = EditorSceneFileLoader.summary(from: editedDocument.content)
+        editedDocument.isDirty = true
+        viewModel.workbench.replaceSceneDocument(editedDocument)
+
+        viewModel.runActiveSceneInEditor()
+
+        #expect(viewModel.playModeState == .playing(sceneDocumentID: editedDocument.id, title: editedDocument.title))
+        #expect(viewModel.workspaceStatus == .running("Play \(editedDocument.title)"))
+
+        viewModel.stopPlayMode()
+        #expect(viewModel.playModeState == .editing)
+        #expect(viewModel.workspaceStatus == .ready)
+    }
+
+    @Test("editor play mode falls back to startup scene when active document is not a scene")
+    @MainActor
+    func editorPlayModeFallsBackToStartupScene() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorPlayStartupScene")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        try createPlayableProject(at: rootURL, sceneName: "StartupPlayScene")
+        let project = EditorProjectReference(name: "EditorPlayStartupScene", path: rootURL.path)
+        let viewModel = EditorViewModel(project: project)
+        viewModel.workbench.selectDocument(id: "text:src/EngineLoop.ada")
+
+        viewModel.runActiveSceneInEditor()
+
+        #expect(viewModel.playModeState == .playing(sceneDocumentID: "scene:Assets/Scenes/Main.ascn", title: "Main.ascn"))
+        let activeScene = try #require(viewModel.workbench.activeSceneDocument)
+        #expect(activeScene.relativePath == "Assets/Scenes/Main.ascn")
+        #expect(activeScene.content.contains("StartupPlayScene"))
+    }
+
+    @Test("editor play mode reports missing startup scene")
+    @MainActor
+    func editorPlayModeReportsMissingStartupScene() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorPlayMissingStartupScene")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        try createPlayableProject(at: rootURL, sceneName: "MissingStartupScene")
+        try FileManager.default.removeItem(at: rootURL.appendingPathComponent(SceneDocumentFormat.defaultScenePath, isDirectory: false))
+
+        let project = EditorProjectReference(name: "EditorPlayMissingStartupScene", path: rootURL.path)
+        let viewModel = EditorViewModel(project: project)
+        viewModel.workbench.selectDocument(id: "text:src/EngineLoop.ada")
+
+        viewModel.runActiveSceneInEditor()
+
+        #expect(viewModel.playModeState == .failed("Startup scene not found: Assets/Scenes/Main.ascn"))
+        #expect(viewModel.workspaceStatus == .failed("Startup scene not found: Assets/Scenes/Main.ascn"))
+    }
+
+    @Test("inspector vector axis binding updates only the selected component")
+    @MainActor
+    func inspectorVectorAxisBindingUpdatesOnlySelectedComponent() {
+        let viewModel = EditorInspectorSidebarViewModel()
+        let positionField = EditorComponentField(key: "position", label: "Position", kind: .vector3)
+        var appliedValue = ""
+
+        viewModel.updateComponentField = { _, _, value in
+            appliedValue = value
+        }
+        viewModel.selectEntity(
+            EditorInspectorSidebarViewModel.SelectedEntity(
+                editorID: "entity-1",
+                name: "Player",
+                componentNames: [EditorBuiltInComponentType.transform],
+                transformFields: [EditorInspectorSidebarViewModel.TransformField(field: positionField, value: "1, 2, 3")],
+                components: [
+                    EditorInspectorSidebarViewModel.ComponentSection(
+                        typeName: EditorBuiltInComponentType.transform,
+                        displayName: "Transform",
+                        fields: [
+                            EditorInspectorSidebarViewModel.ComponentField(
+                                typeName: EditorBuiltInComponentType.transform,
+                                field: positionField,
+                                value: "1, 2, 3"
+                            )
+                        ],
+                        canRemove: false
+                    )
+                ],
+                addableComponents: [],
+                gizmo: nil,
+                hasExplicitGizmo: false
+            )
+        )
+
+        let yAxis = viewModel.componentVectorAxisBinding(typeName: EditorBuiltInComponentType.transform, field: positionField, axisIndex: 1)
+        #expect(yAxis.wrappedValue == "2")
+
+        yAxis.wrappedValue = "20"
+
+        #expect(appliedValue == "1, 20, 3")
+        #expect(viewModel.componentVectorAxisBinding(typeName: EditorBuiltInComponentType.transform, field: positionField, axisIndex: 0).wrappedValue == "1")
+        #expect(viewModel.componentVectorAxisBinding(typeName: EditorBuiltInComponentType.transform, field: positionField, axisIndex: 1).wrappedValue == "20")
+        #expect(viewModel.componentVectorAxisBinding(typeName: EditorBuiltInComponentType.transform, field: positionField, axisIndex: 2).wrappedValue == "3")
+    }
+
+    @Test("inspector vector axis binding keeps invalid drafts without clobbering model values")
+    @MainActor
+    func inspectorVectorAxisBindingKeepsInvalidDrafts() {
+        let viewModel = EditorInspectorSidebarViewModel()
+        let positionField = EditorComponentField(key: "position", label: "Position", kind: .vector3)
+        var appliedValues: [String] = []
+
+        viewModel.updateComponentField = { _, _, value in
+            appliedValues.append(value)
+        }
+        viewModel.selectEntity(
+            EditorInspectorSidebarViewModel.SelectedEntity(
+                editorID: "entity-1",
+                name: "Player",
+                componentNames: [EditorBuiltInComponentType.transform],
+                transformFields: [EditorInspectorSidebarViewModel.TransformField(field: positionField, value: "1, 2, 3")],
+                components: [
+                    EditorInspectorSidebarViewModel.ComponentSection(
+                        typeName: EditorBuiltInComponentType.transform,
+                        displayName: "Transform",
+                        fields: [
+                            EditorInspectorSidebarViewModel.ComponentField(
+                                typeName: EditorBuiltInComponentType.transform,
+                                field: positionField,
+                                value: "1, 2, 3"
+                            )
+                        ],
+                        canRemove: false
+                    )
+                ],
+                addableComponents: [],
+                gizmo: nil,
+                hasExplicitGizmo: false
+            )
+        )
+
+        let yAxis = viewModel.componentVectorAxisBinding(typeName: EditorBuiltInComponentType.transform, field: positionField, axisIndex: 1)
+        yAxis.wrappedValue = ""
+        #expect(yAxis.wrappedValue == "")
+        #expect(appliedValues.isEmpty)
+        #expect(viewModel.componentVectorAxisBinding(typeName: EditorBuiltInComponentType.transform, field: positionField, axisIndex: 0).wrappedValue == "1")
+        #expect(viewModel.componentVectorAxisBinding(typeName: EditorBuiltInComponentType.transform, field: positionField, axisIndex: 2).wrappedValue == "3")
+
+        yAxis.wrappedValue = "-4.5"
+        #expect(yAxis.wrappedValue == "-4.5")
+        #expect(appliedValues == ["1, -4.5, 3"])
+    }
+
+    @Test("sidebar toolstrip toggles visible panels by region")
+    @MainActor
+    func sidebarToolstripTogglesVisiblePanelsByRegion() {
+        let viewModel = EditorViewModel()
+        let fileTree = AdaEngineStyleContent.leftTopSidebarTools[0]
+        let build = AdaEngineStyleContent.leftBottomSidebarTools[1]
+        let inspector = AdaEngineStyleContent.rightSidebarTools[1]
+        let settings = AdaEngineStyleContent.rightSidebarTools[5]
+
+        viewModel.activateLeftTopTool(fileTree)
+        #expect(viewModel.showLeftPanel)
+        #expect(viewModel.isLeftTopToolPresented(fileTree))
+        viewModel.activateLeftTopTool(fileTree)
+        #expect(viewModel.showLeftPanel)
+        #expect(viewModel.isLeftTopToolPresented(fileTree))
+
+        viewModel.activateLeftBottomTool(build)
+        #expect(viewModel.showBottomPanel)
+        #expect(viewModel.toolStrip.activeLeftTopTool == "fileTree")
+        #expect(viewModel.toolStrip.activeLeftBottomTool == "build")
+        #expect(viewModel.isLeftTopToolPresented(fileTree))
+        #expect(viewModel.isLeftBottomToolPresented(build))
+        viewModel.activateLeftBottomTool(build)
+        #expect(viewModel.showBottomPanel)
+        #expect(viewModel.isLeftBottomToolPresented(build))
+        #expect(viewModel.isLeftTopToolPresented(fileTree))
+
+        viewModel.activateRightTool(inspector)
+        #expect(viewModel.showRightPanel)
+        #expect(viewModel.isRightToolPresented(inspector))
+        viewModel.activateRightTool(settings)
+        #expect(viewModel.showRightPanel)
+        #expect(viewModel.toolStrip.activeRightTool == "projectSettings")
+        #expect(viewModel.isRightToolPresented(settings))
+    }
+
+    @Test("workbench closes tabs and keeps a valid active document")
+    @MainActor
+    func workbenchClosesTabs() {
+        let workbench = EditorWorkbenchViewModel()
+        let initialDocumentCount = workbench.openDocuments.count
+        let inactiveDocumentID = workbench.openDocuments[0].id
+        let activeDocumentID = workbench.activeDocumentID
+
+        workbench.closeDocument(id: inactiveDocumentID)
+        #expect(workbench.openDocuments.count == initialDocumentCount - 1)
+        #expect(workbench.activeDocumentID == activeDocumentID)
+        #expect(workbench.activeEditorTab == "Main.ascn")
+
+        workbench.closeDocument(id: activeDocumentID)
+        #expect(workbench.openDocuments.isEmpty)
+        #expect(workbench.activeDocumentID == "")
+        #expect(workbench.activeEditorTab == "")
     }
 
     @Test("editor opens text files as code documents and scene files as editable scene documents")
@@ -241,6 +465,7 @@ struct AdaEngineStyleUITests {
         #expect(sceneDocument.title == "Main.ascn")
         #expect(sceneDocument.content.contains("format: ada.scene"))
         #expect(sceneDocument.isDirty == false)
+        #expect(sceneDocument.loadSummary.entityCount == 0)
         viewModel.workbench.updateSceneLine(documentID: sceneDocument.id, lineIndex: 1, value: "schemaVersion: 2")
         guard case .scene(let editedSceneDocument) = viewModel.workbench.activeDocument else {
             Issue.record("Expected an edited scene document")
@@ -252,6 +477,98 @@ struct AdaEngineStyleUITests {
         #expect(try String(contentsOf: scenesURL.appendingPathComponent("Main.ascn"), encoding: .utf8).contains("schemaVersion: 2"))
         #expect(viewModel.workbench.activeEditorTab == "Main.ascn")
         #expect(viewModel.toolbar.sceneName == "Main")
+
+        viewModel.openProjectItemAsRaw(sceneItem)
+        guard case .text(let rawDocument) = viewModel.workbench.activeDocument else {
+            Issue.record("Expected a raw text document")
+            return
+        }
+        #expect(rawDocument.id == "raw:Assets/Scenes/Main.ascn")
+        #expect(rawDocument.language == .yaml)
+        #expect(rawDocument.content.contains("schemaVersion: 2"))
+    }
+
+    @Test("editor saves text document on command save and tab switch")
+    @MainActor
+    func editorSavesTextDocumentOnCommandSaveAndTabSwitch() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorTextAutosave")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        let sourcesURL = rootURL.appendingPathComponent("Sources/Game", isDirectory: true)
+        let metadataURL = rootURL.appendingPathComponent(ProjectSystem.metadataDirectoryName, isDirectory: true)
+        try FileManager.default.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: metadataURL, withIntermediateDirectories: true)
+        try "// swift-tools-version: 6.2\n".write(to: rootURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        try "{}\n".write(to: metadataURL.appendingPathComponent(ProjectSystem.metadataFileName), atomically: true, encoding: .utf8)
+
+        let mainURL = sourcesURL.appendingPathComponent("main.swift")
+        let otherURL = sourcesURL.appendingPathComponent("Other.swift")
+        try "let value = 1\n".write(to: mainURL, atomically: true, encoding: .utf8)
+        try "let other = 2\n".write(to: otherURL, atomically: true, encoding: .utf8)
+
+        let project = EditorProjectReference(name: "EditorTextAutosave", path: rootURL.path)
+        let viewModel = EditorViewModel(project: project)
+        let mainItem = try #require(viewModel.projectSidebar.items.first { $0.relativePath == "Sources/Game/main.swift" })
+        let otherItem = try #require(viewModel.projectSidebar.items.first { $0.relativePath == "Sources/Game/Other.swift" })
+
+        viewModel.openProjectItem(mainItem)
+        let mainDocumentID = try #require(viewModel.workbench.activeDocument?.id)
+        viewModel.workbench.updateTextDocument(id: mainDocumentID) { document in
+            document.content = "let value = 42\n"
+            document.isDirty = true
+        }
+        viewModel.saveActiveDocument()
+
+        #expect(try String(contentsOf: mainURL, encoding: .utf8) == "let value = 42\n")
+        guard case .text(let savedMainDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected the saved text document to remain active")
+            return
+        }
+        #expect(!savedMainDocument.isDirty)
+        #expect(savedMainDocument.statusMessage == "Saved")
+
+        viewModel.workbench.updateTextDocument(id: mainDocumentID) { document in
+            document.content = "let value = 99\n"
+            document.isDirty = true
+        }
+        viewModel.openProjectItem(otherItem)
+
+        #expect(try String(contentsOf: mainURL, encoding: .utf8) == "let value = 99\n")
+        guard case .text(let otherDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected tab switch to activate the other text document")
+            return
+        }
+        #expect(otherDocument.absolutePath?.hasSuffix("Sources/Game/Other.swift") == true)
+    }
+
+    @Test("editor scene loader instantiates known entities and components")
+    @MainActor
+    func editorSceneLoaderInstantiatesKnownEntitiesAndComponents() {
+        Transform.registerComponent()
+
+        let world = World()
+        let result = EditorSceneFileLoader.load(content: SceneDocumentFormat.defaultSceneYAML(projectName: "Main"), into: world)
+        let entities = world.getEntities()
+
+        #expect(result.entityCount == 1)
+        #expect(result.warnings.isEmpty)
+        #expect(entities.count == 1)
+        #expect(entities.first?.name == "Root")
+        #expect(entities.first?.components[Transform.self] != nil)
+    }
+
+    @Test("editor scene loader reports unknown components without failing")
+    @MainActor
+    func editorSceneLoaderReportsUnknownComponentsWithoutFailing() {
+        let content = SceneDocumentFormat.defaultSceneYAML(projectName: "Main")
+            .replacingOccurrences(of: "AdaTransform.Transform:", with: "Game.UnknownComponent:")
+
+        let world = World()
+        let result = EditorSceneFileLoader.load(content: content, into: world)
+
+        #expect(result.entityCount == 1)
+        #expect(result.warnings.contains("Unknown component: Game.UnknownComponent"))
+        #expect(world.getEntities().count == 1)
     }
 
     @Test("project sidebar folders can collapse and expand")
@@ -293,6 +610,34 @@ struct AdaEngineStyleUITests {
         #expect(tokens.contains(EditorCodeToken(text: "let", color: .green)))
         #expect(tokens.contains(EditorCodeToken(text: #""Ada""#, color: .blue)))
         #expect(tokens.contains(EditorCodeToken(text: "// comment", color: .red)))
+    }
+
+    @Test("syntax highlighter supports JSON and YAML")
+    func syntaxHighlighterSupportsJSONAndYAML() {
+        var palette = EditorCodeColorPalette.dark
+        palette.keyword = .green
+        palette.string = .blue
+        palette.number = .red
+        palette.comment = .yellow
+        palette.type = .orange
+
+        let jsonTokens = EditorSyntaxHighlighter.tokens(
+            for: #"{"name":"Ada","enabled":true,"count":12}"#,
+            language: .json,
+            palette: palette
+        )
+        #expect(jsonTokens.contains(EditorCodeToken(text: #""Ada""#, color: .blue)))
+        #expect(jsonTokens.contains(EditorCodeToken(text: "true", color: .green)))
+        #expect(jsonTokens.contains(EditorCodeToken(text: "12", color: .red)))
+
+        let yamlTokens = EditorSyntaxHighlighter.tokens(
+            for: "name: Ada\ncount: 12 # generated",
+            language: .yaml,
+            palette: palette
+        )
+        #expect(yamlTokens.contains(EditorCodeToken(text: "name", color: .orange)))
+        #expect(yamlTokens.contains(EditorCodeToken(text: "12", color: .red)))
+        #expect(yamlTokens.contains(EditorCodeToken(text: "# generated", color: .yellow)))
     }
 
     @Test("editor window drag passthrough delegates to interactive content")
@@ -371,4 +716,16 @@ private func makeAdaEngineStyleUITemporaryDirectory(named name: String) throws -
 
 private func removeAdaEngineStyleUITemporaryDirectory(_ url: URL) {
     try? FileManager.default.removeItem(at: url)
+}
+
+private func createPlayableProject(at rootURL: URL, sceneName: String) throws {
+    let scenesURL = rootURL.appendingPathComponent("Assets/Scenes", isDirectory: true)
+    try FileManager.default.createDirectory(at: scenesURL, withIntermediateDirectories: true)
+    try "// swift-tools-version: 6.2\n".write(to: rootURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+    try SceneDocumentFormat.defaultSceneYAML(projectName: sceneName).write(
+        to: rootURL.appendingPathComponent(SceneDocumentFormat.defaultScenePath, isDirectory: false),
+        atomically: true,
+        encoding: .utf8
+    )
+    _ = try ProjectSystem.createDefaultProject(at: rootURL)
 }

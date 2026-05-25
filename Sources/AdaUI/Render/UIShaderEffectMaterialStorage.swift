@@ -6,24 +6,31 @@
 import AdaCorePipelines
 import AdaRender
 import AdaUtils
+import Foundation
 
 struct UIShaderEffectMaterialKey: Hashable {
     let defines: [ShaderDefine]
     let vertexDescriptor: VertexDescriptor
 }
 
-private final class UIShaderEffectPipelineStorage {
-    nonisolated(unsafe) static let shared = UIShaderEffectPipelineStorage()
+/// Process-wide shader-effect pipeline cache guarded by `lock`.
+private final class UIShaderEffectPipelineStorage: @unchecked Sendable {
+    static let shared = UIShaderEffectPipelineStorage()
 
+    private let lock = NSLock()
     private var pipelines: [RID: [UIShaderEffectMaterialKey: RenderPipeline]] = [:]
 
     private init() {}
 
     func pipeline(for material: Material, key: UIShaderEffectMaterialKey) -> RenderPipeline? {
-        pipelines[material.rid]?[key]
+        lock.lock()
+        defer { lock.unlock() }
+        return pipelines[material.rid]?[key]
     }
 
     func setPipeline(_ pipeline: RenderPipeline, for material: Material, key: UIShaderEffectMaterialKey) {
+        lock.lock()
+        defer { lock.unlock() }
         pipelines[material.rid, default: [:]][key] = pipeline
     }
 }
@@ -36,7 +43,7 @@ extension Material {
             vertexDescriptor: vertexDescriptor
         )
 
-        if let pipeline = unsafe UIShaderEffectPipelineStorage.shared.pipeline(for: self, key: materialKey) {
+        if let pipeline = UIShaderEffectPipelineStorage.shared.pipeline(for: self, key: materialKey) {
             return pipeline
         }
 
@@ -50,7 +57,7 @@ extension Material {
         let data = unsafe MaterialStorage.shared.getMaterialData(for: self) ?? MaterialStorageData()
         data.updateUniformBuffers(from: shaderModule)
         unsafe MaterialStorage.shared.setMaterialData(data, for: self)
-        unsafe UIShaderEffectPipelineStorage.shared.setPipeline(pipeline, for: self, key: materialKey)
+        UIShaderEffectPipelineStorage.shared.setPipeline(pipeline, for: self, key: materialKey)
         self.update()
         return pipeline
     }

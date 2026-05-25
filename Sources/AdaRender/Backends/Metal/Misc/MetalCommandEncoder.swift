@@ -24,6 +24,12 @@ final class MetalCommandEncoder: CommandBuffer {
         self.commandBuffer.commit()
     }
 
+    func addCompletedHandler(_ handler: @escaping @Sendable () -> Void) {
+        self.commandBuffer.addCompletedHandler { _ in
+            handler()
+        }
+    }
+
     func beginRenderPass(_ desc: RenderPassDescriptor) -> RenderCommandEncoder {
         let renderPassDescriptor = MTLRenderPassDescriptor()
         let attachments = desc.colorAttachments

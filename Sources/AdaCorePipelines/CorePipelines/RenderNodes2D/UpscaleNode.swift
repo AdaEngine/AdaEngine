@@ -6,7 +6,7 @@
 //
 
 import AdaECS
-import AdaRender
+@_spi(Internal) import AdaRender
 import Math
 
 /// This node is responsible for presenting the result to the screen.
@@ -84,6 +84,9 @@ public struct UpscaleNode: RenderNode {
             renderPass.setRenderPipelineState(upsalePipeline.renderPipeline)
             renderPass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             renderPass.endRenderPass()
+            commandBuffer.addCompletedHandler { [outputTexture] in
+                outputTexture.notifyRenderCompleted()
+            }
             commandBuffer.commit()
         }
 

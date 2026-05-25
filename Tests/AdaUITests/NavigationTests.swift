@@ -62,7 +62,7 @@ struct NavigationStackTests {
     }
 
     @Test
-    func navigationStack_showsRootContent_whenPathEmpty() {
+    func navigationStack_showsRootContent_whenPathEmpty() async {
         var rootAppeared = false
 
         _ = ViewTester {
@@ -73,11 +73,12 @@ struct NavigationStackTests {
             }
         }
 
+        await flushNavigationLifecycleActions()
         #expect(rootAppeared)
     }
 
     @Test
-    func navigationStack_showsDestination_whenPathHasValue() {
+    func navigationStack_showsDestination_whenPathHasValue() async {
         var destinationAppeared = false
 
         var path = NavigationPath()
@@ -94,11 +95,12 @@ struct NavigationStackTests {
             }
         }
 
+        await flushNavigationLifecycleActions()
         #expect(destinationAppeared)
     }
 
     @Test
-    func navigationLink_pushesValueOnTap() {
+    func navigationLink_pushesValueOnTap() async {
         var destinationAppeared = false
 
         let tester = ViewTester {
@@ -121,12 +123,13 @@ struct NavigationStackTests {
 
         tester.sendMouseEvent(at: Point(200, 200), phase: MouseEvent.Phase.began)
         tester.sendMouseEvent(at: Point(200, 200), phase: MouseEvent.Phase.ended)
+        await flushNavigationLifecycleActions()
 
         #expect(destinationAppeared)
     }
 
     @Test
-    func dismissAction_popsNavigation_andShowsRoot() {
+    func dismissAction_popsNavigation_andShowsRoot() async {
         var rootAppeared = false
         var detailAppeared = false
 
@@ -144,6 +147,7 @@ struct NavigationStackTests {
         }
         .setSize(Size(width: 400, height: 400))
         .performLayout()
+        await flushNavigationLifecycleActions()
 
         #expect(detailAppeared)
 
@@ -151,12 +155,14 @@ struct NavigationStackTests {
         #expect(stackNode != nil)
 
         stackNode?.navigationContext.pop()
+        await flushNavigationLifecycleActions()
 
         #expect(stackNode?.navigationContext.path.isEmpty == true)
+        #expect(rootAppeared)
     }
 
     @Test
-    func rootOnAppear_doesNotRefire_whenRootStateChanges() {
+    func rootOnAppear_doesNotRefire_whenRootStateChanges() async {
         var rootAppearedCount = 0
         let driver = NavigationRootStateDriver()
 
@@ -167,6 +173,7 @@ struct NavigationStackTests {
         }
         .setSize(Size(width: 400, height: 400))
         .performLayout()
+        await flushNavigationLifecycleActions()
 
         #expect(rootAppearedCount == 1)
         #expect(driver.counter != nil)
@@ -573,7 +580,7 @@ struct FullScreenCoverTests {
     }
 
     @Test
-    func fullScreenCover_presented_overlayShown() {
+    func fullScreenCover_presented_overlayShown() async {
         var overlayAppeared = false
 
         _ = ViewTester {
@@ -585,6 +592,7 @@ struct FullScreenCoverTests {
                 }
         }
 
+        await flushNavigationLifecycleActions()
         #expect(overlayAppeared)
     }
 
@@ -623,7 +631,7 @@ struct FullScreenCoverTests {
     }
 
     @Test
-    func fullScreenCover_presented_overlayNodeExists() {
+    func fullScreenCover_presented_overlayNodeExists() async {
         var overlayAppeared = false
 
         let tester = ViewTester {
@@ -636,6 +644,7 @@ struct FullScreenCoverTests {
         }
         .setSize(Size(width: 400, height: 400))
         .performLayout()
+        await flushNavigationLifecycleActions()
 
         // overlayAppeared proves the overlay node was built and attached to the tree
         #expect(overlayAppeared)
@@ -698,4 +707,8 @@ struct FullScreenCoverTests {
 
         #expect(selectedItem == nil)
     }
+}
+
+private func flushNavigationLifecycleActions() async {
+    await Task.yield()
 }

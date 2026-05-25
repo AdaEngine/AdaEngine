@@ -53,6 +53,7 @@ public struct _ViewInputs {
     func resolveStorages<T>(in content: T, stateContainer: ViewStateContainer? = nil) -> _ViewInputs {
         var newSelf = self
         let mirror = Mirror(reflecting: content)
+        var stateOrdinal = 0
 
         let storages = mirror.children.compactMap { label, property -> PropertyStoragable? in
             guard let storagable = property as? PropertyStoragable else {
@@ -60,10 +61,17 @@ public struct _ViewInputs {
             }
 
             if let bindable = property as? ViewStateBindable {
+                let key = ViewStatePropertyKey(
+                    ordinal: stateOrdinal,
+                    label: label ?? "",
+                    valueType: bindable.stateValueType
+                )
+                stateOrdinal += 1
+
                 guard let stateContainer else {
                     return nil
                 }
-                bindable.bind(to: stateContainer, key: label ?? "")
+                bindable.bind(to: stateContainer, key: key)
             }
 
             if let env = storagable.storage as? ViewContextStorage {
@@ -89,6 +97,9 @@ public struct _ViewInputs {
     @MainActor
     func registerNodeForStorages(_ node: ViewNode) {
         for storage in propertyStorages {
+            if let viewContextStorage = storage.storage as? ViewContextStorage {
+                viewContextStorage.values = node.environment
+            }
             storage.storage.registerNodeToUpdate(node)
         }
     }
