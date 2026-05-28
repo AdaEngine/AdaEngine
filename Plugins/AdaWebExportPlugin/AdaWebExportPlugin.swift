@@ -58,6 +58,7 @@ struct AdaWebExportPlugin: CommandPlugin {
         try exportBundle(
             wasm: wasm,
             options: options,
+            package: context.package,
             packageDirectory: context.package.directoryURL,
             shaderTranspiler: try context.tool(named: "AdaShaderTranspilerTool").url
         )
@@ -149,6 +150,7 @@ struct AdaWebExportPlugin: CommandPlugin {
     private func exportBundle(
         wasm: URL,
         options: ExportOptions,
+        package: Package,
         packageDirectory: URL,
         shaderTranspiler: URL
     ) throws {
@@ -158,7 +160,12 @@ struct AdaWebExportPlugin: CommandPlugin {
         let wasmOutput = options.outputDirectory.appending(component: "\(options.product).wasm", directoryHint: .notDirectory)
         try replaceItem(at: wasmOutput, with: wasm)
 
-        let resourceBundles = try copyResourceBundles(near: wasm, to: options.outputDirectory)
+        let resourceBundles = try copyResourceBundles(
+            near: wasm,
+            to: options.outputDirectory,
+            packageName: package.displayName,
+            requiredTargetNames: requiredTargetNames(forProductNamed: options.product, in: package)
+        )
         var resourceManifest = try resourceBundles
             .flatMap { bundle in
                 try manifestEntries(forResourceBundle: bundle)
@@ -258,7 +265,12 @@ struct AdaWebExportPlugin: CommandPlugin {
         try fileManager.copyItem(at: source, to: destination)
     }
 
-    private func copyResourceBundles(near wasm: URL, to outputDirectory: URL) throws -> [URL] {
+    private func copyResourceBundles(
+        near wasm: URL,
+        to outputDirectory: URL,
+        packageName: String,
+        requiredTargetNames: Set<String>
+    ) throws -> [ResourceBundleExport] {
         let fileManager = FileManager.default
         let buildProductsDirectory = wasm.deletingLastPathComponent()
         let resourceBundles = try fileManager.contentsOfDirectory(
@@ -271,32 +283,37 @@ struct AdaWebExportPlugin: CommandPlugin {
             }
             let resourceValues = try? url.resourceValues(forKeys: [.isDirectoryKey])
             return resourceValues?.isDirectory == true
-        }
+                && requiredTargetNames.contains(resourceBundleTargetName(for: url, packageName: packageName))
+        }.sorted { $0.lastPathComponent < $1.lastPathComponent }
 
-        for bundle in resourceBundles {
-            let destination = outputURL(forAbsoluteBuildURL: bundle, in: outputDirectory)
+        let resourcesDirectory = outputDirectory.appending(component: "resources", directoryHint: .isDirectory)
+        if fileManager.fileExists(atPath: resourcesDirectory.path()) {
+            try fileManager.removeItem(at: resourcesDirectory)
+        }
+        try fileManager.createDirectory(at: resourcesDirectory, withIntermediateDirectories: true)
+
+        var exportedBundles: [ResourceBundleExport] = []
+        for source in resourceBundles {
+            let destination = resourcesDirectory.appending(component: source.lastPathComponent, directoryHint: .isDirectory)
             if fileManager.fileExists(atPath: destination.path()) {
                 try fileManager.removeItem(at: destination)
             }
-            try fileManager.createDirectory(
-                at: destination.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            try fileManager.copyItem(at: bundle, to: destination)
+            try fileManager.copyItem(at: source, to: destination)
+            exportedBundles.append(ResourceBundleExport(source: source, destination: destination))
         }
 
-        return resourceBundles
+        return exportedBundles
     }
 
     private func generateWGSLShaders(
-        resourceBundles: [URL],
+        resourceBundles: [ResourceBundleExport],
         outputDirectory: URL,
         packageDirectory: URL,
         shaderTranspiler: URL
     ) throws -> [ResourceManifestEntry] {
         let shaderURLs = try resourceBundles
             .flatMap { bundle in
-                try regularFiles(in: bundle)
+                try regularFiles(in: bundle.source)
             }
             .filter { $0.pathExtension == "glsl" && containsShaderStagePragma($0) }
             .sorted { $0.path() < $1.path() }
@@ -313,10 +330,10 @@ struct AdaWebExportPlugin: CommandPlugin {
 
         var entries: [ResourceManifestEntry] = []
         for shaderURL in shaderURLs {
-            let shaderOutputDirectory = outputURL(
-                forAbsoluteBuildURL: shaderURL,
-                in: outputDirectory
-            ).deletingLastPathComponent()
+            guard let resourceBundle = resourceBundles.first(where: { shaderURL.isDescendant(of: $0.source) }) else {
+                continue
+            }
+            let shaderOutputDirectory = outputURL(forResourceURL: shaderURL, in: resourceBundle).deletingLastPathComponent()
             try FileManager.default.createDirectory(at: shaderOutputDirectory, withIntermediateDirectories: true)
 
             var arguments = [
@@ -348,7 +365,7 @@ struct AdaWebExportPlugin: CommandPlugin {
                             .appending(component: outputURL.lastPathComponent, directoryHint: .notDirectory)
                         return ResourceManifestEntry(
                             path: absoluteBuildURL.path(),
-                            url: browserRelativeURL(forAbsoluteBuildURL: absoluteBuildURL)
+                            url: browserRelativeURL(forResourceURL: absoluteBuildURL, in: resourceBundle)
                         )
                     }
                 entries.append(contentsOf: generatedEntries)
@@ -389,9 +406,9 @@ struct AdaWebExportPlugin: CommandPlugin {
         return files
     }
 
-    private func shaderModuleIncludeArguments(resourceBundles: [URL], packageDirectory: URL) -> [String] {
+    private func shaderModuleIncludeArguments(resourceBundles: [ResourceBundleExport], packageDirectory: URL) -> [String] {
         let candidates = resourceBundles.map {
-            $0.appending(components: "Shaders", "Public", directoryHint: .isDirectory)
+            $0.source.appending(components: "Shaders", "Public", directoryHint: .isDirectory)
         } + [
             packageDirectory.appending(
                 components: "Sources", "AdaRender", "Assets", "Shaders", "Public",
@@ -481,10 +498,10 @@ struct AdaWebExportPlugin: CommandPlugin {
         )
     }
 
-    private func manifestEntries(forResourceBundle bundle: URL) throws -> [ResourceManifestEntry] {
+    private func manifestEntries(forResourceBundle bundle: ResourceBundleExport) throws -> [ResourceManifestEntry] {
         let fileManager = FileManager.default
         guard let enumerator = fileManager.enumerator(
-            at: bundle,
+            at: bundle.source,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles]
         ) else {
@@ -503,7 +520,7 @@ struct AdaWebExportPlugin: CommandPlugin {
             entries.append(
                 ResourceManifestEntry(
                     path: url.path(),
-                    url: browserRelativeURL(forAbsoluteBuildURL: url)
+                    url: browserRelativeURL(forResourceURL: url, in: bundle)
                 )
             )
         }
@@ -516,22 +533,65 @@ struct AdaWebExportPlugin: CommandPlugin {
         try encoder.encode(manifest).write(to: output, options: [.atomic])
     }
 
-    private func outputURL(forAbsoluteBuildURL url: URL, in outputDirectory: URL) -> URL {
-        url.pathComponents
-            .filter { $0 != "/" }
-            .reduce(outputDirectory) { partialResult, component in
-                partialResult.appending(component: component)
+    private func outputURL(forResourceURL url: URL, in bundle: ResourceBundleExport) -> URL {
+        let relativePath = url.relativePath(from: bundle.source)
+        return relativePath
+            .components(separatedBy: "/")
+            .filter { !$0.isEmpty }
+            .reduce(bundle.destination) { partialResult, component in
+                partialResult.appending(component: component, directoryHint: .notDirectory)
             }
     }
 
-    private func browserRelativeURL(forAbsoluteBuildURL url: URL) -> String {
+    private func browserRelativeURL(forResourceURL url: URL, in bundle: ResourceBundleExport) -> String {
+        browserRelativeURL(forRelativePath: "resources/\(bundle.destination.lastPathComponent)/\(url.relativePath(from: bundle.source))")
+    }
+
+    private func browserRelativeURL(forRelativePath relativePath: String) -> String {
         let allowedCharacters = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "?#"))
-        return "./" + url.pathComponents
-            .filter { $0 != "/" }
+        return "./" + relativePath
+            .components(separatedBy: "/")
             .map { component in
                 component.addingPercentEncoding(withAllowedCharacters: allowedCharacters) ?? component
             }
             .joined(separator: "/")
+    }
+
+    private func requiredTargetNames(forProductNamed productName: String, in package: Package) -> Set<String> {
+        guard let product = package.products.first(where: { $0.name == productName }) else {
+            return [productName]
+        }
+
+        var names: Set<String> = []
+        var stack = product.targets
+        while let target = stack.popLast() {
+            guard names.insert(target.name).inserted else {
+                continue
+            }
+
+            for dependency in target.dependencies {
+                switch dependency {
+                case .target(let target):
+                    stack.append(target)
+                case .product(let product):
+                    stack.append(contentsOf: product.targets)
+                @unknown default:
+                    continue
+                }
+            }
+        }
+
+        return names
+    }
+
+    private func resourceBundleTargetName(for bundle: URL, packageName: String) -> String {
+        let bundleName = bundle.deletingPathExtension().lastPathComponent
+        let packagePrefix = "\(packageName)_"
+        if bundleName.hasPrefix(packagePrefix) {
+            return String(bundleName.dropFirst(packagePrefix.count))
+        }
+
+        return bundleName.split(separator: "_").last.map(String.init) ?? bundleName
     }
 
     private func javascriptKitRuntime(packageDirectory: URL) throws -> URL {
@@ -859,6 +919,37 @@ private struct ExportOptions {
 private struct ResourceManifestEntry: Encodable {
     let path: String
     let url: String
+}
+
+private struct ResourceBundleExport {
+    let source: URL
+    let destination: URL
+}
+
+private extension URL {
+    func isDescendant(of directory: URL) -> Bool {
+        let directoryPath = directory.normalizedPath
+        let path = normalizedPath
+        return path == directoryPath || path.hasPrefix(directoryPath + "/")
+    }
+
+    func relativePath(from directory: URL) -> String {
+        let directoryPath = directory.normalizedPath
+        let path = normalizedPath
+        guard path.hasPrefix(directoryPath + "/") else {
+            return lastPathComponent
+        }
+
+        return String(path.dropFirst(directoryPath.count + 1))
+    }
+
+    var normalizedPath: String {
+        var path = standardizedFileURL.path()
+        while path.count > 1, path.hasSuffix("/") {
+            path.removeLast()
+        }
+        return path
+    }
 }
 
 private extension String {

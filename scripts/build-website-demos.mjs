@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -15,6 +15,8 @@ const demosDirectory = path.join(packageDirectory, 'Demos')
 const outputDirectory = path.resolve(options.outputDirectory ?? defaultOutputDirectory(packageDirectory))
 const scratchDirectory = path.resolve(options.scratchDirectory ?? path.join(packageDirectory, '.build-web-website-demos'))
 const exportWorkDirectory = path.resolve(options.exportWorkDirectory ?? path.join(packageDirectory, 'dist', '.website-demo-export-work'))
+const demoEntryFileName = 'embed.html'
+const legacyDemoEntryFileName = 'index.html'
 
 if (!existsSync(packageFile)) {
   fail(`Package.swift was not found at ${packageFile}`)
@@ -97,6 +99,8 @@ for (const demo of products) {
     mkdirSync(demoOutputDirectory, { recursive: true })
   }
 
+  normalizeDemoEntryFile(demoOutputDirectory)
+
   const source = readFileSync(sourceFile, 'utf8')
   writeFileSync(path.join(demoOutputDirectory, 'source.swift'), source)
   writeFileSync(
@@ -118,12 +122,12 @@ for (const demo of products) {
     description: demoDescription(demo.product, demo.tag, source),
     sourcePath: demo.sourcePath,
     source: `demos/${demo.slug}/source.swift`,
-    embed: `demos/${demo.slug}/index.html`,
-    hasBuild: !options.skipBuild || existsSync(path.join(demoOutputDirectory, 'index.html')),
+    embed: `demos/${demo.slug}/${demoEntryFileName}`,
+    hasBuild: demoHasBuild(demoOutputDirectory),
   })
 }
 
-const finalManifest = mergeManifest(manifest, outputDirectory, options.only.size > 0 && !options.replaceManifest)
+const finalManifest = normalizeManifest(mergeManifest(manifest, outputDirectory, options.only.size > 0 && !options.replaceManifest), outputDirectory)
 writeFileSync(path.join(outputDirectory, 'manifest.json'), `${JSON.stringify(finalManifest, null, 2)}\n`)
 console.log(`Prepared ${finalManifest.demos.length} demo entries in ${outputDirectory}`)
 const unexpectedFailures = failures.filter((product) => !options.allowFailures.has(product))
@@ -335,6 +339,39 @@ function stripWasmDebugSections(product, demoOutputDirectory) {
   return { ok: true }
 }
 
+function normalizeDemoEntryFile(demoOutputDirectory) {
+  const legacyEntryPath = path.join(demoOutputDirectory, legacyDemoEntryFileName)
+  const entryPath = path.join(demoOutputDirectory, demoEntryFileName)
+
+  if (!existsSync(legacyEntryPath)) {
+    return
+  }
+
+  rmSync(entryPath, { force: true })
+  renameSync(legacyEntryPath, entryPath)
+}
+
+function demoHasBuild(demoOutputDirectory) {
+  return existsSync(path.join(demoOutputDirectory, demoEntryFileName))
+}
+
+function normalizeManifest(manifest, outputDirectoryPath) {
+  return {
+    ...manifest,
+    demos: (manifest.demos ?? []).map((demo) => {
+      const demoOutputDirectory = path.join(outputDirectoryPath, demo.slug)
+
+      return {
+        ...demo,
+        embed: typeof demo.embed === 'string'
+          ? demo.embed.replace(/\/index\.html$/, `/${demoEntryFileName}`)
+          : `demos/${demo.slug}/${demoEntryFileName}`,
+        hasBuild: demoHasBuild(demoOutputDirectory),
+      }
+    }),
+  }
+}
+
 function defaultOutputDirectory(packageDirectoryPath) {
   if (process.env.ADAENGINE_WEBSITE_DEMOS_DIR) {
     return process.env.ADAENGINE_WEBSITE_DEMOS_DIR
@@ -440,7 +477,7 @@ Usage:
   node scripts/build-website-demos.mjs [--output public/demos] [--package-dir AdaEngine] [--swift-sdk swift-6.3.2-RELEASE_wasm] [--scratch-path .build-web-website-demos] [--only ProductA,ProductB] [--skip-products ProductC] [--continue-on-error] [--allow-failures ProductD] [--strip-wasm-debug] [--skip-build] [--list]
 
 The output directory is meant to be the website public/demos folder. Each demo
-gets its exported web bundle, source.swift, metadata.json, and the shared
+gets its exported web bundle, embed.html, source.swift, metadata.json, and the shared
 manifest.json used by adaengine.org.
 
 Default output is ADAENGINE_WEBSITE_DEMOS_DIR, then ../adawebsite/public/demos
