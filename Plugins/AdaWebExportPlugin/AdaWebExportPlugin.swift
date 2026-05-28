@@ -18,7 +18,7 @@ struct AdaWebExportPlugin: CommandPlugin {
             return
         }
         let sdk = try options.swiftSDK ?? detectWasmSDK()
-        let buildDirectory = context.package.directoryURL.appending(
+        let buildDirectory = options.scratchDirectory ?? context.package.directoryURL.appending(
             component: ".build-web-\(options.product)",
             directoryHint: .isDirectory
         )
@@ -771,6 +771,7 @@ private struct ExportOptions {
 
     let product: String
     let outputDirectory: URL
+    let scratchDirectory: URL?
     let swiftSDK: String?
     let configuration: Configuration
     let serve: Bool
@@ -778,6 +779,7 @@ private struct ExportOptions {
     init(arguments: [String], packageDirectory: URL) throws {
         var product: String?
         var outputDirectory = packageDirectory.appending(components: "dist", "web", directoryHint: .isDirectory)
+        var scratchDirectory: URL?
         var swiftSDK: String?
         var configuration = Configuration.release
         var serve = false
@@ -798,6 +800,13 @@ private struct ExportOptions {
                     throw ExportError.missingValue(argument)
                 }
                 outputDirectory = URL(fileURLWithPath: arguments[index], relativeTo: packageDirectory)
+                    .standardizedFileURL
+            case "--scratch-path":
+                index += 1
+                guard index < arguments.count else {
+                    throw ExportError.missingValue(argument)
+                }
+                scratchDirectory = URL(fileURLWithPath: arguments[index], relativeTo: packageDirectory)
                     .standardizedFileURL
             case "--swift-sdk":
                 index += 1
@@ -826,6 +835,7 @@ private struct ExportOptions {
 
         self.product = product
         self.outputDirectory = outputDirectory
+        self.scratchDirectory = scratchDirectory
         self.swiftSDK = swiftSDK
         self.configuration = configuration
         self.serve = serve
@@ -891,7 +901,7 @@ private enum ExportError: LocalizedError, CustomStringConvertible {
         case .help:
             return """
             Usage:
-              swift package plugin --allow-writing-to-package-directory --allow-network-connections all export-web --product <ProductName> [--output dist/web] [--swift-sdk <sdk-id>] [--debug|--release] [--serve]
+              swift package plugin --allow-writing-to-package-directory --allow-network-connections all export-web --product <ProductName> [--output dist/web] [--scratch-path .build-web-ProductName] [--swift-sdk <sdk-id>] [--debug|--release] [--serve]
             """
         case .missingTarget:
             return "Missing required --product <ProductName> argument."

@@ -39,7 +39,7 @@ struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
             var config = unsafe ma_engine_config_init()
             unsafe config.channels = 2
             #if WASM
-            unsafe config.noDevice = MA_TRUE
+            unsafe config.noDevice = ma_bool32(MA_TRUE)
             unsafe config.sampleRate = 48_000
             #endif
             let result = unsafe ma_engine_init(&config, enginePtr)

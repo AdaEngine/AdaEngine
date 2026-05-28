@@ -5,6 +5,7 @@
 .build/
 **/.build/
 .build-codex/
+.build-web-*/
 
 
 dist/

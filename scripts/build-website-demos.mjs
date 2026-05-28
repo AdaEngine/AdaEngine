@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -13,6 +13,8 @@ const packageDirectory = path.resolve(options.packageDirectory ?? defaultPackage
 const outputDirectory = path.resolve(options.outputDirectory ?? path.join(packageDirectory, 'dist', 'website-demos'))
 const packageFile = path.join(packageDirectory, 'Package.swift')
 const demosDirectory = path.join(packageDirectory, 'Demos')
+const scratchDirectory = path.resolve(options.scratchDirectory ?? path.join(packageDirectory, '.build-web-website-demos'))
+const exportWorkDirectory = path.resolve(options.exportWorkDirectory ?? path.join(packageDirectory, 'dist', '.website-demo-export-work'))
 
 if (!existsSync(packageFile)) {
   fail(`Package.swift was not found at ${packageFile}`)
@@ -43,6 +45,9 @@ const manifest = {
 
 for (const demo of products) {
   const demoOutputDirectory = path.join(outputDirectory, demo.slug)
+  const pluginOutputDirectory = isSubpath(demoOutputDirectory, packageDirectory)
+    ? demoOutputDirectory
+    : path.join(exportWorkDirectory, demo.slug)
   const sourceFile = path.join(demosDirectory, demo.tag, `${demo.product}.swift`)
 
   if (!existsSync(sourceFile)) {
@@ -51,8 +56,13 @@ for (const demo of products) {
 
   if (!options.skipBuild) {
     rmSync(demoOutputDirectory, { recursive: true, force: true })
+    rmSync(pluginOutputDirectory, { recursive: true, force: true })
     mkdirSync(demoOutputDirectory, { recursive: true })
-    exportDemo(demo.product, demoOutputDirectory)
+    mkdirSync(pluginOutputDirectory, { recursive: true })
+    exportDemo(demo.product, pluginOutputDirectory)
+    if (pluginOutputDirectory !== demoOutputDirectory) {
+      cpSync(pluginOutputDirectory, demoOutputDirectory, { recursive: true })
+    }
   } else {
     mkdirSync(demoOutputDirectory, { recursive: true })
   }
@@ -93,6 +103,8 @@ function parseArguments(args) {
     packageDirectory: undefined,
     skipBuild: false,
     swiftSDK: undefined,
+    scratchDirectory: undefined,
+    exportWorkDirectory: undefined,
   }
 
   for (let index = 0; index < args.length; index += 1) {
@@ -106,6 +118,12 @@ function parseArguments(args) {
       break
     case '--swift-sdk':
       parsed.swiftSDK = requireValue(args, ++index, argument)
+      break
+    case '--scratch-path':
+      parsed.scratchDirectory = requireValue(args, ++index, argument)
+      break
+    case '--export-work-dir':
+      parsed.exportWorkDirectory = requireValue(args, ++index, argument)
       break
     case '--only':
       for (const product of requireValue(args, ++index, argument).split(',')) {
@@ -167,6 +185,8 @@ function exportDemo(product, demoOutputDirectory) {
     product,
     '--output',
     demoOutputDirectory,
+    '--scratch-path',
+    scratchDirectory,
     '--release',
   ]
 
@@ -231,10 +251,15 @@ function captureGit(args, cwd) {
   return result.status === 0 ? result.stdout.trim() : null
 }
 
+function isSubpath(child, parent) {
+  const relative = path.relative(parent, child)
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
+}
+
 function printHelp() {
   console.log(`
 Usage:
-  node scripts/build-website-demos.mjs [--output public/demos] [--package-dir AdaEngine] [--swift-sdk swift-6.3.2-RELEASE_wasm] [--only ProductA,ProductB] [--skip-build]
+  node scripts/build-website-demos.mjs [--output public/demos] [--package-dir AdaEngine] [--swift-sdk swift-6.3.2-RELEASE_wasm] [--scratch-path .build-web-website-demos] [--only ProductA,ProductB] [--skip-build]
 
 The output directory is meant to be the website public/demos folder. Each demo
 gets its exported web bundle, source.swift, metadata.json, and the shared
