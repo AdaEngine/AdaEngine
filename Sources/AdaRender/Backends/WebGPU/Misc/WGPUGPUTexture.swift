@@ -5,7 +5,7 @@
 //  Created by vladislav.prusakov on 13.03.2025.
 //
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 import Math
 @unsafe @preconcurrency import WebGPU
 import Foundation
@@ -45,8 +45,8 @@ public final class WGPUGPUTexture: GPUTexture {
                     texture: texture,
                     mipLevel: UInt32(mipmapLevel),
                     origin: WebGPU.GPUOrigin3D(
-                        x: UInt32(region.origin.x),
-                        y: UInt32(region.origin.y),
+                        x: region.origin.x,
+                        y: region.origin.y,
                         z: 0
                     ),
                     aspect: WebGPU.GPUTextureAspect.all
@@ -91,6 +91,21 @@ public final class WGPUGPUTexture: GPUTexture {
             wgpuUsage.insert(.textureBinding)
         }
 
+        #if WASM
+        let textureDesc = WebGPU.GPUTextureDescriptor(
+            label: descriptor.debugLabel,
+            usage: wgpuUsage,
+            size: WebGPU.GPUExtent3D(
+                width: UInt32(descriptor.width),
+                height: UInt32(descriptor.height),
+                depthOrArrayLayers: 1
+            ),
+            format: descriptor.pixelFormat.toWebGPU,
+            mipLevelCount: 1,
+            sampleCount: 1,
+            dimension: descriptor.textureType.toWebGPUTextureDimension
+        )
+        #else
         let textureDesc = WebGPU.GPUTextureDescriptor(
             label: descriptor.debugLabel,
             usage: wgpuUsage,
@@ -108,6 +123,7 @@ public final class WGPUGPUTexture: GPUTexture {
             ],
             nextInChain: nil
         )
+        #endif
 
         let texture = webGPUDeviceLock.withLock { _ in
             device.createTexture(descriptor: textureDesc)
@@ -152,6 +168,9 @@ public final class WGPUGPUTexture: GPUTexture {
 
     // TODO: (Vlad) think about it later
     func getImage(device: WebGPU.GPUDevice) -> Image? {
+        #if WASM
+        return nil
+        #else
         let imageFormat: Image.Format
         let bytesInPixel: UInt32
 
@@ -211,6 +230,7 @@ public final class WGPUGPUTexture: GPUTexture {
             ),
             format: imageFormat
         )
+        #endif
     }
 }
 
@@ -218,7 +238,11 @@ extension PixelFormat {
     var toWebGPU: WebGPU.GPUTextureFormat {
         switch self {
         case .none:
+            #if WASM
+                .Undefined
+            #else
                 .undefined
+            #endif
         case .bgra8:
                 .BGRA8Unorm
         case .bgra8_srgb:
@@ -230,11 +254,23 @@ extension PixelFormat {
         case .rgba_32f:
                 .RGBA32Float
         case .depth_32f_stencil8:
+            #if WASM
+                .Depth24PlusStencil8
+            #else
                 .depth32FloatStencil8
+            #endif
         case .depth_32f:
+            #if WASM
+                .Depth32Float
+            #else
                 .depth32Float
+            #endif
         case .depth24_stencil8:
+            #if WASM
+                .Depth24PlusStencil8
+            #else
                 .depth24PlusStencil8
+            #endif
         }
     }
 }
@@ -243,7 +279,7 @@ extension Texture.TextureType {
     var toWebGPUTextureDimension: WebGPU.GPUTextureDimension {
         switch self {
         case .textureCube:
-                .undefined
+                ._2D
         case .texture1D:
                 ._1D
         case .texture1DArray:
@@ -259,14 +295,14 @@ extension Texture.TextureType {
         case .texture3D:
                 ._3D
         case .textureBuffer:
-                .undefined
+                ._2D
         }
     }
 
     var toWebGPUTextureViewDimension: WebGPU.GPUTextureViewDimension {
         switch self {
         case .textureCube:
-                .undefined
+                ._2D
         case .texture1D:
                 ._1D
         case .texture1DArray:
@@ -282,7 +318,7 @@ extension Texture.TextureType {
         case .texture3D:
                 ._3D
         case .textureBuffer:
-                .undefined
+                ._2D
         }
     }
 }

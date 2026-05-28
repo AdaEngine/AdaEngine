@@ -5,87 +5,70 @@
 //  Created by AdaEngine on 04.04.2026.
 //
 
+import AdaApp
 import AdaECS
-import AdaInput
 import AdaUI
 import AdaUtils
 import Math
 
-public enum SceneViewPluginPreset: Sendable {
-    case standard
-    case mesh2D
-}
-
 /// A view that creates a separate offscreen runtime with its own `World`, renders it
-/// into a `RenderTexture`, and exposes the result as a reactive viewport embeddable
-/// into the AdaUI view hierarchy.
+/// into a `RenderTexture`, and embeds the result into the AdaUI view hierarchy.
 ///
-/// The `setup` closure is called exactly once per `SceneView` instance after the runtime
-/// is bootstrapped and the camera entity is created but before the first render tick.
-/// The `content` builder receives a ``SceneViewContext`` whose ``SceneViewContext/viewport``
-/// property returns a live viewport view.
+/// The `make` closure is called exactly once per `SceneView` instance before the runtime
+/// is built. Use it to configure plugins, resources, and initial scene content.
 ///
 /// ```swift
-/// SceneView(setup: { world in
-///     world.spawn("Player") {
+/// SceneView(make: { app in
+///     app.addPlugin(TransformPlugin())
+///     app.main.spawn("Player") {
 ///         SpriteBundle(texture: playerTexture)
 ///     }
+/// }, updateContent: { world, deltaTime in
+///     // Update scene content.
 /// })
 /// ```
-public struct SceneView<Content: View>: View {
-    let filePath: StaticString
-    let pluginPreset: SceneViewPluginPreset
-    let setup: @MainActor (World) -> Void
-    let update: @MainActor (World, AdaUtils.TimeInterval) -> Void
-    let input: @MainActor (any InputEvent, World) -> Bool
-    let contentBuilder: @MainActor (SceneViewContext) -> Content
+public struct SceneView<Placeholder: View>: View {
+    let make: @MainActor (inout AppWorlds) -> Void
+    let updateContent: @MainActor (World, AdaUtils.TimeInterval) -> Void
+    let placeholder: @MainActor () -> Placeholder
 
     public init(
-        filePath: StaticString = #filePath,
-        pluginPreset: SceneViewPluginPreset = .standard,
-        setup: @escaping @MainActor (World) -> Void,
-        update: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void = { _, _ in },
-        input: @escaping @MainActor (any InputEvent, World) -> Bool = { _, _ in false },
-        @ViewBuilder content: @escaping @MainActor (SceneViewContext) -> Content
+        make: @escaping @MainActor (inout AppWorlds) -> Void,
+        updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void
+    ) where Placeholder == EmptyView {
+        self.make = make
+        self.updateContent = updateContent
+        self.placeholder = { EmptyView() }
+    }
+
+    public init(
+        make: @escaping @MainActor (inout AppWorlds) -> Void,
+        updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void,
+        @ViewBuilder placeholder: @escaping @MainActor () -> Placeholder
     ) {
-        self.filePath = filePath
-        self.pluginPreset = pluginPreset
-        self.setup = setup
-        self.update = update
-        self.input = input
-        self.contentBuilder = content
+        self.make = make
+        self.updateContent = updateContent
+        self.placeholder = placeholder
     }
 
     public var body: some View {
         OffscreenViewportContainer(
-            delegateFactory: { [filePath, pluginPreset, setup, update, input] in
+            delegateFactory: { [make, updateContent] in
                 SceneViewCoordinator(
-                    filePath: filePath,
-                    pluginPreset: pluginPreset,
-                    setup: setup,
-                    update: update,
-                    input: input
+                    make: make,
+                    updateContent: updateContent
                 )
             },
-            contentBuilder: { [contentBuilder] delegate in
+            contentBuilder: { [placeholder] delegate in
                 let coordinator = delegate as! SceneViewCoordinator
-                let context = SceneViewContext(coordinator: coordinator)
-                contentBuilder(context)
+                ZStack {
+                    OffscreenViewportView(delegate: coordinator)
+
+                    if coordinator.renderTexture == nil {
+                        placeholder()
+                    }
+                }
             }
         )
-    }
-}
-
-// MARK: - SceneViewContext
-
-/// Provides access to the live viewport rendered by a ``SceneView``.
-@MainActor
-public struct SceneViewContext {
-    let coordinator: SceneViewCoordinator
-
-    /// A view displaying the rendered scene. Embed it in `ZStack`, `VStack`,
-    /// overlays, or any other AdaUI container.
-    public var viewport: some View {
-        OffscreenViewportView(delegate: coordinator)
     }
 }

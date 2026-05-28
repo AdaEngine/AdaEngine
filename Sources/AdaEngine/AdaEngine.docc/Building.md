@@ -95,8 +95,8 @@ AdaEngine includes an experimental WebAssembly export command for browser-hosted
 
 Requirements:
 
-- Swift 6.2 or newer.
-- A matching Swift WebAssembly SDK installed with `swift sdk install`.
+- Swift 6.3.2 release toolchain.
+- `swift-6.3.2-RELEASE_wasm` installed with `swift sdk install`.
 - A game executable product that depends on `AdaEngine`. Add `AdaWeb` if the app needs browser-specific helpers.
 
 Swift.org documents the current WebAssembly SDK installation flow at:
@@ -105,19 +105,19 @@ Swift.org documents the current WebAssembly SDK installation flow at:
 Export a package product:
 
 ```bash
-swift package plugin --allow-writing-to-package-directory \
+swift package --allow-writing-to-package-directory \
   export-web \
-  --target MyGame \
+  --product MyGame \
   --output dist/web
 ```
 
 If several WASM SDKs are installed, pass the SDK id explicitly:
 
 ```bash
-swift package plugin --allow-writing-to-package-directory \
+swift package --allow-writing-to-package-directory \
   export-web \
-  --target MyGame \
+  --product MyGame \
   --swift-sdk swift-6.3.2-RELEASE_wasm
 ```
 
-The plugin emits `index.html`, `main.js`, the built `.wasm`, `package.json`, `ada-web-manifest.json`, and copies a package-level `Assets` directory when present. Use `npm install && npm run serve` in the output directory to serve the bundle locally.
+The plugin emits `index.html`, `main.js`, `runtime.mjs`, the built `.wasm`, `package.json`, `ada-web-manifest.json`, `ada-resource-manifest.json`, copied SwiftPM resource bundles, and copies a package-level `Assets` directory when present. Use `npm install && npm run serve` in the output directory to serve the bundle locally.

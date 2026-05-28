@@ -38,6 +38,10 @@ struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
         init() throws {
             var config = unsafe ma_engine_config_init()
             unsafe config.channels = 2
+            #if WASM
+            unsafe config.noDevice = MA_TRUE
+            unsafe config.sampleRate = 48_000
+            #endif
             let result = unsafe ma_engine_init(&config, enginePtr)
             if result != MA_SUCCESS {
                 throw AudioError.engineInitializationFailed
@@ -58,17 +62,25 @@ struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
     // MARK: - AudioEngine
     
     func start() throws {
+        #if WASM
+        return
+        #else
         let result = unsafe ma_engine_start(engine.enginePtr)
         if result != MA_SUCCESS {
             throw MAError.failed("Failed to start", result)
         }
+        #endif
     }
     
     func stop() throws {
+        #if WASM
+        return
+        #else
         let result = unsafe ma_engine_stop(engine.enginePtr)
         if result != MA_SUCCESS {
             throw MAError.failed("Failed to stop", result)
         }
+        #endif
     }
     
     func update(_ deltaTime: AdaUtils.TimeInterval) { }
@@ -82,7 +94,11 @@ struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
     }
 
     func makeMicrophoneCapture(configuration: AudioCaptureConfiguration) throws -> AudioCaptureSession {
+        #if WASM
+        throw AudioCaptureError.unsupported
+        #else
         try AudioCaptureSession(backend: MiniAudioCaptureSession(configuration: configuration))
+        #endif
     }
     
     func getAudioListener(at index: Int) -> AudioEngineListener {

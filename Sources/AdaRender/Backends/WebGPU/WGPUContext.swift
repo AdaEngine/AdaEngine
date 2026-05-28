@@ -5,12 +5,15 @@
 //  Created by Vladislav Prusakov on 04.01.2026.
 //
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 @unsafe @preconcurrency import WebGPU
 import Math
 import AdaUtils
 import Synchronization
 import Foundation
+#if WASM && canImport(JavaScriptKit)
+import JavaScriptKit
+#endif
 #if canImport(MetalKit)
 import MetalKit
 import QuartzCore
@@ -20,6 +23,12 @@ import WinSDK
 #endif
 
 let webGPUDeviceLock = Mutex(())
+
+#if WASM
+typealias WGPUSurfaceHandle = WebGPU.GPUCanvasContext
+#else
+typealias WGPUSurfaceHandle = WebGPU.GPUSurface
+#endif
 
 public final class WGPUContext: @unchecked Sendable {
     public let device: WebGPU.GPUDevice
@@ -41,8 +50,18 @@ public final class WGPUContext: @unchecked Sendable {
             throw ContextError.creationWindowAlreadyExists
         }
 
+        #if WASM && canImport(JavaScriptKit)
+        guard
+            let browserSurface = surface as? BrowserCanvasRenderSurface,
+            let contextObject = browserSurface.canvas.getContext!("webgpu").object
+        else {
+            throw ContextError.invalidSurface
+        }
+        let wgpuSurface = WebGPU.GPUCanvasContext(unsafelyWrapping: contextObject)
+        #else
         let surfaceDescriptor = surface.createWebGPUSurface()
         let wgpuSurface = instance.createSurface(descriptor: surfaceDescriptor)
+        #endif
         configureSurface(
             surface: wgpuSurface,
             size: size,
@@ -111,7 +130,9 @@ public final class WGPUContext: @unchecked Sendable {
                 if let scaleFactor {
                     window.scaleFactor = scaleFactor
                 }
+                #if !WASM
                 window.pendingDrawableSkips = 2
+                #endif
             }
             windows[windowId] = window
         }
@@ -163,11 +184,19 @@ public final class WGPUContext: @unchecked Sendable {
     }
 
     private func configureSurface(
-        surface: WebGPU.GPUSurface,
+        surface: WGPUSurfaceHandle,
         size: Math.SizeInt,
         scaleFactor: Float,
         pixelFormat: PixelFormat
     ) {
+        #if WASM
+        surface.configure(
+            configuration: WebGPU.GPUCanvasConfiguration(
+                device: device,
+                format: pixelFormat.toWebGPU
+            )
+        )
+        #else
         let physicalWidth = max(Int((Float(size.width) * scaleFactor).rounded()), 1)
         let physicalHeight = max(Int((Float(size.height) * scaleFactor).rounded()), 1)
         surface.configure(
@@ -182,11 +211,12 @@ public final class WGPUContext: @unchecked Sendable {
                 presentMode: .fifo
             )
         )
+        #endif
     }
 
     public final class WGPURenderWindow: @unchecked Sendable {
         public let windowId: WindowID
-        public let surface: WebGPU.GPUSurface
+        let surface: WGPUSurfaceHandle
         public let pixelFormat: PixelFormat
         let surfaceLock = Mutex(())
         var pendingDrawableSkips: Int = 0
@@ -195,7 +225,7 @@ public final class WGPUContext: @unchecked Sendable {
 
         init(
             windowId: WindowID,
-            surface: WebGPU.GPUSurface,
+            surface: WGPUSurfaceHandle,
             pixelFormat: PixelFormat,
             size: Math.SizeInt,
             scaleFactor: Float
@@ -229,6 +259,7 @@ public final class WGPUContext: @unchecked Sendable {
     }
 }
 
+#if !WASM
 extension RenderSurface {
     @MainActor
     func createWebGPUSurface() -> WebGPU.GPUSurfaceDescriptor {
@@ -256,6 +287,7 @@ extension RenderSurface {
         return surfaceDescriptor
     }
 }
+#endif
 
 
 #endif

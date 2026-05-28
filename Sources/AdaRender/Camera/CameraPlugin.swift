@@ -40,7 +40,7 @@ public struct RenderViewTarget: @unchecked Sendable {
     public var mainTexture: RenderTexture?
     public var outputTexture: RenderTexture?
     public var depthTexture: RenderTexture?
-    var retiredFrameTextures: [RenderTexture] = []
+    var retiredFrameTextures: [RetiredFrameTexture] = []
 
     /// Scene albedo when the 2D lighting pipeline is active; otherwise unused.
     public var sceneColorTexture: RenderTexture?
@@ -59,6 +59,11 @@ public struct RenderViewTarget: @unchecked Sendable {
         copy.outputTexture = nil
         return copy
     }
+}
+
+struct RetiredFrameTexture: Sendable {
+    var texture: RenderTexture
+    var remainingFrames: Int
 }
 
 public struct ExtractedCameraRenderViewTargets: Resource {
@@ -89,6 +94,21 @@ func ConfigurateRenderViewTarget(
         }
 
         let scale = camera.computedData.targetScaleFactor
+        ageRetiredFrameTextures(renderViewTarget)
+
+        if case .texture(let asset) = camera.renderTarget {
+            let outputTexture = asset.asset
+            renderViewTarget.outputTexture = outputTexture
+            renderViewTarget.mainTexture = outputTexture
+            renderViewTarget.depthTexture = nil
+            renderViewTarget.retiredFrameTextures.removeAll(keepingCapacity: false)
+            renderViewTarget.sceneColorTexture = nil
+            renderViewTarget.lightAccumTexture = nil
+            renderViewTarget.shadowMaskTexture = nil
+            cachedViewTargets.targets[source.entityId] = nil
+            return
+        }
+
         if renderViewTarget.mainTexture == nil
             || renderViewTarget.mainTexture?.size != viewportSize
             || renderViewTarget.mainTexture?.scaleFactor != scale {
@@ -99,8 +119,8 @@ func ConfigurateRenderViewTarget(
                 renderViewTarget.lightAccumTexture,
                 renderViewTarget.shadowMaskTexture,
             ].compactMap { $0 }
-            renderViewTarget.retiredFrameTextures.append(contentsOf: retiredTextures)
-            let maxRetainedTextures = unsafe RenderEngine.configurations.maxFramesInFlight * 5
+            renderViewTarget.retiredFrameTextures.append(contentsOf: retireFrameTextures(retiredTextures))
+            let maxRetainedTextures = unsafe RenderEngine.configurations.maxFramesInFlight * max(1, retiredTextures.count)
             if renderViewTarget.retiredFrameTextures.count > maxRetainedTextures {
                 renderViewTarget.retiredFrameTextures.removeFirst(
                     renderViewTarget.retiredFrameTextures.count - maxRetainedTextures
@@ -126,8 +146,8 @@ func ConfigurateRenderViewTarget(
         }
 
         switch camera.renderTarget {
-        case .texture(let asset):
-            renderViewTarget.outputTexture = asset.asset
+        case .texture:
+            break
         case .window(let ref):
             renderViewTarget.outputTexture = nil
             guard let surface = resolveWindowSurface(for: ref, in: surfaces.wrappedValue, primaryWindow: primaryWindow.wrappedValue) else {
@@ -150,6 +170,24 @@ func ConfigurateRenderViewTarget(
 
         cachedViewTargets.targets[source.entityId] = renderViewTarget.wrappedValue.cacheableCopy
     }
+}
+
+private func retireFrameTextures(_ textures: [RenderTexture]) -> [RetiredFrameTexture] {
+    let remainingFrames = max(1, unsafe RenderEngine.configurations.maxFramesInFlight)
+    return textures.map {
+        RetiredFrameTexture(texture: $0, remainingFrames: remainingFrames)
+    }
+}
+
+private func ageRetiredFrameTextures(_ renderViewTarget: Ref<RenderViewTarget>) {
+    guard !renderViewTarget.retiredFrameTextures.isEmpty else {
+        return
+    }
+
+    for index in renderViewTarget.retiredFrameTextures.indices {
+        renderViewTarget.retiredFrameTextures[index].remainingFrames -= 1
+    }
+    renderViewTarget.retiredFrameTextures.removeAll { $0.remainingFrames <= 0 }
 }
 
 func resolveWindowSurface(

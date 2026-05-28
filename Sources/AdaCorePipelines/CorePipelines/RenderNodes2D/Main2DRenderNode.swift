@@ -6,9 +6,9 @@
 //
 
 import AdaECS
-import AdaRender
-import Math
+@_spi(Internal) import AdaRender
 import AdaUtils
+import Math
 
 /// This render node responsible for rendering ``Transparent2DRenderItem``.
 public struct Main2DRenderNode: RenderNode {
@@ -87,6 +87,12 @@ public struct Main2DRenderNode: RenderNode {
             }
 
             renderPass.endRenderPass()
+            if let outputTexture = target.outputTexture,
+               texture === outputTexture {
+                commandBuffer.addCompletedHandler { [outputTexture] in
+                    outputTexture.notifyRenderCompleted()
+                }
+            }
             commandBuffer.commit()
         }
 

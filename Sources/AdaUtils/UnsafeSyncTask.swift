@@ -1,3 +1,4 @@
+#if canImport(Dispatch)
 import Dispatch
 
 /// Use Swift Coroutines but block current execution context and wait until task is done.
@@ -25,3 +26,15 @@ public final class UnsafeTask<T>: @unchecked Sendable {
         return try result!.get()
     }
 }
+#else
+/// Use Swift Coroutines but block current execution context and wait until task is done.
+public final class UnsafeTask<T>: @unchecked Sendable {
+    public init(priority: TaskPriority = .userInitiated, block: @escaping @Sendable () async throws -> T) {
+        fatalError("UnsafeTask is unavailable on this platform")
+    }
+
+    public func get() throws -> T {
+        fatalError("UnsafeTask is unavailable on this platform")
+    }
+}
+#endif

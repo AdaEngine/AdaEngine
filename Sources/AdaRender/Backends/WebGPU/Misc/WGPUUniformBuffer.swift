@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 1/31/23.
 //
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 @unsafe @preconcurrency import WebGPU
 
 // TODO: (Vlad) think about inheretence and how it affect type casting and vtables

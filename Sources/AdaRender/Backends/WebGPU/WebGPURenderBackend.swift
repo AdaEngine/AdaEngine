@@ -1,11 +1,14 @@
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 @unsafe @preconcurrency import WebGPU
 import Foundation
 import Math
 import Synchronization
 import AdaUtils
 import Logging
+#if WASM && canImport(JavaScriptKit)
+import JavaScriptKit
+#endif
 
 final class WebGPURenderBackend: RenderBackend, @unchecked Sendable {
     func createLocalRenderDevice() -> any RenderDevice {
@@ -49,6 +52,20 @@ final class WebGPURenderBackend: RenderBackend, @unchecked Sendable {
 
 extension WebGPURenderBackend {
     static func createBackend() throws -> WebGPURenderBackend {
+        #if WASM && canImport(JavaScriptKit)
+        guard let deviceObject = JSObject.global.__adaWebGPUDevice.object else {
+            throw WebGPUBackendError.requestDeviceFailed("Browser WebGPU device was not initialized before Swift startup.")
+        }
+        guard let adapterObject = JSObject.global.__adaWebGPUAdapter.object else {
+            throw WebGPUBackendError.requestAdapterFailed("Browser WebGPU adapter was not initialized before Swift startup.")
+        }
+
+        return WebGPURenderBackend(
+            device: WebGPU.GPUDevice(unsafelyWrapping: deviceObject),
+            adapter: WebGPU.GPUAdapter(unsafelyWrapping: adapterObject),
+            instance: WebGPU.GPUInstance()
+        )
+        #else
         let instanceDescriptor = WebGPU.GPUInstanceDescriptor(
                 requiredFeatures: [.shaderSourceSPIRV]
         )
@@ -64,8 +81,10 @@ extension WebGPURenderBackend {
         let device = try requestDevice(instance: instance, adapter: adapter, logger: logger)
 
         return WebGPURenderBackend(device: device, adapter: adapter, instance: instance)
+        #endif
     }
 
+    #if !WASM
     private static func requestAdapter(instance: WebGPU.GPUInstance, logger: Logger) throws -> WebGPU.GPUAdapter {
         var requestStatus: WebGPU.GPURequestAdapterStatus?
         var requestedAdapter: WebGPU.GPUAdapter?
@@ -168,6 +187,7 @@ extension WebGPURenderBackend {
 
         return device
     }
+    #endif
 }
 
 private enum WebGPUBackendError: LocalizedError {
@@ -187,6 +207,7 @@ private enum WebGPUBackendError: LocalizedError {
     }
 }
 
+#if !WASM
 extension WGPUStringView {
     var toString: String {
         guard let data, length > 0 else {
@@ -197,4 +218,5 @@ extension WGPUStringView {
         }
     }
 }
+#endif
 #endif

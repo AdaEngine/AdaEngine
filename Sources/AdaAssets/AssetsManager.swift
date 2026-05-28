@@ -7,13 +7,13 @@
 
 import AdaECS
 import AdaUtils
-import Dispatch
 import Foundation
 import Logging
 import Tracing
 
 #if WASM && canImport(JavaScriptFoundationCompat) && canImport(JavaScriptKit)
 import JavaScriptFoundationCompat
+import JavaScriptEventLoop
 import JavaScriptKit
 #endif
 
@@ -411,9 +411,7 @@ public struct AssetsManager: Resource {
             source: URL(string: ".")!,
             assetsDirectory: resources
         )
-        return
-        #endif
-
+        #else
         let projectDirectories = try resolveProjectDirectories(filePath: filePath)
         unsafe self.projectDirectories = projectDirectories
 
@@ -428,6 +426,7 @@ public struct AssetsManager: Resource {
             }
 
             unsafe self.resourceDirectory = resources
+        #endif
         #endif
     }
 
@@ -531,7 +530,10 @@ public struct AssetsManager: Resource {
         #if WASM && canImport(JavaScriptFoundationCompat) && canImport(JavaScriptKit)
         let responseValue: JSValue
         do {
-            guard let fetchPromise = JSPromise.construct(from: JSObject.global.fetch(path.url.relativeString)) else {
+            guard let fetch = JSObject.global.fetch.function else {
+                throw AssetError.message("Browser fetch is unavailable")
+            }
+            guard let fetchPromise = JSPromise.construct(from: fetch(path.url.relativeString)) else {
                 throw AssetError.message("Browser fetch did not return a promise for \(path.url.relativeString)")
             }
             responseValue = try await fetchPromise.value
@@ -547,7 +549,10 @@ public struct AssetsManager: Resource {
         }
 
         do {
-            guard let arrayBufferPromise = JSPromise.construct(from: response.arrayBuffer()) else {
+            guard let arrayBufferFunction = response.arrayBuffer.function else {
+                throw AssetError.message("Browser response arrayBuffer is unavailable for \(path.url.relativeString)")
+            }
+            guard let arrayBufferPromise = JSPromise.construct(from: arrayBufferFunction()) else {
                 throw AssetError.message("Browser response did not return an ArrayBuffer promise for \(path.url.relativeString)")
             }
             let arrayBuffer = try await arrayBufferPromise.value
@@ -555,7 +560,7 @@ public struct AssetsManager: Resource {
                 throw AssetError.message("Browser Uint8Array constructor is unavailable")
             }
             let uint8Array = uint8ArrayConstructor.new(arrayBuffer)
-            guard let data = Data.construct(from: uint8Array) else {
+            guard let data = Data.construct(from: .object(uint8Array)) else {
                 throw AssetError.message("Browser response could not be converted to Data for \(path.url.relativeString)")
             }
             return data

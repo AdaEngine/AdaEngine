@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 28.12.2025.
 //
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 import AdaUtils
 @unsafe @preconcurrency import WebGPU
 import Foundation
@@ -109,8 +109,8 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
                     magFilter: descriptor.magFilter.toWebGPU,
                     minFilter: descriptor.minFilter.toWebGPU,
                     mipmapFilter: descriptor.mipFilter.toWebGPU,
-                    lodMinClamp: Float(descriptor.lodMinClamp),
-                    lodMaxClamp: Float(descriptor.lodMaxClamp)
+                    lodMinClamp: Double(descriptor.lodMinClamp),
+                    lodMaxClamp: Double(descriptor.lodMaxClamp)
                 )
             )
         }

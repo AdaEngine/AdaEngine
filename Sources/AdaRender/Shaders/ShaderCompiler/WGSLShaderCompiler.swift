@@ -1,4 +1,4 @@
-#if canImport(WebGPU)
+#if canImport(WebGPU) && !WASM
 import WebGPU
 import Subprocess
 import Foundation

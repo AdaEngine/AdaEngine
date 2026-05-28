@@ -4,10 +4,11 @@
 //
 
 #if WASM && canImport(JavaScriptKit)
+import AdaECS
 import AdaRender
 import AdaUtils
 @_spi(Internal) import AdaInput
-import AdaUI
+@_spi(Internal) import AdaUI
 import Foundation
 import JavaScriptKit
 import Math
@@ -16,6 +17,7 @@ import Math
 final class BrowserWindowManager: UIWindowManager {
     private let screenManager: BrowserScreenManager
     private var eventClosures: [UIWindow.ID: [JSClosure]] = [:]
+    private var resizeObservers: [UIWindow.ID: JSObject] = [:]
     private var surfaces: [UIWindow.ID: BrowserRenderSurface] = [:]
 
     init(screenManager: BrowserScreenManager) {
@@ -24,12 +26,15 @@ final class BrowserWindowManager: UIWindowManager {
     }
 
     override func createWindow(for window: UIWindow) {
+        print("AdaEngine BrowserWindowManager createWindow")
         let surface = BrowserRenderSurface(windowId: window.id, requestedSize: window.configuration.frame.size)
         surfaces[window.id] = surface
+        window.frame.size = surface.size
         window.systemWindow = BrowserSystemWindow(surface: surface, title: window.configuration.title ?? "AdaEngine")
 
         attachCanvas(surface.canvas)
         installEventHandlers(for: window, surface: surface)
+        installResizeObserver(for: window, surface: surface)
 
         if unsafe RenderEngine.shared != nil {
             unsafe try? RenderEngine.shared.createWindow(window.id, for: surface, size: surface.logicalSize)
@@ -41,7 +46,7 @@ final class BrowserWindowManager: UIWindowManager {
     override func showWindow(_ window: UIWindow, isFocused: Bool) {
         if isFocused {
             setActiveWindow(window)
-            _ = surfaces[window.id]?.canvas.focus()
+            _ = surfaces[window.id]?.canvas.focus?()
         }
         window.windowDidAppear()
     }
@@ -51,7 +56,9 @@ final class BrowserWindowManager: UIWindowManager {
             return
         }
 
-        surfaces[window.id]?.canvas.remove()
+        _ = resizeObservers[window.id]?.disconnect?()
+        resizeObservers[window.id] = nil
+        _ = surfaces[window.id]?.canvas.remove?()
         surfaces[window.id] = nil
         eventClosures[window.id] = nil
         removeWindow(window)
@@ -62,13 +69,12 @@ final class BrowserWindowManager: UIWindowManager {
             return
         }
 
-        surface.resize(to: size)
-        unsafe try? RenderEngine.shared?.resizeWindow(window.id, newSize: surface.logicalSize, scaleFactor: surface.scaleFactor)
+        resize(window, surface: surface, to: size, updateWindowFrame: false)
     }
 
     override func setWindowMode(_ window: UIWindow, mode: UIWindow.Mode) {
         if mode == .fullscreen || mode == .fullScreenWindowed {
-            _ = surfaces[window.id]?.canvas.requestFullscreen()
+            _ = surfaces[window.id]?.canvas.requestFullscreen?()
         }
     }
 
@@ -95,11 +101,11 @@ final class BrowserWindowManager: UIWindowManager {
 
         switch mode {
         case .captured:
-            _ = canvas.requestPointerLock()
+            _ = canvas.requestPointerLock?()
         case .hidden, .confinedHidden:
-            canvas.style.cursor = "none"
+            canvas.style.cursor = .string("none")
         case .visible, .confined:
-            canvas.style.cursor = "default"
+            canvas.style.cursor = .string("default")
         }
     }
 
@@ -110,9 +116,10 @@ final class BrowserWindowManager: UIWindowManager {
     override func updateCursor() { }
 
     private func attachCanvas(_ canvas: JSObject) {
+        print("AdaEngine BrowserWindowManager attachCanvas")
         let document = JSObject.global.document
         let container = document.getElementById("ada-canvas-root").object ?? document.body.object!
-        _ = container.appendChild(canvas)
+        _ = container.appendChild!(canvas)
     }
 
     private func installEventHandlers(for window: UIWindow, surface: BrowserRenderSurface) {
@@ -131,21 +138,69 @@ final class BrowserWindowManager: UIWindowManager {
         closures.append(addEventListener("wheel", to: canvas) { [weak self, weak window, weak surface] event in
             self?.handleWheel(event, window: window, surface: surface)
         })
-        closures.append(addEventListener("keydown", to: JSObject.global.window) { [weak self, weak window] event in
+        closures.append(addEventListener("keydown", to: JSObject.global.window.object!) { [weak self, weak window] event in
             self?.handleKey(event, window: window, status: .down)
         })
-        closures.append(addEventListener("keyup", to: JSObject.global.window) { [weak self, weak window] event in
+        closures.append(addEventListener("keyup", to: JSObject.global.window.object!) { [weak self, weak window] event in
             self?.handleKey(event, window: window, status: .up)
         })
-        closures.append(addEventListener("resize", to: JSObject.global.window) { [weak self, weak window, weak surface] _ in
-            guard let self, let window, let surface else { return }
-            let size = self.screenManager.getSize(for: self.screenManager.getMainScreen()!)
-            surface.resize(to: size)
-            window.frame.size = size
-            unsafe try? RenderEngine.shared?.resizeWindow(window.id, newSize: surface.logicalSize, scaleFactor: surface.scaleFactor)
+        closures.append(addEventListener("resize", to: JSObject.global.window.object!) { [weak self, weak window, weak surface] _ in
+            self?.resizeToViewport(window: window, surface: surface)
         })
+        if let visualViewport = JSObject.global.window.visualViewport.object {
+            closures.append(addEventListener("resize", to: visualViewport) { [weak self, weak window, weak surface] _ in
+                self?.resizeToViewport(window: window, surface: surface)
+            })
+        }
 
         eventClosures[window.id] = closures
+    }
+
+    private func installResizeObserver(for window: UIWindow, surface: BrowserRenderSurface) {
+        guard let resizeObserverConstructor = JSObject.global.ResizeObserver.function else {
+            return
+        }
+
+        let closure = JSClosure { [weak self, weak window, weak surface] _ in
+            MainActor.assumeIsolated {
+                self?.resizeToViewport(window: window, surface: surface)
+            }
+            return .undefined
+        }
+        let observer = resizeObserverConstructor.new(closure)
+        let document = JSObject.global.document
+        let container = document.getElementById("ada-canvas-root").object ?? document.body.object
+        if let container {
+            _ = observer.observe!(container)
+        }
+        eventClosures[window.id, default: []].append(closure)
+        resizeObservers[window.id] = observer
+    }
+
+    private func resizeToViewport(window: UIWindow?, surface: BrowserRenderSurface?) {
+        guard let window, let surface else {
+            return
+        }
+
+        resize(window, surface: surface, to: BrowserRenderSurface.viewportSize(fallback: surface.size), updateWindowFrame: true)
+    }
+
+    private func resize(_ window: UIWindow, surface: BrowserRenderSurface, to size: Size, updateWindowFrame: Bool) {
+        guard size.width > 0, size.height > 0 else {
+            return
+        }
+
+        if surface.size == size {
+            return
+        }
+
+        surface.resize(to: size)
+        if updateWindowFrame {
+            window.frame.size = size
+            window.setNeedsLayout()
+            window.setNeedsDisplay()
+        }
+        unsafe try? RenderEngine.shared?.resizeWindow(window.id, newSize: surface.logicalSize, scaleFactor: surface.scaleFactor)
     }
 
     private func addEventListener(
@@ -158,13 +213,13 @@ final class BrowserWindowManager: UIWindowManager {
                 return .undefined
             }
 
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 handler(event)
             }
 
             return .undefined
         }
-        _ = target.addEventListener(name, .object(closure))
+        _ = target.addEventListener!(name, closure)
         return closure
     }
 
@@ -173,20 +228,21 @@ final class BrowserWindowManager: UIWindowManager {
             return
         }
 
-        _ = event.preventDefault()
+        _ = event.preventDefault?()
         if phase == .began {
             setActiveWindow(window)
-            _ = surface.canvas.focus()
+            _ = surface.canvas.focus?()
         }
 
+        inputRef.wrappedValue.mousePosition = surface.location(from: event)
         inputRef.wrappedValue.receiveEvent(
             MouseEvent(
                 window: window.id,
-                button: MouseButton(rawValue: UInt8(event.button.number ?? 0) + 1) ?? .left,
-                mousePosition: surface.location(from: event),
+                button: mouseButton(from: event, phase: phase),
+                mousePosition: inputRef.wrappedValue.mousePosition,
                 phase: phase,
                 modifierKeys: KeyModifier(browserEvent: event),
-                time: Time.absolute
+                time: Float(Time.absolute)
             )
         )
     }
@@ -196,21 +252,34 @@ final class BrowserWindowManager: UIWindowManager {
             return
         }
 
-        _ = event.preventDefault()
+        _ = event.preventDefault?()
+        inputRef.wrappedValue.mousePosition = surface.location(from: event)
         inputRef.wrappedValue.receiveEvent(
             MouseEvent(
                 window: window.id,
-                button: .none,
+                button: .scrollWheel,
                 scrollDelta: Point(
                     x: Float(event.deltaX.number ?? 0),
                     y: Float(event.deltaY.number ?? 0)
                 ),
-                mousePosition: surface.location(from: event),
+                mousePosition: inputRef.wrappedValue.mousePosition,
                 phase: .changed,
                 modifierKeys: KeyModifier(browserEvent: event),
-                time: Time.absolute
+                time: Float(Time.absolute)
             )
         )
+    }
+
+    private func mouseButton(from event: JSObject, phase: MouseEvent.Phase) -> MouseButton {
+        if let button = event.button.number, let mappedButton = MouseButton(browserButton: Int(button)) {
+            return mappedButton
+        }
+
+        if phase == .changed, let buttons = event.buttons.number {
+            return MouseButton(browserButtons: Int(buttons))
+        }
+
+        return .none
     }
 
     private func handleKey(_ event: JSObject, window: UIWindow?, status: KeyEvent.Status) {
@@ -218,13 +287,14 @@ final class BrowserWindowManager: UIWindowManager {
             return
         }
 
+        _ = event.preventDefault?()
         inputRef.wrappedValue.receiveEvent(
             KeyEvent(
                 window: window.id,
                 keyCode: KeyCode(browserEvent: event),
                 modifiers: KeyModifier(browserEvent: event),
                 status: status,
-                time: Time.absolute,
+                time: Float(Time.absolute),
                 isRepeated: event.repeat.boolean ?? false
             )
         )
@@ -232,7 +302,7 @@ final class BrowserWindowManager: UIWindowManager {
 }
 
 @MainActor
-final class BrowserRenderSurface: RenderSurface {
+final class BrowserRenderSurface: BrowserCanvasRenderSurface {
     let windowId: WindowID
     let canvas: JSObject
 
@@ -248,47 +318,76 @@ final class BrowserRenderSurface: RenderSurface {
         SizeInt(width: Int(size.width), height: Int(size.height))
     }
 
-    private var size: Size
+    private(set) var size: Size
 
     init(windowId: WindowID, requestedSize: Size) {
         self.windowId = windowId
         let document = JSObject.global.document
         self.canvas = document.createElement("canvas").object!
-        self.size = requestedSize == .zero
-            ? Size(width: Float(JSObject.global.window.innerWidth.number ?? 800), height: Float(JSObject.global.window.innerHeight.number ?? 600))
-            : requestedSize
+        self.size = Self.viewportSize(fallback: requestedSize)
 
-        canvas.id = "ada-canvas-\(windowId)"
-        canvas.tabIndex = 0
-        canvas.style.display = "block"
-        canvas.style.width = "\(Int(size.width))px"
-        canvas.style.height = "\(Int(size.height))px"
+        canvas.id = .string("ada-canvas-\(windowId)")
+        canvas.tabIndex = .number(0)
+        canvas.style.display = .string("block")
+        canvas.style.width = .string("100%")
+        canvas.style.height = .string("100%")
+        canvas.style.touchAction = .string("none")
+        canvas.style.userSelect = .string("none")
         resizeBackingStore()
     }
 
     func resize(to newSize: Size) {
         self.size = newSize
-        canvas.style.width = "\(Int(newSize.width))px"
-        canvas.style.height = "\(Int(newSize.height))px"
         resizeBackingStore()
     }
 
     func location(from event: JSObject) -> Point {
-        let rect = canvas.getBoundingClientRect()
+        let rect = canvas.getBoundingClientRect!()
+        let cssWidth = rect.width.number ?? Double(size.width)
+        let cssHeight = rect.height.number ?? Double(size.height)
+        let xScale = cssWidth > 0 ? Double(size.width) / cssWidth : 1
+        let yScale = cssHeight > 0 ? Double(size.height) / cssHeight : 1
         return Point(
-            x: Float((event.clientX.number ?? 0) - (rect.left.number ?? 0)),
-            y: Float((event.clientY.number ?? 0) - (rect.top.number ?? 0))
+            x: Float(((event.clientX.number ?? 0) - (rect.left.number ?? 0)) * xScale),
+            y: Float(((event.clientY.number ?? 0) - (rect.top.number ?? 0)) * yScale)
         )
     }
 
     func setCursorShape(_ shape: Input.CursorShape) {
-        canvas.style.cursor = shape.browserCSSCursor
+        canvas.style.cursor = .string(shape.browserCSSCursor)
+    }
+
+    static func viewportSize(fallback: Size = .zero) -> Size {
+        let window = JSObject.global.window
+        let document = JSObject.global.document
+        let container = document.getElementById("ada-canvas-root").object ?? document.body.object
+        let visualViewport = window.visualViewport.object
+
+        let widthCandidates = [
+            container?.clientWidth.number,
+            visualViewport?.width.number,
+            window.innerWidth.number,
+            fallback.width > 0 ? Double(fallback.width) : nil
+        ]
+        let heightCandidates = [
+            container?.clientHeight.number,
+            visualViewport?.height.number,
+            window.innerHeight.number,
+            fallback.height > 0 ? Double(fallback.height) : nil
+        ]
+        let width = widthCandidates.compactMap { $0 }.first { $0 > 0 } ?? 800
+        let height = heightCandidates.compactMap { $0 }.first { $0 > 0 } ?? 600
+
+        return Size(
+            width: Float(width),
+            height: Float(height)
+        )
     }
 
     private func resizeBackingStore() {
         let scale = Double(scaleFactor)
-        canvas.width = Int(Double(size.width) * scale)
-        canvas.height = Int(Double(size.height) * scale)
+        canvas.width = .number(max((Double(size.width) * scale).rounded(), 1))
+        canvas.height = .number(max((Double(size.height) * scale).rounded(), 1))
     }
 }
 
@@ -353,7 +452,39 @@ private extension KeyCode {
         case "Home": self = .home
         case "PageUp": self = .pageUp
         case "PageDown": self = .pageDown
+        case "ArrowLeft": self = .arrowLeft
+        case "ArrowRight": self = .arrowRight
+        case "ArrowUp": self = .arrowUp
+        case "ArrowDown": self = .arrowDown
+        case "Insert": self = .insert
         default: self = KeyCode(rawValue: key) ?? .none
+        }
+    }
+}
+
+private extension MouseButton {
+    init?(browserButton: Int) {
+        switch browserButton {
+        case 0:
+            self = .left
+        case 1:
+            self = .middle
+        case 2:
+            self = .right
+        default:
+            return nil
+        }
+    }
+
+    init(browserButtons: Int) {
+        if browserButtons & 1 != 0 {
+            self = .left
+        } else if browserButtons & 4 != 0 {
+            self = .middle
+        } else if browserButtons & 2 != 0 {
+            self = .right
+        } else {
+            self = .none
         }
     }
 }

@@ -5,7 +5,7 @@
 
 import AdaCorePipelines
 import AdaECS
-import AdaRender
+@_spi(Internal) import AdaRender
 import AdaUtils
 import Math
 
@@ -314,6 +314,12 @@ public struct Light2DCompositeRenderNode: RenderNode {
             compositePass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             compositePass.endRenderPass()
 
+            if let outputTexture = target.outputTexture,
+               mainTexture === outputTexture {
+                commandBuffer.addCompletedHandler { [outputTexture] in
+                    outputTexture.notifyRenderCompleted()
+                }
+            }
             commandBuffer.commit()
         }
 

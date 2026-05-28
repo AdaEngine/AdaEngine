@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Dispatch
 
 /// A property wrapper that allows you to isolate a value with a lock.
 @propertyWrapper

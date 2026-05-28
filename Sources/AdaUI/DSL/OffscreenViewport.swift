@@ -15,6 +15,7 @@ import Math
 @MainActor
 package protocol OffscreenViewportDelegate: AnyObject {
     var renderTexture: Texture2D? { get }
+    var renderTextureDidChange: (@MainActor @Sendable () -> Void)? { get set }
     func bootstrapIfNeeded()
     func shutdown()
     func tick(_ deltaTime: AdaUtils.TimeInterval)
@@ -118,9 +119,7 @@ private final class OffscreenViewportNode: ViewNode {
 
     override func update(_ deltaTime: AdaUtils.TimeInterval) {
         delegate.tick(deltaTime)
-        if delegate.renderTexture != nil {
-            owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
-        }
+        owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
     }
 
     // MARK: Draw
@@ -265,6 +264,13 @@ private final class OffscreenViewportContainerNode<Content: View>: ViewContainer
     override func invalidateContent() {
         if delegate == nil {
             delegate = delegateFactory()
+            delegate?.renderTextureDidChange = { [weak self] in
+                guard let self else {
+                    return
+                }
+                self.invalidateContent()
+                self.owner?.containerView?.setNeedsDisplay(in: self.absoluteFrame())
+            }
         }
 
         let view = contentBuilder(delegate!)

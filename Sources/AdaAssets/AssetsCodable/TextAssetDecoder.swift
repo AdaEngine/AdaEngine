@@ -7,7 +7,9 @@
 
 import Foundation
 import AdaUtils
+#if !WASM
 import Yams
+#endif
 
 /// A decoder for assets that are stored in text format.
 public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
@@ -82,7 +84,11 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
             return self.assetData as! T
         }
         
+        #if WASM
+        let decoder = JSONDecoder()
+        #else
         let decoder = YAMLDecoder(encoding: .utf8)
+        #endif
         return try decoder._decode(T.self, from: self.assetData, userInfo: [
             .assetsDecodingContext: self,
             .assetMetaInfo: self.assetMeta
@@ -105,6 +111,7 @@ protocol AnyDecoder {
     ) throws -> T
 }
 
+#if !WASM
 extension YAMLDecoder: AnyDecoder {
     func _decode<T>(
         _ type: T.Type,
@@ -114,6 +121,7 @@ extension YAMLDecoder: AnyDecoder {
         try self.decode(type, from: data, userInfo: userInfo)
     }
 }
+#endif
 
 extension JSONDecoder: AnyDecoder {
     func _decode<T: Decodable>(_ type: T.Type, from data: Data, userInfo: [CodingUserInfoKey: any Sendable]) throws -> T {

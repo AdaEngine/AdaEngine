@@ -16,7 +16,7 @@ struct EditorSceneViewportView: View {
     var body: some View {
         let _ = isPlayingThisDocument ? preparePlayModeViewport() : configureViewportModel()
         ZStack {
-            theme.editorColors.background
+            theme.editorColors.surfaceElevated
 
             if let errorMessage = document.errorMessage {
                 viewportMessage(title: "Unable to open scene", message: errorMessage)
@@ -42,49 +42,71 @@ struct EditorSceneViewportView: View {
     }
 
     private var editViewport: some View {
-        SceneView(setup: { world in
-            let result = EditorSceneFileLoader.load(content: document.content, into: world)
-            if runtimeWarnings != result.warnings {
-                runtimeWarnings = result.warnings
-            }
-            viewportModel.attachSceneWorld(world, loadResult: result)
-        }, update: { _, deltaTime in
-            if viewportModel.update(deltaTime: deltaTime) {
-                redrawViewport()
-            }
-        }, input: { event, _ in
-            let handled = viewportModel.handleInput(event)
-            if handled {
-                redrawViewport()
-            }
-            return handled
-        }) { context in
-            VStack(spacing: 0) {
-                toolbar
-                context.viewport
-                    .overlay { viewportSceneOverlay }
-                    .overlay(anchor: .bottomLeading) { statusBar }
-                    .mask(RectangleShape())
-                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-            }
+        VStack(spacing: 0) {
+            toolbar
+            SceneView(make: { app in
+                configureSceneViewApp(&app)
+                let result = EditorSceneFileLoader.load(content: document.content, into: app.main)
+                if runtimeWarnings != result.warnings {
+                    runtimeWarnings = result.warnings
+                }
+                viewportModel.attachSceneWorld(app.main, loadResult: result)
+            }, updateContent: { world, deltaTime in
+                if let input = world.getResource(Input.self) {
+                    for event in input.getInputEvents() {
+                        let handled = viewportModel.handleInput(event)
+                        if handled {
+                            redrawViewport()
+                        }
+                    }
+                }
+                if viewportModel.update(deltaTime: deltaTime) {
+                    redrawViewport()
+                }
+            })
+            .overlay { viewportSceneOverlay }
+            .overlay(anchor: .bottomLeading) { statusBar }
+            .mask(RectangleShape())
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         }
     }
 
     private var playViewport: some View {
-        SceneView(setup: { world in
-            let result = EditorSceneFileLoader.load(content: document.content, into: world)
-            if runtimeWarnings != result.warnings {
-                runtimeWarnings = result.warnings
-            }
-        }) { context in
-            VStack(spacing: 0) {
-                playToolbar
-                context.viewport
-                    .overlay(anchor: .bottomLeading) { playStatusBar }
-                    .mask(RectangleShape())
-                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-            }
+        VStack(spacing: 0) {
+            playToolbar
+            SceneView(make: { app in
+                configureSceneViewApp(&app)
+                let result = EditorSceneFileLoader.load(content: document.content, into: app.main)
+                if runtimeWarnings != result.warnings {
+                    runtimeWarnings = result.warnings
+                }
+            }, updateContent: { _, _ in })
+            .overlay(anchor: .bottomLeading) { playStatusBar }
+            .mask(RectangleShape())
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         }
+    }
+
+    @MainActor
+    private func configureSceneViewApp(_ app: inout AppWorlds) {
+        app.addPlugin(TransformPlugin())
+        app.addPlugin(InputPlugin())
+        app.addPlugin(RenderWorldPlugin())
+        app.addPlugin(EventsPlugin())
+        app.addPlugin(CameraPlugin())
+        app.addPlugin(AssetsPlugin(filePath: #filePath))
+        app.addPlugin(VisibilityPlugin())
+        app.addPlugin(SpritePlugin())
+        app.addPlugin(Mesh2DPlugin())
+        app.addPlugin(TextPlugin())
+        app.addPlugin(ScenePlugin())
+        app.addPlugin(ScriptableObjectPlugin())
+        app.addPlugin(Physics2DPlugin())
+        app.addPlugin(TileMapPlugin())
+        app.addPlugin(Core2DPlugin())
+        app.addPlugin(Core3DPlugin())
+        app.addPlugin(Light2DPlugin())
+        app.addPlugin(UpscalePlugin())
     }
 
     private var viewportSceneOverlay: some View {

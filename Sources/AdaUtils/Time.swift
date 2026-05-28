@@ -32,6 +32,8 @@ public struct Time {
         #elseif os(Windows)
         // Windows doesn't have clock_gettime, use Foundation's ProcessInfo
         return LongTimeInterval(ProcessInfo.processInfo.systemUptime)
+        #elseif os(WASI)
+        return LongTimeInterval(Date().timeIntervalSince1970)
         #else
         var time = timespec()
         clock_gettime(CLOCK_MONOTONIC, &time)

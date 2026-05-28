@@ -18,7 +18,6 @@ struct EditorTopToolbar: View {
                 prompt: "Search Everywhere",
                 width: metrics.toolbarSearchWidth
             )
-            .foregroundColor(.white)
             .searchBarStyle(EditorToolbarSearchBarStyle(theme: theme))
 
             HStack(spacing: 12) {
@@ -89,7 +88,7 @@ private struct EditorToolbarSearchBarStyle: SearchBarStyle {
                 .frame(width: 18, height: 18)
 
             configuration.label
-                .foregroundColor(.white)
+                .foregroundColor(theme.editorColors.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             if !configuration.isEmpty {

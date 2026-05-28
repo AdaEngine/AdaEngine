@@ -16,6 +16,7 @@ import Math
 @MainActor
 final class MockViewportDelegate: OffscreenViewportDelegate {
     var renderTexture: Texture2D? = nil
+    var renderTextureDidChange: (@MainActor @Sendable () -> Void)?
     var bootstrapCallCount = 0
     var tickCount = 0
     var lastTickDelta: AdaUtils.TimeInterval = 0
@@ -51,6 +52,7 @@ final class MockViewportDelegate: OffscreenViewportDelegate {
 }
 
 @MainActor
+@Suite(.serialized)
 struct OffscreenViewportTests {
 
     init() async throws {
@@ -128,6 +130,25 @@ struct OffscreenViewportTests {
     }
 
     @Test
+    func tick_continuesAfterFirstLayout() {
+        let delegate = MockViewportDelegate()
+
+        let tester = ViewTester {
+            OffscreenViewportView(delegate: delegate)
+        }
+        .setSize(Size(width: 400, height: 300))
+        .performLayout()
+
+        tester.advanceFrame(deltaTime: 0.016)
+        let tickCountAfterFirstFrame = delegate.tickCount
+
+        tester.advanceFrame(deltaTime: 0.016)
+
+        #expect(tickCountAfterFirstFrame >= 1)
+        #expect(delegate.tickCount > tickCountAfterFirstFrame)
+    }
+
+    @Test
     func sizeUpdate_reportedOnLayout() {
         let delegate = MockViewportDelegate()
 
@@ -145,16 +166,77 @@ struct OffscreenViewportTests {
     func sizeUpdate_roundsPhysicalPixels() {
         let delegate = MockViewportDelegate()
 
-        _ = ViewTester {
+        let tester = ViewTester {
             OffscreenViewportView(delegate: delegate)
                 .frame(width: 10.75, height: 8.25)
-                .environment(\.scaleFactor, 2)
         }
         .setSize(Size(width: 40, height: 40))
         .performLayout()
 
+        var environment = tester.containerView.rootEnvironmentValues()
+        environment.scaleFactor = 2
+        tester.containerView.updateEnvironment(environment)
+        tester.containerView.viewTree.rootNode.place(
+            in: .zero,
+            anchor: .zero,
+            proposal: ProposedViewSize(tester.containerView.frame.size)
+        )
+
         #expect(delegate.lastSize == SizeInt(width: 22, height: 17))
         #expect(delegate.lastScaleFactor == 2)
+    }
+
+    @Test
+    func renderTextureDidChange_invalidatesContainerDisplay() throws {
+        let delegate = MockViewportDelegate()
+
+        let tester = ViewTester {
+            OffscreenViewportContainer(
+                delegateFactory: { delegate },
+                contentBuilder: { d in
+                    OffscreenViewportView(delegate: d)
+                }
+            )
+        }
+        .setSize(Size(width: 400, height: 300))
+        .performLayout()
+
+        _ = tester.containerView.consumeNeedsDisplay()
+        let renderTextureDidChange = try #require(delegate.renderTextureDidChange)
+        renderTextureDidChange()
+
+        #expect(tester.containerView.needsDisplay)
+    }
+
+    @Test
+    func renderTextureDidChange_rebuildsContainerContent() throws {
+        let delegate = MockViewportDelegate()
+        var placeholderStates: [Bool] = []
+
+        _ = ViewTester {
+            OffscreenViewportContainer(
+                delegateFactory: { delegate },
+                contentBuilder: { d in
+                    let showsPlaceholder = d.renderTexture == nil
+                    let _ = placeholderStates.append(showsPlaceholder)
+                    ZStack {
+                        OffscreenViewportView(delegate: d)
+                        if showsPlaceholder {
+                            Text("Loading")
+                        }
+                    }
+                }
+            )
+        }
+        .setSize(Size(width: 400, height: 300))
+        .performLayout()
+
+        delegate.renderTexture = Texture2D.whiteTexture
+        let renderTextureDidChange = try #require(delegate.renderTextureDidChange)
+        renderTextureDidChange()
+
+        #expect(placeholderStates.first == true)
+        #expect(placeholderStates.count >= 2)
     }
 
     @Test

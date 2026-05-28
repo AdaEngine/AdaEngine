@@ -8,20 +8,16 @@
 import AdaApp
 import AdaAssets
 import AdaAudio
+import AdaCorePipelines
 import AdaECS
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaRender
-import AdaScene
-import AdaSprite
-import AdaText
-import AdaTilemap
 import AdaTransform
-import AdaPhysics
-import AdaCorePipelines
 import AdaUI
 import AdaUtils
 import Math
 
+// swiftlint:disable type_body_length
 @MainActor
 final class SceneViewCoordinator: OffscreenViewportDelegate {
     private(set) var appWorlds: AppWorlds?
@@ -32,6 +28,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var retiredDisplayTargets: [RetiredDisplayTarget] = []
     private var nextRenderTextureIndex = 0
     private(set) var renderTexture: Texture2D?
+    var renderTextureDidChange: (@MainActor @Sendable () -> Void)?
 
     private var isBootstrapping = false
     private var isShutdown = false
@@ -44,12 +41,13 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private let hostSubworldName: AppWorldName
     private var currentSize: SizeInt = .zero
     private var scaleFactor: Float = 1
+    private var pendingSize: SizeInt?
+    private var pendingScaleFactor: Float = 1
+    private var pendingSizeElapsed: AdaUtils.TimeInterval = 0
 
-    private let filePath: StaticString
-    private let pluginPreset: SceneViewPluginPreset
-    private let setupClosure: @MainActor (World) -> Void
-    private let updateClosure: @MainActor (World, AdaUtils.TimeInterval) -> Void
-    private let inputClosure: @MainActor (any InputEvent, World) -> Bool
+    private let makeClosure: @MainActor (inout AppWorlds) -> Void
+    private let updateContentClosure: @MainActor (World, AdaUtils.TimeInterval) -> Void
+    private let resizeApplyDelay: AdaUtils.TimeInterval = 0.08
 
     private struct PendingDisplayTarget {
         var texture: RenderTexture
@@ -62,17 +60,11 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     init(
-        filePath: StaticString,
-        pluginPreset: SceneViewPluginPreset,
-        setup: @escaping @MainActor (World) -> Void,
-        update: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void,
-        input: @escaping @MainActor (any InputEvent, World) -> Bool
+        make: @escaping @MainActor (inout AppWorlds) -> Void,
+        updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void
     ) {
-        self.filePath = filePath
-        self.pluginPreset = pluginPreset
-        self.setupClosure = setup
-        self.updateClosure = update
-        self.inputClosure = input
+        self.makeClosure = make
+        self.updateContentClosure = updateContent
         self.hostSubworldName = AppWorldName(rawValue: "SceneView.\(UUID().uuidString)")
     }
 
@@ -130,30 +122,41 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         hasCalledSetup = false
         isHostedSubworld = false
         standaloneTickInFlight = false
+        currentSize = .zero
+        scaleFactor = 1
+        pendingSize = nil
+        pendingScaleFactor = 1
+        pendingSizeElapsed = 0
     }
 
     func updateSize(_ size: SizeInt, scaleFactor: Float) {
         guard size.width > 0 && size.height > 0 else { return }
-        guard size != currentSize || scaleFactor != self.scaleFactor else { return }
-        currentSize = size
-        self.scaleFactor = scaleFactor
+        guard size != currentSize || scaleFactor != self.scaleFactor else {
+            pendingSize = nil
+            pendingScaleFactor = 1
+            pendingSizeElapsed = 0
+            return
+        }
 
-        rebuildRenderTexturePool(size: size, scaleFactor: scaleFactor)
+        if currentSize == .zero || appWorlds == nil {
+            applySize(size, scaleFactor: scaleFactor)
+            return
+        }
 
-        if let entity = cameraEntity, let app = appWorlds {
-            if let targetRenderTexture {
-                updateCameraTarget(app: app, entity: entity, texture: targetRenderTexture)
-            }
-        } else {
-            finalizeSetupIfReady()
+        if pendingSize != size || pendingScaleFactor != scaleFactor {
+            pendingSize = size
+            pendingScaleFactor = scaleFactor
+            pendingSizeElapsed = 0
         }
     }
 
     func tick(_ deltaTime: AdaUtils.TimeInterval) {
+        applyPendingSizeIfReady(deltaTime: deltaTime)
+
         guard let appWorlds, hasCalledSetup else {
             return
         }
-        updateClosure(appWorlds.main, deltaTime)
+        updateContentClosure(appWorlds.main, deltaTime)
         ageRetiredDisplayTargets()
         prepareNextRenderTarget()
 
@@ -165,16 +168,15 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     func receiveInputEvent(_ event: any InputEvent) {
         guard let app = appWorlds else { return }
-        if inputClosure(event, app.main) {
-            return
-        }
-
+        guard app.main.getResource(Input.self) != nil else { return }
         let input = app.main.getRefResource(Input.self)
         input.wrappedValue.receiveEvent(event)
+        input.wrappedValue.flushPendingEvents()
     }
 
     func updateMousePosition(_ position: Point) {
         guard let app = appWorlds else { return }
+        guard app.main.getResource(Input.self) != nil else { return }
         let input = app.main.getRefResource(Input.self)
         input.wrappedValue.mousePosition = position
     }
@@ -213,8 +215,38 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         }
 
         spawnCamera(in: app)
-        setupClosure(app.main)
         hasCalledSetup = true
+    }
+
+    private func applyPendingSizeIfReady(deltaTime: AdaUtils.TimeInterval) {
+        guard let pendingSize else {
+            return
+        }
+
+        pendingSizeElapsed += deltaTime
+        guard pendingSizeElapsed >= resizeApplyDelay else {
+            return
+        }
+
+        applySize(pendingSize, scaleFactor: pendingScaleFactor)
+        self.pendingSize = nil
+        pendingScaleFactor = 1
+        pendingSizeElapsed = 0
+    }
+
+    private func applySize(_ size: SizeInt, scaleFactor: Float) {
+        currentSize = size
+        self.scaleFactor = scaleFactor
+
+        rebuildRenderTexturePool(size: size, scaleFactor: scaleFactor)
+
+        if let entity = cameraEntity, let app = appWorlds {
+            if let targetRenderTexture {
+                updateCameraTarget(app: app, entity: entity, texture: targetRenderTexture)
+            }
+        } else {
+            finalizeSetupIfReady()
+        }
     }
 
     private func spawnCamera(in app: AppWorlds) {
@@ -266,6 +298,12 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         }
     }
 
+    private func makeCameraRenderTargetReady(_ texture: RenderTexture) {
+        if let entity = cameraEntity, let app = appWorlds {
+            updateCameraTarget(app: app, entity: entity, texture: texture)
+        }
+    }
+
     private func rebuildRenderTexturePool(size: SizeInt, scaleFactor: Float) {
         let poolSize = max(3, unsafe RenderEngine.configurations.maxFramesInFlight + 2)
         renderTexturePool = (0..<poolSize).map { index in
@@ -286,6 +324,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         retiredDisplayTargets.removeAll()
         nextRenderTextureIndex = 0
         renderTexture = nil
+        renderTextureDidChange?()
 
         if let texture = nextAvailableRenderTexture() {
             setTargetRenderTexture(texture)
@@ -306,6 +345,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         while let firstTarget = pendingDisplayTargets.first,
               firstTarget.isCompleted {
             let completedTarget = pendingDisplayTargets.removeFirst()
+            let previousFrontTexture = renderTexture as? RenderTexture
             if let currentFront = renderTexture as? RenderTexture,
                currentFront !== completedTarget.texture {
                 retiredDisplayTargets.append(
@@ -316,7 +356,12 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 )
             }
             renderTexture = completedTarget.texture
-            didPublish = true
+            if previousFrontTexture !== completedTarget.texture {
+                didPublish = true
+            }
+        }
+        if didPublish {
+            renderTextureDidChange?()
         }
         return didPublish
     }
@@ -332,8 +377,13 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     private func prepareNextRenderTarget() {
         if let targetRenderTexture,
-           !isDisplayUnavailable(targetRenderTexture),
-           !pendingDisplayTargets.contains(where: { $0.texture === targetRenderTexture }) {
+           pendingDisplayTargets.contains(where: { $0.texture === targetRenderTexture }) {
+            return
+        }
+
+        if let targetRenderTexture,
+           !isDisplayUnavailable(targetRenderTexture) {
+            makeCameraRenderTargetReady(targetRenderTexture)
             scheduleForDisplay(targetRenderTexture)
             return
         }
@@ -343,9 +393,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         }
 
         setTargetRenderTexture(texture)
-        if let entity = cameraEntity, let app = appWorlds {
-            updateCameraTarget(app: app, entity: entity, texture: texture)
-        }
+        makeCameraRenderTargetReady(texture)
         scheduleForDisplay(texture)
     }
 
@@ -407,37 +455,10 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     private func buildAppWorlds() -> AppWorlds {
         let world = World(name: "SceneView")
-        let app = AppWorlds(main: world)
+        var app = AppWorlds(main: world)
 
+        makeClosure(&app)
         MainSchedulerPlugin().setup(in: app)
-
-        app.addPlugin(TransformPlugin())
-        app.addPlugin(InputPlugin())
-        app.addPlugin(RenderWorldPlugin())
-        app.addPlugin(EventsPlugin())
-        app.addPlugin(CameraPlugin())
-        app.addPlugin(AssetsPlugin(filePath: filePath))
-        app.addPlugin(VisibilityPlugin())
-
-        switch pluginPreset {
-        case .standard:
-            app.addPlugin(SpritePlugin())
-            app.addPlugin(Mesh2DPlugin())
-            app.addPlugin(TextPlugin())
-            app.addPlugin(ScenePlugin())
-            app.addPlugin(ScriptableObjectPlugin())
-            app.addPlugin(Physics2DPlugin())
-            app.addPlugin(TileMapPlugin())
-            app.addPlugin(Core2DPlugin())
-            app.addPlugin(Core3DPlugin())
-            app.addPlugin(Light2DPlugin())
-            app.addPlugin(UpscalePlugin())
-        case .mesh2D:
-            app.addPlugin(SpritePlugin())
-            app.addPlugin(Mesh2DPlugin())
-            app.addPlugin(Core2DPlugin())
-        }
-
         app.insertResource(PrimaryWindowId(windowId: RID()))
 
         return app

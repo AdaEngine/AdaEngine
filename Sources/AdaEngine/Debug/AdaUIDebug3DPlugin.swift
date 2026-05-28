@@ -1,4 +1,6 @@
 import AdaApp
+import AdaAssets
+import AdaCorePipelines
 import AdaECS
 import AdaInput
 @_spi(Internal) import AdaRender
@@ -1053,13 +1055,13 @@ struct AdaUIDebug3DView: View {
     private var viewport: some View {
         ZStack {
             SceneView(
-                pluginPreset: .mesh2D,
-                setup: { world in
-                    model.attachSceneWorld(world)
-                }, content: { context in
-                    context.viewport
-                })
-            
+                make: { app in
+                    app.addPlugin(TransformPlugin()).addPlugin(RenderWorldPlugin()).addPlugin(CameraPlugin()).addPlugin(AssetsPlugin(filePath: #filePath))
+                    app.addPlugin(VisibilityPlugin()).addPlugin(SpritePlugin()).addPlugin(Mesh2DPlugin()).addPlugin(Core2DPlugin()).addPlugin(UpscalePlugin())
+                    model.attachSceneWorld(app.main)
+                },
+                updateContent: { _, _ in }
+            )
             GeometryReader { proxy in
                 viewportOverlay(size: proxy.size)
             }

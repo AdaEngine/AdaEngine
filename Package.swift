@@ -19,14 +19,21 @@ let isHeadlessCIEnabled: Bool = {
         || disableSwanValue.map(enabledValues.contains) == true
 }()
 
+let isWebExportEnabled: Bool = {
+    let webExportValue = ProcessInfo.processInfo.environment["ADAENGINE_WEB_EXPORT"]?.lowercased()
+    let enabledValues: Set<String> = ["1", "true", "yes", "on"]
+
+    return webExportValue.map(enabledValues.contains) == true
+}()
+
 #if canImport(Darwin)
 import Darwin.C
 
 /// Only xcode can import AppleProductTypes and we can use it as checker
 #if canImport(AppleProductTypes)
-let isWGPUEnabled = false // We can't build wgpu from xcode
+let isWGPUEnabled = isWebExportEnabled // We can't build wgpu from xcode, except web export builds.
 #else
-let isWGPUEnabled = false
+let isWGPUEnabled = isWebExportEnabled
 #endif
 
 #else
@@ -49,7 +56,7 @@ extension String {
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
 #if canImport(Darwin)
-let miniaudioSources = ["miniaudio.c", "miniaudio_apple.m"]
+let miniaudioSources = isWebExportEnabled ? ["miniaudio.c"] : ["miniaudio.c", "miniaudio_apple.m"]
 #else
 let miniaudioSources = ["miniaudio.c"]
 #endif
@@ -161,6 +168,17 @@ var swiftSettings: [SwiftSetting] = [
     .unsafeFlags(["-Xfrontend", "-validate-tbd-against-ir=none"]),
 ]
 
+let wasmExecutableLinkerSettings: [LinkerSetting] = [
+    .unsafeFlags([
+        "-Xclang-linker",
+        "-mexec-model=reactor",
+        "-Xlinker",
+        "--export-if-defined=main",
+        "-Xlinker",
+        "--export-if-defined=__main_argc_argv"
+    ], .when(platforms: [.wasi]))
+]
+
 // MARK: Ada Engine SDK
 
 var adaEngineSwiftSettings = swiftSettings
@@ -177,11 +195,13 @@ var adaEngineDependencies: [Target.Dependency] = [
     "AdaAssets",
     "AdaPlatform",
     "AdaAudio",
+    "AdaCorePipelines",
     "AdaTransform",
     "AdaRender",
     "AdaText",
     "AdaInput",
     "AdaScene",
+    "AdaSprite",
     "AdaTilemap",
     "AdaPhysics"
 ]
@@ -196,7 +216,11 @@ var adaRenderDependencies: [Target.Dependency] = [
     "AdaAssets",
     "AdaTransform",
     "Math",
-    "Yams",
+    .product(
+        name: "Yams",
+        package: "Yams",
+        condition: .when(platforms: applePlatforms + [.linux, .windows, .android])
+    ),
     "SPIRV-Cross",
     "SPIRVCompiler",
     "libpng",
@@ -206,11 +230,15 @@ var adaRenderDependencies: [Target.Dependency] = [
         condition: .when(platforms: [
             .macOS,
             .linux,
-            .windows,
-            .wasi
+            .windows
         ], traits: [
             .wgpuTrait
         ])
+    ),
+    .product(
+        name: "JavaScriptKit",
+        package: "JavaScriptKit",
+        condition: .when(platforms: [.wasi])
     ),
 ]
 
@@ -267,7 +295,11 @@ var targets: [Target] = [
         dependencies: [
             "AdaUtils",
             "AdaECS",
-            "Yams"
+            .product(
+                name: "JavaScriptEventLoop",
+                package: "JavaScriptKit",
+                condition: .when(platforms: [.wasi])
+            )
         ],
         swiftSettings: swiftSettings
     ),
@@ -309,7 +341,12 @@ var targets: [Target] = [
             .product(name: "Collections", package: "swift-collections"),
             .product(name: "BitCollections", package: "swift-collections"),
             "AdaEngineMacros",
-            "Math"
+            "Math",
+            .product(
+                name: "JavaScriptEventLoop",
+                package: "JavaScriptKit",
+                condition: .when(platforms: [.wasi])
+            )
         ],
         swiftSettings: swiftSettings
     ),
@@ -349,7 +386,11 @@ var targets: [Target] = [
             "AdaApp",
             "AdaUtils",
             "Math",
-            "Yams",
+            .product(
+        name: "Yams",
+        package: "Yams",
+        condition: .when(platforms: applePlatforms + [.linux, .windows, .android])
+    ),
             .product(
                 name: "JavaScriptKit",
                 package: "JavaScriptKit",
@@ -520,6 +561,16 @@ var targets: [Target] = [
 ]
 
 targets.append(
+    .executableTarget(
+        name: "AdaShaderTranspilerTool",
+        dependencies: [
+            "SPIRVCompiler"
+        ],
+        path: "Plugins/AdaShaderTranspilerTool"
+    )
+)
+
+targets.append(
     .plugin(
         name: "AdaWebExportPlugin",
         capability: .command(
@@ -528,10 +579,13 @@ targets.append(
                 description: "Export an AdaEngine executable target as a browser WebAssembly app"
             ),
             permissions: [
-                .writeToPackageDirectory(reason: "Write the exported web app bundle to the requested output directory")
+                .writeToPackageDirectory(reason: "Write the exported web app bundle to the requested output directory"),
+                .allowNetworkConnections(scope: .all(), reason: "Download Dawn/Tint when Tint is not installed and shaders need WGSL generation")
             ]
         ),
-        dependencies: [],
+        dependencies: [
+            .target(name: "AdaShaderTranspilerTool")
+        ],
         path: "Plugins/AdaWebExportPlugin"
     )
 )
@@ -647,6 +701,10 @@ targets += [
             "glslang"
         ],
         publicHeadersPath: ".",
+        cxxSettings: [
+            .unsafeFlags(["-fno-exceptions"], .when(platforms: [.wasi])),
+            .unsafeFlags(["-w"])
+        ],
         linkerSettings: [
             .linkedLibrary("m", .when(platforms: [.linux]))
         ]
@@ -701,7 +759,7 @@ targets += [
             glslangSources.append("glslang/OSDependent/Windows/ossource.cpp")
             #endif
 
-            #if os(Linux) || os(android) || os(macOS) || os(iOS) || os(tvOS) || os(visionOS) || os(watchOS)
+            #if os(Linux) || os(android) || os(macOS) || os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || os(WASI)
             glslangSources.append("glslang/OSDependent/Unix/ossource.cpp")
             #endif
 
@@ -710,7 +768,12 @@ targets += [
         publicHeadersPath: ".",
         cxxSettings: [
             .define("ENABLE_OPT", to: "0"),
+            .define("_WASI_EMULATED_PROCESS_CLOCKS", .when(platforms: [.wasi])),
+            .unsafeFlags(["-fno-exceptions"], .when(platforms: [.wasi])),
             .unsafeFlags(["-w"])
+        ],
+        linkerSettings: [
+            .linkedLibrary("wasi-emulated-process-clocks", .when(platforms: [.wasi]))
         ]
     ),
     .target(
@@ -746,6 +809,8 @@ targets += [
             .define("SPIRV_CROSS_C_API_HLSL", to: "1"),
             .define("SPIRV_CROSS_C_API_MSL", to: "1"),
             .define("SPIRV_CROSS_C_API_REFLECT", to: "1"),
+            .define("SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS", .when(platforms: [.wasi])),
+            .unsafeFlags(["-fno-exceptions"], .when(platforms: [.wasi])),
             .unsafeFlags(["-w"])
         ]
     ),
@@ -773,13 +838,16 @@ targets += [
             "libpng/pngwrite.c",
             "libpng/pngwtran.c",
             "libpng/pngwutil.c",
-            "libpng/arm/arm_init.c",
-            "libpng/arm/filter_neon_intrinsics.c",
-            "libpng/arm/palette_neon_intrinsics.c",
         ],
         publicHeadersPath: "libpng/include",
         cSettings: [
+            .define("PNG_ARM_NEON_OPT", to: "0"),
+            .define("PNG_SETJMP_NOT_SUPPORTED", .when(platforms: [.wasi])),
+            .unsafeFlags(["-mllvm", "-wasm-enable-sjlj"], .when(platforms: [.wasi])),
             .unsafeFlags(["-w"])
+        ],
+        linkerSettings: [
+            .linkedLibrary("setjmp", .when(platforms: [.wasi]))
         ]
     ),
     .target(
@@ -787,6 +855,8 @@ targets += [
         sources: miniaudioSources,
         publicHeadersPath: "include",
         cSettings: [
+            .define("MA_NO_DEVICE_IO", .when(platforms: [.wasi])),
+            .define("MA_NO_THREADING", .when(platforms: [.wasi])),
             .unsafeFlags(["-w"])
         ],
         linkerSettings: [
@@ -801,7 +871,11 @@ targets += [
         dependencies: [
             "MSDFAtlasGen"
         ],
-        publicHeadersPath: "include"
+        publicHeadersPath: "include",
+        cxxSettings: [
+            .unsafeFlags(["-fno-exceptions"], .when(platforms: [.wasi])),
+            .unsafeFlags(["-w"])
+        ]
     ),
     .target(
         name: "MSDFGen",
@@ -814,8 +888,10 @@ targets += [
         cxxSettings: [
             .define("MSDFGEN_USE_CPP11"),
             .headerSearchPath(".."),
+            .unsafeFlags(["-fno-exceptions"], .when(platforms: [.wasi])),
+            .unsafeFlags(["-mllvm", "-wasm-enable-sjlj"], .when(platforms: [.wasi])),
             .unsafeFlags(["-w"])
-        ]
+        ],
     ),
     .target(
         name: "MSDFAtlasGen",
@@ -827,8 +903,9 @@ targets += [
         cxxSettings: [
             .define("_CRT_SECURE_NO_WARNINGS"),
             .headerSearchPath(".."),
+            .unsafeFlags(["-fno-exceptions"], .when(platforms: [.wasi])),
             .unsafeFlags(["-w"])
-        ]
+        ],
     ),
     .target(
         name: "freetype",
@@ -881,7 +958,12 @@ targets += [
             .define("FT2_BUILD_LIBRARY"),
             .define("_CRT_SECURE_NO_WARNINGS"),
             .define("_CRT_NONSTDC_NO_WARNINGS"),
+            .define("HAVE_UNISTD_H", to: "1", .when(platforms: [.wasi])),
+            .unsafeFlags(["-mllvm", "-wasm-enable-sjlj"], .when(platforms: [.wasi])),
             .unsafeFlags(["-w"])
+        ],
+        linkerSettings: [
+            .linkedLibrary("setjmp", .when(platforms: [.wasi]))
         ]
     ),
     .target(
@@ -1137,7 +1219,8 @@ private extension Target {
             resources: [
                 .copy("Resources")
             ],
-            packageAccess: false
+            packageAccess: false,
+            linkerSettings: wasmExecutableLinkerSettings
         )
     }
 }

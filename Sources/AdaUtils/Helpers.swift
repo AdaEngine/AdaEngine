@@ -134,5 +134,9 @@ public func TODO(
     file: StaticString = #file, 
     line: UInt = #line
 ) {
+#if os(WASI)
+    return
+#else
     assert(Thread.isMainThread, message(), file: file, line: line)
+#endif
 }

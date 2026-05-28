@@ -13,11 +13,7 @@ public struct SpriteRenderPipeline: RenderPipelineConfigurator {
     public let spriteShader: AssetHandle<ShaderModule>
 
     public init() {
-        self.spriteShader = try! AssetsManager.loadSync(
-            ShaderModule.self,
-            at: "Assets/sprite.glsl",
-            from: .module
-        )
+        self.spriteShader = try! ShaderModule.loadBundled(at: "Assets/sprite.glsl", from: .module)
     }
 }
 

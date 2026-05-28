@@ -9,6 +9,8 @@ import Atomics
 import Foundation
 import miniaudio
 
+#if !WASM
+
 @safe
 final class AudioCaptureRingBuffer: @unchecked Sendable {
     let format: AudioCaptureFormat
@@ -265,3 +267,5 @@ final class MiniAudioCaptureSession: AudioCaptureSessionBackend, @unchecked Send
         unsafe session.ringBuffer.write(frames: input, frameCount: Int(frameCount))
     }
 }
+
+#endif

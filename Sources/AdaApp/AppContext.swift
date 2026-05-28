@@ -7,6 +7,9 @@
 
 import AdaECS
 import AdaUtils
+#if WASM && canImport(JavaScriptEventLoop)
+import JavaScriptEventLoop
+#endif
 import Logging
 
 /// The context of the app.
@@ -33,6 +36,10 @@ public struct AppContext<T: App>: ~Copyable {
     /// - Throws: An error if the app cannot be run.
     @_spi(Internal)
     public func run() async throws {
+        #if WASM && canImport(JavaScriptEventLoop)
+        JavaScriptEventLoop.installGlobalExecutor()
+        #endif
+
         LoggingSystem.bootstrap {
             MultiplexLogHandler([
                 StreamLogHandler.standardError(label: $0),

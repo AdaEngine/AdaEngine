@@ -18,6 +18,11 @@ struct AdaWebExportPlugin: CommandPlugin {
             return
         }
         let sdk = try options.swiftSDK ?? detectWasmSDK()
+        let buildDirectory = context.package.directoryURL.appending(
+            component: ".build-web-\(options.product)",
+            directoryHint: .isDirectory
+        )
+        try prepareBuildDirectory(buildDirectory, packageDirectory: context.package.directoryURL)
 
         Diagnostics.remark("Building \(options.product) for WebAssembly with Swift SDK \(sdk)")
         try run(
@@ -25,16 +30,21 @@ struct AdaWebExportPlugin: CommandPlugin {
             arguments: [
                 "swift",
                 "build",
+                "--scratch-path",
+                buildDirectory.path(),
+                "--disable-sandbox",
+                "--skip-update",
+                "--disable-automatic-resolution",
+                "--disable-keychain",
+                "--disable-experimental-prebuilts",
                 "--product",
                 options.product,
                 "--swift-sdk",
                 sdk,
                 "-c",
                 options.configuration.rawValue,
-                "-Xswiftc",
-                "-Xclang-linker",
-                "-Xswiftc",
-                "-mexec-model=reactor"
+                "-Xcc",
+                "-DHAVE_UNISTD_H=1"
             ],
             workingDirectory: context.package.directoryURL
         )
@@ -42,13 +52,14 @@ struct AdaWebExportPlugin: CommandPlugin {
         let wasm = try findBuiltWasm(
             product: options.product,
             configuration: options.configuration,
-            packageDirectory: context.package.directoryURL
+            buildDirectory: buildDirectory
         )
 
         try exportBundle(
             wasm: wasm,
             options: options,
-            packageDirectory: context.package.directoryURL
+            packageDirectory: context.package.directoryURL,
+            shaderTranspiler: try context.tool(named: "AdaShaderTranspilerTool").url
         )
 
         Diagnostics.remark("Exported AdaEngine web app to \(options.outputDirectory.path())")
@@ -83,22 +94,21 @@ struct AdaWebExportPlugin: CommandPlugin {
         https://www.swift.org/documentation/articles/wasm-getting-started.html
 
         You can also pass an explicit SDK id:
-        swift package plugin --allow-writing-to-package-directory export-web --target <ProductName> --swift-sdk <sdk-id>
+        swift package plugin --allow-writing-to-package-directory --allow-network-connections all export-web --product <ProductName> --swift-sdk <sdk-id>
         """)
     }
 
     private func findBuiltWasm(
         product: String,
         configuration: ExportOptions.Configuration,
-        packageDirectory: URL
+        buildDirectory: URL
     ) throws -> URL {
-        let buildDirectory = packageDirectory.appending(components: ".build", directoryHint: .isDirectory)
         guard let enumerator = FileManager.default.enumerator(
             at: buildDirectory,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles]
         ) else {
-            throw ExportError.wasmNotFound(product)
+            throw ExportError.wasmNotFound(product, buildDirectory.path())
         }
 
         let candidates = enumerator.compactMap { item -> URL? in
@@ -115,22 +125,56 @@ struct AdaWebExportPlugin: CommandPlugin {
         }
 
         guard let wasm = candidates.sorted(by: { $0.path.count < $1.path.count }).last else {
-            throw ExportError.wasmNotFound(product)
+            throw ExportError.wasmNotFound(product, buildDirectory.path())
         }
 
         return wasm
     }
 
+    private func prepareBuildDirectory(_ buildDirectory: URL, packageDirectory: URL) throws {
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(at: buildDirectory, withIntermediateDirectories: true)
+
+        let packageBuildDirectory = packageDirectory.appending(component: ".build", directoryHint: .isDirectory)
+        for name in ["checkouts", "repositories", "artifacts", "workspace-state.json"] {
+            let source = packageBuildDirectory.appending(component: name)
+            let destination = buildDirectory.appending(component: name)
+            guard fileManager.fileExists(atPath: source.path()), !fileManager.fileExists(atPath: destination.path()) else {
+                continue
+            }
+            try fileManager.createSymbolicLink(at: destination, withDestinationURL: source)
+        }
+    }
+
     private func exportBundle(
         wasm: URL,
         options: ExportOptions,
-        packageDirectory: URL
+        packageDirectory: URL,
+        shaderTranspiler: URL
     ) throws {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: options.outputDirectory, withIntermediateDirectories: true)
 
         let wasmOutput = options.outputDirectory.appending(component: "\(options.product).wasm", directoryHint: .notDirectory)
         try replaceItem(at: wasmOutput, with: wasm)
+
+        let resourceBundles = try copyResourceBundles(near: wasm, to: options.outputDirectory)
+        var resourceManifest = try resourceBundles
+            .flatMap { bundle in
+                try manifestEntries(forResourceBundle: bundle)
+            }
+        let generatedShaders = try generateWGSLShaders(
+            resourceBundles: resourceBundles,
+            outputDirectory: options.outputDirectory,
+            packageDirectory: packageDirectory,
+            shaderTranspiler: shaderTranspiler
+        )
+        resourceManifest.append(contentsOf: generatedShaders)
+        resourceManifest.sort { $0.path < $1.path }
+        try writeResourceManifest(
+            resourceManifest,
+            to: options.outputDirectory.appending(component: "ada-resource-manifest.json", directoryHint: .notDirectory)
+        )
 
         let assetsSource = packageDirectory.appending(component: "Assets", directoryHint: .isDirectory)
         let assetsDestination = options.outputDirectory.appending(component: "Assets", directoryHint: .isDirectory)
@@ -140,6 +184,16 @@ struct AdaWebExportPlugin: CommandPlugin {
             }
             try fileManager.copyItem(at: assetsSource, to: assetsDestination)
         }
+        let runtime = try javascriptKitRuntime(packageDirectory: packageDirectory)
+        try replaceItem(
+            at: options.outputDirectory.appending(component: "runtime.mjs", directoryHint: .notDirectory),
+            with: runtime
+        )
+        try writeBridgeJSRuntime(
+            packageDirectory: packageDirectory,
+            to: options.outputDirectory.appending(component: "bridge-js.js", directoryHint: .notDirectory)
+        )
+        try copyLoaderAssets(to: options.outputDirectory)
 
         try indexHTML(product: options.product).write(
             to: options.outputDirectory.appending(component: "index.html", directoryHint: .notDirectory),
@@ -163,12 +217,449 @@ struct AdaWebExportPlugin: CommandPlugin {
         )
     }
 
+    private func copyLoaderAssets(to outputDirectory: URL) throws {
+        let fileManager = FileManager.default
+        let loaderAssetsDirectory = outputDirectory.appending(component: "loader-assets", directoryHint: .isDirectory)
+        try fileManager.createDirectory(at: loaderAssetsDirectory, withIntermediateDirectories: true)
+
+        let logoSourceDirectory = URL(fileURLWithPath: "/Users/vlad-prusakov/Developer/adawebsite/public/images", isDirectory: true)
+        for logoName in ["ae_logo.svg", "ae_logo~dark.svg"] {
+            let source = logoSourceDirectory.appending(component: logoName, directoryHint: .notDirectory)
+            guard fileManager.fileExists(atPath: source.path()) else {
+                continue
+            }
+
+            try replaceItem(
+                at: loaderAssetsDirectory.appending(component: logoName, directoryHint: .notDirectory),
+                with: source
+            )
+        }
+    }
+
     private func replaceItem(at destination: URL, with source: URL) throws {
         let fileManager = FileManager.default
         if fileManager.fileExists(atPath: destination.path()) {
             try fileManager.removeItem(at: destination)
         }
         try fileManager.copyItem(at: source, to: destination)
+    }
+
+    private func copyResourceBundles(near wasm: URL, to outputDirectory: URL) throws -> [URL] {
+        let fileManager = FileManager.default
+        let buildProductsDirectory = wasm.deletingLastPathComponent()
+        let resourceBundles = try fileManager.contentsOfDirectory(
+            at: buildProductsDirectory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ).filter { url in
+            guard url.pathExtension == "resources" else {
+                return false
+            }
+            let resourceValues = try? url.resourceValues(forKeys: [.isDirectoryKey])
+            return resourceValues?.isDirectory == true
+        }
+
+        for bundle in resourceBundles {
+            let destination = outputURL(forAbsoluteBuildURL: bundle, in: outputDirectory)
+            if fileManager.fileExists(atPath: destination.path()) {
+                try fileManager.removeItem(at: destination)
+            }
+            try fileManager.createDirectory(
+                at: destination.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try fileManager.copyItem(at: bundle, to: destination)
+        }
+
+        return resourceBundles
+    }
+
+    private func generateWGSLShaders(
+        resourceBundles: [URL],
+        outputDirectory: URL,
+        packageDirectory: URL,
+        shaderTranspiler: URL
+    ) throws -> [ResourceManifestEntry] {
+        let shaderURLs = try resourceBundles
+            .flatMap { bundle in
+                try regularFiles(in: bundle)
+            }
+            .filter { $0.pathExtension == "glsl" && containsShaderStagePragma($0) }
+            .sorted { $0.path() < $1.path() }
+        guard !shaderURLs.isEmpty else {
+            Diagnostics.remark("No GLSL shader resources need WGSL generation")
+            return []
+        }
+
+        let tintExecutable = try self.tintExecutable(packageDirectory: packageDirectory)
+        let moduleIncludeArguments = shaderModuleIncludeArguments(
+            resourceBundles: resourceBundles,
+            packageDirectory: packageDirectory
+        )
+
+        var entries: [ResourceManifestEntry] = []
+        for shaderURL in shaderURLs {
+            let shaderOutputDirectory = outputURL(
+                forAbsoluteBuildURL: shaderURL,
+                in: outputDirectory
+            ).deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: shaderOutputDirectory, withIntermediateDirectories: true)
+
+            var arguments = [
+                "--input",
+                shaderURL.path(),
+                "--output-directory",
+                shaderOutputDirectory.path(),
+                "--tint",
+                tintExecutable.path()
+            ]
+            arguments.append(contentsOf: moduleIncludeArguments)
+
+            do {
+                let generatedOutput = try captureStandardOutput(
+                    executable: shaderTranspiler.path(),
+                    arguments: arguments,
+                    workingDirectory: packageDirectory
+                )
+                let generatedEntries = generatedOutput
+                    .split(whereSeparator: \.isNewline)
+                    .map(String.init)
+                    .compactMap { outputPath -> ResourceManifestEntry? in
+                        let outputURL = URL(fileURLWithPath: outputPath)
+                        guard FileManager.default.fileExists(atPath: outputURL.path()) else {
+                            return nil
+                        }
+                        let absoluteBuildURL = shaderURL
+                            .deletingLastPathComponent()
+                            .appending(component: outputURL.lastPathComponent, directoryHint: .notDirectory)
+                        return ResourceManifestEntry(
+                            path: absoluteBuildURL.path(),
+                            url: browserRelativeURL(forAbsoluteBuildURL: absoluteBuildURL)
+                        )
+                    }
+                entries.append(contentsOf: generatedEntries)
+            } catch {
+                Diagnostics.warning("Skipping WGSL generation for \(shaderURL.lastPathComponent): \(error)")
+            }
+        }
+
+        Diagnostics.remark("Generated \(entries.count) WGSL shader resources with Tint")
+        return entries
+    }
+
+    private func containsShaderStagePragma(_ url: URL) -> Bool {
+        guard let data = FileManager.default.contents(atPath: url.path()),
+              let source = String(data: data, encoding: .utf8) else {
+            return false
+        }
+
+        return source.contains("#pragma stage")
+    }
+
+    private func regularFiles(in directory: URL) throws -> [URL] {
+        guard let enumerator = FileManager.default.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        var files: [URL] = []
+        for case let url as URL in enumerator {
+            let resourceValues = try url.resourceValues(forKeys: [.isRegularFileKey])
+            if resourceValues.isRegularFile == true {
+                files.append(url)
+            }
+        }
+        return files
+    }
+
+    private func shaderModuleIncludeArguments(resourceBundles: [URL], packageDirectory: URL) -> [String] {
+        let candidates = resourceBundles.map {
+            $0.appending(components: "Shaders", "Public", directoryHint: .isDirectory)
+        } + [
+            packageDirectory.appending(
+                components: "Sources", "AdaRender", "Assets", "Shaders", "Public",
+                directoryHint: .isDirectory
+            )
+        ]
+
+        guard let publicShaders = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path()) }) else {
+            return []
+        }
+
+        return [
+            "--module-include",
+            "AdaEngine=\(publicShaders.path())"
+        ]
+    }
+
+    private func tintExecutable(packageDirectory: URL) throws -> URL {
+        if let override = ProcessInfo.processInfo.environment["TINT_EXECUTABLE"], !override.isEmpty {
+            let executable = URL(fileURLWithPath: override)
+            if FileManager.default.isExecutableFile(atPath: executable.path()) {
+                Diagnostics.remark("Using Tint compiler from TINT_EXECUTABLE: \(executable.path())")
+                return executable
+            }
+        }
+
+        if let executable = builtTintExecutable(packageDirectory: packageDirectory) {
+            Diagnostics.remark("Using Tint compiler from WebGPUTintPlugin output: \(executable.path())")
+            return executable
+        }
+
+        if let executable = findExecutableInPATH(named: .tintBinaryName) {
+            Diagnostics.remark("Using Tint compiler from PATH: \(executable.path())")
+            return executable
+        }
+
+        Diagnostics.remark("Tint compiler was not found locally; building Dawn/Tint before WGSL generation")
+        try buildTintCompiler(packageDirectory: packageDirectory)
+
+        if let executable = builtTintExecutable(packageDirectory: packageDirectory) {
+            Diagnostics.remark("Using newly built Tint compiler: \(executable.path())")
+            return executable
+        }
+
+        if let executable = findExecutableInPATH(named: .tintBinaryName) {
+            Diagnostics.remark("Using Tint compiler from PATH: \(executable.path())")
+            return executable
+        }
+
+        let expectedExecutable = packageDirectory.appending(
+            components: ".build", "plugins", "WebGPUTintPlugin", "outputs", "bin", .tintBinaryPlatform, .tintBinaryName,
+            directoryHint: .notDirectory
+        )
+        throw ExportError.tintNotFound(expectedExecutable.path())
+    }
+
+    private func builtTintExecutable(packageDirectory: URL) -> URL? {
+        let executable = packageDirectory.appending(
+            components: ".build", "plugins", "WebGPUTintPlugin", "outputs", "bin", .tintBinaryPlatform, .tintBinaryName,
+            directoryHint: .notDirectory
+        )
+        guard FileManager.default.isExecutableFile(atPath: executable.path()) else {
+            return nil
+        }
+        return executable
+    }
+
+    private func findExecutableInPATH(named name: String) -> URL? {
+        let paths = ProcessInfo.processInfo.environment["PATH"]?.split(separator: ":").map(String.init) ?? []
+        return paths
+            .map { URL(fileURLWithPath: $0).appending(component: name, directoryHint: .notDirectory) }
+            .first { FileManager.default.isExecutableFile(atPath: $0.path()) }
+    }
+
+    private func buildTintCompiler(packageDirectory: URL) throws {
+        try run(
+            executable: "/usr/bin/env",
+            arguments: [
+                "swift",
+                "package",
+                "plugin",
+                "--allow-network-connections",
+                "all",
+                "build-tint"
+            ],
+            workingDirectory: packageDirectory
+        )
+    }
+
+    private func manifestEntries(forResourceBundle bundle: URL) throws -> [ResourceManifestEntry] {
+        let fileManager = FileManager.default
+        guard let enumerator = fileManager.enumerator(
+            at: bundle,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        var entries: [ResourceManifestEntry] = []
+        for item in enumerator {
+            guard let url = item as? URL else {
+                continue
+            }
+            let resourceValues = try url.resourceValues(forKeys: [.isRegularFileKey])
+            guard resourceValues.isRegularFile == true else {
+                continue
+            }
+            entries.append(
+                ResourceManifestEntry(
+                    path: url.path(),
+                    url: browserRelativeURL(forAbsoluteBuildURL: url)
+                )
+            )
+        }
+        return entries
+    }
+
+    private func writeResourceManifest(_ manifest: [ResourceManifestEntry], to output: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(manifest).write(to: output, options: [.atomic])
+    }
+
+    private func outputURL(forAbsoluteBuildURL url: URL, in outputDirectory: URL) -> URL {
+        url.pathComponents
+            .filter { $0 != "/" }
+            .reduce(outputDirectory) { partialResult, component in
+                partialResult.appending(component: component)
+            }
+    }
+
+    private func browserRelativeURL(forAbsoluteBuildURL url: URL) -> String {
+        let allowedCharacters = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "?#"))
+        return "./" + url.pathComponents
+            .filter { $0 != "/" }
+            .map { component in
+                component.addingPercentEncoding(withAllowedCharacters: allowedCharacters) ?? component
+            }
+            .joined(separator: "/")
+    }
+
+    private func javascriptKitRuntime(packageDirectory: URL) throws -> URL {
+        let candidates = [
+            packageDirectory.appending(
+                components: ".build", "checkouts", "JavaScriptKit", "Plugins", "PackageToJS", "Templates", "runtime.mjs",
+                directoryHint: .notDirectory
+            ),
+            packageDirectory.appending(
+                components: ".build", "checkouts", "javascriptkit", "Plugins", "PackageToJS", "Templates", "runtime.mjs",
+                directoryHint: .notDirectory
+            )
+        ]
+        if let runtime = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path()) }) {
+            return runtime
+        }
+        throw ExportError.javascriptKitRuntimeNotFound
+    }
+
+    private func writeBridgeJSRuntime(packageDirectory: URL, to output: URL) throws {
+        guard let skeleton = bridgeJSSkeleton(packageDirectory: packageDirectory) else {
+            try """
+            export async function createInstantiator() {
+              return {
+                addImports: () => {},
+                setInstance: () => {},
+                createExports: () => ({}),
+              };
+            }
+            """.write(to: output, atomically: true, encoding: .utf8)
+            return
+        }
+
+        let bridgeJSPackage = try bridgeJSPackageDirectory(packageDirectory: packageDirectory)
+        let bridgeJSTool = try bridgeJSToolExecutable(
+            bridgeJSPackage: bridgeJSPackage,
+            packageDirectory: packageDirectory
+        )
+        try runBridgeJSTool(
+            executable: bridgeJSTool,
+            skeleton: skeleton,
+            output: output,
+            workingDirectory: packageDirectory
+        )
+    }
+
+    private func bridgeJSSkeleton(packageDirectory: URL) -> URL? {
+        let candidates = [
+            packageDirectory.appending(
+                components: ".build", "checkouts", "swan", "Sources", "WebGPU", "Wasm", "Generated", "JavaScript", "BridgeJS.json",
+                directoryHint: .notDirectory
+            ),
+            packageDirectory.appending(
+                components: ".build", "checkouts", "Swan", "Sources", "WebGPU", "Wasm", "Generated", "JavaScript", "BridgeJS.json",
+                directoryHint: .notDirectory
+            )
+        ]
+        return candidates.first(where: { FileManager.default.fileExists(atPath: $0.path()) })
+    }
+
+    private func bridgeJSPackageDirectory(packageDirectory: URL) throws -> URL {
+        let swanDirectoryCandidates = [
+            packageDirectory.appending(components: ".build", "checkouts", "swan", directoryHint: .isDirectory),
+            packageDirectory.appending(components: ".build", "checkouts", "Swan", directoryHint: .isDirectory)
+        ]
+        let swanDirectory = swanDirectoryCandidates.first(where: { FileManager.default.fileExists(atPath: $0.path()) })
+        if let swanDirectory {
+            let nestedBridgeJS = swanDirectory.appending(
+                components: ".build", "checkouts", "JavaScriptKit", "Plugins", "BridgeJS",
+                directoryHint: .isDirectory
+            )
+            if !FileManager.default.fileExists(atPath: nestedBridgeJS.path()) {
+                try run(
+                    executable: "/usr/bin/env",
+                    arguments: ["swift", "package", "--package-path", swanDirectory.path(), "resolve"],
+                    workingDirectory: packageDirectory
+                )
+            }
+            if FileManager.default.fileExists(atPath: nestedBridgeJS.path()) {
+                return nestedBridgeJS
+            }
+        }
+
+        let candidates = [
+            packageDirectory.appending(
+                components: ".build", "checkouts", "JavaScriptKit", "Plugins", "BridgeJS",
+                directoryHint: .isDirectory
+            ),
+            packageDirectory.appending(
+                components: ".build", "checkouts", "javascriptkit", "Plugins", "BridgeJS",
+                directoryHint: .isDirectory
+            )
+        ]
+        if let bridgeJSPackage = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path()) }) {
+            return bridgeJSPackage
+        }
+
+        throw ExportError.bridgeJSPackageNotFound
+    }
+
+    private func bridgeJSToolExecutable(bridgeJSPackage: URL, packageDirectory: URL) throws -> URL {
+        if let existing = findBridgeJSToolExecutable(in: bridgeJSPackage) {
+            return existing
+        }
+
+        try run(
+            executable: "/usr/bin/env",
+            arguments: [
+                "swift",
+                "build",
+                "--disable-sandbox",
+                "--package-path",
+                bridgeJSPackage.path(),
+                "--product",
+                "BridgeJSToolInternal"
+            ],
+            workingDirectory: packageDirectory
+        )
+
+        guard let built = findBridgeJSToolExecutable(in: bridgeJSPackage) else {
+            throw ExportError.bridgeJSToolNotFound
+        }
+        return built
+    }
+
+    private func findBridgeJSToolExecutable(in bridgeJSPackage: URL) -> URL? {
+        let buildDirectory = bridgeJSPackage.appending(component: ".build", directoryHint: .isDirectory)
+        guard let enumerator = FileManager.default.enumerator(
+            at: buildDirectory,
+            includingPropertiesForKeys: [.isRegularFileKey, .isExecutableKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return nil
+        }
+
+        for case let url as URL in enumerator where url.lastPathComponent == "BridgeJSToolInternal" {
+            let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isExecutableKey])
+            if values?.isRegularFile == true, values?.isExecutable == true {
+                return url
+            }
+        }
+        return nil
     }
 
     private func serve(directory: URL) throws {
@@ -185,6 +676,10 @@ struct AdaWebExportPlugin: CommandPlugin {
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
         process.currentDirectoryURL = workingDirectory
+        process.environment = ProcessInfo.processInfo.environment.merging([
+            "ADAENGINE_WEB_EXPORT": "1",
+            "BUILD_WASM": "1"
+        ]) { _, new in new }
         try process.run()
         process.waitUntilExit()
 
@@ -210,6 +705,61 @@ struct AdaWebExportPlugin: CommandPlugin {
             throw ExportError.commandFailed(arguments.joined(separator: " "), process.terminationStatus)
         }
         return output
+    }
+
+    private func captureStandardOutput(executable: String, arguments: [String], workingDirectory: URL?) throws -> String {
+        let process = Process()
+        let standardOutput = Pipe()
+        let standardError = Pipe()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.currentDirectoryURL = workingDirectory
+        process.standardOutput = standardOutput
+        process.standardError = standardError
+        process.environment = ProcessInfo.processInfo.environment.merging([
+            "ADAENGINE_WEB_EXPORT": "1",
+            "BUILD_WASM": "1"
+        ]) { _, new in new }
+        try process.run()
+        process.waitUntilExit()
+
+        let data = standardOutput.fileHandleForReading.readDataToEndOfFile()
+        let output = String(decoding: data, as: UTF8.self)
+        guard process.terminationStatus == 0 else {
+            let errorData = standardError.fileHandleForReading.readDataToEndOfFile()
+            let errorOutput = String(decoding: errorData, as: UTF8.self)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let command = ([executable] + arguments).joined(separator: " ")
+            throw ExportError.commandFailed(
+                errorOutput.isEmpty ? command : "\(command)\n\(errorOutput)",
+                process.terminationStatus
+            )
+        }
+        return output
+    }
+
+    private func runBridgeJSTool(executable: URL, skeleton: URL, output: URL, workingDirectory: URL?) throws {
+        FileManager.default.createFile(atPath: output.path(), contents: nil)
+        let outputHandle = try FileHandle(forWritingTo: output)
+        defer {
+            try? outputHandle.close()
+        }
+
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = ["emit-js", skeleton.path()]
+        process.currentDirectoryURL = workingDirectory
+        process.standardOutput = outputHandle
+        process.environment = ProcessInfo.processInfo.environment.merging([
+            "ADAENGINE_WEB_EXPORT": "1",
+            "BUILD_WASM": "1"
+        ]) { _, new in new }
+        try process.run()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            throw ExportError.commandFailed("\(executable.path()) emit-js \(skeleton.path())", process.terminationStatus)
+        }
     }
 }
 
@@ -282,6 +832,43 @@ private struct ExportOptions {
     }
 }
 
+private struct ResourceManifestEntry: Encodable {
+    let path: String
+    let url: String
+}
+
+private extension String {
+    static var tintBinaryPlatform: String {
+        #if arch(arm64)
+        #if os(macOS)
+        return "arm64-macos"
+        #elseif os(Linux)
+        return "arm64-linux"
+        #else
+        return ""
+        #endif
+        #else
+        #if os(macOS)
+        return "x86_64-macos"
+        #elseif os(Linux)
+        return "x86_64-linux"
+        #elseif os(Windows)
+        return "x86_64-win32"
+        #else
+        return ""
+        #endif
+        #endif
+    }
+
+    static var tintBinaryName: String {
+        #if os(Windows)
+        "tint.exe"
+        #else
+        "tint"
+        #endif
+    }
+}
+
 private enum ExportError: LocalizedError, CustomStringConvertible {
     case help
     case missingTarget
@@ -289,7 +876,11 @@ private enum ExportError: LocalizedError, CustomStringConvertible {
     case missingWasmSDK(String)
     case unknownArgument(String)
     case commandFailed(String, Int32)
-    case wasmNotFound(String)
+    case wasmNotFound(String, String)
+    case javascriptKitRuntimeNotFound
+    case bridgeJSPackageNotFound
+    case bridgeJSToolNotFound
+    case tintNotFound(String)
 
     var errorDescription: String? {
         description
@@ -300,10 +891,10 @@ private enum ExportError: LocalizedError, CustomStringConvertible {
         case .help:
             return """
             Usage:
-              swift package plugin --allow-writing-to-package-directory export-web --target <ProductName> [--output dist/web] [--swift-sdk <sdk-id>] [--debug|--release] [--serve]
+              swift package plugin --allow-writing-to-package-directory --allow-network-connections all export-web --product <ProductName> [--output dist/web] [--swift-sdk <sdk-id>] [--debug|--release] [--serve]
             """
         case .missingTarget:
-            return "Missing required --target <ProductName> argument."
+            return "Missing required --product <ProductName> argument."
         case .missingValue(let argument):
             return "Missing value for \(argument)."
         case .missingWasmSDK(let message):
@@ -312,8 +903,16 @@ private enum ExportError: LocalizedError, CustomStringConvertible {
             return "Unknown argument: \(argument)"
         case .commandFailed(let command, let status):
             return "Command failed with exit code \(status): \(command)"
-        case .wasmNotFound(let product):
-            return "Could not find built \(product).wasm under .build."
+        case .wasmNotFound(let product, let buildDirectory):
+            return "Could not find built \(product).wasm under \(buildDirectory)."
+        case .javascriptKitRuntimeNotFound:
+            return "Could not find JavaScriptKit runtime.mjs under .build/checkouts/JavaScriptKit."
+        case .bridgeJSPackageNotFound:
+            return "Could not find JavaScriptKit BridgeJS package under .build/checkouts."
+        case .bridgeJSToolNotFound:
+            return "Could not find built BridgeJSToolInternal executable."
+        case .tintNotFound(let path):
+            return "Tint binary not found at \(path). Install `tint`, set TINT_EXECUTABLE, or run `swift package plugin --allow-network-connections all build-tint` before exporting web builds."
         }
     }
 }
@@ -327,6 +926,25 @@ private func indexHTML(product: String) -> String {
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <title>\(product)</title>
       <style>
+        :root {
+          color-scheme: light dark;
+          --ada-loader-background: radial-gradient(circle at 50% 35%, #f8fafc 0, #e7ecf5 42%, #cdd6e6 100%);
+          --ada-loader-card: rgba(255, 255, 255, 0.74);
+          --ada-loader-text: #111827;
+          --ada-loader-muted: #5b6473;
+          --ada-loader-track: rgba(17, 24, 39, 0.13);
+          --ada-loader-progress: linear-gradient(90deg, #1d4ed8, #7c3aed, #06b6d4);
+        }
+        @media (prefers-color-scheme: dark) {
+          :root {
+            --ada-loader-background: radial-gradient(circle at 50% 35%, #242635 0, #12131b 48%, #07080d 100%);
+            --ada-loader-card: rgba(14, 16, 24, 0.72);
+            --ada-loader-text: #f8fafc;
+            --ada-loader-muted: #a9b0bf;
+            --ada-loader-track: rgba(255, 255, 255, 0.14);
+            --ada-loader-progress: linear-gradient(90deg, #60a5fa, #a78bfa, #22d3ee);
+          }
+        }
         html, body, #ada-canvas-root {
           width: 100%;
           height: 100%;
@@ -334,15 +952,123 @@ private func indexHTML(product: String) -> String {
           overflow: hidden;
           background: #101014;
         }
+        body {
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
         canvas {
           width: 100%;
           height: 100%;
           outline: none;
         }
+        #ada-canvas-root {
+          position: fixed;
+          inset: 0;
+        }
+        #ada-loader {
+          position: fixed;
+          inset: 0;
+          z-index: 2147483647;
+          display: grid;
+          place-items: center;
+          background: var(--ada-loader-background);
+          color: var(--ada-loader-text);
+          transition: opacity 260ms ease, visibility 260ms ease;
+        }
+        #ada-loader[data-state="hidden"] {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+        }
+        .ada-loader-card {
+          width: min(360px, calc(100vw - 48px));
+          padding: 32px 30px 28px;
+          border: 1px solid rgba(128, 140, 160, 0.2);
+          border-radius: 28px;
+          background: var(--ada-loader-card);
+          box-shadow: 0 22px 70px rgba(0, 0, 0, 0.22);
+          text-align: center;
+          -webkit-backdrop-filter: blur(24px);
+          backdrop-filter: blur(24px);
+        }
+        .ada-loader-logo {
+          width: 116px;
+          height: auto;
+          margin-bottom: 22px;
+          filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.18));
+        }
+        .ada-loader-title {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+        }
+        .ada-loader-status {
+          min-height: 20px;
+          margin: 8px 0 22px;
+          color: var(--ada-loader-muted);
+          font-size: 13px;
+          line-height: 20px;
+        }
+        .ada-loader-progress-track {
+          position: relative;
+          height: 8px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: var(--ada-loader-track);
+        }
+        .ada-loader-progress-bar {
+          width: 8%;
+          height: 100%;
+          border-radius: inherit;
+          background: var(--ada-loader-progress);
+          box-shadow: 0 0 22px rgba(96, 165, 250, 0.45);
+          transition: width 180ms ease;
+        }
+        .ada-loader-progress-bar[data-indeterminate="true"] {
+          position: absolute;
+          width: 42%;
+          animation: ada-loader-slide 1.15s ease-in-out infinite;
+        }
+        .ada-loader-percent {
+          margin-top: 12px;
+          color: var(--ada-loader-muted);
+          font-size: 12px;
+          font-variant-numeric: tabular-nums;
+        }
+        #ada-loader[data-state="error"] .ada-loader-progress-bar {
+          width: 100%;
+          background: linear-gradient(90deg, #ef4444, #f97316);
+          animation: none;
+        }
+        @keyframes ada-loader-slide {
+          0% { transform: translateX(-110%); }
+          50% { transform: translateX(45%); }
+          100% { transform: translateX(240%); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          #ada-loader, .ada-loader-progress-bar {
+            transition: none;
+            animation: none;
+          }
+        }
       </style>
     </head>
     <body>
       <div id="ada-canvas-root"></div>
+      <div id="ada-loader" role="status" aria-live="polite" aria-label="Loading \(product)">
+        <div class="ada-loader-card">
+          <picture>
+            <source srcset="./loader-assets/ae_logo~dark.svg" media="(prefers-color-scheme: dark)">
+            <img class="ada-loader-logo" src="./loader-assets/ae_logo.svg" alt="AdaEngine">
+          </picture>
+          <h1 class="ada-loader-title">\(product)</h1>
+          <div id="ada-loader-status" class="ada-loader-status">Preparing WebAssembly…</div>
+          <div class="ada-loader-progress-track" aria-hidden="true">
+            <div id="ada-loader-progress" class="ada-loader-progress-bar" data-indeterminate="true"></div>
+          </div>
+          <div id="ada-loader-percent" class="ada-loader-percent">0%</div>
+        </div>
+      </div>
       <script type="module" src="./main.js"></script>
     </body>
     </html>
@@ -351,26 +1077,177 @@ private func indexHTML(product: String) -> String {
 
 private func mainJS(product: String) -> String {
     """
-    import { WASI, File, OpenFile, ConsoleStdout } from "@bjorn3/browser_wasi_shim";
-    import { SwiftRuntime } from "javascript-kit-swift";
+    import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory, Directory } from "@bjorn3/browser_wasi_shim";
+    import { createInstantiator } from "./bridge-js.js";
+    import { SwiftRuntime } from "./runtime.mjs";
 
-    const wasmURL = new URL("./\(product).wasm", import.meta.url);
-    const wasmBytes = await (await fetch(wasmURL)).arrayBuffer();
-    const swift = new SwiftRuntime();
-    const wasi = new WASI(["\(product).wasm"], [], [
-      new OpenFile(new File([])),
-      ConsoleStdout.lineBuffered((line) => console.log(line)),
-      ConsoleStdout.lineBuffered((line) => console.warn(line)),
-    ], { debug: false });
+    const loader = document.getElementById("ada-loader");
+    const loaderStatus = document.getElementById("ada-loader-status");
+    const loaderProgress = document.getElementById("ada-loader-progress");
+    const loaderPercent = document.getElementById("ada-loader-percent");
+    let lastProgress = 0;
 
-    const { instance } = await WebAssembly.instantiate(wasmBytes, {
-      wasi_snapshot_preview1: wasi.wasiImport,
-      javascript_kit: swift.wasmImports,
-    });
+    function updateLoader(progress, status, options = {}) {
+      const nextProgress = Math.max(lastProgress, Math.min(100, Math.round(progress)));
+      lastProgress = nextProgress;
+      if (loaderStatus && status) loaderStatus.textContent = status;
+      if (loaderProgress) {
+        loaderProgress.dataset.indeterminate = options.indeterminate ? "true" : "false";
+        loaderProgress.style.width = `${Math.max(4, nextProgress)}%`;
+      }
+      if (loaderPercent) loaderPercent.textContent = `${nextProgress}%`;
+    }
 
-    swift.setInstance(instance);
-    wasi.initialize(instance);
-    swift.main();
+    function hideLoader() {
+      updateLoader(100, "Launching…");
+      requestAnimationFrame(() => {
+        loader?.setAttribute("data-state", "hidden");
+        setTimeout(() => loader?.remove(), 320);
+      });
+    }
+
+    function failLoader(error) {
+      console.error(error);
+      loader?.setAttribute("data-state", "error");
+      updateLoader(100, "Failed to start. See console for details.");
+    }
+
+    async function fetchArrayBufferWithProgress(url, start, end, status) {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+      }
+
+      const contentLength = Number(response.headers.get("content-length"));
+      if (!response.body || !Number.isFinite(contentLength) || contentLength <= 0) {
+        updateLoader(start, status, { indeterminate: true });
+        const buffer = await response.arrayBuffer();
+        updateLoader(end, status);
+        return buffer;
+      }
+
+      const reader = response.body.getReader();
+      const chunks = [];
+      let received = 0;
+      updateLoader(start, status);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.byteLength;
+        updateLoader(start + ((end - start) * received / contentLength), status);
+      }
+
+      const bytes = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      updateLoader(end, status);
+      return bytes.buffer;
+    }
+
+    async function run() {
+      updateLoader(2, "Loading WebAssembly…", { indeterminate: true });
+      const wasmURL = new URL("./\(product).wasm", import.meta.url);
+      const wasmBytes = await fetchArrayBufferWithProgress(wasmURL, 5, 48, "Loading WebAssembly…");
+      updateLoader(52, "Preparing Swift runtime…");
+      const swift = new SwiftRuntime();
+
+      if (!navigator.gpu) {
+        throw new Error("WebGPU is not supported in this browser.");
+      }
+      updateLoader(58, "Requesting WebGPU adapter…");
+      const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+      if (!adapter) {
+        throw new Error("Failed to acquire WebGPU adapter.");
+      }
+      const optionalFeatures = ["float32-filterable"];
+      const requiredFeatures = optionalFeatures.filter((feature) => adapter.features.has(feature));
+      updateLoader(64, "Creating WebGPU device…");
+      const device = await adapter.requestDevice({ requiredFeatures });
+      globalThis.__adaWebGPUAdapter = adapter;
+      globalThis.__adaWebGPUDevice = device;
+
+      async function makeResourcePreopen() {
+        updateLoader(68, "Loading resources…");
+        const response = await fetch(new URL("./ada-resource-manifest.json", import.meta.url));
+        const manifest = response.ok ? await response.json() : [];
+        const root = new Map();
+
+        let loadedResources = 0;
+        for (const entry of manifest) {
+          const parts = entry.path.split("/").filter(Boolean);
+          let directory = root;
+          for (const part of parts.slice(0, -1)) {
+            let child = directory.get(part);
+            if (!(child instanceof Map)) {
+              child = new Map();
+              directory.set(part, child);
+            }
+            directory = child;
+          }
+
+          const bytes = new Uint8Array(await (await fetch(new URL(entry.url, import.meta.url))).arrayBuffer());
+          directory.set(parts[parts.length - 1], new File(bytes, { readonly: true }));
+          loadedResources += 1;
+          updateLoader(68 + (manifest.length > 0 ? (10 * loadedResources / manifest.length) : 10), "Loading resources…");
+        }
+
+        const materialize = (map) => new Directory(
+          [...map.entries()].map(([name, value]) => [name, value instanceof Map ? materialize(value) : value])
+        );
+        return new PreopenDirectory(
+          "/",
+          [...root.entries()].map(([name, value]) => [name, value instanceof Map ? materialize(value) : value])
+        );
+      }
+
+      const resourcePreopen = await makeResourcePreopen();
+      updateLoader(82, "Configuring WASI…");
+      const wasi = new WASI(["\(product).wasm"], [], [
+        new OpenFile(new File([])),
+        ConsoleStdout.lineBuffered((line) => console.log(line)),
+        ConsoleStdout.lineBuffered((line) => console.warn(line)),
+        resourcePreopen,
+      ], { debug: false });
+      const importObject = {
+        wasi_snapshot_preview1: wasi.wasiImport,
+        javascript_kit: swift.wasmImports,
+      };
+      updateLoader(86, "Preparing JavaScript bridge…");
+      const bridgeJS = await createInstantiator({}, swift);
+      bridgeJS.addImports(importObject, {});
+      let wasmInstance;
+      const i64Stack = [];
+      const typedArrayStack = [];
+      const typedArrayConstructors = [Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array, Uint32Array, Float32Array, Float64Array];
+      importObject.bjs.swift_js_push_i64 ??= (value) => {
+        i64Stack.push(value);
+      };
+      importObject.bjs.swift_js_pop_i64 ??= () => i64Stack.pop();
+      importObject.bjs.swift_js_push_typed_array ??= (kind, pointer, count) => {
+        const constructor = typedArrayConstructors[kind];
+        const byteLength = count * constructor.BYTES_PER_ELEMENT;
+        const copy = wasmInstance.exports.memory.buffer.slice(pointer, pointer + byteLength);
+        typedArrayStack.push(Array.from(new constructor(copy)));
+      };
+
+      updateLoader(90, "Instantiating WebAssembly…", { indeterminate: true });
+      const { instance } = await WebAssembly.instantiate(wasmBytes, importObject);
+      wasmInstance = instance;
+
+      updateLoader(96, "Starting AdaEngine…");
+      swift.setInstance(instance);
+      bridgeJS.setInstance(instance);
+      bridgeJS.createExports(instance);
+      wasi.initialize(instance);
+      swift.main();
+      hideLoader();
+    }
+
+    run().catch(failLoader);
     """
 }
 
@@ -385,7 +1262,6 @@ private func packageJSON(product: String) -> String {
       },
       "dependencies": {
         "@bjorn3/browser_wasi_shim": "^0.4.1",
-        "javascript-kit-swift": "0.0.0",
         "vite": "^5.0.0"
       },
       "devDependencies": {}

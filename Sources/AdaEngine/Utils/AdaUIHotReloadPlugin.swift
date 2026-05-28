@@ -7,6 +7,7 @@
 
 // swiftlint:disable file_length
 
+#if !WASM
 import AdaApp
 import AdaAssets
 import AdaUI
@@ -1772,3 +1773,4 @@ private enum AdaUIHotReloadBuildError: Error, CustomStringConvertible {
         }
     }
 }
+#endif

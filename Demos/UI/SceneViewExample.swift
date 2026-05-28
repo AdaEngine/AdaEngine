@@ -20,48 +20,23 @@ struct SceneViewExampleApp: App {
 
 private struct SceneViewDemo: View {
 
-    @State private var dragStartCameraOffset: Vector2 = .zero
-    @State private var cameraDragOffset: Vector2 = .zero
-
     var body: some View {
         ZStack(anchor: .topLeading) {
             SceneView(
-                pluginPreset: .mesh2D,
-                setup: { world in
-                    SceneViewDemoWorld.setup(world)
+                make: { app in
+                    SceneViewDemoWorld.configure(&app)
+                    SceneViewDemoWorld.setup(app.main)
                 },
-                update: { world, deltaTime in
-                    SceneViewDemoWorld.update(
-                        world,
-                        deltaTime: deltaTime,
-                        cameraDragOffset: cameraDragOffset
-                    )
-                },
-                content: { context in
-                    context.viewport
-                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
-                                    cameraDragOffset = dragStartCameraOffset + Vector2(
-                                        -value.translation.width,
-                                        value.translation.height
-                                    )
-                                }
-                                .onEnded { value in
-                                    cameraDragOffset = dragStartCameraOffset + Vector2(
-                                        -value.translation.width,
-                                        value.translation.height
-                                    )
-                                    dragStartCameraOffset = cameraDragOffset
-                                }
-                        )
+                updateContent: { world, deltaTime in
+                    SceneViewDemoWorld.update(world, deltaTime: deltaTime)
                 }
             )
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+            .padding(.all, 32)
 
             SceneViewOverlay()
         }
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
     }
 }
 
@@ -85,9 +60,23 @@ private struct SceneViewOverlay: View {
 
 private enum SceneViewDemoWorld {
 
+    @MainActor
+    static func configure(_ app: inout AppWorlds) {
+        app.addPlugin(TransformPlugin())
+        app.addPlugin(InputPlugin())
+        app.addPlugin(RenderWorldPlugin())
+        app.addPlugin(EventsPlugin())
+        app.addPlugin(CameraPlugin())
+        app.addPlugin(AssetsPlugin(filePath: #filePath))
+        app.addPlugin(VisibilityPlugin())
+        app.addPlugin(SpritePlugin())
+        app.addPlugin(Mesh2DPlugin())
+        app.addPlugin(Core2DPlugin())
+        app.addPlugin(UpscalePlugin())
+    }
+
     static func setup(_ world: World) {
         world.insertResource(SceneViewDemoState())
-        configureCamera(in: world)
         spawnGrid(in: world)
         spawnControlledEntity(in: world)
         spawnMovingEntities(in: world)
@@ -95,8 +84,7 @@ private enum SceneViewDemoWorld {
 
     static func update(
         _ world: World,
-        deltaTime: TimeInterval,
-        cameraDragOffset: Vector2
+        deltaTime: TimeInterval
     ) {
         guard var state = world.getResource(SceneViewDemoState.self) else {
             return
@@ -105,13 +93,61 @@ private enum SceneViewDemoWorld {
         state.elapsed += deltaTime
 
         if let input = world.getResource(Input.self) {
+            for event in input.getInputEvents() {
+                handleInput(event, state: &state)
+            }
             updateCameraState(&state, input: input, deltaTime: deltaTime)
             updateControlledEntityState(&state, input: input, deltaTime: deltaTime)
         }
 
         updateEntities(in: world, state: state)
-        updateCamera(in: world, state: state, dragOffset: cameraDragOffset)
+        configureCamera(in: world)
+        updateCamera(in: world, state: state)
         world.insertResource(state)
+    }
+
+    private static func handleInput(_ event: any InputEvent, state: inout SceneViewDemoState) {
+        guard let mouseEvent = event as? MouseEvent else {
+            return
+        }
+
+        switch mouseEvent.phase {
+        case .began where mouseEvent.button == .left:
+            state.cameraDragStartPosition = mouseEvent.mousePosition
+            state.cameraDragStartOffset = state.cameraDragOffset
+            state.isCameraDragging = true
+
+        case .changed:
+            guard state.isCameraDragging else {
+                return
+            }
+            updateCameraDragOffset(&state, mousePosition: mouseEvent.mousePosition)
+
+        case .ended, .cancelled:
+            guard state.isCameraDragging else {
+                return
+            }
+            updateCameraDragOffset(&state, mousePosition: mouseEvent.mousePosition)
+            state.cameraDragStartOffset = state.cameraDragOffset
+            state.isCameraDragging = false
+
+        default:
+            break
+        }
+    }
+
+    private static func updateCameraDragOffset(
+        _ state: inout SceneViewDemoState,
+        mousePosition: Point
+    ) {
+        guard let startPosition = state.cameraDragStartPosition else {
+            return
+        }
+
+        state.cameraDragOffset = state.cameraDragStartOffset + Vector2(
+            -(mousePosition.x - startPosition.x),
+            mousePosition.y - startPosition.y
+        )
     }
 
     private static func configureCamera(in world: World) {
@@ -178,10 +214,10 @@ private enum SceneViewDemoWorld {
 
     private static func spawnMovingEntities(in world: World) {
         let entities: [(Vector3, Vector2, Float, Float, Color, Size)] = [
-            (Vector3(-360, -160, 1), Vector2(130, 70), 0.0, 0.9, Color.fromHex(0xF59E0B), Size(width: 70, height: 70)),
-            (Vector3(280, -220, 1), Vector2(90, 140), 1.7, 1.15, Color.fromHex(0x10B981), Size(width: 110, height: 58)),
-            (Vector3(-120, 220, 1), Vector2(180, 50), 3.2, 0.7, Color.fromHex(0xF43F5E), Size(width: 58, height: 110)),
-            (Vector3(360, 180, 1), Vector2(80, 90), 4.4, 1.35, Color.fromHex(0xA78BFA), Size(width: 76, height: 76)),
+            (Vector3(-360, -160, 1), Vector2(100, 54), 0.0, 0.24, Color.fromHex(0xD97706), Size(width: 70, height: 70)),
+            (Vector3(280, -220, 1), Vector2(70, 108), 1.7, 0.30, Color.fromHex(0x059669), Size(width: 110, height: 58)),
+            (Vector3(-120, 220, 1), Vector2(140, 40), 3.2, 0.20, Color.fromHex(0xE11D48), Size(width: 58, height: 110)),
+            (Vector3(360, 180, 1), Vector2(62, 70), 4.4, 0.34, Color.fromHex(0x8B5CF6), Size(width: 76, height: 76)),
         ]
 
         for (origin, radius, phase, speed, color, size) in entities {
@@ -274,8 +310,7 @@ private enum SceneViewDemoWorld {
 
     private static func updateCamera(
         in world: World,
-        state: SceneViewDemoState,
-        dragOffset: Vector2
+        state: SceneViewDemoState
     ) {
         for entity in world.getEntities() {
             guard var camera = entity.components[Camera.self],
@@ -283,7 +318,7 @@ private enum SceneViewDemoWorld {
                 continue
             }
 
-            let position = state.cameraPosition + dragOffset
+            let position = state.cameraPosition + state.cameraDragOffset
             transform.position.x = position.x
             transform.position.y = position.y
 
@@ -303,6 +338,10 @@ private struct SceneViewDemoState: Resource {
     var cameraPosition: Vector2 = .zero
     var cameraScale: Float = 1
     var controlledEntityPosition: Vector2 = .zero
+    var cameraDragOffset: Vector2 = .zero
+    var cameraDragStartOffset: Vector2 = .zero
+    var cameraDragStartPosition: Point?
+    var isCameraDragging = false
 }
 
 @Component

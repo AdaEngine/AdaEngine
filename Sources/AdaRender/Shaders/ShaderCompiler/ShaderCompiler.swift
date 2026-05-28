@@ -148,6 +148,14 @@ public final class ShaderCompiler {
         }
 
         let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
+        #if WASM
+        if unsafe RenderEngine.shared.type == .headless {
+            let shader = try Shader(spirv: binary, compiler: self)
+            try shader.compile()
+            return shader
+        }
+        #endif
+
         #if canImport(WebGPU)
         if unsafe RenderEngine.shared.type.deviceLang == .wgsl {
             let shader = try Shader(spirv: binary, compiler: self)
@@ -295,7 +303,7 @@ public final class ShaderCompiler {
 extension ShaderCompiler { 
     func makeDeviceShaderCompiler() -> ShaderDeviceCompilerEngine {
         switch unsafe RenderEngine.shared.type.deviceLang {
-        #if canImport(WebGPU)
+        #if canImport(WebGPU) && !WASM
         case .wgsl:
             return WGSLShaderCompiler()
         #endif

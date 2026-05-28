@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 23.11.2025.
 //
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 import Math
 @unsafe @preconcurrency import WebGPU
 import Synchronization
@@ -40,11 +40,15 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     }
 
     func pushDebugName(_ string: String) {
+        #if !WASM
         renderEncoder.pushDebugGroup(groupLabel: string)
+        #endif
     }
 
     func popDebugName() {
+        #if !WASM
         renderEncoder.popDebugGroup()
+        #endif
     }
 
     func setRenderPipelineState(_ pipeline: RenderPipeline) {
@@ -250,6 +254,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     }
 
     func setViewport(_ viewport: Rect) {
+        #if !WASM
         renderEncoder.setViewport(
             x: Float(viewport.origin.x),
             y: Float(viewport.origin.y),
@@ -258,6 +263,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
             minDepth: 0,
             maxDepth: 1
         )
+        #endif
     }
 
     func setScissorRect(_ rect: Rect) {
@@ -344,7 +350,11 @@ extension WGPURenderCommandEncoder {
                 continue
             }
 
+            #if WASM
+            var entries: [WebGPU.GPUBindGroupEntryEx] = []
+            #else
             var entries: [WebGPU.GPUBindGroupEntry] = []
+            #endif
             let expectedResources = expectedResourceKinds(for: pipeline, setIndex: setIndex)
 
             for (bindingSlot, texture) in resources.textures where shouldBind(
@@ -352,10 +362,17 @@ extension WGPURenderCommandEncoder {
                 as: .texture,
                 expectedResources: expectedResources
             ) {
+                #if WASM
+                entries.append(WebGPU.GPUBindGroupEntryEx(
+                    binding: bindingSlot,
+                    textureView: texture.textureView
+                ))
+                #else
                 entries.append(WebGPU.GPUBindGroupEntry(
                     binding: UInt32(bindingSlot),
                     textureView: texture.textureView
                 ))
+                #endif
             }
 
             for (bindingSlot, sampler) in resources.samplers where shouldBind(
@@ -363,10 +380,17 @@ extension WGPURenderCommandEncoder {
                 as: .sampler,
                 expectedResources: expectedResources
             ) {
+                #if WASM
+                entries.append(WebGPU.GPUBindGroupEntryEx(
+                    binding: bindingSlot,
+                    sampler: sampler.wgpuSampler
+                ))
+                #else
                 entries.append(WebGPU.GPUBindGroupEntry(
                     binding: UInt32(bindingSlot),
                     sampler: sampler.wgpuSampler
                 ))
+                #endif
             }
 
             for (bindingSlot, uniform) in resources.uniformBuffers where shouldBind(
@@ -374,22 +398,42 @@ extension WGPURenderCommandEncoder {
                 as: .uniformBuffer,
                 expectedResources: expectedResources
             ) {
+                #if WASM
+                entries.append(WebGPU.GPUBindGroupEntryEx(
+                    binding: bindingSlot,
+                    buffer: uniform.buffer,
+                    offset: UInt64(uniform.offset),
+                    size: uniform.size
+                ))
+                #else
                 entries.append(WebGPU.GPUBindGroupEntry(
                     binding: UInt32(bindingSlot),
                     buffer: uniform.buffer,
                     offset: UInt64(uniform.offset),
                     size: uniform.size
                 ))
+                #endif
             }
 
             guard !entries.isEmpty else { continue }
 
             // Get bind group layout - this will fail if the pipeline is invalid
             // The layout will be null/invalid if the pipeline creation failed
+            #if WASM
+            let layout = pipeline.renderPipeline.getBindGroupLayout(index: UInt32(setIndex))
+            #else
             guard let layout = pipeline.renderPipeline.getBindGroupLayout(groupIndex: UInt32(setIndex)) else {
                 continue
             }
+            #endif
             let bindGroup = webGPUDeviceLock.withLock { _ in
+                #if WASM
+                device.createBindGroup(
+                    label: pipeline.descriptor.debugName + " Bind Group \(setIndex)",
+                    layout: layout,
+                    entries: entries
+                )
+                #else
                 device.createBindGroup(
                     descriptor: WebGPU.GPUBindGroupDescriptor(
                         label: pipeline.descriptor.debugName + " Bind Group \(setIndex)",
@@ -397,6 +441,7 @@ extension WGPURenderCommandEncoder {
                         entries: entries
                     )
                 )
+                #endif
             }
 
             renderEncoder.setBindGroup(
@@ -433,10 +478,6 @@ extension WGPURenderCommandEncoder {
         collect(from: pipeline.descriptor.vertex.reflectionData)
         if let fragment = pipeline.descriptor.fragment {
             collect(from: fragment.reflectionData)
-        }
-
-        if setIndex == 0 {
-            expected[GlobalBufferIndex.viewUniform] = .uniformBuffer
         }
 
         return expected

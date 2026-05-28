@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 1/22/23.
 //
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 @unsafe @preconcurrency import WebGPU
 
 final class WGPUSampler: Sampler, @unchecked Sendable {
@@ -33,7 +33,7 @@ extension SamplerMipFilter {
         switch self {
         case .nearest: return .nearest
         case .linear: return .linear
-        case .notMipmapped: return .undefined
+        case .notMipmapped: return .nearest
         }
     }
 }

@@ -6,7 +6,9 @@
 //
 
 import Foundation
+#if !WASM
 import Yams
+#endif
 
 /// An encoder for assets that are stored in text format.
 public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {
@@ -44,8 +46,12 @@ public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {
         if let data = value as? Data {
             self.encodedData = data
         } else {
+            #if WASM
+            let encoder = JSONEncoder()
+            #else
             let encoder = YAMLEncoder()
             encoder.options.floatingPointNumberFormatStrategy = .decimal
+            #endif
             let data = try encoder.encode(value, userInfo: [
                 .assetMetaInfo: self.assetMeta,
                 .assetsEncodingContext: self
@@ -71,6 +77,7 @@ protocol AnyEncoder: Sendable {
     func encode<T: Encodable>(_ value: T, userInfo: [CodingUserInfoKey: any Sendable]) throws -> Data
 }
 
+#if !WASM
 extension YAMLEncoder: @unchecked @retroactive Sendable {}
 
 extension YAMLEncoder: AnyEncoder {
@@ -78,6 +85,7 @@ extension YAMLEncoder: AnyEncoder {
         return try self.encode(value, userInfo: userInfo).data(using: .utf8)!
     }
 }
+#endif
 
 extension JSONEncoder: AnyEncoder {
     func encode<T>(_ value: T, userInfo: [CodingUserInfoKey : any Sendable]) throws -> Data where T : Encodable {

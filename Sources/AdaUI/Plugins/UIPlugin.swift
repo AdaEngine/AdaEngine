@@ -79,6 +79,9 @@ public struct WindowPlugin: Plugin {
     }
 
     public func setup(in app: AppWorlds) {
+        #if WASM
+        print("AdaEngine WindowPlugin setup")
+        #endif
         guard let windowSettings = app.getResource(WindowSettings.self) else {
             return
         }
@@ -115,6 +118,9 @@ public struct WindowPlugin: Plugin {
             )
             #endif
             let window = UIWindow(configuration: configuration)
+            #if WASM
+            print("AdaEngine WindowPlugin created window")
+            #endif
             window.showWindow(makeFocused: true)
             app
                 .insertResource(PrimaryWindow(window: window))

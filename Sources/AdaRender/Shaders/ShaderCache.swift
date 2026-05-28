@@ -8,7 +8,9 @@
 import AdaUtils
 import Foundation
 import Logging
+#if !WASM
 @unsafe @preconcurrency import Yams
+#endif
 
 /// Contains information about shader changes and store/load spirv binary in cache folder.
 enum ShaderCache {
@@ -80,7 +82,11 @@ enum ShaderCache {
             guard let data = fileSystem.readFile(at: cacheFile) else {
                 return nil
             }
+            #if WASM
+            return try JSONDecoder().decode(DeviceCompiledShader.self, from: data)
+            #else
             return try YAMLDecoder().decode(DeviceCompiledShader.self, from: data)
+            #endif
         } catch {
             logger.error("Failed to get cached device compiled shader: \(error)")
             return nil
@@ -174,8 +180,13 @@ enum ShaderCache {
         let cacheFile = cacheURL
             .appending(path: "cache-\(stage.rawValue).\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
         
+        #if WASM
+        let stringData = try JSONEncoder().encode(reflectionData)
+        _ = fileSystem.createFile(at: cacheFile, contents: stringData)
+        #else
         let stringData = try YAMLEncoder().encode(reflectionData)
         _ = fileSystem.createFile(at: cacheFile, contents: stringData.data(using: .utf8)!)
+        #endif
     }
 
     static func saveDeviceCompiledShader(
@@ -201,8 +212,13 @@ enum ShaderCache {
         let cacheFile = cacheURL
             .appending(path: "cache-\(stage.rawValue).device-compiled-shader.\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
         
+        #if WASM
+        let stringData = try JSONEncoder().encode(compiledShader)
+        _ = fileSystem.createFile(at: cacheFile, contents: stringData)
+        #else
         let stringData = try YAMLEncoder().encode(compiledShader)
         _ = fileSystem.createFile(at: cacheFile, contents: stringData.data(using: .utf8)!)
+        #endif
 
         let shaderFileForTest = cacheURL
             .appending(path: "cache-\(stage.rawValue).shader-source.\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
@@ -223,7 +239,11 @@ enum ShaderCache {
             guard let data = fileSystem.readFile(at: cacheFile) else {
                 return nil
             }
+            #if WASM
+            return try JSONDecoder().decode(ShaderReflectionData.self, from: data)
+            #else
             return try YAMLDecoder().decode(ShaderReflectionData.self, from: data)
+            #endif
         } catch {
             logger.error("Failed to get cached reflection: \(error)")
             return nil
@@ -259,7 +279,11 @@ enum ShaderCache {
                 return [:]
             }
             
+            #if WASM
+            return try JSONDecoder().decode(Cache.self, from: data)
+            #else
             return try YAMLDecoder().decode(Cache.self, from: data)
+            #endif
         } catch {
             fatalError("[ShaderCache] \(error)")
         }
@@ -270,8 +294,13 @@ enum ShaderCache {
         
         do {
             let cacheFile = try getCacheFile()
+            #if WASM
+            let data = try JSONEncoder().encode(cacheData)
+            _ = fileSystem.createFile(at: cacheFile, contents: data)
+            #else
             let string = try YAMLEncoder().encode(cacheData)
             _ = fileSystem.createFile(at: cacheFile, contents: string.data(using: .utf8)!)
+            #endif
         } catch {
             fatalError("[ShaderCache] \(error)")
         }

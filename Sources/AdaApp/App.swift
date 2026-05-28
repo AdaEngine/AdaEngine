@@ -5,6 +5,11 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
+#if WASM && canImport(JavaScriptEventLoop)
+import JavaScriptEventLoop
+import _CJavaScriptKit
+#endif
+
 /// A type that represents the structure and behavior of an app.
 @MainActor @preconcurrency
 public protocol App: Sendable {
@@ -26,8 +31,23 @@ public extension App {
     }
     
     // Initializes and runs the app.
+    #if WASM && canImport(JavaScriptEventLoop)
+    static func main() {
+        JavaScriptEventLoop.installGlobalExecutor()
+        Task { @MainActor in
+            do {
+                let appContext = try AppContext<Self>()
+                try await appContext.run()
+            } catch {
+                print("AdaEngine finished with error: \(error)")
+            }
+        }
+        swjs_unsafe_event_loop_yield()
+    }
+    #else
     static func main() async throws {
         let appContext = try AppContext<Self>()
         try await appContext.run()
     }
+    #endif
 }

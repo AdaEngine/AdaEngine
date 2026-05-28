@@ -154,18 +154,25 @@ class WebGPUTintPlugin: CommandPlugin {
         default:
             break
         }
+
+        if let pythonExecutable = findPythonExecutable() {
+            cmakeFlags.append("-DPython3_EXECUTABLE=\(pythonExecutable.path)")
+            cmakeFlags.append("-DPYTHON_EXECUTABLE=\(pythonExecutable.path)")
+        }
         
         cmakeFlags.append(actualSourceDir.path)
         
         // Configure CMake
         Diagnostics.remark("Configuring CMake...")
-        let cmakePath = try context.tool(named: "cmake").url
+        let cmakePath = URL(fileURLWithPath: "/usr/bin/env")
+        cmakeFlags.insert("cmake", at: 0)
         try runCommand(in: platformBuildDir, executable: cmakePath, arguments: cmakeFlags)
         
         // Build
         Diagnostics.remark("Building tint compiler...")
         let cpuCount = ProcessInfo.processInfo.processorCount
         try runCommand(in: platformBuildDir, executable: cmakePath, arguments: [
+            "cmake",
             "--build", ".",
             "--target", "tint_cmd_tint_cmd",
             "-j", "\(cpuCount)"
@@ -190,6 +197,19 @@ class WebGPUTintPlugin: CommandPlugin {
     
     private func runGitCommand(in directory: URL, arguments: [String]) throws {
         try runCommand(in: directory, executable: URL(fileURLWithPath: "/usr/bin/git"), arguments: arguments)
+    }
+
+    private func findPythonExecutable() -> URL? {
+        let candidates = [
+            ProcessInfo.processInfo.environment["PYTHON3"],
+            "/Users/vlad-prusakov/.pyenv/shims/python3",
+            "/usr/bin/python3",
+            "/opt/homebrew/bin/python3"
+        ].compactMap { $0 }
+
+        return candidates
+            .map(URL.init(fileURLWithPath:))
+            .first { fileManager.isExecutableFile(atPath: $0.path) }
     }
     
     private func runCommand(in directory: URL, executable: URL, arguments: [String]) throws {

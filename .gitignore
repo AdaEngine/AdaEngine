@@ -6,6 +6,9 @@
 **/.build/
 .build-codex/
 
+
+dist/
+
 # Ignore generated Xcode projects
 *.xcodeproj
 # Ignore SwiftPM state, such as the generated xcodeproj when opening the project directly

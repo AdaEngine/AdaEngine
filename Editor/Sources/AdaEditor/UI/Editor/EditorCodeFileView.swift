@@ -21,7 +21,7 @@ struct EditorCodeFileView: View {
                 codeEditor
             }
         }
-        .background(theme.editorColors.background)
+        .background(theme.editorColors.surfaceElevated)
         .accessibilityIdentifier("AdaEditor.CodeFile.\(document.title)")
     }
 }
@@ -100,7 +100,7 @@ private extension EditorCodeFileView {
 
     var editorColors: TextEditorColors {
         TextEditorColors(
-            background: theme.editorColors.background,
+            background: theme.editorColors.surfaceElevated,
             border: theme.editorColors.border.opacity(0.55),
             focusedBorder: theme.editorColors.blue,
             gutter: theme.editorColors.muted,

@@ -12,6 +12,12 @@ import AdaUtils
 import Foundation
 import Math
 
+public enum CorePipelineShaders {
+    public static func loadBundled(at path: String) throws -> AssetHandle<ShaderModule> {
+        try ShaderModule.loadBundled(at: path, from: .module)
+    }
+}
+
 // MARK: - Quad Pipeline
 
 /// Pipeline configurator for rendering UI quads.
@@ -19,11 +25,7 @@ public struct QuadPipeline: RenderPipelineConfigurator {
     private let shader: AssetHandle<ShaderModule>
 
     public init() {
-        self.shader = try! AssetsManager.loadSync(
-            ShaderModule.self,
-            at: "Shaders/quad.glsl",
-            from: .module
-        )
+        self.shader = try! ShaderModule.loadBundled(at: "Shaders/quad.glsl", from: .module)
     }
 
     public func configurate(
@@ -58,11 +60,7 @@ public struct LinearGradientPipeline: RenderPipelineConfigurator {
     private let shader: AssetHandle<ShaderModule>
 
     public init() {
-        self.shader = try! AssetsManager.loadSync(
-            ShaderModule.self,
-            at: "Shaders/gradient.glsl",
-            from: .module
-        )
+        self.shader = try! ShaderModule.loadBundled(at: "Shaders/gradient.glsl", from: .module)
     }
 
     public func configurate(
@@ -97,11 +95,7 @@ public struct CirclePipeline: RenderPipelineConfigurator {
     private let shader: AssetHandle<ShaderModule>
 
     public init() {
-        self.shader = try! AssetsManager.loadSync(
-            ShaderModule.self,
-            at: "Shaders/circle.glsl",
-            from: .module
-        )
+        self.shader = try! ShaderModule.loadBundled(at: "Shaders/circle.glsl", from: .module)
     }
 
     public func configurate(
@@ -138,11 +132,7 @@ public struct LinePipeline: RenderPipelineConfigurator {
     private let shader: AssetHandle<ShaderModule>
 
     public init() {
-        self.shader = try! AssetsManager.loadSync(
-            ShaderModule.self,
-            at: "Shaders/line.glsl",
-            from: .module
-        )
+        self.shader = try! ShaderModule.loadBundled(at: "Shaders/line.glsl", from: .module)
     }
 
     public func configurate(

@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 1/18/23.
 //
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 @unsafe @preconcurrency import WebGPU
 
 @_spi(Internal)

@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 23.11.2025.
 //
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 import Foundation
 @unsafe @preconcurrency import WebGPU
 
@@ -22,11 +22,15 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
     }
 
     func pushDebugName(_ string: String) {
+        #if !WASM
         blitEncoder.pushDebugGroup(groupLabel: string)
+        #endif
     }
 
     func popDebugName() {
+        #if !WASM
         blitEncoder.popDebugGroup()
+        #endif
     }
 
     func copyTextureToTexture(
@@ -45,17 +49,20 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
             let dst = destination.gpuTexture as? WGPUGPUTexture
         else { fatalError("Textures must be WGPU textures") }
 
+        #if WASM
+        fatalError("copyTextureToTexture is not implemented by Swan's WASM WebGPU bridge.")
+        #else
         blitEncoder.copyTextureToTexture(
             source: WebGPU.GPUTexelCopyTextureInfo(
                 texture: src.texture,
                 mipLevel: UInt32(sourceMipLevel),
-                origin: WebGPU.GPUOrigin3D(x: UInt32(sourceOrigin.x), y: UInt32(sourceOrigin.y), z: UInt32(sourceOrigin.z)),
+                origin: WebGPU.GPUOrigin3D(x: sourceOrigin.x, y: sourceOrigin.y, z: sourceOrigin.z),
                 aspect: WebGPU.GPUTextureAspect.all
             ),
             destination: WebGPU.GPUTexelCopyTextureInfo(
                 texture: dst.texture,
                 mipLevel: UInt32(destinationMipLevel),
-                origin: WebGPU.GPUOrigin3D(x: UInt32(destinationOrigin.x), y: UInt32(destinationOrigin.y), z: UInt32(destinationOrigin.z)),
+                origin: WebGPU.GPUOrigin3D(x: destinationOrigin.x, y: destinationOrigin.y, z: destinationOrigin.z),
                 aspect: WebGPU.GPUTextureAspect.all
             ),
             copySize: WebGPU.GPUExtent3D(
@@ -64,6 +71,7 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
                 depthOrArrayLayers: 1
             )
         )
+        #endif
     }
 
     func copyBufferToBuffer(
@@ -113,7 +121,7 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
             destination: WebGPU.GPUTexelCopyTextureInfo(
                 texture: dst.texture,
                 mipLevel: UInt32(destinationMipLevel),
-                origin: WebGPU.GPUOrigin3D(x: UInt32(destinationOrigin.x), y: UInt32(destinationOrigin.y), z: UInt32(destinationOrigin.z)),
+                origin: WebGPU.GPUOrigin3D(x: destinationOrigin.x, y: destinationOrigin.y, z: destinationOrigin.z),
                 aspect: WebGPU.GPUTextureAspect.all
             ),
             copySize: WebGPU.GPUExtent3D(
@@ -144,7 +152,7 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
             source: WebGPU.GPUTexelCopyTextureInfo(
                 texture: src.texture,
                 mipLevel: UInt32(sourceMipLevel),
-                origin: WebGPU.GPUOrigin3D(x: UInt32(sourceOrigin.x), y: UInt32(sourceOrigin.y), z: UInt32(sourceOrigin.z)),
+                origin: WebGPU.GPUOrigin3D(x: sourceOrigin.x, y: sourceOrigin.y, z: sourceOrigin.z),
                 aspect: WebGPU.GPUTextureAspect.all
             ),
             destination: WebGPU.GPUTexelCopyBufferInfo(

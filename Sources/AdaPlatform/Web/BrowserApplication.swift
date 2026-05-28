@@ -8,7 +8,7 @@ import AdaApp
 import AdaECS
 @_spi(Internal) import AdaInput
 import AdaUtils
-import AdaUI
+@_spi(Internal) import AdaUI
 import Foundation
 import JavaScriptEventLoop
 import JavaScriptKit
@@ -71,6 +71,7 @@ private final class BrowserFrameLoop {
     private let appWorlds: AppWorlds
     private let logger = Logger(label: "org.adaengine.browser")
     private var isRunning = false
+    private var isFrameUpdateInFlight = false
     private var animationFrameClosure: JSClosure?
 
     init(appWorlds: AppWorlds) {
@@ -101,25 +102,46 @@ private final class BrowserFrameLoop {
                 return .undefined
             }
 
-            Task { @MainActor in
-                await self.tick()
+            MainActor.assumeIsolated {
+                self.animationFrameDidFire()
             }
 
             return .undefined
         }
 
         animationFrameClosure = closure
-        _ = JSObject.global.window.requestAnimationFrame(.object(closure))
+        _ = JSObject.global.window.requestAnimationFrame(closure)
     }
 
-    private func tick() async {
+    private func animationFrameDidFire() {
         guard isRunning else {
             return
         }
 
+        scheduleNextFrame()
+
+        guard !isFrameUpdateInFlight else {
+            return
+        }
+
+        isFrameUpdateInFlight = true
+        Task { @MainActor in
+            await self.tick()
+        }
+    }
+
+    private func tick() async {
+        guard isRunning else {
+            isFrameUpdateInFlight = false
+            return
+        }
+
+        defer {
+            isFrameUpdateInFlight = false
+        }
+
         do {
             try await appWorlds.update()
-            scheduleNextFrame()
         } catch {
             logger.error("Browser frame failed: \(error)")
             isRunning = false

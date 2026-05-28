@@ -13,6 +13,7 @@
 @_exported import AdaApp
 @_exported import AdaAssets
 @_exported import AdaAudio
+@_exported import AdaCorePipelines
 @_exported import AdaECS
 @_exported import AdaInput
 @_exported import AdaPhysics

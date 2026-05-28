@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 1/18/23.
 //
 
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 import AdaUtils
 import Foundation
 @unsafe @preconcurrency import WebGPU
@@ -42,7 +42,10 @@ public class WGPUBuffer: Buffer, @unchecked Sendable {
             )
         }.unwrap(message: "Failed to create mapped buffer")
         self.mappedBuffer = mappedBuffer
-        return unsafe mappedBuffer.getMappedRange(offset: 0, size: self.length)
+        guard let range = unsafe mappedBuffer.getMappedRange(offset: 0, size: self.length) else {
+            fatalError("Failed to get mapped buffer range")
+        }
+        return range
     }
 
     public func unmap() {
@@ -85,7 +88,7 @@ extension BufferMapMode {
         case .write:
             return .write
         default:
-            return .none
+            return []
         }
     }
 }

@@ -351,7 +351,11 @@ final class FontAtlasGenerator: Sendable {
                 return
             }
 
+            #if WASM
+            try self.encodeCachedAtlas(atlas).write(to: file)
+            #else
             try self.encodeCachedAtlas(atlas).write(to: file, options: .atomic)
+            #endif
         } catch {
             logger.error("\(error)")
         }

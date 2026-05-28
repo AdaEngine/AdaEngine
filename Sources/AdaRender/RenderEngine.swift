@@ -128,7 +128,11 @@ extension RenderEngine {
 
     private static func defaultBackendType() -> RenderBackendType {
         #if WASM
+        #if WEBGPU_ENABLED
         return .webgpu
+        #else
+        return .headless
+        #endif
         #elseif WEBGPU_ENABLED
         return .webgpu
         #elseif METAL

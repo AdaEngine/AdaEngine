@@ -9,9 +9,11 @@
 
 // Take from https://github.com/swiftlang/swift-tools-support-core/blob/main/Sources/TSCUtility/FSWatch.swift
 
-import Dispatch
 import Foundation
 import Logging
+#if canImport(Dispatch)
+import Dispatch
+#endif
 #if os(Windows)
 import WinSDK
 #endif
@@ -887,6 +889,7 @@ public final class FSEventStream: @unchecked Sendable {
 }
 #endif
 
+#if !os(WASI)
 enum TSCBasic {
     /// This class bridges the gap between Darwin and Linux Foundation Threading API.
     /// It provides closure based execution and a join method to block the calling thread
@@ -1012,3 +1015,4 @@ enum TSCBasic {
         }
     }
 }
+#endif

@@ -17,6 +17,10 @@ import Darwin.C
 import WinSDK
 #endif
 
+#if canImport(WASILibc)
+import WASILibc
+#endif
+
 // swiftlint:disable identifier_name
 
 // TODO: Suppors Android/Web?
@@ -28,6 +32,8 @@ public func tanf(_ float: Float) -> Float {
     return Glibc.tanf(float)
 #elseif os(Windows)
     return WinSDK.tanf(float)
+#elseif os(WASI)
+    return WASILibc.tanf(float)
 #else
     return Darwin.tanf(float)
 #endif
@@ -40,6 +46,8 @@ public func atan2(_ lhs: Double, _ rhs: Double) -> Double {
     return Glibc.atan2(lhs, rhs)
 #elseif os(Windows)
     return WinSDK.atan2(lhs, rhs)
+#elseif os(WASI)
+    return WASILibc.atan2(lhs, rhs)
 #else
     return Darwin.atan2(lhs, rhs)
 #endif
@@ -52,6 +60,8 @@ public func atan2(_ lhs: Float, _ rhs: Float) -> Float {
     return Glibc.atan2(lhs, rhs)
 #elseif os(Windows)
     return WinSDK.atan2f(lhs, rhs)
+#elseif os(WASI)
+    return WASILibc.atan2f(lhs, rhs)
 #else
     return Darwin.atan2(lhs, rhs)
 #endif
@@ -64,6 +74,8 @@ public func sqrt(_ value: Float) -> Float {
     return Glibc.sqrtf(value)
 #elseif os(Windows)
     return WinSDK.sqrtf(value)
+#elseif os(WASI)
+    return WASILibc.sqrtf(value)
 #else
     return Darwin.sqrtf(value)
 #endif
@@ -76,6 +88,8 @@ public func sqrt(_ value: Double) -> Double {
     return Glibc.sqrt(value)
 #elseif os(Windows)
     return WinSDK.sqrt(value)
+#elseif os(WASI)
+    return WASILibc.sqrt(value)
 #else
     return Darwin.sqrt(value)
 #endif
@@ -111,6 +125,13 @@ public func round<T: FloatingPoint>(_ value: T) -> T {
         return WinSDK.round(value) as! T
     }
     fatalError("Unsupported type")
+#elseif os(WASI)
+    if let value = value as? Float {
+        return WASILibc.roundf(value) as! T
+    } else if let value = value as? Double {
+        return WASILibc.round(value) as! T
+    }
+    fatalError("Unsupported type")
 #else
     return Darwin.round(value)
 #endif
@@ -123,6 +144,8 @@ public func sin(_ value: Double) -> Double {
     return Glibc.sin(value)
 #elseif os(Windows)
     return WinSDK.sin(value)
+#elseif os(WASI)
+    return WASILibc.sin(value)
 #else
     return Darwin.sin(value)
 #endif
@@ -135,6 +158,8 @@ public func sin(_ value: Float) -> Float {
     return Glibc.sinf(value)
 #elseif os(Windows)
     return WinSDK.sinf(value)
+#elseif os(WASI)
+    return WASILibc.sinf(value)
 #else
     return Darwin.sinf(value)
 #endif
@@ -147,6 +172,8 @@ public func cos(_ value: Double) -> Double {
     return Glibc.cos(value)
 #elseif os(Windows)
     return WinSDK.cos(value)
+#elseif os(WASI)
+    return WASILibc.cos(value)
 #else
     return Darwin.cos(value)
 #endif
@@ -159,6 +186,8 @@ public func cos(_ value: Float) -> Float {
     return Glibc.cosf(value)
 #elseif os(Windows)
     return WinSDK.cosf(value)
+#elseif os(WASI)
+    return WASILibc.cosf(value)
 #else
     return Darwin.cosf(value)
 #endif
@@ -171,6 +200,8 @@ public func acos(_ value: Float) -> Float {
     return Glibc.acos(value)
 #elseif os(Windows)
     return WinSDK.acosf(value)
+#elseif os(WASI)
+    return WASILibc.acosf(value)
 #else
     return Darwin.acos(value)
 #endif
@@ -183,6 +214,8 @@ public func acos(_ value: Double) -> Double {
     return Glibc.acos(value)
 #elseif os(Windows)
     return WinSDK.acos(value)
+#elseif os(WASI)
+    return WASILibc.acos(value)
 #else
     return Darwin.acos(value)
 #endif

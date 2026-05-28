@@ -6,6 +6,9 @@
 //
 
 import AdaUtils
+#if WASM && canImport(JavaScriptKit)
+import JavaScriptKit
+#endif
 
 /// A protocol that defines a render surface.
 /// Wrap platform specific view to render surface.
@@ -14,6 +17,13 @@ public protocol RenderSurface {
     var scaleFactor: Float { get }
     var prefferedPixelFormat: PixelFormat { get }
 }
+
+#if WASM && canImport(JavaScriptKit)
+@MainActor
+public protocol BrowserCanvasRenderSurface: RenderSurface {
+    var canvas: JSObject { get }
+}
+#endif
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
 import MetalKit

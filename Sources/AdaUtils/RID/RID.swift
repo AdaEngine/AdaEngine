@@ -38,11 +38,16 @@ public extension RID {
         let seconds = Int64(uptime)
         let nanoseconds = Int64((uptime - Double(seconds)) * 1_000_000_000)
         return Int((seconds * 10000000) + (nanoseconds / 100) + 0x01B21DD213814000)
+        #elseif os(WASI)
+        let time = Date().timeIntervalSince1970
+        let seconds = Int64(time)
+        let nanoseconds = Int64((time - Double(seconds)) * 1_000_000_000)
+        return Int(truncatingIfNeeded: (seconds * 10000000) + (nanoseconds / 100) + 0x01B21DD213814000)
         #else
         var time = timespec(tv_sec: 0, tv_nsec: 0)
         unsafe clock_gettime(CLOCK_MONOTONIC, &time)
         
-        return (time.tv_sec * 10000000) + (time.tv_nsec / 100) + 0x01B21DD213814000;
+        return Int((time.tv_sec * 10000000) + (time.tv_nsec / 100) + 0x01B21DD213814000)
         #endif
     }
 }

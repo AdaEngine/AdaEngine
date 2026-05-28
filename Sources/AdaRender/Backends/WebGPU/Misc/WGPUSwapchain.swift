@@ -1,4 +1,4 @@
-#if canImport(WebGPU)
+#if WEBGPU_ENABLED && canImport(WebGPU)
 @unsafe @preconcurrency import WebGPU
 import AdaUtils
 import Logging
@@ -26,6 +26,12 @@ final class WGPUSwapchain: Swapchain, @unchecked Sendable {
                 return nil
             }
 
+            #if WASM
+            let texture = webGPUDeviceLock.withLock { _ in
+                renderWindow.surface.getCurrentTexture()
+            }
+            return WGPUSwapchainDrawable(texture: texture)
+            #else
             var surfaceTexture = WGPUSurfaceTexture()
             webGPUDeviceLock.withLock { _ in
                 renderWindow.surface.getCurrentTexture(surfaceTexture: &surfaceTexture)
@@ -38,12 +44,23 @@ final class WGPUSwapchain: Swapchain, @unchecked Sendable {
                 surface: renderWindow.surface,
                 surfaceTexture: WebGPU.GPUSurfaceTexture(wgpuStruct: surfaceTexture)
             )
+            #endif
         }
     }
 }
 
 final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
     let texture: any GPUTexture
+    #if WASM
+    var isPresented: Bool = false
+
+    init(texture: WebGPU.GPUTexture) {
+        self.texture = WGPUGPUTexture(
+            texture: texture,
+            textureView: texture.createView()
+        )
+    }
+    #else
     let surface: WebGPU.GPUSurface
     let surfaceTexture: WebGPU.GPUSurfaceTexture
     var isPresented: Bool = false
@@ -56,9 +73,13 @@ final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
             textureView: surfaceTexture.texture.createView()
         )
     }
+    #endif
 
     func present() throws {
         assert(!isPresented, "Drawable is already presented")
+        #if WASM
+        self.isPresented = true
+        #else
         let value = webGPUDeviceLock.withLock { _ in
             surface.present()
         }
@@ -66,6 +87,7 @@ final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
         if value != .success {
             throw DrawableError.failedToPresentDrawable
         }
+        #endif
     }
 }
 
@@ -79,8 +101,7 @@ extension WebGPU.GPUTextureDimension {
         case ._1D: return ._1D
         case ._2D: return ._2D
         case ._3D: return ._3D
-        case .undefined: return .undefined
-        default: return .undefined
+        default: return ._2D
         }
     }
 }

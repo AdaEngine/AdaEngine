@@ -317,30 +317,26 @@ public extension FontResource {
     
     /// Returns default font from AdaEngine bundle.
     static func system(weight: FontWeight = .regular, emFontScale: Double? = nil) -> FontResource {
-        do {
-            let resolvedScale = emFontScale ?? Constants.defaultEmFontScale
-            var path = "Assets/Fonts/opensans/OpenSans-\(weight.fileNameComponent).ttf"
+        let resolvedScale = emFontScale ?? Constants.defaultEmFontScale
+        let path = "Assets/Fonts/opensans/OpenSans-\(weight.fileNameComponent).ttf"
+        let cachePath = "\(path)#emSize=\(resolvedScale)"
 
-            path.append("#emSize=\(resolvedScale)")
-
-            let key = CacheKey(path: path, emFontScale: resolvedScale)
-            if let cached = cacheStore.get(key) {
-                return cached
-            }
-
-            guard let resource = try AssetsManager.loadSync(
-                FontResource.self, 
-                at: path, 
-                from: .module
-            ).asset else {
-                fatalError("[Font]: Failed to load system font resource at path \(path)")
-            }
-
-            cacheStore.set(resource, for: key)
-            return resource
-        } catch {
-            fatalError("[Font]: Something went wrong \(error)")
+        let key = CacheKey(path: cachePath, emFontScale: resolvedScale)
+        if let cached = cacheStore.get(key) {
+            return cached
         }
+
+        guard let resourceURL = Bundle.module.resourceURL else {
+            fatalError("[Font]: Failed to resolve system font bundle")
+        }
+
+        let fontPath = resourceURL.appendingPathComponent(path)
+        guard let resource = FontResource.custom(fontPath: fontPath, emFontScale: resolvedScale) else {
+            fatalError("[Font]: Failed to load system font resource at path \(fontPath.path)")
+        }
+
+        cacheStore.set(resource, for: key)
+        return resource
     }
 }
 

@@ -4,7 +4,7 @@
 //
 
 #if WASM && canImport(JavaScriptKit)
-import AdaUI
+@_spi(Internal) import AdaUI
 import JavaScriptKit
 import Math
 
