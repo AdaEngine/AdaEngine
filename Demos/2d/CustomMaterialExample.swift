@@ -6,6 +6,30 @@
 //
 
 import AdaEngine
+import Foundation
+
+private enum CustomMaterialShaderError: LocalizedError {
+    case missingResourceURL
+
+    var errorDescription: String? {
+        switch self {
+        case .missingResourceURL:
+            return "Custom material shader resource bundle is missing."
+        }
+    }
+}
+
+private func loadCustomMaterialShaderSource(
+    at path: String,
+    from bundle: Bundle
+) throws -> AssetHandle<ShaderSource> {
+    guard let resourceURL = bundle.resourceURL else {
+        throw CustomMaterialShaderError.missingResourceURL
+    }
+
+    let resourcePath = path.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? path
+    return AssetHandle(try ShaderSource(from: resourceURL.appendingPathComponent(resourcePath)))
+}
 
 @main
 struct CustomMaterialApp: App {
@@ -58,9 +82,15 @@ struct MyMaterial: CanvasMaterial {
         self.customTexture = customTexture
     }
 
+    static func vertexShader() throws -> AssetHandle<ShaderSource> {
+        try loadCustomMaterialShaderSource(
+            at: "Resources/custom_material_vertex.glsl",
+            from: .module
+        )
+    }
+
     static func fragmentShader() throws -> AssetHandle<ShaderSource> {
-        try AssetsManager.loadSync(
-            ShaderSource.self,
+        try loadCustomMaterialShaderSource(
             at: "Resources/custom_material.glsl",
             from: .module
         )

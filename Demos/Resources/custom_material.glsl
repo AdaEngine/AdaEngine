@@ -1,7 +1,12 @@
 #version 450 core
 #pragma stage : frag
 
-#include <AdaEngine/CanvasMaterial.frag>
+struct VertexOut {
+    vec2 UV;
+};
+
+layout (location = 0) in VertexOut Input;
+layout (location = 0) out vec4 COLOR;
 
 layout (binding = 0) uniform CustomMaterial {
     vec4 u_Color;

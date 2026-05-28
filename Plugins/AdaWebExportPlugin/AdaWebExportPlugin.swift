@@ -193,6 +193,7 @@ struct AdaWebExportPlugin: CommandPlugin {
             packageDirectory: packageDirectory,
             to: options.outputDirectory.appending(component: "bridge-js.js", directoryHint: .notDirectory)
         )
+        try copyBrowserWASIShim(packageDirectory: packageDirectory, to: options.outputDirectory)
         try copyLoaderAssets(to: options.outputDirectory)
 
         try indexHTML(product: options.product).write(
@@ -234,6 +235,19 @@ struct AdaWebExportPlugin: CommandPlugin {
                 with: source
             )
         }
+    }
+
+    private func copyBrowserWASIShim(packageDirectory: URL, to outputDirectory: URL) throws {
+        let fileManager = FileManager.default
+        let shimSourceDirectory = packageDirectory.appending(
+            components: "Plugins", "AdaWebExportPlugin", "BrowserWASIShim",
+            directoryHint: .isDirectory
+        )
+        let shimDestinationDirectory = outputDirectory.appending(component: "browser-wasi-shim", directoryHint: .isDirectory)
+        if fileManager.fileExists(atPath: shimDestinationDirectory.path()) {
+            try fileManager.removeItem(at: shimDestinationDirectory)
+        }
+        try fileManager.copyItem(at: shimSourceDirectory, to: shimDestinationDirectory)
     }
 
     private func replaceItem(at destination: URL, with source: URL) throws {
@@ -1087,7 +1101,7 @@ private func indexHTML(product: String) -> String {
 
 private func mainJS(product: String) -> String {
     """
-    import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory, Directory } from "@bjorn3/browser_wasi_shim";
+    import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory, Directory } from "./browser-wasi-shim/dist/index.js";
     import { createInstantiator } from "./bridge-js.js";
     import { SwiftRuntime } from "./runtime.mjs";
 

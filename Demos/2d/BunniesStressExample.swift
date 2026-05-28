@@ -48,18 +48,20 @@ struct BunnyExample: Plugin {
     }
 
     private func loadAssets(in app: AppWorlds) {
-        // Try to load a bunny texture, fallback to white texture if not available
-        do {
-            let image = try AssetsManager.loadSync(
-                Image.self,
-                at: "Resources/characters_packed.png",
-                from: Bundle.module
-            ).asset!
-            let atlas = TextureAtlas(from: image, size: [20, 23], margin: [4, 1])
-            app.insertResource(BunnyTexture(texture: AssetHandle(atlas[0, 0])))
-        } catch {
-            print("Could not load bunny texture, using white texture: \(error)")
-            app.insertResource(BunnyTexture(texture: AssetHandle(Texture2D.whiteTexture)))
+        app.insertResource(BunnyTexture(texture: nil))
+
+        Task { @MainActor in
+            do {
+                let image = try await AssetsManager.load(
+                    Image.self,
+                    at: "Resources/characters_packed.png",
+                    from: Bundle.module
+                ).asset!
+                let atlas = TextureAtlas(from: image, size: [20, 23], margin: [4, 1])
+                app.insertResource(BunnyTexture(texture: AssetHandle(atlas[0, 0])))
+            } catch {
+                print("Could not load bunny texture, using white texture: \(error)")
+            }
         }
     }
 
@@ -88,7 +90,7 @@ struct BunnyExample: Plugin {
 // MARK: - Components
 
 struct BunnyTexture: Resource {
-    let texture: AssetHandle<Texture2D>
+    let texture: AssetHandle<Texture2D>?
 }
 
 /// Component to mark bunny entities and store their velocity
@@ -138,6 +140,9 @@ struct BunnySpawnerSystem {
         guard input.isMouseButtonPressed(.left) else {
             return
         }
+        guard let texture = bunnyTexture.texture else {
+            return
+        }
 
         // Get camera for world position conversion
         cameras.forEach { camera, globalTransform in
@@ -149,14 +154,19 @@ struct BunnySpawnerSystem {
 
             // Spawn multiple bunnies at mouse position
             for _ in 0 ..< BunnyExampleConstants.bunniesPerClick {
-                spawnBunny(at: Vector3(worldPosition.x, -worldPosition.y, 0), viewport: camera.logicalViewport)
+                spawnBunny(
+                    at: Vector3(worldPosition.x, -worldPosition.y, 0),
+                    viewport: camera.logicalViewport,
+                    texture: texture
+                )
             }
         }
     }
 
     private func spawnBunny(
         at position: Vector3,
-        viewport: Viewport?
+        viewport: Viewport?,
+        texture: AssetHandle<Texture2D>
     ) {
         let viewportRect = viewport?.rect ?? .zero
         // Add small random offset to position
@@ -171,7 +181,7 @@ struct BunnySpawnerSystem {
                 position: bunnyPosition
             )
             Sprite(
-                texture: bunnyTexture.texture,
+                texture: texture,
                 tintColor: getRandomColor(),
             )
             NoFrustumCulling()

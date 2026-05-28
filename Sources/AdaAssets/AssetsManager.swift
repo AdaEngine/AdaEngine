@@ -160,6 +160,15 @@ public struct AssetsManager: Resource {
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
+    #if WASM
+    @available(*, unavailable, message: "AssetsManager.loadSync is unavailable on WebAssembly. Use AssetsManager.load(_:at:) instead.")
+    public static func loadSync<R: Asset>(
+        _ type: R.Type,
+        at path: String
+    ) throws -> AssetHandle<R> {
+        throw AssetError.message("AssetsManager.loadSync is unavailable on WebAssembly. Use AssetsManager.load(_:at:) instead.")
+    }
+    #else
     public static func loadSync<R: Asset>(
         _ type: R.Type,
         at path: String
@@ -170,6 +179,7 @@ public struct AssetsManager: Resource {
 
         return try task.get()
     }
+    #endif
 
     /// Load a resource and saving it to memory cache
     ///
@@ -232,6 +242,16 @@ public struct AssetsManager: Resource {
     /// - Parameter path: Path to the resource.
     /// - Parameter bundle: Bundle where we search our resources
     /// - Returns: Instance of resource.
+    #if WASM
+    @available(*, unavailable, message: "AssetsManager.loadSync is unavailable on WebAssembly. Use AssetsManager.load(_:at:from:) instead.")
+    public static func loadSync<R: Asset>(
+        _ type: R.Type,
+        at path: String,
+        from bundle: Bundle
+    ) throws -> AssetHandle<R> {
+        throw AssetError.message("AssetsManager.loadSync is unavailable on WebAssembly. Use AssetsManager.load(_:at:from:) instead.")
+    }
+    #else
     public static func loadSync<R: Asset>(
         _ type: R.Type,
         at path: String,
@@ -243,6 +263,7 @@ public struct AssetsManager: Resource {
 
         return try task.get()
     }
+    #endif
 
     /// Load resource in background and save it to the memory.
     public static func loadAsync<R: Asset>(
@@ -528,32 +549,33 @@ public struct AssetsManager: Resource {
 
     private static func readData(from path: Path) async throws -> Data {
         #if WASM && canImport(JavaScriptFoundationCompat) && canImport(JavaScriptKit)
+        let fetchURL = self.browserFetchURL(for: path.url)
         let responseValue: JSValue
         do {
             guard let fetch = JSObject.global.fetch.function else {
                 throw AssetError.message("Browser fetch is unavailable")
             }
-            guard let fetchPromise = JSPromise.construct(from: fetch(path.url.relativeString)) else {
-                throw AssetError.message("Browser fetch did not return a promise for \(path.url.relativeString)")
+            guard let fetchPromise = JSPromise.construct(from: fetch(fetchURL)) else {
+                throw AssetError.message("Browser fetch did not return a promise for \(fetchURL)")
             }
             responseValue = try await fetchPromise.value
         } catch {
-            throw AssetError.message("Browser fetch failed for \(path.url.relativeString): \(error)")
+            throw AssetError.message("Browser fetch failed for \(fetchURL): \(error)")
         }
 
         guard let response = responseValue.object else {
-            throw AssetError.message("Browser fetch returned an invalid response for \(path.url.relativeString)")
+            throw AssetError.message("Browser fetch returned an invalid response for \(fetchURL)")
         }
         guard response.ok.boolean == true else {
-            throw AssetError.notExistAtPath(path.url.relativeString)
+            throw AssetError.notExistAtPath(fetchURL)
         }
 
         do {
-            guard let arrayBufferFunction = response.arrayBuffer.function else {
-                throw AssetError.message("Browser response arrayBuffer is unavailable for \(path.url.relativeString)")
+            guard let arrayBufferValue = response.arrayBuffer?() else {
+                throw AssetError.message("Browser response arrayBuffer is unavailable for \(fetchURL)")
             }
-            guard let arrayBufferPromise = JSPromise.construct(from: arrayBufferFunction()) else {
-                throw AssetError.message("Browser response did not return an ArrayBuffer promise for \(path.url.relativeString)")
+            guard let arrayBufferPromise = JSPromise.construct(from: arrayBufferValue) else {
+                throw AssetError.message("Browser response did not return an ArrayBuffer promise for \(fetchURL)")
             }
             let arrayBuffer = try await arrayBufferPromise.value
             guard let uint8ArrayConstructor = JSObject.global.Uint8Array.function else {
@@ -561,11 +583,11 @@ public struct AssetsManager: Resource {
             }
             let uint8Array = uint8ArrayConstructor.new(arrayBuffer)
             guard let data = Data.construct(from: .object(uint8Array)) else {
-                throw AssetError.message("Browser response could not be converted to Data for \(path.url.relativeString)")
+                throw AssetError.message("Browser response could not be converted to Data for \(fetchURL)")
             }
             return data
         } catch {
-            throw AssetError.message("Browser response read failed for \(path.url.relativeString): \(error)")
+            throw AssetError.message("Browser response read failed for \(fetchURL): \(error)")
         }
         #else
         guard let data = FileSystem.current.readFile(at: path.url) else {
@@ -574,6 +596,24 @@ public struct AssetsManager: Resource {
         return data
         #endif
     }
+
+    #if WASM && canImport(JavaScriptFoundationCompat) && canImport(JavaScriptKit)
+    private static func browserFetchURL(for url: URL) -> String {
+        guard url.isFileURL else {
+            return url.relativeString
+        }
+
+        let allowedCharacters = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "?#"))
+        let relativePath = url.pathComponents
+            .filter { $0 != "/" }
+            .map { component in
+                component.addingPercentEncoding(withAllowedCharacters: allowedCharacters) ?? component
+            }
+            .joined(separator: "/")
+
+        return "./\(relativePath)"
+    }
+    #endif
 
     private static var shouldCheckAssetFileExistence: Bool {
         #if WASM && canImport(JavaScriptKit)

@@ -275,26 +275,36 @@ public extension MeshDescriptor {
             length: vertexBufferSize, 
             binding: binding
         )
-        let vertexBufferContents = unsafe vertexBuffer.contents()
-        defer {
-            vertexBuffer.unmap()
-        }
+        var vertexBufferBytes = [UInt8](repeating: 0, count: vertexBufferSize)
         
         // Calculate stride (per-vertex size) as the sum of all attribute element sizes
         let stride = buffers.elements.values.reduce(0) { $0 + $1.buffer.elementSize }
         
-        var attributeOffset: Int = 0
-        for buffer in buffers.elements.values {
-            let elementSize = buffer.buffer.elementSize
-            
-            unsafe buffer.buffer.iterateByElements { index, pointer in
-                let offset = index * stride + attributeOffset
-                unsafe vertexBufferContents
-                    .advanced(by: offset)
-                    .copyMemory(from: pointer, byteCount: elementSize)
+        unsafe vertexBufferBytes.withUnsafeMutableBytes { vertexBufferContents in
+            guard let baseAddress = vertexBufferContents.baseAddress else {
+                return
             }
-            
-            attributeOffset += elementSize
+
+            var attributeOffset: Int = 0
+            for buffer in buffers.elements.values {
+                let elementSize = buffer.buffer.elementSize
+
+                unsafe buffer.buffer.iterateByElements { index, pointer in
+                    let offset = index * stride + attributeOffset
+                    unsafe baseAddress
+                        .advanced(by: offset)
+                        .copyMemory(from: pointer, byteCount: elementSize)
+                }
+
+                attributeOffset += elementSize
+            }
+        }
+
+        unsafe vertexBufferBytes.withUnsafeMutableBytes { vertexBufferContents in
+            guard let baseAddress = vertexBufferContents.baseAddress else {
+                return
+            }
+            unsafe vertexBuffer.setData(baseAddress, byteCount: vertexBufferSize)
         }
         
         return vertexBuffer

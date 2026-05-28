@@ -29,10 +29,6 @@ struct ColorTintEnabled: Resource {
     let enabled: Bool
 }
 
-struct SpriteTexture: Resource {
-    let texture: AssetHandle<Texture2D>
-}
-
 // MARK: - Components
 
 @Component
@@ -52,20 +48,6 @@ struct ManySpritesExamplePlugin: Plugin {
         
         // Spawn camera
         app.main.spawn(bundle: Camera2D())
-        
-        // Load texture
-        let texture: AssetHandle<Texture2D>
-        do {
-            texture = try AssetsManager.loadSync(
-                Texture2D.self,
-                at: "Resources/dog.png",
-                from: .module
-            )
-        } catch {
-            print("Failed to load texture: \(error), using white texture")
-            texture = AssetHandle(Texture2D.whiteTexture)
-        }
-        app.insertResource(SpriteTexture(texture: texture))
 
         // Spawn timer entity for printing sprite count
         app.main.spawn("PrintingTimer") {
@@ -91,9 +73,20 @@ struct ManySpritesExamplePlugin: Plugin {
 @System
 func Setup(
     _ commands: Commands,
-    _ colorTintEnabled: Res<ColorTintEnabled>,
-    _ texture: Res<SpriteTexture>
-) {
+    _ colorTintEnabled: Res<ColorTintEnabled>
+) async {
+    let texture: AssetHandle<Texture2D>
+    do {
+        texture = try await AssetsManager.load(
+            Texture2D.self,
+            at: "Resources/dog.png",
+            from: .module
+        )
+    } catch {
+        print("Failed to load texture: \(error), using white texture")
+        texture = AssetHandle(Texture2D.whiteTexture)
+    }
+
     // Spawn sprites
     let tileSize: Float = 64.0
     let mapSize: Float = 30.0
@@ -123,7 +116,7 @@ func Setup(
 
             commands.spawn("Sprite") {
                 Sprite(
-                    texture: texture.wrappedValue.texture,
+                    texture: texture,
                     tintColor: tintColor
                 )
                 Transform(

@@ -109,7 +109,14 @@ struct SetupSceneSystem {
                 from: .module
             ).asset!
 
+            let enemyTiles = try await AssetsManager.load(
+                Image.self,
+                at: "Resources/tiles_packed.png",
+                from: Bundle.module
+            ).asset!
+
             commands.insertResource(ExplosionResources(texture: explosionAtlas, audio: explosionAudio))
+            commands.insertResource(EnemyTextureAtlas(textureAtlas: TextureAtlas(from: enemyTiles, size: [18, 18])))
             commands.insertResource(LaserResource(audio: laserAudio))
         } catch {
             fatalError("Can't load assets \(error)")
@@ -178,6 +185,10 @@ struct EnemyComponent {
 struct GameState: Resource {
     var score: Int = 0
     var enemyMovementSpeed: Float = 100
+}
+
+struct EnemyTextureAtlas: Resource {
+    let textureAtlas: TextureAtlas
 }
 
 extension CollisionGroup {
@@ -341,10 +352,11 @@ struct EnemySpawnerSystem {
     @Local
     private var fixedTime = FixedTimestep(stepsPerSecond: 1)
 
-    let textureAtlas: TextureAtlas
-
     @Res<DeltaTime>
     private var deltaTime
+
+    @Res<EnemyTextureAtlas>
+    private var enemyTextureAtlas
 
     @Query<Camera>
     private var camera
@@ -352,19 +364,7 @@ struct EnemySpawnerSystem {
     @Commands
     private var commands
 
-    init(world: World) {
-        do {
-            let tiles = try AssetsManager.loadSync(
-                Image.self,
-                at: "Resources/tiles_packed.png",
-                from: Bundle.module
-            ).asset!
-
-            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
-        } catch {
-            fatalError("\(error)")
-        }
-    }
+    init(world: World) { }
 
     func update(context: UpdateContext) async {
         let result = fixedTime.advance(with: deltaTime.deltaTime)
@@ -395,7 +395,7 @@ struct EnemySpawnerSystem {
                 position: position
             )
             Sprite(
-                texture: textureAtlas[5, 7],
+                texture: enemyTextureAtlas.textureAtlas[5, 7],
                 size: .spriteSize
             )
             EnemyComponent(health: 100, lifetime: 12)

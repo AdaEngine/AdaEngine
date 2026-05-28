@@ -288,16 +288,81 @@ final class BrowserWindowManager: UIWindowManager {
         }
 
         _ = event.preventDefault?()
+        let keyCode = KeyCode(browserEvent: event)
+        let modifiers = KeyModifier(browserEvent: event)
+        let time = Float(Time.absolute)
+
         inputRef.wrappedValue.receiveEvent(
             KeyEvent(
                 window: window.id,
-                keyCode: KeyCode(browserEvent: event),
-                modifiers: KeyModifier(browserEvent: event),
+                keyCode: keyCode,
+                modifiers: modifiers,
                 status: status,
-                time: Float(Time.absolute),
+                time: time,
                 isRepeated: event.repeat.boolean ?? false
             )
         )
+
+        guard status == .down else {
+            return
+        }
+
+        if keyCode == .backspace {
+            inputRef.wrappedValue.receiveEvent(
+                TextInputEvent(
+                    window: window.id,
+                    text: "",
+                    action: .deleteBackward,
+                    time: time
+                )
+            )
+            return
+        }
+
+        guard
+            let key = event.key.string,
+            let textPayload = Self.textInputPayload(
+                key: key,
+                modifiers: modifiers
+            )
+        else {
+            return
+        }
+
+        inputRef.wrappedValue.receiveEvent(
+            TextInputEvent(
+                window: window.id,
+                text: textPayload,
+                action: .insert,
+                time: time
+            )
+        )
+    }
+
+    private static func textInputPayload(key: String, modifiers: KeyModifier) -> String? {
+        if modifiers.contains(.main) || modifiers.contains(.control) {
+            return nil
+        }
+
+        guard key.count == 1 else {
+            return nil
+        }
+
+        let sanitizedText = key
+            .replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+
+        guard !sanitizedText.isEmpty else {
+            return nil
+        }
+
+        let containsUnsupportedScalars = sanitizedText.unicodeScalars.contains { scalar in
+            let value = scalar.value
+            return value < 0x20 || value == 0x7F
+        }
+
+        return containsUnsupportedScalars ? nil : sanitizedText
     }
 }
 

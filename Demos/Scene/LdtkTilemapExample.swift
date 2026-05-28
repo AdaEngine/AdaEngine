@@ -28,38 +28,30 @@ final class LdtkTilemapPlugin: Plugin {
             )
         )
 
-        do {
-            let tileMap = try AssetsManager.loadSync(
-                LDtk.TileMap.self,
-                at: "Resources/TestTileMap.ldtk",
-                from: .module
-            ).asset!
-            tileMap.delegate = self
-            tileMap.loadLevel(at: 0)
-
-            app.main.spawn {
-                TileMapComponent(
-                    tileMap: tileMap,
-                    tileDisplaySize: Size(width: 48, height: 48)
-                )
-                Transform()
-            }
-        } catch {
-            fatalError("Failed to load \(error)")
-        }
-
+        app.main.addSystem(SetupLdtkTilemapSystem.self, on: .startup)
         app.main.addSystem(CamMovementSystem.self)
     }
 }
 
-extension LdtkTilemapPlugin: TileMapDelegate {
-    func tileMap(
-        _ tileMap: LDtk.TileMap,
-        needsUpdate entity: Entity,
-        from instance: LDtk.EntityInstance,
-        in tileSource: LDtk.EntityTileSource
-    ) {
+@System
+func SetupLdtkTilemap(_ commands: Commands) async {
+    do {
+        let tileMap = try await AssetsManager.load(
+            LDtk.TileMap.self,
+            at: "Resources/TestTileMap.ldtk",
+            from: .module
+        ).asset!
+        tileMap.loadLevel(at: 0)
 
+        commands.spawn {
+            TileMapComponent(
+                tileMap: tileMap,
+                tileDisplaySize: Size(width: 48, height: 48)
+            )
+            Transform()
+        }
+    } catch {
+        fatalError("Failed to load \(error)")
     }
 }
 
@@ -81,7 +73,7 @@ struct CamMovementSystem {
     init(world: World) { }
     
     func update(context: UpdateContext) {
-        let (camera, cameraTransform) = cameras.first!
+        let (_, cameraTransform) = cameras.first!
         let tileMap = tileMaps.first!
 
         if input.isKeyPressed(.m) {

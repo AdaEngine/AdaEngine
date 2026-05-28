@@ -30,7 +30,7 @@
 //
 //struct KeyframeSpritesExamplePlugin: Plugin {
 //    func setup(in app: AppWorlds) {
-//        let texture = try! AssetsManager.loadSync(Texture2D.self, at: "Resources/dog.png", from: .module)
+//        let texture = try await AssetsManager.load(Texture2D.self, at: "Resources/dog.png", from: .module)
 //
 //        // Hero — white sprite, animates a bob up/down on idle
 //        app.spawn("HeroSprite") {

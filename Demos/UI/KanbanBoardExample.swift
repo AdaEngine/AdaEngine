@@ -27,6 +27,8 @@ struct KanbanBoardView: View {
 
             VStack(alignment: .leading, spacing: 16) {
                 BoardHeaderView(totalCount: tasks.count, onAdd: addTask)
+                    .frame(maxWidth: .infinity)
+                    .padding(16)
 
                 Divider()
 
@@ -45,7 +47,6 @@ struct KanbanBoardView: View {
                     .padding(16)
                 }
             }
-            .padding(16)
         }
     }
 
@@ -90,7 +91,7 @@ struct BoardHeaderView: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Kanban Board")
-                    .fontSize(22)
+                    .fontSize(20)
 
                 Text("Minimal demo with stateful cards")
                     .fontSize(12)
@@ -98,6 +99,7 @@ struct BoardHeaderView: View {
             }
 
             Spacer()
+                .frame(maxWidth: .infinity)
 
             Text("Tasks: \(totalCount)")
                 .fontSize(12)
@@ -146,6 +148,7 @@ struct KanbanColumnView: View {
                     .accessibilityIdentifier("task list \(task.tag ?? task.title)")
                 }
             }
+            .frame(width: 260)
 
             Spacer(minLength: 4)
         }

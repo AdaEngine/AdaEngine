@@ -63,6 +63,7 @@ public final class ShaderSource: Asset, @unchecked Sendable {
     
     private var sources: [ShaderStage: String] = [:]
     private var entryPoints: [ShaderStage: String] = [:]
+    private var sourceFileURLs: [ShaderStage: URL] = [:]
     
     /// Contains include search paths for shaders.
     public var includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
@@ -86,8 +87,10 @@ public final class ShaderSource: Asset, @unchecked Sendable {
         case .glsl:
             self.sources = try ShaderUtils.processGLSLShader(source: sourceCode)
             self.entryPoints = Self.getEntryPoints(from: self.sources)
+            self.sourceFileURLs = Dictionary(uniqueKeysWithValues: self.sources.keys.map { ($0, fileURL) })
         default:
             self.sources = [.max: sourceCode]
+            self.sourceFileURLs = [.max: fileURL]
         }
     }
     
@@ -114,9 +117,10 @@ public final class ShaderSource: Asset, @unchecked Sendable {
     public init() { }
     
     /// Set new shader source code for specific stage.
-    public func setSource(_ source: String, for stage: ShaderStage) {
+    public func setSource(_ source: String, for stage: ShaderStage, fileURL: URL? = nil) {
         self.sources[stage] = source
         self.entryPoints[stage] = (try? ShaderUtils.dropEntryPoint(from: source).0)
+        self.sourceFileURLs[stage] = fileURL
     }
     
     /// Get source code for specific stage.
@@ -133,6 +137,27 @@ public final class ShaderSource: Asset, @unchecked Sendable {
     /// Return collection of stages available in this shader source.
     public var stages: [ShaderStage] {
         return Array(self.sources.keys)
+    }
+
+    func getSourceFileURL(for stage: ShaderStage) -> URL? {
+        return self.sourceFileURLs[stage] ?? self.fileURL
+    }
+
+    func getWGSLSource(for stage: ShaderStage) -> String? {
+        guard let sourceFileURL = self.getSourceFileURL(for: stage) else {
+            return nil
+        }
+
+        let wgslURL = sourceFileURL
+            .deletingPathExtension()
+            .appendingPathExtension(stage.wgslFileExtension)
+            .appendingPathExtension("wgsl")
+
+        guard let data = FileSystem.current.readFile(at: wgslURL) else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
     }
     
     // MARK: - Asset
@@ -164,11 +189,14 @@ public final class ShaderSource: Asset, @unchecked Sendable {
                 }
                 
                 self.sources = [stage : sourceForStage]
+                self.sourceFileURLs = [stage : fileURL]
             } else {
                 self.sources = sources
+                self.sourceFileURLs = Dictionary(uniqueKeysWithValues: sources.keys.map { ($0, fileURL) })
             }
         default:
             self.sources = [.max: sourceCode]
+            self.sourceFileURLs = [.max: fileURL]
         }
     }
     
@@ -188,6 +216,25 @@ public final class ShaderSource: Asset, @unchecked Sendable {
     
     public static func extensions() -> [String] {
         ["mat"]
+    }
+}
+
+extension ShaderStage {
+    var wgslFileExtension: String {
+        switch self {
+        case .vertex:
+            return "vert"
+        case .fragment:
+            return "frag"
+        case .compute:
+            return "comp"
+        case .tesselationControl:
+            return "tesc"
+        case .tesselationEvaluation:
+            return "tese"
+        case .max:
+            return "max"
+        }
     }
 }
 

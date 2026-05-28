@@ -14,6 +14,17 @@ protocol MaterialValueDelegate: AnyObject {
     func updateTexture(_ texture: MaterialTexture, for name: String)
 }
 
+private enum CustomMaterialError: LocalizedError {
+    case missingShaderStage(ShaderStage, material: String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .missingShaderStage(stage, material):
+            return "Missing \(stage.rawValue) shader source for \(material)."
+        }
+    }
+}
+
 /// This material supports user declared materials.
 ///
 /// It's very powerful tool for creating your own materials using power of Swift.
@@ -123,11 +134,24 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
             let vertexShaderSource = try T.vertexShader()
             let fragmentShaderSource = try T.fragmentShader()
 
-            assert(vertexShaderSource.asset.getSource(for: .vertex) != nil, "Failed to load vertex data")
-            assert(fragmentShaderSource.asset.getSource(for: .fragment) != nil, "Failed to load fragment data")
+            guard let vertexSource = vertexShaderSource.asset.getSource(for: .vertex) else {
+                throw CustomMaterialError.missingShaderStage(.vertex, material: String(reflecting: T.self))
+            }
+
+            guard let fragmentSource = fragmentShaderSource.asset.getSource(for: .fragment) else {
+                throw CustomMaterialError.missingShaderStage(.fragment, material: String(reflecting: T.self))
+            }
             
-            shaderSource.setSource(vertexShaderSource.asset.getSource(for: .vertex)!, for: .vertex)
-            shaderSource.setSource(fragmentShaderSource.asset.getSource(for: .fragment)!, for: .fragment)
+            shaderSource.setSource(
+                vertexSource,
+                for: .vertex,
+                fileURL: vertexShaderSource.asset.getSourceFileURL(for: .vertex)
+            )
+            shaderSource.setSource(
+                fragmentSource,
+                for: .fragment,
+                fileURL: fragmentShaderSource.asset.getSourceFileURL(for: .fragment)
+            )
             
             shaderSource.includeSearchPaths.append(contentsOf: vertexShaderSource.asset.includeSearchPaths)
             shaderSource.includeSearchPaths.append(contentsOf: fragmentShaderSource.asset.includeSearchPaths)
@@ -168,10 +192,20 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
         shaderModule: ShaderModule
     ) -> RenderPipelineDescriptor? {
         do {
+            guard let vertexShader = shaderModule.getShader(for: .vertex) else {
+                assertionFailure("[CustomMaterial] \(CustomMaterialError.missingShaderStage(.vertex, material: String(reflecting: T.self)))")
+                return nil
+            }
+
+            guard let fragmentShader = shaderModule.getShader(for: .fragment) else {
+                assertionFailure("[CustomMaterial] \(CustomMaterialError.missingShaderStage(.fragment, material: String(reflecting: T.self)))")
+                return nil
+            }
+
             let pipeline = try T.configurePipeline(
                 keys: keys,
-                vertex: shaderModule.getShader(for: .vertex)!,
-                fragment: shaderModule.getShader(for: .fragment)!,
+                vertex: vertexShader,
+                fragment: fragmentShader,
                 vertexDescriptor: vertexDescriptor
             )
             

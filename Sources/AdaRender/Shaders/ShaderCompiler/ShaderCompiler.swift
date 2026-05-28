@@ -147,14 +147,36 @@ public final class ShaderCompiler {
             }
         }
 
-        let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
         #if WASM
         if unsafe RenderEngine.shared.type == .headless {
+            let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
             let shader = try Shader(spirv: binary, compiler: self)
             try shader.compile()
             return shader
         }
+
+        #if canImport(WebGPU)
+        if unsafe RenderEngine.shared.type.deviceLang == .wgsl {
+            guard let wgslSource = self.shaderSource.getWGSLSource(for: stage) else {
+                let sourcePath = self.shaderSource.getSourceFileURL(for: stage)?.path ?? "<unknown>"
+                throw CompileError.failed("WGSL sidecar for `\(stage.rawValue)` shader not found next to \(sourcePath)")
+            }
+
+            let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
+            let spirvCompiler = try SpirvCompiler(spriv: binary.data, stage: stage, deviceLang: .glsl)
+            let shader = Shader(
+                source: wgslSource,
+                entryPoint: self.shaderSource.getEntryPoint(for: stage),
+                stage: stage,
+                reflectionData: spirvCompiler.reflection()
+            )
+            try shader.compile()
+            return shader
+        }
         #endif
+        #endif
+
+        let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
 
         #if canImport(WebGPU)
         if unsafe RenderEngine.shared.type.deviceLang == .wgsl {
@@ -171,6 +193,9 @@ public final class ShaderCompiler {
         }
         #endif
 
+        #if WASM
+        throw CompileError.failed("Synchronous device shader compilation is unavailable on WebAssembly")
+        #else
         let deviceShaderCompiler = self.makeDeviceShaderCompiler()
         let compiledShaderData = try UnsafeTask { [deviceShaderCompiler, macros] in
             try await deviceShaderCompiler.compile(
@@ -197,6 +222,7 @@ public final class ShaderCompiler {
         }
         
         return shader
+        #endif
     }
     
     // MARK: - Private

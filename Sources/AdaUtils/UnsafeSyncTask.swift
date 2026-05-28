@@ -1,4 +1,16 @@
-#if canImport(Dispatch)
+#if WASM
+/// Use Swift Coroutines but block current execution context and wait until task is done.
+@available(*, unavailable, message: "UnsafeTask is unavailable on WebAssembly. Use async APIs instead.")
+public final class UnsafeTask<T>: @unchecked Sendable {
+    public init(priority: TaskPriority = .userInitiated, block: @escaping @Sendable () async throws -> T) {
+        fatalError("UnsafeTask is unavailable on WebAssembly")
+    }
+
+    public func get() throws -> T {
+        fatalError("UnsafeTask is unavailable on WebAssembly")
+    }
+}
+#elseif canImport(Dispatch)
 import Dispatch
 
 /// Use Swift Coroutines but block current execution context and wait until task is done.

@@ -90,7 +90,7 @@ public struct CameraSystem: Sendable {
         }
 
         if needsUpdateProjection {
-            let viewportSize = camera.viewport.rect.size
+            let viewportSize = camera.logicalViewport.rect.size
             camera.projection.updateView(
                 width: viewportSize.width,
                 height: viewportSize.height

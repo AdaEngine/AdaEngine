@@ -62,10 +62,14 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
         if let value = self.resources[path]?.value as? A {
             return AssetHandle(value)
         } else {
+            #if WASM
+            throw AssetDecodingError.decodingProblem("Synchronous nested resource loading is unavailable on WebAssembly.")
+            #else
             let handle = try AssetsManager.loadSync(resourceType, at: path)
             self.appendResource(handle)
             
             return handle
+            #endif
         }
     }
     

@@ -21,11 +21,23 @@ struct SpriteExampleApp: App {
 
 struct SpriteExamplePlugin: Plugin {
     func setup(in app: borrowing AppWorlds) {
-        let texture = try! AssetsManager.loadSync(Texture2D.self, at: "Resources/dog.png", from: .module)
-        app.spawn {
-            Sprite(texture: texture)
-            Transform()
-        }
         app.main.spawn(bundle: Camera2D())
+        app.addSystem(SetupSpriteSystem.self, on: .startup)
+    }
+}
+
+@System
+func SetupSprite(_ commands: Commands) async {
+    let texture: AssetHandle<Texture2D>
+    do {
+        texture = try await AssetsManager.load(Texture2D.self, at: "Resources/dog.png", from: .module)
+    } catch {
+        print("Failed to load texture: \(error), using white texture")
+        texture = AssetHandle(Texture2D.whiteTexture)
+    }
+
+    commands.spawn {
+        Sprite(texture: texture)
+        Transform()
     }
 }

@@ -68,4 +68,26 @@ struct ShaderCacheTests {
         // Then: Should return vertex stage as changed
         #expect(thirdCallChanges.contains(.vertex))
     }
+
+    @Test func `shader source loads generated wgsl sidecar for stage`() throws {
+        let tempDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+
+        defer {
+            try? FileManager.default.removeItem(at: tempDirectory)
+        }
+
+        let shaderFileURL = tempDirectory.appendingPathComponent("test_shader.glsl")
+        let wgslFileURL = tempDirectory.appendingPathComponent("test_shader.vert.wgsl")
+        let wgslSource = "@vertex fn custom_vertex() -> @builtin(position) vec4f { return vec4f(); }"
+
+        try shaderSource.write(to: shaderFileURL, atomically: true, encoding: .utf8)
+        try wgslSource.write(to: wgslFileURL, atomically: true, encoding: .utf8)
+
+        let shader = try ShaderSource(from: shaderFileURL)
+
+        #expect(shader.getSourceFileURL(for: .vertex) == shaderFileURL)
+        #expect(shader.getWGSLSource(for: .vertex) == wgslSource)
+    }
 }
