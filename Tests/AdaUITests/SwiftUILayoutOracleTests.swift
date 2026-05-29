@@ -205,6 +205,145 @@ struct SwiftUILayoutOracleTests {
     }
 
     @Test
+    func vStackChatComposerWithTextAndSpacerMatchesSwiftUI() {
+        assertLayoutMatchesSwiftUI(
+            size: Size(width: 560, height: 520),
+            ids: ["root", "content", "expected", "observed", "probe", "composer"],
+            tolerance: 8,
+            swiftUI: {
+                SwiftUI.VStack(alignment: .leading, spacing: 12) {
+                    SwiftUI.HStack(alignment: .center, spacing: 10) {
+                        SwiftUI.Color.clear
+                            .frame(width: 38, height: 38)
+
+                        SwiftUI.VStack(alignment: .leading, spacing: 3) {
+                            SwiftUI.Text("Layout debugger")
+                                .font(.system(size: 15))
+                            SwiftUI.Text("Compare exact space distribution")
+                                .font(.system(size: 11))
+                        }
+
+                        SwiftUI.Spacer()
+
+                        SwiftUI.Color.clear
+                            .frame(width: 34, height: 22)
+                    }
+
+                    SwiftUI.Color.clear
+                        .frame(height: 1)
+
+                    SwiftUI.VStack(alignment: .leading, spacing: 10) {
+                        swiftMessageBubble(
+                            id: "expected",
+                            width: 252,
+                            title: "Expected",
+                            message: "Sidebar stays fixed while the transcript expands to fill the remaining width."
+                        )
+                        swiftMessageBubble(
+                            id: "observed",
+                            width: 302,
+                            title: "Observed",
+                            message: "Composer should keep its measured height and sit at the bottom after Spacer."
+                        )
+                        swiftMessageBubble(
+                            id: "probe",
+                            width: 218,
+                            title: "Probe",
+                            message: "Nested frame inside flexible content."
+                        )
+                    }
+
+                    SwiftUI.Spacer()
+
+                    SwiftUI.HStack(alignment: .bottom, spacing: 10) {
+                        SwiftUI.VStack(alignment: .leading, spacing: 6) {
+                            SwiftUI.Text("Message")
+                                .font(.system(size: 11))
+                            SwiftUI.Text("Try a long message with wrapping text and a fixed send button")
+                                .font(.system(size: 12))
+                                .lineLimit(2)
+                        }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+
+                        SwiftUI.Color.clear
+                            .frame(width: 58, height: 40)
+                    }
+                    .oracleFrame("composer")
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, minHeight: 496, maxHeight: 496, alignment: .topLeading)
+                .oracleFrame("content")
+            },
+            adaUI: {
+                AdaUI.VStack(alignment: .leading, spacing: 12) {
+                    AdaUI.HStack(alignment: .center, spacing: 10) {
+                        AdaUI.EmptyView()
+                            .frame(width: 38, height: 38)
+
+                        AdaUI.VStack(alignment: .leading, spacing: 3) {
+                            AdaUI.Text("Layout debugger")
+                                .fontSize(15)
+                            AdaUI.Text("Compare exact space distribution")
+                                .fontSize(11)
+                        }
+
+                        AdaUI.Spacer()
+
+                        AdaUI.EmptyView()
+                            .frame(width: 34, height: 22)
+                    }
+
+                    AdaUI.EmptyView()
+                        .frame(height: 1)
+
+                    AdaUI.VStack(alignment: .leading, spacing: 10) {
+                        adaMessageBubble(
+                            id: "expected",
+                            width: 252,
+                            title: "Expected",
+                            message: "Sidebar stays fixed while the transcript expands to fill the remaining width."
+                        )
+                        adaMessageBubble(
+                            id: "observed",
+                            width: 302,
+                            title: "Observed",
+                            message: "Composer should keep its measured height and sit at the bottom after Spacer."
+                        )
+                        adaMessageBubble(
+                            id: "probe",
+                            width: 218,
+                            title: "Probe",
+                            message: "Nested frame inside flexible content."
+                        )
+                    }
+
+                    AdaUI.Spacer()
+
+                    AdaUI.HStack(alignment: .bottom, spacing: 10) {
+                        AdaUI.VStack(alignment: .leading, spacing: 6) {
+                            AdaUI.Text("Message")
+                                .fontSize(11)
+                            AdaUI.Text("Try a long message with wrapping text and a fixed send button")
+                                .fontSize(12)
+                                .lineLimit(2)
+                        }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+
+                        AdaUI.EmptyView()
+                            .frame(width: 58, height: 40)
+                    }
+                    .accessibilityIdentifier("composer")
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, minHeight: 496, maxHeight: 496, alignment: .topLeading)
+                .accessibilityIdentifier("content")
+            }
+        )
+    }
+
+    @Test
     func flexibleFrameAlignmentMatchesSwiftUI() {
         assertLayoutMatchesSwiftUI(
             size: Size(width: 220, height: 160),
@@ -291,6 +430,99 @@ struct SwiftUILayoutOracleTests {
                         .frame(height: 20)
                         .frame(maxWidth: .infinity)
                         .accessibilityIdentifier("secondary")
+                }
+            }
+        )
+    }
+
+    @Test
+    func hStackFlexibleTextFrameCompressesBeforeFixedButtonLikeSwiftUI() {
+        assertLayoutMatchesSwiftUI(
+            size: Size(width: 360, height: 100),
+            ids: ["root", "input", "button"],
+            tolerance: 4,
+            swiftUI: {
+                SwiftUI.HStack(alignment: .bottom, spacing: 10) {
+                    SwiftUI.VStack(alignment: .leading, spacing: 6) {
+                        SwiftUI.Text("Message")
+                            .font(.system(size: 11))
+                        SwiftUI.Text("Try a long message with wrapping text and a fixed send button")
+                            .font(.system(size: 12))
+                            .lineLimit(2)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+                    .oracleFrame("input")
+
+                    SwiftUI.Color.clear
+                        .frame(width: 58, height: 40)
+                        .oracleFrame("button")
+                }
+            },
+            adaUI: {
+                AdaUI.HStack(alignment: .bottom, spacing: 10) {
+                    AdaUI.VStack(alignment: .leading, spacing: 6) {
+                        AdaUI.Text("Message")
+                            .fontSize(11)
+                        AdaUI.Text("Try a long message with wrapping text and a fixed send button")
+                            .fontSize(12)
+                            .lineLimit(2)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+                    .accessibilityIdentifier("input")
+
+                    AdaUI.EmptyView()
+                        .frame(width: 58, height: 40)
+                        .accessibilityIdentifier("button")
+                }
+            }
+        )
+    }
+
+    @Test
+    func hStackHeaderSpacerKeepsTrailingBadgeAtEdgeLikeSwiftUI() {
+        assertLayoutMatchesSwiftUI(
+            size: Size(width: 700, height: 80),
+            ids: ["root", "badge"],
+            tolerance: 4,
+            swiftUI: {
+                SwiftUI.HStack(alignment: .center, spacing: 10) {
+                    SwiftUI.VStack(alignment: .leading, spacing: 4) {
+                        SwiftUI.Text("Component Inspector")
+                            .font(.system(size: 18))
+                        SwiftUI.Text("Dense form with fixed labels and flexible values")
+                            .font(.system(size: 11))
+                    }
+                    .oracleFrame("title")
+
+                    SwiftUI.Spacer()
+
+                    SwiftUI.Text("Modified")
+                        .font(.system(size: 10))
+                        .fixedSize()
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 7)
+                        .oracleFrame("badge")
+                }
+            },
+            adaUI: {
+                AdaUI.HStack(alignment: .center, spacing: 10) {
+                    AdaUI.VStack(alignment: .leading, spacing: 4) {
+                        AdaUI.Text("Component Inspector")
+                            .fontSize(18)
+                        AdaUI.Text("Dense form with fixed labels and flexible values")
+                            .fontSize(11)
+                    }
+                    .accessibilityIdentifier("title")
+
+                    AdaUI.Spacer()
+
+                    AdaUI.Text("Modified")
+                        .fontSize(10)
+                        .fixedSize()
+                        .padding(EdgeInsets(top: 4, leading: 7, bottom: 4, trailing: 7))
+                        .accessibilityIdentifier("badge")
                 }
             }
         )
@@ -538,6 +770,34 @@ private func fixedAdaUIView(_ id: String, width: Float, height: Float) -> some A
     AdaUI.EmptyView()
         .frame(width: width, height: height)
         .accessibilityIdentifier(id)
+}
+
+@MainActor
+private func swiftMessageBubble(id: String, width: CGFloat, title: String, message: String) -> some SwiftUI.View {
+    SwiftUI.VStack(alignment: .leading, spacing: 5) {
+        SwiftUI.Text(title)
+            .font(.system(size: 11))
+        SwiftUI.Text(message)
+            .font(.system(size: 12))
+            .lineLimit(2)
+    }
+    .padding(10)
+    .frame(width: width, alignment: .leading)
+    .oracleFrame(id)
+}
+
+@MainActor
+private func adaMessageBubble(id: String, width: Float, title: String, message: String) -> some AdaUI.View {
+    AdaUI.VStack(alignment: .leading, spacing: 5) {
+        AdaUI.Text(title)
+            .fontSize(11)
+        AdaUI.Text(message)
+            .fontSize(12)
+            .lineLimit(2)
+    }
+    .padding(10)
+    .frame(width: width, alignment: .leading)
+    .accessibilityIdentifier(id)
 }
 
 private extension Rect {

@@ -1285,10 +1285,11 @@ private func mainJS(product: String) -> String {
       globalThis.__adaWebGPUAdapter = adapter;
       globalThis.__adaWebGPUDevice = device;
 
-      async function makeResourcePreopen() {
+      async function makeResourcePreopenDirectories() {
         updateLoader(68, "Loading resources…");
         const response = await fetch(new URL("./ada-resource-manifest.json", import.meta.url));
         const manifest = response.ok ? await response.json() : [];
+        installResourceFetchResolver(manifest);
         const root = new Map();
 
         let loadedResources = 0;
@@ -1313,19 +1314,57 @@ private func mainJS(product: String) -> String {
         const materialize = (map) => new Directory(
           [...map.entries()].map(([name, value]) => [name, value instanceof Map ? materialize(value) : value])
         );
-        return new PreopenDirectory(
-          "/",
-          [...root.entries()].map(([name, value]) => [name, value instanceof Map ? materialize(value) : value])
-        );
+        const rootEntries = () => [...root.entries()].map(([name, value]) => [name, value instanceof Map ? materialize(value) : value]);
+        return [
+          new PreopenDirectory("/", rootEntries()),
+          new PreopenDirectory(".", rootEntries()),
+        ];
       }
 
-      const resourcePreopen = await makeResourcePreopen();
+      function installResourceFetchResolver(manifest) {
+        const originalFetch = globalThis.fetch?.bind(globalThis);
+        if (!originalFetch || globalThis.__adaResourceFetchResolverInstalled) return;
+
+        const resourceURLsByPath = new Map();
+        for (const entry of manifest) {
+          if (!entry || typeof entry.path !== "string" || typeof entry.url !== "string") continue;
+          const resourceURL = new URL(entry.url, import.meta.url).href;
+          const relativePath = entry.path.replace(/^\\/+/, "");
+          resourceURLsByPath.set(entry.path, resourceURL);
+          resourceURLsByPath.set(relativePath, resourceURL);
+          resourceURLsByPath.set(`/${relativePath}`, resourceURL);
+          resourceURLsByPath.set(`./${relativePath}`, resourceURL);
+        }
+
+        const resolveResourceURL = (input) => {
+          const rawURL = typeof input === "string" || input instanceof URL ? String(input) : input?.url;
+          if (!rawURL) return null;
+          if (resourceURLsByPath.has(rawURL)) return resourceURLsByPath.get(rawURL);
+          const pathname = new URL(rawURL, import.meta.url).pathname.replace(/^\\/+/, "");
+          if (resourceURLsByPath.has(pathname)) return resourceURLsByPath.get(pathname);
+          for (const [resourcePath, resourceURL] of resourceURLsByPath) {
+            if (pathname.endsWith(resourcePath.replace(/^\\/+/, ""))) return resourceURL;
+          }
+          return null;
+        };
+
+        globalThis.fetch = (input, init) => {
+          const resourceURL = resolveResourceURL(input);
+          if (resourceURL) {
+            return originalFetch(resourceURL, init);
+          }
+          return originalFetch(input, init);
+        };
+        globalThis.__adaResourceFetchResolverInstalled = true;
+      }
+
+      const resourcePreopens = await makeResourcePreopenDirectories();
       updateLoader(82, "Configuring WASI…");
       const wasi = new WASI(["\(product).wasm"], [], [
         new OpenFile(new File([])),
         ConsoleStdout.lineBuffered((line) => console.log(line)),
         ConsoleStdout.lineBuffered((line) => console.warn(line)),
-        resourcePreopen,
+        ...resourcePreopens,
       ], { debug: false });
       const importObject = {
         wasi_snapshot_preview1: wasi.wasiImport,

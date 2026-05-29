@@ -1,5 +1,7 @@
 @_spi(AdaEngine) import AdaEngine
 import Foundation
+import SwiftTreeSitter
+import TreeSitterSwift
 
 struct EditorCodeFileView: View {
     let document: EditorTextDocument
@@ -192,6 +194,182 @@ struct EditorCodeToken: Equatable {
     var color: Color
 }
 
+private struct EditorSyntaxHighlightSpan: Equatable, Sendable {
+    var line: Int
+    var startColumn: Int
+    var endLine: Int
+    var endColumn: Int
+    var color: Color
+}
+
+private enum EditorTreeSitterSwiftSyntaxHighlighter {
+    private static let configuration: LanguageConfiguration? = {
+        guard let language = tree_sitter_swift() else {
+            return nil
+        }
+
+        do {
+            return try LanguageConfiguration(language, name: "Swift")
+        } catch {
+            guard let queriesURL = swiftQueriesDirectoryURL() else {
+                return nil
+            }
+
+            do {
+                return try LanguageConfiguration(language, name: "Swift", queriesURL: queriesURL)
+            } catch {
+                return nil
+            }
+        }
+    }()
+
+    private static func swiftQueriesDirectoryURL() -> URL? {
+        let bundleName = "TreeSitterSwift_TreeSitterSwift.bundle"
+        let bundleRoots: [URL] = Bundle.allBundles.flatMap { bundle -> [URL] in
+            var roots = [
+                bundle.bundleURL,
+                bundle.bundleURL.deletingLastPathComponent()
+            ]
+            if let resourceURL = bundle.resourceURL {
+                roots.append(resourceURL)
+            }
+            return roots
+        }
+        let roots = bundleRoots + [
+            Bundle.main.resourceURL,
+            Optional(Bundle.main.bundleURL),
+            Bundle.main.executableURL?.deletingLastPathComponent(),
+            Optional(Bundle.main.bundleURL.deletingLastPathComponent())
+        ].compactMap(\.self)
+
+        for root in roots {
+            let bundleURL = root.appendingPathComponent(bundleName, isDirectory: true)
+            let queryURLs = [
+                bundleURL.appendingPathComponent("queries", isDirectory: true),
+                bundleURL.appendingPathComponent("Contents/Resources/queries", isDirectory: true)
+            ]
+
+            if let readableURL = queryURLs.first(where: { FileManager.default.isReadableFile(atPath: $0.path) }) {
+                return readableURL
+            }
+        }
+
+        return findSwiftQueriesDirectoryInLocalBuild(bundleName: bundleName)
+    }
+
+    private static func findSwiftQueriesDirectoryInLocalBuild(bundleName: String) -> URL? {
+        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+        let buildDirectories = [
+            currentDirectory.appendingPathComponent(".build", isDirectory: true),
+            currentDirectory.appendingPathComponent("Editor/.build", isDirectory: true)
+        ]
+
+        for buildDirectory in buildDirectories where FileManager.default.fileExists(atPath: buildDirectory.path) {
+            guard let enumerator = FileManager.default.enumerator(at: buildDirectory, includingPropertiesForKeys: nil) else {
+                continue
+            }
+
+            for case let bundleURL as URL in enumerator where bundleURL.lastPathComponent == bundleName {
+                let queryURLs = [
+                    bundleURL.appendingPathComponent("queries", isDirectory: true),
+                    bundleURL.appendingPathComponent("Contents/Resources/queries", isDirectory: true)
+                ]
+
+                if let readableURL = queryURLs.first(where: { FileManager.default.isReadableFile(atPath: $0.path) }) {
+                    return readableURL
+                }
+            }
+        }
+
+        return nil
+    }
+
+    static func spans(for source: String, palette: EditorCodeColorPalette) -> [EditorSyntaxHighlightSpan]? {
+        guard let configuration, let query = configuration.queries[.highlights] else {
+            return nil
+        }
+
+        let parser = Parser()
+        do {
+            try parser.setLanguage(configuration.language)
+        } catch {
+            assertionFailure("Unable to configure tree-sitter Swift parser: \(error)")
+            return nil
+        }
+
+        guard let tree = parser.parse(source) else {
+            return nil
+        }
+
+        let cursor = query.execute(in: tree)
+        return cursor
+            .resolve(with: .init(string: source))
+            .highlights()
+            .compactMap { namedRange in
+                span(for: namedRange, source: source, palette: palette)
+            }
+    }
+
+    private static func span(for namedRange: NamedRange, source: String, palette: EditorCodeColorPalette) -> EditorSyntaxHighlightSpan? {
+        let lines = source.components(separatedBy: .newlines)
+        let pointRange = namedRange.tsRange.points
+        let start = pointRange.lowerBound
+        let end = pointRange.upperBound
+        let startLine = Int(start.row)
+        let endLine = Int(end.row)
+        let startColumn = characterColumn(forUTF16ByteColumn: Int(start.column), in: lines[safe: startLine] ?? "")
+        let endColumn = characterColumn(forUTF16ByteColumn: Int(end.column), in: lines[safe: endLine] ?? "")
+        guard start.row < end.row || startColumn < endColumn else {
+            return nil
+        }
+        guard let color = color(forCaptureName: namedRange.name, palette: palette) else {
+            return nil
+        }
+
+        return EditorSyntaxHighlightSpan(
+            line: startLine,
+            startColumn: startColumn,
+            endLine: endLine,
+            endColumn: endColumn,
+            color: color
+        )
+    }
+
+    private static func characterColumn(forUTF16ByteColumn column: Int, in line: String) -> Int {
+        let utf16Offset = min(column / 2, line.utf16.count)
+        let index = String.Index(utf16Offset: utf16Offset, in: line)
+        return line.distance(from: line.startIndex, to: index)
+    }
+
+    private static func color(forCaptureName name: String, palette: EditorCodeColorPalette) -> Color? {
+        if name.hasPrefix("comment") {
+            return palette.comment
+        }
+
+        if name.hasPrefix("string") {
+            return palette.string
+        }
+
+        if name.hasPrefix("number") || name == "boolean" || name.hasPrefix("constant") {
+            return palette.number
+        }
+
+        if name.hasPrefix("keyword") || name == "attribute" {
+            return palette.keyword
+        }
+
+        if name.hasPrefix("type") || name == "constructor" || name.hasPrefix("function") {
+            return palette.type
+        }
+
+        if name.hasPrefix("punctuation") || name == "operator" {
+            return palette.punctuation
+        }
+
+        return nil
+    }
+}
+
 enum EditorSyntaxHighlighter {
     private enum ScanState {
         case normal
@@ -213,6 +391,10 @@ enum EditorSyntaxHighlighter {
             return []
         }
 
+        if let treeSitterSpans = treeSitterSwiftSpans(for: source, language: language, palette: palette) {
+            return treeSitterSpans
+        }
+
         let lines = source.components(separatedBy: .newlines)
         var state = ScanState.normal
         var spans: [TextEditorTokenSpan] = []
@@ -227,6 +409,31 @@ enum EditorSyntaxHighlighter {
                 spans += yamlSpans(for: line, lineIndex: lineIndex, palette: palette)
             default:
                 break
+            }
+        }
+
+        return spans
+    }
+
+    private static func treeSitterSwiftSpans(
+        for source: String,
+        language: EditorSourceLanguage,
+        palette: EditorCodeColorPalette
+    ) -> [TextEditorTokenSpan]? {
+        guard language == .swift || language == .packageManifest,
+              let highlightSpans = EditorTreeSitterSwiftSyntaxHighlighter.spans(for: source, palette: palette) else {
+            return nil
+        }
+
+        let lines = source.components(separatedBy: .newlines)
+        var spans: [TextEditorTokenSpan] = []
+
+        for highlightSpan in highlightSpans {
+            for lineIndex in highlightSpan.line...highlightSpan.endLine {
+                let line = lines[safe: lineIndex] ?? ""
+                let startColumn = lineIndex == highlightSpan.line ? highlightSpan.startColumn : 0
+                let endColumn = lineIndex == highlightSpan.endLine ? highlightSpan.endColumn : line.count
+                appendSpan(line: lineIndex, start: startColumn, end: endColumn, color: highlightSpan.color, to: &spans)
             }
         }
 

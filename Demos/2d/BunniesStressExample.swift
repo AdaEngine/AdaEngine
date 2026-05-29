@@ -6,6 +6,7 @@
 //
 
 import AdaEngine
+import Observation
 
 @main
 struct AdaEditorApp: App {
@@ -66,15 +67,15 @@ struct BunnyExample: Plugin {
     }
 
     private func setupUI(in app: AppWorlds) {
-        // Create performance counter UI
-        var container = TextAttributeContainer()
-        container.foregroundColor = .white
+        let overlayModel = BunnyStatsOverlayModel()
+        app.insertResource(overlayModel)
 
-        app.main.spawn("PerformanceCounter") {
-            TextComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
-            Transform(scale: Vector3(0.1), position: [-9, 8, 1])
-            NoFrustumCulling()
-            PerformanceCounter()
+        app.main.spawn("BunniesStatsOverlay") {
+            UIComponent(
+                view: BunniesStatsOverlay(model: overlayModel),
+                behaviour: .overlay
+            )
+            Transform()
         }
     }
 
@@ -108,13 +109,38 @@ struct Bunny {
     }
 }
 
-/// Component for the performance counter UI
-@Component
-struct PerformanceCounter {
+@Observable
+@MainActor
+final class BunnyStatsOverlayModel: Resource, @unchecked Sendable {
     var bunnyCount: Int = 0
     var fps: Float = 0
     var frameCount: Int = 0
     var lastUpdateTime: TimeInterval = 0
+}
+
+private struct BunniesStatsOverlay: View {
+    let model: BunnyStatsOverlayModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Press LMB to spawn bunnies")
+                .fontSize(13)
+                .foregroundColor(Color.white.opacity(0.72))
+
+            Text("Bunnies Count: \(model.bunnyCount)")
+                .fontSize(18)
+                .foregroundColor(.white)
+
+            Text("FPS: \(String(format: "%.1f", model.fps))")
+                .fontSize(13)
+                .foregroundColor(Color.white.opacity(0.72))
+        }
+        .padding(EdgeInsets(top: 12, leading: 14, bottom: 12, trailing: 14))
+        .background(Color.fromHex(0x171A1F).opacity(0.86))
+        .border(Color.white.opacity(0.14), lineWidth: 1)
+        .padding(16)
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+    }
 }
 
 // MARK: - Systems
@@ -307,37 +333,28 @@ struct PerformanceCounterSystem {
     @Query<Entity, Bunny>
     private var bunnies
 
-    @Query<Entity, Ref<PerformanceCounter>, Ref<TextComponent>>
-    private var counters
+    @Res
+    private var overlayModel: BunnyStatsOverlayModel!
 
     @Res<DeltaTime>
     private var deltaTime
 
     init(world: World) {}
 
+    @MainActor
     func update(context: UpdateContext) {
         let bunnyCount = bunnies.count
         let deltaTime = deltaTime.deltaTime
 
-        counters.forEach { _, counter, textComponent in
-            counter.bunnyCount = bunnyCount
-            counter.frameCount += 1
-            counter.lastUpdateTime += deltaTime
+        overlayModel.bunnyCount = bunnyCount
+        overlayModel.frameCount += 1
+        overlayModel.lastUpdateTime += deltaTime
 
-            // Update FPS calculation every second
-            if counter.lastUpdateTime >= 1.0 {
-                counter.fps = Float(counter.frameCount) / Float(counter.lastUpdateTime)
-                counter.frameCount = 0
-                counter.lastUpdateTime = 0
-            }
-
-            // Update text
-            var container = TextAttributeContainer()
-            container.foregroundColor = .white
-
-            let text = "Bunnies: \(bunnyCount)\nFPS: \(String(format: "%.1f", counter.fps))"
-            print(text)
-            textComponent.text = AttributedText(text, attributes: container)
+        // Update FPS calculation every second.
+        if overlayModel.lastUpdateTime >= 1.0 {
+            overlayModel.fps = Float(overlayModel.frameCount) / Float(overlayModel.lastUpdateTime)
+            overlayModel.frameCount = 0
+            overlayModel.lastUpdateTime = 0
         }
     }
 }

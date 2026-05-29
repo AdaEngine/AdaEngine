@@ -27,7 +27,9 @@ let package = Package(
         adaMCPPackage,
         .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
         .package(url: "https://github.com/TeamSloppy/swift-acp", branch: "main"),
-        .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0")
+        .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),
+        .package(url: "https://github.com/tree-sitter/swift-tree-sitter", from: "0.9.0"),
+        .package(url: "https://github.com/alex-pinkus/tree-sitter-swift", branch: "with-generated-files")
     ],
     targets: [
         .target(
@@ -52,6 +54,8 @@ let package = Package(
                 .product(name: "ACPModel", package: "swift-acp"),
                 .product(name: "SwiftParser", package: "swift-syntax"),
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
+                .product(name: "TreeSitterSwift", package: "tree-sitter-swift"),
                 "Yams",
                 "AdaPackageManifestTool"
             ],
@@ -70,7 +74,9 @@ let package = Package(
                 "AdaEditor",
                 "AdaPackageManifestTool",
                 .product(name: "AdaEngine", package: "AdaEngine"),
-                .product(name: "Math", package: "AdaEngine")
+                .product(name: "Math", package: "AdaEngine"),
+                .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
+                .product(name: "TreeSitterSwift", package: "tree-sitter-swift")
             ],
             exclude: [
                 "Fixtures"

@@ -239,7 +239,10 @@ final class FrameViewNode: ViewModifierNode {
         } else {
             maxV = .infinity
         }
-        let base = parent ?? ideal ?? minV
+        guard let base = parent ?? ideal else {
+            return nil
+        }
+
         var v = Swift.max(base, minV)
         if maxV.isFinite {
             v = Swift.min(v, maxV)

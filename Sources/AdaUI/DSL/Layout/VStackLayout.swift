@@ -77,8 +77,16 @@ public struct VStackLayout: Layout {
             return Size(width: idealSize.width, height: idealSize.height + cache.totalSubviewSpacing)
         }
 
+        let minimumContentHeight = subviews.enumerated().reduce(Float.zero) { partialResult, element in
+            let (index, subview) = element
+            return partialResult + min(
+                compressionMinHeight(index: index, subview: subview, cache: cache),
+                idealSizes[index].height
+            )
+        }
         let maximumContentHeight = max(cache.maxSize.height, idealSize.height)
-        let height = min(max(idealSize.height, proposedHeight - cache.totalSubviewSpacing), maximumContentHeight)
+        let proposedContentHeight = max(proposedHeight - cache.totalSubviewSpacing, 0)
+        let height = min(max(proposedContentHeight, minimumContentHeight), maximumContentHeight)
 
         return Size(
             width: idealSize.width,
@@ -120,28 +128,51 @@ public struct VStackLayout: Layout {
         } else {
             layoutHeight = min(idealHeight + cache.totalSubviewSpacing, bounds.height)
         }
-        let preferredFlexibleIndices = (0..<subviews.count).filter { index in
-            isFlexibleSubview(index: index, cache: cache) && !isSpacerSubview(subviews[index])
-        }
         let fallbackFlexibleIndices = (0..<subviews.count).filter { index in
             isFlexibleSubview(index: index, cache: cache)
         }
-
-        let distributedFlexibleIndices = preferredFlexibleIndices.isEmpty
-            ? fallbackFlexibleIndices
-            : preferredFlexibleIndices
+        let spacerFlexibleIndices = fallbackFlexibleIndices.filter { index in
+            isSpacerSubview(subviews[index])
+        }
+        let nonSpacerFlexibleIndices = fallbackFlexibleIndices.filter { index in
+            !isSpacerSubview(subviews[index])
+        }
+        let explicitFlexibleIndices = nonSpacerFlexibleIndices.filter { index in
+            isExplicitlyFlexibleHeightSubview(subviews[index])
+        }
 
         let layoutPriorities = subviews.map(\.layoutPriority)
+        let availableSpace = layoutHeight - idealHeight - cache.totalSubviewSpacing
+        let distributedFlexibleIndices: [Int]
+        if availableSpace > 0 {
+            if !explicitFlexibleIndices.isEmpty {
+                distributedFlexibleIndices = explicitFlexibleIndices
+            } else if !spacerFlexibleIndices.isEmpty {
+                distributedFlexibleIndices = spacerFlexibleIndices
+            } else {
+                distributedFlexibleIndices = fallbackFlexibleIndices
+            }
+        } else {
+            distributedFlexibleIndices = nonSpacerFlexibleIndices.isEmpty
+                ? fallbackFlexibleIndices
+                : nonSpacerFlexibleIndices
+        }
+
         let distributedPriorityCount = Set(distributedFlexibleIndices.map { layoutPriorities[$0] }).count
 
-        if distributedPriorityCount > 1 {
+        if distributedPriorityCount > 1 || availableSpace < 0 {
             let assignedHeights = stackAssignedMainAxisSizes(
                 idealSizes: idealSizes.map(\.height),
-                minSizes: cache.minSizes.map(\.height),
+                minSizes: subviews.enumerated().map { index, subview in
+                    min(
+                        compressionMinHeight(index: index, subview: subview, cache: cache),
+                        idealSizes[index].height
+                    )
+                },
                 maxSizes: cache.maxSizes.map(\.height),
                 layoutPriorities: layoutPriorities,
                 flexibleIndices: distributedFlexibleIndices,
-                availableSpace: layoutHeight - idealHeight - cache.totalSubviewSpacing
+                availableSpace: availableSpace
             )
 
             for (index, subview) in subviews.enumerated() {
@@ -163,7 +194,7 @@ public struct VStackLayout: Layout {
                 availableSpace: max(layoutHeight - idealHeight - cache.totalSubviewSpacing, 0)
             )
             var restOfFlexibleViews = distributedFlexibleIndices.count
-            var availableSpace = max(layoutHeight - idealHeight - cache.totalSubviewSpacing, 0)
+            var availableSpace = max(availableSpace, 0)
 
             for (index, subview) in subviews.enumerated() {
                 var idealHeight = equalizedSpacerHeights?[index] ?? idealSizes[index].height
@@ -223,5 +254,38 @@ public struct VStackLayout: Layout {
     @inline(__always)
     private func isSpacerSubview(_ subview: LayoutSubview) -> Bool {
         subview.node is SpacerViewNode
+    }
+
+    private func compressionMinHeight(
+        index: Int,
+        subview: LayoutSubview,
+        cache: Cache
+    ) -> Float {
+        guard let frameNode = subview.node as? FrameViewNode,
+              case .constraints(_, _, _, let minHeight, _, let maxHeight, _) = frameNode.frameRule,
+              let maxHeight,
+              !maxHeight.isFinite else {
+            return cache.minSizes[index].height
+        }
+
+        return minHeight ?? 0
+    }
+
+    private func isExplicitlyFlexibleHeightSubview(_ subview: LayoutSubview) -> Bool {
+        isExplicitlyFlexibleHeightNode(subview.node)
+    }
+
+    private func isExplicitlyFlexibleHeightNode(_ node: ViewNode) -> Bool {
+        if let frameNode = node as? FrameViewNode,
+              case .constraints(_, _, _, _, _, let maxHeight, _) = frameNode.frameRule,
+              let maxHeight {
+            return !maxHeight.isFinite
+        }
+
+        if let modifierNode = node as? ViewModifierNode {
+            return isExplicitlyFlexibleHeightNode(modifierNode.contentNode)
+        }
+
+        return false
     }
 }

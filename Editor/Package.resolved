@@ -1,5 +1,5 @@
 {
-  "originHash" : "5aec4daa3b385380c1475e3ed616b26733d1d4e2aad4b89b4a51acc978bffb07",
+  "originHash" : "9b7d6c24245772be94799b9be75576571d346d2957a9c881258954fcc59669a0",
   "pins" : [
     {
       "identity" : "javascriptkit",
@@ -101,12 +101,39 @@
       }
     },
     {
+      "identity" : "swift-tree-sitter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter/swift-tree-sitter",
+      "state" : {
+        "revision" : "08ef81eb8620617b55b08868126707ad72bf754f",
+        "version" : "0.25.0"
+      }
+    },
+    {
       "identity" : "swiftlintplugins",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/SimplyDanny/SwiftLintPlugins",
       "state" : {
         "revision" : "8a4640d14777685ba8f14e832373160498fbab92",
         "version" : "0.63.2"
+      }
+    },
+    {
+      "identity" : "tree-sitter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tree-sitter/tree-sitter",
+      "state" : {
+        "revision" : "da6fe9beb4f7f67beb75914ca8e0d48ae48d6406",
+        "version" : "0.25.10"
+      }
+    },
+    {
+      "identity" : "tree-sitter-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/alex-pinkus/tree-sitter-swift",
+      "state" : {
+        "branch" : "with-generated-files",
+        "revision" : "7b7909f2f6b9414be0958275f4c8e5d69c3bca43"
       }
     },
     {

@@ -194,20 +194,21 @@ final class SpirvCompiler {
                 let resource = unsafe reflectedResources[index]
                 let resourceName = unsafe String(cString: resource.name)
 
-                // Skip internal uniforms
-                if resourceName.hasPrefix("AE_") {
-                    continue
-                }
-
                 let type = unsafe spvc_compiler_get_type_handle(self.spvcCompiler, resource.base_type_id)
                 var size: Int = 0
                 unsafe spvc_compiler_get_declared_struct_size(self.spvcCompiler, type, &size)
 
                 let binding = unsafe spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationBinding)
                 let descriptorSetIndex = unsafe spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationDescriptorSet)
+                let isInternalResource = resourceName.hasPrefix("AE_")
 
                 if descriptorSetIndex >= reflectionData.descriptorSets.count {
-                    reflectionData.descriptorSets.append(ShaderResource.DescriptorSet())
+                    reflectionData.descriptorSets.append(
+                        contentsOf: Array(
+                            repeating: ShaderResource.DescriptorSet(),
+                            count: Int(descriptorSetIndex) - reflectionData.descriptorSets.count + 1
+                        )
+                    )
                 }
 
                 var descriptorSet = reflectionData.descriptorSets[Int(descriptorSetIndex)]
@@ -246,7 +247,9 @@ final class SpirvCompiler {
                     )
 
                     descriptorSet.uniformsBuffers[Int(binding)] = buffer
-                    reflectionData.shaderBuffers[resourceName] = buffer
+                    if !isInternalResource {
+                        reflectionData.shaderBuffers[resourceName] = buffer
+                    }
                 case .sampler:
                     let sampler = ShaderResource.Sampler(
                         name: resourceName,
@@ -254,7 +257,9 @@ final class SpirvCompiler {
                         shaderStage: ShaderStageFlags(shaderStage: self.stage)
                     )
 
-                    reflectionData.samplers[resourceName] = sampler
+                    if !isInternalResource {
+                        reflectionData.samplers[resourceName] = sampler
+                    }
                     descriptorSet.samplers[Int(binding)] = sampler
                 case .image, .inputAttachment, .storageImage, .sampledImage:
                     let access = unsafe spvc_type_get_image_access_qualifier(type)
@@ -304,7 +309,9 @@ final class SpirvCompiler {
                         resourceAccess: resourceAccess
                     )
 
-                    reflectionData.resources[resourceName] = image
+                    if !isInternalResource {
+                        reflectionData.resources[resourceName] = image
+                    }
                     descriptorSet.sampledImages[Int(binding)] = image
                 default:
                     continue

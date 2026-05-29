@@ -608,7 +608,7 @@ struct AdaEngineStyleUITests {
         )
 
         #expect(tokens.contains(EditorCodeToken(text: "let", color: .green)))
-        #expect(tokens.contains(EditorCodeToken(text: #""Ada""#, color: .blue)))
+        #expect(tokens.contains(EditorCodeToken(text: "Ada", color: .blue)))
         #expect(tokens.contains(EditorCodeToken(text: "// comment", color: .red)))
     }
 

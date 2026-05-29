@@ -171,6 +171,68 @@ struct MeshBufferTests {
         #expect(attributes[3].offset == MemoryLayout<Vector3>.stride)
     }
 
+    @Test func `shader reflection keeps internal uniforms in descriptor layout only`() throws {
+        let source = try ShaderSource(source: """
+        #version 450 core
+        #pragma stage : vert
+
+        layout (binding = 2) uniform AE_GlobalView {
+            mat4 u_ViewProjection;
+        };
+
+        layout (binding = 3) uniform AE_Mesh2dUniform {
+            mat4 u_MeshModel;
+        };
+
+        [[main]]
+        void test_vertex()
+        {
+            gl_Position = u_ViewProjection * u_MeshModel * vec4(0.0, 0.0, 0.0, 1.0);
+        }
+        """)
+        let compiler = ShaderCompiler(shaderSource: source)
+        let spirv = try compiler.compileSpirvBin(for: .vertex, ignoreCache: true)
+        let reflection = try SpirvCompiler(
+            spriv: spirv.data,
+            stage: .vertex,
+            deviceLang: .glsl
+        ).reflection()
+
+        let descriptorSet = try #require(reflection.descriptorSets.first)
+        #expect(descriptorSet.uniformsBuffers.keys.contains(2))
+        #expect(descriptorSet.uniformsBuffers.keys.contains(3))
+        #expect(reflection.shaderBuffers["AE_GlobalView"] == nil)
+        #expect(reflection.shaderBuffers["AE_Mesh2dUniform"] == nil)
+    }
+
+    @Test func `shader reflection grows descriptor sets for nonzero set resources`() throws {
+        let source = try ShaderSource(source: """
+        #version 450 core
+        #pragma stage : frag
+
+        layout (location = 0) out vec4 color;
+        layout (set = 1, binding = 0) uniform texture2D customTexture;
+        layout (set = 1, binding = 1) uniform sampler customSampler;
+
+        [[main]]
+        void test_fragment()
+        {
+            color = texture(sampler2D(customTexture, customSampler), vec2(0.5));
+        }
+        """)
+        let compiler = ShaderCompiler(shaderSource: source)
+        let spirv = try compiler.compileSpirvBin(for: .fragment, ignoreCache: true)
+        let reflection = try SpirvCompiler(
+            spriv: spirv.data,
+            stage: .fragment,
+            deviceLang: .glsl
+        ).reflection()
+
+        #expect(reflection.descriptorSets.count == 2)
+        #expect(reflection.descriptorSets[1].sampledImages.keys.contains(0))
+        #expect(reflection.descriptorSets[1].samplers.keys.contains(1))
+    }
+
     #if canImport(Metal)
     @Test func `mesh2d positions and colors pipeline compiles on Metal`() throws {
         guard let device = MTLCreateSystemDefaultDevice() else {
