@@ -374,6 +374,59 @@ struct NavigationStackTests {
     }
 }
 
+@MainActor
+struct NavigationSplitViewTests {
+
+    init() async throws {
+        try Application.prepareForTest()
+    }
+
+    @Test
+    func dividerUsesLocalHitAreaForResizeCursor() {
+        let window = makeNavigationSplitWindow()
+
+        window.sendEvent(
+            MouseEvent(
+                window: window.id,
+                button: .none,
+                mousePosition: Point(280, 100),
+                phase: .changed,
+                modifierKeys: [],
+                time: 0
+            )
+        )
+        #expect(window.windowManager.getCursorShape() == .resizeLeftRight)
+
+        window.sendEvent(
+            MouseEvent(
+                window: window.id,
+                button: .none,
+                mousePosition: Point(560, 100),
+                phase: .changed,
+                modifierKeys: [],
+                time: 0
+            )
+        )
+        #expect(window.windowManager.getCursorShape() == .arrow)
+    }
+
+    private func makeNavigationSplitWindow() -> UIWindow {
+        let container = UIContainerView(
+            rootView: NavigationSplitView {
+                Color.clear
+            } detail: {
+                Color.clear
+            }
+        )
+        container.frame = Rect(x: 0, y: 0, width: 800, height: 400)
+
+        let window = UIWindow(frame: Rect(x: 0, y: 0, width: 800, height: 400))
+        window.addSubview(container)
+        window.layoutSubviews()
+        return window
+    }
+}
+
 // Helper view that calls dismiss via environment
 private struct DismissTestView: View {
     let onAppear: () -> Void

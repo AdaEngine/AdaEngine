@@ -387,14 +387,7 @@ private final class NavigationSplitDividerNode: ViewNode {
         let separators = environment.navigationSplitViewSeparators
         guard separators.allowsDragging else { return false }
 
-        let hitOutset = max(separators.hitOutset, 0)
-        let extended = Rect(
-            x: frame.minX - hitOutset,
-            y: frame.minY,
-            width: frame.width + hitOutset * 2,
-            height: frame.height
-        )
-        return extended.contains(point: point)
+        return localHitBounds.contains(point: point)
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
@@ -417,7 +410,7 @@ private final class NavigationSplitDividerNode: ViewNode {
             resizeLeadingColumn(by: delta)
         case .ended, .cancelled:
             lastDragX = nil
-            if absoluteFrame().contains(point: event.mousePosition) {
+            if absoluteHitBounds.contains(point: event.mousePosition) {
                 setResizeCursor()
             } else {
                 resetCursor()
@@ -449,6 +442,29 @@ private final class NavigationSplitDividerNode: ViewNode {
     private func resizeLeadingColumn(by delta: Float) {
         guard delta != 0 else { return }
         (parent as? NavigationSplitViewNode)?.resizeColumn(leadingColumn, by: delta)
+    }
+
+    private var hitOutset: Float {
+        max(environment.navigationSplitViewSeparators.hitOutset, 0)
+    }
+
+    private var localHitBounds: Rect {
+        Rect(
+            x: -hitOutset,
+            y: 0,
+            width: frame.width + hitOutset * 2,
+            height: frame.height
+        )
+    }
+
+    private var absoluteHitBounds: Rect {
+        let bounds = absoluteFrame()
+        return Rect(
+            x: bounds.minX - hitOutset,
+            y: bounds.minY,
+            width: bounds.width + hitOutset * 2,
+            height: bounds.height
+        )
     }
 
     private func setResizeCursor() {
