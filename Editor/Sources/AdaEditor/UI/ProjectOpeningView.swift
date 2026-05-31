@@ -298,11 +298,7 @@ struct ProjectOpeningView: View {
 
             Spacer().frame(height: 28)
 
-            Text(viewModel.statusMessage)
-                .font(.system(size: 12))
-                .foregroundColor(LauncherColor.muted)
-                .lineLimit(2)
-                .frame(width: ProjectOpeningLayout.detailContentWidth, height: 34, alignment: .leading)
+            statusAndDiagnostics
 
             Spacer()
         }
@@ -405,6 +401,46 @@ struct ProjectOpeningView: View {
         .padding(ProjectOpeningLayout.detailPadding)
         .frame(width: ProjectOpeningLayout.detailWidth, height: ProjectOpeningLayout.windowHeight, alignment: .topLeading)
         .background(LauncherColor.window)
+    }
+
+
+    private var statusAndDiagnostics: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(viewModel.statusMessage)
+                .font(.system(size: 12))
+                .foregroundColor(viewModel.validationDiagnostics.isEmpty ? LauncherColor.muted : LauncherColor.accentOrange)
+                .lineLimit(3)
+
+            if !viewModel.validationDiagnostics.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("PROJECT VALIDATION")
+                        .font(.system(size: 10))
+                        .foregroundColor(LauncherColor.accentOrange)
+                    ForEach(viewModel.validationDiagnostics) { diagnostic in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.validationSummary ?? diagnostic.code)
+                                .font(.system(size: 12))
+                                .foregroundColor(.white)
+                            Text(diagnostic.message)
+                                .font(.system(size: 11))
+                                .foregroundColor(LauncherColor.muted)
+                                .lineLimit(2)
+                            Text(diagnostic.recoverySuggestion)
+                                .font(.system(size: 11))
+                                .foregroundColor(LauncherColor.accentOrange)
+                                .lineLimit(2)
+                        }
+                    }
+                }
+                .padding(12)
+                .frame(width: ProjectOpeningLayout.detailContentWidth, alignment: .leading)
+                .background(RoundedRectangleShape(cornerRadius: 10).fill(LauncherColor.input))
+                .overlay {
+                    RoundedRectangleShape(cornerRadius: 10).stroke(LauncherColor.accentOrange.opacity(0.45), lineWidth: 1)
+                }
+            }
+        }
+        .frame(width: ProjectOpeningLayout.detailContentWidth, alignment: .leading)
     }
 
     private func createFormField<Content: View>(title: String, @ViewBuilder content: @escaping () -> Content) -> some View {

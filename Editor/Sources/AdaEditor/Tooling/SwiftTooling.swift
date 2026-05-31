@@ -97,6 +97,117 @@ struct EditorProcessCommand: Equatable, Sendable {
     }
 }
 
+
+
+enum EditorProcessOutputStream: Equatable, Sendable {
+    case standardOutput
+    case standardError
+}
+
+struct EditorProcessOutputEvent: Equatable, Sendable {
+    var stream: EditorProcessOutputStream
+    var text: String
+}
+
+enum SwiftPMWorkspaceBootstrapPhase: String, Equatable, Sendable {
+    case loadingProjectMetadata
+    case locatingToolchain
+    case resolvingDependencies
+    case describingPackage
+    case startingSourceKitLSP
+    case scanningSources
+    case indexingBuild
+    case ready
+    case failed
+}
+
+struct SwiftPMWorkspaceProgress: Equatable, Sendable {
+    var phase: SwiftPMWorkspaceBootstrapPhase
+    var title: String
+    var detail: String?
+    var completedFileCount: Int?
+    var totalFileCount: Int?
+    var currentFile: String?
+    var currentTarget: String?
+    var command: EditorProcessCommand?
+
+    init(
+        phase: SwiftPMWorkspaceBootstrapPhase,
+        title: String,
+        detail: String? = nil,
+        completedFileCount: Int? = nil,
+        totalFileCount: Int? = nil,
+        currentFile: String? = nil,
+        currentTarget: String? = nil,
+        command: EditorProcessCommand? = nil
+    ) {
+        self.phase = phase
+        self.title = title
+        self.detail = detail
+        self.completedFileCount = completedFileCount
+        self.totalFileCount = totalFileCount
+        self.currentFile = currentFile
+        self.currentTarget = currentTarget
+        self.command = command
+    }
+
+    var progressText: String {
+        var value = title
+        if let completedFileCount, let totalFileCount, totalFileCount > 0 {
+            value += " \(completedFileCount)/\(totalFileCount)"
+        }
+        if let currentFile, !currentFile.isEmpty {
+            value += " — \(currentFile)"
+        }
+        return value
+    }
+}
+
+struct SwiftPMBuildProgressParser: Sendable {
+    private(set) var completedFiles: Set<String> = []
+
+    mutating func parse(line: String, knownFiles: [URL]) -> SwiftPMBuildProgress {
+        let file = Self.swiftFileName(in: line)
+        if let file {
+            if let knownFile = knownFiles.first(where: { $0.lastPathComponent == file || $0.path.hasSuffix(file) }) {
+                completedFiles.insert(knownFile.path)
+            } else {
+                completedFiles.insert(file)
+            }
+        }
+        return SwiftPMBuildProgress(completed: completedFiles.count, currentFile: file, currentTarget: Self.targetName(in: line))
+    }
+
+    static func swiftFileName(in line: String) -> String? {
+        let components = line.split { $0 == " " || $0 == "\t" || $0 == ":" || $0 == "(" || $0 == ")" }
+        return components.map(String.init).first { $0.hasSuffix(".swift") }
+    }
+
+    static func targetName(in line: String) -> String? {
+        let tokens = line.split { $0 == " " || $0 == "\t" }.map(String.init)
+        guard let compilingIndex = tokens.firstIndex(of: "Compiling"), tokens.indices.contains(tokens.index(after: compilingIndex)) else {
+            return nil
+        }
+        let candidate = tokens[tokens.index(after: compilingIndex)]
+        return candidate.hasSuffix(".swift") ? nil : candidate
+    }
+}
+
+struct SwiftPMBuildProgress: Equatable, Sendable {
+    var completed: Int
+    var currentFile: String?
+    var currentTarget: String?
+}
+
+private actor SwiftPMBuildProgressTracker {
+    private var parser = SwiftPMBuildProgressParser()
+
+    func parse(line: String, knownFiles: [URL]) -> SwiftPMBuildProgress {
+        parser.parse(line: line, knownFiles: knownFiles)
+    }
+}
+
+
 struct EditorProcessResult: Equatable, Sendable {
     var command: EditorProcessCommand
     var exitCode: Int32
@@ -116,13 +227,24 @@ struct EditorProcessResult: Equatable, Sendable {
 
 protocol EditorProcessRunning: Sendable {
     func run(_ command: EditorProcessCommand) async -> EditorProcessResult
+    func run(_ command: EditorProcessCommand, output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void) async -> EditorProcessResult
     func cancelAll() async
+}
+
+extension EditorProcessRunning {
+    func run(_ command: EditorProcessCommand, output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void) async -> EditorProcessResult {
+        await run(command)
+    }
 }
 
 actor EditorProcessRunner: EditorProcessRunning {
     private var activeProcesses: [UUID: Process] = [:]
 
     func run(_ command: EditorProcessCommand) async -> EditorProcessResult {
+        await run(command) { _ in }
+    }
+
+    func run(_ command: EditorProcessCommand, output outputHandler: @Sendable @escaping (EditorProcessOutputEvent) async -> Void) async -> EditorProcessResult {
         let processID = UUID()
         let process = Process()
         let output = Pipe()
@@ -140,7 +262,6 @@ actor EditorProcessRunner: EditorProcessRunning {
 
         do {
             try process.run()
-            process.waitUntilExit()
         } catch {
             return EditorProcessResult(
                 command: command,
@@ -150,15 +271,35 @@ actor EditorProcessRunner: EditorProcessRunning {
             )
         }
 
-        let standardOutput = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let standardError = String(data: error.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        async let standardOutput = Self.collectOutput(from: output, stream: .standardOutput, output: outputHandler)
+        async let standardError = Self.collectOutput(from: error, stream: .standardError, output: outputHandler)
+        process.waitUntilExit()
 
-        return EditorProcessResult(
+        return await EditorProcessResult(
             command: command,
             exitCode: process.terminationStatus,
             standardOutput: standardOutput,
             standardError: standardError
         )
+    }
+
+    nonisolated private static func collectOutput(
+        from pipe: Pipe,
+        stream: EditorProcessOutputStream,
+        output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void
+    ) async -> String {
+        var collected = Data()
+        while true {
+            let data = pipe.fileHandleForReading.availableData
+            guard !data.isEmpty else {
+                break
+            }
+            collected.append(data)
+            if let text = String(data: data, encoding: .utf8), !text.isEmpty {
+                await output(EditorProcessOutputEvent(stream: stream, text: text))
+            }
+        }
+        return String(data: collected, encoding: .utf8) ?? ""
     }
 
     func cancelAll() {
@@ -237,6 +378,7 @@ struct SwiftPMBootstrapResult: Equatable, Sendable {
 protocol SwiftPMWorkspaceServicing: Sendable {
     func makeCommand(_ kind: SwiftPMCommandKind, projectURL: URL, toolchain: SwiftToolchain) -> EditorProcessCommand
     func bootstrap(projectURL: URL) async -> SwiftPMBootstrapResult
+    func bootstrap(projectURL: URL, progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void) async -> SwiftPMBootstrapResult
     func execute(_ kind: SwiftPMCommandKind, projectURL: URL) async -> EditorProcessResult
     func semanticTokens(fileURL: URL, language: EditorSourceLanguage, text: String) async -> [EditorSemanticToken]
     func definition(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorSourceSymbolTarget]
@@ -244,6 +386,12 @@ protocol SwiftPMWorkspaceServicing: Sendable {
     func hover(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> EditorSymbolHover?
     func documentHighlights(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorDocumentHighlight]
     func cancel() async
+}
+
+extension SwiftPMWorkspaceServicing {
+    func bootstrap(projectURL: URL, progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void) async -> SwiftPMBootstrapResult {
+        await bootstrap(projectURL: projectURL)
+    }
 }
 
 actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
@@ -283,20 +431,63 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func bootstrap(projectURL: URL) async -> SwiftPMBootstrapResult {
+        await bootstrap(projectURL: projectURL) { _ in }
+    }
+
+    func bootstrap(projectURL: URL, progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void) async -> SwiftPMBootstrapResult {
+        await progress(SwiftPMWorkspaceProgress(phase: .loadingProjectMetadata, title: "Loading project metadata", detail: projectURL.path))
+        await progress(SwiftPMWorkspaceProgress(phase: .locatingToolchain, title: "Locating Swift toolchain", detail: "Searching swift and sourcekit-lsp"))
         let resolvedToolchain = await SwiftToolchainLocator.locate()
         toolchain = resolvedToolchain
+        await progress(SwiftPMWorkspaceProgress(
+            phase: .locatingToolchain,
+            title: "Swift toolchain found",
+            detail: "swift: \(resolvedToolchain.swiftExecutablePath), sourcekit-lsp: \(resolvedToolchain.sourceKitLSPExecutablePath ?? "unavailable")"
+        ))
 
-        let resolveResult = await processRunner.run(makeCommand(.resolve, projectURL: projectURL, toolchain: resolvedToolchain))
-        let describeResult = await processRunner.run(makeCommand(.describe, projectURL: projectURL, toolchain: resolvedToolchain))
+        let resolveCommand = makeCommand(.resolve, projectURL: projectURL, toolchain: resolvedToolchain)
+        await progress(SwiftPMWorkspaceProgress(phase: .resolvingDependencies, title: "Resolving SwiftPM dependencies", command: resolveCommand))
+        let resolveResult = await processRunner.run(resolveCommand) { event in
+            await progress(SwiftPMWorkspaceProgress(phase: .resolvingDependencies, title: "Resolving SwiftPM dependencies", detail: event.text.trimmingCharacters(in: .whitespacesAndNewlines), command: resolveCommand))
+        }
+
+        let describeCommand = makeCommand(.describe, projectURL: projectURL, toolchain: resolvedToolchain)
+        await progress(SwiftPMWorkspaceProgress(phase: .describingPackage, title: "Reading SwiftPM package graph", command: describeCommand))
+        let describeResult = resolveResult.succeeded
+            ? await processRunner.run(describeCommand)
+            : EditorProcessResult(command: describeCommand, exitCode: 1, standardOutput: "", standardError: "Skipped because dependency resolution failed.")
         let packageModel = describeResult.succeeded ? SwiftPackageModel.parse(from: describeResult.standardOutput) : nil
 
         if resolveResult.succeeded && describeResult.succeeded {
+            let lspTitle = resolvedToolchain.hasSourceKitLSP ? "Starting SourceKit-LSP" : "SourceKit-LSP unavailable"
+            await progress(SwiftPMWorkspaceProgress(phase: .startingSourceKitLSP, title: lspTitle, detail: resolvedToolchain.sourceKitLSPExecutablePath))
             await startSourceKitLSPIfAvailable(toolchain: resolvedToolchain, projectURL: projectURL)
         }
 
         let indexBuildResult: EditorProcessResult?
         if resolveResult.succeeded && describeResult.succeeded {
-            indexBuildResult = await processRunner.run(makeCommand(.build(target: nil, buildTests: true), projectURL: projectURL, toolchain: resolvedToolchain))
+            let sourceFiles = Self.swiftSourceFiles(projectURL: projectURL, packageModel: packageModel, fileManager: .default)
+            await progress(SwiftPMWorkspaceProgress(phase: .scanningSources, title: "Scanning Swift source files", completedFileCount: 0, totalFileCount: sourceFiles.count))
+            await progress(SwiftPMWorkspaceProgress(phase: .scanningSources, title: "Scanned Swift source files", completedFileCount: sourceFiles.count, totalFileCount: sourceFiles.count))
+            let buildCommand = makeCommand(.build(target: nil, buildTests: true), projectURL: projectURL, toolchain: resolvedToolchain)
+            await progress(SwiftPMWorkspaceProgress(phase: .indexingBuild, title: "Indexing Swift package", completedFileCount: 0, totalFileCount: sourceFiles.count, command: buildCommand))
+            let progressTracker = SwiftPMBuildProgressTracker()
+            indexBuildResult = await processRunner.run(buildCommand) { event in
+                let lines = event.text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                for line in lines {
+                    let parsed = await progressTracker.parse(line: line, knownFiles: sourceFiles)
+                    await progress(SwiftPMWorkspaceProgress(
+                        phase: .indexingBuild,
+                        title: "Indexing Swift package",
+                        detail: line,
+                        completedFileCount: parsed.completed,
+                        totalFileCount: sourceFiles.count,
+                        currentFile: parsed.currentFile,
+                        currentTarget: parsed.currentTarget,
+                        command: buildCommand
+                    ))
+                }
+            }
         } else {
             indexBuildResult = nil
         }
@@ -304,6 +495,11 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         let diagnostics = [resolveResult, describeResult, indexBuildResult]
             .compactMap { $0 }
             .flatMap { EditorDiagnostic.diagnostics(from: $0, projectURL: projectURL) }
+
+        await progress(SwiftPMWorkspaceProgress(
+            phase: (resolveResult.succeeded && describeResult.succeeded && indexBuildResult?.succeeded != false) ? .ready : .failed,
+            title: (resolveResult.succeeded && describeResult.succeeded && indexBuildResult?.succeeded != false) ? "Workspace ready" : "Workspace bootstrap failed"
+        ))
 
         return SwiftPMBootstrapResult(
             toolchain: resolvedToolchain,
@@ -427,6 +623,41 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             arguments += ["--filter", filter]
         }
         return arguments
+    }
+
+    static func swiftSourceFiles(projectURL: URL, packageModel: SwiftPackageModel?, fileManager: FileManager = .default) -> [URL] {
+        var files: Set<URL> = []
+        if let packageModel {
+            for target in packageModel.targets {
+                let targetRoot = projectURL.appendingPathComponent(target.path ?? "Sources/\(target.name)", isDirectory: true)
+                if target.sources.isEmpty {
+                    for file in swiftFiles(under: targetRoot, fileManager: fileManager) {
+                        files.insert(file.standardizedFileURL)
+                    }
+                } else {
+                    for source in target.sources where source.hasSuffix(".swift") {
+                        files.insert(targetRoot.appendingPathComponent(source, isDirectory: false).standardizedFileURL)
+                    }
+                }
+            }
+        }
+
+        if files.isEmpty {
+            for directory in ["Sources", "Tests"] {
+                files.formUnion(swiftFiles(under: projectURL.appendingPathComponent(directory, isDirectory: true), fileManager: fileManager).map { $0.standardizedFileURL })
+            }
+        }
+        return files.sorted { $0.path < $1.path }
+    }
+
+    private static func swiftFiles(under root: URL, fileManager: FileManager) -> [URL] {
+        guard let enumerator = fileManager.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) else {
+            return []
+        }
+        return enumerator.compactMap { item in
+            guard let url = item as? URL, url.pathExtension == "swift" else { return nil }
+            return url
+        }
     }
 
     private func startSourceKitLSPIfAvailable(toolchain: SwiftToolchain, projectURL: URL) async {

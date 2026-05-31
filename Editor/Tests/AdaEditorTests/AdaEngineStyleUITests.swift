@@ -373,9 +373,11 @@ struct AdaEngineStyleUITests {
         let inspector = AdaEngineStyleContent.rightSidebarTools[1]
         let settings = AdaEngineStyleContent.rightSidebarTools[5]
 
-        viewModel.activateLeftTopTool(fileTree)
         #expect(viewModel.showLeftPanel)
         #expect(viewModel.isLeftTopToolPresented(fileTree))
+        viewModel.activateLeftTopTool(fileTree)
+        #expect(!viewModel.showLeftPanel)
+        #expect(!viewModel.isLeftTopToolPresented(fileTree))
         viewModel.activateLeftTopTool(fileTree)
         #expect(viewModel.showLeftPanel)
         #expect(viewModel.isLeftTopToolPresented(fileTree))
@@ -387,13 +389,19 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.isLeftTopToolPresented(fileTree))
         #expect(viewModel.isLeftBottomToolPresented(build))
         viewModel.activateLeftBottomTool(build)
+        #expect(!viewModel.showBottomPanel)
+        #expect(!viewModel.isLeftBottomToolPresented(build))
+        #expect(viewModel.isLeftTopToolPresented(fileTree))
+        viewModel.activateLeftBottomTool(build)
         #expect(viewModel.showBottomPanel)
         #expect(viewModel.isLeftBottomToolPresented(build))
-        #expect(viewModel.isLeftTopToolPresented(fileTree))
 
         viewModel.activateRightTool(inspector)
         #expect(viewModel.showRightPanel)
         #expect(viewModel.isRightToolPresented(inspector))
+        viewModel.activateRightTool(inspector)
+        #expect(!viewModel.showRightPanel)
+        #expect(!viewModel.isRightToolPresented(inspector))
         viewModel.activateRightTool(settings)
         #expect(viewModel.showRightPanel)
         #expect(viewModel.toolStrip.activeRightTool == "projectSettings")

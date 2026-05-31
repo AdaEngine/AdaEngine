@@ -7,6 +7,21 @@
 import Foundation
 import Observation
 
+struct ProjectOpeningDiagnostic: Equatable, Identifiable, Sendable {
+    var id: String { code + ":" + (fieldPath ?? "") + ":" + message }
+    var code: String
+    var fieldPath: String?
+    var message: String
+    var recoverySuggestion: String
+
+    init(error: ProjectSystemError) {
+        self.code = error.code
+        self.fieldPath = error.fieldPath
+        self.message = error.message
+        self.recoverySuggestion = error.recoverySuggestion
+    }
+}
+
 @Observable
 @MainActor
 final class ProjectOpeningViewModel {
@@ -18,6 +33,7 @@ final class ProjectOpeningViewModel {
     var searchQuery: String = ""
     var selectedProject: EditorProjectReference?
     var statusMessage: String = "Select a recent SwiftPM Ada project, create a blank one, or open an existing package."
+    var validationDiagnostics: [ProjectOpeningDiagnostic] = []
     var projectToOpenInEditor: EditorProjectReference?
     var projectToOpenInEditorToken = 0
 
@@ -51,6 +67,15 @@ final class ProjectOpeningViewModel {
 
     var detailProject: EditorProjectReference? {
         selectedProject
+    }
+
+    var validationSummary: String? {
+        validationDiagnostics.first.map { diagnostic in
+            if let fieldPath = diagnostic.fieldPath {
+                return "\(diagnostic.code) at \(fieldPath)"
+            }
+            return diagnostic.code
+        }
     }
 
     var hasValidProjectName: Bool {
@@ -90,7 +115,7 @@ final class ProjectOpeningViewModel {
                 selectedProject = nil
             }
         } catch {
-            statusMessage = "Failed to load recent projects: \(error.localizedDescription)"
+            setFailureStatus(prefix: "Failed to load recent projects", error: error)
         }
     }
 
@@ -99,12 +124,14 @@ final class ProjectOpeningViewModel {
         reloadRecentProjects()
 
         guard let lastProject = recentProjects.first else {
+            clearValidationDiagnostics()
             statusMessage = "Select a recent SwiftPM Ada project, create a blank one, or open an existing package."
             return false
         }
 
         guard FileManager.default.fileExists(atPath: lastProject.path) else {
             selectedProject = nil
+            clearValidationDiagnostics()
             statusMessage = "Last project is no longer available: \(lastProject.path)"
             return false
         }
@@ -117,11 +144,13 @@ final class ProjectOpeningViewModel {
         isCreatingNewProject = false
         selectedProject = reference
         existingProjectPath = reference.path
+        clearValidationDiagnostics()
         statusMessage = "Ready to open \(reference.name)."
     }
 
     func createProject(openInEditor: Bool = false) {
         guard canCreateProject else {
+            clearValidationDiagnostics()
             statusMessage = "Choose a project name and location before creating."
             return
         }
@@ -133,6 +162,7 @@ final class ProjectOpeningViewModel {
             )
             isCreatingNewProject = false
             selectedProject = createdProject
+            clearValidationDiagnostics()
             statusMessage = "Created project: \(createdProject.path)"
             reloadRecentProjects()
             if openInEditor {
@@ -140,7 +170,7 @@ final class ProjectOpeningViewModel {
                 projectToOpenInEditorToken += 1
             }
         } catch {
-            statusMessage = "Failed to create project: \(error.localizedDescription)"
+            setFailureStatus(prefix: "Failed to create project", error: error)
         }
     }
 
@@ -169,6 +199,7 @@ final class ProjectOpeningViewModel {
     func beginCreateNewProject() {
         selectedProject = nil
         isCreatingNewProject = true
+        clearValidationDiagnostics()
         statusMessage = "Choose a name and location for the new Ada project."
     }
 
@@ -217,6 +248,7 @@ final class ProjectOpeningViewModel {
         do {
             isCreatingNewProject = false
             selectedProject = try store.openProject(at: URL(fileURLWithPath: path, isDirectory: true))
+            clearValidationDiagnostics()
             statusMessage = "Opened project: \(selectedProject?.path ?? "")"
             reloadRecentProjects()
             if openInEditor, let selectedProject {
@@ -224,8 +256,24 @@ final class ProjectOpeningViewModel {
                 projectToOpenInEditorToken += 1
             }
         } catch {
-            statusMessage = "Failed to open project: \(error.localizedDescription)"
+            selectedProject = nil
+            setFailureStatus(prefix: "Failed to open project", error: error)
         }
+    }
+
+    private func setFailureStatus(prefix: String, error: Error) {
+        if let projectError = error as? ProjectSystemError {
+            let diagnostic = ProjectOpeningDiagnostic(error: projectError)
+            validationDiagnostics = [diagnostic]
+            statusMessage = "\(prefix): \(projectError.message) \(projectError.recoverySuggestion)"
+        } else {
+            validationDiagnostics = []
+            statusMessage = "\(prefix): \(error.localizedDescription)"
+        }
+    }
+
+    private func clearValidationDiagnostics() {
+        validationDiagnostics = []
     }
 
     static func abbreviatedPath(_ path: String) -> String {

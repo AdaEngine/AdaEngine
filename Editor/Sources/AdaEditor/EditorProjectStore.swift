@@ -60,16 +60,10 @@ public struct EditorProjectStore {
 
     @discardableResult
     public func openProject(at projectURL: URL, openedAt: Date = Date()) throws -> EditorProjectReference {
-        let manifestURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
-        guard fileManager.fileExists(atPath: manifestURL.path) else {
-            throw ProjectSystemError.swiftPackageManifestMissing(path: "Package.swift")
-        }
+        let project = try ProjectSystem.validateProjectLayout(at: projectURL, fileManager: fileManager)
+        let displayName = project.project.displayName ?? project.project.name ?? projectURL.lastPathComponent
 
-        if !ProjectSystem.isAdaProject(at: projectURL, fileManager: fileManager) {
-            _ = try ProjectSystem.createDefaultProject(at: projectURL, fileManager: fileManager)
-        }
-
-        return try rememberProject(at: projectURL, name: projectURL.lastPathComponent, openedAt: openedAt)
+        return try rememberProject(at: projectURL, name: displayName, openedAt: openedAt)
     }
 
     @discardableResult

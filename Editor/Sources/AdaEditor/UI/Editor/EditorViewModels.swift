@@ -205,6 +205,7 @@ enum EditorWorkspaceStatus: Equatable, Sendable {
     case idle
     case resolving
     case indexing
+    case preparing(SwiftPMWorkspaceProgress)
     case ready
     case running(String)
     case failed(String)
@@ -218,6 +219,8 @@ enum EditorWorkspaceStatus: Equatable, Sendable {
             "Resolving"
         case .indexing:
             "Indexing"
+        case .preparing(let progress):
+            progress.progressText
         case .ready:
             "Ready"
         case .running(let command):
@@ -1123,6 +1126,12 @@ final class EditorFooterViewModel {
         items.append(title)
         rightItems = items
     }
+
+    func setWorkspaceFooterTitle(_ title: String) {
+        var items = leftItems.filter { !$0.hasPrefix("Workspace:") }
+        items.append(title.hasPrefix("Workspace:") ? title : "Workspace: \(title)")
+        leftItems = items
+    }
 }
 
 @Observable
@@ -1224,6 +1233,8 @@ final class EditorViewModel {
     private var didStartEditorSession = false
     @ObservationIgnored
     private var latestSourceHoverKey: String?
+    @ObservationIgnored
+    private var lastLoggedWorkspaceProgressPhase: SwiftPMWorkspaceBootstrapPhase?
 
     init(
         project: EditorProjectReference? = nil,
@@ -1314,11 +1325,17 @@ final class EditorViewModel {
         }
 
         workspaceStatus = .resolving
+        footer.setWorkspaceFooterTitle("Workspace: Preparing")
+        lastLoggedWorkspaceProgressPhase = nil
         appendOutput("Loading \(ProjectSystem.metadataFileName) and resolving SwiftPM dependencies...")
 
         workspaceTask = Task { [weak self] in
             guard let self else { return }
-            let result = await self.workspaceService.bootstrap(projectURL: projectURL)
+            let result = await self.workspaceService.bootstrap(projectURL: projectURL) { progress in
+                await MainActor.run {
+                    self.handleWorkspaceProgress(progress)
+                }
+            }
             await MainActor.run {
                 self.packageModel = result.packageModel
                 self.problems = result.diagnostics
@@ -1327,11 +1344,13 @@ final class EditorViewModel {
                     ? result.resolveResult.combinedOutput
                     : result.describeResult.combinedOutput
                 self.workspaceStatus = result.succeeded ? .ready : .failed(failureOutput)
+                self.footer.setWorkspaceFooterTitle(self.workspaceStatus.title)
                 self.selectedRunTarget = self.selectedRunTarget ?? self.runTargets.first
                 self.appendOutput(result.resolveResult)
                 self.appendOutput(result.describeResult)
                 if let indexBuildResult = result.indexBuildResult {
                     self.workspaceStatus = indexBuildResult.succeeded ? .ready : .failed(indexBuildResult.combinedOutput)
+                    self.footer.setWorkspaceFooterTitle(self.workspaceStatus.title)
                     self.appendOutput(indexBuildResult)
                 }
                 self.workspaceTask = nil
@@ -1659,6 +1678,7 @@ final class EditorViewModel {
 
     func activateLeftTopTool(_ item: EditorToolStripItem) {
         if toolStrip.activeLeftTopTool == item.identifier && showLeftPanel {
+            showLeftPanel = false
             return
         }
 
@@ -1668,6 +1688,7 @@ final class EditorViewModel {
 
     func activateLeftBottomTool(_ item: EditorToolStripItem) {
         if toolStrip.activeLeftBottomTool == item.identifier && showBottomPanel {
+            showBottomPanel = false
             return
         }
 
@@ -1677,6 +1698,7 @@ final class EditorViewModel {
 
     func activateRightTool(_ item: EditorToolStripItem) {
         if toolStrip.activeRightTool == item.identifier && showRightPanel {
+            showRightPanel = false
             return
         }
 
@@ -1824,6 +1846,36 @@ final class EditorViewModel {
         }
 
         return result.snapshot.statusMessage ?? "Working tree clean."
+    }
+
+
+    private func handleWorkspaceProgress(_ progress: SwiftPMWorkspaceProgress) {
+        switch progress.phase {
+        case .ready:
+            workspaceStatus = .ready
+        case .failed:
+            workspaceStatus = .failed(progress.detail ?? progress.title)
+        case .resolvingDependencies:
+            workspaceStatus = .resolving
+        case .indexingBuild:
+            workspaceStatus = .preparing(progress)
+        default:
+            workspaceStatus = .preparing(progress)
+        }
+        footer.setWorkspaceFooterTitle(workspaceStatus.title)
+
+        if lastLoggedWorkspaceProgressPhase != progress.phase {
+            appendOutput("Workspace: \(progress.progressText)")
+            if let detail = progress.detail, !detail.isEmpty {
+                appendOutput(detail)
+            }
+            if let command = progress.command {
+                appendOutput("$ \(command.shellDescription)")
+            }
+            lastLoggedWorkspaceProgressPhase = progress.phase
+        } else if progress.phase == .indexingBuild, let detail = progress.detail, !detail.isEmpty {
+            appendOutput(detail)
+        }
     }
 
     private func executeWorkspaceCommand(_ kind: SwiftPMCommandKind, statusTitle: String) {

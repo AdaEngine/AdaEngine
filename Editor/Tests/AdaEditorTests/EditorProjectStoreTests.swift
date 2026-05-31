@@ -46,8 +46,8 @@ struct EditorProjectStoreTests {
         #expect(loadedProjects == [reference])
     }
 
-    @Test("open existing SwiftPM project creates Ada metadata and moves project to top")
-    func openProjectCreatesMetadataAndDeduplicatesRecentProjects() throws {
+    @Test("open existing Ada SwiftPM project validates metadata and moves project to top")
+    func openProjectValidatesMetadataAndDeduplicatesRecentProjects() throws {
         let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreOpen")
         defer { removeEditorStoreTemporaryDirectory(rootURL) }
 
@@ -56,6 +56,7 @@ struct EditorProjectStoreTests {
         let projectURL = rootURL.appendingPathComponent("Existing", isDirectory: true)
         try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
         try "// swift-tools-version: 6.2\n".write(to: projectURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        _ = try ProjectSystem.createDefaultProject(at: projectURL)
 
         let firstDate = try #require(ISO8601DateFormatter().date(from: "2026-02-19T10:00:00Z"))
         let secondDate = try #require(ISO8601DateFormatter().date(from: "2026-02-20T10:00:00Z"))
@@ -84,6 +85,45 @@ struct EditorProjectStoreTests {
         } catch let error as ProjectSystemError {
             #expect(error == .swiftPackageManifestMissing(path: "Package.swift"))
         }
+    }
+
+
+    @Test("open existing requires Ada metadata")
+    func openRequiresAdaMetadata() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreMissingMetadata")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+
+        let projectURL = rootURL.appendingPathComponent("PlainSwiftPM", isDirectory: true)
+        try createSwiftPMManifest(at: projectURL)
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+
+        do {
+            _ = try store.openProject(at: projectURL)
+            Issue.record("Expected openProject to throw")
+        } catch let error as ProjectSystemError {
+            #expect(error == .metadataFileMissing(path: ".ada/project.json"))
+            #expect(error.recoverySuggestion.contains("New Project"))
+        }
+    }
+
+    @Test("view model reports actionable validation diagnostics for invalid project folder")
+    @MainActor
+    func projectOpeningViewModelReportsValidationDiagnostics() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectViewModelDiagnostics")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+
+        let storageURL = rootURL.appendingPathComponent("projects.json")
+        let store = EditorProjectStore(storageURL: storageURL)
+        let viewModel = ProjectOpeningViewModel(store: store)
+
+        viewModel.openProject(at: rootURL)
+
+        #expect(viewModel.detailProject == nil)
+        #expect(viewModel.projectToOpenInEditor == nil)
+        #expect(viewModel.validationDiagnostics.count == 1)
+        #expect(viewModel.validationDiagnostics.first?.code == "project.swiftPackageManifestMissing")
+        #expect(viewModel.validationDiagnostics.first?.fieldPath == "Package.swift")
+        #expect(viewModel.statusMessage.contains("Choose a folder that contains Package.swift"))
     }
 
     @Test("view model filters recent projects and abbreviates home paths")
@@ -270,6 +310,7 @@ struct EditorProjectStoreTests {
         let projectURL = rootURL.appendingPathComponent("PickedProject", isDirectory: true)
         try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
         try "// swift-tools-version: 6.2\n".write(to: projectURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        _ = try ProjectSystem.createDefaultProject(at: projectURL)
 
         let viewModel = ProjectOpeningViewModel(store: store)
         viewModel.openProject(at: projectURL)
@@ -292,6 +333,7 @@ struct EditorProjectStoreTests {
         let projectURL = rootURL.appendingPathComponent("RecentProject", isDirectory: true)
         try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
         try "// swift-tools-version: 6.2\n".write(to: projectURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        _ = try ProjectSystem.createDefaultProject(at: projectURL)
         let recentProject = EditorProjectReference(name: "RecentProject", path: projectURL.standardizedFileURL.path)
         try store.saveProjects([recentProject])
 
@@ -315,7 +357,9 @@ struct EditorProjectStoreTests {
         let olderProjectURL = rootURL.appendingPathComponent("OlderProject", isDirectory: true)
         let latestProjectURL = rootURL.appendingPathComponent("LatestProject", isDirectory: true)
         try createSwiftPMManifest(at: olderProjectURL)
+        try ProjectSystem.createDefaultProject(at: olderProjectURL)
         try createSwiftPMManifest(at: latestProjectURL)
+        try ProjectSystem.createDefaultProject(at: latestProjectURL)
 
         let olderDate = try #require(ISO8601DateFormatter().date(from: "2026-02-19T10:00:00Z"))
         let latestDate = try #require(ISO8601DateFormatter().date(from: "2026-02-20T10:00:00Z"))

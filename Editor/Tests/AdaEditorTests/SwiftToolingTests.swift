@@ -199,6 +199,74 @@ struct SwiftToolingTests {
         #expect(fileManager.fileExists(atPath: scratchRoot.appendingPathComponent("Sources/Shared/SharedHelper.swift").path))
     }
 
+    @Test("source scanner prefers package model sources and falls back to Sources and Tests")
+    func swiftSourceScannerCountsPackageSourcesAndFallback() throws {
+        let fileManager = FileManager.default
+        let projectURL = fileManager.temporaryDirectory
+            .appendingPathComponent("AdaEditorSourceScan-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fileManager.removeItem(at: projectURL) }
+
+        try fileManager.createDirectory(at: projectURL.appendingPathComponent("Sources/Game", isDirectory: true), withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: projectURL.appendingPathComponent("Tests/GameTests", isDirectory: true), withIntermediateDirectories: true)
+        try "struct Game {}\n".write(to: projectURL.appendingPathComponent("Sources/Game/Game.swift"), atomically: true, encoding: .utf8)
+        try "struct Ignored {}\n".write(to: projectURL.appendingPathComponent("Sources/Game/Ignored.swift"), atomically: true, encoding: .utf8)
+        try "struct GameTests {}\n".write(to: projectURL.appendingPathComponent("Tests/GameTests/GameTests.swift"), atomically: true, encoding: .utf8)
+
+        let model = SwiftPackageModel(
+            name: "Game",
+            products: [],
+            targets: [
+                SwiftPackageTarget(name: "Game", type: "regular", path: "Sources/Game", sources: ["Game.swift"], targetDependencies: [], productDependencies: []),
+                SwiftPackageTarget(name: "GameTests", type: "test", path: "Tests/GameTests", sources: [], targetDependencies: ["Game"], productDependencies: [])
+            ],
+            dependencies: []
+        )
+
+        let modeledFiles = SwiftPMWorkspaceService.swiftSourceFiles(projectURL: projectURL, packageModel: model, fileManager: fileManager)
+        #expect(modeledFiles.map(\.lastPathComponent) == ["Game.swift", "GameTests.swift"])
+
+        let fallbackFiles = SwiftPMWorkspaceService.swiftSourceFiles(projectURL: projectURL, packageModel: nil, fileManager: fileManager)
+        #expect(fallbackFiles.map(\.lastPathComponent) == ["Game.swift", "Ignored.swift", "GameTests.swift"])
+    }
+
+    @Test("build progress parser extracts Swift file target and unique completion count")
+    func buildProgressParserTracksCompiledSwiftFiles() {
+        let knownFiles = [
+            URL(fileURLWithPath: "/tmp/Game/Sources/Game/main.swift"),
+            URL(fileURLWithPath: "/tmp/Game/Sources/Game/Player.swift")
+        ]
+        var parser = SwiftPMBuildProgressParser()
+
+        let first = parser.parse(line: "[1/5] Compiling Game main.swift", knownFiles: knownFiles)
+        let duplicate = parser.parse(line: "[2/5] Compiling Game main.swift", knownFiles: knownFiles)
+        let second = parser.parse(line: "[3/5] Compiling Game Player.swift", knownFiles: knownFiles)
+        let nonSwift = parser.parse(line: "[4/5] Linking Game", knownFiles: knownFiles)
+
+        #expect(first == SwiftPMBuildProgress(completed: 1, currentFile: "main.swift", currentTarget: "Game"))
+        #expect(duplicate.completed == 1)
+        #expect(second == SwiftPMBuildProgress(completed: 2, currentFile: "Player.swift", currentTarget: "Game"))
+        #expect(nonSwift == SwiftPMBuildProgress(completed: 2, currentFile: nil, currentTarget: nil))
+    }
+
+    @Test("fake process runner streams output before returning final result")
+    func fakeProcessRunnerStreamsOutput() async {
+        let projectURL = URL(fileURLWithPath: "/tmp/Game", isDirectory: true)
+        let command = EditorProcessCommand(executablePath: "/usr/bin/swift", arguments: ["build"], workingDirectory: projectURL)
+        let runner = FakeProcessRunner(
+            results: [EditorProcessResult(command: command, exitCode: 0, standardOutput: "done\n", standardError: "")],
+            outputChunks: [[EditorProcessOutputEvent(stream: .standardOutput, text: "[1/1] Compiling Game main.swift\n")]]
+        )
+        let collector = OutputEventCollector()
+
+        let result = await runner.run(command) { event in
+            await collector.append(event)
+        }
+        let streamed = await collector.events
+
+        #expect(result.succeeded)
+        #expect(streamed == [EditorProcessOutputEvent(stream: .standardOutput, text: "[1/1] Compiling Game main.swift\n")])
+    }
+
     @Test("build output parser extracts diagnostics")
     func buildDiagnosticsParse() {
         let projectURL = URL(fileURLWithPath: "/tmp/Game", isDirectory: true)
@@ -376,19 +444,42 @@ struct SwiftToolingTests {
     }
 }
 
+private actor OutputEventCollector {
+    var events: [EditorProcessOutputEvent] = []
+
+    func append(_ event: EditorProcessOutputEvent) {
+        events.append(event)
+    }
+}
+
 private actor FakeProcessRunner: EditorProcessRunning {
     var commands: [EditorProcessCommand] = []
     private var results: [EditorProcessResult]
+    private var outputChunks: [[EditorProcessOutputEvent]]
     private let onRun: (@Sendable (EditorProcessCommand) -> Void)?
 
-    init(results: [EditorProcessResult], onRun: (@Sendable (EditorProcessCommand) -> Void)? = nil) {
+    init(
+        results: [EditorProcessResult],
+        outputChunks: [[EditorProcessOutputEvent]] = [],
+        onRun: (@Sendable (EditorProcessCommand) -> Void)? = nil
+    ) {
         self.results = results
+        self.outputChunks = outputChunks
         self.onRun = onRun
     }
 
     func run(_ command: EditorProcessCommand) async -> EditorProcessResult {
+        await run(command) { _ in }
+    }
+
+    func run(_ command: EditorProcessCommand, output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void) async -> EditorProcessResult {
         commands.append(command)
         onRun?(command)
+        if !outputChunks.isEmpty {
+            for event in outputChunks.removeFirst() {
+                await output(event)
+            }
+        }
         if !results.isEmpty {
             return results.removeFirst()
         }

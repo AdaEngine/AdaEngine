@@ -19,6 +19,17 @@ public enum ProjectSystem {
             && fileManager.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path)
     }
 
+    /// Validates that a folder is an AdaEditor-openable SwiftPM Ada project.
+    @discardableResult
+    public static func validateProjectLayout(at projectURL: URL, fileManager: FileManager = .default) throws(ProjectSystemError) -> AdaProject {
+        let manifestURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
+        guard fileManager.fileExists(atPath: manifestURL.path) else {
+            throw .swiftPackageManifestMissing(path: "Package.swift")
+        }
+
+        return try loadProject(at: projectURL, fileManager: fileManager)
+    }
+
     public static func loadProject(at projectURL: URL, fileManager: FileManager = .default) throws(ProjectSystemError) -> AdaProject {
         let metadataURL = metadataURL(forProjectAt: projectURL)
 
@@ -614,6 +625,36 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
         case .pathTraversalNotAllowed(let path, let value): "Path traversal is not allowed at \(path): \(value)"
         case .invalidPath(let path, let value, let reason): "Invalid path at \(path): \(value). \(reason)"
         case .encodingFailed(let message): "Failed to encode Ada project metadata: \(message)"
+        }
+    }
+
+
+    public var recoverySuggestion: String {
+        switch self {
+        case .metadataFileMissing:
+            "Create the project with AdaEditor New Project, or add .ada/project.json using the Ada project schema."
+        case .swiftPackageManifestMissing:
+            "Choose a folder that contains Package.swift, or create a new Ada project from the start screen."
+        case .fileReadFailed:
+            "Check file permissions and make sure the project metadata is readable."
+        case .fileWriteFailed:
+            "Check folder permissions and available disk space, then try again."
+        case .invalidJSON:
+            "Fix the JSON syntax in .ada/project.json and try opening the project again."
+        case .missingSchemaVersion:
+            "Add schemaVersion: 1 to .ada/project.json."
+        case .unsupportedSchemaVersion:
+            "Open the project with a compatible AdaEditor version, or migrate .ada/project.json to schemaVersion 1."
+        case .missingRequiredField:
+            "Add the required field to .ada/project.json."
+        case .invalidField:
+            "Update the field value in .ada/project.json to match the expected type."
+        case .unknownBuildSystem:
+            "Set build.system to swiftpm in .ada/project.json."
+        case .absolutePathNotAllowed, .pathTraversalNotAllowed, .invalidPath:
+            "Use project-relative POSIX paths such as Sources or Assets/Scenes/Main.ascn."
+        case .encodingFailed:
+            "Try creating the project again. If the problem persists, report this AdaEditor error."
         }
     }
 
