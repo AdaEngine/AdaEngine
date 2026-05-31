@@ -53,6 +53,12 @@ public protocol QuertyTargetBuilder: QueryBuilder {
 
 /// A protocol for building filter queries.
 public protocol FilterTargetBuilder: QueryBuilder {
+    /// Predicate for filtering archetypes before row iteration starts.
+    static func predicate(in archetype: borrowing Archetype) -> Bool
+
+    /// True when the filter must be checked for each row in a matching archetype.
+    static var requiresRowEvaluation: Bool { get }
+
     static func condition(
         states: ComponentsStates,
         fetches: ComponentsFetches,
@@ -147,6 +153,28 @@ extension QueryBuilderTargets: QuertyTargetBuilder where repeat each T: QueryTar
 }
 
 extension QueryBuilderTargets: FilterTargetBuilder where repeat each T: Filter {
+    @inlinable
+    @inline(__always)
+    public static var requiresRowEvaluation: Bool {
+        for filter in repeat (each T).self {
+            if filter.requiresRowEvaluation {
+                return true
+            }
+        }
+        return false
+    }
+
+    @inlinable
+    @inline(__always)
+    public static func predicate(in archetype: borrowing Archetype) -> Bool {
+        for filter in repeat (each T).self {
+            if !filter.predicate(in: archetype) {
+                return false
+            }
+        }
+        return true
+    }
+
     @inlinable
     @inline(__always)
     public static func condition(

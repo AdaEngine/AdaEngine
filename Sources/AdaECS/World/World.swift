@@ -792,17 +792,45 @@ extension World {
         var toArchetype = self.archetypes.archetypes[newArchetype]
         let row = toArchetype.append(entity)
         let result = archetype.swapRemove(at: location.archetypeRow)
-        let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks).newLocation
+        let moveResult = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks)
+        let newLocation = moveResult.newLocation
+
+        var updatedLocations: [Entity.ID: EntityLocation] = [:]
+
+        func updateLocation(
+            for entity: Entity.ID,
+            _ update: (EntityLocation) -> EntityLocation
+        ) {
+            guard let currentLocation = updatedLocations[entity] ?? entities.entities[entity] else {
+                return
+            }
+            updatedLocations[entity] = update(currentLocation)
+        }
+
         if let swappedEntity = result.swappedEntity {
-            entities.insert(
+            updateLocation(for: swappedEntity) { currentLocation in
                 EntityLocation(
                     archetypeId: location.archetypeId,
                     archetypeRow: location.archetypeRow,
+                    chunkIndex: currentLocation.chunkIndex,
+                    chunkRow: currentLocation.chunkRow
+                )
+            }
+        }
+
+        if let swappedEntity = moveResult.swappedEntity {
+            updateLocation(for: swappedEntity) { currentLocation in
+                EntityLocation(
+                    archetypeId: currentLocation.archetypeId,
+                    archetypeRow: currentLocation.archetypeRow,
                     chunkIndex: location.chunkIndex,
                     chunkRow: location.chunkRow
-                ),
-                for: swappedEntity
-            )
+                )
+            }
+        }
+
+        for (entity, location) in updatedLocations {
+            entities.insert(location, for: entity)
         }
 
         self.archetypes.archetypes[location.archetypeId] = archetype

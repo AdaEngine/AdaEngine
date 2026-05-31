@@ -65,7 +65,7 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
     public init() {
         self.state = QueryState(
             predicate: .init(
-                evaluate: { Builder.predicate(in: $0) }
+                evaluate: { Builder.predicate(in: $0) && QueryBuilderTargets<F>.predicate(in: $0) }
             ),
             filter: .all
         )
@@ -74,7 +74,7 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
     public init(from world: World) {
         self.state = QueryState(
             predicate: .init(
-                evaluate: { Builder.predicate(in: $0) }
+                evaluate: { Builder.predicate(in: $0) && QueryBuilderTargets<F>.predicate(in: $0) }
             ),
             filter: .all
         )
@@ -168,8 +168,9 @@ final class QueryState: @unchecked Sendable {
     @usableFromInline
     func updateArchetypes(in world: World) {
         self.entities = world.entities
-        self.archetypeIndecies = world.archetypes.archetypes.enumerated().compactMap {
-            self.predicate.evaluate($0.element) ? $0.offset : nil
+        self.archetypeIndecies.removeAll(keepingCapacity: true)
+        for (index, archetype) in world.archetypes.archetypes.enumerated() where self.predicate.evaluate(archetype) {
+            self.archetypeIndecies.append(index)
         }
         self.lastTick = world.lastTick
         self.world = world
@@ -310,12 +311,14 @@ public struct FilterQueryIterator<
                 cursor.currentRow += 1
             }
 
-            guard F.condition(
-                states: filterStates,
-                fetches: filterFetches,
-                at: cursor.currentRow
-            ) else {
-                continue
+            if F.requiresRowEvaluation {
+                guard F.condition(
+                    states: filterStates,
+                    fetches: filterFetches,
+                    at: cursor.currentRow
+                ) else {
+                    continue
+                }
             }
 
             guard let location = state.entities.entities[entityId] else {

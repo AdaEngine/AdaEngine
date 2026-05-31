@@ -34,6 +34,14 @@ public struct QueryFilter: OptionSet, Sendable {
 
 /// A protocol for filters.
 public protocol Filter: Sendable, WorldQueryTarget {
+    /// Check if the filter can match any row in the archetype.
+    /// Archetype-only filters use this to avoid per-row work.
+    @inlinable
+    static func predicate(in archetype: borrowing Archetype) -> Bool
+
+    /// True when the filter must be checked for each row in a matching archetype.
+    @inlinable
+    static var requiresRowEvaluation: Bool { get }
 
     /// Check if the filter is satisfied for an archetype.
     /// - Parameter archetype: The archetype to check.
@@ -46,10 +54,32 @@ public protocol Filter: Sendable, WorldQueryTarget {
     ) -> Bool
 }
 
+public extension Filter {
+    @inlinable
+    static func predicate(in archetype: borrowing Archetype) -> Bool {
+        true
+    }
+
+    @inlinable
+    static var requiresRowEvaluation: Bool {
+        true
+    }
+}
+
 /// A filter that includes entities with a specific component.
 public struct With<T: Component>: Filter {
     public typealias State = Void
     public typealias Fetch = ComponentMaskSet
+
+    @inlinable
+    public static var requiresRowEvaluation: Bool {
+        false
+    }
+
+    @inlinable
+    public static func predicate(in archetype: borrowing Archetype) -> Bool {
+        archetype.componentLayout.maskSet.contains(T.identifier)
+    }
 
     @inlinable
     public static func _initState(world: World) -> Void { }
@@ -84,6 +114,16 @@ public struct With<T: Component>: Filter {
 public struct Without<T: Component>: Filter {
     public typealias State = Void
     public typealias Fetch = ComponentMaskSet
+
+    @inlinable
+    public static var requiresRowEvaluation: Bool {
+        false
+    }
+
+    @inlinable
+    public static func predicate(in archetype: borrowing Archetype) -> Bool {
+        !archetype.componentLayout.maskSet.contains(T.identifier)
+    }
 
     @inlinable
     public static func _initState(world: World) -> Void { }
@@ -133,6 +173,26 @@ public struct And<each T: Filter>: Filter {
         init(fetches: (repeat (each T).Fetch)) {
             self.fetches = fetches
         }
+    }
+
+    @inlinable
+    public static var requiresRowEvaluation: Bool {
+        for filter in repeat (each T).self {
+            if filter.requiresRowEvaluation {
+                return true
+            }
+        }
+        return false
+    }
+
+    @inlinable
+    public static func predicate(in archetype: borrowing Archetype) -> Bool {
+        for filter in repeat (each T).self {
+            if !filter.predicate(in: archetype) {
+                return false
+            }
+        }
+        return true
     }
 
     @inlinable
@@ -239,6 +299,26 @@ public struct Or<each T: Filter>: Filter {
     }
 
     @inlinable
+    public static var requiresRowEvaluation: Bool {
+        for filter in repeat (each T).self {
+            if filter.requiresRowEvaluation {
+                return true
+            }
+        }
+        return false
+    }
+
+    @inlinable
+    public static func predicate(in archetype: borrowing Archetype) -> Bool {
+        for filter in repeat (each T).self {
+            if filter.predicate(in: archetype) {
+                return true
+            }
+        }
+        return false
+    }
+
+    @inlinable
     public static func _initState(world: World) -> _State {
         _State(
             states: (repeat (each T)._initState(world: world))
@@ -311,6 +391,11 @@ public struct Changed<T: Component>: Filter {
     public typealias Fetch = ChangedFetch
 
     @inlinable
+    public static func predicate(in archetype: borrowing Archetype) -> Bool {
+        archetype.componentLayout.maskSet.contains(T.identifier)
+    }
+
+    @inlinable
     public static func _initState(world: World) -> Void { }
 
     @inlinable
@@ -374,6 +459,11 @@ public struct Added<T: Component>: Filter {
     public typealias Fetch = AddedFetch
 
     @inlinable
+    public static func predicate(in archetype: borrowing Archetype) -> Bool {
+        archetype.componentLayout.maskSet.contains(T.identifier)
+    }
+
+    @inlinable
     public static func _initState(world: World) -> Void { }
 
     @inlinable
@@ -415,6 +505,11 @@ public struct Added<T: Component>: Filter {
 public struct NoFilter: Filter {
     public typealias State = Void
     public typealias Fetch = Void
+
+    @inlinable
+    public static var requiresRowEvaluation: Bool {
+        false
+    }
 
     @inlinable
     public static func _initState(world: World) -> Void { }

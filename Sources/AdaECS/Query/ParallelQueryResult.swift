@@ -160,12 +160,14 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
 
             // Iterate over all entities in this chunk
             for row in 0..<chunk.count {
-                guard Filter.condition(
-                    states: filterStates,
-                    fetches: filterFetchs,
-                    at: row
-                ) else {
-                    continue
+                if Filter.requiresRowEvaluation {
+                    guard Filter.condition(
+                        states: filterStates,
+                        fetches: filterFetchs,
+                        at: row
+                    ) else {
+                        continue
+                    }
                 }
 
                 let entityId = chunk.entities[row]
@@ -238,12 +240,14 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
 
                 let entity = archetype.entities[location.archetypeRow]
 
-                guard Filter.condition(
-                    states: filterStates,
-                    fetches: filterFetchs,
-                    at: row
-                ) else {
-                    continue
+                if Filter.requiresRowEvaluation {
+                    guard Filter.condition(
+                        states: filterStates,
+                        fetches: filterFetchs,
+                        at: row
+                    ) else {
+                        continue
+                    }
                 }
 
                 if let element = B.getQueryTargets(
