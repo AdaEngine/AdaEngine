@@ -181,52 +181,39 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
             self.inspectionLastHitTestNode = viewNode
             self.activeMouseEventNode = viewNode
             self.updateFocusedNode(with: viewNode)
-            viewNode?.onMouseEvent(event)
+            self.routeMouseEvent(event, to: viewNode)
             self.invalidateInspectionOverlayIfNeeded()
-            if lastOnMouseEventNode !== viewNode {
-                lastOnMouseEventNode?.onMouseLeave()
-                lastOnMouseEventNode = viewNode
-            }
         case .changed:
             if event.button != .scrollWheel, let activeMouseEventNode {
-                activeMouseEventNode.onMouseEvent(event)
-                if lastOnMouseEventNode !== activeMouseEventNode {
-                    lastOnMouseEventNode?.onMouseLeave()
-                    lastOnMouseEventNode = activeMouseEventNode
-                }
+                self.routeMouseEvent(event, to: activeMouseEventNode)
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
                 self.inspectionLastHitTestNode = viewNode
-                viewNode.onMouseEvent(event)
+                self.routeMouseEvent(event, to: viewNode)
                 self.invalidateInspectionOverlayIfNeeded()
-                if lastOnMouseEventNode !== viewNode {
-                    lastOnMouseEventNode?.onMouseLeave()
-                    lastOnMouseEventNode = viewNode
-                }
             } else if lastOnMouseEventNode != nil {
-                lastOnMouseEventNode?.onMouseLeave()
-                lastOnMouseEventNode = nil
+                self.routeMouseEvent(event, to: nil)
             }
         case .ended, .cancelled:
             if let activeMouseEventNode {
-                activeMouseEventNode.onMouseEvent(event)
-                if lastOnMouseEventNode !== activeMouseEventNode {
-                    lastOnMouseEventNode?.onMouseLeave()
-                    lastOnMouseEventNode = activeMouseEventNode
-                }
+                self.routeMouseEvent(event, to: activeMouseEventNode)
             } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
                 self.inspectionLastHitTestNode = viewNode
-                viewNode.onMouseEvent(event)
+                self.routeMouseEvent(event, to: viewNode)
                 self.invalidateInspectionOverlayIfNeeded()
-                if lastOnMouseEventNode !== viewNode {
-                    lastOnMouseEventNode?.onMouseLeave()
-                    lastOnMouseEventNode = viewNode
-                }
             } else if lastOnMouseEventNode != nil {
-                lastOnMouseEventNode?.onMouseLeave()
-                lastOnMouseEventNode = nil
+                self.routeMouseEvent(event, to: nil)
             }
             self.activeMouseEventNode = nil
         }
+    }
+
+    private func routeMouseEvent(_ event: MouseEvent, to viewNode: ViewNode?) {
+        if lastOnMouseEventNode !== viewNode {
+            lastOnMouseEventNode?.onMouseLeave()
+            lastOnMouseEventNode = viewNode
+        }
+
+        viewNode?.onMouseEvent(event)
     }
 
     @_spi(Internal)

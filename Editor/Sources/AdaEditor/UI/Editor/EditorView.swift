@@ -13,31 +13,34 @@ enum AdaEngineStyleContent {
         EditorToolStripItem(identifier: "fileTree", title: "File Tree", icon: "\u{E2C7}"),
         EditorToolStripItem(identifier: "entityTree", title: "Entity Tree", icon: "\u{E97A}"),
         EditorToolStripItem(identifier: "sourceControl", title: "Source Control", icon: "\u{F1C4}"),
-        EditorToolStripItem(identifier: "tests", title: "Tests", icon: "\u{E86C}")
+        EditorToolStripItem(identifier: "tests", title: "Tests", icon: "\u{E86C}"),
     ]
     static let leftBottomSidebarTools = [
         EditorToolStripItem(identifier: "logs", title: "Logs", icon: "\u{EB8E}"),
         EditorToolStripItem(identifier: "build", title: "Build", icon: "\u{E869}"),
-        EditorToolStripItem(identifier: "animator", title: "Animator", icon: "\u{E71C}")
+        EditorToolStripItem(identifier: "animator", title: "Animator", icon: "\u{E71C}"),
     ]
     static let rightSidebarTools = [
         EditorToolStripItem(identifier: "agentChat", title: "Agent Chat", icon: "\u{E0CA}"),
         EditorToolStripItem(identifier: "inspector", title: "Inspector", icon: "\u{E88E}"),
-        EditorToolStripItem(identifier: "projectDependencies", title: "Project Dependencies", icon: "\u{E48F}"),
-        EditorToolStripItem(identifier: "swiftPackageTasks", title: "Swift Package Tasks", icon: "\u{F720}"),
+        EditorToolStripItem(
+            identifier: "projectDependencies", title: "Project Dependencies", icon: "\u{E48F}"),
+        EditorToolStripItem(
+            identifier: "swiftPackageTasks", title: "Swift Package Tasks", icon: "\u{F720}"),
         EditorToolStripItem(identifier: "plugins", title: "Plugins", icon: "\u{E87B}"),
-        EditorToolStripItem(identifier: "projectSettings", title: "Project Settings", icon: "\u{E8B8}")
+        EditorToolStripItem(
+            identifier: "projectSettings", title: "Project Settings", icon: "\u{E8B8}"),
     ]
     static let projectTreeItems = ["src", "EngineLoop.ada", "Renderer.ada", "Main.ascn"]
     static let editorTabs = ["EngineLoop.ada", "Main.ascn"]
     static let sampleTextDocuments = [
         "src/EngineLoop.ada": """
         import AdaEngine
-        
+
         @system
         struct EngineLoop {
             let fixedDelta = 1.0 / 60.0
-        
+
             func update(scene: Scene, deltaTime: Float) {
                 // Game simulation entry point.
                 scene.physics.step(deltaTime)
@@ -48,15 +51,17 @@ enum AdaEngineStyleContent {
         render_pipeline MainRenderer {
             colorAttachment = .hdr
             depthTest = true
-        
+
             pass geometry {
                 shader = "Shaders/MainSurface.glsl"
             }
         }
-        """
+        """,
     ]
     static let defaultSceneModel = EditorSceneModel.default(projectName: "Main")
-    static let defaultSceneContent = (try? defaultSceneModel.encodedYAML()) ?? SceneDocumentFormat.defaultSceneYAML(projectName: "Main")
+    static let defaultSceneContent =
+        (try? defaultSceneModel.encodedYAML())
+        ?? SceneDocumentFormat.defaultSceneYAML(projectName: "Main")
     static let defaultEditorDocuments: [EditorWorkbenchDocument] = [
         .text(
             EditorTextDocument(
@@ -67,21 +72,21 @@ enum AdaEngineStyleContent {
                 content: sampleTextDocuments["src/EngineLoop.ada"] ?? "",
                 errorMessage: nil
             )
-        ),
-        .scene(
-            EditorSceneDocument(
-                id: "scene:Assets/Scenes/Main.ascn",
-                title: "Main.ascn",
-                relativePath: "Assets/Scenes/Main.ascn",
-                absolutePath: nil,
-                content: defaultSceneContent,
-                sceneModel: defaultSceneModel,
-                errorMessage: nil,
-                isDirty: false,
-                statusMessage: "Sample scene",
-                loadSummary: EditorSceneFileLoader.summary(from: defaultSceneContent)
-            )
         )
+        // .scene(
+        //     EditorSceneDocument(
+        //         id: "scene:Assets/Scenes/Main.ascn",
+        //         title: "Main.ascn",
+        //         relativePath: "Assets/Scenes/Main.ascn",
+        //         absolutePath: nil,
+        //         content: defaultSceneContent,
+        //         sceneModel: defaultSceneModel,
+        //         errorMessage: nil,
+        //         isDirty: false,
+        //         statusMessage: "Sample scene",
+        //         loadSummary: EditorSceneFileLoader.summary(from: defaultSceneContent)
+        //     )
+        // )
     ]
     static let aiTitle = "Ada Intelligence"
     static let aiHint = "⌘L to Focus"
@@ -94,7 +99,7 @@ enum AdaEngineStyleContent {
         "[12:04:11] Ada Engine initialized — render backend ready.",
         "[12:04:12] Loaded Main.ascn with 1 entity.",
         "[12:04:14] AI optimization note: draw calls can be batched by material.",
-        "[12:04:16] Build completed with 0 problems."
+        "[12:04:16] Build completed with 0 problems.",
     ]
     static let footerLeft = ["Built in 142ms", "Renderer Ready"]
     static let footerRight = ["3:12 LF UTF-8", "Git: main*"]
@@ -105,13 +110,13 @@ struct EditorView: View {
     let hotReloadState: EditorHotReloadState
     @State private var viewModel: EditorViewModel
     @Environment(\.theme) private var theme
-    
+
     init(project: EditorProjectReference?, hotReloadState: EditorHotReloadState) {
         self.project = project
         self.hotReloadState = hotReloadState
         self._viewModel = State(initialValue: EditorViewModel(project: project))
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
             let metrics = AdaEngineStyleLayoutMetrics(size: geometry.size)
@@ -124,17 +129,20 @@ struct EditorView: View {
                     viewModel.startEditorSessionIfNeeded()
                 }
                 .frame(height: metrics.topToolbarHeight)
-                
+
                 EditorWorkspaceRegion(viewModel: viewModel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
+
                 EditorFooterRegion(
                     hotReloadState: hotReloadState,
                     viewModel: viewModel
                 )
                 .frame(height: metrics.footerHeight)
             }
-            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+            .frame(
+                minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity,
+                alignment: .topLeading
+            )
             .foregroundColor(theme.editorColors.text)
             .environment(\.metrics, metrics)
         }
@@ -154,6 +162,12 @@ struct EditorView: View {
             },
             KeyboardShortcutAction(.d, modifiers: .command) {
                 viewModel.toggleDebugOverlay(.layoutBounds)
+            },
+            KeyboardShortcutAction(.h, modifiers: .command) {
+                viewModel.toggleDebugOverlay(.hitTestTarget)
+            },
+            KeyboardShortcutAction(.f, modifiers: .command) {
+                viewModel.toggleDebugOverlay(.focusedNode)
             },
             KeyboardShortcutAction(.s, modifiers: .command) {
                 viewModel.saveActiveDocument()
@@ -181,7 +195,7 @@ struct EditorView: View {
             },
             KeyboardShortcutAction(.num0, modifiers: .control) {
                 viewModel.workbench.resetCodeFontSize()
-            }
+            },
         ]
     }
 }
@@ -189,7 +203,7 @@ struct EditorView: View {
 private struct EditorTopToolbarRegion: View {
     let hotReloadState: EditorHotReloadState
     let viewModel: EditorViewModel
-    
+
     var body: some View {
         EditorTopToolbar(
             hotReloadState: hotReloadState,
@@ -209,7 +223,7 @@ private struct EditorTopToolbarRegion: View {
 private struct EditorWorkspaceRegion: View {
     let viewModel: EditorViewModel
     @Environment(\.metrics) private var metrics
-    
+
     var body: some View {
         HStack(spacing: 0) {
             EditorLeftToolStrip(
@@ -221,8 +235,10 @@ private struct EditorWorkspaceRegion: View {
                     viewModel.activateLeftBottomTool(item)
                 }
             )
-            .frame(minWidth: metrics.toolStripWidth, maxWidth: metrics.toolStripWidth, maxHeight: .infinity)
-            
+            .frame(
+                minWidth: metrics.toolStripWidth, maxWidth: metrics.toolStripWidth,
+                maxHeight: .infinity)
+
             EditorWorkspaceView(
                 viewModel: viewModel,
                 leftPanel: {
@@ -255,7 +271,7 @@ private struct EditorWorkspaceRegion: View {
                             viewModel.showBuildOutput()
                         }
                     )
-                        .frame(maxHeight: .infinity)
+                    .frame(maxHeight: .infinity)
                 },
                 rightPanel: {
                     EditorRightSidebarContent(viewModel: viewModel)
@@ -266,16 +282,20 @@ private struct EditorWorkspaceRegion: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .layoutPriority(2)
-            
+
             EditorRightToolStrip(
                 viewModel: viewModel,
                 onSelectTool: { item in
                     viewModel.activateRightTool(item)
                 }
             )
-            .frame(minWidth: metrics.toolStripWidth, maxWidth: metrics.toolStripWidth, maxHeight: .infinity)
+            .frame(
+                minWidth: metrics.toolStripWidth, maxWidth: metrics.toolStripWidth,
+                maxHeight: .infinity)
         }
-        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+        .frame(
+            minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity,
+            alignment: .topLeading)
     }
 }
 
@@ -290,13 +310,15 @@ private struct EditorLeftSidebarContent: View {
                     guard let documentID = viewModel.workbench.activeSceneDocument?.id else {
                         return
                     }
-                    viewModel.workbench.selectSceneEntity(documentID: documentID, entityID: entityID)
+                    viewModel.workbench.selectSceneEntity(
+                        documentID: documentID, entityID: entityID)
                 },
                 onToggleEntityExpanded: { entityID in
                     guard let documentID = viewModel.workbench.activeSceneDocument?.id else {
                         return
                     }
-                    viewModel.workbench.toggleSceneEntityExpanded(documentID: documentID, entityID: entityID)
+                    viewModel.workbench.toggleSceneEntityExpanded(
+                        documentID: documentID, entityID: entityID)
                 }
             )
         } else if viewModel.toolStrip.activeLeftTopTool == "sourceControl" {
@@ -320,7 +342,7 @@ private struct EditorLeftSidebarContent: View {
 
 private struct EditorRightSidebarContent: View {
     let viewModel: EditorViewModel
-    
+
     var body: some View {
         if viewModel.toolStrip.activeRightTool == "agentChat" {
             EditorAgentSidebar(viewModel: viewModel.agent)
@@ -335,7 +357,7 @@ private struct EditorRightSidebarContent: View {
 private struct EditorFooterRegion: View {
     let hotReloadState: EditorHotReloadState
     let viewModel: EditorViewModel
-    
+
     var body: some View {
         EditorFooter(
             hotReloadState: hotReloadState,
@@ -349,17 +371,20 @@ struct EditorResizeHandle: View {
         case horizontal
         case vertical
     }
-    
+
     let axis: Axis
     let onResize: (Size) -> Void
     let onResizeEnded: () -> Void
-    
-    init(axis: Axis, onResize: @escaping (Size) -> Void = { _ in }, onResizeEnded: @escaping () -> Void = {}) {
+
+    init(
+        axis: Axis, onResize: @escaping (Size) -> Void = { _ in },
+        onResizeEnded: @escaping () -> Void = {}
+    ) {
         self.axis = axis
         self.onResize = onResize
         self.onResizeEnded = onResizeEnded
     }
-    
+
     @ViewBuilder
     var body: some View {
         switch axis {
@@ -373,7 +398,7 @@ struct EditorResizeHandle: View {
                 .frame(maxWidth: .infinity)
         }
     }
-    
+
     private var hitArea: some View {
         RectangleShape()
             .fill(Color.clear)
@@ -388,7 +413,7 @@ struct EditorResizeHandle: View {
             )
             .cursorShape(cursorShape)
     }
-    
+
     private var cursorShape: Input.CursorShape {
         switch axis {
         case .horizontal:
@@ -399,8 +424,8 @@ struct EditorResizeHandle: View {
     }
 }
 
-private extension Glass {
-    static func editorWindowBackground(theme: Theme) -> Glass {
+extension Glass {
+    fileprivate static func editorWindowBackground(theme: Theme) -> Glass {
         var glass = Glass.regular
         glass.blurRadius = 24
         glass.glassTintStrength = 0.72

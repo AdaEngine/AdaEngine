@@ -55,9 +55,6 @@ struct WGSLExamplePlugin: Plugin {
 
         renderWorld.insertResource(Shaders(vertex: vert, fragment: frag))
 
-        // Initialize cached pipeline resource
-        renderWorld.insertResource(CachedPipeline(pipeline: nil, format: nil))
-
         // Remove default render system and add our custom WGPU render system
         renderWorld
             .removeSystem(RenderSystem.self, on: .render)
@@ -70,19 +67,12 @@ struct Shaders: Resource {
     var fragment: Shader
 }
 
-// Cache for render pipeline to avoid recreating it every frame
-struct CachedPipeline: Resource {
-    var pipeline: WebGPU.RenderPipeline?
-    var format: WebGPU.TextureFormat?
-}
-
 @System
 func WGPURenderSystem(
     _ targets: Query<Entity, Ref<RenderViewTarget>>,
     _ windows: ResMut<WindowSurfaces>,
     _ shaders: Res<Shaders>,
-    _ renderDevice: Res<RenderDeviceHandler>,
-    _ cachedPipeline: ResMut<CachedPipeline>
+    _ renderDevice: Res<RenderDeviceHandler>
 ) {
     guard let device = (renderDevice.renderDevice as? WebGPURenderDevice)?.context.device else {
         return
@@ -99,91 +89,80 @@ func WGPURenderSystem(
         let textureView = wgpuTexture.textureView
         let textureFormat = wgpuTexture.texture.format
 
-        // Get or create cached pipeline
-        var pipeline: WebGPU.RenderPipeline
-        if let cached = cachedPipeline.pipeline, cachedPipeline.format == textureFormat {
-            pipeline = cached
-        } else {
-            let vertexShaderModule = (shaders.vertex.compiledShader as! WGPUShader).shader
-            let fragmentShaderModule = (shaders.fragment.compiledShader as! WGPUShader).shader
+        let vertexShaderModule = (shaders.vertex.compiledShader as! WGPUShader).shader
+        let fragmentShaderModule = (shaders.fragment.compiledShader as! WGPUShader).shader
 
-            // Create pipeline layout
-            let pipelineLayout = device.createPipelineLayout(
-                descriptor: PipelineLayoutDescriptor(bindGroupLayouts: [])
-            )
+        // Create pipeline layout
+        let pipelineLayout = device.createPipelineLayout(
+            descriptor: GPUPipelineLayoutDescriptor(bindGroupLayouts: [])
+        )
 
-            // Create render pipeline
-            pipeline = device.createRenderPipeline(
-                descriptor: WebGPU.RenderPipelineDescriptor(
-                    label: "triangle_pipeline",
-                    layout: pipelineLayout,
-                    vertex: VertexState(
-                        module: vertexShaderModule,
-                        entryPoint: "vs_main",
-                        constants: [],
-                        buffers: []
-                    ),
-                    primitive: PrimitiveState(
-                        topology: .triangleList,
-                        stripIndexFormat: .undefined,
-                        frontFace: .ccw,
-                        cullMode: .none
-                    ),
-                    depthStencil: nil,
-                    multisample: MultisampleState(
-                        count: 1,
-                        mask: ~0,
-                        alphaToCoverageEnabled: false
-                    ),
-                    fragment: FragmentState(
-                        module: fragmentShaderModule,
-                        entryPoint: "fs_main",
-                        constants: [],
-                        targets: [
-                            ColorTargetState(
-                                format: textureFormat,
-                                blend: BlendState(
-                                    color: BlendComponent(
-                                        operation: .add,
-                                        srcFactor: .one,
-                                        dstFactor: .zero
-                                    ),
-                                    alpha: BlendComponent(
-                                        operation: .add,
-                                        srcFactor: .one,
-                                        dstFactor: .zero
-                                    )
+        // Create render pipeline
+        let pipeline = device.createRenderPipeline(
+            descriptor: WebGPU.GPURenderPipelineDescriptor(
+                label: "triangle_pipeline",
+                layout: pipelineLayout,
+                vertex: GPUVertexState(
+                    module: vertexShaderModule,
+                    entryPoint: "vs_main",
+                    buffers: []
+                ),
+                primitive: GPUPrimitiveState(
+                    topology: .triangleList,
+                    stripIndexFormat: .undefined,
+                    frontFace: .CCW,
+                    cullMode: .none
+                ),
+                depthStencil: nil,
+                multisample: GPUMultisampleState(
+                    count: 1,
+                    mask: UInt32.max,
+                    alphaToCoverageEnabled: false
+                ),
+                fragment: GPUFragmentState(
+                    module: fragmentShaderModule,
+                    entryPoint: "fs_main",
+                    constants: [:],
+                    targets: [
+                        GPUColorTargetState(
+                            format: textureFormat,
+                            blend: GPUBlendState(
+                                color: GPUBlendComponent(
+                                    operation: .add,
+                                    srcFactor: .one,
+                                    dstFactor: .zero
                                 ),
-                                writeMask: .all
-                            )
-                        ]
-                    )
+                                alpha: GPUBlendComponent(
+                                    operation: .add,
+                                    srcFactor: .one,
+                                    dstFactor: .zero
+                                )
+                            ),
+                            writeMask: .all
+                        )
+                    ]
                 )
             )
-            
-            // Cache the pipeline
-            cachedPipeline.pipeline = pipeline
-            cachedPipeline.format = textureFormat
-        }
+        )
 
         // Create command encoder and render pass
         let commandEncoder = device.createCommandEncoder()
         let renderPass = commandEncoder.beginRenderPass(
-            descriptor: WebGPU.RenderPassDescriptor(
+            descriptor: WebGPU.GPURenderPassDescriptor(
                 colorAttachments: [
-                    WebGPU.RenderPassColorAttachment(
+                    WebGPU.GPURenderPassColorAttachment(
                         view: textureView,
                         loadOp: .clear,
                         storeOp: .store,
-                        clearValue: WebGPU.Color(r: 0.1, g: 0.2, b: 0.3, a: 1.0)
+                        clearValue: WebGPU.GPUColor(r: 0.1, g: 0.2, b: 0.3, a: 1.0)
                     )
                 ]
             )
         )
 
         // Draw triangle
-        renderPass.setPipeline(pipeline)
-        renderPass.draw(vertexCount: 3)
+        renderPass.setPipeline(pipeline: pipeline)
+        renderPass.draw(vertexCount: 3, instanceCount: 1, firstVertex: 0, firstInstance: 0)
         renderPass.end()
 
         // Submit commands

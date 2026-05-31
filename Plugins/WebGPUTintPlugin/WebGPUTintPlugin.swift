@@ -91,7 +91,7 @@ class WebGPUTintPlugin: CommandPlugin {
             }
             
             Diagnostics.remark("Cloning Dawn repository...")
-            try Process.run(URL(fileURLWithPath: "/usr/bin/git"), arguments: [
+            try runCommand(in: actualSourceDir.deletingLastPathComponent(), executable: URL(fileURLWithPath: "/usr/bin/git"), arguments: [
                 "clone",
                 repoURL,
                 actualSourceDir.path
@@ -186,7 +186,7 @@ class WebGPUTintPlugin: CommandPlugin {
             
             // Strip binary if strip is available
             if fileManager.fileExists(atPath: "/usr/bin/strip") {
-                try Process.run(URL(fileURLWithPath: "/usr/bin/strip"), arguments: [destPath.path])
+                try runCommand(in: platformBinDir, executable: URL(fileURLWithPath: "/usr/bin/strip"), arguments: [destPath.path])
             }
             
             Diagnostics.remark("Tint binary built successfully at \(destPath.path)")
@@ -279,7 +279,7 @@ class WebGPUTintPlugin: CommandPlugin {
                 // Try alternative path
                 let altGitPath = URL(fileURLWithPath: "C:\\Program Files (x86)\\Git\\cmd\\git.exe")
                 if fileManager.fileExists(atPath: altGitPath.path) {
-                    try Process.run(altGitPath, arguments: [
+                    try runCommandWindows(in: actualSourceDir.deletingLastPathComponent(), executable: altGitPath, arguments: [
                         "clone",
                         repoURL,
                         actualSourceDir.path
@@ -288,7 +288,7 @@ class WebGPUTintPlugin: CommandPlugin {
                     throw TintBuildError.gitNotFound
                 }
             } else {
-                try Process.run(gitPath, arguments: [
+                try runCommandWindows(in: actualSourceDir.deletingLastPathComponent(), executable: gitPath, arguments: [
                     "clone",
                     repoURL,
                     actualSourceDir.path

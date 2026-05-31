@@ -13,7 +13,6 @@ import Foundation
 import JavaScriptEventLoop
 import JavaScriptKit
 import Logging
-import _CJavaScriptKit
 
 @MainActor
 final class BrowserApplication: Application {
@@ -129,7 +128,6 @@ private final class BrowserFrameLoop {
         Task { @MainActor in
             await self.tick()
         }
-        swjs_unsafe_event_loop_yield()
     }
 
     private func tick() async {

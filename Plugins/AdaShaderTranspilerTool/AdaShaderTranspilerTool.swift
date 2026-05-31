@@ -58,6 +58,7 @@ struct AdaShaderTranspilerTool {
 
     private static func compileSPIRV(source: String, stage: ShaderStage) throws -> Data {
         var error: UnsafePointer<CChar>?
+        let source = source.insertingDefaultVertexDefines()
         let options = spirv_options(preamble: nil)
         let binary = source.withCString { sourcePointer in
             compile_shader_glsl(
@@ -378,6 +379,24 @@ private enum GLSLProcessor {
             output.append(character)
         }
 
+        return output
+    }
+}
+
+private extension String {
+    func insertingDefaultVertexDefines() -> String {
+        let defines = """
+        #define VERTEX_POSITIONS 1
+        #define VERTEX_NORMALS 1
+        #define VERTEX_UVS 1
+        #define VERTEX_COLORS 1
+        """
+        guard let versionRange = range(of: #"^\s*#version[^\n]*(?:\n|$)"#, options: .regularExpression) else {
+            return "\(defines)\n\(self)"
+        }
+
+        var output = self
+        output.insert(contentsOf: "\(defines)\n", at: versionRange.upperBound)
         return output
     }
 }

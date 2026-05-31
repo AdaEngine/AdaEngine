@@ -296,6 +296,49 @@ struct GestureTests {
 
     }
 
+    @Test
+    func cursorShape_preservesDestinationCursorWhenMovingBetweenCursorRegions() {
+        let container = UIContainerView(
+            rootView: HStack(spacing: 0) {
+                Color.red
+                    .frame(width: 100, height: 100)
+                    .cursorShape(.resizeLeftRight)
+
+                Color.blue
+                    .frame(width: 100, height: 100)
+                    .cursorShape(.iBeam)
+            }
+        )
+        container.frame = Rect(x: 0, y: 0, width: 200, height: 100)
+
+        let window = UIWindow(frame: Rect(x: 0, y: 0, width: 200, height: 100))
+        window.addSubview(container)
+        window.layoutSubviews()
+
+        window.sendEvent(
+            MouseEvent(
+                window: window.id,
+                button: .none,
+                mousePosition: Point(50, 50),
+                phase: .changed,
+                modifierKeys: [],
+                time: 0
+            )
+        )
+        window.sendEvent(
+            MouseEvent(
+                window: window.id,
+                button: .none,
+                mousePosition: Point(150, 50),
+                phase: .changed,
+                modifierKeys: [],
+                time: 0
+            )
+        )
+
+        #expect(window.windowManager.getCursorShape() == .iBeam)
+    }
+
     // MARK: - Gesture Combining
 
     @Test
