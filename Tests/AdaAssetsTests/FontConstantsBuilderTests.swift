@@ -54,10 +54,22 @@ private func textureAtlasBuilderToolPath() throws -> URL {
         .deletingLastPathComponent()
         .deletingLastPathComponent()
 
-    let candidates = [
-        rootURL.appendingPathComponent(".build/debug/TextureAtlasBuilderTool"),
-        rootURL.appendingPathComponent(".build/arm64-apple-macosx/debug/TextureAtlasBuilderTool"),
-        rootURL.appendingPathComponent(".build/x86_64-apple-macosx/debug/TextureAtlasBuilderTool")
+    #if os(Windows)
+    let executableName = "TextureAtlasBuilderTool.exe"
+    #else
+    let executableName = "TextureAtlasBuilderTool"
+    #endif
+
+    var candidates: [URL] = []
+    if let executableDirectory = Bundle.main.executableURL?.deletingLastPathComponent() {
+        candidates.append(executableDirectory.appendingPathComponent(executableName))
+    }
+    candidates.append(Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent(executableName))
+    candidates += [
+        rootURL.appendingPathComponent(".build/debug").appendingPathComponent(executableName),
+        rootURL.appendingPathComponent(".build/arm64-apple-macosx/debug").appendingPathComponent(executableName),
+        rootURL.appendingPathComponent(".build/x86_64-apple-macosx/debug").appendingPathComponent(executableName),
+        rootURL.appendingPathComponent(".build/x86_64-unknown-windows-msvc/debug").appendingPathComponent(executableName)
     ]
 
     for candidate in candidates where FileManager.default.isExecutableFile(atPath: candidate.path) {
