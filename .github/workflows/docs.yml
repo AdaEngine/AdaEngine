@@ -50,8 +50,50 @@ jobs:
             --target AdaUtils \
             --target Math
 
-      - name: Add custom domain CNAME
-        run: printf 'docs.adaengine.org\n' > docs/CNAME
+      - name: Add custom domain and redirects
+        run: |
+          printf 'docs.adaengine.org\n' > docs/CNAME
+
+          add_redirect() {
+            local path="$1"
+            local target="$2"
+
+            mkdir -p "docs/$path"
+            cat > "docs/$path/index.html" <<EOF
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=$target">
+            <link rel="canonical" href="$target">
+            <script>window.location.replace("$target");</script>
+            <title>Redirecting...</title>
+          </head>
+          <body>
+            <p>Redirecting to <a href="$target">$target</a>.</p>
+          </body>
+          </html>
+          EOF
+          }
+
+          add_redirect "." "/documentation/adaengine/"
+          add_redirect "adaengine" "/documentation/adaengine/"
+          add_redirect "adaecs" "/documentation/adaecs/"
+          add_redirect "adarender" "/documentation/adarender/"
+          add_redirect "adaui" "/documentation/adaui/"
+          add_redirect "adaapp" "/documentation/adaapp/"
+          add_redirect "adaplatform" "/documentation/adaplatform/"
+          add_redirect "adaassets" "/documentation/adaassets/"
+          add_redirect "adaaudio" "/documentation/adaaudio/"
+          add_redirect "adatransform" "/documentation/adatransform/"
+          add_redirect "adatext" "/documentation/adatext/"
+          add_redirect "adainput" "/documentation/adainput/"
+          add_redirect "adascene" "/documentation/adascene/"
+          add_redirect "adatilemap" "/documentation/adatilemap/"
+          add_redirect "adaphysics" "/documentation/adaphysics/"
+          add_redirect "adasprite" "/documentation/adasprite/"
+          add_redirect "adautils" "/documentation/adautils/"
+          add_redirect "math" "/documentation/math/"
 
       - name: Deploy to Github pages
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
