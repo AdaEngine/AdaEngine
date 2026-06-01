@@ -293,7 +293,7 @@ final class FontAtlasGenerator: Sendable {
         glyphs.reserveCapacity(glyphsCount)
         for index in 0..<glyphsCount {
             var glyph = FontCachedGlyph()
-            if unsafe font_handle_copy_cached_glyph(fontData, UInt(index), &glyph) != 0 {
+            if unsafe font_handle_copy_cached_glyph(fontData, CUnsignedLong(index), &glyph) != 0 {
                 glyphs.append(glyph)
             }
         }
@@ -307,7 +307,7 @@ final class FontAtlasGenerator: Sendable {
         kernings.reserveCapacity(kerningsCount)
         for index in 0..<kerningsCount {
             var kerning = FontCachedKerning()
-            if unsafe font_handle_copy_cached_kerning(fontData, UInt(index), &kerning) != 0 {
+            if unsafe font_handle_copy_cached_kerning(fontData, CUnsignedLong(index), &kerning) != 0 {
                 kernings.append(kerning)
             }
         }
@@ -333,9 +333,9 @@ final class FontAtlasGenerator: Sendable {
                         atlas.geometryScale,
                         atlas.metrics,
                         glyphs.baseAddress,
-                        UInt(glyphs.count),
+                        CUnsignedLong(glyphs.count),
                         kernings.baseAddress,
-                        UInt(kernings.count)
+                        CUnsignedLong(kernings.count)
                     )
                 }
             }
