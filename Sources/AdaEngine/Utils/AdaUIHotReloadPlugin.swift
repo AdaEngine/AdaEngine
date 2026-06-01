@@ -1289,6 +1289,7 @@ private final class AdaUIHotReloadInjectedLibrary {
         for dylibURL: URL,
         handle: UnsafeMutableRawPointer
     ) throws -> [InterposeTuple] {
+        #if canImport(Darwin)
         let symbols = try exportedSwiftSymbols(in: dylibURL)
         let defaultHandle = Self.defaultDynamicLookupHandle()
         var tuples: [InterposeTuple] = []
@@ -1322,6 +1323,9 @@ private final class AdaUIHotReloadInjectedLibrary {
         }
 
         return tuples
+        #else
+        throw AdaUIHotReloadPluginError.unsupportedPlatform
+        #endif
     }
 
     private func exportedSwiftSymbols(in dylibURL: URL) throws -> [String] {
