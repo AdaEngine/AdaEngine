@@ -7,6 +7,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/AdaEngine/AdaEngine/blob/main/LICENSE)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FAdaEngine%2FAdaEngine%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/AdaEngine/AdaEngine)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FAdaEngine%2FAdaEngine%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/AdaEngine/AdaEngine)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AdaEngine/AdaEngine)
 
 
 ## What is AdaEngine?
@@ -15,10 +16,7 @@ AdaEngine is a game engine fully written on Swift. The main idea is to encourage
 
 <p align="center">
   <a href="https://adaengine.github.io">
-    <img src="Assets/tilemap.png" width="500" alt="Screenshot from test game SpaceInvaders">
-  </a>
-  <a href="https://adaengine.github.io">
-    <img src="Assets/space_invaders.jpeg" width="500" vspace="60" alt="Screenshot from test game SpaceInvaders">
+    <img src="Assets/ada-editor.png" width="700" alt="AdaEditor screenshot">
   </a>
 </p>
 
@@ -30,19 +28,19 @@ AdaEngine is a game engine fully written on Swift. The main idea is to encourage
 
 ## 📕 Docs
 
-* **[API Docs](https://adaengine.org/adaengine-docs/documentation/adaengine/):** AdaEngine's API docs, which are automatically generated from the doc comments in this repo.
-* **[Tutorials](https://adaengine.github.io/adaengine-docs/tutorials/adaengine/)**: AdaEngine's offical tutorials with how to start your first project.
+* **[API Docs](https://docs.adaengine.org/documentation/adaengine/):** AdaEngine's API docs, which are automatically generated from the doc comments in this repo.
+* **[Tutorials](https://docs.adaengine.org/tutorials/adaengine/)**: AdaEngine's official tutorials with how to start your first project.
 * **Building & Contributing Guides:** [Building](Sources/AdaEngine/AdaEngine.docc/Building.md), [Contributing](Sources/AdaEngine/AdaEngine.docc/Contributing.md)
 
 ## ⭐️ Examples
 
-* **[AdaEngine Awesome Projects](https://github.com/AdaEngine/AdaEngineAwesome)**: AdaEngine's offical Awesome Projects page. Feel free to explore.
+* **[AdaEngine Awesome Projects](https://github.com/AdaEngine/AdaEngineAwesome)**: AdaEngine's official Awesome Projects page. Feel free to explore.
 
-* **[AdaEngine Examples](https://github.com/AdaEngine/AdaEngine/tree/main/Demos/)**: AdaEngine's internal examples.
+* **[AdaEngine Examples](https://adaengine.org/demos/)**: AdaEngine's internal examples.
 
 ## Getting started
 
-We recommend checking out the **[Create your first project guide](https://adaengine.github.io/adaengine-docs/tutorials/adaengine/createproject)** for a brief introduction.
+We recommend checking out the **[Create your first project guide](https://docs.adaengine.org/tutorials/adaengine/createproject)** for a brief introduction.
 
 To draw a plain window with standard functionality use:
 
