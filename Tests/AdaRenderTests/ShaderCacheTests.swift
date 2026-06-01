@@ -41,7 +41,7 @@ struct ShaderCacheTests {
         }
         
         let shaderFileURL = tempDirectory.appendingPathComponent("test_shader.glsl")
-        try shaderSource.write(to: shaderFileURL, atomically: true, encoding: .utf8)
+        try writeUTF8(shaderSource, to: shaderFileURL)
         
         // Create ShaderSource from the file
         let shader = try ShaderSource(from: shaderFileURL)
@@ -82,12 +82,16 @@ struct ShaderCacheTests {
         let wgslFileURL = tempDirectory.appendingPathComponent("test_shader.vert.wgsl")
         let wgslSource = "@vertex fn custom_vertex() -> @builtin(position) vec4f { return vec4f(); }"
 
-        try shaderSource.write(to: shaderFileURL, atomically: true, encoding: .utf8)
-        try wgslSource.write(to: wgslFileURL, atomically: true, encoding: .utf8)
+        try writeUTF8(shaderSource, to: shaderFileURL)
+        try writeUTF8(wgslSource, to: wgslFileURL)
 
         let shader = try ShaderSource(from: shaderFileURL)
 
         #expect(shader.getSourceFileURL(for: .vertex) == shaderFileURL)
         #expect(shader.getWGSLSource(for: .vertex) == wgslSource)
     }
+}
+
+private func writeUTF8(_ string: String, to url: URL) throws {
+    try Data(string.utf8).write(to: url, options: [])
 }
