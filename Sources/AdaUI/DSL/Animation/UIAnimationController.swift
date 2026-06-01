@@ -155,6 +155,7 @@ final class UIAnimationController {
 
 extension EnvironmentValues {
     @Entry var animationController: UIAnimationController?
+    @Entry var animationsDisabled: Bool = false
 }
 
 struct TweenValue<Value: VectorArithmetic>: Animatable {

@@ -46,7 +46,9 @@ public extension View {
 
     /// Disable any animation for view and their child.
     func disableAnimation() -> some View {
-        self.environment(\.animationController, nil)
+        self
+            .environment(\.animationsDisabled, true)
+            .environment(\.animationController, nil)
     }
 }
 
@@ -101,7 +103,7 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
         var environment = environment
-        environment.animationController = self.animationController
+        environment.animationController = environment.animationsDisabled ? nil : self.animationController
         super.updateEnvironment(environment)
     }
 
@@ -170,6 +172,6 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
 
 extension AnimatedViewNode: _AnimationControllerProvider {
     var providedAnimationController: UIAnimationController? {
-        animationController
+        environment.animationsDisabled ? nil : animationController
     }
 }

@@ -16,6 +16,7 @@ jobs:
     name: Windows with SwiftPM
     runs-on: windows-latest
     env:
+      ADAENGINE_HEADLESS: "1"
       ADAENGINE_SKIP_WEBGPU_PLUGINS: "1"
     steps:
         - name: Setup

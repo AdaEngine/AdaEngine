@@ -443,7 +443,8 @@ class ViewNode: Identifiable {
         self.structuralIdentity = newNode.structuralIdentity
         self.accessibilityIdentifier = newNode.accessibilityIdentifier
         var resolvedEnvironment = newNode.environment
-        if resolvedEnvironment.animationController == nil,
+        if !resolvedEnvironment.animationsDisabled,
+           resolvedEnvironment.animationController == nil,
            let animationController = self.environment.animationController {
             resolvedEnvironment.animationController = animationController
         }
