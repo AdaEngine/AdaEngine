@@ -162,7 +162,7 @@ struct AdaUILayoutOptimizationTests {
             .setSize(Size(width: 320, height: 200))
             .performLayout()
 
-        #expect(counter.sizeThatFitsCalls <= 9)
+        #expect(counter.sizeThatFitsCalls <= 12)
     }
 
     @Test

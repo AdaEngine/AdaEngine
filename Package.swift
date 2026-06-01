@@ -1129,7 +1129,7 @@ package.dependencies += [
 
 if !isHeadlessCIEnabled {
     package.dependencies.append(
-        .package(url: "https://github.com/adobe/swan", from: "0.0.8")
+        .package(url: "https://github.com/adobe/swan", .upToNextMinor(from: "0.0.8"))
     )
 }
 

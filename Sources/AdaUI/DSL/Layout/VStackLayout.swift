@@ -180,7 +180,7 @@ public struct VStackLayout: Layout {
 
                 origin.y += cache.subviewSpacings[index]
 
-                let proposal = ProposedViewSize(width: bounds.width, height: assignedHeight)
+                let proposal = ProposedViewSize(width: proposedWidth ?? bounds.width, height: assignedHeight)
                 subview.place(at: origin, anchor: anchor, proposal: proposal)
 
                 let newHeight = subview.dimensions(in: proposal).height
@@ -210,7 +210,7 @@ public struct VStackLayout: Layout {
 
                 origin.y += cache.subviewSpacings[index]
 
-                let proposal = ProposedViewSize(width: bounds.width, height: idealHeight)
+                let proposal = ProposedViewSize(width: proposedWidth ?? bounds.width, height: idealHeight)
                 subview.place(at: origin, anchor: anchor, proposal: proposal)
 
                 let newHeight = subview.dimensions(in: proposal).height

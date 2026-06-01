@@ -132,6 +132,8 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
                 nextAnimationController.playAnimation()
             }
             self.animationController?.playAnimation()
+            self.contentNode.markNeedsLayout()
+            self.markNeedsLayout()
             owner?.containerView?.setNeedsLayout()
         }
     }

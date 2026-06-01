@@ -165,7 +165,7 @@ class ViewContainerNode: ViewNode {
             self.invalidateContent(with: listInputs, propagateLayout: false)
         }
 
-        self.markNeedsLayout()
+        self.markNeedsLayout(propagateToParent: false)
         self.invalidateNearestLayer()
         owner?.containerView?.setNeedsLayout(in: visualAbsoluteFrame())
     }
@@ -351,7 +351,11 @@ class ViewContainerNode: ViewNode {
 
         self.body = container.body
         if self.stateContainer != nil || container.nodes.isEmpty {
-            self.invalidateContent()
+            if Self.isLayoutPropagationSuppressed {
+                self.invalidateContent(propagateLayout: false)
+            } else {
+                self.invalidateContent()
+            }
             return
         }
 

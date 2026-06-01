@@ -16,6 +16,7 @@ class LayoutViewContainerNode: ViewContainerNode {
     private let bypassSingleChildLayout: Bool
     private var cache: AnyLayout.Cache?
     private var cacheNeedsUpdate = true
+    private var layoutPassMeasurementCache: LayoutMeasurementCache?
 
     private var shouldBypassLayout: Bool {
         bypassSingleChildLayout && nodes.count == 1
@@ -93,7 +94,10 @@ class LayoutViewContainerNode: ViewContainerNode {
     func performLayout(in bounds: Rect, proposal: ProposedViewSize) {
         flushDeferredInitialContentBuildIfNeeded()
 
-        let measurementCache = LayoutMeasurementCache()
+        let measurementCache = layoutPassMeasurementCache ?? LayoutMeasurementCache()
+        defer {
+            layoutPassMeasurementCache = nil
+        }
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0, measurementCache: measurementCache) })
         ensureCache(for: subviews)
 
@@ -120,6 +124,7 @@ class LayoutViewContainerNode: ViewContainerNode {
         var inputs = _ViewInputs(parentNode: self, environment: self.environment)
         inputs.layout = self.layout
         let listInputs = _ViewListInputs(input: inputs)
+        layoutPassMeasurementCache = nil
         cacheNeedsUpdate = true
         if propagateLayout {
             self.invalidateContent(with: listInputs)
@@ -133,7 +138,7 @@ class LayoutViewContainerNode: ViewContainerNode {
             self.invalidateContent(with: listInputs, propagateLayout: false)
         }
 
-        self.markNeedsLayout()
+        self.markNeedsLayout(propagateToParent: false)
         self.invalidateNearestLayer()
         owner?.containerView?.setNeedsLayout(in: visualAbsoluteFrame())
     }
@@ -145,7 +150,8 @@ class LayoutViewContainerNode: ViewContainerNode {
             return node.sizeThatFits(proposal)
         }
 
-        let measurementCache = LayoutMeasurementCache()
+        let measurementCache = layoutPassMeasurementCache ?? LayoutMeasurementCache()
+        layoutPassMeasurementCache = measurementCache
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0, measurementCache: measurementCache) })
         ensureCache(for: subviews)
 
@@ -160,12 +166,14 @@ class LayoutViewContainerNode: ViewContainerNode {
         let prevVersion = self.environment.version
         super.updateEnvironment(environment)
         if self.environment.version != prevVersion {
+            layoutPassMeasurementCache = nil
             cacheNeedsUpdate = true
             markNeedsLayout()
         }
     }
 
     override func update(from newNode: ViewNode) {
+        layoutPassMeasurementCache = nil
         cacheNeedsUpdate = true
         markNeedsLayout()
         super.update(from: newNode)

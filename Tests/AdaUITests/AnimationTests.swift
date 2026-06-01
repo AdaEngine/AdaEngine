@@ -291,19 +291,20 @@ struct AnimationTests {
         tester.invalidateContent()
         tester.advanceFrame(deltaTime: 0)
         tester.advanceFrame(deltaTime: 0.4)
-        let halfwayX = node.absoluteFrame().origin.x
+        let halfwayX = tester.findNodeByAccessibilityIdentifier("offset-card")?.absoluteFrame().origin.x ?? node.absoluteFrame().origin.x
         #expect(abs((halfwayX - initialX) - 40) < 0.01)
 
         state.value = false
         tester.invalidateContent()
         tester.advanceFrame(deltaTime: 0)
         tester.advanceFrame(deltaTime: 0.2)
-        let retargetedX = node.absoluteFrame().origin.x
+        let retargetedX = tester.findNodeByAccessibilityIdentifier("offset-card")?.absoluteFrame().origin.x ?? node.absoluteFrame().origin.x
         #expect(retargetedX < halfwayX)
         #expect(retargetedX > initialX)
 
         tester.advanceFrame(deltaTime: 0.8)
-        #expect(abs(node.absoluteFrame().origin.x - initialX) < 0.001)
+        let finalX = tester.findNodeByAccessibilityIdentifier("offset-card")?.absoluteFrame().origin.x ?? node.absoluteFrame().origin.x
+        #expect(abs(finalX - initialX) < 0.001)
     }
 
     @Test
@@ -552,10 +553,12 @@ struct AnimationTests {
         tester.invalidateContent()
         tester.advanceFrame(deltaTime: 0)
 
-        #expect(abs((node.absoluteFrame().origin.x - initialX) - 100) < 0.001)
+        let updatedNode = tester.findNodeByAccessibilityIdentifier("disabled-offset") ?? node
+        #expect(abs((updatedNode.absoluteFrame().origin.x - initialX) - 100) < 0.001)
 
         tester.advanceFrame(deltaTime: 0.5)
-        #expect(abs((node.absoluteFrame().origin.x - initialX) - 100) < 0.001)
+        let finalNode = tester.findNodeByAccessibilityIdentifier("disabled-offset") ?? updatedNode
+        #expect(abs((finalNode.absoluteFrame().origin.x - initialX) - 100) < 0.001)
     }
 
     @Test

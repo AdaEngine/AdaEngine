@@ -97,6 +97,7 @@ class UpdatablePropertyStorage {
                 // `setNeedsLayout()` schedules `layoutSubviews` → `place()` before the next draw;
                 // `setNeedsDisplay` alone only repaints with stale layout until something (e.g. resize) relayouts.
                 if isStateUpdate {
+                    node.markNeedsLayout()
                     containerView.setNeedsDisplay(in: node.visualAbsoluteFrame())
                 } else {
                     containerView.setNeedsLayout()

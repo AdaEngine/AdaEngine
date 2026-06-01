@@ -442,7 +442,12 @@ class ViewNode: Identifiable {
         self.environmentTransform = newNode.environmentTransform
         self.structuralIdentity = newNode.structuralIdentity
         self.accessibilityIdentifier = newNode.accessibilityIdentifier
-        self.applyResolvedEnvironmentSilently(newNode.environment)
+        var resolvedEnvironment = newNode.environment
+        if resolvedEnvironment.animationController == nil,
+           let animationController = self.environment.animationController {
+            resolvedEnvironment.animationController = animationController
+        }
+        self.applyResolvedEnvironmentSilently(resolvedEnvironment)
         self.setContent(newNode.content)
         self.rebindStorages()
         if shouldInvalidateForEnvironmentChange {
@@ -483,7 +488,7 @@ class ViewNode: Identifiable {
         Self.withSuppressedLayoutPropagation {
             self.invalidateContent()
         }
-        self.markNeedsLayout()
+        self.markNeedsLayout(propagateToParent: false)
         self.invalidateNearestLayer()
         owner?.containerView?.setNeedsLayout(in: visualAbsoluteFrame())
     }
@@ -876,6 +881,10 @@ class ViewNode: Identifiable {
 }
 
 extension ViewNode {
+    static var isLayoutPropagationSuppressed: Bool {
+        suppressedLayoutPropagationDepth > 0
+    }
+
     static func withSuppressedLayoutPropagation(_ operation: () -> Void) {
         suppressedLayoutPropagationDepth += 1
         defer { suppressedLayoutPropagationDepth -= 1 }

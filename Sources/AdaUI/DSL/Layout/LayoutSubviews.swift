@@ -22,9 +22,30 @@ final class LayoutMeasurementCache {
             return size
         }
 
+        if let size = compatibleCachedSize(for: node, proposal: proposal) {
+            sizes[key] = size
+            return size
+        }
+
         let size = node.sizeThatFits(proposal)
         sizes[key] = size
         return size
+    }
+
+    private func compatibleCachedSize(for node: ViewNode, proposal: ProposedViewSize) -> Size? {
+        if let width = proposal.width, let height = proposal.height {
+            let widthOnlyKey = Key(nodeID: node.id, proposal: ProposedViewSize(width: width))
+            if let size = sizes[widthOnlyKey], size.height == height {
+                return size
+            }
+
+            let heightOnlyKey = Key(nodeID: node.id, proposal: ProposedViewSize(height: height))
+            if let size = sizes[heightOnlyKey], size.width == width {
+                return size
+            }
+        }
+
+        return nil
     }
 }
 

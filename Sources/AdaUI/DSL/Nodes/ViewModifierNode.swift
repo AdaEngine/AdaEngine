@@ -42,6 +42,7 @@ class ViewModifierNode: ViewNode {
 
         super.update(from: otherNode)
         if otherNode.contentNode.canUpdate(self.contentNode) {
+            self.contentNode.updateEnvironment(self.environment)
             self.contentNode.update(from: otherNode.contentNode)
             self.contentNode.updateEnvironment(self.environment)
         } else {

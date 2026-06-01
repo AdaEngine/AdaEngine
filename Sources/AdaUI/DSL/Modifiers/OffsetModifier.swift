@@ -71,7 +71,14 @@ final class OffsetViewNodeModifier: ViewModifierNode {
             return
         }
 
+        let oldOffsetX = self.offsetByX
+        let oldOffsetY = self.offsetByY
         self.offsetByX = node.offsetByX
         self.offsetByY = node.offsetByY
+
+        if oldOffsetX != offsetByX || oldOffsetY != offsetByY {
+            self.markNeedsLayout()
+            owner?.containerView?.setNeedsLayout()
+        }
     }
 }
