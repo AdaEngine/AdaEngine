@@ -66,7 +66,7 @@ public final class RenderEngine: RenderBackend, Sendable {
 
     @MainActor
     public func resizeWindow(_ windowId: WindowID, newSize: SizeInt, scaleFactor: Float) throws {
-        #if WEBGPU_ENABLED
+        #if WEBGPU_ENABLED && canImport(WebGPU)
         if let webGPUBackend = self.renderBackend as? WebGPURenderBackend {
             try webGPUBackend.resizeWindow(windowId, newSize: newSize, scaleFactor: scaleFactor)
             return
@@ -104,7 +104,7 @@ extension RenderEngine {
         let renderBackend: RenderBackend
         switch preferredBackend {
         case .webgpu:
-        #if WEBGPU_ENABLED
+        #if WEBGPU_ENABLED && canImport(WebGPU)
             renderBackend = try WebGPURenderBackend.createBackend()
         #else
             #if WASM
@@ -128,12 +128,12 @@ extension RenderEngine {
 
     private static func defaultBackendType() -> RenderBackendType {
         #if WASM
-        #if WEBGPU_ENABLED
+        #if WEBGPU_ENABLED && canImport(WebGPU)
         return .webgpu
         #else
         return .headless
         #endif
-        #elseif WEBGPU_ENABLED
+        #elseif WEBGPU_ENABLED && canImport(WebGPU)
         return .webgpu
         #elseif METAL
         return .metal
