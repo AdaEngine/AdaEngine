@@ -28,7 +28,7 @@ public struct AppPlatformPlugin: Plugin {
             application = unsafe try MacApplication(argc: argc, argv: argv)
 #endif
 
-#if os(iOS) || os(tvOS)
+#if os(iOS) || os(tvOS) || os(visionOS)
             application = unsafe try AppleEmbeddedApplication(argc: argc, argv: argv)
 #endif
 

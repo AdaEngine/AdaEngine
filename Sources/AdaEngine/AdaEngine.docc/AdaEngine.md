@@ -37,3 +37,4 @@ For more details and guides, check out the tutorials below.
 - <doc:Building>
 - <doc:Contributing>
 - <doc:AdaUIIdentity>
+- <doc:VisionOSWindowed>

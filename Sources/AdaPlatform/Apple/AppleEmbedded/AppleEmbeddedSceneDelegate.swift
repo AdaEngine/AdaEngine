@@ -5,7 +5,7 @@
 //  Created by Codex on 29.03.2026.
 //
 
-#if os(iOS) || os(tvOS)
+#if os(iOS) || os(tvOS) || os(visionOS)
 import UIKit
 @_spi(Internal) import AdaUI
 
