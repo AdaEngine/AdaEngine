@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
-#if os(iOS) || os(tvOS) || os(watchOS)
+#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
 import UIKit
 
 // swiftlint:disable type_name
@@ -19,7 +19,7 @@ class AppleEmbeddedAppDelegate: NSObject, UIApplicationDelegate {
         return true
     }
 
-    #if os(iOS) || os(tvOS)
+    #if os(iOS) || os(tvOS) || os(visionOS)
     func application(
         _ application: UIApplication,
         configurationForConnecting connectingSceneSession: UISceneSession,

@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
-#if os(iOS) || os(tvOS) || os(watchOS)
+#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
 import UIKit
 import AdaApp
 @_spi(Internal) import AdaInput

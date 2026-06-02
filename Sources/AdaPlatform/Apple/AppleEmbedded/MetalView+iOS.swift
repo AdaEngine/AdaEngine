@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
-#if os(iOS)
+#if os(iOS) || os(visionOS)
 import AdaUtils
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaUI

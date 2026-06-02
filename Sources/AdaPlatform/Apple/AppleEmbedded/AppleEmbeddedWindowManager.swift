@@ -314,7 +314,7 @@ final class _AdaUIWindow: UIKit.UIWindow, SystemWindow, UIPointerInteractionDele
         case .iBeam:
             style = UIPointerStyle.hidden()
         default:
-            if #available(iOS 15.0, *) {
+            if #available(iOS 15.0, visionOS 1.0, *) {
                 style = UIPointerStyle.system()
             } else {
                 // Fallback on earlier versions
