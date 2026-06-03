@@ -20,23 +20,23 @@ final class AppleWindowManager: UIWindowManager {
         self.screenManager = screenManager
     }
     
-    override func resizeWindow(_ window: UIWindow, size: Size) {
+    override func resizeWindow(_ window: AdaEngine.UIWindow, size: Size) {
         
     }
     
-    override func setWindowMode(_ window: UIWindow, mode: UIWindow.Mode) {
+    override func setWindowMode(_ window: AdaEngine.UIWindow, mode: AdaEngine.UIWindow.Mode) {
         
     }
     
-    override func closeWindow(_ window: UIWindow) {
+    override func closeWindow(_ window: AdaEngine.UIWindow) {
         
     }
     
-    override func showWindow(_ window: UIWindow, isFocused: Bool) {
+    override func showWindow(_ window: AdaEngine.UIWindow, isFocused: Bool) {
         
     }
     
-    override func setMinimumSize(_ size: Size, for window: UIWindow) {
+    override func setMinimumSize(_ size: Size, for window: AdaEngine.UIWindow) {
         
     }
     
@@ -44,7 +44,7 @@ final class AppleWindowManager: UIWindowManager {
         
     }
     
-    override func getScreen(for window: UIWindow) -> Screen? {
+    override func getScreen(for window: AdaEngine.UIWindow) -> Screen? {
         guard let nativeScreen = nativeView?.window?.screen else {
             return nil
         }

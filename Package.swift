@@ -118,9 +118,6 @@ var products: [Product] = [
         name: "AdaWeb",
         targets: ["AdaWeb"]
     ),
-    .plugin(name: "AdaWebExportPlugin", targets: [
-        "AdaWebExportPlugin"
-    ]),
     .plugin(name: "WebGPUBuildPlugin", targets: [
         "WebGPUBuildPlugin"
     ]),
@@ -560,35 +557,43 @@ var targets: [Target] = [
     ),
 ]
 
-targets.append(
-    .executableTarget(
-        name: "AdaShaderTranspilerTool",
-        dependencies: [
-            "SPIRVCompiler"
-        ],
-        path: "Plugins/AdaShaderTranspilerTool"
+if isWebExportEnabled {
+    products.append(
+        .plugin(name: "AdaWebExportPlugin", targets: [
+            "AdaWebExportPlugin"
+        ])
     )
-)
 
-targets.append(
-    .plugin(
-        name: "AdaWebExportPlugin",
-        capability: .command(
-            intent: .custom(
-                verb: "export-web",
-                description: "Export an AdaEngine executable target as a browser WebAssembly app"
-            ),
-            permissions: [
-                .writeToPackageDirectory(reason: "Write the exported web app bundle to the requested output directory"),
-                .allowNetworkConnections(scope: .all(), reason: "Download Dawn/Tint when Tint is not installed and shaders need WGSL generation")
-            ]
-        ),
-        dependencies: [
-            .target(name: "AdaShaderTranspilerTool")
-        ],
-        path: "Plugins/AdaWebExportPlugin"
+    targets.append(
+        .executableTarget(
+            name: "AdaShaderTranspilerTool",
+            dependencies: [
+                "SPIRVCompiler"
+            ],
+            path: "Plugins/AdaShaderTranspilerTool"
+        )
     )
-)
+
+    targets.append(
+        .plugin(
+            name: "AdaWebExportPlugin",
+            capability: .command(
+                intent: .custom(
+                    verb: "export-web",
+                    description: "Export an AdaEngine executable target as a browser WebAssembly app"
+                ),
+                permissions: [
+                    .writeToPackageDirectory(reason: "Write the exported web app bundle to the requested output directory"),
+                    .allowNetworkConnections(scope: .all(), reason: "Download Dawn/Tint when Tint is not installed and shaders need WGSL generation")
+                ]
+            ),
+            dependencies: [
+                .target(name: "AdaShaderTranspilerTool")
+            ],
+            path: "Plugins/AdaWebExportPlugin"
+        )
+    )
+}
 
 targets.append(
     .plugin(

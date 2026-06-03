@@ -25,7 +25,7 @@ public final class AEView: MetalView {
     private let logger = Logger(label: "org.adaengine.AEView")
 
     /// Create AEView with AdaEngine.View.
-    public init(view: UIView, frame: CGRect) throws {
+    public init(view: AdaUI.UIView, frame: CGRect) throws {
         let rect = frame.toEngineRect
         
         /// We should avoid multiple instancing of this object
@@ -87,7 +87,7 @@ extension AEView: MTKViewDelegate {
 }
 
 private struct _EmbeddableApp: AdaApp.App {
-    let window: UIWindow
+    let window: AdaEngine.UIWindow
     
     var body: some AppScene {
         EmptyWindow()

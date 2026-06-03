@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 20.02.2025.
 //
 
-#if canImport(SwiftUI) && swift(>=5.9)
+#if false && canImport(SwiftUI) && swift(>=5.9)
 
 import AdaEngine
 import SwiftUI
