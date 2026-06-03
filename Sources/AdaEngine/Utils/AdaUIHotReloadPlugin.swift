@@ -7,7 +7,7 @@
 
 // swiftlint:disable file_length
 
-#if !WASM
+#if !WASM && (os(macOS) || os(Linux) || os(Windows))
 import AdaApp
 import AdaAssets
 import AdaUI
