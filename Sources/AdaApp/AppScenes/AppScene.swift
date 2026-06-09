@@ -96,6 +96,21 @@ public extension AppScene {
         self.modifier(WindowTitleBarSceneModifier(titleBar: titleBar))
     }
 
+    /// Set the native platform window chrome style.
+    func windowChrome(_ chrome: WindowChrome) -> some AppScene {
+        self.modifier(WindowChromeSceneModifier(chrome: chrome))
+    }
+
+    /// Set the native platform window background style.
+    func windowBackground(_ background: WindowBackground) -> some AppScene {
+        self.modifier(WindowBackgroundSceneModifier(background: background))
+    }
+
+    /// Set whether the native platform window background should be transparent.
+    func windowTransparentBackground(_ isTransparent: Bool = true) -> some AppScene {
+        self.windowBackground(isTransparent ? .transparent : .opaque(.black))
+    }
+
     /// Offset macOS traffic light buttons. Positive `x` moves right, positive `y` moves down.
     func windowTrafficLightOffset(x: Float, y: Float) -> some AppScene {
         self.modifier(WindowTrafficLightOffsetSceneModifier(offset: Point(x: x, y: y)))

@@ -15,6 +15,7 @@ struct AdaEngineMacrosPlugin: CompilerPlugin {
         EntryMacro.self,
         SystemMacro.self,
         BundleMacro.self,
-        PreviewableMacro.self
+        PreviewableMacro.self,
+        StateMacro.self
     ]
 }

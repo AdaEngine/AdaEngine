@@ -6,14 +6,13 @@
 //
 
 @MainActor
-@propertyWrapper
 public struct State<Value>: UpdatableProperty, PropertyStoragable {
     final class Handle {
         var storage: StateStorage<Value>?
-        let initialValue: Value
+        let makeInitialValue: (@MainActor () -> Value)?
 
-        init(initialValue: Value) {
-            self.initialValue = initialValue
+        init(makeInitialValue: (@MainActor () -> Value)?) {
+            self.makeInitialValue = makeInitialValue
         }
     }
 
@@ -39,21 +38,37 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
     }
 
     public init(wrappedValue: Value) {
-        self.handle = Handle(initialValue: wrappedValue)
+        self.handle = Handle(makeInitialValue: { wrappedValue })
     }
 
     public init(initialValue: Value) {
-        self.handle = Handle(initialValue: initialValue)
+        self.handle = Handle(makeInitialValue: { initialValue })
     }
 
     public func update() { }
+
+    public static func _makeStorage(_ makeInitialValue: @escaping @MainActor () -> Value) -> State<Value> {
+        State(makeInitialValue: makeInitialValue)
+    }
+
+    public static func _makeStorage(initialValue: Value) -> State<Value> {
+        State(initialValue: initialValue)
+    }
+
+    private init(makeInitialValue: (@MainActor () -> Value)?) {
+        self.handle = Handle(makeInitialValue: makeInitialValue)
+    }
 
     private func currentStorage() -> StateStorage<Value> {
         if let storage = handle.storage {
             return storage
         }
 
-        let storage = StateStorage(value: handle.initialValue)
+        guard let makeInitialValue = handle.makeInitialValue else {
+            fatalError("State storage was read before it was initialized.")
+        }
+
+        let storage = StateStorage(value: makeInitialValue())
         handle.storage = storage
         return storage
     }
@@ -75,8 +90,27 @@ extension State: ViewStateBindable {
     func bind(to container: ViewStateContainer, key: ViewStatePropertyKey) {
         let storage = container.storage(
             for: key,
-            initialValue: self.handle.storage ?? StateStorage(value: handle.initialValue)
+            initialValue: self.handle.storage ?? StateStorage(value: initialValue())
         )
         self.handle.storage = storage
     }
+
+    private func initialValue() -> Value {
+        guard let makeInitialValue = handle.makeInitialValue else {
+            fatalError("State storage was bound before it was initialized.")
+        }
+        return makeInitialValue()
+    }
 }
+
+@attached(accessor, names: named(get), named(set))
+@attached(peer, names: prefixed(`_`), prefixed(`__`), prefixed(`$`))
+public macro State() = #externalMacro(module: "AdaEngineMacros", type: "StateMacro")
+
+@attached(accessor, names: named(get), named(set))
+@attached(peer, names: prefixed(`_`), prefixed(`__`), prefixed(`$`))
+public macro State<Value>(initialValue: Value) = #externalMacro(module: "AdaEngineMacros", type: "StateMacro")
+
+@attached(accessor, names: named(get), named(set))
+@attached(peer, names: prefixed(`_`), prefixed(`__`), prefixed(`$`))
+public macro State<Value>(wrappedValue: Value) = #externalMacro(module: "AdaEngineMacros", type: "StateMacro")
