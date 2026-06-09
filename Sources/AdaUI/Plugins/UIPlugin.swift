@@ -96,23 +96,34 @@ public struct WindowPlugin: Plugin {
             let embeddedWindowSize = Screen.main?.size ?? windowSettings.minimumSize
             let configuration = UIWindow.Configuration(
                 title: windowSettings.title ?? "App",
-                frame: Rect(origin: .zero, size: embeddedWindowSize),
+                frame: windowSettings.frame,
                 minimumSize: embeddedWindowSize,
                 mode: .fullscreen,
+                chrome: UIWindow.Chrome(windowSettings.chrome),
                 titleBar: UIWindow.TitleBar(windowSettings.titleBar),
-                showsImmediately: false,
+                background: UIWindow.Background(windowSettings.background),
+                level: UIWindow.Level(windowSettings.level),
+                collectionBehavior: UIWindow.CollectionBehavior(windowSettings.collectionBehavior),
+                screenPreference: windowSettings.screenPreference,
+                showsImmediately: windowSettings.showsImmediately,
+                makeKey: windowSettings.makeKey,
                 hasShadow: windowSettings.hasShadow,
                 isResizable: windowSettings.isResizable
             )
             #else
             let configuration = UIWindow.Configuration(
                 title: windowSettings.title ?? "App",
-                frame: Rect(origin: .zero, size: windowSettings.minimumSize),
+                frame: windowSettings.frame,
                 minimumSize: windowSettings.minimumSize,
                 mode: UIWindow.Mode(windowSettings.windowMode),
+                chrome: UIWindow.Chrome(windowSettings.chrome),
                 titleBar: UIWindow.TitleBar(windowSettings.titleBar),
+                background: UIWindow.Background(windowSettings.background),
+                level: UIWindow.Level(windowSettings.level),
+                collectionBehavior: UIWindow.CollectionBehavior(windowSettings.collectionBehavior),
                 screenPreference: windowSettings.screenPreference,
-                showsImmediately: false,
+                showsImmediately: windowSettings.showsImmediately,
+                makeKey: windowSettings.makeKey,
                 hasShadow: windowSettings.hasShadow,
                 isResizable: windowSettings.isResizable
             )
@@ -121,7 +132,9 @@ public struct WindowPlugin: Plugin {
             #if WASM
             print("AdaEngine WindowPlugin created window")
             #endif
-            window.showWindow(makeFocused: true)
+            if configuration.showsImmediately {
+                window.showWindow(makeFocused: configuration.makeKey)
+            }
             app
                 .insertResource(PrimaryWindow(window: window))
                 .insertResource(PrimaryWindowId(windowId: window.id))
@@ -154,6 +167,52 @@ private extension UIWindow.Mode {
             self = .fullscreen
         case .fullScreenWindowed:
             self = .fullScreenWindowed
+        }
+    }
+}
+
+private extension UIWindow.Chrome {
+    init(_ chrome: WindowChrome) {
+        switch chrome {
+        case .standard:
+            self = .standard
+        case .borderless:
+            self = .borderless
+        }
+    }
+}
+
+private extension UIWindow.Background {
+    init(_ background: WindowBackground) {
+        switch background {
+        case .opaque(let color):
+            self = .opaque(color)
+        case .transparent:
+            self = .transparent
+        }
+    }
+}
+
+private extension UIWindow.Level {
+    init(_ level: WindowLevel) {
+        switch level {
+        case .normal:
+            self = .normal
+        case .floating:
+            self = .floating
+        case .statusBar:
+            self = .statusBar
+        }
+    }
+}
+
+private extension UIWindow.CollectionBehavior {
+    init(_ behavior: WindowCollectionBehavior) {
+        switch behavior {
+        case .standard:
+            self = .standard
+        case .allSpacesStationary:
+            self = .allSpacesStationary
         }
     }
 }

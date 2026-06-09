@@ -42,6 +42,45 @@ public enum WindowTitleBarBackground: Sendable, Equatable {
     case transparent
 }
 
+/// Native platform window chrome style.
+public enum WindowChrome: Sendable, Equatable {
+    /// Use the platform default titled window chrome.
+    case standard
+
+    /// Use a borderless platform window.
+    case borderless
+}
+
+/// Native platform window background style.
+public enum WindowBackground: Sendable, Equatable {
+    /// Fill the platform window background with an opaque color.
+    case opaque(Color)
+
+    /// Make the platform window background transparent.
+    case transparent
+}
+
+/// Native platform window level.
+public enum WindowLevel: Sendable, Equatable {
+    /// Use the platform normal window level.
+    case normal
+
+    /// Keep the window above normal windows.
+    case floating
+
+    /// Use a status-bar-like high window level.
+    case statusBar
+}
+
+/// Native platform window collection behavior.
+public enum WindowCollectionBehavior: Sendable, Equatable {
+    /// Use the platform standard behavior.
+    case standard
+
+    /// Show the window on all spaces and keep it stationary.
+    case allSpacesStationary
+}
+
 /// Platform title bar presentation settings.
 public struct WindowTitleBar: Sendable, Equatable {
     /// The title bar background behavior.
@@ -84,6 +123,9 @@ public struct WindowSettings: Resource {
     /// The minimum size of the window.
     public var minimumSize: Size = Size(width: 800, height: 600)
 
+    /// Initial window content frame. If zero, the platform window manager uses `minimumSize`.
+    public var frame: Rect = .zero
+
     /// The mode of the window.
     public var windowMode: WindowMode = .fullscreen
 
@@ -101,6 +143,24 @@ public struct WindowSettings: Resource {
 
     /// Platform title bar presentation settings.
     public var titleBar: WindowTitleBar = .standard
+
+    /// Native platform window chrome style.
+    public var chrome: WindowChrome = .standard
+
+    /// Native platform window background style.
+    public var background: WindowBackground = .opaque(.black)
+
+    /// Native platform window level.
+    public var level: WindowLevel = .normal
+
+    /// Native platform window collection behavior.
+    public var collectionBehavior: WindowCollectionBehavior = .standard
+
+    /// Whether the platform window should be shown immediately.
+    public var showsImmediately: Bool = true
+
+    /// Whether the platform window should become key when shown.
+    public var makeKey: Bool = true
 
     /// Preferred display for the window.
     public var screenPreference: WindowScreenPreference?

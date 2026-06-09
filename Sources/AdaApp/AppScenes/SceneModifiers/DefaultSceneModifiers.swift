@@ -99,6 +99,24 @@ struct WindowTitleBarSceneModifier: SceneModifier {
     }
 }
 
+/// Set the native platform window chrome style.
+struct WindowChromeSceneModifier: SceneModifier {
+    let chrome: WindowChrome
+
+    func body(content: Content) -> some AppScene {
+        content.updateResource(of: WindowSettings.self, keyPath: \.chrome, value: chrome)
+    }
+}
+
+/// Set the native platform window background style.
+struct WindowBackgroundSceneModifier: SceneModifier {
+    let background: WindowBackground
+
+    func body(content: Content) -> some AppScene {
+        content.updateResource(of: WindowSettings.self, keyPath: \.background, value: background)
+    }
+}
+
 /// Offset macOS traffic light buttons.
 struct WindowTrafficLightOffsetSceneModifier: SceneModifier {
     let offset: Point

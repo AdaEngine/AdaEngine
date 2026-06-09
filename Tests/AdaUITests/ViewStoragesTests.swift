@@ -103,6 +103,20 @@ struct ViewStoragesTests {
     }
 
     @Test
+    func stateInitialValue_isLazyUntilStateStorageIsRead() {
+        StateInitialValueProbe.initialValueEvaluations = 0
+
+        _ = StateInitialValueProbe()
+
+        #expect(StateInitialValueProbe.initialValueEvaluations == 0)
+    }
+
+    @Test
+    func stateMacro_infersTypeFromConstructorInitialValue() {
+        _ = ConstructedStateInitialValueProbe()
+    }
+
+    @Test
     func multipleStatesInOneView_doNotSwapAfterRebuild() {
         let recorder = StateIdentityRecorder()
         let tester = ViewTester(rootView: MultipleStateHost(recorder: recorder))
@@ -194,6 +208,33 @@ private final class BindingBox<Value> {
             get: { self.value },
             set: { self.value = $0 }
         )
+    }
+}
+
+private struct StateInitialValueProbe: View {
+    static var initialValueEvaluations = 0
+
+    @State private var value: Int = makeInitialValue()
+
+    static func makeInitialValue() -> Int {
+        initialValueEvaluations += 1
+        return 42
+    }
+
+    var body: some View {
+        Text("\(value)")
+    }
+}
+
+private struct ConstructedStateValue {
+    var count = 0
+}
+
+private struct ConstructedStateInitialValueProbe: View {
+    @State private var value = ConstructedStateValue()
+
+    var body: some View {
+        Text("\(value.count)")
     }
 }
 
