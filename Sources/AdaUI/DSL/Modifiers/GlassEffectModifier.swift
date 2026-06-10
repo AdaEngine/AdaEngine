@@ -54,9 +54,6 @@ final class GlassEffectViewNode: ViewModifierNode {
 
         guard configuration.opacity > 0 else {
             contentNode.draw(with: ctx)
-            if ctx.environment.debugViewDrawingOptions.contains(.drawViewOverlays) {
-                ctx.drawDebugBorders(frame.size, color: debugNodeColor)
-            }
             return
         }
 
@@ -77,10 +74,6 @@ final class GlassEffectViewNode: ViewModifierNode {
         )
 
         contentNode.draw(with: ctx)
-
-        if ctx.environment.debugViewDrawingOptions.contains(.drawViewOverlays) {
-            ctx.drawDebugBorders(frame.size, color: debugNodeColor)
-        }
     }
 
     override func update(from newNode: ViewNode) {

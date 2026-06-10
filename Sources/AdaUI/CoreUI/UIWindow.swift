@@ -247,6 +247,7 @@ public extension UIWindow {
         public var chrome: Chrome
         public var titleBar: TitleBar
         public var background: Background
+        public var backgroundEffect: BackgroundEffect
         public var level: Level
         public var collectionBehavior: CollectionBehavior
         public var screenPreference: WindowScreenPreference?
@@ -254,6 +255,7 @@ public extension UIWindow {
         public var makeKey: Bool
         public var hasShadow: Bool
         public var isResizable: Bool
+        public var allowsMousePassthrough: Bool
 
         public init(
             title: String? = nil,
@@ -263,13 +265,15 @@ public extension UIWindow {
             chrome: Chrome = .standard,
             titleBar: TitleBar = .standard,
             background: Background = .opaque(.black),
+            backgroundEffect: BackgroundEffect = .none,
             level: Level = .normal,
             collectionBehavior: CollectionBehavior = .standard,
             screenPreference: WindowScreenPreference? = nil,
             showsImmediately: Bool = true,
             makeKey: Bool = true,
             hasShadow: Bool = true,
-            isResizable: Bool = true
+            isResizable: Bool = true,
+            allowsMousePassthrough: Bool = false
         ) {
             self.title = title
             self.frame = frame
@@ -278,6 +282,7 @@ public extension UIWindow {
             self.chrome = chrome
             self.titleBar = titleBar
             self.background = background
+            self.backgroundEffect = backgroundEffect
             self.level = level
             self.collectionBehavior = collectionBehavior
             self.screenPreference = screenPreference
@@ -285,6 +290,7 @@ public extension UIWindow {
             self.makeKey = makeKey
             self.hasShadow = hasShadow
             self.isResizable = isResizable
+            self.allowsMousePassthrough = allowsMousePassthrough
         }
     }
 
@@ -330,6 +336,24 @@ public extension UIWindow {
                 return true
             }
             return false
+        }
+    }
+
+    enum BackgroundEffect: Sendable, Equatable {
+        case none
+        case blur(BlurMaterial)
+
+        public enum BlurMaterial: Sendable, Equatable {
+            case windowBackground
+            case hudWindow
+            case sidebar
+            case popover
+            case contentBackground
+            case underWindowBackground
+            
+            #if os(macOS)
+            case glass
+            #endif
         }
     }
 

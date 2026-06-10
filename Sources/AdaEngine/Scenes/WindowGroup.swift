@@ -49,7 +49,10 @@ package struct WindowGroupPlugin<Content: View>: Plugin, @unchecked Sendable {
             }
         )
         app.addSystem(WindowGroupUpdateSystem.self, on: .startup)
-        app.spawn(bundle: Camera2D())
+        
+        var camera = Camera()
+        camera.backgroundColor = .clear
+        app.spawn(bundle: Camera2D(camera: camera))
     }
 }
 
@@ -95,6 +98,8 @@ func WindowGroupUpdate(
 
     view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
     view.frame = targetWindow.bounds
+    view.backgroundColor = .clear
+    targetWindow.backgroundColor = .clear
     targetWindow.addSubview(view)
     view.layoutSubviews()
 }

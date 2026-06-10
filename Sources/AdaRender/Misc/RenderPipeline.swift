@@ -150,7 +150,7 @@ public struct RenderPipelineColorAttachmentDescriptor: Sendable {
         format: PixelFormat,
         isBlendingEnabled: Bool = false,
         sourceRGBBlendFactor: BlendFactor = .sourceAlpha,
-        sourceAlphaBlendFactor: BlendFactor = .sourceAlpha,
+        sourceAlphaBlendFactor: BlendFactor = .one,
         rgbBlendOperation: BlendOperation = .add,
         alphaBlendOperation: BlendOperation = .add,
         destinationAlphaBlendFactor: BlendFactor = .oneMinusSourceAlpha,

@@ -187,10 +187,6 @@ open class UIView {
 
         self.draw(in: self.bounds, with: context)
 
-        if context.environment.debugViewDrawingOptions.contains(.drawViewOverlays) {
-            context.drawDebugBorders(frame.size, color: debugViewColor)
-        }
-
         for subview in self.zSortedChildren {
             subview.draw(with: context)
         }

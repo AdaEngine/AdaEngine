@@ -45,8 +45,3 @@ public extension View {
         self.environment(\.accentColor, color)
     }
 }
-
-@_spi(AdaEngine)
-public extension EnvironmentValues {
-    @Entry var debugViewDrawingOptions: _DebugViewDrawingOptions = []
-}

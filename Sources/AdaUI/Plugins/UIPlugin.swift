@@ -102,6 +102,7 @@ public struct WindowPlugin: Plugin {
                 chrome: UIWindow.Chrome(windowSettings.chrome),
                 titleBar: UIWindow.TitleBar(windowSettings.titleBar),
                 background: UIWindow.Background(windowSettings.background),
+                backgroundEffect: UIWindow.BackgroundEffect(windowSettings.backgroundEffect),
                 level: UIWindow.Level(windowSettings.level),
                 collectionBehavior: UIWindow.CollectionBehavior(windowSettings.collectionBehavior),
                 screenPreference: windowSettings.screenPreference,
@@ -119,6 +120,7 @@ public struct WindowPlugin: Plugin {
                 chrome: UIWindow.Chrome(windowSettings.chrome),
                 titleBar: UIWindow.TitleBar(windowSettings.titleBar),
                 background: UIWindow.Background(windowSettings.background),
+                backgroundEffect: UIWindow.BackgroundEffect(windowSettings.backgroundEffect),
                 level: UIWindow.Level(windowSettings.level),
                 collectionBehavior: UIWindow.CollectionBehavior(windowSettings.collectionBehavior),
                 screenPreference: windowSettings.screenPreference,
@@ -189,6 +191,40 @@ private extension UIWindow.Background {
             self = .opaque(color)
         case .transparent:
             self = .transparent
+        }
+    }
+}
+
+private extension UIWindow.BackgroundEffect {
+    init(_ effect: WindowBackgroundEffect) {
+        switch effect {
+        case .none:
+            self = .none
+        case .blur(let material):
+            self = .blur(UIWindow.BackgroundEffect.BlurMaterial(material))
+        }
+    }
+}
+
+private extension UIWindow.BackgroundEffect.BlurMaterial {
+    init(_ material: WindowBackgroundEffect.BlurMaterial) {
+        switch material {
+        case .windowBackground:
+            self = .windowBackground
+        case .hudWindow:
+            self = .hudWindow
+        case .sidebar:
+            self = .sidebar
+        case .popover:
+            self = .popover
+        case .contentBackground:
+            self = .contentBackground
+        case .underWindowBackground:
+            self = .underWindowBackground
+        #if os(macOS)
+        case .glass:
+            self = .glass
+        #endif
         }
     }
 }

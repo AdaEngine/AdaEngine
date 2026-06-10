@@ -61,10 +61,6 @@ final class OpacityViewNodeModifier: ViewModifierNode {
             context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
             layer.drawLayer(in: context)
         }
-
-        if context.environment.debugViewDrawingOptions.contains(.drawViewOverlays) {
-            context.drawDebugBorders(frame.size, color: debugNodeColor)
-        }
     }
 
     override func performLayout() {

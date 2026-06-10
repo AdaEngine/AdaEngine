@@ -26,14 +26,6 @@ final class IDViewNodeModifier: ViewModifierNode {
         super.update(from: newNode)
     }
 
-    override func debugColorKey() -> String {
-        if let identifier {
-            return "id:\(String(reflecting: identifier))"
-        }
-
-        return super.debugColorKey()
-    }
-
     override func findNodeById(_ id: AnyHashable) -> ViewNode? {
         return id == self.identifier ? self : nil
     }

@@ -47,7 +47,15 @@ final class MacOSWindowManager: UIWindowManager {
         let rootContentView = NSView(frame: NSRect(origin: .zero, size: contentRect.size))
         rootContentView.autoresizesSubviews = true
         rootContentView.wantsLayer = true
-        rootContentView.layer?.backgroundColor = NSColor(red: 30 / 255, green: 31 / 255, blue: 34 / 255, alpha: 1).cgColor
+        rootContentView.layer?.backgroundColor = backgroundColor(for: window.configuration.background).cgColor
+
+        let metalContainerView: NSView
+        if let visualEffectView = visualEffectView(for: window.configuration.backgroundEffect, frame: rootContentView.bounds) {
+            rootContentView.addSubview(visualEffectView)
+            metalContainerView = visualEffectView
+        } else {
+            metalContainerView = rootContentView
+        }
 
         /// Register view in engine
         let metalView = MetalView(
@@ -55,9 +63,10 @@ final class MacOSWindowManager: UIWindowManager {
             frame: NSRect(origin: .zero, size: contentRect.size)
         )
         metalView.allowsTransparency = window.configuration.background.isTransparent
+        metalView.allowsMousePassthrough = window.configuration.allowsMousePassthrough
         metalView.windowManager = self
         metalView.autoresizingMask = [.width, .height]
-        rootContentView.addSubview(metalView)
+        metalContainerView.addSubview(metalView)
 
         var styleMask: NSWindow.StyleMask = switch window.configuration.chrome {
         case .standard:
@@ -539,6 +548,52 @@ final class MacOSWindowManager: UIWindowManager {
                 blue: CGFloat(color.blue),
                 alpha: CGFloat(color.alpha)
             )
+        }
+    }
+
+    private func visualEffectView(for effect: UIWindow.BackgroundEffect, frame: NSRect) -> NSView? {
+        guard case .blur(let material) = effect else {
+            return nil
+        }
+        
+        var visualEffectView: NSView
+        
+        if #available(macOS 26.0, *), material == .glass {
+            let view = NSGlassEffectView(frame: frame)
+            view.style = .clear
+            view.tintColor = NSColor.controlAccentColor.withAlphaComponent(0.05)
+            visualEffectView = view
+        } else {
+            let view = NSVisualEffectView(frame: frame)
+            view.material = nsVisualEffectMaterial(for: material)
+            view.blendingMode = .behindWindow
+            view.state = .active
+            visualEffectView = view
+        }
+        
+        visualEffectView.autoresizingMask = [.width, .height]
+        visualEffectView.appearance = NSAppearance(named: .vibrantDark)
+        visualEffectView.wantsLayer = true
+        
+        return visualEffectView
+    }
+
+    private func nsVisualEffectMaterial(for material: UIWindow.BackgroundEffect.BlurMaterial) -> NSVisualEffectView.Material {
+        switch material {
+        case .windowBackground:
+            return .windowBackground
+        case .hudWindow:
+            return .hudWindow
+        case .sidebar:
+            return .sidebar
+        case .popover:
+            return .popover
+        case .contentBackground:
+            return .contentBackground
+        case .underWindowBackground:
+            return .underWindowBackground
+        default:
+            return .windowBackground
         }
     }
 

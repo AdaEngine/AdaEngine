@@ -52,7 +52,7 @@ extension MetalView {
             passthroughGlobalMouseMonitor = nil
         }
 
-        guard allowsTransparency else {
+        guard allowsTransparency, allowsMousePassthrough else {
             self.window?.ignoresMouseEvents = false
             return
         }
@@ -69,7 +69,7 @@ extension MetalView {
     }
 
     private func updateMousePassthrough(at screenPoint: NSPoint) {
-        guard allowsTransparency,
+        guard allowsTransparency, allowsMousePassthrough,
               let nsWindow = self.window,
               let uiWindow = (windowManager as? MacOSWindowManager)?.findWindow(for: nsWindow),
               uiWindow.canDraw else {

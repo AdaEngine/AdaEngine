@@ -25,7 +25,7 @@ final class TextFieldViewNode: ViewNode {
         static let verticalInset: Float = 6
         static let minimumWidth: Float = 140
         static let minimumHeight: Float = 30
-        static let placeholderOpacity: Float = 0.45
+        static let placeholderOpacity: Float = 0.8
         static let selectionOpacity: Float = 0.25
         static let maxUndoDepth: Int = 128
         static let caretPadding: Float = 0

@@ -60,10 +60,6 @@ final class ShaderEffectViewNode: ViewModifierNode {
         if placement == .overlay {
             drawShaderEffect(with: ctx)
         }
-
-        if ctx.environment.debugViewDrawingOptions.contains(.drawViewOverlays) {
-            ctx.drawDebugBorders(frame.size, color: debugNodeColor)
-        }
     }
 
     override func update(from newNode: ViewNode) {

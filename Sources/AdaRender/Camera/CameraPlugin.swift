@@ -14,7 +14,6 @@ import Logging
 import Math
 
 public struct CameraPlugin: Plugin {
-
     public init() {}
 
     public func setup(in app: AppWorlds) {

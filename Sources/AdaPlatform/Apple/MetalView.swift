@@ -27,6 +27,7 @@ open class MetalView: MTKView {
             }
         }
     }
+    var allowsMousePassthrough: Bool = false
     weak var windowManager: UIWindowManager?
 
     #if MACOS

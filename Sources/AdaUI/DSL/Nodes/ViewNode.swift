@@ -606,30 +606,6 @@ class ViewNode: Identifiable {
 
     func update(_ deltaTime: TimeInterval) { }
 
-    lazy var debugNodeColor: Color = Self.debugColor(for: debugColorKey())
-
-    func debugColorKey() -> String {
-        if let accessibilityIdentifier {
-            return "accessibility:\(accessibilityIdentifier)"
-        }
-
-        return "type:\(String(reflecting: type(of: content)))"
-    }
-
-    private static func debugColor(for key: String) -> Color {
-        let hash = fnv1a64(key)
-        return Color.fromHex(Int(hash & 0x00FFFFFF))
-    }
-
-    private static func fnv1a64(_ string: String) -> UInt64 {
-        var hash: UInt64 = 0xcbf29ce484222325
-        for byte in string.utf8 {
-            hash ^= UInt64(byte)
-            hash &*= 0x100000001b3
-        }
-        return hash
-    }
-
     /// Perform draw view on the screen.
     func draw(with context: UIGraphicsContext) {
         var context = context
@@ -637,10 +613,6 @@ class ViewNode: Identifiable {
         
         if let layer = layer {
             layer.drawLayer(in: context)
-        }
-
-        if context.environment.debugViewDrawingOptions.contains(.drawViewOverlays) {
-            context.drawDebugBorders(frame.size, color: debugNodeColor)
         }
     }
 

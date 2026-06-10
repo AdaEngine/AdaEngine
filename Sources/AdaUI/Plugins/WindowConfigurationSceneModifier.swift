@@ -38,6 +38,7 @@ private extension WindowSettings {
         self.chrome = WindowChrome(configuration.chrome)
         self.titleBar = WindowTitleBar(configuration.titleBar)
         self.background = WindowBackground(configuration.background)
+        self.backgroundEffect = WindowBackgroundEffect(configuration.backgroundEffect)
         self.level = WindowLevel(configuration.level)
         self.collectionBehavior = WindowCollectionBehavior(configuration.collectionBehavior)
         self.screenPreference = configuration.screenPreference
@@ -79,6 +80,40 @@ private extension WindowBackground {
             self = .opaque(color)
         case .transparent:
             self = .transparent
+        }
+    }
+}
+
+private extension WindowBackgroundEffect {
+    init(_ effect: UIWindow.BackgroundEffect) {
+        switch effect {
+        case .none:
+            self = .none
+        case .blur(let material):
+            self = .blur(WindowBackgroundEffect.BlurMaterial(material))
+        }
+    }
+}
+
+private extension WindowBackgroundEffect.BlurMaterial {
+    init(_ material: UIWindow.BackgroundEffect.BlurMaterial) {
+        switch material {
+        case .windowBackground:
+            self = .windowBackground
+        case .hudWindow:
+            self = .hudWindow
+        case .sidebar:
+            self = .sidebar
+        case .popover:
+            self = .popover
+        case .contentBackground:
+            self = .contentBackground
+        case .underWindowBackground:
+            self = .underWindowBackground
+        #if os(macOS)
+        case .glass:
+            self = .glass
+        #endif
         }
     }
 }

@@ -60,6 +60,28 @@ public enum WindowBackground: Sendable, Equatable {
     case transparent
 }
 
+/// Native platform window background effect.
+public enum WindowBackgroundEffect: Sendable, Equatable {
+    /// Do not apply a native platform background effect.
+    case none
+
+    /// Apply a native platform blur/material behind the window contents.
+    case blur(BlurMaterial)
+
+    public enum BlurMaterial: Sendable, Equatable {
+        case windowBackground
+        case hudWindow
+        case sidebar
+        case popover
+        case contentBackground
+        case underWindowBackground
+        
+        #if os(macOS)
+        case glass
+        #endif
+    }
+}
+
 /// Native platform window level.
 public enum WindowLevel: Sendable, Equatable {
     /// Use the platform normal window level.
@@ -149,6 +171,9 @@ public struct WindowSettings: Resource {
 
     /// Native platform window background style.
     public var background: WindowBackground = .opaque(.black)
+
+    /// Native platform window background effect.
+    public var backgroundEffect: WindowBackgroundEffect = .none
 
     /// Native platform window level.
     public var level: WindowLevel = .normal
