@@ -297,6 +297,11 @@ extension MetalView {
            guard self.window != nil else {
                return
            }
+           #if os(iOS)
+           guard self.traitCollection.userInterfaceIdiom == .pad else {
+               return
+           }
+           #endif
            guard !(self.gestureRecognizers?.contains { $0 is UIHoverGestureRecognizer } ?? false) else {
                return
            }

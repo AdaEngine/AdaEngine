@@ -227,10 +227,113 @@ struct ViewVisibilityTests {
 
         #expect(!appeared)
     }
+
+    @Test
+    func task_startsWhenViewAppears() async {
+        let recorder = TaskLifecycleRecorder()
+        _ = ViewTester {
+            Color.blue
+                .frame(width: 50, height: 50)
+                .task {
+                    await recorder.runUntilCancelled()
+                }
+        }
+
+        await flushLifecycleActions()
+        await waitForTaskStart(recorder)
+        #expect(await recorder.startCount == 1)
+    }
+
+    @Test
+    func task_cancelsWhenViewDisappears() async {
+        let recorder = TaskLifecycleRecorder()
+        let tester = ViewTester {
+            Color.blue
+                .frame(width: 50, height: 50)
+                .task {
+                    await recorder.runUntilCancelled()
+                }
+        }
+        await flushLifecycleActions()
+
+        tester.containerView.viewTree.rootNode.contentNode.parent = nil
+        await waitForTaskCancellation(recorder)
+
+        #expect(await recorder.cancellationCount == 1)
+    }
+
+    @Test
+    func task_doesNotStartWhenDetachedBeforeLifecycleFlush() async {
+        let recorder = TaskLifecycleRecorder()
+        let tester = ViewTester {
+            Color.blue
+                .frame(width: 50, height: 50)
+                .task {
+                    await recorder.runUntilCancelled()
+                }
+        }
+
+        tester.containerView.viewTree.rootNode.contentNode.parent = nil
+        await flushLifecycleActions()
+
+        #expect(await recorder.startCount == 0)
+    }
+
+    @Test
+    func task_restartsOnReInsertion() async {
+        final class Model {
+            var isVisible = true
+        }
+
+        let model = Model()
+        let recorder = TaskLifecycleRecorder()
+        let tester = ViewTester(rootView: ConditionalTaskHost(
+            isVisible: Binding(
+                get: { model.isVisible },
+                set: { model.isVisible = $0 }
+            ),
+            recorder: recorder
+        ))
+        await flushLifecycleActions()
+        await waitForTaskStart(recorder)
+
+        #expect(await recorder.startCount == 1)
+
+        model.isVisible = false
+        tester.invalidateContent()
+        await waitForTaskCancellation(recorder)
+
+        #expect(await recorder.cancellationCount == 1)
+
+        model.isVisible = true
+        tester.invalidateContent()
+        await flushLifecycleActions()
+        await waitForTaskStart(recorder, count: 2)
+
+        #expect(await recorder.startCount == 2)
+    }
 }
 
 private func flushLifecycleActions() async {
     await Task.yield()
+}
+
+private func waitForTaskCancellation(_ recorder: TaskLifecycleRecorder) async {
+    for _ in 0..<10 {
+        await flushLifecycleActions()
+        if await recorder.cancellationCount > 0 {
+            return
+        }
+    }
+}
+
+private func waitForTaskStart(_ recorder: TaskLifecycleRecorder, count: Int = 1) async {
+    for _ in 0..<10 {
+        await flushLifecycleActions()
+        if await recorder.startCount >= count {
+            return
+        }
+    }
 }
 
 private final class LifecycleMutationRecorder {
@@ -264,6 +367,42 @@ private struct ConditionalVisibilityHost: View {
                 .frame(width: 50, height: 50)
                 .onAppear(perform: onAppear)
                 .onDisappear(perform: onDisappear)
+        } else {
+            EmptyView()
+        }
+    }
+}
+
+private actor TaskLifecycleRecorder {
+    private(set) var startCount = 0
+    private(set) var cancellationCount = 0
+
+    func runUntilCancelled() async {
+        startCount += 1
+
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+            } catch {
+                break
+            }
+        }
+
+        cancellationCount += 1
+    }
+}
+
+private struct ConditionalTaskHost: View {
+    let isVisible: Binding<Bool>
+    let recorder: TaskLifecycleRecorder
+
+    var body: some View {
+        if isVisible.wrappedValue {
+            Color.blue
+                .frame(width: 50, height: 50)
+                .task {
+                    await recorder.runUntilCancelled()
+                }
         } else {
             EmptyView()
         }

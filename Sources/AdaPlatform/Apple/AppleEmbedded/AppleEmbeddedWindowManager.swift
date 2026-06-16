@@ -59,9 +59,11 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         systemWindow.rootViewController = gameViewController
         systemWindow.backgroundColor = .black
         
-        let pointerInteraction = UIPointerInteraction(delegate: systemWindow)
-        systemWindow.addInteraction(pointerInteraction)
-        systemWindow.pointerInteraction = pointerInteraction
+        if Self.supportsPointerInteraction() {
+            let pointerInteraction = UIPointerInteraction(delegate: systemWindow)
+            systemWindow.addInteraction(pointerInteraction)
+            systemWindow.pointerInteraction = pointerInteraction
+        }
         
         window.systemWindow = systemWindow
         window.minSize = frame.size
@@ -218,6 +220,14 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         _AdaEngineViewController.idiom(from: .current)
     }
 
+    private static func supportsPointerInteraction() -> Bool {
+        #if os(iOS)
+        detectIdiom() == .pad
+        #else
+        true
+        #endif
+    }
+
     private func attachWindowToSceneIfNeeded(_ window: UIKit.UIWindow, preferredScene: UIWindowScene? = nil) {
         let scene: UIWindowScene
         if let preferredScene {
@@ -296,6 +306,23 @@ final class _AdaUIWindow: UIKit.UIWindow, SystemWindow, UIPointerInteractionDele
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIKit.UIView? {
+        if let view = super.hitTest(point, with: event) {
+            return view
+        }
+
+        guard
+            !isHidden,
+            alpha > 0.01,
+            isUserInteractionEnabled,
+            bounds.contains(point)
+        else {
+            return nil
+        }
+
+        return rootViewController?.view
     }
 
     // MARK: - UIPointerInteractionDelegate

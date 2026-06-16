@@ -170,22 +170,6 @@ extension MetalView {
         input?.mousePosition = position
         input?.wrappedValue.receiveEvent(mouseEvent)
     }
-
-    public override func rightMouseUp(with event: NSEvent) {
-        let position = self.mousePosition(for: event)
-
-        let mouseEvent = MouseEvent(
-            window: self.windowID,
-            button: .right,
-            mousePosition: position,
-            phase: .ended,
-            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
-            time: TimeInterval(event.timestamp)
-        )
-
-        input?.mousePosition = position
-        input?.wrappedValue.receiveEvent(mouseEvent)
-    }
     
     open override func cursorUpdate(with event: NSEvent) {
         Application.shared.windowManager.updateCursor()
@@ -231,6 +215,22 @@ extension MetalView {
             button: .right,
             mousePosition: position,
             phase: isContinious ? .changed : .began,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
+            time: TimeInterval(event.timestamp)
+        )
+
+        input?.mousePosition = position
+        input?.wrappedValue.receiveEvent(mouseEvent)
+    }
+
+    public override func rightMouseUp(with event: NSEvent) {
+        let position = self.mousePosition(for: event)
+
+        let mouseEvent = MouseEvent(
+            window: self.windowID,
+            button: .right,
+            mousePosition: position,
+            phase: .ended,
             modifierKeys: KeyModifier(modifiers: event.modifierFlags),
             time: TimeInterval(event.timestamp)
         )

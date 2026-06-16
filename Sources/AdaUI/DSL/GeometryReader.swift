@@ -200,7 +200,7 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     /// - Parameter content: The content.
     init<Root: View>(contentProxy: @escaping (GeometryProxy) -> Content, content: Root) {
         self.contentProxy = contentProxy
-        super.init(content: content, body: { _ in fatalError() })
+        super.init(content: content, buildImmediately: false, body: { _ in _ViewListOutputs(outputs: []) })
     }
 
     override func update(from newNode: ViewNode) {
@@ -209,14 +209,30 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
             return
         }
 
-        let hadNodesBeforeUpdate = !self.nodes.isEmpty
+        // GeometryReader content depends on its laid-out frame and must be rebuilt
+        // only from performLayout(), where a valid GeometryProxy is available.
+        // Calling ViewContainerNode.update(from:) here would install the placeholder
+        // empty body from the fresh node and immediately reconcile children to [],
+        // which can make the view disappear until the next layout pass.
         self.contentProxy = geometryReaderNode.contentProxy
-        super.update(from: newNode)
-        if hadNodesBeforeUpdate && self.nodes.isEmpty {
-            self.contentNeedsRebuild = true
-            self.markNeedsLayout()
-            owner?.containerView?.setNeedsLayout()
+        self.markInspectionRedraw()
+        self.environmentTransform = geometryReaderNode.environmentTransform
+        self.structuralIdentity = geometryReaderNode.structuralIdentity
+        self.accessibilityIdentifier = geometryReaderNode.accessibilityIdentifier
+
+        var resolvedEnvironment = geometryReaderNode.environment
+        if !resolvedEnvironment.animationsDisabled,
+           resolvedEnvironment.animationController == nil,
+           let animationController = self.environment.animationController {
+            resolvedEnvironment.animationController = animationController
         }
+        self.applyResolvedEnvironmentSilently(resolvedEnvironment)
+        self.setContent(geometryReaderNode.content)
+
+        self.contentNeedsRebuild = true
+        self.markNeedsLayout()
+        self.invalidateNearestLayer()
+        owner?.containerView?.setNeedsLayout()
     }
 
     /// Perform the layout of the geometry reader view node.

@@ -560,8 +560,8 @@ final class MacOSWindowManager: UIWindowManager {
         
         if #available(macOS 26.0, *), material == .glass {
             let view = NSGlassEffectView(frame: frame)
-            view.style = .clear
-            view.tintColor = NSColor.controlAccentColor.withAlphaComponent(0.05)
+            view.style = .regular
+//            view.tintColor = NSColor.controlAccentColor.withAlphaComponent(0.05)
             visualEffectView = view
         } else {
             let view = NSVisualEffectView(frame: frame)
