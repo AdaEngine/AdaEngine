@@ -54,11 +54,79 @@ struct NavigationSplitViewAnimationTests {
         tester.advanceFrame(deltaTime: 0.5)
         #expect(sidebarIsHittableNearLeadingEdge())
     }
+
+    @Test
+    func compactDetailWithoutNavigationStackDoesNotShowBackButton() {
+        let capture = CapturedNavigationSplitColumn()
+        let tester = ViewTester(rootView: CompactSplitNavigationHost(capture: capture))
+            .setSize(Size(width: 390, height: 640))
+            .performLayout()
+
+        #expect(capture.column.wrappedValue == .detail)
+        #expect(
+            tester.findHitPoint(
+                forAccessibilityIdentifier: "AdaUI.NavigationSplitView.backButton",
+                in: Rect(x: 0, y: 0, width: 96, height: 96),
+                step: 8
+            ) == nil
+        )
+    }
+
+    @Test
+    func compactDetailInstallsBackButtonIntoNearestNavigationStack() {
+        let capture = CapturedNavigationSplitColumn()
+        let tester = ViewTester(rootView: CompactSplitNavigationStackHost(capture: capture))
+            .setSize(Size(width: 390, height: 640))
+            .performLayout()
+
+        #expect(capture.column.wrappedValue == .detail)
+        #expect(
+            tester.findHitPoint(
+                forAccessibilityIdentifier: "AdaUI.NavigationSplitView.backButton",
+                in: Rect(x: 0, y: 0, width: 96, height: 96),
+                step: 8
+            ) != nil
+        )
+
+        tester.sendMouseEvent(at: Point(36, 36), phase: .began)
+        tester.sendMouseEvent(at: Point(36, 36), phase: .ended)
+
+        #expect(capture.column.wrappedValue == .sidebar)
+        tester.advanceFrame(deltaTime: 1)
+        #expect(
+            tester.findHitPoint(
+                forAccessibilityIdentifier: "compact-sidebar",
+                in: Rect(x: 0, y: 0, width: 390, height: 640),
+                step: 24
+            ) != nil
+        )
+    }
+
+    @Test
+    func compactDetailEdgeSwipeReturnsToSidebar() {
+        let capture = CapturedNavigationSplitColumn()
+        let tester = ViewTester(rootView: CompactSplitNavigationHost(capture: capture))
+            .setSize(Size(width: 390, height: 640))
+            .performLayout()
+
+        #expect(capture.column.wrappedValue == .detail)
+
+        tester.sendMouseEvent(at: Point(8, 240), phase: .began)
+        tester.sendMouseEvent(at: Point(132, 244), button: .left, phase: .changed)
+        tester.sendMouseEvent(at: Point(132, 244), phase: .ended)
+
+        #expect(capture.column.wrappedValue == .sidebar)
+    }
 }
 
 @MainActor
 private final class CapturedNavigationSplitVisibility {
     var visibility: Binding<NavigationSplitViewVisibility>!
+}
+
+@MainActor
+private final class CapturedNavigationSplitColumn {
+    var column: Binding<NavigationSplitViewColumn>!
 }
 
 private struct AnimatedSidebarSplitView: View {
@@ -76,6 +144,46 @@ private struct AnimatedSidebarSplitView: View {
             Color.blue
                 .onTap { }
                 .accessibilityIdentifier("animated-detail")
+        }
+    }
+}
+
+private struct CompactSplitNavigationHost: View {
+    let capture: CapturedNavigationSplitColumn
+    @State private var compactColumn = NavigationSplitViewColumn.detail
+
+    var body: some View {
+        let _ = capture.column = $compactColumn.animation(.linear(duration: 1))
+
+        NavigationSplitView(preferredCompactColumn: $compactColumn) {
+            Color.red
+                .onTap { }
+                .accessibilityIdentifier("compact-sidebar")
+        } detail: {
+            Color.blue
+                .onTap { }
+                .accessibilityIdentifier("compact-detail")
+        }
+    }
+}
+
+private struct CompactSplitNavigationStackHost: View {
+    let capture: CapturedNavigationSplitColumn
+    @State private var compactColumn = NavigationSplitViewColumn.detail
+
+    var body: some View {
+        let _ = capture.column = $compactColumn.animation(.linear(duration: 1))
+
+        NavigationSplitView(preferredCompactColumn: $compactColumn) {
+            Color.red
+                .onTap { }
+                .accessibilityIdentifier("compact-sidebar")
+        } detail: {
+            NavigationStack {
+                Color.blue
+                    .onTap { }
+                    .accessibilityIdentifier("compact-detail")
+            }
         }
     }
 }

@@ -456,6 +456,15 @@ final class _AdaEngineViewController: UIViewController {
                 time: AdaUtils.TimeInterval(CACurrentMediaTime())
             )
         )
+
+        guard let adaWindow = renderView.windowManager?.windows[renderView.windowID] else {
+            return
+        }
+
+        adaWindow.keyboardOccludedHeight = Float(occludedHeight)
+        for subview in adaWindow.subviews {
+            subview.keyboardOccludedHeight = Float(occludedHeight)
+        }
         #endif
     }
 

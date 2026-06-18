@@ -46,6 +46,16 @@ open class UIView {
     /// Set this from the platform layer; it is injected into the view environment on every layout pass.
     public var safeAreaInsets: EdgeInsets = EdgeInsets()
 
+    /// The vertical window area currently covered by the software keyboard.
+    /// Set this from the platform layer; AdaUI merges it into the bottom safe area inset.
+    public var keyboardOccludedHeight: Float = 0 {
+        didSet {
+            if oldValue != keyboardOccludedHeight {
+                setNeedsLayout()
+            }
+        }
+    }
+
     /// Contains size and position relative to self local coordinates.
     open var bounds: Rect = .zero
 
@@ -387,6 +397,7 @@ open class UIView {
 
         if let window = window {
             safeAreaInsets = window.safeAreaInsets
+            keyboardOccludedHeight = window.keyboardOccludedHeight
             setNeedsLayout()
         }
 
@@ -649,6 +660,14 @@ open class UIView {
     ///
     /// - Parameter deltaTime: The delta time.
     open func update(_ deltaTime: TimeInterval) { }
+}
+
+extension UIView {
+    var effectiveSafeAreaInsets: EdgeInsets {
+        var insets = safeAreaInsets
+        insets.bottom = max(insets.bottom, keyboardOccludedHeight)
+        return insets
+    }
 }
 
 /// During layout in AdaEngine UI, views choose their own size, but they do that in response to a size proposal from their parent view.

@@ -122,6 +122,11 @@ struct TextFieldTests {
     }
 
     @Test
+    func textFieldCaretUsesReadableWideLineWidth() {
+        #expect(TextFieldViewNode.Constants.caretLineWidth >= 2.5)
+    }
+
+    @Test
     func textField_updatesSelectionInteractivelyOnMouseDragChanged() {
         final class Model {
             var text: String = "hello world"

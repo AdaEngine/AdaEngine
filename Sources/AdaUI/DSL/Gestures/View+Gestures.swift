@@ -11,7 +11,13 @@ public extension View {
         self.modifier(GestureViewModifier(gesture: gesture, content: self))
     }
 
+    @inlinable
     func onTap(count: Int = 1, perform: @escaping () -> Void) -> some View {
+        onTapGesture(count: count, perform: perform)
+    }
+    
+    @inlinable
+    func onTapGesture(count: Int = 1, perform: @escaping () -> Void) -> some View {
         self.gesture(
             TapGesture(count: count)
                 .onEnded(perform)

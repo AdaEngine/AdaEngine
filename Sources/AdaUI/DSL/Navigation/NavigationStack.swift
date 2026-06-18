@@ -55,8 +55,18 @@ final class NavigationContext {
     }
 }
 
+@MainActor
+final class NavigationSplitCompactBackAction: @unchecked Sendable {
+    let perform: @MainActor () -> Void
+
+    init(_ perform: @escaping @MainActor () -> Void) {
+        self.perform = perform
+    }
+}
+
 extension EnvironmentValues {
     @Entry var navigationContext: NavigationContext? = nil
+    @Entry internal var navigationSplitCompactBackAction: NavigationSplitCompactBackAction? = nil
     @Entry internal var navigationBarConfiguration: NavigationBarConfiguration = NavigationBarConfiguration()
     @Entry internal var navigationBarLeadingItems: NavigationBarItemContent? = nil
     @Entry internal var navigationBarTrailingItems: NavigationBarItemContent? = nil
@@ -324,6 +334,7 @@ final class NavigationStackNode: ViewNode {
     ) -> _ViewInputs {
         var childInputs = inputs
         childInputs.environment.navigationContext = context
+        childInputs.environment.navigationSplitCompactBackAction = nil
         if let dismiss {
             childInputs.environment.dismiss = dismiss
         }
@@ -354,6 +365,9 @@ final class NavigationStackNode: ViewNode {
         var state = Self.navigationBarState(in: currentContentNode)
         let configuration = state.configuration
         let showsBackButton = !navigationContext.path.isEmpty && !configuration.backButtonHidden
+        let splitBackAction = configuration.backButtonHidden
+            ? nil
+            : viewInputs.environment.navigationSplitCompactBackAction
         let showsNavigationBar = !configuration.isHidden
 
         let contentReceivesTopSafeArea = showsNavigationBar && Self.nodeConsumesTopSafeArea(currentContentNode)
@@ -385,6 +399,7 @@ final class NavigationStackNode: ViewNode {
                 configuration: state.configuration,
                 leadingItems: state.leadingItems,
                 trailingItems: state.trailingItems,
+                splitBackAction: splitBackAction,
                 showsBackButton: showsBackButton,
                 inputs: barInputs
             )
@@ -393,6 +408,7 @@ final class NavigationStackNode: ViewNode {
                 configuration: state.configuration,
                 leadingItems: state.leadingItems,
                 trailingItems: state.trailingItems,
+                splitBackAction: splitBackAction,
                 showsBackButton: showsBackButton,
                 navigationContext: navigationContext,
                 inputs: barInputs
@@ -573,11 +589,13 @@ private final class NavigationBarNode: ViewNode {
     private var configuration: NavigationBarConfiguration
     private var leadingItems: NavigationBarItemContent?
     private var trailingItems: NavigationBarItemContent?
+    private var splitBackAction: NavigationSplitCompactBackAction?
     private var showsBackButton: Bool
     private weak var navigationContext: NavigationContext?
     private var inputs: _ViewInputs
 
     private var titleNode: ViewNode?
+    private var splitBackButtonNode: ViewNode?
     private var backButtonNode: ViewNode?
     private var leadingItemsNode: ViewNode?
     private var trailingItemsNode: ViewNode?
@@ -590,6 +608,7 @@ private final class NavigationBarNode: ViewNode {
         configuration: NavigationBarConfiguration,
         leadingItems: NavigationBarItemContent?,
         trailingItems: NavigationBarItemContent?,
+        splitBackAction: NavigationSplitCompactBackAction?,
         showsBackButton: Bool,
         navigationContext: NavigationContext,
         inputs: _ViewInputs
@@ -597,6 +616,7 @@ private final class NavigationBarNode: ViewNode {
         self.configuration = configuration
         self.leadingItems = leadingItems
         self.trailingItems = trailingItems
+        self.splitBackAction = splitBackAction
         self.showsBackButton = showsBackButton
         self.navigationContext = navigationContext
         self.inputs = inputs
@@ -609,12 +629,14 @@ private final class NavigationBarNode: ViewNode {
         configuration: NavigationBarConfiguration,
         leadingItems: NavigationBarItemContent?,
         trailingItems: NavigationBarItemContent?,
+        splitBackAction: NavigationSplitCompactBackAction?,
         showsBackButton: Bool,
         inputs: _ViewInputs
     ) {
         self.configuration = configuration
         self.leadingItems = leadingItems
         self.trailingItems = trailingItems
+        self.splitBackAction = splitBackAction
         self.showsBackButton = showsBackButton
         self.inputs = inputs
         rebuildChildren()
@@ -637,6 +659,15 @@ private final class NavigationBarNode: ViewNode {
             0,
             (frame.width - Constants.horizontalPadding * 2 - reservedTitleWidth - Constants.itemSpacing * 2) * 0.5
         )
+
+        if let splitBackButtonNode {
+            splitBackButtonNode.place(
+                in: Point(x: leadingX, y: centerY),
+                anchor: .leading,
+                proposal: ProposedViewSize(width: Constants.controlHeight, height: Constants.controlHeight)
+            )
+            leadingX += Constants.controlHeight + Constants.itemSpacing
+        }
 
         if let backButtonNode {
             backButtonNode.place(
@@ -778,6 +809,7 @@ private final class NavigationBarNode: ViewNode {
     private var childNodes: [ViewNode] {
         [
             titleNode,
+            splitBackButtonNode,
             backButtonNode,
             leadingItemsNode,
             trailingItemsNode,
@@ -790,6 +822,7 @@ private final class NavigationBarNode: ViewNode {
         }
 
         titleNode = makeTitleNode()
+        splitBackButtonNode = splitBackAction.map(makeSplitBackButtonNode)
         backButtonNode = showsBackButton ? makeBackButtonNode() : nil
         leadingItemsNode = leadingItems?.makeNode(navigationBarItemInputs())
         trailingItemsNode = trailingItems?.makeNode(navigationBarItemInputs())
@@ -811,6 +844,20 @@ private final class NavigationBarNode: ViewNode {
             .foregroundColor(.white)
             .lineLimit(1)
         return Text._makeView(_ViewGraphNode(value: view), inputs: inputs).node
+    }
+
+    private func makeSplitBackButtonNode(action: NavigationSplitCompactBackAction) -> ViewNode {
+        let view = Button(action: {
+            action.perform()
+        }) {
+            Text("<")
+                .font(.system(size: 24))
+                .foregroundColor(.white)
+                .frame(width: Constants.controlHeight, height: Constants.controlHeight)
+        }
+        let node = Button._makeView(_ViewGraphNode(value: view), inputs: navigationBarItemInputs()).node
+        node.accessibilityIdentifier = "AdaUI.NavigationSplitView.backButton"
+        return node
     }
 
     private func makeBackButtonNode() -> ViewNode {
@@ -835,6 +882,7 @@ private final class NavigationBarNode: ViewNode {
         titleNode?.updateEnvironment(inputs.environment)
 
         let itemEnvironment = navigationBarItemInputs().environment
+        splitBackButtonNode?.updateEnvironment(itemEnvironment)
         backButtonNode?.updateEnvironment(itemEnvironment)
         leadingItemsNode?.updateEnvironment(itemEnvironment)
         trailingItemsNode?.updateEnvironment(itemEnvironment)

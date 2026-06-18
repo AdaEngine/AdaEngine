@@ -224,6 +224,7 @@ final class UIHotReloadHostView: UIView {
 
         activeView.frame = bounds
         activeView.safeAreaInsets = safeAreaInsets
+        activeView.keyboardOccludedHeight = keyboardOccludedHeight
         activeView.userInterfaceIdiom = userInterfaceIdiom
         activeView.colorScheme = colorScheme
         activeView.layoutSubviews()
@@ -289,6 +290,7 @@ final class UIHotReloadHostView: UIView {
         view.frame = bounds
         view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
         view.safeAreaInsets = safeAreaInsets
+        view.keyboardOccludedHeight = keyboardOccludedHeight
         view.userInterfaceIdiom = userInterfaceIdiom
         view.colorScheme = colorScheme
         addSubview(view)

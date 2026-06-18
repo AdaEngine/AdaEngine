@@ -467,7 +467,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 extension UIView {
     func rootEnvironmentValues() -> EnvironmentValues {
         var env = EnvironmentValues()
-        env.safeAreaInsets = safeAreaInsets
+        env.safeAreaInsets = effectiveSafeAreaInsets
         env.userInterfaceIdiom = userInterfaceIdiom
         env.colorScheme = colorScheme
         env.scaleFactor = window?.screen?.scale ?? Screen.main?.scale ?? 1

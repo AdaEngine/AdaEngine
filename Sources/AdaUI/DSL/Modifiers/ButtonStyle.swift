@@ -70,6 +70,10 @@ public struct ButtonStyleConfiguration {
     public var isSelected: Bool {
         state.contains(.selected)
     }
+    
+    /// A Boolean value indicating whether the control is in the selected state.
+    /// Alias to isSelected property
+    public var isPressed: Bool { self.isSelected }
 
     /// A Boolean value indicating whether the control draws a highlight.
     public var isHighlighted: Bool {
@@ -106,7 +110,7 @@ public struct DefaultButtonStyle: ButtonStyle {
 /// The default button style used inside navigation bars.
 public struct NavigationBarButtonStyle: ButtonStyle {
     private enum Constants {
-        static let height: Float = 32
+        static let height: Float = 48
         static let horizontalPadding: Float = 12
     }
 
@@ -120,13 +124,13 @@ public struct NavigationBarButtonStyle: ButtonStyle {
     public func makeBody(configuration: Configuration) -> some View {
         let isPressed = configuration.isSelected
         let isHoveredOrFocused = configuration.isHighlighted || configuration.state.contains(.focused)
-        let glass = isPressed ? Glass.interaction : (isHoveredOrFocused ? Glass.regular : Glass.clear)
+        let glass = isPressed ? Glass.interaction : (isHoveredOrFocused ? Glass.regular : Glass.regular)
 
         return configuration.label
             .padding(.horizontal, Constants.horizontalPadding)
-            .frame(height: Constants.height)
+            .frame(minWidth: Constants.height, minHeight: Constants.height)
             .glassEffect(glass, in: .capsule)
-            .fixedSize(horizontal: true, vertical: false)
+            .animation(.linear(duration: 0.2), value: isPressed)
     }
 }
 
@@ -205,8 +209,14 @@ public struct GlassButtonStyle<S: Shape>: ButtonStyle, @unchecked Sendable {
 
         return configuration.label
             .foregroundColor(foregroundColor)
-            .padding(.horizontal, horizontalPadding)
-            .padding(.vertical, verticalPadding)
+            .padding(
+                EdgeInsets(
+                    top: verticalPadding,
+                    leading: horizontalPadding,
+                    bottom: verticalPadding,
+                    trailing: horizontalPadding
+                )
+            )
             .frame(minHeight: minHeight)
             .glassEffect(glass(for: configuration, isEnabled: controlIsEnabled, isActiveOrFocused: activeOrFocused), in: shape)
             .overlay {
@@ -214,6 +224,7 @@ public struct GlassButtonStyle<S: Shape>: ButtonStyle, @unchecked Sendable {
             }
             .scaleEffect(scale(for: configuration, isEnabled: controlIsEnabled, isActiveOrFocused: activeOrFocused))
             .opacity(controlIsEnabled ? 1.0 : disabledOpacity)
+            .animation(.linear(duration: 0.2), value: configuration.isPressed)
     }
 
     private func glass(for configuration: Configuration, isEnabled: Bool, isActiveOrFocused: Bool) -> Glass {

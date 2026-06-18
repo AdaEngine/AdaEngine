@@ -8,6 +8,7 @@
 import AdaAnimation
 import AdaText
 import AdaUtils
+import Foundation
 import Math
 
 /// A view that displays one or more lines of read-only text.
@@ -15,8 +16,34 @@ public struct Text {
 
     let storage: Storage
 
+    /// Creates a text view that displays localized text.
+    public init(_ titleKey: LocalizedStringKey) {
+        self.storage = Storage(localized: titleKey)
+    }
+
+    /// Creates a text view that displays localized text.
+    public init(
+        _ titleKey: String,
+        table: String? = nil,
+        bundle: Bundle
+    ) {
+        self.storage = Storage(
+            localized: LocalizedStringKey(
+                titleKey,
+                table: table,
+                bundle: bundle
+            )
+        )
+    }
+
     /// Creates a text view that displays plain text.
+    @_disfavoredOverload
     public init(_ text: String) {
+        self.storage = Storage(string: text)
+    }
+
+    /// Creates a text view that displays plain text without localization.
+    public init(verbatim text: String) {
         self.storage = Storage(string: text)
     }
 
@@ -26,6 +53,7 @@ public struct Text {
     }
 
     /// Creates a text view that displays styled attributed content.
+    @_disfavoredOverload
     public init(_ attributedText: AttributedText) {
         self.storage = Storage(attributedText: attributedText)
     }
@@ -140,6 +168,11 @@ extension Text {
 
         init(string: String) {
             self.text = AttributedText(string)
+            self.preservesExplicitAttributes = false
+        }
+
+        init(localized titleKey: LocalizedStringKey) {
+            self.text = AttributedText(titleKey.resolve())
             self.preservesExplicitAttributes = false
         }
 

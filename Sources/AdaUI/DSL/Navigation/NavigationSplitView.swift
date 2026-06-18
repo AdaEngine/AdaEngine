@@ -6,6 +6,8 @@
 //
 
 import AdaInput
+import AdaAnimation
+import AdaText
 import AdaUtils
 import Math
 
@@ -110,6 +112,7 @@ public struct NavigationSplitView<Sidebar: View, Content: View, Detail: View>: V
         }
 
         return NavigationSplitViewNode(
+            inputs: context,
             content: self,
             columnVisibility: columnVisibility,
             preferredCompactColumn: preferredCompactColumn,
@@ -491,20 +494,34 @@ private final class NavigationSplitDividerNode: ViewNode {
 private final class NavigationSplitViewNode: ViewContainerNode {
     private static let compactWidthThreshold: Float = 620
     private static let dividerWidth: Float = 1
+    private static let compactSwipeEdgeWidth: Float = 24
+    private static let compactSwipeThreshold: Float = 72
+    private static let compactSwipeMaximumVerticalDrift: Float = 56
+    private static let compactTransitionAnimation = Animation.linear(duration: 0.24)
 
+    private var viewInputs: _ViewInputs
     private var columnVisibility: Binding<NavigationSplitViewVisibility>?
     private var preferredCompactColumn: Binding<NavigationSplitViewColumn>?
+    private var localPreferredCompactColumn = NavigationSplitViewColumn.detail
     private var hasContentColumn: Bool
     private var userWidths: [NavigationSplitViewColumn: Float] = [:]
     private var widthPreferences: [NavigationSplitViewColumn: NavigationSplitViewColumnWidth] = [:]
+    private var compactSwipeStartPoint: Point?
+    private var compactSwipeDidTrigger = false
+
+    private lazy var compactBackAction = NavigationSplitCompactBackAction { [weak self] in
+        self?.showCompactSidebar()
+    }
 
     init<Content: View>(
+        inputs: _ViewInputs,
         content: Content,
         columnVisibility: Binding<NavigationSplitViewVisibility>?,
         preferredCompactColumn: Binding<NavigationSplitViewColumn>?,
         hasContentColumn: Bool,
         nodes: [ViewNode]
     ) {
+        self.viewInputs = inputs
         self.columnVisibility = columnVisibility
         self.preferredCompactColumn = preferredCompactColumn
         self.hasContentColumn = hasContentColumn
@@ -519,6 +536,7 @@ private final class NavigationSplitViewNode: ViewContainerNode {
             return
         }
 
+        viewInputs = other.viewInputs
         columnVisibility = other.columnVisibility
         preferredCompactColumn = other.preferredCompactColumn
         hasContentColumn = other.hasContentColumn
@@ -536,6 +554,7 @@ private final class NavigationSplitViewNode: ViewContainerNode {
         let columns = visibleColumns(for: frame.width)
         let widths = resolvedWidths(for: columns, totalWidth: frame.width)
 
+        updateCompactBackActionEnvironments()
         layoutHiddenNodes(except: columns, in: bounds)
 
         var x = bounds.minX
@@ -567,6 +586,10 @@ private final class NavigationSplitViewNode: ViewContainerNode {
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         guard self.point(inside: point, with: event) else { return nil }
+
+        if shouldCaptureCompactBackSwipe(at: point) {
+            return self
+        }
 
         for divider in drawableDividerNodes(for: frame.width).reversed() {
             let newPoint = divider.convert(point, from: self)
@@ -603,6 +626,27 @@ private final class NavigationSplitViewNode: ViewContainerNode {
                 dividerNode.draw(with: context)
             }
         }
+    }
+
+    override func updateEnvironment(_ parentEnvironment: EnvironmentValues) {
+        super.updateEnvironment(parentEnvironment)
+        viewInputs.environment = environment
+        updateCompactBackActionEnvironments()
+    }
+
+    override func onMouseEvent(_ event: MouseEvent) {
+        handleCompactBackSwipe(
+            point: localPoint(fromWindowPoint: event.mousePosition),
+            phase: event.phase
+        )
+    }
+
+    override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        guard let touch = touches.first else { return }
+        handleCompactBackSwipe(
+            point: localPoint(fromWindowPoint: touch.location),
+            phase: touch.phase
+        )
     }
 
     func setWidthPreference(_ preference: NavigationSplitViewColumnWidth?, for column: NavigationSplitViewColumn) {
@@ -652,7 +696,7 @@ private final class NavigationSplitViewNode: ViewContainerNode {
 
     private func visibleColumns(for width: Float) -> [NavigationSplitViewColumn] {
         if width > 0 && width < Self.compactWidthThreshold {
-            let preferred = preferredCompactColumn?.wrappedValue ?? .detail
+            let preferred = currentCompactColumn
             if preferred == .content, hasContentColumn {
                 return [.content]
             }
@@ -670,6 +714,31 @@ private final class NavigationSplitViewNode: ViewContainerNode {
         case .detailOnly:
             return [.detail]
         }
+    }
+
+    private var currentCompactColumn: NavigationSplitViewColumn {
+        preferredCompactColumn?.wrappedValue ?? localPreferredCompactColumn
+    }
+
+    private func showCompactSidebar() {
+        setCompactColumn(.sidebar)
+    }
+
+    private func setCompactColumn(_ column: NavigationSplitViewColumn) {
+        guard currentCompactColumn != column else { return }
+
+        let animationController = UIAnimationController(animation: Self.compactTransitionAnimation)
+        performWithTransientAnimationController(animationController) {
+            if let preferredCompactColumn {
+                preferredCompactColumn.wrappedValue = column
+            } else {
+                localPreferredCompactColumn = column
+            }
+            performLayout()
+            invalidateNearestLayer()
+            owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
+        }
+        owner?.addTransientAnimationController(animationController)
     }
 
     private func visibleDividerNodes(for width: Float) -> [NavigationSplitDividerNode] {
@@ -863,6 +932,78 @@ private final class NavigationSplitViewNode: ViewContainerNode {
 
     private func columnNodes() -> [NavigationSplitColumnNode] {
         nodes.compactMap { $0 as? NavigationSplitColumnNode }
+    }
+
+    private func shouldShowCompactBackButton() -> Bool {
+        isCompactWidth(frame.width) && currentCompactColumn != .sidebar
+    }
+
+    private func isCompactWidth(_ width: Float) -> Bool {
+        width > 0 && width < Self.compactWidthThreshold
+    }
+
+    private func updateCompactBackActionEnvironments() {
+        let shouldInstallBackAction = shouldShowCompactBackButton()
+        for columnNode in columnNodes() {
+            var columnEnvironment = environment
+            let installsBackAction = shouldInstallBackAction
+                && columnNode.column == currentCompactColumn
+                && columnNode.column != .sidebar
+            columnEnvironment.navigationSplitCompactBackAction = installsBackAction ? compactBackAction : nil
+            columnNode.updateEnvironment(columnEnvironment)
+        }
+    }
+
+    private func shouldCaptureCompactBackSwipe(at point: Point) -> Bool {
+        shouldShowCompactBackButton()
+            && point.x >= 0
+            && point.x <= Self.compactSwipeEdgeWidth
+    }
+
+    private func handleCompactBackSwipe(point: Point, phase: MouseEvent.Phase) {
+        switch phase {
+        case .began:
+            compactSwipeStartPoint = shouldCaptureCompactBackSwipe(at: point) ? point : nil
+            compactSwipeDidTrigger = false
+        case .changed:
+            updateCompactBackSwipe(to: point)
+        case .ended, .cancelled:
+            updateCompactBackSwipe(to: point)
+            compactSwipeStartPoint = nil
+            compactSwipeDidTrigger = false
+        }
+    }
+
+    private func handleCompactBackSwipe(point: Point, phase: TouchEvent.Phase) {
+        switch phase {
+        case .began:
+            compactSwipeStartPoint = shouldCaptureCompactBackSwipe(at: point) ? point : nil
+            compactSwipeDidTrigger = false
+        case .moved:
+            updateCompactBackSwipe(to: point)
+        case .ended, .cancelled:
+            updateCompactBackSwipe(to: point)
+            compactSwipeStartPoint = nil
+            compactSwipeDidTrigger = false
+        }
+    }
+
+    private func updateCompactBackSwipe(to point: Point) {
+        guard !compactSwipeDidTrigger, let start = compactSwipeStartPoint else { return }
+
+        let translationX = point.x - start.x
+        let translationY = abs(point.y - start.y)
+        guard translationX >= Self.compactSwipeThreshold,
+              translationY <= Self.compactSwipeMaximumVerticalDrift else {
+            return
+        }
+
+        compactSwipeDidTrigger = true
+        showCompactSidebar()
+    }
+
+    private func localPoint(fromWindowPoint point: Point) -> Point {
+        point - absoluteFrame().origin
     }
 
     private func clamp(_ value: Float, min minValue: Float, max maxValue: Float) -> Float {

@@ -284,6 +284,23 @@ struct TextRenderingRegressionTests {
     }
 
     @Test
+    func textStringLiteralUsesLocalizedStringKey() {
+        let text = Text("adaui.localized.literal", bundle: .module)
+        let resolved = text.storage.applyingEnvironment(EnvironmentValues())
+
+        #expect(resolved.text == "Localized AdaUI literal")
+    }
+
+    @Test
+    func textPreservesLocalizedStringKeyBundle() {
+        let key = LocalizedStringKey("adaui.localized.literal", bundle: .module)
+        let text = Text(key)
+        let resolved = text.storage.applyingEnvironment(EnvironmentValues())
+
+        #expect(resolved.text == "Localized AdaUI literal")
+    }
+
+    @Test
     func textNodeRefreshesInheritedForegroundColorWhenEnvironmentChanges() throws {
         var environment = EnvironmentValues()
         environment.foregroundColor = .red

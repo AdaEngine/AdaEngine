@@ -672,39 +672,15 @@ public final class TextLayoutManager: @unchecked Sendable {
             return glyphsToRender
         }
         
-        // Calculate text bounding size for centering
-        let textSize = self.boundingSize()
-        
-        // Calculate offset for text alignment (centering by default)
-        var offsetX: Float = 0
+        // Use actual visible glyph extents for alignment so short labels stay
+        // optically centered even when typographic width includes side bearings.
         var offsetY: Float = 0
-        
-        switch self.textContainer.textAlignment {
-        case .center:
-            // Center horizontally and vertically
-            offsetX = -textSize.width / 2
-            // Find the topmost y position (most positive) to center vertically
-            if let firstLine = textLines.first, !textLines.isEmpty {
-                let topY = firstLine.typographicBounds.rect.origin.y
-                let bottomY = topY - textSize.height
-                offsetY = -(topY + bottomY) / 2
-            }
-        case .leading:
-            // Align to left, center vertically
-            offsetX = 0
-            if let firstLine = textLines.first, !textLines.isEmpty {
-                let topY = firstLine.typographicBounds.rect.origin.y
-                let bottomY = topY - textSize.height
-                offsetY = -(topY + bottomY) / 2
-            }
-        case .trailing:
-            // Align to right, center vertically
-            offsetX = -textSize.width
-            if let firstLine = textLines.first, !textLines.isEmpty {
-                let topY = firstLine.typographicBounds.rect.origin.y
-                let bottomY = topY - textSize.height
-                offsetY = -(topY + bottomY) / 2
-            }
+
+        let textSize = self.boundingSize()
+        if let firstLine = textLines.first, !textLines.isEmpty {
+            let topY = firstLine.typographicBounds.rect.origin.y
+            let bottomY = topY - textSize.height
+            offsetY = -(topY + bottomY) / 2
         }
         
         var verticies: [GlyphVertexData] = []
@@ -713,15 +689,14 @@ public final class TextLayoutManager: @unchecked Sendable {
         var textureIndex: Int = -1
 
         for textLine in textLines {
-            // Calculate line-specific offset for horizontal alignment
-            var lineOffsetX = offsetX
-            if self.textContainer.textAlignment == .center || self.textContainer.textAlignment == .trailing {
-                let lineWidth = textLine.typographicBounds.rect.width
-                if self.textContainer.textAlignment == .center {
-                    lineOffsetX = offsetX + (textSize.width - lineWidth) / 2
-                } else {
-                    lineOffsetX = offsetX + (textSize.width - lineWidth)
-                }
+            let lineBounds = self.visualBounds(for: textLine)
+            let lineOffsetX: Float = switch self.textContainer.textAlignment {
+            case .center:
+                -((lineBounds.minX + lineBounds.maxX) / 2)
+            case .leading:
+                -lineBounds.minX
+            case .trailing:
+                -lineBounds.maxX
             }
             
             for run in textLine {
@@ -820,6 +795,25 @@ public final class TextLayoutManager: @unchecked Sendable {
         }
 
         return Size(width: maxWidth, height: totalHeight)
+    }
+
+    public func visualBounds(for line: TextLine) -> (minX: Float, maxX: Float) {
+        var minX = Float.infinity
+        var maxX = -Float.infinity
+
+        for run in line {
+            for glyph in run {
+                minX = min(minX, glyph.position.x)
+                maxX = max(maxX, glyph.position.z)
+            }
+        }
+
+        if minX.isFinite, maxX.isFinite {
+            return (minX, maxX)
+        }
+
+        let rect = line.typographicBounds.rect
+        return (rect.minX, rect.maxX)
     }
 
     // swiftlint:enable function_body_length

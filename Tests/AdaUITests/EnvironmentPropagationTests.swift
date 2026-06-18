@@ -198,6 +198,37 @@ struct EnvironmentPropagationTests {
         #expect(env.version == version + 1)
     }
 
+    @Test("root environment merges keyboard occlusion into bottom safe area")
+    func rootEnvironmentMergesKeyboardOcclusionIntoBottomSafeArea() {
+        let tester = ViewTester {
+            EmptyView()
+        }
+
+        tester.containerView.safeAreaInsets = EdgeInsets(top: 12, leading: 8, bottom: 34, trailing: 6)
+        tester.containerView.keyboardOccludedHeight = 301
+        tester.performLayout()
+
+        let safeAreaInsets = tester.containerView.viewTree.rootNode.environment.safeAreaInsets
+        #expect(safeAreaInsets.top == 12)
+        #expect(safeAreaInsets.leading == 8)
+        #expect(safeAreaInsets.bottom == 301)
+        #expect(safeAreaInsets.trailing == 6)
+    }
+
+    @Test("keyboard occlusion does not shrink platform safe area")
+    func keyboardOcclusionDoesNotShrinkPlatformSafeArea() {
+        let tester = ViewTester {
+            EmptyView()
+        }
+
+        tester.containerView.safeAreaInsets = EdgeInsets(top: 10, leading: 0, bottom: 34, trailing: 0)
+        tester.containerView.keyboardOccludedHeight = 12
+        tester.performLayout()
+
+        let safeAreaInsets = tester.containerView.viewTree.rootNode.environment.safeAreaInsets
+        #expect(safeAreaInsets.bottom == 34)
+    }
+
     @Test("equivalent observable storage assignment does not bump environment version")
     func equivalentObservableStorageAssignmentDoesNotBumpVersion() {
         let model = ObservableEnvironmentModel()

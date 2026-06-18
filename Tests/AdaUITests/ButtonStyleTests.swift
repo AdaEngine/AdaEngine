@@ -196,6 +196,27 @@ struct ButtonStyleTests {
     }
 
     @Test
+    func glassButtonStyleKeepsShortCenteredLabelVisuallyCentered() throws {
+        let tester = ViewTester {
+            Button("Ask Yadev") {}
+                .buttonStyle(GlassButtonStyle())
+                .frame(width: 320, height: 72)
+        }
+        .setSize(Size(width: 320, height: 120))
+        .performLayout()
+
+        let context = UIGraphicsContext()
+        tester.containerView.viewTree.renderGraph(renderContext: context)
+
+        let commands = context.getDrawCommands()
+        let minX = try #require(drawnGlyphMinX(in: commands))
+        let maxX = try #require(drawnGlyphMaxX(in: commands))
+        let visualCenterX = (minX + maxX) / 2
+
+        #expect(abs(visualCenterX - 160) < 2.5)
+    }
+
+    @Test
     func buttonHoverInvalidationMarksContainerForRedraw() throws {
         let tester = ViewTester {
             Button(action: {}) {
@@ -397,4 +418,28 @@ private extension [UIGraphicsContext.DrawCommand] {
             return nil
         }
     }
+}
+
+private func drawnGlyphMinX(in commands: [UIGraphicsContext.DrawCommand]) -> Float? {
+    var minX: Float?
+    for command in commands {
+        guard case let .drawGlyph(glyph, transform, _) = command else {
+            continue
+        }
+        let x = transform.w.x + glyph.position.x
+        minX = minX.map { min($0, x) } ?? x
+    }
+    return minX
+}
+
+private func drawnGlyphMaxX(in commands: [UIGraphicsContext.DrawCommand]) -> Float? {
+    var maxX: Float?
+    for command in commands {
+        guard case let .drawGlyph(glyph, transform, _) = command else {
+            continue
+        }
+        let x = transform.w.x + glyph.position.z
+        maxX = maxX.map { max($0, x) } ?? x
+    }
+    return maxX
 }

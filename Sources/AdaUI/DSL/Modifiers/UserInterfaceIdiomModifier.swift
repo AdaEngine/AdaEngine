@@ -15,5 +15,11 @@ public enum UserInterfaceIdiom: Hashable, Sendable, CaseIterable {
 }
 
 public extension EnvironmentValues {
-    @Entry var userInterfaceIdiom: UserInterfaceIdiom = .desktop
+    @Entry var userInterfaceIdiom: UserInterfaceIdiom = {
+        #if os(macOS) || os(Windows) || os(Linux) || os(wasi)
+        .desktop
+        #else
+        .phone
+        #endif
+    }()
 }

@@ -671,53 +671,30 @@ public struct UIRenderTesselationSystem {
             }
 
         case let .drawText(textLayout, transform, opacity):
-            // Calculate text centering offset
             let textSize = textLayout.boundingSize()
             let textAlignment = textLayout.textAlignment
 
-            var offsetX: Float = 0
             var offsetY: Float = 0
 
-            switch textAlignment {
-            case .center:
-                offsetX = -textSize.width / 2
-                if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
-                    let topY = firstLine.typographicBounds.rect.origin.y
-                    let bottomY = topY - textSize.height
-                    offsetY = -(topY + bottomY) / 2
-                }
-            case .leading:
-                offsetX = 0
-                if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
-                    let topY = firstLine.typographicBounds.rect.origin.y
-                    let bottomY = topY - textSize.height
-                    offsetY = -(topY + bottomY) / 2
-                }
-            case .trailing:
-                offsetX = -textSize.width
-                if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
-                    let topY = firstLine.typographicBounds.rect.origin.y
-                    let bottomY = topY - textSize.height
-                    offsetY = -(topY + bottomY) / 2
-                }
+            if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
+                let topY = firstLine.typographicBounds.rect.origin.y
+                let bottomY = topY - textSize.height
+                offsetY = -(topY + bottomY) / 2
             }
 
-            // Tessellate all glyphs from the text layout with centering
             for line in textLayout.textLines {
-                // Calculate line-specific offset for horizontal alignment
-                var lineOffsetX = offsetX
-                if textAlignment == .center || textAlignment == .trailing {
-                    let lineWidth = line.typographicBounds.rect.width
-                    if textAlignment == .center {
-                        lineOffsetX = offsetX + (textSize.width - lineWidth) / 2
-                    } else {
-                        lineOffsetX = offsetX + (textSize.width - lineWidth)
-                    }
+                let lineBounds = textLayout.visualBounds(for: line)
+                let lineOffsetX: Float = switch textAlignment {
+                case .center:
+                    -((lineBounds.minX + lineBounds.maxX) / 2)
+                case .leading:
+                    -lineBounds.minX
+                case .trailing:
+                    -lineBounds.maxX
                 }
 
                 for run in line {
                     for glyph in run {
-                        // Apply centering offset during tessellation
                         let glyphOffset = Vector2(x: lineOffsetX, y: -offsetY)
 
                         tessellateGlyph(

@@ -1037,6 +1037,9 @@ targets += [
             "AdaCorePipelines",
             "Math"
         ],
+        resources: [
+            .process("Resources")
+        ],
     ),
     .testTarget(
         name: "AdaAnimationTests",

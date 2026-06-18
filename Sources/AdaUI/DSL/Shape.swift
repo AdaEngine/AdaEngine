@@ -93,8 +93,10 @@ struct _ShapeStyledView<S: Shape, Style: ShapeStyle>: View, ViewNodeBuilder {
     }
 }
 
+public typealias CircleShape = Circle
+
 /// A circle shape.
-public struct CircleShape: Shape {
+public struct Circle: Shape {
     public typealias AnimatableData = EmptyAnimatableData
 
     public init() {}
@@ -106,8 +108,10 @@ public struct CircleShape: Shape {
     }
 }
 
+public typealias RectangleShape = Rectangle
+
 /// A rectangle shape.
-public struct RectangleShape: Shape {
+public struct Rectangle: Shape {
     public typealias AnimatableData = EmptyAnimatableData
 
     public init() {}
@@ -119,8 +123,10 @@ public struct RectangleShape: Shape {
     }
 }
 
+public typealias CapsuleShape = Capsule
+
 /// A capsule shape — a rectangle with fully rounded ends.
-public struct CapsuleShape: Shape {
+public struct Capsule: Shape {
     public typealias AnimatableData = EmptyAnimatableData
 
     public init() {}
@@ -132,8 +138,10 @@ public struct CapsuleShape: Shape {
     }
 }
 
+public typealias RoundedRectangleShape = RoundedRectangle
+
 /// A rectangle shape with a uniform corner radius.
-public struct RoundedRectangleShape: Shape {
+public struct RoundedRectangle: Shape {
     public typealias AnimatableData = Float
 
     public var cornerRadius: Float
@@ -276,20 +284,20 @@ public extension Shape {
     }
 }
 
-extension Shape where Self == CapsuleShape {
-    public static var capsule: CapsuleShape { CapsuleShape() }
+extension Shape where Self == Capsule {
+    public static var capsule: Capsule { Capsule() }
 }
 
-extension Shape where Self == CircleShape {
-    public static var circle: CircleShape { CircleShape() }
+extension Shape where Self == Circle {
+    public static var circle: Circle { Circle() }
 }
 
-extension Shape where Self == RectangleShape {
-    public static var rectangle: RectangleShape { RectangleShape() }
+extension Shape where Self == Rectangle {
+    public static var rectangle: Rectangle { Rectangle() }
 }
 
-extension Shape where Self == RoundedRectangleShape {
-    public static func rect(cornerRadius: Float) -> RoundedRectangleShape {
-        RoundedRectangleShape(cornerRadius: cornerRadius)
+extension Shape where Self == RoundedRectangle {
+    public static func rect(cornerRadius: Float) -> RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius)
     }
 }
