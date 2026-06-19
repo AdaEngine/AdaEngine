@@ -1243,6 +1243,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "TransparencyExample", path: "2d"),
     .exampleTarget(name: "Lighting2DExample", path: "2d"),
     .exampleTarget(name: "ManySpritesExample", path: "2d"),
+    .exampleTarget(name: "FrustumCullingExample", path: "2d"),
     .exampleTarget(name: "Text2dExample", path: "2d"),
     .exampleTarget(name: "SpriteExample", path: "2d"),
     .exampleTarget(name: "WGSLExample", path: "2d"),
