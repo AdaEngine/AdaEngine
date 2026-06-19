@@ -372,6 +372,67 @@ struct NavigationStackTests {
         #expect(toolbar.frame.origin.y >= chromeTopInset)
         #expect(toolbar.frame.origin.y < chromeTopInset + 60)
     }
+
+    @Test
+    func navigationSplitView_createsColumnNavigationBarsWithoutExplicitStacks() throws {
+        let tester = ViewTester {
+            NavigationSplitView {
+                Text("Sidebar Content")
+                    .navigationTitle("Sidebar")
+            } detail: {
+                Text("Detail Content")
+                    .navigationTitle("Detail")
+            }
+        }
+        .setSize(Size(width: 720, height: 400))
+        .performLayout()
+
+        let textNodes = textNodes(in: tester.containerView.viewTree.rootNode)
+        let sidebarTitle = try #require(textNodes.first { $0.text == "Sidebar" })
+        let detailTitle = try #require(textNodes.first { $0.text == "Detail" })
+
+        #expect(sidebarTitle.frame.origin.x < 360)
+        #expect(detailTitle.frame.origin.x > 280)
+        #expect(sidebarTitle.frame.origin.y < 80)
+        #expect(detailTitle.frame.origin.y < 80)
+    }
+
+    @Test
+    func navigationSplitView_routesSidebarNavigationLinkToDetailColumn() async throws {
+        let tester = ViewTester {
+            NavigationSplitView {
+                NavigationLink(value: "message") {
+                    Color.red
+                        .frame(width: 180, height: 180)
+                }
+                .accessibilityIdentifier("sidebar-link")
+                .navigate(for: String.self) { value in
+                    Text("Detail \(value)")
+                }
+            } detail: {
+                Text("Placeholder")
+            }
+        }
+        .setSize(Size(width: 720, height: 400))
+        .performLayout()
+
+        let linkPoint = try #require(
+            tester.findHitPoint(
+                forAccessibilityIdentifier: "sidebar-link",
+                in: Rect(x: 0, y: 92, width: 280, height: 308),
+                step: 8
+            )
+        )
+        tester.sendMouseEvent(at: linkPoint, phase: MouseEvent.Phase.began)
+        tester.sendMouseEvent(at: linkPoint, phase: MouseEvent.Phase.ended)
+        await flushNavigationLifecycleActions()
+
+        let nonEmptyStackCount = navigationStackNodes(in: tester.containerView.viewTree.rootNode)
+            .filter { !$0.navigationContext.path.isEmpty }
+            .count
+        #expect(nonEmptyStackCount == 1)
+        #expect(textNodes(in: tester.containerView.viewTree.rootNode).contains { $0.text == "Detail message" })
+    }
 }
 
 @MainActor
@@ -488,6 +549,31 @@ private func firstScrollView(in node: ViewNode) -> ScrollViewNode? {
     }
 
     return nil
+}
+
+@MainActor
+private func navigationStackNodes(in node: ViewNode) -> [NavigationStackNode] {
+    var result: [NavigationStackNode] = []
+
+    if let stack = node as? NavigationStackNode {
+        result.append(stack)
+    }
+
+    if let root = node as? ViewRootNode {
+        result += navigationStackNodes(in: root.contentNode)
+    } else if let modifier = node as? ViewModifierNode {
+        result += navigationStackNodes(in: modifier.contentNode)
+    } else if let container = node as? ViewContainerNode {
+        for child in container.nodes {
+            result += navigationStackNodes(in: child)
+        }
+    } else {
+        for child in reflectedChildNodes(of: node) {
+            result += navigationStackNodes(in: child)
+        }
+    }
+
+    return result
 }
 
 @MainActor

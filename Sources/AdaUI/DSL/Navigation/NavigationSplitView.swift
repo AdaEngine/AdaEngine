@@ -97,18 +97,10 @@ public struct NavigationSplitView<Sidebar: View, Content: View, Detail: View>: V
 
         if let content {
             let contentView = content()
-            contentColumnNode = NavigationSplitColumnNode(
-                column: .content,
-                contentNode: context.makeNode(from: contentView),
-                content: contentView
-            )
+            contentColumnNode = makeColumnNode(column: .content, content: contentView, context: context)
         } else {
             let contentView = EmptyView()
-            contentColumnNode = NavigationSplitColumnNode(
-                column: .content,
-                contentNode: context.makeNode(from: contentView),
-                content: contentView
-            )
+            contentColumnNode = makeColumnNode(column: .content, content: contentView, context: context)
         }
 
         return NavigationSplitViewNode(
@@ -118,20 +110,36 @@ public struct NavigationSplitView<Sidebar: View, Content: View, Detail: View>: V
             preferredCompactColumn: preferredCompactColumn,
             hasContentColumn: content != nil,
             nodes: [
-                NavigationSplitColumnNode(
-                    column: .sidebar,
-                    contentNode: context.makeNode(from: sidebarView),
-                    content: sidebarView
-                ),
+                makeColumnNode(column: .sidebar, content: sidebarView, context: context),
                 NavigationSplitDividerNode(leadingColumn: .sidebar),
                 contentColumnNode,
                 NavigationSplitDividerNode(leadingColumn: .content),
-                NavigationSplitColumnNode(
-                    column: .detail,
-                    contentNode: context.makeNode(from: detailView),
-                    content: detailView
-                ),
+                makeColumnNode(column: .detail, content: detailView, context: context),
             ]
+        )
+    }
+
+    private func makeColumnNode<ColumnContent: View>(
+        column: NavigationSplitViewColumn,
+        content: ColumnContent,
+        context: BuildContext
+    ) -> NavigationSplitColumnNode {
+        let contentNode = context.makeNode(from: content)
+        if contentNode is NavigationStackNode {
+            return NavigationSplitColumnNode(
+                column: column,
+                contentNode: contentNode,
+                content: content
+            )
+        }
+
+        let navigationStack = NavigationStack {
+            content
+        }
+        return NavigationSplitColumnNode(
+            column: column,
+            contentNode: context.makeNode(from: navigationStack),
+            content: navigationStack
         )
     }
 }
@@ -320,6 +328,10 @@ private final class NavigationSplitColumnNode: ViewModifierNode {
     let column: NavigationSplitViewColumn
     private(set) var widthPreference: NavigationSplitViewColumnWidth?
 
+    var navigationStackNode: NavigationStackNode? {
+        contentNode as? NavigationStackNode
+    }
+
     override var allowsNestedFrameAnimation: Bool {
         true
     }
@@ -491,7 +503,7 @@ private final class NavigationSplitDividerNode: ViewNode {
     }
 }
 
-private final class NavigationSplitViewNode: ViewContainerNode {
+private final class NavigationSplitViewNode: ViewContainerNode, NavigationSplitDestinationRegistering {
     private static let compactWidthThreshold: Float = 620
     private static let dividerWidth: Float = 1
     private static let compactSwipeEdgeWidth: Float = 24
@@ -506,6 +518,7 @@ private final class NavigationSplitViewNode: ViewContainerNode {
     private var hasContentColumn: Bool
     private var userWidths: [NavigationSplitViewColumn: Float] = [:]
     private var widthPreferences: [NavigationSplitViewColumn: NavigationSplitViewColumnWidth] = [:]
+    private var destinationBuilders: [ObjectIdentifier: (AnyHashable, _ViewInputs) -> ViewNode?] = [:]
     private var compactSwipeStartPoint: Point?
     private var compactSwipeDidTrigger = false
 
@@ -680,6 +693,34 @@ private final class NavigationSplitViewNode: ViewContainerNode {
         owner?.containerView?.setNeedsDisplay(in: absoluteFrame())
     }
 
+    func navigate(_ value: AnyHashable, from column: NavigationSplitViewColumn) -> Bool {
+        guard let targetColumn = navigationTarget(after: column),
+              let targetContext = columnNode(for: targetColumn)?.navigationStackNode?.navigationContext else {
+            return false
+        }
+
+        replayDestinationBuilders(to: targetContext)
+        targetContext.push(value)
+
+        if isCompactWidth(frame.width) {
+            setCompactColumn(targetColumn)
+        }
+
+        return true
+    }
+
+    func registerDestinationBuilder(
+        for identifier: ObjectIdentifier,
+        builder: @escaping (AnyHashable, _ViewInputs) -> ViewNode?
+    ) {
+        destinationBuilders[identifier] = builder
+        for columnNode in columnNodes() {
+            if let context = columnNode.navigationStackNode?.navigationContext {
+                context.registerDestinationBuilder(for: identifier, builder: builder)
+            }
+        }
+    }
+
     private func configureDividerCallbacks() {
         // Dividers reach back to their parent dynamically during drag.
     }
@@ -691,6 +732,23 @@ private final class NavigationSplitViewNode: ViewContainerNode {
             } else {
                 widthPreferences.removeValue(forKey: columnNode.column)
             }
+        }
+    }
+
+    private func navigationTarget(after column: NavigationSplitViewColumn) -> NavigationSplitViewColumn? {
+        switch column {
+        case .sidebar:
+            return hasContentColumn ? .content : .detail
+        case .content:
+            return .detail
+        case .detail:
+            return nil
+        }
+    }
+
+    private func replayDestinationBuilders(to context: NavigationContext) {
+        for (identifier, builder) in destinationBuilders {
+            context.registerDestinationBuilder(for: identifier, builder: builder)
         }
     }
 
@@ -950,6 +1008,17 @@ private final class NavigationSplitViewNode: ViewContainerNode {
                 && columnNode.column == currentCompactColumn
                 && columnNode.column != .sidebar
             columnEnvironment.navigationSplitCompactBackAction = installsBackAction ? compactBackAction : nil
+            columnEnvironment.navigationSplitColumnContext = NavigationSplitColumnContext(
+                navigate: { [weak self, column = columnNode.column] value in
+                    self?.navigate(value, from: column) ?? false
+                },
+                registerDestination: { [weak self] identifier, builder in
+                    self?.registerDestinationBuilder(for: identifier, builder: builder)
+                }
+            )
+            if let context = columnNode.navigationStackNode?.navigationContext {
+                replayDestinationBuilders(to: context)
+            }
             columnNode.updateEnvironment(columnEnvironment)
         }
     }

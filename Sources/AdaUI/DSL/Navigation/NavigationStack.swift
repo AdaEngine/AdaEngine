@@ -39,10 +39,17 @@ final class NavigationContext {
         for type: D.Type,
         builder: @escaping (D, _ViewInputs) -> ViewNode
     ) {
-        destinationBuilders[ObjectIdentifier(type)] = { anyValue, inputs in
+        registerDestinationBuilder(for: ObjectIdentifier(type)) { anyValue, inputs in
             guard let typedValue = anyValue.base as? D else { return nil }
             return builder(typedValue, inputs)
         }
+    }
+
+    func registerDestinationBuilder(
+        for identifier: ObjectIdentifier,
+        builder: @escaping (AnyHashable, _ViewInputs) -> ViewNode?
+    ) {
+        destinationBuilders[identifier] = builder
     }
 
     func buildDestination(for value: AnyHashable, inputs: _ViewInputs) -> ViewNode? {
@@ -64,9 +71,52 @@ final class NavigationSplitCompactBackAction: @unchecked Sendable {
     }
 }
 
+@MainActor
+final class NavigationSplitColumnContext: @unchecked Sendable {
+    private let navigateHandler: @MainActor (AnyHashable) -> Bool
+    private let destinationHandler: @MainActor (
+        ObjectIdentifier,
+        @escaping (AnyHashable, _ViewInputs) -> ViewNode?
+    ) -> Void
+
+    init(
+        navigate: @MainActor @escaping (AnyHashable) -> Bool,
+        registerDestination: @MainActor @escaping (
+            ObjectIdentifier,
+            @escaping (AnyHashable, _ViewInputs) -> ViewNode?
+        ) -> Void
+    ) {
+        self.navigateHandler = navigate
+        self.destinationHandler = registerDestination
+    }
+
+    func navigate(_ value: AnyHashable) -> Bool {
+        navigateHandler(value)
+    }
+
+    func registerDestination<D: Hashable>(
+        for type: D.Type,
+        builder: @escaping (D, _ViewInputs) -> ViewNode
+    ) {
+        destinationHandler(ObjectIdentifier(type)) { anyValue, inputs in
+            guard let typedValue = anyValue.base as? D else { return nil }
+            return builder(typedValue, inputs)
+        }
+    }
+}
+
+@MainActor
+protocol NavigationSplitDestinationRegistering: AnyObject {
+    func registerDestinationBuilder(
+        for identifier: ObjectIdentifier,
+        builder: @escaping (AnyHashable, _ViewInputs) -> ViewNode?
+    )
+}
+
 extension EnvironmentValues {
     @Entry var navigationContext: NavigationContext? = nil
     @Entry internal var navigationSplitCompactBackAction: NavigationSplitCompactBackAction? = nil
+    @Entry internal var navigationSplitColumnContext: NavigationSplitColumnContext? = nil
     @Entry internal var navigationBarConfiguration: NavigationBarConfiguration = NavigationBarConfiguration()
     @Entry internal var navigationBarLeadingItems: NavigationBarItemContent? = nil
     @Entry internal var navigationBarTrailingItems: NavigationBarItemContent? = nil

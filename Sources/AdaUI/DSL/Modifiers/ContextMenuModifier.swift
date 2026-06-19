@@ -12,12 +12,16 @@ import Math
 public extension View {
     /// Presents a context menu when the view receives a secondary click or a long press.
     func contextMenu<MenuItems: View>(
+        onPresent: (() -> Void)? = nil,
+        onDismiss: (() -> Void)? = nil,
         @ViewBuilder menuItems: @escaping () -> MenuItems
     ) -> some View {
         modifier(
             ContextMenuViewModifier(
                 content: self,
-                minimumPressDuration: 0.5,
+                minimumPressDuration: 0.75,
+                onPresent: onPresent,
+                onDismiss: onDismiss,
                 menuItems: menuItems
             )
         )
@@ -49,11 +53,13 @@ public struct ContextMenuPresentation {
     public let sourceWindow: UIWindow?
     public let location: Point
     public let items: [Item]
+    public let onDismiss: (() -> Void)?
 
-    public init(sourceWindow: UIWindow?, location: Point, items: [Item]) {
+    public init(sourceWindow: UIWindow?, location: Point, items: [Item], onDismiss: (() -> Void)? = nil) {
         self.sourceWindow = sourceWindow
         self.location = location
         self.items = items
+        self.onDismiss = onDismiss
     }
 }
 
@@ -84,6 +90,8 @@ private struct ContextMenuViewModifier<WrappedContent: View, MenuItems: View>: V
 
     let content: WrappedContent
     let minimumPressDuration: TimeInterval
+    let onPresent: (() -> Void)?
+    let onDismiss: (() -> Void)?
     let menuItems: () -> MenuItems
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
@@ -91,6 +99,8 @@ private struct ContextMenuViewModifier<WrappedContent: View, MenuItems: View>: V
             contentNode: context.makeNode(from: content),
             content: content,
             minimumPressDuration: minimumPressDuration,
+            onPresent: onPresent,
+            onDismiss: onDismiss,
             menuItems: menuItems
         )
     }
@@ -98,6 +108,8 @@ private struct ContextMenuViewModifier<WrappedContent: View, MenuItems: View>: V
 
 private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     private let minimumPressDuration: TimeInterval
+    private var onPresent: (() -> Void)?
+    private var onDismiss: (() -> Void)?
     private var menuItems: () -> MenuItems
     private var pressStartLocation: Point?
     private var pressLocation: Point?
@@ -110,9 +122,13 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
         contentNode: ViewNode,
         content: Content,
         minimumPressDuration: TimeInterval,
+        onPresent: (() -> Void)?,
+        onDismiss: (() -> Void)?,
         menuItems: @escaping () -> MenuItems
     ) {
         self.minimumPressDuration = minimumPressDuration
+        self.onPresent = onPresent
+        self.onDismiss = onDismiss
         self.menuItems = menuItems
         super.init(contentNode: contentNode, content: content)
     }
@@ -189,6 +205,8 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     override func update(from newNode: ViewNode) {
         super.update(from: newNode)
         guard let other = newNode as? ContextMenuModifierNode<MenuItems> else { return }
+        self.onPresent = other.onPresent
+        self.onDismiss = other.onDismiss
         self.menuItems = other.menuItems
     }
 
@@ -241,6 +259,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
         let items = menuItems().contextMenuItems
         guard !items.isEmpty else { return }
 
+        onPresent?()
         ContextMenuPresentationCenter.present?(
             ContextMenuPresentation(
                 sourceWindow: owner?.window,
@@ -253,7 +272,8 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                         action: item.action,
                         submenu: item.submenu.presentationItems()
                     )
-                }
+                },
+                onDismiss: onDismiss
             )
         )
     }

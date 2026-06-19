@@ -56,7 +56,7 @@ struct NavigationSplitViewAnimationTests {
     }
 
     @Test
-    func compactDetailWithoutNavigationStackDoesNotShowBackButton() {
+    func compactDetailWithoutExplicitNavigationStackShowsBackButton() {
         let capture = CapturedNavigationSplitColumn()
         let tester = ViewTester(rootView: CompactSplitNavigationHost(capture: capture))
             .setSize(Size(width: 390, height: 640))
@@ -68,7 +68,7 @@ struct NavigationSplitViewAnimationTests {
                 forAccessibilityIdentifier: "AdaUI.NavigationSplitView.backButton",
                 in: Rect(x: 0, y: 0, width: 96, height: 96),
                 step: 8
-            ) == nil
+            ) != nil
         )
     }
 

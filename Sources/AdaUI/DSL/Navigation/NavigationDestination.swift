@@ -78,10 +78,29 @@ final class NavigationDestinationNode<D: Hashable, Destination: View>: ViewModif
     }
 
     private func registerDestination(in environment: EnvironmentValues) {
-        guard let context = environment.navigationContext else { return }
-        context.registerDestination(for: type) { [destination] (value: D, inputs: _ViewInputs) -> ViewNode in
+        let builder: (D, _ViewInputs) -> ViewNode = { [destination] (value: D, inputs: _ViewInputs) in
             let view = destination(value)
             return Destination._makeView(_ViewGraphNode(value: view), inputs: inputs).node
+        }
+
+        environment.navigationSplitColumnContext?.registerDestination(for: type, builder: builder)
+        registerDestinationInAncestorSplit(builder: builder)
+
+        guard let context = environment.navigationContext else { return }
+        context.registerDestination(for: type, builder: builder)
+    }
+
+    private func registerDestinationInAncestorSplit(builder: @escaping (D, _ViewInputs) -> ViewNode) {
+        var current = parent
+        while let node = current {
+            if let registrar = node as? NavigationSplitDestinationRegistering {
+                registrar.registerDestinationBuilder(for: ObjectIdentifier(type)) { anyValue, inputs in
+                    guard let typedValue = anyValue.base as? D else { return nil }
+                    return builder(typedValue, inputs)
+                }
+                return
+            }
+            current = node.parent
         }
     }
 }

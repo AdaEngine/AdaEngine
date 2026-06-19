@@ -107,6 +107,9 @@ final class NavigationLinkNode: ViewModifierNode {
     }
 
     private func navigate() {
+        if environment.navigationSplitColumnContext?.navigate(value) == true {
+            return
+        }
         environment.navigationContext?.push(value)
     }
 

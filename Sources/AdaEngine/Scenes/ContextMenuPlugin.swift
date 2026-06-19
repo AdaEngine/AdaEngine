@@ -38,7 +38,10 @@ private enum ContextMenuPresenter {
 
         activeSession?.closeAll()
 
-        let session = ContextMenuSession(sourceWindow: presentation.sourceWindow)
+        let session = ContextMenuSession(
+            sourceWindow: presentation.sourceWindow,
+            onDismiss: presentation.onDismiss
+        )
         activeSession = session
         let window = makeWindow(
             items: presentation.items,
@@ -211,10 +214,12 @@ private enum ContextMenuPresenter {
 private final class ContextMenuSession {
     weak var sourceWindow: UIWindow?
     var app: AppWorlds!
+    private var onDismiss: (() -> Void)?
     private var windowsByLevel: [Int: UIWindow] = [:]
 
-    init(sourceWindow: UIWindow?) {
+    init(sourceWindow: UIWindow?, onDismiss: (() -> Void)?) {
         self.sourceWindow = sourceWindow
+        self.onDismiss = onDismiss
     }
 
     func setWindow(_ window: UIWindow, at level: Int) {
@@ -233,6 +238,8 @@ private final class ContextMenuSession {
 
     func closeAll() {
         closeSubmenus(from: 0)
+        onDismiss?()
+        onDismiss = nil
     }
 }
 
@@ -323,7 +330,7 @@ private struct ContextMenuButtonStyle: ButtonStyle {
     }
 }
 
-private let backgroundColor = Color(red: 0.11, green: 0.12, blue: 0.14, alpha: 0.97)
+private let backgroundColor = Color.black.opacity(0.3 as Float)
 private let highlightColor = Color(red: 0.22, green: 0.24, blue: 0.28, alpha: 1)
 private let primaryTextColor = Color(red: 0.94, green: 0.95, blue: 0.97, alpha: 1)
 private let destructiveTextColor = Color(red: 1.0, green: 0.36, blue: 0.36, alpha: 1)
