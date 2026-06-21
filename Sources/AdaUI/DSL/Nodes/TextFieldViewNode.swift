@@ -832,7 +832,10 @@ extension TextFieldViewNode {
         let attributes = self.makeTextAttributes(font: font, color: color)
         var container = TextContainer(
             text: AttributedText(text, attributes: attributes),
-            textAlignment: .leading
+            textAlignment: .leading,
+            lineBreakMode: .byCharWrapping,
+            lineSpacing: 0,
+            allowsShaping: false
         )
         container.numberOfLines = self.wrapsTextToWidth ? nil : 1
 

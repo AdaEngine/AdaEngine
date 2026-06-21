@@ -78,6 +78,9 @@ typedef struct font_atlas_descriptor {
     int includeDefaultCharset;
     const uint32_t *additionalCodepoints;
     int additionalCodepointsCount;
+    const uint32_t *variationAxisTags;
+    const double *variationAxisValues;
+    int variationAxesCount;
 } font_atlas_descriptor;
 
 typedef struct font_handle_s font_handle_t;
@@ -118,7 +121,9 @@ FontMetrics font_geometry_get_metrics(struct font_handle_s* fontData);
 // MARK: GLYPH
 
 struct font_glyph_s* font_handle_get_glyph_unicode(struct font_handle_s* fontData, uint32_t unicode);
+struct font_glyph_s* font_handle_get_glyph_index(struct font_handle_s* fontData, int glyphIndex);
 void font_glyph_destroy(struct font_glyph_s* glyph);
+int font_glyph_get_index(struct font_glyph_s *glyph);
 double font_glyph_get_advance(struct font_glyph_s *glyph);
 void font_glyph_get_quad_atlas_bounds(struct font_glyph_s *glyph, double* l, double* b, double* r, double* t);
 void font_glyph_get_quad_plane_bounds(struct font_glyph_s *glyph, double* pl, double* pb, double* pr, double* pt);

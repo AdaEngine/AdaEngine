@@ -502,12 +502,6 @@ final class NavigationStackNode: ViewNode {
         super.updateEnvironment(environment)
         guard self.environment.version != prevVersion else { return }
         viewInputs.environment = self.environment
-        let childInputs = makeContentInputs(
-            reservingNavigationBarHeight: navigationBarNode != nil && Self.nodeConsumesTopSafeArea(currentContentNode)
-                ? totalNavigationBarReservedHeight
-                : 0
-        )
-        currentContentNode.updateEnvironment(childInputs.environment)
         syncNavigationBar()
     }
 
@@ -633,7 +627,6 @@ private final class NavigationBarNode: ViewNode {
         static let titleHorizontalInset: Float = 72
         static let leadingTitleOffset: Float = 54
         static let minimumCenteredTitleWidth: Float = 120
-        static let titleBaselineY: Float = 24
     }
 
     private var configuration: NavigationBarConfiguration
@@ -700,7 +693,7 @@ private final class NavigationBarNode: ViewNode {
 
     override func performLayout() {
         let titlePosition = resolvedTitlePosition()
-        let centerY = chromeTopInset + Constants.titleBaselineY
+        let centerY = chromeTopInset + Constants.height * 0.5
         var leadingX = Constants.horizontalPadding
         let reservedTitleWidth = titlePosition == .center || titlePosition == .automatic
             ? Constants.minimumCenteredTitleWidth

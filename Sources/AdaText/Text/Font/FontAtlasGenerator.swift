@@ -17,6 +17,7 @@ public struct FontDescriptor {
     public var emFontScale: Double
     var includeDefaultCharset: Bool = true
     var additionalCodepoints: [UInt32] = []
+    var variationAxes: [FontVariationAxis] = []
 }
 
 /// Generate MTSDF atlas texture from font.
@@ -25,7 +26,7 @@ final class FontAtlasGenerator: Sendable {
     static let shared = FontAtlasGenerator()
 
     private static let cacheMagic: UInt32 = 0x35424641
-    private static let cacheVersion = 5
+    private static let cacheVersion = 6
 
     private let logger = Logger(label: "org.adaengine.Font")
     private let prebuiltAtlasLocations = PrebuiltAtlasLocationStore()
@@ -38,7 +39,8 @@ final class FontAtlasGenerator: Sendable {
 
     static func cacheFileName(fontName: String, fontDescriptor: FontDescriptor) -> String {
         let charsetHash = charsetCacheKey(for: fontDescriptor)
-        return "\(fontName)-\(fontDescriptor.emFontScale.rounded())-\(charsetHash)-v\(cacheVersion).fontbin"
+        let variationsHash = variationCacheKey(for: fontDescriptor)
+        return "\(fontName)-\(fontDescriptor.emFontScale.rounded())-\(charsetHash)-\(variationsHash)-v\(cacheVersion).fontbin"
     }
 
     func ensureCachedAtlas(fontPath: URL, fontDescriptor: FontDescriptor) -> Bool {
@@ -90,7 +92,12 @@ final class FontAtlasGenerator: Sendable {
                 width: cachedAtlas.width,
                 height: cachedAtlas.height
             )
-            return unsafe FontHandle(atlasTexture: texture, fontData: fontData)
+            return unsafe FontHandle(
+                atlasTexture: texture,
+                fontData: fontData,
+                fontPath: fontPath,
+                variationAxes: fontDescriptor.variationAxes
+            )
         }
 
         if let cachedAtlas = self.getPrebuiltCachedAtlas(by: fileName),
@@ -100,16 +107,30 @@ final class FontAtlasGenerator: Sendable {
                 width: cachedAtlas.width,
                 height: cachedAtlas.height
             )
-            return unsafe FontHandle(atlasTexture: texture, fontData: fontData)
+            return unsafe FontHandle(
+                atlasTexture: texture,
+                fontData: fontData,
+                fontPath: fontPath,
+                variationAxes: fontDescriptor.variationAxes
+            )
         }
 
+        let variationTags = fontDescriptor.variationAxes.map(\.tag)
+        let variationValues = fontDescriptor.variationAxes.map(\.value)
         guard let generator = unsafe fontDescriptor.additionalCodepoints.withUnsafeBufferPointer({ codepoints in
-            atlasFontDescriptor.additionalCodepoints = codepoints.baseAddress
-            atlasFontDescriptor.additionalCodepointsCount = Int32(codepoints.count)
+            unsafe variationTags.withUnsafeBufferPointer { tags in
+                unsafe variationValues.withUnsafeBufferPointer { values in
+                    atlasFontDescriptor.additionalCodepoints = codepoints.baseAddress
+                    atlasFontDescriptor.additionalCodepointsCount = Int32(codepoints.count)
+                    atlasFontDescriptor.variationAxisTags = tags.baseAddress
+                    atlasFontDescriptor.variationAxisValues = values.baseAddress
+                    atlasFontDescriptor.variationAxesCount = Int32(tags.count)
 
-            return unsafe fontPathString.withCString { fontPathPtr in
-                unsafe fontName.withCString { fontNamePtr in
-                    unsafe font_atlas_generator_create(fontPathPtr, fontNamePtr, atlasFontDescriptor)
+                    return unsafe fontPathString.withCString { fontPathPtr in
+                        unsafe fontName.withCString { fontNamePtr in
+                            unsafe font_atlas_generator_create(fontPathPtr, fontNamePtr, atlasFontDescriptor)
+                        }
+                    }
                 }
             }
         }) else {
@@ -151,7 +172,12 @@ final class FontAtlasGenerator: Sendable {
         }
 
         let texture = self.makeTextureAtlas(from: data, width: width, height: height)
-        return unsafe FontHandle(atlasTexture: texture, fontData: fontData)
+        return unsafe FontHandle(
+            atlasTexture: texture,
+            fontData: fontData,
+            fontPath: fontPath,
+            variationAxes: fontDescriptor.variationAxes
+        )
     }
     
     // MARK: - Private
@@ -201,13 +227,22 @@ final class FontAtlasGenerator: Sendable {
         let fontPathString = fontPath.path
         let fontName = fontPath.lastPathComponent
 
+        let variationTags = fontDescriptor.variationAxes.map(\.tag)
+        let variationValues = fontDescriptor.variationAxes.map(\.value)
         guard let generator = unsafe fontDescriptor.additionalCodepoints.withUnsafeBufferPointer({ codepoints in
-            atlasFontDescriptor.additionalCodepoints = codepoints.baseAddress
-            atlasFontDescriptor.additionalCodepointsCount = Int32(codepoints.count)
+            unsafe variationTags.withUnsafeBufferPointer { tags in
+                unsafe variationValues.withUnsafeBufferPointer { values in
+                    atlasFontDescriptor.additionalCodepoints = codepoints.baseAddress
+                    atlasFontDescriptor.additionalCodepointsCount = Int32(codepoints.count)
+                    atlasFontDescriptor.variationAxisTags = tags.baseAddress
+                    atlasFontDescriptor.variationAxisValues = values.baseAddress
+                    atlasFontDescriptor.variationAxesCount = Int32(tags.count)
 
-            return unsafe fontPathString.withCString { fontPathPtr in
-                unsafe fontName.withCString { fontNamePtr in
-                    unsafe font_atlas_generator_create(fontPathPtr, fontNamePtr, atlasFontDescriptor)
+                    return unsafe fontPathString.withCString { fontPathPtr in
+                        unsafe fontName.withCString { fontNamePtr in
+                            unsafe font_atlas_generator_create(fontPathPtr, fontNamePtr, atlasFontDescriptor)
+                        }
+                    }
                 }
             }
         }) else {
@@ -247,6 +282,33 @@ final class FontAtlasGenerator: Sendable {
         let sortedCodepoints = descriptor.additionalCodepoints.sorted()
         let mode = descriptor.includeDefaultCharset ? "default" : "custom"
         return "\(mode)-\(sortedCodepoints.count)-\(fnv1a64Hex(for: sortedCodepoints))"
+    }
+
+    private static func variationCacheKey(for descriptor: FontDescriptor) -> String {
+        guard !descriptor.variationAxes.isEmpty else {
+            return "default"
+        }
+
+        var hash: UInt64 = 0xcbf29ce484222325
+        for axis in descriptor.variationAxes {
+            var tag = axis.tag.littleEndian
+            unsafe withUnsafeBytes(of: &tag) { bytes in
+                for byte in bytes {
+                    hash ^= UInt64(byte)
+                    hash &*= 0x100000001b3
+                }
+            }
+
+            var value = axis.value.bitPattern.littleEndian
+            unsafe withUnsafeBytes(of: &value) { bytes in
+                for byte in bytes {
+                    hash ^= UInt64(byte)
+                    hash &*= 0x100000001b3
+                }
+            }
+        }
+
+        return "var-\(descriptor.variationAxes.count)-\(String(format: "%016llx", hash))"
     }
 
     private static func fnv1a64Hex(for values: [UInt32]) -> String {

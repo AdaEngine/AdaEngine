@@ -36,6 +36,7 @@ typedef struct cached_font_data_s {
     std::vector<FontCachedGlyph> glyphs;
     std::vector<FontCachedKerning> kernings;
     std::map<uint32_t, size_t> glyphsByCodepoint;
+    std::map<int, size_t> glyphsByIndex;
     std::map<std::pair<uint32_t, uint32_t>, double> kerningsByCodepoint;
 } cached_font_data_t;
 
@@ -114,6 +115,7 @@ font_handle_s* font_handle_create_cached(const char* fontName,
         if (glyph.codepoint) {
             cachedData->glyphsByCodepoint[glyph.codepoint] = index;
         }
+        cachedData->glyphsByIndex[glyph.glyphIndex] = index;
     }
 
     for (const FontCachedKerning& kerning : cachedData->kernings) {
@@ -329,8 +331,50 @@ font_glyph_s* font_handle_get_glyph_unicode(font_handle_s* fontData, uint32_t un
     return result;
 }
 
+font_glyph_s* font_handle_get_glyph_index(font_handle_s* fontData, int glyphIndex) {
+    if (!fontData) {
+        return nullptr;
+    }
+
+    if (fontData->cached_data) {
+        auto glyph = fontData->cached_data->glyphsByIndex.find(glyphIndex);
+        if (glyph == fontData->cached_data->glyphsByIndex.end()) {
+            return nullptr;
+        }
+
+        font_glyph_s* result = new font_glyph_s();
+        result->glyph = nullptr;
+        result->cached_glyph = &fontData->cached_data->glyphs[glyph->second];
+        return result;
+    }
+
+    if (!fontData->font_data) {
+        return nullptr;
+    }
+
+    const msdf_atlas::GlyphGeometry* glyph = fontData->font_data->fontGeometry.getGlyph(
+        msdfgen::GlyphIndex(glyphIndex)
+    );
+
+    if (!glyph)
+        return nullptr;
+
+    font_glyph_s* result = new font_glyph_s();
+    result->glyph = glyph;
+    result->cached_glyph = nullptr;
+    return result;
+}
+
 void font_glyph_destroy(font_glyph_s* glyph) {
     delete glyph;
+}
+
+int font_glyph_get_index(font_glyph_s *glyph) {
+    if (glyph->cached_glyph) {
+        return glyph->cached_glyph->glyphIndex;
+    }
+
+    return glyph->glyph->getIndex();
 }
 
 double font_glyph_get_advance(font_glyph_s *glyph) {

@@ -141,6 +141,26 @@ struct TextRenderingRegressionTests {
     }
 
     @Test
+    func fixedSquareFrameCentersSingleGlyphVisualBoundsHorizontally() throws {
+        let frameWidth: Float = 38
+        let tester = ViewTester {
+            Text("↑")
+                .font(.system(size: 28))
+                .frame(width: frameWidth, height: frameWidth)
+                .accessibilityIdentifier("centered-glyph")
+        }
+        .setSize(Size(width: frameWidth, height: frameWidth))
+        .performLayout()
+
+        let context = UIGraphicsContext()
+        tester.containerView.viewTree.rootNode.draw(with: context)
+        let bounds = try firstDrawnGlyphHorizontalBounds(in: context.getDrawCommands())
+        let visualCenter = (bounds.minX + bounds.maxX) / 2
+
+        #expect(abs(visualCenter - frameWidth / 2) <= 1)
+    }
+
+    @Test
     func unboundedTextMeasurementIsNotReusedFromClippedLayout() {
         let layoutManager = TextLayoutManager()
         layoutManager.setTextContainer(
@@ -467,6 +487,24 @@ struct TextRenderingRegressionTests {
         }
 
         return rows
+    }
+
+    private func firstDrawnGlyphHorizontalBounds(
+        in commands: [UIGraphicsContext.DrawCommand]
+    ) throws -> (minX: Float, maxX: Float) {
+        for command in commands {
+            guard case let .drawGlyph(glyph, transform, _) = command else {
+                continue
+            }
+
+            return (
+                minX: transform.w.x + glyph.position.x,
+                maxX: transform.w.x + glyph.position.z
+            )
+        }
+
+        Issue.record("Expected at least one glyph draw command")
+        throw TextRenderingRegressionTestError.missingGlyph
     }
 }
 

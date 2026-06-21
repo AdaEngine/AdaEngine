@@ -467,11 +467,21 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
 extension UIView {
     func rootEnvironmentValues() -> EnvironmentValues {
         var env = EnvironmentValues()
-        env.safeAreaInsets = effectiveSafeAreaInsets
+        env.safeAreaInsets = rootSafeAreaInsets()
         env.userInterfaceIdiom = userInterfaceIdiom
         env.colorScheme = colorScheme
         env.scaleFactor = window?.screen?.scale ?? Screen.main?.scale ?? 1
         return env
+    }
+
+    private func rootSafeAreaInsets() -> EdgeInsets {
+        var insets = effectiveSafeAreaInsets
+        if let titleBar = window?.configuration.titleBar,
+           titleBar.background == .transparent,
+           !titleBar.reservesSafeArea {
+            insets.top = 0
+        }
+        return insets
     }
 }
 

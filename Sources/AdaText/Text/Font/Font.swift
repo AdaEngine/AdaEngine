@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 09.06.2024.
 //
 
+import Foundation
+
 /// A font asset.
 public struct Font: Hashable, Equatable, Sendable {
     /// The name of the font.
@@ -42,6 +44,25 @@ public extension Font {
     /// - Returns: The system font.
     static func system(size: Double, weight: FontWeight) -> Font {
         let resource = FontResource.system(weight: weight, emFontScale: 74)
+        return Font(fontResource: resource, pointSize: size)
+    }
+
+    static func dynamic(
+        fontPath: URL,
+        size: Double,
+        emFontScale: Double? = nil,
+        charset: FontCharset? = nil,
+        variations: [FontVariationAxis] = []
+    ) -> Font? {
+        guard let resource = FontResource.dynamic(
+            fontPath: fontPath,
+            emFontScale: emFontScale,
+            charset: charset,
+            variations: variations
+        ) else {
+            return nil
+        }
+
         return Font(fontResource: resource, pointSize: size)
     }
 

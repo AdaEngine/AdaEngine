@@ -116,7 +116,13 @@ extension TextEditorViewNode {
         }
 
         let layout = TextLayoutManager()
-        var container = TextContainer(text: string, textAlignment: .leading)
+        var container = TextContainer(
+            text: string,
+            textAlignment: .leading,
+            lineBreakMode: .byCharWrapping,
+            lineSpacing: 0,
+            allowsShaping: false
+        )
         container.numberOfLines = 1
         layout.setTextContainer(container)
         layout.fitToSize(Size(width: .infinity, height: self.lineHeight(for: Float(font.pointSize))))
@@ -401,7 +407,13 @@ extension TextEditorViewNode {
         attributes.font = font
         attributes.foregroundColor = self.resolvedTextColor()
 
-        var container = TextContainer(text: AttributedText(lineText, attributes: attributes), textAlignment: .leading)
+        var container = TextContainer(
+            text: AttributedText(lineText, attributes: attributes),
+            textAlignment: .leading,
+            lineBreakMode: .byCharWrapping,
+            lineSpacing: 0,
+            allowsShaping: false
+        )
         container.numberOfLines = 1
         layout.setTextContainer(container)
         layout.fitToSize(Size(width: .infinity, height: self.lineHeight(for: pointSize)))

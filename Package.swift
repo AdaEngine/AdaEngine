@@ -442,6 +442,7 @@ var targets: [Target] = [
             "Math",
             "AdaRender",
             "AtlasFontGenerator",
+            "AdaTextShaper",
             .product(name: "Markdown", package: "swift-markdown"),
         ],
         resources: [
@@ -874,11 +875,37 @@ targets += [
     .adaTarget(
         name: "AtlasFontGenerator",
         dependencies: [
-            "MSDFAtlasGen"
+            "MSDFAtlasGen",
+            "HarfBuzz"
         ],
         publicHeadersPath: "include",
         cxxSettings: [
+            .headerSearchPath("../harfbuzz"),
             .unsafeFlags(["-fno-exceptions"], .when(platforms: [.wasi])),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+    .target(
+        name: "AdaTextShaper",
+        dependencies: [
+            "HarfBuzz"
+        ],
+        publicHeadersPath: "include",
+        cxxSettings: [
+            .headerSearchPath("../harfbuzz"),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+    .target(
+        name: "HarfBuzz",
+        path: "Sources/harfbuzz",
+        sources: [
+            "harfbuzz.cc"
+        ],
+        publicHeadersPath: ".",
+        cxxSettings: [
+            .headerSearchPath("."),
+            .define("HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR"),
             .unsafeFlags(["-w"])
         ]
     ),

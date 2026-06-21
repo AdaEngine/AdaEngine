@@ -24,6 +24,81 @@ public enum FontWeight: String {
     case heavy
 }
 
+public struct FontVariationAxis: Hashable, Sendable {
+    public let tag: UInt32
+    public let value: Double
+
+    public init(tag: String, value: Double) {
+        self.tag = Self.makeTag(tag)
+        self.value = value
+    }
+
+    public init(tag: UInt32, value: Double) {
+        self.tag = tag
+        self.value = value
+    }
+
+    public static func weight(_ value: Double) -> Self {
+        Self(tag: "wght", value: value)
+    }
+
+    public static func italic(_ value: Double = 1) -> Self {
+        Self(tag: "ital", value: value)
+    }
+
+    public static func slant(_ value: Double) -> Self {
+        Self(tag: "slnt", value: value)
+    }
+
+    public static func width(_ value: Double) -> Self {
+        Self(tag: "wdth", value: value)
+    }
+
+    public static func monospaced(_ value: Double = 1) -> Self {
+        Self(tag: "MONO", value: value)
+    }
+
+    private static func makeTag(_ tag: String) -> UInt32 {
+        var result: UInt32 = 0
+        for byte in tag.utf8.prefix(4) {
+            result = (result << 8) | UInt32(byte)
+        }
+
+        let missingBytes = max(0, 4 - tag.utf8.count)
+        for _ in 0..<missingBytes {
+            result = (result << 8) | 32
+        }
+
+        return result
+    }
+}
+
+public enum FontCharset: Hashable, Sendable {
+    case `default`
+    case codepoints([UInt32], includeDefault: Bool)
+    case text(String, includeDefault: Bool)
+
+    var includeDefaultCharset: Bool {
+        switch self {
+        case .default:
+            return true
+        case .codepoints(_, let includeDefault), .text(_, let includeDefault):
+            return includeDefault
+        }
+    }
+
+    var additionalCodepoints: [UInt32] {
+        switch self {
+        case .default:
+            return []
+        case .codepoints(let codepoints, _):
+            return codepoints
+        case .text(let text, _):
+            return text.unicodeScalars.map(\.value)
+        }
+    }
+}
+
 /// An object that provides access to the font's characteristics.
 public final class FontResource: Asset, Hashable, @unchecked Sendable {
 
@@ -105,12 +180,14 @@ public extension FontResource {
         fontFileName: String,
         emFontScale: Double,
         includeDefaultCharset: Bool = true,
-        additionalCodepoints: [UInt32] = []
+        additionalCodepoints: [UInt32] = [],
+        variations: [FontVariationAxis] = []
     ) -> String {
         let descriptor = FontDescriptor(
             emFontScale: emFontScale,
             includeDefaultCharset: includeDefaultCharset,
-            additionalCodepoints: Array(Set(additionalCodepoints)).sorted()
+            additionalCodepoints: Array(Set(additionalCodepoints)).sorted(),
+            variationAxes: normalizedVariationAxes(variations)
         )
         return FontAtlasGenerator.cacheFileName(fontName: fontFileName, fontDescriptor: descriptor)
     }
@@ -119,12 +196,14 @@ public extension FontResource {
         fontPath: URL,
         emFontScale: Double? = nil,
         includeDefaultCharset: Bool = true,
-        additionalCodepoints: [UInt32] = []
+        additionalCodepoints: [UInt32] = [],
+        variations: [FontVariationAxis] = []
     ) -> Bool {
         let descriptor = FontDescriptor(
             emFontScale: emFontScale ?? Constants.defaultEmFontScale,
             includeDefaultCharset: includeDefaultCharset,
-            additionalCodepoints: Array(Set(additionalCodepoints)).sorted()
+            additionalCodepoints: Array(Set(additionalCodepoints)).sorted(),
+            variationAxes: normalizedVariationAxes(variations)
         )
         return FontAtlasGenerator.shared.ensureCachedAtlas(fontPath: fontPath, fontDescriptor: descriptor)
     }
@@ -133,12 +212,14 @@ public extension FontResource {
         fontPath: URL,
         emFontScale: Double? = nil,
         includeDefaultCharset: Bool = true,
-        additionalCodepoints: [UInt32] = []
+        additionalCodepoints: [UInt32] = [],
+        variations: [FontVariationAxis] = []
     ) -> Bool {
         let descriptor = FontDescriptor(
             emFontScale: emFontScale ?? Constants.defaultEmFontScale,
             includeDefaultCharset: includeDefaultCharset,
-            additionalCodepoints: Array(Set(additionalCodepoints)).sorted()
+            additionalCodepoints: Array(Set(additionalCodepoints)).sorted(),
+            variationAxes: normalizedVariationAxes(variations)
         )
         return FontAtlasGenerator.shared.hasPrebuiltCachedAtlas(fontPath: fontPath, fontDescriptor: descriptor)
     }
@@ -162,9 +243,10 @@ public extension FontResource {
         let emFontScale: Double
         var includeDefaultCharset: Bool = true
         var additionalCodepoints: [UInt32] = []
+        var variationAxes: [FontVariationAxis] = []
 
         func covers(_ key: Self) -> Bool {
-            guard path == key.path && emFontScale == key.emFontScale else {
+            guard path == key.path && emFontScale == key.emFontScale && variationAxes == key.variationAxes else {
                 return false
             }
 
@@ -210,6 +292,19 @@ public extension FontResource {
 
     private static let cacheStore = CacheStore()
 
+    private static func normalizedVariationAxes(_ axes: [FontVariationAxis]) -> [FontVariationAxis] {
+        var valuesByTag: [UInt32: Double] = [:]
+        for axis in axes {
+            valuesByTag[axis.tag] = axis.value
+        }
+
+        return valuesByTag
+            .map { FontVariationAxis(tag: $0.key, value: $0.value) }
+            .sorted { lhs, rhs in
+                lhs.tag == rhs.tag ? lhs.value < rhs.value : lhs.tag < rhs.tag
+            }
+    }
+
     /// Create custom font from file path.
     /// - Returns: Returns font if font available or null if something went wrong.
     static func custom(fontPath: URL, emFontScale: Double? = nil) -> FontResource? {
@@ -217,7 +312,8 @@ public extension FontResource {
             fontPath: fontPath,
             emFontScale: emFontScale,
             includeDefaultCharset: true,
-            additionalCodepoints: []
+            additionalCodepoints: [],
+            variations: []
         )
     }
 
@@ -225,15 +321,18 @@ public extension FontResource {
         fontPath: URL,
         emFontScale: Double? = nil,
         includeDefaultCharset: Bool,
-        additionalCodepoints: [UInt32]
+        additionalCodepoints: [UInt32],
+        variations: [FontVariationAxis] = []
     ) -> FontResource? {
         let resolvedScale = emFontScale ?? Constants.defaultEmFontScale
         let normalizedCodepoints = Array(Set(additionalCodepoints)).sorted()
+        let normalizedVariations = normalizedVariationAxes(variations)
         let key = CacheKey(
             path: fontPath.path,
             emFontScale: resolvedScale,
             includeDefaultCharset: includeDefaultCharset,
-            additionalCodepoints: normalizedCodepoints
+            additionalCodepoints: normalizedCodepoints,
+            variationAxes: normalizedVariations
         )
 
         if let cached = cacheStore.getResourceCovering(key) {
@@ -243,7 +342,8 @@ public extension FontResource {
         let descriptor = FontDescriptor(
             emFontScale: resolvedScale,
             includeDefaultCharset: includeDefaultCharset,
-            additionalCodepoints: normalizedCodepoints
+            additionalCodepoints: normalizedCodepoints,
+            variationAxes: normalizedVariations
         )
         guard let fontHandle = FontAtlasGenerator.shared.generateAtlas(fontPath: fontPath, fontDescriptor: descriptor) else {
             return nil
@@ -251,6 +351,22 @@ public extension FontResource {
         let resource = FontResource(handle: fontHandle)
         cacheStore.set(resource, for: key)
         return resource
+    }
+
+    static func dynamic(
+        fontPath: URL,
+        emFontScale: Double? = nil,
+        charset: FontCharset? = nil,
+        variations: [FontVariationAxis] = []
+    ) -> FontResource? {
+        let resolvedCharset = charset ?? .default
+        return custom(
+            fontPath: fontPath,
+            emFontScale: emFontScale,
+            includeDefaultCharset: resolvedCharset.includeDefaultCharset,
+            additionalCodepoints: resolvedCharset.additionalCodepoints,
+            variations: variations
+        )
     }
 
     static func fallback(for scalar: UnicodeScalar, baseFont: FontResource) -> FontResource? {
@@ -263,7 +379,8 @@ public extension FontResource {
             fontPath: fontURL,
             emFontScale: baseFont.fontEmSize,
             includeDefaultCharset: false,
-            additionalCodepoints: [scalar.value]
+            additionalCodepoints: [scalar.value],
+            variations: []
         )
         #else
         return nil

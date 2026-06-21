@@ -229,6 +229,30 @@ struct EnvironmentPropagationTests {
         #expect(safeAreaInsets.bottom == 34)
     }
 
+    @Test("overlay title bar does not reserve root safe area")
+    func overlayTitleBarDoesNotReserveRootSafeArea() {
+        let configuration = UIWindow.Configuration(
+            frame: Rect(x: 0, y: 0, width: 400, height: 300),
+            titleBar: UIWindow.TitleBar(
+                background: .transparent,
+                reservesSafeArea: false,
+                dragRegionHeight: 52
+            )
+        )
+        let window = UIWindow(configuration: configuration)
+        let container = UIContainerView(rootView: EmptyView())
+        container.frame = Rect(x: 0, y: 0, width: 400, height: 300)
+        window.addSubview(container)
+
+        container.safeAreaInsets = EdgeInsets(top: 52, leading: 0, bottom: 24, trailing: 0)
+        container.layoutSubviews()
+
+        let environment = container.viewTree.rootNode.environment
+        #expect(environment.safeAreaInsets.top == 0)
+        #expect(environment.safeAreaInsets.bottom == 24)
+        #expect(environment.navigationBarChromeInsets.top == 52)
+    }
+
     @Test("equivalent observable storage assignment does not bump environment version")
     func equivalentObservableStorageAssignmentDoesNotBumpVersion() {
         let model = ObservableEnvironmentModel()

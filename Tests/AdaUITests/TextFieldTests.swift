@@ -127,6 +127,44 @@ struct TextFieldTests {
     }
 
     @Test
+    func textField_keepsTwoTypedCharactersAtLeadingEdge() throws {
+        final class Model {
+            var text: String = ""
+        }
+
+        let model = Model()
+
+        let tester = ViewTester {
+            TextField(
+                "Type here",
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                )
+            )
+            .frame(width: 240, height: 36)
+        }
+        .setSize(Size(width: 260, height: 80))
+        .performLayout()
+
+        let textFieldNode = try #require(tester.click(at: Point(130, 40)) as? TextFieldViewNode)
+        tester.sendMouseEvent(at: Point(130, 40), phase: .began, time: 0)
+        tester.sendMouseEvent(at: Point(130, 40), phase: .ended, time: 0.01)
+        tester.sendTextInput("f", time: 0.02)
+        tester.sendTextInput("i", time: 0.03)
+
+        let contentRect = textFieldNode.textContentRect()
+        textFieldNode.refreshInteractiveTextLayoutIfPossible(size: contentRect.size)
+
+        let caretStops = try #require(textFieldNode.layoutCaretStops())
+        #expect(caretStops.count == model.text.unicodeScalars.count + 1)
+        #expect(caretStops[0] == 0)
+        #expect(caretStops[1] > 0)
+        #expect(caretStops[1] < 80)
+        #expect(textFieldNode.widthForOffset(model.text.count, pointSize: 17) < contentRect.width)
+    }
+
+    @Test
     func textField_updatesSelectionInteractivelyOnMouseDragChanged() {
         final class Model {
             var text: String = "hello world"

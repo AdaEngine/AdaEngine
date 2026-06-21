@@ -32,16 +32,38 @@ public struct TextContainer: Hashable {
     /// The maximum number of lines for rendering text.
     public var numberOfLines: Int?
 
+    /// Whether typographic shaping can substitute multiple characters with a
+    /// single glyph. Editable text should keep this disabled until caret and
+    /// selection logic is cluster-aware.
+    public var allowsShaping: Bool
+
+    public init(
+        text: AttributedText,
+        textAlignment: TextAlignment,
+        lineBreakMode: LineBreakMode,
+        lineSpacing: Float,
+        allowsShaping: Bool = true
+    ) {
+        self.text = text
+        self.textAlignment = textAlignment
+        self.lineBreakMode = lineBreakMode
+        self.lineSpacing = lineSpacing
+        self.allowsShaping = allowsShaping
+    }
+
     public init(
         text: AttributedText,
         textAlignment: TextAlignment = .center,
         lineBreakMode: LineBreakMode = .byCharWrapping,
         lineSpacing: Float = 0
     ) {
-        self.text = text
-        self.textAlignment = textAlignment
-        self.lineBreakMode = lineBreakMode
-        self.lineSpacing = lineSpacing
+        self.init(
+            text: text,
+            textAlignment: textAlignment,
+            lineBreakMode: lineBreakMode,
+            lineSpacing: lineSpacing,
+            allowsShaping: true
+        )
     }
 
     public init() {
@@ -49,6 +71,7 @@ public struct TextContainer: Hashable {
         self.textAlignment = .center
         self.lineBreakMode = .byCharWrapping
         self.lineSpacing = 0
+        self.allowsShaping = true
     }
 
 }
@@ -475,6 +498,137 @@ public final class TextLayoutManager: @unchecked Sendable {
                 visualRowStartGlyphIndex = textRun.glyphs.count
             }
 
+            func matchingAttributeRunEnd(
+                from startIndex: String.Index,
+                attributes: TextAttributeContainer
+            ) -> String.Index {
+                var runEndIndex = startIndex
+                while runEndIndex < lineEndIndex && attributedText.attributes(at: runEndIndex) == attributes {
+                    runEndIndex = attributedText.text.index(after: runEndIndex)
+                }
+                return runEndIndex
+            }
+
+            func appendGlyphToCurrentRun(
+                glyph: FontHandle.Glyph,
+                fontResource: FontResource,
+                attributes: TextAttributeContainer,
+                baselineX: Double,
+                baselineY: Double,
+                pointSize: Double,
+                xOffset: Double = 0,
+                yOffset: Double = 0
+            ) -> (right: Double, top: Double)? {
+                let glyphFontHandle = fontResource.handle
+                let glyphMetrics = glyphFontHandle.metrics
+                let glyphFontScale = pointSize / glyphMetrics.emSize
+                let glyphFontSize = fontResource.getFontScale(for: pointSize)
+
+                var l: Double = 0, b: Double = 0, r: Double = 0, t: Double = 0
+                glyph.getQuadAtlasBounds(&l, &b, &r, &t)
+
+                var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
+                glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
+
+                pl = (pl + xOffset) * glyphFontScale + baselineX
+                pb = (pb + yOffset) * glyphFontScale + baselineY
+                pr = (pr + xOffset) * glyphFontScale + baselineX
+                pt = (pt + yOffset) * glyphFontScale + baselineY
+
+                if abs(Float(pt)) > availableSize.height {
+                    return nil
+                }
+
+                let texelWidth = 1 / Double(glyphFontHandle.atlasTexture.width)
+                let texelHeight = 1 / Double(glyphFontHandle.atlasTexture.height)
+                l *= texelWidth
+                b *= texelHeight
+                r *= texelWidth
+                t *= texelHeight
+
+                textRun.glyphs.append(
+                    Glyph(
+                        textureAtlas: glyphFontHandle.atlasTexture,
+                        textureCoordinates: [Float(l), Float(b), Float(r), Float(t)],
+                        attributes: attributes,
+                        position: [Float(pl), Float(pb), Float(pr), Float(pt)],
+                        origin: Point(x: -Float(glyphFontSize) / 2, y: Float(glyphFontSize) / 2),
+                        size: Size(width: Float(glyphFontSize), height: Float(glyphFontSize))
+                    )
+                )
+
+                return (right: pr, top: pt)
+            }
+
+            func appendShapedRunIfPossible(
+                from startIndex: String.Index,
+                attributes: TextAttributeContainer,
+                font: Font,
+                fontResource: FontResource
+            ) -> String.Index? {
+                guard self.textContainer.allowsShaping else {
+                    return nil
+                }
+
+                guard self.textContainer.lineBreakMode != .byWordWrapping else {
+                    return nil
+                }
+
+                let runEndIndex = matchingAttributeRunEnd(from: startIndex, attributes: attributes)
+                guard startIndex < runEndIndex else {
+                    return nil
+                }
+
+                let runText = String(attributedText.text[startIndex..<runEndIndex])
+                let shapedGlyphs = TextShaper.shape(runText, font: fontResource)
+                guard !shapedGlyphs.isEmpty else {
+                    return nil
+                }
+
+                var renderGlyphs: [(shaped: ShapedGlyph, glyph: FontHandle.Glyph)] = []
+                renderGlyphs.reserveCapacity(shapedGlyphs.count)
+                for shapedGlyph in shapedGlyphs {
+                    guard let glyph = fontResource.handle.getGlyph(forGlyphIndex: shapedGlyph.glyphIndex) else {
+                        return nil
+                    }
+                    renderGlyphs.append((shapedGlyph, glyph))
+                }
+
+                let glyphFontScale = font.pointSize / fontResource.handle.metrics.emSize
+                let kern = Double(attributes.kern)
+
+                for (shapedGlyph, glyph) in renderGlyphs {
+                    var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
+                    glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
+
+                    let projectedRight = Float((pr + shapedGlyph.xOffset) * glyphFontScale + x)
+                    if projectedRight > availableSize.width {
+                        alignCurrentVisualRow()
+                        x = 0
+                        y -= maxLineHeight
+                        visualRowStartTextIndex = startIndex
+                    }
+
+                    guard let bounds = appendGlyphToCurrentRun(
+                        glyph: glyph,
+                        fontResource: fontResource,
+                        attributes: attributes,
+                        baselineX: x,
+                        baselineY: y,
+                        pointSize: font.pointSize,
+                        xOffset: shapedGlyph.xOffset,
+                        yOffset: shapedGlyph.yOffset
+                    ) else {
+                        return lineEndIndex
+                    }
+
+                    visualRowMaxWidth = max(visualRowMaxWidth, bounds.right)
+                    x += (shapedGlyph.xAdvance * glyphFontScale) + kern
+                }
+
+                return runEndIndex
+            }
+
             var index = lineStartIndex
             while index < lineEndIndex {
                 let shouldWrapByWord = self.textContainer.lineBreakMode == .byWordWrapping
@@ -541,6 +695,16 @@ public final class TextLayoutManager: @unchecked Sendable {
                 maxLineHeight = max(maxLineHeight, lineHeight + lineHeightOffset)
                 maxAscent = max(maxAscent, metrics.ascenderY * fontScale)
                 maxDescent = max(maxDescent, abs(metrics.descenderY * fontScale))
+
+                if let nextIndex = appendShapedRunIfPossible(
+                    from: index,
+                    attributes: attributes,
+                    font: font,
+                    fontResource: primaryFontResource
+                ) {
+                    index = nextIndex
+                    continue
+                }
 
                 guard let firstScalar = char.unicodeScalars.first else {
                     if index < lineEndIndex {

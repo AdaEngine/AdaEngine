@@ -7,6 +7,7 @@
 
 import AtlasFontGenerator
 import AdaRender
+import Foundation
 
 /// Hold information about font data and atlas.
 @safe
@@ -14,6 +15,8 @@ final class FontHandle: Hashable, @unchecked Sendable {
     
     let atlasTexture: Texture2D
     let fontData: OpaquePointer!
+    let fontPath: URL?
+    let variationAxes: [FontVariationAxis]
     
     let metrics: FontMetrics
     let fontName: String
@@ -21,10 +24,14 @@ final class FontHandle: Hashable, @unchecked Sendable {
     
     init(
         atlasTexture: Texture2D,
-        fontData: OpaquePointer
+        fontData: OpaquePointer,
+        fontPath: URL?,
+        variationAxes: [FontVariationAxis] = []
     ) {
         self.atlasTexture = atlasTexture
         unsafe self.fontData = fontData
+        self.fontPath = fontPath
+        self.variationAxes = variationAxes
 
         self.metrics = unsafe font_geometry_get_metrics(fontData)
         self.fontName = unsafe String(cString: font_geometry_get_name(fontData)!)
@@ -40,6 +47,14 @@ final class FontHandle: Hashable, @unchecked Sendable {
             return nil
         }
         
+        return unsafe Glyph(ref: glyph)
+    }
+
+    func getGlyph(forGlyphIndex glyphIndex: Int32) -> Glyph? {
+        guard let glyph = unsafe font_handle_get_glyph_index(self.fontData, glyphIndex) else {
+            return nil
+        }
+
         return unsafe Glyph(ref: glyph)
     }
     
@@ -92,6 +107,10 @@ extension FontHandle {
         
         var advance: Double {
             unsafe font_glyph_get_advance(self.ref)
+        }
+
+        var glyphIndex: Int32 {
+            unsafe Int32(font_glyph_get_index(self.ref))
         }
         
         func getQuadAtlasBounds(_ l: inout Double, _ b: inout Double, _ r: inout Double, _ t: inout Double) {

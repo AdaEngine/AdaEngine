@@ -337,6 +337,76 @@ struct NavigationStackTests {
     }
 
     @Test
+    func navigationBar_overlayTitleBarCentersItemsInReservedBar() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                Color.clear
+                    .navigationBarLeadingItems {
+                        Button(action: {}) {
+                            Text("Agent")
+                        }
+                    }
+                    .navigationBarTrailingItems {
+                        Button("Sessions") {}
+                    }
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let chromeTopInset: Float = 52
+        var environment = EnvironmentValues()
+        environment.navigationBarChromeInsets.top = chromeTopInset
+        tester.containerView.viewTree.rootNode.mergeEnvironment(environment)
+        tester.containerView.viewTree.rootNode.place(
+            in: .zero,
+            anchor: .zero,
+            proposal: ProposedViewSize(Size(width: 400, height: 400))
+        )
+
+        let textNodes = textNodes(in: tester.containerView.viewTree.rootNode)
+        let agent = try #require(textNodes.first { $0.text == "Agent" })
+        let sessions = try #require(textNodes.first { $0.text == "Sessions" })
+        let expectedCenterY = chromeTopInset + 46
+
+        #expect(abs((agent.frame.origin.y + agent.frame.height * 0.5) - expectedCenterY) < 8)
+        #expect(abs((sessions.frame.origin.y + sessions.frame.height * 0.5) - expectedCenterY) < 8)
+    }
+
+    @Test
+    func navigationStack_environmentChangePropagatesContentOnceWithNavigationBarInset() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        Color.red
+                            .frame(width: 320, height: 240)
+                    }
+                }
+                .navigationTitle("Chat")
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let rootNode = tester.containerView.viewTree.rootNode
+        let scrollNode = try #require(firstScrollView(in: rootNode))
+
+        UILayoutDebugCounters.isEnabled = true
+        UILayoutDebugCounters.reset()
+        defer {
+            UILayoutDebugCounters.isEnabled = false
+        }
+
+        var environment = EnvironmentValues()
+        environment.navigationBarChromeInsets.top = 52
+        rootNode.mergeEnvironment(environment)
+
+        #expect(scrollNode.environment.safeAreaInsets.top == 144)
+        #expect(UILayoutDebugCounters.snapshot.environmentInvalidations <= 14)
+    }
+
+    @Test
     func navigationSplitView_detailNavigationBarShowsToolbarItemsWithChromeInset() throws {
         let tester = ViewTester {
             NavigationSplitView(

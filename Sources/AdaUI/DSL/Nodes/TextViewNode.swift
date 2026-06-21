@@ -78,29 +78,40 @@ final class TextViewNode: ViewNode {
             y: -snapToPixel(self.frame.origin.y)
         )
 
-        // Calculate vertical offset to center text within the frame (render coordinates: +Y is up)
+        // Calculate visual offsets to center text within the frame (render coordinates: +Y is up).
+        var horizontalOffset: Float = 0
         var verticalOffset: Float = 0
         if !self.drawLayoutManager.textLines.isEmpty {
-            // Find the maximum pt (top) and minimum pb (bottom) values among all glyphs
+            var minX: Float = .infinity
+            var maxX: Float = -.infinity
             var maxTopY: Float = -Float.infinity
             var minBottomY: Float = Float.infinity
             
             for line in self.drawLayoutManager.textLines {
                 for run in line {
                     for glyph in run {
-                        // glyph.position.w is pt (top Y coordinate), glyph.position.y is pb (bottom Y coordinate)
+                        minX = min(minX, glyph.position.x)
+                        maxX = max(maxX, glyph.position.z)
                         maxTopY = max(maxTopY, glyph.position.w)
                         minBottomY = min(minBottomY, glyph.position.y)
                     }
                 }
             }
-            
-            let textCenterY = (maxTopY + minBottomY) / 2
-            let frameCenterY = -self.frame.size.height / 2
-            verticalOffset = frameCenterY - textCenterY
+
+            if minX.isFinite, maxX.isFinite {
+                let textCenterX = (minX + maxX) / 2
+                let frameCenterX = self.frame.size.width / 2
+                horizontalOffset = frameCenterX - textCenterX
+            }
+
+            if maxTopY.isFinite, minBottomY.isFinite {
+                let textCenterY = (maxTopY + minBottomY) / 2
+                let frameCenterY = -self.frame.size.height / 2
+                verticalOffset = frameCenterY - textCenterY
+            }
         }
         
-        context.translateBy(x: 0, y: snapToPixel(verticalOffset))
+        context.translateBy(x: snapToPixel(horizontalOffset), y: snapToPixel(verticalOffset))
 
         let layout = Text.Layout(lines: self.drawLayoutManager.textLines)
         self.textRenderer.draw(layout: layout, in: &context)
