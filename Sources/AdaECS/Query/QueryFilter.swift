@@ -165,6 +165,14 @@ public struct And<each T: Filter>: Filter {
         }
     }
 
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        for filter in repeat (each T).self {
+            access.formUnion(filter.access)
+        }
+        return access
+    }
+
     public struct _Fetch {
         @usableFromInline
         var fetches: (repeat (each T).Fetch)
@@ -251,6 +259,10 @@ public struct Not<T: Filter>: Filter {
     public typealias State = T.State
     public typealias Fetch = T.Fetch
 
+    public static var access: SystemAccessSet {
+        T.access
+    }
+
     @inlinable
     public static func _initState(world: World) -> T.State {
         T._initState(world: world)
@@ -286,6 +298,14 @@ public struct Or<each T: Filter>: Filter {
         init(states: (repeat (each T).State)) {
             self.states = states
         }
+    }
+
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        for filter in repeat (each T).self {
+            access.formUnion(filter.access)
+        }
+        return access
     }
 
     public struct _Fetch {
@@ -390,6 +410,12 @@ public struct Changed<T: Component>: Filter {
     public typealias State = Void
     public typealias Fetch = ChangedFetch
 
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addComponentRead(T.self)
+        return access
+    }
+
     @inlinable
     public static func predicate(in archetype: borrowing Archetype) -> Bool {
         archetype.componentLayout.maskSet.contains(T.identifier)
@@ -457,6 +483,12 @@ public struct Added<T: Component>: Filter {
 
     public typealias State = Void
     public typealias Fetch = AddedFetch
+
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addComponentRead(T.self)
+        return access
+    }
 
     @inlinable
     public static func predicate(in archetype: borrowing Archetype) -> Bool {

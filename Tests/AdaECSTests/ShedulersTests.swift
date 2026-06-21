@@ -11,6 +11,18 @@ import Testing
 @Suite
 struct SchedulersTests {
     @Test
+    func `default scheduler uses multi threaded executor on supported platforms`() {
+        let scheduler = Scheduler(name: .test)
+        #expect(scheduler.graphExecutor is MultiThreadedSystemsGraphExecutor)
+    }
+
+    @Test
+    func `scheduler keeps explicitly provided executor`() {
+        let scheduler = Scheduler(name: .test, graphExecutor: SingleThreadedSystemsGraphExecutor())
+        #expect(scheduler.graphExecutor is SingleThreadedSystemsGraphExecutor)
+    }
+
+    @Test
     func `add system to existing schedule`() async throws {
         let world = World()
         world.addScheduler(.init(name: .test))

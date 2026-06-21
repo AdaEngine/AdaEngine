@@ -103,6 +103,7 @@ public struct TileMapSystem: Sendable {
 
             let tileParent = commands.spawn("TileRoot<\((layer.id, layer.name))>") {
                 RelationshipComponent()
+                Transform()
             }
 
             for (position, tile) in layer.tileCells {
@@ -116,9 +117,9 @@ public struct TileMapSystem: Sendable {
 
                 let tileData = source.getTileData(at: tile.atlasCoordinates)
                 let position = Vector3(
-                    x: Float(position.x) * tileSize.width,
-                    y: Float(position.y) * tileSize.height,
-                    z: Float(layer.zIndex)
+                    x: transform.position.x + Float(position.x) * tileSize.width,
+                    y: transform.position.y + Float(position.y) * tileSize.height,
+                    z: transform.position.z + Float(layer.zIndex)
                 )
 
                 let tileEntity: Entity

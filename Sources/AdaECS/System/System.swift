@@ -100,6 +100,15 @@ public struct SystemQueries: Sendable, Equatable {
     
     public let queries: [any SystemParameter]
 
+    /// Combined world access required by all system parameters.
+    public var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        for query in queries {
+            access.formUnion(query.access)
+        }
+        return access
+    }
+
     /// Initialize a new system queries.
     /// - Parameter queries: The queries to update.
     public init(queries: consuming [any SystemParameter]) {

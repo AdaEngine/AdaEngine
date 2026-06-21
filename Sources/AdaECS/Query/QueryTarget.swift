@@ -12,6 +12,9 @@ public protocol WorldQueryTarget: Sendable, ~Copyable {
 
     associatedtype State: Sendable
 
+    /// The access this target requires when fetched by a system query.
+    static var access: SystemAccessSet { get }
+
     @inlinable
     static func _initState(world: World) -> State
 
@@ -30,6 +33,12 @@ public protocol WorldQueryTarget: Sendable, ~Copyable {
         chunk: Chunk,
         archetype: Archetype,
     ) -> Fetch
+}
+
+public extension WorldQueryTarget {
+    static var access: SystemAccessSet {
+        SystemAccessSet()
+    }
 }
 
 /// A protocol that allows to use components and entities as query targets.
@@ -60,6 +69,11 @@ public protocol QueryTarget: WorldQueryTarget, ~Copyable {
 }
 
 extension Component {
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addComponentRead(Self.self)
+        return access
+    }
 
     @inlinable
     public static func _initState(world: World) -> ComponentId {
@@ -152,6 +166,12 @@ public struct ReadFetch<T> {
 
 extension Ref: WorldQueryTarget where T: Component {}
 extension Ref: QueryTarget where T: Component {
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addComponentWrite(T.self)
+        return access
+    }
+
     public static func _initFetch(
         world: World,
         state: ComponentId,
@@ -228,6 +248,10 @@ extension Ref: QueryTarget where T: Component {
 }
 
 extension Entity: QueryTarget {
+    public static var access: SystemAccessSet {
+        SystemAccessSet()
+    }
+
     public static func _setData(
         state: Void,
         fetch: Void,
@@ -269,6 +293,10 @@ extension Optional: WorldQueryTarget where Wrapped: QueryTarget {}
 extension Optional: QueryTarget where Wrapped: QueryTarget {
     public typealias State = Wrapped.State
     public typealias Fetch = Wrapped.Fetch
+
+    public static var access: SystemAccessSet {
+        Wrapped.access
+    }
 
     @inlinable
     public static func _setData(

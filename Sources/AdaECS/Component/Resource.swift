@@ -10,10 +10,17 @@ import Foundation
 /// The singleton resource that passed to the ecs world.
 /// Only one instance of the resource is allowed in the world.
 public protocol Resource: Sendable {
+    /// Stable runtime identifier used by ECS access tracking.
+    static var resourceIdentifier: ObjectIdentifier { get }
+
     static func getFromWorld(_ world: borrowing World) -> Self?
 }
 
 public extension Resource {
+    static var resourceIdentifier: ObjectIdentifier {
+        ObjectIdentifier(Self.self)
+    }
+
     /// Get a resource from the world.
     /// - Parameter world: The world to get the resource from.
     /// - Returns: The resource if it exists, otherwise nil.

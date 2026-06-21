@@ -61,6 +61,12 @@ public final class EventsSender<T: Event>: @unchecked Sendable {
 }
 
 extension EventsSender: SystemParameter {
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addResourceWrite(EventsStorage<T>.self)
+        return access
+    }
+
     public convenience init(from world: World) {
         self.init()
     }

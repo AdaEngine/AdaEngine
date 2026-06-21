@@ -79,6 +79,12 @@ public final class Commands: @unchecked Sendable {
 }
 
 extension Commands: SystemParameter {
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addDeferredWorldAccess()
+        return access
+    }
+
     public convenience init(from world: World) {
         self.init(entities: world.entities, commandsQueue: world.commandQueue)
     }

@@ -47,6 +47,12 @@ public final class Res<T: Resource>: @unchecked Sendable {
 }
 
 extension Res: SystemParameter {
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addResourceRead(T.self)
+        return access
+    }
+
     public func update(from world: World) {
         guard let resource = T.getFromWorld(world) else {
             fatalError("Resource \(T.self) not found in world. Make sure to call world.insertResource(_:) before using Res.")
@@ -57,6 +63,10 @@ extension Res: SystemParameter {
 }
 
 extension Optional: Resource where Wrapped: Resource {
+    public static var resourceIdentifier: ObjectIdentifier {
+        Wrapped.resourceIdentifier
+    }
+
     public static func getFromWorld(_ world: borrowing World) -> Optional<Wrapped>? {
         world.getResource(Wrapped.self)
     }
@@ -115,6 +125,12 @@ public final class ResMut<T: Resource>: @unchecked Sendable {
 }
 
 extension ResMut: SystemParameter {
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addResourceWrite(T.self)
+        return access
+    }
+
     public func update(from world: World) {
         self._value = world.getRefResource(T.self)
     }

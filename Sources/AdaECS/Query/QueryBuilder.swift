@@ -20,6 +20,8 @@ public protocol QueryBuilder: Sendable {
     /// The component states of the query builder.
     associatedtype ComponentsStates
 
+    static var access: SystemAccessSet { get }
+
     static func initState(world: World) -> ComponentsStates
 
     static func setChunk(
@@ -34,6 +36,12 @@ public protocol QueryBuilder: Sendable {
         states: ComponentsStates,
         lastTick: Tick
     ) -> ComponentsFetches
+}
+
+public extension QueryBuilder {
+    static var access: SystemAccessSet {
+        SystemAccessSet()
+    }
 }
 
 /// A protocol for building target queries.
@@ -77,6 +85,14 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Wor
     public typealias Components = (repeat each T)
     public typealias ComponentsFetches = (repeat (each T).Fetch)
     public typealias ComponentsStates = (repeat (each T).State)
+
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        for target in repeat (each T).self {
+            access.formUnion(target.access)
+        }
+        return access
+    }
 
     @inlinable
     @inline(__always)

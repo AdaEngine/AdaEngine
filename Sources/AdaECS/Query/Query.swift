@@ -134,6 +134,10 @@ extension FilterQuery  {
 }
 
 extension FilterQuery: SystemParameter {
+    public static var access: SystemAccessSet {
+        Builder.access.union(QueryBuilderTargets<F>.access)
+    }
+
     public func update(from world: World) {
         self.state.updateArchetypes(in: world)
     }

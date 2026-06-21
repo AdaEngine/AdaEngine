@@ -8,6 +8,11 @@
 
 /// A protocol that describe a query for world from a system.
 public protocol SystemParameter: Sendable {
+    /// The world access required by this parameter.
+    static var access: SystemAccessSet { get }
+
+    /// The world access required by this parameter instance.
+    var access: SystemAccessSet { get }
 
     /// Initialize a new system query.
     /// - Parameter world: The world that will be used to initialize the query.
@@ -23,6 +28,14 @@ public protocol SystemParameter: Sendable {
 }
 
 public extension SystemParameter {
+    static var access: SystemAccessSet {
+        SystemAccessSet()
+    }
+
+    var access: SystemAccessSet {
+        Self.access
+    }
+
     func update(from world: World) {
         fatalError("Query should be implemented")
     }

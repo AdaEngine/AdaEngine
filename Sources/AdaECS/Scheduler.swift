@@ -233,6 +233,14 @@ public struct DefaultSchedulerRunner: Sendable {
 public struct Scheduler: Sendable {
     public typealias RunnerBlock = (any System) -> Void
 
+    private static func defaultGraphExecutor() -> any SystemsGraphExecutor {
+        #if WASI || SINGLE_THREAD_SCHEDULER
+        return SingleThreadedSystemsGraphExecutor()
+        #else
+        return MultiThreadedSystemsGraphExecutor()
+        #endif
+    }
+
     /// The name of the scheduler.
     public let name: SchedulerName
 
@@ -240,15 +248,19 @@ public struct Scheduler: Sendable {
     public var systemGraph: SystemsGraph = SystemsGraph()
 
     /// The graph executor of the scheduler.
-    public var graphExecutor: any SystemsGraphExecutor = SingleThreadedSystemsGraphExecutor()
+    public var graphExecutor: any SystemsGraphExecutor
 
     /// The last update time of the scheduler.
     @Local private var lastUpdate: LongTimeInterval = 0
 
     /// Initialize a new scheduler.
     /// - Parameter name: The name of the scheduler.
-    public init(name: SchedulerName) {
+    public init(
+        name: SchedulerName,
+        graphExecutor: (any SystemsGraphExecutor)? = nil
+    ) {
         self.name = name
+        self.graphExecutor = graphExecutor ?? Self.defaultGraphExecutor()
     }
 
     /// Run the scheduler.
