@@ -65,6 +65,9 @@ public struct SystemAccessSet: Sendable, Equatable {
 
     /// Returns true when both access sets can run at the same time.
     public func isCompatible(with other: SystemAccessSet) -> Bool {
+        if hasDeferredWorldAccess || other.hasDeferredWorldAccess {
+            return false
+        }
         if !componentWrites.isDisjoint(with: other.componentReads) {
             return false
         }

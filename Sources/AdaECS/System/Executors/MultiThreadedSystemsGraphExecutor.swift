@@ -62,6 +62,10 @@ public struct MultiThreadedSystemsGraphExecutor: SystemsGraphExecutor {
                 return
             }
 
+            for node in batch {
+                node.queries.update(from: world)
+            }
+
             await withTaskGroup(of: Void.self) { group in
                 for node in batch {
                     group.addTask {
@@ -150,7 +154,6 @@ private func executeSystem(
     scheduler: SchedulerName
 ) async {
     await AdaTrace.span("System.execute.\(system.name)") {
-        system.queries.update(from: world)
         await system.system.update(
             context: WorldUpdateContext(
                 world: world,

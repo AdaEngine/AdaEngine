@@ -62,6 +62,34 @@ struct MultiThreadedSystemsGraphExecutorTests {
         #expect(log.values == [0, 1])
     }
 
+    @Test("commands are applied before later independent systems")
+    func commandsAreAppliedBeforeLaterIndependentSystems() async throws {
+        let world = World()
+        world.addScheduler(Scheduler(name: .multiThreadedCommandSyncTest, graphExecutor: MultiThreadedSystemsGraphExecutor()))
+        world.insertResource(CommandVisibilityLog(values: []))
+        world.addSystem(ReadSpawnedEntityAfterCommandSyncSystem.self, on: .multiThreadedCommandSyncTest)
+        world.addSystem(DeferredSpawnSystem.self, on: .multiThreadedCommandSyncTest)
+
+        await world.runScheduler(.multiThreadedCommandSyncTest)
+
+        let log = try #require(world.getResource(CommandVisibilityLog.self))
+        #expect(log.values == [1])
+    }
+
+    @Test("system query updates are prepared sequentially")
+    func systemQueryUpdatesArePreparedSequentially() async throws {
+        ConcurrentQueryUpdateProbe.reset()
+
+        let world = World()
+        world.addScheduler(Scheduler(name: .multiThreadedQueryUpdateTest, graphExecutor: MultiThreadedSystemsGraphExecutor()))
+        world.addSystem(FirstConcurrentQueryUpdateProbeSystem.self, on: .multiThreadedQueryUpdateTest)
+        world.addSystem(SecondConcurrentQueryUpdateProbeSystem.self, on: .multiThreadedQueryUpdateTest)
+
+        await world.runScheduler(.multiThreadedQueryUpdateTest)
+
+        #expect(!ConcurrentQueryUpdateProbe.didOverlap)
+    }
+
     @Test("conflicting systems keep the single-threaded executor order")
     func conflictingSystemsKeepSingleThreadedOrder() async throws {
         let singleThreadedLog = try await runOrderTest(with: SingleThreadedSystemsGraphExecutor())
@@ -97,6 +125,42 @@ struct CommandVisibilityLog: Resource, Equatable {
 
 struct MultiThreadedOrderLog: Resource, Equatable {
     var values: [String]
+}
+
+final class ConcurrentQueryUpdateProbe: @unchecked Sendable, SystemParameter {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var activeUpdateCount = 0
+    nonisolated(unsafe) private static var _didOverlap = false
+
+    static var didOverlap: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _didOverlap
+    }
+
+    static func reset() {
+        lock.lock()
+        defer { lock.unlock() }
+        activeUpdateCount = 0
+        _didOverlap = false
+    }
+
+    init(from world: World) {}
+
+    func update(from world: World) {
+        Self.lock.lock()
+        Self.activeUpdateCount += 1
+        if Self.activeUpdateCount > 1 {
+            Self._didOverlap = true
+        }
+        Self.lock.unlock()
+
+        Thread.sleep(forTimeInterval: 0.02)
+
+        Self.lock.lock()
+        Self.activeUpdateCount -= 1
+        Self.lock.unlock()
+    }
 }
 
 @PlainSystem
@@ -145,6 +209,49 @@ struct ReadAfterCommandsAreAppliedSystem {
     }
 }
 
+struct FirstConcurrentQueryUpdateProbeSystem: System {
+    private let probe: ConcurrentQueryUpdateProbe
+
+    init(world: World) {
+        self.probe = ConcurrentQueryUpdateProbe(from: world)
+    }
+
+    var queries: SystemQueries {
+        SystemQueries(queries: [probe])
+    }
+
+    func update(context: UpdateContext) async {}
+}
+
+struct SecondConcurrentQueryUpdateProbeSystem: System {
+    private let probe: ConcurrentQueryUpdateProbe
+
+    init(world: World) {
+        self.probe = ConcurrentQueryUpdateProbe(from: world)
+    }
+
+    var queries: SystemQueries {
+        SystemQueries(queries: [probe])
+    }
+
+    func update(context: UpdateContext) async {}
+}
+
+@PlainSystem
+struct ReadSpawnedEntityAfterCommandSyncSystem {
+    @Query<MultiThreadedPosition>
+    private var query
+
+    @ResMut
+    private var log: CommandVisibilityLog
+
+    init(world: World) {}
+
+    func update(context: UpdateContext) {
+        log.values.append(query.count)
+    }
+}
+
 @PlainSystem
 struct FirstConflictingOrderSystem {
     @ResMut
@@ -172,4 +279,6 @@ struct SecondConflictingOrderSystem {
 private extension SchedulerName {
     static let multiThreadedTest: SchedulerName = "MultiThreadedTest"
     static let multiThreadedOrderTest: SchedulerName = "MultiThreadedOrderTest"
+    static let multiThreadedCommandSyncTest: SchedulerName = "MultiThreadedCommandSyncTest"
+    static let multiThreadedQueryUpdateTest: SchedulerName = "MultiThreadedQueryUpdateTest"
 }

@@ -25,7 +25,7 @@ public struct TextPlugin: Plugin {
             .registerRequiredComponent(TextLayoutComponent.self, for: TextComponent.self) {
                 TextLayoutComponent(textLayout: TextLayoutManager())
             }
-            .addSystem(TextLayoutSystem.self, on: .update)
+            .addSystem(TextLayoutSystem.self, on: .postUpdate)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -52,12 +52,12 @@ public struct TextPipeline: RenderPipelineConfigurator {
         piplineDesc.backfaceCulling = false
 
         piplineDesc.vertexDescriptor.attributes.append([
-            .attribute(.vector4, name: "position"),
-            .attribute(.vector4, name: "foregroundColor"),
-            .attribute(.vector4, name: "outlineColor"),
-            .attribute(.float, name: "outlineWidth"),
-            .attribute(.vector2, name: "textureCoordinate"),
-            .attribute(.int, name: "textureIndex")
+            .attribute(.vector4, name: "a_Position"),
+            .attribute(.vector4, name: "a_ForegroundColor"),
+            .attribute(.vector4, name: "a_OutlineColor"),
+            .attribute(.float, name: "a_OutlineWidth"),
+            .attribute(.vector2, name: "a_TexCoordinate"),
+            .attribute(.int, name: "a_TextureIndex")
         ])
 
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<GlyphVertexData>.stride
