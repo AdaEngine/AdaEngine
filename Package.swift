@@ -513,6 +513,7 @@ var targets: [Target] = [
             "AdaECS",
             "Math",
             "box2d",
+            "box3d",
             "AdaRender",
             "AdaCorePipelines"
         ],
@@ -696,6 +697,33 @@ targets += [
         publicHeadersPath: "include",
         cSettings: [
             .unsafeFlags(["-w"])
+        ]
+    ),
+
+    // Box3d
+
+    .target(
+        name: "box3d",
+        exclude: [
+            ".github",
+            "benchmark",
+            "data",
+            "docs",
+            "extern",
+            "samples",
+            "shared",
+            "test",
+            "build.sh",
+            "build_vs2026.bat",
+            "CMakeLists.txt",
+            "CMakePresets.json",
+            "deploy_docs.sh",
+            "LICENSE",
+            "README.md"
+        ],
+        publicHeadersPath: "include",
+        cSettings: [
+            .unsafeFlags(["-w", "-std=c17"])
         ]
     ),
 
@@ -1300,6 +1328,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "SimpleCollideEventExample", path: "Events"),
 
     // MARK: 3D
+    .exampleTarget(name: "Box3DPhysicsExample", path: "3d"),
     .exampleTarget(name: "SimpleCubeExample", path: "3d"),
 ]
 

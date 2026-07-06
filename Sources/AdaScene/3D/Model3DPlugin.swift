@@ -7,6 +7,7 @@
 
 import AdaApp
 import AdaECS
+import AdaCorePipelines
 @_spi(Internal) import AdaRender
 import AdaTransform
 import Math
@@ -25,6 +26,7 @@ public struct Model3DPlugin: Plugin {
         
         renderWorld
             .insertResource(RenderItems<Opaque3DRenderItem>())
+            .insertResource(RenderPipelines(configurator: Flat3DPipeline()))
             .insertResource(Model3DDrawPass())
             .addSystem(ExtractModel3DSystem.self, on: .extract)
             .addSystem(ClearOpaque3DRenderItemsSystem.self, on: .preUpdate)
@@ -76,6 +78,29 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
         view: Entity,
         item: Opaque3DRenderItem
     ) throws {
-        // FIXME: (Vlad) Implement 3D rendering
+        let part = item.mesh.models[item.modelIndex].parts[item.partIndex]
+        let renderDevice = world.getResource(RenderDeviceHandler.self)?.renderDevice
+        guard let renderDevice else {
+            return
+        }
+
+        let pipelines = world.getRefResource(RenderPipelines<Flat3DPipeline>.self)
+        let pipeline = pipelines.wrappedValue.pipeline(for: part.vertexDescriptor, device: renderDevice)
+        let materialColor = (item.material as? PBRMaterial)?.baseColorFactor ?? .one
+        let modelUniform = Flat3DModelUniform(
+            modelMatrix: item.worldTransform,
+            color: materialColor
+        )
+
+        renderEncoder.setRenderPipelineState(pipeline)
+        renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
+        renderEncoder.setVertexBuffer(modelUniform, slot: 3)
+        renderEncoder.setIndexBuffer(part.indexBuffer, offset: 0)
+        renderEncoder.drawIndexed(indexCount: part.indexCount, indexBufferOffset: 0, instanceCount: 1)
     }
+}
+
+private struct Flat3DModelUniform: Sendable {
+    let modelMatrix: Transform3D
+    let color: Vector4
 }

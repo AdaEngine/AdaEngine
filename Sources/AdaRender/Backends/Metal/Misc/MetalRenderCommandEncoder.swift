@@ -35,6 +35,7 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
             fatalError("RenderPipeline is not a MetalRenderPipeline")
         }
         renderEncoder.setRenderPipelineState(metalPipeline.renderPipeline)
+        renderEncoder.setDepthStencilState(metalPipeline.depthStencilState)
         currentPrimitiveType = metalPipeline.descriptor.primitive.toMetal
     }
 

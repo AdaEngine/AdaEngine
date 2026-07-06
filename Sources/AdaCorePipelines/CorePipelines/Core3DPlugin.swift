@@ -35,19 +35,19 @@ public struct Core3DPlugin: Plugin {
             RenderSlot(name: InputNode.view, kind: .entity)
         ])
 
-        // graph.addNode(EmptyNode(), by: .Main3D.beginPass)
-        // graph.addNode(Main3DRenderNode())
-        // graph.addNode(EmptyNode(), by: .Main3D.endPass)
+        graph.addNode(EmptyNode(), by: .Main3D.beginPass)
+        graph.addNode(Main3DRenderNode())
+        graph.addNode(EmptyNode(), by: .Main3D.endPass)
 
-        // graph.addSlotEdge(
-        //     fromNode: entryNode,
-        //     outputSlot: InputNode.view,
-        //     toNode: Main3DRenderNode.name,
-        //     inputSlot: Main3DRenderNode.InputNode.view
-        // )
+        graph.addSlotEdge(
+            fromNode: entryNode,
+            outputSlot: InputNode.view,
+            toNode: Main3DRenderNode.name,
+            inputSlot: Main3DRenderNode.InputNode.view
+        )
 
-        // graph.addNodeEdge(from: RenderNodeLabel.Main3D.beginPass, to: Main3DRenderNode.name)
-        // graph.addNodeEdge(from: Main3DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
+        graph.addNodeEdge(from: RenderNodeLabel.Main3D.beginPass, to: Main3DRenderNode.name)
+        graph.addNodeEdge(from: Main3DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
 
         app
             .getRefResource(RenderGraph.self)
