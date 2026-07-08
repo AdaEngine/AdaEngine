@@ -14,7 +14,7 @@ struct SimpleCubeExample: App {
             // 1. Setup Camera
             world.spawn("Camera", bundle: PerspectiveCameraBundle(
                 camera: Camera(window: .primary),
-                transform: Transform(position: [0, 2, 10])
+                transform: Transform(position: [0, 2, -10])
             ))
             .components.insert(ScriptableComponents(scripts: [FlyCamera()]))
             
@@ -51,6 +51,12 @@ final class FlyCamera: ScriptableObject, @unchecked Sendable {
     
     private var lastMousePosition: Vector2?
     private var rotation: Vector3 = .zero
+
+    private var cameraRotation: Quat {
+        let pitch = Transform3D.identity.rotate(angle: .radians(rotation.x), axis: .right)
+        let yaw = Transform3D.identity.rotate(angle: .radians(rotation.y), axis: .up)
+        return Quat(rotationMatrix: yaw * pitch)
+    }
     
     override func update(_ deltaTime: AdaUtils.TimeInterval) {
         let dt = Float(deltaTime)
@@ -58,16 +64,15 @@ final class FlyCamera: ScriptableObject, @unchecked Sendable {
         // 1. Handle Movement
         var direction: Vector3 = .zero
         
-        if input.isKeyPressed(.w) { direction.z -= 1 }
-        if input.isKeyPressed(.s) { direction.z += 1 }
+        if input.isKeyPressed(.w) { direction.z += 1 }
+        if input.isKeyPressed(.s) { direction.z -= 1 }
         if input.isKeyPressed(.a) { direction.x -= 1 }
         if input.isKeyPressed(.d) { direction.x += 1 }
         if input.isKeyPressed(.e) { direction.y += 1 }
         if input.isKeyPressed(.q) { direction.y -= 1 }
         
         if direction != .zero {
-            let rotationQuat = Quat.euler(self.rotation)
-            let rotatedDirection = (Transform3D(quat: rotationQuat) * Vector4(direction.normalized, 1)).xyz
+            let rotatedDirection = (Transform3D(quat: cameraRotation) * Vector4(direction.normalized, 1)).xyz
             cameraTransform.position += rotatedDirection * (speed * dt)
         }
         
@@ -79,12 +84,12 @@ final class FlyCamera: ScriptableObject, @unchecked Sendable {
                 let delta = currentMousePosition - lastPos
                 
                 self.rotation.y -= delta.x * sensitivity * dt
-                self.rotation.x -= delta.y * sensitivity * dt
+                self.rotation.x += delta.y * sensitivity * dt
                 
                 // Clamp pitch
                 self.rotation.x = clamp(self.rotation.x, -1.5, 1.5)
                 
-                cameraTransform.rotation = Quat.euler(self.rotation)
+                cameraTransform.rotation = cameraRotation
             }
             
             lastMousePosition = currentMousePosition

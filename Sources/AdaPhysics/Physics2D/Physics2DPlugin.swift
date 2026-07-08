@@ -33,8 +33,9 @@ public struct Physics2DPlugin: Plugin {
                 )
             )
             .insertResource(PhysicsDebugOptions())
-            .addSystem(Physics2DSyncSystem.self, on: .postUpdate)
-            .addSystem(Physics2DUpdateSystem.self, on: .fixedUpdate)
+            .addSystem(Physics2DSyncSystem.self, on: .physicsSync)
+            .addSystem(Physics2DUpdateSystem.self, on: .physicsStep)
+            .addSystem(Physics2DWritebackSystem.self, on: .physicsWriteback)
             .addSystem(PhysicsEventProxySystem.self, on: .startup)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {

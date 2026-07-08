@@ -38,7 +38,7 @@ struct Physics3DTests {
             Transform(position: [0, 4, 0])
         }
 
-        try await world.update()
+        await world.main.runScheduler(.physicsSync)
 
         let runtimeBody = try #require(box.components[PhysicsBody3DComponent.self]?.runtimeBody)
         let startY = try #require(box.components[Transform.self]?.position.y)
@@ -47,7 +47,7 @@ struct Physics3DTests {
         for _ in 0..<60 {
             physicsWorld.updateSimulation(1.0 / 60.0)
         }
-        await world.main.runScheduler(.postUpdate)
+        await world.main.runScheduler(.physicsWriteback)
 
         let endY = try #require(box.components[Transform.self]?.position.y)
 

@@ -10,12 +10,20 @@ import Math
 import Metal
 
 final class MetalRenderCommandEncoder: RenderCommandEncoder {
-
     let renderEncoder: MTLRenderCommandEncoder
     private let device: MTLDevice
     private var currentIndexBuffer: MTLBuffer?
     private var currentIndexType: MTLIndexType = .uint32
     private var currentPrimitiveType: MTLPrimitiveType = .triangle
+    private lazy var defaultDepthStencilState: MTLDepthStencilState = {
+        let descriptor = MTLDepthStencilDescriptor()
+        descriptor.depthCompareFunction = .always
+        descriptor.isDepthWriteEnabled = false
+        guard let state = device.makeDepthStencilState(descriptor: descriptor) else {
+            fatalError("Failed to create default Metal depth stencil state.")
+        }
+        return state
+    }()
 
     init(renderEncoder: MTLRenderCommandEncoder, device: MTLDevice) {
         self.renderEncoder = renderEncoder
@@ -35,7 +43,7 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
             fatalError("RenderPipeline is not a MetalRenderPipeline")
         }
         renderEncoder.setRenderPipelineState(metalPipeline.renderPipeline)
-        renderEncoder.setDepthStencilState(metalPipeline.depthStencilState)
+        renderEncoder.setDepthStencilState(metalPipeline.depthStencilState ?? defaultDepthStencilState)
         currentPrimitiveType = metalPipeline.descriptor.primitive.toMetal
     }
 

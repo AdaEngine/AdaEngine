@@ -29,15 +29,7 @@ public struct Model3DPlugin: Plugin {
             .insertResource(RenderPipelines(configurator: Flat3DPipeline()))
             .insertResource(Model3DDrawPass())
             .addSystem(ExtractModel3DSystem.self, on: .extract)
-            .addSystem(ClearOpaque3DRenderItemsSystem.self, on: .preUpdate)
     }
-}
-
-@System
-func ClearOpaque3DRenderItems(
-    _ renderItems: ResMut<RenderItems<Opaque3DRenderItem>>
-) {
-    renderItems.items.removeAll(keepingCapacity: true)
 }
 
 @System
@@ -46,6 +38,8 @@ func ExtractModel3D(
     _ renderItems: ResMut<RenderItems<Opaque3DRenderItem>>,
     _ drawPass: Res<Model3DDrawPass>
 ) {
+    renderItems.items.removeAll(keepingCapacity: true)
+
     query.wrappedValue.forEach { entity, mesh3d, transform in
         let mesh = mesh3d.mesh
         for (modelIndex, model) in mesh.models.enumerated() {

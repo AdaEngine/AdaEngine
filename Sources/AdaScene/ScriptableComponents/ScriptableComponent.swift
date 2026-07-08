@@ -68,6 +68,11 @@ open class ScriptableObject: @unchecked Sendable {
     /// Returns entity where ScriptableObject attached.
     public internal(set) weak var entity: Entity?
 
+    /// Returns ECS world where object attached.
+    public var world: World? {
+        self.entity?.world
+    }
+
     /// Contains input manager for handling events.
     public var input: Input {
         _read {

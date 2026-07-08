@@ -53,6 +53,11 @@ public final class Body3D: @unchecked Sendable {
         }
     }
 
+    var massData: b3MassData {
+        get { b3Body_GetMassData(bodyId) }
+        set { b3Body_SetMassData(bodyId, newValue) }
+    }
+
     func getPosition() -> Vector3 {
         b3Body_GetPosition(bodyId).asVector3
     }

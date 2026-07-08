@@ -11,7 +11,10 @@ struct Box3DPhysicsExample: App {
             let world = World()
             return Scene(from: world)
         }
-        .addPlugins(DefaultPlugins().set(Physics3DPlugin()).set(Box3DPhysicsDemoPlugin()))
+        .addPlugins(DefaultPlugins()
+            .set(Physics3DPlugin())
+            .set(Box3DPhysicsDemoPlugin())
+        )
         .windowMode(.windowed)
     }
 
@@ -119,8 +122,8 @@ func Box3DPhysicsDemoSetup(_ commands: Commands) {
         PerspectiveCameraBundle(
             camera: Camera(window: .primary),
             transform: Transform(
-                rotation: Quat.euler([-0.35, 0, 0]),
-                position: [0, 5, 14]
+                rotation: Quat.euler([0.35, 0, 0]),
+                position: [0, 5, -14]
             )
         )
     )
@@ -192,22 +195,30 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
     var sensitivity: Float = 5.0
 
     private var lastMousePosition: Vector2?
-    private var rotation: Vector3 = [-0.35, 0, 0]
+    private var rotation: Vector3 = [0.35, 0, 0]
+
+    private var cameraRotation: Quat {
+        let pitch = Transform3D.identity.rotate(angle: .radians(rotation.x), axis: .right)
+        let yaw = Transform3D.identity.rotate(angle: .radians(rotation.y), axis: .up)
+        return Quat(rotationMatrix: yaw * pitch)
+    }
 
     override func update(_ deltaTime: AdaUtils.TimeInterval) {
         let dt = Float(deltaTime)
         var direction: Vector3 = .zero
 
-        if input.isKeyPressed(.w) { direction.z -= 1 }
-        if input.isKeyPressed(.s) { direction.z += 1 }
+        if input.isKeyPressed(.w) { direction.z += 1 }
+        if input.isKeyPressed(.s) { direction.z -= 1 }
         if input.isKeyPressed(.a) { direction.x -= 1 }
         if input.isKeyPressed(.d) { direction.x += 1 }
         if input.isKeyPressed(.e) { direction.y += 1 }
         if input.isKeyPressed(.q) { direction.y -= 1 }
+        if input.isKeyPressed(.m) {
+            world?.getRefResource(PhysicsDebugOptions.self).wrappedValue.formUnion([.showPhysicsShapes, .showBoundingBoxes])
+        }
 
         if direction != .zero {
-            let rotationQuat = Quat.euler(self.rotation)
-            let rotatedDirection = (Transform3D(quat: rotationQuat) * Vector4(direction.normalized, 1)).xyz
+            let rotatedDirection = (Transform3D(quat: cameraRotation) * Vector4(direction.normalized, 1)).xyz
             cameraTransform.position += rotatedDirection * (speed * dt)
         }
 
@@ -216,10 +227,9 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
 
             if let lastMousePosition {
                 let delta = currentMousePosition - lastMousePosition
-                self.rotation.y -= delta.x * sensitivity * dt
-                self.rotation.x -= delta.y * sensitivity * dt
-                self.rotation.x = clamp(self.rotation.x, -1.5, 1.5)
-                cameraTransform.rotation = Quat.euler(self.rotation)
+                self.rotation.y += delta.x * sensitivity * dt
+                self.rotation.x += delta.y * sensitivity * dt
+                cameraTransform.rotation = cameraRotation
             }
 
             lastMousePosition = currentMousePosition

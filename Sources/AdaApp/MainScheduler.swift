@@ -32,6 +32,9 @@ package struct MainSchedulerPlugin: Plugin {
 
             // Fixed
             .fixedPreUpdate,
+            .physicsSync,
+            .physicsStep,
+            .physicsWriteback,
             .fixedUpdate,
             .fixedPostUpdate
         )
@@ -77,6 +80,9 @@ public struct FixedTimeSchedulerSystem {
 
     let order: [SchedulerName] = [
         .fixedPreUpdate,
+        .physicsSync,
+        .physicsStep,
+        .physicsWriteback,
         .fixedUpdate,
         .fixedPostUpdate
     ]
@@ -104,6 +110,15 @@ public struct FixedTimeSchedulerSystem {
 }
 
 extension SchedulerName {
+    /// The scheduler that synchronizes ECS state into physics backends.
+    public static let physicsSync = SchedulerName(rawValue: "physicsSync")
+
+    /// The scheduler that advances physics backends.
+    public static let physicsStep = SchedulerName(rawValue: "physicsStep")
+
+    /// The scheduler that writes physics results back into ECS state.
+    public static let physicsWriteback = SchedulerName(rawValue: "physicsWriteback")
+
     /// The fixed pre-update scheduler.
     public static let fixedPreUpdate = SchedulerName(rawValue: "fixedPreUpdate")
 

@@ -38,6 +38,7 @@ public struct Core3DPlugin: Plugin {
         graph.addNode(EmptyNode(), by: .Main3D.beginPass)
         graph.addNode(Main3DRenderNode())
         graph.addNode(EmptyNode(), by: .Main3D.endPass)
+        graph.addNode(UpscaleNode())
 
         graph.addSlotEdge(
             fromNode: entryNode,
@@ -48,6 +49,7 @@ public struct Core3DPlugin: Plugin {
 
         graph.addNodeEdge(from: RenderNodeLabel.Main3D.beginPass, to: Main3DRenderNode.name)
         graph.addNodeEdge(from: Main3DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
+        graph.addNodeEdge(from: RenderNodeLabel.Main3D.endPass, to: UpscaleNode.name)
 
         app
             .getRefResource(RenderGraph.self)

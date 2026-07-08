@@ -34,12 +34,12 @@ public struct Physics3DSyncSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        self.updatePhysicsBodyEntities(in: physicsWorld.world)
+        self.syncPhysicsBodyEntities(in: physicsWorld.world)
     }
 
     // MARK: - Private
 
-    private func updatePhysicsBodyEntities(in world: PhysicsWorld3D) {
+    private func syncPhysicsBodyEntities(in world: PhysicsWorld3D) {
         self.physicsBodyQuery.forEach { entity, physicsBody, transform in
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
@@ -47,10 +47,11 @@ public struct Physics3DSyncSystem: Sendable {
                         position: transform.position,
                         rotation: transform.rotation
                     )
-                } else {
-                    transform.position = body.getPosition()
-                    transform.rotation = body.getRotation()
                 }
+
+                var massData = body.massData
+                massData.mass = physicsBody.massProperties.mass
+                body.massData = massData
             } else {
                 var def = b3DefaultBodyDef()
                 def.position = transform.position.b3Vec
@@ -75,7 +76,35 @@ public struct Physics3DSyncSystem: Sendable {
                         shapeDef: shapeDef
                     )
                 }
+
+                var massData = body.massData
+                massData.mass = physicsBody.massProperties.mass
+                body.massData = massData
             }
+        }
+    }
+}
+
+/// A system for writing back simulated 3D physics state into scene components.
+@PlainSystem
+public struct Physics3DWritebackSystem: Sendable {
+
+    @Query<Entity, Ref<PhysicsBody3DComponent>, Ref<Transform>>
+    private var physicsBodyQuery
+
+    public init(world: World) { }
+
+    public func update(context: UpdateContext) {
+        physicsBodyQuery.forEach { _, physicsBody, transform in
+            guard
+                physicsBody.mode != .static,
+                let body = physicsBody.runtimeBody
+            else {
+                return
+            }
+
+            transform.position = body.getPosition()
+            transform.rotation = body.getRotation()
         }
     }
 }

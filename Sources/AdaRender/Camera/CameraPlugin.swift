@@ -53,7 +53,7 @@ public struct RenderViewTarget: @unchecked Sendable {
 
     public init() {}
 
-    fileprivate var cacheableCopy: RenderViewTarget {
+    fileprivate var cacheableCopy: Self {
         var copy = self
         copy.outputTexture = nil
         return copy
