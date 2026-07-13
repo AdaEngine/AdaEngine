@@ -38,6 +38,28 @@ layout (binding = 4) uniform Environment3DUniform {
 
 const float PI = 3.14159265359;
 
+vec3 srgbToLinear(vec3 value) {
+    return mix(value / 12.92, pow((value + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), value));
+}
+
+vec3 linearToSrgb(vec3 value) {
+    value = max(value, vec3(0.0));
+    return mix(value * 12.92, 1.055 * pow(value, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), value));
+}
+
+vec3 acesToneMap(vec3 value) {
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+    return clamp((value * (a * value + b)) / (value * (c * value + d) + e), 0.0, 1.0);
+}
+
+vec3 presentColor(vec3 linearColor) {
+    return linearToSrgb(acesToneMap(linearColor));
+}
+
 vec3 proceduralSky(vec3 direction) {
     float height = clamp(direction.y, -1.0, 1.0);
     float horizonBlend = pow(abs(height), 0.55);
@@ -47,7 +69,7 @@ vec3 proceduralSky(vec3 direction) {
 
 vec3 sampleSky(vec3 viewDirection) {
     if (u_EnvironmentFlags.x < 0.5) {
-        return u_ClearColor.rgb;
+        return srgbToLinear(u_ClearColor.rgb);
     }
     vec3 worldDirection = normalize((u_InverseView * vec4(viewDirection, 0.0)).xyz);
     if (u_EnvironmentFlags.y > 0.5) {
@@ -55,9 +77,10 @@ vec3 sampleSky(vec3 viewDirection) {
             atan(worldDirection.z, worldDirection.x) / (2.0 * PI) + 0.5,
             asin(clamp(worldDirection.y, -1.0, 1.0)) / PI + 0.5
         );
-        return texture(sampler2D(u_EnvironmentTexture, u_LinearSampler), uv).rgb * u_EnvironmentFlags.z;
+        vec3 textureColor = texture(sampler2D(u_EnvironmentTexture, u_LinearSampler), uv).rgb;
+        return srgbToLinear(textureColor) * u_EnvironmentFlags.z;
     }
-    return proceduralSky(worldDirection);
+    return srgbToLinear(proceduralSky(worldDirection)) * u_EnvironmentFlags.z;
 }
 
 float edgeVisibility(vec2 uv) {
@@ -117,7 +140,7 @@ void ssr_fragment() {
         vec2 ndc = vec2(v_UV.x * 2.0 - 1.0, 1.0 - v_UV.y * 2.0);
         vec4 viewFar = u_InverseProjection * vec4(ndc, 1.0, 1.0);
         vec3 viewRay = normalize(viewFar.xyz / viewFar.w);
-        o_Color = vec4(sampleSky(viewRay), 1.0);
+        o_Color = vec4(presentColor(sampleSky(viewRay)), 1.0);
         return;
     }
 
@@ -144,5 +167,5 @@ void ssr_fragment() {
     reflectivity *= (1.0 - roughness * 0.7) * u_ReflectionQuality.y;
     vec3 ambient = sampleSky(normal) * (0.035 + 0.035 * (1.0 - roughness));
     vec3 reflectionResult = mix(environment, reflectedColor, visibility);
-    o_Color = vec4(baseColor + ambient + reflectionResult * reflectivity, 1.0);
+    o_Color = vec4(presentColor(baseColor + ambient + reflectionResult * reflectivity), 1.0);
 }

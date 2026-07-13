@@ -335,6 +335,8 @@ private extension MeshDescriptor.Identifier {
             return 2
         case .colors:
             return 3
+        case .tangents:
+            return 4
         default:
             return nil
         }

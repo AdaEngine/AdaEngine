@@ -6,10 +6,11 @@
 //
 
 import AdaApp
-import AdaECS
 import AdaCorePipelines
+import AdaECS
 @_spi(Internal) import AdaRender
 import AdaTransform
+import AdaUtils
 import Math
 
 /// Plugin for extracting 3D models from scene to RenderWorld.
@@ -19,17 +20,46 @@ public struct Model3DPlugin: Plugin {
     
     public func setup(in app: AppWorlds) {
         Mesh3DComponent.registerComponent()
+        DirectionalLightComponent.registerComponent()
+        PointLightComponent.registerComponent()
+        SpotLightComponent.registerComponent()
         
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
         
         renderWorld
+            .insertResource(ExtractedLighting3D())
             .insertResource(RenderItems<Opaque3DRenderItem>())
             .insertResource(Opaque3DInstanceBuffers())
             .insertResource(RenderPipelines(configurator: Flat3DPipeline()))
             .insertResource(Model3DDrawPass())
+            .addSystem(ExtractDirectionalLight3DSystem.self, on: .extract)
             .addSystem(ExtractModel3DSystem.self, on: .extract)
+    }
+}
+
+@System
+func ExtractDirectionalLight3D(
+    _ query: Extract<Query<Entity, DirectionalLightComponent, GlobalTransform>>,
+    _ extracted: ResMut<ExtractedLighting3D>
+) {
+    extracted.directionalLight = nil
+    query.wrappedValue.forEach { _, light, transform in
+        guard extracted.directionalLight == nil, light.intensity > 0 else {
+            return
+        }
+
+        let rayDirection = transform.matrix.z.xyz.normalized
+        extracted.directionalLight = ExtractedDirectionalLight3D(
+            directionToLight: -rayDirection,
+            radiance: light.radiance,
+            intensity: light.intensity,
+            castsShadows: light.castShadows,
+            shadowDistance: light.shadowDistance,
+            shadowBias: light.shadowBias,
+            shadowSlopeBias: light.shadowSlopeBias
+        )
     }
 }
 
@@ -54,6 +84,12 @@ func ExtractModel3D(
             for (partIndex, part) in model.parts.enumerated() {
                 let material = mesh3d.materials[part.materialIndex]
                 let pbrMaterial = material as? PBRMaterial
+                let hasTextureCoordinates = part.vertexDescriptor.attributes.containsAttribute(
+                    by: MeshDescriptor.textureCoordinates.id.name
+                )
+                let hasTangents = part.vertexDescriptor.attributes.containsAttribute(
+                    by: MeshDescriptor.tangents.id.name
+                )
                 let instanceIndex = instances.append(
                     Flat3DInstanceData(
                         modelMatrix: transform.matrix,
@@ -63,6 +99,12 @@ func ExtractModel3D(
                             pbrMaterial?.metallicFactor ?? 0,
                             0,
                             0
+                        ),
+                        textureFlags: Vector4(
+                            hasTextureCoordinates && pbrMaterial?.baseColorTexture != nil ? 1 : 0,
+                            hasTextureCoordinates && pbrMaterial?.metallicRoughnessTexture != nil ? 1 : 0,
+                            hasTextureCoordinates && pbrMaterial?.normalTexture != nil ? 1 : 0,
+                            hasTangents ? 1 : 0
                         )
                     )
                 )
@@ -99,6 +141,10 @@ func ExtractModel3D(
 }
 
 public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
+    private static let flatNormalTexture = Texture2D(
+        image: Image(width: 1, height: 1, color: Color(red: 0.5, green: 0.5, blue: 1))
+    )
+
     public init() {}
     
     public func render(
@@ -117,18 +163,39 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
         let pipeline = pipelines.wrappedValue.pipeline(for: part.vertexDescriptor, device: renderDevice)
         guard
             let batchRange = item.batchRange,
-            let instances = world.getResource(Opaque3DInstanceBuffers.self)?.currentBuffer
+            let instanceBuffers = world.getResource(Opaque3DInstanceBuffers.self),
+            let instances = instanceBuffers.currentBuffer,
+            let defaultVertexData = instanceBuffers.defaultVertexBuffer
         else {
             return
         }
 
+        let pbrMaterial = item.material as? PBRMaterial
+        let baseColorTexture = pbrMaterial?.baseColorTexture ?? Texture2D.whiteTexture
+        let metallicRoughnessTexture = pbrMaterial?.metallicRoughnessTexture ?? Texture2D.whiteTexture
+        let normalTexture = pbrMaterial?.normalTexture ?? Self.flatNormalTexture
+
         renderEncoder.setRenderPipelineState(pipeline)
+        renderEncoder.setResourceSet(
+            RenderResourceSet(
+                bindings: [
+                    .init(binding: 4, shaderStages: .fragment, resource: .texture(baseColorTexture)),
+                    .init(binding: 5, shaderStages: .fragment, resource: .texture(metallicRoughnessTexture)),
+                    .init(binding: 6, shaderStages: .fragment, resource: .texture(normalTexture)),
+                    .init(binding: 7, shaderStages: .fragment, resource: .sampler(baseColorTexture.sampler)),
+                    .init(binding: 8, shaderStages: .fragment, resource: .sampler(metallicRoughnessTexture.sampler)),
+                    .init(binding: 9, shaderStages: .fragment, resource: .sampler(normalTexture.sampler))
+                ]
+            ),
+            index: 0
+        )
         renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
         renderEncoder.setVertexBuffer(
             instances,
             offset: Int(batchRange.lowerBound) * MemoryLayout<Flat3DInstanceData>.stride,
             slot: 3
         )
+        renderEncoder.setVertexBuffer(defaultVertexData, offset: 0, slot: 4)
         renderEncoder.setIndexBuffer(part.indexBuffer, offset: 0)
         renderEncoder.drawIndexed(
             indexCount: part.indexCount,
@@ -147,55 +214,5 @@ private struct Opaque3DBatchKey: Equatable {
         self.vertexBuffer = ObjectIdentifier(part.vertexBuffer)
         self.indexBuffer = ObjectIdentifier(part.indexBuffer)
         self.material = ObjectIdentifier(material)
-    }
-}
-
-struct Opaque3DInstanceBuffers: Resource {
-    private var buffers: [(any Buffer)?]
-    private var instances: [Flat3DInstanceData]
-    private var currentIndex: Int
-
-    init() {
-        let bufferCount = max(1, unsafe RenderEngine.configurations.maxFramesInFlight)
-        self.buffers = Array(repeating: nil, count: bufferCount)
-        self.instances = []
-        self.currentIndex = bufferCount - 1
-    }
-
-    var currentBuffer: BufferData<Flat3DInstanceData>? {
-        guard let buffer = buffers[currentIndex] else {
-            return nil
-        }
-
-        var data = BufferData<Flat3DInstanceData>(elements: [])
-        data.buffer = buffer
-        return data
-    }
-
-    mutating func beginFrame() {
-        currentIndex = (currentIndex + 1) % buffers.count
-        instances.removeAll(keepingCapacity: true)
-    }
-
-    mutating func append(_ instance: Flat3DInstanceData) -> Int32 {
-        let index = Int32(instances.count)
-        instances.append(instance)
-        return index
-    }
-
-    mutating func write(to renderDevice: RenderDevice) {
-        guard !instances.isEmpty else {
-            return
-        }
-
-        let requiredLength = instances.count * MemoryLayout<Flat3DInstanceData>.stride
-        if buffers[currentIndex]?.length ?? 0 < requiredLength {
-            buffers[currentIndex] = renderDevice.createBuffer(
-                label: "Opaque 3D Instances \(currentIndex)",
-                length: requiredLength,
-                options: .storageShared
-            )
-        }
-        buffers[currentIndex]?.setElements(&instances)
     }
 }

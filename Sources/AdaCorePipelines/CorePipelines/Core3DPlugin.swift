@@ -6,12 +6,11 @@
 //
 
 import AdaApp
-import AdaECS
-import AdaUtils
-import AdaRender
-import AdaTransform
-import Math
 import AdaAssets
+import AdaECS
+import AdaRender
+import AdaUtils
+import Math
 
 /// Plugin for RenderWorld added 3D render capatibilites.
 public struct Core3DPlugin: Plugin {
@@ -42,6 +41,7 @@ public struct Core3DPlugin: Plugin {
         ])
 
         graph.addNode(EmptyNode(), by: .Main3D.beginPass)
+        graph.addNode(DirectionalShadow3DRenderNode())
         graph.addNode(Main3DRenderNode())
         graph.addNode(ScreenSpaceReflectionRenderNode())
         graph.addNode(EmptyNode(), by: .Main3D.endPass)
@@ -54,13 +54,19 @@ public struct Core3DPlugin: Plugin {
             inputSlot: Main3DRenderNode.InputNode.view
         )
 
-        graph.addNodeEdge(from: RenderNodeLabel.Main3D.beginPass, to: Main3DRenderNode.name)
+        graph.addNodeEdge(from: RenderNodeLabel.Main3D.beginPass, to: DirectionalShadow3DRenderNode.name)
+        graph.addNodeEdge(from: DirectionalShadow3DRenderNode.name, to: Main3DRenderNode.name)
         graph.addNodeEdge(from: Main3DRenderNode.name, to: ScreenSpaceReflectionRenderNode.name)
         graph.addNodeEdge(from: ScreenSpaceReflectionRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
         graph.addNodeEdge(from: RenderNodeLabel.Main3D.endPass, to: UpscaleNode.name)
 
         app
             .insertResource(ExtractedEnvironment3D())
+            .insertResource(ExtractedLighting3D())
+            .insertResource(Lighting3DGPUScratch())
+            .insertResource(DirectionalShadow3D())
+            .insertResource(DirectionalShadow3DScratch())
+            .insertResource(RenderPipelines(configurator: DirectionalShadow3DPipeline()))
             .insertResource(ScreenSpaceReflectionPipeline(device: renderDevice))
             .insertResource(ScreenSpaceReflectionScratch())
             .addSystem(ExtractEnvironment3DSystem.self, on: .extract)

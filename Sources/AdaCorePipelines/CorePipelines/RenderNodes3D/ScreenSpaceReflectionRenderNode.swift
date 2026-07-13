@@ -63,9 +63,9 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                 projection: viewUniform.projectionMatrix,
                 inverseProjection: viewUniform.projectionMatrix.inverse,
                 inverseView: viewUniform.viewMatrix.inverse,
-                zenithColor: skybox.zenithColor.asVector * skyIntensity,
-                horizonColor: skybox.horizonColor.asVector * skyIntensity,
-                groundColor: skybox.groundColor.asVector * skyIntensity,
+                zenithColor: skybox.zenithColor.asVector,
+                horizonColor: skybox.horizonColor.asVector,
+                groundColor: skybox.groundColor.asVector,
                 clearColor: camera.backgroundColor.asVector,
                 reflection: Vector4(
                     reflection.isEnabled ? 1 : 0,

@@ -5,54 +5,18 @@
 //  Created by v.prusakov on 04/21/26.
 //
 
-import Math
 import AdaAssets
 import AdaUtils
+import Math
 
 /// A material that uses Physically Based Rendering (PBR) to define its appearance.
 public class PBRMaterial: Material, @unchecked Sendable {
-    
-    public var baseColorFactor: Vector4 {
-        get { self.getValue(for: "u_BaseColorFactor", type: Vector4.self) ?? .one }
-        set { self.setValue(newValue, for: "u_BaseColorFactor") }
-    }
-    
-    public var baseColorTexture: Texture2D? {
-        get { self.getTexture(for: "u_BaseColorTexture")?.texture as? Texture2D }
-        set { 
-            if let newValue {
-                self.setTexture(MaterialTexture(texture: newValue, samplerName: "default"), for: "u_BaseColorTexture")
-            }
-        }
-    }
-    
-    public var metallicFactor: Float {
-        get { self.getValue(for: "u_MetallicFactor", type: Float.self) ?? 1.0 }
-        set { self.setValue(newValue, for: "u_MetallicFactor") }
-    }
-    
-    public var roughnessFactor: Float {
-        get { self.getValue(for: "u_RoughnessFactor", type: Float.self) ?? 1.0 }
-        set { self.setValue(newValue, for: "u_RoughnessFactor") }
-    }
-    
-    public var metallicRoughnessTexture: Texture2D? {
-        get { self.getTexture(for: "u_MetallicRoughnessTexture")?.texture as? Texture2D }
-        set { 
-            if let newValue {
-                self.setTexture(MaterialTexture(texture: newValue, samplerName: "default"), for: "u_MetallicRoughnessTexture")
-            }
-        }
-    }
-    
-    public var normalTexture: Texture2D? {
-        get { self.getTexture(for: "u_NormalTexture")?.texture as? Texture2D }
-        set { 
-            if let newValue {
-                self.setTexture(MaterialTexture(texture: newValue, samplerName: "default"), for: "u_NormalTexture")
-            }
-        }
-    }
+    public var baseColorFactor: Vector4 = .one
+    public var baseColorTexture: Texture2D?
+    public var metallicFactor: Float = 1
+    public var roughnessFactor: Float = 1
+    public var metallicRoughnessTexture: Texture2D?
+    public var normalTexture: Texture2D?
     
     public init() {
         // FIXME: (Vlad) We need a way to specify the shader for PBR material.

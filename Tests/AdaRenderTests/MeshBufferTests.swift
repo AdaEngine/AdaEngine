@@ -171,6 +171,21 @@ struct MeshBufferTests {
         #expect(attributes[3].offset == MemoryLayout<Vector3>.stride)
     }
 
+    @Test func `mesh vertex descriptor keeps tangent at shader location four`() {
+        var mesh = MeshDescriptor(name: "tangent mesh")
+        mesh.positions = MeshBuffer<Vector3>([.zero])
+        mesh.normals = MeshBuffer<Vector3>([.up])
+        mesh.tangents = MeshBuffer<Vector4>([[1, 0, 0, 1]])
+
+        let attributes = Array(mesh.getMeshVertexBufferDescriptor().attributes)
+
+        #expect(attributes.count == 5)
+        #expect(attributes[2].format == .invalid)
+        #expect(attributes[3].format == .invalid)
+        #expect(attributes[4].name == MeshDescriptor.tangents.id.name)
+        #expect(attributes[4].format == .vector4)
+    }
+
     @Test func `shader reflection keeps internal uniforms in descriptor layout only`() throws {
         let source = try ShaderSource(source: """
         #version 450 core

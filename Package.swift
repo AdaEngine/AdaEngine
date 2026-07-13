@@ -1330,6 +1330,7 @@ let examplesTargets: [Target] = [
 
     // MARK: 3D
     .exampleTarget(name: "Box3DPhysicsExample", path: "3d"),
+    .exampleTarget(name: "PBRMaterialShowcaseExample", path: "3d"),
     .exampleTarget(name: "SimpleCubeExample", path: "3d"),
     .exampleTarget(name: "LargePyramidBenchmarkExample", path: "3d"),
 ]
