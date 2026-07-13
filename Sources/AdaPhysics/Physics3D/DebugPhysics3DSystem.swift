@@ -9,6 +9,7 @@ import AdaECS
 @_spi(Internal) import AdaRender
 import AdaTransform
 import Math
+import AdaUtils
 
 public struct ExtractedPhysicsDebugShapes3D: Resource {
     public var lines: [DebugLine] = []
@@ -363,8 +364,8 @@ private extension AABB {
             max
         ] {
             let transformedCorner = (transform * Vector4(corner, 1)).xyz
-            transformedMin = min(transformedMin, transformedCorner)
-            transformedMax = max(transformedMax, transformedCorner)
+            transformedMin = Math.min(transformedMin, transformedCorner)
+            transformedMax = Math.max(transformedMax, transformedCorner)
         }
 
         return AABB(min: transformedMin, max: transformedMax)

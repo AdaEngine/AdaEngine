@@ -8,6 +8,7 @@
 import AdaUtils
 import Foundation
 import Logging
+import Synchronization
 #if !WASM
 @unsafe @preconcurrency import Yams
 #endif
@@ -15,7 +16,7 @@ import Logging
 /// Contains information about shader changes and store/load spirv binary in cache folder.
 enum ShaderCache {
 
-    private typealias Cache = [String : [ShaderStage : ShaderCache]]
+    typealias Cache = [String : [ShaderStage : ShaderCache]]
     
     struct ShaderCache: Equatable, Codable {
         let sourceHashValue: Int
@@ -25,41 +26,59 @@ enum ShaderCache {
 
     private static let fileSystem = FileSystem.current
     private static let logger = Logger(label: "org.adaengine.shader-cache")
+    private static let cachedManifest = Mutex<Cache?>(nil)
 
     static func hasChanges(for source: ShaderSource, version: Int) -> Set<ShaderStage> {
-        guard let cacheKey = source.fileURL?.relativeString else {
+        changedStages(for: source, stages: source.stages, version: version)
+    }
+
+    static func hasChanges(for source: ShaderSource, stage: ShaderStage, version: Int) -> Bool {
+        changedStages(for: source, stages: [stage], version: version).contains(stage)
+    }
+
+    private static func changedStages(
+        for source: ShaderSource,
+        stages: [ShaderStage],
+        version: Int
+    ) -> Set<ShaderStage> {
+        guard let fileURL = source.fileURL else {
             return []
         }
-        
-        var cacheData = self.getCacheData()
-        let cache = cacheData[cacheKey]
-        
-        var changedValues: Set<ShaderStage> = []
+        let cacheKey = fileURL.prepareCachePath
 
-        for stage in source.stages {
-            guard let shaderSource = source.getSource(for: stage) else {
-                continue
+        return cachedManifest.withLock { cacheData in
+            if cacheData == nil {
+                cacheData = self.loadCacheData()
             }
-            
-            let shaderCache = ShaderCache(
-                sourceHashValue: shaderSource.uniqueHashValue,
-                headers: source.includeSearchPaths,
-                version: version
-            )
-            
-            if cache == nil || (cache?[stage] != shaderCache) {
-                changedValues.insert(stage)
-                cacheData[cacheKey, default: [:]][stage] = shaderCache
-                
-                Self.removeReflection(for: source.fileURL!, stage: stage)
+
+            let cache = cacheData?[cacheKey]
+            var changedValues: Set<ShaderStage> = []
+
+            for stage in stages {
+                guard let shaderSource = source.getSource(for: stage) else {
+                    continue
+                }
+
+                let shaderCache = ShaderCache(
+                    sourceHashValue: shaderSource.uniqueHashValue,
+                    headers: source.includeSearchPaths,
+                    version: version
+                )
+
+                if cache == nil || cache?[stage] != shaderCache {
+                    changedValues.insert(stage)
+                    cacheData?[cacheKey, default: [:]][stage] = shaderCache
+
+                    Self.removeReflection(for: fileURL, stage: stage)
+                }
             }
+
+            if !changedValues.isEmpty, let cacheData {
+                self.saveCacheData(cacheData)
+            }
+
+            return changedValues
         }
-        
-        if !changedValues.isEmpty {
-            self.saveCacheData(cacheData)
-        }
-        
-        return changedValues
     }
     
     // MARK: Save/Load SPIRV
@@ -270,7 +289,7 @@ enum ShaderCache {
     
     // MARK: - Private
     
-    private static func getCacheData() -> Cache {
+    private static func loadCacheData() -> Cache {
         self.createCacheDirectoryIfNeeded()
         
         do {
@@ -278,14 +297,11 @@ enum ShaderCache {
             guard let data = fileSystem.readFile(at: cacheFile) else {
                 return [:]
             }
-            
-            #if WASM
-            return try JSONDecoder().decode(Cache.self, from: data)
-            #else
-            return try YAMLDecoder().decode(Cache.self, from: data)
-            #endif
+
+            return try decodeManifest(data)
         } catch {
-            fatalError("[ShaderCache] \(error)")
+            logger.warning("Failed to load shader cache manifest: \(error)")
+            return [:]
         }
     }
     
@@ -294,16 +310,19 @@ enum ShaderCache {
         
         do {
             let cacheFile = try getCacheFile()
-            #if WASM
-            let data = try JSONEncoder().encode(cacheData)
+            let data = try encodeManifest(cacheData)
             _ = fileSystem.createFile(at: cacheFile, contents: data)
-            #else
-            let string = try YAMLEncoder().encode(cacheData)
-            _ = fileSystem.createFile(at: cacheFile, contents: string.data(using: .utf8)!)
-            #endif
         } catch {
-            fatalError("[ShaderCache] \(error)")
+            logger.error("Failed to save shader cache manifest: \(error)")
         }
+    }
+
+    static func encodeManifest(_ cacheData: Cache) throws -> Data {
+        try JSONEncoder().encode(cacheData)
+    }
+
+    static func decodeManifest(_ data: Data) throws -> Cache {
+        try JSONDecoder().decode(Cache.self, from: data)
     }
     
     static func getCacheDirectory() throws -> URL {
@@ -334,7 +353,7 @@ enum ShaderCache {
     enum Constants {
         static let cacheDirectoryName = "AdaEngine"
         static let shadersDirectoryName = "Shaders"
-        static let shaderCacheFileName = "ShaderCache.cache"
+        static let shaderCacheFileName = "ShaderCache-v2.json"
         static let shaderCacheFileExtension = "yaml"
         static let separator = "/"
     }

@@ -166,24 +166,27 @@ public struct Physics2DSyncSystem: Sendable {
 @PlainSystem
 public struct Physics2DWritebackSystem: Sendable {
 
-    @Query<Entity, Ref<PhysicsBody2DComponent>, Ref<Transform>>
-    private var physicsBodyQuery
+    @Res<Physics2DWorldHolder>
+    private var physicsWorld
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        physicsBodyQuery.forEach { _, physicsBody, transform in
-            guard
-                physicsBody.mode != .static,
-                let body = physicsBody.runtimeBody
-            else {
+        physicsWorld.world.forEachMovedBody { entity, position, rotation in
+            guard var transform = entity.components[Transform.self] else {
                 return
             }
 
-            let position = body.getPosition()
+            guard transform.position.x != position.x ||
+                  transform.position.y != position.y ||
+                  transform.rotation != rotation else {
+                return
+            }
+
             transform.position.x = position.x
             transform.position.y = position.y
-            transform.rotation = Quat(axis: [0, 0, 1], angle: -body.getAngle().radians)
+            transform.rotation = rotation
+            entity.components[Transform.self] = transform
         }
     }
 }

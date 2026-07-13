@@ -10,6 +10,7 @@ import AdaAssets
 import Math
 import AdaECS
 import AdaTransform
+import AdaUtils
 import Foundation
 
 /// An asset that represents a 3D model.
@@ -46,6 +47,42 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
     }
     
     public init(from assetDecoder: any AssetDecoder) async throws {
+        if assetDecoder.assetMeta.filePath.pathExtension.lowercased() == "obj" {
+            let loader = OBJLoaderResolver.shared.getLoader()
+            let result = try await loader.load(url: assetDecoder.assetMeta.filePath)
+            let device = unsafe RenderEngine.shared.renderDevice
+
+            self.materials = result.materials.map { _ in PBRMaterial() }
+            self.meshes = result.meshes.map { mesh in
+                let parts = mesh.primitives.enumerated().map { index, primitive in
+                    var descriptor = MeshDescriptor(name: "Primitive \(index)")
+                    descriptor.positions = MeshBuffer(primitive.positions)
+                    descriptor.normals = primitive.normals.map(MeshBuffer.init)
+                    descriptor.textureCoordinates = primitive.textureCoordinates.map(MeshBuffer.init)
+                    descriptor.indicies = primitive.indices
+
+                    return Mesh.Part(
+                        id: index,
+                        materialIndex: primitive.materialIndex,
+                        primitiveTopology: .triangleList,
+                        isUInt32: true,
+                        meshDescriptor: descriptor,
+                        vertexDescriptor: descriptor.getMeshVertexBufferDescriptor(),
+                        indexBuffer: descriptor.getIndexBuffer(renderDevice: device),
+                        indexCount: descriptor.indicies.count,
+                        vertexBuffer: descriptor.getVertexBuffer(renderDevice: device)
+                    )
+                }
+                return Mesh(models: [Mesh.Model(name: mesh.name, parts: parts)])
+            }
+            self.nodes = result.meshes.indices.map { index in
+                Node(name: result.meshes[index].name, transform: .identity, meshIndex: index, children: [])
+            }
+            self.scenes = [Array(result.meshes.indices)]
+            self.defaultScene = 0
+            return
+        }
+
         let loader = GLTFLoaderResolver.shared.getLoader()
         let result = try await loader.load(url: assetDecoder.assetMeta.filePath)
         
@@ -94,6 +131,9 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
             
             materials.append(material)
         }
+        if materials.isEmpty {
+            materials.append(PBRMaterial())
+        }
         
         // 2. Convert Meshes
         var meshes: [Mesh] = []
@@ -103,26 +143,41 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
             for (index, primitive) in gltfMesh.primitives.enumerated() {
                 var descriptor = MeshDescriptor(name: "Primitive \(index)")
                 
-                if let posData = primitive.attributes[.position] {
-                    descriptor.positions = MeshBuffer(posData.withUnsafeBytes { Array($0.bindMemory(to: Vector3.self)) })
+                if let positions = primitive.attributes[.position] {
+                    descriptor.positions = MeshBuffer(positions.vector3Values())
                 }
                 
-                if let normalData = primitive.attributes[.normal] {
-                    descriptor.normals = MeshBuffer(normalData.withUnsafeBytes { Array($0.bindMemory(to: Vector3.self)) })
+                if let normals = primitive.attributes[.normal] {
+                    descriptor.normals = MeshBuffer(normals.vector3Values())
                 }
                 
-                if let uvData = primitive.attributes[.texCoord(0)] {
-                    descriptor.textureCoordinates = MeshBuffer(uvData.withUnsafeBytes { Array($0.bindMemory(to: Vector2.self)) })
+                if let textureCoordinates = primitive.attributes[.texCoord(0)] {
+                    descriptor.textureCoordinates = MeshBuffer(textureCoordinates.vector2Values())
                 }
-                
-                if let indices = primitive.indices {
-                    descriptor.indicies = indices.withUnsafeBytes { Array($0.bindMemory(to: UInt32.self)) }
+
+                if let tangents = primitive.attributes[.tangent] {
+                    descriptor.tangents = MeshBuffer(tangents.vector4Values())
                 }
+
+                if let colors = primitive.attributes[.color(0)] {
+                    if colors.componentCount == 3 {
+                        descriptor.colors = MeshBuffer(colors.vector3Values().map {
+                            Color(red: $0.x, green: $0.y, blue: $0.z)
+                        })
+                    } else if colors.componentCount == 4 {
+                        descriptor.colors = MeshBuffer(colors.vector4Values().map(Color.init))
+                    }
+                }
+
+                let sourceIndices = primitive.indices ?? (0..<UInt32(descriptor.positions.count)).map { $0 }
+                let converted = primitive.convertTopology(indices: sourceIndices)
+                descriptor.indicies = converted.indices
+                descriptor.primitiveTopology = converted.topology
                 
                 let part = Mesh.Part(
                     id: index,
                     materialIndex: primitive.materialIndex ?? 0,
-                    primitiveTopology: .triangleList,
+                    primitiveTopology: descriptor.primitiveTopology,
                     isUInt32: true,
                     meshDescriptor: descriptor,
                     vertexDescriptor: descriptor.getMeshVertexBufferDescriptor(),
@@ -180,6 +235,46 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
     }
     
     public static func extensions() -> [String] {
-        return ["gltf", "glb"]
+        return ["gltf", "glb", "obj"]
+    }
+}
+
+private extension GLTFImportResult.Primitive {
+    func convertTopology(indices: [UInt32]) -> (indices: [UInt32], topology: Mesh.PrimitiveTopology) {
+        switch mode {
+        case .points:
+            return (indices, .points)
+        case .lines:
+            return (indices, .lineList)
+        case .lineLoop:
+            guard indices.count >= 2 else {
+                return ([], .lineList)
+            }
+            var lineIndices: [UInt32] = []
+            lineIndices.reserveCapacity(indices.count * 2)
+            for index in indices.indices {
+                lineIndices.append(indices[index])
+                lineIndices.append(indices[(index + 1) % indices.count])
+            }
+            return (lineIndices, .lineList)
+        case .lineStrip:
+            return (indices, .lineStrip)
+        case .triangles:
+            return (indices, .triangleList)
+        case .triangleStrip:
+            return (indices, .triangleStrip)
+        case .triangleFan:
+            guard indices.count >= 3 else {
+                return ([], .triangleList)
+            }
+            var triangleIndices: [UInt32] = []
+            triangleIndices.reserveCapacity((indices.count - 2) * 3)
+            for index in 1..<(indices.count - 1) {
+                triangleIndices.append(indices[0])
+                triangleIndices.append(indices[index])
+                triangleIndices.append(indices[index + 1])
+            }
+            return (triangleIndices, .triangleList)
+        }
     }
 }

@@ -90,6 +90,51 @@ struct ShaderCacheTests {
         #expect(shader.getSourceFileURL(for: .vertex) == shaderFileURL)
         #expect(shader.getWGSLSource(for: .vertex) == wgslSource)
     }
+
+    @Test func `shader cache manifest round trips through json`() throws {
+        let manifest: ShaderCache.Cache = [
+            "AdaEngine_AdaRender.bundle/Shaders/test.glsl": [
+                .vertex: ShaderCache.ShaderCache(
+                    sourceHashValue: 42,
+                    headers: [],
+                    version: 7
+                )
+            ]
+        ]
+
+        let encoded = try ShaderCache.encodeManifest(manifest)
+        let decoded = try ShaderCache.decodeManifest(encoded)
+
+        #expect(encoded.first == UInt8(ascii: "{"))
+        #expect(decoded == manifest)
+    }
+
+    @Test func `checking one shader stage does not hide changes in another stage`() throws {
+        let source = """
+        #version 450 core
+        #pragma stage : vert
+        void main() { gl_Position = vec4(0.0); }
+        #pragma stage : frag
+        layout(location = 0) out vec4 color;
+        void main() { color = vec4(1.0); }
+        """
+        let tempDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+
+        defer {
+            try? FileManager.default.removeItem(at: tempDirectory)
+        }
+
+        let shaderFileURL = tempDirectory.appendingPathComponent("two_stages.glsl")
+        try writeUTF8(source, to: shaderFileURL)
+        let shader = try ShaderSource(from: shaderFileURL)
+
+        #expect(ShaderCache.hasChanges(for: shader, stage: .vertex, version: 1))
+        #expect(ShaderCache.hasChanges(for: shader, stage: .fragment, version: 1))
+        #expect(!ShaderCache.hasChanges(for: shader, stage: .vertex, version: 1))
+        #expect(!ShaderCache.hasChanges(for: shader, stage: .fragment, version: 1))
+    }
 }
 
 private func writeUTF8(_ string: String, to url: URL) throws {

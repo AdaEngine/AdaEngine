@@ -9,6 +9,9 @@ import AdaECS
 import AdaUtils
 import box2d
 import Math
+#if canImport(Dispatch)
+import Dispatch
+#endif
 
 /// A protocol that defines a delegate for the physics world.
 public protocol PhysicsWorld2DDelegate: AnyObject, Sendable {
@@ -124,13 +127,30 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     }
     private let worldId: b2WorldId
     var eventManager: EventManager = .default
+    #if canImport(Dispatch)
+    private let taskScheduler: Box2DTaskScheduler?
+    #endif
     
     /// - Parameter gravity: default gravity is 9.8.
-    nonisolated init(gravity: Vector2 = [0, -9.81]) {
+    nonisolated init(
+        gravity: Vector2 = [0, -9.81],
+        workerCount: Int = PhysicsSimulationThreading.recommendedWorkerCount
+    ) {
         var worldDef = unsafe b2DefaultWorldDef()
         unsafe worldDef.gravity = gravity.b2Vec
         unsafe worldDef.enableSleep = true
         unsafe worldDef.enableContinuous = true
+        #if canImport(Dispatch)
+        let clampedWorkerCount = max(1, workerCount)
+        let scheduler = clampedWorkerCount > 1 ? Box2DTaskScheduler(workerCount: clampedWorkerCount) : nil
+        if let scheduler {
+            unsafe worldDef.workerCount = Int32(clampedWorkerCount)
+            unsafe worldDef.enqueueTask = PhysicsSimulationThreading_Box2DEnqueueTask
+            unsafe worldDef.finishTask = PhysicsSimulationThreading_Box2DFinishTask
+            unsafe worldDef.userTaskContext = Unmanaged.passUnretained(scheduler).toOpaque()
+        }
+        self.taskScheduler = scheduler
+        #endif
         self.worldId = unsafe b2CreateWorld(&worldDef)
         b2World_EnableWarmStarting(worldId, true)
         
@@ -217,6 +237,38 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
             Float(delta), /* timeStep */
             Int32(self.substepIterations) /* velocityIterations */
         )
+    }
+
+    /// Iterates the contiguous Box2D move-event stream produced by the latest simulation step.
+    func forEachMovedBody(_ body: (Entity, Vector2, Quat) -> Void) {
+        let events = unsafe b2World_GetBodyEvents(worldId)
+        guard unsafe events.moveCount > 0, let moveEvents = unsafe events.moveEvents else {
+            return
+        }
+
+        for index in unsafe 0..<Int(events.moveCount) {
+            let event = unsafe moveEvents[index]
+            guard let userData = unsafe event.userData else {
+                continue
+            }
+
+            let runtimeBody = unsafe Unmanaged<Body2D>.fromOpaque(userData).takeUnretainedValue()
+            guard let entity = runtimeBody.entity else {
+                continue
+            }
+
+            let position = unsafe event.transform.p.asVector2
+            let rotation = unsafe Quat(
+                axis: [0, 0, 1],
+                angle: -b2Rot_GetAngle(event.transform.q)
+            )
+
+            body(
+                entity,
+                position,
+                rotation
+            )
+        }
     }
 
     func debugDraw(with definitions: b2DebugDraw) {
@@ -388,28 +440,26 @@ private func PhysicsWorld2D_PreSolve(
         )
     }
     
-    return MainActor.assumeIsolated {
-        let shapeIdA = BoxShape2D(shape: shapeA)
-        let shapeIdB = BoxShape2D(shape: shapeB)
+    let shapeIdA = BoxShape2D(shape: shapeA)
+    let shapeIdB = BoxShape2D(shape: shapeB)
 
-        guard shapeIdA.isValid && shapeIdB.isValid else {
-            return false
-        }
-
-        let bodyA = shapeIdA.body
-        let bodyB = shapeIdB.body
-
-        guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
-            return false
-        }
-        
-        return world.delegate?.physicsWorldOnPreSolve(
-            world,
-            entityA: entityA,
-            entityB: entityB,
-            manifold: manifold
-        ) ?? false
+    guard shapeIdA.isValid && shapeIdB.isValid else {
+        return false
     }
+
+    let bodyA = shapeIdA.body
+    let bodyB = shapeIdB.body
+
+    guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
+        return false
+    }
+
+    return world.delegate?.physicsWorldOnPreSolve(
+        world,
+        entityA: entityA,
+        entityB: entityB,
+        manifold: manifold
+    ) ?? true
 }
 
 private func PhysicsWorld2D_CustomFilterCallback(
@@ -421,28 +471,25 @@ private func PhysicsWorld2D_CustomFilterCallback(
         return true
     }
     let world = unsafe Unmanaged<PhysicsWorld2D>.fromOpaque(context).takeUnretainedValue()
-    return MainActor.assumeIsolated {
-        
-        let shapeIdA = BoxShape2D(shape: shapeA)
-        let shapeIdB = BoxShape2D(shape: shapeB)
+    let shapeIdA = BoxShape2D(shape: shapeA)
+    let shapeIdB = BoxShape2D(shape: shapeB)
 
-        guard shapeIdA.isValid && shapeIdB.isValid else {
-            return true
-        }
-
-        let bodyA = shapeIdA.body
-        let bodyB = shapeIdB.body
-
-        guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
-            return true
-        }
-        
-        return world.delegate?.physicsWorldOnCustomFilterCalled(
-            world,
-            entityA: entityA,
-            entityB: entityB
-        ) ?? true
+    guard shapeIdA.isValid && shapeIdB.isValid else {
+        return true
     }
+
+    let bodyA = shapeIdA.body
+    let bodyB = shapeIdB.body
+
+    guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
+        return true
+    }
+
+    return world.delegate?.physicsWorldOnCustomFilterCalled(
+        world,
+        entityA: entityA,
+        entityB: entityB
+    ) ?? true
 }
 
 // MARK: - Casting

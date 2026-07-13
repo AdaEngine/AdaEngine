@@ -14,6 +14,12 @@ public struct NativeGLTFLoader: GLTFLoader {
     
     public func load(url: URL) async throws -> GLTFImportResult {
         let data = try Data(contentsOf: url)
+        return try load(data: data, baseURL: url.deletingLastPathComponent())
+    }
+
+    /// Loads a glTF or GLB document from memory.
+    public func load(data: Data, baseURL: URL? = nil) throws -> GLTFImportResult {
+        let resourceBaseURL = baseURL ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         
         let gltf: GLTF
         let binaryBuffer: Data?
@@ -26,17 +32,26 @@ public struct NativeGLTFLoader: GLTFLoader {
             gltf = try JSONDecoder().decode(GLTF.self, from: data)
             binaryBuffer = nil
         }
+
+        let supportedExtensions: Set<String> = ["KHR_mesh_quantization"]
+        if let unsupportedExtension = gltf.extensionsRequired?.first(where: { !supportedExtensions.contains($0) }) {
+            throw GLTFError.unsupportedRequiredExtension(unsupportedExtension)
+        }
         
-        let buffers = try await loadBuffers(gltf.buffers ?? [], baseURL: url.deletingLastPathComponent(), binaryBuffer: binaryBuffer)
+        let buffers = try loadBuffers(gltf.buffers ?? [], baseURL: resourceBaseURL, binaryBuffer: binaryBuffer)
         
-        return try convertToImportResult(gltf, buffers: buffers)
+        return try convertToImportResult(gltf, buffers: buffers, baseURL: resourceBaseURL)
     }
     
     private func parseGLB(_ data: Data) throws -> (GLTF, Data?) {
+        guard data.count >= 12 else {
+            throw GLTFError.invalidGLB
+        }
         let magic = data.subdata(in: 0..<4)
-        let version = unsafe data.subdata(in: 4..<8).withUnsafeBytes { unsafe $0.load(as: UInt32.self) }
+        let version = readUInt32(data, at: 4)
+        let declaredLength = Int(readUInt32(data, at: 8))
         
-        if magic != Data("glTF".utf8) || version != 2 {
+        if magic != Data("glTF".utf8) || version != 2 || declaredLength != data.count {
             throw GLTFError.invalidGLB
         }
         
@@ -45,9 +60,15 @@ public struct NativeGLTFLoader: GLTFLoader {
         var binaryBuffer: Data?
         
         while offset < data.count {
-            let chunkLength = unsafe data.subdata(in: offset..<offset+4).withUnsafeBytes { unsafe $0.load(as: UInt32.self) }
-            let chunkType = unsafe data.subdata(in: offset+4..<offset+8).withUnsafeBytes { unsafe $0.load(as: UInt32.self) }
-            let chunkData = data.subdata(in: offset+8..<offset+8+Int(chunkLength))
+            guard offset + 8 <= data.count else {
+                throw GLTFError.invalidGLB
+            }
+            let chunkLength = Int(readUInt32(data, at: offset))
+            let chunkType = readUInt32(data, at: offset + 4)
+            guard offset + 8 + chunkLength <= data.count else {
+                throw GLTFError.invalidGLB
+            }
+            let chunkData = data.subdata(in: offset + 8..<offset + 8 + chunkLength)
             
             if chunkType == 0x4E4F534A { // JSON
                 gltf = try JSONDecoder().decode(GLTF.self, from: chunkData)
@@ -55,7 +76,7 @@ public struct NativeGLTFLoader: GLTFLoader {
                 binaryBuffer = chunkData
             }
             
-            offset += 8 + Int(chunkLength)
+            offset += 8 + chunkLength
         }
         
         guard let resultGltf = gltf else {
@@ -65,49 +86,48 @@ public struct NativeGLTFLoader: GLTFLoader {
         return (resultGltf, binaryBuffer)
     }
     
-    private func loadBuffers(_ gltfBuffers: [GLTF.Buffer], baseURL: URL, binaryBuffer: Data?) async throws -> [Data] {
+    private func loadBuffers(_ gltfBuffers: [GLTF.Buffer], baseURL: URL, binaryBuffer: Data?) throws -> [Data] {
         var buffers = [Data]()
         
         for (index, buffer) in gltfBuffers.enumerated() {
             if index == 0, let binaryBuffer = binaryBuffer {
+                guard binaryBuffer.count >= buffer.byteLength else {
+                    throw GLTFError.bufferTooShort
+                }
                 buffers.append(binaryBuffer)
                 continue
             }
             
             guard let uri = buffer.uri else {
-                if index == 0, binaryBuffer == nil {
-                     throw GLTFError.missingBufferURI
-                }
-                continue
+                throw GLTFError.missingBufferURI
             }
             
             if uri.starts(with: "data:") {
-                if let data = try? Data(contentsOf: URL(string: uri)!) {
-                    buffers.append(data)
-                } else {
-                    throw GLTFError.invalidDataURI
-                }
+                buffers.append(try decodeDataURI(uri))
             } else {
-                let bufferURL = baseURL.appendingPathComponent(uri)
+                let bufferURL = baseURL.appendingPathComponent(uri.removingPercentEncoding ?? uri)
                 let data = try Data(contentsOf: bufferURL)
                 buffers.append(data)
+            }
+
+            guard buffers.last?.count ?? 0 >= buffer.byteLength else {
+                throw GLTFError.bufferTooShort
             }
         }
         
         return buffers
     }
     
-    private func convertToImportResult(_ gltf: GLTF, buffers: [Data]) throws -> GLTFImportResult {
-        let images = (gltf.images ?? []).map { image -> GLTFImportResult.Image in
+    private func convertToImportResult(_ gltf: GLTF, buffers: [Data], baseURL: URL) throws -> GLTFImportResult {
+        let images = try (gltf.images ?? []).map { image -> GLTFImportResult.Image in
             if let uri = image.uri {
                 if uri.starts(with: "data:") {
-                     return GLTFImportResult.Image(uri: nil, data: try? Data(contentsOf: URL(string: uri)!), mimeType: image.mimeType)
+                    return GLTFImportResult.Image(uri: nil, data: try decodeDataURI(uri), mimeType: image.mimeType)
                 }
-                return GLTFImportResult.Image(uri: URL(string: uri), data: nil, mimeType: image.mimeType)
+                let imageURL = baseURL.appendingPathComponent(uri.removingPercentEncoding ?? uri)
+                return GLTFImportResult.Image(uri: imageURL, data: try Data(contentsOf: imageURL), mimeType: image.mimeType)
             } else if let bufferViewIndex = image.bufferView {
-                let bufferView = gltf.bufferViews![bufferViewIndex]
-                let buffer = buffers[bufferView.buffer]
-                let data = buffer.subdata(in: bufferView.byteOffset..<(bufferView.byteOffset + bufferView.byteLength))
+                let data = try getBufferViewData(bufferViewIndex, gltf: gltf, buffers: buffers)
                 return GLTFImportResult.Image(uri: nil, data: data, mimeType: image.mimeType)
             }
             return GLTFImportResult.Image(uri: nil, data: nil, mimeType: image.mimeType)
@@ -135,23 +155,36 @@ public struct NativeGLTFLoader: GLTFLoader {
         
         let meshes = try (gltf.meshes ?? []).map { mesh -> GLTFImportResult.Mesh in
             let primitives = try mesh.primitives.map { primitive -> GLTFImportResult.Primitive in
-                var attributes = [GLTFImportResult.Attribute: Data]()
+                var attributes = [GLTFImportResult.Attribute: GLTFImportResult.Accessor]()
                 
                 for (key, accessorIndex) in primitive.attributes {
                     let attribute = try mapAttribute(key)
-                    attributes[attribute] = try getAccessorData(accessorIndex, gltf: gltf, buffers: buffers)
+                    let decoded = try decodeAccessor(accessorIndex, gltf: gltf, buffers: buffers)
+                    attributes[attribute] = GLTFImportResult.Accessor(
+                        values: decoded.values.map(Float.init),
+                        componentCount: decoded.componentCount
+                    )
                 }
                 
-                let indicesData: Data?
+                let indices: [UInt32]?
                 if let indicesIndex = primitive.indices {
-                    indicesData = try getAccessorData(indicesIndex, gltf: gltf, buffers: buffers)
+                    let decoded = try decodeAccessor(indicesIndex, gltf: gltf, buffers: buffers)
+                    guard decoded.componentCount == 1 else {
+                        throw GLTFError.invalidIndices
+                    }
+                    indices = try decoded.values.map { value in
+                        guard value >= 0, value <= Double(UInt32.max), value.rounded() == value else {
+                            throw GLTFError.invalidIndices
+                        }
+                        return UInt32(value)
+                    }
                 } else {
-                    indicesData = nil
+                    indices = nil
                 }
                 
                 return GLTFImportResult.Primitive(
                     attributes: attributes,
-                    indices: indicesData,
+                    indices: indices,
                     materialIndex: primitive.material,
                     mode: GLTFImportResult.PrimitiveMode(rawValue: primitive.mode ?? 4) ?? .triangles
                 )
@@ -221,56 +254,224 @@ public struct NativeGLTFLoader: GLTFLoader {
         case let str where str.starts(with: "WEIGHTS_"):
             let index = Int(str.dropFirst("WEIGHTS_".count)) ?? 0
             return .weights(index)
+        case let str where str.starts(with: "_"):
+            return .custom(str)
         default:
             throw GLTFError.unknownAttribute(key)
         }
     }
-    
-    private func getAccessorData(_ accessorIndex: Int, gltf: GLTF, buffers: [Data]) throws -> Data {
-        let accessor = gltf.accessors![accessorIndex]
-        guard let bufferViewIndex = accessor.bufferView else {
-             // Accessor with no buffer view should be initialized with zeros, but let's keep it simple for now
-             return Data()
+
+    private func decodeAccessor(_ accessorIndex: Int, gltf: GLTF, buffers: [Data]) throws -> DecodedAccessor {
+        guard let accessors = gltf.accessors, accessors.indices.contains(accessorIndex) else {
+            throw GLTFError.invalidAccessorIndex(accessorIndex)
         }
-        
-        let bufferView = gltf.bufferViews![bufferViewIndex]
+        let accessor = accessors[accessorIndex]
+        let componentSize = try componentSize(for: accessor.componentType)
+        let componentCount = try componentCount(for: accessor.type)
+        var values = [Double](repeating: 0, count: accessor.count * componentCount)
+
+        if let bufferViewIndex = accessor.bufferView {
+            guard let bufferViews = gltf.bufferViews, bufferViews.indices.contains(bufferViewIndex) else {
+                throw GLTFError.invalidBufferViewIndex(bufferViewIndex)
+            }
+            let bufferView = bufferViews[bufferViewIndex]
+            guard buffers.indices.contains(bufferView.buffer) else {
+                throw GLTFError.invalidBufferIndex(bufferView.buffer)
+            }
+            let elementSize = componentSize * componentCount
+            let byteStride = bufferView.byteStride ?? elementSize
+            guard byteStride >= elementSize else {
+                throw GLTFError.invalidStride
+            }
+            let bufferViewOffset = bufferView.byteOffset ?? 0
+            let bufferViewEnd = bufferViewOffset + bufferView.byteLength
+            let startOffset = bufferViewOffset + (accessor.byteOffset ?? 0)
+            let buffer = buffers[bufferView.buffer]
+
+            for elementIndex in 0..<accessor.count {
+                let elementOffset = startOffset + elementIndex * byteStride
+                guard elementOffset >= bufferViewOffset,
+                      elementOffset + elementSize <= bufferViewEnd,
+                      elementOffset + elementSize <= buffer.count else {
+                    throw GLTFError.bufferOutOfBounds
+                }
+                for componentIndex in 0..<componentCount {
+                    values[elementIndex * componentCount + componentIndex] = try readComponent(
+                        buffer,
+                        at: elementOffset + componentIndex * componentSize,
+                        componentType: accessor.componentType,
+                        normalized: accessor.normalized ?? false
+                    )
+                }
+            }
+        }
+
+        if let sparse = accessor.sparse {
+            let sparseIndices = try decodeSparseIndices(sparse.indices, count: sparse.count, gltf: gltf, buffers: buffers)
+            let sparseValues = try decodeSparseValues(
+                sparse.values,
+                count: sparse.count,
+                componentType: accessor.componentType,
+                componentCount: componentCount,
+                normalized: accessor.normalized ?? false,
+                gltf: gltf,
+                buffers: buffers
+            )
+            for sparseIndex in 0..<sparse.count {
+                let destinationIndex = sparseIndices[sparseIndex]
+                guard destinationIndex < accessor.count else {
+                    throw GLTFError.sparseIndexOutOfBounds
+                }
+                for componentIndex in 0..<componentCount {
+                    values[destinationIndex * componentCount + componentIndex] = sparseValues[sparseIndex * componentCount + componentIndex]
+                }
+            }
+        }
+
+        return DecodedAccessor(values: values, componentCount: componentCount)
+    }
+
+    private func decodeSparseIndices(
+        _ indices: GLTF.Accessor.Sparse.Indices,
+        count: Int,
+        gltf: GLTF,
+        buffers: [Data]
+    ) throws -> [Int] {
+        guard [5121, 5123, 5125].contains(indices.componentType) else {
+            throw GLTFError.invalidComponentType(indices.componentType)
+        }
+        let data = try getBufferViewData(indices.bufferView, gltf: gltf, buffers: buffers)
+        let size = try componentSize(for: indices.componentType)
+        let offset = indices.byteOffset ?? 0
+        guard offset >= 0, offset + count * size <= data.count else {
+            throw GLTFError.bufferOutOfBounds
+        }
+        return try (0..<count).map {
+            Int(try readComponent(data, at: offset + $0 * size, componentType: indices.componentType, normalized: false))
+        }
+    }
+
+    private func decodeSparseValues(
+        _ sparseValues: GLTF.Accessor.Sparse.Values,
+        count: Int,
+        componentType: Int,
+        componentCount: Int,
+        normalized: Bool,
+        gltf: GLTF,
+        buffers: [Data]
+    ) throws -> [Double] {
+        let data = try getBufferViewData(sparseValues.bufferView, gltf: gltf, buffers: buffers)
+        let size = try componentSize(for: componentType)
+        let offset = sparseValues.byteOffset ?? 0
+        let valueCount = count * componentCount
+        guard offset >= 0, offset + valueCount * size <= data.count else {
+            throw GLTFError.bufferOutOfBounds
+        }
+        return try (0..<valueCount).map {
+            try readComponent(data, at: offset + $0 * size, componentType: componentType, normalized: normalized)
+        }
+    }
+
+    private func getBufferViewData(_ index: Int, gltf: GLTF, buffers: [Data]) throws -> Data {
+        guard let bufferViews = gltf.bufferViews, bufferViews.indices.contains(index) else {
+            throw GLTFError.invalidBufferViewIndex(index)
+        }
+        let bufferView = bufferViews[index]
+        guard buffers.indices.contains(bufferView.buffer) else {
+            throw GLTFError.invalidBufferIndex(bufferView.buffer)
+        }
+        let offset = bufferView.byteOffset ?? 0
         let buffer = buffers[bufferView.buffer]
-        
-        let componentSize: Int
-        switch accessor.componentType {
-        case 5120, 5121: componentSize = 1 // BYTE, UNSIGNED_BYTE
-        case 5122, 5123: componentSize = 2 // SHORT, UNSIGNED_SHORT
-        case 5125, 5126: componentSize = 4 // UNSIGNED_INT, FLOAT
-        default: throw GLTFError.invalidComponentType(accessor.componentType)
+        guard offset >= 0, bufferView.byteLength >= 0, offset + bufferView.byteLength <= buffer.count else {
+            throw GLTFError.bufferOutOfBounds
         }
-        
-        let numberOfComponents: Int
-        switch accessor.type {
-        case "SCALAR": numberOfComponents = 1
-        case "VEC2": numberOfComponents = 2
-        case "VEC3": numberOfComponents = 3
-        case "VEC4": numberOfComponents = 4
-        case "MAT2": numberOfComponents = 4
-        case "MAT3": numberOfComponents = 9
-        case "MAT4": numberOfComponents = 16
-        default: throw GLTFError.invalidAccessorType(accessor.type)
+        return buffer.subdata(in: offset..<offset + bufferView.byteLength)
+    }
+
+    private func componentSize(for componentType: Int) throws -> Int {
+        switch componentType {
+        case 5120, 5121: return 1
+        case 5122, 5123: return 2
+        case 5125, 5126: return 4
+        default: throw GLTFError.invalidComponentType(componentType)
         }
-        
-        let stride = bufferView.byteStride ?? (componentSize * numberOfComponents)
-        let totalSize = accessor.count * componentSize * numberOfComponents
-        let offset = bufferView.byteOffset + accessor.byteOffset
-        
-        if bufferView.byteStride == nil || bufferView.byteStride == (componentSize * numberOfComponents) {
-            return buffer.subdata(in: offset..<(offset + totalSize))
-        } else {
-            // Interleaved data, we need to extract it
-            var data = Data(capacity: totalSize)
-            for i in 0..<accessor.count {
-                let start = offset + (i * stride)
-                data.append(buffer.subdata(in: start..<(start + componentSize * numberOfComponents)))
+    }
+
+    private func componentCount(for accessorType: String) throws -> Int {
+        switch accessorType {
+        case "SCALAR": return 1
+        case "VEC2": return 2
+        case "VEC3": return 3
+        case "VEC4", "MAT2": return 4
+        case "MAT3": return 9
+        case "MAT4": return 16
+        default: throw GLTFError.invalidAccessorType(accessorType)
+        }
+    }
+
+    private func readComponent(_ data: Data, at offset: Int, componentType: Int, normalized: Bool) throws -> Double {
+        let rawValue: Double
+        switch componentType {
+        case 5120:
+            rawValue = Double(Int8(bitPattern: data[offset]))
+        case 5121:
+            rawValue = Double(data[offset])
+        case 5122:
+            rawValue = Double(Int16(bitPattern: readUInt16(data, at: offset)))
+        case 5123:
+            rawValue = Double(readUInt16(data, at: offset))
+        case 5125:
+            rawValue = Double(readUInt32(data, at: offset))
+        case 5126:
+            rawValue = Double(Float(bitPattern: readUInt32(data, at: offset)))
+        default:
+            throw GLTFError.invalidComponentType(componentType)
+        }
+
+        guard normalized else {
+            return rawValue
+        }
+        switch componentType {
+        case 5120: return max(rawValue / 127, -1)
+        case 5121: return rawValue / 255
+        case 5122: return max(rawValue / 32767, -1)
+        case 5123: return rawValue / 65535
+        default: return rawValue
+        }
+    }
+
+    private func decodeDataURI(_ uri: String) throws -> Data {
+        guard uri.starts(with: "data:"), let commaIndex = uri.firstIndex(of: ",") else {
+            throw GLTFError.invalidDataURI
+        }
+        let metadata = uri[..<commaIndex]
+        let payload = String(uri[uri.index(after: commaIndex)...])
+        if metadata.hasSuffix(";base64") {
+            guard let data = Data(base64Encoded: payload) else {
+                throw GLTFError.invalidDataURI
             }
             return data
         }
+        guard let decoded = payload.removingPercentEncoding else {
+            throw GLTFError.invalidDataURI
+        }
+        return Data(decoded.utf8)
+    }
+
+    private func readUInt16(_ data: Data, at offset: Int) -> UInt16 {
+        UInt16(data[offset]) | UInt16(data[offset + 1]) << 8
+    }
+
+    private func readUInt32(_ data: Data, at offset: Int) -> UInt32 {
+        UInt32(data[offset])
+            | UInt32(data[offset + 1]) << 8
+            | UInt32(data[offset + 2]) << 16
+            | UInt32(data[offset + 3]) << 24
+    }
+
+    private struct DecodedAccessor {
+        let values: [Double]
+        let componentCount: Int
     }
     
     // MARK: - Internal GLTF Schema
@@ -280,9 +481,18 @@ public struct NativeGLTFLoader: GLTFLoader {
         case missingJSONChunk
         case missingBufferURI
         case invalidDataURI
+        case bufferTooShort
+        case bufferOutOfBounds
+        case invalidStride
+        case invalidIndices
+        case sparseIndexOutOfBounds
+        case invalidAccessorIndex(Int)
+        case invalidBufferViewIndex(Int)
+        case invalidBufferIndex(Int)
         case unknownAttribute(String)
         case invalidComponentType(Int)
         case invalidAccessorType(String)
+        case unsupportedRequiredExtension(String)
     }
     
     private struct GLTF: Codable {
@@ -293,20 +503,39 @@ public struct NativeGLTFLoader: GLTFLoader {
         
         struct BufferView: Codable {
             let buffer: Int
-            let byteOffset: Int
+            let byteOffset: Int?
             let byteLength: Int
             let byteStride: Int?
             let target: Int?
         }
         
         struct Accessor: Codable {
+            struct Sparse: Codable {
+                struct Indices: Codable {
+                    let bufferView: Int
+                    let byteOffset: Int?
+                    let componentType: Int
+                }
+
+                struct Values: Codable {
+                    let bufferView: Int
+                    let byteOffset: Int?
+                }
+
+                let count: Int
+                let indices: Indices
+                let values: Values
+            }
+
             let bufferView: Int?
-            let byteOffset: Int
+            let byteOffset: Int?
             let componentType: Int
+            let normalized: Bool?
             let count: Int
             let type: String
             let min: [Float]?
             let max: [Float]?
+            let sparse: Sparse?
         }
         
         struct Mesh: Codable {
@@ -384,6 +613,8 @@ public struct NativeGLTFLoader: GLTFLoader {
         let materials: [Material]?
         let textures: [Texture]?
         let images: [Image]?
+        let extensionsUsed: [String]?
+        let extensionsRequired: [String]?
         
         struct Asset: Codable {
             let version: String

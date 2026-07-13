@@ -15,13 +15,29 @@ import Math
 public struct Physics3DPlugin: Plugin {
 
     public let gravity: Vector3
+    public let subStepCount: Int32
 
     public init(gravity: Vector3 = [0, -9.81, 0]) {
+        self.init(gravity: gravity, subStepCount: 2)
+    }
+
+    public init(
+        gravity: Vector3 = [0, -9.81, 0],
+        subStepCount: Int32
+    ) {
         self.gravity = gravity
+        self.subStepCount = max(1, subStepCount)
     }
 
     public func setup(in app: AppWorlds) {
+        let threading = app.getResource(PhysicsSimulationThreading.self) ?? {
+            let resource = PhysicsSimulationThreading()
+            app.insertResource(resource)
+            return resource
+        }()
+
         PhysicsBody3DComponent.registerComponent()
+        PhysicsBody3DInitialized.registerComponent()
 
         if app.getResource(PhysicsDebugOptions.self) == nil {
             app.insertResource(PhysicsDebugOptions())
@@ -30,7 +46,11 @@ public struct Physics3DPlugin: Plugin {
         app
             .insertResource(
                 Physics3DWorldHolder(
-                    world: PhysicsWorld3D(gravity: gravity)
+                    world: PhysicsWorld3D(
+                        gravity: gravity,
+                        workerCount: threading.box3DWorkerCount,
+                        subStepCount: subStepCount
+                    )
                 )
             )
             .addSystem(Physics3DSyncSystem.self, on: .physicsSync)

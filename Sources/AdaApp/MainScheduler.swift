@@ -47,8 +47,10 @@ package struct MainSchedulerPlugin: Plugin {
                 order: [
                     .preUpdate,
                     .update,
-                    .postUpdate,
-                    .fixed
+                    // Apply fixed-step writes before post-update systems derive
+                    // render state such as GlobalTransform.
+                    .fixed,
+                    .postUpdate
                 ]
             )
         )

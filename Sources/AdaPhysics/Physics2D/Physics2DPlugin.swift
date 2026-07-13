@@ -22,6 +22,12 @@ public struct Physics2DPlugin: Plugin {
     }
 
     public func setup(in app: AppWorlds) {
+        let threading = app.getResource(PhysicsSimulationThreading.self) ?? {
+            let resource = PhysicsSimulationThreading()
+            app.insertResource(resource)
+            return resource
+        }()
+
         PhysicsBody2DComponent.registerComponent()
         PhysicsJoint2DComponent.registerComponent()
         Collision2DComponent.registerComponent()
@@ -29,7 +35,10 @@ public struct Physics2DPlugin: Plugin {
         app
             .insertResource(
                 Physics2DWorldHolder(
-                    world: PhysicsWorld2D(gravity: gravity)
+                    world: PhysicsWorld2D(
+                        gravity: gravity,
+                        workerCount: threading.box2DWorkerCount
+                    )
                 )
             )
             .insertResource(PhysicsDebugOptions())

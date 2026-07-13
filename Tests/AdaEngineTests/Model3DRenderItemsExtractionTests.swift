@@ -20,12 +20,15 @@ struct Model3DRenderItemsExtractionTests {
 
         try await app.build()
 
-        let meshEntity = app.main.spawn("Cube") {
-            Mesh3DComponent(
-                mesh: Self.makeTriangleMesh(),
-                materials: [PBRMaterial()]
-            )
+        let mesh = Self.makeTriangleMesh()
+        let material = PBRMaterial()
+        let meshEntity = app.main.spawn("Cube 1") {
+            Mesh3DComponent(mesh: mesh, materials: [material])
             Transform(position: [1, 2, 3])
+        }
+        app.main.spawn("Cube 2") {
+            Mesh3DComponent(mesh: mesh, materials: [material])
+            Transform(position: [4, 5, 6])
         }
 
         await app.main.runScheduler(.preUpdate)
@@ -37,6 +40,7 @@ struct Model3DRenderItemsExtractionTests {
         let extractedItems = try #require(renderWorld.getResource(RenderItems<Opaque3DRenderItem>.self))
         #expect(extractedItems.items.count == 1)
         #expect(extractedItems.items.first?.entity == meshEntity.id)
+        #expect(extractedItems.items.first?.batchRange == 0..<2)
 
         await renderWorld.runScheduler(.preUpdate)
 

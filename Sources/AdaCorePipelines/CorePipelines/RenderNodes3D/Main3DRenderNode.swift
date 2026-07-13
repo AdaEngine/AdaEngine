@@ -50,7 +50,11 @@ public struct Main3DRenderNode: RenderNode {
                 return
             }
 
-            guard let mainTexture = target.mainTexture else {
+            guard target.rendering3DUsesEnvironmentTargets,
+                  let sceneColor = target.sceneColor3DTexture,
+                  let normalRoughness = target.normalRoughness3DTexture,
+                  let viewPositionMetallic = target.viewPositionMetallic3DTexture
+            else {
                 return
             }
 
@@ -71,9 +75,19 @@ public struct Main3DRenderNode: RenderNode {
                     label: "Main 3d Render Pass",
                     colorAttachments: [
                         .init(
-                            texture: mainTexture,
+                            texture: sceneColor,
                             operation: OperationDescriptor(loadAction: .clear, storeAction: .store),
                             clearColor: clearColor
+                        ),
+                        .init(
+                            texture: normalRoughness,
+                            operation: OperationDescriptor(loadAction: .clear, storeAction: .store),
+                            clearColor: .black
+                        ),
+                        .init(
+                            texture: viewPositionMetallic,
+                            operation: OperationDescriptor(loadAction: .clear, storeAction: .store),
+                            clearColor: .black
                         )
                     ],
                     depthStencilAttachment: depthAttachment

@@ -109,16 +109,18 @@ public struct VertexDescriptorLayoutsArray: Sequence, Codable, Hashable, Sendabl
     /// - Returns: The layout at the given index.
     public subscript(index: Int) -> VertexDescriptor.Layout {
         mutating get {
-            if self.buffer.indices.contains(index) {
-                return self.buffer[index]
+            while !self.buffer.indices.contains(index) {
+                self.buffer.append(VertexDescriptor.Layout(stride: 0))
             }
-            
-            let attribute = VertexDescriptor.Layout(stride: 0)
-            self.buffer.insert(attribute, at: index)
-            return attribute
+
+            return self.buffer[index]
         }
         
         set {
+            while !self.buffer.indices.contains(index) {
+                self.buffer.append(VertexDescriptor.Layout(stride: 0))
+            }
+
             self.buffer[index] = newValue
         }
     }
@@ -210,11 +212,41 @@ public struct VertexDescriptor: Codable, Hashable, Sendable {
     /// An object that configures how a render pipeline fetches data to send to the vertex function.
     public struct Layout: CustomStringConvertible, Codable, Hashable, Sendable {
 
+        public enum StepFunction: UInt, Codable, Sendable {
+            case perVertex
+            case perInstance
+        }
+
         /// The distance, in bytes, between the attribute data of two vertices in the buffer.
         public var stride: Int
+
+        /// How frequently the vertex buffer advances while drawing.
+        public var stepFunction: StepFunction
+
+        public init(stride: Int, stepFunction: StepFunction = .perVertex) {
+            self.stride = stride
+            self.stepFunction = stepFunction
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case stride
+            case stepFunction
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.stride = try container.decode(Int.self, forKey: .stride)
+            self.stepFunction = try container.decodeIfPresent(StepFunction.self, forKey: .stepFunction) ?? .perVertex
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(stride, forKey: .stride)
+            try container.encode(stepFunction, forKey: .stepFunction)
+        }
         
         public var description: String {
-            return "Layout: stride=\(stride)"
+            return "Layout: stride=\(stride) stepFunction=\(stepFunction)"
         }
     }
     

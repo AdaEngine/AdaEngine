@@ -7,12 +7,26 @@
 
 import AdaECS
 import box3d
+import Foundation
 import Math
 
 /// Box3D-backed 3D physics world.
 public final class PhysicsWorld3D: Codable, @unchecked Sendable {
 
     private let worldId: b3WorldId
+
+    private var configuredSubStepCount: Int32
+
+    /// Number of workers used by the Box3D scheduler.
+    public var workerCount: Int {
+        Int(b3World_GetWorkerCount(worldId))
+    }
+
+    /// Number of solver substeps performed for each fixed physics tick.
+    public var subStepCount: Int32 {
+        get { configuredSubStepCount }
+        set { configuredSubStepCount = max(1, newValue) }
+    }
 
     public var gravity: Vector3 {
         get {
@@ -34,10 +48,16 @@ public final class PhysicsWorld3D: Codable, @unchecked Sendable {
         }
     }
 
-    public init(gravity: Vector3 = [0, -9.81, 0]) {
+    public init(
+        gravity: Vector3 = [0, -9.81, 0],
+        workerCount: Int = PhysicsSimulationThreading.recommendedWorkerCount,
+        subStepCount: Int32 = 2
+    ) {
         var worldDef = b3DefaultWorldDef()
         worldDef.gravity = gravity.b3Vec
+        worldDef.workerCount = UInt32(max(1, workerCount))
         self.worldId = b3CreateWorld(&worldDef)
+        self.configuredSubStepCount = max(1, subStepCount)
         b3World_EnableWarmStarting(worldId, true)
     }
 
@@ -51,8 +71,34 @@ public final class PhysicsWorld3D: Codable, @unchecked Sendable {
 
     public func encode(to encoder: Encoder) throws { }
 
-    public func updateSimulation(_ deltaTime: Float, subStepCount: Int32 = 4) {
-        b3World_Step(worldId, deltaTime, subStepCount)
+    public func updateSimulation(_ deltaTime: Float, subStepCount: Int32? = nil) {
+        b3World_Step(worldId, deltaTime, max(1, subStepCount ?? configuredSubStepCount))
+    }
+
+    /// Iterates only bodies moved by the most recent simulation step.
+    func forEachMovedBody(_ body: (Entity, Vector3, Quat) -> Void) {
+        let events = b3World_GetBodyEvents(worldId)
+        guard events.moveCount > 0, let moveEvents = events.moveEvents else {
+            return
+        }
+
+        for index in 0..<Int(events.moveCount) {
+            let event = moveEvents[index]
+            guard let userData = event.userData else {
+                continue
+            }
+
+            let runtimeBody = Unmanaged<Body3D>.fromOpaque(userData).takeUnretainedValue()
+            guard let entity = runtimeBody.entity else {
+                continue
+            }
+
+            body(
+                entity,
+                event.transform.p.asVector3,
+                event.transform.q.asQuat
+            )
+        }
     }
 
     func createBody(with definition: b3BodyDef, for entity: Entity) -> Body3D {

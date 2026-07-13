@@ -115,6 +115,11 @@ private struct Box3DPhysicsDemoPlugin: Plugin {
     }
 }
 
+@Component
+private struct Box3DGrabbable {
+    let pickingRadius: Float
+}
+
 @System
 @MainActor
 func Box3DPhysicsDemoSetup(_ commands: Commands) {
@@ -179,6 +184,7 @@ func Box3DPhysicsDemoSetup(_ commands: Commands) {
                 material: PhysicsMaterial.generate(friction: 0.55, restitution: 0.18, density: 1),
                 mode: .dynamic
             )
+            Box3DGrabbable(pickingRadius: isSphere ? 0.5 : 0.87)
             Transform(
                 rotation: Quat.euler([Float(index) * 0.21, Float(index) * 0.37, 0]),
                 position: positions[index]
@@ -190,12 +196,20 @@ func Box3DPhysicsDemoSetup(_ commands: Commands) {
 final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
 
     @RequiredComponent var cameraTransform: Transform
+    @RequiredComponent var camera: Camera
 
     var speed: Float = 7.0
     var sensitivity: Float = 5.0
+    var grabResponse: Float = 12.0
+    var throwSpeed: Float = 10.0
 
     private var lastMousePosition: Vector2?
     private var rotation: Vector3 = [0.35, 0, 0]
+    private weak var grabbedEntity: Entity?
+    private var grabDistance: Float = 0
+    private var previousGrabTarget: Vector3?
+    private var grabVelocity: Vector3 = .zero
+    private var wasLeftMousePressed = false
 
     private var cameraRotation: Quat {
         let pitch = Transform3D.identity.rotate(angle: .radians(rotation.x), axis: .right)
@@ -222,13 +236,14 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
             cameraTransform.position += rotatedDirection * (speed * dt)
         }
 
-        if input.isMouseButtonPressed(.left) {
+        if input.isMouseButtonPressed(.right) {
             let currentMousePosition = input.getMousePosition()
 
             if let lastMousePosition {
                 let delta = currentMousePosition - lastMousePosition
                 self.rotation.y += delta.x * sensitivity * dt
                 self.rotation.x += delta.y * sensitivity * dt
+                self.rotation.x = clamp(rotation.x, -1.5, 1.5)
                 cameraTransform.rotation = cameraRotation
             }
 
@@ -236,5 +251,148 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
         } else {
             lastMousePosition = nil
         }
+
+        updateGrab(deltaTime: dt)
+    }
+
+    private func updateGrab(deltaTime: Float) {
+        let isLeftMousePressed = input.isMouseButtonPressed(.left)
+        defer { wasLeftMousePressed = isLeftMousePressed }
+
+        guard let ray = mouseRay() else {
+            if !isLeftMousePressed, wasLeftMousePressed {
+                releaseGrab(ray: nil)
+            }
+            return
+        }
+
+        if isLeftMousePressed, !wasLeftMousePressed {
+            beginGrab(ray: ray)
+        }
+
+        if isLeftMousePressed {
+            moveGrabbedEntity(along: ray, deltaTime: deltaTime)
+        } else if wasLeftMousePressed {
+            releaseGrab(ray: ray)
+        }
+    }
+
+    private func mouseRay() -> Ray? {
+        guard let cameraGlobalTransform = entity?.components[GlobalTransform.self] else {
+            return nil
+        }
+
+        var mousePosition = input.getMousePosition()
+        mousePosition.y = camera.logicalViewport.rect.height - mousePosition.y
+
+        return camera.viewportToWorld(
+            cameraGlobalTransform: cameraGlobalTransform.matrix,
+            point: mousePosition
+        )
+    }
+
+    private func beginGrab(ray: Ray) {
+        guard let world else {
+            return
+        }
+
+        let query = EntityQuery(
+            where: .has(Box3DGrabbable.self)
+                && .has(PhysicsBody3DComponent.self)
+                && .has(GlobalTransform.self)
+        )
+        var closestEntity: Entity?
+        var closestDistance = Float.greatestFiniteMagnitude
+
+        for candidate in world.performQuery(query) {
+            guard
+                let grabbable = candidate.components[Box3DGrabbable.self],
+                let transform = candidate.components[GlobalTransform.self],
+                let physicsBody = candidate.components[PhysicsBody3DComponent.self],
+                case .dynamic = physicsBody.mode
+            else {
+                continue
+            }
+
+            let centerOffset = transform.matrix.origin - ray.origin
+            let projectedDistance = centerOffset.dot(ray.direction)
+            guard projectedDistance > 0, projectedDistance < 40 else {
+                continue
+            }
+
+            let perpendicularDistanceSquared = centerOffset.squaredLength - projectedDistance * projectedDistance
+            let radiusSquared = grabbable.pickingRadius * grabbable.pickingRadius
+            guard perpendicularDistanceSquared <= radiusSquared else {
+                continue
+            }
+
+            let entryDistance = projectedDistance - Math.sqrt(radiusSquared - perpendicularDistanceSquared)
+            if entryDistance < closestDistance {
+                closestEntity = candidate
+                closestDistance = entryDistance
+                grabDistance = projectedDistance
+            }
+        }
+
+        guard let closestEntity, var physicsBody = closestEntity.components[PhysicsBody3DComponent.self] else {
+            return
+        }
+
+        physicsBody.gravityScale = 0
+        physicsBody.clearForces()
+        closestEntity.components += physicsBody
+        grabbedEntity = closestEntity
+        previousGrabTarget = ray.point(in: grabDistance)
+        grabVelocity = .zero
+    }
+
+    private func moveGrabbedEntity(along ray: Ray, deltaTime: Float) {
+        guard
+            let grabbedEntity,
+            var physicsBody = grabbedEntity.components[PhysicsBody3DComponent.self]
+        else {
+            clearGrabState()
+            return
+        }
+
+        let target = ray.point(in: grabDistance)
+        let currentPosition = physicsBody.worldCenter
+        let targetVelocity = (target - currentPosition) * grabResponse
+        physicsBody.gravityScale = 0
+        physicsBody.linearVelocity = clamped(targetVelocity, maximumLength: 30)
+        physicsBody.angularVelocity *= Swift.max(0, 1 - 8 * deltaTime)
+        grabbedEntity.components += physicsBody
+
+        if let previousGrabTarget, deltaTime > 0 {
+            let instantaneousVelocity = (target - previousGrabTarget) / deltaTime
+            grabVelocity = grabVelocity * 0.65 + instantaneousVelocity * 0.35
+        }
+        previousGrabTarget = target
+    }
+
+    private func releaseGrab(ray: Ray?) {
+        if let grabbedEntity, var physicsBody = grabbedEntity.components[PhysicsBody3DComponent.self] {
+            let forwardVelocity = (ray?.direction ?? .zero) * throwSpeed
+            physicsBody.gravityScale = 1
+            physicsBody.linearVelocity = clamped(grabVelocity + forwardVelocity, maximumLength: 25)
+            grabbedEntity.components += physicsBody
+        }
+
+        clearGrabState()
+    }
+
+    private func clearGrabState() {
+        grabbedEntity = nil
+        grabDistance = 0
+        previousGrabTarget = nil
+        grabVelocity = .zero
+    }
+
+    private func clamped(_ vector: Vector3, maximumLength: Float) -> Vector3 {
+        guard vector.squaredLength > maximumLength * maximumLength else {
+            return vector
+        }
+
+        return vector.normalized * maximumLength
     }
 }

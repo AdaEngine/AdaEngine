@@ -45,6 +45,7 @@ public struct RenderWorldPlugin: Plugin {
             .extract,
             .preUpdate,
             .prepare,
+            .batching,
             .update,
             .render,
             .postUpdate

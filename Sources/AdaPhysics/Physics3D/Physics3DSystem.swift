@@ -10,6 +10,9 @@ import AdaTransform
 import box3d
 import Math
 
+@Component
+struct PhysicsBody3DInitialized: Sendable { }
+
 @MainActor
 @System
 public func Physics3DUpdate(
@@ -25,11 +28,19 @@ public func Physics3DUpdate(
 @PlainSystem
 public struct Physics3DSyncSystem: Sendable {
 
-    @Query<Entity, Ref<PhysicsBody3DComponent>, Ref<Transform>>
+    @FilterQuery<
+        Entity,
+        Ref<PhysicsBody3DComponent>,
+        Transform,
+        Without<PhysicsBody3DInitialized>
+    >
     private var physicsBodyQuery
 
     @Res<Physics3DWorldHolder>
     private var physicsWorld
+
+    @Commands
+    private var commands
 
     public init(world: World) { }
 
@@ -41,18 +52,7 @@ public struct Physics3DSyncSystem: Sendable {
 
     private func syncPhysicsBodyEntities(in world: PhysicsWorld3D) {
         self.physicsBodyQuery.forEach { entity, physicsBody, transform in
-            if let body = physicsBody.runtimeBody {
-                if physicsBody.mode == .static {
-                    body.setTransform(
-                        position: transform.position,
-                        rotation: transform.rotation
-                    )
-                }
-
-                var massData = body.massData
-                massData.mass = physicsBody.massProperties.mass
-                body.massData = massData
-            } else {
+            if physicsBody.runtimeBody == nil {
                 var def = b3DefaultBodyDef()
                 def.position = transform.position.b3Vec
                 def.rotation = transform.rotation.b3Quat
@@ -80,6 +80,8 @@ public struct Physics3DSyncSystem: Sendable {
                 var massData = body.massData
                 massData.mass = physicsBody.massProperties.mass
                 body.massData = massData
+
+                commands.entity(entity.id).insert(PhysicsBody3DInitialized())
             }
         }
     }
@@ -89,22 +91,24 @@ public struct Physics3DSyncSystem: Sendable {
 @PlainSystem
 public struct Physics3DWritebackSystem: Sendable {
 
-    @Query<Entity, Ref<PhysicsBody3DComponent>, Ref<Transform>>
-    private var physicsBodyQuery
+    @Res<Physics3DWorldHolder>
+    private var physicsWorld
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        physicsBodyQuery.forEach { _, physicsBody, transform in
-            guard
-                physicsBody.mode != .static,
-                let body = physicsBody.runtimeBody
-            else {
+        physicsWorld.world.forEachMovedBody { entity, position, rotation in
+            guard var transform = entity.components[Transform.self] else {
                 return
             }
 
-            transform.position = body.getPosition()
-            transform.rotation = body.getRotation()
+            guard transform.position != position || transform.rotation != rotation else {
+                return
+            }
+
+            transform.position = position
+            transform.rotation = rotation
+            entity.components[Transform.self] = transform
         }
     }
 }

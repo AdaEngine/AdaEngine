@@ -12,7 +12,18 @@ struct LargePyramidBenchmarkExample: App {
             return Scene(from: world)
         }
         .addPlugins(DefaultPlugins()
-            .set(Physics3DPlugin())
+            .disable(AudioPlugin.self)
+            .disable(SpritePlugin.self)
+            .disable(Mesh2DPlugin.self)
+            .disable(TextPlugin.self)
+            .disable(Core2DPlugin.self)
+            .disable(Light2DPlugin.self)
+            .disable(UIPlugin.self)
+            .disable(ContextMenuPlugin.self)
+            .disable(Physics2DPlugin.self)
+            .disable(TileMapPlugin.self)
+            .set(LargePyramidPhysicsConfigurationPlugin())
+            .set(Physics3DPlugin(subStepCount: 1))
             .set(LargePyramidBenchmarkPlugin())
         )
         .windowMode(.windowed)
@@ -113,6 +124,17 @@ struct LargePyramidBenchmarkExample: App {
     }
 }
 
+private struct LargePyramidPhysicsConfigurationPlugin: Plugin {
+    func setup(in app: AppWorlds) {
+        app.insertResource(
+            PhysicsSimulationThreading(
+                workerCount: 8,
+                box3DWorkerCount: 8
+            )
+        )
+    }
+}
+
 private struct LargePyramidBenchmarkPlugin: Plugin {
     func setup(in app: AppWorlds) {
         app.addSystem(LargePyramidBenchmarkSetupSystem.self, on: .startup)
@@ -198,14 +220,16 @@ final class LargePyramidBenchmarkCamera: ScriptableObject, @unchecked Sendable {
     private var rotation: Vector3 = [0.08, 0, 0]
     private var shootCooldown = FixedTimestep(stepsPerSecond: 5)
 
-    private lazy var projectileMesh = LargePyramidBenchmarkExample.makeSphereMesh(
+    @MainActor
+    private var projectileMesh = LargePyramidBenchmarkExample.makeSphereMesh(
         name: "Benchmark Projectile",
         radius: 0.75,
         segments: 18,
         rings: 10
     )
 
-    private lazy var projectileMaterial = LargePyramidBenchmarkExample.makeMaterial(color: [0.68, 0.92, 0.18, 1])
+    @MainActor
+    private var projectileMaterial = LargePyramidBenchmarkExample.makeMaterial(color: [0.68, 0.92, 0.18, 1])
 
     private var cameraRotation: Quat {
         let pitch = Transform3D.identity.rotate(angle: .radians(rotation.x), axis: .right)
@@ -276,18 +300,20 @@ final class LargePyramidBenchmarkCamera: ScriptableObject, @unchecked Sendable {
             return
         }
 
-        let spawnPosition = ray.point(in: 4.0)
-        world.spawn("Projectile") {
-            Mesh3DComponent(mesh: projectileMesh, materials: [projectileMaterial])
-            PhysicsBody3DComponent(
-                shapes: [Shape3DResource.generateSphere(radius: 0.75)],
-                mass: 40,
-                material: PhysicsMaterial.generate(friction: 0.35, restitution: 0.12, density: 1.5),
-                mode: .dynamic
-            )
-            Transform(position: spawnPosition)
-            NoFrustumCulling()
-            ScriptableComponents(scripts: [ProjectileLaunchScript(initialVelocity: ray.direction * 95)])
+        Task { @MainActor in
+            let spawnPosition = ray.point(in: 4.0)
+            world.spawn("Projectile") {
+                Mesh3DComponent(mesh: projectileMesh, materials: [projectileMaterial])
+                PhysicsBody3DComponent(
+                    shapes: [Shape3DResource.generateSphere(radius: 0.75)],
+                    mass: 40,
+                    material: PhysicsMaterial.generate(friction: 0.35, restitution: 0.12, density: 1.5),
+                    mode: .dynamic
+                )
+                Transform(position: spawnPosition)
+                NoFrustumCulling()
+                ScriptableComponents(scripts: [ProjectileLaunchScript(initialVelocity: ray.direction * 95)])
+            }
         }
     }
 }
@@ -303,6 +329,10 @@ final class ProjectileLaunchScript: ScriptableObject, @unchecked Sendable {
     init(initialVelocity: Vector3) {
         self.initialVelocity = initialVelocity
         super.init()
+    }
+
+    required init(from decoder: any Decoder) throws {
+        fatalError("init(from:) has not been implemented")
     }
 
     override func update(_ deltaTime: AdaUtils.TimeInterval) {

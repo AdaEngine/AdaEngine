@@ -35,6 +35,7 @@ final class MetalRenderPipeline: RenderPipeline {
 
         for (index, layout) in descriptor.vertexDescriptor.layouts.enumerated() {
             vertexDescriptor.layouts[index].stride = layout.stride
+            vertexDescriptor.layouts[index].stepFunction = layout.stepFunction == .perInstance ? .perInstance : .perVertex
         }
         if let shader = descriptor.vertex.compiledShader as? MetalShader {
             pipelineDescriptor.vertexFunction = shader.function

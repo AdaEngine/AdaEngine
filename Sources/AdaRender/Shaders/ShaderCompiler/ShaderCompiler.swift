@@ -141,7 +141,8 @@ public final class ShaderCompiler {
             span.end()
         }
         let version = self.getShaderVersion(for: stage)
-        if !ShaderCache.hasChanges(for: self.shaderSource, version: version).contains(stage) {
+        let hasChanges = ShaderCache.hasChanges(for: self.shaderSource, stage: stage, version: version)
+        if !hasChanges {
             if let deviceCompiledShader = ShaderCache.getCachedDeviceCompiledShader(for: self.shaderSource, stage: stage) {
                 return try Shader.make(from: deviceCompiledShader, entryPoint: deviceCompiledShader.entryPoints.first?.name ?? "", stage: stage)
             }
@@ -149,7 +150,7 @@ public final class ShaderCompiler {
 
         #if WASM
         if unsafe RenderEngine.shared.type == .headless {
-            let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
+            let binary = try self.compileSpirvBin(for: stage, ignoreCache: hasChanges)
             let shader = try Shader(spirv: binary, compiler: self)
             try shader.compile()
             return shader
@@ -162,7 +163,7 @@ public final class ShaderCompiler {
                 throw CompileError.failed("WGSL sidecar for `\(stage.rawValue)` shader not found next to \(sourcePath)")
             }
 
-            let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
+            let binary = try self.compileSpirvBin(for: stage, ignoreCache: hasChanges)
             let spirvCompiler = try SpirvCompiler(spriv: binary.data, stage: stage, deviceLang: .glsl)
             let shader = Shader(
                 source: wgslSource,
@@ -176,7 +177,7 @@ public final class ShaderCompiler {
         #endif
         #endif
 
-        let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
+        let binary = try self.compileSpirvBin(for: stage, ignoreCache: hasChanges)
 
         #if canImport(WebGPU)
         if unsafe RenderEngine.shared.type.deviceLang == .wgsl {
@@ -231,7 +232,7 @@ public final class ShaderCompiler {
     internal func compileSpirvBin(for stage: ShaderStage, ignoreCache: Bool = false) throws -> SpirvBinary {
         let version = self.getShaderVersion(for: stage)
         
-        if !ShaderCache.hasChanges(for: self.shaderSource, version: version).contains(stage), !ignoreCache {
+        if !ignoreCache, !ShaderCache.hasChanges(for: self.shaderSource, stage: stage, version: version) {
             let entryPoint = self.shaderSource.getEntryPoint(for: stage)
             if let binary = ShaderCache.getCachedShader(
                 for: self.shaderSource,

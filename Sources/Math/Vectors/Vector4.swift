@@ -180,7 +180,13 @@ public extension Vector4 {
     static func - (lhs: Float, rhs: borrowing Vector4) -> Vector4 {
         return Vector4(lhs - rhs.x, lhs - rhs.y, lhs - rhs.z, lhs - rhs.w)
     }
-    
+
+    @inlinable
+    @inline(__always)
+    static prefix func - (lhs: borrowing Vector4) -> Vector4 {
+        return Vector4(-lhs.x, -lhs.y, -lhs.z, -lhs.w)
+    }
+
     @inlinable
     @inline(__always)
     @_disfavoredOverload

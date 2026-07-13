@@ -12,6 +12,7 @@ import AdaTransform
 import Testing
 
 @MainActor
+@Suite(.serialized)
 struct Physics3DTests {
 
     let world: AppWorlds
@@ -53,5 +54,50 @@ struct Physics3DTests {
 
         #expect(runtimeBody.getPosition().y < startY)
         #expect(endY < startY)
+    }
+
+    @Test
+    func box3DUsesRecommendedThreadingByDefault() {
+        let threading = PhysicsSimulationThreading(workerCount: 4)
+        let clamped = PhysicsSimulationThreading(workerCount: 4, box3DWorkerCount: 0)
+
+        #expect(threading.box3DWorkerCount == 4)
+        #expect(clamped.box3DWorkerCount == 1)
+    }
+
+    @Test
+    func physicsWorldNormalizesAndExposesSolverConfiguration() {
+        let physicsWorld = PhysicsWorld3D(workerCount: 2, subStepCount: 0)
+
+        #expect(physicsWorld.workerCount == 2)
+        #expect(physicsWorld.subStepCount == 1)
+
+        physicsWorld.subStepCount = 2
+        #expect(physicsWorld.subStepCount == 2)
+    }
+
+    @Test
+    func fixedSchedulerAdvancesAndWritesBackDynamicBody() async throws {
+        let box = world.main.spawn {
+            PhysicsBody3DComponent(
+                shapes: [Shape3DResource.generateBox(width: 1, height: 1, depth: 1)],
+                mass: 1,
+                mode: .dynamic
+            )
+            Transform(position: [0, 4, 0])
+        }
+        let startY = try #require(box.components[Transform.self]?.position.y)
+
+        try await world.update()
+        try await Task.sleep(for: .milliseconds(20))
+        try await world.update()
+
+        let runtimeBody = try #require(box.components[PhysicsBody3DComponent.self]?.runtimeBody)
+        let endY = try #require(box.components[Transform.self]?.position.y)
+        let globalEndY = try #require(box.components[GlobalTransform.self]?.getTransform().position.y)
+
+        #expect(runtimeBody.getPosition().y < startY)
+        #expect(endY < startY)
+        #expect(globalEndY == endY)
     }
 }

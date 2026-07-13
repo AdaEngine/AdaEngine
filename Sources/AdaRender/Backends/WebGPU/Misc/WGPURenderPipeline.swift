@@ -111,15 +111,16 @@ final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
 
         return bufferAttributes.keys.sorted().map { bufferIndex in
             let stride = bufferStrides[bufferIndex] ?? 0
+            let stepMode: WebGPU.GPUVertexStepMode = descriptor.vertexDescriptor.layouts.buffer[bufferIndex].stepFunction == .perInstance ? .instance : .vertex
             #if WASM
             return WebGPU.GPUVertexBufferLayout(
-                stepMode: WebGPU.GPUVertexStepMode.vertex,
+                stepMode: stepMode,
                 arrayStride: UInt64(stride),
                 attributes: bufferAttributes[bufferIndex] ?? []
             )
             #else
             return WebGPU.GPUVertexBufferLayout(
-                stepMode: WebGPU.GPUVertexStepMode.vertex,
+                stepMode: stepMode,
                 arrayStride: UInt64(stride),
                 attributes: bufferAttributes[bufferIndex] ?? [],
                 nextInChain: nil
