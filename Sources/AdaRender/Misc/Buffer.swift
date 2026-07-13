@@ -6,7 +6,7 @@
 //
 
 /// This protocol describe buffer created for GPU usage.
-public protocol Buffer: Sendable {
+public protocol Buffer: AnyObject, Sendable {
     
     /// A string that identifies the resource.
     var label: String? { get set }

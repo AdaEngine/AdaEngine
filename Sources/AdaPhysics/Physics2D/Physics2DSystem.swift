@@ -45,13 +45,13 @@ public struct Physics2DSyncSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        self.updatePhysicsBodyEntities(in: physicsWorld.world)
-        self.updateCollisionEntities(in: physicsWorld.world)
+        self.syncPhysicsBodyEntities(in: physicsWorld.world)
+        self.syncCollisionEntities(in: physicsWorld.world)
     }
     
     // MARK: - Private
 
-    private func updatePhysicsBodyEntities(in world: PhysicsWorld2D) {
+    private func syncPhysicsBodyEntities(in world: PhysicsWorld2D) {
         self.physicsBodyQuery.forEach { entity, physicsBody, transform in
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
@@ -59,11 +59,6 @@ public struct Physics2DSyncSystem: Sendable {
                         position: transform.position.xy,
                         angle: transform.rotation.angle2D
                     )
-                } else {
-                    let position = body.getPosition()
-                    transform.position.x = position.x
-                    transform.position.y = position.y
-                    transform.rotation = Quat(axis: [0, 0, 1], angle: -body.getAngle().radians)
                 }
                 
                 body.massData.mass = physicsBody.massProperties.mass
@@ -116,7 +111,7 @@ public struct Physics2DSyncSystem: Sendable {
         }
     }
 
-    private func updateCollisionEntities(in world: PhysicsWorld2D) {
+    private func syncCollisionEntities(in world: PhysicsWorld2D) {
         collisionQuery.forEach { (entity, collisionBody, transform) in
             if let body = collisionBody.runtimeBody {
                 if body.getPosition() != transform.position.xy {
@@ -163,6 +158,35 @@ public struct Physics2DSyncSystem: Sendable {
                     }
                 }
             }
+        }
+    }
+}
+
+/// A system for writing back simulated 2D physics state into scene components.
+@PlainSystem
+public struct Physics2DWritebackSystem: Sendable {
+
+    @Res<Physics2DWorldHolder>
+    private var physicsWorld
+
+    public init(world: World) { }
+
+    public func update(context: UpdateContext) {
+        physicsWorld.world.forEachMovedBody { entity, position, rotation in
+            guard var transform = entity.components[Transform.self] else {
+                return
+            }
+
+            guard transform.position.x != position.x ||
+                  transform.position.y != position.y ||
+                  transform.rotation != rotation else {
+                return
+            }
+
+            transform.position.x = position.x
+            transform.position.y = position.y
+            transform.rotation = rotation
+            entity.components[Transform.self] = transform
         }
     }
 }

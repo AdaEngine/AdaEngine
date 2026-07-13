@@ -12,7 +12,7 @@ public struct QueryResult<B: QuertyTargetBuilder, F: Filter>: Sequence, Sendable
     public typealias Element = B.Components
 
     /// The iterator type of the query result.
-    public typealias Iterator = FilterQueryIterator<B, QueryBuilderTargets<F>>
+    public typealias Iterator = FilterQueryIterator<B, F>
 
     /// The state of the query result.
     let state: QueryState
@@ -40,6 +40,6 @@ public struct QueryResult<B: QuertyTargetBuilder, F: Filter>: Sequence, Sendable
     }
     
     public func makeIterator() -> Iterator {
-        FilterQueryIterator<B, QueryBuilderTargets<F>>(state: state)
+        FilterQueryIterator<B, F>(state: state)
     }
 }

@@ -31,7 +31,7 @@ public struct TransformSystem {
     public init(world: World) { }
     
     public func update(context: UpdateContext) async {
-        await self.query.parallel().forEach { entity, transform, globalTransform in
+        self.query.forEach { _, transform, globalTransform in
             globalTransform.wrappedValue = GlobalTransform(matrix: transform.matrix)
         }
     }
@@ -43,7 +43,7 @@ public struct TransformSystem {
 ])
 public struct ChildTransformSystem {
     
-    @FilterQuery<Entity, GlobalTransform, Changed<Transform>>
+    @FilterQuery<Entity, GlobalTransform, RelationshipComponent, Changed<Transform>>
     private var query
 
     @Commands
@@ -52,12 +52,13 @@ public struct ChildTransformSystem {
     public init(world: World) { }
     
     public func update(context: UpdateContext) async {
-        await self.query.parallel().forEach { entity, globalTransform in
-            guard !entity.children.isEmpty else {
+        self.query.forEach { _, globalTransform, relationship in
+            guard !relationship.children.isEmpty else {
                 return
             }
-            
-            updateChildren(entity.children, world: context.world, parentTransform: globalTransform)
+
+            let children = relationship.children.compactMap(context.world.getEntityByID)
+            updateChildren(children, world: context.world, parentTransform: globalTransform)
         }
     }
     
@@ -80,8 +81,9 @@ public struct ChildTransformSystem {
                 .entity(child.id)
                 .insert(GlobalTransform(matrix: newMatrix))
 
-            if !child.children.isEmpty {
-                updateChildren(child.children, world: world, parentTransform: GlobalTransform(matrix: newMatrix))
+            let grandchildren = child.children
+            if !grandchildren.isEmpty {
+                updateChildren(grandchildren, world: world, parentTransform: GlobalTransform(matrix: newMatrix))
             }
         }
     }

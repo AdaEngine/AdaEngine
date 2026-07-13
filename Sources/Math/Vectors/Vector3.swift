@@ -231,6 +231,12 @@ public extension Vector3 {
 
     @inlinable
     @inline(__always)
+    static prefix func - (lhs: borrowing Vector3) -> Vector3 {
+        return Vector3(-lhs.x, -lhs.y, -lhs.z)
+    }
+
+    @inlinable
+    @inline(__always)
     static func * (lhs: borrowing Vector3, rhs: borrowing Vector3) -> Vector3 {
         return Vector3(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z)
     }

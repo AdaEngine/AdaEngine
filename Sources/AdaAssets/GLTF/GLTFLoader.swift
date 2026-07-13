@@ -40,16 +40,58 @@ public struct GLTFImportResult: Sendable {
     }
 
     public struct Primitive: Sendable {
-        public let attributes: [Attribute: Data]
-        public let indices: Data?
+        public let attributes: [Attribute: Accessor]
+        public let indices: [UInt32]?
         public let materialIndex: Int?
         public let mode: PrimitiveMode
         
-        public init(attributes: [Attribute : Data], indices: Data?, materialIndex: Int?, mode: PrimitiveMode) {
+        public init(attributes: [Attribute: Accessor], indices: [UInt32]?, materialIndex: Int?, mode: PrimitiveMode) {
             self.attributes = attributes
             self.indices = indices
             self.materialIndex = materialIndex
             self.mode = mode
+        }
+    }
+
+    /// A decoded, tightly-packed accessor.
+    public struct Accessor: Sendable {
+        public let values: [Float]
+        public let componentCount: Int
+
+        public var count: Int {
+            componentCount > 0 ? values.count / componentCount : 0
+        }
+
+        public init(values: [Float], componentCount: Int) {
+            self.values = values
+            self.componentCount = componentCount
+        }
+
+        public func vector2Values() -> [Vector2] {
+            guard componentCount == 2, values.count.isMultiple(of: 2) else {
+                return []
+            }
+            return stride(from: 0, to: values.count, by: 2).map {
+                Vector2(x: values[$0], y: values[$0 + 1])
+            }
+        }
+
+        public func vector3Values() -> [Vector3] {
+            guard componentCount == 3, values.count.isMultiple(of: 3) else {
+                return []
+            }
+            return stride(from: 0, to: values.count, by: 3).map {
+                Vector3(x: values[$0], y: values[$0 + 1], z: values[$0 + 2])
+            }
+        }
+
+        public func vector4Values() -> [Vector4] {
+            guard componentCount == 4, values.count.isMultiple(of: 4) else {
+                return []
+            }
+            return stride(from: 0, to: values.count, by: 4).map {
+                Vector4(x: values[$0], y: values[$0 + 1], z: values[$0 + 2], w: values[$0 + 3])
+            }
         }
     }
 
@@ -61,6 +103,7 @@ public struct GLTFImportResult: Sendable {
         case color(Int)
         case joints(Int)
         case weights(Int)
+        case custom(String)
     }
 
     public enum PrimitiveMode: Int, Sendable {

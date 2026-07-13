@@ -148,7 +148,7 @@ extension MeshDescriptor {
     public static let normals: MeshDescriptor.Semantic<Vector3> = MeshDescriptor.Semantic<Vector3>(id: .normals)
 
     /// A semantic of a mesh array for tangents.
-    public static let tangents: MeshDescriptor.Semantic<Vector3> = MeshDescriptor.Semantic<Vector3>(id: .tangents)
+    public static let tangents: MeshDescriptor.Semantic<Vector4> = MeshDescriptor.Semantic<Vector4>(id: .tangents)
 
     /// A semantic of a mesh array for texture coordinates.
     public static let textureCoordinates: MeshDescriptor.Semantic<Vector2> = MeshDescriptor.Semantic<Vector2>(id: .textureCoordinates)
@@ -171,6 +171,9 @@ extension MeshDescriptor {
 
     /// A buffer for texture coordinates.
     public typealias TextureCoordinates = MeshBuffer<Vector2>
+
+    /// A buffer for tangent vectors and their handedness.
+    public typealias Tangents = MeshBuffer<Vector4>
 
     /// A buffer for colors.
     public typealias Colors = MeshBuffer<Color>
@@ -204,6 +207,16 @@ extension MeshDescriptor {
 
         _modify {
             yield &self[MeshDescriptor.textureCoordinates]
+        }
+    }
+
+    /// The buffer for tangent vectors and their handedness.
+    public var tangents: MeshDescriptor.Tangents? {
+        _read {
+            yield self[MeshDescriptor.tangents]
+        }
+        _modify {
+            yield &self[MeshDescriptor.tangents]
         }
     }
 

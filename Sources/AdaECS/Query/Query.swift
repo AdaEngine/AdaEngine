@@ -50,7 +50,7 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
     public typealias Element = Builder.Components
 
     /// The iterator type of the query result.
-    public typealias Iterator = FilterQueryIterator<Builder, QueryBuilderTargets<F>>
+    public typealias Iterator = FilterQueryIterator<Builder, F>
 
     public typealias Builder = QueryBuilderTargets<repeat each T>
 
@@ -184,7 +184,7 @@ final class QueryState: @unchecked Sendable {
 /// This iterator iterate by each entity in passed archetype array
 public struct FilterQueryIterator<
     B: QuertyTargetBuilder,
-    F: FilterTargetBuilder
+    F: Filter
 >: IteratorProtocol {
     public typealias Element = B.Components
 
@@ -224,10 +224,13 @@ public struct FilterQueryIterator<
     var states: B.ComponentsStates
 
     @usableFromInline
-    var filterStates: F.ComponentsStates
+    var filterState: F.State
 
     @usableFromInline
-    var filterFetches: F.ComponentsFetches
+    var filterFetch: F.Fetch
+
+    @usableFromInline
+    let requiresRowEvaluation: Bool
 
     @usableFromInline
     var needsUpdateData = true
@@ -245,12 +248,14 @@ public struct FilterQueryIterator<
             states: self.states,
             lastTick: state.lastTick
         )
-        self.filterStates = F.initState(world: state.world)
-        self.filterFetches = F.initFetches(
+        self.filterState = F._initState(world: state.world)
+        self.filterFetch = F._initFetch(
             world: state.world,
-            states: filterStates,
-            lastTick: state.lastTick
+            state: filterState,
+            lastTick: state.lastTick,
+            currentTick: state.world.currentTick
         )
+        self.requiresRowEvaluation = F.requiresRowEvaluation
     }
 
     @inlinable
@@ -300,9 +305,9 @@ public struct FilterQueryIterator<
                     chunk: currentChunk,
                     archetype: archetype
                 )
-                F.setChunk(
-                    states: filterStates,
-                    fetches: &filterFetches,
+                filterFetch = F._setData(
+                    state: filterState,
+                    fetch: filterFetch,
                     chunk: currentChunk,
                     archetype: archetype
                 )
@@ -315,10 +320,10 @@ public struct FilterQueryIterator<
                 cursor.currentRow += 1
             }
 
-            if F.requiresRowEvaluation {
+            if requiresRowEvaluation {
                 guard F.condition(
-                    states: filterStates,
-                    fetches: filterFetches,
+                    state: filterState,
+                    fetch: filterFetch,
                     at: cursor.currentRow
                 ) else {
                     continue
@@ -349,11 +354,12 @@ public struct FilterQueryIterator<
             states: states,
             lastTick: state.lastTick
         )
-        filterStates = F.initState(world: state.world)
-        filterFetches = F.initFetches(
+        filterState = F._initState(world: state.world)
+        filterFetch = F._initFetch(
             world: state.world,
-            states: filterStates,
-            lastTick: state.lastTick
+            state: filterState,
+            lastTick: state.lastTick,
+            currentTick: state.world.currentTick
         )
     }
 }

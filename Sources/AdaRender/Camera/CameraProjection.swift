@@ -169,7 +169,7 @@ public struct PerspectiveProjection: CameraProjection {
     public private(set) var aspectRation: Float
 
     public init(
-        near: Float = -1,
+        near: Float = 0.1,
         far: Float = 1000,
         fieldOfView: Angle = .degrees(70),
         aspectRation: Float = 16/9

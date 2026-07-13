@@ -240,7 +240,13 @@ public extension Vector2 {
     static func - (lhs: borrowing Vector2, rhs: borrowing Vector2) -> Vector2 {
         return Vector2(lhs.x - rhs.x, lhs.y - rhs.y)
     }
-    
+
+    @inlinable
+    @inline(__always)
+    static prefix func - (lhs: borrowing Vector2) -> Vector2 {
+        return Vector2(-lhs.x, -lhs.y)
+    }
+
     @inlinable
     @inline(__always)
     static func / (lhs: borrowing Vector2, rhs: borrowing Vector2) -> Vector2 {

@@ -175,16 +175,29 @@ public extension Camera {
         let ndc = point * 2 / logicalViewport.rect.size.asVector2 - Vector2.one
         let ndcToWorld = cameraGlobalTransform * self.computedData.projectionMatrix.inverse
 
-        let worldPlaneNear = ndcToWorld * Vector4(Vector3(ndc, 1), 1)
-        let worldPlaneFar = ndcToWorld * Vector4(Vector3(ndc, Float.greatestFiniteMagnitude), 1)
+        let worldPlaneNear = ndcToWorld * Vector4(Vector3(ndc, 0), 1)
+        let worldPlaneFar = ndcToWorld * Vector4(Vector3(ndc, 1), 1)
 
-        if worldPlaneNear.isNaN && worldPlaneFar.isNaN {
+        guard
+            !worldPlaneNear.isNaN,
+            !worldPlaneFar.isNaN,
+            worldPlaneNear.w != 0,
+            worldPlaneFar.w != 0
+        else {
+            return nil
+        }
+
+        let nearPoint = worldPlaneNear.xyz / worldPlaneNear.w
+        let farPoint = worldPlaneFar.xyz / worldPlaneFar.w
+        let direction = farPoint - nearPoint
+
+        guard !direction.isNaN, direction != .zero else {
             return nil
         }
 
         return Ray(
-            origin: worldPlaneNear.xyz,
-            direction: (worldPlaneFar - worldPlaneNear).xyz.normalized
+            origin: nearPoint,
+            direction: direction.normalized
         )
     }
 

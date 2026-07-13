@@ -48,12 +48,21 @@ public struct RenderViewTarget: @unchecked Sendable {
     /// Shadow mask written before each lit pass (same size as ``mainTexture``).
     public var shadowMaskTexture: RenderTexture?
 
+    /// Scene color written by the 3D geometry pass before environment compositing.
+    public var sceneColor3DTexture: RenderTexture?
+    /// View-space normal in RGB and roughness in A.
+    public var normalRoughness3DTexture: RenderTexture?
+    /// View-space position in RGB and metallic factor in A.
+    public var viewPositionMetallic3DTexture: RenderTexture?
+
     /// When true, ``Main2DRenderNode`` writes albedo to ``sceneColorTexture``; lighting composite writes ``mainTexture``.
     public var lighting2DUsesDeferredTargets: Bool = false
+    /// When true, the main 3D pass writes the environment geometry buffers.
+    public var rendering3DUsesEnvironmentTargets: Bool = false
 
     public init() {}
 
-    fileprivate var cacheableCopy: RenderViewTarget {
+    fileprivate var cacheableCopy: Self {
         var copy = self
         copy.outputTexture = nil
         return copy
@@ -71,7 +80,11 @@ public struct ExtractedCameraRenderViewTargets: Resource {
 
 @Component
 public struct ExtractedCameraSource: Sendable {
-    let entityId: Entity.ID
+    public let entityId: Entity.ID
+
+    public init(entityId: Entity.ID) {
+        self.entityId = entityId
+    }
 }
 
 @System(
@@ -99,7 +112,6 @@ func ConfigurateRenderViewTarget(
             let outputTexture = asset.asset
             renderViewTarget.outputTexture = outputTexture
             renderViewTarget.mainTexture = outputTexture
-            renderViewTarget.depthTexture = nil
             renderViewTarget.retiredFrameTextures.removeAll(keepingCapacity: false)
             renderViewTarget.sceneColorTexture = nil
             renderViewTarget.lightAccumTexture = nil
@@ -117,6 +129,9 @@ func ConfigurateRenderViewTarget(
                 renderViewTarget.sceneColorTexture,
                 renderViewTarget.lightAccumTexture,
                 renderViewTarget.shadowMaskTexture,
+                renderViewTarget.sceneColor3DTexture,
+                renderViewTarget.normalRoughness3DTexture,
+                renderViewTarget.viewPositionMetallic3DTexture,
             ].compactMap { $0 }
             renderViewTarget.retiredFrameTextures.append(contentsOf: retireFrameTextures(retiredTextures))
             let maxRetainedTextures = unsafe RenderEngine.configurations.maxFramesInFlight * max(1, retiredTextures.count)
@@ -142,6 +157,9 @@ func ConfigurateRenderViewTarget(
             renderViewTarget.sceneColorTexture = nil
             renderViewTarget.lightAccumTexture = nil
             renderViewTarget.shadowMaskTexture = nil
+            renderViewTarget.sceneColor3DTexture = nil
+            renderViewTarget.normalRoughness3DTexture = nil
+            renderViewTarget.viewPositionMetallic3DTexture = nil
         }
 
         switch camera.renderTarget {

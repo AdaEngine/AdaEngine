@@ -28,7 +28,8 @@ public struct Opaque3DRenderItem: RenderItem {
         partIndex: Int,
         mesh: Mesh,
         material: Material,
-        worldTransform: Transform3D
+        worldTransform: Transform3D,
+        batchRange: Range<Int32>? = nil
     ) {
         self.entity = entity
         self.drawPass = drawPass
@@ -38,5 +39,6 @@ public struct Opaque3DRenderItem: RenderItem {
         self.mesh = mesh
         self.material = material
         self.worldTransform = worldTransform
+        self.batchRange = batchRange
     }
 }

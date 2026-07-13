@@ -27,7 +27,6 @@ private struct ChunkInfo: Sendable {
 /// ```
 public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
     public typealias Element = B.Components
-    public typealias Filter = QueryBuilderTargets<F>
 
     let state: QueryState
     let batchSize: Int
@@ -128,10 +127,16 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
             return
         }
 
+        let requiresRowEvaluation = F.requiresRowEvaluation
         let states = B.initState(world: world)
-        var fetches = B.initFetches(world: world, states: states, lastTick: world.lastTick)
-        let filterStates = Filter.initState(world: world)
-        var filterFetchs = Filter.initFetches(world: world, states: filterStates, lastTick: world.lastTick)
+        var fetches = B.initFetches(world: world, states: states, lastTick: state.lastTick)
+        let filterState = F._initState(world: world)
+        var filterFetch = F._initFetch(
+            world: world,
+            state: filterState,
+            lastTick: state.lastTick,
+            currentTick: world.currentTick
+        )
 
         for chunkInfo in batch {
             let archetypes = world.archetypes
@@ -151,19 +156,19 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
                 chunk: chunk,
                 archetype: archetype
             )
-            Filter.setChunk(
-                states: filterStates,
-                fetches: &filterFetchs,
+            filterFetch = F._setData(
+                state: filterState,
+                fetch: filterFetch,
                 chunk: chunk,
                 archetype: archetype
             )
 
             // Iterate over all entities in this chunk
             for row in 0..<chunk.count {
-                if Filter.requiresRowEvaluation {
-                    guard Filter.condition(
-                        states: filterStates,
-                        fetches: filterFetchs,
+                if requiresRowEvaluation {
+                    guard F.condition(
+                        state: filterState,
+                        fetch: filterFetch,
                         at: row
                     ) else {
                         continue
@@ -199,10 +204,16 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
             return []
         }
 
+        let requiresRowEvaluation = F.requiresRowEvaluation
         let states = B.initState(world: world)
-        var fetches = B.initFetches(world: world, states: states, lastTick: world.lastTick)
-        let filterStates = Filter.initState(world: world)
-        var filterFetchs = Filter.initFetches(world: world, states: filterStates, lastTick: world.lastTick)
+        var fetches = B.initFetches(world: world, states: states, lastTick: state.lastTick)
+        let filterState = F._initState(world: world)
+        var filterFetch = F._initFetch(
+            world: world,
+            state: filterState,
+            lastTick: state.lastTick,
+            currentTick: world.currentTick
+        )
 
         var results: [T] = []
 
@@ -224,9 +235,9 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
                 chunk: chunk,
                 archetype: archetype
             )
-            Filter.setChunk(
-                states: filterStates,
-                fetches: &filterFetchs,
+            filterFetch = F._setData(
+                state: filterState,
+                fetch: filterFetch,
                 chunk: chunk,
                 archetype: archetype
             )
@@ -240,10 +251,10 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
 
                 let entity = archetype.entities[location.archetypeRow]
 
-                if Filter.requiresRowEvaluation {
-                    guard Filter.condition(
-                        states: filterStates,
-                        fetches: filterFetchs,
+                if requiresRowEvaluation {
+                    guard F.condition(
+                        state: filterState,
+                        fetch: filterFetch,
                         at: row
                     ) else {
                         continue
