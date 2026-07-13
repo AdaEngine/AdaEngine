@@ -26,11 +26,25 @@ typedef struct ada_font_variation_axis_s {
     double value;
 } ada_font_variation_axis_t;
 
+typedef enum ada_text_direction_e {
+    ADA_TEXT_DIRECTION_NATURAL = -1,
+    ADA_TEXT_DIRECTION_LEFT_TO_RIGHT = 0,
+    ADA_TEXT_DIRECTION_RIGHT_TO_LEFT = 1
+} ada_text_direction_t;
+
 ada_shaped_text_t *ada_text_shape_utf8(const char *fontPath, const char *text, int textLength);
 ada_shaped_text_t *ada_text_shape_utf8_with_variations(
     const char *fontPath,
     const char *text,
     int textLength,
+    const ada_font_variation_axis_t *variationAxes,
+    int variationAxesCount
+);
+ada_shaped_text_t *ada_text_shape_utf8_with_direction_and_variations(
+    const char *fontPath,
+    const char *text,
+    int textLength,
+    ada_text_direction_t direction,
     const ada_font_variation_axis_t *variationAxes,
     int variationAxesCount
 );

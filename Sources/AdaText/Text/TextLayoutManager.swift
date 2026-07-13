@@ -37,32 +37,39 @@ public struct TextContainer: Hashable {
     /// selection logic is cluster-aware.
     public var allowsShaping: Bool
 
+    /// The base direction used to resolve leading alignment and bidirectional runs.
+    public var writingDirection: TextWritingDirection
+
     public init(
         text: AttributedText,
         textAlignment: TextAlignment,
         lineBreakMode: LineBreakMode,
         lineSpacing: Float,
-        allowsShaping: Bool = true
+        allowsShaping: Bool = true,
+        writingDirection: TextWritingDirection = .natural
     ) {
         self.text = text
         self.textAlignment = textAlignment
         self.lineBreakMode = lineBreakMode
         self.lineSpacing = lineSpacing
         self.allowsShaping = allowsShaping
+        self.writingDirection = writingDirection
     }
 
     public init(
         text: AttributedText,
         textAlignment: TextAlignment = .center,
         lineBreakMode: LineBreakMode = .byCharWrapping,
-        lineSpacing: Float = 0
+        lineSpacing: Float = 0,
+        writingDirection: TextWritingDirection = .natural
     ) {
         self.init(
             text: text,
             textAlignment: textAlignment,
             lineBreakMode: lineBreakMode,
             lineSpacing: lineSpacing,
-            allowsShaping: true
+            allowsShaping: true,
+            writingDirection: writingDirection
         )
     }
 
@@ -72,6 +79,7 @@ public struct TextContainer: Hashable {
         self.lineBreakMode = .byCharWrapping
         self.lineSpacing = 0
         self.allowsShaping = true
+        self.writingDirection = .natural
     }
 
 }
@@ -251,6 +259,19 @@ public final class TextLayoutManager: @unchecked Sendable {
     /// The text alignment of the text container.
     public var textAlignment: TextAlignment {
         textContainer.textAlignment
+    }
+
+    /// The physical alignment after resolving leading and trailing against the writing direction.
+    public var resolvedTextAlignment: TextAlignment {
+        guard textContainer.writingDirection.resolved(for: textContainer.text.text) == .rightToLeft else {
+            return textContainer.textAlignment
+        }
+
+        return switch textContainer.textAlignment {
+        case .leading: .trailing
+        case .trailing: .leading
+        case .center: .center
+        }
     }
 
     /// All glyphs for render in text contaner bounds
@@ -477,7 +498,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                 var offset: Float = 0
 
                 if self.availableSize.width.isFinite && self.availableSize.width > rowWidth {
-                    switch self.textContainer.textAlignment {
+                    switch self.resolvedTextAlignment {
                     case .leading:
                         offset = 0
                     case .center:
@@ -570,60 +591,106 @@ public final class TextLayoutManager: @unchecked Sendable {
                     return nil
                 }
 
-                guard self.textContainer.lineBreakMode != .byWordWrapping else {
-                    return nil
-                }
-
                 let runEndIndex = matchingAttributeRunEnd(from: startIndex, attributes: attributes)
                 guard startIndex < runEndIndex else {
                     return nil
                 }
 
                 let runText = String(attributedText.text[startIndex..<runEndIndex])
-                let shapedGlyphs = TextShaper.shape(runText, font: fontResource)
+                let shapedGlyphs = TextShaper.shape(
+                    runText,
+                    font: fontResource,
+                    writingDirection: textContainer.writingDirection
+                )
                 guard !shapedGlyphs.isEmpty else {
                     return nil
                 }
 
-                var renderGlyphs: [(shaped: ShapedGlyph, glyph: FontHandle.Glyph)] = []
+                var renderGlyphs: [(shaped: ShapedGlyph, glyph: FontHandle.Glyph, isWhitespace: Bool)] = []
                 renderGlyphs.reserveCapacity(shapedGlyphs.count)
                 for shapedGlyph in shapedGlyphs {
                     guard let glyph = fontResource.handle.getGlyph(forGlyphIndex: shapedGlyph.glyphIndex) else {
                         return nil
                     }
-                    renderGlyphs.append((shapedGlyph, glyph))
+
+                    let utf8Offset = min(max(shapedGlyph.cluster, 0), runText.utf8.count)
+                    let utf8Index = runText.utf8.index(runText.utf8.startIndex, offsetBy: utf8Offset)
+                    let stringIndex = String.Index(utf8Index, within: runText) ?? runText.startIndex
+                    let whitespace = stringIndex < runText.endIndex && isWhitespace(runText[stringIndex])
+                    renderGlyphs.append((shapedGlyph, glyph, whitespace))
                 }
 
                 let glyphFontScale = font.pointSize / fontResource.handle.metrics.emSize
                 let kern = Double(attributes.kern)
 
-                for (shapedGlyph, glyph) in renderGlyphs {
-                    var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
-                    glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
+                func advance(from lowerBound: Int, to upperBound: Int) -> Double {
+                    renderGlyphs[lowerBound..<upperBound].reduce(0) { partialResult, item in
+                        partialResult + (item.shaped.xAdvance * glyphFontScale) + kern
+                    }
+                }
 
-                    let projectedRight = Float((pr + shapedGlyph.xOffset) * glyphFontScale + x)
-                    if projectedRight > availableSize.width {
-                        alignCurrentVisualRow()
-                        x = 0
-                        y -= maxLineHeight
-                        visualRowStartTextIndex = startIndex
+                var renderIndex = 0
+                while renderIndex < renderGlyphs.count {
+                    let groupIsWhitespace = renderGlyphs[renderIndex].isWhitespace
+                    var groupEndIndex = renderIndex + 1
+                    while groupEndIndex < renderGlyphs.count
+                        && renderGlyphs[groupEndIndex].isWhitespace == groupIsWhitespace {
+                        groupEndIndex += 1
                     }
 
-                    guard let bounds = appendGlyphToCurrentRun(
-                        glyph: glyph,
-                        fontResource: fontResource,
-                        attributes: attributes,
-                        baselineX: x,
-                        baselineY: y,
-                        pointSize: font.pointSize,
-                        xOffset: shapedGlyph.xOffset,
-                        yOffset: shapedGlyph.yOffset
-                    ) else {
-                        return lineEndIndex
+                    if textContainer.lineBreakMode == .byWordWrapping && availableSize.width.isFinite && x > 0 {
+                        let groupAdvance = advance(from: renderIndex, to: groupEndIndex)
+                        var widthBeforeNextWord = groupAdvance
+                        if groupIsWhitespace && groupEndIndex < renderGlyphs.count {
+                            var nextWordEndIndex = groupEndIndex + 1
+                            while nextWordEndIndex < renderGlyphs.count && !renderGlyphs[nextWordEndIndex].isWhitespace {
+                                nextWordEndIndex += 1
+                            }
+                            widthBeforeNextWord += advance(from: groupEndIndex, to: nextWordEndIndex)
+                        }
+
+                        if Float(x + widthBeforeNextWord) > availableSize.width {
+                            alignCurrentVisualRow()
+                            x = 0
+                            y -= maxLineHeight
+                            visualRowStartTextIndex = startIndex
+                            if groupIsWhitespace {
+                                renderIndex = groupEndIndex
+                                continue
+                            }
+                        }
                     }
 
-                    visualRowMaxWidth = max(visualRowMaxWidth, bounds.right)
-                    x += (shapedGlyph.xAdvance * glyphFontScale) + kern
+                    while renderIndex < groupEndIndex {
+                        let (shapedGlyph, glyph, _) = renderGlyphs[renderIndex]
+                        var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
+                        glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
+
+                        let projectedRight = Float((pr + shapedGlyph.xOffset) * glyphFontScale + x)
+                        if projectedRight > availableSize.width {
+                            alignCurrentVisualRow()
+                            x = 0
+                            y -= maxLineHeight
+                            visualRowStartTextIndex = startIndex
+                        }
+
+                        guard let bounds = appendGlyphToCurrentRun(
+                            glyph: glyph,
+                            fontResource: fontResource,
+                            attributes: attributes,
+                            baselineX: x,
+                            baselineY: y,
+                            pointSize: font.pointSize,
+                            xOffset: shapedGlyph.xOffset,
+                            yOffset: shapedGlyph.yOffset
+                        ) else {
+                            return lineEndIndex
+                        }
+
+                        visualRowMaxWidth = max(visualRowMaxWidth, bounds.right)
+                        x += (shapedGlyph.xAdvance * glyphFontScale) + kern
+                        renderIndex += 1
+                    }
                 }
 
                 return runEndIndex
@@ -854,7 +921,7 @@ public final class TextLayoutManager: @unchecked Sendable {
 
         for textLine in textLines {
             let lineBounds = self.visualBounds(for: textLine)
-            let lineOffsetX: Float = switch self.textContainer.textAlignment {
+            let lineOffsetX: Float = switch self.resolvedTextAlignment {
             case .center:
                 -((lineBounds.minX + lineBounds.maxX) / 2)
             case .leading:

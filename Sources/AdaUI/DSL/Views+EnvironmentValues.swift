@@ -28,6 +28,9 @@ public extension EnvironmentValues {
     /// The alignment of wrapped text lines.
     @Entry var multilineTextAlignment: TextAlignment = .leading
 
+    /// The direction in which horizontal layout and text flow.
+    @Entry var layoutDirection: LayoutDirection = .leftToRight
+
     /// Returns accent color of the system.
     /// `Color.accentColor` is process-global platform state updated during app startup.
     @Entry var accentColor: Color = unsafe Color.accentColor

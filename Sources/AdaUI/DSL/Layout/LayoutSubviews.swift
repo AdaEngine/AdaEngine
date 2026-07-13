@@ -112,6 +112,9 @@ public struct LayoutSubview: Equatable {
 
 /// A layout subviews.
 public struct LayoutSubviews: Sequence, Collection {
+    /// The horizontal direction of the layout container.
+    public let layoutDirection: LayoutDirection
+
     /// Get the next index after the given index.
     ///
     /// - Parameter i: The index.
@@ -141,8 +144,9 @@ public struct LayoutSubviews: Sequence, Collection {
     /// Initialize a new layout subviews.
     ///
     /// - Parameter data: The data.
-    init(_ data: [Element]) {
+    init(_ data: [Element], layoutDirection: LayoutDirection) {
         self.data = data
+        self.layoutDirection = layoutDirection
     }
 
     public var startIndex: Int {

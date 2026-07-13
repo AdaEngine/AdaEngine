@@ -44,6 +44,7 @@ extension ViewModifier {
     ) -> _ViewOutputs {
         if let builder = modifier.value as? ViewNodeBuilder {
             let node = builder.buildViewNode(in: inputs)
+            node.updateEnvironment(inputs.environment)
             return _ViewOutputs(node: node)
         }
         let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeView(body)))
@@ -58,6 +59,7 @@ extension ViewModifier {
     ) -> _ViewListOutputs {
         if let builder = modifier.value as? ViewNodeBuilder {
             let node = builder.buildViewNode(in: inputs.input)
+            node.updateEnvironment(inputs.input.environment)
             let output = _ViewOutputs(node: node)
             return _ViewListOutputs(outputs: [output])
         }
@@ -242,6 +244,7 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
            let transform = inputs.pendingEnvironmentTransform {
             outputs.node.environmentTransform = transform
         }
+        outputs.node.updateEnvironment(inputs.environment)
 
         return outputs
     }
@@ -261,6 +264,7 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
 
         if let builder = modifier.value as? ViewNodeBuilder {
             let node = builder.buildViewNode(in: input)
+            node.updateEnvironment(input.environment)
             return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
         }
 
@@ -271,6 +275,7 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
                 if outputs.outputs[index].node.environmentTransform == nil {
                     outputs.outputs[index].node.environmentTransform = transform
                 }
+                outputs.outputs[index].node.updateEnvironment(input.environment)
             }
         }
         return outputs

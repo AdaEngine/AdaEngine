@@ -98,7 +98,7 @@ public struct VStackLayout: Layout {
         var origin: Point = bounds.origin
         var anchor: AnchorPoint = .leading
 
-        switch self.alignment {
+        switch self.alignment.resolved(for: subviews.layoutDirection) {
         case .leading:
             anchor = .topLeading
             origin.x = bounds.minX

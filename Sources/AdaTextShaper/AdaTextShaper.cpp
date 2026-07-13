@@ -16,6 +16,24 @@ ada_shaped_text_t *ada_text_shape_utf8_with_variations(
     const ada_font_variation_axis_t *variationAxes,
     int variationAxesCount
 ) {
+    return ada_text_shape_utf8_with_direction_and_variations(
+        fontPath,
+        text,
+        textLength,
+        ADA_TEXT_DIRECTION_NATURAL,
+        variationAxes,
+        variationAxesCount
+    );
+}
+
+ada_shaped_text_t *ada_text_shape_utf8_with_direction_and_variations(
+    const char *fontPath,
+    const char *text,
+    int textLength,
+    ada_text_direction_t direction,
+    const ada_font_variation_axis_t *variationAxes,
+    int variationAxesCount
+) {
     if (!fontPath || !text || textLength <= 0) {
         return nullptr;
     }
@@ -67,6 +85,12 @@ ada_shaped_text_t *ada_text_shape_utf8_with_variations(
 
     hb_buffer_add_utf8(buffer, text, textLength, 0, textLength);
     hb_buffer_guess_segment_properties(buffer);
+    if (direction != ADA_TEXT_DIRECTION_NATURAL) {
+        hb_buffer_set_direction(
+            buffer,
+            direction == ADA_TEXT_DIRECTION_RIGHT_TO_LEFT ? HB_DIRECTION_RTL : HB_DIRECTION_LTR
+        );
+    }
     hb_shape(font, buffer, nullptr, 0);
 
     unsigned int glyphCount = 0;

@@ -184,11 +184,20 @@ final class PaddingModifierViewNode: ViewModifierNode {
         var minY: Float = 0
         var maxY: Float = self.frame.height
 
-        if self.edges.contains(.leading) {
-            minX += insets.leading
-        }
-        if self.edges.contains(.trailing) {
-            maxX -= insets.trailing
+        if environment.layoutDirection == .leftToRight {
+            if self.edges.contains(.leading) {
+                minX += insets.leading
+            }
+            if self.edges.contains(.trailing) {
+                maxX -= insets.trailing
+            }
+        } else {
+            if self.edges.contains(.leading) {
+                maxX -= insets.leading
+            }
+            if self.edges.contains(.trailing) {
+                minX += insets.trailing
+            }
         }
         if self.edges.contains(.top) {
             minY += insets.top

@@ -98,7 +98,10 @@ class LayoutViewContainerNode: ViewContainerNode {
         defer {
             layoutPassMeasurementCache = nil
         }
-        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0, measurementCache: measurementCache) })
+        let subviews = LayoutSubviews(
+            self.nodes.map { LayoutSubview(node: $0, measurementCache: measurementCache) },
+            layoutDirection: environment.layoutDirection
+        )
         ensureCache(for: subviews)
 
         guard var cache else {
@@ -152,7 +155,10 @@ class LayoutViewContainerNode: ViewContainerNode {
 
         let measurementCache = layoutPassMeasurementCache ?? LayoutMeasurementCache()
         layoutPassMeasurementCache = measurementCache
-        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0, measurementCache: measurementCache) })
+        let subviews = LayoutSubviews(
+            self.nodes.map { LayoutSubview(node: $0, measurementCache: measurementCache) },
+            layoutDirection: environment.layoutDirection
+        )
         ensureCache(for: subviews)
 
         guard var cache else {

@@ -30,6 +30,29 @@ struct TextLayoutShapingTests {
         #expect(run.count == shapedGlyphs.count)
     }
 
+    @Test
+    func wordWrappingStillShapesCharactersWithinEachWord() throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+
+        var attributes = TextAttributeContainer()
+        attributes.font = .system(size: 32)
+        let text = AttributedText("fi", attributes: attributes)
+
+        let layoutManager = TextLayoutManager()
+        layoutManager.setTextContainer(
+            TextContainer(
+                text: text,
+                textAlignment: .leading,
+                lineBreakMode: .byWordWrapping
+            )
+        )
+        layoutManager.fitToSize(.infinity)
+
+        let line = try #require(layoutManager.textLines.first)
+        let run = try #require(line.runs.first)
+        #expect(run.count == 1)
+    }
+
     private static func setupHeadlessRenderEngineIfNeeded() throws {
         guard unsafe RenderEngine.shared == nil else {
             return

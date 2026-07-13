@@ -25,6 +25,20 @@ struct HarfBuzzShaperTests {
         #expect(shapedText.allSatisfy { $0.glyphIndex >= 0 })
     }
 
+    @Test
+    func textShaperReordersDirectionalRunsUsingParagraphDirection() throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+
+        let font = FontResource.system(weight: .regular, emFontScale: 52)
+        let text = "abc אבג"
+        let leftToRight = TextShaper.shape(text, font: font, writingDirection: .leftToRight)
+        let rightToLeft = TextShaper.shape(text, font: font, writingDirection: .rightToLeft)
+
+        #expect(leftToRight.first?.cluster == 0)
+        #expect(rightToLeft.first?.cluster != 0)
+        #expect(leftToRight.map(\.cluster) != rightToLeft.map(\.cluster))
+    }
+
     private static func setupHeadlessRenderEngineIfNeeded() throws {
         guard unsafe RenderEngine.shared == nil else {
             return

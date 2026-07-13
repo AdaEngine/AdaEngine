@@ -161,6 +161,7 @@ final class TextViewNode: ViewNode {
         container.numberOfLines = content.storage.lineLimit
         container.lineBreakMode = content.storage.lineBreakMode ?? .byWordWrapping
         container.textAlignment = content.storage.multilineTextAlignment ?? .center
+        container.writingDirection = environment.layoutDirection == .rightToLeft ? .rightToLeft : .leftToRight
         return container
     }
 }

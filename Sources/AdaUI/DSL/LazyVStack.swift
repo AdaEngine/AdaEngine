@@ -150,7 +150,7 @@ final class LazyVStackNode<Data: RandomAccessCollection, ID: Hashable, Row: View
         let width = frame.width
         let xOrigin: Float
         let anchor: AnchorPoint
-        switch alignment {
+        switch alignment.resolved(for: environment.layoutDirection) {
         case .leading:
             xOrigin = 0
             anchor = .topLeading

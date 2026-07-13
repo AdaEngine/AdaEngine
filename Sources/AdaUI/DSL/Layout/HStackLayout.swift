@@ -107,16 +107,17 @@ public struct HStackLayout: Layout {
     public func placeSubviews(in bounds: Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
         var origin: Point = bounds.origin
         var anchor: AnchorPoint = .leading
+        let isRightToLeft = subviews.layoutDirection == .rightToLeft
         
         switch self.alignment {
         case .top:
-            anchor = .topLeading
+            anchor = isRightToLeft ? .topTrailing : .topLeading
             origin.y = bounds.minY
         case .bottom:
-            anchor = .bottomLeading
+            anchor = isRightToLeft ? .bottomTrailing : .bottomLeading
             origin.y = bounds.maxY
         case .center:
-            anchor = .leading
+            anchor = isRightToLeft ? .trailing : .leading
             origin.y = bounds.midY
         }
         var idealWidth: Float = 0
@@ -137,7 +138,7 @@ public struct HStackLayout: Layout {
         } else {
             layoutWidth = min(idealWidth + cache.totalSubviewSpacing, bounds.width)
         }
-        origin.x = bounds.minX
+        origin.x = isRightToLeft ? bounds.maxX : bounds.minX
 
         let fallbackFlexibleIndices = (0..<subviews.count).filter { index in
             isFlexibleSubview(index: index, cache: cache)
@@ -188,13 +189,13 @@ public struct HStackLayout: Layout {
             for (index, subview) in subviews.enumerated() {
                 let assignedWidth = assignedWidths[index]
 
-                origin.x += cache.subviewSpacings[index]
+                origin.x += isRightToLeft ? -cache.subviewSpacings[index] : cache.subviewSpacings[index]
 
                 let proposal = ProposedViewSize(width: assignedWidth, height: idealSizes[index].height)
                 subview.place(at: origin, anchor: anchor, proposal: proposal)
 
                 let newWidth = subview.dimensions(in: proposal).width
-                origin.x += newWidth
+                origin.x += isRightToLeft ? -newWidth : newWidth
             }
         } else {
             let equalizedSpacerWidths = equalizedSpacerMainAxisSizes(
@@ -218,7 +219,7 @@ public struct HStackLayout: Layout {
                     restOfFlexibleViews -= 1
                 }
 
-                origin.x += cache.subviewSpacings[index]
+                origin.x += isRightToLeft ? -cache.subviewSpacings[index] : cache.subviewSpacings[index]
 
                 let proposal = ProposedViewSize(width: idealWidth, height: idealSizes[index].height)
                 subview.place(at: origin, anchor: anchor, proposal: proposal)
@@ -229,7 +230,7 @@ public struct HStackLayout: Layout {
                     availableSpace -= newWidth - idealWidth
                 }
 
-                origin.x += newWidth
+                origin.x += isRightToLeft ? -newWidth : newWidth
             }
         }
     }

@@ -50,7 +50,10 @@ public struct GridLayout: Layout {
 
         for index in subviews.indices {
             let row = index / columns
-            let column = index % columns
+            let logicalColumn = index % columns
+            let column = subviews.layoutDirection == .rightToLeft
+                ? columns - logicalColumn - 1
+                : logicalColumn
             let cellOrigin = Point(
                 x: bounds.minX + Float(column) * (metrics.cellWidth + horizontalSpacing),
                 y: bounds.minY + metrics.rowOffsets[row]
@@ -62,9 +65,10 @@ public struct GridLayout: Layout {
                 height: metrics.rowHeights[row]
             )
 
+            let resolvedAlignment = alignment.resolved(for: subviews.layoutDirection)
             subviews[index].place(
-                at: placementPoint(in: cellRect),
-                anchor: alignment.anchorPoint,
+                at: placementPoint(in: cellRect, layoutDirection: subviews.layoutDirection),
+                anchor: resolvedAlignment.anchorPoint,
                 proposal: ProposedViewSize(width: metrics.cellWidth, height: metrics.rowHeights[row])
             )
         }
@@ -120,9 +124,9 @@ public struct GridLayout: Layout {
         )
     }
 
-    private func placementPoint(in rect: Rect) -> Point {
+    private func placementPoint(in rect: Rect, layoutDirection: LayoutDirection) -> Point {
         let x: Float
-        switch alignment.horizontal {
+        switch alignment.horizontal.resolved(for: layoutDirection) {
         case .leading:
             x = rect.minX
         case .center:

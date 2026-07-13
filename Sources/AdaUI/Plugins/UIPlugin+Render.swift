@@ -672,7 +672,7 @@ public struct UIRenderTesselationSystem {
 
         case let .drawText(textLayout, transform, opacity):
             let textSize = textLayout.boundingSize()
-            let textAlignment = textLayout.textAlignment
+            let textAlignment = textLayout.resolvedTextAlignment
 
             var offsetY: Float = 0
 

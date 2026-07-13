@@ -177,6 +177,7 @@ final class FrameViewNode: ViewModifierNode {
     override func performLayout() {
         switch frameRule {
         case .size(_, _, let alignment):
+            let alignment = alignment.resolved(for: environment.layoutDirection)
             let proposal = ProposedViewSize(self.frame.size)
             let origin = Self.placementOrigin(container: self.frame.size, alignment: alignment)
             self.contentNode.place(
@@ -189,6 +190,7 @@ final class FrameViewNode: ViewModifierNode {
                 super.performLayout()
                 return
             }
+            let alignment = alignment.resolved(for: environment.layoutDirection)
             let proposal = ProposedViewSize(self.frame.size)
             let origin = Self.placementOrigin(container: self.frame.size, alignment: alignment)
             self.contentNode.place(
