@@ -1,4 +1,5 @@
 import Testing
+@_spi(Internal) import AdaRender
 @testable import AdaEngine
 
 @MainActor
@@ -63,5 +64,81 @@ struct SceneViewTests {
         #expect(makeSawScheduler == nil)
         #expect(updateCallCount == 1)
         #expect(updateReceivedMadeWorld)
+    }
+
+    @Test
+    func pendingRenderTarget_isNotSubmittedAgain() async throws {
+        unsafe RenderEngine.configurations.preferredBackend = .headless
+
+        let coordinator = SceneViewCoordinator(
+            make: { _ in },
+            updateContent: { _, _ in }
+        )
+
+        coordinator.bootstrapIfNeeded()
+        for _ in 0..<500 {
+            if coordinator.appWorlds != nil {
+                break
+            }
+            await Task.yield()
+        }
+
+        let appWorlds = try #require(coordinator.appWorlds)
+        coordinator.updateSize(SizeInt(width: 16, height: 16), scaleFactor: 1)
+
+        let poolSize = max(3, unsafe RenderEngine.configurations.maxFramesInFlight + 2)
+        var submittedTargets = Set<ObjectIdentifier>()
+        for _ in 0..<poolSize {
+            coordinator.tick(0.016)
+            let camera = try #require(sceneViewCamera(in: appWorlds.main))
+            guard case let .texture(handle) = camera.renderTarget else {
+                Issue.record("SceneView camera must render into a texture.")
+                break
+            }
+            submittedTargets.insert(ObjectIdentifier(handle.asset))
+            #expect(camera.isActive)
+        }
+
+        #expect(submittedTargets.count == poolSize)
+
+        coordinator.tick(0.016)
+        let exhaustedCamera = try #require(sceneViewCamera(in: appWorlds.main))
+        #expect(!exhaustedCamera.isActive)
+        coordinator.shutdown()
+    }
+
+    @Test
+    func oversizedViewportSize_isIgnoredUntilValidSizeArrives() async throws {
+        unsafe RenderEngine.configurations.preferredBackend = .headless
+
+        let coordinator = SceneViewCoordinator(
+            make: { _ in },
+            updateContent: { _, _ in }
+        )
+
+        coordinator.updateSize(SizeInt(width: 475_659, height: 512), scaleFactor: 2)
+        coordinator.bootstrapIfNeeded()
+        for _ in 0..<500 {
+            if coordinator.appWorlds != nil {
+                break
+            }
+            await Task.yield()
+        }
+
+        let appWorlds = try #require(coordinator.appWorlds)
+        #expect(sceneViewCamera(in: appWorlds.main) == nil)
+
+        coordinator.updateSize(SizeInt(width: 800, height: 600), scaleFactor: 2)
+        #expect(sceneViewCamera(in: appWorlds.main) != nil)
+        coordinator.shutdown()
+    }
+
+    private func sceneViewCamera(in world: World) -> Camera? {
+        for entity in world.getEntities() {
+            if let camera: Camera = entity.components[Camera.self] {
+                return camera
+            }
+        }
+        return nil
     }
 }

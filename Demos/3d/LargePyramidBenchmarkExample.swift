@@ -273,8 +273,8 @@ final class LargePyramidBenchmarkCamera: ScriptableObject, @unchecked Sendable {
                 let currentMousePosition = input.getMousePosition()
                 if let lastMousePosition {
                     let delta = currentMousePosition - lastMousePosition
-                    rotation.y += delta.x * sensitivity * dt
-                    rotation.x += delta.y * sensitivity * dt
+                    rotation.y -= delta.x * sensitivity * dt
+                    rotation.x -= delta.y * sensitivity * dt
                     rotation.x = clamp(rotation.x, -1.5, 1.5)
                     cameraTransform.rotation = cameraRotation
                 }

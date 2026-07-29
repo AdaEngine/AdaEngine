@@ -21,6 +21,7 @@ layout (location = 8) in vec4 a_Model3;
 layout (location = 9) in vec4 a_Color;
 layout (location = 10) in vec4 a_Material;
 layout (location = 11) in vec4 a_TextureFlags;
+layout (location = 12) in vec4 a_ShadowFlags;
 
 struct VertexOut
 {
@@ -30,9 +31,12 @@ struct VertexOut
     vec4 ViewTangent;
     vec2 TextureCoordinate;
     vec4 TextureFlags;
+    vec4 ShadowFlags;
     vec4 ShadowPosition;
     float Roughness;
     float Metallic;
+    float EmissiveStrength;
+    float EmissiveLightThreshold;
 };
 
 layout (location = 0) out VertexOut Output;
@@ -51,9 +55,14 @@ void flat3d_vertex()
     Output.ViewTangent = vec4(normalize(mat3(u_ViewMatrix) * worldTangent), a_Tangent.w);
     Output.TextureCoordinate = a_TextureCoordinate;
     Output.TextureFlags = a_TextureFlags;
-    Output.ShadowPosition = u_ShadowViewProjection * worldPosition;
+    Output.ShadowFlags = a_ShadowFlags;
+    Output.ShadowPosition = a_ShadowFlags.x > 0.5
+        ? u_ShadowViewProjection * worldPosition
+        : vec4(0.0);
     Output.Roughness = clamp(a_Material.x, 0.04, 1.0);
     Output.Metallic = clamp(a_Material.y, 0.0, 1.0);
+    Output.EmissiveStrength = max(a_Material.z, 0.0);
+    Output.EmissiveLightThreshold = a_Material.w;
     gl_Position = u_ViewProjection * worldPosition;
 }
 
@@ -79,6 +88,8 @@ layout (binding = 8) uniform sampler u_MetallicRoughnessSampler;
 layout (binding = 9) uniform sampler u_NormalSampler;
 layout (binding = 10) uniform texture2D u_DirectionalShadowTexture;
 layout (binding = 11) uniform sampler u_DirectionalShadowSampler;
+layout (binding = 12) uniform texture2D u_EmissiveTexture;
+layout (binding = 13) uniform sampler u_EmissiveSampler;
 
 struct VertexOut
 {
@@ -88,9 +99,12 @@ struct VertexOut
     vec4 ViewTangent;
     vec2 TextureCoordinate;
     vec4 TextureFlags;
+    vec4 ShadowFlags;
     vec4 ShadowPosition;
     float Roughness;
     float Metallic;
+    float EmissiveStrength;
+    float EmissiveLightThreshold;
 };
 
 layout (location = 0) in VertexOut Input;
@@ -154,7 +168,7 @@ vec3 materialNormal() {
 }
 
 float directionalShadow(vec3 normal, vec3 lightDirection) {
-    if (u_ShadowParameters.x < 0.5 || Input.ShadowPosition.w <= 0.0) {
+    if (Input.ShadowFlags.x < 0.5 || u_ShadowParameters.x < 0.5 || Input.ShadowPosition.w <= 0.0) {
         return 1.0;
     }
 
@@ -203,6 +217,36 @@ void flat3d_fragment()
     vec3 normal = materialNormal();
     vec3 viewDirection = normalize(-Input.ViewPosition);
     vec3 lightDirection = normalize(u_LightDirectionIntensity.xyz);
+    gl_FragDepth = gl_FragCoord.z;
+
+    if (Input.ShadowFlags.y > 0.0) {
+        // The atmosphere is drawn before the planet. Keep its haze in the
+        // color target without preventing the opaque planet from drawing.
+        gl_FragDepth = 1.0;
+
+        float dayFacing = smoothstep(-0.3, 0.55, dot(normal, lightDirection));
+        float fresnelPower = mix(
+            Input.ShadowFlags.y + 1.5,
+            Input.ShadowFlags.y * 0.58,
+            dayFacing
+        );
+        float fresnel = pow(
+            clamp(1.0 - abs(dot(normal, viewDirection)), 0.0, 1.0),
+            max(fresnelPower, 0.5)
+        );
+        float alpha = clamp(
+            baseColor.a * Input.ShadowFlags.z * fresnel * mix(0.28, 1.0, dayFacing),
+            0.0,
+            0.88
+        );
+        vec3 atmosphereColor = baseColor.rgb * mix(0.72, 1.2, dayFacing);
+
+        color = vec4(atmosphereColor, alpha);
+        normalRoughness = vec4(normal, 1.0);
+        viewPositionMetallic = vec4(Input.ViewPosition, 0.0);
+        return;
+    }
+
     vec3 halfway = normalize(viewDirection + lightDirection);
     float normalLight = max(dot(normal, lightDirection), 0.0);
     float normalView = max(dot(normal, viewDirection), 0.0);
@@ -217,8 +261,20 @@ void flat3d_fragment()
     float shadowVisibility = directionalShadow(normal, lightDirection);
     vec3 directLighting = (diffuseWeight * baseColor.rgb / PI + specular) * radiance * normalLight * shadowVisibility;
     vec3 ambient = baseColor.rgb * (1.0 - metallic) * max(u_LightRadianceAmbient.w, 0.0);
+    float emissiveVisibility = 1.0;
+    if (Input.EmissiveLightThreshold >= 0.0) {
+        emissiveVisibility = 1.0 - smoothstep(
+            Input.EmissiveLightThreshold,
+            Input.EmissiveLightThreshold + 0.16,
+            normalLight
+        );
+    }
+    vec3 emissive = srgbToLinear(texture(
+        sampler2D(u_EmissiveTexture, u_EmissiveSampler),
+        Input.TextureCoordinate
+    ).rgb) * Input.EmissiveStrength * emissiveVisibility;
 
-    color = vec4(directLighting + ambient, baseColor.a);
+    color = vec4(directLighting + ambient + emissive, 1.0);
     normalRoughness = vec4(normal, roughness);
     viewPositionMetallic = vec4(Input.ViewPosition, metallic);
 }

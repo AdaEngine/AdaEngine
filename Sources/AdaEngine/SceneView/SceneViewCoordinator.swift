@@ -48,6 +48,8 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private let makeClosure: @MainActor (inout AppWorlds) -> Void
     private let updateContentClosure: @MainActor (World, AdaUtils.TimeInterval) -> Void
     private let resizeApplyDelay: AdaUtils.TimeInterval = 0.08
+    /// Common guaranteed 2D texture limit across the supported Metal and WebGPU device families.
+    private let maximumRenderTextureDimension = 8_192
 
     private struct PendingDisplayTarget {
         var texture: RenderTexture
@@ -131,6 +133,12 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     func updateSize(_ size: SizeInt, scaleFactor: Float) {
         guard size.width > 0 && size.height > 0 else { return }
+        guard size.width <= maximumRenderTextureDimension,
+              size.height <= maximumRenderTextureDimension,
+              scaleFactor.isFinite,
+              scaleFactor > 0 else {
+            return
+        }
         guard size != currentSize || scaleFactor != self.scaleFactor else {
             pendingSize = nil
             pendingScaleFactor = 1
@@ -291,6 +299,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         )
 
         if var camera: Camera = entity.components[Camera.self] {
+            camera.isActive = true
             camera.renderTarget = .texture(AssetHandle(texture))
             camera.viewport.rect = Rect(origin: .zero, size: physicalSize)
             camera.logicalViewport.rect = Rect(origin: .zero, size: logicalSize)
@@ -377,11 +386,6 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     private func prepareNextRenderTarget() {
         if let targetRenderTexture,
-           pendingDisplayTargets.contains(where: { $0.texture === targetRenderTexture }) {
-            return
-        }
-
-        if let targetRenderTexture,
            !isDisplayUnavailable(targetRenderTexture) {
             makeCameraRenderTargetReady(targetRenderTexture)
             scheduleForDisplay(targetRenderTexture)
@@ -389,12 +393,22 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         }
 
         guard let texture = nextAvailableRenderTexture() else {
+            suspendCameraRendering()
             return
         }
 
         setTargetRenderTexture(texture)
         makeCameraRenderTargetReady(texture)
         scheduleForDisplay(texture)
+    }
+
+    private func suspendCameraRendering() {
+        guard let cameraEntity, var camera: Camera = cameraEntity.components[Camera.self] else {
+            return
+        }
+
+        camera.isActive = false
+        cameraEntity.components += camera
     }
 
     private func scheduleForDisplay(_ texture: RenderTexture) {

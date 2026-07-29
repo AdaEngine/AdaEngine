@@ -17,6 +17,11 @@ public class PBRMaterial: Material, @unchecked Sendable {
     public var roughnessFactor: Float = 1
     public var metallicRoughnessTexture: Texture2D?
     public var normalTexture: Texture2D?
+    public var emissiveTexture: Texture2D?
+    public var emissiveStrength: Float = 0
+    /// A negative value emits everywhere. Non-negative values fade emission
+    /// out as direct illumination rises above this threshold.
+    public var emissiveLightThreshold: Float = -1
     
     public init() {
         // FIXME: (Vlad) We need a way to specify the shader for PBR material.
@@ -39,6 +44,9 @@ public class PBRMaterial: Material, @unchecked Sendable {
         }
         if self.normalTexture != nil {
             defines.append(ShaderDefine(name: "HAS_NORMAL_TEXTURE", value: "1"))
+        }
+        if self.emissiveTexture != nil {
+            defines.append(ShaderDefine(name: "HAS_EMISSIVE_TEXTURE", value: "1"))
         }
         return defines
     }

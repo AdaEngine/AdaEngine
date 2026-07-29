@@ -83,7 +83,13 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                     skybox.isEnabled ? 1 : 0,
                     skybox.texture == nil ? 0 : 1,
                     skyIntensity,
-                    0
+                    skybox.starfield.isEnabled ? 1 : 0
+                ),
+                starfield: Vector4(
+                    min(max(skybox.starfield.density, 0), 1),
+                    max(skybox.starfield.intensity, 0),
+                    max(skybox.starfield.size, 0.1),
+                    skybox.starfield.seed
                 )
             )
             scratch.uniform.elements = [uniform]

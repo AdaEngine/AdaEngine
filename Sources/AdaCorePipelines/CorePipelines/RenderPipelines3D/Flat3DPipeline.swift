@@ -17,12 +17,20 @@ public struct Flat3DInstanceData: Sendable {
     public let color: Vector4
     public let material: Vector4
     public let textureFlags: Vector4
+    public let shadowFlags: Vector4
 
-    public init(modelMatrix: Transform3D, color: Vector4, material: Vector4, textureFlags: Vector4 = .zero) {
+    public init(
+        modelMatrix: Transform3D,
+        color: Vector4,
+        material: Vector4,
+        textureFlags: Vector4 = .zero,
+        shadowFlags: Vector4 = [1, 0, 0, 0]
+    ) {
         self.modelMatrix = modelMatrix
         self.color = color
         self.material = material
         self.textureFlags = textureFlags
+        self.shadowFlags = shadowFlags
     }
 }
 
@@ -129,6 +137,7 @@ public struct Flat3DPipeline: RenderPipelineConfigurator {
         configuration.attributes[9] = .attribute(.vector4, name: "instanceColor", bufferIndex: 3, offset: 64)
         configuration.attributes[10] = .attribute(.vector4, name: "instanceMaterial", bufferIndex: 3, offset: 80)
         configuration.attributes[11] = .attribute(.vector4, name: "instanceTextureFlags", bufferIndex: 3, offset: 96)
+        configuration.attributes[12] = .attribute(.vector4, name: "instanceShadowFlags", bufferIndex: 3, offset: 112)
         configuration.layouts[3] = VertexDescriptor.Layout(
             stride: MemoryLayout<Flat3DInstanceData>.stride,
             stepFunction: .perInstance
@@ -148,7 +157,7 @@ public struct Flat3DPipeline: RenderPipelineConfigurator {
             depthCompareOperator: .less
         )
         descriptor.colorAttachments = [
-            RenderPipelineColorAttachmentDescriptor(format: .rgba_16f),
+            RenderPipelineColorAttachmentDescriptor(format: .rgba_16f, isBlendingEnabled: true),
             RenderPipelineColorAttachmentDescriptor(format: .rgba_16f),
             RenderPipelineColorAttachmentDescriptor(format: .rgba_16f)
         ]

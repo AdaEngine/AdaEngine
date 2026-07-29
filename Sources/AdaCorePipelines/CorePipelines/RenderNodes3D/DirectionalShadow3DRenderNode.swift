@@ -147,7 +147,7 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
 
             for item in renderItems.items {
                 let part = item.mesh.models[item.modelIndex].parts[item.partIndex]
-                guard let batchRange = item.batchRange else {
+                guard item.castShadows, let batchRange = item.batchRange else {
                     continue
                 }
                 let pipeline = pipelines.pipeline(for: part.vertexDescriptor, device: renderDevice.renderDevice)

@@ -23,6 +23,9 @@ public struct Model3DPlugin: Plugin {
         DirectionalLightComponent.registerComponent()
         PointLightComponent.registerComponent()
         SpotLightComponent.registerComponent()
+        BillboardComponent.registerComponent()
+
+        app.addSystem(BillboardSystem.self, on: .update)
         
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -84,6 +87,7 @@ func ExtractModel3D(
             for (partIndex, part) in model.parts.enumerated() {
                 let material = mesh3d.materials[part.materialIndex]
                 let pbrMaterial = material as? PBRMaterial
+                let atmosphereMaterial = material as? AtmosphereMaterial
                 let hasTextureCoordinates = part.vertexDescriptor.attributes.containsAttribute(
                     by: MeshDescriptor.textureCoordinates.id.name
                 )
@@ -97,18 +101,29 @@ func ExtractModel3D(
                         material: Vector4(
                             pbrMaterial?.roughnessFactor ?? 1,
                             pbrMaterial?.metallicFactor ?? 0,
-                            0,
-                            0
+                            pbrMaterial?.emissiveTexture == nil ? 0 : pbrMaterial?.emissiveStrength ?? 0,
+                            pbrMaterial?.emissiveLightThreshold ?? -1
                         ),
                         textureFlags: Vector4(
                             hasTextureCoordinates && pbrMaterial?.baseColorTexture != nil ? 1 : 0,
                             hasTextureCoordinates && pbrMaterial?.metallicRoughnessTexture != nil ? 1 : 0,
                             hasTextureCoordinates && pbrMaterial?.normalTexture != nil ? 1 : 0,
                             hasTangents ? 1 : 0
+                        ),
+                        shadowFlags: Vector4(
+                            mesh3d.receiveShadows ? 1 : 0,
+                            atmosphereMaterial?.fresnelPower ?? 0,
+                            atmosphereMaterial?.atmosphereIntensity ?? 0,
+                            0
                         )
                     )
                 )
-                let key = Opaque3DBatchKey(part: part, material: material)
+                let key = Opaque3DBatchKey(
+                    part: part,
+                    material: material,
+                    castShadows: mesh3d.castShadows,
+                    receiveShadows: mesh3d.receiveShadows
+                )
 
                 if key == currentBatchKey, let currentBatchIndex {
                     let lowerBound = items[currentBatchIndex].batchRange?.lowerBound ?? instanceIndex
@@ -128,6 +143,8 @@ func ExtractModel3D(
                         mesh: mesh,
                         material: material,
                         worldTransform: transform.matrix,
+                        castShadows: mesh3d.castShadows,
+                        receiveShadows: mesh3d.receiveShadows,
                         batchRange: instanceIndex..<(instanceIndex + 1)
                     )
                 )
@@ -143,6 +160,9 @@ func ExtractModel3D(
 public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
     private static let flatNormalTexture = Texture2D(
         image: Image(width: 1, height: 1, color: Color(red: 0.5, green: 0.5, blue: 1))
+    )
+    private static let blackTexture = Texture2D(
+        image: Image(width: 1, height: 1, color: .black)
     )
 
     public init() {}
@@ -174,6 +194,7 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
         let baseColorTexture = pbrMaterial?.baseColorTexture ?? Texture2D.whiteTexture
         let metallicRoughnessTexture = pbrMaterial?.metallicRoughnessTexture ?? Texture2D.whiteTexture
         let normalTexture = pbrMaterial?.normalTexture ?? Self.flatNormalTexture
+        let emissiveTexture = pbrMaterial?.emissiveTexture ?? Self.blackTexture
 
         renderEncoder.setRenderPipelineState(pipeline)
         renderEncoder.setResourceSet(
@@ -184,7 +205,9 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
                     .init(binding: 6, shaderStages: .fragment, resource: .texture(normalTexture)),
                     .init(binding: 7, shaderStages: .fragment, resource: .sampler(baseColorTexture.sampler)),
                     .init(binding: 8, shaderStages: .fragment, resource: .sampler(metallicRoughnessTexture.sampler)),
-                    .init(binding: 9, shaderStages: .fragment, resource: .sampler(normalTexture.sampler))
+                    .init(binding: 9, shaderStages: .fragment, resource: .sampler(normalTexture.sampler)),
+                    .init(binding: 12, shaderStages: .fragment, resource: .texture(emissiveTexture)),
+                    .init(binding: 13, shaderStages: .fragment, resource: .sampler(emissiveTexture.sampler))
                 ]
             ),
             index: 0
@@ -209,10 +232,14 @@ private struct Opaque3DBatchKey: Equatable {
     let vertexBuffer: ObjectIdentifier
     let indexBuffer: ObjectIdentifier
     let material: ObjectIdentifier
+    let castShadows: Bool
+    let receiveShadows: Bool
 
-    init(part: Mesh.Part, material: Material) {
+    init(part: Mesh.Part, material: Material, castShadows: Bool, receiveShadows: Bool) {
         self.vertexBuffer = ObjectIdentifier(part.vertexBuffer)
         self.indexBuffer = ObjectIdentifier(part.indexBuffer)
         self.material = ObjectIdentifier(material)
+        self.castShadows = castShadows
+        self.receiveShadows = receiveShadows
     }
 }

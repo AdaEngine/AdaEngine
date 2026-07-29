@@ -551,4 +551,31 @@ struct MeshBufferTests {
             #expect(elements[index].w == original.w)
         }
     }
+
+    @Test func `sphere UVs follow the ECEF longitude direction`() throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+
+        let mesh = Mesh.generateSphere(
+            radius: 1,
+            segments: 4,
+            rings: 2,
+            renderDevice: unsafe RenderEngine.shared.renderDevice
+        )
+        let descriptor = try #require(mesh.models.first?.parts.first?.meshDescriptor)
+        let textureCoordinates = try #require(descriptor.textureCoordinates?.elements)
+
+        // Equator at +Z is 90 degrees west in the app's ECEF coordinate system.
+        let positiveZVertex = 6
+        #expect(abs(descriptor.positions.elements[positiveZVertex].z - 1) < 0.0001)
+        #expect(textureCoordinates[positiveZVertex] == Vector2(0.25, 0.5))
+    }
+
+    private static func setupHeadlessRenderEngineIfNeeded() throws {
+        guard unsafe RenderEngine.shared == nil else {
+            return
+        }
+
+        unsafe RenderEngine.configurations.preferredBackend = .headless
+        try RenderEngine.setupRenderEngine()
+    }
 }

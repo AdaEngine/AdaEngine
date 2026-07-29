@@ -91,7 +91,7 @@ public struct ExtractedCameraSource: Sendable {
     dependencies: [.after("AdaRender.CreateWindowSurfacesSystem")]
 )
 func ConfigurateRenderViewTarget(
-    _ query: Query<Entity, Camera, Ref<RenderViewTarget>, ExtractedCameraSource>,
+    _ query: Query<Entity, Ref<Camera>, Ref<RenderViewTarget>, ExtractedCameraSource>,
     _ surfaces: Res<WindowSurfaces>,
     _ primaryWindow: Res<PrimaryWindowId?>,
     _ renderDevice: Res<RenderDeviceHandler>,
@@ -99,9 +99,10 @@ func ConfigurateRenderViewTarget(
 ) {
     let logger = Logger(label: "org.adaengine.AdaRender.ConfigurateRenderViewTarget")
     query.forEach { entity, camera, renderViewTarget, source in
-        let viewportSize = camera.viewport.rect.size.toSizeInt()
+        let outputViewport = camera.viewport.rect
+        let outputSize = outputViewport.size.toSizeInt()
 
-        guard viewportSize.width != 0 && viewportSize.height != 0 else {
+        guard outputSize.width != 0 && outputSize.height != 0 else {
             return
         }
 
@@ -119,6 +120,19 @@ func ConfigurateRenderViewTarget(
             cachedViewTargets.targets[source.entityId] = nil
             return
         }
+
+        let viewportSize = resolveRenderSize(
+            outputSize: outputSize,
+            mode: unsafe RenderEngine.configurations.upscaling,
+            supportsSpatialUpscaling: renderDevice.renderDevice.supportsSpatialUpscaling
+        )
+        let viewportScale = Float(viewportSize.width) / Float(outputSize.width)
+        camera.viewport.rect = Rect(
+            x: outputViewport.origin.x * viewportScale,
+            y: outputViewport.origin.y * viewportScale,
+            width: Float(viewportSize.width),
+            height: Float(viewportSize.height)
+        )
 
         if renderViewTarget.mainTexture == nil
             || renderViewTarget.mainTexture?.size != viewportSize
@@ -187,6 +201,25 @@ func ConfigurateRenderViewTarget(
 
         cachedViewTargets.targets[source.entityId] = renderViewTarget.wrappedValue.cacheableCopy
     }
+}
+
+func resolveRenderSize(
+    outputSize: SizeInt,
+    mode: RenderUpscalingMode,
+    supportsSpatialUpscaling: Bool
+) -> SizeInt {
+    guard supportsSpatialUpscaling, case .spatial(let requestedScale) = mode else {
+        return outputSize
+    }
+
+    guard requestedScale.isFinite else {
+        return outputSize
+    }
+    let renderScale = min(max(requestedScale, 0.5), 1)
+    return SizeInt(
+        width: max(1, Int((Float(outputSize.width) * renderScale).rounded(.up))),
+        height: max(1, Int((Float(outputSize.height) * renderScale).rounded(.up)))
+    )
 }
 
 private func retireFrameTextures(_ textures: [RenderTexture]) -> [RetiredFrameTexture] {

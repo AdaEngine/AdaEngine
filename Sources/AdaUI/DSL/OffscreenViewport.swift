@@ -97,10 +97,28 @@ private final class OffscreenViewportNode: ViewNode {
         }
 
         let size = frame.size
-        let scale = max(environment.scaleFactor, 1)
+        let environmentScale = environment.scaleFactor
+        guard size.width.isFinite,
+              size.height.isFinite,
+              environmentScale.isFinite else {
+            return
+        }
+
+        let scale = max(environmentScale, 1)
+        let pixelWidth = size.width * scale
+        let pixelHeight = size.height * scale
+        guard pixelWidth.isFinite,
+              pixelHeight.isFinite,
+              pixelWidth > 0,
+              pixelHeight > 0,
+              pixelWidth <= Float(Int32.max),
+              pixelHeight <= Float(Int32.max) else {
+            return
+        }
+
         let pixelSize = SizeInt(
-            width: Int((size.width * scale).rounded()),
-            height: Int((size.height * scale).rounded())
+            width: Int(pixelWidth.rounded()),
+            height: Int(pixelHeight.rounded())
         )
 
         guard pixelSize.width > 0 && pixelSize.height > 0 else { return }
@@ -131,9 +149,12 @@ private final class OffscreenViewportNode: ViewNode {
         }
 
         var context = context
+        context.environment = environment
+        context.pushClipRect(absoluteFrame())
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         let rect = Rect(origin: .zero, size: frame.size)
         context.drawRect(rect, texture: texture, color: .white)
+        context.popClipRect()
     }
 
     // MARK: Input

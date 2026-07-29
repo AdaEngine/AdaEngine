@@ -34,6 +34,7 @@ layout (binding = 4) uniform Environment3DUniform {
     vec4 u_Reflection;
     vec4 u_ReflectionQuality;
     vec4 u_EnvironmentFlags;
+    vec4 u_Starfield;
 };
 
 const float PI = 3.14159265359;
@@ -64,7 +65,34 @@ vec3 proceduralSky(vec3 direction) {
     float height = clamp(direction.y, -1.0, 1.0);
     float horizonBlend = pow(abs(height), 0.55);
     vec3 hemisphere = height >= 0.0 ? u_ZenithColor.rgb : u_GroundColor.rgb;
-    return mix(u_HorizonColor.rgb, hemisphere, horizonBlend);
+    vec3 sky = mix(u_HorizonColor.rgb, hemisphere, horizonBlend);
+    if (u_EnvironmentFlags.w < 0.5) {
+        return sky;
+    }
+
+    float longitude = atan(direction.z, direction.x) / (2.0 * PI) + 0.5;
+    float latitude = asin(clamp(direction.y, -1.0, 1.0)) / PI + 0.5;
+    vec2 gridSize = vec2(220.0, 110.0);
+    vec2 gridPosition = vec2(longitude, latitude) * gridSize;
+    vec2 cell = floor(gridPosition);
+    vec2 local = fract(gridPosition);
+    vec3 hashInput = vec3(cell, u_Starfield.w);
+    hashInput = fract(hashInput * vec3(0.1031, 0.1030, 0.0973));
+    hashInput += dot(hashInput, hashInput.yzx + 33.33);
+    float existence = fract((hashInput.x + hashInput.y) * hashInput.z);
+    vec2 offset = vec2(
+        fract(existence * 17.17 + hashInput.x),
+        fract(existence * 31.73 + hashInput.y)
+    );
+    float distanceToStar = length((local - offset) / max(u_Starfield.z, 0.1));
+    float threshold = mix(0.998, 0.72, u_Starfield.x);
+    float starExists = step(threshold, existence);
+    float star = smoothstep(0.11, 0.0, distanceToStar) * starExists;
+    float glow = smoothstep(0.42, 0.0, distanceToStar) * starExists * 0.22;
+    vec3 warm = vec3(1.0, 0.72, 0.46);
+    vec3 cool = vec3(0.58, 0.76, 1.0);
+    vec3 starColor = mix(warm, cool, fract(existence * 47.0));
+    return sky + starColor * (star + glow) * u_Starfield.y;
 }
 
 vec3 sampleSky(vec3 viewDirection) {

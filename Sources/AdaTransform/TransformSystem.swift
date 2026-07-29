@@ -43,7 +43,17 @@ public struct TransformSystem {
 ])
 public struct ChildTransformSystem {
     
-    @FilterQuery<Entity, GlobalTransform, RelationshipComponent, Changed<Transform>>
+    @FilterQuery<
+        Entity,
+        Transform,
+        RelationshipComponent,
+        Or<
+            Changed<Transform>,
+            Added<Transform>,
+            Changed<RelationshipComponent>,
+            Added<RelationshipComponent>
+        >
+    >
     private var query
 
     @Commands
@@ -52,14 +62,45 @@ public struct ChildTransformSystem {
     public init(world: World) { }
     
     public func update(context: UpdateContext) async {
-        self.query.forEach { _, globalTransform, relationship in
-            guard !relationship.children.isEmpty else {
-                return
-            }
+        self.query.forEach { entity, transform, relationship in
+            let globalTransform = resolveGlobalTransform(
+                for: entity,
+                transform: transform,
+                relationship: relationship,
+                world: context.world
+            )
+            commands
+                .entity(entity.id)
+                .insert(globalTransform)
 
             let children = relationship.children.compactMap(context.world.getEntityByID)
-            updateChildren(children, world: context.world, parentTransform: globalTransform)
+            updateChildren(
+                children,
+                world: context.world,
+                parentTransform: globalTransform
+            )
         }
+    }
+
+    private func resolveGlobalTransform(
+        for entity: Entity,
+        transform: Transform,
+        relationship: RelationshipComponent,
+        world: World
+    ) -> GlobalTransform {
+        var matrix = transform.matrix
+        var parentId = relationship.parent
+        var visited = Set([entity.id])
+
+        while let currentParentId = parentId,
+              visited.insert(currentParentId).inserted,
+              let parentTransform = world.get(Transform.self, from: currentParentId)
+        {
+            matrix = parentTransform.matrix * matrix
+            parentId = world.get(RelationshipComponent.self, from: currentParentId)?.parent
+        }
+
+        return GlobalTransform(matrix: matrix)
     }
     
     /// Update the children of the entity.

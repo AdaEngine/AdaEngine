@@ -240,6 +240,42 @@ struct OffscreenViewportTests {
     }
 
     @Test
+    func renderTexture_isClippedToViewportBounds() {
+        let delegate = MockViewportDelegate()
+        delegate.renderTexture = Texture2D.whiteTexture
+
+        let tester = ViewTester {
+            OffscreenViewportView(delegate: delegate)
+                .frame(width: 200, height: 150)
+        }
+        .setSize(Size(width: 400, height: 300))
+        .performLayout()
+
+        let context = UIGraphicsContext()
+        tester.containerView.viewTree.rootNode.draw(with: context)
+
+        let commands = context.getDrawCommands()
+        guard commands.count == 3 else {
+            Issue.record("Expected clip, texture draw, and clip restore commands.")
+            return
+        }
+        guard case let .pushClipRect(clipRect) = commands[0] else {
+            Issue.record("SceneView texture draw must begin with a clip rectangle.")
+            return
+        }
+        guard case .drawQuad = commands[1] else {
+            Issue.record("Expected the SceneView texture inside the clip rectangle.")
+            return
+        }
+        guard case .popClipRect = commands[2] else {
+            Issue.record("SceneView texture draw must restore the clip rectangle.")
+            return
+        }
+
+        #expect(clipRect.size == Size(width: 200, height: 150))
+    }
+
+    @Test
     func viewport_isHitTestable() {
         let delegate = MockViewportDelegate()
 

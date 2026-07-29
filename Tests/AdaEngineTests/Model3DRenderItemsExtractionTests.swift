@@ -76,6 +76,55 @@ struct Model3DRenderItemsExtractionTests {
         #expect(preparedItems.items.first?.entity == meshEntity.id)
     }
 
+    @Test("mesh shadow flags split batches and survive extraction")
+    func meshShadowFlagsSplitBatchesAndSurviveExtraction() async throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+
+        let app = AppWorlds(main: World())
+        app
+            .addPlugin(MainSchedulerPlugin())
+            .addPlugin(TransformPlugin())
+            .addPlugin(RenderWorldPlugin())
+            .addPlugin(Model3DPlugin())
+
+        try await app.build()
+
+        let mesh = Self.makeTriangleMesh()
+        let material = PBRMaterial()
+        let caster = app.main.spawn("Caster") {
+            Mesh3DComponent(mesh: mesh, materials: [material])
+            Transform()
+        }
+        let satellite = app.main.spawn("Satellite") {
+            Mesh3DComponent(
+                mesh: mesh,
+                materials: [material],
+                castShadows: false,
+                receiveShadows: false
+            )
+            Transform(position: [1, 0, 0])
+        }
+
+        await app.main.runScheduler(.preUpdate)
+
+        let renderWorld = try #require(app.getSubworldBuilder(by: .renderWorld)?.main)
+        renderWorld.insertResource(MainWorld(world: app.main))
+        await renderWorld.runScheduler(.extract)
+
+        let extractedItems = try #require(renderWorld.getResource(RenderItems<Opaque3DRenderItem>.self))
+        #expect(extractedItems.items.count == 2)
+
+        let casterItem = try #require(extractedItems.items.first { $0.entity == caster.id })
+        #expect(casterItem.castShadows)
+        #expect(casterItem.receiveShadows)
+        #expect(casterItem.batchRange == 0..<1)
+
+        let satelliteItem = try #require(extractedItems.items.first { $0.entity == satellite.id })
+        #expect(!satelliteItem.castShadows)
+        #expect(!satelliteItem.receiveShadows)
+        #expect(satelliteItem.batchRange == 1..<2)
+    }
+
     private static func setupHeadlessRenderEngineIfNeeded() throws {
         guard unsafe RenderEngine.shared == nil else {
             return

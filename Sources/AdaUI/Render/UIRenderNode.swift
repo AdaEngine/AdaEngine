@@ -107,12 +107,19 @@ public struct UIRenderNode: RenderNode {
 
             // Get viewport size
             let viewportSize = camera.viewport.rect.size
+            let logicalViewportSize = camera.logicalViewport.rect.size
+            let effectiveScaleFactor: Float
+            if logicalViewportSize.width > 0 {
+                effectiveScaleFactor = viewportSize.width / logicalViewportSize.width
+            } else {
+                effectiveScaleFactor = texture.scaleFactor
+            }
 
             // Create UI-specific orthographic projection with origin at top-left
             let uiProjection = Transform3D.createUIProjection(
                 width: viewportSize.width,
                 height: viewportSize.height,
-                scaleFactor: texture.scaleFactor
+                scaleFactor: effectiveScaleFactor
             )
 
             // Update the UI view uniform buffer
