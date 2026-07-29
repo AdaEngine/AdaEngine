@@ -171,6 +171,21 @@ struct MeshBufferTests {
         #expect(attributes[3].offset == MemoryLayout<Vector3>.stride)
     }
 
+    @Test func `mesh vertex descriptor keeps tangent at shader location four`() {
+        var mesh = MeshDescriptor(name: "tangent mesh")
+        mesh.positions = MeshBuffer<Vector3>([.zero])
+        mesh.normals = MeshBuffer<Vector3>([.up])
+        mesh.tangents = MeshBuffer<Vector4>([[1, 0, 0, 1]])
+
+        let attributes = Array(mesh.getMeshVertexBufferDescriptor().attributes)
+
+        #expect(attributes.count == 5)
+        #expect(attributes[2].format == .invalid)
+        #expect(attributes[3].format == .invalid)
+        #expect(attributes[4].name == MeshDescriptor.tangents.id.name)
+        #expect(attributes[4].format == .vector4)
+    }
+
     @Test func `shader reflection keeps internal uniforms in descriptor layout only`() throws {
         let source = try ShaderSource(source: """
         #version 450 core
@@ -535,5 +550,32 @@ struct MeshBufferTests {
             #expect(elements[index].z == original.z)
             #expect(elements[index].w == original.w)
         }
+    }
+
+    @Test func `sphere UVs follow the ECEF longitude direction`() throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+
+        let mesh = Mesh.generateSphere(
+            radius: 1,
+            segments: 4,
+            rings: 2,
+            renderDevice: unsafe RenderEngine.shared.renderDevice
+        )
+        let descriptor = try #require(mesh.models.first?.parts.first?.meshDescriptor)
+        let textureCoordinates = try #require(descriptor.textureCoordinates?.elements)
+
+        // Equator at +Z is 90 degrees west in the app's ECEF coordinate system.
+        let positiveZVertex = 6
+        #expect(abs(descriptor.positions.elements[positiveZVertex].z - 1) < 0.0001)
+        #expect(textureCoordinates[positiveZVertex] == Vector2(0.25, 0.5))
+    }
+
+    private static func setupHeadlessRenderEngineIfNeeded() throws {
+        guard unsafe RenderEngine.shared == nil else {
+            return
+        }
+
+        unsafe RenderEngine.configurations.preferredBackend = .headless
+        try RenderEngine.setupRenderEngine()
     }
 }

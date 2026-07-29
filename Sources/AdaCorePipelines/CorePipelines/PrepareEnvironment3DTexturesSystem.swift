@@ -41,7 +41,7 @@ public struct PrepareEnvironment3DTexturesSystem {
                 target.sceneColor3DTexture = RenderTexture(
                     size: size,
                     scaleFactor: scale,
-                    format: .bgra8,
+                    format: .rgba_16f,
                     debugLabel: "3D Scene Color"
                 )
             }

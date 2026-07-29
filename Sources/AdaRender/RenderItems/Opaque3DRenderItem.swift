@@ -19,6 +19,8 @@ public struct Opaque3DRenderItem: RenderItem {
     public let mesh: Mesh
     public let material: Material
     public let worldTransform: Transform3D
+    public let castShadows: Bool
+    public let receiveShadows: Bool
     
     public init(
         entity: Entity.ID,
@@ -29,6 +31,8 @@ public struct Opaque3DRenderItem: RenderItem {
         mesh: Mesh,
         material: Material,
         worldTransform: Transform3D,
+        castShadows: Bool = true,
+        receiveShadows: Bool = true,
         batchRange: Range<Int32>? = nil
     ) {
         self.entity = entity
@@ -39,6 +43,8 @@ public struct Opaque3DRenderItem: RenderItem {
         self.mesh = mesh
         self.material = material
         self.worldTransform = worldTransform
+        self.castShadows = castShadows
+        self.receiveShadows = receiveShadows
         self.batchRange = batchRange
     }
 }

@@ -53,6 +53,9 @@ protocol RenderBackend: AnyObject, Sendable {
 /// The GPU device instance resposible for rendering and computing.
 public protocol RenderDevice: AnyObject, Sendable {
 
+    /// Returns whether this device can encode a backend-native spatial upscale.
+    var supportsSpatialUpscaling: Bool { get }
+
     // MARK: - Buffers
 
     /// Create a new GPU buffer with specific length and options.
@@ -110,6 +113,8 @@ public protocol Drawable: AnyObject, Sendable {
 }
 
 public extension RenderDevice {
+    var supportsSpatialUpscaling: Bool { false }
+
     /// Create a new GPU buffer with specific length and options.
     @inline(__always)
     func createBuffer(length: Int, options: ResourceOptions) -> Buffer {

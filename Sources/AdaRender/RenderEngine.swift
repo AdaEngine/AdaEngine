@@ -15,6 +15,18 @@ public enum GlobalBufferIndex {
     public static let viewUniform: Int = 2
 }
 
+/// Controls whether the renderer draws at native resolution or upscales a lower-resolution frame.
+public enum RenderUpscalingMode: Sendable, Equatable {
+    /// Render directly at the output resolution.
+    case disabled
+
+    /// Use the backend's spatial upscaler when it is available.
+    ///
+    /// The scale is clamped to `0.5...1`. Backends without a native spatial
+    /// upscaler render at native resolution instead of applying a generic filter.
+    case spatial(renderScale: Float)
+}
+
 /// Render Engine is object that manage a GPU.
 public final class RenderEngine: RenderBackend, Sendable {
 
@@ -25,6 +37,18 @@ public final class RenderEngine: RenderBackend, Sendable {
 
         /// The preferred backend to use for rendering.
         public var preferredBackend: RenderBackendType?
+
+        /// The upscaling mode used for window render targets.
+        ///
+        /// iOS defaults to MetalFX spatial upscaling from 75% linear resolution.
+        /// Other platforms keep native resolution unless explicitly configured.
+        public var upscaling: RenderUpscalingMode = {
+            #if os(iOS)
+            .spatial(renderScale: 0.75)
+            #else
+            .disabled
+            #endif
+        }()
 
         public init() {}
     }

@@ -8,11 +8,22 @@
 #if METAL
 import AdaUtils
 import Metal
+#if canImport(MetalFX) && (os(macOS) || os(iOS))
+@unsafe @preconcurrency import MetalFX
+#endif
 @unsafe @preconcurrency import MetalKit
 import Math
 import Synchronization
 
 final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
+
+    var supportsSpatialUpscaling: Bool {
+        #if canImport(MetalFX) && (os(macOS) || os(iOS))
+        MTLFXSpatialScalerDescriptor.supportsDevice(device)
+        #else
+        false
+        #endif
+    }
 
     let device: MTLDevice
     let commandQueue: MTLCommandQueue

@@ -8,6 +8,29 @@ import AdaECS
 import AdaRender
 import AdaUtils
 
+/// Controls a procedural star field rendered as part of a 3D skybox.
+public struct Starfield3D: Codable, Sendable {
+    public var isEnabled: Bool
+    public var density: Float
+    public var intensity: Float
+    public var size: Float
+    public var seed: Float
+
+    public init(
+        isEnabled: Bool = false,
+        density: Float = 0.18,
+        intensity: Float = 2,
+        size: Float = 1,
+        seed: Float = 0
+    ) {
+        self.isEnabled = isEnabled
+        self.density = density
+        self.intensity = intensity
+        self.size = size
+        self.seed = seed
+    }
+}
+
 /// Describes a sky rendered behind a 3D scene.
 public struct Skybox3D: Codable, Sendable {
     /// Optional equirectangular (longitude/latitude) environment texture.
@@ -17,6 +40,7 @@ public struct Skybox3D: Codable, Sendable {
     public var groundColor: Color
     public var intensity: Float
     public var isEnabled: Bool
+    public var starfield: Starfield3D
 
     public init(
         texture: AssetHandle<Texture2D>? = nil,
@@ -24,7 +48,8 @@ public struct Skybox3D: Codable, Sendable {
         horizonColor: Color = Color(red: 0.62, green: 0.72, blue: 0.82),
         groundColor: Color = Color(red: 0.08, green: 0.09, blue: 0.11),
         intensity: Float = 1,
-        isEnabled: Bool = true
+        isEnabled: Bool = true,
+        starfield: Starfield3D = Starfield3D()
     ) {
         self.texture = texture
         self.zenithColor = zenithColor
@@ -32,6 +57,7 @@ public struct Skybox3D: Codable, Sendable {
         self.groundColor = groundColor
         self.intensity = intensity
         self.isEnabled = isEnabled
+        self.starfield = starfield
     }
 }
 

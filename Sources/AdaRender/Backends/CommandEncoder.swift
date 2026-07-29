@@ -114,6 +114,11 @@ public protocol CommandBuffer: AnyObject {
     /// - Parameter desc: The descriptor that configures the blit pass.
     /// - Returns: A ``BlitCommandEncoder`` for encoding blit commands.
     func beginBlitPass(_ desc: BlitPassDescriptor) -> BlitCommandEncoder
+
+    /// Encodes a backend-native spatial upscale when the source and destination are supported.
+    ///
+    /// - Returns: `true` when the upscale was encoded; otherwise `false` so the caller can use a fallback pass.
+    func encodeSpatialUpscale(source: Texture, destination: Texture) -> Bool
     
     /// Commits the command buffer for execution on the GPU.
     ///
@@ -123,6 +128,12 @@ public protocol CommandBuffer: AnyObject {
 
     /// Registers a callback that runs after the command buffer has finished.
     func addCompletedHandler(_ handler: @escaping @Sendable () -> Void)
+}
+
+public extension CommandBuffer {
+    func encodeSpatialUpscale(source: Texture, destination: Texture) -> Bool {
+        false
+    }
 }
 
 // MARK: - Blit Command Encoder

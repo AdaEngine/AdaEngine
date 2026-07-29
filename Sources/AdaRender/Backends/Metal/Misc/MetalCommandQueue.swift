@@ -10,6 +10,9 @@ import Metal
 
 final class MetalCommandQueue: CommandQueue {
     let commandQueue: MTLCommandQueue
+    #if canImport(MetalFX) && (os(macOS) || os(iOS))
+    private let spatialScalerCache = MetalSpatialScalerCache()
+    #endif
 
     init(commandQueue: MTLCommandQueue) {
         self.commandQueue = commandQueue
@@ -19,7 +22,15 @@ final class MetalCommandQueue: CommandQueue {
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
             fatalError("MetalCommandQueue failed. Can't create MTLCommandBuffer.")
         }
+        #if canImport(MetalFX) && (os(macOS) || os(iOS))
+        return MetalCommandEncoder(
+            commandBuffer: commandBuffer,
+            device: commandQueue.device,
+            spatialScalerCache: spatialScalerCache
+        )
+        #else
         return MetalCommandEncoder(commandBuffer: commandBuffer, device: commandQueue.device)
+        #endif
     }
 }
 #endif

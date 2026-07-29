@@ -14,11 +14,26 @@ final class MetalCommandEncoder: CommandBuffer {
     var label: String?
     let commandBuffer: MTLCommandBuffer
     private let device: MTLDevice
+    #if canImport(MetalFX) && (os(macOS) || os(iOS))
+    private let spatialScalerCache: MetalSpatialScalerCache
+    #endif
     
+    #if canImport(MetalFX) && (os(macOS) || os(iOS))
+    init(
+        commandBuffer: MTLCommandBuffer,
+        device: MTLDevice,
+        spatialScalerCache: MetalSpatialScalerCache
+    ) {
+        self.commandBuffer = commandBuffer
+        self.device = device
+        self.spatialScalerCache = spatialScalerCache
+    }
+    #else
     init(commandBuffer: MTLCommandBuffer, device: MTLDevice) {
         self.commandBuffer = commandBuffer
         self.device = device
     }
+    #endif
 
     func commit() {
         self.commandBuffer.commit()
@@ -70,6 +85,24 @@ final class MetalCommandEncoder: CommandBuffer {
         }
         encoder.label = desc.label
         return MetalBlitCommandEncoder(blitEncoder: encoder)
+    }
+
+    func encodeSpatialUpscale(source: Texture, destination: Texture) -> Bool {
+        #if canImport(MetalFX) && (os(macOS) || os(iOS))
+        guard let sourceTexture = source.gpuTexture as? MetalGPUTexture,
+              let destinationTexture = destination.gpuTexture as? MetalGPUTexture
+        else {
+            return false
+        }
+
+        return spatialScalerCache.encode(
+            source: sourceTexture.texture,
+            destination: destinationTexture.texture,
+            commandBuffer: commandBuffer
+        )
+        #else
+        return false
+        #endif
     }
 }
 #endif

@@ -22,8 +22,8 @@ struct Environment3DRenderingTests {
         #expect(renderWorld.schedulers.getScheduler(.batching) != nil)
     }
 
-    @Test("Core3D plugin installs the SSR render pass")
-    func core3DPluginInstallsSSRPass() async throws {
+    @Test("Core3D plugin installs directional shadow and SSR render passes")
+    func core3DPluginInstallsDirectionalShadowAndSSRPasses() async throws {
         try Self.setupHeadlessRenderEngineIfNeeded()
 
         let app = AppWorlds(main: World())
@@ -37,7 +37,12 @@ struct Environment3DRenderingTests {
         let renderWorld = try #require(app.getSubworldBuilder(by: .renderWorld)?.main)
         let graph = try #require(renderWorld.getResource(RenderGraph.self)?.getSubgraph(by: .main3D))
         let snapshot = graph.makeSnapshot(includeSubgraphs: false)
+        #expect(snapshot.nodes.contains { $0.label == DirectionalShadow3DRenderNode.name.rawValue })
         #expect(snapshot.nodes.contains { $0.label == RenderNodeLabel.screenSpaceReflection.rawValue })
+        #expect(snapshot.edges.contains {
+            $0.fromNode == DirectionalShadow3DRenderNode.name.rawValue
+                && $0.toNode == Main3DRenderNode.name.rawValue
+        })
         #expect(snapshot.edges.contains {
             $0.fromNode == Main3DRenderNode.name.rawValue
                 && $0.toNode == RenderNodeLabel.screenSpaceReflection.rawValue

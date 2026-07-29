@@ -63,9 +63,9 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                 projection: viewUniform.projectionMatrix,
                 inverseProjection: viewUniform.projectionMatrix.inverse,
                 inverseView: viewUniform.viewMatrix.inverse,
-                zenithColor: skybox.zenithColor.asVector * skyIntensity,
-                horizonColor: skybox.horizonColor.asVector * skyIntensity,
-                groundColor: skybox.groundColor.asVector * skyIntensity,
+                zenithColor: skybox.zenithColor.asVector,
+                horizonColor: skybox.horizonColor.asVector,
+                groundColor: skybox.groundColor.asVector,
                 clearColor: camera.backgroundColor.asVector,
                 reflection: Vector4(
                     reflection.isEnabled ? 1 : 0,
@@ -83,7 +83,13 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                     skybox.isEnabled ? 1 : 0,
                     skybox.texture == nil ? 0 : 1,
                     skyIntensity,
-                    0
+                    skybox.starfield.isEnabled ? 1 : 0
+                ),
+                starfield: Vector4(
+                    min(max(skybox.starfield.density, 0), 1),
+                    max(skybox.starfield.intensity, 0),
+                    max(skybox.starfield.size, 0.1),
+                    skybox.starfield.seed
                 )
             )
             scratch.uniform.elements = [uniform]

@@ -34,20 +34,70 @@ layout (binding = 4) uniform Environment3DUniform {
     vec4 u_Reflection;
     vec4 u_ReflectionQuality;
     vec4 u_EnvironmentFlags;
+    vec4 u_Starfield;
 };
 
 const float PI = 3.14159265359;
+
+vec3 srgbToLinear(vec3 value) {
+    return mix(value / 12.92, pow((value + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), value));
+}
+
+vec3 linearToSrgb(vec3 value) {
+    value = max(value, vec3(0.0));
+    return mix(value * 12.92, 1.055 * pow(value, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), value));
+}
+
+vec3 acesToneMap(vec3 value) {
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+    return clamp((value * (a * value + b)) / (value * (c * value + d) + e), 0.0, 1.0);
+}
+
+vec3 presentColor(vec3 linearColor) {
+    return linearToSrgb(acesToneMap(linearColor));
+}
 
 vec3 proceduralSky(vec3 direction) {
     float height = clamp(direction.y, -1.0, 1.0);
     float horizonBlend = pow(abs(height), 0.55);
     vec3 hemisphere = height >= 0.0 ? u_ZenithColor.rgb : u_GroundColor.rgb;
-    return mix(u_HorizonColor.rgb, hemisphere, horizonBlend);
+    vec3 sky = mix(u_HorizonColor.rgb, hemisphere, horizonBlend);
+    if (u_EnvironmentFlags.w < 0.5) {
+        return sky;
+    }
+
+    float longitude = atan(direction.z, direction.x) / (2.0 * PI) + 0.5;
+    float latitude = asin(clamp(direction.y, -1.0, 1.0)) / PI + 0.5;
+    vec2 gridSize = vec2(220.0, 110.0);
+    vec2 gridPosition = vec2(longitude, latitude) * gridSize;
+    vec2 cell = floor(gridPosition);
+    vec2 local = fract(gridPosition);
+    vec3 hashInput = vec3(cell, u_Starfield.w);
+    hashInput = fract(hashInput * vec3(0.1031, 0.1030, 0.0973));
+    hashInput += dot(hashInput, hashInput.yzx + 33.33);
+    float existence = fract((hashInput.x + hashInput.y) * hashInput.z);
+    vec2 offset = vec2(
+        fract(existence * 17.17 + hashInput.x),
+        fract(existence * 31.73 + hashInput.y)
+    );
+    float distanceToStar = length((local - offset) / max(u_Starfield.z, 0.1));
+    float threshold = mix(0.998, 0.72, u_Starfield.x);
+    float starExists = step(threshold, existence);
+    float star = smoothstep(0.11, 0.0, distanceToStar) * starExists;
+    float glow = smoothstep(0.42, 0.0, distanceToStar) * starExists * 0.22;
+    vec3 warm = vec3(1.0, 0.72, 0.46);
+    vec3 cool = vec3(0.58, 0.76, 1.0);
+    vec3 starColor = mix(warm, cool, fract(existence * 47.0));
+    return sky + starColor * (star + glow) * u_Starfield.y;
 }
 
 vec3 sampleSky(vec3 viewDirection) {
     if (u_EnvironmentFlags.x < 0.5) {
-        return u_ClearColor.rgb;
+        return srgbToLinear(u_ClearColor.rgb);
     }
     vec3 worldDirection = normalize((u_InverseView * vec4(viewDirection, 0.0)).xyz);
     if (u_EnvironmentFlags.y > 0.5) {
@@ -55,9 +105,10 @@ vec3 sampleSky(vec3 viewDirection) {
             atan(worldDirection.z, worldDirection.x) / (2.0 * PI) + 0.5,
             asin(clamp(worldDirection.y, -1.0, 1.0)) / PI + 0.5
         );
-        return texture(sampler2D(u_EnvironmentTexture, u_LinearSampler), uv).rgb * u_EnvironmentFlags.z;
+        vec3 textureColor = texture(sampler2D(u_EnvironmentTexture, u_LinearSampler), uv).rgb;
+        return srgbToLinear(textureColor) * u_EnvironmentFlags.z;
     }
-    return proceduralSky(worldDirection);
+    return srgbToLinear(proceduralSky(worldDirection)) * u_EnvironmentFlags.z;
 }
 
 float edgeVisibility(vec2 uv) {
@@ -117,7 +168,7 @@ void ssr_fragment() {
         vec2 ndc = vec2(v_UV.x * 2.0 - 1.0, 1.0 - v_UV.y * 2.0);
         vec4 viewFar = u_InverseProjection * vec4(ndc, 1.0, 1.0);
         vec3 viewRay = normalize(viewFar.xyz / viewFar.w);
-        o_Color = vec4(sampleSky(viewRay), 1.0);
+        o_Color = vec4(presentColor(sampleSky(viewRay)), 1.0);
         return;
     }
 
@@ -144,5 +195,5 @@ void ssr_fragment() {
     reflectivity *= (1.0 - roughness * 0.7) * u_ReflectionQuality.y;
     vec3 ambient = sampleSky(normal) * (0.035 + 0.035 * (1.0 - roughness));
     vec3 reflectionResult = mix(environment, reflectedColor, visibility);
-    o_Color = vec4(baseColor + ambient + reflectionResult * reflectivity, 1.0);
+    o_Color = vec4(presentColor(baseColor + ambient + reflectionResult * reflectivity), 1.0);
 }

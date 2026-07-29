@@ -13,9 +13,17 @@ import AdaAssets
 public struct Mesh3DComponent: Component {
     public var mesh: Mesh
     public var materials: [Material]
+    public var castShadows: Bool
+    public var receiveShadows: Bool
     
     public init(mesh: Mesh, materials: [Material]) {
+        self.init(mesh: mesh, materials: materials, castShadows: true, receiveShadows: true)
+    }
+
+    public init(mesh: Mesh, materials: [Material], castShadows: Bool, receiveShadows: Bool) {
         self.mesh = mesh
         self.materials = materials
+        self.castShadows = castShadows
+        self.receiveShadows = receiveShadows
     }
 }
