@@ -93,10 +93,20 @@ public extension AppWorlds {
     /// Update the app.
     /// - Parameter deltaTime: The delta time.
     func update() async throws {
-        let span = AdaTrace.startSpan("AppWorlds.update")
-        defer {
-            span.end()
+        let worldName = main.name ?? "UnknownWorld"
+        let framePacing = main.getResource(ApplicationFramePacing.self)
+        try await AdaTrace.span("AppWorlds.update") { span in
+            span.attributes["ada.profile.category"] = "frame"
+            span.attributes["ada.world.name"] = worldName
+            if let framePacing {
+                span.attributes["ada.frame.target_fps"] = framePacing.maximumFramesPerSecond
+                span.attributes["ada.frame.budget_ms"] = framePacing.minimumFrameDuration * 1_000
+            }
+            try await self.updateFrameContents()
         }
+    }
+
+    private func updateFrameContents() async throws {
         guard isConfigured else {
             return
         }
@@ -129,7 +139,7 @@ public extension AppWorlds {
             unsafe await world.worldExctractor?.exctract(from: main, to: world.main)
             try await world.update()
         }
-            
+
         main.clearTrackers()
     }
 

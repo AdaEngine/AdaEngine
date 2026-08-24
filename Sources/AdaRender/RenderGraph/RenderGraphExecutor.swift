@@ -9,10 +9,10 @@
 
 import AdaECS
 import AdaUtils
-import Logging
 import Collections
 import DequeModule
 import Foundation
+import Logging
 import Tracing
 
 /// Execute ``RenderGraph`` objects.
@@ -41,7 +41,7 @@ public struct RenderGraphExecutor: Sendable {
         )
     }
     
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    // swiftlint:disable cyclomatic_complexity function_body_length closure_body_length
     private func executeGraph(
         _ graph: RenderGraph,
         renderContext: RenderContext,
@@ -52,18 +52,19 @@ public struct RenderGraphExecutor: Sendable {
         frameIndex: Int?,
         isSubgraph: Bool
     ) async throws {
-        let span = AdaTrace.startSpan("RenderGraph.frame.\(graph.label?.rawValue ?? "Unknown")")
-        defer {
-            span.end()
-        }
-        let graphStartedAt = Date()
-        var executionOrder: [String] = []
-        var nodeRecords: [RenderGraphNodeRecord] = []
-        var pendingSubgraphLabels: [String] = []
-        let tracer = Logger(label: "RenderGraph")
-        tracer.trace("Begin Render Graph Frame", metadata: [
-            "graph": .string(graph.label?.rawValue ?? "Unknown")
-        ])
+        let graphLabel = graph.label?.rawValue ?? "Unknown"
+        try await AdaTrace.span("RenderGraph.frame.\(graphLabel)") { span in
+            span.attributes["ada.profile.category"] = "render_graph"
+            span.attributes["ada.render.graph"] = graphLabel
+            span.attributes["ada.render.is_subgraph"] = isSubgraph
+            let graphStartedAt = Date()
+            var executionOrder: [String] = []
+            var nodeRecords: [RenderGraphNodeRecord] = []
+            var pendingSubgraphLabels: [String] = []
+            let tracer = Logger(label: "RenderGraph")
+            tracer.trace("Begin Render Graph Frame", metadata: [
+                "graph": .string(graph.label?.rawValue ?? "Unknown")
+            ])
 
         var writtenResources = [RenderGraph.Node.ID: [RenderSlotValue]]()
         
@@ -133,7 +134,15 @@ public struct RenderGraphExecutor: Sendable {
                 )
                 let nodeStartedAt = Date()
                 executionOrder.append(currentNode.name.rawValue)
+                let nodeSpan = AdaTrace.startSpan("RenderGraph.node.\(currentNode.name.rawValue)")
+                nodeSpan.attributes["ada.profile.category"] = "render_node"
+                nodeSpan.attributes["ada.render.graph"] = graphLabel
+                nodeSpan.attributes["ada.render.node"] = currentNode.name.rawValue
+                nodeSpan.attributes["ada.render.node_type"] = String(reflecting: Swift.type(of: currentNode.node))
                 do {
+                    defer {
+                        nodeSpan.end()
+                    }
                     let outputs = try await currentNode.node.execute(context: &context, renderContext: renderContext)
                     let subgraphLabels = context.pendingSubgraphs.map { $0.graph.label?.rawValue ?? "RenderGraph" }
                     pendingSubgraphLabels.append(contentsOf: subgraphLabels)
@@ -209,8 +218,10 @@ public struct RenderGraphExecutor: Sendable {
             throw error
         }
 
-        tracer.trace("End Render Graph Frame")
+            tracer.trace("End Render Graph Frame")
+        }
     }
+    // swiftlint:enable cyclomatic_complexity function_body_length closure_body_length
 
     private func appendDiagnosticsRecord(
         diagnostics: RenderGraphDiagnostics?,

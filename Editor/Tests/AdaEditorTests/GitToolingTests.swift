@@ -76,7 +76,10 @@ struct GitToolingTests {
         let viewModel = EditorViewModel(project: project, sourceControlService: service)
 
         viewModel.refreshSourceControl()
-        try await Task.sleep(for: .milliseconds(50))
+        try await waitForGitCondition {
+            viewModel.sourceControl.snapshot.branchName == "main"
+                && viewModel.sourceControl.snapshot.changedFiles.map(\.path) == ["Sources/App.swift"]
+        }
 
         #expect(viewModel.sourceControl.snapshot.branchName == "main")
         #expect(viewModel.sourceControl.snapshot.changedFiles.map(\.path) == ["Sources/App.swift"])
@@ -104,10 +107,30 @@ struct GitToolingTests {
 
         viewModel.startEditorSessionIfNeeded()
         viewModel.startEditorSessionIfNeeded()
-        try await Task.sleep(for: .milliseconds(50))
+
+        for _ in 0..<100 {
+            if await workspaceService.bootstrapCallCount == 1,
+               await sourceControlService.snapshotCallCount == 1 {
+                break
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
 
         #expect(await workspaceService.bootstrapCallCount == 1)
         #expect(await sourceControlService.snapshotCallCount == 1)
+    }
+}
+
+@MainActor
+private func waitForGitCondition(
+    timeout: Duration = .seconds(3),
+    pollInterval: Duration = .milliseconds(20),
+    condition: () -> Bool
+) async throws {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: timeout)
+    while !condition(), clock.now < deadline {
+        try await Task.sleep(for: pollInterval)
     }
 }
 

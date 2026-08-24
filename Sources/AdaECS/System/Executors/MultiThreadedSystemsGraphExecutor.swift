@@ -5,6 +5,7 @@
 
 import AdaUtils
 import DequeModule
+import Tracing
 
 /// Executes dependency-ready, non-conflicting systems concurrently.
 ///
@@ -153,7 +154,11 @@ private func executeSystem(
     world: World,
     scheduler: SchedulerName
 ) async {
-    await AdaTrace.span("System.execute.\(system.name)") {
+    await AdaTrace.span("System.execute.\(system.name)") { span in
+        span.attributes["ada.profile.category"] = "system"
+        span.attributes["ada.scheduler.name"] = scheduler.rawValue
+        span.attributes["ada.system.name"] = system.name
+        span.attributes["ada.world.name"] = world.name ?? "UnknownWorld"
         await system.system.update(
             context: WorldUpdateContext(
                 world: world,

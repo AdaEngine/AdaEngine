@@ -38,6 +38,7 @@ public struct CameraPlugin: Plugin {
 public struct RenderViewTarget: @unchecked Sendable {
     public var mainTexture: RenderTexture?
     public var outputTexture: RenderTexture?
+    /// Depth-stencil target allocated lazily by render pipelines that require depth testing.
     public var depthTexture: RenderTexture?
     var retiredFrameTextures: [RetiredFrameTexture] = []
 
@@ -160,14 +161,8 @@ func ConfigurateRenderViewTarget(
                 format: .bgra8,
                 debugLabel: "Camera Main Texture"
             )
-            
-            renderViewTarget.depthTexture = RenderTexture(
-                size: viewportSize,
-                scaleFactor: scale,
-                format: .depth_32f_stencil8,
-                debugLabel: "Camera Depth Texture"
-            )
-            
+
+            renderViewTarget.depthTexture = nil
             renderViewTarget.sceneColorTexture = nil
             renderViewTarget.lightAccumTexture = nil
             renderViewTarget.shadowMaskTexture = nil

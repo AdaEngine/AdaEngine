@@ -16,7 +16,161 @@ struct SwiftToolingTests {
         #expect(service.makeCommand(.build(target: "Game", buildTests: false), projectURL: projectURL, toolchain: toolchain).arguments == ["build", "--target", "Game"])
         #expect(service.makeCommand(.build(target: nil, buildTests: true), projectURL: projectURL, toolchain: toolchain).arguments == ["build", "--build-tests"])
         #expect(service.makeCommand(.run(target: "Game", arguments: ["--debug"]), projectURL: projectURL, toolchain: toolchain).arguments == ["run", "Game", "--", "--debug"])
+        let webCommand = service.makeCommand(.runWeb(target: "Game", outputPath: "dist/web", serve: true), projectURL: projectURL, toolchain: toolchain)
+        #expect(webCommand.arguments == [
+            "package", "--allow-writing-to-package-directory", "--allow-network-connections", "all",
+            "export-web", "--product", "Game", "--output", "dist/web", "--serve"
+        ])
+        #expect(webCommand.environment["ADAENGINE_WEB_EXPORT"] == "1")
+        #expect(webCommand.environment["BUILD_WASM"] == "1")
         #expect(service.makeCommand(.test(filter: "GameTests"), projectURL: projectURL, toolchain: toolchain).arguments == ["test", "--parallel", "--filter", "GameTests"])
+    }
+
+    @Test("run uses executable product while project settings map to its target")
+    @MainActor
+    func runUsesExecutableProductName() async throws {
+        let projectURL = URL(fileURLWithPath: "/tmp/My-Game", isDirectory: true)
+        let project = EditorProjectReference(name: "My-Game", path: projectURL.path)
+        let packageModel = SwiftPackageModel(
+            name: "My-Game",
+            products: [SwiftPackageProduct(name: "My-Game", type: "executable", targets: ["My_Game"])],
+            targets: [SwiftPackageTarget(name: "My_Game", type: "executable", path: "Sources/My_Game", sources: ["main.swift"], targetDependencies: [], productDependencies: [])],
+            dependencies: []
+        )
+        let service = RecordingWorkspaceService()
+        let viewModel = EditorViewModel(
+            project: project,
+            workspaceService: service,
+            workbench: EditorWorkbenchViewModel(activeEditorTab: "", openDocuments: [], activeDocumentID: ""),
+            workspaceStatus: .ready,
+            packageModel: packageModel,
+            selectedRunProduct: "My-Game"
+        )
+
+        #expect(viewModel.runProducts == ["My-Game"])
+        #expect(viewModel.selectedRunTargetName == "My_Game")
+        viewModel.runSelectedTarget()
+        try await waitForRecordedCommands(service, count: 1)
+        #expect(await service.commands.first == .run(target: "My-Game", arguments: []))
+
+        let cleanDocument = EditorTextDocument(
+            id: "main",
+            title: "main.swift",
+            relativePath: "Sources/My_Game/main.swift",
+            absolutePath: "/tmp/My-Game/Sources/My_Game/main.swift",
+            language: .swift,
+            content: "print(1)",
+            isDirty: false
+        )
+        viewModel.workbench.open(.text(cleanDocument))
+        viewModel.selectedRunDestination = .web
+        viewModel.runSelectedTarget()
+        try await waitForRecordedCommands(service, count: 2)
+        #expect(await service.commands.last == .runWeb(target: "My-Game", outputPath: "dist/web", serve: true))
+    }
+
+    @Test("run aborts when the active dirty document cannot be saved")
+    @MainActor
+    func runAbortsAfterSaveFailure() async {
+        let service = RecordingWorkspaceService()
+        let document = EditorTextDocument(
+            id: "readonly",
+            title: "main.swift",
+            relativePath: "Sources/Game/main.swift",
+            absolutePath: "/tmp/Game/Sources/Game/main.swift",
+            language: .swift,
+            content: "edited",
+            isReadOnly: true,
+            errorMessage: nil,
+            isDirty: true
+        )
+        let model = SwiftPackageModel(
+            name: "Game",
+            products: [SwiftPackageProduct(name: "Game", type: "executable", targets: ["Game"])],
+            targets: [],
+            dependencies: []
+        )
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "Game", path: "/tmp/Game"),
+            workspaceService: service,
+            workbench: EditorWorkbenchViewModel(activeEditorTab: "main.swift", openDocuments: [.text(document)], activeDocumentID: document.id),
+            workspaceStatus: .ready,
+            packageModel: model,
+            selectedRunProduct: "Game"
+        )
+
+        viewModel.runSelectedTarget()
+        await Task.yield()
+
+        #expect(await service.commands.isEmpty)
+        guard case .failed(let message) = viewModel.workspaceStatus else {
+            Issue.record("Expected run to fail before starting a process")
+            return
+        }
+        #expect(message.contains("Run blocked"))
+        #expect(message.contains("read-only"))
+    }
+
+    @Test("new caret position clears stale completions before debounce")
+    @MainActor
+    func caretChangeClearsCompletionImmediately() {
+        let completion = EditorCompletionItem(label: "old", detail: nil, insertText: "old", replacementRange: nil, sortText: nil)
+        let document = EditorTextDocument(
+            id: "main",
+            title: "main.swift",
+            relativePath: "Sources/Game/main.swift",
+            absolutePath: "/tmp/Game/Sources/Game/main.swift",
+            language: .swift,
+            content: "ol",
+            completionItems: [completion],
+            completionPosition: EditorSourceLocation(line: 0, character: 2)
+        )
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "Game", path: "/tmp/Game"),
+            workspaceService: RecordingWorkspaceService(),
+            workbench: EditorWorkbenchViewModel(activeEditorTab: "main.swift", openDocuments: [.text(document)], activeDocumentID: document.id)
+        )
+
+        viewModel.handleCompletionPosition(document: document, position: EditorSourceLocation(line: 0, character: 1), text: "o")
+
+        guard case .text(let updatedDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected active text document")
+            return
+        }
+        #expect(updatedDocument.completionItems.isEmpty)
+        #expect(updatedDocument.completionPosition == nil)
+    }
+
+    @Test("build diagnostics replacement preserves SourceKit diagnostics")
+    @MainActor
+    func buildDiagnosticsPreserveSourceKit() {
+        let sourceKit = testDiagnostic(message: "live", source: "sourcekit-lsp")
+        let oldBuild = testDiagnostic(message: "old build", source: "swift")
+        let newBuild = testDiagnostic(message: "new build", source: "swift")
+
+        let merged = EditorViewModel.replacingBuildDiagnostics(in: [sourceKit, oldBuild], with: [newBuild])
+
+        #expect(merged == [sourceKit, newBuild])
+    }
+
+    @Test("workspace cancellation reaches the process runner")
+    func workspaceCancellation() async {
+        let runner = FakeProcessRunner(results: [])
+        let connection = FakeSourceKitLSPConnection(completionResponse: .array([.object(["label": .string("update")])]))
+        let sourceKitClient = SourceKitLSPClient(connection: connection)
+        let service = SwiftPMWorkspaceService(processRunner: runner, sourceKitClient: sourceKitClient)
+
+        await service.cancel()
+        let completions = await service.completions(
+            fileURL: URL(fileURLWithPath: "/tmp/Game/main.swift"),
+            language: .swift,
+            text: "up",
+            position: EditorSourceLocation(line: 0, character: 2)
+        )
+
+        #expect(await runner.cancelCount == 1)
+        #expect(await connection.stopCount == 0)
+        #expect(completions.map(\.label) == ["update"])
     }
 
     @Test("package describe JSON parses products targets dependencies and plugins")
@@ -325,6 +479,171 @@ struct SwiftToolingTests {
         ])
     }
 
+    @Test("LSP completion decodes list results and text edits")
+    func completionDecode() {
+        let items = SourceKitLSPClient.decodeCompletionItems(from: .object([
+            "isIncomplete": .bool(false),
+            "items": .array([
+                .object([
+                    "label": .string("update"),
+                    "detail": .string("func update()"),
+                    "sortText": .string("002"),
+                    "textEdit": .object([
+                        "newText": .string("update()"),
+                        "range": sourceRange(4, 8, 4, 10)
+                    ])
+                ]),
+                .object([
+                    "label": .string("upAxis"),
+                    "insertText": .string("upAxis"),
+                    "sortText": .string("001")
+                ])
+            ])
+        ]))
+
+        #expect(items.map(\.label) == ["upAxis", "update"])
+        #expect(items[1].insertText == "update()")
+        #expect(items[1].replacementRange == EditorSourceRange(
+            start: EditorSourceLocation(line: 4, character: 8),
+            end: EditorSourceLocation(line: 4, character: 10)
+        ))
+    }
+
+    @Test("LSP publish diagnostics decodes severity and canonical source")
+    func publishDiagnosticsDecode() throws {
+        let result = try #require(SourceKitLSPClient.decodePublishedDiagnostics(from: .object([
+            "uri": .string("file:///tmp/Game/Sources/Game/main.swift"),
+            "diagnostics": .array([
+                .object([
+                    "range": sourceRange(2, 4, 2, 10),
+                    "severity": .int(1),
+                    "source": .string("swift"),
+                    "message": .string("cannot find 'player' in scope")
+                ])
+            ])
+        ])))
+
+        #expect(result.uri == "file:///tmp/Game/Sources/Game/main.swift")
+        #expect(result.diagnostics.count == 1)
+        #expect(result.diagnostics[0].filePath == "/tmp/Game/Sources/Game/main.swift")
+        #expect(result.diagnostics[0].severity == .error)
+        #expect(result.diagnostics[0].source == "sourcekit-lsp")
+    }
+
+    @Test("LSP document updates are versioned and completion uses UTF-16 positions")
+    @MainActor
+    func sourceKitDocumentChangeAndUnicodeCompletion() async throws {
+        let connection = FakeSourceKitLSPConnection(responses: [
+            "textDocument/completion": .array([
+                .object([
+                    "label": .string("update"),
+                    "textEdit": .object([
+                        "newText": .string("update"),
+                        "range": sourceRange(0, 2, 0, 4)
+                    ])
+                ])
+            ]),
+            "textDocument/semanticTokens/full": .object([
+                "data": .array([.int(0), .int(2), .int(2), .int(8), .int(0)])
+            ]),
+            "textDocument/documentHighlight": .array([
+                .object(["range": sourceRange(0, 2, 0, 4), "kind": .int(1)])
+            ]),
+            "textDocument/references": .array([])
+        ])
+        let client = SourceKitLSPClient(connection: connection)
+        let fileURL = URL(fileURLWithPath: "/tmp/Game/Sources/Game/main.swift")
+        try await client.start(
+            toolchain: SwiftToolchain(swiftExecutablePath: "/usr/bin/swift", sourceKitLSPExecutablePath: "/usr/bin/sourcekit-lsp"),
+            projectURL: URL(fileURLWithPath: "/tmp/Game", isDirectory: true)
+        )
+        try await client.openDocument(fileURL: fileURL, language: .swift, text: "😀u")
+        try await client.openDocument(fileURL: fileURL, language: .swift, text: "😀up")
+        let items = try await client.completion(fileURL: fileURL, position: EditorSourceLocation(line: 0, character: 3))
+        let tokens = try await client.refreshSemanticTokens(fileURL: fileURL)
+        let highlights = try await client.documentHighlights(fileURL: fileURL, position: EditorSourceLocation(line: 0, character: 3))
+        _ = try await client.references(fileURL: fileURL, position: EditorSourceLocation(line: 0, character: 3))
+        let notifications = await connection.notifications
+        let requests = await connection.requests
+
+        #expect(notifications.map(\.method).contains("textDocument/didOpen"))
+        let change = try #require(notifications.first { $0.method == "textDocument/didChange" }?.params)
+        guard case .object(let changeObject) = change,
+              case .object(let versionedDocument)? = changeObject["textDocument"] else {
+            Issue.record("Expected versioned didChange parameters")
+            return
+        }
+        #expect(versionedDocument["version"] == .int(2))
+
+        let completionParams = try #require(requests.last { $0.method == "textDocument/completion" }?.params)
+        guard case .object(let completionObject) = completionParams,
+              case .object(let position)? = completionObject["position"] else {
+            Issue.record("Expected completion position parameters")
+            return
+        }
+        #expect(position["character"] == .int(4))
+        #expect(items.first?.replacementRange == EditorSourceRange(
+            start: EditorSourceLocation(line: 0, character: 1),
+            end: EditorSourceLocation(line: 0, character: 3)
+        ))
+        let applied = try #require(EditorViewModel.applyingCompletion(items[0], to: "😀up", at: EditorSourceLocation(line: 0, character: 3)))
+        #expect(applied.text == "😀update")
+        #expect(tokens.first?.startCharacter == 1)
+        #expect(tokens.first?.length == 2)
+        #expect(highlights.first?.range == EditorSourceRange(
+            start: EditorSourceLocation(line: 0, character: 1),
+            end: EditorSourceLocation(line: 0, character: 3)
+        ))
+        let referencesParams = try #require(requests.last { $0.method == "textDocument/references" }?.params)
+        guard case .object(let referencesObject) = referencesParams,
+              case .object(let referencesPosition)? = referencesObject["position"] else {
+            Issue.record("Expected references position parameters")
+            return
+        }
+        #expect(referencesPosition["character"] == .int(4))
+    }
+
+    @Test("LSP transport routes server requests before colliding response IDs")
+    func sourceKitServerRequestRouting() {
+        let route = SourceKitLSPStdioConnection.route(for: [
+            "jsonrpc": .string("2.0"),
+            "id": .int(1),
+            "method": .string("workspace/configuration"),
+            "params": .object(["items": .array([])])
+        ])
+
+        #expect(route == .serverMessage(method: "workspace/configuration", id: .int(1)))
+        #expect(SourceKitLSPStdioConnection.route(for: ["jsonrpc": .string("2.0"), "id": .int(1), "result": .null]) == .response(id: 1))
+    }
+
+    @Test("completion application replaces the LSP range or inferred identifier prefix")
+    @MainActor
+    func completionApplication() throws {
+        let explicit = try #require(EditorViewModel.applyingCompletion(
+            EditorCompletionItem(
+                label: "update",
+                detail: nil,
+                insertText: "update()",
+                replacementRange: EditorSourceRange(
+                    start: EditorSourceLocation(line: 1, character: 8),
+                    end: EditorSourceLocation(line: 1, character: 10)
+                ),
+                sortText: nil
+            ),
+            to: "struct Game {\n    let up\n}",
+            at: EditorSourceLocation(line: 1, character: 10)
+        ))
+        let inferred = try #require(EditorViewModel.applyingCompletion(
+            EditorCompletionItem(label: "player", detail: nil, insertText: "player", replacementRange: nil, sortText: nil),
+            to: "let pla = 1",
+            at: EditorSourceLocation(line: 0, character: 7)
+        ))
+
+        #expect(explicit.text == "struct Game {\n    let update()\n}")
+        #expect(explicit.caret == EditorSourceLocation(line: 1, character: 16))
+        #expect(inferred.text == "let player = 1")
+    }
+
     @Test("LSP definition decodes location and location links")
     func definitionDecode() {
         let response: JSONRPCValue = .array([
@@ -442,6 +761,147 @@ struct SwiftToolingTests {
         )
         #expect(result.manifest.contains(#".executableTarget(name: "Tools", dependencies: [], path: ".", sources: ["Sources/Tools"], resources: [.copy("Assets")])"#))
     }
+
+    @Test("package manifest editor adds and removes real dependencies by normalized identity")
+    func manifestEditorAddsAndRemovesDependencies() throws {
+        var manifest = try PackageManifestEditor.edit(
+            simpleManifestWithExecutableTarget,
+            command: .addLocalDependency(name: "My_Library", path: "../MyLibrary")
+        ).manifest
+        manifest = try PackageManifestEditor.edit(
+            manifest,
+            command: .addDependency(url: "https://example.com/Other-Library.git", requirement: #"from: "1.2.0""#)
+        ).manifest
+
+        let removedLocal = try PackageManifestEditor.edit(manifest, command: .removeDependency(identity: "my-library"))
+        let removedRemote = try PackageManifestEditor.edit(removedLocal.manifest, command: .removeDependency(identity: "OTHER_library.git"))
+
+        #expect(removedLocal.changed)
+        #expect(!removedLocal.manifest.contains("My_Library"))
+        #expect(removedRemote.changed)
+        #expect(!removedRemote.manifest.contains("Other-Library.git"))
+        #expect(try !PackageManifestEditor.edit(removedRemote.manifest, command: .removeDependency(identity: "other-library")).changed)
+    }
+
+    @Test("removing a dependency also removes target product references")
+    func manifestEditorRemovesProductReferences() throws {
+        let withAdaEngine = try PackageManifestEditor.edit(
+            simpleManifestWithExecutableTarget,
+            command: .ensureAdaEngineDependency(path: "/tmp/AdaEngine", targetName: "Game")
+        )
+        let removed = try PackageManifestEditor.edit(withAdaEngine.manifest, command: .removeDependency(identity: "ADAENGINE"))
+
+        #expect(withAdaEngine.manifest.contains(#".package(name: "AdaEngine", path: "/tmp/AdaEngine")"#))
+        #expect(withAdaEngine.manifest.contains(#".product(name: "AdaEngine", package: "AdaEngine")"#))
+        #expect(!removed.manifest.contains(#"package: "AdaEngine""#))
+        #expect(!removed.manifest.contains(#"name: "AdaEngine""#))
+    }
+
+    @Test("AdaEngine synchronization links every executable and is idempotent")
+    func manifestEditorEnsuresAdaEngineForEveryExecutable() throws {
+        let first = try PackageManifestEditor.edit(
+            multiExecutableManifest,
+            command: .ensureAdaEngineDependency(path: "/tmp/AdaEngine", targetName: nil)
+        )
+        let second = try PackageManifestEditor.edit(
+            first.manifest,
+            command: .ensureAdaEngineDependency(path: "/tmp/AdaEngine", targetName: nil)
+        )
+
+        #expect(first.changed)
+        #expect(first.manifest.components(separatedBy: #".product(name: "AdaEngine", package: "AdaEngine")"#).count - 1 == 2)
+        #expect(!second.changed)
+    }
+
+    @Test("target configuration synchronizes sources excludes and resources")
+    func manifestEditorConfiguresTargetBuildSelection() throws {
+        let first = try PackageManifestEditor.edit(
+            packageRootTargetManifest,
+            command: .configureTarget(
+                name: "Game",
+                sources: ["Sources/Game", "Sources/Shared.swift"],
+                exclude: ["Sources/Game/Drafts"],
+                resources: ["Assets", "Localization"]
+            )
+        )
+        let second = try PackageManifestEditor.edit(
+            first.manifest,
+            command: .configureTarget(
+                name: "Game",
+                sources: ["Sources/Game", "Sources/Shared.swift"],
+                exclude: ["Sources/Game/Drafts"],
+                resources: ["Assets", "Localization"]
+            )
+        )
+
+        #expect(first.manifest.contains(#"sources: ["Sources/Game", "Sources/Shared.swift"]"#))
+        #expect(first.manifest.contains(#"exclude: ["Sources/Game/Drafts"]"#))
+        #expect(first.manifest.contains(#"resources: [.copy("Assets"), .copy("Localization")]"#))
+        #expect(!second.changed)
+    }
+
+    @Test("target configuration converts project-relative paths for an implicit target root")
+    func manifestEditorNormalizesImplicitTargetPaths() throws {
+        let result = try PackageManifestEditor.edit(
+            standardImplicitTargetManifest,
+            command: .configureTarget(
+                name: "Game",
+                sources: ["Sources/Game/main.swift", "Sources/Game/Gameplay"],
+                exclude: ["Sources/Game/Drafts"],
+                resources: ["Sources/Game/Assets"]
+            )
+        )
+
+        #expect(result.manifest.contains(#"sources: ["main.swift", "Gameplay"]"#))
+        #expect(result.manifest.contains(#"exclude: ["Drafts"]"#))
+        #expect(result.manifest.contains(#"resources: [.copy("Assets")]"#))
+        #expect(!result.manifest.contains(#"sources: ["Sources/Game/main.swift""#))
+    }
+
+    @Test("external project resources migrate an implicit target to package root")
+    func manifestEditorMigratesImplicitTargetForProjectResources() throws {
+        let result = try PackageManifestEditor.edit(
+            standardImplicitTargetManifest,
+            command: .configureTarget(name: "Game", sources: [], exclude: [], resources: ["Assets"])
+        )
+
+        #expect(result.manifest.contains(#"path: ".""#))
+        #expect(result.manifest.contains(#"sources: ["Sources/Game"]"#))
+        #expect(result.manifest.contains(#"resources: [.copy("Assets")]"#))
+    }
+
+    @Test("remote dependency requirements are validated before editing")
+    func manifestEditorRejectsUnsafeRequirements() {
+        let invalidRequirements = ["", "from: latest", #"from: "1""#, #"branch: "main", products: []"#]
+        for requirement in invalidRequirements {
+            do {
+                _ = try PackageManifestEditor.edit(
+                    simpleManifest,
+                    command: .addDependency(url: "https://example.com/lib.git", requirement: requirement)
+                )
+                Issue.record("Expected requirement to be rejected: \(requirement)")
+            } catch let error as PackageManifestEditError {
+                #expect(error.structuredDescription.contains("invalidArgument"))
+            } catch {
+                Issue.record("Unexpected error: \(error)")
+            }
+        }
+    }
+
+    @Test("candidate manifest syntax is validated after editing")
+    func manifestEditorRejectsSyntacticallyInvalidCandidate() {
+        do {
+            _ = try PackageManifestEditor.edit(
+                simpleManifest,
+                command: .addDependency(url: "https://example.com/\nlib.git", requirement: #"branch: "main""#)
+            )
+            Issue.record("Expected invalid candidate manifest to be rejected")
+        } catch let error as PackageManifestEditError {
+            #expect(error == .invalidSwiftSyntax)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
 }
 
 private actor OutputEventCollector {
@@ -452,8 +912,50 @@ private actor OutputEventCollector {
     }
 }
 
+private struct FakeSourceKitLSPCall: Sendable {
+    var method: String
+    var params: JSONRPCValue?
+}
+
+private actor FakeSourceKitLSPConnection: SourceKitLSPConnecting {
+    private let responses: [String: JSONRPCValue]
+    private(set) var requests: [FakeSourceKitLSPCall] = []
+    private(set) var notifications: [FakeSourceKitLSPCall] = []
+    private(set) var stopCount = 0
+    private var notificationHandler: (@Sendable (String, JSONRPCValue?) async -> Void)?
+
+    init(completionResponse: JSONRPCValue) {
+        self.responses = ["textDocument/completion": completionResponse]
+    }
+
+    init(responses: [String: JSONRPCValue]) {
+        self.responses = responses
+    }
+
+    func start(executablePath: String, projectURL: URL) {}
+
+    func request(method: String, params: JSONRPCValue?) -> JSONRPCValue? {
+        requests.append(FakeSourceKitLSPCall(method: method, params: params))
+        return responses[method] ?? .object([:])
+    }
+
+    func notify(method: String, params: JSONRPCValue?) async {
+        notifications.append(FakeSourceKitLSPCall(method: method, params: params))
+        await notificationHandler?(method, params)
+    }
+
+    func setNotificationHandler(_ handler: (@Sendable (String, JSONRPCValue?) async -> Void)?) {
+        notificationHandler = handler
+    }
+
+    func stop() {
+        stopCount += 1
+    }
+}
+
 private actor FakeProcessRunner: EditorProcessRunning {
     var commands: [EditorProcessCommand] = []
+    private(set) var cancelCount = 0
     private var results: [EditorProcessResult]
     private var outputChunks: [[EditorProcessOutputEvent]]
     private let onRun: (@Sendable (EditorProcessCommand) -> Void)?
@@ -490,7 +992,76 @@ private actor FakeProcessRunner: EditorProcessRunning {
         []
     }
 
-    func cancelAll() {}
+    func cancelAll() {
+        cancelCount += 1
+    }
+}
+
+private actor RecordingWorkspaceService: SwiftPMWorkspaceServicing {
+    private(set) var commands: [SwiftPMCommandKind] = []
+
+    nonisolated func makeCommand(_ kind: SwiftPMCommandKind, projectURL: URL, toolchain: SwiftToolchain) -> EditorProcessCommand {
+        SwiftPMWorkspaceService().makeCommand(kind, projectURL: projectURL, toolchain: toolchain)
+    }
+
+    func bootstrap(projectURL: URL) -> SwiftPMBootstrapResult {
+        let toolchain = SwiftToolchain(swiftExecutablePath: "swift", sourceKitLSPExecutablePath: nil)
+        let resolve = EditorProcessResult(
+            command: makeCommand(.resolve, projectURL: projectURL, toolchain: toolchain),
+            exitCode: 0,
+            standardOutput: "",
+            standardError: ""
+        )
+        return SwiftPMBootstrapResult(
+            toolchain: toolchain,
+            resolveResult: resolve,
+            packageModel: nil,
+            describeResult: resolve,
+            indexBuildResult: nil,
+            diagnostics: []
+        )
+    }
+
+    func execute(_ kind: SwiftPMCommandKind, projectURL: URL) -> EditorProcessResult {
+        commands.append(kind)
+        let toolchain = SwiftToolchain(swiftExecutablePath: "swift", sourceKitLSPExecutablePath: nil)
+        return EditorProcessResult(
+            command: makeCommand(kind, projectURL: projectURL, toolchain: toolchain),
+            exitCode: 0,
+            standardOutput: "",
+            standardError: ""
+        )
+    }
+
+    func semanticTokens(fileURL: URL, language: EditorSourceLanguage, text: String) -> [EditorSemanticToken] { [] }
+    func definition(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> [EditorSourceSymbolTarget] { [] }
+    func references(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> [EditorSourceReference] { [] }
+    func hover(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> EditorSymbolHover? { nil }
+    func documentHighlights(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> [EditorDocumentHighlight] { [] }
+    func cancel() {}
+}
+
+private func waitForRecordedCommands(_ service: RecordingWorkspaceService, count: Int) async throws {
+    for _ in 0..<100 {
+        if await service.commands.count >= count {
+            return
+        }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+    Issue.record("Timed out waiting for \(count) workspace commands")
+}
+
+private func testDiagnostic(message: String, source: String) -> EditorDiagnostic {
+    EditorDiagnostic(
+        filePath: "/tmp/Game/main.swift",
+        range: EditorSourceRange(
+            start: EditorSourceLocation(line: 0, character: 0),
+            end: EditorSourceLocation(line: 0, character: 1)
+        ),
+        severity: .error,
+        message: message,
+        source: source
+    )
 }
 
 private func findFirstFile(named fileName: String, under root: URL, fileManager: FileManager) -> URL? {
@@ -592,6 +1163,30 @@ let package = Package(
         .executableTarget(name: "Game", dependencies: []),
         .executableTarget(name: "Tools", dependencies: [])
     ]
+)
+"""
+
+private let standardImplicitTargetManifest = """
+// swift-tools-version: 6.2
+import PackageDescription
+
+let package = Package(
+    name: "Game",
+    products: [.executable(name: "Game", targets: ["Game"])],
+    dependencies: [],
+    targets: [.executableTarget(name: "Game", dependencies: [])]
+)
+"""
+
+private let packageRootTargetManifest = """
+// swift-tools-version: 6.2
+import PackageDescription
+
+let package = Package(
+    name: "Game",
+    products: [.executable(name: "Game", targets: ["Game"])],
+    dependencies: [],
+    targets: [.executableTarget(name: "Game", dependencies: [], path: ".")]
 )
 """
 

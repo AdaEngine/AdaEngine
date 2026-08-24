@@ -7,6 +7,8 @@ struct EditorCenterWorkbench: View {
     let playModeState: EditorPlayModeState
     let onSourceHover: ((EditorTextDocument, EditorSourceLocation?) -> Void)?
     let onGoToDefinition: ((EditorTextDocument, EditorSourceLocation) -> Void)?
+    let onCompletionPosition: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
+    let onApplyCompletion: ((EditorCompletionItem, EditorTextDocument) -> Void)?
     let sourceContextMenuItems: ((EditorTextDocument, EditorSourceLocation) -> [TextEditorContextMenuItem])?
     let onSelectDocument: ((String) -> Void)?
     let onSelectPreview: ((EditorPreviewDeclaration) -> Void)?
@@ -80,7 +82,7 @@ extension EditorCenterWorkbench {
             .buttonStyle(DefaultButtonStyle())
             .padding(.trailing, 8)
         }
-        .frame(height: 26)
+        .frame(width: editorTabWidth(document), height: 26)
         .background(RoundedRectangleShape(cornerRadius: 5).fill(active ? theme.editorColors.surface : theme.editorColors.surfaceElevated))
         .overlay {
             RoundedRectangleShape(cornerRadius: 5)
@@ -94,6 +96,10 @@ extension EditorCenterWorkbench {
             }
         }
         .accessibilityIdentifier("AdaEditor.Tab.\(document.title)")
+    }
+
+    private func editorTabWidth(_ document: EditorWorkbenchDocument) -> Float {
+        max(124, min(220, Float(tabTitle(for: document).count) * 7 + 64))
     }
 
     private func tabIcon(for document: EditorWorkbenchDocument) -> String {
@@ -280,6 +286,8 @@ extension EditorCenterWorkbench {
             colorPalette: viewModel.codeColorPalette,
             onSourceHover: onSourceHover,
             onGoToDefinition: onGoToDefinition,
+            onCompletionPosition: onCompletionPosition,
+            onApplyCompletion: onApplyCompletion,
             sourceContextMenuItems: sourceContextMenuItems
         )
     }

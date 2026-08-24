@@ -103,6 +103,7 @@ public struct TextEditorSourceInteraction {
     public var focusedRange: TextEditorSourceRange?
     public var onHover: ((TextEditorSourcePosition?) -> Void)?
     public var onPrimaryClick: ((TextEditorSourcePosition) -> Void)?
+    public var onCaretChange: ((TextEditorSourcePosition, String) -> Void)?
     public var contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])?
 
     public init(
@@ -110,12 +111,14 @@ public struct TextEditorSourceInteraction {
         focusedRange: TextEditorSourceRange? = nil,
         onHover: ((TextEditorSourcePosition?) -> Void)? = nil,
         onPrimaryClick: ((TextEditorSourcePosition) -> Void)? = nil,
+        onCaretChange: ((TextEditorSourcePosition, String) -> Void)? = nil,
         contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])? = nil
     ) {
         self.highlightedRanges = highlightedRanges
         self.focusedRange = focusedRange
         self.onHover = onHover
         self.onPrimaryClick = onPrimaryClick
+        self.onCaretChange = onCaretChange
         self.contextMenuItems = contextMenuItems
     }
 }

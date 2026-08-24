@@ -1,0 +1,4 @@
+interface:
+  display_name: "AdaEngine Development"
+  short_description: "Build games and tools with AdaEngine"
+  default_prompt: "Use $adaengine-development to create or modify an AdaEngine project using the repository current APIs."

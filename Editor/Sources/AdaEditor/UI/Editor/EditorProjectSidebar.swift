@@ -12,7 +12,10 @@ struct EditorProjectSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("PROJECT").font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
+                Text("PROJECT")
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.editorColors.muted)
+                    .frame(width: 120, alignment: .leading)
                 Spacer()
                 Button(action: onImportAssets) {
                     Text("+")
@@ -26,13 +29,17 @@ struct EditorProjectSidebar: View {
             .padding(.horizontal, 12)
             .frame(height: 34)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(viewModel.visibleItems, id: \.id) { item in
-                        projectTreeRow(item)
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(viewModel.visibleItems, id: \.id) { item in
+                            projectTreeRow(item)
+                        }
                     }
+                    .frame(width: max(0, geometry.size.width - 16), alignment: .leading)
+                    .padding(8)
                 }
-                .padding(8)
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
             }
         }
         .background(

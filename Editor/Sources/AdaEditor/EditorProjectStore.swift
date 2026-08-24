@@ -1,3 +1,4 @@
+import AdaPackageManifestTool
 import Foundation
 
 /// A recently created or opened AdaEditor project persisted in the editor application data.
@@ -17,12 +18,20 @@ public struct EditorProjectReference: Codable, Equatable, Identifiable, Sendable
 
 /// Persists AdaEditor project references in `Application Support/AdaEditor/projects.json`.
 public struct EditorProjectStore {
+    public static let maximumRecentProjectCount = 50
+
     public let storageURL: URL
     public let fileManager: FileManager
+    public let adaEnginePackageURL: URL
 
-    public init(storageURL: URL? = nil, fileManager: FileManager = .default) {
+    public init(
+        storageURL: URL? = nil,
+        fileManager: FileManager = .default,
+        adaEnginePackageURL: URL? = nil
+    ) {
         self.fileManager = fileManager
         self.storageURL = storageURL ?? Self.defaultStorageURL(fileManager: fileManager)
+        self.adaEnginePackageURL = (adaEnginePackageURL ?? Self.defaultAdaEnginePackageURL()).standardizedFileURL
     }
 
     public static func defaultStorageURL(fileManager: FileManager = .default) -> URL {
@@ -51,9 +60,11 @@ public struct EditorProjectStore {
         let projectName = try normalizedProjectName(name)
         let projectURL = parentDirectory.appendingPathComponent(projectName, isDirectory: true)
 
+        try validateCreationDestination(projectURL)
         try fileManager.createDirectory(at: projectURL, withIntermediateDirectories: true)
         try createInitialProjectFiles(named: projectName, at: projectURL)
         _ = try ProjectSystem.createDefaultProject(at: projectURL, fileManager: fileManager)
+        _ = try ensureAdaEngineDependency(at: projectURL)
 
         return try rememberProject(at: projectURL, name: projectName, openedAt: openedAt)
     }
@@ -61,6 +72,7 @@ public struct EditorProjectStore {
     @discardableResult
     public func openProject(at projectURL: URL, openedAt: Date = Date()) throws -> EditorProjectReference {
         let project = try ProjectSystem.validateProjectLayout(at: projectURL, fileManager: fileManager)
+        _ = try ensureAdaEngineDependency(at: projectURL)
         let displayName = project.project.displayName ?? project.project.name ?? projectURL.lastPathComponent
 
         return try rememberProject(at: projectURL, name: displayName, openedAt: openedAt)
@@ -71,7 +83,8 @@ public struct EditorProjectStore {
         var projects = try loadProjects()
         let standardizedPath = projectURL.standardizedFileURL.path
         let displayName = name ?? projectURL.lastPathComponent
-        let reference = EditorProjectReference(name: displayName, path: standardizedPath, lastOpenedAt: openedAt)
+        let existingID = projects.first(where: { $0.path == standardizedPath })?.id
+        let reference = EditorProjectReference(id: existingID ?? UUID().uuidString, name: displayName, path: standardizedPath, lastOpenedAt: openedAt)
 
         projects.removeAll { $0.path == standardizedPath }
         projects.insert(reference, at: 0)
@@ -86,8 +99,70 @@ public struct EditorProjectStore {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(projects.sorted { $0.lastOpenedAt > $1.lastOpenedAt })
+        let recentProjects = Array(projects.sorted { $0.lastOpenedAt > $1.lastOpenedAt }.prefix(Self.maximumRecentProjectCount))
+        let data = try encoder.encode(recentProjects)
         try data.write(to: storageURL, options: [.atomic])
+    }
+
+    /// Adds a remote SwiftPM dependency to the project's real Package.swift.
+    @discardableResult
+    public func addDependency(to projectURL: URL, url: String, requirement: String) throws -> Bool {
+        try editManifest(at: projectURL, command: .addDependency(url: url, requirement: requirement))
+    }
+
+    /// Adds a filesystem SwiftPM dependency to the project's real Package.swift.
+    @discardableResult
+    public func addLocalDependency(to projectURL: URL, name: String? = nil, path: String) throws -> Bool {
+        try editManifest(at: projectURL, command: .addLocalDependency(name: name, path: path))
+    }
+
+    /// Removes both the package declaration and target product references for a dependency.
+    @discardableResult
+    public func removeDependency(from projectURL: URL, identity: String) throws -> Bool {
+        try editManifest(at: projectURL, command: .removeDependency(identity: identity))
+    }
+
+    /// Ensures every executable target links the local AdaEngine package.
+    @discardableResult
+    public func ensureAdaEngineDependency(at projectURL: URL, targetName: String? = nil) throws -> Bool {
+        try editManifest(
+            at: projectURL,
+            command: .ensureAdaEngineDependency(path: adaEnginePackageURL.path, targetName: targetName)
+        )
+    }
+
+    /// Atomically updates project metadata and synchronizes build file/resource selection into Package.swift.
+    public func saveProjectSettings(_ project: AdaProject, at projectURL: URL, targetName: String) throws {
+        try ProjectSystem.validate(project)
+        let manifestURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
+        let originalManifest = try String(contentsOf: manifestURL, encoding: .utf8)
+        let result = try PackageManifestEditor.edit(
+            originalManifest,
+            command: .configureTarget(
+                name: targetName,
+                sources: project.build.includedFiles,
+                exclude: project.build.excludedFiles,
+                resources: project.paths.resourceRoots
+            )
+        )
+
+        if result.changed {
+            try writeManifest(result.manifest, replacing: originalManifest, at: manifestURL)
+        }
+        do {
+            try ProjectSystem.saveProject(project, at: projectURL, fileManager: fileManager)
+        } catch {
+            if result.changed {
+                try? originalManifest.write(to: manifestURL, atomically: true, encoding: .utf8)
+            }
+            throw error
+        }
+    }
+
+    public func setRunDestination(_ destination: AdaProjectRunDestination, at projectURL: URL) throws {
+        var project = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
+        project.run.destination = destination
+        try ProjectSystem.saveProject(project, at: projectURL, fileManager: fileManager)
     }
 
     private func createInitialProjectFiles(named projectName: String, at projectURL: URL) throws {
@@ -114,7 +189,7 @@ public struct EditorProjectStore {
                 .executable(name: "\(projectName)", targets: ["\(safeTargetName)"])
             ],
             dependencies: [
-                .package(path: "\(Self.escapedManifestString(Self.adaEnginePackageURL().path))")
+                .package(name: "AdaEngine", path: "\(Self.escapedManifestString(adaEnginePackageURL.path))")
             ],
             targets: [
                 .executableTarget(
@@ -140,13 +215,58 @@ public struct EditorProjectStore {
         )
     }
 
-    private static func adaEnginePackageURL() -> URL {
+    public static func defaultAdaEnginePackageURL() -> URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .standardizedFileURL
+    }
+
+    private func editManifest(at projectURL: URL, command: PackageManifestCommand) throws -> Bool {
+        let manifestURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
+        guard fileManager.fileExists(atPath: manifestURL.path) else {
+            throw ProjectSystemError.swiftPackageManifestMissing(path: "Package.swift")
+        }
+
+        let manifest = try String(contentsOf: manifestURL, encoding: .utf8)
+        let result = try PackageManifestEditor.edit(manifest, command: command)
+        if result.changed {
+            try writeManifest(result.manifest, replacing: manifest, at: manifestURL)
+        }
+        return result.changed
+    }
+
+    private func writeManifest(_ candidate: String, replacing original: String, at manifestURL: URL) throws {
+        try PackageManifestEditor.validateManifestSyntax(candidate)
+        do {
+            try candidate.write(to: manifestURL, atomically: true, encoding: .utf8)
+            let persisted = try String(contentsOf: manifestURL, encoding: .utf8)
+            guard persisted == candidate else {
+                throw EditorProjectStoreError.manifestVerificationFailed(path: manifestURL.path)
+            }
+            try PackageManifestEditor.validateManifestSyntax(persisted)
+        } catch {
+            if (try? String(contentsOf: manifestURL, encoding: .utf8)) != original {
+                try? original.write(to: manifestURL, atomically: true, encoding: .utf8)
+            }
+            throw error
+        }
+    }
+
+    private func validateCreationDestination(_ projectURL: URL) throws {
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: projectURL.path, isDirectory: &isDirectory) else {
+            return
+        }
+        guard isDirectory.boolValue else {
+            throw EditorProjectStoreError.projectPathIsNotDirectory(path: projectURL.path)
+        }
+        let contents = try fileManager.contentsOfDirectory(atPath: projectURL.path)
+        guard contents.isEmpty else {
+            throw EditorProjectStoreError.projectDirectoryNotEmpty(path: projectURL.path)
+        }
     }
 
     private static func escapedManifestString(_ value: String) -> String {
@@ -216,4 +336,22 @@ public struct EditorProjectStore {
 
 public enum EditorProjectStoreError: Error, Equatable, Sendable {
     case emptyProjectName
+    case projectPathIsNotDirectory(path: String)
+    case projectDirectoryNotEmpty(path: String)
+    case manifestVerificationFailed(path: String)
+}
+
+extension EditorProjectStoreError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .emptyProjectName:
+            "Project name must not be empty."
+        case .projectPathIsNotDirectory(let path):
+            "The project destination is not a directory: \(path)"
+        case .projectDirectoryNotEmpty(let path):
+            "The project destination already exists and is not empty: \(path)"
+        case .manifestVerificationFailed(let path):
+            "Package manifest verification failed after writing: \(path)"
+        }
+    }
 }

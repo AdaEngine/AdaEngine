@@ -60,6 +60,8 @@ ada_shaped_text_t *ada_text_shape_utf8_with_direction_and_variations(
     hb_ot_font_set_funcs(font);
     unsigned int upem = hb_face_get_upem(hb_font_get_face(font));
     hb_font_set_scale(font, static_cast<int>(upem), static_cast<int>(upem));
+    // AdaText's glyph geometry is normalized to one em, so expose advances and offsets in the same units.
+    const double inverseUpem = upem > 0 ? 1.0 / static_cast<double>(upem) : 1.0;
     if (variationAxes && variationAxesCount > 0) {
         hb_variation_t *variations = static_cast<hb_variation_t *>(
             std::calloc(variationAxesCount, sizeof(hb_variation_t))
@@ -124,10 +126,10 @@ ada_shaped_text_t *ada_text_shape_utf8_with_direction_and_variations(
     for (unsigned int index = 0; index < glyphCount; index++) {
         result->glyphs[index].glyphIndex = infos[index].codepoint;
         result->glyphs[index].cluster = infos[index].cluster;
-        result->glyphs[index].xAdvance = positions[index].x_advance;
-        result->glyphs[index].yAdvance = positions[index].y_advance;
-        result->glyphs[index].xOffset = positions[index].x_offset;
-        result->glyphs[index].yOffset = positions[index].y_offset;
+        result->glyphs[index].xAdvance = positions[index].x_advance * inverseUpem;
+        result->glyphs[index].yAdvance = positions[index].y_advance * inverseUpem;
+        result->glyphs[index].xOffset = positions[index].x_offset * inverseUpem;
+        result->glyphs[index].yOffset = positions[index].y_offset * inverseUpem;
     }
 
     hb_buffer_destroy(buffer);

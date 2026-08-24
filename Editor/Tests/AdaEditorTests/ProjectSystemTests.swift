@@ -16,7 +16,11 @@ struct ProjectSystemTests {
         #expect(project.paths.assets == nil)
         #expect(project.paths.build == nil)
         #expect(project.paths.generated == nil)
+        #expect(project.paths.resourceRoots == [])
         #expect(project.paths.run.workingDirectory == nil)
+        #expect(project.build.includedFiles == [])
+        #expect(project.build.excludedFiles == [])
+        #expect(project.run.destination == .macOS)
         #expect(project.run.workingDirectory == nil)
         #expect(project.ai.mcp.enabled)
     }
@@ -181,6 +185,32 @@ struct ProjectSystemTests {
             #expect(error.code == "project.swiftPackageManifestMissing")
         }
     }
+
+    @Test("project settings persist resource roots build selection and web destination")
+    func projectSettingsRoundTrip() throws {
+        let projectURL = try makeTemporaryDirectory(named: "ConfiguredAdaProject")
+        defer { removeTemporaryDirectory(projectURL) }
+        try "// swift-tools-version: 6.2\n".write(to: projectURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+
+        var project = ProjectSystem.defaultProject(projectName: "ConfiguredAdaProject")
+        project.paths.resourceRoots = ["Assets", "Localization"]
+        project.build.includedFiles = ["Sources/Game", "Sources/Shared.swift"]
+        project.build.excludedFiles = ["Sources/Game/Drafts"]
+        project.run.destination = .web
+        try ProjectSystem.saveProject(project, at: projectURL)
+
+        #expect(try ProjectSystem.loadProject(at: projectURL) == project)
+    }
+
+    @Test("project settings reject paths escaping the project")
+    func projectSettingsRejectEscapingPaths() {
+        var project = ProjectSystem.defaultProject()
+        project.build.includedFiles = ["../Outside.swift"]
+
+        #expect(throws: ProjectSystemError.pathTraversalNotAllowed(path: "build.includedFiles.0", value: "../Outside.swift")) {
+            try ProjectSystem.validate(project)
+        }
+    }
 }
 
 private let expectedDefaultProjectJSON = """
@@ -194,6 +224,12 @@ private let expectedDefaultProjectJSON = """
     }
   },
   "build" : {
+    "excludedFiles" : [
+
+    ],
+    "includedFiles" : [
+
+    ],
     "system" : "swiftpm",
     "targets" : [
 
@@ -203,11 +239,14 @@ private let expectedDefaultProjectJSON = """
     "startupScene" : "Assets/Scenes/Main.ascn"
   },
   "engine" : {
-
+    "package" : "AdaEngine"
   },
   "paths" : {
     "assets" : "Assets",
     "build" : ".build",
+    "resourceRoots" : [
+      "Assets"
+    ],
     "run" : {
       "workingDirectory" : "."
     },
@@ -220,6 +259,7 @@ private let expectedDefaultProjectJSON = """
     "arguments" : [
 
     ],
+    "destination" : "macos",
     "environment" : {
 
     },

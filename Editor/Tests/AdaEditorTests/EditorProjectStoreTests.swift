@@ -29,9 +29,11 @@ struct EditorProjectStoreTests {
         #expect(reference.path == projectURL.standardizedFileURL.path)
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
         let manifest = try String(contentsOf: projectURL.appendingPathComponent("Package.swift"), encoding: .utf8)
-        #expect(manifest.contains(#".package(path: "\#(adaEnginePackageURL().path)")"#))
+        #expect(manifest.contains(#".package(name: "AdaEngine", path: "\#(adaEnginePackageURL().path)")"#))
         #expect(!manifest.contains(#".package(path: "../../AdaEngine")"#))
         #expect(manifest.contains(#"path: ".""#))
+        #expect(manifest.contains(#".executable(name: "My-Game", targets: ["My_Game"])"#))
+        #expect(manifest.contains(".executableTarget(\n            name: \"My_Game\""))
         #expect(manifest.contains(#"sources: ["Sources/My_Game"]"#))
         #expect(manifest.contains(#"resources: [.copy("Assets")]"#))
         #expect(ProjectSystem.isAdaProject(at: projectURL))
@@ -54,20 +56,20 @@ struct EditorProjectStoreTests {
         let storageURL = rootURL.appendingPathComponent("Application Support/AdaEditor/projects.json")
         let store = EditorProjectStore(storageURL: storageURL)
         let projectURL = rootURL.appendingPathComponent("Existing", isDirectory: true)
-        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
-        try "// swift-tools-version: 6.2\n".write(to: projectURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        try createSwiftPMManifest(at: projectURL)
         _ = try ProjectSystem.createDefaultProject(at: projectURL)
 
         let firstDate = try #require(ISO8601DateFormatter().date(from: "2026-02-19T10:00:00Z"))
         let secondDate = try #require(ISO8601DateFormatter().date(from: "2026-02-20T10:00:00Z"))
 
-        _ = try store.openProject(at: projectURL, openedAt: firstDate)
+        let firstReference = try store.openProject(at: projectURL, openedAt: firstDate)
         let secondReference = try store.openProject(at: projectURL, openedAt: secondDate)
         let projects = try store.loadProjects()
 
         #expect(ProjectSystem.isAdaProject(at: projectURL))
         #expect(try ProjectSystem.loadProject(at: projectURL).editor.startupScene == "Assets/Scenes/Main.ascn")
         #expect(projects.count == 1)
+        #expect(firstReference.id == secondReference.id)
         #expect(projects.first == secondReference)
         #expect(projects.first?.lastOpenedAt == secondDate)
     }
@@ -308,8 +310,7 @@ struct EditorProjectStoreTests {
         let storageURL = rootURL.appendingPathComponent("projects.json")
         let store = EditorProjectStore(storageURL: storageURL)
         let projectURL = rootURL.appendingPathComponent("PickedProject", isDirectory: true)
-        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
-        try "// swift-tools-version: 6.2\n".write(to: projectURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        try createSwiftPMManifest(at: projectURL)
         _ = try ProjectSystem.createDefaultProject(at: projectURL)
 
         let viewModel = ProjectOpeningViewModel(store: store)
@@ -331,8 +332,7 @@ struct EditorProjectStoreTests {
         let storageURL = rootURL.appendingPathComponent("projects.json")
         let store = EditorProjectStore(storageURL: storageURL)
         let projectURL = rootURL.appendingPathComponent("RecentProject", isDirectory: true)
-        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
-        try "// swift-tools-version: 6.2\n".write(to: projectURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        try createSwiftPMManifest(at: projectURL)
         _ = try ProjectSystem.createDefaultProject(at: projectURL)
         let recentProject = EditorProjectReference(name: "RecentProject", path: projectURL.standardizedFileURL.path)
         try store.saveProjects([recentProject])
@@ -400,6 +400,142 @@ struct EditorProjectStoreTests {
         #expect(viewModel.projectToOpenInEditorToken == 0)
         #expect(viewModel.statusMessage.hasPrefix("Last project is no longer available:"))
     }
+
+    @Test("create project refuses to overwrite a non-empty destination")
+    func createProjectRefusesNonEmptyDestination() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreExistingDestination")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+        let projectURL = rootURL.appendingPathComponent("Existing", isDirectory: true)
+        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+        let sentinelURL = projectURL.appendingPathComponent("sentinel.txt")
+        try "keep".write(to: sentinelURL, atomically: true, encoding: .utf8)
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+
+        #expect(throws: EditorProjectStoreError.projectDirectoryNotEmpty(path: projectURL.path)) {
+            try store.createProject(named: "Existing", at: rootURL)
+        }
+        #expect(try String(contentsOf: sentinelURL, encoding: .utf8) == "keep")
+        #expect(!FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
+    }
+
+    @Test("dependency operations mutate the project Package.swift and normalize identities")
+    func dependencyOperationsMutateManifest() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreDependencies")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+        let engineURL = rootURL.appendingPathComponent("Engine", isDirectory: true)
+        let store = EditorProjectStore(
+            storageURL: rootURL.appendingPathComponent("projects.json"),
+            adaEnginePackageURL: engineURL
+        )
+        let reference = try store.createProject(named: "Game", at: rootURL)
+        let projectURL = URL(fileURLWithPath: reference.path, isDirectory: true)
+
+        #expect(try store.addDependency(to: projectURL, url: "https://example.com/My_Library.git", requirement: #"from: "1.0.0""#))
+        #expect(try store.removeDependency(from: projectURL, identity: "my-library"))
+        let manifest = try String(contentsOf: projectURL.appendingPathComponent("Package.swift"), encoding: .utf8)
+        #expect(!manifest.contains("My_Library.git"))
+        #expect(manifest.contains(engineURL.path))
+        #expect(manifest.contains(#".product(name: "AdaEngine", package: "AdaEngine")"#))
+    }
+
+    @Test("invalid remote dependency input never changes Package.swift")
+    func invalidDependencyDoesNotChangeManifest() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreInvalidDependency")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let reference = try store.createProject(named: "SafeManifestGame", at: rootURL)
+        let projectURL = URL(fileURLWithPath: reference.path, isDirectory: true)
+        let manifestURL = projectURL.appendingPathComponent("Package.swift")
+        let originalManifest = try String(contentsOf: manifestURL, encoding: .utf8)
+
+        for (url, requirement) in [
+            ("https://example.com/lib.git", ""),
+            ("https://example.com/lib.git", "from: latest"),
+            ("https://example.com/\nlib.git", #"branch: "main""#)
+        ] {
+            do {
+                _ = try store.addDependency(to: projectURL, url: url, requirement: requirement)
+                Issue.record("Expected invalid dependency input to throw")
+            } catch {
+                #expect(try String(contentsOf: manifestURL, encoding: .utf8) == originalManifest)
+            }
+        }
+    }
+
+    @Test("saving project settings updates metadata and SwiftPM target")
+    func saveProjectSettingsSynchronizesManifest() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreSettings")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let reference = try store.createProject(named: "SettingsGame", at: rootURL)
+        let projectURL = URL(fileURLWithPath: reference.path, isDirectory: true)
+        var project = try ProjectSystem.loadProject(at: projectURL)
+        project.paths.resourceRoots = ["Assets", "Localization"]
+        project.build.includedFiles = ["Sources/SettingsGame", "Sources/Shared.swift"]
+        project.build.excludedFiles = ["Sources/SettingsGame/Drafts"]
+        project.run.destination = .web
+
+        try store.saveProjectSettings(project, at: projectURL, targetName: "SettingsGame")
+
+        #expect(try ProjectSystem.loadProject(at: projectURL) == project)
+        let manifest = try String(contentsOf: projectURL.appendingPathComponent("Package.swift"), encoding: .utf8)
+        #expect(manifest.contains(#"sources: ["Sources/SettingsGame", "Sources/Shared.swift"]"#))
+        #expect(manifest.contains(#"exclude: ["Sources/SettingsGame/Drafts"]"#))
+        #expect(manifest.contains(#"resources: [.copy("Assets"), .copy("Localization")]"#))
+    }
+
+    @Test("standard implicit target migrates to package root and remains a valid SwiftPM manifest")
+    func standardTargetSettingsRemainValidSwiftPM() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreStandardTarget")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+        let projectURL = rootURL.appendingPathComponent("StandardGame", isDirectory: true)
+        let sourcesURL = projectURL.appendingPathComponent("Sources/Game", isDirectory: true)
+        let assetsURL = projectURL.appendingPathComponent("Assets", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: assetsURL, withIntermediateDirectories: true)
+        try "print(\"game\")\n".write(to: sourcesURL.appendingPathComponent("main.swift"), atomically: true, encoding: .utf8)
+        try "asset\n".write(to: assetsURL.appendingPathComponent("data.txt"), atomically: true, encoding: .utf8)
+        try """
+        // swift-tools-version: 6.2
+        import PackageDescription
+
+        let package = Package(
+            name: "StandardGame",
+            products: [.executable(name: "Game", targets: ["Game"])],
+            dependencies: [],
+            targets: [.executableTarget(name: "Game", dependencies: [])]
+        )
+        """.write(to: projectURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        var project = try ProjectSystem.createDefaultProject(at: projectURL)
+        project.paths.resourceRoots = ["Assets"]
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+
+        try store.saveProjectSettings(project, at: projectURL, targetName: "Game")
+
+        let manifest = try String(contentsOf: projectURL.appendingPathComponent("Package.swift"), encoding: .utf8)
+        #expect(manifest.contains(#"path: ".""#))
+        #expect(manifest.contains(#"sources: ["Sources/Game"]"#))
+        #expect(manifest.contains(#"resources: [.copy("Assets")]"#))
+        let dumpResult = try runSwiftPackageDump(at: projectURL)
+        #expect(dumpResult.status == 0, Comment(rawValue: dumpResult.error))
+    }
+
+    @Test("editor run destination loads from and persists to project settings")
+    @MainActor
+    func editorRunDestinationPersists() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreRunDestination")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let reference = try store.createProject(named: "RunDestinationGame", at: rootURL)
+        let projectURL = URL(fileURLWithPath: reference.path, isDirectory: true)
+
+        let viewModel = EditorViewModel(project: reference)
+        #expect(viewModel.selectedRunDestination == .macOS)
+        viewModel.selectRunDestination(.web)
+
+        #expect(viewModel.selectedRunDestination == .web)
+        #expect(try ProjectSystem.loadProject(at: projectURL).run.destination == .web)
+    }
 }
 
 private func makeEditorStoreTemporaryDirectory(named name: String? = nil) throws -> URL {
@@ -425,9 +561,35 @@ private func adaEnginePackageURL() -> URL {
 
 private func createSwiftPMManifest(at projectURL: URL) throws {
     try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
-    try "// swift-tools-version: 6.2\n".write(
+    let targetName = projectURL.lastPathComponent.replacingOccurrences(of: "-", with: "_")
+    try """
+    // swift-tools-version: 6.2
+    import PackageDescription
+
+    let package = Package(
+        name: "\(projectURL.lastPathComponent)",
+        products: [.executable(name: "\(targetName)", targets: ["\(targetName)"])],
+        dependencies: [],
+        targets: [.executableTarget(name: "\(targetName)", dependencies: [])]
+    )
+    """.write(
         to: projectURL.appendingPathComponent("Package.swift"),
         atomically: true,
         encoding: .utf8
     )
+}
+
+private func runSwiftPackageDump(at projectURL: URL) throws -> (status: Int32, error: String) {
+    let process = Process()
+    let standardOutput = Pipe()
+    let standardError = Pipe()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = ["swift", "package", "--disable-sandbox", "dump-package"]
+    process.currentDirectoryURL = projectURL
+    process.standardOutput = standardOutput
+    process.standardError = standardError
+    try process.run()
+    process.waitUntilExit()
+    let errorData = standardError.fileHandleForReading.readDataToEndOfFile()
+    return (process.terminationStatus, String(data: errorData, encoding: .utf8) ?? "")
 }

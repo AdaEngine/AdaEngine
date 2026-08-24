@@ -62,6 +62,10 @@ let miniaudioSources = ["miniaudio.c"]
 #endif
 
 var products: [Product] = [
+    .executable(
+        name: "UnbalancedMinerGame",
+        targets: ["UnbalancedMinerGame"]
+    ),
     .library(
         name: "AdaEngine",
         targets: ["AdaEngine"]
@@ -1134,6 +1138,10 @@ targets += [
         ]
     ),
     .testTarget(
+        name: "UnbalancedMinerGameTests",
+        dependencies: ["UnbalancedMinerGame"]
+    ),
+    .testTarget(
         name: "AdaSceneTests",
         dependencies: [
             "AdaScene",
@@ -1315,6 +1323,7 @@ let examplesTargets: [Target] = [
 
     // MARK: Games
     .exampleTarget(name: "SnowmanAttacksExample", path: "Games"),
+    .exampleTarget(name: "UnbalancedMinerGame", path: "Games"),
 
     // MARK: UI
     .exampleTarget(name: "UITestSceneExample", path: "UI"),

@@ -6,9 +6,10 @@
 //
 
 import AdaUtils
+import Atomics
 import Collections
 import Foundation
-import Atomics
+import Tracing
 
 /// World syncronization actor.
 @globalActor
@@ -171,7 +172,10 @@ public extension World {
     /// - Parameter scheduler: Scheduler name.
     /// - Parameter deltaTime: Time interval since last update.
     func runScheduler(_ schedulerName: SchedulerName) async {
-        await AdaTrace.span("World.runScheduler.\(schedulerName.rawValue)") {
+        await AdaTrace.span("World.runScheduler.\(schedulerName.rawValue)") { span in
+            span.attributes["ada.profile.category"] = "scheduler"
+            span.attributes["ada.scheduler.name"] = schedulerName.rawValue
+            span.attributes["ada.world.name"] = self.name ?? "UnknownWorld"
             await self.schedulers.getScope(for: schedulerName) {
                 await $0.run(world: self)
             }

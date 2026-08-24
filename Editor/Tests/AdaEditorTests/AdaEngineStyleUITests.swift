@@ -37,6 +37,77 @@ struct AdaEngineStyleUITests {
         #expect(compact.outputTabs.count < AdaEngineStyleContent.outputTabs.count)
     }
 
+    @Test("code completion popup remains inside the editor viewport")
+    func codeCompletionPopupRemainsVisible() {
+        let viewport = Size(width: 640, height: 320)
+        let frame = EditorCompletionPopupLayout.frame(
+            viewportSize: viewport,
+            caretPosition: EditorSourceLocation(line: 200, character: 120),
+            fontSize: 12,
+            itemCount: 8
+        )
+
+        #expect(frame.width == EditorCompletionPopupLayout.preferredWidth)
+        #expect(frame.minX >= EditorCompletionPopupLayout.viewportInset)
+        #expect(frame.minY >= EditorCompletionPopupLayout.viewportInset)
+        #expect(frame.maxX <= viewport.width - EditorCompletionPopupLayout.viewportInset)
+        #expect(frame.maxY <= viewport.height - EditorCompletionPopupLayout.viewportInset)
+    }
+
+    @Test("code completion popup starts below a nearby caret")
+    func codeCompletionPopupTracksCaret() {
+        let frame = EditorCompletionPopupLayout.frame(
+            viewportSize: Size(width: 900, height: 700),
+            caretPosition: EditorSourceLocation(line: 3, character: 8),
+            fontSize: 12,
+            itemCount: 3
+        )
+
+        #expect(frame.minX > 82)
+        #expect(frame.minY > 18)
+    }
+
+    @Test("workspace reserves sidebars and output panel before sizing the scene viewport")
+    func workspaceReservesPanelsBeforeSizingViewport() {
+        let layout = EditorWorkspaceLayout(
+            size: Size(width: 1_200, height: 700),
+            showsLeftPanel: true,
+            showsRightPanel: true,
+            showsBottomPanel: true,
+            requestedLeftPanelWidth: 260,
+            requestedRightPanelWidth: 300,
+            requestedBottomPanelHeight: 180,
+            fallbackLeftPanelWidth: 260,
+            fallbackRightPanelWidth: 300,
+            panelSpacing: 8
+        )
+
+        #expect(layout.leftPanelWidth == 260)
+        #expect(layout.mainPanelWidth == 616)
+        #expect(layout.rightPanelWidth == 300)
+        #expect(layout.mainPanelHeight == 512)
+        #expect(layout.bottomPanelHeight == 180)
+    }
+
+    @Test("workspace compresses sidebars before the scene viewport")
+    func workspaceCompressesSidebarsBeforeViewport() {
+        let layout = EditorWorkspaceLayout(
+            size: Size(width: 936, height: 620),
+            showsLeftPanel: true,
+            showsRightPanel: true,
+            showsBottomPanel: true,
+            requestedLeftPanelWidth: 600,
+            requestedRightPanelWidth: 600,
+            requestedBottomPanelHeight: 520,
+            fallbackLeftPanelWidth: 260,
+            fallbackRightPanelWidth: 300,
+            panelSpacing: 8
+        )
+
+        #expect(abs(layout.mainPanelWidth - EditorWorkspaceLayout.minimumMainPanelWidth) < 0.001)
+        #expect(abs(layout.mainPanelHeight - EditorWorkspaceLayout.minimumMainPanelHeight) < 0.001)
+    }
+
     @Test("all required IDE regions expose reference labels")
     func requiredReferenceLabels() {
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("Search Everywhere"))
@@ -443,14 +514,18 @@ struct AdaEngineStyleUITests {
         try "{}\n".write(to: rootURL.appendingPathComponent("Package.resolved"), atomically: true, encoding: .utf8)
         try "{}\n".write(to: metadataURL.appendingPathComponent(ProjectSystem.metadataFileName), atomically: true, encoding: .utf8)
         try "import AdaEngine\n\nstruct GameScene {}\n".write(to: sourcesURL.appendingPathComponent("main.swift"), atomically: true, encoding: .utf8)
-        try "format: ada.scene\nschemaVersion: 1\n".write(to: scenesURL.appendingPathComponent("Main.ascn"), atomically: true, encoding: .utf8)
+        try "format: ada.scene\nschemaVersion: 1\nscene:\n  id: main\n  name: Main\nentities: []\n".write(
+            to: scenesURL.appendingPathComponent("Main.ascn"),
+            atomically: true,
+            encoding: .utf8
+        )
 
         let project = EditorProjectReference(name: "EditorProjectDocuments", path: rootURL.path)
         let viewModel = EditorViewModel(project: project)
 
-        #expect(!viewModel.projectSidebar.items.contains { $0.relativePath == "Package.swift" })
-        #expect(!viewModel.projectSidebar.items.contains { $0.relativePath == "Package.resolved" })
-        #expect(!viewModel.projectSidebar.items.contains { $0.relativePath.hasPrefix(ProjectSystem.metadataDirectoryName) })
+        #expect(viewModel.projectSidebar.items.contains { $0.relativePath == "Package.swift" })
+        #expect(viewModel.projectSidebar.items.contains { $0.relativePath == "Package.resolved" })
+        #expect(viewModel.projectSidebar.items.contains { $0.relativePath == "\(ProjectSystem.metadataDirectoryName)/\(ProjectSystem.metadataFileName)" })
 
         let swiftItem = try #require(viewModel.projectSidebar.items.first { $0.relativePath == "Sources/Game/main.swift" })
         viewModel.openProjectItem(swiftItem)

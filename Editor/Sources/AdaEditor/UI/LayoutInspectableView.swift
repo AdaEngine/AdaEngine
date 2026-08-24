@@ -58,7 +58,6 @@ class LayoutInspectableView: UIView {
         if viewMatrix != .identity {
             context.concatenate(viewMatrix)
         }
-        context.environment.debugViewDrawingOptions = .drawViewOverlays
         super.draw(with: context)
     }
 

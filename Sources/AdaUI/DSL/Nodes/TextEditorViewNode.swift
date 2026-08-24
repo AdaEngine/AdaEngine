@@ -203,6 +203,7 @@ final class TextEditorViewNode: ViewNode {
         }
 
         self.clampSelectionToBounds()
+        self.notifyCaretChange()
         self.ensureCaretVisibleIfNeeded()
         self.resetCaretBlink()
         self.requestDisplay()
@@ -227,6 +228,7 @@ final class TextEditorViewNode: ViewNode {
         }
 
         self.preferredColumn = nil
+        self.notifyCaretChange()
         self.resetCaretBlink()
     }
 
@@ -236,6 +238,7 @@ final class TextEditorViewNode: ViewNode {
         }
 
         if self.handleShortcut(event) {
+            self.notifyCaretChange()
             self.resetCaretBlink()
             return
         }
@@ -280,6 +283,7 @@ final class TextEditorViewNode: ViewNode {
             return
         }
 
+        self.notifyCaretChange()
         self.resetCaretBlink()
     }
 

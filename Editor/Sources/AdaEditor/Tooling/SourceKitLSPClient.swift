@@ -147,6 +147,14 @@ struct EditorSemanticToken: Equatable, Hashable, Sendable {
     var modifiers: [String]
 }
 
+struct EditorCompletionItem: Equatable, Hashable, Sendable {
+    var label: String
+    var detail: String?
+    var insertText: String
+    var replacementRange: EditorSourceRange?
+    var sortText: String?
+}
+
 struct SourceKitLSPDocumentIdentifier: Equatable, Hashable, Sendable {
     var uri: String
 
@@ -168,6 +176,7 @@ protocol SourceKitLSPConnecting: Sendable {
     func start(executablePath: String, projectURL: URL) async throws
     func request(method: String, params: JSONRPCValue?) async throws -> JSONRPCValue?
     func notify(method: String, params: JSONRPCValue?) async throws
+    func setNotificationHandler(_ handler: (@Sendable (String, JSONRPCValue?) async -> Void)?) async
     func stop() async
 }
 
@@ -175,8 +184,10 @@ actor SourceKitLSPClient {
     private let connection: any SourceKitLSPConnecting
     private var nextVersionByURI: [String: Int] = [:]
     private var openedURIs: Set<String> = []
+    private var documentTextByURI: [String: String] = [:]
     private(set) var diagnosticsByURI: [String: [EditorDiagnostic]] = [:]
     private(set) var semanticTokensByURI: [String: [EditorSemanticToken]] = [:]
+    private var diagnosticsHandler: (@Sendable (String, [EditorDiagnostic]) async -> Void)?
 
     init(connection: any SourceKitLSPConnecting) {
         self.connection = connection
@@ -187,6 +198,9 @@ actor SourceKitLSPClient {
             throw SourceKitLSPError.sourceKitLSPUnavailable
         }
 
+        await connection.setNotificationHandler { [weak self] method, params in
+            await self?.handleNotification(method: method, params: params)
+        }
         try await connection.start(executablePath: sourceKitLSPExecutablePath, projectURL: projectURL)
         _ = try await connection.request(
             method: "initialize",
@@ -195,6 +209,16 @@ actor SourceKitLSPClient {
                 "rootUri": .string(projectURL.absoluteString),
                 "capabilities": .object([
                     "textDocument": .object([
+                        "completion": .object([
+                            "completionItem": .object([
+                                "snippetSupport": .bool(false),
+                                "insertReplaceSupport": .bool(false)
+                            ])
+                        ]),
+                        "publishDiagnostics": .object([
+                            "relatedInformation": .bool(true),
+                            "versionSupport": .bool(true)
+                        ]),
                         "semanticTokens": .object([
                             "dynamicRegistration": .bool(false),
                             "requests": .object([
@@ -211,6 +235,10 @@ actor SourceKitLSPClient {
         try await connection.notify(method: "initialized", params: .object([:]))
     }
 
+    func setDiagnosticsHandler(_ handler: @Sendable @escaping (String, [EditorDiagnostic]) async -> Void) {
+        diagnosticsHandler = handler
+    }
+
     func openDocument(fileURL: URL, language: EditorSourceLanguage, text: String) async throws {
         let identifier = SourceKitLSPDocumentIdentifier(fileURL: fileURL)
         if openedURIs.contains(identifier.uri) {
@@ -220,6 +248,7 @@ actor SourceKitLSPClient {
 
         nextVersionByURI[identifier.uri] = 1
         openedURIs.insert(identifier.uri)
+        documentTextByURI[identifier.uri] = text
 
         try await connection.notify(
             method: "textDocument/didOpen",
@@ -238,6 +267,7 @@ actor SourceKitLSPClient {
         let identifier = SourceKitLSPDocumentIdentifier(fileURL: fileURL)
         let version = (nextVersionByURI[identifier.uri] ?? 1) + 1
         nextVersionByURI[identifier.uri] = version
+        documentTextByURI[identifier.uri] = text
 
         try await connection.notify(
             method: "textDocument/didChange",
@@ -274,9 +304,44 @@ actor SourceKitLSPClient {
                 ])
             ])
         )
-        let tokens = Self.decodeSemanticTokens(from: response, legend: Self.semanticTokenTypes, modifiersLegend: Self.semanticTokenModifiers)
+        var tokens = Self.decodeSemanticTokens(from: response, legend: Self.semanticTokenTypes, modifiersLegend: Self.semanticTokenModifiers)
+        if let text = documentTextByURI[uri] {
+            tokens = tokens.map { token in
+                let editorRange = Self.editorRange(
+                    fromLSPRange: EditorSourceRange(
+                        start: EditorSourceLocation(line: token.line, character: token.startCharacter),
+                        end: EditorSourceLocation(line: token.line, character: token.startCharacter + token.length)
+                    ),
+                    in: text
+                )
+                return EditorSemanticToken(
+                    line: editorRange.start.line,
+                    startCharacter: editorRange.start.character,
+                    length: max(0, editorRange.end.character - editorRange.start.character),
+                    type: token.type,
+                    modifiers: token.modifiers
+                )
+            }
+        }
         semanticTokensByURI[uri] = tokens
         return tokens
+    }
+
+    func completion(fileURL: URL, position: EditorSourceLocation) async throws -> [EditorCompletionItem] {
+        let uri = SourceKitLSPDocumentIdentifier(fileURL: fileURL).uri
+        let response = try await connection.request(
+            method: "textDocument/completion",
+            params: textDocumentPositionParams(fileURL: fileURL, position: position)
+        )
+        let items = Self.decodeCompletionItems(from: response)
+        guard let text = documentTextByURI[uri] else {
+            return items
+        }
+        return items.map { item in
+            var item = item
+            item.replacementRange = item.replacementRange.map { Self.editorRange(fromLSPRange: $0, in: text) }
+            return item
+        }
     }
 
     func definition(fileURL: URL, position: EditorSourceLocation) async throws -> [EditorSourceSymbolTarget] {
@@ -288,14 +353,13 @@ actor SourceKitLSPClient {
     }
 
     func references(fileURL: URL, position: EditorSourceLocation, includeDeclaration: Bool = true) async throws -> [EditorSourceReference] {
-        let uri = SourceKitLSPDocumentIdentifier(fileURL: fileURL).uri
+        guard case .object(var params) = textDocumentPositionParams(fileURL: fileURL, position: position) else {
+            return []
+        }
+        params["context"] = .object(["includeDeclaration": .bool(includeDeclaration)])
         let response = try await connection.request(
             method: "textDocument/references",
-            params: .object([
-                "textDocument": .object(["uri": .string(uri)]),
-                "position": position.jsonRPCValue,
-                "context": .object(["includeDeclaration": .bool(includeDeclaration)])
-            ])
+            params: .object(params)
         )
         return Self.decodeReferences(from: response)
     }
@@ -309,24 +373,92 @@ actor SourceKitLSPClient {
     }
 
     func documentHighlights(fileURL: URL, position: EditorSourceLocation) async throws -> [EditorDocumentHighlight] {
+        let uri = SourceKitLSPDocumentIdentifier(fileURL: fileURL).uri
         let response = try await connection.request(
             method: "textDocument/documentHighlight",
             params: textDocumentPositionParams(fileURL: fileURL, position: position)
         )
-        return Self.decodeDocumentHighlights(from: response)
+        let highlights = Self.decodeDocumentHighlights(from: response)
+        guard let text = documentTextByURI[uri] else {
+            return highlights
+        }
+        return highlights.map { highlight in
+            EditorDocumentHighlight(range: Self.editorRange(fromLSPRange: highlight.range, in: text), kind: highlight.kind)
+        }
     }
 
     func stop() async {
+        await connection.setNotificationHandler(nil)
         await connection.stop()
     }
 
+    private func handleNotification(method: String, params: JSONRPCValue?) async {
+        guard method == "textDocument/publishDiagnostics",
+              let published = Self.decodePublishedDiagnostics(from: params)
+        else {
+            return
+        }
+
+        let diagnostics: [EditorDiagnostic]
+        if let text = documentTextByURI[published.uri] {
+            diagnostics = published.diagnostics.map { diagnostic in
+                var diagnostic = diagnostic
+                diagnostic.range = Self.editorRange(fromLSPRange: diagnostic.range, in: text)
+                return diagnostic
+            }
+        } else {
+            diagnostics = published.diagnostics
+        }
+        diagnosticsByURI[published.uri] = diagnostics
+        await diagnosticsHandler?(published.uri, diagnostics)
+    }
+
     private func textDocumentPositionParams(fileURL: URL, position: EditorSourceLocation) -> JSONRPCValue {
-        .object([
+        let uri = SourceKitLSPDocumentIdentifier(fileURL: fileURL).uri
+        let lspPosition = documentTextByURI[uri].map { Self.lspLocation(fromEditorLocation: position, in: $0) } ?? position
+        return .object([
             "textDocument": .object([
-                "uri": .string(SourceKitLSPDocumentIdentifier(fileURL: fileURL).uri)
+                "uri": .string(uri)
             ]),
-            "position": position.jsonRPCValue
+            "position": lspPosition.jsonRPCValue
         ])
+    }
+
+    static func lspLocation(fromEditorLocation location: EditorSourceLocation, in text: String) -> EditorSourceLocation {
+        let lines = text.components(separatedBy: .newlines)
+        guard lines.indices.contains(location.line) else {
+            return location
+        }
+        let line = lines[location.line]
+        let characterColumn = min(max(0, location.character), line.count)
+        let index = line.index(line.startIndex, offsetBy: characterColumn)
+        return EditorSourceLocation(line: location.line, character: line[..<index].utf16.count)
+    }
+
+    static func editorRange(fromLSPRange range: EditorSourceRange, in text: String) -> EditorSourceRange {
+        EditorSourceRange(
+            start: editorLocation(fromLSPLocation: range.start, in: text),
+            end: editorLocation(fromLSPLocation: range.end, in: text)
+        )
+    }
+
+    private static func editorLocation(fromLSPLocation location: EditorSourceLocation, in text: String) -> EditorSourceLocation {
+        let lines = text.components(separatedBy: .newlines)
+        guard lines.indices.contains(location.line) else {
+            return location
+        }
+
+        var utf16Offset = 0
+        var characterOffset = 0
+        for character in lines[location.line] {
+            let characterLength = String(character).utf16.count
+            guard utf16Offset + characterLength <= location.character else {
+                break
+            }
+            utf16Offset += characterLength
+            characterOffset += 1
+        }
+        return EditorSourceLocation(line: location.line, character: characterOffset)
     }
 
     static func decodeSemanticTokens(from response: JSONRPCValue?, legend: [String], modifiersLegend: [String]) -> [EditorSemanticToken] {
@@ -372,6 +504,98 @@ actor SourceKitLSPClient {
         }
 
         return tokens
+    }
+
+    static func decodeCompletionItems(from response: JSONRPCValue?) -> [EditorCompletionItem] {
+        let values: [JSONRPCValue]
+        switch response {
+        case .array(let items)?:
+            values = items
+        case .object(let object)?:
+            guard case .array(let items)? = object["items"] else {
+                return []
+            }
+            values = items
+        default:
+            return []
+        }
+
+        return values.compactMap { value in
+            guard case .object(let object) = value,
+                  case .string(let label)? = object["label"]
+            else {
+                return nil
+            }
+
+            let textEdit: (newText: String, range: EditorSourceRange)? = {
+                guard case .object(let edit)? = object["textEdit"],
+                      case .string(let newText)? = edit["newText"],
+                      let rangeValue = edit["range"],
+                      let range = decodeRange(rangeValue)
+                else {
+                    return nil
+                }
+                return (newText, range)
+            }()
+            let insertText: String
+            if let textEdit {
+                insertText = textEdit.newText
+            } else if case .string(let value)? = object["insertText"] {
+                insertText = value
+            } else {
+                insertText = label
+            }
+
+            return EditorCompletionItem(
+                label: label,
+                detail: object["detail"]?.stringValue,
+                insertText: insertText,
+                replacementRange: textEdit?.range,
+                sortText: object["sortText"]?.stringValue
+            )
+        }
+        .sorted { lhs, rhs in
+            (lhs.sortText ?? lhs.label).localizedStandardCompare(rhs.sortText ?? rhs.label) == .orderedAscending
+        }
+    }
+
+    static func decodePublishedDiagnostics(from params: JSONRPCValue?) -> (uri: String, diagnostics: [EditorDiagnostic])? {
+        guard case .object(let object)? = params,
+              case .string(let uri)? = object["uri"],
+              case .array(let values)? = object["diagnostics"]
+        else {
+            return nil
+        }
+
+        let filePath = filePath(fromURI: uri)
+        let diagnostics = values.compactMap { value -> EditorDiagnostic? in
+            guard case .object(let diagnostic) = value,
+                  let rangeValue = diagnostic["range"],
+                  let range = decodeRange(rangeValue),
+                  case .string(let message)? = diagnostic["message"]
+            else {
+                return nil
+            }
+
+            let severity: EditorDiagnosticSeverity = switch diagnostic["severity"]?.intValue {
+            case 1:
+                .error
+            case 2:
+                .warning
+            case 3:
+                .information
+            default:
+                .hint
+            }
+            return EditorDiagnostic(
+                filePath: filePath,
+                range: range,
+                severity: severity,
+                message: message,
+                source: "sourcekit-lsp"
+            )
+        }
+        return (uri, diagnostics)
     }
 
     static func decodeDefinitionTargets(from response: JSONRPCValue?) -> [EditorSourceSymbolTarget] {
@@ -559,10 +783,19 @@ enum SourceKitLSPError: Error, Equatable, Sendable {
 }
 
 actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
+    enum IncomingMessageRoute: Equatable {
+        case serverMessage(method: String, id: JSONRPCValue?)
+        case response(id: Int)
+        case invalid
+    }
+
     private var process: Process?
     private var input: Pipe?
     private var output: Pipe?
     private var nextRequestID = 1
+    private var pendingResponses: [Int: CheckedContinuation<JSONRPCValue?, any Error>] = [:]
+    private var readBuffer = Data()
+    private var notificationHandler: (@Sendable (String, JSONRPCValue?) async -> Void)?
 
     func start(executablePath: String, projectURL: URL) async throws {
         let process = Process()
@@ -580,38 +813,37 @@ actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
         self.process = process
         self.input = input
         self.output = output
+        output.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            Task {
+                await self?.receive(data)
+            }
+        }
+        process.terminationHandler = { [weak self] _ in
+            Task {
+                await self?.connectionDidClose()
+            }
+        }
     }
 
     func request(method: String, params: JSONRPCValue?) async throws -> JSONRPCValue? {
         let requestID = nextRequestID
         nextRequestID += 1
-        try write(
-            .object([
-                "jsonrpc": .string("2.0"),
-                "id": .int(requestID),
-                "method": .string(method),
-                "params": params ?? .null
-            ])
-        )
-
-        while true {
-            guard let response = try readMessage() else {
-                throw SourceKitLSPError.connectionClosed
+        return try await withCheckedThrowingContinuation { continuation in
+            pendingResponses[requestID] = continuation
+            do {
+                try write(
+                    .object([
+                        "jsonrpc": .string("2.0"),
+                        "id": .int(requestID),
+                        "method": .string(method),
+                        "params": params ?? .null
+                    ])
+                )
+            } catch {
+                pendingResponses[requestID] = nil
+                continuation.resume(throwing: error)
             }
-
-            guard case .object(let object) = response else {
-                throw SourceKitLSPError.invalidResponse
-            }
-
-            guard object["id"]?.intValue == requestID else {
-                continue
-            }
-
-            if object["error"] != nil {
-                throw SourceKitLSPError.invalidResponse
-            }
-
-            return object["result"]
         }
     }
 
@@ -625,11 +857,22 @@ actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
         )
     }
 
+    func setNotificationHandler(_ handler: (@Sendable (String, JSONRPCValue?) async -> Void)?) {
+        notificationHandler = handler
+    }
+
     func stop() {
+        output?.fileHandleForReading.readabilityHandler = nil
         process?.terminate()
         process = nil
         input = nil
         output = nil
+        readBuffer.removeAll(keepingCapacity: false)
+        let responses = pendingResponses.values
+        pendingResponses.removeAll()
+        for response in responses {
+            response.resume(throwing: SourceKitLSPError.connectionClosed)
+        }
     }
 
     private func write(_ value: JSONRPCValue) throws {
@@ -643,33 +886,110 @@ actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
         input.fileHandleForWriting.write(message)
     }
 
-    private func readMessage() throws -> JSONRPCValue? {
-        guard let output else {
-            throw SourceKitLSPError.connectionClosed
+    private func receive(_ data: Data) async {
+        guard !data.isEmpty else {
+            connectionDidClose()
+            return
         }
 
-        let handle = output.fileHandleForReading
-        var header = Data()
-        while !header.contains(Data("\r\n\r\n".utf8)) {
-            let byte = handle.readData(ofLength: 1)
-            if byte.isEmpty {
-                return nil
+        readBuffer.append(data)
+        let separator = Data("\r\n\r\n".utf8)
+        while let headerRange = readBuffer.range(of: separator) {
+            let header = readBuffer[..<headerRange.lowerBound]
+            guard let headerString = String(data: header, encoding: .utf8),
+                  let contentLengthLine = headerString.components(separatedBy: "\r\n").first(where: { $0.lowercased().hasPrefix("content-length:") }),
+                  let length = Int(contentLengthLine.split(separator: ":", maxSplits: 1).last?.trimmingCharacters(in: .whitespaces) ?? "")
+            else {
+                failPendingResponses(with: .invalidResponse)
+                readBuffer.removeAll()
+                return
             }
-            header.append(byte)
+
+            let bodyStart = headerRange.upperBound
+            guard readBuffer.count >= bodyStart + length else {
+                return
+            }
+            let body = readBuffer[bodyStart..<(bodyStart + length)]
+            readBuffer.removeSubrange(..<(bodyStart + length))
+
+            do {
+                let message = try JSONDecoder().decode(JSONRPCValue.self, from: body)
+                await handle(message)
+            } catch {
+                failPendingResponses(with: .invalidResponse)
+            }
+        }
+    }
+
+    private func handle(_ message: JSONRPCValue) async {
+        guard case .object(let object) = message else {
+            return
         }
 
-        guard let headerString = String(data: header, encoding: .utf8),
-              let contentLengthLine = headerString.components(separatedBy: "\r\n").first(where: { $0.lowercased().hasPrefix("content-length:") }),
-              let length = Int(contentLengthLine.split(separator: ":", maxSplits: 1).last?.trimmingCharacters(in: .whitespaces) ?? "")
-        else {
-            throw SourceKitLSPError.invalidResponse
+        switch Self.route(for: object) {
+        case .serverMessage(let method, let requestID):
+            if let requestID {
+                try? write(.object([
+                    "jsonrpc": .string("2.0"),
+                    "id": requestID,
+                    "result": serverRequestResult(method: method, params: object["params"])
+                ]))
+            } else {
+                await notificationHandler?(method, object["params"])
+            }
+        case .response(let requestID):
+            guard let response = pendingResponses.removeValue(forKey: requestID) else {
+                return
+            }
+            if object["error"] != nil {
+                response.resume(throwing: SourceKitLSPError.invalidResponse)
+            } else {
+                response.resume(returning: object["result"])
+            }
+        case .invalid:
+            return
         }
+    }
 
-        let body = handle.readData(ofLength: length)
-        guard !body.isEmpty else {
-            return nil
+    nonisolated static func route(for object: [String: JSONRPCValue]) -> IncomingMessageRoute {
+        if case .string(let method)? = object["method"] {
+            return .serverMessage(method: method, id: object["id"])
         }
-        return try JSONDecoder().decode(JSONRPCValue.self, from: body)
+        if let requestID = object["id"]?.intValue {
+            return .response(id: requestID)
+        }
+        return .invalid
+    }
+
+    private func serverRequestResult(method: String, params: JSONRPCValue?) -> JSONRPCValue {
+        if method == "workspace/configuration",
+           case .object(let object)? = params,
+           case .array(let items)? = object["items"] {
+            return .array(items.map { _ in .null })
+        }
+        if method == "workspace/workspaceFolders" {
+            return .array([])
+        }
+        return .null
+    }
+
+    private func connectionDidClose() {
+        guard process != nil || !pendingResponses.isEmpty else {
+            return
+        }
+        output?.fileHandleForReading.readabilityHandler = nil
+        process = nil
+        input = nil
+        output = nil
+        failPendingResponses(with: .connectionClosed)
+    }
+
+    private func failPendingResponses(with error: SourceKitLSPError) {
+        let responses = pendingResponses.values
+        pendingResponses.removeAll()
+        for response in responses {
+            response.resume(throwing: error)
+        }
     }
 }
 
@@ -730,6 +1050,13 @@ enum JSONRPCValue: Codable, Equatable, Sendable {
         default:
             nil
         }
+    }
+
+    var stringValue: String? {
+        guard case .string(let value) = self else {
+            return nil
+        }
+        return value
     }
 }
 

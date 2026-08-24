@@ -116,11 +116,15 @@ struct EditorTextDocument: Equatable, Sendable {
     var absolutePath: String? = nil
     var language: EditorSourceLanguage
     var content: String
+    var lastSavedContent: String? = nil
+    var isReadOnly: Bool = false
     var errorMessage: String?
     var isDirty: Bool = false
     var statusMessage: String?
     var diagnostics: [EditorDiagnostic] = []
     var semanticTokens: [EditorSemanticToken] = []
+    var completionItems: [EditorCompletionItem] = []
+    var completionPosition: EditorSourceLocation?
     var symbolHighlights: [EditorSourceRange] = []
     var focusedRange: EditorSourceRange?
 }
@@ -131,6 +135,8 @@ struct EditorSceneDocument: Equatable, Sendable {
     var relativePath: String
     var absolutePath: String?
     var content: String
+    var lastSavedContent: String? = nil
+    var isReadOnly: Bool = false
     var sceneModel: EditorSceneModel?
     var errorMessage: String?
     var isDirty: Bool
@@ -329,6 +335,7 @@ final class EditorProjectSidebarViewModel {
         var level: Int
         var isActive: Bool
         var isFolder: Bool
+        var isSymbolicLink: Bool = false
         var kind: EditorProjectFileKind
         var assetRoot: String? = nil
     }
@@ -434,6 +441,8 @@ final class EditorWorkbenchViewModel {
     private var onActiveDocumentChanged: (() -> Void)?
     @ObservationIgnored
     private var onActiveDocumentWillChange: (() -> Void)?
+    @ObservationIgnored
+    private var onDocumentEdited: ((String) -> Void)?
 
     init(
         aiPrompt: String = "",
@@ -469,6 +478,10 @@ final class EditorWorkbenchViewModel {
 
     func setActiveDocumentWillChangeHandler(_ handler: @escaping () -> Void) {
         onActiveDocumentWillChange = handler
+    }
+
+    func setDocumentEditedHandler(_ handler: @escaping (String) -> Void) {
+        onDocumentEdited = handler
     }
 
     var activeDocument: EditorWorkbenchDocument? {
@@ -509,6 +522,11 @@ final class EditorWorkbenchViewModel {
 
     func closeDocument(id documentID: String) {
         guard let closingIndex = openDocuments.firstIndex(where: { $0.id == documentID }) else {
+            return
+        }
+
+        let closingDocument = openDocuments[closingIndex]
+        if closingDocument.isDirty, !saveDocument(closingDocument) {
             return
         }
 
@@ -574,6 +592,9 @@ final class EditorWorkbenchViewModel {
                 self.textDocument(id: documentID)?.content ?? ""
             },
             set: { newValue in
+                guard self.textDocument(id: documentID)?.isReadOnly == false else {
+                    return
+                }
                 self.updateTextDocument(id: documentID) { document in
                     document.content = newValue
                     document.errorMessage = nil
@@ -602,6 +623,19 @@ final class EditorWorkbenchViewModel {
         return saveDocument(activeDocument)
     }
 
+    var activeDocumentSaveFailureDescription: String? {
+        switch activeDocument {
+        case .scene(let document)?:
+            document.statusMessage ?? document.errorMessage
+        case .text(let document)?:
+            document.statusMessage ?? document.errorMessage
+        case .asset?:
+            "assets cannot be saved from the code editor"
+        case nil:
+            nil
+        }
+    }
+
     @discardableResult
     func saveDocument(_ document: EditorWorkbenchDocument) -> Bool {
         switch document {
@@ -616,6 +650,10 @@ final class EditorWorkbenchViewModel {
 
     func appendSceneLine(documentID: String) {
         updateSceneDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Edit blocked: file is read-only"
+                return
+            }
             document.content += document.content.hasSuffix("\n") ? "" : "\n"
             document.content += "  "
             document.isDirty = true
@@ -629,19 +667,37 @@ final class EditorWorkbenchViewModel {
     func saveSceneDocument(id documentID: String) -> Bool {
         var didSave = false
         updateSceneDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Save blocked: file is read-only"
+                document.errorMessage = document.errorMessage ?? "Symbolic-link scene files are read-only in the editor."
+                return
+            }
             guard let absolutePath = document.absolutePath else {
                 document.statusMessage = "Sample scene cannot be saved"
                 return
             }
 
             do {
+                let sceneModel = try EditorSceneModel.decode(from: document.content)
+                if let lastSavedContent = document.lastSavedContent {
+                    let currentDiskContent = try String(contentsOf: URL(fileURLWithPath: absolutePath), encoding: .utf8)
+                    guard currentDiskContent == lastSavedContent else {
+                        document.statusMessage = "Save blocked: file changed on disk"
+                        document.errorMessage = "Reload the scene before overwriting external changes."
+                        return
+                    }
+                }
+
                 try document.content.write(to: URL(fileURLWithPath: absolutePath), atomically: true, encoding: .utf8)
+                document.sceneModel = sceneModel
+                document.loadSummary = EditorSceneFileLoader.summary(from: document.content)
+                document.lastSavedContent = document.content
                 document.isDirty = false
                 document.errorMessage = nil
                 document.statusMessage = "Saved"
                 didSave = true
             } catch {
-                document.statusMessage = "Save failed"
+                document.statusMessage = "Save blocked"
                 document.errorMessage = error.localizedDescription
             }
         }
@@ -652,19 +708,35 @@ final class EditorWorkbenchViewModel {
     func saveTextDocument(id documentID: String) -> Bool {
         var didSave = false
         updateTextDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Save blocked: file is read-only"
+                document.errorMessage = document.errorMessage ?? "The file could not be decoded as UTF-8 and will not be overwritten."
+                return
+            }
             guard let absolutePath = document.absolutePath else {
                 document.statusMessage = "Sample file cannot be saved"
                 return
             }
 
             do {
+                if let lastSavedContent = document.lastSavedContent {
+                    let currentDiskContent = try String(contentsOf: URL(fileURLWithPath: absolutePath, isDirectory: false), encoding: .utf8)
+                    guard currentDiskContent == lastSavedContent else {
+                        document.statusMessage = "Save blocked: file changed on disk"
+                        document.errorMessage = "Reload the file before overwriting external changes."
+                        return
+                    }
+                }
+
                 try document.content.write(to: URL(fileURLWithPath: absolutePath, isDirectory: false), atomically: true, encoding: .utf8)
+                document.lastSavedContent = document.content
                 document.isDirty = false
                 document.errorMessage = nil
                 document.statusMessage = "Saved"
                 didSave = true
             } catch {
                 document.statusMessage = "Save failed: \(error.localizedDescription)"
+                document.errorMessage = error.localizedDescription
             }
         }
         return didSave
@@ -674,8 +746,24 @@ final class EditorWorkbenchViewModel {
         guard let index = openDocuments.firstIndex(where: { $0.id == document.id }) else {
             return
         }
+
+        guard case .scene(var previousDocument) = openDocuments[index] else {
+            return
+        }
+        guard !previousDocument.isReadOnly else {
+            previousDocument.statusMessage = "Edit blocked: file is read-only"
+            previousDocument.errorMessage = previousDocument.errorMessage ?? "Symbolic-link scene files are read-only in the editor."
+            openDocuments[index] = .scene(previousDocument)
+            notifyActiveDocumentChangedIfNeeded(documentID: document.id)
+            return
+        }
+
         openDocuments[index] = .scene(document)
         notifyActiveDocumentChangedIfNeeded(documentID: document.id)
+        if document.isDirty,
+           document.content != previousDocument.content || document.sceneModel != previousDocument.sceneModel || !previousDocument.isDirty {
+            onDocumentEdited?(document.id)
+        }
     }
 
     func addEntity(to documentID: String) {
@@ -746,6 +834,10 @@ final class EditorWorkbenchViewModel {
 
     func updateSceneLine(documentID: String, lineIndex: Int, value: String) {
         updateSceneDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Edit blocked: file is read-only"
+                return
+            }
             var lines = document.content.components(separatedBy: .newlines)
             guard lines.indices.contains(lineIndex) else {
                 return
@@ -763,6 +855,10 @@ final class EditorWorkbenchViewModel {
 
     private func updateSceneModelDocument(id documentID: String, status: String, update: (inout EditorSceneModel) -> Void) {
         updateSceneDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Edit blocked: file is read-only"
+                return
+            }
             guard var model = document.sceneModel ?? EditorSceneFileLoader.model(from: document.content) else {
                 document.statusMessage = "Scene model unavailable"
                 return
@@ -793,9 +889,14 @@ final class EditorWorkbenchViewModel {
             return
         }
 
+        let previousContent = document.content
+        let wasDirty = document.isDirty
         update(&document)
         openDocuments[index] = .scene(document)
         notifyActiveDocumentChangedIfNeeded(documentID: documentID)
+        if document.isDirty, document.content != previousContent || !wasDirty {
+            onDocumentEdited?(documentID)
+        }
     }
 
     func updateTextDocument(id documentID: String, update: (inout EditorTextDocument) -> Void) {
@@ -807,9 +908,14 @@ final class EditorWorkbenchViewModel {
             return
         }
 
+        let previousContent = document.content
+        let wasDirty = document.isDirty
         update(&document)
         openDocuments[index] = .text(document)
         notifyActiveDocumentChangedIfNeeded(documentID: documentID)
+        if document.isDirty, document.content != previousContent || !wasDirty {
+            onDocumentEdited?(documentID)
+        }
     }
 
     private func notifyActiveDocumentChangedIfNeeded(documentID: String) {
@@ -1205,7 +1311,15 @@ final class EditorViewModel {
     var outputLines: [EditorWorkspaceLogLine]
     var problems: [EditorDiagnostic]
     var symbolReferences: [EditorSourceReference]
-    var selectedRunTarget: String?
+    var selectedRunProduct: String?
+    var selectedRunDestination: EditorRunDestination
+    var dependencyLocation = ""
+    var dependencyRequirement = #"from: "1.0.0""#
+    var dependencyStatusMessage = ""
+    var projectResourceRootsText = ""
+    var projectIncludedFilesText = ""
+    var projectExcludedFilesText = ""
+    var projectSettingsStatusMessage = ""
     var selectedTestFilter: String
     var playModeState: EditorPlayModeState
     
@@ -1230,6 +1344,12 @@ final class EditorViewModel {
     @ObservationIgnored
     private var previewTask: Task<Void, Never>?
     @ObservationIgnored
+    private var completionTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var autosaveTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored
+    private let autosaveDelay: Duration
+    @ObservationIgnored
     private var didStartEditorSession = false
     @ObservationIgnored
     private var latestSourceHoverKey: String?
@@ -1245,7 +1365,7 @@ final class EditorViewModel {
         toolbar: EditorToolbarViewModel = EditorToolbarViewModel(),
         toolStrip: EditorToolStripViewModel = EditorToolStripViewModel(),
         projectSidebar: EditorProjectSidebarViewModel? = nil,
-        workbench: EditorWorkbenchViewModel = EditorWorkbenchViewModel(),
+        workbench: EditorWorkbenchViewModel? = nil,
         inspectorSidebar: EditorInspectorSidebarViewModel = EditorInspectorSidebarViewModel(),
         agent: EditorAgentViewModel? = nil,
         sourceControl: EditorSourceControlViewModel = EditorSourceControlViewModel(),
@@ -1253,22 +1373,25 @@ final class EditorViewModel {
         activeOutputTab: String = "Problems",
         workspaceStatus: EditorWorkspaceStatus = .idle,
         packageModel: SwiftPackageModel? = nil,
-        outputLines: [EditorWorkspaceLogLine] = AdaEngineStyleContent.logLines.map { EditorWorkspaceLogLine(text: $0) },
+        outputLines: [EditorWorkspaceLogLine]? = nil,
         problems: [EditorDiagnostic] = [],
         symbolReferences: [EditorSourceReference] = [],
-        selectedRunTarget: String? = nil,
+        selectedRunProduct: String? = nil,
+        selectedRunDestination: EditorRunDestination? = nil,
         selectedTestFilter: String = "",
-        playModeState: EditorPlayModeState = .editing
+        playModeState: EditorPlayModeState = .editing,
+        autosaveDelay: Duration = .milliseconds(350)
     ) {
         self.project = project
         self.workspaceService = workspaceService
         self.sourceControlService = sourceControlService
         self.fileManager = fileManager
         self.previewBuilder = previewBuilder
+        self.autosaveDelay = autosaveDelay
         self.toolbar = toolbar
         self.toolStrip = toolStrip
         self.projectSidebar = projectSidebar ?? EditorProjectSidebarViewModel(items: Self.projectTreeItems(for: project, fileManager: fileManager))
-        self.workbench = workbench
+        self.workbench = workbench ?? Self.defaultWorkbench(for: project)
         self.inspectorSidebar = inspectorSidebar
         self.agent = agent ?? EditorAgentViewModel(project: project, fileManager: fileManager)
         self.sourceControl = sourceControl
@@ -1276,10 +1399,15 @@ final class EditorViewModel {
         self.footer = footer
         self.workspaceStatus = workspaceStatus
         self.packageModel = packageModel
-        self.outputLines = outputLines
+        self.outputLines = outputLines ?? (project == nil ? AdaEngineStyleContent.logLines.map { EditorWorkspaceLogLine(text: $0) } : [])
         self.problems = problems
         self.symbolReferences = symbolReferences
-        self.selectedRunTarget = selectedRunTarget
+        self.selectedRunProduct = selectedRunProduct
+        let savedProject = project.flatMap { try? ProjectSystem.loadProject(at: URL(fileURLWithPath: $0.path, isDirectory: true), fileManager: fileManager) }
+        self.selectedRunDestination = selectedRunDestination ?? Self.editorRunDestination(from: savedProject?.run.destination ?? .macOS)
+        self.projectResourceRootsText = savedProject?.paths.resourceRoots.joined(separator: "\n") ?? ""
+        self.projectIncludedFilesText = savedProject?.build.includedFiles.joined(separator: "\n") ?? ""
+        self.projectExcludedFilesText = savedProject?.build.excludedFiles.joined(separator: "\n") ?? ""
         self.selectedTestFilter = selectedTestFilter
         self.playModeState = playModeState
         self.agent.setProjectFileChangedHandler { [weak self] relativePath in
@@ -1291,15 +1419,178 @@ final class EditorViewModel {
         self.workbench.setActiveDocumentChangedHandler { [weak self] in
             self?.synchronizeAgentSceneContext()
         }
+        self.workbench.setDocumentEditedHandler { [weak self] documentID in
+            self?.scheduleAutosave(documentID: documentID)
+        }
         synchronizeAgentSceneContext()
+    }
+
+    private static func defaultWorkbench(for project: EditorProjectReference?) -> EditorWorkbenchViewModel {
+        guard project != nil else {
+            return EditorWorkbenchViewModel()
+        }
+
+        return EditorWorkbenchViewModel(activeEditorTab: "", openDocuments: [], activeDocumentID: "")
+    }
+
+    private func scheduleAutosave(documentID: String) {
+        autosaveTasks[documentID]?.cancel()
+        let delay = autosaveDelay
+        autosaveTasks[documentID] = Task { [weak self] in
+            do {
+                try await Task.sleep(for: delay)
+            } catch {
+                return
+            }
+
+            guard let self else {
+                return
+            }
+            self.autosaveTasks[documentID] = nil
+            guard let document = self.workbench.openDocuments.first(where: { $0.id == documentID }), document.isDirty else {
+                return
+            }
+
+            if self.workbench.saveDocument(document) {
+                self.appendOutput("Autosaved \(document.relativePath)")
+            }
+        }
     }
 
     var projectURL: URL? {
         project.map { URL(fileURLWithPath: $0.path, isDirectory: true) }
     }
 
-    var runTargets: [String] {
-        packageModel?.executableTargets.sorted() ?? []
+    var dependencyLocationBinding: Binding<String> {
+        Binding(get: { self.dependencyLocation }, set: { self.dependencyLocation = $0 })
+    }
+
+    var dependencyRequirementBinding: Binding<String> {
+        Binding(get: { self.dependencyRequirement }, set: { self.dependencyRequirement = $0 })
+    }
+
+    var projectResourceRootsBinding: Binding<String> {
+        Binding(get: { self.projectResourceRootsText }, set: { self.projectResourceRootsText = $0 })
+    }
+
+    var projectIncludedFilesBinding: Binding<String> {
+        Binding(get: { self.projectIncludedFilesText }, set: { self.projectIncludedFilesText = $0 })
+    }
+
+    var projectExcludedFilesBinding: Binding<String> {
+        Binding(get: { self.projectExcludedFilesText }, set: { self.projectExcludedFilesText = $0 })
+    }
+
+    func selectRunDestination(_ destination: EditorRunDestination) {
+        selectedRunDestination = destination
+        guard let projectURL else {
+            return
+        }
+        do {
+            try EditorProjectStore(fileManager: fileManager).setRunDestination(destination.adaProjectDestination, at: projectURL)
+            projectSettingsStatusMessage = "Run destination saved."
+        } catch {
+            projectSettingsStatusMessage = "Failed to save run destination: \(error.localizedDescription)"
+        }
+    }
+
+    func addProjectDependency() {
+        guard let projectURL else {
+            dependencyStatusMessage = "No project is open."
+            return
+        }
+        let location = dependencyLocation.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !location.isEmpty else {
+            dependencyStatusMessage = "Enter a package URL or local path."
+            return
+        }
+
+        do {
+            let store = EditorProjectStore(fileManager: fileManager)
+            let changed: Bool
+            if location.hasPrefix("https://") || location.hasPrefix("http://") || location.hasPrefix("ssh://") || location.hasPrefix("git@") {
+                changed = try store.addDependency(
+                    to: projectURL,
+                    url: location,
+                    requirement: dependencyRequirement.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            } else {
+                changed = try store.addLocalDependency(to: projectURL, path: location)
+            }
+            dependencyStatusMessage = changed ? "Dependency added. Resolving package graph…" : "Dependency is already present."
+            dependencyLocation = ""
+            if changed {
+                bootstrapWorkspaceIfNeeded(force: true)
+            }
+        } catch {
+            dependencyStatusMessage = "Failed to add dependency: \(error.localizedDescription)"
+        }
+    }
+
+    func removeProjectDependency(identity: String) {
+        guard let projectURL else {
+            dependencyStatusMessage = "No project is open."
+            return
+        }
+        do {
+            let changed = try EditorProjectStore(fileManager: fileManager).removeDependency(from: projectURL, identity: identity)
+            dependencyStatusMessage = changed ? "Removed \(identity). Resolving package graph…" : "Dependency \(identity) was not found."
+            if changed {
+                bootstrapWorkspaceIfNeeded(force: true)
+            }
+        } catch {
+            dependencyStatusMessage = "Failed to remove \(identity): \(error.localizedDescription)"
+        }
+    }
+
+    func saveProjectSettings() {
+        guard let projectURL else {
+            projectSettingsStatusMessage = "No project is open."
+            return
+        }
+        guard let targetName = selectedRunTargetName else {
+            projectSettingsStatusMessage = "Load the package and select an executable target first."
+            return
+        }
+
+        do {
+            var settings = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
+            settings.paths.resourceRoots = Self.pathList(from: projectResourceRootsText)
+            settings.build.includedFiles = Self.pathList(from: projectIncludedFilesText)
+            settings.build.excludedFiles = Self.pathList(from: projectExcludedFilesText)
+            settings.run.destination = selectedRunDestination.adaProjectDestination
+            try EditorProjectStore(fileManager: fileManager).saveProjectSettings(settings, at: projectURL, targetName: targetName)
+            projectSettingsStatusMessage = "Project settings saved to .ada/project.json and Package.swift."
+            bootstrapWorkspaceIfNeeded(force: true)
+        } catch {
+            projectSettingsStatusMessage = "Failed to save project settings: \(error.localizedDescription)"
+        }
+    }
+
+    private static func pathList(from text: String) -> [String] {
+        var seen = Set<String>()
+        return text
+            .components(separatedBy: CharacterSet(charactersIn: ",\n"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+
+    private static func editorRunDestination(from destination: AdaProjectRunDestination) -> EditorRunDestination {
+        switch destination {
+        case .macOS: .macOS
+        case .web: .web
+        }
+    }
+
+    var runProducts: [String] {
+        packageModel?.executableProducts.map(\.name).sorted() ?? []
+    }
+
+    var selectedRunTargetName: String? {
+        guard let productName = selectedRunProduct ?? runProducts.first else {
+            return nil
+        }
+        return packageModel?.executableTargetName(forProductNamed: productName)
     }
 
     var testTargets: [String] {
@@ -1331,6 +1622,11 @@ final class EditorViewModel {
 
         workspaceTask = Task { [weak self] in
             guard let self else { return }
+            await self.workspaceService.setDiagnosticsHandler { [weak self] uri, diagnostics in
+                await MainActor.run {
+                    self?.receiveSourceDiagnostics(diagnostics, uri: uri)
+                }
+            }
             let result = await self.workspaceService.bootstrap(projectURL: projectURL) { progress in
                 await MainActor.run {
                     self.handleWorkspaceProgress(progress)
@@ -1338,14 +1634,14 @@ final class EditorViewModel {
             }
             await MainActor.run {
                 self.packageModel = result.packageModel
-                self.problems = result.diagnostics
+                self.problems = Self.replacingBuildDiagnostics(in: self.problems, with: result.diagnostics)
                 self.showProblemsIfNeeded()
                 let failureOutput = result.describeResult.combinedOutput.isEmpty
                     ? result.resolveResult.combinedOutput
                     : result.describeResult.combinedOutput
                 self.workspaceStatus = result.succeeded ? .ready : .failed(failureOutput)
                 self.footer.setWorkspaceFooterTitle(self.workspaceStatus.title)
-                self.selectedRunTarget = self.selectedRunTarget ?? self.runTargets.first
+                self.selectedRunProduct = self.selectedRunProduct ?? self.runProducts.first
                 self.appendOutput(result.resolveResult)
                 self.appendOutput(result.describeResult)
                 if let indexBuildResult = result.indexBuildResult {
@@ -1461,8 +1757,36 @@ final class EditorViewModel {
     }
 
     func runSelectedTarget() {
-        let target = selectedRunTarget ?? runTargets.first
-        executeWorkspaceCommand(.run(target: target, arguments: []), statusTitle: target.map { "Run \($0)" } ?? "Run")
+        let product = selectedRunProduct ?? runProducts.first
+        if workbench.activeDocument?.isDirty == true {
+            guard saveActiveDocumentIfNeeded() else {
+                let detail = workbench.activeDocumentSaveFailureDescription ?? "the active document could not be saved"
+                workspaceStatus = .failed("Run blocked: \(detail)")
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput("Run blocked: \(detail)")
+                return
+            }
+        }
+        switch selectedRunDestination {
+        case .macOS:
+            executeWorkspaceCommand(.run(target: product, arguments: []), statusTitle: product.map { "Run \($0) on macOS" } ?? "Run on macOS")
+        case .web:
+            guard let product else {
+                workspaceStatus = .failed("Select an executable product before running for Web.")
+                return
+            }
+            executeWorkspaceCommand(
+                .runWeb(target: product, outputPath: "dist/web", serve: true),
+                statusTitle: "Run \(product) on Web · http://127.0.0.1:8080"
+            )
+        }
+    }
+
+    var isProjectRunning: Bool {
+        if case .running = workspaceStatus {
+            return true
+        }
+        return false
     }
 
     func runActiveSceneInEditor() {
@@ -1532,10 +1856,16 @@ final class EditorViewModel {
         }
     }
 
-    func saveActiveDocumentIfNeeded() {
+    @discardableResult
+    func saveActiveDocumentIfNeeded() -> Bool {
+        guard workbench.activeDocument?.isDirty == true else {
+            return true
+        }
         if workbench.saveActiveDocumentIfNeeded() {
             refreshSourceControl()
+            return true
         }
+        return false
     }
 
     func synchronizeAgentSceneContext() {
@@ -1653,10 +1983,12 @@ final class EditorViewModel {
             relativePath: startupScene,
             absolutePath: sceneURL.path,
             content: content,
+            lastSavedContent: content,
+            isReadOnly: Self.isSymbolicLink(at: sceneURL),
             sceneModel: EditorSceneFileLoader.model(from: content),
             errorMessage: nil,
             isDirty: false,
-            statusMessage: "Loaded",
+            statusMessage: Self.isSymbolicLink(at: sceneURL) ? "Read-only: symbolic link" : "Loaded",
             loadSummary: EditorSceneFileLoader.summary(from: content)
         )
         return document
@@ -1890,9 +2222,15 @@ final class EditorViewModel {
         workspaceTask = Task { [weak self] in
             guard let self else { return }
             let result = await self.workspaceService.execute(kind, projectURL: projectURL)
+            guard !Task.isCancelled else {
+                return
+            }
             await MainActor.run {
                 self.appendOutput(result)
-                self.problems = EditorDiagnostic.diagnostics(from: result, projectURL: projectURL)
+                self.problems = Self.replacingBuildDiagnostics(
+                    in: self.problems,
+                    with: EditorDiagnostic.diagnostics(from: result, projectURL: projectURL)
+                )
                 self.showProblemsIfNeeded()
                 self.workspaceStatus = result.succeeded ? .ready : .failed(result.combinedOutput)
                 self.workspaceTask = nil
@@ -2014,7 +2352,7 @@ final class EditorViewModel {
         let manifest = try String(contentsOf: manifestURL, encoding: .utf8)
         let result = try PackageManifestEditor.edit(
             manifest,
-            command: .ensureAssetResources(targetName: selectedRunTarget, assetsPath: "Assets")
+            command: .ensureAssetResources(targetName: selectedRunTargetName, assetsPath: "Assets")
         )
         guard result.changed else {
             return
@@ -2040,7 +2378,10 @@ final class EditorViewModel {
                     absolutePath: Self.absoluteFilePath(from: item.id),
                     language: .yaml,
                     content: content.value,
-                    errorMessage: content.errorMessage
+                    lastSavedContent: content.errorMessage == nil ? content.value : nil,
+                    isReadOnly: item.isSymbolicLink || content.errorMessage != nil,
+                    errorMessage: content.errorMessage,
+                    statusMessage: item.isSymbolicLink ? "Read-only: symbolic link" : content.errorMessage == nil ? nil : "Read-only: unable to read as UTF-8"
                 )
             )
         )
@@ -2064,15 +2405,23 @@ final class EditorViewModel {
 
             switch document {
             case .text(let textDocument):
+                guard !textDocument.isDirty else {
+                    continue
+                }
                 do {
                     let content = try String(contentsOf: changedURL, encoding: .utf8)
                     workbench.updateTextDocument(id: textDocument.id) { updatedDocument in
                         updatedDocument.content = content
+                        updatedDocument.lastSavedContent = content
+                        updatedDocument.isReadOnly = Self.isSymbolicLink(at: changedURL)
                         updatedDocument.errorMessage = nil
+                        updatedDocument.statusMessage = updatedDocument.isReadOnly ? "Read-only: symbolic link" : "Reloaded"
                     }
                 } catch {
                     workbench.updateTextDocument(id: textDocument.id) { updatedDocument in
+                        updatedDocument.isReadOnly = true
                         updatedDocument.errorMessage = error.localizedDescription
+                        updatedDocument.statusMessage = "Read-only: unable to read as UTF-8"
                     }
                 }
             case .scene(var sceneDocument):
@@ -2081,6 +2430,7 @@ final class EditorViewModel {
                 }
                 do {
                     sceneDocument.content = try String(contentsOf: changedURL, encoding: .utf8)
+                    sceneDocument.lastSavedContent = sceneDocument.content
                     sceneDocument.sceneModel = EditorSceneFileLoader.model(from: sceneDocument.content)
                     sceneDocument.loadSummary = EditorSceneFileLoader.summary(from: sceneDocument.content)
                     sceneDocument.statusMessage = "Reloaded"
@@ -2132,6 +2482,140 @@ final class EditorViewModel {
                 }
             }
         }
+    }
+
+    func handleCompletionPosition(document: EditorTextDocument, position: EditorSourceLocation, text: String) {
+        completionTask?.cancel()
+        completionTask = nil
+        workbench.updateTextDocument(id: document.id) { updatedDocument in
+            updatedDocument.completionItems = []
+            updatedDocument.completionPosition = nil
+        }
+        guard supportsSourceNavigation(document), let fileURL = document.fileURL else {
+            return
+        }
+
+        completionTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(140))
+            } catch {
+                return
+            }
+            guard let self else { return }
+            let items = await self.workspaceService.completions(
+                fileURL: fileURL,
+                language: document.language,
+                text: text,
+                position: position
+            )
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await MainActor.run {
+                self.workbench.updateTextDocument(id: document.id) { updatedDocument in
+                    guard updatedDocument.content == text else {
+                        return
+                    }
+                    updatedDocument.completionItems = Array(items.prefix(8))
+                    updatedDocument.completionPosition = position
+                }
+                self.completionTask = nil
+            }
+        }
+    }
+
+    func applyCompletion(_ item: EditorCompletionItem, to document: EditorTextDocument) {
+        guard let position = document.completionPosition,
+              let edit = Self.applyingCompletion(item, to: document.content, at: position)
+        else {
+            return
+        }
+
+        workbench.updateTextDocument(id: document.id) { updatedDocument in
+            updatedDocument.content = edit.text
+            updatedDocument.isDirty = true
+            updatedDocument.statusMessage = "Edited"
+            updatedDocument.errorMessage = nil
+            updatedDocument.completionItems = []
+            updatedDocument.completionPosition = nil
+            updatedDocument.focusedRange = EditorSourceRange(start: edit.caret, end: edit.caret)
+        }
+        completionTask?.cancel()
+        completionTask = nil
+    }
+
+    static func applyingCompletion(
+        _ item: EditorCompletionItem,
+        to text: String,
+        at position: EditorSourceLocation
+    ) -> (text: String, caret: EditorSourceLocation)? {
+        let lines = text.components(separatedBy: .newlines)
+        guard lines.indices.contains(position.line) else {
+            return nil
+        }
+
+        let range = item.replacementRange ?? inferredCompletionRange(in: lines[position.line], at: position)
+        guard range.start.line == range.end.line,
+              lines.indices.contains(range.start.line),
+              range.start.character >= 0,
+              range.end.character >= range.start.character,
+              range.end.character <= lines[range.start.line].count
+        else {
+            return nil
+        }
+
+        var updatedLines = lines
+        let line = updatedLines[range.start.line]
+        let start = line.index(line.startIndex, offsetBy: range.start.character)
+        let end = line.index(line.startIndex, offsetBy: range.end.character)
+        updatedLines[range.start.line].replaceSubrange(start..<end, with: item.insertText)
+        return (
+            updatedLines.joined(separator: "\n"),
+            EditorSourceLocation(line: range.start.line, character: range.start.character + item.insertText.count)
+        )
+    }
+
+    private static func inferredCompletionRange(in line: String, at position: EditorSourceLocation) -> EditorSourceRange {
+        let characters = Array(line)
+        var start = min(max(0, position.character), characters.count)
+        while start > 0 {
+            let character = characters[start - 1]
+            guard character == "_" || character.isLetter || character.isNumber else {
+                break
+            }
+            start -= 1
+        }
+        return EditorSourceRange(
+            start: EditorSourceLocation(line: position.line, character: start),
+            end: position
+        )
+    }
+
+    private func receiveSourceDiagnostics(_ diagnostics: [EditorDiagnostic], uri: String) {
+        let publishedPath = URL(string: uri)?.path.removingPercentEncoding ?? uri
+        let affectedPaths = Set(diagnostics.map(\.filePath) + [publishedPath])
+
+        problems.removeAll { diagnostic in
+            diagnostic.source == "sourcekit-lsp" && affectedPaths.contains(diagnostic.filePath)
+        }
+        problems.append(contentsOf: diagnostics)
+        for document in workbench.openDocuments {
+            guard case .text(let textDocument) = document,
+                  let absolutePath = textDocument.absolutePath,
+                  affectedPaths.contains(absolutePath)
+            else {
+                continue
+            }
+            workbench.updateTextDocument(id: textDocument.id) { updatedDocument in
+                updatedDocument.diagnostics = diagnostics.filter { $0.filePath == absolutePath }
+            }
+        }
+        showProblemsIfNeeded()
+    }
+
+    static func replacingBuildDiagnostics(in existing: [EditorDiagnostic], with diagnostics: [EditorDiagnostic]) -> [EditorDiagnostic] {
+        existing.filter { $0.source == "sourcekit-lsp" } + diagnostics.filter { $0.source != "sourcekit-lsp" }
     }
 
     func goToDefinition(document: EditorTextDocument, position: EditorSourceLocation) {
@@ -2291,6 +2775,7 @@ final class EditorViewModel {
         }
 
         let relativePath = relativeProjectPath(for: filePath)
+        let isSymbolicLink = Self.isSymbolicLink(at: fileURL)
         let textDocument = EditorTextDocument(
             id: "text:\(relativePath)",
             title: fileURL.lastPathComponent,
@@ -2298,7 +2783,10 @@ final class EditorViewModel {
             absolutePath: filePath,
             language: EditorSourceLanguage.detect(fileName: fileURL.lastPathComponent),
             content: content,
+            lastSavedContent: errorMessage == nil ? content : nil,
+            isReadOnly: isSymbolicLink || errorMessage != nil,
             errorMessage: errorMessage,
+            statusMessage: isSymbolicLink ? "Read-only: symbolic link" : errorMessage == nil ? nil : "Read-only: unable to read as UTF-8",
             symbolHighlights: [target.selectionRange],
             focusedRange: target.selectionRange
         )
@@ -2327,8 +2815,7 @@ final class EditorViewModel {
         }
 
         let projectURL = URL(fileURLWithPath: project.path, isDirectory: true)
-        let items = buildProjectTreeItems(at: projectURL, fileManager: fileManager)
-        return items.isEmpty ? EditorProjectSidebarViewModel().items : items
+        return buildProjectTreeItems(at: projectURL, fileManager: fileManager)
     }
 
     private static func document(for item: EditorProjectSidebarViewModel.Item) -> EditorWorkbenchDocument {
@@ -2343,10 +2830,12 @@ final class EditorViewModel {
                     relativePath: item.relativePath,
                     absolutePath: absoluteFilePath(from: item.id),
                     content: content.value,
+                    lastSavedContent: content.errorMessage == nil ? content.value : nil,
+                    isReadOnly: item.isSymbolicLink,
                     sceneModel: sceneModel,
                     errorMessage: content.errorMessage,
                     isDirty: false,
-                    statusMessage: content.errorMessage == nil ? "Loaded" : nil,
+                    statusMessage: item.isSymbolicLink ? "Read-only: symbolic link" : content.errorMessage == nil ? "Loaded" : nil,
                     loadSummary: EditorSceneFileLoader.summary(from: content.value)
                 )
             )
@@ -2360,7 +2849,10 @@ final class EditorViewModel {
                     absolutePath: absoluteFilePath(from: item.id),
                     language: language,
                     content: content.value,
-                    errorMessage: content.errorMessage
+                    lastSavedContent: content.errorMessage == nil ? content.value : nil,
+                    isReadOnly: item.isSymbolicLink || content.errorMessage != nil,
+                    errorMessage: content.errorMessage,
+                    statusMessage: item.isSymbolicLink ? "Read-only: symbolic link" : content.errorMessage == nil ? nil : "Read-only: unable to read as UTF-8"
                 )
             )
         case .image, .audio, .genericAsset:
@@ -2380,14 +2872,12 @@ final class EditorViewModel {
     }
 
     private static func textFileContent(for item: EditorProjectSidebarViewModel.Item) -> (value: String, errorMessage: String?) {
-        if let sample = AdaEngineStyleContent.sampleTextDocuments[item.relativePath] {
-            return (sample, nil)
+        guard let absolutePath = absoluteFilePath(from: item.id) else {
+            return (AdaEngineStyleContent.sampleTextDocuments[item.relativePath] ?? "", nil)
         }
 
-        let url = URL(fileURLWithPath: item.id, isDirectory: false)
-
         do {
-            return (try String(contentsOf: url, encoding: .utf8), nil)
+            return (try String(contentsOf: URL(fileURLWithPath: absolutePath, isDirectory: false), encoding: .utf8), nil)
         } catch {
             return ("", error.localizedDescription)
         }
@@ -2411,25 +2901,22 @@ final class EditorViewModel {
 
     private static func buildProjectTreeItems(at projectURL: URL, fileManager: FileManager) -> [EditorProjectSidebarViewModel.Item] {
         let projectMetadata = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
-        let sourcesRoot = projectMetadata?.paths.sources ?? "Sources"
         let assetsRoot = projectMetadata?.paths.assets ?? "Assets"
-        let rootEntries = [
-            (path: sourcesRoot, assetRoot: Optional<String>.none),
-            (path: assetsRoot, assetRoot: Optional(assetsRoot))
-        ]
+        let resourceRoots = Array(Set((projectMetadata?.paths.resourceRoots ?? []) + [assetsRoot]))
+            .sorted { $0.count > $1.count }
         var items: [EditorProjectSidebarViewModel.Item] = []
+        let rootEntries = (try? fileManager.contentsOfDirectory(
+            at: projectURL,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: []
+        )) ?? []
 
-        for entry in rootEntries where !entry.path.isEmpty {
-            let url = projectURL.appendingPathComponent(entry.path)
-            guard fileManager.fileExists(atPath: url.path), !shouldSkipProjectTreeURL(url) else {
-                continue
-            }
-
+        for url in rootEntries.sorted(by: projectTreeSort) where !shouldSkipProjectTreeURL(url) {
             appendProjectTreeItems(
                 url: url,
                 projectURL: projectURL,
                 level: 0,
-                assetRoot: entry.assetRoot,
+                resourceRoots: resourceRoots,
                 fileManager: fileManager,
                 items: &items
             )
@@ -2446,17 +2933,23 @@ final class EditorViewModel {
         url: URL,
         projectURL: URL,
         level: Int,
-        assetRoot: String?,
+        resourceRoots: [String],
         fileManager: FileManager,
         items: inout [EditorProjectSidebarViewModel.Item]
     ) {
-        guard items.count < 300 else {
+        guard items.count < 2_000 else {
             return
         }
 
-        let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+        let resourceValues = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        let isDirectory = resourceValues?.isDirectory == true
+        let isSymbolicLink = resourceValues?.isSymbolicLink == true
         let relativePath = relativePath(for: url, projectURL: projectURL)
         let kind = fileKind(for: url, isDirectory: isDirectory)
+        let itemAssetRoot = resourceRoots.first { root in
+            let resourcePrefix = root.hasSuffix("/") ? root : "\(root)/"
+            return relativePath == root || relativePath.hasPrefix(resourcePrefix)
+        }
 
         items.append(
             EditorProjectSidebarViewModel.Item(
@@ -2468,19 +2961,20 @@ final class EditorViewModel {
                 level: level,
                 isActive: false,
                 isFolder: isDirectory,
+                isSymbolicLink: isSymbolicLink,
                 kind: kind,
-                assetRoot: assetRoot
+                assetRoot: itemAssetRoot
             )
         )
 
-        guard isDirectory, level < 4 else {
+        guard isDirectory, !isSymbolicLink else {
             return
         }
 
         let childURLs = (try? fileManager.contentsOfDirectory(
             at: url,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey],
+            options: []
         )) ?? []
 
         for childURL in childURLs.sorted(by: projectTreeSort) where !shouldSkipProjectTreeURL(childURL) {
@@ -2488,7 +2982,7 @@ final class EditorViewModel {
                 url: childURL,
                 projectURL: projectURL,
                 level: level + 1,
-                assetRoot: assetRoot,
+                resourceRoots: resourceRoots,
                 fileManager: fileManager,
                 items: &items
             )
@@ -2608,7 +3102,20 @@ final class EditorViewModel {
     }
 
     private static func shouldSkipProjectTreeURL(_ url: URL) -> Bool {
-        let skippedNames: Set<String> = [".ada", ".build", ".git", ".swiftpm", "DerivedData", "Package.resolved", "Package.swift"]
+        let skippedNames: Set<String> = [".build", ".DS_Store", ".git", ".swiftpm", "DerivedData"]
         return skippedNames.contains(url.lastPathComponent)
+    }
+
+    private static func isSymbolicLink(at url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
+    }
+}
+
+private extension EditorRunDestination {
+    var adaProjectDestination: AdaProjectRunDestination {
+        switch self {
+        case .macOS: .macOS
+        case .web: .web
+        }
     }
 }

@@ -44,29 +44,38 @@ struct EditorSceneViewportView: View {
     private var editViewport: some View {
         VStack(spacing: 0) {
             toolbar
-            SceneView(make: { app in
-                configureSceneViewApp(&app)
-                let result = EditorSceneFileLoader.load(content: document.content, into: app.main)
-                if runtimeWarnings != result.warnings {
-                    runtimeWarnings = result.warnings
-                }
-                viewportModel.attachSceneWorld(app.main, loadResult: result)
-            }, updateContent: { world, deltaTime in
-                if let input = world.getResource(Input.self) {
-                    for event in input.getInputEvents() {
-                        let handled = viewportModel.handleInput(event)
-                        if handled {
+            GeometryReader { geometry in
+                ZStack(anchor: .bottomLeading) {
+                    SceneView(make: { app in
+                        configureSceneViewApp(&app)
+                        let result = EditorSceneFileLoader.load(content: document.content, into: app.main)
+                        if runtimeWarnings != result.warnings {
+                            runtimeWarnings = result.warnings
+                        }
+                        viewportModel.attachSceneWorld(app.main, loadResult: result)
+                    }, updateContent: { world, deltaTime in
+                        if let input = world.getResource(Input.self) {
+                            for event in input.getInputEvents() {
+                                let handled = viewportModel.handleInput(event)
+                                if handled {
+                                    redrawViewport()
+                                }
+                            }
+                        }
+                        if viewportModel.update(deltaTime: deltaTime) {
                             redrawViewport()
                         }
-                    }
+                    })
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+
+                    viewportSceneOverlay
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+
+                    statusBar
                 }
-                if viewportModel.update(deltaTime: deltaTime) {
-                    redrawViewport()
-                }
-            })
-            .overlay { viewportSceneOverlay }
-            .overlay(anchor: .bottomLeading) { statusBar }
-            .mask(RectangleShape())
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                .mask(RectangleShape())
+            }
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         }
     }
@@ -74,15 +83,22 @@ struct EditorSceneViewportView: View {
     private var playViewport: some View {
         VStack(spacing: 0) {
             playToolbar
-            SceneView(make: { app in
-                configureSceneViewApp(&app)
-                let result = EditorSceneFileLoader.load(content: document.content, into: app.main)
-                if runtimeWarnings != result.warnings {
-                    runtimeWarnings = result.warnings
+            GeometryReader { geometry in
+                ZStack(anchor: .bottomLeading) {
+                    SceneView(make: { app in
+                        configureSceneViewApp(&app)
+                        let result = EditorSceneFileLoader.load(content: document.content, into: app.main)
+                        if runtimeWarnings != result.warnings {
+                            runtimeWarnings = result.warnings
+                        }
+                    }, updateContent: { _, _ in })
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+
+                    playStatusBar
                 }
-            }, updateContent: { _, _ in })
-            .overlay(anchor: .bottomLeading) { playStatusBar }
-            .mask(RectangleShape())
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                .mask(RectangleShape())
+            }
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         }
     }

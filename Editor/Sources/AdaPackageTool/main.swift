@@ -56,6 +56,25 @@ private struct Invocation {
                 url: try Self.required("url", in: options),
                 requirement: options["requirement"] ?? #"from: "0.0.1""#
             )
+        case "add-local-dependency":
+            command = .addLocalDependency(
+                name: options["name"],
+                path: try Self.required("path", in: options)
+            )
+        case "remove-dependency":
+            command = .removeDependency(identity: try Self.required("identity", in: options))
+        case "ensure-adaengine":
+            command = .ensureAdaEngineDependency(
+                path: try Self.required("path", in: options),
+                targetName: options["target"]
+            )
+        case "configure-target":
+            command = .configureTarget(
+                name: try Self.required("name", in: options),
+                sources: Self.list("source", in: options),
+                exclude: Self.list("exclude", in: options),
+                resources: Self.list("resource", in: options)
+            )
         case "add-plugin":
             command = .addPlugin(
                 name: try Self.required("name", in: options),

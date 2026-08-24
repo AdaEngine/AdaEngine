@@ -26,6 +26,18 @@ struct HarfBuzzShaperTests {
     }
 
     @Test
+    func textShaperReturnsPositionsInEmUnits() throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+
+        let font = FontResource.system(weight: .regular, emFontScale: 52)
+        let shapedText = TextShaper.shape("Hello", font: font)
+        let totalAdvance = shapedText.reduce(0) { $0 + abs($1.xAdvance) }
+
+        #expect(totalAdvance > 0)
+        #expect(totalAdvance < Double(shapedText.count) * 2)
+    }
+
+    @Test
     func textShaperReordersDirectionalRunsUsingParagraphDirection() throws {
         try Self.setupHeadlessRenderEngineIfNeeded()
 

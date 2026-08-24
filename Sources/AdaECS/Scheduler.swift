@@ -281,6 +281,9 @@ public struct Scheduler: Sendable {
         let graph = self.systemGraph
 
         let span = AdaTrace.startSpan("Scheduler.run.\(name.rawValue)")
+        span.attributes["ada.profile.category"] = "scheduler"
+        span.attributes["ada.scheduler.name"] = name.rawValue
+        span.attributes["ada.world.name"] = world.name ?? "UnknownWorld"
         defer {
             span.end()
         }

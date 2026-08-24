@@ -55,6 +55,14 @@ extension TextEditorViewNode {
         self.sourceInteraction?.onHover?(position)
     }
 
+    func notifyCaretChange() {
+        let position = self.position(forOffset: self.selectionHead, lines: self.lines())
+        self.sourceInteraction?.onCaretChange?(
+            TextEditorSourcePosition(line: position.line, column: position.column),
+            self.text
+        )
+    }
+
     func applyFocusedRangeIfNeeded() {
         let focusedRange = self.sourceInteraction?.focusedRange
         guard focusedRange != self.appliedFocusedRange else {

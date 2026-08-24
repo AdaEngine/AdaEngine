@@ -72,21 +72,21 @@ enum AdaEngineStyleContent {
                 content: sampleTextDocuments["src/EngineLoop.ada"] ?? "",
                 errorMessage: nil
             )
+        ),
+        .scene(
+            EditorSceneDocument(
+                id: "scene:Assets/Scenes/Main.ascn",
+                title: "Main.ascn",
+                relativePath: "Assets/Scenes/Main.ascn",
+                absolutePath: nil,
+                content: defaultSceneContent,
+                sceneModel: defaultSceneModel,
+                errorMessage: nil,
+                isDirty: false,
+                statusMessage: "Sample scene",
+                loadSummary: EditorSceneFileLoader.summary(from: defaultSceneContent)
+            )
         )
-        // .scene(
-        //     EditorSceneDocument(
-        //         id: "scene:Assets/Scenes/Main.ascn",
-        //         title: "Main.ascn",
-        //         relativePath: "Assets/Scenes/Main.ascn",
-        //         absolutePath: nil,
-        //         content: defaultSceneContent,
-        //         sceneModel: defaultSceneModel,
-        //         errorMessage: nil,
-        //         isDirty: false,
-        //         statusMessage: "Sample scene",
-        //         loadSummary: EditorSceneFileLoader.summary(from: defaultSceneContent)
-        //     )
-        // )
     ]
     static let aiTitle = "Ada Intelligence"
     static let aiHint = "⌘L to Focus"
@@ -208,13 +208,17 @@ private struct EditorTopToolbarRegion: View {
         EditorTopToolbar(
             hotReloadState: hotReloadState,
             viewModel: viewModel.toolbar,
-            isRunEnabled: !viewModel.playModeState.isPlaying,
-            isStopEnabled: viewModel.playModeState.isPlaying,
+            runDestination: viewModel.selectedRunDestination,
+            isRunEnabled: !viewModel.isProjectRunning,
+            isStopEnabled: viewModel.isProjectRunning,
+            onSelectRunDestination: { destination in
+                viewModel.selectRunDestination(destination)
+            },
             onRun: {
-                viewModel.runActiveSceneInEditor()
+                viewModel.runSelectedTarget()
             },
             onStop: {
-                viewModel.stopPlayMode()
+                viewModel.cancelWorkspaceCommand()
             }
         )
     }
@@ -225,73 +229,82 @@ private struct EditorWorkspaceRegion: View {
     @Environment(\.metrics) private var metrics
 
     var body: some View {
-        HStack(spacing: 0) {
-            EditorLeftToolStrip(
-                viewModel: viewModel,
-                onSelectTopTool: { item in
-                    viewModel.activateLeftTopTool(item)
-                },
-                onSelectBottomTool: { item in
-                    viewModel.activateLeftBottomTool(item)
-                }
-            )
-            .frame(
-                minWidth: metrics.toolStripWidth, maxWidth: metrics.toolStripWidth,
-                maxHeight: .infinity)
+        GeometryReader { geometry in
+            let stripWidth = metrics.toolStripWidth
+            let workspaceWidth = max(0, geometry.size.width - stripWidth * 2)
 
-            EditorWorkspaceView(
-                viewModel: viewModel,
-                leftPanel: {
-                    EditorLeftSidebarContent(viewModel: viewModel)
-                },
-                mainPanel: {
-                    EditorCenterWorkbench(
-                        viewModel: viewModel.workbench,
-                        inspectorViewModel: viewModel.inspectorSidebar,
-                        playModeState: viewModel.playModeState,
-                        onSourceHover: { document, position in
-                            viewModel.handleSourceHover(document: document, position: position)
-                        },
-                        onGoToDefinition: { document, position in
-                            viewModel.goToDefinition(document: document, position: position)
-                        },
-                        sourceContextMenuItems: { document, position in
-                            viewModel.sourceContextMenuItems(document: document, position: position)
-                        },
-                        onSelectDocument: { documentID in
-                            viewModel.selectWorkbenchDocument(id: documentID)
-                        },
-                        onSelectPreview: { declaration in
-                            viewModel.selectPreview(declaration)
-                        },
-                        onRebuildPreview: {
-                            viewModel.rebuildSelectedPreview()
-                        },
-                        onShowPreviewBuildOutput: {
-                            viewModel.showBuildOutput()
-                        }
-                    )
-                    .frame(maxHeight: .infinity)
-                },
-                rightPanel: {
-                    EditorRightSidebarContent(viewModel: viewModel)
-                },
-                bottomPanel: {
-                    EditorBottomPanel(viewModel: viewModel)
-                }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .layoutPriority(2)
+            ZStack(anchor: .topLeading) {
+                EditorLeftToolStrip(
+                    viewModel: viewModel,
+                    onSelectTopTool: { item in
+                        viewModel.activateLeftTopTool(item)
+                    },
+                    onSelectBottomTool: { item in
+                        viewModel.activateLeftBottomTool(item)
+                    }
+                )
+                .frame(width: stripWidth, height: geometry.size.height)
 
-            EditorRightToolStrip(
-                viewModel: viewModel,
-                onSelectTool: { item in
-                    viewModel.activateRightTool(item)
-                }
-            )
-            .frame(
-                minWidth: metrics.toolStripWidth, maxWidth: metrics.toolStripWidth,
-                maxHeight: .infinity)
+                EditorWorkspaceView(
+                    viewModel: viewModel,
+                    leftPanel: {
+                        EditorLeftSidebarContent(viewModel: viewModel)
+                    },
+                    mainPanel: {
+                        EditorCenterWorkbench(
+                            viewModel: viewModel.workbench,
+                            inspectorViewModel: viewModel.inspectorSidebar,
+                            playModeState: viewModel.playModeState,
+                            onSourceHover: { document, position in
+                                viewModel.handleSourceHover(document: document, position: position)
+                            },
+                            onGoToDefinition: { document, position in
+                                viewModel.goToDefinition(document: document, position: position)
+                            },
+                            onCompletionPosition: { document, position, text in
+                                viewModel.handleCompletionPosition(document: document, position: position, text: text)
+                            },
+                            onApplyCompletion: { item, document in
+                                viewModel.applyCompletion(item, to: document)
+                            },
+                            sourceContextMenuItems: { document, position in
+                                viewModel.sourceContextMenuItems(document: document, position: position)
+                            },
+                            onSelectDocument: { documentID in
+                                viewModel.selectWorkbenchDocument(id: documentID)
+                            },
+                            onSelectPreview: { declaration in
+                                viewModel.selectPreview(declaration)
+                            },
+                            onRebuildPreview: {
+                                viewModel.rebuildSelectedPreview()
+                            },
+                            onShowPreviewBuildOutput: {
+                                viewModel.showBuildOutput()
+                            }
+                        )
+                        .frame(maxHeight: .infinity)
+                    },
+                    rightPanel: {
+                        EditorRightSidebarContent(viewModel: viewModel)
+                    },
+                    bottomPanel: {
+                        EditorBottomPanel(viewModel: viewModel)
+                    }
+                )
+                .frame(width: workspaceWidth, height: geometry.size.height)
+                .offset(x: stripWidth)
+
+                EditorRightToolStrip(
+                    viewModel: viewModel,
+                    onSelectTool: { item in
+                        viewModel.activateRightTool(item)
+                    }
+                )
+                .frame(width: stripWidth, height: geometry.size.height)
+                .offset(x: stripWidth + workspaceWidth)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
         }
         .frame(
             minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity,

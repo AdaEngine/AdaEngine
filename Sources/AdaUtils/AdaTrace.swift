@@ -26,6 +26,18 @@ public enum AdaTrace {
         }
     }
 
+    /// Executes a synchronous operation inside a tracing span and exposes the span for metadata.
+    @inlinable
+    public static func span<T>(
+        _ name: String,
+        function: String = #function,
+        file fileID: String = #fileID,
+        line: UInt = #line,
+        _ body: @Sendable (any Span) throws -> T
+    ) rethrows -> T {
+        try Tracing.withSpan(name, function: function, file: fileID, line: line, body)
+    }
+
     /// Starts a span and returns it for manual lifecycle control.
     /// - Parameter name: The span name.
     /// - Returns: The started span.
@@ -50,5 +62,17 @@ public enum AdaTrace {
         try await Tracing.withSpan(name, function: function, file: fileID, line: line) { _ in
             try await body()
         }
+    }
+
+    /// Executes an async operation inside a tracing span and exposes the span for metadata.
+    @inlinable
+    public static func span<T>(
+        _ name: String,
+        function: String = #function,
+        file fileID: String = #fileID,
+        line: UInt = #line,
+        _ body: @Sendable (any Span) async throws -> T
+    ) async rethrows -> T {
+        try await Tracing.withSpan(name, function: function, file: fileID, line: line, body)
     }
 }

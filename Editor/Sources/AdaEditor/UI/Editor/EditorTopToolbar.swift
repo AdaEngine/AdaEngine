@@ -3,8 +3,10 @@
 struct EditorTopToolbar: View {
     let hotReloadState: EditorHotReloadState
     let viewModel: EditorToolbarViewModel
+    let runDestination: EditorRunDestination
     let isRunEnabled: Bool
     let isStopEnabled: Bool
+    let onSelectRunDestination: (EditorRunDestination) -> Void
     let onRun: () -> Void
     let onStop: () -> Void
     
@@ -29,12 +31,35 @@ struct EditorTopToolbar: View {
 
                 adaEditorToolbarPill(hotReloadState.toolbarTitle, active: hotReloadState.isEnabled && hotReloadState.errorMessage == nil, theme: theme)
 
+                runDestinationControls
                 runStopControls
             }
             .padding(.trailing, 12)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var runDestinationControls: some View {
+        HStack(spacing: 2) {
+            ForEach(EditorRunDestination.allCases, id: \.self) { destination in
+                Button(action: { onSelectRunDestination(destination) }) {
+                    Text(destination.rawValue)
+                        .font(.system(size: 11))
+                        .foregroundColor(runDestination == destination ? theme.editorColors.blue : theme.editorColors.muted)
+                        .padding(.horizontal, 8)
+                        .frame(height: 26)
+                        .background(
+                            RoundedRectangleShape(cornerRadius: 6)
+                                .fill(runDestination == destination ? theme.editorColors.blue.opacity(0.14) : Color.clear)
+                        )
+                }
+                .buttonStyle(DefaultButtonStyle())
+            }
+        }
+        .padding(4)
+        .glassEffect(.editorToolbarControls(theme: theme), in: RoundedRectangleShape(cornerRadius: 10))
+        .accessibilityIdentifier("AdaEditor.RunDestination")
     }
 
     private var runStopControls: some View {

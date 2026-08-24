@@ -9,7 +9,7 @@ import AdaEngine
 import Foundation
 
 struct EditorBottomPanel: View {
-    @State var viewModel: EditorViewModel
+    let viewModel: EditorViewModel
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
     
@@ -25,14 +25,17 @@ struct EditorBottomPanel: View {
             .padding(.vertical, 5)
             .background(theme.editorColors.surface)
             
-            ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    panelContent
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        panelContent
+                    }
+                    .frame(width: max(0, geometry.size.width - 24), alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .background {
@@ -162,7 +165,7 @@ struct EditorBottomPanel: View {
                 .font(.system(size: 11))
                 .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
                 .padding(.horizontal, metrics.outputTabHorizontalPadding)
-                .frame(height: 24)
+                .frame(width: outputTabWidth(tab), height: 24)
                 .background(RoundedRectangleShape(cornerRadius: 5).fill(active ? theme.editorColors.surfaceElevated : theme.editorColors.surface.opacity(0.55)))
                 .overlay {
                     RoundedRectangleShape(cornerRadius: 5)
@@ -177,5 +180,9 @@ struct EditorBottomPanel: View {
                 }
         }
         .buttonStyle(DefaultButtonStyle())
+    }
+
+    private func outputTabWidth(_ tab: String) -> Float {
+        Float(tab.count) * 7 + metrics.outputTabHorizontalPadding * 2
     }
 }

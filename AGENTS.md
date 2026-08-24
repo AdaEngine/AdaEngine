@@ -15,6 +15,11 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
 - SwiftPM build: `swift build`
 - Build docs: see Documentation section below.
 
+#### Swift Toolchain Cache Compatibility
+- The shared `.build` directory may contain modules produced by a different Swift toolchain. If the first build or test reports that a module was compiled with another Swift version and cannot be imported, treat it as a stale-cache/toolchain mismatch rather than a source failure.
+- Do not delete or rewrite the user's shared `.build` directory. Immediately retry with an isolated scratch directory, for example: `swift test --scratch-path /tmp/adaengine-swift-build --filter SomeSuiteName` or `swift build --scratch-path /tmp/adaengine-swift-build`.
+- Reuse the same scratch path for subsequent commands in the task so the clean build remains incremental.
+
 ### Test
 - **Use Swift Testing** for AdaEngine package tests: `import Testing`, `@Suite`, `@Test`, and `#expect` / `#require`. Do not add new **XCTest**-based tests in `AdaEngine/Tests/`.
 - Run all tests: `swift test --parallel`

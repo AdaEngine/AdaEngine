@@ -6,18 +6,3 @@ options:
 packages:
   AdaEditor:
     path: .
-targets:
-  AdaEditor:
-    type: tool
-    platform: macOS
-    sources: []
-    dependencies:
-      - package: AdaEditor
-        product: AdaEditor
-schemes:
-  AdaEditor:
-    build:
-      targets:
-        AdaEditor: all
-    run:
-      config: Debug

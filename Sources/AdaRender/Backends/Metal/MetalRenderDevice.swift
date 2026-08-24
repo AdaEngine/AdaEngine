@@ -7,13 +7,15 @@
 
 #if METAL
 import AdaUtils
+import Math
 import Metal
 #if canImport(MetalFX) && (os(macOS) || os(iOS))
 @unsafe @preconcurrency import MetalFX
 #endif
 @unsafe @preconcurrency import MetalKit
-import Math
+import QuartzCore
 import Synchronization
+import Tracing
 
 final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 
@@ -157,6 +159,8 @@ extension MTLPixelFormat {
 }
 
 final class MetalDrawable: Drawable, @unchecked Sendable {
+    private static let previousPresentedTime = Mutex<CFTimeInterval?>(nil)
+
     private let commandQueue: MTLCommandQueue
     private let mtlDrawable: CAMetalDrawable
     private let isPresented = Mutex(false)
@@ -174,6 +178,25 @@ final class MetalDrawable: Drawable, @unchecked Sendable {
         guard !alreadyPresented else { return }
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
             return
+        }
+        let span = AdaTrace.startSpan("Display.present")
+        span.attributes["ada.profile.category"] = "display"
+        span.attributes["ada.display.drawable_id"] = Int64(mtlDrawable.drawableID)
+        span.attributes["ada.display.submitted_time"] = CACurrentMediaTime()
+        mtlDrawable.addPresentedHandler { drawable in
+            let presentedTime = drawable.presentedTime
+            span.attributes["ada.display.presented_time"] = presentedTime
+            span.attributes["ada.display.dropped"] = presentedTime == 0
+            if presentedTime > 0 {
+                let interval = Self.previousPresentedTime.withLock { previousTime -> CFTimeInterval? in
+                    defer { previousTime = presentedTime }
+                    return previousTime.map { presentedTime - $0 }
+                }
+                if let interval {
+                    span.attributes["ada.display.interval_ms"] = interval * 1_000
+                }
+            }
+            span.end()
         }
         commandBuffer.label = "(AdaRender internal) Present"
         commandBuffer.present(self.mtlDrawable)

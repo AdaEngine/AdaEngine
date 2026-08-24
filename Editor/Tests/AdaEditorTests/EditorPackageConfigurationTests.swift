@@ -23,7 +23,8 @@ struct EditorPackageConfigurationTests {
         #expect(project.contains("name: AdaEditor"))
         #expect(project.contains("AdaEditor:"))
         #expect(project.contains("path: ."))
-        #expect(project.contains("product: AdaEditor"))
+        #expect(!project.contains("AdaEditorHost"))
+        #expect(!project.contains("type: tool"))
     }
 
     private func editorPackageRoot() throws -> URL {

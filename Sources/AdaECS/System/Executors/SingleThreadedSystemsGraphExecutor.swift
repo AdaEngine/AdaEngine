@@ -6,6 +6,7 @@
 import AdaUtils
 import Collections
 import DequeModule
+import Tracing
 
 /// The executor of the systems graph.
 public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
@@ -65,7 +66,11 @@ public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
         world: World,
         scheduler: SchedulerName
     ) async {
-        await AdaTrace.span("System.execute.\(system.name)") {
+        await AdaTrace.span("System.execute.\(system.name)") { span in
+            span.attributes["ada.profile.category"] = "system"
+            span.attributes["ada.scheduler.name"] = scheduler.rawValue
+            span.attributes["ada.system.name"] = system.name
+            span.attributes["ada.world.name"] = world.name ?? "UnknownWorld"
             system.queries.update(from: world)
             await system.system.update(
                 context: WorldUpdateContext(

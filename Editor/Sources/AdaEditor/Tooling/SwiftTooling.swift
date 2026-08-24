@@ -314,10 +314,16 @@ enum SwiftPMCommandKind: Equatable, Sendable {
     case describe
     case build(target: String?, buildTests: Bool)
     case run(target: String?, arguments: [String])
+    case runWeb(target: String, outputPath: String, serve: Bool)
     case test(filter: String?)
     case update
     case clean
     case reset
+}
+
+enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
+    case macOS = "macOS"
+    case web = "Web"
 }
 
 struct SwiftPackageModel: Equatable, Sendable {
@@ -327,7 +333,18 @@ struct SwiftPackageModel: Equatable, Sendable {
     var dependencies: [SwiftPackageDependency]
 
     var executableTargets: [String] {
-        products.filter { $0.type == "executable" }.flatMap(\.targets)
+        executableProducts.flatMap(\.targets)
+    }
+
+    var executableProducts: [SwiftPackageProduct] {
+        products.filter { $0.type == "executable" }
+    }
+
+    func executableTargetName(forProductNamed productName: String) -> String? {
+        guard let product = executableProducts.first(where: { $0.name == productName }), product.targets.count == 1 else {
+            return nil
+        }
+        return product.targets[0]
     }
 
     var testTargets: [String] {
@@ -381,10 +398,12 @@ protocol SwiftPMWorkspaceServicing: Sendable {
     func bootstrap(projectURL: URL, progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void) async -> SwiftPMBootstrapResult
     func execute(_ kind: SwiftPMCommandKind, projectURL: URL) async -> EditorProcessResult
     func semanticTokens(fileURL: URL, language: EditorSourceLanguage, text: String) async -> [EditorSemanticToken]
+    func completions(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorCompletionItem]
     func definition(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorSourceSymbolTarget]
     func references(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorSourceReference]
     func hover(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> EditorSymbolHover?
     func documentHighlights(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorDocumentHighlight]
+    func setDiagnosticsHandler(_ handler: @Sendable @escaping (String, [EditorDiagnostic]) async -> Void) async
     func cancel() async
 }
 
@@ -392,15 +411,26 @@ extension SwiftPMWorkspaceServicing {
     func bootstrap(projectURL: URL, progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void) async -> SwiftPMBootstrapResult {
         await bootstrap(projectURL: projectURL)
     }
+
+    func completions(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorCompletionItem] {
+        []
+    }
+
+    func setDiagnosticsHandler(_ handler: @Sendable @escaping (String, [EditorDiagnostic]) async -> Void) async {}
 }
 
 actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     private let processRunner: any EditorProcessRunning
     private var toolchain: SwiftToolchain?
     private var sourceKitClient: SourceKitLSPClient?
+    private var diagnosticsHandler: (@Sendable (String, [EditorDiagnostic]) async -> Void)?
 
-    init(processRunner: any EditorProcessRunning = EditorProcessRunner()) {
+    init(
+        processRunner: any EditorProcessRunning = EditorProcessRunner(),
+        sourceKitClient: SourceKitLSPClient? = nil
+    ) {
         self.processRunner = processRunner
+        self.sourceKitClient = sourceKitClient
     }
 
     nonisolated func makeCommand(_ kind: SwiftPMCommandKind, projectURL: URL, toolchain: SwiftToolchain) -> EditorProcessCommand {
@@ -413,6 +443,8 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             buildArguments(target: target, buildTests: buildTests)
         case .run(let target, let arguments):
             runArguments(target: target, runArguments: arguments)
+        case .runWeb(let target, let outputPath, let serve):
+            webRunArguments(target: target, outputPath: outputPath, serve: serve)
         case .test(let filter):
             testArguments(filter: filter)
         case .update:
@@ -423,10 +455,16 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             ["package", "reset"]
         }
 
+        let environment: [String: String] = if case .runWeb = kind {
+            ["ADAENGINE_WEB_EXPORT": "1", "BUILD_WASM": "1"]
+        } else {
+            [:]
+        }
         return EditorProcessCommand(
             executablePath: toolchain.swiftExecutablePath,
             arguments: arguments,
-            workingDirectory: projectURL
+            workingDirectory: projectURL,
+            environment: environment
         )
     }
 
@@ -525,8 +563,10 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
 
     func cancel() async {
         await processRunner.cancelAll()
-        await sourceKitClient?.stop()
-        sourceKitClient = nil
+    }
+
+    func setDiagnosticsHandler(_ handler: @Sendable @escaping (String, [EditorDiagnostic]) async -> Void) {
+        diagnosticsHandler = handler
     }
 
     func semanticTokens(fileURL: URL, language: EditorSourceLanguage, text: String) async -> [EditorSemanticToken] {
@@ -537,6 +577,19 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         do {
             try await sourceKitClient.openDocument(fileURL: fileURL, language: language, text: text)
             return try await sourceKitClient.refreshSemanticTokens(fileURL: fileURL)
+        } catch {
+            return []
+        }
+    }
+
+    func completions(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorCompletionItem] {
+        guard let sourceKitClient else {
+            return []
+        }
+
+        do {
+            try await sourceKitClient.openDocument(fileURL: fileURL, language: language, text: text)
+            return try await sourceKitClient.completion(fileURL: fileURL, position: position)
         } catch {
             return []
         }
@@ -617,6 +670,21 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         return arguments
     }
 
+    nonisolated private func webRunArguments(target: String, outputPath: String, serve: Bool) -> [String] {
+        var arguments = [
+            "package",
+            "--allow-writing-to-package-directory",
+            "--allow-network-connections", "all",
+            "export-web",
+            "--product", target,
+            "--output", outputPath
+        ]
+        if serve {
+            arguments.append("--serve")
+        }
+        return arguments
+    }
+
     nonisolated private func testArguments(filter: String?) -> [String] {
         var arguments = ["test", "--parallel"]
         if let filter, !filter.isEmpty {
@@ -667,6 +735,9 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
 
         let client = SourceKitLSPClient(connection: SourceKitLSPStdioConnection())
         do {
+            await client.setDiagnosticsHandler { [weak self] uri, diagnostics in
+                await self?.diagnosticsHandler?(uri, diagnostics)
+            }
             try await client.start(toolchain: toolchain, projectURL: projectURL)
             sourceKitClient = client
         } catch {

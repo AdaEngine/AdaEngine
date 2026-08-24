@@ -86,20 +86,37 @@ public enum ProjectSystem {
         return project
     }
 
+    /// Persists validated project settings without exposing callers to the on-disk JSON format.
+    public static func saveProject(_ project: AdaProject, at projectURL: URL, fileManager: FileManager = .default) throws(ProjectSystemError) {
+        try validate(project)
+
+        let metadataDirectory = projectURL.appendingPathComponent(metadataDirectoryName, isDirectory: true)
+        let metadataURL = metadataURL(forProjectAt: projectURL)
+        do {
+            try fileManager.createDirectory(at: metadataDirectory, withIntermediateDirectories: true)
+            try encode(project).write(to: metadataURL, options: [.atomic])
+        } catch let error as EncodingError {
+            throw .encodingFailed(message: error.localizedDescription)
+        } catch {
+            throw .fileWriteFailed(path: ProjectSystemPath.metadataFile, message: error.localizedDescription)
+        }
+    }
+
     public static func defaultProject(projectName: String = "AdaEngineProject") -> AdaProject {
         AdaProject(
             schemaVersion: currentSchemaVersion,
             project: .init(name: projectName),
-            engine: .init(),
+            engine: .init(package: "AdaEngine"),
             paths: .init(
                 sources: "Sources",
                 assets: "Assets",
                 build: ".build",
                 generated: nil,
+                resourceRoots: ["Assets"],
                 run: .init(workingDirectory: ".")
             ),
             build: .init(system: .swiftpm),
-            run: .init(executable: nil, arguments: [], environment: [:], workingDirectory: "."),
+            run: .init(destination: .macOS, executable: nil, arguments: [], environment: [:], workingDirectory: "."),
             editor: .init(startupScene: SceneDocumentFormat.defaultScenePath),
             ai: .init(mcp: .init(enabled: true))
         )
@@ -133,11 +150,14 @@ public enum ProjectSystem {
         try validateRelativePath(project.paths.assets, keyPath: "paths.assets")
         try validateRelativePath(project.paths.build, keyPath: "paths.build")
         try validateRelativePath(project.paths.generated, keyPath: "paths.generated")
+        try validatePathArray(project.paths.resourceRoots, keyPath: "paths.resourceRoots")
         try validateRelativePath(project.paths.run.workingDirectory, keyPath: "paths.run.workingDirectory")
         try validateRelativePath(project.run.workingDirectory, keyPath: "run.workingDirectory")
         try validateRelativePath(project.run.executable, keyPath: "run.executable")
         try validateRelativePath(project.editor.startupScene, keyPath: "editor.startupScene")
         try validatePathArray(project.build.targets, keyPath: "build.targets")
+        try validatePathArray(project.build.includedFiles, keyPath: "build.includedFiles")
+        try validatePathArray(project.build.excludedFiles, keyPath: "build.excludedFiles")
         try validatePathArray(project.ai.mcp.allowedResourceRoots, keyPath: "ai.mcp.allowedResourceRoots")
         try validateRelativePath(project.ai.agent.target.cwd, keyPath: "ai.agent.target.cwd")
         try validatePathArray(project.ai.agent.skillsDirectories, keyPath: "ai.agent.skillsDirectories")
@@ -325,6 +345,8 @@ public struct AdaProjectPaths: Codable, Equatable, Sendable {
     public var assets: String?
     public var build: String?
     public var generated: String?
+    /// Project-relative folders that the editor searches for importable runtime resources.
+    public var resourceRoots: [String]
     public var run: AdaProjectRunPaths
 
     public init(
@@ -332,16 +354,18 @@ public struct AdaProjectPaths: Codable, Equatable, Sendable {
         assets: String? = nil,
         build: String? = nil,
         generated: String? = nil,
+        resourceRoots: [String] = [],
         run: AdaProjectRunPaths = AdaProjectRunPaths()
     ) {
         self.sources = sources
         self.assets = assets
         self.build = build
         self.generated = generated
+        self.resourceRoots = resourceRoots
         self.run = run
     }
 
-    private enum CodingKeys: String, CodingKey { case sources, assets, build, generated, run }
+    private enum CodingKeys: String, CodingKey { case sources, assets, build, generated, resourceRoots, run }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -349,6 +373,7 @@ public struct AdaProjectPaths: Codable, Equatable, Sendable {
         assets = try container.decodeIfPresent(String.self, forKey: .assets)
         build = try container.decodeIfPresent(String.self, forKey: .build)
         generated = try container.decodeIfPresent(String.self, forKey: .generated)
+        resourceRoots = try container.decodeIfPresent([String].self, forKey: .resourceRoots) ?? []
         run = try container.decodeIfPresent(AdaProjectRunPaths.self, forKey: .run) ?? AdaProjectRunPaths()
     }
 
@@ -358,6 +383,7 @@ public struct AdaProjectPaths: Codable, Equatable, Sendable {
         try container.encodeIfPresent(assets, forKey: .assets)
         try container.encodeIfPresent(build, forKey: .build)
         try container.encodeIfPresent(generated, forKey: .generated)
+        try container.encode(resourceRoots, forKey: .resourceRoots)
         try container.encode(run, forKey: .run)
     }
 }
@@ -374,20 +400,34 @@ public struct AdaProjectBuild: Codable, Equatable, Sendable {
     public var system: AdaProjectBuildSystem
     public var configuration: String?
     public var targets: [String]
+    /// Project-relative files or directories explicitly included in the selected SwiftPM target.
+    public var includedFiles: [String]
+    /// Project-relative files or directories excluded from the selected SwiftPM target.
+    public var excludedFiles: [String]
 
-    public init(system: AdaProjectBuildSystem = .swiftpm, configuration: String? = nil, targets: [String] = []) {
+    public init(
+        system: AdaProjectBuildSystem = .swiftpm,
+        configuration: String? = nil,
+        targets: [String] = [],
+        includedFiles: [String] = [],
+        excludedFiles: [String] = []
+    ) {
         self.system = system
         self.configuration = configuration
         self.targets = targets
+        self.includedFiles = includedFiles
+        self.excludedFiles = excludedFiles
     }
 
-    private enum CodingKeys: String, CodingKey { case system, configuration, targets }
+    private enum CodingKeys: String, CodingKey { case system, configuration, targets, includedFiles, excludedFiles }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         system = try container.decodeIfPresent(AdaProjectBuildSystem.self, forKey: .system) ?? .swiftpm
         configuration = try container.decodeIfPresent(String.self, forKey: .configuration)
         targets = try container.decodeIfPresent([String].self, forKey: .targets) ?? []
+        includedFiles = try container.decodeIfPresent([String].self, forKey: .includedFiles) ?? []
+        excludedFiles = try container.decodeIfPresent([String].self, forKey: .excludedFiles) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -395,26 +435,37 @@ public struct AdaProjectBuild: Codable, Equatable, Sendable {
         try container.encode(system, forKey: .system)
         try container.encodeIfPresent(configuration, forKey: .configuration)
         try container.encode(targets, forKey: .targets)
+        try container.encode(includedFiles, forKey: .includedFiles)
+        try container.encode(excludedFiles, forKey: .excludedFiles)
     }
 }
 
 public struct AdaProjectRun: Codable, Equatable, Sendable {
+    public var destination: AdaProjectRunDestination
     public var executable: String?
     public var arguments: [String]
     public var environment: [String: String]
     public var workingDirectory: String?
 
-    public init(executable: String? = nil, arguments: [String] = [], environment: [String: String] = [:], workingDirectory: String? = nil) {
+    public init(
+        destination: AdaProjectRunDestination = .macOS,
+        executable: String? = nil,
+        arguments: [String] = [],
+        environment: [String: String] = [:],
+        workingDirectory: String? = nil
+    ) {
+        self.destination = destination
         self.executable = executable
         self.arguments = arguments
         self.environment = environment
         self.workingDirectory = workingDirectory
     }
 
-    private enum CodingKeys: String, CodingKey { case executable, arguments, environment, workingDirectory }
+    private enum CodingKeys: String, CodingKey { case destination, executable, arguments, environment, workingDirectory }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        destination = try container.decodeIfPresent(AdaProjectRunDestination.self, forKey: .destination) ?? .macOS
         executable = try container.decodeIfPresent(String.self, forKey: .executable)
         arguments = try container.decodeIfPresent([String].self, forKey: .arguments) ?? []
         environment = try container.decodeIfPresent([String: String].self, forKey: .environment) ?? [:]
@@ -423,11 +474,17 @@ public struct AdaProjectRun: Codable, Equatable, Sendable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(destination, forKey: .destination)
         try container.encodeIfPresent(executable, forKey: .executable)
         try container.encode(arguments, forKey: .arguments)
         try container.encode(environment, forKey: .environment)
         try container.encodeIfPresent(workingDirectory, forKey: .workingDirectory)
     }
+}
+
+public enum AdaProjectRunDestination: String, Codable, CaseIterable, Equatable, Sendable {
+    case macOS = "macos"
+    case web
 }
 
 public struct AdaProjectEditor: Codable, Equatable, Sendable {

@@ -10,6 +10,8 @@ struct EditorCodeFileView: View {
     let colorPalette: EditorCodeColorPalette
     let onSourceHover: ((EditorTextDocument, EditorSourceLocation?) -> Void)?
     let onGoToDefinition: ((EditorTextDocument, EditorSourceLocation) -> Void)?
+    let onCompletionPosition: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
+    let onApplyCompletion: ((EditorCompletionItem, EditorTextDocument) -> Void)?
     let sourceContextMenuItems: ((EditorTextDocument, EditorSourceLocation) -> [TextEditorContextMenuItem])?
 
     @Environment(\.theme) private var theme
@@ -21,6 +23,11 @@ struct EditorCodeFileView: View {
                 fileError(message: errorMessage)
             } else {
                 codeEditor
+                    .overlay(anchor: .topLeading) {
+                        if !document.completionItems.isEmpty {
+                            completionOverlay
+                        }
+                    }
             }
         }
         .background(theme.editorColors.surfaceElevated)
@@ -65,19 +72,69 @@ private extension EditorCodeFileView {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    var completionList: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(document.completionItems, id: \.self) { item in
+                Button(action: { onApplyCompletion?(item, document) }) {
+                    HStack(spacing: 8) {
+                        Text(item.label)
+                            .font(AdaEditorCodeFont.font(size: 11))
+                            .foregroundColor(theme.editorColors.text)
+                            .lineLimit(1)
+                        if let detail = item.detail, detail != item.label {
+                            Text(detail)
+                                .font(.system(size: 10))
+                                .foregroundColor(theme.editorColors.muted)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(height: 22)
+                }
+                .buttonStyle(DefaultButtonStyle())
+            }
+        }
+        .padding(.vertical, 4)
+        .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.surface))
+        .overlay {
+            RoundedRectangleShape(cornerRadius: 4)
+                .stroke(theme.editorColors.border.opacity(0.65), lineWidth: 1)
+        }
+        .accessibilityIdentifier("AdaEditor.CodeCompletion")
+    }
+
+    var completionOverlay: some View {
+        GeometryReader { geometry in
+            let popupFrame = EditorCompletionPopupLayout.frame(
+                viewportSize: geometry.size,
+                caretPosition: document.completionPosition,
+                fontSize: fontSize,
+                itemCount: document.completionItems.count
+            )
+
+            completionList
+                .frame(width: popupFrame.width)
+                .offset(x: popupFrame.minX, y: popupFrame.minY)
+        }
+    }
+
     var sourceInteraction: TextEditorSourceInteraction? {
         guard document.language == .swift || document.language == .packageManifest else {
             return nil
         }
 
         return TextEditorSourceInteraction(
-            highlightedRanges: document.symbolHighlights.map(\.textEditorRange),
+            highlightedRanges: (document.symbolHighlights + document.diagnostics.map(\.range)).map(\.textEditorRange),
             focusedRange: document.focusedRange?.textEditorRange,
             onHover: { position in
                 onSourceHover?(document, position.map { EditorSourceLocation(textEditorPosition: $0) })
             },
             onPrimaryClick: { position in
                 onGoToDefinition?(document, EditorSourceLocation(textEditorPosition: position))
+            },
+            onCaretChange: { position, currentText in
+                onCompletionPosition?(document, EditorSourceLocation(textEditorPosition: position), currentText)
             },
             contextMenuItems: { position in
                 sourceContextMenuItems?(document, EditorSourceLocation(textEditorPosition: position)) ?? []
@@ -143,6 +200,37 @@ private extension EditorCodeFileView {
         default:
             colorPalette.plainText
         }
+    }
+}
+
+struct EditorCompletionPopupLayout {
+    static let preferredWidth: Float = 420
+    static let viewportInset: Float = 12
+
+    static func frame(
+        viewportSize: Size,
+        caretPosition: EditorSourceLocation?,
+        fontSize: Double,
+        itemCount: Int
+    ) -> Rect {
+        let availableWidth = max(0, viewportSize.width - viewportInset * 2)
+        let width = min(preferredWidth, availableWidth)
+        let rowCount = max(1, itemCount)
+        let height = Float(rowCount * 24 + 6)
+        let lineHeight = max(18, Float(fontSize) * 1.45)
+        let characterAdvance = max(6, Float(fontSize) * 0.58)
+        let position = caretPosition ?? EditorSourceLocation(line: 0, character: 0)
+        let desiredX = Float(82) + Float(max(0, position.character)) * characterAdvance
+        let desiredY = Float(18) + Float(max(0, position.line) + 1) * lineHeight
+        let maxX = max(viewportInset, viewportSize.width - width - viewportInset)
+        let maxY = max(viewportInset, viewportSize.height - height - viewportInset)
+
+        return Rect(
+            x: min(max(viewportInset, desiredX), maxX),
+            y: min(max(viewportInset, desiredY), maxY),
+            width: width,
+            height: height
+        )
     }
 }
 
