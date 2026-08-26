@@ -170,8 +170,20 @@ public enum EditorComponentReflection {
     public static func kind<T: EditorEnumReflectable>(for type: T.Type) -> EditorFieldKind { .enumeration(T.editorCaseNames) }
 
     public static func isEditable<T>(_ type: T.Type) -> Bool {
-        kind(for: T.self) != .readOnly
+        false
     }
+
+    public static func isEditable(_ type: Bool.Type) -> Bool { true }
+    public static func isEditable(_ type: Int.Type) -> Bool { true }
+    public static func isEditable(_ type: Float.Type) -> Bool { true }
+    public static func isEditable(_ type: Double.Type) -> Bool { true }
+    public static func isEditable(_ type: String.Type) -> Bool { true }
+    public static func isEditable(_ type: Vector2.Type) -> Bool { true }
+    public static func isEditable(_ type: Vector3.Type) -> Bool { true }
+    public static func isEditable(_ type: Vector4.Type) -> Bool { true }
+    public static func isEditable(_ type: Quat.Type) -> Bool { true }
+    public static func isEditable(_ type: Color.Type) -> Bool { true }
+    public static func isEditable<T: EditorEnumReflectable>(_ type: T.Type) -> Bool { true }
 
     public static func read<T>(_ value: T) -> EditorFieldValue {
         .string(String(describing: value))

@@ -84,7 +84,9 @@ public enum GravityScriptError: Error, Sendable, Equatable, CustomStringConverti
 ///
 /// Each query is `[requiredComponents, writtenComponents]`. During update the
 /// script instance receives `update(deltaTime, queries)`, where `queries` is a
-/// list of entity-ID lists in the same order as the manifest.
+/// list of `AdaEntity` lists in the same order as the manifest. An entity can
+/// read fields with `get(component, field)` and can write fields declared by
+/// the query with `set(component, field, value)`.
 public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
     public let descriptor: GravityScriptPluginDescriptor
 
@@ -137,11 +139,16 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
         runtime.lastResult(for: systemIdentifier)
     }
 
+    /// Compiler and runtime diagnostics emitted by this plugin's VM.
+    public var diagnostics: [String] {
+        runtime.diagnostics
+    }
+
     private static func makeQuery(
         _ descriptor: GravityScriptQueryDescriptor,
         systemIdentifier: String,
         queryIndex: Int
-    ) throws -> EntityQuery {
+    ) throws -> PreparedGravityQuery {
         let componentNames = Array(Set(descriptor.components + descriptor.writeComponents)).sorted()
         var identifiers: [String: ComponentId] = [:]
         for componentName in componentNames {
@@ -169,7 +176,22 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
                 access.addComponentWrite(component)
             }
         }
-        return EntityQuery(where: predicate, access: access)
+        var componentAccess: [String: GravityComponentAccess] = [:]
+        for componentName in componentNames {
+            guard let component = resolveComponent(named: componentName) else {
+                continue
+            }
+            let typeName = String(reflecting: component)
+            componentAccess[componentName] = GravityComponentAccess(
+                descriptor: EditorComponentReflectionRegistry.descriptor(named: typeName),
+                typeName: typeName,
+                isWritable: descriptor.writeComponents.contains(componentName)
+            )
+        }
+        return PreparedGravityQuery(
+            entityQuery: EntityQuery(where: predicate, access: access),
+            componentAccess: componentAccess
+        )
     }
 
     private static func resolveComponent(named name: String) -> (any Component.Type)? {
@@ -188,7 +210,18 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
 
 private struct PreparedGravitySystem: Sendable {
     let descriptor: GravityScriptSystemDescriptor
-    let queries: [EntityQuery]
+    let queries: [PreparedGravityQuery]
+}
+
+private struct PreparedGravityQuery: Sendable {
+    let entityQuery: EntityQuery
+    let componentAccess: [String: GravityComponentAccess]
+}
+
+private struct GravityComponentAccess: Sendable {
+    let descriptor: EditorComponentDescriptor?
+    let typeName: String
+    let isWritable: Bool
 }
 
 private struct GravityScriptSystem: System {
@@ -205,7 +238,7 @@ private struct GravityScriptSystem: System {
     }
 
     var queries: SystemQueries {
-        var parameters: [any SystemParameter] = preparedSystem?.queries.map { $0 as any SystemParameter } ?? []
+        var parameters: [any SystemParameter] = preparedSystem?.queries.map { $0.entityQuery as any SystemParameter } ?? []
         parameters.append(deltaTime)
         return SystemQueries(queries: parameters)
     }
@@ -231,13 +264,152 @@ private struct GravityScriptSystem: System {
             return
         }
         let entityIdentifiers = preparedSystem.queries.map { query in
-            query.wrappedValue.map(\.id)
+            query.entityQuery.wrappedValue.map(\.id)
         }
         runtime.update(
             systemIdentifier: preparedSystem.descriptor.identifier,
             deltaTime: Double(deltaTime.wrappedValue?.deltaTime ?? 0),
-            queryEntityIdentifiers: entityIdentifiers
+            queryEntityIdentifiers: entityIdentifiers,
+            queryComponentAccess: preparedSystem.queries.map(\.componentAccess),
+            world: context.world
         )
+    }
+}
+
+/// A capability-scoped view of one entity for one script query.
+///
+/// The proxy intentionally does not expose `World`. Component names are
+/// restricted to the query declaration, and writes are additionally restricted
+/// to its `writeComponents` list.
+@GSExportable("AdaEntity")
+private final class GravityScriptEntity: @unchecked Sendable {
+    let id: Int
+
+    private let componentAccess: [String: GravityComponentAccess]
+    private let reportDiagnostic: @Sendable (String) -> Void
+    private let virtualMachine: GravityVirtualMachine
+    private let world: World
+
+    private init(
+        id: Entity.ID,
+        world: World,
+        componentAccess: [String: GravityComponentAccess],
+        reportDiagnostic: @escaping @Sendable (String) -> Void,
+        virtualMachine: GravityVirtualMachine
+    ) {
+        self.id = id
+        self.world = world
+        self.componentAccess = componentAccess
+        self.reportDiagnostic = reportDiagnostic
+        self.virtualMachine = virtualMachine
+    }
+
+    @GSExportableIgnore
+    static func make(
+        id: Entity.ID,
+        world: World,
+        componentAccess: [String: GravityComponentAccess],
+        reportDiagnostic: @escaping @Sendable (String) -> Void,
+        virtualMachine: GravityVirtualMachine
+    ) -> GravityScriptEntity {
+        GravityScriptEntity(
+            id: id,
+            world: world,
+            componentAccess: componentAccess,
+            reportDiagnostic: reportDiagnostic,
+            virtualMachine: virtualMachine
+        )
+    }
+
+    func get(_ componentName: String, _ fieldName: String) -> GSValue {
+        guard let access = componentAccess[componentName],
+              let descriptor = access.descriptor,
+              let field = descriptor.fields.first(where: { $0.key == fieldName }),
+              let component = world.getComponent(named: access.typeName, from: id),
+              let value = field.read(component) else {
+            return GSValue(nullIn: virtualMachine)
+        }
+        return makeGravityValue(value)
+    }
+
+    @discardableResult
+    func set(_ componentName: String, _ fieldName: String, _ value: GSValue) -> Bool {
+        guard let access = componentAccess[componentName] else {
+            reportDiagnostic("Component '\(componentName)' is not declared by this query")
+            return false
+        }
+        guard access.isWritable else {
+            return false
+        }
+        guard let descriptor = access.descriptor else {
+            reportDiagnostic("Component '\(componentName)' does not expose reflected fields")
+            return false
+        }
+        guard let field = descriptor.fields.first(where: { $0.key == fieldName }) else {
+            reportDiagnostic("Unknown field '\(componentName).\(fieldName)'")
+            return false
+        }
+        guard field.isEditable else {
+            reportDiagnostic("Field '\(componentName).\(fieldName)' is read-only")
+            return false
+        }
+        guard let fieldValue = makeEditorFieldValue(value) else {
+            reportDiagnostic("Unsupported value for '\(componentName).\(fieldName)'")
+            return false
+        }
+        guard descriptor.write(fieldValue, toField: fieldName, in: world, entity: id) else {
+            reportDiagnostic("Invalid value for '\(componentName).\(fieldName)'")
+            return false
+        }
+        return true
+    }
+
+    private func makeGravityValue(_ value: EditorFieldValue) -> GSValue {
+        switch value {
+        case .null:
+            return GSValue(nullIn: virtualMachine)
+        case .bool(let value):
+            return GSValue(boolean: value, in: virtualMachine)
+        case .int(let value):
+            return GSValue(integer: value, in: virtualMachine)
+        case .double(let value):
+            return GSValue(double: value, in: virtualMachine)
+        case .string(let value):
+            return GSValue(string: value, in: virtualMachine)
+        case .array(let values):
+            return GSValue(newArrayIn: virtualMachine, items: values.map { makeGravityValue($0) as Any })
+        case .object(let values):
+            let colorKeys = ["red", "green", "blue", "alpha"]
+            guard colorKeys.allSatisfy({ values[$0] != nil }) else {
+                return GSValue(nullIn: virtualMachine)
+            }
+            return GSValue(
+                newArrayIn: virtualMachine,
+                items: colorKeys.compactMap { values[$0] }.map { makeGravityValue($0) as Any }
+            )
+        }
+    }
+
+    private func makeEditorFieldValue(_ value: GSValue) -> EditorFieldValue? {
+        if value.isNull || value.isUndefined {
+            return .null
+        }
+        if value.isBool {
+            return .bool(value.toBoolean)
+        }
+        if value.isInteger {
+            return .int(Int(value.toInteger))
+        }
+        if value.isDouble {
+            return .double(value.toDouble)
+        }
+        if value.isString {
+            return .string(value.toString)
+        }
+        if value.isList {
+            return .array(value.toList.compactMap(makeEditorFieldValue))
+        }
+        return nil
     }
 }
 
@@ -287,6 +459,7 @@ private final class GravityScriptRuntime: @unchecked Sendable {
 
         let virtualMachine = GravityVirtualMachine(settings: .init(), delegate: delegate)
         self.virtualMachine = virtualMachine
+        try virtualMachine.bindClass(with: GravityScriptEntity.self)
         let binary = virtualMachine.loadGravityFile(from: Self.prelude + "\n" + source)
         if !delegate.errors.isEmpty {
             throw GravityScriptError.compilation(delegate.errors)
@@ -312,16 +485,29 @@ private final class GravityScriptRuntime: @unchecked Sendable {
     func update(
         systemIdentifier: String,
         deltaTime: Double,
-        queryEntityIdentifiers: [[Entity.ID]]
+        queryEntityIdentifiers: [[Entity.ID]],
+        queryComponentAccess: [[String: GravityComponentAccess]],
+        world: World
     ) {
         Self.runtimeLock.lock()
         defer { Self.runtimeLock.unlock() }
 
-        guard let system = loadedSystems.first(where: { $0.descriptor.identifier == systemIdentifier }) else {
+        guard let system = loadedSystems.first(where: { $0.descriptor.identifier == systemIdentifier }),
+              let virtualMachine else {
             return
         }
-        let queryArgument: [Any] = queryEntityIdentifiers.map { identifiers in
-            identifiers.map { $0 as Any }
+        let queryArgument: [Any] = zip(queryEntityIdentifiers, queryComponentAccess).map { identifiers, componentAccess in
+            identifiers.map { identifier in
+                GravityScriptEntity.make(
+                    id: identifier,
+                    world: world,
+                    componentAccess: componentAccess,
+                    reportDiagnostic: { [delegate] message in
+                        delegate.append(message)
+                    },
+                    virtualMachine: virtualMachine
+                ) as Any
+            }
         }
         if let value = system.instance.callMethod(named: "update", with: [deltaTime, queryArgument]) {
             lastResults[systemIdentifier] = Self.detach(value)
@@ -332,6 +518,12 @@ private final class GravityScriptRuntime: @unchecked Sendable {
         Self.runtimeLock.lock()
         defer { Self.runtimeLock.unlock() }
         return lastResults[systemIdentifier]
+    }
+
+    var diagnostics: [String] {
+        Self.runtimeLock.lock()
+        defer { Self.runtimeLock.unlock() }
+        return delegate.errors
     }
 
     private static func parseManifest(
@@ -425,8 +617,12 @@ private struct LoadedGravitySystem {
     let instance: GSValue
 }
 
-private final class GravityRuntimeDelegate: GravityVirtualMachineDelegate {
+private final class GravityRuntimeDelegate: GravityVirtualMachineDelegate, @unchecked Sendable {
     private(set) var errors: [String] = []
+
+    func append(_ message: String) {
+        errors.append(message)
+    }
 
     func virtualMachineLoadFile(
         _ virtualMachine: GravityVirtualMachine,

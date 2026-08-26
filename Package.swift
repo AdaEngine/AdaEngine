@@ -1074,7 +1074,7 @@ targets += [
     ),
     .testTarget(
         name: "AdaScriptingTests",
-        dependencies: ["AdaScripting", "AdaApp", "AdaECS"],
+        dependencies: ["AdaScripting", "AdaApp", "AdaECS", "Math"],
     ),
     .testTarget(
         name: "AdaAssetsTests",
@@ -1200,7 +1200,7 @@ let package = Package(
 package.dependencies += [
     .package(
         url: "https://github.com/AdaEngine/gravity-lang.git",
-        revision: "ff0bf657ed1cf9a50d0de60e4d1f93e9e83ef20c"
+        revision: "0c239828ebeb5ffd0b03b7a914ac5dd4e4c2c781"
     ),
     .package(url: "https://github.com/apple/swift-collections", from: "1.3.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),

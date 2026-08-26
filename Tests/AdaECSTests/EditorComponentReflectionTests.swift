@@ -50,6 +50,7 @@ struct EditorComponentReflectionTests {
         #expect(descriptor.fields.first { $0.key == "speed" }?.kind == .float)
         #expect(descriptor.fields.first { $0.key == "title" }?.kind == .string)
         #expect(descriptor.fields.first { $0.key == "position" }?.kind == .vector3)
+        #expect(descriptor.fields.first { $0.key == "position" }?.isEditable == true)
         #expect(descriptor.fields.first { $0.key == "tint" }?.kind == .color)
         #expect(descriptor.fields.first { $0.key == "mode" }?.kind == .enumeration(["idle", "active"]))
     }
