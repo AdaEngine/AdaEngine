@@ -47,7 +47,7 @@ public final class AppWorlds {
 
     /// Names of installed plugins.
     @usableFromInline
-    var installedPlugins: [ObjectIdentifier: String] = [:]
+    var installedPlugins: [String: String] = [:]
 
     private var pluginDepth = 0
 
@@ -182,7 +182,7 @@ public extension AppWorlds {
     @inlinable
     @discardableResult
     func addPlugin<T: Plugin>(_ plugin: T) -> Self {
-        if let pluginName = self.installedPlugins[ObjectIdentifier(T.self)] {
+        if let pluginName = self.installedPlugins[plugin.pluginIdentifier] {
             assertionFailure("Plugin \(pluginName) already installed")
             return self
         }
@@ -195,7 +195,7 @@ public extension AppWorlds {
     @inlinable
     @discardableResult
     func insertPlugin<T: Plugin, C: Plugin>(_ plugin: T, after pluginType: C.Type) -> Self {
-        if let pluginName = self.installedPlugins[ObjectIdentifier(T.self)] {
+        if let pluginName = self.installedPlugins[plugin.pluginIdentifier] {
             assertionFailure("Plugin \(pluginName) already installed")
             return self
         }
@@ -233,7 +233,7 @@ private extension AppWorlds {
         for plugin in plugins {
             self.pluginDepth += 1
 
-            if let pluginName = self.installedPlugins[ObjectIdentifier(type(of: plugin))] {
+            if let pluginName = self.installedPlugins[plugin.pluginIdentifier] {
                 assertionFailure("Plugin \(pluginName) already setuped")
             }
 
@@ -253,7 +253,7 @@ private extension AppWorlds {
 
             self.pluginDepth -= 1
 
-            self.installedPlugins[ObjectIdentifier(type(of: plugin))] = String(reflecting: type(of: plugin))
+            self.installedPlugins[plugin.pluginIdentifier] = String(reflecting: type(of: plugin))
         }
     }
 }
@@ -373,6 +373,9 @@ public extension AppWorlds {
 
 /// A protocol that represents a plugin for the app.
 public protocol Plugin: Sendable {
+    /// Stable identity used to distinguish multiple instances of one plugin type.
+    var pluginIdentifier: String { get }
+
     /// Setup the plugin in the app.
     @MainActor
     func setup(in app: borrowing AppWorlds)
@@ -391,6 +394,10 @@ public protocol Plugin: Sendable {
 }
 
 public extension Plugin {
+    var pluginIdentifier: String {
+        String(reflecting: Self.self)
+    }
+
     func isLoaded(in app: borrowing AppWorlds) -> Bool {
         return true
     }

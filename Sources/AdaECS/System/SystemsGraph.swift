@@ -60,7 +60,7 @@ public struct SystemsGraph: Sendable {
     /// - Parameter system: The system to add.
     mutating func addSystem<T: System>(_ system: T) {
         let node = Node(
-            name: T.swiftName,
+            name: system.systemIdentifier,
             system: system,
             dependencies: T.dependencies,
             queries: system.queries
