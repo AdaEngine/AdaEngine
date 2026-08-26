@@ -103,6 +103,67 @@ enum EditorProjectFileKind: Equatable, Sendable {
     case unsupported
 }
 
+enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
+    case scene
+    case script
+    case swift
+    case plainText
+
+    var title: String {
+        switch self {
+        case .scene:
+            "Scene"
+        case .script:
+            "Script"
+        case .swift:
+            "Swift"
+        case .plainText:
+            "Plain Text"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .scene:
+            "AdaEngine scene"
+        case .script:
+            "Ada script"
+        case .swift:
+            "Swift source file"
+        case .plainText:
+            "Unformatted text"
+        }
+    }
+
+    var fileExtension: String {
+        switch self {
+        case .scene:
+            SceneDocumentFormat.canonicalExtension
+        case .script:
+            "ada"
+        case .swift:
+            "swift"
+        case .plainText:
+            "txt"
+        }
+    }
+
+    func initialContent(fileName: String) -> String {
+        switch self {
+        case .scene:
+            SceneDocumentFormat.defaultSceneYAML(
+                projectName: URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
+            )
+        case .script:
+            "// \(fileName)\n"
+        case .swift:
+            "import AdaEngine\n\n"
+        case .plainText:
+            ""
+        }
+    }
+}
+
 enum EditorAssetPreviewKind: String, Equatable, Sendable {
     case image
     case audio
@@ -126,6 +187,8 @@ struct EditorTextDocument: Equatable, Sendable {
     var completionItems: [EditorCompletionItem] = []
     var completionPosition: EditorSourceLocation?
     var symbolHighlights: [EditorSourceRange] = []
+    var sourceHoverRange: EditorSourceRange?
+    var sourceHoverDescription: String?
     var focusedRange: EditorSourceRange?
 }
 
@@ -195,6 +258,17 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
         }
     }
 
+    var absolutePath: String? {
+        switch self {
+        case .scene(let document):
+            document.absolutePath
+        case .text(let document):
+            document.absolutePath
+        case .asset(let document):
+            document.absolutePath
+        }
+    }
+
     var isDirty: Bool {
         switch self {
         case .scene(let document):
@@ -231,8 +305,8 @@ enum EditorWorkspaceStatus: Equatable, Sendable {
             "Ready"
         case .running(let command):
             "Running \(command)"
-        case .failed(let message):
-            "Failed: \(message)"
+        case .failed:
+            "Failed"
         case .cancelled:
             "Cancelled"
         }
@@ -254,8 +328,25 @@ enum EditorPlayModeState: Equatable, Sendable {
 }
 
 struct EditorWorkspaceLogLine: Equatable, Sendable, Identifiable {
-    var id: String = UUID().uuidString
-    var text: String
+    static let maximumTextLength = 2_048
+
+    let id: String
+    let text: String
+
+    init(id: String = UUID().uuidString, text: String) {
+        self.id = id
+
+        let truncationIndex = text.index(
+            text.startIndex,
+            offsetBy: Self.maximumTextLength,
+            limitedBy: text.endIndex
+        )
+        if let truncationIndex, truncationIndex != text.endIndex {
+            self.text = "\(text[..<truncationIndex])… [truncated]"
+        } else {
+            self.text = text
+        }
+    }
 }
 
 @MainActor
@@ -273,14 +364,73 @@ enum EditorPreviewStatus {
 final class EditorToolbarViewModel {
     var searchText: String
     var sceneName: String
+    var searchableItems: [EditorProjectSidebarViewModel.Item]
+    var searchScopeRelativePath: String?
 
-    init(searchText: String = "", sceneName: String = "main_scene") {
+    init(
+        searchText: String = "",
+        sceneName: String = "main_scene",
+        searchableItems: [EditorProjectSidebarViewModel.Item] = [],
+        searchScopeRelativePath: String? = nil
+    ) {
         self.searchText = searchText
         self.sceneName = sceneName
+        self.searchableItems = searchableItems
+        self.searchScopeRelativePath = searchScopeRelativePath
     }
 
     var searchTextBinding: Binding<String> {
         Binding(get: { self.searchText }, set: { self.searchText = $0 })
+    }
+
+    var searchPrompt: String {
+        guard let searchScopeRelativePath else {
+            return "Search Project Files"
+        }
+        return "Search in \(searchScopeRelativePath)"
+    }
+
+    var searchResults: [EditorProjectSidebarViewModel.Item] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            return []
+        }
+
+        let scopedItems = searchableItems.filter { item in
+            guard !item.isFolder else {
+                return false
+            }
+            guard let searchScopeRelativePath else {
+                return true
+            }
+            return item.relativePath.hasPrefix("\(searchScopeRelativePath)/")
+        }
+
+        return scopedItems
+            .filter { item in
+                item.title.localizedCaseInsensitiveContains(query)
+                    || item.relativePath.localizedCaseInsensitiveContains(query)
+            }
+            .sorted { lhs, rhs in
+                let lhsStartsWithQuery = lhs.title.lowercased().hasPrefix(query.lowercased())
+                let rhsStartsWithQuery = rhs.title.lowercased().hasPrefix(query.lowercased())
+                if lhsStartsWithQuery != rhsStartsWithQuery {
+                    return lhsStartsWithQuery
+                }
+                return lhs.relativePath.localizedStandardCompare(rhs.relativePath) == .orderedAscending
+            }
+            .prefix(12)
+            .map { $0 }
+    }
+
+    func search(in item: EditorProjectSidebarViewModel.Item?) {
+        searchScopeRelativePath = item?.relativePath
+        searchText = ""
+    }
+
+    func clearSearch() {
+        searchText = ""
+        searchScopeRelativePath = nil
     }
 }
 
@@ -347,6 +497,10 @@ final class EditorProjectSidebarViewModel {
         items.filter { !isHiddenByCollapsedFolder($0) }
     }
 
+    var selectedItem: Item? {
+        items.first(where: \.isActive)
+    }
+
     init(items: [Item] = [
         Item(id: "src", disclosure: "", icon: "▱", title: "src", relativePath: "src", level: 0, isActive: false, isFolder: true, kind: .folder),
         Item(
@@ -409,6 +563,14 @@ final class EditorProjectSidebarViewModel {
         item.isFolder && collapsedFolderIDs.contains(item.id)
     }
 
+    func expandAll() {
+        collapsedFolderIDs.removeAll()
+    }
+
+    func collapseAll() {
+        collapsedFolderIDs = Set(items.lazy.filter(\.isFolder).map(\.id))
+    }
+
     private func isHiddenByCollapsedFolder(_ item: Item) -> Bool {
         collapsedFolderIDs.contains { collapsedFolderID in
             guard
@@ -443,6 +605,10 @@ final class EditorWorkbenchViewModel {
     private var onActiveDocumentWillChange: (() -> Void)?
     @ObservationIgnored
     private var onDocumentEdited: ((String) -> Void)?
+    @ObservationIgnored
+    private var navigationHistory: [String]
+    @ObservationIgnored
+    private var navigationHistoryIndex: Int
 
     init(
         aiPrompt: String = "",
@@ -466,6 +632,13 @@ final class EditorWorkbenchViewModel {
         self.codeFontSize = codeFontSize
         self.previewStatus = previewStatus
         self.selectedPreviewID = selectedPreviewID
+        if openDocuments.contains(where: { $0.id == activeDocumentID }) {
+            self.navigationHistory = [activeDocumentID]
+            self.navigationHistoryIndex = 0
+        } else {
+            self.navigationHistory = []
+            self.navigationHistoryIndex = -1
+        }
     }
 
     var aiPromptBinding: Binding<String> {
@@ -507,17 +680,61 @@ final class EditorWorkbenchViewModel {
     }
 
     func selectDocument(id: String) {
+        selectDocument(id: id, recordsNavigation: true)
+    }
+
+    @discardableResult
+    func navigateBack() -> Bool {
+        navigateHistory(step: -1)
+    }
+
+    @discardableResult
+    func navigateForward() -> Bool {
+        navigateHistory(step: 1)
+    }
+
+    private func selectDocument(id: String, recordsNavigation: Bool) {
         guard let document = openDocuments.first(where: { $0.id == id }) else {
             return
         }
 
         if activeDocumentID != document.id {
             onActiveDocumentWillChange?()
+            if recordsNavigation {
+                recordNavigation(to: document.id)
+            }
             activeDocumentID = document.id
         }
 
         activeEditorTab = document.title
         onActiveDocumentChanged?()
+    }
+
+    private func recordNavigation(to documentID: String) {
+        if navigationHistory.indices.contains(navigationHistoryIndex), navigationHistory[navigationHistoryIndex] == documentID {
+            return
+        }
+
+        let firstForwardIndex = navigationHistoryIndex + 1
+        if navigationHistory.indices.contains(firstForwardIndex) {
+            navigationHistory.removeSubrange(firstForwardIndex...)
+        }
+        navigationHistory.append(documentID)
+        navigationHistoryIndex = navigationHistory.count - 1
+    }
+
+    private func navigateHistory(step: Int) -> Bool {
+        var candidateIndex = navigationHistoryIndex + step
+        while navigationHistory.indices.contains(candidateIndex) {
+            let documentID = navigationHistory[candidateIndex]
+            if documentID != activeDocumentID, openDocuments.contains(where: { $0.id == documentID }) {
+                navigationHistoryIndex = candidateIndex
+                selectDocument(id: documentID, recordsNavigation: false)
+                return true
+            }
+            candidateIndex += step
+        }
+        return false
     }
 
     func closeDocument(id documentID: String) {
@@ -548,7 +765,39 @@ final class EditorWorkbenchViewModel {
         }
 
         let nextIndex = min(closingIndex, openDocuments.count - 1)
-        selectDocument(id: openDocuments[nextIndex].id)
+        selectDocument(id: openDocuments[nextIndex].id, recordsNavigation: false)
+    }
+
+    func closeOtherDocuments(keeping documentID: String) {
+        closeDocuments(withIDs: openDocuments.lazy.filter { $0.id != documentID }.map(\.id))
+    }
+
+    func closeDocumentsToLeft(of documentID: String) {
+        guard let index = openDocuments.firstIndex(where: { $0.id == documentID }) else {
+            return
+        }
+        closeDocuments(withIDs: openDocuments[..<index].map(\.id))
+    }
+
+    func closeDocumentsToRight(of documentID: String) {
+        guard let index = openDocuments.firstIndex(where: { $0.id == documentID }) else {
+            return
+        }
+        closeDocuments(withIDs: openDocuments[openDocuments.index(after: index)...].map(\.id))
+    }
+
+    func closeCleanDocuments() {
+        closeDocuments(withIDs: openDocuments.lazy.filter { !$0.isDirty }.map(\.id))
+    }
+
+    func closeAllDocuments() {
+        closeDocuments(withIDs: openDocuments.map(\.id))
+    }
+
+    private func closeDocuments<S: Sequence>(withIDs documentIDs: S) where S.Element == String {
+        for documentID in documentIDs {
+            closeDocument(id: documentID)
+        }
     }
 
     func increaseCodeFontSize() {
@@ -1322,6 +1571,11 @@ final class EditorViewModel {
     var projectSettingsStatusMessage = ""
     var selectedTestFilter: String
     var playModeState: EditorPlayModeState
+    var isNewFileDialogPresented = false
+    var newFileKind = EditorNewFileKind.scene
+    var newFileName = ""
+    var newFileDestinationRelativePath = ""
+    var newFileErrorMessage: String?
     
     var showLeftPanel = true
     var showRightPanel = true
@@ -1410,6 +1664,7 @@ final class EditorViewModel {
         self.projectExcludedFilesText = savedProject?.build.excludedFiles.joined(separator: "\n") ?? ""
         self.selectedTestFilter = selectedTestFilter
         self.playModeState = playModeState
+        self.toolbar.searchableItems = self.projectSidebar.items
         self.agent.setProjectFileChangedHandler { [weak self] relativePath in
             self?.handleAgentProjectFileChanged(relativePath: relativePath, fileManager: fileManager)
         }
@@ -1459,6 +1714,150 @@ final class EditorViewModel {
 
     var projectURL: URL? {
         project.map { URL(fileURLWithPath: $0.path, isDirectory: true) }
+    }
+
+    var projectRootSidebarItem: EditorProjectSidebarViewModel.Item? {
+        guard let project, let projectURL else {
+            return nil
+        }
+
+        return EditorProjectSidebarViewModel.Item(
+            id: projectURL.path,
+            disclosure: "",
+            icon: "",
+            title: project.name,
+            relativePath: "",
+            level: 0,
+            isActive: false,
+            isFolder: true,
+            kind: .folder
+        )
+    }
+
+    var newFileNameBinding: Binding<String> {
+        Binding(
+            get: { self.newFileName },
+            set: {
+                self.newFileName = $0
+                self.newFileErrorMessage = nil
+            }
+        )
+    }
+
+    var isNewFileDialogPresentedBinding: Binding<Bool> {
+        Binding(
+            get: { self.isNewFileDialogPresented },
+            set: { isPresented in
+                self.isNewFileDialogPresented = isPresented
+                if !isPresented {
+                    self.newFileErrorMessage = nil
+                }
+            }
+        )
+    }
+
+    var newFileLocationTitle: String {
+        newFileDestinationRelativePath.isEmpty ? (project?.name ?? "Project") : newFileDestinationRelativePath
+    }
+
+    var newFileExtensionHint: String {
+        ".\(newFileKind.fileExtension)"
+    }
+
+    func presentNewFileDialog() {
+        guard projectURL != nil else {
+            appendOutput("New file is unavailable: no project is open.")
+            return
+        }
+
+        let selectedItem = projectSidebar.selectedItem
+        if let selectedItem {
+            newFileDestinationRelativePath = selectedItem.isFolder
+                ? selectedItem.relativePath
+                : URL(fileURLWithPath: selectedItem.relativePath, isDirectory: false).deletingLastPathComponent().relativePath
+            if newFileDestinationRelativePath == "." {
+                newFileDestinationRelativePath = ""
+            }
+        } else {
+            newFileDestinationRelativePath = ""
+        }
+        newFileName = ""
+        newFileErrorMessage = nil
+        isNewFileDialogPresented = true
+    }
+
+    func dismissNewFileDialog() {
+        isNewFileDialogPresented = false
+        newFileErrorMessage = nil
+    }
+
+    @discardableResult
+    func createNewFile() -> Bool {
+        guard let projectURL else {
+            newFileErrorMessage = "No project is open."
+            return false
+        }
+
+        let trimmedName = newFileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            newFileErrorMessage = "Enter a file name."
+            return false
+        }
+        guard trimmedName != ".", trimmedName != "..",
+              !trimmedName.contains("/"), !trimmedName.contains("\\")
+        else {
+            newFileErrorMessage = "Enter a name without folders or path separators."
+            return false
+        }
+
+        let enteredExtension = URL(fileURLWithPath: trimmedName, isDirectory: false).pathExtension
+        guard enteredExtension.isEmpty || enteredExtension.caseInsensitiveCompare(newFileKind.fileExtension) == .orderedSame else {
+            newFileErrorMessage = "\(newFileKind.title) files use the .\(newFileKind.fileExtension) extension."
+            return false
+        }
+
+        let fileName = enteredExtension.isEmpty ? "\(trimmedName).\(newFileKind.fileExtension)" : trimmedName
+        let destinationDirectory = newFileDestinationRelativePath.isEmpty
+            ? projectURL
+            : projectURL.appendingPathComponent(newFileDestinationRelativePath, isDirectory: true)
+        let resolvedProjectURL = projectURL.resolvingSymlinksInPath().standardizedFileURL
+        let resolvedDirectoryURL = destinationDirectory.resolvingSymlinksInPath().standardizedFileURL
+        guard resolvedDirectoryURL.path == resolvedProjectURL.path
+                || resolvedDirectoryURL.path.hasPrefix("\(resolvedProjectURL.path)/")
+        else {
+            newFileErrorMessage = "The selected folder is outside the project."
+            return false
+        }
+
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: resolvedDirectoryURL.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            newFileErrorMessage = "The selected folder no longer exists."
+            return false
+        }
+
+        let destinationURL = resolvedDirectoryURL.appendingPathComponent(fileName, isDirectory: false)
+        guard !fileManager.fileExists(atPath: destinationURL.path) else {
+            newFileErrorMessage = "A file named \(fileName) already exists."
+            return false
+        }
+
+        do {
+            try newFileKind.initialContent(fileName: fileName).write(to: destinationURL, atomically: true, encoding: .utf8)
+            projectSidebar.items = Self.projectTreeItems(for: project, fileManager: fileManager)
+            toolbar.searchableItems = projectSidebar.items
+            refreshSourceControl()
+
+            let relativePath = relativeProjectPath(for: destinationURL.path)
+            if let item = projectSidebar.items.first(where: { $0.relativePath == relativePath }) {
+                openProjectItem(item)
+            }
+            appendOutput("Created \(relativePath)")
+            dismissNewFileDialog()
+            return true
+        } catch {
+            newFileErrorMessage = "Unable to create the file: \(error.localizedDescription)"
+            return false
+        }
     }
 
     var dependencyLocationBinding: Binding<String> {
@@ -1789,6 +2188,15 @@ final class EditorViewModel {
         return false
     }
 
+    var activeActivities: [EditorActivityEvent] {
+        EditorActivityPresentation.events(
+            workspaceStatus: workspaceStatus,
+            previewStatus: workbench.previewStatus,
+            sourceControlIsRunning: sourceControl.isRunning,
+            sourceControlTitle: sourceControl.statusMessage
+        )
+    }
+
     func runActiveSceneInEditor() {
         guard !playModeState.isPlaying else {
             return
@@ -1848,6 +2256,18 @@ final class EditorViewModel {
     func selectWorkbenchDocument(id documentID: String) {
         workbench.selectDocument(id: documentID)
         refreshPreviewForActiveDocument()
+    }
+
+    func navigateBack() {
+        if workbench.navigateBack() {
+            refreshPreviewForActiveDocument()
+        }
+    }
+
+    func navigateForward() {
+        if workbench.navigateForward() {
+            refreshPreviewForActiveDocument()
+        }
     }
 
     func saveActiveDocument() {
@@ -2293,6 +2713,85 @@ final class EditorViewModel {
         }
     }
 
+    func openSearchResult(_ item: EditorProjectSidebarViewModel.Item) {
+        guard let currentItem = projectSidebar.items.first(where: { $0.id == item.id }) else {
+            return
+        }
+        toolbar.clearSearch()
+        openProjectItem(currentItem)
+    }
+
+    func findInProjectFolder(_ item: EditorProjectSidebarViewModel.Item) {
+        if item.isFolder {
+            toolbar.search(in: item)
+            return
+        }
+
+        let parentPath = URL(fileURLWithPath: item.relativePath, isDirectory: false)
+            .deletingLastPathComponent()
+            .relativePath
+        toolbar.search(in: projectSidebar.items.first { candidate in
+            candidate.isFolder && candidate.relativePath == parentPath
+        })
+    }
+
+    func findInProjectRoot() {
+        toolbar.search(in: nil)
+    }
+
+    func revealProjectItem(_ item: EditorProjectSidebarViewModel.Item) {
+        performPlatformFileAction(named: "Reveal in Finder", url: fileURL(for: item), action: EditorPlatformFileActions.reveal)
+    }
+
+    func openProjectItemInDefaultApplication(_ item: EditorProjectSidebarViewModel.Item) {
+        performPlatformFileAction(named: "Open in Default App", url: fileURL(for: item), action: EditorPlatformFileActions.openInDefaultApplication)
+    }
+
+    func openProjectItemInTerminal(_ item: EditorProjectSidebarViewModel.Item) {
+        performPlatformFileAction(named: "Open in Terminal", url: fileURL(for: item), action: EditorPlatformFileActions.openInTerminal)
+    }
+
+    func copyProjectItemPath(_ item: EditorProjectSidebarViewModel.Item, relative: Bool) {
+        let value = relative ? item.relativePath : fileURL(for: item)?.path
+        guard let value, EditorPlatformFileActions.copyToClipboard(value) else {
+            appendOutput("Copy path is unavailable on this platform.")
+            return
+        }
+        appendOutput("Copied \(relative ? "relative path" : "path"): \(value)")
+    }
+
+    func revealDocument(_ document: EditorWorkbenchDocument) {
+        let url = document.absolutePath.map { URL(fileURLWithPath: $0, isDirectory: false) }
+        performPlatformFileAction(named: "Reveal in Finder", url: url, action: EditorPlatformFileActions.reveal)
+    }
+
+    func copyDocumentPath(_ document: EditorWorkbenchDocument, relative: Bool) {
+        let value = relative ? document.relativePath : document.absolutePath
+        guard let value, EditorPlatformFileActions.copyToClipboard(value) else {
+            appendOutput("Copy path is unavailable on this platform.")
+            return
+        }
+        appendOutput("Copied \(relative ? "relative path" : "path"): \(value)")
+    }
+
+    private func fileURL(for item: EditorProjectSidebarViewModel.Item) -> URL? {
+        Self.absoluteFilePath(from: item.id).map {
+            URL(fileURLWithPath: $0, isDirectory: item.isFolder)
+        }
+    }
+
+    private func performPlatformFileAction(
+        named actionName: String,
+        url: URL?,
+        action: (URL) -> Bool
+    ) {
+        guard let url, action(url) else {
+            appendOutput("\(actionName) is unavailable on this platform.")
+            return
+        }
+        appendOutput("\(actionName): \(relativeProjectPath(for: url.path))")
+    }
+
     @MainActor
     func importAssets() {
         guard let urls = ProjectOpenPicker.pickAssetImportURLs(), !urls.isEmpty else {
@@ -2321,6 +2820,7 @@ final class EditorViewModel {
             }
             try ensureAssetResourcesInManifest(projectURL: projectURL)
             projectSidebar.items = Self.projectTreeItems(for: project, fileManager: fileManager)
+            toolbar.searchableItems = projectSidebar.items
             refreshSourceControl()
         } catch {
             appendOutput("Asset import failed: \(error.localizedDescription)")
@@ -2392,6 +2892,7 @@ final class EditorViewModel {
 
     func handleAgentProjectFileChanged(relativePath: String, fileManager: FileManager = .default) {
         projectSidebar.items = Self.projectTreeItems(for: project, fileManager: fileManager)
+        toolbar.searchableItems = projectSidebar.items
         refreshSourceControl()
         guard let projectURL else {
             return
@@ -2452,6 +2953,8 @@ final class EditorViewModel {
             latestSourceHoverKey = nil
             workbench.updateTextDocument(id: document.id) { document in
                 document.symbolHighlights = []
+                document.sourceHoverRange = nil
+                document.sourceHoverDescription = nil
             }
             return
         }
@@ -2462,15 +2965,30 @@ final class EditorViewModel {
 
         let hoverKey = "\(document.id):\(position.line):\(position.character)"
         latestSourceHoverKey = hoverKey
+        workbench.updateTextDocument(id: document.id) { document in
+            document.symbolHighlights = []
+            document.sourceHoverRange = nil
+            document.sourceHoverDescription = nil
+        }
 
         Task { [weak self] in
             guard let self, let fileURL = document.fileURL else { return }
-            let highlights = await self.workspaceService.documentHighlights(
+            async let highlightsRequest = self.workspaceService.documentHighlights(
                 fileURL: fileURL,
                 language: document.language,
                 text: document.content,
                 position: position
             )
+            async let hoverRequest = self.workspaceService.hover(
+                fileURL: fileURL,
+                language: document.language,
+                text: document.content,
+                position: position
+            )
+            let (highlights, hover) = await (highlightsRequest, hoverRequest)
+            let hoveredRange = hover?.range ?? highlights.first(where: { highlight in
+                Self.sourceRange(highlight.range, contains: position)
+            })?.range
 
             await MainActor.run {
                 guard self.latestSourceHoverKey == hoverKey else {
@@ -2479,9 +2997,24 @@ final class EditorViewModel {
 
                 self.workbench.updateTextDocument(id: document.id) { document in
                     document.symbolHighlights = highlights.map(\.range)
+                    document.sourceHoverRange = hoveredRange
+                    document.sourceHoverDescription = hover?.contents
                 }
             }
         }
+    }
+
+    private static func sourceRange(_ range: EditorSourceRange, contains position: EditorSourceLocation) -> Bool {
+        guard position.line >= range.start.line, position.line <= range.end.line else {
+            return false
+        }
+        if position.line == range.start.line, position.character < range.start.character {
+            return false
+        }
+        if position.line == range.end.line, position.character >= range.end.character {
+            return false
+        }
+        return true
     }
 
     func handleCompletionPosition(document: EditorTextDocument, position: EditorSourceLocation, text: String) {
@@ -2494,12 +3027,65 @@ final class EditorViewModel {
         guard supportsSourceNavigation(document), let fileURL = document.fileURL else {
             return
         }
+        guard Self.shouldRequestAutomaticCompletion(in: text, at: position) else {
+            return
+        }
+
+        requestCompletions(document: document, fileURL: fileURL, position: position, text: text, delay: .milliseconds(140))
+    }
+
+    nonisolated static func shouldRequestAutomaticCompletion(in text: String, at position: EditorSourceLocation) -> Bool {
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        guard position.line >= 0, position.line < lines.count, position.character > 0 else {
+            return false
+        }
+
+        let line = lines[position.line]
+        guard position.character <= line.count else {
+            return false
+        }
+
+        let triggerIndex = line.index(line.startIndex, offsetBy: position.character - 1)
+        let trigger = line[triggerIndex]
+        return trigger == "." || trigger == "_" || trigger.isLetter || trigger.isNumber
+    }
+
+    func handleCompletionRequest(document: EditorTextDocument, position: EditorSourceLocation, text: String) {
+        guard supportsSourceNavigation(document), let fileURL = document.fileURL else {
+            return
+        }
+
+        if case .text(let currentDocument)? = workbench.openDocuments.first(where: { $0.id == document.id }),
+           !currentDocument.completionItems.isEmpty {
+            completionTask?.cancel()
+            completionTask = nil
+            workbench.updateTextDocument(id: document.id) { updatedDocument in
+                updatedDocument.completionItems = []
+                updatedDocument.completionPosition = nil
+            }
+            return
+        }
+
+        completionTask?.cancel()
+        completionTask = nil
+        requestCompletions(document: document, fileURL: fileURL, position: position, text: text, delay: nil)
+    }
+
+    private func requestCompletions(
+        document: EditorTextDocument,
+        fileURL: URL,
+        position: EditorSourceLocation,
+        text: String,
+        delay: Duration?
+    ) {
 
         completionTask = Task { [weak self] in
-            do {
-                try await Task.sleep(for: .milliseconds(140))
-            } catch {
-                return
+            if let delay {
+                do {
+                    try await Task.sleep(for: delay)
+                } catch {
+                    return
+                }
             }
             guard let self else { return }
             let items = await self.workspaceService.completions(
@@ -3102,7 +3688,7 @@ final class EditorViewModel {
     }
 
     private static func shouldSkipProjectTreeURL(_ url: URL) -> Bool {
-        let skippedNames: Set<String> = [".build", ".DS_Store", ".git", ".swiftpm", "DerivedData"]
+        let skippedNames: Set<String> = [".ada", ".build", ".DS_Store", ".git", ".swiftpm", "DerivedData"]
         return skippedNames.contains(url.lastPathComponent)
     }
 

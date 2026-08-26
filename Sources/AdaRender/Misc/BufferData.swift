@@ -7,10 +7,16 @@
 
 /// An object that describes the data of a buffer.
 public struct BufferData<T> {
+    private var storage: [T]
+
     /// The elements of the buffer data.
     public var elements: [T] {
-        didSet {
-            self.isChanged = true
+        _read {
+            yield storage
+        }
+        _modify {
+            isChanged = true
+            yield &storage
         }
     }
     /// The buffer associated with the buffer data.
@@ -26,7 +32,7 @@ public struct BufferData<T> {
     /// - Parameter elements: The elements of the buffer data.
     public init(label: String? = nil, elements: [T]) {
         self.label = label
-        self.elements = elements
+        self.storage = elements
     }
 }
 
@@ -45,7 +51,7 @@ extension BufferData: Hashable where T: Hashable {
 extension BufferData: ExpressibleByArrayLiteral {
     public init(arrayLiteral elements: T...) {
         self.label = nil
-        self.elements = elements
+        self.storage = elements
     }
 }
 
@@ -126,4 +132,3 @@ public extension BufferData {
 extension BufferData: Sequence { }
 
 extension BufferData: Sendable where T: Sendable { }
-

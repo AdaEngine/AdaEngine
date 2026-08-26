@@ -18,6 +18,7 @@ open class UILayer {
     private var cachedCommandsVersion: UInt64 = 0
     private var cachedCommandsTransform: Transform3D?
     private var cachedCommandsOpacity: Float = 1
+    private var cachedCommandsEnvironment: EnvironmentValues?
     private(set) var commandVersion: UInt64 = 0
     var allowsCaching: Bool = true
     var propagatesInvalidation: Bool = true
@@ -42,7 +43,6 @@ open class UILayer {
     }
 
     func invalidate() {
-        commandVersion &+= 1
         self.cachedCommands = nil
         if propagatesInvalidation {
             self.parent?.invalidate()
@@ -59,9 +59,12 @@ open class UILayer {
             transform: context.transform,
             opacity: context.opacity
         )
-        context.commandQueue.push(.beginLayer(id: self.id, version: snapshot.version, cacheable: snapshot.cacheable))
-        context.commandQueue.push(contentsOf: snapshot.commands)
-        context.commandQueue.push(.endLayer(id: self.id))
+        context.commandQueue.pushLayer(
+            id: self.id,
+            version: snapshot.version,
+            cacheable: snapshot.cacheable,
+            commands: snapshot.commands
+        )
     }
 
     private func commandSnapshot(
@@ -72,9 +75,16 @@ open class UILayer {
         if let cachedCommands,
            cachedCommandsVersion == commandVersion,
            cachedCommandsTransform == transform,
-           cachedCommandsOpacity == opacity {
+           cachedCommandsOpacity == opacity,
+           let cachedCommandsEnvironment,
+           environment.hasSameSnapshot(as: cachedCommandsEnvironment) {
             return (cachedCommands, commandVersion, true)
         }
+
+        // The render cache is keyed by this revision. Re-recording for any
+        // reason, including a changed inherited transform or opacity, must
+        // invalidate previously tessellated absolute geometry.
+        commandVersion &+= 1
 
         var layerContext = UIGraphicsContext()
         layerContext.setTransform(transform)
@@ -89,10 +99,12 @@ open class UILayer {
             self.cachedCommandsVersion = commandVersion
             self.cachedCommandsTransform = transform
             self.cachedCommandsOpacity = opacity
+            self.cachedCommandsEnvironment = environment
         } else {
             self.cachedCommands = nil
             self.cachedCommandsTransform = nil
             self.cachedCommandsOpacity = 1
+            self.cachedCommandsEnvironment = nil
         }
         return (recordedCommands, commandVersion, cacheable)
     }

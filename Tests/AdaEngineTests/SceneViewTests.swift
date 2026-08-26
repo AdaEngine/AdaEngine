@@ -108,6 +108,67 @@ struct SceneViewTests {
     }
 
     @Test
+    func completedRenderTargets_keepStableDisplayTextureIdentity() async throws {
+        unsafe RenderEngine.configurations.preferredBackend = .headless
+
+        let coordinator = SceneViewCoordinator(
+            make: { _ in },
+            updateContent: { _, _ in }
+        )
+        var displayTextureChangeCount = 0
+        coordinator.renderTextureDidChange = {
+            displayTextureChangeCount += 1
+        }
+
+        coordinator.bootstrapIfNeeded()
+        for _ in 0..<500 {
+            if coordinator.appWorlds != nil {
+                break
+            }
+            await Task.yield()
+        }
+
+        let appWorlds = try #require(coordinator.appWorlds)
+        coordinator.updateSize(SizeInt(width: 16, height: 16), scaleFactor: 1)
+        displayTextureChangeCount = 0
+
+        coordinator.tick(0.016)
+        let firstCamera = try #require(sceneViewCamera(in: appWorlds.main))
+        guard case let .texture(firstHandle) = firstCamera.renderTarget else {
+            Issue.record("SceneView camera must render into a RenderTexture.")
+            return
+        }
+        let firstTarget = try #require(firstHandle.asset)
+        firstTarget.notifyRenderCompleted()
+        for _ in 0..<50 where coordinator.renderTexture == nil {
+            await Task.yield()
+        }
+
+        let stableDisplayTexture = try #require(coordinator.renderTexture)
+        let displayIdentity = ObjectIdentifier(stableDisplayTexture)
+        let firstBackingIdentity = ObjectIdentifier(stableDisplayTexture.gpuTexture)
+        #expect(displayTextureChangeCount == 1)
+
+        coordinator.tick(0.016)
+        let secondCamera = try #require(sceneViewCamera(in: appWorlds.main))
+        guard case let .texture(secondHandle) = secondCamera.renderTarget else {
+            Issue.record("SceneView camera must rotate to another RenderTexture.")
+            return
+        }
+        let secondTarget = try #require(secondHandle.asset)
+        #expect(secondTarget !== firstTarget)
+        secondTarget.notifyRenderCompleted()
+        for _ in 0..<50 where ObjectIdentifier(stableDisplayTexture.gpuTexture) == firstBackingIdentity {
+            await Task.yield()
+        }
+
+        #expect(ObjectIdentifier(try #require(coordinator.renderTexture)) == displayIdentity)
+        #expect(ObjectIdentifier(stableDisplayTexture.gpuTexture) != firstBackingIdentity)
+        #expect(displayTextureChangeCount == 1)
+        coordinator.shutdown()
+    }
+
+    @Test
     func oversizedViewportSize_isIgnoredUntilValidSizeArrives() async throws {
         unsafe RenderEngine.configurations.preferredBackend = .headless
 

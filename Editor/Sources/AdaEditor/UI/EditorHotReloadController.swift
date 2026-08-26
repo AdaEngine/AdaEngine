@@ -21,18 +21,18 @@ struct EditorHotReloadState: Equatable, Sendable {
 
     var toolbarTitle: String {
         if errorMessage != nil {
-            return "↻ Hot Reload Failed"
+            return "Hot Reload Failed"
         }
 
         if !isEnabled {
-            return "↻ Hot Reload Off"
+            return "Hot Reload Off"
         }
 
         if lastReloadedPath != nil {
-            return "↻ Reloaded"
+            return "Reloaded"
         }
 
-        return "↻ Hot Reload"
+        return "Hot Reload"
     }
 
     var footerTitle: String {

@@ -11,6 +11,7 @@ struct EditorCodeFileView: View {
     let onSourceHover: ((EditorTextDocument, EditorSourceLocation?) -> Void)?
     let onGoToDefinition: ((EditorTextDocument, EditorSourceLocation) -> Void)?
     let onCompletionPosition: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
+    let onCompletionRequest: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
     let onApplyCompletion: ((EditorCompletionItem, EditorTextDocument) -> Void)?
     let sourceContextMenuItems: ((EditorTextDocument, EditorSourceLocation) -> [TextEditorContextMenuItem])?
 
@@ -24,8 +25,15 @@ struct EditorCodeFileView: View {
             } else {
                 codeEditor
                     .overlay(anchor: .topLeading) {
-                        if !document.completionItems.isEmpty {
-                            completionOverlay
+                        ZStack {
+                            if let description = document.sourceHoverDescription,
+                               !description.isEmpty,
+                               document.sourceHoverRange != nil {
+                                sourceHoverOverlay(description: description)
+                            }
+                            if !document.completionItems.isEmpty {
+                                completionOverlay
+                            }
                         }
                     }
             }
@@ -68,12 +76,15 @@ private extension EditorCodeFileView {
             .foregroundColor(theme.editorColors.text)
             .accentColor(theme.editorColors.blue)
             .textEditorColors(editorColors)
+            .drawingGroup()
             .padding(10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    var completionList: some View {
-        VStack(alignment: .leading, spacing: 2) {
+    func completionList(width: Float) -> some View {
+        let rowWidth = Swift.max(Float.zero, width - EditorCompletionPopupLayout.horizontalPadding * 2)
+
+        return VStack(alignment: .leading, spacing: 0) {
             ForEach(document.completionItems, id: \.self) { item in
                 Button(action: { onApplyCompletion?(item, document) }) {
                     HStack(spacing: 8) {
@@ -81,24 +92,27 @@ private extension EditorCodeFileView {
                             .font(AdaEditorCodeFont.font(size: 11))
                             .foregroundColor(theme.editorColors.text)
                             .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         if let detail = item.detail, detail != item.label {
                             Text(detail)
                                 .font(.system(size: 10))
                                 .foregroundColor(theme.editorColors.muted)
                                 .lineLimit(1)
+                                .frame(width: EditorCompletionPopupLayout.detailWidth, alignment: .leading)
                         }
-                        Spacer()
                     }
                     .padding(.horizontal, 10)
-                    .frame(height: 22)
+                    .frame(width: rowWidth, height: EditorCompletionPopupLayout.rowHeight, alignment: .leading)
                 }
-                .buttonStyle(DefaultButtonStyle())
+                .buttonStyle(EditorCompletionButtonStyle(theme: theme))
             }
         }
-        .padding(.vertical, 4)
-        .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.surface))
+        .padding(.horizontal, EditorCompletionPopupLayout.horizontalPadding)
+        .padding(.vertical, EditorCompletionPopupLayout.verticalPadding)
+        .frame(width: width, alignment: .topLeading)
+        .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surface))
         .overlay {
-            RoundedRectangleShape(cornerRadius: 4)
+            RoundedRectangleShape(cornerRadius: 5)
                 .stroke(theme.editorColors.border.opacity(0.65), lineWidth: 1)
         }
         .accessibilityIdentifier("AdaEditor.CodeCompletion")
@@ -113,9 +127,36 @@ private extension EditorCodeFileView {
                 itemCount: document.completionItems.count
             )
 
-            completionList
-                .frame(width: popupFrame.width)
+            completionList(width: popupFrame.width)
+                .frame(width: popupFrame.width, height: popupFrame.height, alignment: .topLeading)
                 .offset(x: popupFrame.minX, y: popupFrame.minY)
+        }
+    }
+
+    func sourceHoverOverlay(description: String) -> some View {
+        GeometryReader { geometry in
+            let displayText = EditorSourceHoverPresentation.displayText(from: description)
+            let popupFrame = EditorSourceHoverPopupLayout.frame(
+                viewportSize: geometry.size,
+                hoveredRange: document.sourceHoverRange,
+                fontSize: fontSize,
+                description: displayText
+            )
+
+            Text(displayText)
+                .font(AdaEditorCodeFont.font(size: 11))
+                .foregroundColor(theme.editorColors.text)
+                .lineLimit(EditorSourceHoverPopupLayout.maximumLineCount)
+                .padding(EditorSourceHoverPopupLayout.contentPadding)
+                .frame(width: popupFrame.width, height: popupFrame.height, alignment: .topLeading)
+                .background(RoundedRectangleShape(cornerRadius: 7).fill(theme.editorColors.surface))
+                .overlay {
+                    RoundedRectangleShape(cornerRadius: 7)
+                        .stroke(theme.editorColors.border.opacity(0.85), lineWidth: 1)
+                }
+                .offset(x: popupFrame.minX, y: popupFrame.minY)
+                .allowsHitTesting(false)
+                .accessibilityIdentifier("AdaEditor.SourceHoverDescription")
         }
     }
 
@@ -126,6 +167,7 @@ private extension EditorCodeFileView {
 
         return TextEditorSourceInteraction(
             highlightedRanges: (document.symbolHighlights + document.diagnostics.map(\.range)).map(\.textEditorRange),
+            hoveredRange: document.sourceHoverRange?.textEditorRange,
             focusedRange: document.focusedRange?.textEditorRange,
             onHover: { position in
                 onSourceHover?(document, position.map { EditorSourceLocation(textEditorPosition: $0) })
@@ -135,6 +177,9 @@ private extension EditorCodeFileView {
             },
             onCaretChange: { position, currentText in
                 onCompletionPosition?(document, EditorSourceLocation(textEditorPosition: position), currentText)
+            },
+            onRequestCompletion: { position, currentText in
+                onCompletionRequest?(document, EditorSourceLocation(textEditorPosition: position), currentText)
             },
             contextMenuItems: { position in
                 sourceContextMenuItems?(document, EditorSourceLocation(textEditorPosition: position)) ?? []
@@ -203,9 +248,70 @@ private extension EditorCodeFileView {
     }
 }
 
+struct EditorSourceHoverPopupLayout {
+    static let preferredWidth: Float = 520
+    static let viewportInset: Float = 12
+    static let contentPadding: Float = 12
+    static let minimumHeight: Float = 48
+    static let maximumLineCount = 8
+    static let lineHeight: Float = 18
+    static let estimatedCharactersPerLine = 72
+
+    static func frame(
+        viewportSize: Size,
+        hoveredRange: EditorSourceRange?,
+        fontSize: Double,
+        description: String
+    ) -> Rect {
+        let availableWidth = max(0, viewportSize.width - viewportInset * 2)
+        let width = min(preferredWidth, availableWidth)
+        let logicalLineCount = description
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .reduce(0) { count, line in
+                count + max(1, Int(ceil(Double(line.count) / Double(estimatedCharactersPerLine))))
+            }
+        let visibleLineCount = min(maximumLineCount, max(1, logicalLineCount))
+        let availableHeight = max(0, viewportSize.height - viewportInset * 2)
+        let desiredHeight = max(minimumHeight, Float(visibleLineCount) * lineHeight + contentPadding * 2)
+        let height = min(desiredHeight, availableHeight)
+        let sourceLineHeight = max(18, Float(fontSize) * 1.45)
+        let characterAdvance = max(6, Float(fontSize) * 0.58)
+        let position = hoveredRange?.start ?? EditorSourceLocation(line: 0, character: 0)
+        let desiredX = Float(82) + Float(max(0, position.character)) * characterAdvance
+        let sourceLineY = Float(18) + Float(max(0, position.line)) * sourceLineHeight
+        let desiredYAbove = sourceLineY - height - Float(8)
+        let desiredY = desiredYAbove >= viewportInset ? desiredYAbove : sourceLineY + sourceLineHeight + Float(8)
+        let maxX = max(viewportInset, viewportSize.width - width - viewportInset)
+        let maxY = max(viewportInset, viewportSize.height - height - viewportInset)
+
+        return Rect(
+            x: min(max(viewportInset, desiredX), maxX),
+            y: min(max(viewportInset, desiredY), maxY),
+            width: width,
+            height: height
+        )
+    }
+}
+
+enum EditorSourceHoverPresentation {
+    static func displayText(from markdown: String) -> String {
+        markdown
+            .components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("```") }
+            .joined(separator: "\n")
+            .replacingOccurrences(of: "**", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 struct EditorCompletionPopupLayout {
     static let preferredWidth: Float = 420
     static let viewportInset: Float = 12
+    static let rowHeight: Float = 28
+    static let horizontalPadding: Float = 4
+    static let verticalPadding: Float = 4
+    static let detailWidth: Float = 118
 
     static func frame(
         viewportSize: Size,
@@ -216,7 +322,7 @@ struct EditorCompletionPopupLayout {
         let availableWidth = max(0, viewportSize.width - viewportInset * 2)
         let width = min(preferredWidth, availableWidth)
         let rowCount = max(1, itemCount)
-        let height = Float(rowCount * 24 + 6)
+        let height = Float(rowCount) * rowHeight + verticalPadding * 2
         let lineHeight = max(18, Float(fontSize) * 1.45)
         let characterAdvance = max(6, Float(fontSize) * 0.58)
         let position = caretPosition ?? EditorSourceLocation(line: 0, character: 0)
@@ -231,6 +337,24 @@ struct EditorCompletionPopupLayout {
             width: width,
             height: height
         )
+    }
+}
+
+private struct EditorCompletionButtonStyle: ButtonStyle {
+    let theme: Theme
+
+    func makeBody(configuration: Configuration) -> some View {
+        let colors = theme.editorColors
+        let backgroundColor = if configuration.isSelected {
+            colors.blue.opacity(0.28)
+        } else if configuration.isHighlighted {
+            colors.border.opacity(0.72)
+        } else {
+            Color.clear
+        }
+
+        return configuration.label
+            .background(RoundedRectangleShape(cornerRadius: 3).fill(backgroundColor))
     }
 }
 

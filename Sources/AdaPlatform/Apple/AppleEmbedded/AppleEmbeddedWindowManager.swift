@@ -93,18 +93,24 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         }
 
         attachWindowToSceneIfNeeded(uiWindow, preferredScene: scene)
-        if let sceneDelegate = uiWindow.windowScene?.delegate as? AppleEmbeddedSceneDelegate {
+        if isFocused, let sceneDelegate = uiWindow.windowScene?.delegate as? AppleEmbeddedSceneDelegate {
             sceneDelegate.window = uiWindow
         }
-        uiWindow.makeKeyAndVisible()
+        if isFocused {
+            uiWindow.makeKeyAndVisible()
+        } else {
+            uiWindow.isHidden = false
+        }
 
-        if let appDelegate = UIApplication.shared.delegate as? AppleEmbeddedAppDelegate {
+        if isFocused, let appDelegate = UIApplication.shared.delegate as? AppleEmbeddedAppDelegate {
             appDelegate.window = uiWindow
         }
 
         window.windowDidAppear()
 
-        self.setActiveWindow(window)
+        if isFocused {
+            self.setActiveWindow(window)
+        }
     }
     
     override func setWindowMode(_ window: AdaUI.UIWindow, mode: AdaUI.UIWindow.Mode) {

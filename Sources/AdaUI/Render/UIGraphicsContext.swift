@@ -272,6 +272,41 @@ public struct UIGraphicsContext: Sendable {
         commandQueue.push(.pushClipRect(clipped))
     }
 
+    /// Pushes a local clipping rectangle after applying the current transform.
+    ///
+    /// - Returns: `false` when the transformed rectangle is not axis-aligned and
+    ///   therefore cannot be represented by a GPU scissor rectangle.
+    mutating func pushTransformedClipRect(_ rect: Rect) -> Bool {
+        let corners = [
+            Vector4(rect.minX, -rect.minY, 0, 1),
+            Vector4(rect.maxX, -rect.minY, 0, 1),
+            Vector4(rect.maxX, -rect.maxY, 0, 1),
+            Vector4(rect.minX, -rect.maxY, 0, 1)
+        ].map { transform * $0 }
+        let horizontalEdge = corners[1] - corners[0]
+        let verticalEdge = corners[3] - corners[0]
+        let epsilon: Float = 0.0001
+        let preservesAxes = abs(horizontalEdge.y) <= epsilon && abs(verticalEdge.x) <= epsilon
+        let swapsAxes = abs(horizontalEdge.x) <= epsilon && abs(verticalEdge.y) <= epsilon
+        guard preservesAxes || swapsAxes else {
+            return false
+        }
+
+        let minX = corners.map(\.x).min() ?? 0
+        let maxX = corners.map(\.x).max() ?? 0
+        let minY = corners.map(\.y).min() ?? 0
+        let maxY = corners.map(\.y).max() ?? 0
+        pushClipRect(
+            Rect(
+                x: minX,
+                y: -maxY,
+                width: maxX - minX,
+                height: maxY - minY
+            )
+        )
+        return true
+    }
+
     /// Pops the current clipping rectangle.
     public func popClipRect() {
         commandQueue.push(.popClipRect)
@@ -345,6 +380,15 @@ extension UIGraphicsContext {
             lock.lock()
             defer { lock.unlock() }
             commands.append(contentsOf: newCommands)
+        }
+
+        func pushLayer(id: UInt64, version: UInt64, cacheable: Bool, commands layerCommands: [DrawCommand]) {
+            lock.lock()
+            defer { lock.unlock() }
+            commands.reserveCapacity(commands.count + layerCommands.count + 2)
+            commands.append(.beginLayer(id: id, version: version, cacheable: cacheable))
+            commands.append(contentsOf: layerCommands)
+            commands.append(.endLayer(id: id))
         }
 
         func snapshot() -> [DrawCommand] {

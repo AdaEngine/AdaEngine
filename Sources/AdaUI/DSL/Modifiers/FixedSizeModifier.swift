@@ -63,6 +63,10 @@ final class FixedSizeViewNode: ViewModifierNode {
             return
         }
 
+        if self.horizontal != other.horizontal || self.vertical != other.vertical {
+            Self.recordLayoutMutationRequiringAncestorPass()
+            self.markNeedsLayout()
+        }
         self.horizontal = other.horizontal
         self.vertical = other.vertical
         super.update(from: newNode)

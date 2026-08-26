@@ -73,7 +73,7 @@ final class FrameViewNode: ViewModifierNode {
         true
     }
 
-    enum Frame {
+    enum Frame: Equatable {
         case size(width: Float?, height: Float?, alignment: Alignment)
         case constraints(
             minWidth: Float?,
@@ -97,6 +97,10 @@ final class FrameViewNode: ViewModifierNode {
         guard let other = newNode as? FrameViewNode else {
             super.update(from: newNode)
             return
+        }
+        if self.frameRule != other.frameRule {
+            Self.recordLayoutMutationRequiringAncestorPass()
+            self.markNeedsLayout()
         }
         self.frameRule = other.frameRule
         super.update(from: newNode)

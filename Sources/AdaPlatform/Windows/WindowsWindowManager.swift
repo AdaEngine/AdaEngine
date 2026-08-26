@@ -145,7 +145,9 @@ final class WindowsWindowManager: UIWindowManager {
         }
         
         window.windowDidAppear()
-        self.setActiveWindow(window)
+        if isFocused {
+            self.setActiveWindow(window)
+        }
     }
     
     override func setWindowMode(_ window: UIWindow, mode: UIWindow.Mode) {
@@ -789,7 +791,7 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
         Task { @MainActor in
             let windowManager = window.windowManager as? WindowsWindowManager
             windowManager?.resetTextInputDecoderState(for: window.id)
-            window.windowDidResignActive()
+            windowManager?.resignActiveWindow(window)
         }
         return 0
     

@@ -166,7 +166,9 @@ final class MacOSWindowManager: UIWindowManager {
         applyTrafficLightOffset(window.configuration.titleBar.trafficLightOffset, to: nsWindow)
         
         window.windowDidAppear()
-        self.setActiveWindow(window)
+        if isFocused {
+            self.setActiveWindow(window)
+        }
     }
     
     override func setWindowMode(_ window: UIWindow, mode: UIWindow.Mode) {
@@ -709,6 +711,17 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
         
         self.windowManager.setActiveWindow(window)
     }
+
+    func windowDidResignKey(_ notification: Notification) {
+        guard
+            let nsWindow = notification.object as? NSWindow,
+            let window = self.windowManager.findWindow(for: nsWindow)
+        else {
+            return
+        }
+
+        self.windowManager.resignActiveWindow(window)
+    }
     
     func windowDidResize(_ notification: Notification) {
         guard
@@ -888,7 +901,10 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
         nsItem.submenu = item.submenu.flatMap { self.makeNSMenu(from: $0) }
         nsItem.representedObject = item
         nsItem.isEnabled = item.isEnabled
-        if let key = item.keyEquivalent?.rawValue {
+        // Disabled placeholder items must not reserve their key equivalents.
+        // AppKit otherwise consumes shortcuts such as Command-Z before the
+        // focused AdaUI node can handle them.
+        if item.isEnabled, let key = item.keyEquivalent?.rawValue {
             nsItem.keyEquivalent = key
         }
         if let modifier = item.keyEquivalentModifierMask {

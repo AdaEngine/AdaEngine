@@ -643,7 +643,6 @@ open class UIView {
 
         for subview in self.subviews {
             subview.internalUpdate(deltaTime)
-            subview.update(deltaTime)
         }
     }
 

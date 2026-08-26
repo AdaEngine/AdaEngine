@@ -7,12 +7,12 @@
 
 #if MACOS
 import AdaApp
+import AdaECS
 import AppKit
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaUI
 import AdaUtils
 import MetalKit
-import AdaECS
 
 final class MacApplication: Application {
 
@@ -39,35 +39,28 @@ final class MacApplication: Application {
     }
 
     private var task: Task<Void, Never>?
+    private var displayLink: DisplayLink?
+    private var frameContinuation: AsyncStream<Void>.Continuation?
+    private weak var linkedScreen: NSScreen?
 
     override func run(_ appWorlds: AppWorlds) throws {
         setupInput(for: appWorlds)
-        task = Task(priority: .userInitiated) {
-            do {
-                while true {
-                    let frameStartedAt = Time.absolute
-                    try Task.checkCancellation()
-                    self.processEvents()
-                    try await appWorlds.update()
-                    try await self.waitForNextFrameIfNeeded(startedAt: frameStartedAt, appWorlds: appWorlds)
-                }
-            } catch {
-                let alert = Alert(
-                    title: "AdaEngine finished with Error",
-                    message: error.localizedDescription,
-                    buttons: [
-                        .cancel("OK", action: { exit(EXIT_FAILURE) })
-                    ]
-                )
-                Application.shared.showAlert(alert)
-            }
+        if let screen = screenManager.activeScreen() {
+            startDisplayLinkedLoop(for: appWorlds, screen: screen)
+        } else {
+            startFallbackLoop(for: appWorlds)
         }
 
         NSApplication.shared.run()
     }
 
     override func terminate() {
-        self.task?.cancel()
+        frameContinuation?.finish()
+        frameContinuation = nil
+        displayLink?.invalidate()
+        displayLink = nil
+        linkedScreen = nil
+        task?.cancel()
         NSApplication.shared.terminate(nil)
     }
 
@@ -108,23 +101,114 @@ final class MacApplication: Application {
     }
 
     private func processEvents() {
-        while true {
-            let event = NSApp.nextEvent(
-                matching: .any,
-                until: .distantPast,
-                inMode: .default,
-                dequeue: true
-            )
-
-            guard let event else {
-                break
-            }
-
+        while let event = NSApp.nextEvent(
+            matching: .any,
+            until: .distantPast,
+            inMode: .default,
+            dequeue: true
+        ) {
             NSApp.sendEvent(event)
         }
     }
 
-    private func waitForNextFrameIfNeeded(startedAt frameStartedAt: LongTimeInterval, appWorlds: AppWorlds) async throws {
+    private func startDisplayLinkedLoop(for appWorlds: AppWorlds, screen: NSScreen) {
+        let displayLink = DisplayLink(screen: screen)
+        let (frames, continuation) = AsyncStream<Void>.makeStream(
+            bufferingPolicy: .bufferingNewest(1)
+        )
+        displayLink.setHandler {
+            continuation.yield(())
+        }
+        self.displayLink = displayLink
+        self.linkedScreen = screen
+        self.frameContinuation = continuation
+        configure(displayLink, for: appWorlds, screen: screen)
+
+        task = Task(priority: .userInitiated) { [weak self] in
+            do {
+                for await _ in frames {
+                    try Task.checkCancellation()
+                    guard let self else {
+                        return
+                    }
+                    self.refreshDisplayLinkIfNeeded(
+                        for: appWorlds,
+                        continuation: continuation
+                    )
+                    try await MacApplicationFramePump.run(
+                        processEvents: self.processEvents,
+                        update: appWorlds.update
+                    )
+                    if let currentDisplayLink = self.displayLink,
+                       let currentScreen = self.linkedScreen {
+                        self.configure(currentDisplayLink, for: appWorlds, screen: currentScreen)
+                    }
+                }
+            } catch is CancellationError {
+            } catch {
+                self?.showUpdateError(error)
+            }
+        }
+        displayLink.start()
+    }
+
+    private func refreshDisplayLinkIfNeeded(
+        for appWorlds: AppWorlds,
+        continuation: AsyncStream<Void>.Continuation
+    ) {
+        guard let screen = screenManager.activeScreen(), screen !== linkedScreen else {
+            return
+        }
+
+        let replacement = DisplayLink(screen: screen)
+        replacement.setHandler {
+            continuation.yield(())
+        }
+        configure(replacement, for: appWorlds, screen: screen)
+        replacement.start()
+
+        displayLink?.invalidate()
+        displayLink = replacement
+        linkedScreen = screen
+    }
+
+    private func startFallbackLoop(for appWorlds: AppWorlds) {
+        task = Task(priority: .userInitiated) { [weak self] in
+            do {
+                while true {
+                    let frameStartedAt = Time.absolute
+                    try Task.checkCancellation()
+                    guard let self else {
+                        return
+                    }
+                    try await MacApplicationFramePump.run(
+                        processEvents: self.processEvents,
+                        update: appWorlds.update
+                    )
+                    try await self.waitForNextFrameIfNeeded(startedAt: frameStartedAt, appWorlds: appWorlds)
+                }
+            } catch is CancellationError {
+            } catch {
+                self?.showUpdateError(error)
+            }
+        }
+    }
+
+    private func configure(_ displayLink: DisplayLink, for appWorlds: AppWorlds, screen: NSScreen) {
+        guard let framePacing = appWorlds.getResource(ApplicationFramePacing.self) else {
+            return
+        }
+        displayLink.setPreferredFrameRateRange(
+            framePacing.resolvedFrameRateRange(
+                forDisplayMaximumFramesPerSecond: screen.maximumFramesPerSecond
+            )
+        )
+    }
+
+    private func waitForNextFrameIfNeeded(
+        startedAt frameStartedAt: LongTimeInterval,
+        appWorlds: AppWorlds
+    ) async throws {
         guard let framePacing = appWorlds.getResource(ApplicationFramePacing.self) else {
             await Task.yield()
             return
@@ -137,6 +221,28 @@ final class MacApplication: Application {
         }
 
         try await Task.sleep(nanoseconds: UInt64(remainingTime * 1_000_000_000))
+    }
+
+    private func showUpdateError(_ error: any Error) {
+        let alert = Alert(
+            title: "AdaEngine finished with Error",
+            message: error.localizedDescription,
+            buttons: [
+                .cancel("OK", action: { exit(EXIT_FAILURE) })
+            ]
+        )
+        Application.shared.showAlert(alert)
+    }
+}
+
+@MainActor
+enum MacApplicationFramePump {
+    static func run(
+        processEvents: () -> Void,
+        update: () async throws -> Void
+    ) async rethrows {
+        processEvents()
+        try await update()
     }
 }
 

@@ -199,12 +199,13 @@ final class ButtonViewNode: ViewModifierNode {
     }
 
     override func onFocusChanged(isFocused: Bool) {
+        let previousState = state
         if isFocused {
             state.insert(.focused)
         } else {
             state.remove(.focused)
         }
-        self.invalidateContent()
+        self.invalidateContentIfStateChanged(from: previousState)
     }
 
     // MARK: - Interaction
@@ -221,6 +222,7 @@ final class ButtonViewNode: ViewModifierNode {
             return
         }
 
+        let previousState = state
         switch event.phase {
         case .began, .changed:
             state.insert(.highlighted)
@@ -245,19 +247,21 @@ final class ButtonViewNode: ViewModifierNode {
             state.remove(.highlighted)
         }
 
-        self.invalidateContent()
+        self.invalidateContentIfStateChanged(from: previousState)
     }
 
     override func onMouseLeave() {
+        let previousState = state
         state.remove(.selected)
         state.remove(.highlighted)
-        self.invalidateContent()
+        self.invalidateContentIfStateChanged(from: previousState)
     }
 
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
         guard self.state.isEnabled && self.environment.isEnabled else { return }
         guard let touch = touches.first else { return }
 
+        let previousState = state
         switch touch.phase {
         case .began:
             touchStartLocation = touch.location
@@ -298,7 +302,7 @@ final class ButtonViewNode: ViewModifierNode {
             activeTouchScrollView = nil
         }
 
-        self.invalidateContent()
+        self.invalidateContentIfStateChanged(from: previousState)
     }
 
     /// Invoked by ``keyboardShortcut`` when this button is the first enabled button in the subtree.
@@ -318,6 +322,13 @@ final class ButtonViewNode: ViewModifierNode {
             current = node.parent
         }
         return nil
+    }
+
+    private func invalidateContentIfStateChanged(from previousState: Button.State) {
+        guard state != previousState else {
+            return
+        }
+        self.invalidateContent()
     }
 
     private func reconcileContentNode() {

@@ -26,6 +26,9 @@ public struct ContextMenuPlugin: Plugin {
         ContextMenuPresentationCenter.dismissForInteraction = { window in
             ContextMenuPresenter.dismissForInteraction(in: window)
         }
+        ContextMenuPresentationCenter.dismissForDeactivation = { window in
+            ContextMenuPresenter.dismissForDeactivation(of: window)
+        }
     }
 }
 
@@ -51,7 +54,7 @@ private enum ContextMenuPresenter {
             level: 0
         )
         session.setWindow(window, at: 0)
-        window.showWindow(makeFocused: true)
+        window.showWindow(makeFocused: false)
     }
 
     @discardableResult
@@ -67,6 +70,15 @@ private enum ContextMenuPresenter {
 
     static func dismissForInteraction(in window: UIWindow?) {
         guard let activeSession, let window, !activeSession.contains(window) else {
+            return
+        }
+
+        activeSession.closeAll()
+        self.activeSession = nil
+    }
+
+    static func dismissForDeactivation(of window: UIWindow?) {
+        guard let activeSession, let window, activeSession.sourceWindow === window else {
             return
         }
 
@@ -127,7 +139,7 @@ private enum ContextMenuPresenter {
                 background: .transparent,
                 level: .floating,
                 collectionBehavior: .allSpacesStationary,
-                makeKey: level == 0
+                makeKey: false
             )
         )
 
@@ -330,7 +342,7 @@ private struct ContextMenuButtonStyle: ButtonStyle {
     }
 }
 
-private let backgroundColor = Color.black.opacity(0.3 as Float)
+private let backgroundColor = Color.black
 private let highlightColor = Color(red: 0.22, green: 0.24, blue: 0.28, alpha: 1)
 private let primaryTextColor = Color(red: 0.94, green: 0.95, blue: 0.97, alpha: 1)
 private let destructiveTextColor = Color(red: 1.0, green: 0.36, blue: 0.36, alpha: 1)

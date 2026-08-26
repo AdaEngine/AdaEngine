@@ -279,6 +279,13 @@ public final class TextLayoutManager: @unchecked Sendable {
     private var glyphsToRender: GlyphRenderData?
 
     private var availableSize: Size = Size(width: .infinity, height: .infinity)
+    private var isLayoutValid = false
+
+    /// Monotonically increasing revision of the computed text layout.
+    ///
+    /// This is intentionally internal so tests and engine diagnostics can verify
+    /// that stable constraints reuse the existing glyph layout.
+    private(set) var layoutRevision: UInt64 = 0
 
     public init() {}
 
@@ -414,6 +421,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                 glyph.position.z + offset,
                 glyph.position.w
             ],
+            advanceX: glyph.advanceX + offset,
             origin: glyph.origin,
             size: glyph.size
         )
@@ -424,11 +432,17 @@ public final class TextLayoutManager: @unchecked Sendable {
     public func setTextContainer(_ textContainer: TextContainer) {
         if self.textContainer != textContainer {
             self.textContainer = textContainer
+            self.glyphsToRender = nil
+            self.isLayoutValid = false
         }
     }
 
     /// Set new constraints for size rendering.
     public func fitToSize(_ size: Size) {
+        guard self.availableSize != size || !isLayoutValid else {
+            return
+        }
+
         self.availableSize = size
         self.glyphsToRender = nil
         self.invalidateLayout()
@@ -439,6 +453,8 @@ public final class TextLayoutManager: @unchecked Sendable {
     // FIXME: TextLayoutManager calculate the wrong position
     /// Invalidate text layout, update text lines and glyphs.
     public func invalidateLayout() {
+        self.isLayoutValid = false
+        self.layoutRevision &+= 1
         var x: Double = 0
         var y: Double = 0
 
@@ -538,7 +554,8 @@ public final class TextLayoutManager: @unchecked Sendable {
                 baselineY: Double,
                 pointSize: Double,
                 xOffset: Double = 0,
-                yOffset: Double = 0
+                yOffset: Double = 0,
+                advanceX: Double
             ) -> (right: Double, top: Double)? {
                 let glyphFontHandle = fontResource.handle
                 let glyphMetrics = glyphFontHandle.metrics
@@ -573,6 +590,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                         textureCoordinates: [Float(l), Float(b), Float(r), Float(t)],
                         attributes: attributes,
                         position: [Float(pl), Float(pb), Float(pr), Float(pt)],
+                        advanceX: Float(advanceX),
                         origin: Point(x: -Float(glyphFontSize) / 2, y: Float(glyphFontSize) / 2),
                         size: Size(width: Float(glyphFontSize), height: Float(glyphFontSize))
                     )
@@ -682,7 +700,8 @@ public final class TextLayoutManager: @unchecked Sendable {
                             baselineY: y,
                             pointSize: font.pointSize,
                             xOffset: shapedGlyph.xOffset,
-                            yOffset: shapedGlyph.yOffset
+                            yOffset: shapedGlyph.yOffset,
+                            advanceX: x + (shapedGlyph.xAdvance * glyphFontScale) + kern
                         ) else {
                             return lineEndIndex
                         }
@@ -788,6 +807,13 @@ public final class TextLayoutManager: @unchecked Sendable {
                     let glyphFontScale: Double = font.pointSize / glyphMetrics.emSize
                     let glyphFontSize = glyphFontResource.getFontScale(for: font.pointSize)
 
+                    var advance = glyph.advance
+                    let nextIndex = attributedText.text.index(after: index)
+                    if nextIndex < lineEndIndex,
+                       let nextScalar = attributedText.text[nextIndex].unicodeScalars.first {
+                        glyphFontHandle.getAdvance(&advance, resolvedGlyph.scalar.value, nextScalar.value)
+                    }
+
                     var l: Double = 0, b: Double = 0, r: Double = 0, t: Double = 0
                     glyph.getQuadAtlasBounds(&l, &b, &r, &t)
 
@@ -815,6 +841,8 @@ public final class TextLayoutManager: @unchecked Sendable {
                         visualRowStartTextIndex = index
                     }
 
+                    let nextCaretX = x + glyphFontScale * advance + kern
+
                     if abs(Float((pt * glyphFontScale) + y)) > availableSize.height {
                         index = lineEndIndex
                         break
@@ -838,6 +866,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                             textureCoordinates: [Float(l), Float(b), Float(r), Float(t)],
                             attributes: attributes,
                             position: [Float(pl), Float(pb), Float(pr), Float(pt)],
+                            advanceX: Float(nextCaretX),
                             origin: Point(x: -Float(glyphFontSize) / 2, y: Float(glyphFontSize) / 2),
                             size: Size(width: Float(glyphFontSize), height: Float(glyphFontSize))
                         )
@@ -845,18 +874,7 @@ public final class TextLayoutManager: @unchecked Sendable {
 
                     visualRowMaxWidth = max(visualRowMaxWidth, pr)
 
-                    var advance = glyph.advance
-                    let nextIndex = attributedText.text.index(after: index)
-
-                    if nextIndex < lineEndIndex {
-                        if let nextChar = nextIndex < attributedText.text.endIndex ? attributedText.text[nextIndex] : nil,
-                           let nextScalar = nextChar.unicodeScalars.first {
-                            glyphFontHandle.getAdvance(&advance, resolvedGlyph.scalar.value, nextScalar.value)
-                            x += glyphFontScale * advance + kern
-                        }
-                    } else {
-                        x += glyphFontScale * advance + kern
-                    }
+                    x = nextCaretX
                 }
                 
                 if index < lineEndIndex {
@@ -891,6 +909,7 @@ public final class TextLayoutManager: @unchecked Sendable {
             // Move y down for the next line
             y -= maxLineHeight
         }
+        self.isLayoutValid = true
     }
 
     /// Get or create glyphs vertex data relative to transform.
@@ -1060,13 +1079,22 @@ public struct Glyph: Sendable, Equatable {
     /// Position on plane [x: pl, y: pb, z: pr, w: pt]
     public let position: Vector4
 
+    /// Horizontal pen position immediately after this glyph.
+    ///
+    /// Unlike the visible quad's right edge, this includes typographic advance
+    /// for whitespace and side bearings, so it can be used as a caret stop.
+    public let advanceX: Float
+
     public let origin: Point
 
     /// Size of glyph.
     public let size: Size
 
     public static func == (lhs: Glyph, rhs: Glyph) -> Bool {
-        lhs.size == rhs.size && lhs.position == rhs.position && lhs.textureCoordinates == rhs.textureCoordinates
+        lhs.size == rhs.size
+            && lhs.position == rhs.position
+            && lhs.advanceX == rhs.advanceX
+            && lhs.textureCoordinates == rhs.textureCoordinates
     }
 }
 

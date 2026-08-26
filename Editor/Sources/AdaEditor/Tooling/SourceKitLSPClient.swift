@@ -386,7 +386,18 @@ actor SourceKitLSPClient {
             method: "textDocument/hover",
             params: textDocumentPositionParams(fileURL: fileURL, position: position)
         )
-        return Self.decodeHover(from: response)
+        guard var hover = Self.decodeHover(from: response) else {
+            return nil
+        }
+        guard let range = hover.range else {
+            return hover
+        }
+
+        let uri = SourceKitLSPDocumentIdentifier(fileURL: fileURL).uri
+        if let text = documentTextByURI[uri] {
+            hover.range = Self.editorRange(fromLSPRange: range, in: text)
+        }
+        return hover
     }
 
     func documentHighlights(fileURL: URL, position: EditorSourceLocation) async throws -> [EditorDocumentHighlight] {

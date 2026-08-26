@@ -56,6 +56,10 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
         return 300
     }
 
+    var toolbarWindowControlClearance: Float {
+        76
+    }
+
     var toolbarSearchWidth: Float {
         let rightControlWidth: Float = (showsToolbarSceneName ? 92 : 0) + 132 + (showsRunButtonTitle ? 132 : 86) + 36
         let reservedSideWidth = max(toolbarLeadingSpacerWidth, rightControlWidth)
@@ -71,7 +75,11 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
     }
 
     var showsToolbarSceneName: Bool {
-        size.width >= 620
+        size.width >= 760
+    }
+
+    var showsToolbarHotReloadStatus: Bool {
+        size.width >= 900
     }
 
     var showsRunButtonTitle: Bool {

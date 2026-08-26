@@ -41,7 +41,7 @@ package struct WindowGroupPlugin<Content: View>: Plugin, @unchecked Sendable {
 
     package func setup(in app: borrowing AppWorlds) {
         if app.getResource(ApplicationFramePacing.self) == nil {
-            app.insertResource(ApplicationFramePacing(maximumFramesPerSecond: 60))
+            app.insertResource(ApplicationFramePacing.displaySynchronized())
         }
         app.insertResource(
             InitialContainerView {

@@ -67,14 +67,19 @@ extension TextEditorViewNode {
         pointSize: Float,
         font: Font?
     ) {
-        guard let sourceInteraction, !sourceInteraction.highlightedRanges.isEmpty else {
+        guard let sourceInteraction else {
             return
         }
 
         let characterAdvance = self.characterAdvance(for: pointSize)
         let textRect = self.textRect()
+        var sourceRanges = sourceInteraction.highlightedRanges
+        if let hoveredRange = sourceInteraction.hoveredRange,
+           !sourceRanges.contains(hoveredRange) {
+            sourceRanges.append(hoveredRange)
+        }
 
-        for sourceRange in sourceInteraction.highlightedRanges {
+        for sourceRange in sourceRanges {
             let range = self.rangeOffsets(for: sourceRange)
             let lineStart = line.startOffset
             let lineEnd = line.startOffset + line.text.count
@@ -162,11 +167,27 @@ extension TextEditorViewNode {
             return
         }
 
-        let attributedText = self.attributedLineText(lineText, lineSpans: lineSpans, font: font, fallbackColor: fallbackColor)
+        let attributedText = self.attributedLineText(
+            lineText,
+            lineSpans: lineSpans,
+            font: font,
+            fallbackColor: fallbackColor,
+            hoveredRange: sourceInteraction?.hoveredRange,
+            lineIndex: lineIndex,
+            hoverColor: environment.accentColor
+        )
         self.drawAttributedString(attributedText, font: font, in: &context, at: point)
     }
 
-    func attributedLineText(_ lineText: String, lineSpans: [TextEditorTokenSpan], font: Font, fallbackColor: Color) -> AttributedText {
+    func attributedLineText(
+        _ lineText: String,
+        lineSpans: [TextEditorTokenSpan],
+        font: Font,
+        fallbackColor: Color,
+        hoveredRange: TextEditorSourceRange? = nil,
+        lineIndex: Int = 0,
+        hoverColor: Color? = nil
+    ) -> AttributedText {
         var fallbackAttributes = TextAttributeContainer()
         fallbackAttributes.font = font
         fallbackAttributes.foregroundColor = fallbackColor
@@ -188,6 +209,24 @@ extension TextEditorViewNode {
             let startIndex = lineText.index(lineText.startIndex, offsetBy: start)
             let endIndex = lineText.index(lineText.startIndex, offsetBy: end)
             attributedText.setAttributes(spanAttributes, at: startIndex..<endIndex)
+        }
+
+        if let hoveredRange,
+           let hoverColor,
+           lineIndex >= hoveredRange.start.line,
+           lineIndex <= hoveredRange.end.line {
+            let startColumn = lineIndex == hoveredRange.start.line ? hoveredRange.start.column : 0
+            let endColumn = lineIndex == hoveredRange.end.line ? hoveredRange.end.column : lineText.count
+            let start = max(0, min(startColumn, lineText.count))
+            let end = max(start, min(endColumn, lineText.count))
+
+            if start < end {
+                var hoverAttributes = fallbackAttributes
+                hoverAttributes.foregroundColor = hoverColor
+                let startIndex = lineText.index(lineText.startIndex, offsetBy: start)
+                let endIndex = lineText.index(lineText.startIndex, offsetBy: end)
+                attributedText.setAttributes(hoverAttributes, at: startIndex..<endIndex)
+            }
         }
 
         return attributedText
@@ -424,8 +463,7 @@ extension TextEditorViewNode {
         for line in layout.textLines {
             for run in line {
                 for glyph in run {
-                    let rightEdge = max(glyph.position.x, glyph.position.z)
-                    stops.append(max(stops.last ?? 0, rightEdge))
+                    stops.append(max(stops.last ?? 0, glyph.advanceX))
                 }
             }
         }

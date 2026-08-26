@@ -129,6 +129,7 @@ struct EditorView: View {
                     viewModel.startEditorSessionIfNeeded()
                 }
                 .frame(height: metrics.topToolbarHeight)
+                .zIndex(10)
 
                 EditorWorkspaceRegion(viewModel: viewModel)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -145,13 +146,40 @@ struct EditorView: View {
             )
             .foregroundColor(theme.editorColors.text)
             .environment(\.metrics, metrics)
+            .overlay(anchor: .top) {
+                if !viewModel.toolbar.searchResults.isEmpty {
+                    EditorProjectSearchResults(
+                        items: viewModel.toolbar.searchResults,
+                        width: metrics.toolbarSearchWidth,
+                        onOpenSearchResult: { item in
+                            viewModel.openSearchResult(item)
+                        }
+                    )
+                    .frame(height: EditorProjectSearchResultsLayout.height(itemCount: viewModel.toolbar.searchResults.count))
+                    .offset(y: EditorProjectSearchResultsLayout.topOffset(toolbarHeight: metrics.topToolbarHeight))
+                }
+            }
         }
         .padding(.all, 4)
         .background {
             theme.editorColors.background
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .fullScreenCover(isPresented: viewModel.isNewFileDialogPresentedBinding) {
+            EditorNewFileDialog(viewModel: viewModel)
+        }
         .keyboardShortcuts(editorKeyboardShortcuts)
+        .onAppear {
+            EditorSearchShortcutMonitor.shared.start()
+            EditorNavigationMouseShortcutMonitor.shared.start(
+                back: { [weak viewModel] in viewModel?.navigateBack() },
+                forward: { [weak viewModel] in viewModel?.navigateForward() }
+            )
+        }
+        .onDisappear {
+            EditorSearchShortcutMonitor.shared.stop()
+            EditorNavigationMouseShortcutMonitor.shared.stop()
+        }
         .debugOverlay(viewModel.showsDebugOverlay ?? .off)
     }
 
@@ -171,6 +199,12 @@ struct EditorView: View {
             },
             KeyboardShortcutAction(.s, modifiers: .command) {
                 viewModel.saveActiveDocument()
+            },
+            KeyboardShortcutAction(.leftBracket, modifiers: .command) {
+                viewModel.navigateBack()
+            },
+            KeyboardShortcutAction(.rightBracket, modifiers: .command) {
+                viewModel.navigateForward()
             },
             KeyboardShortcutAction(.plus, modifiers: .command) {
                 viewModel.workbench.increaseCodeFontSize()
@@ -264,6 +298,9 @@ private struct EditorWorkspaceRegion: View {
                             onCompletionPosition: { document, position, text in
                                 viewModel.handleCompletionPosition(document: document, position: position, text: text)
                             },
+                            onCompletionRequest: { document, position, text in
+                                viewModel.handleCompletionRequest(document: document, position: position, text: text)
+                            },
                             onApplyCompletion: { item, document in
                                 viewModel.applyCompletion(item, to: document)
                             },
@@ -272,6 +309,12 @@ private struct EditorWorkspaceRegion: View {
                             },
                             onSelectDocument: { documentID in
                                 viewModel.selectWorkbenchDocument(id: documentID)
+                            },
+                            onRevealDocument: { document in
+                                viewModel.revealDocument(document)
+                            },
+                            onCopyDocumentPath: { document, relative in
+                                viewModel.copyDocumentPath(document, relative: relative)
                             },
                             onSelectPreview: { declaration in
                                 viewModel.selectPreview(declaration)
@@ -339,14 +382,36 @@ private struct EditorLeftSidebarContent: View {
         } else {
             EditorProjectSidebar(
                 viewModel: viewModel.projectSidebar,
+                projectRootItem: viewModel.projectRootSidebarItem,
                 onOpenItem: { item in
                     viewModel.openProjectItem(item)
                 },
                 onOpenRawItem: { item in
                     viewModel.openProjectItemAsRaw(item)
                 },
+                onNewFile: {
+                    viewModel.presentNewFileDialog()
+                },
                 onImportAssets: {
                     viewModel.importAssets()
+                },
+                onRevealItem: { item in
+                    viewModel.revealProjectItem(item)
+                },
+                onOpenInDefaultApplication: { item in
+                    viewModel.openProjectItemInDefaultApplication(item)
+                },
+                onOpenInTerminal: { item in
+                    viewModel.openProjectItemInTerminal(item)
+                },
+                onFindInFolder: { item in
+                    viewModel.findInProjectFolder(item)
+                },
+                onFindInProjectRoot: {
+                    viewModel.findInProjectRoot()
+                },
+                onCopyPath: { item, relative in
+                    viewModel.copyProjectItemPath(item, relative: relative)
                 }
             )
         }
@@ -374,7 +439,8 @@ private struct EditorFooterRegion: View {
     var body: some View {
         EditorFooter(
             hotReloadState: hotReloadState,
-            viewModel: viewModel.footer
+            viewModel: viewModel.footer,
+            activities: viewModel.activeActivities
         )
     }
 }

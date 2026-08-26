@@ -295,6 +295,54 @@ struct ShapeRenderingTests {
         #expect(drawIndex < popIndex)
     }
 
+    @Test
+    func rectangleMask_usesRectangularClipFastPath() {
+        let tester = ViewTester {
+            Color.red
+                .frame(width: 80, height: 80)
+                .mask(RectangleShape())
+        }
+        .setSize(Size(width: 120, height: 120))
+        .performLayout()
+
+        let context = UIGraphicsContext()
+        tester.containerView.draw(
+            in: Rect(origin: .zero, size: tester.containerView.frame.size),
+            with: context
+        )
+
+        let commands = context.getDrawCommands()
+        #expect(commands.contains { command in
+            if case .pushClipRect = command { return true }
+            return false
+        })
+        #expect(!commands.contains { command in
+            if case .pushClipPath = command { return true }
+            return false
+        })
+    }
+
+    @Test
+    func transformedClipRect_appliesTranslationAndFallsBackForRotation() throws {
+        var translatedContext = UIGraphicsContext()
+        translatedContext.translateBy(x: 30, y: -40)
+
+        let didPushTranslatedClip = translatedContext.pushTransformedClipRect(Rect(x: 0, y: 0, width: 80, height: 60))
+        #expect(didPushTranslatedClip)
+        let translatedCommand = try #require(translatedContext.getDrawCommands().first)
+        guard case let .pushClipRect(rect) = translatedCommand else {
+            Issue.record("Expected a rectangular clip command.")
+            return
+        }
+        #expect(rect == Rect(x: 30, y: 40, width: 80, height: 60))
+
+        var rotatedContext = UIGraphicsContext()
+        rotatedContext.rotate(by: .degrees(45))
+        let didPushRotatedClip = rotatedContext.pushTransformedClipRect(Rect(x: 0, y: 0, width: 80, height: 60))
+        #expect(!didPushRotatedClip)
+        #expect(rotatedContext.getDrawCommands().isEmpty)
+    }
+
     private func makeContext(
         _ configure: (inout UIGraphicsContext) -> Void
     ) -> UIGraphicsContext {

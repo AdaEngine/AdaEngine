@@ -180,10 +180,7 @@ struct EditorSceneViewportView: View {
         GeometryReader { proxy in
             let _ = viewportModel.setViewportSize(proxy.size)
             Canvas { context, size in
-                let clipPath = RectangleShape().path(in: Rect(origin: .zero, size: size))
-                context.clip(to: clipPath) { clippedContext in
-                    viewportModel.drawGrid(in: &clippedContext, size: size, theme: theme)
-                }
+                viewportModel.drawGrid(in: &context, size: size, theme: theme)
             }
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
@@ -192,10 +189,7 @@ struct EditorSceneViewportView: View {
     private var viewportGizmoLayer: some View {
         GeometryReader { proxy in
             Canvas { context, size in
-                let clipPath = RectangleShape().path(in: Rect(origin: .zero, size: size))
-                context.clip(to: clipPath) { clippedContext in
-                    viewportModel.drawGizmos(in: &clippedContext, size: size, theme: theme)
-                }
+                viewportModel.drawGizmos(in: &context, size: size, theme: theme)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }

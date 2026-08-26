@@ -7,6 +7,7 @@
 
 import AdaUtils
 import Math
+import Observation
 
 // MARK: - Coordinate Space
 
@@ -187,6 +188,7 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     private var contentProxy: (GeometryProxy) -> Content
     private var lastContentSignature: ContentSignature?
     private var contentNeedsRebuild = true
+    private var hasScheduledObservedContentInvalidation = false
 
     private struct ContentSignature: Equatable {
         let frame: Rect
@@ -302,13 +304,31 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
             globalFrame: signature.globalFrame,
             node: self
         )
-        let content = self.contentProxy(proxy)
-        let outputs = Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: context)).outputs
+        let outputs = withObservationTracking {
+            let content = self.contentProxy(proxy)
+            return Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: context)).outputs
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.scheduleObservedContentInvalidation()
+            }
+        }
         let nodes = outputs.map { $0.node }
 
         self.reconcileChildNodes(from: nodes)
         self.lastContentSignature = signature
         self.contentNeedsRebuild = false
+    }
+
+    private func scheduleObservedContentInvalidation() {
+        guard !hasScheduledObservedContentInvalidation else {
+            return
+        }
+
+        hasScheduledObservedContentInvalidation = true
+        Task { @MainActor in
+            self.hasScheduledObservedContentInvalidation = false
+            self.invalidateContent()
+        }
     }
 
     private func shouldDisableAnimation(for signature: ContentSignature) -> Bool {

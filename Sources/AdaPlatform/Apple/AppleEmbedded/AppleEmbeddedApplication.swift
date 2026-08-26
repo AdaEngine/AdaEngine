@@ -22,6 +22,7 @@ final class AppleEmbeddedApplication: Application {
     private let screenManager: AppleEmbeddedScreenManager
     private var appWorlds: AppWorlds?
     private var task: Task<Void, Never>?
+    private var configuredFrameRateRange: ClosedRange<Int>?
     var displayLink: CADisplayLink!
     
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
@@ -40,8 +41,10 @@ final class AppleEmbeddedApplication: Application {
         self.appWorlds = appWorlds
         self.setupInput(for: appWorlds)
 
-        self.displayLink = CADisplayLink(target: self, selector: #selector(update))
-        self.displayLink.add(to: .main, forMode: .default)
+        self.displayLink = UIScreen.main.displayLink(withTarget: self, selector: #selector(update))
+            ?? CADisplayLink(target: self, selector: #selector(update))
+        self.configureDisplayLinkFrameRate()
+        self.displayLink.add(to: .main, forMode: .common)
 
         // FIXME: We should store bundleIdentifier? err ("Invalid parameter not satisfying: bundleIdentifier")
         let exitCode = unsafe UIApplicationMain(
@@ -119,6 +122,7 @@ final class AppleEmbeddedApplication: Application {
 
     @objc private func update() {
         guard let appWorlds = self.appWorlds else { return }
+        self.configureDisplayLinkFrameRate()
 
         // Use a task to handle async update
         if task == nil {
@@ -131,6 +135,32 @@ final class AppleEmbeddedApplication: Application {
                 self?.task = nil
             }
         }
+    }
+
+    private func configureDisplayLinkFrameRate() {
+        guard let displayLink,
+              let framePacing = appWorlds?.getResource(ApplicationFramePacing.self)
+        else {
+            return
+        }
+
+        #if os(watchOS)
+        let displayMaximumFramesPerSecond = 60
+        #else
+        let displayMaximumFramesPerSecond = UIScreen.main.maximumFramesPerSecond
+        #endif
+        let range = framePacing.resolvedFrameRateRange(
+            forDisplayMaximumFramesPerSecond: displayMaximumFramesPerSecond
+        )
+        guard configuredFrameRateRange != range else {
+            return
+        }
+        configuredFrameRateRange = range
+        displayLink.preferredFrameRateRange = CAFrameRateRange(
+            minimum: Float(range.lowerBound),
+            maximum: Float(range.upperBound),
+            preferred: Float(range.upperBound)
+        )
     }
 }
 

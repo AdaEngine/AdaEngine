@@ -879,8 +879,7 @@ extension TextFieldViewNode {
         stops.reserveCapacity(glyphs.count + 1)
 
         for glyph in glyphs {
-            let rightEdge = max(glyph.position.x, glyph.position.z)
-            stops.append(max(stops.last ?? 0, rightEdge))
+            stops.append(max(stops.last ?? 0, glyph.advanceX))
         }
 
         return stops

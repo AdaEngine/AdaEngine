@@ -40,6 +40,51 @@ struct GestureTests {
     }
 
     @Test
+    func middleClickModifier_firesOnlyForMiddleMouseButton() {
+        var clickCount = 0
+
+        let tester = ViewTester {
+            Color.red
+                .frame(width: 100, height: 100)
+                .onMiddleClick { clickCount += 1 }
+        }
+        .setSize(Size(width: 100, height: 100))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(50, 50), phase: .began)
+        tester.sendMouseEvent(at: Point(50, 50), phase: .ended)
+        #expect(clickCount == 0)
+
+        tester.sendMouseEvent(at: Point(50, 50), button: .middle, phase: .began)
+        tester.sendMouseEvent(at: Point(50, 50), button: .middle, phase: .ended)
+        #expect(clickCount == 1)
+    }
+
+    @Test
+    func middleClickModifier_preservesNestedButtonLeftClick() {
+        var buttonClickCount = 0
+        var middleClickCount = 0
+
+        let tester = ViewTester {
+            Button("Open") {
+                buttonClickCount += 1
+            }
+            .frame(width: 100, height: 40)
+            .onMiddleClick {
+                middleClickCount += 1
+            }
+        }
+        .setSize(Size(width: 100, height: 40))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(50, 20), phase: .began)
+        tester.sendMouseEvent(at: Point(50, 20), phase: .ended)
+
+        #expect(buttonClickCount == 1)
+        #expect(middleClickCount == 0)
+    }
+
+    @Test
     func tapGesture_doesNotFireWhenClickOutsideBounds() {
         var tapped = false
 

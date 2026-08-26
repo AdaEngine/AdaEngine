@@ -32,8 +32,10 @@ public final class AdaEngineHostView: MetalView {
     public var onReady: ReadyHandler?
 
     private var displayLink: CADisplayLink?
+    private weak var displayLinkScreen: UIScreen?
     private var updateTask: Task<Void, Never>?
     private var startupTask: Task<Void, Never>?
+    private var configuredFrameRateRange: ClosedRange<Int>?
     private var isRenderWindowCreated = false
     private var isStopped = false
     private var pendingWorldAccesses: [@MainActor (World) -> Void] = []
@@ -64,6 +66,7 @@ public final class AdaEngineHostView: MetalView {
             .addPlugin(MainSchedulerPlugin())
             .addPlugin(EmbeddedRenderingPlugins(assetBundle: assetBundle))
             .insertResource(PrimaryWindowId(windowId: windowID))
+            .insertResource(ApplicationFramePacing.displaySynchronized())
             .insertResource(SimulationControl())
 
         configure?(appWorlds)
@@ -110,10 +113,12 @@ public final class AdaEngineHostView: MetalView {
         isStopped = true
         displayLink?.invalidate()
         displayLink = nil
+        displayLinkScreen = nil
         startupTask?.cancel()
         startupTask = nil
         updateTask?.cancel()
         updateTask = nil
+        configuredFrameRateRange = nil
         pendingWorldAccesses.removeAll(keepingCapacity: false)
 
         guard isRenderWindowCreated else { return }
@@ -132,6 +137,9 @@ public final class AdaEngineHostView: MetalView {
 
     public override func didMoveToWindow() {
         super.didMoveToWindow()
+        if isRenderWindowCreated {
+            installDisplayLink()
+        }
         displayLink?.isPaused = window == nil
     }
 
@@ -147,10 +155,7 @@ public final class AdaEngineHostView: MetalView {
                 isRenderWindowCreated = true
                 onReady?(appWorlds)
 
-                let displayLink = CADisplayLink(target: self, selector: #selector(updateFrame))
-                displayLink.add(to: .main, forMode: .common)
-                displayLink.isPaused = window == nil
-                self.displayLink = displayLink
+                installDisplayLink()
             } catch {
                 onError?(error)
             }
@@ -158,7 +163,27 @@ public final class AdaEngineHostView: MetalView {
         }
     }
 
+    private func installDisplayLink() {
+        let screen = window?.screen ?? UIScreen.main
+        guard displayLink == nil || displayLinkScreen !== screen else {
+            return
+        }
+
+        displayLink?.invalidate()
+        configuredFrameRateRange = nil
+        let displayLink = screen.displayLink(withTarget: self, selector: #selector(updateFrame))
+            ?? CADisplayLink(target: self, selector: #selector(updateFrame))
+        configureFrameRate(for: displayLink)
+        displayLink.add(to: .main, forMode: .common)
+        displayLink.isPaused = window == nil
+        self.displayLink = displayLink
+        self.displayLinkScreen = screen
+    }
+
     @objc private func updateFrame() {
+        if let displayLink {
+            configureFrameRate(for: displayLink)
+        }
         guard updateTask == nil, !isStopped else { return }
         updateTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -184,6 +209,26 @@ public final class AdaEngineHostView: MetalView {
         for access in accesses {
             access(world)
         }
+    }
+
+    private func configureFrameRate(for displayLink: CADisplayLink) {
+        guard let framePacing = appWorlds.getResource(ApplicationFramePacing.self) else {
+            return
+        }
+        let displayMaximumFramesPerSecond = window?.screen.maximumFramesPerSecond
+            ?? UIScreen.main.maximumFramesPerSecond
+        let range = framePacing.resolvedFrameRateRange(
+            forDisplayMaximumFramesPerSecond: displayMaximumFramesPerSecond
+        )
+        guard configuredFrameRateRange != range else {
+            return
+        }
+        configuredFrameRateRange = range
+        displayLink.preferredFrameRateRange = CAFrameRateRange(
+            minimum: Float(range.lowerBound),
+            maximum: Float(range.upperBound),
+            preferred: Float(range.upperBound)
+        )
     }
 
     private func resizeRenderWindowIfNeeded() {

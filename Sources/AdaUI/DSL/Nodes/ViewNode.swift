@@ -89,6 +89,7 @@ enum UILayoutDebugCounters {
 class ViewNode: Identifiable {
     private static var inspectionRedrawRevisionCounter: UInt64 = 0
     private static var suppressedLayoutPropagationDepth = 0
+    private static var layoutMutationRevision: UInt64 = 0
 
     nonisolated var id: ObjectIdentifier {
         ObjectIdentifier(self)
@@ -142,6 +143,7 @@ class ViewNode: Identifiable {
 
     /// Contains position and size relative to parent view.
     private(set) var frame: Rect = .zero
+    private(set) var lastLayoutProposal: ProposedViewSize = .unspecified
     var transform: Transform3D = .identity
     private(set) var layoutProperties = LayoutProperties()
     private var isPerformingAnimatedLayout = false
@@ -325,6 +327,7 @@ class ViewNode: Identifiable {
     }
 
     func place(in origin: Point, anchor: AnchorPoint, proposal: ProposedViewSize, measuredSize size: Size) {
+        self.lastLayoutProposal = proposal
         let offset = Point(
             x: origin.x - size.width * anchor.x,
             y: origin.y - size.height * anchor.y
@@ -476,10 +479,9 @@ class ViewNode: Identifiable {
     /// This method invalidate all stored views and create a new one.
     func invalidateContent() {}
 
-    /// Invalidates content while allowing callers to keep the resulting layout dirtiness local.
-    /// The default full path preserves historical behavior; state storage uses the local path
-    /// to avoid rebuilding or laying out unrelated ancestors when the subtree's measured size
-    /// is unchanged.
+    /// Invalidates content while suppressing redundant propagation during reconciliation.
+    /// Once the subtree has been rebuilt, layout dirtiness still bubbles to the root because
+    /// a changed intrinsic size can reposition siblings in an ancestor layout container.
     func invalidateContent(propagateLayout: Bool) {
         guard !propagateLayout else {
             self.invalidateContent()
@@ -489,7 +491,7 @@ class ViewNode: Identifiable {
         Self.withSuppressedLayoutPropagation {
             self.invalidateContent()
         }
-        self.markNeedsLayout(propagateToParent: false)
+        self.markNeedsLayout()
         self.invalidateNearestLayer()
         owner?.containerView?.setNeedsLayout(in: visualAbsoluteFrame())
     }
@@ -854,6 +856,14 @@ class ViewNode: Identifiable {
 }
 
 extension ViewNode {
+    static var currentLayoutMutationRevision: UInt64 {
+        layoutMutationRevision
+    }
+
+    static func recordLayoutMutationRequiringAncestorPass() {
+        layoutMutationRevision &+= 1
+    }
+
     static var isLayoutPropagationSuppressed: Bool {
         suppressedLayoutPropagationDepth > 0
     }

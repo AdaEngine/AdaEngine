@@ -46,7 +46,7 @@ struct EditorRealWorkspaceTests {
         #expect(viewModel.workbench.openDocuments.isEmpty)
         #expect(viewModel.projectSidebar.items.contains { $0.relativePath == "Package.swift" })
         #expect(viewModel.projectSidebar.items.contains { $0.relativePath == "README.md" })
-        #expect(viewModel.projectSidebar.items.contains { $0.relativePath == ".ada/project.json" })
+        #expect(!viewModel.projectSidebar.items.contains { $0.relativePath.hasPrefix(".ada") })
         #expect(!viewModel.projectSidebar.items.contains { $0.relativePath.hasPrefix(".build") })
 
         let sourceItem = try #require(viewModel.projectSidebar.items.first { $0.relativePath == "src/EngineLoop.ada" })

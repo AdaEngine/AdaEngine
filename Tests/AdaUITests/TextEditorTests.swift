@@ -55,6 +55,38 @@ struct TextEditorTests {
     }
 
     @Test
+    func textEditor_supportsCommandUndoAndRedo() {
+        final class Model {
+            var text = "original"
+        }
+
+        let model = Model()
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                )
+            )
+            .font(.system(size: 12))
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(100, 28), phase: .began, time: 0)
+        tester.sendMouseEvent(at: Point(100, 28), phase: .ended, time: 0.01)
+        tester.sendKeyEvent(.a, modifiers: [.main], time: 0.02)
+        tester.sendTextInput("changed", time: 0.03)
+
+        tester.sendKeyEvent(.z, modifiers: [.main], time: 0.04)
+        #expect(model.text == "original")
+
+        tester.sendKeyEvent(.z, modifiers: [.main, .shift], time: 0.05)
+        #expect(model.text == "changed")
+    }
+
+    @Test
     func textEditor_movesCaretAcrossLines() {
         final class Model {
             var text = "abc\ndefg\nhi"
@@ -185,6 +217,36 @@ struct TextEditorTests {
     }
 
     @Test
+    func textEditor_caretStopsIncludeLeadingWhitespaceAdvance() throws {
+        final class Model {
+            var text = "    Text"
+        }
+
+        let model = Model()
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                )
+            )
+            .font(.system(size: 18))
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        let node = try #require(tester.sendMouseEvent(at: Point(100, 28), phase: .began, time: 0) as? TextEditorViewNode)
+        let font = try #require(node.resolvedFontForRendering())
+        let pointSize = node.resolvedFontPointSize()
+        let indentationEndX = node.caretXOffset(forColumn: 4, in: model.text, font: font, pointSize: pointSize)
+        let singleSpaceEndX = node.caretXOffset(forColumn: 1, in: " ", font: font, pointSize: pointSize)
+
+        #expect(singleSpaceEndX > 0)
+        #expect(abs(indentationEndX - singleSpaceEndX * 4) < 0.01)
+    }
+
+    @Test
     func textEditor_tokenSpansPreserveInterTokenWhitespace() throws {
         final class Model {
             var text = "import AdaEngine"
@@ -219,6 +281,48 @@ struct TextEditorTests {
         #expect(attributedText.text == line)
         #expect(attributedText.attributes(at: spaceIndex).foregroundColor == .white)
         #expect(attributedText.attributes(at: typeIndex).foregroundColor == .blue)
+    }
+
+    @Test
+    func textEditor_commandHoveredRangeOverridesTokenForeground() throws {
+        final class Model {
+            var text = "document.dispatchEvent"
+        }
+
+        let model = Model()
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                )
+            )
+            .font(.system(size: 12))
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        let node = try #require(tester.sendMouseEvent(at: Point(100, 28), phase: .began, time: 0) as? TextEditorViewNode)
+        let font = try #require(node.resolvedFontForRendering())
+        let line = model.text
+        let attributedText = node.attributedLineText(
+            line,
+            lineSpans: [TextEditorTokenSpan(line: 0, startColumn: 9, length: 13, color: .red)],
+            font: font,
+            fallbackColor: .white,
+            hoveredRange: TextEditorSourceRange(
+                start: TextEditorSourcePosition(line: 0, column: 9),
+                end: TextEditorSourcePosition(line: 0, column: 22)
+            ),
+            lineIndex: 0,
+            hoverColor: .blue
+        )
+        let receiverIndex = line.index(line.startIndex, offsetBy: 2)
+        let methodIndex = line.index(line.startIndex, offsetBy: 10)
+
+        #expect(attributedText.attributes(at: receiverIndex).foregroundColor == .white)
+        #expect(attributedText.attributes(at: methodIndex).foregroundColor == .blue)
     }
 
     @Test
@@ -257,6 +361,42 @@ struct TextEditorTests {
 
         tester.sendMouseEvent(at: Point(82, 16), button: .none, phase: .changed, time: 0.02)
         #expect(hoveredPosition == nil)
+    }
+
+    @Test
+    func textEditor_escapeRequestsCompletionAtCurrentCaret() {
+        final class Model {
+            var text = "alpha"
+        }
+
+        let model = Model()
+        var requestedPosition: TextEditorSourcePosition?
+        var requestedText: String?
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                ),
+                sourceInteraction: TextEditorSourceInteraction(
+                    onRequestCompletion: { position, text in
+                        requestedPosition = position
+                        requestedText = text
+                    }
+                )
+            )
+            .font(.system(size: 12))
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(100, 28), phase: .began, time: 0)
+        tester.sendMouseEvent(at: Point(100, 28), phase: .ended, time: 0.01)
+        tester.sendKeyEvent(.escape, time: 0.02)
+
+        #expect(requestedPosition != nil)
+        #expect(requestedText == model.text)
     }
 
     @Test

@@ -69,6 +69,7 @@ public enum ContextMenuPresentationCenter {
     public static var present: ((ContextMenuPresentation) -> Void)?
     public static var dismissAll: (() -> Bool)?
     public static var dismissForInteraction: ((UIWindow?) -> Void)?
+    public static var dismissForDeactivation: ((UIWindow?) -> Void)?
 }
 
 /// A submenu entry for ``View/contextMenu(menuItems:)``.

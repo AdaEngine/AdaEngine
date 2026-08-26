@@ -41,10 +41,7 @@ public struct AppContext<T: App>: ~Copyable {
         #endif
 
         LoggingSystem.bootstrap {
-            MultiplexLogHandler([
-                StreamLogHandler.standardError(label: $0),
-                StreamLogHandler.standardOutput(label: $0)
-            ])
+            StreamLogHandler.standardError(label: $0)
         }
         let appWorlds = AppWorlds(main: World(name: "MainWorld"))
         AppWorldsSession.current = appWorlds

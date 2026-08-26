@@ -148,6 +148,8 @@ class ViewContainerNode: ViewNode {
     }
 
     override func invalidateContent(propagateLayout: Bool) {
+        let previousFrameSize = frame.size
+        let mutationRevision = Self.currentLayoutMutationRevision
         let inputs = _ViewInputs(
             parentNode: self,
             environment: self.environment
@@ -165,9 +167,18 @@ class ViewContainerNode: ViewNode {
             self.invalidateContent(with: listInputs, propagateLayout: false)
         }
 
-        self.markNeedsLayout(propagateToParent: false)
+        self.completeLocalContentInvalidation(
+            previousFrameSize: previousFrameSize,
+            mutationRevision: mutationRevision
+        )
         self.invalidateNearestLayer()
         owner?.containerView?.setNeedsLayout(in: visualAbsoluteFrame())
+    }
+
+    func completeLocalContentInvalidation(previousFrameSize: Size, mutationRevision: UInt64) {
+        let requiresAncestorLayout = Self.currentLayoutMutationRevision != mutationRevision
+            || sizeThatFits(lastLayoutProposal) != previousFrameSize
+        self.markNeedsLayout(propagateToParent: requiresAncestorLayout)
     }
 
     /// Compare and update old child nodes with a new nodes.
@@ -189,6 +200,15 @@ class ViewContainerNode: ViewNode {
         let oldNodes = self.nodes
         let reconciliation = self.reconcileNodesById(allNewNodes)
             ?? self.reconcileNodesByStructuralPosition(oldNodes: oldNodes, newNodes: allNewNodes)
+        let didReorderNodes = oldNodes.count == reconciliation.nodes.count
+            && zip(oldNodes, reconciliation.nodes).contains { oldNode, reconciledNode in
+                oldNode !== reconciledNode
+            }
+        if oldNodes.count != reconciliation.nodes.count
+            || oldNodes.count != reconciliation.reusedNodeIDs.count
+            || didReorderNodes {
+            Self.recordLayoutMutationRequiringAncestorPass()
+        }
 
         for oldNode in oldNodes where !reconciliation.reusedNodeIDs.contains(ObjectIdentifier(oldNode)) {
             oldNode.parent = nil
@@ -322,7 +342,17 @@ class ViewContainerNode: ViewNode {
     }
 
     private func reuse(_ oldNode: ViewNode, with newNode: ViewNode) -> ViewNode {
+        // Only leaves are measured here. Measuring every reused container would
+        // recursively walk its subtree at every level and turn reconciliation
+        // into O(nodeCount * depth) work.
+        let previousSize = Self.isLayoutPropagationSuppressed && oldNode.transientEnvironmentChildren.isEmpty
+            ? oldNode.sizeThatFits(oldNode.lastLayoutProposal)
+            : nil
         oldNode.update(from: newNode)
+        if let previousSize,
+           previousSize != oldNode.sizeThatFits(oldNode.lastLayoutProposal) {
+            Self.recordLayoutMutationRequiringAncestorPass()
+        }
         oldNode.parent = self
         return oldNode
     }

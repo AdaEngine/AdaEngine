@@ -141,6 +141,171 @@ struct SwiftToolingTests {
         #expect(updatedDocument.completionPosition == nil)
     }
 
+    @Test("automatic completion ignores closing delimiters")
+    @MainActor
+    func automaticCompletionIgnoresClosingDelimiters() async {
+        let service = RecordingWorkspaceService()
+        let document = EditorTextDocument(
+            id: "main",
+            title: "main.swift",
+            relativePath: "Sources/Game/main.swift",
+            absolutePath: "/tmp/Game/Sources/Game/main.swift",
+            language: .swift,
+            content: "Text(\"Hello\")\n}"
+        )
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "Game", path: "/tmp/Game"),
+            workspaceService: service,
+            workbench: EditorWorkbenchViewModel(activeEditorTab: "main.swift", openDocuments: [.text(document)], activeDocumentID: document.id)
+        )
+
+        viewModel.handleCompletionPosition(
+            document: document,
+            position: EditorSourceLocation(line: 0, character: 13),
+            text: document.content
+        )
+        viewModel.handleCompletionPosition(
+            document: document,
+            position: EditorSourceLocation(line: 1, character: 1),
+            text: document.content
+        )
+        await Task.yield()
+
+        #expect(await service.completionRequests.isEmpty)
+    }
+
+    @Test("automatic completion still runs for identifiers and member access")
+    func automaticCompletionAcceptsTypingContexts() {
+        #expect(EditorViewModel.shouldRequestAutomaticCompletion(
+            in: "player.upd",
+            at: EditorSourceLocation(line: 0, character: 10)
+        ))
+        #expect(EditorViewModel.shouldRequestAutomaticCompletion(
+            in: "player.",
+            at: EditorSourceLocation(line: 0, character: 7)
+        ))
+        #expect(!EditorViewModel.shouldRequestAutomaticCompletion(
+            in: "player.update()",
+            at: EditorSourceLocation(line: 0, character: 15)
+        ))
+        #expect(!EditorViewModel.shouldRequestAutomaticCompletion(
+            in: "}",
+            at: EditorSourceLocation(line: 0, character: 1)
+        ))
+    }
+
+    @Test("escape requests completion immediately when the popup is hidden")
+    @MainActor
+    func escapeRequestsCompletionImmediately() async throws {
+        let service = RecordingWorkspaceService()
+        let document = EditorTextDocument(
+            id: "main",
+            title: "main.swift",
+            relativePath: "Sources/Game/main.swift",
+            absolutePath: "/tmp/Game/Sources/Game/main.swift",
+            language: .swift,
+            content: "Text(\"Hello\").font"
+        )
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "Game", path: "/tmp/Game"),
+            workspaceService: service,
+            workbench: EditorWorkbenchViewModel(activeEditorTab: "main.swift", openDocuments: [.text(document)], activeDocumentID: document.id)
+        )
+        let position = EditorSourceLocation(line: 0, character: document.content.count)
+
+        viewModel.handleCompletionRequest(document: document, position: position, text: document.content)
+
+        try await waitForCompletionRequests(service, count: 1)
+        #expect(await service.completionRequests.first?.position == position)
+    }
+
+    @Test("escape dismisses an already visible completion popup")
+    @MainActor
+    func escapeDismissesVisibleCompletion() {
+        let completion = EditorCompletionItem(label: "font", detail: "View", insertText: "font", replacementRange: nil, sortText: nil)
+        let document = EditorTextDocument(
+            id: "main",
+            title: "main.swift",
+            relativePath: "Sources/Game/main.swift",
+            absolutePath: "/tmp/Game/Sources/Game/main.swift",
+            language: .swift,
+            content: "Text(\"Hello\").font",
+            completionItems: [completion],
+            completionPosition: EditorSourceLocation(line: 0, character: 18)
+        )
+        let service = RecordingWorkspaceService()
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "Game", path: "/tmp/Game"),
+            workspaceService: service,
+            workbench: EditorWorkbenchViewModel(activeEditorTab: "main.swift", openDocuments: [.text(document)], activeDocumentID: document.id)
+        )
+
+        viewModel.handleCompletionRequest(
+            document: document,
+            position: EditorSourceLocation(line: 0, character: document.content.count),
+            text: document.content
+        )
+
+        guard case .text(let updatedDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected active text document")
+            return
+        }
+        #expect(updatedDocument.completionItems.isEmpty)
+        #expect(updatedDocument.completionPosition == nil)
+    }
+
+    @Test("command hover stores the selected symbol range and available description")
+    @MainActor
+    func commandHoverStoresRangeAndDescription() async throws {
+        let hoveredRange = EditorSourceRange(
+            start: EditorSourceLocation(line: 0, character: 9),
+            end: EditorSourceLocation(line: 0, character: 22)
+        )
+        let service = RecordingWorkspaceService(
+            hoverResponse: EditorSymbolHover(contents: "Dispatches an event.", range: hoveredRange),
+            documentHighlightResponse: [EditorDocumentHighlight(range: hoveredRange, kind: .text)]
+        )
+        let document = EditorTextDocument(
+            id: "main",
+            title: "main.swift",
+            relativePath: "Sources/Game/main.swift",
+            absolutePath: "/tmp/Game/Sources/Game/main.swift",
+            language: .swift,
+            content: "document.dispatchEvent"
+        )
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "Game", path: "/tmp/Game"),
+            workspaceService: service,
+            workbench: EditorWorkbenchViewModel(activeEditorTab: "main.swift", openDocuments: [.text(document)], activeDocumentID: document.id)
+        )
+
+        viewModel.handleSourceHover(document: document, position: EditorSourceLocation(line: 0, character: 12))
+        for _ in 0..<100 {
+            if case .text(let updatedDocument)? = viewModel.workbench.activeDocument,
+               updatedDocument.sourceHoverDescription != nil {
+                break
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+
+        guard case .text(let hoveredDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected active text document")
+            return
+        }
+        #expect(hoveredDocument.sourceHoverRange == hoveredRange)
+        #expect(hoveredDocument.sourceHoverDescription == "Dispatches an event.")
+        #expect(hoveredDocument.symbolHighlights == [hoveredRange])
+
+        viewModel.handleSourceHover(document: hoveredDocument, position: nil)
+        guard case .text(let clearedDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected active text document")
+            return
+        }
+        #expect(clearedDocument.sourceHoverRange == nil)
+        #expect(clearedDocument.sourceHoverDescription == nil)
+        #expect(clearedDocument.symbolHighlights.isEmpty)
+    }
+
     @Test("build diagnostics replacement preserves SourceKit diagnostics")
     @MainActor
     func buildDiagnosticsPreserveSourceKit() {
@@ -549,6 +714,13 @@ struct SwiftToolingTests {
             "textDocument/documentHighlight": .array([
                 .object(["range": sourceRange(0, 2, 0, 4), "kind": .int(1)])
             ]),
+            "textDocument/hover": .object([
+                "contents": .object([
+                    "kind": .string("markdown"),
+                    "value": .string("func update()")
+                ]),
+                "range": sourceRange(0, 2, 0, 4)
+            ]),
             "textDocument/references": .array([])
         ])
         let client = SourceKitLSPClient(connection: connection)
@@ -562,6 +734,7 @@ struct SwiftToolingTests {
         let items = try await client.completion(fileURL: fileURL, position: EditorSourceLocation(line: 0, character: 3))
         let tokens = try await client.refreshSemanticTokens(fileURL: fileURL)
         let highlights = try await client.documentHighlights(fileURL: fileURL, position: EditorSourceLocation(line: 0, character: 3))
+        let hover = try await client.hover(fileURL: fileURL, position: EditorSourceLocation(line: 0, character: 3))
         _ = try await client.references(fileURL: fileURL, position: EditorSourceLocation(line: 0, character: 3))
         let notifications = await connection.notifications
         let requests = await connection.requests
@@ -616,6 +789,10 @@ struct SwiftToolingTests {
         #expect(tokens.first?.startCharacter == 1)
         #expect(tokens.first?.length == 2)
         #expect(highlights.first?.range == EditorSourceRange(
+            start: EditorSourceLocation(line: 0, character: 1),
+            end: EditorSourceLocation(line: 0, character: 3)
+        ))
+        #expect(hover?.range == EditorSourceRange(
             start: EditorSourceLocation(line: 0, character: 1),
             end: EditorSourceLocation(line: 0, character: 3)
         ))
@@ -1031,6 +1208,17 @@ private actor FakeProcessRunner: EditorProcessRunning {
 
 private actor RecordingWorkspaceService: SwiftPMWorkspaceServicing {
     private(set) var commands: [SwiftPMCommandKind] = []
+    private(set) var completionRequests: [(position: EditorSourceLocation, text: String)] = []
+    private let hoverResponse: EditorSymbolHover?
+    private let documentHighlightResponse: [EditorDocumentHighlight]
+
+    init(
+        hoverResponse: EditorSymbolHover? = nil,
+        documentHighlightResponse: [EditorDocumentHighlight] = []
+    ) {
+        self.hoverResponse = hoverResponse
+        self.documentHighlightResponse = documentHighlightResponse
+    }
 
     nonisolated func makeCommand(_ kind: SwiftPMCommandKind, projectURL: URL, toolchain: SwiftToolchain) -> EditorProcessCommand {
         SwiftPMWorkspaceService().makeCommand(kind, projectURL: projectURL, toolchain: toolchain)
@@ -1066,10 +1254,16 @@ private actor RecordingWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func semanticTokens(fileURL: URL, language: EditorSourceLanguage, text: String) -> [EditorSemanticToken] { [] }
+    func completions(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> [EditorCompletionItem] {
+        completionRequests.append((position, text))
+        return []
+    }
     func definition(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> [EditorSourceSymbolTarget] { [] }
     func references(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> [EditorSourceReference] { [] }
-    func hover(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> EditorSymbolHover? { nil }
-    func documentHighlights(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> [EditorDocumentHighlight] { [] }
+    func hover(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> EditorSymbolHover? { hoverResponse }
+    func documentHighlights(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) -> [EditorDocumentHighlight] {
+        documentHighlightResponse
+    }
     func cancel() {}
 }
 
@@ -1081,6 +1275,16 @@ private func waitForRecordedCommands(_ service: RecordingWorkspaceService, count
         try await Task.sleep(for: .milliseconds(5))
     }
     Issue.record("Timed out waiting for \(count) workspace commands")
+}
+
+private func waitForCompletionRequests(_ service: RecordingWorkspaceService, count: Int) async throws {
+    for _ in 0..<100 {
+        if await service.completionRequests.count >= count {
+            return
+        }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+    Issue.record("Timed out waiting for \(count) completion requests")
 }
 
 private func testDiagnostic(message: String, source: String) -> EditorDiagnostic {

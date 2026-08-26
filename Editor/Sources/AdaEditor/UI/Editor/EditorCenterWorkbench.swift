@@ -8,9 +8,12 @@ struct EditorCenterWorkbench: View {
     let onSourceHover: ((EditorTextDocument, EditorSourceLocation?) -> Void)?
     let onGoToDefinition: ((EditorTextDocument, EditorSourceLocation) -> Void)?
     let onCompletionPosition: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
+    let onCompletionRequest: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
     let onApplyCompletion: ((EditorCompletionItem, EditorTextDocument) -> Void)?
     let sourceContextMenuItems: ((EditorTextDocument, EditorSourceLocation) -> [TextEditorContextMenuItem])?
     let onSelectDocument: ((String) -> Void)?
+    let onRevealDocument: ((EditorWorkbenchDocument) -> Void)?
+    let onCopyDocumentPath: ((EditorWorkbenchDocument, Bool) -> Void)?
     let onSelectPreview: ((EditorPreviewDeclaration) -> Void)?
     let onRebuildPreview: (() -> Void)?
     let onShowPreviewBuildOutput: (() -> Void)?
@@ -93,6 +96,46 @@ extension EditorCenterWorkbench {
                 RectangleShape()
                     .fill(theme.editorColors.blue)
                     .frame(height: 2)
+            }
+        }
+        .onMiddleClick {
+            viewModel.closeDocument(id: document.id)
+        }
+        .contextMenu {
+            Button("Close") {
+                viewModel.closeDocument(id: document.id)
+            }
+            if viewModel.openDocuments.count > 1 {
+                Button("Close Others") {
+                    viewModel.closeOtherDocuments(keeping: document.id)
+                }
+            }
+            if let index = viewModel.openDocuments.firstIndex(where: { $0.id == document.id }), index > 0 {
+                Button("Close Left") {
+                    viewModel.closeDocumentsToLeft(of: document.id)
+                }
+            }
+            if let index = viewModel.openDocuments.firstIndex(where: { $0.id == document.id }), index < viewModel.openDocuments.count - 1 {
+                Button("Close Right") {
+                    viewModel.closeDocumentsToRight(of: document.id)
+                }
+            }
+            Button("Close Clean") {
+                viewModel.closeCleanDocuments()
+            }
+            Button("Close All") {
+                viewModel.closeAllDocuments()
+            }
+            if document.absolutePath != nil {
+                Button("Copy Path") {
+                    onCopyDocumentPath?(document, false)
+                }
+                Button("Copy Relative Path") {
+                    onCopyDocumentPath?(document, true)
+                }
+                Button("Reveal in Finder") {
+                    onRevealDocument?(document)
+                }
             }
         }
         .accessibilityIdentifier("AdaEditor.Tab.\(document.title)")
@@ -287,6 +330,7 @@ extension EditorCenterWorkbench {
             onSourceHover: onSourceHover,
             onGoToDefinition: onGoToDefinition,
             onCompletionPosition: onCompletionPosition,
+            onCompletionRequest: onCompletionRequest,
             onApplyCompletion: onApplyCompletion,
             sourceContextMenuItems: sourceContextMenuItems
         )

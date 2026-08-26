@@ -149,6 +149,24 @@ struct OffscreenViewportTests {
     }
 
     @Test
+    func tick_doesNotInvalidateDisplayWhenTextureIdentityIsStable() {
+        let delegate = MockViewportDelegate()
+        delegate.renderTexture = Texture2D.whiteTexture
+
+        let tester = ViewTester {
+            OffscreenViewportView(delegate: delegate)
+        }
+        .setSize(Size(width: 400, height: 300))
+        .performLayout()
+
+        _ = tester.containerView.consumeNeedsDisplay()
+        tester.advanceFrame(deltaTime: 0.016)
+
+        #expect(delegate.tickCount >= 1)
+        #expect(!tester.containerView.needsDisplay)
+    }
+
+    @Test
     func sizeUpdate_reportedOnLayout() {
         let delegate = MockViewportDelegate()
 

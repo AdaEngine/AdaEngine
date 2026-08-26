@@ -85,6 +85,10 @@ final class AspectRatioViewNode: ViewModifierNode {
             return
         }
 
+        if self.aspectRatio != other.aspectRatio || self.contentMode != other.contentMode {
+            Self.recordLayoutMutationRequiringAncestorPass()
+            self.markNeedsLayout()
+        }
         self.aspectRatio = other.aspectRatio
         self.contentMode = other.contentMode
         super.update(from: newNode)

@@ -124,6 +124,8 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func invalidateContent(propagateLayout: Bool) {
+        let previousFrameSize = frame.size
+        let mutationRevision = Self.currentLayoutMutationRevision
         var inputs = _ViewInputs(parentNode: self, environment: self.environment)
         inputs.layout = self.layout
         let listInputs = _ViewListInputs(input: inputs)
@@ -141,7 +143,10 @@ class LayoutViewContainerNode: ViewContainerNode {
             self.invalidateContent(with: listInputs, propagateLayout: false)
         }
 
-        self.markNeedsLayout(propagateToParent: false)
+        self.completeLocalContentInvalidation(
+            previousFrameSize: previousFrameSize,
+            mutationRevision: mutationRevision
+        )
         self.invalidateNearestLayer()
         owner?.containerView?.setNeedsLayout(in: visualAbsoluteFrame())
     }

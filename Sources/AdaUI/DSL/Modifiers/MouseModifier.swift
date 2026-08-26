@@ -21,6 +21,85 @@ public extension View {
     func allowsHitTesting(_ enabled: Bool) -> some View {
         self.modifier(HitTestingModifier(enabled: enabled, content: self))
     }
+
+    /// Invokes an action when the view receives a completed middle mouse click.
+    func onMiddleClick(perform action: @escaping () -> Void) -> some View {
+        self.modifier(MiddleClickModifier(action: action, content: self))
+    }
+}
+
+// MARK: - MiddleClickModifier
+
+private struct MiddleClickModifier<Content: View>: ViewModifier, ViewNodeBuilder {
+    typealias Body = Never
+
+    let action: () -> Void
+    let content: Content
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        MiddleClickModifierNode(
+            action: action,
+            contentNode: context.makeNode(from: content),
+            content: content
+        )
+    }
+}
+
+private final class MiddleClickModifierNode: ViewModifierNode {
+    private var action: () -> Void
+    private var isPressed = false
+
+    init<Content: View>(action: @escaping () -> Void, contentNode: ViewNode, content: Content) {
+        self.action = action
+        super.init(contentNode: contentNode, content: content)
+    }
+
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+
+        guard let node = newNode as? MiddleClickModifierNode else {
+            return
+        }
+
+        action = node.action
+    }
+
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
+        guard self.point(inside: point, with: event) else {
+            return nil
+        }
+
+        guard let mouseEvent = event as? MouseEvent, mouseEvent.button == .middle else {
+            return super.hitTest(point, with: event)
+        }
+        return self
+    }
+
+    override func onMouseEvent(_ event: MouseEvent) {
+        guard event.button == .middle else {
+            contentNode.onMouseEvent(event)
+            return
+        }
+
+        switch event.phase {
+        case .began:
+            isPressed = true
+        case .ended:
+            if isPressed {
+                action()
+            }
+            isPressed = false
+        case .changed:
+            break
+        case .cancelled:
+            isPressed = false
+        }
+    }
+
+    override func onMouseLeave() {
+        isPressed = false
+        super.onMouseLeave()
+    }
 }
 
 // MARK: - HoverViewModifier

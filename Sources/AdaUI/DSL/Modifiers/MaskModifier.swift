@@ -89,7 +89,15 @@ private final class MaskShapeViewNode<S: Shape>: ViewModifierNode {
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = environment
+
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        if shape is RectangleShape,
+           context.pushTransformedClipRect(Rect(origin: .zero, size: frame.size)) {
+            contentNode.draw(with: context)
+            context.popClipRect()
+            return
+        }
+
         context.clip(to: path) { clippedContext in
             contentNode.draw(with: clippedContext)
         }

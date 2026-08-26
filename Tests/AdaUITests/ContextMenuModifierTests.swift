@@ -83,6 +83,45 @@ struct ContextMenuModifierTests {
     }
 
     @Test
+    func scrollViewEmptyAreaFallsThroughToBackgroundContextMenu() {
+        var captured: ContextMenuPresentation?
+        ContextMenuPresentationCenter.present = { presentation in
+            captured = presentation
+        }
+        defer {
+            ContextMenuPresentationCenter.present = nil
+        }
+
+        let tester = ViewTester {
+            ZStack(anchor: .topLeading) {
+                Color.clear
+                    .frame(width: 200, height: 300)
+                    .contextMenu {
+                        Button("Background") {}
+                    }
+
+                ScrollView {
+                    Color.red
+                        .frame(width: 200, height: 40)
+                        .contextMenu {
+                            Button("Row") {}
+                        }
+                }
+                .frame(width: 200, height: 300)
+            }
+        }
+        .setSize(Size(width: 200, height: 300))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(100, 200), button: .right, phase: .began)
+        #expect(captured?.items.map(\.title) == ["Background"])
+
+        captured = nil
+        tester.sendMouseEvent(at: Point(100, 20), button: .right, phase: .began)
+        #expect(captured?.items.map(\.title) == ["Row"])
+    }
+
+    @Test
     func contextMenuPresentsAfterLongPress() {
         var captured: ContextMenuPresentation?
 
@@ -101,10 +140,10 @@ struct ContextMenuModifierTests {
         .performLayout()
 
         tester.sendMouseEvent(at: Point(40, 40), phase: .began)
-        tester.containerView.viewTree.rootNode.update(0.4)
+        tester.advanceFrame(deltaTime: 0.4)
         #expect(captured == nil)
 
-        tester.containerView.viewTree.rootNode.update(0.2)
+        tester.advanceFrame(deltaTime: 0.4)
         #expect(captured?.location == Point(40, 40))
         #expect(captured?.items.map(\.title) == ["Open"])
 
@@ -133,12 +172,33 @@ struct ContextMenuModifierTests {
         .performLayout()
 
         tester.sendMouseEvent(at: Point(50, 50), phase: .began)
-        tester.containerView.viewTree.rootNode.update(0.6)
+        tester.advanceFrame(deltaTime: 0.8)
         tester.sendMouseEvent(at: Point(50, 50), phase: .ended)
 
         #expect(captured?.items.map(\.title) == ["Open"])
         #expect(!didTapPrimaryAction)
 
         ContextMenuPresentationCenter.present = nil
+    }
+
+    @Test
+    func activeWindowDeactivationRequestsContextMenuDismissal() {
+        let window = UIWindow(frame: Rect(x: 0, y: 0, width: 200, height: 120))
+        var deactivatedWindow: UIWindow?
+        ContextMenuPresentationCenter.dismissForDeactivation = { sourceWindow in
+            deactivatedWindow = sourceWindow
+        }
+        defer {
+            ContextMenuPresentationCenter.dismissForDeactivation = nil
+        }
+
+        UIWindowManager.shared.setActiveWindow(window)
+        #expect(window.isActive)
+
+        UIWindowManager.shared.resignActiveWindow(window)
+
+        #expect(deactivatedWindow === window)
+        #expect(!window.isActive)
+        #expect(UIWindowManager.shared.activeWindow == nil)
     }
 }

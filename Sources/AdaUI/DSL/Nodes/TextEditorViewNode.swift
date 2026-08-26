@@ -243,6 +243,16 @@ final class TextEditorViewNode: ViewNode {
             return
         }
 
+        if event.keyCode == .escape, let requestCompletion = self.sourceInteraction?.onRequestCompletion {
+            let position = self.position(forOffset: self.selectionHead, lines: self.lines())
+            requestCompletion(
+                TextEditorSourcePosition(line: position.line, column: position.column),
+                self.text
+            )
+            self.resetCaretBlink()
+            return
+        }
+
         let extendSelection = event.modifiers.contains(.shift)
         let movesByWordBoundary = event.modifiers.contains(.main)
 

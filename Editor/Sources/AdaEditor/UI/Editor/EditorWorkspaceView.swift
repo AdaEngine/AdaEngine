@@ -212,9 +212,18 @@ private extension EditorWorkspaceLayout {
             : 0
         let desiredTotal = desiredLeftWidth + desiredRightWidth
 
-        guard desiredTotal > availableWidth,
-              availableWidth >= minimumLeftWidth + minimumRightWidth else {
+        guard desiredTotal > availableWidth else {
             return (desiredLeftWidth, desiredRightWidth)
+        }
+
+        guard availableWidth >= minimumLeftWidth + minimumRightWidth else {
+            guard desiredTotal > 0 else {
+                return (0, 0)
+            }
+            return (
+                availableWidth * desiredLeftWidth / desiredTotal,
+                availableWidth * desiredRightWidth / desiredTotal
+            )
         }
 
         let leftFlexibleWidth = desiredLeftWidth - minimumLeftWidth

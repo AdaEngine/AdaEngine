@@ -9,6 +9,139 @@ import Testing
 
 @Suite("AdaEngineStyle UI mock")
 struct AdaEngineStyleUITests {
+    @Test("activity progress represents indexing and clamps determinate progress")
+    @MainActor
+    func activityProgressRepresentsIndexing() {
+        let status = EditorWorkspaceStatus.preparing(
+            SwiftPMWorkspaceProgress(
+                phase: .indexingBuild,
+                title: "Indexing Swift package",
+                completedFileCount: 7,
+                totalFileCount: 5,
+                currentFile: "Player.swift"
+            )
+        )
+
+        let activities = EditorActivityPresentation.events(
+            workspaceStatus: status,
+            previewStatus: .hidden,
+            sourceControlIsRunning: false,
+            sourceControlTitle: ""
+        )
+
+        #expect(activities.count == 1)
+        #expect(activities.first?.kind == .indexing)
+        #expect(activities.first?.detail == "Player.swift")
+        #expect(activities.first?.fractionCompleted == 1)
+        #expect(activities.first?.statusTitle == "Indexing Swift package · 100%")
+    }
+
+    @Test("activity progress supports build and concurrent source control events")
+    @MainActor
+    func activityProgressSupportsDifferentEvents() {
+        let activities = EditorActivityPresentation.events(
+            workspaceStatus: .running("Build Game"),
+            previewStatus: .hidden,
+            sourceControlIsRunning: true,
+            sourceControlTitle: "Refreshing branches..."
+        )
+
+        #expect(activities.map(\.kind) == [.build, .sourceControl])
+        #expect(activities.map(\.title) == ["Build Game", "Refreshing branches..."])
+        #expect(activities.allSatisfy { $0.fractionCompleted == nil })
+    }
+
+    @Test("double Shift opens search only inside the shortcut interval")
+    func doubleShiftSearchShortcutTiming() {
+        var detector = EditorDoubleShiftDetector()
+
+        #expect(detector.registerPress(at: 1) == false)
+        #expect(detector.registerPress(at: 1.25) == true)
+        #expect(detector.registerPress(at: 2) == false)
+        #expect(detector.registerPress(at: 2.6) == false)
+        #expect(detector.registerPress(at: 2.7, isRepeated: true) == false)
+        #expect(detector.registerPress(at: 2.8) == true)
+    }
+
+    @Test("double Shift shortcut focuses the toolbar text field")
+    @MainActor
+    func doubleShiftSearchShortcutFocusesToolbarSearchField() throws {
+        final class Model {
+            var query = ""
+        }
+
+        let model = Model()
+        let container = UIContainerView(
+            rootView: VStack {
+                TextField(
+                    "Search Project Files",
+                    text: Binding(get: { model.query }, set: { model.query = $0 })
+                )
+            }
+            .accessibilityIdentifier(EditorTopToolbar.searchAccessibilityIdentifier)
+        )
+        container.frame = Rect(x: 0, y: 0, width: 320, height: 80)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+
+        #expect(EditorSearchShortcutMonitor.shared.focusSearchField(in: [container]))
+        let diagnostics = try container.uiLayoutDiagnostics(matching: nil, subtreeDepth: nil)
+        #expect(diagnostics.textInputFocused)
+        #expect(diagnostics.focusedNode?.nodeType.hasSuffix("TextFieldViewNode") == true)
+    }
+
+    @Test("tab middle-click support preserves select and close buttons")
+    @MainActor
+    func tabMiddleClickSupportPreservesButtons() throws {
+        final class Counters {
+            var selected = 0
+            var closed = 0
+            var middleClicked = 0
+        }
+
+        let counters = Counters()
+        let container = UIContainerView(
+            rootView: HStack {
+                Color.clear
+                    .frame(width: 90, height: 32)
+                    .onTap { counters.selected += 1 }
+                    .accessibilityIdentifier("AdaEditor.TestTab.Select")
+
+                Color.clear
+                    .frame(width: 70, height: 32)
+                    .onTap { counters.closed += 1 }
+                    .accessibilityIdentifier("AdaEditor.TestTab.Close")
+            }
+            .onMiddleClick {
+                counters.middleClicked += 1
+            }
+        )
+        container.frame = Rect(x: 0, y: 0, width: 180, height: 40)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.TestTab.Select"))
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.TestTab.Close"))
+
+        #expect(counters.selected == 1)
+        #expect(counters.closed == 1)
+        #expect(counters.middleClicked == 0)
+    }
+
+    @Test("project search results use the editor viewport instead of the toolbar frame")
+    func projectSearchResultsEscapeToolbarFrame() {
+        let toolbarHeight = AdaEngineStyleLayoutSpec.topToolbarHeight
+        let popupTop = EditorProjectSearchResultsLayout.topOffset(toolbarHeight: toolbarHeight)
+        let popupHeight = EditorProjectSearchResultsLayout.height(itemCount: 3)
+        let expectedPopupHeight = EditorProjectSearchResultsLayout.rowHeight * 3
+            + EditorProjectSearchResultsLayout.rowSpacing * 2
+            + EditorProjectSearchResultsLayout.padding * 2
+
+        #expect(popupTop == toolbarHeight - EditorProjectSearchResultsLayout.padding)
+        #expect(popupHeight == expectedPopupHeight)
+        #expect(popupTop + popupHeight > toolbarHeight)
+    }
+
     @Test("desktop grid dimensions match the requested IDE layout")
     func desktopGridDimensions() {
         #expect(AdaEngineStyleLayoutSpec.topToolbarHeight == 52)
@@ -35,6 +168,9 @@ struct AdaEngineStyleUITests {
         #expect(compact.aiFlightBoxWidth <= compact.workbenchWidth)
         #expect(compact.aiFlightBoxHeight < desktop.aiFlightBoxHeight)
         #expect(compact.outputTabs.count < AdaEngineStyleContent.outputTabs.count)
+        #expect(compact.toolbarWindowControlClearance >= 76)
+        #expect(!compact.showsToolbarSceneName)
+        #expect(!compact.showsToolbarHotReloadStatus)
     }
 
     @Test("code completion popup remains inside the editor viewport")
@@ -52,6 +188,7 @@ struct AdaEngineStyleUITests {
         #expect(frame.minY >= EditorCompletionPopupLayout.viewportInset)
         #expect(frame.maxX <= viewport.width - EditorCompletionPopupLayout.viewportInset)
         #expect(frame.maxY <= viewport.height - EditorCompletionPopupLayout.viewportInset)
+        #expect(frame.height == EditorCompletionPopupLayout.rowHeight * 8 + EditorCompletionPopupLayout.verticalPadding * 2)
     }
 
     @Test("code completion popup starts below a nearby caret")
@@ -65,6 +202,32 @@ struct AdaEngineStyleUITests {
 
         #expect(frame.minX > 82)
         #expect(frame.minY > 18)
+    }
+
+    @Test("source hover popup stays inside the editor and prefers the space above the symbol")
+    func sourceHoverPopupTracksSymbol() {
+        let frame = EditorSourceHoverPopupLayout.frame(
+            viewportSize: Size(width: 900, height: 700),
+            hoveredRange: EditorSourceRange(
+                start: EditorSourceLocation(line: 14, character: 12),
+                end: EditorSourceLocation(line: 14, character: 20)
+            ),
+            fontSize: 12,
+            description: "func dispatchEvent(_ event: Event) -> Bool\nDispatches an event to registered listeners."
+        )
+
+        #expect(frame.minX >= EditorSourceHoverPopupLayout.viewportInset)
+        #expect(frame.minY >= EditorSourceHoverPopupLayout.viewportInset)
+        #expect(frame.maxX <= 900 - EditorSourceHoverPopupLayout.viewportInset)
+        #expect(frame.maxY <= 700 - EditorSourceHoverPopupLayout.viewportInset)
+        #expect(frame.maxY < 18 + Float(14) * max(18, Float(12) * 1.45))
+    }
+
+    @Test("source hover presentation removes markdown code fences")
+    func sourceHoverPresentationRemovesCodeFences() {
+        let text = EditorSourceHoverPresentation.displayText(from: "```swift\nfunc update()\n```\nUpdates the scene.")
+
+        #expect(text == "func update()\nUpdates the scene.")
     }
 
     @Test("workspace reserves sidebars and output panel before sizing the scene viewport")
@@ -106,6 +269,67 @@ struct AdaEngineStyleUITests {
 
         #expect(abs(layout.mainPanelWidth - EditorWorkspaceLayout.minimumMainPanelWidth) < 0.001)
         #expect(abs(layout.mainPanelHeight - EditorWorkspaceLayout.minimumMainPanelHeight) < 0.001)
+    }
+
+    @Test("workspace expands the editor viewport into hidden sidebar slots")
+    func workspaceExpandsViewportWhenSidebarsAreHidden() {
+        let visible = EditorWorkspaceLayout(
+            size: Size(width: 1_200, height: 700),
+            showsLeftPanel: true,
+            showsRightPanel: true,
+            showsBottomPanel: false,
+            requestedLeftPanelWidth: 260,
+            requestedRightPanelWidth: 300,
+            requestedBottomPanelHeight: 180,
+            fallbackLeftPanelWidth: 260,
+            fallbackRightPanelWidth: 300,
+            panelSpacing: 8
+        )
+        let leftHidden = EditorWorkspaceLayout(
+            size: Size(width: 1_200, height: 700),
+            showsLeftPanel: false,
+            showsRightPanel: true,
+            showsBottomPanel: false,
+            requestedLeftPanelWidth: 260,
+            requestedRightPanelWidth: 300,
+            requestedBottomPanelHeight: 180,
+            fallbackLeftPanelWidth: 260,
+            fallbackRightPanelWidth: 300,
+            panelSpacing: 8
+        )
+        let rightHidden = EditorWorkspaceLayout(
+            size: Size(width: 1_200, height: 700),
+            showsLeftPanel: true,
+            showsRightPanel: false,
+            showsBottomPanel: false,
+            requestedLeftPanelWidth: 260,
+            requestedRightPanelWidth: 300,
+            requestedBottomPanelHeight: 180,
+            fallbackLeftPanelWidth: 260,
+            fallbackRightPanelWidth: 300,
+            panelSpacing: 8
+        )
+        let hidden = EditorWorkspaceLayout(
+            size: Size(width: 1_200, height: 700),
+            showsLeftPanel: false,
+            showsRightPanel: false,
+            showsBottomPanel: false,
+            requestedLeftPanelWidth: 260,
+            requestedRightPanelWidth: 300,
+            requestedBottomPanelHeight: 180,
+            fallbackLeftPanelWidth: 260,
+            fallbackRightPanelWidth: 300,
+            panelSpacing: 8
+        )
+
+        #expect(visible.mainPanelWidth == 616)
+        #expect(leftHidden.leftPanelWidth == 0)
+        #expect(leftHidden.mainPanelWidth == 884)
+        #expect(rightHidden.rightPanelWidth == 0)
+        #expect(rightHidden.mainPanelWidth == 932)
+        #expect(hidden.leftPanelWidth == 0)
+        #expect(hidden.mainPanelWidth == 1_200)
+        #expect(hidden.rightPanelWidth == 0)
     }
 
     @Test("all required IDE regions expose reference labels")
@@ -150,17 +374,34 @@ struct AdaEngineStyleUITests {
         #expect(AdaEngineStyleContent.footerRight == ["3:12 LF UTF-8", "Git: main*"])
     }
 
+    @Test("output lines cap pathological compiler invocations")
+    func outputLinesCapPathologicalCompilerInvocations() {
+        let shortLine = EditorWorkspaceLogLine(text: "error: missing symbol")
+        let longLine = EditorWorkspaceLogLine(text: String(repeating: "x", count: EditorWorkspaceLogLine.maximumTextLength + 500))
+
+        #expect(shortLine.text == "error: missing symbol")
+        #expect(longLine.text.count < EditorWorkspaceLogLine.maximumTextLength + 50)
+        #expect(longLine.text.hasSuffix("… [truncated]"))
+    }
+
+    @Test("workspace failure status keeps build output out of compact chrome")
+    func workspaceFailureStatusKeepsBuildOutputOutOfCompactChrome() {
+        let buildOutput = String(repeating: "swift compiler diagnostic ", count: 500)
+
+        #expect(EditorWorkspaceStatus.failed(buildOutput).title == "Failed")
+    }
+
     @Test("hot reload state exposes compact toolbar and footer labels")
     func hotReloadStateLabels() {
         let ready = EditorHotReloadState(isEnabled: true, watchedPathCount: 3, lastReloadedPath: nil, errorMessage: nil)
         let reloaded = EditorHotReloadState(isEnabled: true, watchedPathCount: 3, lastReloadedPath: "main.swift", errorMessage: nil)
         let failed = EditorHotReloadState(isEnabled: false, watchedPathCount: 3, lastReloadedPath: nil, errorMessage: "Permission denied")
 
-        #expect(ready.toolbarTitle == "↻ Hot Reload")
+        #expect(ready.toolbarTitle == "Hot Reload")
         #expect(ready.footerTitle == "Hot Reload: 3 paths")
-        #expect(reloaded.toolbarTitle == "↻ Reloaded")
+        #expect(reloaded.toolbarTitle == "Reloaded")
         #expect(reloaded.footerTitle == "Hot Reload: main.swift")
-        #expect(failed.toolbarTitle == "↻ Hot Reload Failed")
+        #expect(failed.toolbarTitle == "Hot Reload Failed")
         #expect(failed.footerTitle == "Hot Reload: Permission denied")
     }
 
@@ -498,6 +739,103 @@ struct AdaEngineStyleUITests {
         #expect(workbench.activeEditorTab == "")
     }
 
+    @Test("workbench navigates backward and forward through visited documents")
+    @MainActor
+    func workbenchDocumentNavigationHistory() {
+        let firstDocument = AdaEngineStyleContent.defaultEditorDocuments[0]
+        let secondDocument = AdaEngineStyleContent.defaultEditorDocuments[1]
+        let thirdDocument = EditorWorkbenchDocument.text(
+            EditorTextDocument(
+                id: "text:Sources/Third.swift",
+                title: "Third.swift",
+                relativePath: "Sources/Third.swift",
+                language: .swift,
+                content: "let third = true\n"
+            )
+        )
+        let workbench = EditorWorkbenchViewModel(
+            openDocuments: [firstDocument, secondDocument, thirdDocument],
+            activeDocumentID: firstDocument.id
+        )
+
+        workbench.selectDocument(id: secondDocument.id)
+        workbench.selectDocument(id: thirdDocument.id)
+
+        #expect(workbench.navigateBack())
+        #expect(workbench.activeDocumentID == secondDocument.id)
+        #expect(workbench.navigateBack())
+        #expect(workbench.activeDocumentID == firstDocument.id)
+        #expect(!workbench.navigateBack())
+
+        #expect(workbench.navigateForward())
+        #expect(workbench.activeDocumentID == secondDocument.id)
+        #expect(workbench.navigateForward())
+        #expect(workbench.activeDocumentID == thirdDocument.id)
+        #expect(!workbench.navigateForward())
+    }
+
+    @Test("new document selection clears forward navigation history")
+    @MainActor
+    func workbenchDocumentNavigationBranches() {
+        let firstDocument = AdaEngineStyleContent.defaultEditorDocuments[0]
+        let secondDocument = AdaEngineStyleContent.defaultEditorDocuments[1]
+        let thirdDocument = EditorWorkbenchDocument.text(
+            EditorTextDocument(
+                id: "text:Sources/Third.swift",
+                title: "Third.swift",
+                relativePath: "Sources/Third.swift",
+                language: .swift,
+                content: "let third = true\n"
+            )
+        )
+        let workbench = EditorWorkbenchViewModel(
+            openDocuments: [firstDocument, secondDocument, thirdDocument],
+            activeDocumentID: firstDocument.id
+        )
+
+        workbench.selectDocument(id: secondDocument.id)
+        workbench.selectDocument(id: thirdDocument.id)
+        #expect(workbench.navigateBack())
+        workbench.selectDocument(id: firstDocument.id)
+
+        #expect(!workbench.navigateForward())
+        #expect(workbench.activeDocumentID == firstDocument.id)
+    }
+
+    @Test("mouse side buttons map to editor navigation directions")
+    @MainActor
+    func mouseSideButtonNavigationDirections() {
+        #expect(EditorNavigationMouseShortcutMonitor.direction(forButtonNumber: 3) == .back)
+        #expect(EditorNavigationMouseShortcutMonitor.direction(forButtonNumber: 4) == .forward)
+        #expect(EditorNavigationMouseShortcutMonitor.direction(forButtonNumber: 2) == nil)
+    }
+
+    @Test("workbench tab menu close commands keep the selected document")
+    @MainActor
+    func workbenchTabMenuCloseCommands() {
+        let thirdDocument = EditorWorkbenchDocument.text(
+            EditorTextDocument(
+                id: "text:Sources/Third.swift",
+                title: "Third.swift",
+                relativePath: "Sources/Third.swift",
+                language: .swift,
+                content: "let third = true\n"
+            )
+        )
+        let workbench = EditorWorkbenchViewModel(
+            openDocuments: AdaEngineStyleContent.defaultEditorDocuments + [thirdDocument],
+            activeDocumentID: thirdDocument.id
+        )
+        let keptDocumentID = AdaEngineStyleContent.defaultEditorDocuments[1].id
+
+        workbench.closeDocumentsToLeft(of: keptDocumentID)
+        #expect(workbench.openDocuments.map(\.id) == [keptDocumentID, thirdDocument.id])
+
+        workbench.closeDocumentsToRight(of: keptDocumentID)
+        #expect(workbench.openDocuments.map(\.id) == [keptDocumentID])
+        #expect(workbench.activeDocumentID == keptDocumentID)
+    }
+
     @Test("editor opens text files as code documents and scene files as editable scene documents")
     @MainActor
     func editorOpensTextAndSceneProjectFiles() throws {
@@ -525,7 +863,7 @@ struct AdaEngineStyleUITests {
 
         #expect(viewModel.projectSidebar.items.contains { $0.relativePath == "Package.swift" })
         #expect(viewModel.projectSidebar.items.contains { $0.relativePath == "Package.resolved" })
-        #expect(viewModel.projectSidebar.items.contains { $0.relativePath == "\(ProjectSystem.metadataDirectoryName)/\(ProjectSystem.metadataFileName)" })
+        #expect(!viewModel.projectSidebar.items.contains { $0.relativePath.hasPrefix(ProjectSystem.metadataDirectoryName) })
 
         let swiftItem = try #require(viewModel.projectSidebar.items.first { $0.relativePath == "Sources/Game/main.swift" })
         viewModel.openProjectItem(swiftItem)
@@ -675,6 +1013,156 @@ struct AdaEngineStyleUITests {
         viewModel.openProjectItem(sourcesItem)
         #expect(!viewModel.projectSidebar.isCollapsed(sourcesItem))
         #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Sources/Game/main.swift" })
+    }
+
+    @Test("toolbar search finds nested project files and supports a folder scope")
+    @MainActor
+    func toolbarSearchFindsProjectFiles() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorProjectSearch")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        let gameSourcesURL = rootURL.appendingPathComponent("Sources/Game", isDirectory: true)
+        let toolsSourcesURL = rootURL.appendingPathComponent("Sources/Tools", isDirectory: true)
+        let metadataURL = rootURL.appendingPathComponent(ProjectSystem.metadataDirectoryName, isDirectory: true)
+        try FileManager.default.createDirectory(at: gameSourcesURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: toolsSourcesURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: metadataURL, withIntermediateDirectories: true)
+        try "print(\"game\")\n".write(to: gameSourcesURL.appendingPathComponent("main.swift"), atomically: true, encoding: .utf8)
+        try "print(\"tool\")\n".write(to: toolsSourcesURL.appendingPathComponent("main-tool.swift"), atomically: true, encoding: .utf8)
+        try "{}\n".write(to: metadataURL.appendingPathComponent(ProjectSystem.metadataFileName), atomically: true, encoding: .utf8)
+
+        let viewModel = EditorViewModel(project: EditorProjectReference(name: "EditorProjectSearch", path: rootURL.path))
+        viewModel.toolbar.searchText = "main"
+        #expect(viewModel.toolbar.searchResults.map(\.relativePath) == [
+            "Sources/Game/main.swift",
+            "Sources/Tools/main-tool.swift",
+        ])
+        #expect(!viewModel.toolbar.searchResults.contains { $0.relativePath.hasPrefix(".ada") })
+
+        let gameFolder = try #require(viewModel.projectSidebar.items.first { $0.relativePath == "Sources/Game" })
+        viewModel.findInProjectFolder(gameFolder)
+        viewModel.toolbar.searchText = "main"
+        #expect(viewModel.toolbar.searchResults.map(\.relativePath) == ["Sources/Game/main.swift"])
+
+        let result = try #require(viewModel.toolbar.searchResults.first)
+        viewModel.openSearchResult(result)
+        #expect(viewModel.workbench.activeDocument?.relativePath == "Sources/Game/main.swift")
+        #expect(viewModel.toolbar.searchText.isEmpty)
+        #expect(viewModel.toolbar.searchScopeRelativePath == nil)
+    }
+
+    @Test("new file dialog creates each supported file type in the selected folder")
+    @MainActor
+    func newFileDialogCreatesSupportedFiles() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorNewFile")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        let sourcesURL = rootURL.appendingPathComponent("Sources/Game", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
+        try "// swift-tools-version: 6.2\n".write(
+            to: rootURL.appendingPathComponent("Package.swift"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "EditorNewFile", path: rootURL.path)
+        )
+        let sourcesFolder = try #require(
+            viewModel.projectSidebar.items.first { $0.relativePath == "Sources/Game" }
+        )
+        viewModel.projectSidebar.select(sourcesFolder)
+
+        let cases: [(EditorNewFileKind, String, String)] = [
+            (.scene, "Level", "Level.ascn"),
+            (.script, "Movement", "Movement.ada"),
+            (.swift, "Player", "Player.swift"),
+            (.plainText, "Notes", "Notes.txt"),
+        ]
+
+        for (kind, enteredName, expectedName) in cases {
+            viewModel.presentNewFileDialog()
+            #expect(viewModel.newFileDestinationRelativePath == "Sources/Game")
+            viewModel.newFileKind = kind
+            viewModel.newFileName = enteredName
+
+            #expect(viewModel.createNewFile())
+            let fileURL = sourcesURL.appendingPathComponent(expectedName)
+            #expect(FileManager.default.fileExists(atPath: fileURL.path))
+            #expect(viewModel.workbench.activeDocument?.relativePath == "Sources/Game/\(expectedName)")
+            #expect(!viewModel.isNewFileDialogPresented)
+        }
+
+        let scene = try String(contentsOf: sourcesURL.appendingPathComponent("Level.ascn"), encoding: .utf8)
+        #expect(scene.contains("format: ada.scene"))
+        #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Movement.ada"), encoding: .utf8) == "// Movement.ada\n")
+        #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Player.swift"), encoding: .utf8) == "import AdaEngine\n\n")
+        #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Notes.txt"), encoding: .utf8).isEmpty)
+    }
+
+    @Test("new file validation keeps the dialog open and never overwrites files")
+    @MainActor
+    func newFileValidationRejectsInvalidAndDuplicateNames() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorNewFileValidation")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+        try "original\n".write(to: rootURL.appendingPathComponent("Existing.swift"), atomically: true, encoding: .utf8)
+
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "EditorNewFileValidation", path: rootURL.path)
+        )
+        viewModel.presentNewFileDialog()
+        viewModel.newFileKind = .swift
+        viewModel.newFileName = "Nested/File"
+        #expect(!viewModel.createNewFile())
+        #expect(viewModel.newFileErrorMessage?.contains("path separators") == true)
+        #expect(viewModel.isNewFileDialogPresented)
+
+        viewModel.newFileName = "Existing.swift"
+        #expect(!viewModel.createNewFile())
+        #expect(viewModel.newFileErrorMessage?.contains("already exists") == true)
+        #expect(try String(contentsOf: rootURL.appendingPathComponent("Existing.swift"), encoding: .utf8) == "original\n")
+        #expect(viewModel.isNewFileDialogPresented)
+    }
+
+    @Test("new file dialog cancel resets state and requests dismissal")
+    @MainActor
+    func newFileDialogCancelDismissesCover() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorNewFileCancel")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "EditorNewFileCancel", path: rootURL.path)
+        )
+        viewModel.presentNewFileDialog()
+        var didDismiss = false
+        let dismiss = DismissAction { didDismiss = true }
+
+        EditorNewFileDialogActions.cancel(viewModel: viewModel, dismiss: dismiss)
+
+        #expect(!viewModel.isNewFileDialogPresented)
+        #expect(didDismiss)
+    }
+
+    @Test("successful new file creation requests dismissal")
+    @MainActor
+    func newFileDialogCreateDismissesCover() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorNewFileCreateDismiss")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "EditorNewFileCreateDismiss", path: rootURL.path)
+        )
+        viewModel.presentNewFileDialog()
+        viewModel.newFileKind = .plainText
+        viewModel.newFileName = "CreatedFromDialog"
+        var didDismiss = false
+        let dismiss = DismissAction { didDismiss = true }
+
+        #expect(EditorNewFileDialogActions.create(viewModel: viewModel, dismiss: dismiss))
+
+        #expect(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("CreatedFromDialog.txt").path))
+        #expect(!viewModel.isNewFileDialogPresented)
+        #expect(didDismiss)
     }
 
     @Test("syntax highlighter uses configurable code palette")

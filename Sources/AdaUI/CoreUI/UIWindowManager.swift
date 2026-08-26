@@ -85,13 +85,29 @@ open class UIWindowManager {
     }
     
     open func setActiveWindow(_ window: UIWindow) {
-        self.activeWindow?.isActive = false
-        
-        self.activeWindow?.windowDidResignActive()
+        guard self.activeWindow !== window else {
+            return
+        }
+
+        if let activeWindow {
+            resignActiveWindow(activeWindow)
+        }
         
         self.activeWindow = window
         window.isActive = true
         window.windowDidBecameActive()
+    }
+
+    /// Clears the active window when the platform reports that it lost focus.
+    open func resignActiveWindow(_ window: UIWindow) {
+        guard self.activeWindow === window else {
+            return
+        }
+
+        window.isActive = false
+        self.activeWindow = nil
+        ContextMenuPresentationCenter.dismissForDeactivation?(window)
+        window.windowDidResignActive()
     }
     
     open func setCursorShape(_ shape: Input.CursorShape) {

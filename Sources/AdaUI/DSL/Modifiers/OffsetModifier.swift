@@ -69,6 +69,7 @@ final class OffsetViewNodeModifier: ViewModifierNode {
         self.offsetByY = node.offsetByY
 
         if oldOffsetX != offsetByX || oldOffsetY != offsetByY {
+            Self.recordLayoutMutationRequiringAncestorPass()
             self.markNeedsLayout()
             owner?.containerView?.setNeedsLayout()
         }

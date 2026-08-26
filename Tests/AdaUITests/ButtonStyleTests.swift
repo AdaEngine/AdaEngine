@@ -73,6 +73,72 @@ struct ButtonStyleTests {
     }
 
     @Test
+    func buttonStyle_doesNotRebuildForRepeatedMouseMovesInsideHoveredButton() {
+        let recorder = ButtonStyleStateRecorder()
+
+        let tester = ViewTester {
+            Button(action: {}) {
+                Text("Completion")
+                    .frame(width: 140, height: 28)
+            }
+            .buttonStyle(RecordingButtonStyle(recorder: recorder))
+        }
+        .setSize(Size(width: 200, height: 80))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(100, 40), button: .none, phase: .changed)
+        let rebuildCountAfterEntering = recorder.states.count
+        _ = tester.containerView.consumeNeedsDisplay()
+
+        for offset in 0..<20 {
+            tester.sendMouseEvent(
+                at: Point(90 + Float(offset % 10), 40),
+                button: .none,
+                phase: .changed
+            )
+        }
+
+        #expect(recorder.states.count == rebuildCountAfterEntering)
+        #expect(recorder.states.last?.contains(.highlighted) == true)
+        #expect(!tester.containerView.needsDisplay)
+    }
+
+    @Test
+    func buttonStyle_movingFromTabIntoBlankAreaDoesNotContinuouslyRedraw() {
+        let recorder = ButtonStyleStateRecorder()
+
+        let tester = ViewTester {
+            HStack(spacing: 0) {
+                Button(action: {}) {
+                    Text("main.swift")
+                        .frame(width: 120, height: 28)
+                }
+                .buttonStyle(RecordingButtonStyle(recorder: recorder))
+                Spacer()
+            }
+            .frame(width: 400, height: 36)
+        }
+        .setSize(Size(width: 400, height: 60))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(60, 30), button: .none, phase: .changed)
+        tester.sendMouseEvent(at: Point(260, 30), button: .none, phase: .changed)
+        let rebuildCountAfterLeavingTab = recorder.states.count
+        _ = tester.containerView.consumeNeedsDisplay()
+
+        for offset in 0..<20 {
+            tester.sendMouseEvent(
+                at: Point(240 + Float(offset), 30),
+                button: .none,
+                phase: .changed
+            )
+        }
+
+        #expect(recorder.states.count == rebuildCountAfterLeavingTab)
+        #expect(!tester.containerView.needsDisplay)
+    }
+
+    @Test
     func buttonStyleEnvironmentChangeRebuildsStyleBody() {
         let recorder = ButtonStyleEnvironmentRecorder()
 
@@ -186,6 +252,7 @@ struct ButtonStyleTests {
         )
 
         tester.sendMouseEvent(at: buttonCenter, button: .left, phase: .began)
+        tester.advanceFrame(deltaTime: 0.1)
 
         let pressedContext = UIGraphicsContext()
         tester.containerView.viewTree.renderGraph(renderContext: pressedContext)

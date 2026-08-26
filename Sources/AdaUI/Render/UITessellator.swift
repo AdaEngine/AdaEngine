@@ -86,6 +86,51 @@ public struct UITessellator {
         ]
     }
 
+    /// Appends an unclipped quad directly into retained build buffers.
+    /// This avoids allocating two short-lived arrays for every UI rectangle.
+    func appendQuad(
+        transform: Transform3D,
+        texture: Texture2D?,
+        color: Color,
+        textureIndex: Int,
+        vertices: inout [QuadVertexData],
+        indices: inout [UInt32]
+    ) {
+        let vertexOffset = UInt32(vertices.count)
+        let textureCoords = texture?.textureCoordinates ?? Self.defaultTextureCoords
+        for (index, quadPosition) in Self.quadPositions.enumerated() {
+            vertices.append(
+                QuadVertexData(
+                    position: transform * quadPosition,
+                    color: color,
+                    textureCoordinate: textureCoords[index],
+                    textureIndex: textureIndex
+                )
+            )
+        }
+        appendQuadIndices(vertexOffset: vertexOffset, to: &indices)
+    }
+
+    /// Appends an unclipped gradient quad without intermediate arrays.
+    func appendLinearGradient(
+        transform: Transform3D,
+        vertices: inout [QuadVertexData],
+        indices: inout [UInt32]
+    ) {
+        let vertexOffset = UInt32(vertices.count)
+        for (index, quadPosition) in Self.quadPositions.enumerated() {
+            vertices.append(
+                QuadVertexData(
+                    position: transform * quadPosition,
+                    color: .white,
+                    textureCoordinate: Self.gradientTextureCoords[index],
+                    textureIndex: 0
+                )
+            )
+        }
+        appendQuadIndices(vertexOffset: vertexOffset, to: &indices)
+    }
+
     func tessellateClippedQuad(
         transform: Transform3D,
         texture: Texture2D?,
@@ -280,6 +325,71 @@ public struct UITessellator {
         return generateQuadIndices(vertexOffset: vertexOffset)
     }
 
+    /// Appends an unclipped glyph directly into retained build buffers.
+    func appendGlyph(
+        _ glyph: Glyph,
+        transform: Transform3D,
+        textureIndex: Int,
+        offset: Vector2 = .zero,
+        opacity: Float = 1,
+        vertices: inout [GlyphVertexData],
+        indices: inout [UInt32]
+    ) {
+        let vertexOffset = UInt32(vertices.count)
+        let foregroundColor = glyph.attributes.foregroundColor
+            .opacity(glyph.attributes.foregroundColor.alpha * opacity)
+        let outlineColor = glyph.attributes.outlineColor
+            .opacity(glyph.attributes.outlineColor.alpha * opacity)
+        let textureCoordinates = glyph.textureCoordinates
+        let position = glyph.position
+        let x1 = position.x + offset.x
+        let y1 = position.y + offset.y
+        let x2 = position.z + offset.x
+        let y2 = position.w + offset.y
+
+        vertices.append(
+            GlyphVertexData(
+                position: transform * Vector4(x: x2, y: y1, z: 0, w: 1),
+                foregroundColor: foregroundColor,
+                outlineColor: outlineColor,
+                outlineWidth: glyph.attributes.outlineWidth,
+                textureCoordinate: Vector2(textureCoordinates.z, textureCoordinates.y),
+                textureIndex: textureIndex
+            )
+        )
+        vertices.append(
+            GlyphVertexData(
+                position: transform * Vector4(x: x2, y: y2, z: 0, w: 1),
+                foregroundColor: foregroundColor,
+                outlineColor: outlineColor,
+                outlineWidth: glyph.attributes.outlineWidth,
+                textureCoordinate: Vector2(textureCoordinates.z, textureCoordinates.w),
+                textureIndex: textureIndex
+            )
+        )
+        vertices.append(
+            GlyphVertexData(
+                position: transform * Vector4(x: x1, y: y2, z: 0, w: 1),
+                foregroundColor: foregroundColor,
+                outlineColor: outlineColor,
+                outlineWidth: glyph.attributes.outlineWidth,
+                textureCoordinate: Vector2(textureCoordinates.x, textureCoordinates.w),
+                textureIndex: textureIndex
+            )
+        )
+        vertices.append(
+            GlyphVertexData(
+                position: transform * Vector4(x: x1, y: y1, z: 0, w: 1),
+                foregroundColor: foregroundColor,
+                outlineColor: outlineColor,
+                outlineWidth: glyph.attributes.outlineWidth,
+                textureCoordinate: Vector2(textureCoordinates.x, textureCoordinates.y),
+                textureIndex: textureIndex
+            )
+        )
+        appendQuadIndices(vertexOffset: vertexOffset, to: &indices)
+    }
+
     func tessellateClippedGlyph(
         _ glyph: Glyph,
         transform: Transform3D,
@@ -296,6 +406,15 @@ public struct UITessellator {
             opacity: opacity
         )
         return clipGlyphVertices(vertices, to: clipPolygons)
+    }
+
+    private func appendQuadIndices(vertexOffset: UInt32, to indices: inout [UInt32]) {
+        indices.append(vertexOffset)
+        indices.append(vertexOffset + 1)
+        indices.append(vertexOffset + 2)
+        indices.append(vertexOffset + 2)
+        indices.append(vertexOffset + 3)
+        indices.append(vertexOffset)
     }
 
     // MARK: - Glass Tessellation

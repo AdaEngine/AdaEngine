@@ -27,6 +27,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var pendingDisplayTargets: [PendingDisplayTarget] = []
     private var retiredDisplayTargets: [RetiredDisplayTarget] = []
     private var nextRenderTextureIndex = 0
+    private var frontRenderTexture: RenderTexture?
     private(set) var renderTexture: Texture2D?
     var renderTextureDidChange: (@MainActor @Sendable () -> Void)?
 
@@ -119,6 +120,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         pendingDisplayTargets.removeAll()
         retiredDisplayTargets.removeAll()
         nextRenderTextureIndex = 0
+        frontRenderTexture = nil
         renderTexture = nil
         isBootstrapping = false
         hasCalledSetup = false
@@ -332,6 +334,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         pendingDisplayTargets.removeAll()
         retiredDisplayTargets.removeAll()
         nextRenderTextureIndex = 0
+        frontRenderTexture = nil
         renderTexture = nil
         renderTextureDidChange?()
 
@@ -354,8 +357,8 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         while let firstTarget = pendingDisplayTargets.first,
               firstTarget.isCompleted {
             let completedTarget = pendingDisplayTargets.removeFirst()
-            let previousFrontTexture = renderTexture as? RenderTexture
-            if let currentFront = renderTexture as? RenderTexture,
+            let previousFrontTexture = frontRenderTexture
+            if let currentFront = frontRenderTexture,
                currentFront !== completedTarget.texture {
                 retiredDisplayTargets.append(
                     RetiredDisplayTarget(
@@ -364,13 +367,19 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                     )
                 )
             }
-            renderTexture = completedTarget.texture
+            frontRenderTexture = completedTarget.texture
             if previousFrontTexture !== completedTarget.texture {
                 didPublish = true
             }
         }
         if didPublish {
-            renderTextureDidChange?()
+            if let renderTexture = renderTexture as? Texture2DProxy,
+               let frontRenderTexture {
+                renderTexture.replaceSource(with: frontRenderTexture)
+            } else if let frontRenderTexture {
+                renderTexture = Texture2DProxy(source: frontRenderTexture)
+                renderTextureDidChange?()
+            }
         }
         return didPublish
     }
@@ -426,12 +435,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
         let unavailable = Set((pendingDisplayTargets.map { ObjectIdentifier($0.texture) })
             + retiredDisplayTargets.map { ObjectIdentifier($0.texture) }
-            + [renderTexture].compactMap { texture -> ObjectIdentifier? in
-                guard let texture = texture as? RenderTexture else {
-                    return nil
-                }
-                return ObjectIdentifier(texture)
-            })
+            + [frontRenderTexture].compactMap { $0 }.map(ObjectIdentifier.init))
 
         for offset in 0..<renderTexturePool.count {
             let index = (nextRenderTextureIndex + offset) % renderTexturePool.count
@@ -448,7 +452,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     private func isDisplayUnavailable(_ texture: RenderTexture) -> Bool {
-        if let frontTexture = renderTexture as? RenderTexture, frontTexture === texture {
+        if let frontRenderTexture, frontRenderTexture === texture {
             return true
         }
         if pendingDisplayTargets.contains(where: { $0.texture === texture }) {

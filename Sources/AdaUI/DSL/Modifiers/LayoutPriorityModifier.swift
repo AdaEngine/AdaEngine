@@ -49,6 +49,9 @@ final class LayoutPriorityViewNode: ViewModifierNode {
             return
         }
 
+        if self.priority != other.priority {
+            Self.recordLayoutMutationRequiringAncestorPass()
+        }
         self.priority = other.priority
         super.update(from: newNode)
     }

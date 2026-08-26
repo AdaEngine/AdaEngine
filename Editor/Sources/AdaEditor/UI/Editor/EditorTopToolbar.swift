@@ -1,6 +1,8 @@
 @_spi(AdaEngine) import AdaEngine
 
 struct EditorTopToolbar: View {
+    static let searchAccessibilityIdentifier = "AdaEditor.ProjectSearch"
+
     let hotReloadState: EditorHotReloadState
     let viewModel: EditorToolbarViewModel
     let runDestination: EditorRunDestination
@@ -14,29 +16,39 @@ struct EditorTopToolbar: View {
     @Environment(\.theme) private var theme
     
     var body: some View {
-        ZStack(anchor: .center) {
+        HStack(spacing: 12) {
+            Color.clear
+                .frame(width: metrics.toolbarWindowControlClearance, height: 1)
+
             SearchBar(
                 text: viewModel.searchTextBinding,
-                prompt: "Search Everywhere",
+                prompt: viewModel.searchPrompt,
                 width: metrics.toolbarSearchWidth
             )
             .searchBarStyle(EditorToolbarSearchBarStyle(theme: theme))
+            .accessibilityIdentifier(Self.searchAccessibilityIdentifier)
 
-            HStack(spacing: 12) {
-                if metrics.showsToolbarSceneName {
-                    Text(viewModel.sceneName)
-                        .font(.system(size: 12))
-                        .foregroundColor(theme.editorColors.muted)
-                }
+            Spacer()
 
-                adaEditorToolbarPill(hotReloadState.toolbarTitle, active: hotReloadState.isEnabled && hotReloadState.errorMessage == nil, theme: theme)
-
-                runDestinationControls
-                runStopControls
+            if metrics.showsToolbarSceneName {
+                Text(viewModel.sceneName)
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.editorColors.muted)
+                    .lineLimit(1)
             }
-            .padding(.trailing, 12)
-            .frame(maxWidth: .infinity, alignment: .trailing)
+
+            if metrics.showsToolbarHotReloadStatus {
+                adaEditorToolbarPill(
+                    hotReloadState.toolbarTitle,
+                    active: hotReloadState.isEnabled && hotReloadState.errorMessage == nil,
+                    theme: theme
+                )
+            }
+
+            runDestinationControls
+            runStopControls
         }
+        .padding(.trailing, 12)
         .frame(maxWidth: .infinity)
     }
 
@@ -88,6 +100,66 @@ struct EditorTopToolbar: View {
         .foregroundColor(color)
         .padding(.horizontal, metrics.showsRunButtonTitle ? 10 : 8)
         .frame(height: 26)
+    }
+}
+
+struct EditorProjectSearchResults: View {
+    static let accessibilityIdentifier = "AdaEditor.ProjectSearchResults"
+
+    let items: [EditorProjectSidebarViewModel.Item]
+    let width: Float
+    let onOpenSearchResult: (EditorProjectSidebarViewModel.Item) -> Void
+
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: EditorProjectSearchResultsLayout.rowSpacing) {
+            ForEach(items, id: \.id) { item in
+                Button(action: { onOpenSearchResult(item) }) {
+                    HStack(spacing: 10) {
+                        Text(item.title)
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.editorColors.text)
+                        Text(item.relativePath)
+                            .font(.system(size: 10))
+                            .foregroundColor(theme.editorColors.muted)
+                            .lineLimit(1)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(width: width, height: EditorProjectSearchResultsLayout.rowHeight, alignment: .leading)
+                }
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.SearchResult.\(item.relativePath)")
+            }
+        }
+        .padding(EditorProjectSearchResultsLayout.padding)
+        .frame(width: width + 8)
+        .background(
+            RoundedRectangleShape(cornerRadius: 8)
+                .fill(theme.editorColors.surfaceElevated)
+        )
+        .overlay {
+            RoundedRectangleShape(cornerRadius: 8)
+                .stroke(theme.editorColors.border, lineWidth: 1)
+        }
+        .accessibilityIdentifier(Self.accessibilityIdentifier)
+    }
+}
+
+struct EditorProjectSearchResultsLayout {
+    static let rowHeight: Float = 30
+    static let rowSpacing: Float = 2
+    static let padding: Float = 4
+
+    static func height(itemCount: Int) -> Float {
+        let count = Swift.max(0, itemCount)
+        let spacingCount = Swift.max(0, count - 1)
+        return Float(count) * rowHeight + Float(spacingCount) * rowSpacing + padding * 2
+    }
+
+    static func topOffset(toolbarHeight: Float) -> Float {
+        toolbarHeight - padding
     }
 }
 

@@ -93,6 +93,32 @@ struct AdaUILayoutOptimizationTests {
     }
 
     @Test
+    func geometryReaderRebuildsContentWhenObservedStateChanges() async {
+        let model = GeometryReaderObservableModel()
+        let counter = LayoutOptimizationCounter()
+        let tester = ViewTester {
+            GeometryReader { _ in
+                if model.showsPopup {
+                    CountingFixedView(counter: counter, size: Size(width: 120, height: 30))
+                        .accessibilityIdentifier("geometry-popup")
+                }
+            }
+        }
+        .setSize(Size(width: 320, height: 180))
+        .performLayout()
+
+        #expect(tester.findNodeByAccessibilityIdentifier("geometry-popup") == nil)
+
+        model.showsPopup = true
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+        tester.performLayout()
+
+        #expect(tester.findNodeByAccessibilityIdentifier("geometry-popup") != nil)
+    }
+
+    @Test
     func geometryReaderReportsOwnFrameInCoordinateSpaces() {
         let recorder = GeometryFrameRecorder()
         let namedSpace = NamedViewCoordinateSpace.named("geometry-container")
@@ -277,6 +303,128 @@ struct AdaUILayoutOptimizationTests {
         #expect(topCounter.updatePasses == 0)
         #expect(workspaceCounter.updatePasses > 0)
         #expect(dirtyRect == Rect(x: 0, y: 40, width: 320, height: 200))
+        #expect(containerView.viewTree.rootNode.findNodyByAccessibilityIdentifier("left-panel") == nil)
+        #expect(containerView.viewTree.rootNode.findNodyByAccessibilityIdentifier("main-panel")?.frame.size == Size(width: 320, height: 200))
+    }
+
+    @Test
+    func observedLayoutPriorityChangeRelayoutsParentStack() async throws {
+        let model = ObservableLayoutPriorityModel()
+        let tester = ViewTester {
+            ObservableLayoutPriorityView(model: model)
+        }
+        .setSize(Size(width: 300, height: 80))
+        .performLayout()
+
+        let initialPrimaryWidth = try #require(
+            tester.findNodeByAccessibilityIdentifier("priority-primary")?.frame.width
+        )
+        let initialSecondaryWidth = try #require(
+            tester.findNodeByAccessibilityIdentifier("priority-secondary")?.frame.width
+        )
+
+        model.primaryIsHighPriority = false
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+        tester.performLayout()
+
+        let updatedPrimaryWidth = try #require(
+            tester.findNodeByAccessibilityIdentifier("priority-primary")?.frame.width
+        )
+        let updatedSecondaryWidth = try #require(
+            tester.findNodeByAccessibilityIdentifier("priority-secondary")?.frame.width
+        )
+
+        #expect(initialPrimaryWidth > initialSecondaryWidth)
+        #expect(updatedPrimaryWidth < updatedSecondaryWidth)
+    }
+
+    @Test
+    func observedKeyedReorderRelayoutsEqualSizeStack() async throws {
+        let model = ObservableKeyedOrderModel()
+        let tester = ViewTester {
+            ObservableKeyedOrderView(model: model)
+        }
+        .setSize(Size(width: 200, height: 40))
+        .performLayout()
+
+        let initialFirstX = try #require(
+            tester.findNodeByAccessibilityIdentifier("ordered-1")?.absoluteFrame().minX
+        )
+        let initialSecondX = try #require(
+            tester.findNodeByAccessibilityIdentifier("ordered-2")?.absoluteFrame().minX
+        )
+
+        model.items.reverse()
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+        tester.performLayout()
+
+        let updatedFirstX = try #require(
+            tester.findNodeByAccessibilityIdentifier("ordered-1")?.absoluteFrame().minX
+        )
+        let updatedSecondX = try #require(
+            tester.findNodeByAccessibilityIdentifier("ordered-2")?.absoluteFrame().minX
+        )
+
+        #expect(initialFirstX < initialSecondX)
+        #expect(updatedFirstX > updatedSecondX)
+    }
+
+    @Test
+    func observedFrameRuleChangeRelayoutsInsideFixedContainer() async throws {
+        let model = ObservableFrameRuleModel()
+        let tester = ViewTester {
+            ObservableFrameRuleView(model: model)
+        }
+        .setSize(Size(width: 300, height: 40))
+        .performLayout()
+
+        let initialWidth = try #require(
+            tester.findNodeByAccessibilityIdentifier("dynamic-frame")?.frame.width
+        )
+
+        model.isExpanded = true
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+        tester.performLayout()
+
+        let updatedWidth = try #require(
+            tester.findNodeByAccessibilityIdentifier("dynamic-frame")?.frame.width
+        )
+
+        #expect(initialWidth == 80)
+        #expect(updatedWidth == 120)
+    }
+
+    @Test
+    func observedFrameAlignmentChangeRelayoutsUnchangedModifierFrame() async throws {
+        let model = ObservableFrameAlignmentModel()
+        let tester = ViewTester {
+            ObservableFrameAlignmentView(model: model)
+        }
+        .setSize(Size(width: 200, height: 40))
+        .performLayout()
+
+        let initialX = try #require(
+            tester.findNodeByAccessibilityIdentifier("alignment-child")?.absoluteFrame().minX
+        )
+
+        model.isTrailing = true
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+        tester.performLayout()
+
+        let updatedX = try #require(
+            tester.findNodeByAccessibilityIdentifier("alignment-child")?.absoluteFrame().minX
+        )
+
+        #expect(initialX == 0)
+        #expect(updatedX == 160)
     }
 }
 
@@ -320,8 +468,38 @@ private final class StableSizeObservableModel {
 
 @Observable
 @MainActor
+private final class GeometryReaderObservableModel {
+    var showsPopup = false
+}
+
+@Observable
+@MainActor
 private final class NestedObservablePanelModel {
     var showPanel = true
+}
+
+@Observable
+@MainActor
+private final class ObservableLayoutPriorityModel {
+    var primaryIsHighPriority = true
+}
+
+@Observable
+@MainActor
+private final class ObservableKeyedOrderModel {
+    var items = [1, 2]
+}
+
+@Observable
+@MainActor
+private final class ObservableFrameRuleModel {
+    var isExpanded = false
+}
+
+@Observable
+@MainActor
+private final class ObservableFrameAlignmentModel {
+    var isTrailing = false
 }
 
 @MainActor
@@ -498,5 +676,67 @@ private struct NestedObservableInvalidationWorkspace: View {
             CountingFixedView(counter: counter, size: Size(width: model.showPanel ? 240 : 320, height: 200))
                 .accessibilityIdentifier("main-panel")
         }
+    }
+}
+
+private struct ObservableLayoutPriorityView: View {
+    let model: ObservableLayoutPriorityModel
+
+    var body: some View {
+        HStack(spacing: 0) {
+            EmptyView()
+                .frame(height: 20)
+                .frame(maxWidth: .infinity)
+                .layoutPriority(model.primaryIsHighPriority ? 1 : 0)
+                .accessibilityIdentifier("priority-primary")
+            EmptyView()
+                .frame(height: 20)
+                .frame(maxWidth: .infinity)
+                .layoutPriority(model.primaryIsHighPriority ? 0 : 1)
+                .accessibilityIdentifier("priority-secondary")
+        }
+    }
+}
+
+private struct ObservableKeyedOrderView: View {
+    let model: ObservableKeyedOrderModel
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(model.items, id: \.self) { item in
+                EmptyView()
+                    .frame(width: item == 1 ? 80 : 120, height: 40)
+                    .accessibilityIdentifier("ordered-\(item)")
+            }
+        }
+    }
+}
+
+private struct ObservableFrameRuleView: View {
+    let model: ObservableFrameRuleModel
+
+    var body: some View {
+        HStack(spacing: 0) {
+            EmptyView()
+                .frame(width: model.isExpanded ? 120 : 80, height: 40)
+                .accessibilityIdentifier("dynamic-frame")
+            Spacer()
+        }
+        .frame(width: 300, height: 40)
+    }
+}
+
+private struct ObservableFrameAlignmentView: View {
+    let model: ObservableFrameAlignmentModel
+
+    var body: some View {
+        EmptyView()
+            .frame(width: 40, height: 40)
+            .accessibilityIdentifier("alignment-child")
+            .frame(
+                width: 200,
+                height: 40,
+                alignment: model.isTrailing ? .trailing : .leading
+            )
     }
 }

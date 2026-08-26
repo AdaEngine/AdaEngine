@@ -26,11 +26,11 @@ struct EditorBottomPanel: View {
             .background(theme.editorColors.surface)
             
             GeometryReader { geometry in
-                ScrollView {
+                ScrollView([.horizontal, .vertical]) {
                     VStack(alignment: .leading, spacing: 4) {
                         panelContent
                     }
-                    .frame(width: max(0, geometry.size.width - 24), alignment: .leading)
+                    .fixedSize(horizontal: true, vertical: false)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -92,8 +92,8 @@ struct EditorBottomPanel: View {
         Text(line)
             .font(.system(size: 11))
             .foregroundColor(color ?? logColor(for: line))
-            .lineBreakMode(.byCharWrapping)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     private func outputSectionTitle(_ title: String) -> some View {

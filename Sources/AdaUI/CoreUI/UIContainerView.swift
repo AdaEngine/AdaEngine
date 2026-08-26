@@ -460,6 +460,9 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     }
 
     private func invalidateInspectionOverlayIfNeeded() {
+        guard inspectionDebugOverlayMode != .off else {
+            return
+        }
         self.setNeedsDisplay()
     }
 }
