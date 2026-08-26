@@ -184,6 +184,7 @@ actor SourceKitLSPClient {
     private let connection: any SourceKitLSPConnecting
     private var nextVersionByURI: [String: Int] = [:]
     private var openedURIs: Set<String> = []
+    private var preparedURIs: Set<String> = []
     private var documentTextByURI: [String: String] = [:]
     private(set) var diagnosticsByURI: [String: [EditorDiagnostic]] = [:]
     private(set) var semanticTokensByURI: [String: [EditorSemanticToken]] = [:]
@@ -207,7 +208,16 @@ actor SourceKitLSPClient {
             params: .object([
                 "processId": .int(Int(ProcessInfo.processInfo.processIdentifier)),
                 "rootUri": .string(projectURL.absoluteString),
+                "workspaceFolders": .array([
+                    .object([
+                        "name": .string(projectURL.lastPathComponent),
+                        "uri": .string(projectURL.absoluteString)
+                    ])
+                ]),
                 "capabilities": .object([
+                    "workspace": .object([
+                        "workspaceFolders": .bool(true)
+                    ]),
                     "textDocument": .object([
                         "completion": .object([
                             "completionItem": .object([
@@ -221,6 +231,7 @@ actor SourceKitLSPClient {
                         ]),
                         "semanticTokens": .object([
                             "dynamicRegistration": .bool(false),
+                            "formats": .array([.string("relative")]),
                             "requests": .object([
                                 "full": .bool(true),
                                 "range": .bool(false)
@@ -246,6 +257,11 @@ actor SourceKitLSPClient {
             return
         }
 
+        try await prepareDocument(fileURL: fileURL)
+        if openedURIs.contains(identifier.uri) {
+            try await changeDocument(fileURL: fileURL, text: text)
+            return
+        }
         nextVersionByURI[identifier.uri] = 1
         openedURIs.insert(identifier.uri)
         documentTextByURI[identifier.uri] = text
@@ -261,6 +277,7 @@ actor SourceKitLSPClient {
                 ])
             ])
         )
+        _ = try await connection.request(method: "workspace/synchronize", params: .object([:]))
     }
 
     func changeDocument(fileURL: URL, text: String) async throws {
@@ -390,6 +407,34 @@ actor SourceKitLSPClient {
     func stop() async {
         await connection.setNotificationHandler(nil)
         await connection.stop()
+    }
+
+    private func prepareDocument(fileURL: URL) async throws {
+        let uri = SourceKitLSPDocumentIdentifier(fileURL: fileURL).uri
+        guard !preparedURIs.contains(uri) else {
+            return
+        }
+
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(60))
+        while clock.now < deadline {
+            let response = try await connection.request(
+                method: "workspace/_sourceKitOptions",
+                params: .object([
+                    "textDocument": .object(["uri": .string(uri)]),
+                    "prepareTarget": .bool(true),
+                    "allowFallbackSettings": .bool(false)
+                ])
+            )
+            if case .object(let options)? = response,
+               options["kind"]?.stringValue == "normal" {
+                preparedURIs.insert(uri)
+                return
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+
+        throw SourceKitLSPError.buildSettingsUnavailable(fileURL.path)
     }
 
     private func handleNotification(method: String, params: JSONRPCValue?) async {
@@ -780,9 +825,13 @@ enum SourceKitLSPError: Error, Equatable, Sendable {
     case sourceKitLSPUnavailable
     case connectionClosed
     case invalidResponse
+    case serverError(code: Int?, message: String)
+    case buildSettingsUnavailable(String)
 }
 
 actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
+    nonisolated static let launchArguments = ["--experimental-feature", "sourcekit-options-request"]
+
     enum IncomingMessageRoute: Equatable {
         case serverMessage(method: String, id: JSONRPCValue?)
         case response(id: Int)
@@ -803,10 +852,11 @@ actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
         let output = Pipe()
 
         process.executableURL = URL(fileURLWithPath: executablePath)
+        process.arguments = Self.launchArguments
         process.currentDirectoryURL = projectURL
         process.standardInput = input
         process.standardOutput = output
-        process.standardError = Pipe()
+        process.standardError = FileHandle.standardError
 
         try process.run()
 
@@ -941,8 +991,11 @@ actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
             guard let response = pendingResponses.removeValue(forKey: requestID) else {
                 return
             }
-            if object["error"] != nil {
-                response.resume(throwing: SourceKitLSPError.invalidResponse)
+            if case .object(let error)? = object["error"] {
+                response.resume(throwing: SourceKitLSPError.serverError(
+                    code: error["code"]?.intValue,
+                    message: error["message"]?.stringValue ?? "Unknown SourceKit-LSP server error"
+                ))
             } else {
                 response.resume(returning: object["result"])
             }

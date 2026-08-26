@@ -566,6 +566,31 @@ struct SwiftToolingTests {
         let notifications = await connection.notifications
         let requests = await connection.requests
 
+        let initializeParams = try #require(requests.first { $0.method == "initialize" }?.params)
+        guard case .object(let initializeObject) = initializeParams,
+              case .array(let workspaceFolders)? = initializeObject["workspaceFolders"],
+              case .object(let workspaceFolder)? = workspaceFolders.first,
+              case .object(let capabilities)? = initializeObject["capabilities"],
+              case .object(let workspaceCapabilities)? = capabilities["workspace"],
+              case .object(let textDocumentCapabilities)? = capabilities["textDocument"],
+              case .object(let semanticTokenCapabilities)? = textDocumentCapabilities["semanticTokens"]
+        else {
+            Issue.record("Expected SourceKit-LSP workspace and semantic token initialize capabilities")
+            return
+        }
+        #expect(workspaceFolder["name"] == .string("Game"))
+        #expect(workspaceFolder["uri"] == .string(URL(fileURLWithPath: "/tmp/Game", isDirectory: true).absoluteString))
+        #expect(workspaceCapabilities["workspaceFolders"] == .bool(true))
+        #expect(semanticTokenCapabilities["formats"] == .array([.string("relative")]))
+        let preparationParams = try #require(requests.first { $0.method == "workspace/_sourceKitOptions" }?.params)
+        guard case .object(let preparationObject) = preparationParams else {
+            Issue.record("Expected SourceKit-LSP document preparation parameters")
+            return
+        }
+        #expect(preparationObject["prepareTarget"] == .bool(true))
+        #expect(preparationObject["allowFallbackSettings"] == .bool(false))
+        #expect(requests.contains { $0.method == "workspace/synchronize" })
+
         #expect(notifications.map(\.method).contains("textDocument/didOpen"))
         let change = try #require(notifications.first { $0.method == "textDocument/didChange" }?.params)
         guard case .object(let changeObject) = change,
@@ -605,6 +630,7 @@ struct SwiftToolingTests {
 
     @Test("LSP transport routes server requests before colliding response IDs")
     func sourceKitServerRequestRouting() {
+        #expect(SourceKitLSPStdioConnection.launchArguments == ["--experimental-feature", "sourcekit-options-request"])
         let route = SourceKitLSPStdioConnection.route(for: [
             "jsonrpc": .string("2.0"),
             "id": .int(1),
@@ -936,6 +962,12 @@ private actor FakeSourceKitLSPConnection: SourceKitLSPConnecting {
 
     func request(method: String, params: JSONRPCValue?) -> JSONRPCValue? {
         requests.append(FakeSourceKitLSPCall(method: method, params: params))
+        if method == "workspace/_sourceKitOptions" {
+            return .object(["kind": .string("normal")])
+        }
+        if method == "workspace/synchronize" {
+            return .null
+        }
         return responses[method] ?? .object([:])
     }
 
