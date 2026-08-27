@@ -145,6 +145,71 @@ struct GravityScriptPluginTests {
             ])
         )
     }
+
+    @Test("Processes multiple ECS queries through indexed batches")
+    @MainActor
+    func processesMultipleQueryBatches() async throws {
+        ScriptTransform.registerComponent()
+        ScriptReadOnly.registerComponent()
+
+        let source = """
+        class BatchMovementSystem {
+            func update(deltaTime, queries) {
+                var transforms = queries[0];
+                var readOnly = queries[1];
+                var changed = 0;
+                for (var index in 0..<transforms.count) {
+                    var position = transforms.get(index, "ScriptTransform", "position");
+                    position = [position[0] + 2, position[1], position[2]];
+                    if (transforms.set(index, "ScriptTransform", "position", position)) {
+                        changed += 1;
+                    }
+                }
+                var denied = readOnly.set(0, "ScriptReadOnly", "value", 99);
+                return [transforms.count, readOnly.count, changed, denied, transforms.id(0)];
+            }
+        }
+
+        func main() {
+            return AdaPlugin.create("BatchMovementPlugin", [
+                AdaSystem.createBatch("batch.movement", "update", [
+                    AdaQuery.write(["ScriptTransform"]),
+                    AdaQuery.read(["ScriptReadOnly"])
+                ], BatchMovementSystem())
+            ]);
+        }
+        """
+
+        let plugin = try GravityScriptPlugin(source: source)
+        let world = World(name: "Script Batch Access Test")
+        let firstEntity = world.spawn {
+            ScriptTransform(position: Vector3(1, 2, 3))
+            ScriptReadOnly(value: 7)
+        }
+        let secondEntity = world.spawn {
+            ScriptTransform(position: Vector3(4, 5, 6))
+            ScriptReadOnly(value: 8)
+        }
+        let app = AppWorlds(main: world)
+
+        plugin.setup(in: app)
+        await world.runScheduler(.update)
+
+        #expect(plugin.descriptor.systems.first?.executionMode == .batch)
+        #expect(world.get(ScriptTransform.self, from: firstEntity.id)?.position == Vector3(3, 2, 3))
+        #expect(world.get(ScriptTransform.self, from: secondEntity.id)?.position == Vector3(6, 5, 6))
+        #expect(world.get(ScriptReadOnly.self, from: firstEntity.id)?.value == 7)
+        #expect(plugin.diagnostics.isEmpty)
+        #expect(
+            plugin.lastResult(for: "batch.movement") == .list([
+                .integer(2),
+                .integer(2),
+                .integer(2),
+                .boolean(false),
+                .integer(Int64(firstEntity.id))
+            ])
+        )
+    }
 }
 
 private struct ScriptPosition: Component {}
