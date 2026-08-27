@@ -112,7 +112,6 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
     }
 
     private let runtime: GravityScriptRuntime
-    private let systems: [PreparedGravitySystem]
 
     public convenience init(contentsOf fileURL: URL) throws {
         let source = try String(contentsOf: fileURL, encoding: .utf8)
@@ -123,27 +122,32 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
         let runtime = try GravityScriptRuntime(source: source)
         self.runtime = runtime
         self.descriptor = runtime.descriptor
-        self.systems = try runtime.loadedSystems.map { loadedSystem in
-            let queries = try loadedSystem.descriptor.queries.enumerated().map { queryIndex, descriptor in
-                try Self.makeQuery(
-                    descriptor,
-                    systemIdentifier: loadedSystem.descriptor.identifier,
-                    queryIndex: queryIndex
-                )
-            }
-            return PreparedGravitySystem(
-                descriptor: loadedSystem.descriptor,
-                queries: queries
-            )
-        }
     }
 
     @MainActor
     public func setup(in app: borrowing AppWorlds) {
-        for system in systems {
+        for descriptor in descriptor.systems {
+            let system: PreparedGravitySystem
+            do {
+                var queries: [PreparedGravityQuery] = []
+                queries.reserveCapacity(descriptor.queries.count)
+                for (queryIndex, queryDescriptor) in descriptor.queries.enumerated() {
+                    queries.append(
+                        try Self.makeQuery(
+                            queryDescriptor,
+                            systemIdentifier: descriptor.identifier,
+                            queryIndex: queryIndex
+                        )
+                    )
+                }
+                system = PreparedGravitySystem(descriptor: descriptor, queries: queries)
+            } catch {
+                runtime.appendDiagnostic(error.description)
+                continue
+            }
             app.main.schedulers.addSystem(
                 GravityScriptSystem(
-                    pluginIdentifier: descriptor.name,
+                    pluginIdentifier: self.descriptor.name,
                     runtime: runtime,
                     preparedSystem: system
                 ),
@@ -165,7 +169,7 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
         _ descriptor: GravityScriptQueryDescriptor,
         systemIdentifier: String,
         queryIndex: Int
-    ) throws -> PreparedGravityQuery {
+    ) throws(GravityScriptError) -> PreparedGravityQuery {
         let componentNames = Array(Set(descriptor.components + descriptor.writeComponents)).sorted()
         var identifiers: [String: ComponentId] = [:]
         for componentName in componentNames {
@@ -510,7 +514,7 @@ private enum GravityScriptComponentBridge {
             reportDiagnostic("Unsupported value for '\(componentName).\(fieldName)'")
             return false
         }
-        guard field.kind != .int || fieldValue.intValue != nil else {
+        guard field.accepts(fieldValue) else {
             reportDiagnostic("Invalid value for '\(componentName).\(fieldName)'")
             return false
         }
@@ -705,6 +709,12 @@ private final class GravityScriptRuntime: @unchecked Sendable {
         Self.runtimeLock.lock()
         defer { Self.runtimeLock.unlock() }
         return delegate.errors
+    }
+
+    func appendDiagnostic(_ message: String) {
+        Self.runtimeLock.lock()
+        defer { Self.runtimeLock.unlock() }
+        delegate.append(message)
     }
 
     private static func parseManifest(

@@ -114,4 +114,25 @@ struct EditorComponentReflectionTests {
         #expect(EditorFieldValue.double(Double(Int.min)).intValue == Int.min)
         #expect(EditorFieldValue.double(42.75).intValue == 42)
     }
+
+    @Test("floating-point conversion rejects non-finite and out-of-range values")
+    func floatingPointConversionRejectsInvalidValues() {
+        var float: Float = 1
+        var double: Double = 1
+        var vector = Vector3(1, 2, 3)
+        var color = Color.white
+
+        #expect(!EditorComponentReflection.write(.double(.nan), to: &float))
+        #expect(!EditorComponentReflection.write(.double(.infinity), to: &float))
+        #expect(!EditorComponentReflection.write(.double(Double(Float.greatestFiniteMagnitude) * 2), to: &float))
+        #expect(EditorComponentReflection.write(.double(Double(Float.greatestFiniteMagnitude)), to: &float))
+        #expect(!EditorComponentReflection.write(.double(.infinity), to: &double))
+        #expect(EditorComponentReflection.write(.double(Double(Float.greatestFiniteMagnitude) * 2), to: &double))
+        #expect(!EditorComponentReflection.write(.array([.double(1), .double(.nan), .double(3)]), to: &vector))
+        #expect(!EditorComponentReflection.write(.array([.double(1), .double(1), .double(1), .double(.infinity)]), to: &color))
+        #expect(float.isFinite)
+        #expect(double.isFinite)
+        #expect(vector == Vector3(1, 2, 3))
+        #expect(color == .white)
+    }
 }

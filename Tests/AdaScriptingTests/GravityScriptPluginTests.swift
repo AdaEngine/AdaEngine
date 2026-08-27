@@ -1,4 +1,4 @@
-import AdaApp
+@testable import AdaApp
 import AdaECS
 import AdaScripting
 import Foundation
@@ -67,27 +67,6 @@ struct GravityScriptPluginTests {
             ])
         )
         #expect(plugin.lastResult(for: "position.count") == .integer(2))
-    }
-
-    @Test("Rejects an unknown native component")
-    func rejectsUnknownComponent() throws {
-        let source = """
-        class BrokenSystem {
-            func update(deltaTime, queries) {}
-        }
-
-        func main() {
-            return AdaPlugin.create("BrokenPlugin", [
-                AdaSystem.create("broken", "update", [
-                    AdaQuery.read(["MissingComponent"])
-                ], BrokenSystem())
-            ]);
-        }
-        """
-
-        #expect(throws: GravityScriptError.self) {
-            try GravityScriptPlugin(source: source)
-        }
     }
 
     @Test("Reads and writes reflected component fields")

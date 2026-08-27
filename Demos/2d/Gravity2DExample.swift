@@ -93,7 +93,7 @@ struct Gravity2DExamplePlugin: Plugin {
 
         do {
             let gravityPlugin = try GravityScriptPlugin(contentsOf: scriptURL)
-            gravityPlugin.setup(in: app)
+            app.addPlugin(gravityPlugin)
             print("Gravity2DExample: loaded \(gravityPlugin.descriptor.name)")
         } catch {
             print("Gravity2DExample: failed to load script: \(error)")
