@@ -1074,7 +1074,7 @@ targets += [
     ),
     .testTarget(
         name: "AdaScriptingTests",
-        dependencies: ["AdaScripting", "AdaApp", "AdaECS", "Math"],
+        dependencies: ["AdaScripting", "AdaApp", "AdaECS", "AdaTransform", "Math"],
     ),
     .testTarget(
         name: "AdaAssetsTests",
@@ -1330,6 +1330,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "ManySpritesExample", path: "2d"),
     .exampleTarget(name: "LargeBox2DBenchmarkExample", path: "2d"),
     .exampleTarget(name: "FrustumCullingExample", path: "2d"),
+    .exampleTarget(name: "Gravity2DExample", path: "2d"),
     .exampleTarget(name: "Text2dExample", path: "2d"),
     .exampleTarget(name: "SpriteExample", path: "2d"),
     .exampleTarget(name: "WGSLExample", path: "2d"),
