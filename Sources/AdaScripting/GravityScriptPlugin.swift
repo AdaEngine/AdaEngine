@@ -571,7 +571,16 @@ private enum GravityScriptComponentBridge {
             return .string(value.toString)
         }
         if value.isList {
-            return .array(value.toList.compactMap { makeEditorFieldValue($0) })
+            var values: [EditorFieldValue] = []
+            let list = value.toList
+            values.reserveCapacity(list.count)
+            for item in list {
+                guard let fieldValue = makeEditorFieldValue(item) else {
+                    return nil
+                }
+                values.append(fieldValue)
+            }
+            return .array(values)
         }
         return nil
     }

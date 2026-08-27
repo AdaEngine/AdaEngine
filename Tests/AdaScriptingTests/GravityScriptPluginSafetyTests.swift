@@ -72,6 +72,30 @@ extension GravityScriptPluginTests {
         #expect(plugin.diagnostics.count == 4)
     }
 
+    @Test("Rejects a list when any member is unsupported")
+    @MainActor
+    func rejectsUnsupportedListMembersAtomically() async throws {
+        ScriptNumericFields.registerComponent()
+        let plugin = try GravityScriptPlugin(source: Self.unsupportedListMemberSource)
+        let world = World(name: "Unsupported Gravity List Member Test")
+        let entity = world.spawn {
+            ScriptNumericFields(
+                scalar: 1,
+                vector: Vector2(2, 3),
+                quaternion: Quat(x: 0, y: 0, z: 0, w: 1),
+                color: .white,
+                double: 5
+            )
+        }
+
+        plugin.setup(in: AppWorlds(main: world))
+        await world.runScheduler(.update)
+
+        #expect(world.get(ScriptNumericFields.self, from: entity.id)?.vector == Vector2(2, 3))
+        #expect(plugin.lastResult(for: "invalid.list") == .boolean(false))
+        #expect(plugin.diagnostics == ["Unsupported value for 'ScriptNumericFields.vector'"])
+    }
+
     private static let missingComponentSource = """
     class BrokenSystem {
         func update(deltaTime, queries) {}
@@ -123,6 +147,25 @@ extension GravityScriptPluginTests {
             AdaSystem.create("invalid.float", "update", [
                 AdaQuery.write(["ScriptNumericFields"])
             ], InvalidFloatSystem())
+        ]);
+    }
+    """
+
+    private static let unsupportedListMemberSource = """
+    class UnsupportedValue {}
+
+    class InvalidListSystem {
+        func update(deltaTime, queries) {
+            var entity = queries[0][0];
+            return entity.set("ScriptNumericFields", "vector", [UnsupportedValue(), 3, 4]);
+        }
+    }
+
+    func main() {
+        return AdaPlugin.create("InvalidListPlugin", [
+            AdaSystem.create("invalid.list", "update", [
+                AdaQuery.write(["ScriptNumericFields"])
+            ], InvalidListSystem())
         ]);
     }
     """
