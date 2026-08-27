@@ -210,6 +210,90 @@ struct GravityScriptPluginTests {
             ])
         )
     }
+
+    @Test("Rejects invalid doubles before reflected integer writes")
+    @MainActor
+    func rejectsInvalidDoublesForIntegerFields() async throws {
+        ScriptReadOnly.registerComponent()
+
+        let source = """
+        class InvalidIntegerSystem {
+            func update(deltaTime, queries) {
+                var entity = queries[0][0];
+                var infinity = Float.max * Float.max;
+                var notANumber = infinity - infinity;
+                return [
+                    entity.set("ScriptReadOnly", "value", Float.max),
+                    entity.set("ScriptReadOnly", "value", infinity),
+                    entity.set("ScriptReadOnly", "value", notANumber)
+                ];
+            }
+        }
+
+        func main() {
+            return AdaPlugin.create("InvalidIntegerPlugin", [
+                AdaSystem.create("invalid.integer", "update", [
+                    AdaQuery.write(["ScriptReadOnly"])
+                ], InvalidIntegerSystem())
+            ]);
+        }
+        """
+        let plugin = try GravityScriptPlugin(source: source)
+        let world = World(name: "Invalid Gravity Integer Test")
+        let entity = world.spawn {
+            ScriptReadOnly(value: 7)
+        }
+
+        plugin.setup(in: AppWorlds(main: world))
+        await world.runScheduler(.update)
+
+        #expect(world.get(ScriptReadOnly.self, from: entity.id)?.value == 7)
+        #expect(
+            plugin.lastResult(for: "invalid.integer") == .list([
+                .boolean(false),
+                .boolean(false),
+                .boolean(false)
+            ])
+        )
+        #expect(plugin.diagnostics.count == 3)
+        #expect(plugin.diagnostics.allSatisfy { $0 == "Invalid value for 'ScriptReadOnly.value'" })
+    }
+
+    @Test("Keeps separator-containing script system identities distinct")
+    @MainActor
+    func keepsScriptSystemIdentitiesDistinct() async throws {
+        let firstPlugin = try GravityScriptPlugin(source: """
+        class FirstSystem {
+            func update(deltaTime, queries) { return 1; }
+        }
+
+        func main() {
+            return AdaPlugin.create("A.B", [
+                AdaSystem.create("C", "update", [], FirstSystem())
+            ]);
+        }
+        """)
+        let secondPlugin = try GravityScriptPlugin(source: """
+        class SecondSystem {
+            func update(deltaTime, queries) { return 2; }
+        }
+
+        func main() {
+            return AdaPlugin.create("A", [
+                AdaSystem.create("B.C", "update", [], SecondSystem())
+            ]);
+        }
+        """)
+        let world = World(name: "Gravity System Identity Test")
+        let app = AppWorlds(main: world)
+
+        firstPlugin.setup(in: app)
+        secondPlugin.setup(in: app)
+        await world.runScheduler(.update)
+
+        #expect(firstPlugin.lastResult(for: "C") == .integer(1))
+        #expect(secondPlugin.lastResult(for: "B.C") == .integer(2))
+    }
 }
 
 private struct ScriptPosition: Component {}

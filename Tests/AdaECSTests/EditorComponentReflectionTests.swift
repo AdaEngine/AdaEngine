@@ -104,4 +104,14 @@ struct EditorComponentReflectionTests {
         #expect(didWrite)
         #expect(component.speed == 9)
     }
+
+    @Test("integer conversion rejects non-finite and out-of-range doubles")
+    func integerConversionRejectsInvalidDoubles() {
+        #expect(EditorFieldValue.double(.nan).intValue == nil)
+        #expect(EditorFieldValue.double(.infinity).intValue == nil)
+        #expect(EditorFieldValue.double(-.infinity).intValue == nil)
+        #expect(EditorFieldValue.double(Double(Int.max) + 1).intValue == nil)
+        #expect(EditorFieldValue.double(Double(Int.min)).intValue == Int.min)
+        #expect(EditorFieldValue.double(42.75).intValue == 42)
+    }
 }

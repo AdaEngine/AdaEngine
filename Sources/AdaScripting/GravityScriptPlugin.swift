@@ -254,7 +254,10 @@ private struct GravityScriptSystem: System {
         guard let preparedSystem else {
             return "AdaScripting.Gravity.Unconfigured"
         }
-        return "AdaScripting.Gravity.\(pluginIdentifier).\(preparedSystem.descriptor.identifier)"
+        return Self.makeSystemIdentifier(
+            pluginIdentifier: pluginIdentifier,
+            systemIdentifier: preparedSystem.descriptor.identifier
+        )
     }
 
     var queries: SystemQueries {
@@ -277,6 +280,10 @@ private struct GravityScriptSystem: System {
         self.pluginIdentifier = pluginIdentifier
         self.preparedSystem = preparedSystem
         self.runtime = runtime
+    }
+
+    private static func makeSystemIdentifier(pluginIdentifier: String, systemIdentifier: String) -> String {
+        "AdaScripting.Gravity.\(pluginIdentifier.utf8.count):\(pluginIdentifier)\(systemIdentifier.utf8.count):\(systemIdentifier)"
     }
 
     func update(context: UpdateContext) async {
@@ -503,6 +510,10 @@ private enum GravityScriptComponentBridge {
             reportDiagnostic("Unsupported value for '\(componentName).\(fieldName)'")
             return false
         }
+        guard field.kind != .int || fieldValue.intValue != nil else {
+            reportDiagnostic("Invalid value for '\(componentName).\(fieldName)'")
+            return false
+        }
         guard descriptor.write(fieldValue, toField: fieldName, in: world, entity: entity) else {
             reportDiagnostic("Invalid value for '\(componentName).\(fieldName)'")
             return false
@@ -544,7 +555,10 @@ private enum GravityScriptComponentBridge {
             return .bool(value.toBoolean)
         }
         if value.isInteger {
-            return .int(Int(value.toInteger))
+            guard let integer = Int(exactly: value.toInteger) else {
+                return nil
+            }
+            return .int(integer)
         }
         if value.isDouble {
             return .double(value.toDouble)

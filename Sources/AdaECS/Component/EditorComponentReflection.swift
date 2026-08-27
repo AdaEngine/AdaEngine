@@ -299,13 +299,18 @@ public extension EditorFieldValue {
     var intValue: Int? {
         switch self {
         case .int(let value):
-            value
+            return value
         case .double(let value):
-            Int(value)
+            guard value.isFinite,
+                  value >= Double(Int.min),
+                  value < Double(Int.max) + 1 else {
+                return nil
+            }
+            return Int(value)
         case .string(let value):
-            Int(value)
+            return Int(value)
         default:
-            nil
+            return nil
         }
     }
 
