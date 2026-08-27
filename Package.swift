@@ -79,6 +79,10 @@ var products: [Product] = [
         targets: ["AdaECS"]
     ),
     .library(
+        name: "AdaScripting",
+        targets: ["AdaScripting"]
+    ),
+    .library(
         name: "AdaUI",
         targets: ["AdaUI"]
     ),
@@ -202,6 +206,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "AdaText",
     "AdaInput",
     "AdaScene",
+    "AdaScripting",
     "AdaSprite",
     "AdaTilemap",
     "AdaPhysics"
@@ -333,6 +338,15 @@ var targets: [Target] = [
             "AdaEngineMacros",
             "AdaUtils",
             "Math"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .adaTarget(
+        name: "AdaScripting",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            .product(name: "Gravity", package: "gravity-lang")
         ],
         swiftSettings: swiftSettings
     ),
@@ -1059,6 +1073,10 @@ targets += [
         dependencies: ["AdaECS", "Math"],
     ),
     .testTarget(
+        name: "AdaScriptingTests",
+        dependencies: ["AdaScripting", "AdaApp", "AdaECS", "AdaTransform", "Math"],
+    ),
+    .testTarget(
         name: "AdaAssetsTests",
         dependencies: [
             "AdaAssets",
@@ -1180,6 +1198,10 @@ let package = Package(
 )
 
 package.dependencies += [
+    .package(
+        url: "https://github.com/AdaEngine/gravity-lang.git",
+        revision: "0c239828ebeb5ffd0b03b7a914ac5dd4e4c2c781"
+    ),
     .package(url: "https://github.com/apple/swift-collections", from: "1.3.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),
     .package(url: "https://github.com/apple/swift-distributed-tracing", from: "1.0.0"),
@@ -1308,6 +1330,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "ManySpritesExample", path: "2d"),
     .exampleTarget(name: "LargeBox2DBenchmarkExample", path: "2d"),
     .exampleTarget(name: "FrustumCullingExample", path: "2d"),
+    .exampleTarget(name: "Gravity2DExample", path: "2d"),
     .exampleTarget(name: "Text2dExample", path: "2d"),
     .exampleTarget(name: "SpriteExample", path: "2d"),
     .exampleTarget(name: "WGSLExample", path: "2d"),

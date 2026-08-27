@@ -137,6 +137,9 @@ private extension ComponentMacro {
             label: "\(propertyName.editorFieldLabel)",
             kind: AdaECS.EditorComponentReflection.kind(for: \(propertyType).self),
             isEditable: AdaECS.EditorComponentReflection.isEditable(\(propertyType).self),
+            accepts: { fieldValue in
+                AdaECS.EditorComponentReflection.accepts(fieldValue, for: \(propertyType).self)
+            },
             read: { component in
                 guard let typedComponent = component as? Self else {
                     return nil

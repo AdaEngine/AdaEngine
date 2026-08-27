@@ -25,10 +25,21 @@ public struct SystemAccessSet: Sendable, Equatable {
         componentReads.insert(T.identifier)
     }
 
+    /// Adds shared access for a component resolved at runtime.
+    public mutating func addComponentRead(_ component: ComponentId) {
+        componentReads.insert(component)
+    }
+
     /// Adds exclusive component access.
     public mutating func addComponentWrite<T: Component>(_ component: T.Type) {
         componentReads.insert(T.identifier)
         componentWrites.insert(T.identifier)
+    }
+
+    /// Adds exclusive access for a component resolved at runtime.
+    public mutating func addComponentWrite(_ component: ComponentId) {
+        componentReads.insert(component)
+        componentWrites.insert(component)
     }
 
     /// Adds shared resource access.

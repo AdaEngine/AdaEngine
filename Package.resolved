@@ -1,6 +1,14 @@
 {
-  "originHash" : "55546326cfea479c714a57819852885a78ea28de2fbe3f5ed475d9ff38c4d8c3",
+  "originHash" : "5a15ac7d25e9dafb753c907fd7ae1f59e4b46885f344d4e03e34eef82898ec25",
   "pins" : [
+    {
+      "identity" : "gravity-lang",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/gravity-lang.git",
+      "state" : {
+        "revision" : "0c239828ebeb5ffd0b03b7a914ac5dd4e4c2c781"
+      }
+    },
     {
       "identity" : "javascriptkit",
       "kind" : "remoteSourceControl",

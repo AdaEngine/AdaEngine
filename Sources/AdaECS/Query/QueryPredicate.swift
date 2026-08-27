@@ -23,12 +23,24 @@ prefix public func ! (operand: QueryPredicate) -> QueryPredicate {
 }
 
 public extension QueryPredicate {
+    /// Matches every archetype.
+    static var all: QueryPredicate {
+        QueryPredicate { _ in true }
+    }
+
     /// Set the rule that entity should contains given type.
     /// - Parameter type: The type of the component to check.
     /// - Returns: A new predicate that checks if the entity contains the given component.
     static func has<T: Component>(_ type: T.Type) -> QueryPredicate {
         QueryPredicate { archetype in
             return archetype.componentLayout.maskSet.contains(type.identifier)
+        }
+    }
+
+    /// Matches archetypes containing a component resolved at runtime.
+    static func has(_ component: ComponentId) -> QueryPredicate {
+        QueryPredicate { archetype in
+            archetype.componentLayout.maskSet.contains(component)
         }
     }
     
@@ -38,6 +50,13 @@ public extension QueryPredicate {
     static func without<T: Component>(_ type: T.Type) -> QueryPredicate {
         QueryPredicate { archetype in
             return !archetype.componentLayout.maskSet.contains(type.identifier)
+        }
+    }
+
+    /// Matches archetypes without a component resolved at runtime.
+    static func without(_ component: ComponentId) -> QueryPredicate {
+        QueryPredicate { archetype in
+            !archetype.componentLayout.maskSet.contains(component)
         }
     }
     
