@@ -186,6 +186,46 @@ struct TextEditorTests {
     }
 
     @Test
+    func textEditor_reusesVisibleGlyphLayoutsAcrossScrollFrames() throws {
+        final class Model {
+            var text = (1...20).map { "line \($0) has source text" }.joined(separator: "\n")
+        }
+
+        let model = Model()
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                )
+            )
+            .font(.system(size: 12))
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        let node = try #require(tester.sendMouseEvent(at: Point(40, 40), phase: .began, time: 0) as? TextEditorViewNode)
+        tester.sendMouseEvent(at: Point(40, 40), phase: .ended, time: 0.01)
+        tester.containerView.viewTree.rootNode.draw(with: UIGraphicsContext())
+        let firstFrameMisses = node.textLayoutCacheMisses
+
+        tester.sendMouseEvent(
+            at: Point(40, 40),
+            button: .scrollWheel,
+            phase: .changed,
+            scrollDelta: Point(0, -1),
+            time: 0.02
+        )
+        tester.containerView.viewTree.rootNode.draw(with: UIGraphicsContext())
+
+        let secondFrameMisses = node.textLayoutCacheMisses - firstFrameMisses
+        #expect(firstFrameMisses > 0)
+        #expect(node.textLayoutCacheHits > 0)
+        #expect(secondFrameMisses < firstFrameMisses)
+    }
+
+    @Test
     func textEditor_usesGlyphMetricsForCaretPosition() throws {
         final class Model {
             var text = "iiii"
@@ -361,6 +401,42 @@ struct TextEditorTests {
 
         tester.sendMouseEvent(at: Point(82, 16), button: .none, phase: .changed, time: 0.02)
         #expect(hoveredPosition == nil)
+    }
+
+    @Test
+    func textEditor_dragSelectionDoesNotRequestCompletion() {
+        final class Model {
+            var text = "alpha beta"
+        }
+
+        let model = Model()
+        var completionRequestCount = 0
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                ),
+                sourceInteraction: TextEditorSourceInteraction(
+                    onCaretChange: { _, _ in
+                        completionRequestCount += 1
+                    }
+                )
+            )
+            .font(.system(size: 12))
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(74, 28), phase: .began, time: 0)
+        tester.sendMouseEvent(at: Point(160, 28), phase: .changed, time: 0.01)
+        tester.sendMouseEvent(at: Point(160, 28), phase: .ended, time: 0.02)
+
+        #expect(completionRequestCount == 0)
+
+        tester.sendTextInput("x", time: 0.03)
+        #expect(completionRequestCount == 1)
     }
 
     @Test

@@ -38,7 +38,7 @@ enum ProjectEditorLauncher {
         pickerWindow?.close()
     }
 
-    static func openWelcome(makeFocused: Bool = true) {
+    static func openWelcome(makeFocused: Bool = true, beginCreatingProject: Bool = false) {
         let configuration = UIWindow.Configuration(
             title: windowTitlePrefix,
             frame: Rect(x: 0, y: 0, width: ProjectOpeningLayout.windowWidth, height: ProjectOpeningLayout.windowHeight),
@@ -56,7 +56,7 @@ enum ProjectEditorLauncher {
             isResizable: ProjectOpeningWindowConfiguration.isResizable
         )
         let window = UIWindowManager.shared.spawnWindow(configuration: configuration) {
-            ProjectOpeningView(autoOpenLastProject: false)
+            ProjectOpeningView(autoOpenLastProject: false, initiallyCreatingProject: beginCreatingProject)
         }
         promoteToPrimaryWindow(window)
         window.showWindow(makeFocused: makeFocused)

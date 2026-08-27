@@ -9,6 +9,23 @@ import Testing
 
 @Suite("AdaEngineStyle UI mock")
 struct AdaEngineStyleUITests {
+    @Test("build activity exposes live SwiftPM phases")
+    func buildActivityExposesLiveSwiftPMSteps() {
+        var activity = EditorBuildActivity(title: "Build Game")
+        activity.consume("Planning build\n[3/12] Compiling Game Player.swift\n[11/12] Linking Game\n")
+
+        #expect(activity.steps.map(\.title) == ["Preparing", "Planning build", "Compiling sources", "Linking"])
+        #expect(activity.steps.dropLast().allSatisfy { $0.state == .completed })
+        #expect(activity.currentStep?.title == "Linking")
+        #expect(activity.currentStep?.detail == "Linking Game")
+        #expect(activity.currentStep?.fractionCompleted == Float(11) / Float(12))
+
+        activity.finish(succeeded: true)
+        #expect(activity.currentStep?.title == "Completed")
+        #expect(activity.currentStep?.state == .completed)
+        #expect(activity.currentStep?.fractionCompleted == 1)
+    }
+
     @Test("activity progress represents indexing and clamps determinate progress")
     @MainActor
     func activityProgressRepresentsIndexing() {
@@ -90,7 +107,7 @@ struct AdaEngineStyleUITests {
         #expect(diagnostics.focusedNode?.nodeType.hasSuffix("TextFieldViewNode") == true)
     }
 
-    @Test("tab middle-click support preserves select and close buttons")
+    @Test("tab context menu and middle-click support preserve select and close buttons")
     @MainActor
     func tabMiddleClickSupportPreservesButtons() throws {
         final class Counters {
@@ -101,19 +118,26 @@ struct AdaEngineStyleUITests {
 
         let counters = Counters()
         let container = UIContainerView(
-            rootView: HStack {
-                Color.clear
-                    .frame(width: 90, height: 32)
-                    .onTap { counters.selected += 1 }
-                    .accessibilityIdentifier("AdaEditor.TestTab.Select")
+            rootView: HStack(spacing: 0) {
+                Button(action: { counters.selected += 1 }) {
+                    Color.clear
+                        .frame(width: 90, height: 32)
+                }
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.TestTab.Select")
 
-                Color.clear
-                    .frame(width: 70, height: 32)
-                    .onTap { counters.closed += 1 }
-                    .accessibilityIdentifier("AdaEditor.TestTab.Close")
+                Button(action: { counters.closed += 1 }) {
+                    Color.clear
+                        .frame(width: 70, height: 32)
+                }
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.TestTab.Close")
             }
             .onMiddleClick {
                 counters.middleClicked += 1
+            }
+            .contextMenu {
+                Button("Close Tab") {}
             }
         )
         container.frame = Rect(x: 0, y: 0, width: 180, height: 40)
@@ -140,6 +164,33 @@ struct AdaEngineStyleUITests {
         #expect(popupTop == toolbarHeight - EditorProjectSearchResultsLayout.padding)
         #expect(popupHeight == expectedPopupHeight)
         #expect(popupTop + popupHeight > toolbarHeight)
+    }
+
+    @Test("toolbar search remains centered independently of trailing controls")
+    @MainActor
+    func toolbarSearchRemainsCentered() throws {
+        let size = Size(width: 1_280, height: AdaEngineStyleLayoutSpec.topToolbarHeight)
+        let metrics = AdaEngineStyleLayoutMetrics(size: size)
+        let container = UIContainerView(
+            rootView: EditorTopToolbar(
+                hotReloadState: .unavailable,
+                viewModel: EditorToolbarViewModel(),
+                runDestination: .macOS,
+                isRunEnabled: true,
+                isStopEnabled: false,
+                onSelectRunDestination: { _ in },
+                onRun: {},
+                onStop: {}
+            )
+            .environment(\.metrics, metrics)
+        )
+        container.frame = Rect(origin: .zero, size: size)
+        container.bounds.size = size
+        container.layoutIfNeeded()
+
+        let search = try container.uiNode(matching: .accessibilityIdentifier(EditorTopToolbar.searchAccessibilityIdentifier))
+        #expect(abs(search.absoluteFrame.midX - size.width / 2) < 0.5)
+        #expect(search.absoluteFrame.width == metrics.toolbarSearchWidth)
     }
 
     @Test("desktop grid dimensions match the requested IDE layout")
@@ -356,6 +407,15 @@ struct AdaEngineStyleUITests {
         #expect(allIcons.allSatisfy { $0.icon.unicodeScalars.count == 1 })
     }
 
+    @Test("project tree uses renderable Material Symbols")
+    func projectTreeUsesRenderableMaterialSymbols() {
+        let iconCodepoints = EditorProjectTreeIcon.allSymbols.compactMap { $0.unicodeScalars.first?.value }
+
+        #expect(iconCodepoints.count == EditorProjectTreeIcon.allSymbols.count)
+        #expect(Set(iconCodepoints).isSubset(of: Set(AdaEditorMaterialSymbolFont.codepoints)))
+        #expect(EditorProjectTreeIcon.allSymbols.allSatisfy { $0.unicodeScalars.count == 1 })
+    }
+
     @Test("AI flight box and inspector include requested interactive copy")
     func aiFlightBoxAndInspectorCopy() {
         #expect(AdaEngineStyleContent.aiTitle == "Ada Intelligence")
@@ -518,6 +578,11 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.workbench.hoveredChip == "Refactor current scene")
         #expect(viewModel.footer.leftItems(hotReloadState: hotReloadState) == ["Built in 142ms", "Renderer Ready", "Hot Reload: 2 paths"])
         #expect(viewModel.showsDebugOverlay == .layoutBounds)
+
+        viewModel.buildActivity = EditorBuildActivity(title: "Build")
+        viewModel.clearOutput()
+        #expect(viewModel.outputLines.isEmpty)
+        #expect(viewModel.buildActivity?.title == "Build")
     }
 
     @Test("editor play mode runs active scene document from memory")

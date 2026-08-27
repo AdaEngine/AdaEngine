@@ -7,6 +7,7 @@
 
 import AdaInput
 import AdaRender
+import AdaText
 import AdaUtils
 import Math
 
@@ -26,6 +27,16 @@ final class TextEditorViewNode: ViewNode {
     struct LineInfo {
         var text: String
         var startOffset: Int
+    }
+
+    struct CachedTextLayout {
+        var layout: TextLayoutManager
+        var lastAccess: UInt64
+    }
+
+    struct TextLayoutCacheKey: Hashable {
+        var text: AttributedText
+        var lineHeight: Float
     }
 
     enum Constants {
@@ -68,6 +79,12 @@ final class TextEditorViewNode: ViewNode {
 
     var undoStack: [Snapshot] = []
     var redoStack: [Snapshot] = []
+
+    var textLayoutCache: [TextLayoutCacheKey: CachedTextLayout] = [:]
+    var textLayoutCacheAccess: UInt64 = 0
+    var textLayoutCacheHits = 0
+    var textLayoutCacheMisses = 0
+    var lineCache: [LineInfo]?
 
     init(inputs: _ViewInputs, content: TextEditorPrimitive) {
         self.placeholder = content.placeholder
@@ -122,6 +139,7 @@ final class TextEditorViewNode: ViewNode {
         let externalText = Self.normalizeInputText(node.textBinding.wrappedValue)
         if externalText != self.text {
             self.text = externalText
+            self.invalidateTextCaches()
             self.undoStack.removeAll(keepingCapacity: true)
             self.redoStack.removeAll(keepingCapacity: true)
             self.appliedFocusedRange = nil
@@ -203,7 +221,7 @@ final class TextEditorViewNode: ViewNode {
         }
 
         self.clampSelectionToBounds()
-        self.notifyCaretChange()
+        self.notifyCaretChange(requestsCompletion: false)
         self.ensureCaretVisibleIfNeeded()
         self.resetCaretBlink()
         self.requestDisplay()
@@ -379,7 +397,8 @@ final class TextEditorViewNode: ViewNode {
                     rowY: rowY,
                     lineHeight: lineHeight,
                     pointSize: pointSize,
-                    font: resolvedFont
+                    font: resolvedFont,
+                    lineCount: lines.count
                 )
 
                 if let resolvedFont {

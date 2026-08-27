@@ -397,6 +397,11 @@ protocol SwiftPMWorkspaceServicing: Sendable {
     func bootstrap(projectURL: URL) async -> SwiftPMBootstrapResult
     func bootstrap(projectURL: URL, progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void) async -> SwiftPMBootstrapResult
     func execute(_ kind: SwiftPMCommandKind, projectURL: URL) async -> EditorProcessResult
+    func execute(
+        _ kind: SwiftPMCommandKind,
+        projectURL: URL,
+        output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void
+    ) async -> EditorProcessResult
     func semanticTokens(fileURL: URL, language: EditorSourceLanguage, text: String) async -> [EditorSemanticToken]
     func completions(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorCompletionItem]
     func definition(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorSourceSymbolTarget]
@@ -410,6 +415,14 @@ protocol SwiftPMWorkspaceServicing: Sendable {
 extension SwiftPMWorkspaceServicing {
     func bootstrap(projectURL: URL, progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void) async -> SwiftPMBootstrapResult {
         await bootstrap(projectURL: projectURL)
+    }
+
+    func execute(
+        _ kind: SwiftPMCommandKind,
+        projectURL: URL,
+        output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void
+    ) async -> EditorProcessResult {
+        await execute(kind, projectURL: projectURL)
     }
 
     func completions(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorCompletionItem] {
@@ -550,6 +563,14 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func execute(_ kind: SwiftPMCommandKind, projectURL: URL) async -> EditorProcessResult {
+        await execute(kind, projectURL: projectURL) { _ in }
+    }
+
+    func execute(
+        _ kind: SwiftPMCommandKind,
+        projectURL: URL,
+        output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void
+    ) async -> EditorProcessResult {
         let resolvedToolchain: SwiftToolchain
         if let toolchain {
             resolvedToolchain = toolchain
@@ -558,7 +579,10 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             toolchain = resolvedToolchain
         }
 
-        return await processRunner.run(makeCommand(kind, projectURL: projectURL, toolchain: resolvedToolchain))
+        return await processRunner.run(
+            makeCommand(kind, projectURL: projectURL, toolchain: resolvedToolchain),
+            output: output
+        )
     }
 
     func cancel() async {

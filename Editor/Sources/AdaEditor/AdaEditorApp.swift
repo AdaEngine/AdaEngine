@@ -16,7 +16,6 @@ struct AdaEditorApp: App {
     var body: some AppScene {
         WindowGroup {
             ProjectOpeningView()
-                .menuBar(EditorMenuBar.makeMenus())
         }
         .windowMode(.windowed)
         .windowTitle("AdaEngine Editor")

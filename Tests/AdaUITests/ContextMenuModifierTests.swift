@@ -182,6 +182,39 @@ struct ContextMenuModifierTests {
     }
 
     @Test
+    func contextMenuPreservesNestedPrimaryButtons() {
+        var selected = 0
+        var closed = 0
+
+        let tester = ViewTester {
+            HStack(spacing: 0) {
+                Button("Select") {
+                    selected += 1
+                }
+                .frame(width: 90, height: 32)
+
+                Button("Close") {
+                    closed += 1
+                }
+                .frame(width: 70, height: 32)
+            }
+            .contextMenu {
+                Button("Close Tab") {}
+            }
+        }
+        .setSize(Size(width: 160, height: 32))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(45, 16), phase: .began)
+        tester.sendMouseEvent(at: Point(45, 16), phase: .ended)
+        tester.sendMouseEvent(at: Point(125, 16), phase: .began)
+        tester.sendMouseEvent(at: Point(125, 16), phase: .ended)
+
+        #expect(selected == 1)
+        #expect(closed == 1)
+    }
+
+    @Test
     func activeWindowDeactivationRequestsContextMenuDismissal() {
         let window = UIWindow(frame: Rect(x: 0, y: 0, width: 200, height: 120))
         var deactivatedWindow: UIWindow?

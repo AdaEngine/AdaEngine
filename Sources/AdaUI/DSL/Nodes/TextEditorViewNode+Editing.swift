@@ -158,6 +158,7 @@ extension TextEditorViewNode {
             }
 
             self.text = newText
+            self.invalidateTextCaches()
             let newOffset = range.lowerBound + insertedText.count
             self.selectionAnchor = newOffset
             self.selectionHead = newOffset
@@ -185,6 +186,7 @@ extension TextEditorViewNode {
             }
 
             self.text = newText
+            self.invalidateTextCaches()
             let newOffset = self.caretOffset - 1
             self.selectionAnchor = newOffset
             self.selectionHead = newOffset
@@ -212,6 +214,7 @@ extension TextEditorViewNode {
             }
 
             self.text = newText
+            self.invalidateTextCaches()
             self.selectionAnchor = self.caretOffset
             self.selectionHead = self.caretOffset
             return true
@@ -290,6 +293,7 @@ extension TextEditorViewNode {
 
     func restore(_ snapshot: Snapshot) {
         self.text = snapshot.text
+        self.invalidateTextCaches()
         self.selectionAnchor = snapshot.selectionAnchor
         self.selectionHead = snapshot.selectionHead
         self.preferredColumn = nil

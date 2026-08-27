@@ -55,7 +55,11 @@ extension TextEditorViewNode {
         self.sourceInteraction?.onHover?(position)
     }
 
-    func notifyCaretChange() {
+    func notifyCaretChange(requestsCompletion: Bool = true) {
+        guard requestsCompletion else {
+            return
+        }
+
         let position = self.position(forOffset: self.selectionHead, lines: self.lines())
         self.sourceInteraction?.onCaretChange?(
             TextEditorSourcePosition(line: position.line, column: position.column),

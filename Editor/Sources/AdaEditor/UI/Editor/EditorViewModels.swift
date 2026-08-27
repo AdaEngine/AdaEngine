@@ -864,6 +864,17 @@ final class EditorWorkbenchViewModel {
     }
 
     @discardableResult
+    func saveAllDocuments() -> Bool {
+        var didSaveAll = true
+        for document in openDocuments where document.isDirty {
+            if !saveDocument(document) {
+                didSaveAll = false
+            }
+        }
+        return didSaveAll
+    }
+
+    @discardableResult
     func saveActiveDocumentIfNeeded() -> Bool {
         guard let activeDocument, activeDocument.isDirty else {
             return false
@@ -1558,6 +1569,7 @@ final class EditorViewModel {
     var workspaceStatus: EditorWorkspaceStatus
     var packageModel: SwiftPackageModel?
     var outputLines: [EditorWorkspaceLogLine]
+    var buildActivity: EditorBuildActivity?
     var problems: [EditorDiagnostic]
     var symbolReferences: [EditorSourceReference]
     var selectedRunProduct: String?
@@ -1609,6 +1621,12 @@ final class EditorViewModel {
     private var latestSourceHoverKey: String?
     @ObservationIgnored
     private var lastLoggedWorkspaceProgressPhase: SwiftPMWorkspaceBootstrapPhase?
+    @ObservationIgnored
+    private var pendingWorkspaceStandardOutput = ""
+    @ObservationIgnored
+    private var pendingWorkspaceStandardError = ""
+    @ObservationIgnored
+    private var didReceiveStreamingWorkspaceOutput = false
 
     init(
         project: EditorProjectReference? = nil,
@@ -1628,6 +1646,7 @@ final class EditorViewModel {
         workspaceStatus: EditorWorkspaceStatus = .idle,
         packageModel: SwiftPackageModel? = nil,
         outputLines: [EditorWorkspaceLogLine]? = nil,
+        buildActivity: EditorBuildActivity? = nil,
         problems: [EditorDiagnostic] = [],
         symbolReferences: [EditorSourceReference] = [],
         selectedRunProduct: String? = nil,
@@ -1654,6 +1673,7 @@ final class EditorViewModel {
         self.workspaceStatus = workspaceStatus
         self.packageModel = packageModel
         self.outputLines = outputLines ?? (project == nil ? AdaEngineStyleContent.logLines.map { EditorWorkspaceLogLine(text: $0) } : [])
+        self.buildActivity = buildActivity
         self.problems = problems
         self.symbolReferences = symbolReferences
         self.selectedRunProduct = selectedRunProduct
@@ -2015,6 +2035,7 @@ final class EditorViewModel {
         }
 
         workspaceStatus = .resolving
+        buildActivity = EditorBuildActivity(title: "Prepare Workspace")
         footer.setWorkspaceFooterTitle("Workspace: Preparing")
         lastLoggedWorkspaceProgressPhase = nil
         appendOutput("Loading \(ProjectSystem.metadataFileName) and resolving SwiftPM dependencies...")
@@ -2048,6 +2069,9 @@ final class EditorViewModel {
                     self.footer.setWorkspaceFooterTitle(self.workspaceStatus.title)
                     self.appendOutput(indexBuildResult)
                 }
+                self.buildActivity?.finish(
+                    succeeded: result.succeeded && result.indexBuildResult?.succeeded != false
+                )
                 self.workspaceTask = nil
                 self.refreshPreviewForActiveDocument()
             }
@@ -2191,6 +2215,7 @@ final class EditorViewModel {
     var activeActivities: [EditorActivityEvent] {
         EditorActivityPresentation.events(
             workspaceStatus: workspaceStatus,
+            buildActivity: buildActivity,
             previewStatus: workbench.previewStatus,
             sourceControlIsRunning: sourceControl.isRunning,
             sourceControlTitle: sourceControl.statusMessage
@@ -2251,6 +2276,109 @@ final class EditorViewModel {
         Task {
             await workspaceService.cancel()
         }
+    }
+
+    @discardableResult
+    func handleMenuCommand(_ command: EditorMenuCommand) -> Bool {
+        switch command {
+        case .newFile:
+            presentNewFileDialog()
+        case .newProject:
+            ProjectEditorLauncher.openWelcome(beginCreatingProject: true)
+        case .openProject:
+            openProjectFromMenu()
+        case .importAssets:
+            importAssets()
+        case .save:
+            saveActiveDocument()
+        case .saveAll:
+            if workbench.saveAllDocuments() { refreshSourceControl() }
+        case .findInProject:
+            findInProjectRoot()
+            _ = EditorSearchShortcutMonitor.shared.focusSearchField()
+        case .navigateBack:
+            navigateBack()
+        case .navigateForward:
+            navigateForward()
+        case .showProjectNavigator:
+            toolStrip.activeLeftTopTool = "fileTree"
+            showLeftPanel = true
+        case .showInspector:
+            toolStrip.activeRightTool = "inspector"
+            showRightPanel = true
+        case .showBuildOutput:
+            showBuildOutput()
+        case .showProblems:
+            showBottomPanel = true
+            selectOutputTab("Problems")
+        case .refreshProjectFiles:
+            refreshProjectFiles()
+        case .revealProject:
+            if let projectURL { _ = EditorPlatformFileActions.reveal(projectURL) }
+        case .openProjectInTerminal:
+            if let projectURL { _ = EditorPlatformFileActions.openInTerminal(projectURL) }
+        case .showProjectSettings:
+            toolStrip.activeRightTool = "projectSettings"
+            showRightPanel = true
+        case .showProjectDependencies:
+            toolStrip.activeRightTool = "projectDependencies"
+            showRightPanel = true
+        case .showPackageTasks:
+            toolStrip.activeRightTool = "swiftPackageTasks"
+            showRightPanel = true
+        case .build:
+            buildAll()
+        case .run:
+            runSelectedTarget()
+        case .runTests:
+            runTests()
+        case .stop:
+            cancelWorkspaceCommand()
+        case .clean:
+            cleanPackageCache()
+        case .updateDependencies:
+            updateDependencies()
+        case .rebuildPreview:
+            rebuildSelectedPreview()
+        case .closeEditorTab:
+            workbench.closeDocument(id: workbench.activeDocumentID)
+        case .closeAllEditorTabs:
+            workbench.closeAllDocuments()
+        case .increaseCodeFontSize:
+            workbench.increaseCodeFontSize()
+        case .decreaseCodeFontSize:
+            workbench.decreaseCodeFontSize()
+        case .resetCodeFontSize:
+            workbench.resetCodeFontSize()
+        case .closeEditor, .undo, .redo, .cut, .copy, .paste, .selectAll, .enterFullScreen,
+             .minimizeWindow, .zoomWindow, .bringAllToFront, .showDocumentation, .showSourceRepository:
+            return false
+        }
+        return true
+    }
+
+    private func openProjectFromMenu() {
+        guard workbench.saveAllDocuments(), let url = ProjectOpenPicker.pickProjectURL() else { return }
+        do {
+            let project = try EditorProjectStore(fileManager: fileManager).openProject(at: url)
+            ProjectEditorLauncher.openEditor(for: project)
+        } catch {
+            workspaceStatus = .failed("Unable to open project: \(error.localizedDescription)")
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+        }
+    }
+
+    private func refreshProjectFiles() {
+        let selectedID = projectSidebar.selectedItem?.id
+        let collapsedIDs = projectSidebar.collapsedFolderIDs
+        let items = Self.projectTreeItems(for: project, fileManager: fileManager)
+        projectSidebar.items = items
+        projectSidebar.collapsedFolderIDs = collapsedIDs.intersection(Set(items.lazy.filter(\.isFolder).map(\.id)))
+        if let selected = items.first(where: { $0.id == selectedID }) {
+            projectSidebar.select(selected)
+        }
+        toolbar.searchableItems = items
+        appendOutput("Refreshed project files")
     }
 
     func selectWorkbenchDocument(id documentID: String) {
@@ -2475,6 +2603,12 @@ final class EditorViewModel {
         workbench.activeOutputTab = tab
     }
 
+    func clearOutput() {
+        outputLines.removeAll()
+        pendingWorkspaceStandardOutput = ""
+        pendingWorkspaceStandardError = ""
+    }
+
     func showBuildOutput() {
         showBottomPanel = true
         toolStrip.activeLeftBottomTool = "build"
@@ -2602,6 +2736,7 @@ final class EditorViewModel {
 
 
     private func handleWorkspaceProgress(_ progress: SwiftPMWorkspaceProgress) {
+        buildActivity?.consume(progress)
         switch progress.phase {
         case .ready:
             workspaceStatus = .ready
@@ -2638,15 +2773,29 @@ final class EditorViewModel {
 
         workspaceTask?.cancel()
         workspaceStatus = .running(statusTitle)
+        buildActivity = EditorBuildActivity(title: statusTitle)
+        pendingWorkspaceStandardOutput = ""
+        pendingWorkspaceStandardError = ""
+        didReceiveStreamingWorkspaceOutput = false
         appendOutput("$ \(statusTitle)")
         workspaceTask = Task { [weak self] in
             guard let self else { return }
-            let result = await self.workspaceService.execute(kind, projectURL: projectURL)
+            let result = await self.workspaceService.execute(kind, projectURL: projectURL) { [weak self] event in
+                await MainActor.run {
+                    self?.receiveWorkspaceOutput(event)
+                }
+            }
             guard !Task.isCancelled else {
                 return
             }
             await MainActor.run {
-                self.appendOutput(result)
+                if self.didReceiveStreamingWorkspaceOutput {
+                    self.flushPendingWorkspaceOutput()
+                    self.appendOutput("Exited with code \(result.exitCode)")
+                } else {
+                    self.appendOutput(result)
+                }
+                self.buildActivity?.finish(succeeded: result.succeeded)
                 self.problems = Self.replacingBuildDiagnostics(
                     in: self.problems,
                     with: EditorDiagnostic.diagnostics(from: result, projectURL: projectURL)
@@ -2656,6 +2805,47 @@ final class EditorViewModel {
                 self.workspaceTask = nil
             }
         }
+    }
+
+    private func receiveWorkspaceOutput(_ event: EditorProcessOutputEvent) {
+        didReceiveStreamingWorkspaceOutput = true
+        switch event.stream {
+        case .standardOutput:
+            let update = Self.streamingOutput(event.text, pending: pendingWorkspaceStandardOutput)
+            pendingWorkspaceStandardOutput = update.pending
+            appendStreamingLines(update.lines)
+        case .standardError:
+            let update = Self.streamingOutput(event.text, pending: pendingWorkspaceStandardError)
+            pendingWorkspaceStandardError = update.pending
+            appendStreamingLines(update.lines)
+        }
+    }
+
+    private func appendStreamingLines(_ lines: [String]) {
+        for line in lines {
+            buildActivity?.consume(line)
+            appendOutput(line)
+        }
+    }
+
+    private static func streamingOutput(_ text: String, pending: String) -> (lines: [String], pending: String) {
+        let combined = pending + text
+        let lines = combined.components(separatedBy: .newlines)
+        let endsWithNewline = combined.last?.isNewline == true
+        let completeLineCount = endsWithNewline ? lines.count : max(0, lines.count - 1)
+        return (
+            lines: lines.prefix(completeLineCount).filter { !$0.isEmpty },
+            pending: endsWithNewline ? "" : lines.last ?? ""
+        )
+    }
+
+    private func flushPendingWorkspaceOutput() {
+        for value in [pendingWorkspaceStandardOutput, pendingWorkspaceStandardError] where !value.isEmpty {
+            buildActivity?.consume(value)
+            appendOutput(value)
+        }
+        pendingWorkspaceStandardOutput = ""
+        pendingWorkspaceStandardError = ""
     }
 
     private func appendOutput(_ result: EditorProcessResult) {

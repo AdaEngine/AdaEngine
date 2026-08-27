@@ -168,8 +168,12 @@ struct EditorView: View {
         .fullScreenCover(isPresented: viewModel.isNewFileDialogPresentedBinding) {
             EditorNewFileDialog(viewModel: viewModel)
         }
+        .menuBar(EditorMenuBar.makeMenus())
         .keyboardShortcuts(editorKeyboardShortcuts)
         .onAppear {
+            EditorMenuCommandRouter.shared.install(owner: viewModel) { [weak viewModel] command in
+                viewModel?.handleMenuCommand(command) ?? false
+            }
             EditorSearchShortcutMonitor.shared.start()
             EditorNavigationMouseShortcutMonitor.shared.start(
                 back: { [weak viewModel] in viewModel?.navigateBack() },
@@ -177,6 +181,7 @@ struct EditorView: View {
             )
         }
         .onDisappear {
+            EditorMenuCommandRouter.shared.uninstall(owner: viewModel)
             EditorSearchShortcutMonitor.shared.stop()
             EditorNavigationMouseShortcutMonitor.shared.stop()
         }

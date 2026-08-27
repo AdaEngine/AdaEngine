@@ -21,7 +21,8 @@ extension TextEditorViewNode {
         rowY: Float,
         lineHeight: Float,
         pointSize: Float,
-        font: Font?
+        font: Font?,
+        lineCount: Int
     ) {
         guard self.isFocused, self.hasSelection else {
             return
@@ -30,7 +31,7 @@ extension TextEditorViewNode {
         let range = self.selectionRange
         let lineStart = line.startOffset
         let lineEnd = line.startOffset + line.text.count
-        let includesTrailingNewline = lineIndex < self.lines().count - 1
+        let includesTrailingNewline = lineIndex < lineCount - 1
         let selectableEnd = includesTrailingNewline ? lineEnd + 1 : lineEnd
         let start = max(range.lowerBound, lineStart)
         let end = min(range.upperBound, selectableEnd)
@@ -120,19 +121,10 @@ extension TextEditorViewNode {
             return
         }
 
-        let layout = TextLayoutManager()
-        var container = TextContainer(
-            text: string,
-            textAlignment: .leading,
-            lineBreakMode: .byCharWrapping,
-            lineSpacing: 0,
-            allowsShaping: false
-        )
-        container.numberOfLines = 1
-        layout.setTextContainer(container)
-        layout.fitToSize(Size(width: .infinity, height: self.lineHeight(for: Float(font.pointSize))))
+        let lineHeight = self.lineHeight(for: Float(font.pointSize))
+        let layout = self.cachedTextLayout(for: string, lineHeight: lineHeight)
 
-        let verticalOffset = Self.verticalTextOffset(for: layout, height: self.lineHeight(for: Float(font.pointSize)))
+        let verticalOffset = Self.verticalTextOffset(for: layout, height: lineHeight)
         context.translateBy(x: point.x, y: -(point.y) + verticalOffset)
         for line in layout.textLines {
             for run in line {
@@ -142,6 +134,54 @@ extension TextEditorViewNode {
             }
         }
         context.translateBy(x: -point.x, y: point.y - verticalOffset)
+    }
+
+    private func cachedTextLayout(for text: AttributedText, lineHeight: Float) -> TextLayoutManager {
+        let key = TextLayoutCacheKey(text: text, lineHeight: lineHeight)
+        self.textLayoutCacheAccess &+= 1
+
+        if var cached = self.textLayoutCache[key] {
+            cached.lastAccess = self.textLayoutCacheAccess
+            self.textLayoutCache[key] = cached
+            self.textLayoutCacheHits += 1
+            return cached.layout
+        }
+
+        let layout = TextLayoutManager()
+        var container = TextContainer(
+            text: text,
+            textAlignment: .leading,
+            lineBreakMode: .byCharWrapping,
+            lineSpacing: 0,
+            allowsShaping: false
+        )
+        container.numberOfLines = 1
+        layout.setTextContainer(container)
+        layout.fitToSize(Size(width: .infinity, height: lineHeight))
+
+        self.textLayoutCacheMisses += 1
+        self.textLayoutCache[key] = CachedTextLayout(
+            layout: layout,
+            lastAccess: self.textLayoutCacheAccess
+        )
+        self.pruneTextLayoutCacheIfNeeded()
+        return layout
+    }
+
+    private func pruneTextLayoutCacheIfNeeded() {
+        let maximumEntryCount = 384
+        let targetEntryCount = 320
+        guard self.textLayoutCache.count > maximumEntryCount else {
+            return
+        }
+
+        let staleKeys = self.textLayoutCache
+            .sorted { $0.value.lastAccess < $1.value.lastAccess }
+            .prefix(self.textLayoutCache.count - targetEntryCount)
+            .map(\.key)
+        for key in staleKeys {
+            self.textLayoutCache.removeValue(forKey: key)
+        }
     }
 
     func drawLineText(
@@ -441,21 +481,13 @@ extension TextEditorViewNode {
             return [0]
         }
 
-        let layout = TextLayoutManager()
         var attributes = TextAttributeContainer()
         attributes.font = font
         attributes.foregroundColor = self.resolvedTextColor()
-
-        var container = TextContainer(
-            text: AttributedText(lineText, attributes: attributes),
-            textAlignment: .leading,
-            lineBreakMode: .byCharWrapping,
-            lineSpacing: 0,
-            allowsShaping: false
+        let layout = self.cachedTextLayout(
+            for: AttributedText(lineText, attributes: attributes),
+            lineHeight: self.lineHeight(for: pointSize)
         )
-        container.numberOfLines = 1
-        layout.setTextContainer(container)
-        layout.fitToSize(Size(width: .infinity, height: self.lineHeight(for: pointSize)))
 
         var stops: [Float] = [0]
         stops.reserveCapacity(lineText.unicodeScalars.count + 1)

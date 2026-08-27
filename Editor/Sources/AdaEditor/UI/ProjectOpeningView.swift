@@ -58,14 +58,16 @@ enum ProjectOpeningLandingSpec {
 
 struct ProjectOpeningView: View {
     let autoOpenLastProject: Bool
+    let initiallyCreatingProject: Bool
     @State private var viewModel = ProjectOpeningViewModel()
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var preferredCompactColumn = NavigationSplitViewColumn.detail
     @State private var didAttemptAutoOpenLastProject = false
     private let logoImage = ProjectOpeningAssets.loadAdaEngineLogo()
 
-    init(autoOpenLastProject: Bool = true) {
+    init(autoOpenLastProject: Bool = true, initiallyCreatingProject: Bool = false) {
         self.autoOpenLastProject = autoOpenLastProject
+        self.initiallyCreatingProject = initiallyCreatingProject
     }
 
     var body: some View {
@@ -95,6 +97,7 @@ struct ProjectOpeningView: View {
         .background(LauncherColor.window)
         .frame(minWidth: ProjectOpeningLayout.windowWidth, minHeight: ProjectOpeningLayout.windowHeight)
         .background(LauncherColor.window)
+        .menuBar(EditorMenuBar.makeMenus())
         .onChange(of: viewModel.projectToOpenInEditorToken) { _, _ in
             guard let project = viewModel.consumeProjectToOpenInEditor() else {
                 return
@@ -102,7 +105,26 @@ struct ProjectOpeningView: View {
             ProjectEditorLauncher.openEditor(for: project)
         }
         .onAppear {
+            EditorMenuCommandRouter.shared.install(owner: viewModel) { [weak viewModel] command in
+                guard let viewModel else { return false }
+                switch command {
+                case .newProject:
+                    viewModel.beginCreateNewProject()
+                case .openProject:
+                    guard let url = ProjectOpenPicker.pickProjectURL() else { return true }
+                    viewModel.openProject(at: url)
+                default:
+                    return false
+                }
+                return true
+            }
+            if initiallyCreatingProject {
+                viewModel.beginCreateNewProject()
+            }
             openLastProjectOnLaunchIfNeeded()
+        }
+        .onDisappear {
+            EditorMenuCommandRouter.shared.uninstall(owner: viewModel)
         }
     }
 

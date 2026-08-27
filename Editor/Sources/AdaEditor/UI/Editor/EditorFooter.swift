@@ -38,17 +38,26 @@ struct EditorActivityEvent: Equatable, Sendable, Identifiable {
         }
         return "\(title) · \(Int((fractionCompleted * 100).rounded()))%"
     }
+
+    var displayTitle: String {
+        let value = detail.map { "\(title) · \($0)" } ?? title
+        guard let fractionCompleted else {
+            return value
+        }
+        return "\(value) · \(Int((fractionCompleted * 100).rounded()))%"
+    }
 }
 
 @MainActor
 enum EditorActivityPresentation {
     static func events(
         workspaceStatus: EditorWorkspaceStatus,
+        buildActivity: EditorBuildActivity? = nil,
         previewStatus: EditorPreviewStatus,
         sourceControlIsRunning: Bool,
         sourceControlTitle: String
     ) -> [EditorActivityEvent] {
-        var events = workspaceEvent(for: workspaceStatus).map { [$0] } ?? []
+        var events = workspaceEvent(for: workspaceStatus, buildActivity: buildActivity).map { [$0] } ?? []
 
         if case .building(let declaration, let message) = previewStatus {
             events.append(
@@ -74,7 +83,10 @@ enum EditorActivityPresentation {
         return events
     }
 
-    private static func workspaceEvent(for status: EditorWorkspaceStatus) -> EditorActivityEvent? {
+    private static func workspaceEvent(
+        for status: EditorWorkspaceStatus,
+        buildActivity: EditorBuildActivity?
+    ) -> EditorActivityEvent? {
         switch status {
         case .resolving:
             return EditorActivityEvent(
@@ -107,10 +119,13 @@ enum EditorActivityPresentation {
                 fractionCompleted: fractionCompleted
             )
         case .running(let title):
+            let step = buildActivity?.currentStep
             return EditorActivityEvent(
                 id: "workspace-command",
                 kind: commandKind(for: title),
-                title: title
+                title: title,
+                detail: step.map { $0.detail ?? $0.title },
+                fractionCompleted: step?.fractionCompleted
             )
         case .cancelled, .failed, .idle, .ready:
             return nil
@@ -155,11 +170,11 @@ struct EditorFooter: View {
                 EditorActivityProgressView(
                     activity: activity,
                     additionalActivityCount: max(0, activities.count - 1),
-                    width: metrics.size.width < 760 ? 132 : 220
+                    width: metrics.size.width < 900 ? 260 : 420
                 )
             }
         }
-        .font(.system(size: 10))
+        .font(.system(size: 12))
         .foregroundColor(theme.editorColors.text)
         .padding(.horizontal, 10)
     }
@@ -173,23 +188,27 @@ private struct EditorActivityProgressView: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 5) {
-                Text(activity.statusTitle)
-                    .lineLimit(1)
-                if additionalActivityCount > 0 {
-                    Text("+\(additionalActivityCount)")
-                        .foregroundColor(theme.editorColors.blue)
-                }
-            }
-            .frame(width: width, alignment: .trailing)
+        let progressWidth = width < 300 ? Float(84) : Float(150)
+        let countWidth = additionalActivityCount > 0 ? Float(28) : Float(0)
+        let titleWidth = max(100, width - progressWidth - countWidth - 16)
+
+        HStack(spacing: 8) {
+            Text(activity.displayTitle)
+                .lineLimit(1)
+                .frame(width: titleWidth, alignment: .trailing)
 
             EditorActivityProgressBar(
                 fractionCompleted: activity.fractionCompleted,
-                width: width
+                width: progressWidth
             )
+
+            if additionalActivityCount > 0 {
+                Text("+\(additionalActivityCount)")
+                    .foregroundColor(theme.editorColors.blue)
+                    .frame(width: countWidth)
+            }
         }
-        .frame(width: width, height: 20, alignment: .bottomTrailing)
+        .frame(width: width, height: 22, alignment: .trailing)
         .accessibilityIdentifier("AdaEditor.ActivityProgress")
     }
 }
@@ -204,26 +223,26 @@ private struct EditorActivityProgressBar: View {
         ZStack(anchor: .leading) {
             RoundedRectangleShape(cornerRadius: 1)
                 .fill(theme.editorColors.border.opacity(0.55))
-                .frame(width: width, height: 2)
+                .frame(width: width, height: 3)
 
             if let fractionCompleted {
                 RoundedRectangleShape(cornerRadius: 1)
                     .fill(theme.editorColors.blue)
-                    .frame(width: width * fractionCompleted, height: 2)
+                    .frame(width: width * fractionCompleted, height: 3)
             } else {
                 TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
                     let phase = Float(context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.2) / 1.2)
                     let segmentWidth = width * 0.32
                     RoundedRectangleShape(cornerRadius: 1)
                         .fill(theme.editorColors.blue)
-                        .frame(width: segmentWidth, height: 2)
+                        .frame(width: segmentWidth, height: 3)
                         .offset(x: (width + segmentWidth) * phase - segmentWidth)
                 }
-                .frame(width: width, height: 2)
+                .frame(width: width, height: 3)
                 .mask(RectangleShape())
             }
         }
-        .frame(width: width, height: 2)
+        .frame(width: width, height: 3)
         .accessibilityIdentifier("AdaEditor.ActivityProgress.Bar")
     }
 }

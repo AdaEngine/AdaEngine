@@ -166,7 +166,10 @@ private enum ContextMenuPresenter {
 
     private static func menuSize(for items: [ContextMenuPresentation.Item]) -> Size {
         let longestTitleCount = items.map(\.title.count).max() ?? 0
-        let width = max(180, min(320, Float(longestTitleCount * 8 + 40)))
+        let width = max(
+            ContextMenuMetrics.minimumWidth,
+            min(ContextMenuMetrics.maximumWidth, Float(longestTitleCount * 8 + 40))
+        )
         let height = Float(items.count) * ContextMenuMetrics.rowHeight + ContextMenuMetrics.verticalPadding * 2
         return Size(width: width, height: height)
     }
@@ -259,6 +262,9 @@ private enum ContextMenuMetrics {
     static let rowHeight: Float = 32
     static let verticalPadding: Float = 6
     static let submenuOverlap: Float = 4
+    static let minimumWidth: Float = 280
+    static let maximumWidth: Float = 360
+    static let horizontalPadding: Float = 12
 }
 
 private struct ContextMenuWindowContent: View {
@@ -274,7 +280,7 @@ private struct ContextMenuWindowContent: View {
             }
         }
         .padding(.vertical, ContextMenuMetrics.verticalPadding)
-        .frame(width: rowWidth + 24)
+        .frame(width: rowWidth + ContextMenuMetrics.horizontalPadding * 2)
         .background(RoundedRectangleShape(cornerRadius: 8).fill(backgroundColor))
     }
 
@@ -296,6 +302,7 @@ private struct ContextMenuWindowContent: View {
                 Text(item.title)
                     .font(.system(size: 13))
                     .foregroundColor(item.role == .destructive ? destructiveTextColor : primaryTextColor)
+                    .lineLimit(1)
                 Spacer()
                 if !item.submenu.isEmpty {
                     Text(">")
@@ -304,7 +311,7 @@ private struct ContextMenuWindowContent: View {
                 }
             }
             .frame(width: rowWidth, height: ContextMenuMetrics.rowHeight)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, ContextMenuMetrics.horizontalPadding)
         }
         .buttonStyle(ContextMenuButtonStyle(role: item.role))
         .onHover { isHovered in
@@ -325,7 +332,13 @@ private struct ContextMenuWindowContent: View {
     }
 
     private var rowWidth: Float {
-        max(156, min(296, Float((items.map(\.title.count).max() ?? 0) * 8 + 16)))
+        max(
+            ContextMenuMetrics.minimumWidth - ContextMenuMetrics.horizontalPadding * 2,
+            min(
+                ContextMenuMetrics.maximumWidth - ContextMenuMetrics.horizontalPadding * 2,
+                Float((items.map(\.title.count).max() ?? 0) * 8 + 16)
+            )
+        )
     }
 }
 

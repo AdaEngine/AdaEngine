@@ -12,6 +12,10 @@ import Math
 extension TextEditorViewNode {
 
     func lines() -> [LineInfo] {
+        if let lineCache {
+            return lineCache
+        }
+
         var result: [LineInfo] = []
         var current = ""
         var startOffset = 0
@@ -30,7 +34,13 @@ extension TextEditorViewNode {
         }
 
         result.append(LineInfo(text: current, startOffset: startOffset))
+        self.lineCache = result
         return result
+    }
+
+    func invalidateTextCaches() {
+        self.lineCache = nil
+        self.textLayoutCache.removeAll(keepingCapacity: true)
     }
 
     func position(forOffset offset: Int, lines: [LineInfo]) -> TextPosition {

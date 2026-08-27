@@ -5,6 +5,26 @@ import Testing
 
 @Suite("SwiftPM workspace tooling")
 struct SwiftToolingTests {
+    @Test("SwiftPM execute forwards live process output")
+    func swiftPMExecuteForwardsLiveOutput() async {
+        let event = EditorProcessOutputEvent(
+            stream: .standardOutput,
+            text: "[1/2] Compiling Game Player.swift\n"
+        )
+        let runner = FakeProcessRunner(results: [], outputChunks: [[event]])
+        let recorder = WorkspaceOutputRecorder()
+        let service = SwiftPMWorkspaceService(processRunner: runner)
+
+        _ = await service.execute(
+            .build(target: "Game", buildTests: false),
+            projectURL: URL(fileURLWithPath: "/tmp/Game", isDirectory: true)
+        ) { output in
+            await recorder.append(output)
+        }
+
+        #expect(await recorder.events == [event])
+    }
+
     @Test("SwiftPM service constructs expected commands")
     func swiftPMCommandConstruction() {
         let service = SwiftPMWorkspaceService(processRunner: FakeProcessRunner(results: []))
@@ -1203,6 +1223,14 @@ private actor FakeProcessRunner: EditorProcessRunning {
 
     func cancelAll() {
         cancelCount += 1
+    }
+}
+
+private actor WorkspaceOutputRecorder {
+    private(set) var events: [EditorProcessOutputEvent] = []
+
+    func append(_ event: EditorProcessOutputEvent) {
+        events.append(event)
     }
 }
 

@@ -1,5 +1,31 @@
 @_spi(AdaEngine) import AdaEngine
 
+enum EditorProjectTreeIcon {
+    static let chevronRight = "\u{E5CC}"
+    static let expandMore = "\u{E5CF}"
+    static let folder = "\u{E2C7}"
+    static let folderOpen = "\u{E2C8}"
+    static let description = "\u{E873}"
+    static let code = "\u{E86F}"
+    static let article = "\u{EF42}"
+    static let image = "\u{E3F4}"
+    static let audioFile = "\u{EB82}"
+    static let scene = "\u{F720}"
+
+    static let allSymbols = [
+        chevronRight,
+        expandMore,
+        folder,
+        folderOpen,
+        description,
+        code,
+        article,
+        image,
+        audioFile,
+        scene,
+    ]
+}
+
 struct EditorProjectSidebar: View {
     let viewModel: EditorProjectSidebarViewModel
     let projectRootItem: EditorProjectSidebarViewModel.Item?
@@ -104,14 +130,15 @@ struct EditorProjectSidebar: View {
         Button(action: { onOpenItem(item) }) {
             HStack(spacing: 6) {
                 Text(disclosureIcon(for: item))
-                    .font(.system(size: 11))
+                    .font(AdaEditorMaterialSymbolFont.font(size: 16))
                     .foregroundColor(theme.editorColors.muted)
-                    .frame(width: 14)
+                    .frame(width: 16, height: 18)
                 Text(fileIcon(for: item))
-                    .font(.system(size: 12))
+                    .font(AdaEditorMaterialSymbolFont.font(size: 17))
                     .foregroundColor(iconColor(for: item))
-                    .frame(width: 16)
+                    .frame(width: 18, height: 18)
                 Text(item.title)
+                    .font(.system(size: 12, weight: .bold))
                 Spacer()
             }
             .font(.system(size: 12))
@@ -171,36 +198,36 @@ struct EditorProjectSidebar: View {
             return ""
         }
 
-        return viewModel.isCollapsed(item) ? ">" : "v"
+        return viewModel.isCollapsed(item) ? EditorProjectTreeIcon.chevronRight : EditorProjectTreeIcon.expandMore
     }
 
     private func fileIcon(for item: EditorProjectSidebarViewModel.Item) -> String {
         switch item.kind {
         case .folder:
-            return viewModel.isCollapsed(item) ? "+" : "-"
+            return viewModel.isCollapsed(item) ? EditorProjectTreeIcon.folder : EditorProjectTreeIcon.folderOpen
         case .scene:
-            return "#"
+            return EditorProjectTreeIcon.scene
         case .text(let language):
             return textFileIcon(for: language)
         case .image:
-            return "□"
+            return EditorProjectTreeIcon.image
         case .audio:
-            return "~"
+            return EditorProjectTreeIcon.audioFile
         case .genericAsset:
-            return "*"
+            return EditorProjectTreeIcon.description
         case .unsupported:
-            return "?"
+            return EditorProjectTreeIcon.description
         }
     }
 
     private func textFileIcon(for language: EditorSourceLanguage) -> String {
         switch language {
         case .json, .yaml:
-            return "{}"
+            return EditorProjectTreeIcon.code
         case .markdown, .plainText:
-            return "="
+            return EditorProjectTreeIcon.article
         case .packageManifest, .swift, .ada, .c, .cpp, .glsl, .metal:
-            return "<>"
+            return EditorProjectTreeIcon.code
         }
     }
 

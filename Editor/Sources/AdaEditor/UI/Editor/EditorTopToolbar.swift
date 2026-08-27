@@ -16,10 +16,7 @@ struct EditorTopToolbar: View {
     @Environment(\.theme) private var theme
     
     var body: some View {
-        HStack(spacing: 12) {
-            Color.clear
-                .frame(width: metrics.toolbarWindowControlClearance, height: 1)
-
+        ZStack {
             SearchBar(
                 text: viewModel.searchTextBinding,
                 prompt: viewModel.searchPrompt,
@@ -28,27 +25,33 @@ struct EditorTopToolbar: View {
             .searchBarStyle(EditorToolbarSearchBarStyle(theme: theme))
             .accessibilityIdentifier(Self.searchAccessibilityIdentifier)
 
-            Spacer()
+            HStack(spacing: 12) {
+                Color.clear
+                    .frame(width: metrics.toolbarWindowControlClearance, height: 1)
 
-            if metrics.showsToolbarSceneName {
-                Text(viewModel.sceneName)
-                    .font(.system(size: 12))
-                    .foregroundColor(theme.editorColors.muted)
-                    .lineLimit(1)
+                Spacer()
+
+                if metrics.showsToolbarSceneName {
+                    Text(viewModel.sceneName)
+                        .font(.system(size: 12))
+                        .foregroundColor(theme.editorColors.muted)
+                        .lineLimit(1)
+                }
+
+                if metrics.showsToolbarHotReloadStatus {
+                    adaEditorToolbarPill(
+                        hotReloadState.toolbarTitle,
+                        active: hotReloadState.isEnabled && hotReloadState.errorMessage == nil,
+                        theme: theme
+                    )
+                }
+
+                runDestinationControls
+                runStopControls
             }
-
-            if metrics.showsToolbarHotReloadStatus {
-                adaEditorToolbarPill(
-                    hotReloadState.toolbarTitle,
-                    active: hotReloadState.isEnabled && hotReloadState.errorMessage == nil,
-                    theme: theme
-                )
-            }
-
-            runDestinationControls
-            runStopControls
+            .padding(.trailing, 12)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.trailing, 12)
         .frame(maxWidth: .infinity)
     }
 

@@ -9,6 +9,11 @@ import AdaEngine
 import Foundation
 
 struct EditorBottomPanel: View {
+    private enum ScrollTarget {
+        static let top = "AdaEditor.Output.Top"
+        static let bottom = "AdaEditor.Output.Bottom"
+    }
+
     let viewModel: EditorViewModel
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
@@ -26,15 +31,31 @@ struct EditorBottomPanel: View {
             .background(theme.editorColors.surface)
             
             GeometryReader { geometry in
-                ScrollView([.horizontal, .vertical]) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        panelContent
+                ScrollViewReader { proxy in
+                    HStack(spacing: 0) {
+                        ScrollView([.horizontal, .vertical]) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                RectangleShape()
+                                    .fill(Color.clear)
+                                    .frame(width: 1, height: 1)
+                                    .id(ScrollTarget.top)
+                                panelContent
+                                RectangleShape()
+                                    .fill(Color.clear)
+                                    .frame(width: 1, height: 1)
+                                    .id(ScrollTarget.bottom)
+                            }
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                        }
+
+                        if showsOutputControls {
+                            outputControlRail(proxy)
+                        }
                     }
-                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -64,6 +85,12 @@ struct EditorBottomPanel: View {
             ForEach(viewModel.packageModel?.targets.map(\.name).sorted() ?? [], id: \.self) { target in
                 commandButton("Build \(target)") { viewModel.buildTarget(target) }
             }
+            if let activity = viewModel.buildActivity {
+                outputSectionTitle(activity.title)
+                ForEach(activity.steps) { step in
+                    buildStepRow(step)
+                }
+            }
             outputSectionTitle("Build Output")
             ForEach(viewModel.outputLines) { line in
                 outputLine(line.text, color: logColor(for: line.text))
@@ -90,7 +117,7 @@ struct EditorBottomPanel: View {
 
     private func outputLine(_ line: String, color: Color? = nil) -> some View {
         Text(line)
-            .font(.system(size: 11))
+            .font(.system(size: 13))
             .foregroundColor(color ?? logColor(for: line))
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
@@ -98,9 +125,56 @@ struct EditorBottomPanel: View {
 
     private func outputSectionTitle(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 10))
+            .font(.system(size: 12))
             .foregroundColor(theme.editorColors.text)
-            .padding(.top, 6)
+            .padding(.top, 8)
+    }
+
+    private func buildStepRow(_ step: EditorBuildStep) -> some View {
+        HStack(spacing: 8) {
+            Text(buildStepGlyph(for: step.state))
+                .font(.system(size: 12))
+                .foregroundColor(buildStepColor(for: step.state))
+                .frame(width: 14)
+            Text(step.title)
+                .font(.system(size: 13))
+                .foregroundColor(step.state == .running ? theme.editorColors.text : theme.editorColors.muted)
+            if let detail = step.detail {
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.editorColors.muted)
+                    .lineLimit(1)
+            }
+            if let fractionCompleted = step.fractionCompleted {
+                Text("\(Int((fractionCompleted * 100).rounded()))%")
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.editorColors.blue)
+            }
+        }
+        .frame(height: 20)
+        .accessibilityIdentifier("AdaEditor.BuildStep.\(step.id)")
+    }
+
+    private func buildStepGlyph(for state: EditorBuildStepState) -> String {
+        switch state {
+        case .completed:
+            "✓"
+        case .failed:
+            "×"
+        case .running:
+            "●"
+        }
+    }
+
+    private func buildStepColor(for state: EditorBuildStepState) -> Color {
+        switch state {
+        case .completed:
+            Color(red: 110 / 255, green: 205 / 255, blue: 126 / 255)
+        case .failed:
+            Color(red: 245 / 255, green: 110 / 255, blue: 110 / 255)
+        case .running:
+            theme.editorColors.blue
+        }
     }
 
     private func diagnosticColor(for severity: EditorDiagnosticSeverity) -> Color {
@@ -148,7 +222,7 @@ struct EditorBottomPanel: View {
     private func commandButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.blue)
                 .padding(.horizontal, 8)
                 .frame(height: 22)
@@ -162,7 +236,7 @@ struct EditorBottomPanel: View {
 
         return Button(action: { viewModel.selectOutputTab(tab) }) {
             Text(tab)
-                .font(.system(size: 11))
+                .font(.system(size: 12))
                 .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
                 .padding(.horizontal, metrics.outputTabHorizontalPadding)
                 .frame(width: outputTabWidth(tab), height: 24)
@@ -184,5 +258,68 @@ struct EditorBottomPanel: View {
 
     private func outputTabWidth(_ tab: String) -> Float {
         Float(tab.count) * 7 + metrics.outputTabHorizontalPadding * 2
+    }
+
+    private var showsOutputControls: Bool {
+        viewModel.activeOutputTab == "Build" || viewModel.activeOutputTab == "Output"
+    }
+
+    private func outputControlRail(_ proxy: ScrollViewProxy) -> some View {
+        VStack(spacing: 6) {
+            outputControlButton(
+                glyph: "\u{E25A}",
+                identifier: "AdaEditor.Output.ScrollToTop"
+            ) {
+                proxy.scrollTo(ScrollTarget.top, anchor: .top)
+            }
+            outputControlButton(
+                glyph: "\u{E258}",
+                identifier: "AdaEditor.Output.ScrollToBottom"
+            ) {
+                proxy.scrollTo(ScrollTarget.bottom, anchor: .bottom)
+            }
+            RectangleShape()
+                .fill(theme.editorColors.border.opacity(0.55))
+                .frame(width: 20, height: 1)
+            outputControlButton(
+                glyph: "\u{E872}",
+                identifier: "AdaEditor.Output.Clear"
+            ) {
+                viewModel.clearOutput()
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 8)
+        .frame(width: 38)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(theme.editorColors.surface.opacity(0.72))
+    }
+
+    private func outputControlButton(
+        glyph: String,
+        identifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(glyph)
+                .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                .frame(width: 28, height: 28)
+        }
+        .buttonStyle(EditorOutputControlButtonStyle(theme: theme))
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+private struct EditorOutputControlButtonStyle: ButtonStyle {
+    let theme: Theme
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundColor(configuration.state.isHighlighted ? theme.editorColors.text : theme.editorColors.muted)
+            .background(
+                RoundedRectangleShape(cornerRadius: 5)
+                    .fill(configuration.state.isHighlighted ? theme.editorColors.surfaceElevated : Color.clear)
+            )
     }
 }

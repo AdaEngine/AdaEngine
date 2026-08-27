@@ -377,7 +377,7 @@ private extension EditorSourceRange {
 enum AdaEditorCodeFont {
     private static let resource: FontResource? = {
         guard let fontURL = Foundation.Bundle.editor.url(
-            forResource: "FiraCode-Regular",
+            forResource: "FiraCode-Medium",
             withExtension: "ttf",
             subdirectory: "Assets/Fonts"
         ) else {

@@ -116,6 +116,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     private var pressLocation: Point?
     private var lastPressMouseEvent: MouseEvent?
     private var lastPressTouches: Set<TouchEvent>?
+    private weak var activeContentEventNode: ViewNode?
     private var elapsedPressDuration: TimeInterval = 0
     private var didPresentForCurrentPress = false
 
@@ -136,6 +137,23 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         guard self.point(inside: point, with: event) else { return nil }
+
+        if let mouseEvent = event as? MouseEvent {
+            if mouseEvent.button == .right {
+                return self
+            }
+
+            if mouseEvent.button == .left, mouseEvent.phase == .began {
+                activeContentEventNode = super.hitTest(point, with: event)
+                return self
+            }
+
+            return super.hitTest(point, with: event)
+        }
+
+        if let touchEvent = event as? TouchEvent, touchEvent.phase == .began {
+            activeContentEventNode = super.hitTest(point, with: event)
+        }
         return self
     }
 
@@ -158,10 +176,14 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                 pressLocation = event.mousePosition
             }
         case .ended, .cancelled:
-            resetPressTracking()
+            break
         }
 
-        contentNode.onMouseEvent(event)
+        activeContentEventNode?.onMouseEvent(event)
+
+        if event.phase == .ended || event.phase == .cancelled {
+            resetPressTracking()
+        }
     }
 
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
@@ -179,10 +201,14 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
             lastPressTouches = touches
             pressLocation = touch.location
         case .ended, .cancelled:
-            resetPressTracking()
+            break
         }
 
-        contentNode.onTouchesEvent(touches)
+        activeContentEventNode?.onTouchesEvent(touches)
+
+        if touch.phase == .ended || touch.phase == .cancelled {
+            resetPressTracking()
+        }
     }
 
     override func update(_ deltaTime: TimeInterval) {
@@ -199,8 +225,8 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     }
 
     override func onMouseLeave() {
+        activeContentEventNode?.onMouseLeave()
         resetPressTracking()
-        super.onMouseLeave()
     }
 
     override func update(from newNode: ViewNode) {
@@ -225,11 +251,12 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
         lastPressTouches = nil
         elapsedPressDuration = 0
         didPresentForCurrentPress = false
+        activeContentEventNode = nil
     }
 
     private func cancelContentPress() {
         if let event = lastPressMouseEvent {
-            contentNode.onMouseEvent(
+            activeContentEventNode?.onMouseEvent(
                 MouseEvent(
                     window: event.window,
                     button: .left,
@@ -252,7 +279,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                     )
                 }
             )
-            contentNode.onTouchesEvent(cancelledTouches)
+            activeContentEventNode?.onTouchesEvent(cancelledTouches)
         }
     }
 
