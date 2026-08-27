@@ -50,13 +50,19 @@ import AdaUtils
     let state: QueryState
     let predicate: QueryPredicate
     let filter: QueryFilter
+    let declaredAccess: SystemAccessSet
     
     /// Create a new entity query for specific predicate.
     /// - Parameter predicate: Describe what entity should contains to satisfy query.
     /// - Parameter filter: Describe filter of this query. By default is ``Filter/all``
-    public init(where predicate: QueryPredicate, filter: QueryFilter = .all) {
+    public init(
+        where predicate: QueryPredicate,
+        filter: QueryFilter = .all,
+        access: SystemAccessSet = SystemAccessSet()
+    ) {
         self.predicate = predicate
         self.filter = filter
+        self.declaredAccess = access
         self.state = QueryState(predicate: predicate, filter: filter)
     }
 
@@ -70,6 +76,10 @@ import AdaUtils
 }
 
 extension EntityQuery: SystemParameter {
+    public var access: SystemAccessSet {
+        declaredAccess
+    }
+
     public func finish(_ world: World) { }
 
     public func update(from world: World) {

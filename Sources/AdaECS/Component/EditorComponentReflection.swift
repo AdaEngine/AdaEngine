@@ -36,6 +36,8 @@ public struct EditorComponentFieldDescriptor: @unchecked Sendable {
     public var label: String
     public var kind: EditorFieldKind
     public var isEditable: Bool
+    /// Returns whether the reflected Swift field can represent a value without trapping or losing finiteness.
+    public var accepts: @Sendable (EditorFieldValue) -> Bool
     public var read: @Sendable (any Component) -> EditorFieldValue?
     public var write: @Sendable (any Component, EditorFieldValue) -> (any Component)?
 
@@ -44,6 +46,7 @@ public struct EditorComponentFieldDescriptor: @unchecked Sendable {
         label: String,
         kind: EditorFieldKind,
         isEditable: Bool,
+        accepts: @escaping @Sendable (EditorFieldValue) -> Bool = { _ in true },
         read: @escaping @Sendable (any Component) -> EditorFieldValue?,
         write: @escaping @Sendable (any Component, EditorFieldValue) -> (any Component)?
     ) {
@@ -51,6 +54,7 @@ public struct EditorComponentFieldDescriptor: @unchecked Sendable {
         self.label = label
         self.kind = kind
         self.isEditable = isEditable
+        self.accepts = accepts
         self.read = read
         self.write = write
     }
@@ -170,7 +174,42 @@ public enum EditorComponentReflection {
     public static func kind<T: EditorEnumReflectable>(for type: T.Type) -> EditorFieldKind { .enumeration(T.editorCaseNames) }
 
     public static func isEditable<T>(_ type: T.Type) -> Bool {
-        kind(for: T.self) != .readOnly
+        false
+    }
+
+    public static func isEditable(_ type: Bool.Type) -> Bool { true }
+    public static func isEditable(_ type: Int.Type) -> Bool { true }
+    public static func isEditable(_ type: Float.Type) -> Bool { true }
+    public static func isEditable(_ type: Double.Type) -> Bool { true }
+    public static func isEditable(_ type: String.Type) -> Bool { true }
+    public static func isEditable(_ type: Vector2.Type) -> Bool { true }
+    public static func isEditable(_ type: Vector3.Type) -> Bool { true }
+    public static func isEditable(_ type: Vector4.Type) -> Bool { true }
+    public static func isEditable(_ type: Quat.Type) -> Bool { true }
+    public static func isEditable(_ type: Color.Type) -> Bool { true }
+    public static func isEditable<T: EditorEnumReflectable>(_ type: T.Type) -> Bool { true }
+
+    public static func accepts<T>(_ fieldValue: EditorFieldValue, for type: T.Type) -> Bool { false }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: Bool.Type) -> Bool { fieldValue.boolValue != nil }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: Int.Type) -> Bool { fieldValue.intValue != nil }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: Float.Type) -> Bool { fieldValue.validFloatValue != nil }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: Double.Type) -> Bool { fieldValue.doubleValue?.isFinite == true }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: String.Type) -> Bool {
+        if case .string = fieldValue {
+            return true
+        }
+        return false
+    }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: Vector2.Type) -> Bool { fieldValue.validFloatArray(count: 2) != nil }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: Vector3.Type) -> Bool { fieldValue.validFloatArray(count: 3) != nil }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: Vector4.Type) -> Bool { fieldValue.validFloatArray(count: 4) != nil }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: Quat.Type) -> Bool { fieldValue.validFloatArray(count: 4) != nil }
+    public static func accepts(_ fieldValue: EditorFieldValue, for type: Color.Type) -> Bool { fieldValue.validColorComponents != nil }
+    public static func accepts<T: EditorEnumReflectable>(_ fieldValue: EditorFieldValue, for type: T.Type) -> Bool {
+        guard case .string(let string) = fieldValue else {
+            return false
+        }
+        return T.editorCase(named: string) != nil
     }
 
     public static func read<T>(_ value: T) -> EditorFieldValue {
@@ -213,13 +252,13 @@ public enum EditorComponentReflection {
     }
 
     public static func write(_ fieldValue: EditorFieldValue, to value: inout Float) -> Bool {
-        guard let double = fieldValue.doubleValue else { return false }
-        value = Float(double)
+        guard let float = fieldValue.validFloatValue else { return false }
+        value = float
         return true
     }
 
     public static func write(_ fieldValue: EditorFieldValue, to value: inout Double) -> Bool {
-        guard let double = fieldValue.doubleValue else { return false }
+        guard let double = fieldValue.doubleValue, double.isFinite else { return false }
         value = double
         return true
     }
@@ -231,32 +270,32 @@ public enum EditorComponentReflection {
     }
 
     public static func write(_ fieldValue: EditorFieldValue, to value: inout Vector2) -> Bool {
-        guard let components = fieldValue.numericArray(count: 2) else { return false }
-        value = Vector2(Float(components[0]), Float(components[1]))
+        guard let components = fieldValue.validFloatArray(count: 2) else { return false }
+        value = Vector2(components[0], components[1])
         return true
     }
 
     public static func write(_ fieldValue: EditorFieldValue, to value: inout Vector3) -> Bool {
-        guard let components = fieldValue.numericArray(count: 3) else { return false }
-        value = Vector3(Float(components[0]), Float(components[1]), Float(components[2]))
+        guard let components = fieldValue.validFloatArray(count: 3) else { return false }
+        value = Vector3(components[0], components[1], components[2])
         return true
     }
 
     public static func write(_ fieldValue: EditorFieldValue, to value: inout Vector4) -> Bool {
-        guard let components = fieldValue.numericArray(count: 4) else { return false }
-        value = Vector4(Float(components[0]), Float(components[1]), Float(components[2]), Float(components[3]))
+        guard let components = fieldValue.validFloatArray(count: 4) else { return false }
+        value = Vector4(components[0], components[1], components[2], components[3])
         return true
     }
 
     public static func write(_ fieldValue: EditorFieldValue, to value: inout Quat) -> Bool {
-        guard let components = fieldValue.numericArray(count: 4) else { return false }
-        value = Quat(x: Float(components[0]), y: Float(components[1]), z: Float(components[2]), w: Float(components[3]))
+        guard let components = fieldValue.validFloatArray(count: 4) else { return false }
+        value = Quat(x: components[0], y: components[1], z: components[2], w: components[3])
         return true
     }
 
     public static func write(_ fieldValue: EditorFieldValue, to value: inout Color) -> Bool {
-        guard let components = fieldValue.colorComponents else { return false }
-        value = Color(red: Float(components[0]), green: Float(components[1]), blue: Float(components[2]), alpha: Float(components[3]))
+        guard let components = fieldValue.validColorComponents else { return false }
+        value = Color(red: components[0], green: components[1], blue: components[2], alpha: components[3])
         return true
     }
 
@@ -271,6 +310,31 @@ public enum EditorComponentReflection {
 }
 
 public extension EditorFieldValue {
+    var validFloatValue: Float? {
+        guard let value = doubleValue,
+              value.isFinite,
+              abs(value) <= Double(Float.greatestFiniteMagnitude) else {
+            return nil
+        }
+        return Float(value)
+    }
+
+    func validFloatArray(count: Int) -> [Float]? {
+        guard let components = numericArray(count: count),
+              components.allSatisfy({ $0.isFinite && abs($0) <= Double(Float.greatestFiniteMagnitude) }) else {
+            return nil
+        }
+        return components.map(Float.init)
+    }
+
+    var validColorComponents: [Float]? {
+        guard let components = colorComponents,
+              components.allSatisfy({ $0.isFinite && abs($0) <= Double(Float.greatestFiniteMagnitude) }) else {
+            return nil
+        }
+        return components.map(Float.init)
+    }
+
     var doubleValue: Double? {
         switch self {
         case .int(let value):
@@ -287,13 +351,18 @@ public extension EditorFieldValue {
     var intValue: Int? {
         switch self {
         case .int(let value):
-            value
+            return value
         case .double(let value):
-            Int(value)
+            guard value.isFinite,
+                  value >= Double(Int.min),
+                  value < Double(Int.max) + 1 else {
+                return nil
+            }
+            return Int(value)
         case .string(let value):
-            Int(value)
+            return Int(value)
         default:
-            nil
+            return nil
         }
     }
 
@@ -329,10 +398,17 @@ public extension EditorFieldValue {
         guard case .array(let values) = self else {
             return nil
         }
-        var numbers = values.map { $0.doubleValue ?? 0 }
+        var numbers: [Double] = []
+        numbers.reserveCapacity(count)
+        for value in values.prefix(count) {
+            guard let number = value.doubleValue else {
+                return nil
+            }
+            numbers.append(number)
+        }
         if numbers.count < count {
             numbers.append(contentsOf: Array(repeating: 0, count: count - numbers.count))
         }
-        return Array(numbers.prefix(count))
+        return numbers
     }
 }

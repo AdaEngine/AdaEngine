@@ -1,0 +1,69 @@
+class GravitySwarmSystem {
+    func update(deltaTime, queries) {
+        var frameTime = deltaTime;
+        if (frameTime < 0) frameTime = 0;
+        if (frameTime > 0.05) frameTime = 0.05;
+
+        var movers = queries[0];
+        for (var index in 0..<movers.count) {
+            var position = movers.get(index, "Transform", "position");
+            var velocity = movers.get(index, "GravityVelocity", "velocity");
+            var boundsMin = movers.get(index, "GravityVelocity", "boundsMin");
+            var boundsMax = movers.get(index, "GravityVelocity", "boundsMax");
+
+            var nextX = position[0] + velocity[0] * frameTime;
+            var nextY = position[1] + velocity[1] * frameTime;
+
+            if (nextX < boundsMin[0]) {
+                nextX = boundsMin[0];
+                velocity = [-velocity[0], velocity[1]];
+            } else if (nextX > boundsMax[0]) {
+                nextX = boundsMax[0];
+                velocity = [-velocity[0], velocity[1]];
+            }
+
+            if (nextY < boundsMin[1]) {
+                nextY = boundsMin[1];
+                velocity = [velocity[0], -velocity[1]];
+            } else if (nextY > boundsMax[1]) {
+                nextY = boundsMax[1];
+                velocity = [velocity[0], -velocity[1]];
+            }
+
+            movers.set(index, "Transform", "position", [nextX, nextY, position[2]]);
+            movers.set(index, "GravityVelocity", "velocity", velocity);
+        }
+
+        var pulses = queries[1];
+        for (var index in 0..<pulses.count) {
+            var phase = pulses.get(index, "GravityPulse", "phase");
+            var speed = pulses.get(index, "GravityPulse", "speed");
+            var minimumScale = pulses.get(index, "GravityPulse", "minimumScale");
+            var maximumScale = pulses.get(index, "GravityPulse", "maximumScale");
+
+            phase += frameTime * speed;
+            if (phase >= 1) phase -= 1;
+
+            var scale = 1;
+            if (phase < 0.5) {
+                scale = minimumScale + (maximumScale - minimumScale) * phase * 2;
+            } else {
+                scale = maximumScale - (maximumScale - minimumScale) * (phase - 0.5) * 2;
+            }
+
+            pulses.set(index, "Transform", "scale", [scale, scale, 1]);
+            pulses.set(index, "GravityPulse", "phase", phase);
+        }
+
+        return [movers.count, pulses.count];
+    }
+}
+
+func main() {
+    return AdaPlugin.create("GravitySwarm", [
+        AdaSystem.createBatch("gravity.swarm", "update", [
+            AdaQuery.write(["Transform", "GravityVelocity"]),
+            AdaQuery.write(["Transform", "GravityPulse"])
+        ], GravitySwarmSystem())
+    ]);
+}
