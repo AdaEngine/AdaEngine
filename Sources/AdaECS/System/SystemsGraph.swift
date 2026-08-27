@@ -30,6 +30,9 @@ public struct SystemsGraph: Sendable {
         
         /// The name of the node.
         let name: String
+
+        /// The Swift type identity used by type-based graph operations.
+        let typeName: String
         
         /// The system of the node.
         var system: System
@@ -61,6 +64,7 @@ public struct SystemsGraph: Sendable {
     mutating func addSystem<T: System>(_ system: T) {
         let node = Node(
             name: system.systemIdentifier,
+            typeName: T.swiftName,
             system: system,
             dependencies: T.dependencies,
             queries: system.queries
@@ -73,7 +77,10 @@ public struct SystemsGraph: Sendable {
     /// 
     /// - Parameter system: The system to remove.
     mutating func removeSystem<T: System>(_ system: T.Type) {
-        self.nodes.remove(for: T.swiftName)
+        let nodeNames = self.nodeNames(matching: T.swiftName)
+        for nodeName in nodeNames {
+            self.nodes.remove(for: nodeName)
+        }
         self.isChanged = true
     }
     
@@ -90,9 +97,13 @@ public struct SystemsGraph: Sendable {
             for dependency in node.dependencies {
                 switch dependency {
                 case .after(let system):
-                    self.tryAddEdge(from: system, to: systemName)
+                    for dependencyName in nodeNames(matching: system) {
+                        self.tryAddEdge(from: dependencyName, to: systemName)
+                    }
                 case .before(let system):
-                    self.tryAddEdge(from: systemName, to: system)
+                    for dependencyName in nodeNames(matching: system) {
+                        self.tryAddEdge(from: systemName, to: dependencyName)
+                    }
                 }
             }
         }
@@ -135,6 +146,17 @@ public struct SystemsGraph: Sendable {
     }
     
     // MARK: - Private methods
+
+    /// Resolve either a Swift system type name or an instance identifier.
+    private func nodeNames(matching identifier: String) -> [Node.ID] {
+        let typeMatches = nodes.compactMap { node in
+            node.typeName == identifier ? node.name : nil
+        }
+        if !typeMatches.isEmpty {
+            return typeMatches
+        }
+        return [identifier]
+    }
     
     /// Try to add an edge. If a dependency is cycled, it will be skipped with an error.
     /// - Parameter outputSystemName: The name of the output system.
