@@ -106,6 +106,8 @@ public struct TextEditorSourceInteraction {
     public var onPrimaryClick: ((TextEditorSourcePosition) -> Void)?
     public var onCaretChange: ((TextEditorSourcePosition, String) -> Void)?
     public var onRequestCompletion: ((TextEditorSourcePosition, String) -> Void)?
+    public var onSelectionChange: ((TextEditorSourceRange?, String?) -> Void)?
+    public var onChatSelection: ((TextEditorSourceRange, String) -> Void)?
     public var contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])?
 
     public init(
@@ -116,6 +118,8 @@ public struct TextEditorSourceInteraction {
         onPrimaryClick: ((TextEditorSourcePosition) -> Void)? = nil,
         onCaretChange: ((TextEditorSourcePosition, String) -> Void)? = nil,
         onRequestCompletion: ((TextEditorSourcePosition, String) -> Void)? = nil,
+        onSelectionChange: ((TextEditorSourceRange?, String?) -> Void)? = nil,
+        onChatSelection: ((TextEditorSourceRange, String) -> Void)? = nil,
         contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])? = nil
     ) {
         self.highlightedRanges = highlightedRanges
@@ -125,6 +129,8 @@ public struct TextEditorSourceInteraction {
         self.onPrimaryClick = onPrimaryClick
         self.onCaretChange = onCaretChange
         self.onRequestCompletion = onRequestCompletion
+        self.onSelectionChange = onSelectionChange
+        self.onChatSelection = onChatSelection
         self.contextMenuItems = contextMenuItems
     }
 }

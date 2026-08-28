@@ -16,11 +16,116 @@ public struct Lighting2DGPUScratch: Resource, Sendable {
     public var compositeModulate: BufferData<Vector4>
     public var shadowVerts: BufferData<QuadVertexData>
 
+    var additionalPointUBOs: [BufferData<PointLightUBOGPU>]
+    var additionalDirectionalUBOs: [BufferData<DirectionalLightUBOGPU>]
+    var shadowVertexRanges: [Range<Int>]
+
     public init() {
         self.pointUBO = BufferData(label: "Light2DPointUBO", elements: [])
         self.directionalUBO = BufferData(label: "Light2DDirUBO", elements: [])
         self.compositeModulate = BufferData(label: "Light2DCompositeModulate", elements: [Vector4(1, 1, 1, 1)])
         self.shadowVerts = BufferData(label: "Light2DShadowVerts", elements: [])
+        self.additionalPointUBOs = []
+        self.additionalDirectionalUBOs = []
+        self.shadowVertexRanges = []
+    }
+
+    mutating func prepareShadowVertices(
+        lights: [ExtractedLight2DInstance],
+        occluders: [ExtractedOccluder2DInstance]
+    ) {
+        shadowVerts.elements.removeAll(keepingCapacity: true)
+        shadowVertexRanges.removeAll(keepingCapacity: true)
+        shadowVertexRanges.reserveCapacity(lights.count)
+
+        for light in lights {
+            let startIndex = shadowVerts.elements.count
+            if light.castsShadows {
+                for occluder in occluders where occluder.isEnabled {
+                    let fins: [Vector2]
+                    switch light.kind {
+                    case .point:
+                        fins = Lighting2DShadowMath.shadowFinQuads(
+                            lightWorld: light.worldPosition,
+                            polygonWorldCCW: occluder.worldPointsCCW
+                        )
+                    case .directional:
+                        fins = Lighting2DShadowMath.directionalShadowFinQuads(
+                            polygonWorldCCW: occluder.worldPointsCCW,
+                            lightDirection: light.direction
+                        )
+                    }
+
+                    for corner in fins {
+                        shadowVerts.elements.append(
+                            QuadVertexData(
+                                position: Vector4(corner.x, corner.y, 0, 1),
+                                color: .black,
+                                textureCoordinate: .zero,
+                                textureIndex: 0
+                            )
+                        )
+                    }
+                }
+            }
+            shadowVertexRanges.append(startIndex..<shadowVerts.elements.count)
+        }
+    }
+
+    mutating func preparePointUniform(
+        _ uniform: PointLightUBOGPU,
+        at index: Int,
+        device: RenderDevice
+    ) {
+        if index == 0 {
+            pointUBO.elements = [uniform]
+            pointUBO.write(to: device)
+            return
+        }
+
+        let additionalIndex = index - 1
+        while additionalPointUBOs.count <= additionalIndex {
+            additionalPointUBOs.append(
+                BufferData(
+                    label: "Light2DPointUBO[\(additionalPointUBOs.count + 1)]",
+                    elements: []
+                )
+            )
+        }
+        additionalPointUBOs[additionalIndex].elements = [uniform]
+        additionalPointUBOs[additionalIndex].write(to: device)
+    }
+
+    func pointUniform(at index: Int) -> BufferData<PointLightUBOGPU> {
+        index == 0 ? pointUBO : additionalPointUBOs[index - 1]
+    }
+
+    mutating func prepareDirectionalUniform(
+        _ uniform: DirectionalLightUBOGPU,
+        at index: Int,
+        device: RenderDevice
+    ) {
+        if index == 0 {
+            directionalUBO.elements = [uniform]
+            directionalUBO.write(to: device)
+            return
+        }
+
+        let additionalIndex = index - 1
+        while additionalDirectionalUBOs.count <= additionalIndex {
+            additionalDirectionalUBOs.append(
+                BufferData(
+                    label: "Light2DDirUBO[\(additionalDirectionalUBOs.count + 1)]",
+                    elements: []
+                )
+            )
+        }
+        additionalDirectionalUBOs[additionalIndex].elements = [uniform]
+        additionalDirectionalUBOs[additionalIndex].write(to: device)
+    }
+
+    func directionalUniform(at index: Int) -> BufferData<DirectionalLightUBOGPU> {
+        index == 0 ? directionalUBO : additionalDirectionalUBOs[index - 1]
     }
 }
 
@@ -103,6 +208,47 @@ public struct Light2DCompositeRenderNode: RenderNode {
             let invVP = uniform.viewProjectionMatrix.inverse
             let white = Texture2D.whiteTexture
 
+            scratch.prepareShadowVertices(
+                lights: extracted.lights,
+                occluders: extracted.occluders
+            )
+            if !scratch.shadowVerts.elements.isEmpty {
+                scratch.shadowVerts.write(to: device)
+            }
+
+            var pointLightIndex = 0
+            var directionalLightIndex = 0
+            for light in extracted.lights {
+                let useShadow = light.castsShadows && !extracted.occluders.isEmpty
+                switch light.kind {
+                case .point:
+                    scratch.preparePointUniform(
+                        PointLightUBOGPU(
+                            invViewProjection: invVP,
+                            lightXYRadius: Vector4(light.worldPosition.x, light.worldPosition.y, light.radius, 0),
+                            lightRGBEnergy: Vector4(light.color.red, light.color.green, light.color.blue, light.energy),
+                            flags: Vector4(useShadow ? 1 : 0, light.texture == nil ? 0 : 1, 0, 0)
+                        ),
+                        at: pointLightIndex,
+                        device: device
+                    )
+                    pointLightIndex += 1
+                case .directional:
+                    scratch.prepareDirectionalUniform(
+                        DirectionalLightUBOGPU(
+                            lightRGBEnergy: Vector4(light.color.red, light.color.green, light.color.blue, light.energy),
+                            flags: Vector4(useShadow ? 1 : 0, 0, 0, 0)
+                        ),
+                        at: directionalLightIndex,
+                        device: device
+                    )
+                    directionalLightIndex += 1
+                }
+            }
+
+            pointLightIndex = 0
+            directionalLightIndex = 0
+
             for (lightIndex, light) in extracted.lights.enumerated() {
                 let useShadow = light.castsShadows && !extracted.occluders.isEmpty
 
@@ -121,43 +267,8 @@ public struct Light2DCompositeRenderNode: RenderNode {
                         )
                     )
                     shadowPass.setViewport(camera.viewport.rect)
-
-                    scratch.shadowVerts.elements.removeAll(keepingCapacity: true)
-                    for occ in extracted.occluders where occ.isEnabled {
-                        let fins: [Vector2]
-                        switch light.kind {
-                        case .point:
-                            fins = Lighting2DShadowMath.shadowFinQuads(
-                                lightWorld: light.worldPosition,
-                                polygonWorldCCW: occ.worldPointsCCW
-                            )
-                        case .directional:
-                            fins = Lighting2DShadowMath.directionalShadowFinQuads(
-                                polygonWorldCCW: occ.worldPointsCCW,
-                                lightDirection: light.direction
-                            )
-                        }
-                        var triangleIndex = 0
-                        while triangleIndex + 2 < fins.count {
-                            let a = fins[triangleIndex]
-                            let b = fins[triangleIndex + 1]
-                            let c = fins[triangleIndex + 2]
-                            for corner in [a, b, c] {
-                                scratch.shadowVerts.elements.append(
-                                    QuadVertexData(
-                                        position: Vector4(corner.x, corner.y, 0, 1),
-                                        color: .black,
-                                        textureCoordinate: .zero,
-                                        textureIndex: 0
-                                    )
-                                )
-                            }
-                            triangleIndex += 3
-                        }
-                    }
-
-                    if !scratch.shadowVerts.elements.isEmpty {
-                        scratch.shadowVerts.write(to: device)
+                    let shadowRange = scratch.shadowVertexRanges[lightIndex]
+                    if !shadowRange.isEmpty {
                         let whiteSet = RenderResourceSet(
                             bindings: [
                                 RenderResourceSet.Binding(
@@ -176,8 +287,12 @@ public struct Light2DCompositeRenderNode: RenderNode {
                         shadowPass.setVertexBuffer(uniform, slot: GlobalBufferIndex.viewUniform)
                         shadowPass.setVertexBuffer(scratch.shadowVerts, offset: 0, slot: 0)
                         shadowPass.setRenderPipelineState(pipelines.shadowFinPipeline)
-                        let count = scratch.shadowVerts.elements.count
-                        shadowPass.draw(type: .triangle, vertexStart: 0, vertexCount: count, instanceCount: 1)
+                        shadowPass.draw(
+                            type: .triangle,
+                            vertexStart: shadowRange.lowerBound,
+                            vertexCount: shadowRange.count,
+                            instanceCount: 1
+                        )
                     }
                     shadowPass.endRenderPass()
                 }
@@ -200,15 +315,6 @@ public struct Light2DCompositeRenderNode: RenderNode {
                 switch light.kind {
                 case .point:
                     let cookie = light.texture ?? white
-                    let hasCookie = light.texture != nil
-                    let ubo = PointLightUBOGPU(
-                        invViewProjection: invVP,
-                        lightXYRadius: Vector4(light.worldPosition.x, light.worldPosition.y, light.radius, 0),
-                        lightRGBEnergy: Vector4(light.color.red, light.color.green, light.color.blue, light.energy),
-                        flags: Vector4(useShadow ? 1 : 0, hasCookie ? 1 : 0, 0, 0)
-                    )
-                    scratch.pointUBO.elements = [ubo]
-                    scratch.pointUBO.write(to: device)
 
                     let shadowBindings: [RenderResourceSet.Binding] = [
                         RenderResourceSet.Binding(
@@ -234,18 +340,12 @@ public struct Light2DCompositeRenderNode: RenderNode {
                     ]
                     let resourceSet = RenderResourceSet(bindings: shadowBindings)
                     lightPass.setResourceSet(resourceSet, index: 0)
-                    lightPass.setFragmentBuffer(scratch.pointUBO, offset: 0, slot: 4)
+                    lightPass.setFragmentBuffer(scratch.pointUniform(at: pointLightIndex), offset: 0, slot: 4)
                     lightPass.setRenderPipelineState(pipelines.pointLightPipeline)
                     lightPass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
+                    pointLightIndex += 1
 
                 case .directional:
-                    let dirUbo = DirectionalLightUBOGPU(
-                        lightRGBEnergy: Vector4(light.color.red, light.color.green, light.color.blue, light.energy),
-                        flags: Vector4(useShadow ? 1 : 0, 0, 0, 0)
-                    )
-                    scratch.directionalUBO.elements = [dirUbo]
-                    scratch.directionalUBO.write(to: device)
-
                     let set = RenderResourceSet(
                         bindings: [
                             RenderResourceSet.Binding(
@@ -261,9 +361,10 @@ public struct Light2DCompositeRenderNode: RenderNode {
                         ]
                     )
                     lightPass.setResourceSet(set, index: 0)
-                    lightPass.setFragmentBuffer(scratch.directionalUBO, offset: 0, slot: 2)
+                    lightPass.setFragmentBuffer(scratch.directionalUniform(at: directionalLightIndex), offset: 0, slot: 2)
                     lightPass.setRenderPipelineState(pipelines.directionalLightPipeline)
                     lightPass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
+                    directionalLightIndex += 1
                 }
 
                 lightPass.endRenderPass()

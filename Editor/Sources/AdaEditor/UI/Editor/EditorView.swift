@@ -109,12 +109,14 @@ struct EditorView: View {
     let project: EditorProjectReference?
     let hotReloadState: EditorHotReloadState
     @State private var viewModel: EditorViewModel
+    @State private var projectSwitcher: EditorProjectSwitcherViewModel
     @Environment(\.theme) private var theme
 
     init(project: EditorProjectReference?, hotReloadState: EditorHotReloadState) {
         self.project = project
         self.hotReloadState = hotReloadState
         self._viewModel = State(initialValue: EditorViewModel(project: project))
+        self._projectSwitcher = State(initialValue: EditorProjectSwitcherViewModel(currentProject: project))
     }
 
     var body: some View {
@@ -123,7 +125,8 @@ struct EditorView: View {
             VStack(spacing: metrics.workspaceSpacer) {
                 EditorTopToolbarRegion(
                     hotReloadState: hotReloadState,
-                    viewModel: viewModel
+                    viewModel: viewModel,
+                    projectSwitcher: projectSwitcher
                 )
                 .onAppear {
                     viewModel.startEditorSessionIfNeeded()
@@ -157,6 +160,30 @@ struct EditorView: View {
                     )
                     .frame(height: EditorProjectSearchResultsLayout.height(itemCount: viewModel.toolbar.searchResults.count))
                     .offset(y: EditorProjectSearchResultsLayout.topOffset(toolbarHeight: metrics.topToolbarHeight))
+                }
+            }
+            .overlay(anchor: .topLeading) {
+                if projectSwitcher.isPresented {
+                    ZStack(anchor: .topLeading) {
+                        Color.clear
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .onTapGesture {
+                                projectSwitcher.dismiss()
+                            }
+
+                        EditorProjectSwitcherPanel(
+                            viewModel: projectSwitcher,
+                            onOpenProject: { project in
+                                ProjectEditorLauncher.openEditor(for: project)
+                            }
+                        )
+                        .frame(width: EditorProjectSwitcherLayout.width, height: EditorProjectSwitcherLayout.height)
+                        .offset(
+                            x: EditorProjectSwitcherLayout.leadingOffset,
+                            y: EditorProjectSwitcherLayout.topOffset(toolbarHeight: metrics.topToolbarHeight)
+                        )
+                    }
+                    .zIndex(20)
                 }
             }
         }
@@ -248,9 +275,12 @@ struct EditorView: View {
 private struct EditorTopToolbarRegion: View {
     let hotReloadState: EditorHotReloadState
     let viewModel: EditorViewModel
+    let projectSwitcher: EditorProjectSwitcherViewModel
 
     var body: some View {
         EditorTopToolbar(
+            project: viewModel.project,
+            isProjectSwitcherPresented: projectSwitcher.isPresented,
             hotReloadState: hotReloadState,
             viewModel: viewModel.toolbar,
             runDestination: viewModel.selectedRunDestination,
@@ -258,6 +288,9 @@ private struct EditorTopToolbarRegion: View {
             isStopEnabled: viewModel.isProjectRunning,
             onSelectRunDestination: { destination in
                 viewModel.selectRunDestination(destination)
+            },
+            onToggleProjectSwitcher: {
+                projectSwitcher.toggle()
             },
             onRun: {
                 viewModel.runSelectedTarget()
@@ -314,6 +347,12 @@ private struct EditorWorkspaceRegion: View {
                             },
                             onApplyCompletion: { item, document in
                                 viewModel.applyCompletion(item, to: document)
+                            },
+                            onTextSelection: { document, range, text in
+                                viewModel.handleTextSelection(document: document, range: range, text: text)
+                            },
+                            onChatSelection: { document, range, text in
+                                viewModel.chatAboutTextSelection(document: document, range: range, text: text)
                             },
                             sourceContextMenuItems: { document, position in
                                 viewModel.sourceContextMenuItems(document: document, position: position)

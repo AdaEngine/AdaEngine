@@ -62,10 +62,6 @@ let miniaudioSources = ["miniaudio.c"]
 #endif
 
 var products: [Product] = [
-    .executable(
-        name: "UnbalancedMinerGame",
-        targets: ["UnbalancedMinerGame"]
-    ),
     .library(
         name: "AdaEngine",
         targets: ["AdaEngine"]
@@ -138,6 +134,9 @@ var products: [Product] = [
     ]),
     .plugin(name: "TextureAtlasCommandPlugin", targets: [
         "TextureAtlasCommandPlugin"
+    ]),
+    .plugin(name: "AdaScriptBuildPlugin", targets: [
+        "AdaScriptBuildPlugin"
     ])
 ]
 
@@ -660,6 +659,24 @@ targets.append(
     )
 )
 
+targets.append(
+    .executableTarget(
+        name: "AdaScriptGeneratorTool",
+        path: "Plugins/AdaScriptGeneratorTool"
+    )
+)
+
+targets.append(
+    .plugin(
+        name: "AdaScriptBuildPlugin",
+        capability: .buildTool(),
+        dependencies: [
+            .target(name: "AdaScriptGeneratorTool")
+        ],
+        path: "Plugins/AdaScriptBuildPlugin"
+    )
+)
+
 // MARK: Build Plugins
 if isWGPUEnabled {
 
@@ -1156,10 +1173,6 @@ targets += [
         ]
     ),
     .testTarget(
-        name: "UnbalancedMinerGameTests",
-        dependencies: ["UnbalancedMinerGame"]
-    ),
-    .testTarget(
         name: "AdaSceneTests",
         dependencies: [
             "AdaScene",
@@ -1331,6 +1344,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "LargeBox2DBenchmarkExample", path: "2d"),
     .exampleTarget(name: "FrustumCullingExample", path: "2d"),
     .exampleTarget(name: "Gravity2DExample", path: "2d"),
+    .exampleTarget(name: "ThrowingShapes2DExample", path: "2d"),
     .exampleTarget(name: "Text2dExample", path: "2d"),
     .exampleTarget(name: "SpriteExample", path: "2d"),
     .exampleTarget(name: "WGSLExample", path: "2d"),
@@ -1345,8 +1359,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "ScriptableComponentExample", path: "Scene"),
 
     // MARK: Games
-    .exampleTarget(name: "SnowmanAttacksExample", path: "Games"),
-    .exampleTarget(name: "UnbalancedMinerGame", path: "Games"),
+    .exampleTarget(name: "BulletHellGameExample", path: "Games"),
 
     // MARK: UI
     .exampleTarget(name: "UITestSceneExample", path: "UI"),

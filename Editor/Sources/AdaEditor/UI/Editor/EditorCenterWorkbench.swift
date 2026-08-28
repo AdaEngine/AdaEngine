@@ -10,6 +10,8 @@ struct EditorCenterWorkbench: View {
     let onCompletionPosition: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
     let onCompletionRequest: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
     let onApplyCompletion: ((EditorCompletionItem, EditorTextDocument) -> Void)?
+    let onTextSelection: ((EditorTextDocument, EditorSourceRange?, String?) -> Void)?
+    let onChatSelection: ((EditorTextDocument, EditorSourceRange, String) -> Void)?
     let sourceContextMenuItems: ((EditorTextDocument, EditorSourceLocation) -> [TextEditorContextMenuItem])?
     let onSelectDocument: ((String) -> Void)?
     let onRevealDocument: ((EditorWorkbenchDocument) -> Void)?
@@ -332,6 +334,8 @@ extension EditorCenterWorkbench {
             onCompletionPosition: onCompletionPosition,
             onCompletionRequest: onCompletionRequest,
             onApplyCompletion: onApplyCompletion,
+            onTextSelection: onTextSelection,
+            onChatSelection: onChatSelection,
             sourceContextMenuItems: sourceContextMenuItems
         )
     }
@@ -342,7 +346,8 @@ extension EditorCenterWorkbench {
 
     private var emptyWorkbench: some View {
         ZStack {
-            theme.editorColors.background
+            // Match the surrounding project and inspector surfaces when no editor is open.
+            theme.editorColors.surfaceElevated
             Text("No file selected")
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)

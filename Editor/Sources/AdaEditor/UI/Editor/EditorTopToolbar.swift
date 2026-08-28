@@ -2,13 +2,17 @@
 
 struct EditorTopToolbar: View {
     static let searchAccessibilityIdentifier = "AdaEditor.ProjectSearch"
+    static let projectSwitcherAccessibilityIdentifier = "AdaEditor.ProjectSwitcher.Button"
 
+    let project: EditorProjectReference?
+    let isProjectSwitcherPresented: Bool
     let hotReloadState: EditorHotReloadState
     let viewModel: EditorToolbarViewModel
     let runDestination: EditorRunDestination
     let isRunEnabled: Bool
     let isStopEnabled: Bool
     let onSelectRunDestination: (EditorRunDestination) -> Void
+    let onToggleProjectSwitcher: () -> Void
     let onRun: () -> Void
     let onStop: () -> Void
     
@@ -28,6 +32,8 @@ struct EditorTopToolbar: View {
             HStack(spacing: 12) {
                 Color.clear
                     .frame(width: metrics.toolbarWindowControlClearance, height: 1)
+
+                projectSwitcherButton
 
                 Spacer()
 
@@ -55,54 +61,86 @@ struct EditorTopToolbar: View {
         .frame(maxWidth: .infinity)
     }
 
+    private var projectSwitcherButton: some View {
+        Button(action: onToggleProjectSwitcher) {
+            HStack(spacing: 6) {
+                Text("\u{E2C7}")
+                    .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                if metrics.toolbarProjectSwitcherWidth > 32 {
+                    Text(project?.name ?? "Projects")
+                        .font(.system(size: 12))
+                        .lineLimit(1)
+                }
+                Text(isProjectSwitcherPresented ? "\u{E5CE}" : "\u{E5CF}")
+                    .font(AdaEditorMaterialSymbolFont.font(size: 15))
+            }
+            .foregroundColor(theme.editorColors.text)
+            .padding(.horizontal, metrics.toolbarProjectSwitcherWidth > 32 ? 8 : 0)
+            .frame(width: metrics.toolbarProjectSwitcherWidth, height: 30)
+        }
+        .buttonStyle(DefaultButtonStyle())
+        .accessibilityIdentifier(Self.projectSwitcherAccessibilityIdentifier)
+    }
+
     private var runDestinationControls: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 3) {
             ForEach(EditorRunDestination.allCases, id: \.self) { destination in
                 Button(action: { onSelectRunDestination(destination) }) {
                     Text(destination.rawValue)
-                        .font(.system(size: 11))
+                        .font(.system(size: 11, weight: runDestination == destination ? .bold : .regular))
                         .foregroundColor(runDestination == destination ? theme.editorColors.blue : theme.editorColors.muted)
-                        .padding(.horizontal, 8)
-                        .frame(height: 26)
+                        .padding(.horizontal, 9)
+                        .frame(height: 28)
                         .background(
                             RoundedRectangleShape(cornerRadius: 6)
-                                .fill(runDestination == destination ? theme.editorColors.blue.opacity(0.14) : Color.clear)
+                                .fill(runDestination == destination ? theme.editorColors.blue.opacity(0.20) : Color.clear)
                         )
                 }
                 .buttonStyle(DefaultButtonStyle())
             }
         }
-        .padding(4)
-        .glassEffect(.editorToolbarControls(theme: theme), in: RoundedRectangleShape(cornerRadius: 10))
+        .padding(3)
+        .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.surfaceElevated))
+        .overlay {
+            RoundedRectangleShape(cornerRadius: 8)
+                .stroke(theme.editorColors.border.opacity(0.72), lineWidth: 1)
+        }
         .accessibilityIdentifier("AdaEditor.RunDestination")
     }
 
     private var runStopControls: some View {
-        HStack(spacing: 2) {
-            toolbarActionButton(title: "Run", symbol: "▶", color: Color(red: 110 / 255, green: 205 / 255, blue: 126 / 255), action: onRun)
+        HStack(spacing: 4) {
+            toolbarActionButton(title: "Run", symbol: "\u{E037}", color: Color(red: 110 / 255, green: 205 / 255, blue: 126 / 255), action: onRun)
                 .disabled(!isRunEnabled)
                 .opacity(isRunEnabled ? 1 : 0.45)
-            toolbarActionButton(title: "Stop", symbol: "■", color: Color(red: 232 / 255, green: 96 / 255, blue: 96 / 255), action: onStop)
+            toolbarActionButton(title: "Stop", symbol: "\u{E047}", color: Color(red: 232 / 255, green: 96 / 255, blue: 96 / 255), action: onStop)
                 .disabled(!isStopEnabled)
                 .opacity(isStopEnabled ? 1 : 0.45)
         }
-        .padding(4)
-        .glassEffect(.editorToolbarControls(theme: theme), in: RoundedRectangleShape(cornerRadius: 10))
+        .padding(3)
+        .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.surfaceElevated))
+        .overlay {
+            RoundedRectangleShape(cornerRadius: 8)
+                .stroke(theme.editorColors.border.opacity(0.72), lineWidth: 1)
+        }
     }
 
     private func toolbarActionButton(title: String, symbol: String, color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Text(symbol)
+                    .font(AdaEditorMaterialSymbolFont.font(size: 20))
                 if metrics.showsRunButtonTitle {
                     Text(title)
                 }
             }
         }
-        .font(.system(size: 12))
+        .font(.system(size: 12, weight: .bold))
         .foregroundColor(color)
-        .padding(.horizontal, metrics.showsRunButtonTitle ? 10 : 8)
-        .frame(height: 26)
+        .padding(.horizontal, metrics.showsRunButtonTitle ? 9 : 7)
+        .frame(height: 28)
+        .background(RoundedRectangleShape(cornerRadius: 6).fill(color.opacity(0.11)))
+        .buttonStyle(DefaultButtonStyle())
     }
 }
 
@@ -163,17 +201,6 @@ struct EditorProjectSearchResultsLayout {
 
     static func topOffset(toolbarHeight: Float) -> Float {
         toolbarHeight - padding
-    }
-}
-
-private extension Glass {
-    static func editorToolbarControls(theme: Theme) -> Glass {
-        var glass = Glass.regular
-        glass.blurRadius = 18
-        glass.glassTintStrength = 0.52
-        glass.edgeShadowStrength = 0
-        glass.tintColor = theme.editorColors.surfaceElevated.opacity(0.24)
-        return glass
     }
 }
 

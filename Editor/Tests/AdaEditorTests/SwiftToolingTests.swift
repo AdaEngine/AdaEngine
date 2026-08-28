@@ -1,6 +1,7 @@
 @testable import AdaEditor
 import AdaPackageManifestTool
 import Foundation
+import GravityLanguageCore
 import Testing
 
 @Suite("SwiftPM workspace tooling")
@@ -212,6 +213,97 @@ struct SwiftToolingTests {
             in: "}",
             at: EditorSourceLocation(line: 0, character: 1)
         ))
+    }
+
+    @Test("Gravity completion offers Ada APIs and document declarations")
+    func gravityCompletionOffersAdaAPIsAndSymbols() async throws {
+        let service = SwiftPMWorkspaceService()
+        let source = """
+        class MovementSystem {
+            func update(deltaTime, queries) {}
+        }
+        func main() {
+            return AdaQuery.re
+        }
+        """
+        let apiItems = await service.completions(
+            fileURL: URL(fileURLWithPath: "/tmp/Movement.ada"),
+            language: .ada,
+            text: source,
+            position: EditorSourceLocation(line: 4, character: 22)
+        )
+
+        let read = try #require(apiItems.first { $0.label == "read(components)" })
+        #expect(read.insertText == "read([])")
+        #expect(read.replacementRange == EditorSourceRange(
+            start: EditorSourceLocation(line: 4, character: 20),
+            end: EditorSourceLocation(line: 4, character: 22)
+        ))
+
+        let symbolItems = await service.completions(
+            fileURL: URL(fileURLWithPath: "/tmp/Movement.ada"),
+            language: .ada,
+            text: source + "\nMove",
+            position: EditorSourceLocation(line: 6, character: 4)
+        )
+        #expect(symbolItems.contains { $0.label == "MovementSystem" && $0.insertText == "MovementSystem" })
+    }
+
+    @Test("Gravity editor completion uses workspace symbols and character columns")
+    func gravityEditorCompletionUsesWorkspaceAndCharacterColumns() throws {
+        let projectURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("GravityEditorCompletion-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: projectURL) }
+        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+        try "class SharedSystem { func tick() {} }".write(
+            to: projectURL.appendingPathComponent("Shared.ada"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let workspace = GravityWorkspace()
+        workspace.configure(rootURIs: [projectURL.absoluteString])
+        let source = "var icon = \"😀\"; SharedSystem.ti"
+        let items = EditorGravityLanguageService.completions(
+            workspace: workspace,
+            uri: projectURL.appendingPathComponent("Current.ada").absoluteString,
+            text: source,
+            position: EditorSourceLocation(line: 0, character: source.count)
+        )
+
+        let tick = try #require(items.first { $0.label == "tick" })
+        #expect(tick.replacementRange == EditorSourceRange(
+            start: EditorSourceLocation(line: 0, character: source.count - 2),
+            end: EditorSourceLocation(line: 0, character: source.count)
+        ))
+    }
+
+    @Test("Ada documents request automatic completion through the editor path")
+    @MainActor
+    func adaDocumentsRequestAutomaticCompletion() async throws {
+        let service = RecordingWorkspaceService()
+        let document = EditorTextDocument(
+            id: "gravity",
+            title: "Movement.ada",
+            relativePath: "Sources/Game/Movement.ada",
+            absolutePath: "/tmp/Game/Sources/Game/Movement.ada",
+            language: .ada,
+            content: "AdaQuery.re"
+        )
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "Game", path: "/tmp/Game"),
+            workspaceService: service,
+            workbench: EditorWorkbenchViewModel(activeEditorTab: document.title, openDocuments: [.text(document)], activeDocumentID: document.id)
+        )
+
+        viewModel.handleCompletionPosition(
+            document: document,
+            position: EditorSourceLocation(line: 0, character: 11),
+            text: document.content
+        )
+
+        try await waitForCompletionRequests(service, count: 1)
+        #expect(await service.completionRequests.first?.text == document.content)
     }
 
     @Test("escape requests completion immediately when the popup is hidden")
@@ -861,10 +953,17 @@ struct SwiftToolingTests {
             to: "let pla = 1",
             at: EditorSourceLocation(line: 0, character: 7)
         ))
+        let multiline = try #require(EditorViewModel.applyingCompletion(
+            EditorCompletionItem(label: "func", detail: nil, insertText: "func main() {\n}", replacementRange: nil, sortText: nil),
+            to: "fu",
+            at: EditorSourceLocation(line: 0, character: 2)
+        ))
 
         #expect(explicit.text == "struct Game {\n    let update()\n}")
         #expect(explicit.caret == EditorSourceLocation(line: 1, character: 16))
         #expect(inferred.text == "let player = 1")
+        #expect(multiline.text == "func main() {\n}")
+        #expect(multiline.caret == EditorSourceLocation(line: 1, character: 1))
     }
 
     @Test("LSP definition decodes location and location links")
@@ -1081,16 +1180,16 @@ struct SwiftToolingTests {
         #expect(!result.manifest.contains(#"sources: ["Sources/Game/main.swift""#))
     }
 
-    @Test("external project resources migrate an implicit target to package root")
-    func manifestEditorMigratesImplicitTargetForProjectResources() throws {
+    @Test("external project resources remain relative to an implicit target root")
+    func manifestEditorKeepsImplicitTargetForProjectResources() throws {
         let result = try PackageManifestEditor.edit(
             standardImplicitTargetManifest,
             command: .configureTarget(name: "Game", sources: [], exclude: [], resources: ["Assets"])
         )
 
-        #expect(result.manifest.contains(#"path: ".""#))
-        #expect(result.manifest.contains(#"sources: ["Sources/Game"]"#))
-        #expect(result.manifest.contains(#"resources: [.copy("Assets")]"#))
+        #expect(!result.manifest.contains(#"path: ".""#))
+        #expect(!result.manifest.contains("\n            sources:"))
+        #expect(result.manifest.contains(#"resources: [.copy("../../Assets")]"#))
     }
 
     @Test("remote dependency requirements are validated before editing")

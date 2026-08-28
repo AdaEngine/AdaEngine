@@ -160,6 +160,16 @@ struct EditorAgentTests {
                 componentNames: ["Transform", "Sprite"],
                 entityYAML: "entity:\n  id: player\n  name: Player"
             ),
+            codeSelection: EditorAgentCodeSelectionContext(
+                documentTitle: "Player.swift",
+                documentRelativePath: "Sources/Player.swift",
+                language: "swift",
+                range: EditorSourceRange(
+                    start: EditorSourceLocation(line: 4, character: 0),
+                    end: EditorSourceLocation(line: 4, character: 12)
+                ),
+                text: "moveLeft()"
+            ),
             skills: []
         )
 
@@ -169,6 +179,10 @@ struct EditorAgentTests {
         #expect(prompt.contains("Scene path: Assets/Scenes/Main.ascn"))
         #expect(prompt.contains("Selected entity: Player (player)"))
         #expect(prompt.contains("Components: Transform, Sprite"))
+        #expect(prompt.contains("[Selected Code]"))
+        #expect(prompt.contains("Sources/Player.swift"))
+        #expect(prompt.contains("moveLeft()"))
+        #expect(prompt.contains("[AdaEditor Project Capabilities]"))
         #expect(prompt.contains("Move it to the left"))
     }
 
@@ -291,10 +305,52 @@ struct EditorAgentTests {
         #expect(saved.ai.agent.skillsDirectories == [".skills", ".codex/skills"])
         #expect(saved.ai.agent.permissionMode == .deny)
     }
+
+    @Test("command L selection opens agent chat with a draft")
+    @MainActor
+    func commandLSelectionOpensAgentChat() throws {
+        let document = EditorTextDocument(
+            id: "text:Sources/Player.swift",
+            title: "Player.swift",
+            relativePath: "Sources/Player.swift",
+            language: .swift,
+            content: "func jump() {}",
+            errorMessage: nil
+        )
+        let workbench = EditorWorkbenchViewModel(openDocuments: [.text(document)], activeDocumentID: document.id)
+        let agent = EditorAgentViewModel(project: nil)
+        let viewModel = EditorViewModel(workbench: workbench, agent: agent)
+        let range = EditorSourceRange(
+            start: EditorSourceLocation(line: 0, character: 0),
+            end: EditorSourceLocation(line: 0, character: 14)
+        )
+
+        viewModel.chatAboutTextSelection(document: document, range: range, text: "func jump() {}")
+
+        #expect(viewModel.toolStrip.activeRightTool == "agentChat")
+        #expect(viewModel.showRightPanel)
+        #expect(viewModel.agent.codeSelection?.documentRelativePath == "Sources/Player.swift")
+        #expect(viewModel.agent.prompt.contains("func jump() {}"))
+        let activeDocument = try #require(viewModel.workbench.activeDocument)
+        guard case .text(let updatedDocument) = activeDocument else {
+            Issue.record("Expected an active text document")
+            return
+        }
+        #expect(updatedDocument.selectedText == "func jump() {}")
+    }
 }
 
 private actor FakeEditorAgentService: EditorAgentServicing {
     var lastRequest: EditorAgentRunRequest?
+
+    func connect(
+        _ request: EditorAgentRunRequest,
+        onEvent _: @escaping @Sendable (EditorAgentEvent) async -> Void,
+        onProjectFileChanged _: @escaping @Sendable (String) async -> Void
+    ) async throws -> EditorAgentSessionConfiguration {
+        lastRequest = request
+        return .empty
+    }
 
     func recordedRequest() -> EditorAgentRunRequest? {
         lastRequest
@@ -311,7 +367,16 @@ private actor FakeEditorAgentService: EditorAgentServicing {
             message: EditorAgentMessage(role: .assistant, segments: [.init(kind: .text, text: "done")])
         ))
         await onProjectFileChanged("Sources/main.swift")
-        return EditorAgentRunResult(upstreamSessionID: "fake-upstream", assistantText: "done", stopReason: "end_turn")
+        return EditorAgentRunResult(
+            upstreamSessionID: "fake-upstream",
+            assistantText: "done",
+            stopReason: "end_turn",
+            configuration: .empty
+        )
+    }
+
+    func setConfiguration(sessionID _: String, selectorID _: String, valueID _: String) async throws -> EditorAgentSessionConfiguration {
+        .empty
     }
 
     func cancel(sessionID _: String) async {}

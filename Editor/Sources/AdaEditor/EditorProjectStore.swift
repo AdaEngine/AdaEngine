@@ -185,6 +185,12 @@ public struct EditorProjectStore {
 
         let package = Package(
             name: "\(projectName)",
+            platforms: [
+                .iOS(.v18),
+                .tvOS(.v18),
+                .visionOS(.v2),
+                .macOS(.v15)
+            ],
             products: [
                 .executable(name: "\(projectName)", targets: ["\(safeTargetName)"])
             ],
@@ -195,9 +201,8 @@ public struct EditorProjectStore {
                 .executableTarget(
                     name: "\(safeTargetName)",
                     dependencies: [.product(name: "AdaEngine", package: "AdaEngine")],
-                    path: ".",
-                    sources: ["Sources/\(safeTargetName)"],
-                    resources: [.copy("Assets")]
+                    resources: [.copy("../../Assets")],
+                    plugins: [.plugin(name: "AdaScriptBuildPlugin", package: "AdaEngine")]
                 )
             ]
         )
@@ -208,7 +213,26 @@ public struct EditorProjectStore {
             .appendingPathComponent("Sources", isDirectory: true)
             .appendingPathComponent(safeTargetName, isDirectory: true)
         try fileManager.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
-        try "import AdaEngine\nimport Foundation\n\n@main\nstruct Game: App {\n    var body: some AppScene {\n        WindowGroup(assetBundle: .module) {\n            Text(\"Hello, AdaEngine!\")\n        }\n    }\n}\n".write(
+        let main = """
+        import AdaEngine
+        import Foundation
+
+        try await Game.main()
+
+        struct Game: App {
+            var body: some AppScene {
+                WindowGroup(
+                    content: {
+                        Text("Hello, AdaEngine!")
+                    },
+                    assetBundle: .module
+                )
+                .addPlugins(AdaScriptPluginsGenerated())
+            }
+        }
+
+        """
+        try main.write(
             to: sourcesURL.appendingPathComponent("main.swift", isDirectory: false),
             atomically: true,
             encoding: .utf8

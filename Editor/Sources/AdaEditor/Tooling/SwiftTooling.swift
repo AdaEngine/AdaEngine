@@ -1,4 +1,5 @@
 @preconcurrency import Foundation
+import GravityLanguageCore
 
 struct SwiftToolchain: Equatable, Sendable {
     var swiftExecutablePath: String
@@ -434,6 +435,7 @@ extension SwiftPMWorkspaceServicing {
 
 actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     private let processRunner: any EditorProcessRunning
+    private let gravityWorkspace = GravityWorkspace()
     private var toolchain: SwiftToolchain?
     private var sourceKitClient: SourceKitLSPClient?
     private var diagnosticsHandler: (@Sendable (String, [EditorDiagnostic]) async -> Void)?
@@ -486,6 +488,7 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func bootstrap(projectURL: URL, progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void) async -> SwiftPMBootstrapResult {
+        gravityWorkspace.configure(rootURIs: [projectURL.standardizedFileURL.absoluteString])
         await progress(SwiftPMWorkspaceProgress(phase: .loadingProjectMetadata, title: "Loading project metadata", detail: projectURL.path))
         await progress(SwiftPMWorkspaceProgress(phase: .locatingToolchain, title: "Locating Swift toolchain", detail: "Searching swift and sourcekit-lsp"))
         let resolvedToolchain = await SwiftToolchainLocator.locate()
@@ -607,6 +610,15 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func completions(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorCompletionItem] {
+        if language == .ada {
+            return EditorGravityLanguageService.completions(
+                workspace: gravityWorkspace,
+                uri: fileURL.standardizedFileURL.absoluteString,
+                text: text,
+                position: position
+            )
+        }
+
         guard let sourceKitClient else {
             return []
         }

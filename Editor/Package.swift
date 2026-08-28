@@ -20,6 +20,10 @@ let package = Package(
         .executable(
             name: "AdaEditor",
             targets: ["AdaEditor"]
+        ),
+        .executable(
+            name: "gravity-lsp",
+            targets: ["GravityLanguageServer"]
         )
     ],
     dependencies: [
@@ -32,6 +36,21 @@ let package = Package(
         .package(url: "https://github.com/alex-pinkus/tree-sitter-swift", branch: "with-generated-files")
     ],
     targets: [
+        .target(
+            name: "GravityLanguageCore"
+        ),
+        .target(
+            name: "GravityLanguageServerProtocol",
+            dependencies: [
+                "GravityLanguageCore"
+            ]
+        ),
+        .executableTarget(
+            name: "GravityLanguageServer",
+            dependencies: [
+                "GravityLanguageServerProtocol"
+            ]
+        ),
         .target(
             name: "AdaPackageManifestTool",
             dependencies: [
@@ -57,7 +76,8 @@ let package = Package(
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
                 .product(name: "TreeSitterSwift", package: "tree-sitter-swift"),
                 "Yams",
-                "AdaPackageManifestTool"
+                "AdaPackageManifestTool",
+                "GravityLanguageCore"
             ],
             exclude: [
                 "Platforms/iOS/Info.plist",
@@ -73,6 +93,8 @@ let package = Package(
             dependencies: [
                 "AdaEditor",
                 "AdaPackageManifestTool",
+                "GravityLanguageCore",
+                "GravityLanguageServerProtocol",
                 .product(name: "AdaEngine", package: "AdaEngine"),
                 .product(name: "Math", package: "AdaEngine"),
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),

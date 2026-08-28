@@ -34,6 +34,7 @@ jobs:
             --enable-experimental-combined-documentation \
             --target AdaEngine \
             --target AdaECS \
+            --target AdaScripting \
             --target AdaRender \
             --target AdaUI \
             --target AdaApp \
@@ -79,6 +80,8 @@ jobs:
           add_redirect "." "/documentation/adaengine/"
           add_redirect "adaengine" "/documentation/adaengine/"
           add_redirect "adaecs" "/documentation/adaecs/"
+          add_redirect "adascript" "/documentation/adascripting/"
+          add_redirect "adascripting" "/documentation/adascripting/"
           add_redirect "adarender" "/documentation/adarender/"
           add_redirect "adaui" "/documentation/adaui/"
           add_redirect "adaapp" "/documentation/adaapp/"

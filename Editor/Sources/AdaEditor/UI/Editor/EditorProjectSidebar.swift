@@ -44,45 +44,61 @@ struct EditorProjectSidebar: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("PROJECT")
-                    .font(.system(size: 12))
-                    .foregroundColor(theme.editorColors.muted)
-                    .frame(width: 120, alignment: .leading)
-                Spacer()
-                Button(action: onNewFile) {
-                    HStack(spacing: 5) {
-                        Text("+")
-                            .font(.system(size: 14))
-                        Text("New File")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundColor(theme.editorColors.blue)
-                    .padding(.horizontal, 7)
-                    .frame(height: 24)
-                }
-                .buttonStyle(DefaultButtonStyle())
-                .accessibilityIdentifier("AdaEditor.ProjectTree.NewFile")
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 34)
-
-            GeometryReader { geometry in
-                ZStack(anchor: .topLeading) {
-                    projectTreeBackground(width: geometry.size.width, height: geometry.size.height)
-
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 2) {
-                            ForEach(viewModel.visibleItems, id: \.id) { item in
-                                projectTreeRow(item)
-                            }
+        ZStack(anchor: .topLeading) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Button(action: viewModel.toggleDisplayModeMenu) {
+                        HStack(spacing: 4) {
+                            Text(viewModel.displayMode.title)
+                                .font(.system(size: 14, weight: .bold))
+                            Text(EditorProjectTreeIcon.expandMore)
+                                .font(AdaEditorMaterialSymbolFont.font(size: 16))
                         }
-                        .frame(width: max(0, geometry.size.width - 16), alignment: .leading)
-                        .padding(8)
+                        .foregroundColor(theme.editorColors.text)
+                        .frame(height: 24)
                     }
-                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                    .buttonStyle(DefaultButtonStyle())
+                    .accessibilityIdentifier("AdaEditor.ProjectTree.DisplayMode.Menu")
+                    Spacer()
+                    Button(action: onNewFile) {
+                        HStack(spacing: 5) {
+                            Text("+")
+                                .font(.system(size: 14))
+                            Text("New File")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(theme.editorColors.blue)
+                        .padding(.horizontal, 7)
+                        .frame(height: 24)
+                    }
+                    .buttonStyle(DefaultButtonStyle())
+                    .accessibilityIdentifier("AdaEditor.ProjectTree.NewFile")
                 }
+                .padding(.horizontal, 12)
+                .frame(height: 34)
+
+                GeometryReader { geometry in
+                    ZStack(anchor: .topLeading) {
+                        projectTreeBackground(width: geometry.size.width, height: geometry.size.height)
+
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(viewModel.visibleItems, id: \.id) { item in
+                                    projectTreeRow(item)
+                                }
+                            }
+                            .frame(width: max(0, geometry.size.width - 16), alignment: .leading)
+                            .padding(8)
+                        }
+                        .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                    }
+                }
+            }
+
+            if viewModel.isDisplayModeMenuPresented {
+                displayModeMenu
+                    .offset(x: 12, y: 30)
+                    .zIndex(10)
             }
         }
         .background(
@@ -90,6 +106,38 @@ struct EditorProjectSidebar: View {
                 .fill(theme.editorColors.surfaceElevated)
         )
         .mask(RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner))
+    }
+
+    private var displayModeMenu: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(EditorProjectSidebarViewModel.DisplayMode.allCases, id: \.rawValue) { displayMode in
+                displayModeMenuItem(displayMode)
+            }
+        }
+        .padding(4)
+        .frame(width: 164, alignment: .leading)
+        .background(RoundedRectangleShape(cornerRadius: 7).fill(theme.editorColors.surfaceElevated))
+        .overlay {
+            RoundedRectangleShape(cornerRadius: 7)
+                .stroke(theme.editorColors.border, lineWidth: 1)
+        }
+    }
+
+    private func displayModeMenuItem(_ displayMode: EditorProjectSidebarViewModel.DisplayMode) -> some View {
+        let isSelected = viewModel.displayMode == displayMode
+        return Button(displayMode.title) {
+            viewModel.selectDisplayMode(displayMode)
+        }
+        .font(.system(size: 13))
+        .foregroundColor(isSelected ? theme.editorColors.text : theme.editorColors.muted)
+        .padding(.horizontal, 10)
+        .frame(width: 156, height: 30, alignment: .leading)
+        .background(
+            RoundedRectangleShape(cornerRadius: 5)
+                .fill(isSelected ? theme.editorColors.blue.opacity(0.34) : Color.clear)
+        )
+        .buttonStyle(DefaultButtonStyle())
+        .accessibilityIdentifier("AdaEditor.ProjectTree.DisplayMode.\(displayMode.title)")
     }
 
     private func projectTreeBackground(width: Float, height: Float) -> some View {
@@ -139,10 +187,9 @@ struct EditorProjectSidebar: View {
                     .frame(width: 18, height: 18)
                 Text(item.title)
                     .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(item.isActive ? theme.editorColors.text : theme.editorColors.muted)
                 Spacer()
             }
-            .font(.system(size: 12))
-            .foregroundColor(item.isActive ? theme.editorColors.text : theme.editorColors.muted)
             .padding(.leading, 6 + Float(item.level) * 16)
             .padding(.trailing, 6)
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 26, maxHeight: 26, alignment: .leading)

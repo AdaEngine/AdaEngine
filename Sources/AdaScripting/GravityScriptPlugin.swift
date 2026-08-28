@@ -82,7 +82,7 @@ public enum GravityScriptError: Error, Sendable, Equatable, CustomStringConverti
     }
 }
 
-/// Loads one `.gravity` file as an AdaEngine plugin.
+/// Loads one Ada Script source file (`.ada` or `.gravity`) as an AdaEngine plugin.
 ///
 /// The script `main()` function returns a list in this shape:
 ///

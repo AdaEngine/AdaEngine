@@ -114,7 +114,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scene:
             "Scene"
         case .script:
-            "Script"
+            "Ada Script"
         case .swift:
             "Swift"
         case .plainText:
@@ -127,7 +127,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scene:
             "AdaEngine scene"
         case .script:
-            "Ada script"
+            "Gravity script"
         case .swift:
             "Swift source file"
         case .plainText:
@@ -155,12 +155,24 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
                 projectName: URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
             )
         case .script:
-            "// \(fileName)\n"
+            """
+            // \(fileName)
+
+            func main() {
+                return AdaPlugin.create("\(gravityStringLiteral(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent))", []);
+            }
+            """
         case .swift:
             "import AdaEngine\n\n"
         case .plainText:
             ""
         }
+    }
+
+    private func gravityStringLiteral(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 }
 
@@ -190,6 +202,8 @@ struct EditorTextDocument: Equatable, Sendable {
     var sourceHoverRange: EditorSourceRange?
     var sourceHoverDescription: String?
     var focusedRange: EditorSourceRange?
+    var selectionRange: EditorSourceRange?
+    var selectedText: String?
 }
 
 struct EditorSceneDocument: Equatable, Sendable {
@@ -476,6 +490,20 @@ final class EditorToolStripViewModel {
 @Observable
 @MainActor
 final class EditorProjectSidebarViewModel {
+    enum DisplayMode: String, CaseIterable {
+        case targets
+        case files
+
+        var title: String {
+            switch self {
+            case .targets:
+                "Targets"
+            case .files:
+                "Files"
+            }
+        }
+    }
+
     struct Item: Equatable {
         var id: String
         var disclosure: String
@@ -492,9 +520,11 @@ final class EditorProjectSidebarViewModel {
 
     var items: [Item]
     var collapsedFolderIDs: Set<String>
+    var displayMode: DisplayMode
+    var isDisplayModeMenuPresented: Bool
 
     var visibleItems: [Item] {
-        items.filter { !isHiddenByCollapsedFolder($0) }
+        displayedItems.filter { !isHiddenByCollapsedFolder($0) }
     }
 
     var selectedItem: Item? {
@@ -536,15 +566,53 @@ final class EditorProjectSidebarViewModel {
             isFolder: false,
             kind: .scene
         )
-    ], collapsedFolderIDs: Set<String> = []) {
+    ], collapsedFolderIDs: Set<String> = [], displayMode: DisplayMode = .targets, isDisplayModeMenuPresented: Bool = false) {
         self.items = items
         self.collapsedFolderIDs = collapsedFolderIDs
+        self.displayMode = displayMode
+        self.isDisplayModeMenuPresented = isDisplayModeMenuPresented
+    }
+
+    private var displayedItems: [Item] {
+        switch displayMode {
+        case .files:
+            items
+        case .targets:
+            targetItems
+        }
+    }
+
+    private var targetItems: [Item] {
+        let targetRoots = items.filter { item in
+            item.assetRoot == item.relativePath || isSourceTarget(item)
+        }
+
+        return targetRoots.flatMap { root in
+            items.compactMap { item in
+                guard item.relativePath == root.relativePath || item.relativePath.hasPrefix("\(root.relativePath)/") else {
+                    return nil
+                }
+
+                var targetItem = item
+                targetItem.level -= root.level
+                return targetItem
+            }
+        }
     }
 
     func select(_ selectedItem: Item) {
         for index in items.indices {
             items[index].isActive = items[index].id == selectedItem.id
         }
+    }
+
+    func selectDisplayMode(_ displayMode: DisplayMode) {
+        self.displayMode = displayMode
+        isDisplayModeMenuPresented = false
+    }
+
+    func toggleDisplayModeMenu() {
+        isDisplayModeMenuPresented.toggle()
     }
 
     func toggleFolder(_ item: Item) {
@@ -582,6 +650,10 @@ final class EditorProjectSidebarViewModel {
 
             return item.relativePath.hasPrefix("\(collapsedFolder.relativePath)/")
         }
+    }
+
+    private func isSourceTarget(_ item: Item) -> Bool {
+        item.isFolder && item.level == 1 && item.relativePath.hasPrefix("Sources/")
     }
 }
 
@@ -1592,7 +1664,7 @@ final class EditorViewModel {
     var settingsPresentationToken = 0
     
     var showLeftPanel = true
-    var showRightPanel = true
+    var showRightPanel = false
     var showBottomPanel = false
 
     @ObservationIgnored
@@ -2358,6 +2430,29 @@ final class EditorViewModel {
             return false
         }
         return true
+    }
+
+    func handleTextSelection(document: EditorTextDocument, range: EditorSourceRange?, text: String?) {
+        workbench.updateTextDocument(id: document.id) { updatedDocument in
+            updatedDocument.selectionRange = range
+            updatedDocument.selectedText = text?.isEmpty == false ? text : nil
+        }
+    }
+
+    func chatAboutTextSelection(document: EditorTextDocument, range: EditorSourceRange, text: String) {
+        guard !text.isEmpty else {
+            return
+        }
+        handleTextSelection(document: document, range: range, text: text)
+        agent.prefillCodeSelection(EditorAgentCodeSelectionContext(
+            documentTitle: document.title,
+            documentRelativePath: document.relativePath,
+            language: document.language.rawValue,
+            range: range,
+            text: text
+        ))
+        toolStrip.activeRightTool = "agentChat"
+        showRightPanel = true
     }
 
     private func openProjectFromMenu() {
@@ -3231,7 +3326,7 @@ final class EditorViewModel {
             updatedDocument.completionItems = []
             updatedDocument.completionPosition = nil
         }
-        guard supportsSourceNavigation(document), let fileURL = document.fileURL else {
+        guard supportsCompletions(document), let fileURL = document.fileURL else {
             return
         }
         guard Self.shouldRequestAutomaticCompletion(in: text, at: position) else {
@@ -3258,7 +3353,7 @@ final class EditorViewModel {
     }
 
     func handleCompletionRequest(document: EditorTextDocument, position: EditorSourceLocation, text: String) {
-        guard supportsSourceNavigation(document), let fileURL = document.fileURL else {
+        guard supportsCompletions(document), let fileURL = document.fileURL else {
             return
         }
 
@@ -3363,9 +3458,15 @@ final class EditorViewModel {
         let start = line.index(line.startIndex, offsetBy: range.start.character)
         let end = line.index(line.startIndex, offsetBy: range.end.character)
         updatedLines[range.start.line].replaceSubrange(start..<end, with: item.insertText)
+        let insertedLines = item.insertText.components(separatedBy: .newlines)
+        let caret = if insertedLines.count == 1 {
+            EditorSourceLocation(line: range.start.line, character: range.start.character + item.insertText.count)
+        } else {
+            EditorSourceLocation(line: range.start.line + insertedLines.count - 1, character: insertedLines.last?.count ?? 0)
+        }
         return (
             updatedLines.joined(separator: "\n"),
-            EditorSourceLocation(line: range.start.line, character: range.start.character + item.insertText.count)
+            caret
         )
     }
 
@@ -3538,6 +3639,10 @@ final class EditorViewModel {
 
     private func supportsSourceNavigation(_ document: EditorTextDocument) -> Bool {
         (document.language == .swift || document.language == .packageManifest) && document.absolutePath != nil
+    }
+
+    private func supportsCompletions(_ document: EditorTextDocument) -> Bool {
+        (document.language == .ada || document.language == .swift || document.language == .packageManifest) && document.absolutePath != nil
     }
 
     private func openSourceTarget(_ target: EditorSourceSymbolTarget) {

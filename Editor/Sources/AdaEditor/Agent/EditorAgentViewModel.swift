@@ -13,6 +13,8 @@ final class EditorAgentViewModel {
     var autocompleteSuggestions: [EditorAgentProjectFileSearch.Entry] = []
     var pendingAttachments: [EditorAgentAttachment] = []
     var sceneContext: EditorAgentSceneContext?
+    var codeSelection: EditorAgentCodeSelectionContext?
+    var sessionConfiguration = EditorAgentSessionConfiguration.empty
     var availableSkills: [EditorAgentSkill] = []
     var selectedSkillIDs: Set<String> = []
     var statusMessage: String?
@@ -58,6 +60,18 @@ final class EditorAgentViewModel {
 
     func setSceneContext(_ context: EditorAgentSceneContext?) {
         sceneContext = context
+    }
+
+    func prefillCodeSelection(_ context: EditorAgentCodeSelectionContext) {
+        codeSelection = context
+        prompt = """
+        Help me with this selected code from \(context.documentRelativePath) (\(context.lineDescription)):
+
+        ```\(context.language)
+        \(context.text)
+        ```
+        """
+        updateAutocomplete()
     }
 
     var promptBinding: Binding<String> {
@@ -163,6 +177,8 @@ final class EditorAgentViewModel {
         selectedSkillIDs = []
         prompt = ""
         pendingAttachments = []
+        codeSelection = nil
+        sessionConfiguration = .empty
     }
 
     func selectSession(_ summary: EditorAgentSessionSummary) {
@@ -173,6 +189,8 @@ final class EditorAgentViewModel {
             do {
                 activeSession = try await store.loadSession(id: summary.id)
                 selectedSkillIDs = Set(activeSession?.selectedSkillIDs ?? [])
+                sessionConfiguration = .empty
+                connectionState = .disconnected
                 try await store.setActiveSession(id: summary.id)
             } catch {
                 statusMessage = error.localizedDescription
@@ -207,6 +225,37 @@ final class EditorAgentViewModel {
         }
         Task {
             await sendPromptAsync()
+        }
+    }
+
+    func connect() {
+        guard connectionState != .connecting else {
+            return
+        }
+        Task {
+            await connectAsync()
+        }
+    }
+
+    func selectConfiguration(selectorID: String, valueID: String) {
+        guard let activeSession else {
+            return
+        }
+        Task {
+            do {
+                sessionConfiguration = try await service.setConfiguration(
+                    sessionID: activeSession.id,
+                    selectorID: selectorID,
+                    valueID: valueID
+                )
+                if let chatMode = EditorAgentChatMode(rawValue: valueID) {
+                    mode = chatMode
+                }
+                connectionState = .ready(sessionConfiguration.agentName)
+            } catch {
+                statusMessage = error.localizedDescription
+                connectionState = .failed(error.localizedDescription)
+            }
         }
     }
 
@@ -246,6 +295,7 @@ final class EditorAgentViewModel {
                 fileManager: fileManager
             )
             settingsStatusMessage = "Agent connection saved to .ada/project.json."
+            sessionConfiguration = .empty
             Task {
                 await service.shutdown()
                 connectionState = agentEnabled ? .disconnected : .failed("Agent is disabled in project metadata.")
@@ -336,7 +386,9 @@ final class EditorAgentViewModel {
         prompt = ""
         autocompleteSuggestions = []
         let attachments = attachmentsToSend
+        let codeSelectionToSend = codeSelection
         pendingAttachments = []
+        codeSelection = nil
         isSending = true
         connectionState = .connecting
         await saveActiveSession()
@@ -352,6 +404,7 @@ final class EditorAgentViewModel {
                     prompt: requestPrompt,
                     attachments: attachments,
                     sceneContext: sceneContext,
+                    codeSelection: codeSelectionToSend,
                     skills: requestSkills
                 ),
                 onEvent: { [weak self] event in
@@ -366,8 +419,9 @@ final class EditorAgentViewModel {
                 }
             )
             activeSession?.upstreamSessionID = result.upstreamSessionID
+            sessionConfiguration = result.configuration
             appendEvent(EditorAgentEvent(kind: .runStatus, title: "Done", details: result.stopReason))
-            connectionState = .ready(nil)
+            connectionState = .ready(result.configuration.agentName)
         } catch {
             appendEvent(EditorAgentEvent(kind: .error, title: "Agent failed", details: error.localizedDescription, isSuccessful: false))
             connectionState = .failed(error.localizedDescription)
@@ -375,6 +429,46 @@ final class EditorAgentViewModel {
 
         isSending = false
         await saveActiveSession()
+    }
+
+    private func connectAsync() async {
+        guard let session = activeSession,
+              let projectConfig,
+              let projectURL else {
+            statusMessage = "No active agent session."
+            return
+        }
+
+        connectionState = .connecting
+        do {
+            sessionConfiguration = try await service.connect(
+                EditorAgentRunRequest(
+                    project: projectConfig,
+                    projectURL: projectURL,
+                    session: session,
+                    mode: mode,
+                    prompt: "",
+                    attachments: [],
+                    sceneContext: nil,
+                    codeSelection: nil,
+                    skills: []
+                ),
+                onEvent: { [weak self] event in
+                    await MainActor.run {
+                        self?.appendEvent(event)
+                    }
+                },
+                onProjectFileChanged: { [weak self] relativePath in
+                    await MainActor.run {
+                        self?.onProjectFileChanged(relativePath)
+                    }
+                }
+            )
+            connectionState = .ready(sessionConfiguration.agentName)
+        } catch {
+            statusMessage = error.localizedDescription
+            connectionState = .failed(error.localizedDescription)
+        }
     }
 
     private func loadSettings(from configuration: AdaProjectAgent) {

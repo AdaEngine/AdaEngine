@@ -44,8 +44,8 @@ func adaEditorStripButton(
 ) -> some View {
     Button(action: action) {
         Text(item.icon)
-            .font(AdaEditorMaterialSymbolFont.font(size: 18))
-            .frame(width: 30, height: 30)
+            .font(AdaEditorMaterialSymbolFont.font(size: 21))
+            .frame(width: 34, height: 34)
     }
     .buttonStyle(
         AdaEditorStripButtonStyle(
@@ -59,6 +59,8 @@ func adaEditorStripButton(
 
 enum AdaEditorMaterialSymbolFont {
     static let codepoints: [UInt32] = [
+        0xE037,
+        0xE047,
         0xE0CA,
         0xE258,
         0xE25A,
@@ -125,11 +127,11 @@ private struct AdaEditorStripButtonStyle: ButtonStyle {
 
         return configuration.label
             .foregroundColor(active ? accentColor : (isHighlighted ? colors.text : colors.muted))
-            .frame(width: 30, height: 30)
-            .background(RoundedRectangleShape(cornerRadius: 6).fill(active ? accentColor.opacity(0.16) : (isHighlighted ? colors.surfaceElevated : Color.clear)))
+            .frame(width: 34, height: 34)
+            .background(RoundedRectangleShape(cornerRadius: 7).fill(active ? accentColor.opacity(0.20) : (isHighlighted ? colors.surfaceElevated : Color.clear)))
             .overlay {
                 HStack(spacing: 0) {
-                    if active { RectangleShape().fill(accentColor).frame(width: 3, height: 18) }
+                    if active { RectangleShape().fill(accentColor).frame(width: 4, height: 22) }
                     Spacer()
                 }
             }

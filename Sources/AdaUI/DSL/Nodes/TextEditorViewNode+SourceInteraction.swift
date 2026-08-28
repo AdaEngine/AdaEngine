@@ -56,6 +56,12 @@ extension TextEditorViewNode {
     }
 
     func notifyCaretChange(requestsCompletion: Bool = true) {
+        if self.hasSelection {
+            self.sourceInteraction?.onSelectionChange?(self.selectedSourceRange(), self.selectedText())
+        } else {
+            self.sourceInteraction?.onSelectionChange?(nil, nil)
+        }
+
         guard requestsCompletion else {
             return
         }

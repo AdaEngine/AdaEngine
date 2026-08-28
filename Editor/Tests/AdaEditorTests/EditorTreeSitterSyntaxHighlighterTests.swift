@@ -4,6 +4,35 @@ import Testing
 
 @Suite("EditorTreeSitterSyntaxHighlighter")
 struct EditorTreeSitterSyntaxHighlighterTests {
+    @Test("highlights Gravity syntax without treating it as Swift")
+    func highlightsGravitySyntax() {
+        var palette = EditorCodeColorPalette.dark
+        palette.keyword = .green
+        palette.string = .blue
+        palette.type = .orange
+        palette.comment = .yellow
+        palette.number = .red
+        palette.punctuation = .purple
+
+        let tokens = EditorSyntaxHighlighter.tokens(
+            for: """
+            const speed = 12.5;
+            var title = 'Gravity';
+            /* outer /* nested */ comment */
+            func main() { return AdaPlugin.create(title, []); }
+            """,
+            language: .ada,
+            palette: palette
+        )
+
+        #expect(tokens.contains(EditorCodeToken(text: "const", color: .green)))
+        #expect(tokens.contains(EditorCodeToken(text: "'Gravity'", color: .blue)))
+        #expect(tokens.contains(EditorCodeToken(text: "/* outer /* nested */ comment */", color: .yellow)))
+        #expect(tokens.contains(EditorCodeToken(text: "AdaPlugin", color: .orange)))
+        #expect(tokens.contains(EditorCodeToken(text: "12.5", color: .red)))
+        #expect(tokens.contains(EditorCodeToken(text: ";", color: .purple)))
+    }
+
     @Test("highlights Swift Package manifests with tree-sitter query captures")
     func highlightsSwiftPackageManifestsWithTreeSitterQueryCaptures() throws {
         var palette = EditorCodeColorPalette.dark

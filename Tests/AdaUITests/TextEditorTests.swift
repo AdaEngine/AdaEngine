@@ -440,6 +440,47 @@ struct TextEditorTests {
     }
 
     @Test
+    func textEditor_commandLChatsWithSelectedText() {
+        final class Model {
+            var text = "alpha\nbeta"
+        }
+
+        let model = Model()
+        var selectionText: String?
+        var chatText: String?
+        var chatRange: TextEditorSourceRange?
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                ),
+                sourceInteraction: TextEditorSourceInteraction(
+                    onSelectionChange: { _, text in selectionText = text },
+                    onChatSelection: { range, text in
+                        chatRange = range
+                        chatText = text
+                    }
+                )
+            )
+            .font(.system(size: 12))
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(100, 28), phase: .began, time: 0)
+        tester.sendMouseEvent(at: Point(100, 28), phase: .ended, time: 0.01)
+        tester.sendKeyEvent(.a, modifiers: [.main], time: 0.02)
+        tester.sendKeyEvent(.l, modifiers: [.main], time: 0.03)
+
+        #expect(selectionText == model.text)
+        #expect(chatText == model.text)
+        #expect(chatRange?.start == TextEditorSourcePosition(line: 0, column: 0))
+        #expect(chatRange?.end == TextEditorSourcePosition(line: 1, column: 4))
+    }
+
+    @Test
     func textEditor_escapeRequestsCompletionAtCurrentCaret() {
         final class Model {
             var text = "alpha"

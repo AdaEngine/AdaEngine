@@ -26,45 +26,50 @@ private struct Lighting2DExamplePlugin: Plugin {
 
         app.spawn {
             Sprite(texture: white, tintColor: .yellow.opacity(0.95), size: Size(width: 64, height: 96))
-            Transform(position: Vector3(-120, -40, 0))
+            Transform(position: Vector3(-160, -70, 0))
         }
 
         app.spawn {
+            Sprite(
+                texture: white,
+                tintColor: Color(red: 0.32, green: 0.36, blue: 0.44),
+                size: Size(width: 88, height: 44)
+            )
             LightOccluder2D(
                 points: [
-                    Vector2(-40, 80),
-                    Vector2(40, 80),
-                    Vector2(40, 100),
-                    Vector2(-40, 100),
+                    Vector2(-44, -22),
+                    Vector2(44, -22),
+                    Vector2(44, 22),
+                    Vector2(-44, 22),
                 ]
             )
-            Transform(position: Vector3(40, -20, 1))
+            Transform(position: Vector3(50, 20, 1))
         }
 
         app.spawn {
             Light2D(
                 kind: .point,
                 color: Color(red: 1, green: 0.85, blue: 0.6),
-                energy: 2.2,
-                radius: 320,
+                energy: 2,
+                radius: 360,
                 castsShadows: true
             )
-            Transform(position: Vector3(-00, 40, 5))
+            Transform(position: Vector3(-140, 100, 5))
         }
 
         app.spawn {
             Light2D(
                 kind: .directional,
                 color: Color(red: 0.35, green: 0.45, blue: 0.9),
-                energy: 0.35,
+                energy: 0.18,
                 direction: Vector2(0.4, -0.9),
                 radius: 0,
-                castsShadows: true
+                castsShadows: false
             )
             Transform(position: Vector3(0, 0, 4))
         }
 
         let camera = app.main.spawn(bundle: Camera2D())
-        camera.components += LightModulate2D(color: Color(red: 0.22, green: 0.24, blue: 0.3))
+        camera.components += LightModulate2D(color: Color(red: 0.14, green: 0.16, blue: 0.22))
     }
 }

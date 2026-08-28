@@ -90,8 +90,9 @@ struct BoardHeaderView: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Kanban Board")
+                Text("Kanban")
                     .fontSize(20)
+                    .foregroundColor(BoardPalette.textPrimary)
 
                 Text("Minimal demo with stateful cards")
                     .fontSize(12)
@@ -170,6 +171,7 @@ struct TaskCardView: View {
             HStack(alignment: .center, spacing: 6) {
                 Text(task.title)
                     .fontSize(14)
+                    .foregroundColor(BoardPalette.textPrimary)
 
                 Spacer()
 
@@ -340,17 +342,17 @@ enum TaskStatus: Int, CaseIterable {
 }
 
 enum BoardPalette {
-    static let background = Color.fromHex(0xF4F6FA)
-    static let columnBackground = Color.fromHex(0xFFFFFF)
-    static let columnBorder = Color.fromHex(0xE1E5EC)
-    static let cardBackground = Color.fromHex(0xFFFFFF)
-    static let cardBorder = Color.fromHex(0xE6E9F0)
-    static let buttonBackground = Color.fromHex(0xF0F3F8)
-    static let buttonBorder = Color.fromHex(0xD6DBE5)
-    static let textPrimary = Color.fromHex(0x1F2937)
-    static let textSecondary = Color.fromHex(0x6B7280)
-    static let primary = Color.fromHex(0x2563EB)
-    static let primaryDark = Color.fromHex(0x1D4ED8)
+    static let background = Color.fromHex(0x0F1117)
+    static let columnBackground = Color.fromHex(0x181C25)
+    static let columnBorder = Color.fromHex(0x2A3140)
+    static let cardBackground = Color.fromHex(0x202633)
+    static let cardBorder = Color.fromHex(0x313A4C)
+    static let buttonBackground = Color.fromHex(0x262D3A)
+    static let buttonBorder = Color.fromHex(0x3B465A)
+    static let textPrimary = Color.fromHex(0xE6EAF2)
+    static let textSecondary = Color.fromHex(0xA6AFBF)
+    static let primary = Color.fromHex(0x4F8CFF)
+    static let primaryDark = Color.fromHex(0x2F6EE5)
 
     static let backlog = Color.fromHex(0x64748B)
     static let inProgress = Color.fromHex(0x2563EB)

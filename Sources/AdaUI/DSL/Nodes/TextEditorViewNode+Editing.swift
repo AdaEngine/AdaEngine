@@ -35,6 +35,12 @@ extension TextEditorViewNode {
         case .c:
             self.copySelection()
             return true
+        case .l:
+            guard self.hasSelection, let onChatSelection = self.sourceInteraction?.onChatSelection else {
+                return false
+            }
+            onChatSelection(self.selectedSourceRange(), self.selectedText())
+            return true
         case .x:
             self.cutSelection()
             return true
@@ -312,6 +318,17 @@ extension TextEditorViewNode {
         let start = self.index(forOffset: range.lowerBound)
         let end = self.index(forOffset: range.upperBound)
         return String(self.text[start..<end])
+    }
+
+    func selectedSourceRange() -> TextEditorSourceRange {
+        let lines = self.lines()
+        let range = self.selectionRange
+        let start = self.position(forOffset: range.lowerBound, lines: lines)
+        let end = self.position(forOffset: range.upperBound, lines: lines)
+        return TextEditorSourceRange(
+            start: TextEditorSourcePosition(line: start.line, column: start.column),
+            end: TextEditorSourcePosition(line: end.line, column: end.column)
+        )
     }
 
     func syncBinding() {

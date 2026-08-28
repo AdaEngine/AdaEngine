@@ -191,7 +191,7 @@ public enum PackageManifestEditor {
     ) throws -> PackageManifestEditResult {
         let target = try selectedTarget(in: manifest, named: name, executableOnly: false)
         let targetRoot = try targetRootPath(for: target.body)
-        let configuredPaths = sources + exclude + resources
+        let configuredPaths = sources + exclude
         let containsPathOutsideTarget = try configuredPaths.contains { path in
             try !isPath(path, inside: targetRoot)
         }
@@ -200,7 +200,7 @@ public enum PackageManifestEditor {
         let effectiveSources = needsPackageRoot && sources.isEmpty ? [targetRoot] : sources
         let targetRelativeSources = try targetRelativePaths(effectiveSources, targetRoot: effectiveTargetRoot, label: "sources")
         let targetRelativeExclude = try targetRelativePaths(exclude, targetRoot: effectiveTargetRoot, label: "exclude")
-        let targetRelativeResources = try targetRelativePaths(resources, targetRoot: effectiveTargetRoot, label: "resources")
+        let targetRelativeResources = try targetRelativeResourcePaths(resources, targetRoot: effectiveTargetRoot)
         var editedBody = String(target.body)
         // Swift requires labeled arguments in declaration order. Remove these adjacent
         // build-selection arguments first, then append them as exclude/sources/resources.
@@ -321,6 +321,24 @@ public enum PackageManifestEditor {
     private static func isPath(_ path: String, inside targetRoot: String) throws -> Bool {
         let normalizedPath = try normalizedRelativePath(path, label: "configured")
         return targetRoot == "." || normalizedPath == targetRoot || normalizedPath.hasPrefix(targetRoot + "/")
+    }
+
+    private static func targetRelativeResourcePaths(_ paths: [String], targetRoot: String) throws -> [String] {
+        try paths.map { path in
+            let normalizedPath = try normalizedRelativePath(path, label: "resources")
+            guard targetRoot != "." else {
+                return normalizedPath
+            }
+            if normalizedPath == targetRoot {
+                return "."
+            }
+            let targetPrefix = targetRoot + "/"
+            if normalizedPath.hasPrefix(targetPrefix) {
+                return String(normalizedPath.dropFirst(targetPrefix.count))
+            }
+            let parentPrefix = String(repeating: "../", count: targetRoot.split(separator: "/").count)
+            return parentPrefix + normalizedPath
+        }
     }
 
     private static func normalizedRelativePath(_ path: String, label: String) throws -> String {

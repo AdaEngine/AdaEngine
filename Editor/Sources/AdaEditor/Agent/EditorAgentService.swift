@@ -10,6 +10,7 @@ struct EditorAgentRunRequest: Sendable {
     var prompt: String
     var attachments: [EditorAgentAttachment]
     var sceneContext: EditorAgentSceneContext?
+    var codeSelection: EditorAgentCodeSelectionContext?
     var skills: [EditorAgentSkill]
 }
 
@@ -17,14 +18,21 @@ struct EditorAgentRunResult: Sendable {
     var upstreamSessionID: String?
     var assistantText: String
     var stopReason: String
+    var configuration: EditorAgentSessionConfiguration
 }
 
 protocol EditorAgentServicing: Sendable {
+    func connect(
+        _ request: EditorAgentRunRequest,
+        onEvent: @escaping @Sendable (EditorAgentEvent) async -> Void,
+        onProjectFileChanged: @escaping @Sendable (String) async -> Void
+    ) async throws -> EditorAgentSessionConfiguration
     func send(
         _ request: EditorAgentRunRequest,
         onEvent: @escaping @Sendable (EditorAgentEvent) async -> Void,
         onProjectFileChanged: @escaping @Sendable (String) async -> Void
     ) async throws -> EditorAgentRunResult
+    func setConfiguration(sessionID: String, selectorID: String, valueID: String) async throws -> EditorAgentSessionConfiguration
     func cancel(sessionID: String) async
     func shutdown() async
 }
@@ -57,9 +65,23 @@ actor EditorACPAgentService: EditorAgentServicing {
         var agentName: String?
         var notificationTask: Task<Void, Never>
         var assistantText: String
+        var configuration: EditorAgentSessionConfiguration
     }
 
     private var sessions: [String: ManagedSession] = [:]
+
+    func connect(
+        _ request: EditorAgentRunRequest,
+        onEvent: @escaping @Sendable (EditorAgentEvent) async -> Void,
+        onProjectFileChanged: @escaping @Sendable (String) async -> Void
+    ) async throws -> EditorAgentSessionConfiguration {
+        let managed = try await prepareSession(
+            request: request,
+            onEvent: onEvent,
+            onProjectFileChanged: onProjectFileChanged
+        )
+        return managed.configuration
+    }
 
     func send(
         _ request: EditorAgentRunRequest,
@@ -90,8 +112,43 @@ actor EditorACPAgentService: EditorAgentServicing {
         return EditorAgentRunResult(
             upstreamSessionID: managed.upstreamSessionID.value,
             assistantText: managed.assistantText,
-            stopReason: response.stopReason.rawValue
+            stopReason: response.stopReason.rawValue,
+            configuration: managed.configuration
         )
+    }
+
+    func setConfiguration(sessionID: String, selectorID: String, valueID: String) async throws -> EditorAgentSessionConfiguration {
+        guard var managed = sessions[sessionID],
+              let selectorIndex = managed.configuration.selectors.firstIndex(where: { $0.id == selectorID }) else {
+            throw EditorAgentServiceError.sessionUnavailable
+        }
+
+        let selector = managed.configuration.selectors[selectorIndex]
+        if selector.usesLegacyMethod {
+            switch selector.category {
+            case .mode:
+                _ = try await managed.client.setMode(sessionId: managed.upstreamSessionID, modeId: valueID)
+            case .model:
+                _ = try await managed.client.setModel(sessionId: managed.upstreamSessionID, modelId: valueID)
+            case .reasoning, .other:
+                throw EditorAgentServiceError.sessionUnavailable
+            }
+            managed.configuration.selectors[selectorIndex].currentValueID = valueID
+        } else {
+            let response = try await managed.client.setConfigOption(
+                sessionId: managed.upstreamSessionID,
+                configId: SessionConfigId(selectorID),
+                value: SessionConfigValueId(valueID)
+            )
+            managed.configuration = Self.configuration(
+                agentName: managed.agentName,
+                modes: nil,
+                models: nil,
+                configOptions: response.configOptions
+            )
+        }
+        sessions[sessionID] = managed
+        return managed.configuration
     }
 
     func cancel(sessionID: String) async {
@@ -150,11 +207,26 @@ actor EditorACPAgentService: EditorAgentServicing {
         )
 
         let upstreamSessionID: SessionId
+        let modes: ModesInfo?
+        let models: ModelsInfo?
+        let configOptions: [SessionConfigOption]?
         let supportsLoadSession = initialized.agentCapabilities.loadSession == true
         if let upstream = request.session.upstreamSessionID, supportsLoadSession {
-            upstreamSessionID = try await client.loadSession(sessionId: SessionId(upstream), cwd: workingDirectory.path).sessionId
+            let response = try await client.loadSession(sessionId: SessionId(upstream), cwd: workingDirectory.path)
+            upstreamSessionID = response.sessionId
+            modes = response.modes
+            models = response.models
+            configOptions = response.configOptions
         } else {
-            upstreamSessionID = try await client.newSession(workingDirectory: workingDirectory.path, timeout: 30).sessionId
+            let response = try await client.newSession(
+                workingDirectory: workingDirectory.path,
+                mcpServers: mcpServers(for: request.project),
+                timeout: 30
+            )
+            upstreamSessionID = response.sessionId
+            modes = response.modes
+            models = response.models
+            configOptions = response.configOptions
         }
 
         let localSessionID = request.session.id
@@ -169,13 +241,88 @@ actor EditorACPAgentService: EditorAgentServicing {
             }
         }
 
+        let agentName = initialized.agentInfo?.title ?? initialized.agentInfo?.name
         return ManagedSession(
             client: client,
             upstreamSessionID: upstreamSessionID,
             supportsLoadSession: supportsLoadSession,
-            agentName: initialized.agentInfo?.title ?? initialized.agentInfo?.name,
+            agentName: agentName,
             notificationTask: notificationTask,
-            assistantText: ""
+            assistantText: "",
+            configuration: Self.configuration(
+                agentName: agentName,
+                modes: modes,
+                models: models,
+                configOptions: configOptions
+            )
+        )
+    }
+
+    private func mcpServers(for project: AdaProject) -> [MCPServerConfig] {
+        guard project.ai.mcp.enabled else {
+            return []
+        }
+        return [
+            .http(HTTPServerConfig(name: "AdaEditor Runtime", url: "http://127.0.0.1:2510/mcp"))
+        ]
+    }
+
+    private static func configuration(
+        agentName: String?,
+        modes: ModesInfo?,
+        models: ModelsInfo?,
+        configOptions: [SessionConfigOption]?
+    ) -> EditorAgentSessionConfiguration {
+        var selectors = (configOptions ?? []).compactMap(configurationSelector)
+        if selectors.contains(where: { $0.category == .mode }) == false, let modes {
+            selectors.append(EditorAgentConfigurationSelector(
+                id: "mode",
+                name: "Mode",
+                category: .mode,
+                currentValueID: modes.currentModeId,
+                choices: modes.availableModes.map { .init(id: $0.id, name: $0.name, description: $0.description) },
+                usesLegacyMethod: true
+            ))
+        }
+        if selectors.contains(where: { $0.category == .model }) == false, let models {
+            selectors.append(EditorAgentConfigurationSelector(
+                id: "model",
+                name: "Model",
+                category: .model,
+                currentValueID: models.currentModelId,
+                choices: models.availableModels.map { .init(id: $0.modelId, name: $0.name, description: $0.description) },
+                usesLegacyMethod: true
+            ))
+        }
+        return EditorAgentSessionConfiguration(agentName: agentName, selectors: selectors)
+    }
+
+    private static func configurationSelector(_ option: SessionConfigOption) -> EditorAgentConfigurationSelector? {
+        guard case .select(let select) = option.kind else {
+            return nil
+        }
+        let choices: [EditorAgentConfigurationChoice] = switch select.options {
+        case .ungrouped(let options):
+            options.map { .init(id: $0.value.value, name: $0.name, description: $0.description) }
+        case .grouped(let groups):
+            groups.flatMap { group in
+                group.options.map { .init(id: $0.value.value, name: $0.name, description: $0.description) }
+            }
+        }
+        let normalizedCategory = (option.category ?? option.id.value).lowercased()
+        let category: EditorAgentConfigurationCategory = switch normalizedCategory {
+        case "mode": .mode
+        case "model": .model
+        case "thought_level", "reasoning", "reasoning_effort": .reasoning
+        default: .other
+        }
+        return EditorAgentConfigurationSelector(
+            id: option.id.value,
+            name: option.name,
+            category: category,
+            currentValueID: select.currentValue.value,
+            choices: choices,
+            usesLegacyMethod: false
         )
     }
 
@@ -302,6 +449,12 @@ enum EditorAgentPromptContext {
             text += "\n\n\(sceneContextBlock(sceneContext))"
         }
 
+        if let codeSelection = request.codeSelection {
+            text += "\n\n\(codeSelectionBlock(codeSelection))"
+        }
+
+        text += "\n\n\(projectCapabilitiesBlock(request.project))"
+
         text += "\n\n\(request.prompt)"
 
         for skill in request.skills where skill.userInvocable {
@@ -333,6 +486,32 @@ enum EditorAgentPromptContext {
         lines.append("Selected entity YAML:")
         lines.append(context.entityYAML)
         return lines.joined(separator: "\n")
+    }
+
+    private static func codeSelectionBlock(_ context: EditorAgentCodeSelectionContext) -> String {
+        """
+        [Selected Code]
+        File: \(context.documentRelativePath)
+        Range: \(context.lineDescription)
+        Language: \(context.language)
+        ```\(context.language)
+        \(context.text)
+        ```
+        """
+    }
+
+    private static func projectCapabilitiesBlock(_ project: AdaProject) -> String {
+        let sources = project.paths.sources ?? "Sources"
+        let assets = project.paths.assets ?? "Assets"
+        return """
+        [AdaEditor Project Capabilities]
+        - Scene documents: *.ascn/*.scene/*.scn (YAML); edit them through project files and preserve schemaVersion.
+        - Swift and Ada Script code: \(sources) (Swift: *.swift, Ada Script: *.ada).
+        - Shaders: *.glsl/*.vert/*.frag/*.shader/*.metal under the project, commonly in \(assets).
+        - Assets and project files: \(assets) and the project tree; project metadata is .ada/project.json.
+        - The AdaEditor Runtime MCP server exposes live worlds, entities, components, assets, render captures, UI, traces, and profiler data.
+        - After edits, run the narrowest relevant build or test and report failures precisely.
+        """
     }
 }
 

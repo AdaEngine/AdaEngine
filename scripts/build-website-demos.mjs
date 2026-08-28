@@ -12,6 +12,9 @@ const options = parseArguments(process.argv.slice(2))
 const packageDirectory = path.resolve(options.packageDirectory ?? defaultPackageDirectory)
 const packageFile = path.join(packageDirectory, 'Package.swift')
 const demosDirectory = path.join(packageDirectory, 'Demos')
+const websiteDemosDirectory = path.join(packageDirectory, 'WebsiteDemos')
+const demoPreviewsDirectory = path.join(websiteDemosDirectory, 'Previews')
+const demoMetadataOverrides = loadDemoMetadata(path.join(websiteDemosDirectory, 'metadata.json'))
 const outputDirectory = path.resolve(options.outputDirectory ?? defaultOutputDirectory(packageDirectory))
 const scratchDirectory = path.resolve(options.scratchDirectory ?? path.join(packageDirectory, '.build-web-website-demos'))
 const exportWorkDirectory = path.resolve(options.exportWorkDirectory ?? path.join(packageDirectory, 'dist', '.website-demo-export-work'))
@@ -102,15 +105,32 @@ for (const demo of products) {
   normalizeDemoEntryFile(demoOutputDirectory)
 
   const source = readFileSync(sourceFile, 'utf8')
+  const metadataOverride = demoMetadataOverrides[demo.product] ?? {}
+  const description = metadataOverride.description ?? demoDescription(demo.product, demo.tag, source)
+  const keywords = metadataOverride.keywords ?? [tagTitle(demo.tag), 'AdaEngine', 'WebAssembly']
+  const preview = prepareDemoPreview(demo, demoOutputDirectory)
+  const metadata = {
+    schemaVersion: 1,
+    product: demo.product,
+    slug: demo.slug,
+    title: demo.title,
+    tag: demo.tag,
+    tagTitle: tagTitle(demo.tag),
+    description,
+    keywords,
+    sourcePath: demo.sourcePath,
+    source: 'source.swift',
+    embed: demoEntryFileName,
+    preview: preview.fileName,
+    previewAlt: preview.alt,
+    previewKind: preview.kind,
+    hasBuild: demoHasBuild(demoOutputDirectory),
+  }
+
   writeFileSync(path.join(demoOutputDirectory, 'source.swift'), source)
   writeFileSync(
     path.join(demoOutputDirectory, 'metadata.json'),
-    `${JSON.stringify({
-      product: demo.product,
-      title: demo.title,
-      tag: demo.tag,
-      sourcePath: demo.sourcePath,
-    }, null, 2)}\n`,
+    `${JSON.stringify(metadata, null, 2)}\n`,
   )
 
   manifest.demos.push({
@@ -119,11 +139,16 @@ for (const demo of products) {
     title: demo.title,
     tag: demo.tag,
     tagTitle: tagTitle(demo.tag),
-    description: demoDescription(demo.product, demo.tag, source),
+    description,
+    keywords,
     sourcePath: demo.sourcePath,
     source: `demos/${demo.slug}/source.swift`,
     embed: `demos/${demo.slug}/${demoEntryFileName}`,
-    hasBuild: demoHasBuild(demoOutputDirectory),
+    metadata: `demos/${demo.slug}/metadata.json`,
+    preview: `demos/${demo.slug}/${preview.fileName}`,
+    previewAlt: preview.alt,
+    previewKind: preview.kind,
+    hasBuild: metadata.hasBuild,
   })
 }
 
@@ -355,6 +380,142 @@ function demoHasBuild(demoOutputDirectory) {
   return existsSync(path.join(demoOutputDirectory, demoEntryFileName))
 }
 
+function loadDemoMetadata(metadataPath) {
+  if (!existsSync(metadataPath)) return {}
+
+  let metadata
+  try {
+    metadata = JSON.parse(readFileSync(metadataPath, 'utf8'))
+  } catch (error) {
+    fail(`Could not parse website demo metadata at ${metadataPath}: ${error.message}`)
+  }
+
+  if (metadata.schemaVersion !== 1 || !metadata.demos || typeof metadata.demos !== 'object' || Array.isArray(metadata.demos)) {
+    fail(`Website demo metadata at ${metadataPath} must use schemaVersion 1 and contain a demos object`)
+  }
+
+  for (const [product, entry] of Object.entries(metadata.demos)) {
+    const hasValidDescription = entry && typeof entry.description === 'string' && entry.description.trim()
+    const hasValidKeywords = !entry?.keywords || (Array.isArray(entry.keywords) && entry.keywords.every((keyword) => typeof keyword === 'string' && keyword.trim()))
+    if (!hasValidDescription || !hasValidKeywords) {
+      fail(`Invalid website demo metadata for ${product} in ${metadataPath}`)
+    }
+
+    entry.description = entry.description.trim()
+    if (entry.keywords) entry.keywords = entry.keywords.map((keyword) => keyword.trim())
+  }
+
+  return metadata.demos
+}
+
+function prepareDemoPreview(demo, demoOutputDirectory) {
+  const extensions = ['.webp', '.png', '.jpg', '.jpeg', '.avif', '.svg']
+  const previewNames = extensions.map((extension) => `preview${extension}`)
+
+  for (const previewName of previewNames) {
+    rmSync(path.join(demoOutputDirectory, previewName), { force: true })
+  }
+
+  for (const baseName of [demo.product, demo.slug]) {
+    for (const extension of extensions) {
+      const sourcePath = path.join(demoPreviewsDirectory, `${baseName}${extension}`)
+      if (!existsSync(sourcePath)) continue
+
+      const fileName = `preview${extension}`
+      cpSync(sourcePath, path.join(demoOutputDirectory, fileName))
+      return {
+        alt: `${demo.title} preview`,
+        fileName,
+        kind: 'custom',
+      }
+    }
+  }
+
+  const fileName = 'preview.svg'
+  writeFileSync(path.join(demoOutputDirectory, fileName), generatedPreviewSVG(demo))
+  return {
+    alt: `${demo.title} preview`,
+    fileName,
+    kind: 'generated',
+  }
+}
+
+function generatedPreviewSVG(demo) {
+  const palette = previewPalette(demo.tag)
+  const titleLines = wrapPreviewTitle(demo.title)
+  const titleMarkup = titleLines
+    .map((line, index) => `<text x="72" y="${318 + index * 76}" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="64" font-weight="700">${escapeXML(line)}</text>`)
+    .join('\n  ')
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title description">
+  <title id="title">${escapeXML(demo.title)} preview</title>
+  <desc id="description">Generated preview for the ${escapeXML(demo.title)} AdaEngine demo.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="${palette.start}"/>
+      <stop offset="1" stop-color="${palette.end}"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.82" cy="0.18" r="0.72">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="675" rx="36" fill="url(#background)"/>
+  <rect width="1200" height="675" rx="36" fill="url(#glow)"/>
+  <circle cx="1040" cy="122" r="190" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="42"/>
+  <circle cx="1040" cy="122" r="92" fill="#ffffff" fill-opacity="0.10"/>
+  <rect x="72" y="68" width="${Math.max(112, tagTitle(demo.tag).length * 24 + 56)}" height="52" rx="26" fill="#ffffff" fill-opacity="0.16"/>
+  <text x="100" y="103" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="650" letter-spacing="1">${escapeXML(tagTitle(demo.tag).toUpperCase())}</text>
+  ${titleMarkup}
+  <text x="72" y="574" fill="#ffffff" fill-opacity="0.76" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="28">Interactive WebAssembly demo</text>
+  <text x="72" y="620" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="30" font-weight="650">AdaEngine</text>
+</svg>
+`
+}
+
+function previewPalette(tag) {
+  const palettes = {
+    '2d': { start: '#075985', end: '#0f766e' },
+    '3d': { start: '#5b21b6', end: '#1e3a8a' },
+    events: { start: '#9d174d', end: '#6d28d9' },
+    games: { start: '#9a3412', end: '#be123c' },
+    input: { start: '#854d0e', end: '#b45309' },
+    scene: { start: '#166534', end: '#0f766e' },
+    ui: { start: '#3730a3', end: '#7e22ce' },
+  }
+  return palettes[tag.toLowerCase()] ?? { start: '#334155', end: '#1d4ed8' }
+}
+
+function wrapPreviewTitle(title) {
+  const words = title.split(/\s+/)
+  const lines = []
+
+  for (const word of words) {
+    const current = lines.at(-1)
+    if (!current || (current.length + word.length + 1 > 27 && lines.length < 2)) {
+      lines.push(word)
+    } else {
+      lines[lines.length - 1] = `${current} ${word}`
+    }
+  }
+
+  if (lines.length === 2 && lines[1].length > 33) {
+    lines[1] = `${lines[1].slice(0, 32).trimEnd()}…`
+  }
+  return lines.slice(0, 2)
+}
+
+function escapeXML(value) {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&apos;',
+  })[character])
+}
+
 function normalizeManifest(manifest, outputDirectoryPath) {
   return {
     ...manifest,
@@ -477,8 +638,13 @@ Usage:
   node scripts/build-website-demos.mjs [--output public/demos] [--package-dir AdaEngine] [--swift-sdk swift-6.3.2-RELEASE_wasm] [--scratch-path .build-web-website-demos] [--only ProductA,ProductB] [--skip-products ProductC] [--continue-on-error] [--allow-failures ProductD] [--strip-wasm-debug] [--skip-build] [--list]
 
 The output directory is meant to be the website public/demos folder. Each demo
-gets its exported web bundle, embed.html, source.swift, metadata.json, and the shared
-manifest.json used by adaengine.org.
+gets its exported web bundle, embed.html, source.swift, metadata.json, preview image,
+and the shared manifest.json used by adaengine.org.
+
+Add a custom preview at WebsiteDemos/Previews/<ProductName>.webp (also supports
+png, jpg, jpeg, avif, and svg). When no custom image exists, the script generates
+a branded 1200x675 preview.svg. Descriptions come from WebsiteDemos/metadata.json,
+then a "Demo description" doc comment, the first doc comment, and a generated fallback.
 
 Default output is ADAENGINE_WEBSITE_DEMOS_DIR, then ../adawebsite/public/demos
 when that directory exists, then dist/website-demos. Use --swift-sdk auto to let

@@ -46,6 +46,30 @@ struct EditorActivityEvent: Equatable, Sendable, Identifiable {
         }
         return "\(value) · \(Int((fractionCompleted * 100).rounded()))%"
     }
+
+    var compactTitle: String {
+        let title: String = switch kind {
+        case .build:
+            "Build"
+        case .indexing:
+            "Indexing"
+        case .preview:
+            "Preview"
+        case .run:
+            "Running"
+        case .sourceControl:
+            "Git"
+        case .test:
+            "Testing"
+        case .workspace:
+            "Preparing"
+        }
+
+        guard let fractionCompleted else {
+            return title
+        }
+        return "\(title) · \(Int((fractionCompleted * 100).rounded()))%"
+    }
 }
 
 @MainActor
@@ -177,6 +201,7 @@ struct EditorFooter: View {
         .font(.system(size: 12))
         .foregroundColor(theme.editorColors.text)
         .padding(.horizontal, 10)
+        .frame(height: metrics.footerHeight)
     }
 }
 
@@ -193,7 +218,7 @@ private struct EditorActivityProgressView: View {
         let titleWidth = max(100, width - progressWidth - countWidth - 16)
 
         HStack(spacing: 8) {
-            Text(activity.displayTitle)
+            Text(activity.compactTitle)
                 .lineLimit(1)
                 .frame(width: titleWidth, alignment: .trailing)
 

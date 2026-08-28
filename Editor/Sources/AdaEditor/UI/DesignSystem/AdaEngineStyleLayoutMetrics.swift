@@ -15,7 +15,7 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
     }
 
     var topToolbarHeight: Float {
-        size.height < 520 ? 46 : AdaEngineStyleLayoutSpec.topToolbarHeight
+        size.height < 520 ? 38 : AdaEngineStyleLayoutSpec.topToolbarHeight
     }
 
     var footerHeight: Float {
@@ -60,6 +60,16 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
         76
     }
 
+    var toolbarProjectSwitcherWidth: Float {
+        if size.width < 700 {
+            return 32
+        }
+        if isCompact {
+            return 72
+        }
+        return 200
+    }
+
     var toolbarSearchWidth: Float {
         let rightControlWidth: Float = (showsToolbarSceneName ? 92 : 0) + 132 + (showsRunButtonTitle ? 132 : 86) + 36
         let reservedSideWidth = max(toolbarLeadingSpacerWidth, rightControlWidth)
@@ -68,7 +78,7 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
         return clamped(availableWidth, min: minimumWidth, max: 520)
     }
     
-    var workspaceSpacer: Float = 8
+    var workspaceSpacer: Float = 4
 
     var panelSpacing: Float {
         size.width < 700 ? 6 : AdaEngineStyleLayoutSpec.panelSpacing

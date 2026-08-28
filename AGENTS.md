@@ -41,7 +41,7 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
     --transform-for-static-hosting \
     --hosting-base-path adaengine-docs \
     --enable-experimental-combined-documentation \
-    --target AdaEngine --target AdaECS --target AdaRender --target AdaUI \
+    --target AdaEngine --target AdaECS --target AdaScripting --target AdaRender --target AdaUI \
     --target AdaApp --target AdaPlatform --target AdaAssets --target AdaAudio \
     --target AdaTransform --target AdaText --target AdaInput --target AdaScene \
     --target AdaTilemap --target AdaPhysics --target AdaSprite --target AdaUtils \

@@ -13,6 +13,8 @@ struct EditorCodeFileView: View {
     let onCompletionPosition: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
     let onCompletionRequest: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
     let onApplyCompletion: ((EditorCompletionItem, EditorTextDocument) -> Void)?
+    let onTextSelection: ((EditorTextDocument, EditorSourceRange?, String?) -> Void)?
+    let onChatSelection: ((EditorTextDocument, EditorSourceRange, String) -> Void)?
     let sourceContextMenuItems: ((EditorTextDocument, EditorSourceLocation) -> [TextEditorContextMenuItem])?
 
     @Environment(\.theme) private var theme
@@ -33,6 +35,9 @@ struct EditorCodeFileView: View {
                             }
                             if !document.completionItems.isEmpty {
                                 completionOverlay
+                            }
+                            if document.selectedText?.isEmpty == false {
+                                selectionChatHint
                             }
                         }
                     }
@@ -79,6 +84,20 @@ private extension EditorCodeFileView {
             .drawingGroup()
             .padding(10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    var selectionChatHint: some View {
+        GeometryReader { geometry in
+            Text("Press CMD + L to chat")
+                .font(.system(size: 10))
+                .foregroundColor(theme.editorColors.text)
+                .padding(.horizontal, 10)
+                .frame(height: 26)
+                .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.purple.opacity(0.82)))
+                .offset(x: max(12, geometry.size.width - 178), y: max(12, geometry.size.height - 42))
+                .allowsHitTesting(false)
+                .accessibilityIdentifier("AdaEditor.SelectionChatHint")
+        }
     }
 
     func completionList(width: Float) -> some View {
@@ -161,28 +180,37 @@ private extension EditorCodeFileView {
     }
 
     var sourceInteraction: TextEditorSourceInteraction? {
-        guard document.language == .swift || document.language == .packageManifest else {
-            return nil
-        }
+        let supportsLanguageTooling = document.language == .swift || document.language == .packageManifest
 
         return TextEditorSourceInteraction(
             highlightedRanges: (document.symbolHighlights + document.diagnostics.map(\.range)).map(\.textEditorRange),
             hoveredRange: document.sourceHoverRange?.textEditorRange,
             focusedRange: document.focusedRange?.textEditorRange,
             onHover: { position in
+                guard supportsLanguageTooling else { return }
                 onSourceHover?(document, position.map { EditorSourceLocation(textEditorPosition: $0) })
             },
             onPrimaryClick: { position in
+                guard supportsLanguageTooling else { return }
                 onGoToDefinition?(document, EditorSourceLocation(textEditorPosition: position))
             },
             onCaretChange: { position, currentText in
+                guard supportsLanguageTooling else { return }
                 onCompletionPosition?(document, EditorSourceLocation(textEditorPosition: position), currentText)
             },
             onRequestCompletion: { position, currentText in
+                guard supportsLanguageTooling else { return }
                 onCompletionRequest?(document, EditorSourceLocation(textEditorPosition: position), currentText)
             },
+            onSelectionChange: { range, text in
+                onTextSelection?(document, range.map { EditorSourceRange(textEditorRange: $0) }, text)
+            },
+            onChatSelection: { range, text in
+                onChatSelection?(document, EditorSourceRange(textEditorRange: range), text)
+            },
             contextMenuItems: { position in
-                sourceContextMenuItems?(document, EditorSourceLocation(textEditorPosition: position)) ?? []
+                guard supportsLanguageTooling else { return [] }
+                return sourceContextMenuItems?(document, EditorSourceLocation(textEditorPosition: position)) ?? []
             }
         )
     }
@@ -369,6 +397,13 @@ private extension EditorSourceLocation {
 }
 
 private extension EditorSourceRange {
+    init(textEditorRange: TextEditorSourceRange) {
+        self.init(
+            start: EditorSourceLocation(textEditorPosition: textEditorRange.start),
+            end: EditorSourceLocation(textEditorPosition: textEditorRange.end)
+        )
+    }
+
     var textEditorRange: TextEditorSourceRange {
         TextEditorSourceRange(start: start.textEditorPosition, end: end.textEditorPosition)
     }
@@ -583,8 +618,9 @@ private enum EditorTreeSitterSwiftSyntaxHighlighter {
 }
 
 enum EditorSyntaxHighlighter {
-    private enum ScanState {
+    private enum ScanState: Equatable {
         case normal
+        case gravityBlockComment(Int)
         case swiftBlockComment
         case swiftMultilineString
     }
@@ -613,7 +649,9 @@ enum EditorSyntaxHighlighter {
 
         for (lineIndex, line) in lines.enumerated() {
             switch language {
-            case .swift, .packageManifest, .ada:
+            case .ada:
+                spans += gravitySpans(for: line, lineIndex: lineIndex, state: &state, palette: palette)
+            case .swift, .packageManifest:
                 spans += swiftSpans(for: line, lineIndex: lineIndex, state: &state, palette: palette)
             case .json:
                 spans += jsonSpans(for: line, lineIndex: lineIndex, palette: palette)
@@ -755,6 +793,97 @@ enum EditorSyntaxHighlighter {
         }
 
         return spans
+    }
+
+    private static func gravitySpans(
+        for line: String,
+        lineIndex: Int,
+        state: inout ScanState,
+        palette: EditorCodeColorPalette
+    ) -> [TextEditorTokenSpan] {
+        var spans: [TextEditorTokenSpan] = []
+        var column = 0
+        let characters = Array(line)
+
+        while column < characters.count {
+            if case .gravityBlockComment(let depth) = state {
+                let result = gravityBlockCommentEnd(in: characters, from: column, initialDepth: depth)
+                appendSpan(line: lineIndex, start: column, end: result.end, color: palette.comment, to: &spans)
+                column = result.end
+                state = result.remainingDepth == 0 ? .normal : .gravityBlockComment(result.remainingDepth)
+                continue
+            }
+
+            if matches("//", in: characters, at: column) {
+                appendSpan(line: lineIndex, start: column, end: characters.count, color: palette.comment, to: &spans)
+                break
+            }
+
+            if matches("/*", in: characters, at: column) {
+                let result = gravityBlockCommentEnd(in: characters, from: column, initialDepth: 0)
+                appendSpan(line: lineIndex, start: column, end: result.end, color: palette.comment, to: &spans)
+                column = result.end
+                state = result.remainingDepth == 0 ? .normal : .gravityBlockComment(result.remainingDepth)
+                continue
+            }
+
+            if characters[column] == "\"" || characters[column] == "'" {
+                let endColumn = quotedStringEnd(in: characters, from: column)
+                appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.string, to: &spans)
+                column = endColumn
+                continue
+            }
+
+            if isNumberStart(characters, at: column) {
+                let endColumn = numberEnd(in: characters, from: column)
+                appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.number, to: &spans)
+                column = endColumn
+                continue
+            }
+
+            if isIdentifierStart(characters[column]) {
+                let endColumn = identifierEnd(in: characters, from: column)
+                let word = String(characters[column..<endColumn])
+                if gravityKeywords.contains(word.lowercased()) {
+                    appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.keyword, to: &spans)
+                } else if word.first?.isUppercase == true {
+                    appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.type, to: &spans)
+                }
+                column = endColumn
+                continue
+            }
+
+            if gravityPunctuation.contains(characters[column]) {
+                appendSpan(line: lineIndex, start: column, end: column + 1, color: palette.punctuation, to: &spans)
+            }
+            column += 1
+        }
+
+        return spans
+    }
+
+    private static func gravityBlockCommentEnd(
+        in characters: [Character],
+        from start: Int,
+        initialDepth: Int
+    ) -> (end: Int, remainingDepth: Int) {
+        var depth = initialDepth
+        var index = start
+        while index < characters.count {
+            if matches("/*", in: characters, at: index) {
+                depth += 1
+                index += 2
+            } else if matches("*/", in: characters, at: index) {
+                depth -= 1
+                index += 2
+                if depth == 0 {
+                    break
+                }
+            } else {
+                index += 1
+            }
+        }
+        return (index, depth)
     }
 
     private static func jsonSpans(for line: String, lineIndex: Int, palette: EditorCodeColorPalette) -> [TextEditorTokenSpan] {
@@ -963,9 +1092,16 @@ enum EditorSyntaxHighlighter {
         "try", "typealias", "var", "where", "while"
     ]
 
+    private static let gravityKeywords: Set<String> = [
+        "_args", "_func", "and", "break", "case", "class", "const", "continue", "default", "else", "enum", "event", "extern", "false",
+        "file", "for", "func", "if", "import", "in", "internal", "is", "lazy", "module", "not", "null", "or", "private", "public", "repeat",
+        "return", "static", "struct", "super", "switch", "true", "undefined", "var", "while"
+    ]
+
     private static let jsonKeywords: Set<String> = ["false", "null", "true"]
     private static let yamlKeywords: Set<String> = ["false", "no", "null", "off", "on", "true", "yes"]
     private static let swiftPunctuation = Set("()[]{}.,:;+-*/%=!<>?&|@")
+    private static let gravityPunctuation = Set("()[]{}.,:;+-*/%=!<>?&|~^")
     private static let jsonPunctuation = Set("{}[]:,")
     private static let yamlPunctuation = Set("[]{}:,-")
 }

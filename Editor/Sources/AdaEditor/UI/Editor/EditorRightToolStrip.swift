@@ -7,7 +7,7 @@ struct EditorRightToolStrip: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: 8) {
             ForEach(viewModel.toolStrip.rightTools, id: \.identifier) { item in
                 adaEditorStripButton(
                     item,
@@ -21,7 +21,7 @@ struct EditorRightToolStrip: View {
             }
             Spacer()
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
         .background(theme.editorColors.background)
     }
 }
@@ -34,7 +34,7 @@ struct EditorLeftToolStrip: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: 8) {
             ForEach(viewModel.toolStrip.leftTopTools, id: \.identifier) { item in
                 adaEditorStripButton(
                     item,
@@ -57,7 +57,7 @@ struct EditorLeftToolStrip: View {
                 )
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
         .background(theme.editorColors.background)
     }
 }

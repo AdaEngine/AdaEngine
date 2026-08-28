@@ -62,7 +62,7 @@ extension LDtk {
 
             super.init()
 
-            let assetPath = try AbsolutePath(validating: decoder.assetMeta.filePath.absoluteString)
+            let assetPath = try AbsolutePath(validating: decoder.assetMeta.filePath.path)
 
             self.fileWatcher = FileWatcher(paths: [assetPath]) { [weak self] paths in
                 self?.onLDtkFileMapChanged(paths: paths.map { $0.pathString })

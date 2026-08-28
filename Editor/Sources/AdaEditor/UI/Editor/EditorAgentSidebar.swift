@@ -53,8 +53,17 @@ struct EditorAgentSidebar: View {
                         .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surface))
                 }
                 .buttonStyle(DefaultButtonStyle())
+                Button(action: { viewModel.connect() }) {
+                    Text("Connect")
+                        .font(.system(size: 10))
+                        .foregroundColor(theme.editorColors.blue)
+                        .padding(.horizontal, 8)
+                        .frame(height: 24)
+                        .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.blue.opacity(0.12)))
+                }
+                .buttonStyle(DefaultButtonStyle())
             }
-            modeSelector
+            configurationControls
         }
         .padding(10)
         .background(theme.editorColors.surface)
@@ -78,8 +87,25 @@ struct EditorAgentSidebar: View {
         .buttonStyle(DefaultButtonStyle())
     }
 
-    private var modeSelector: some View {
+    @ViewBuilder
+    private var configurationControls: some View {
+        if viewModel.sessionConfiguration.selectors.isEmpty {
+            fallbackModeSelector
+        } else {
+            ForEach(
+                viewModel.sessionConfiguration.selectors.filter { $0.category != .other },
+                id: \.id
+            ) { selector in
+                configurationSelector(selector)
+            }
+        }
+    }
+
+    private var fallbackModeSelector: some View {
         HStack(spacing: 5) {
+            Text("MODE")
+                .font(.system(size: 9))
+                .foregroundColor(theme.editorColors.muted)
             ForEach(EditorAgentChatMode.allCases, id: \.rawValue) { mode in
                 Button(action: { viewModel.mode = mode }) {
                     Text(mode.title)
@@ -90,6 +116,35 @@ struct EditorAgentSidebar: View {
                         .background(RoundedRectangleShape(cornerRadius: 5).fill(viewModel.mode == mode ? theme.editorColors.purple.opacity(0.18) : Color.clear))
                 }
                 .buttonStyle(DefaultButtonStyle())
+            }
+        }
+    }
+
+    private func configurationSelector(_ selector: EditorAgentConfigurationSelector) -> some View {
+        HStack(spacing: 5) {
+            Text(selector.category.rawValue.uppercased())
+                .font(.system(size: 9))
+                .foregroundColor(theme.editorColors.muted)
+                .frame(width: 62, alignment: .leading)
+            ScrollView(.horizontal) {
+                HStack(spacing: 5) {
+                    ForEach(selector.choices, id: \.id) { choice in
+                        let selected = selector.currentValueID == choice.id
+                        Button(action: { viewModel.selectConfiguration(selectorID: selector.id, valueID: choice.id) }) {
+                            Text(choice.name)
+                                .font(.system(size: 10))
+                                .foregroundColor(selected ? theme.editorColors.text : theme.editorColors.muted)
+                                .padding(.horizontal, 7)
+                                .frame(height: 22)
+                                .background(
+                                    RoundedRectangleShape(cornerRadius: 5)
+                                        .fill(selected ? theme.editorColors.purple.opacity(0.18) : Color.clear)
+                                )
+                        }
+                        .buttonStyle(DefaultButtonStyle())
+                    }
+                }
+                .fixedSize(horizontal: true, vertical: false)
             }
         }
     }
@@ -160,6 +215,7 @@ struct EditorAgentSidebar: View {
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
             sceneContextIndicator
+            codeSelectionIndicator
             skillStrip
             autocompleteList
             TextField("Ask the agent. Use @ to attach files.", text: viewModel.promptBinding)
@@ -197,6 +253,29 @@ struct EditorAgentSidebar: View {
         }
         .padding(10)
         .background(theme.editorColors.surface)
+    }
+
+    @ViewBuilder
+    private var codeSelectionIndicator: some View {
+        if let context = viewModel.codeSelection {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Selected code · \(context.lineDescription)")
+                    .font(.system(size: 10))
+                    .foregroundColor(theme.editorColors.text)
+                Text(context.documentRelativePath)
+                    .font(.system(size: 9))
+                    .foregroundColor(theme.editorColors.muted)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.purple.opacity(0.10)))
+            .overlay {
+                RoundedRectangleShape(cornerRadius: 6)
+                    .stroke(theme.editorColors.purple.opacity(0.24), lineWidth: 1)
+            }
+        }
     }
 
     @ViewBuilder

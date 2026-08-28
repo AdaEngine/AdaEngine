@@ -2,6 +2,14 @@
   "originHash" : "81236996037f91f9941042f3df2a81409f75167a6d1fdf5189e00cd66514b047",
   "pins" : [
     {
+      "identity" : "gravity-lang",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/gravity-lang.git",
+      "state" : {
+        "revision" : "0c239828ebeb5ffd0b03b7a914ac5dd4e4c2c781"
+      }
+    },
+    {
       "identity" : "javascriptkit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftwasm/JavaScriptKit.git",

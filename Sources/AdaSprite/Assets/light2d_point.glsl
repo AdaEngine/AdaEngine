@@ -37,7 +37,7 @@ void light2d_point_frag() {
     vec2 lp = u_LightXY_Radius.xy;
     float radius = max(u_LightXY_Radius.z, 1e-3);
     float d = distance(world, lp);
-    float atten = 1.0 - smoothstep(radius * 0.88, radius, d);
+    float atten = 1.0 - smoothstep(0.0, radius, d);
     vec3 rgb = u_LightRGB_Energy.rgb * u_LightRGB_Energy.a * atten;
     if (u_Flags.x > 0.5) {
         float m = texture(sampler2D(u_ShadowMask, u_ShadowSampler), v_UV).r;

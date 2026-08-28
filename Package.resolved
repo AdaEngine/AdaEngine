@@ -1,5 +1,5 @@
 {
-  "originHash" : "5a15ac7d25e9dafb753c907fd7ae1f59e4b46885f344d4e03e34eef82898ec25",
+  "originHash" : "9eb4aa437096263667c3b2978303115a8b1312e99cb5beca2a28a95b0f38335d",
   "pins" : [
     {
       "identity" : "gravity-lang",
@@ -16,24 +16,6 @@
       "state" : {
         "revision" : "403ae956d68503957699b6dc4c07b73caad031b7",
         "version" : "0.53.0"
-      }
-    },
-    {
-      "identity" : "swan",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/adobe/swan",
-      "state" : {
-        "revision" : "1eb45a22c79439b50e9cde774454450e50147149",
-        "version" : "0.0.8"
-      }
-    },
-    {
-      "identity" : "swift-argument-parser",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-argument-parser.git",
-      "state" : {
-        "revision" : "ca37474853a4b5f59a22c74bfdd449b1f6bc4cc2",
-        "version" : "1.8.1"
       }
     },
     {
@@ -88,15 +70,6 @@
       "state" : {
         "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
         "version" : "1.0.0"
-      }
-    },
-    {
-      "identity" : "swift-format",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-format.git",
-      "state" : {
-        "revision" : "62eaad2822b865407b8cde56c36386c00800f7ec",
-        "version" : "602.0.0"
       }
     },
     {
@@ -158,8 +131,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system",
       "state" : {
-        "revision" : "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
-        "version" : "1.6.4"
+        "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
+        "version" : "1.8.1"
       }
     },
     {

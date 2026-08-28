@@ -53,6 +53,19 @@ struct AdaEngineStyleUITests {
         #expect(activities.first?.statusTitle == "Indexing Swift package · 100%")
     }
 
+    @Test("activity progress keeps footer text compact")
+    func activityProgressKeepsFooterTextCompact() {
+        let activity = EditorActivityEvent(
+            id: "indexing",
+            kind: .indexing,
+            title: "Indexing Swift package",
+            detail: "/usr/bin/swift build --package-path Example",
+            fractionCompleted: 0.61
+        )
+
+        #expect(activity.compactTitle == "Indexing · 61%")
+    }
+
     @Test("activity progress supports build and concurrent source control events")
     @MainActor
     func activityProgressSupportsDifferentEvents() {
@@ -169,16 +182,25 @@ struct AdaEngineStyleUITests {
     @Test("toolbar search remains centered independently of trailing controls")
     @MainActor
     func toolbarSearchRemainsCentered() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            let app = AppWorlds(main: World(name: "AdaEditorToolbarTests"))
+            RenderWorldPlugin().setup(in: app)
+        }
+
         let size = Size(width: 1_280, height: AdaEngineStyleLayoutSpec.topToolbarHeight)
         let metrics = AdaEngineStyleLayoutMetrics(size: size)
         let container = UIContainerView(
             rootView: EditorTopToolbar(
+                project: EditorProjectReference(name: "Example", path: "/tmp/Example"),
+                isProjectSwitcherPresented: false,
                 hotReloadState: .unavailable,
                 viewModel: EditorToolbarViewModel(),
                 runDestination: .macOS,
                 isRunEnabled: true,
                 isStopEnabled: false,
                 onSelectRunDestination: { _ in },
+                onToggleProjectSwitcher: {},
                 onRun: {},
                 onStop: {}
             )
@@ -189,13 +211,16 @@ struct AdaEngineStyleUITests {
         container.layoutIfNeeded()
 
         let search = try container.uiNode(matching: .accessibilityIdentifier(EditorTopToolbar.searchAccessibilityIdentifier))
+        let projectSwitcher = try container.uiNode(matching: .accessibilityIdentifier(EditorTopToolbar.projectSwitcherAccessibilityIdentifier))
         #expect(abs(search.absoluteFrame.midX - size.width / 2) < 0.5)
         #expect(search.absoluteFrame.width == metrics.toolbarSearchWidth)
+        #expect(projectSwitcher.absoluteFrame.minX >= metrics.toolbarWindowControlClearance)
+        #expect(projectSwitcher.absoluteFrame.maxX < search.absoluteFrame.minX)
     }
 
     @Test("desktop grid dimensions match the requested IDE layout")
     func desktopGridDimensions() {
-        #expect(AdaEngineStyleLayoutSpec.topToolbarHeight == 52)
+        #expect(AdaEngineStyleLayoutSpec.topToolbarHeight == 40)
         #expect(AdaEngineStyleLayoutSpec.toolStripWidth == 40)
         #expect(AdaEngineStyleLayoutSpec.panelSpacing == 8)
         #expect(AdaEngineStyleLayoutSpec.projectSidebarWidth == 260)
@@ -540,6 +565,8 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.toolStrip.activeLeftTopTool == "fileTree")
         #expect(viewModel.toolStrip.activeLeftBottomTool == "logs")
         #expect(viewModel.toolStrip.activeRightTool == "agentChat")
+        #expect(!viewModel.showRightPanel)
+        #expect(!viewModel.isRightToolPresented(AdaEngineStyleContent.rightSidebarTools[0]))
         #expect(viewModel.toolStrip.leftTopTools == AdaEngineStyleContent.leftTopSidebarTools)
         #expect(viewModel.toolStrip.leftBottomTools == AdaEngineStyleContent.leftBottomSidebarTools)
         #expect(viewModel.toolStrip.rightTools == AdaEngineStyleContent.rightSidebarTools)
@@ -1110,6 +1137,43 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Sources/Game/main.swift" })
     }
 
+    @Test("project sidebar defaults to target roots and can show all files")
+    @MainActor
+    func projectSidebarDisplayModeFiltersToTargets() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorProjectSidebarTargets")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        let gameURL = rootURL.appendingPathComponent("Sources/Game", isDirectory: true)
+        let toolsURL = rootURL.appendingPathComponent("Sources/Tools", isDirectory: true)
+        let assetsURL = rootURL.appendingPathComponent("Assets/Scenes", isDirectory: true)
+        try FileManager.default.createDirectory(at: gameURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: toolsURL, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: assetsURL, withIntermediateDirectories: true)
+        try "print(\"game\")\n".write(to: gameURL.appendingPathComponent("main.swift"), atomically: true, encoding: .utf8)
+        try "print(\"tool\")\n".write(to: toolsURL.appendingPathComponent("tool.swift"), atomically: true, encoding: .utf8)
+        try "scene: Main\n".write(to: assetsURL.appendingPathComponent("Main.ascn"), atomically: true, encoding: .utf8)
+        try "# Project\n".write(to: rootURL.appendingPathComponent("README.md"), atomically: true, encoding: .utf8)
+        try "// package\n".write(to: rootURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+
+        let viewModel = EditorViewModel(project: EditorProjectReference(name: "EditorProjectSidebarTargets", path: rootURL.path))
+
+        #expect(viewModel.projectSidebar.displayMode == .targets)
+        #expect(viewModel.projectSidebar.visibleItems.map(\.relativePath) == [
+            "Assets",
+            "Assets/Scenes",
+            "Assets/Scenes/Main.ascn",
+            "Sources/Game",
+            "Sources/Game/main.swift",
+            "Sources/Tools",
+            "Sources/Tools/tool.swift",
+        ])
+
+        viewModel.projectSidebar.selectDisplayMode(.files)
+        #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Sources" })
+        #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "README.md" })
+        #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Package.swift" })
+    }
+
     @Test("toolbar search finds nested project files and supports a folder scope")
     @MainActor
     func toolbarSearchFindsProjectFiles() throws {
@@ -1174,6 +1238,8 @@ struct AdaEngineStyleUITests {
             (.swift, "Player", "Player.swift"),
             (.plainText, "Notes", "Notes.txt"),
         ]
+        #expect(EditorNewFileKind.script.title == "Ada Script")
+        #expect(EditorNewFileKind.script.detail == "Gravity script")
 
         for (kind, enteredName, expectedName) in cases {
             viewModel.presentNewFileDialog()
@@ -1190,7 +1256,16 @@ struct AdaEngineStyleUITests {
 
         let scene = try String(contentsOf: sourcesURL.appendingPathComponent("Level.ascn"), encoding: .utf8)
         #expect(scene.contains("format: ada.scene"))
-        #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Movement.ada"), encoding: .utf8) == "// Movement.ada\n")
+        let adaSource = try String(contentsOf: sourcesURL.appendingPathComponent("Movement.ada"), encoding: .utf8)
+        #expect(adaSource == """
+        // Movement.ada
+
+        func main() {
+            return AdaPlugin.create("Movement", []);
+        }
+        """)
+        let gravityPlugin = try GravityScriptPlugin(source: adaSource)
+        #expect(gravityPlugin.descriptor.name == "Movement")
         #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Player.swift"), encoding: .utf8) == "import AdaEngine\n\n")
         #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Notes.txt"), encoding: .utf8).isEmpty)
     }

@@ -103,6 +103,20 @@ struct EditorAgentSceneContext: Codable, Equatable, Sendable {
     }
 }
 
+struct EditorAgentCodeSelectionContext: Equatable, Sendable {
+    var documentTitle: String
+    var documentRelativePath: String
+    var language: String
+    var range: EditorSourceRange
+    var text: String
+
+    var lineDescription: String {
+        let start = range.start.line + 1
+        let end = range.end.line + 1
+        return start == end ? "line \(start)" : "lines \(start)-\(end)"
+    }
+}
+
 private struct EditorAgentSceneEntityPayload: Codable {
     var entity: EditorSceneEntity
 }
@@ -261,6 +275,43 @@ enum EditorAgentChatMode: String, Codable, CaseIterable, Equatable, Sendable {
         case .debug:
             "Debug"
         }
+    }
+}
+
+enum EditorAgentConfigurationCategory: String, Codable, Equatable, Sendable {
+    case mode
+    case model
+    case reasoning
+    case other
+}
+
+struct EditorAgentConfigurationChoice: Codable, Equatable, Identifiable, Sendable {
+    var id: String
+    var name: String
+    var description: String?
+}
+
+struct EditorAgentConfigurationSelector: Codable, Equatable, Identifiable, Sendable {
+    var id: String
+    var name: String
+    var category: EditorAgentConfigurationCategory
+    var currentValueID: String
+    var choices: [EditorAgentConfigurationChoice]
+    var usesLegacyMethod: Bool
+
+    var currentChoice: EditorAgentConfigurationChoice? {
+        choices.first { $0.id == currentValueID }
+    }
+}
+
+struct EditorAgentSessionConfiguration: Codable, Equatable, Sendable {
+    var agentName: String?
+    var selectors: [EditorAgentConfigurationSelector]
+
+    static let empty = EditorAgentSessionConfiguration(agentName: nil, selectors: [])
+
+    func selector(category: EditorAgentConfigurationCategory) -> EditorAgentConfigurationSelector? {
+        selectors.first { $0.category == category }
     }
 }
 

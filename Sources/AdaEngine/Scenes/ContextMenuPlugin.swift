@@ -303,6 +303,7 @@ private struct ContextMenuWindowContent: View {
                     .font(.system(size: 13))
                     .foregroundColor(item.role == .destructive ? destructiveTextColor : primaryTextColor)
                     .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 Spacer()
                 if !item.submenu.isEmpty {
                     Text(">")

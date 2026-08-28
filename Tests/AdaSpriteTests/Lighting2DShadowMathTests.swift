@@ -3,7 +3,7 @@
 //  AdaEngine
 //
 
-import AdaSprite
+@testable import AdaSprite
 import Math
 import Testing
 
@@ -50,5 +50,55 @@ struct Lighting2DShadowMathTests {
             lightDirection: Vector2(0, -1)
         )
         #expect(quads.isEmpty)
+    }
+
+    @Test
+    func preparedShadowRangesKeepPerLightGeometryDisjoint() throws {
+        let polygon: [Vector2] = [
+            Vector2(0, 60),
+            Vector2(80, 60),
+            Vector2(80, 80),
+            Vector2(0, 80),
+        ]
+        let lights = [
+            ExtractedLight2DInstance(
+                worldPosition: Vector2(0, 40),
+                kind: .point,
+                color: .white,
+                energy: 1,
+                direction: Vector2(0, -1),
+                radius: 320,
+                spotAngle: 0,
+                texture: nil,
+                castsShadows: true
+            ),
+            ExtractedLight2DInstance(
+                worldPosition: .zero,
+                kind: .directional,
+                color: .white,
+                energy: 1,
+                direction: Vector2(0.4, -0.9),
+                radius: 0,
+                spotAngle: 0,
+                texture: nil,
+                castsShadows: true
+            ),
+        ]
+        let occluders = [
+            ExtractedOccluder2DInstance(worldPointsCCW: polygon, isEnabled: true),
+        ]
+        var scratch = Lighting2DGPUScratch()
+
+        scratch.prepareShadowVertices(lights: lights, occluders: occluders)
+
+        let pointRange = try #require(scratch.shadowVertexRanges.first)
+        let directionalRange = try #require(scratch.shadowVertexRanges.last)
+        #expect(!pointRange.isEmpty)
+        #expect(!directionalRange.isEmpty)
+        #expect(pointRange.upperBound == directionalRange.lowerBound)
+
+        let pointVertices = scratch.shadowVerts.elements[pointRange].map(\.position)
+        let directionalVertices = scratch.shadowVerts.elements[directionalRange].map(\.position)
+        #expect(pointVertices != directionalVertices)
     }
 }

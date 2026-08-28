@@ -31,16 +31,20 @@ struct EditorProjectStoreTests {
         let manifest = try String(contentsOf: projectURL.appendingPathComponent("Package.swift"), encoding: .utf8)
         #expect(manifest.contains(#".package(name: "AdaEngine", path: "\#(adaEnginePackageURL().path)")"#))
         #expect(!manifest.contains(#".package(path: "../../AdaEngine")"#))
-        #expect(manifest.contains(#"path: ".""#))
+        #expect(!manifest.contains(#"path: ".""#))
         #expect(manifest.contains(#".executable(name: "My-Game", targets: ["My_Game"])"#))
+        #expect(manifest.contains(".macOS(.v15)"))
         #expect(manifest.contains(".executableTarget(\n            name: \"My_Game\""))
-        #expect(manifest.contains(#"sources: ["Sources/My_Game"]"#))
-        #expect(manifest.contains(#"resources: [.copy("Assets")]"#))
+        #expect(!manifest.contains("\n            sources:"))
+        #expect(manifest.contains(#"resources: [.copy("../../Assets")]"#))
+        #expect(manifest.contains(#"plugins: [.plugin(name: "AdaScriptBuildPlugin", package: "AdaEngine")]"#))
         #expect(ProjectSystem.isAdaProject(at: projectURL))
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("README.md").path))
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Assets", isDirectory: true).appendingPathComponent(".gitkeep").path))
         let main = try String(contentsOf: projectURL.appendingPathComponent("Sources/My_Game/main.swift"), encoding: .utf8)
-        #expect(main.contains("WindowGroup(assetBundle: .module)"))
+        #expect(main.contains("try await Game.main()"))
+        #expect(main.contains("assetBundle: .module"))
+        #expect(main.contains(".addPlugins(AdaScriptPluginsGenerated())"))
         let sceneURL = projectURL.appendingPathComponent("Assets/Scenes/Main.ascn", isDirectory: false)
         #expect(FileManager.default.fileExists(atPath: sceneURL.path))
         #expect(try String(contentsOf: sceneURL, encoding: .utf8).contains("format: ada.scene"))
@@ -154,6 +158,53 @@ struct EditorProjectStoreTests {
         #expect(ProjectOpeningViewModel.abbreviatedPath(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("AdaProjects/Neon").path).hasPrefix("~/"))
     }
 
+    @Test("editor project switcher filters recents and excludes the current project")
+    @MainActor
+    func editorProjectSwitcherFiltersRecentProjects() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectSwitcherFilter")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let current = EditorProjectReference(name: "CurrentGame", path: rootURL.appendingPathComponent("CurrentGame").path)
+        let other = EditorProjectReference(name: "OtherGame", path: rootURL.appendingPathComponent("OtherGame").path)
+        try store.saveProjects([current, other])
+        let viewModel = EditorProjectSwitcherViewModel(currentProject: current, store: store)
+
+        viewModel.toggle()
+        #expect(viewModel.isPresented)
+        #expect(viewModel.filteredRecentProjects.map(\.name) == ["OtherGame"])
+
+        viewModel.searchText = "missing"
+        #expect(viewModel.filteredRecentProjects.isEmpty)
+
+        viewModel.toggle()
+        #expect(!viewModel.isPresented)
+        #expect(viewModel.searchText.isEmpty)
+    }
+
+    @Test("editor project switcher opens a real recent Ada project")
+    @MainActor
+    func editorProjectSwitcherOpensRecentProject() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectSwitcherOpen")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+
+        let projectURL = rootURL.appendingPathComponent("SwitchTarget", isDirectory: true)
+        try createSwiftPMManifest(at: projectURL)
+        _ = try ProjectSystem.createDefaultProject(at: projectURL)
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let recent = EditorProjectReference(name: "SwitchTarget", path: projectURL.path)
+        try store.saveProjects([recent])
+        let current = EditorProjectReference(name: "CurrentGame", path: rootURL.appendingPathComponent("CurrentGame").path)
+        let viewModel = EditorProjectSwitcherViewModel(currentProject: current, store: store)
+
+        viewModel.toggle()
+        let opened = try #require(viewModel.projectForOpening(recent))
+
+        #expect(opened.path == projectURL.standardizedFileURL.path)
+        #expect(!viewModel.isPresented)
+        #expect(try store.loadProjects().first?.path == projectURL.standardizedFileURL.path)
+    }
+
     @Test("create blank template requires explicit location before editor handoff")
     @MainActor
     func projectOpeningViewModelRequiresLocationBeforeCreate() throws {
@@ -261,7 +312,7 @@ struct EditorProjectStoreTests {
     func editorGlassLayoutMatchesRequestedReference() {
         #expect(AdaEngineStyleLayoutSpec.windowWidth == 1280)
         #expect(AdaEngineStyleLayoutSpec.windowHeight == 820)
-        #expect(AdaEngineStyleLayoutSpec.topToolbarHeight == 52)
+        #expect(AdaEngineStyleLayoutSpec.topToolbarHeight == 40)
         #expect(AdaEngineStyleLayoutSpec.toolStripWidth == 40)
         #expect(AdaEngineStyleLayoutSpec.projectSidebarWidth == 260)
         #expect(AdaEngineStyleLayoutSpec.inspectorWidth == 300)
@@ -484,7 +535,7 @@ struct EditorProjectStoreTests {
         #expect(manifest.contains(#"resources: [.copy("Assets"), .copy("Localization")]"#))
     }
 
-    @Test("standard implicit target migrates to package root and remains a valid SwiftPM manifest")
+    @Test("standard implicit target keeps its source root and uses a relative project resource")
     func standardTargetSettingsRemainValidSwiftPM() throws {
         let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreStandardTarget")
         defer { removeEditorStoreTemporaryDirectory(rootURL) }
@@ -513,9 +564,9 @@ struct EditorProjectStoreTests {
         try store.saveProjectSettings(project, at: projectURL, targetName: "Game")
 
         let manifest = try String(contentsOf: projectURL.appendingPathComponent("Package.swift"), encoding: .utf8)
-        #expect(manifest.contains(#"path: ".""#))
-        #expect(manifest.contains(#"sources: ["Sources/Game"]"#))
-        #expect(manifest.contains(#"resources: [.copy("Assets")]"#))
+        #expect(!manifest.contains(#"path: ".""#))
+        #expect(!manifest.contains("\n            sources:"))
+        #expect(manifest.contains(#"resources: [.copy("../../Assets")]"#))
         let dumpResult = try runSwiftPackageDump(at: projectURL)
         #expect(dumpResult.status == 0, Comment(rawValue: dumpResult.error))
     }
