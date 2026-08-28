@@ -170,6 +170,12 @@ struct EditorView: View {
         }
         .menuBar(EditorMenuBar.makeMenus())
         .keyboardShortcuts(editorKeyboardShortcuts)
+        .onChange(of: viewModel.settingsPresentationToken) { _, _ in
+            guard let section = viewModel.requestedSettingsSection else {
+                return
+            }
+            EditorSettingsWindowController.open(editorViewModel: viewModel, selectedSection: section)
+        }
         .onAppear {
             EditorMenuCommandRouter.shared.install(owner: viewModel) { [weak viewModel] command in
                 viewModel?.handleMenuCommand(command) ?? false

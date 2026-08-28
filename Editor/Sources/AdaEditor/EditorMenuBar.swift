@@ -10,6 +10,7 @@ import AppKit
 
 @MainActor
 enum EditorMenuCommand: CaseIterable {
+    case showSettings
     case newFile, newProject, openProject, importAssets, save, saveAll, closeEditor
     case undo, redo, cut, copy, paste, selectAll, findInProject
     case navigateBack, navigateForward, showProjectNavigator, showInspector, showBuildOutput, showProblems, enterFullScreen
@@ -99,7 +100,13 @@ private extension EditorMenuCommand {
 @MainActor
 enum EditorMenuBar {
     static func makeMenus() -> [UIMenu] {
-        [fileMenu(), editMenu(), viewMenu(), projectMenu(), buildMenu(), codeMenu(), windowMenu(), helpMenu()]
+        [systemMenu(), fileMenu(), editMenu(), viewMenu(), projectMenu(), buildMenu(), codeMenu(), windowMenu(), helpMenu()]
+    }
+
+    private static func systemMenu() -> UIMenu {
+        let menu = UIMenu(title: "System", placement: .application)
+        menu.add(item("Settings...", command: .showSettings, key: .comma))
+        return menu
     }
 
     private static func fileMenu() -> UIMenu {

@@ -830,12 +830,13 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
 
     private var menu: NSMenu {
         if let mainMenu = NSApp.mainMenu {
+            ensureApplicationMenu(in: mainMenu)
             return mainMenu
         }
 
         let mainMenu = NSMenu(title: "")
-        mainMenu.addItem(makeApplicationMenuItem())
         NSApp.mainMenu = mainMenu
+        ensureApplicationMenu(in: mainMenu)
         return mainMenu
     }
 
@@ -847,6 +848,21 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
         menu.setMenuOwner(self)
         remove(menu.id)
 
+        if menu.placement == .application,
+           let applicationMenu = self.menu.items.first?.submenu {
+            let insertionIndex = min(2, applicationMenu.items.count)
+            var items = menu.items.map(makeNSMenuItem(from:))
+            if !items.isEmpty, items.last?.isSeparatorItem != true {
+                let separator = NSMenuItem.separator()
+                separator.identifier = NSUserInterfaceItemIdentifier(menu.id)
+                items.append(separator)
+            }
+            for (offset, item) in items.enumerated() {
+                applicationMenu.insertItem(item, at: insertionIndex + offset)
+            }
+            return
+        }
+
         let nsMenu = makeNSMenu(from: menu)
 
         let menuItem = NSMenuItem()
@@ -857,11 +873,19 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
     }
 
     func remove(_ menu: UIMenu.ID) {
-        guard let item = self.menu.items.first(where: { $0.title == menu }) else {
-            return
+        if let item = self.menu.items.first(where: { $0.title == menu }) {
+            self.menu.removeItem(item)
         }
 
-        self.menu.removeItem(item)
+        guard let applicationMenu = self.menu.items.first?.submenu else {
+            return
+        }
+        for item in applicationMenu.items.reversed() {
+            guard item.identifier?.rawValue == menu else {
+                continue
+            }
+            applicationMenu.removeItem(item)
+        }
     }
 
     func setNeedsUpdate() {
@@ -896,6 +920,7 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
 
         let nsItem = NSMenuItem()
         nsItem.title = item.title
+        nsItem.identifier = item.menu.map { NSUserInterfaceItemIdentifier($0.id) }
         nsItem.target = self
         nsItem.action = #selector(onActionPressed)
         nsItem.submenu = item.submenu.flatMap { self.makeNSMenu(from: $0) }
@@ -951,15 +976,46 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
         }
     }
 
-    private func makeApplicationMenuItem() -> NSMenuItem {
-        let appName = ProcessInfo.processInfo.processName
-        let appMenu = NSMenu(title: appName)
+    private var applicationName: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? ProcessInfo.processInfo.processName
+    }
+
+    private func ensureApplicationMenu(in mainMenu: NSMenu) {
+        let appName = applicationName
+        if let applicationMenuItem = mainMenu.items.first,
+           let applicationMenu = applicationMenuItem.submenu {
+            applicationMenuItem.title = appName
+            applicationMenu.title = appName
+            if applicationMenu.items.isEmpty {
+                populateApplicationMenu(applicationMenu, appName: appName)
+            }
+            return
+        }
+
+        let applicationMenu = NSMenu(title: appName)
+        let applicationMenuItem = NSMenuItem(title: appName, action: nil, keyEquivalent: "")
+        mainMenu.insertItem(applicationMenuItem, at: 0)
+        mainMenu.setSubmenu(applicationMenu, for: applicationMenuItem)
+        populateApplicationMenu(applicationMenu, appName: appName)
+    }
+
+    private func populateApplicationMenu(_ appMenu: NSMenu, appName: String) {
         appMenu.addItem(
             withTitle: "About \(appName)",
             action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
             keyEquivalent: ""
         )
         appMenu.addItem(.separator())
+
+        let servicesMenu = NSMenu(title: "Services")
+        let servicesItem = NSMenuItem(title: "Services", action: nil, keyEquivalent: "")
+        servicesItem.submenu = servicesMenu
+        appMenu.addItem(servicesItem)
+        NSApp.servicesMenu = servicesMenu
+        appMenu.addItem(.separator())
+
         appMenu.addItem(
             withTitle: "Hide \(appName)",
             action: #selector(NSApplication.hide(_:)),
@@ -981,10 +1037,6 @@ final class MacOSUIMenuBuilder: UIMenuBuilder {
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
-
-        let appMenuItem = NSMenuItem()
-        appMenuItem.submenu = appMenu
-        return appMenuItem
     }
 
     @objc func onActionPressed(_ nsItem: NSMenuItem) {

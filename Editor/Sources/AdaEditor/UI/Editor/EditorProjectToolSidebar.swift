@@ -80,26 +80,6 @@ struct EditorProjectToolSidebar: View {
                     }
                 }
             }
-        case "projectSettings":
-            section("RESOURCE ROOTS") {
-                row("Comma or newline separated project-relative folders.")
-                input("Assets, Localization", text: viewModel.projectResourceRootsBinding)
-            }
-            section("BUILD FILE SELECTION") {
-                row("Included files/directories")
-                input("Sources/Game, Sources/Shared.swift", text: viewModel.projectIncludedFilesBinding)
-                row("Excluded files/directories")
-                input("Sources/Game/Drafts", text: viewModel.projectExcludedFilesBinding)
-            }
-            section("RUN DESTINATION") {
-                row("Selected in the toolbar: \(viewModel.selectedRunDestination.rawValue)")
-            }
-            section("SAVE") {
-                command("Save Project Settings") { viewModel.saveProjectSettings() }
-                if !viewModel.projectSettingsStatusMessage.isEmpty {
-                    row(viewModel.projectSettingsStatusMessage)
-                }
-            }
         default:
             section("STATUS") {
                 row(viewModel.workspaceStatus.title)

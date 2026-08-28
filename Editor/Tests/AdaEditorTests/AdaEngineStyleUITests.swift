@@ -780,9 +780,39 @@ struct AdaEngineStyleUITests {
         #expect(!viewModel.showRightPanel)
         #expect(!viewModel.isRightToolPresented(inspector))
         viewModel.activateRightTool(settings)
-        #expect(viewModel.showRightPanel)
-        #expect(viewModel.toolStrip.activeRightTool == "projectSettings")
-        #expect(viewModel.isRightToolPresented(settings))
+        #expect(!viewModel.showRightPanel)
+        #expect(viewModel.toolStrip.activeRightTool == "inspector")
+        #expect(!viewModel.isRightToolPresented(settings))
+        #expect(viewModel.requestedSettingsSection == .project)
+        #expect(viewModel.settingsPresentationToken == 1)
+    }
+
+    @Test("settings commands request the separate settings window")
+    @MainActor
+    func settingsCommandsRequestSeparateWindow() {
+        let viewModel = EditorViewModel()
+
+        #expect(viewModel.handleMenuCommand(.showSettings))
+        #expect(viewModel.requestedSettingsSection == .general)
+        #expect(viewModel.settingsPresentationToken == 1)
+        #expect(!viewModel.showRightPanel)
+
+        #expect(viewModel.handleMenuCommand(.showProjectSettings))
+        #expect(viewModel.requestedSettingsSection == .project)
+        #expect(viewModel.settingsPresentationToken == 2)
+        #expect(!viewModel.showRightPanel)
+    }
+
+    @Test("settings search filters navigation sections")
+    @MainActor
+    func settingsSearchFiltersNavigationSections() {
+        let editorViewModel = EditorViewModel()
+        let settingsViewModel = EditorSettingsWindowViewModel(editorViewModel: editorViewModel, selectedSection: .general)
+
+        #expect(settingsViewModel.filteredSections == [.general, .project, .agent])
+        settingsViewModel.searchText = "agent"
+        #expect(settingsViewModel.filteredSections == [.agent])
+        #expect(settingsViewModel.editorViewModel === editorViewModel)
     }
 
     @Test("workbench closes tabs and keeps a valid active document")

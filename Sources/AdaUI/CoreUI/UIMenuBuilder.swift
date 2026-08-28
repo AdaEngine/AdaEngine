@@ -126,10 +126,20 @@ public final class MenuItem: Identifiable {
 @MainActor
 public class UIMenu: Identifiable {
 
+    /// The native menu surface where the menu is presented.
+    public enum Placement: Equatable, Sendable {
+        /// Present the menu as a regular top-level menu.
+        case automatic
+        /// Merge the menu's items into the platform application menu when available.
+        case application
+    }
+
     /// The menu’s identifier.
     public let id: String
     /// The menu’s title.
     public let title: String
+    /// The native menu surface where the menu is presented.
+    public let placement: Placement
 
     /// The menu builder that owns the menu.
     public private(set) weak var menuBuilder: UIMenuBuilder?
@@ -142,10 +152,13 @@ public class UIMenu: Identifiable {
 
     /// Initialize a new menu.
     ///
-    /// - Parameter title: The menu’s title.
-    public init(title: String) {
+    /// - Parameters:
+    ///   - title: The menu’s title.
+    ///   - placement: The native menu surface where the menu is presented.
+    public init(title: String, placement: Placement = .automatic) {
         self.id = title
         self.title = title
+        self.placement = placement
     }
 
     /// Add a new menu item.

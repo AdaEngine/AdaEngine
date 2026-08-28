@@ -1588,6 +1588,8 @@ final class EditorViewModel {
     var newFileName = ""
     var newFileDestinationRelativePath = ""
     var newFileErrorMessage: String?
+    var requestedSettingsSection: EditorSettingsSection?
+    var settingsPresentationToken = 0
     
     var showLeftPanel = true
     var showRightPanel = true
@@ -2281,6 +2283,8 @@ final class EditorViewModel {
     @discardableResult
     func handleMenuCommand(_ command: EditorMenuCommand) -> Bool {
         switch command {
+        case .showSettings:
+            presentSettings(.general)
         case .newFile:
             presentNewFileDialog()
         case .newProject:
@@ -2318,8 +2322,7 @@ final class EditorViewModel {
         case .openProjectInTerminal:
             if let projectURL { _ = EditorPlatformFileActions.openInTerminal(projectURL) }
         case .showProjectSettings:
-            toolStrip.activeRightTool = "projectSettings"
-            showRightPanel = true
+            presentSettings(.project)
         case .showProjectDependencies:
             toolStrip.activeRightTool = "projectDependencies"
             showRightPanel = true
@@ -2577,6 +2580,14 @@ final class EditorViewModel {
     }
 
     func activateRightTool(_ item: EditorToolStripItem) {
+        switch item.identifier {
+        case "projectSettings":
+            presentSettings(.project)
+            return
+        default:
+            break
+        }
+
         if toolStrip.activeRightTool == item.identifier && showRightPanel {
             showRightPanel = false
             return
@@ -2584,6 +2595,12 @@ final class EditorViewModel {
 
         toolStrip.selectRightTool(item)
         showRightPanel = true
+    }
+
+    func presentSettings(_ section: EditorSettingsSection) {
+        requestedSettingsSection = section
+        settingsPresentationToken += 1
+        showRightPanel = false
     }
 
     func isLeftTopToolPresented(_ item: EditorToolStripItem) -> Bool {

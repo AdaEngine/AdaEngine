@@ -17,6 +17,14 @@ final class EditorAgentViewModel {
     var selectedSkillIDs: Set<String> = []
     var statusMessage: String?
     var isSending = false
+    var agentEnabled = false
+    var agentCommand = ""
+    var agentArguments = ""
+    var agentWorkingDirectory = ""
+    var agentEnvironment = ""
+    var agentSkillsDirectories = ""
+    var agentPermissionMode = AdaProjectAgentPermissionMode.allowOnce
+    var settingsStatusMessage = ""
 
     @ObservationIgnored
     private let project: EditorProjectReference?
@@ -62,6 +70,26 @@ final class EditorAgentViewModel {
         )
     }
 
+    var agentCommandBinding: Binding<String> {
+        Binding(get: { self.agentCommand }, set: { self.agentCommand = $0 })
+    }
+
+    var agentArgumentsBinding: Binding<String> {
+        Binding(get: { self.agentArguments }, set: { self.agentArguments = $0 })
+    }
+
+    var agentWorkingDirectoryBinding: Binding<String> {
+        Binding(get: { self.agentWorkingDirectory }, set: { self.agentWorkingDirectory = $0 })
+    }
+
+    var agentEnvironmentBinding: Binding<String> {
+        Binding(get: { self.agentEnvironment }, set: { self.agentEnvironment = $0 })
+    }
+
+    var agentSkillsDirectoriesBinding: Binding<String> {
+        Binding(get: { self.agentSkillsDirectories }, set: { self.agentSkillsDirectories = $0 })
+    }
+
     var canSend: Bool {
         !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
     }
@@ -95,6 +123,7 @@ final class EditorAgentViewModel {
                 fileManager: fileManager
             )
             connectionState = projectConfig.ai.agent.enabled ? .disconnected : .failed("Agent is disabled in project metadata.")
+            loadSettings(from: projectConfig.ai.agent)
         }
 
         Task {
@@ -178,6 +207,51 @@ final class EditorAgentViewModel {
         }
         Task {
             await sendPromptAsync()
+        }
+    }
+
+    func toggleAgentEnabled() {
+        agentEnabled.toggle()
+    }
+
+    func selectPermissionMode(_ mode: AdaProjectAgentPermissionMode) {
+        agentPermissionMode = mode
+    }
+
+    func saveAgentSettings() {
+        guard let projectURL, var projectConfig else {
+            settingsStatusMessage = "No project is open."
+            return
+        }
+
+        let environment = Self.environment(from: agentEnvironment)
+        projectConfig.ai.agent = AdaProjectAgent(
+            enabled: agentEnabled,
+            target: AdaProjectAgentTarget(
+                command: agentCommand.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                arguments: Self.lineList(from: agentArguments),
+                environment: environment,
+                cwd: agentWorkingDirectory.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            ),
+            permissionMode: agentPermissionMode,
+            skillsDirectories: Self.lineList(from: agentSkillsDirectories)
+        )
+
+        do {
+            try ProjectSystem.saveProject(projectConfig, at: projectURL, fileManager: fileManager)
+            self.projectConfig = projectConfig
+            availableSkills = EditorAgentSkillStore.discoverSkills(
+                projectURL: projectURL,
+                directories: projectConfig.ai.agent.skillsDirectories,
+                fileManager: fileManager
+            )
+            settingsStatusMessage = "Agent connection saved to .ada/project.json."
+            Task {
+                await service.shutdown()
+                connectionState = agentEnabled ? .disconnected : .failed("Agent is disabled in project metadata.")
+            }
+        } catch {
+            settingsStatusMessage = "Failed to save agent settings: \(error.localizedDescription)"
         }
     }
 
@@ -301,6 +375,41 @@ final class EditorAgentViewModel {
 
         isSending = false
         await saveActiveSession()
+    }
+
+    private func loadSettings(from configuration: AdaProjectAgent) {
+        agentEnabled = configuration.enabled
+        agentCommand = configuration.target.command ?? ""
+        agentArguments = configuration.target.arguments.joined(separator: "\n")
+        agentWorkingDirectory = configuration.target.cwd ?? ""
+        agentEnvironment = configuration.target.environment
+            .sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }
+            .joined(separator: "\n")
+        agentSkillsDirectories = configuration.skillsDirectories.joined(separator: "\n")
+        agentPermissionMode = configuration.permissionMode
+    }
+
+    private static func lineList(from text: String) -> [String] {
+        text.components(separatedBy: CharacterSet.newlines.union(CharacterSet(charactersIn: ",")))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private static func environment(from text: String) -> [String: String] {
+        var result: [String: String] = [:]
+        for line in lineList(from: text) {
+            guard let separator = line.firstIndex(of: "=") else {
+                continue
+            }
+            let key = line[..<separator].trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = line[line.index(after: separator)...].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else {
+                continue
+            }
+            result[key] = value
+        }
+        return result
     }
 
     private func appendEvent(_ event: EditorAgentEvent) {

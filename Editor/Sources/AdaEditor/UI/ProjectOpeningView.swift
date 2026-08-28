@@ -108,11 +108,15 @@ struct ProjectOpeningView: View {
             EditorMenuCommandRouter.shared.install(owner: viewModel) { [weak viewModel] command in
                 guard let viewModel else { return false }
                 switch command {
+                case .showSettings:
+                    EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: .general)
                 case .newProject:
                     viewModel.beginCreateNewProject()
                 case .openProject:
                     guard let url = ProjectOpenPicker.pickProjectURL() else { return true }
                     viewModel.openProject(at: url)
+                case .showProjectSettings:
+                    EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: .project)
                 default:
                     return false
                 }
@@ -157,7 +161,7 @@ struct ProjectOpeningView: View {
 
             Spacer()
             Button {
-                viewModel.statusMessage = "Project settings are not implemented yet."
+                EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: .general)
             } label: {
                 launcherNavItem("⚙", active: false)
             }

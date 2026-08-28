@@ -259,6 +259,38 @@ struct EditorAgentTests {
 
         #expect(viewModel.agent.sceneContext == nil)
     }
+
+    @Test("agent settings persist to real project metadata")
+    @MainActor
+    func agentSettingsPersistToProjectMetadata() throws {
+        let rootURL = try makeAgentTemporaryDirectory(named: "AgentSettings")
+        defer { removeAgentTemporaryDirectory(rootURL) }
+        try "// swift-tools-version: 6.2\n".write(to: rootURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        try writeProjectMetadata(ProjectSystem.defaultProject(projectName: "AgentSettings"), to: rootURL)
+
+        let viewModel = EditorAgentViewModel(
+            project: EditorProjectReference(name: "AgentSettings", path: rootURL.path, lastOpenedAt: Date()),
+            service: FakeEditorAgentService()
+        )
+        viewModel.agentEnabled = true
+        viewModel.agentCommand = "/usr/local/bin/codex-acp"
+        viewModel.agentArguments = "--stdio, --profile=editor"
+        viewModel.agentWorkingDirectory = "Tools"
+        viewModel.agentEnvironment = "OPENAI_ORGANIZATION=ada, LOG_LEVEL=info"
+        viewModel.agentSkillsDirectories = ".skills, .codex/skills"
+        viewModel.agentPermissionMode = .deny
+
+        viewModel.saveAgentSettings()
+
+        let saved = try ProjectSystem.loadProject(at: rootURL)
+        #expect(saved.ai.agent.enabled)
+        #expect(saved.ai.agent.target.command == "/usr/local/bin/codex-acp")
+        #expect(saved.ai.agent.target.arguments == ["--stdio", "--profile=editor"])
+        #expect(saved.ai.agent.target.cwd == "Tools")
+        #expect(saved.ai.agent.target.environment == ["OPENAI_ORGANIZATION": "ada", "LOG_LEVEL": "info"])
+        #expect(saved.ai.agent.skillsDirectories == [".skills", ".codex/skills"])
+        #expect(saved.ai.agent.permissionMode == .deny)
+    }
 }
 
 private actor FakeEditorAgentService: EditorAgentServicing {
