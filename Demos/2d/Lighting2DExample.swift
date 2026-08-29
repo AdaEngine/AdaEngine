@@ -17,6 +17,8 @@ struct Lighting2DExampleApp: App {
 
 private struct Lighting2DExamplePlugin: Plugin {
     func setup(in app: borrowing AppWorlds) {
+        app.main.addSystem(MovePointLightSystem.self)
+
         let white = AssetHandle(Texture2D.whiteTexture)
 
         app.spawn {
@@ -47,14 +49,20 @@ private struct Lighting2DExamplePlugin: Plugin {
         }
 
         app.spawn {
+            Sprite(
+                texture: white,
+                tintColor: Color(red: 1, green: 0.72, blue: 0.28),
+                size: Size(width: 14, height: 14)
+            )
             Light2D(
                 kind: .point,
                 color: Color(red: 1, green: 0.85, blue: 0.6),
-                energy: 2,
+                energy: 5,
                 radius: 360,
                 castsShadows: true
             )
-            Transform(position: Vector3(-140, 100, 5))
+            Transform(position: Vector3(0, 110, 5))
+            MovingPointLight()
         }
 
         app.spawn {
@@ -71,5 +79,26 @@ private struct Lighting2DExamplePlugin: Plugin {
 
         let camera = app.main.spawn(bundle: Camera2D())
         camera.components += LightModulate2D(color: Color(red: 0.14, green: 0.16, blue: 0.22))
+    }
+}
+
+@Component
+struct MovingPointLight {}
+
+@PlainSystem
+struct MovePointLightSystem {
+    @FilterQuery<Ref<Transform>, With<MovingPointLight>>
+    private var lights
+
+    @Res<ElapsedTime>
+    private var time
+
+    init(world: World) {}
+
+    func update(context: UpdateContext) {
+        lights.forEach { transform in
+            transform.position.x = Math.sin(time.elapsedTime * 0.65) * 230
+            transform.position.y = Math.cos(time.elapsedTime * 0.9) * 110
+        }
     }
 }

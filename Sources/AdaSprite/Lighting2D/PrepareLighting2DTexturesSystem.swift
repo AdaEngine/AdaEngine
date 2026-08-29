@@ -54,7 +54,7 @@ public struct PrepareLighting2DTexturesSystem {
                 renderViewTarget.lightAccumTexture = RenderTexture(
                     size: size,
                     scaleFactor: scale,
-                    format: .bgra8,
+                    format: .rgba_16f,
                     debugLabel: "2D Lighting Accum"
                 )
             }

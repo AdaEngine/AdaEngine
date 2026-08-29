@@ -73,7 +73,7 @@ public struct Light2DRenderPipelines: Resource {
         )
         pointDesc.colorAttachments = [
             RenderPipelineColorAttachmentDescriptor(
-                format: .bgra8,
+                format: .rgba_16f,
                 isBlendingEnabled: true,
                 sourceRGBBlendFactor: .one,
                 sourceAlphaBlendFactor: .one,

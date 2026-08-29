@@ -12,7 +12,7 @@ import Foundation
 private enum GameTuning {
     static let playfieldHalfWidth: Float = 500
     static let playfieldHalfHeight: Float = 460
-    static let backgroundScrollSpeed: Float = 5
+    static let backgroundScrollSpeed: Float = 70
     static let backgroundTileSize: Float = 144
     static let backgroundMargin: Float = 24
     static let hudHeight: Float = 108
@@ -65,10 +65,20 @@ struct PlayerComponent { }
 
 @Component
 struct BackgroundTile {
-    let horizontalAnchor: Float
-    let verticalPhase: Float
+    let islandIndex: Int
     let localX: Float
     let localY: Float
+}
+
+struct BackgroundIslandMotion {
+    var progress: Float
+    let horizontalLane: Float
+    var horizontalAnchor: Float
+    var scale: Float
+}
+
+struct BackgroundMotionState: Resource {
+    var islands: [BackgroundIslandMotion]
 }
 
 @Component
@@ -184,25 +194,27 @@ struct SetupSceneSystem {
     }
 
     private func makeLandscapeBackground(from atlas: TextureAtlas, in world: World) {
-        let islands: [(origin: PointInt, horizontalAnchor: Float, verticalPhase: Float)] = [
-            ([1, 3], -1, 0.25),
-            ([7, 3], 1, 0.25),
-            ([1, 3], -1, 0.65),
-            ([7, 3], 1, 0.65)
+        let islandOrigins: [PointInt] = [
+            [1, 3],
+            [7, 3],
+            [1, 3],
+            [7, 3]
         ]
         let islandSize = 3
         let tileSize = GameTuning.backgroundTileSize
+        let motions = islandOrigins.indices.map(makeBackgroundIslandMotion)
+        commands.insertResource(BackgroundMotionState(islands: motions))
 
-        for island in islands {
+        for (islandIndex, origin) in islandOrigins.enumerated() {
             for row in 0..<islandSize {
                 for column in 0..<islandSize {
-                    let atlasRow = island.origin.y + islandSize - row - 1
+                    let atlasRow = origin.y + islandSize - row - 1
                     let localX = Float(column - 1) * tileSize
                     let localY = Float(row - 1) * tileSize
 
                     world.spawn("Scrolling landscape tile") {
                         Sprite(
-                            texture: atlas[island.origin.x + column, atlasRow],
+                            texture: atlas[origin.x + column, atlasRow],
                             size: Size(width: tileSize, height: tileSize)
                         )
                         Transform(position: [
@@ -211,8 +223,7 @@ struct SetupSceneSystem {
                             0.05
                         ])
                         BackgroundTile(
-                            horizontalAnchor: island.horizontalAnchor,
-                            verticalPhase: island.verticalPhase,
+                            islandIndex: islandIndex,
                             localX: localX,
                             localY: localY
                         )
@@ -233,12 +244,12 @@ struct SetupSceneSystem {
         statusAttributes.font = .system(size: 22)
 
         var hintAttributes = TextAttributeContainer()
-        hintAttributes.foregroundColor = .white.opacity(0.72)
+        hintAttributes.foregroundColor = .white
         hintAttributes.font = .system(size: 16)
 
         commands.spawn("HUD backdrop") {
             Sprite(
-                tintColor: Color.fromHex(0x172331).opacity(0.82),
+                tintColor: Color.fromHex(0x172331).opacity(0.12),
                 size: Size(width: 1, height: GameTuning.hudHeight)
             )
             Transform()
@@ -306,8 +317,8 @@ struct SetupSceneSystem {
 func BackgroundScroll(
     _ cameras: Query<Camera>,
     _ tiles: Query<Ref<Transform>, BackgroundTile>,
-    _ elapsedTime: Res<ElapsedTime>,
-    _ delta: Res<DeltaTime>
+    _ motionState: ResMut<BackgroundMotionState>,
+    _ deltaTime: Res<DeltaTime>
 ) {
     guard let camera = cameras.first else {
         return
@@ -322,25 +333,65 @@ func BackgroundScroll(
     let gap = GameTuning.backgroundMargin * 2
     let widthScale = (viewportSize.width - GameTuning.backgroundMargin * 2 - gap) / (baseIslandSize * 2)
     let heightScale = (viewportSize.height - GameTuning.hudHeight - GameTuning.backgroundMargin * 2 - gap) / (baseIslandSize * 2)
-    let islandScale = min(1, max(0.1, min(widthScale, heightScale)))
-    let islandHalfSize = baseIslandSize * islandScale * 0.5
-    let horizontalOffset = max(0, viewportSize.width * 0.5 - islandHalfSize - GameTuning.backgroundMargin)
-    let upperLimit = viewportSize.height * 0.5 + islandHalfSize
-    let lowerLimit = -viewportSize.height * 0.5 - islandHalfSize
-    let wrapDistance = upperLimit - lowerLimit
-    let travel = (GameTuning.backgroundScrollSpeed * elapsedTime.elapsedTime * delta.wrappedValue.deltaTime)
-        .truncatingRemainder(dividingBy: wrapDistance)
+    let viewportScale = min(1, max(0.1, min(widthScale, heightScale)))
+    let delta = min(deltaTime.deltaTime, 1 / 15)
 
-    tiles.forEach { transform, tile in
-        var islandY = upperLimit - tile.verticalPhase * wrapDistance - travel
-        if islandY < lowerLimit {
-            islandY += wrapDistance
+    for index in motionState.islands.indices {
+        var motion = motionState.islands[index]
+        let islandScale = viewportScale * motion.scale
+        let islandHalfSize = baseIslandSize * islandScale * 0.5
+        let wrapDistance = viewportSize.height + islandHalfSize * 2
+
+        motion.progress += GameTuning.backgroundScrollSpeed * delta / wrapDistance
+
+        if motion.progress >= 1 {
+            motion.progress.formTruncatingRemainder(dividingBy: 1)
+            randomizeBackgroundTrajectory(&motion)
         }
 
-        transform.scale = [islandScale, islandScale, 1]
-        transform.position.x = tile.horizontalAnchor * horizontalOffset + tile.localX * islandScale
-        transform.position.y = islandY + tile.localY * islandScale
+        motionState.islands[index] = motion
     }
+
+    let motions = motionState.islands
+
+    tiles.forEach { transform, tile in
+        guard motions.indices.contains(tile.islandIndex) else {
+            return
+        }
+
+        let motion = motions[tile.islandIndex]
+        let islandScale = viewportScale * motion.scale
+        let islandHalfSize = baseIslandSize * islandScale * 0.5
+        let horizontalOffset = max(0, viewportSize.width * 0.5 - islandHalfSize - GameTuning.backgroundMargin)
+        let upperLimit = viewportSize.height * 0.5 + islandHalfSize
+        let lowerLimit = -viewportSize.height * 0.5 - islandHalfSize
+        let wrapDistance = upperLimit - lowerLimit
+
+        transform.scale = [islandScale, islandScale, 1]
+        transform.position.x = motion.horizontalAnchor * horizontalOffset + tile.localX * islandScale
+        transform.position.y = upperLimit - motion.progress * wrapDistance + tile.localY * islandScale
+    }
+}
+
+private func makeBackgroundIslandMotion(_ index: Int) -> BackgroundIslandMotion {
+    let islandCount: Float = 4
+    var motion = BackgroundIslandMotion(
+        progress: (Float(index) + 0.5) / islandCount,
+        horizontalLane: index.isMultiple(of: 2) ? -1 : 1,
+        horizontalAnchor: 0,
+        scale: 1
+    )
+    randomizeBackgroundTrajectory(&motion)
+    return motion
+}
+
+private func randomizeBackgroundTrajectory(_ motion: inout BackgroundIslandMotion) {
+    if motion.horizontalLane < 0 {
+        motion.horizontalAnchor = Float.random(in: -0.88 ... -0.28)
+    } else {
+        motion.horizontalAnchor = Float.random(in: 0.28...0.88)
+    }
+    motion.scale = Float.random(in: 0.78...1)
 }
 
 @System
