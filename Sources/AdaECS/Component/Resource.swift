@@ -43,7 +43,6 @@ public protocol WorldInitable: Sendable {
 // We should register our resources in engine, because we should initiate them in memory
 // This can help to avoid registering resources during runtime.
 extension Resource {
-
     /// Call this method to add resource to the engine.
     /// When engine will initiate resource from scene file, it will try to find
     /// resource in registered list.
@@ -55,7 +54,6 @@ extension Resource {
 }
 
 extension Resource {
-
     static var swiftName: String {
         TypeNameCache.name(for: self)
     }
@@ -67,19 +65,25 @@ extension Resource {
 }
 
 enum ResourceStorage {
-    
+    private static let lock = NSLock()
     nonisolated(unsafe) private static var registeredResources: [String: Resource.Type] = [:]
     
     /// Return registered resource or try to find it by NSClassFromString (works only for objc runtime)
     static func getRegisteredResource(for name: String) -> Resource.Type? {
-        return unsafe self.registeredResources[name] ?? (NSClassFromString(name) as? Resource.Type)
+        let registered = lock.withLock { unsafe registeredResources[name] }
+        return registered ?? (NSClassFromString(name) as? Resource.Type)
     }
     
     static func addResource<T: Resource>(_ type: T.Type) {
-        unsafe self.registeredResources[T.swiftName] = type
+        let name = T.swiftName
+        lock.withLock { unsafe registeredResources[name] = type }
+    }
+
+    static func addResource<T: Resource>(_ type: T.Type, named name: String) {
+        lock.withLock { unsafe registeredResources[name] = type }
     }
 
     static func allRegisteredResources() -> [String: any Resource.Type] {
-        unsafe self.registeredResources
+        lock.withLock { unsafe registeredResources }
     }
 }

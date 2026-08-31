@@ -102,6 +102,11 @@ struct MyGame: App {
 
 Rebuilding the target after adding, removing, renaming, or editing an `.ada` file refreshes the generated source. Files ending in `.gravity` are supported by manual loading but are not discovered by `AdaScriptBuildPlugin`.
 
+The same generated source contains native backing structs and registration for
+scalar `@component` and `@resource` declarations. Because these declarations
+change Swift layout, adding or editing their stored fields requires rebuilding
+the target rather than source-only reload.
+
 ## Register custom components
 
 Ada Script resolves component names while plugins are set up. Register custom Swift components before the generated script plugin:

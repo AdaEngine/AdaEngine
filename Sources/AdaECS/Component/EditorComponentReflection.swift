@@ -171,18 +171,21 @@ public extension EditorEnumReflectable {
 }
 
 public enum EditorComponentReflectionRegistry {
+    private static let lock = NSLock()
     nonisolated(unsafe) private static var descriptors: [String: EditorComponentDescriptor] = [:]
 
     public static func register(_ descriptor: EditorComponentDescriptor) {
+        lock.lock()
+        defer { lock.unlock() }
         unsafe descriptors[descriptor.typeName] = descriptor
     }
 
     public static func descriptor(named typeName: String) -> EditorComponentDescriptor? {
-        unsafe descriptors[typeName]
+        lock.withLock { unsafe descriptors[typeName] }
     }
 
     public static func allDescriptors() -> [EditorComponentDescriptor] {
-        unsafe descriptors.values.sorted { $0.displayName < $1.displayName }
+        lock.withLock { unsafe descriptors.values.sorted { $0.displayName < $1.displayName } }
     }
 }
 

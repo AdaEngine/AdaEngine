@@ -2,7 +2,48 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Planned
+- Implementation: Partial (foundation shipped)
+
+## Implementation status
+
+Last verified: 2026-08-31.
+
+Shipped:
+
+- [x] `AdaScriptCompilerCore` parses deterministic `@component` and
+  `@resource` schemas from the target source map.
+- [x] Stable IDs, duplicate declaration names, duplicate IDs, missing defaults,
+  and unsupported defaults are rejected before Swift compilation.
+- [x] The build plugin generates native Swift `Component` and `Resource`
+  backing structs for `Bool`, `Int64`, `Double`, and `String` fields.
+- [x] Generated components receive editor field descriptors and pointer access
+  through the existing `@Component` macro.
+- [x] Generated types register both their Gravity declaration name and stable
+  ID in `RuntimeTypeRegistry`.
+- [x] Swift and Editor code can insert a generated component default by stable
+  ID without referencing its private Swift type.
+- [x] Resources with `autoInsert: true` are inserted into the main world before
+  the generated script module plugin is installed.
+- [x] `@res` resolves a generated or registered resource by declaration name or
+  stable ID and exposes its reflected fields through a pointer-backed view.
+- [x] Required missing resources produce runtime diagnostics; optional bindings
+  expose `available()` and remain valid when the resource is absent.
+- [x] Resource writes update the ECS change tick and participate in scheduler
+  conflict detection. The current implementation conservatively requests write
+  access for every `@res` binding.
+
+Remaining before this ADR is implemented:
+
+- [ ] Add vector, color, enum, entity-reference, and asset-reference schemas.
+- [ ] Infer resource read/write access from property use and support an explicit
+  access override instead of conservatively requesting write access.
+- [ ] Add dynamic world APIs for removing, coding, and mutating a
+  generated component without naming its private Swift backing type.
+- [ ] Encode stable component/resource IDs in scenes and implement aliases and
+  schema migration diagnostics.
+- [ ] Move import parsing and complete schema analysis into one authoritative
+  compiler AST shared by runtime, generator, and LSP.
+- [ ] Expose generated schemas and fields to Editor inspection and completion.
 
 ## Context
 
@@ -90,6 +131,16 @@ var debugSettings: DebugSettings;
 Resource read and write access is inferred from property use using the same
 rules as component access. Explicit `access: "read"` or `access: "write"` is
 available when static inference is impossible.
+
+The first implementation conservatively treats every `@res` as writable while
+the compiler access-analysis pass is still pending. An optional resource is
+checked before field access:
+
+```ada
+if (debugSettings.available()) {
+    debugSettings.enabled = true;
+}
+```
 
 ### Generated Swift backing types
 

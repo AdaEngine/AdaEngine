@@ -165,6 +165,17 @@ extension World {
             self.resourceIds[ObjectIdentifier(type)]
         }
 
+        func getResourceId(for type: any Resource.Type) -> ComponentId? {
+            self.resourceIds[ObjectIdentifier(type)]
+        }
+
+        func getResourceData(for type: any Resource.Type) -> ResourceData? {
+            guard let id = getResourceId(for: type) else {
+                return nil
+            }
+            return resourceData[id]
+        }
+
         func getPointer(for resourceId: ComponentId) -> UnsafeMutableRawPointer? {
             unsafe self.resourceData[resourceId]?.pointer.buffer.pointer.baseAddress
         }

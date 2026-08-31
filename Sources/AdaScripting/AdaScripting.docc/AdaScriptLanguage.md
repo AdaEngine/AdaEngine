@@ -65,6 +65,110 @@ The initial AdaEngine annotations are:
 - `@scriptable` for attached script objects;
 - `@export` for persistent and inspectable fields.
 
+## Script-defined data
+
+The build plugin generates native backing types for scalar component and
+resource schemas:
+
+```ada
+@component(id: "game.health")
+struct Health {
+    @export var current = 100.0;
+    @export var maximum = 120;
+}
+
+@resource(id: "game.balance", autoInsert: true)
+struct GameBalance {
+    @export var gravity = 9.8;
+}
+```
+
+The first schema slice supports `Bool`, signed `Int64`, finite `Double`, and
+`String` defaults. Generated Swift symbol names are private implementation
+details. Runtime lookup accepts both the Gravity declaration name (`Health`) and
+the stable ID (`game.health`). `autoInsert: true` inserts the generated resource
+before systems are installed.
+
+Bind a resource directly on a system with `@res`. The binding uses a native ECS
+resource pointer during `update(context)`; field writes update the resource
+change tick:
+
+```ada
+@system(id: "gravity.system")
+class GravitySystem {
+    @res
+    var balance: GameBalance;
+
+    func update(context) {
+        balance.gravity += 0.1;
+    }
+}
+```
+
+A missing required resource is reported through plugin diagnostics. Optional
+resources can be guarded with `available()`:
+
+```ada
+@res(optional: true)
+var debugSettings: DebugSettings;
+
+if (debugSettings.available()) {
+    debugSettings.enabled = true;
+}
+```
+
+Resource access is currently conservative: each `@res` requests scheduler write
+access. Static read/write inference and explicit access overrides are planned.
+
+## World commands
+
+Systems receive a capability-scoped world facade. Structural changes are
+queued through `context.world.commands` and applied only after the current
+system parameters finish, so an active query iterator cannot be invalidated:
+
+```ada
+@system(id: "cleanup.system")
+class CleanupSystem {
+    @query(Expired)
+    var expired;
+
+    func update(context) {
+        for (var entity in expired) {
+            context.world.commands.despawn(entity.id);
+        }
+    }
+}
+```
+
+The initial command API creates registered component defaults by Gravity name
+or stable ID:
+
+```ada
+var entity = context.world.commands.spawn(["game.health"]);
+context.world.commands.insert(entity, "game.poison");
+context.world.commands.remove(entity, "game.poison");
+context.world.commands.despawn(entity);
+```
+
+Direct command use is inferred per system and declares deferred-world access to
+the scheduler. Command facades expire when `update(context)` returns; using a
+retained or undeclared facade reports a plugin diagnostic and performs no
+mutation. Component constructor arguments, explicit dynamic `@access`, events,
+assets, UI commands, and exclusive immediate world access are planned.
+
+Script-defined data requires `AdaScriptBuildPlugin`; manual runtime-only source
+loading cannot introduce a new native Swift layout.
+
+Swift and Editor tooling can attach the generated default without naming its
+private backing type:
+
+```swift
+world.insertDefaultComponent(named: "game.health", into: entity.id)
+```
+
+Dynamic component mutation/removal, scene coding, vectors, colors, enums,
+entity references, and asset references are not part of this initial slice yet.
+
 ## System context
 
 `update(context)` receives a scoped system context. `context.deltaTime` is the

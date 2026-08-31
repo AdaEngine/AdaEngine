@@ -1,5 +1,6 @@
 import AdaApp
 @_spi(Scripting) import AdaECS
+import AdaScriptCompilerCore
 import Foundation
 import Gravity
 
@@ -44,7 +45,13 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
     public init(sources: [GravityScriptSource], name: String) throws {
         let module = try GravityScriptModuleResolver.resolve(sources)
         let runtime = try AnnotatedGravityRuntime(module: module)
-        let plans = try Self.makePlans(from: runtime.annotations)
+        let resourceBindings = try AdaScriptSchemaParser.parseResourceBindings(sources: sources)
+        let capabilities = try AdaScriptSchemaParser.parseSystemCapabilities(sources: sources)
+        let plans = try Self.makePlans(
+            from: runtime.annotations,
+            resourceBindings: resourceBindings,
+            systemCapabilities: capabilities
+        )
         self.name = name
         self.runtime = runtime
         self.plans = plans
@@ -55,7 +62,7 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
     public func setup(in app: borrowing AppWorlds) {
         for plan in plans {
             do {
-                let prepared = try Self.prepare(plan)
+                let prepared = try Self.prepare(plan, world: app.main)
                 app.main.schedulers.addSystem(
                     AnnotatedGravityScriptSystem(
                         pluginIdentifier: name,
@@ -70,7 +77,11 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
         }
     }
 
-    private static func makePlans(from annotations: [GravityAnnotation]) throws -> [AnnotatedSystemPlan] {
+    private static func makePlans(
+        from annotations: [GravityAnnotation],
+        resourceBindings: [AdaScriptResourceBinding],
+        systemCapabilities: [AdaScriptSystemCapabilities]
+    ) throws -> [AnnotatedSystemPlan] {
         let systemAnnotations = annotations.filter { $0.name == "system" }
         guard !systemAnnotations.isEmpty else {
             throw GravityScriptError.invalidManifest("Ada Script module must declare at least one @system class")
@@ -101,7 +112,19 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
                 className: className,
                 identifier: identifier,
                 scheduler: scheduler,
-                queries: queryPlans
+                queries: queryPlans,
+                resources: resourceBindings
+                    .filter { $0.systemName == className }
+                    .map {
+                        AnnotatedResourcePlan(
+                            isOptional: $0.isOptional,
+                            propertyName: $0.propertyName,
+                            resourceName: $0.resourceName
+                        )
+                    },
+                usesDeferredCommands: systemCapabilities
+                    .first { $0.systemName == className }?
+                    .usesDeferredCommands == true
             )
         }
     }
@@ -127,15 +150,36 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
         )
     }
 
-    private static func prepare(_ plan: AnnotatedSystemPlan) throws -> PreparedAnnotatedSystem {
+    private static func prepare(_ plan: AnnotatedSystemPlan, world: World) throws -> PreparedAnnotatedSystem {
         let queries = try plan.queries.enumerated().map { queryIndex, query in
             try prepareQuery(query, systemIdentifier: plan.identifier, queryIndex: queryIndex)
         }
+        let resources = try plan.resources.map { resource in
+            try prepareResource(resource, systemIdentifier: plan.identifier)
+        }
         return PreparedAnnotatedSystem(
             className: plan.className,
+            commands: plan.usesDeferredCommands ? Commands(entities: world.entities, commandsQueue: world.commandQueue) : nil,
             identifier: plan.identifier,
             scheduler: plan.scheduler,
-            queries: queries
+            queries: queries,
+            resources: resources
+        )
+    }
+
+    private static func prepareResource(
+        _ plan: AnnotatedResourcePlan,
+        systemIdentifier: String
+    ) throws -> PreparedAnnotatedResource {
+        guard let resourceType = RuntimeTypeRegistry.resourceType(named: plan.resourceName) else {
+            throw GravityScriptError.unknownResource(system: systemIdentifier, resource: plan.resourceName)
+        }
+        let descriptor = RuntimeResourceReflectionRegistry.descriptor(for: resourceType)
+        return PreparedAnnotatedResource(
+            fields: Dictionary(uniqueKeysWithValues: descriptor?.fields.map { ($0.key, $0) } ?? []),
+            parameter: DynamicResource(resourceType: resourceType, isOptional: plan.isOptional, writable: true),
+            propertyName: plan.propertyName,
+            resourceName: plan.resourceName
         )
     }
 
@@ -221,6 +265,14 @@ private struct AnnotatedSystemPlan: Sendable {
     let identifier: String
     let scheduler: SchedulerName
     let queries: [AnnotatedQueryPlan]
+    let resources: [AnnotatedResourcePlan]
+    let usesDeferredCommands: Bool
+}
+
+private struct AnnotatedResourcePlan: Sendable {
+    let isOptional: Bool
+    let propertyName: String
+    let resourceName: String
 }
 
 private struct AnnotatedQueryPlan: Sendable {
@@ -232,9 +284,18 @@ private struct AnnotatedQueryPlan: Sendable {
 
 private struct PreparedAnnotatedSystem: Sendable {
     let className: String
+    let commands: Commands?
     let identifier: String
     let scheduler: SchedulerName
     let queries: [PreparedAnnotatedQuery]
+    let resources: [PreparedAnnotatedResource]
+}
+
+private struct PreparedAnnotatedResource: Sendable {
+    let fields: [String: EditorComponentFieldDescriptor]
+    let parameter: DynamicResource
+    let propertyName: String
+    let resourceName: String
 }
 
 private struct PreparedAnnotatedQuery: Sendable {
@@ -264,6 +325,10 @@ private struct AnnotatedGravityScriptSystem: System {
 
     var queries: SystemQueries {
         var parameters: [any SystemParameter] = preparedSystem?.queries.map { $0.query as any SystemParameter } ?? []
+        parameters += preparedSystem?.resources.map { $0.parameter as any SystemParameter } ?? []
+        if let commands = preparedSystem?.commands {
+            parameters.append(commands)
+        }
         parameters.append(deltaTime)
         return SystemQueries(queries: parameters)
     }
@@ -294,196 +359,25 @@ private struct AnnotatedGravityScriptSystem: System {
                 componentAccesses: query.componentAccesses,
             )
         }
+        let resources = preparedSystem.resources.map { resource in
+            (
+                propertyName: resource.propertyName,
+                resource: runtime.makeResourceBridge(
+                    parameter: resource.parameter.wrappedValue,
+                    fields: resource.fields,
+                    resourceName: resource.resourceName
+                )
+            )
+        }
+        let world = runtime.makeWorldBridge(commands: preparedSystem.commands)
         runtime.update(
             className: preparedSystem.className,
             systemIdentifier: preparedSystem.identifier,
             deltaTime: Double(deltaTime.wrappedValue?.deltaTime ?? 0),
-            queries: zip(preparedSystem.queries, queries).map { ($0.propertyName, $1) }
+            queries: zip(preparedSystem.queries, queries).map { ($0.propertyName, $1) },
+            resources: resources,
+            world: world
         )
-    }
-}
-
-@GSExportable("AdaQuery")
-private final class AnnotatedGravityQueryBridge: @unchecked Sendable {
-    private let cursor: DynamicQueryCursor
-    private let row: AnnotatedGravityQueryRow
-    private let virtualMachine: GravityVirtualMachine
-    private var iterationIndex = 0
-
-    @GSExportableIgnore
-    static func make(
-        cursor: DynamicQueryCursor,
-        componentAccesses: [AnnotatedComponentAccess],
-        reportDiagnostic: @escaping @Sendable (String) -> Void,
-        virtualMachine: GravityVirtualMachine
-    ) -> AnnotatedGravityQueryBridge {
-        AnnotatedGravityQueryBridge(
-            cursor: cursor,
-            componentAccesses: componentAccesses,
-            reportDiagnostic: reportDiagnostic,
-            virtualMachine: virtualMachine
-        )
-    }
-
-    private init(
-        cursor: DynamicQueryCursor,
-        componentAccesses: [AnnotatedComponentAccess],
-        reportDiagnostic: @escaping @Sendable (String) -> Void,
-        virtualMachine: GravityVirtualMachine
-    ) {
-        self.cursor = cursor
-        self.virtualMachine = virtualMachine
-        self.row = AnnotatedGravityQueryRow.make(
-            cursor: cursor,
-            componentAccesses: componentAccesses,
-            reportDiagnostic: reportDiagnostic,
-            virtualMachine: virtualMachine
-        )
-    }
-
-    func iterate(_ previous: GSValue) -> GSValue {
-        if previous.isNull || previous.isUndefined {
-            cursor.reset()
-            iterationIndex = 0
-        }
-        guard cursor.advance() else {
-            return GSValue(boolean: false, in: virtualMachine)
-        }
-        defer { iterationIndex += 1 }
-        return GSValue(integer: iterationIndex, in: virtualMachine)
-    }
-
-    func next(_ index: Int) -> AnnotatedGravityQueryRow {
-        row
-    }
-}
-
-@GSExportable("AdaQueryRow")
-final class AnnotatedGravityQueryRow: @unchecked Sendable {
-    var id: Int { cursor.entityID }
-
-    private let componentViews: [String: AnnotatedGravityComponentView]
-    private let cursor: DynamicQueryCursor
-    private let reportDiagnostic: @Sendable (String) -> Void
-    private let virtualMachine: GravityVirtualMachine
-
-    @GSExportableIgnore
-    static func make(
-        cursor: DynamicQueryCursor,
-        componentAccesses: [AnnotatedComponentAccess],
-        reportDiagnostic: @escaping @Sendable (String) -> Void,
-        virtualMachine: GravityVirtualMachine
-    ) -> AnnotatedGravityQueryRow {
-        AnnotatedGravityQueryRow(
-            cursor: cursor,
-            componentAccesses: componentAccesses,
-            reportDiagnostic: reportDiagnostic,
-            virtualMachine: virtualMachine
-        )
-    }
-
-    private init(
-        cursor: DynamicQueryCursor,
-        componentAccesses: [AnnotatedComponentAccess],
-        reportDiagnostic: @escaping @Sendable (String) -> Void,
-        virtualMachine: GravityVirtualMachine
-    ) {
-        self.cursor = cursor
-        self.reportDiagnostic = reportDiagnostic
-        self.virtualMachine = virtualMachine
-        self.componentViews = Dictionary(uniqueKeysWithValues: componentAccesses.map { access in
-            (
-                access.alias,
-                AnnotatedGravityComponentView.make(
-                    cursor: cursor,
-                    access: access,
-                    reportDiagnostic: reportDiagnostic,
-                    virtualMachine: virtualMachine
-                )
-            )
-        })
-    }
-
-    func get(_ component: String, _ field: String) -> GSValue {
-        guard let componentView = componentViews[component] else {
-            reportDiagnostic("Unknown query component alias '\(component)'")
-            return GSValue(nullIn: virtualMachine)
-        }
-        return componentView.get(field)
-    }
-
-    @discardableResult
-    func set(_ component: String, _ field: String, _ value: GSValue) -> Bool {
-        guard let componentView = componentViews[component] else {
-            reportDiagnostic("Unknown query component alias '\(component)'")
-            return false
-        }
-        return componentView.set(field, value)
-    }
-
-    func component(named alias: String) -> AnnotatedGravityComponentView? {
-        componentViews[alias]
-    }
-}
-
-@GSExportable("AdaComponent")
-final class AnnotatedGravityComponentView: @unchecked Sendable {
-    private let access: AnnotatedComponentAccess
-    private let cursor: DynamicQueryCursor
-    private let reportDiagnostic: @Sendable (String) -> Void
-    private let virtualMachine: GravityVirtualMachine
-
-    @GSExportableIgnore
-    static func make(
-        cursor: DynamicQueryCursor,
-        access: AnnotatedComponentAccess,
-        reportDiagnostic: @escaping @Sendable (String) -> Void,
-        virtualMachine: GravityVirtualMachine
-    ) -> AnnotatedGravityComponentView {
-        AnnotatedGravityComponentView(
-            cursor: cursor,
-            access: access,
-            reportDiagnostic: reportDiagnostic,
-            virtualMachine: virtualMachine
-        )
-    }
-
-    private init(
-        cursor: DynamicQueryCursor,
-        access: AnnotatedComponentAccess,
-        reportDiagnostic: @escaping @Sendable (String) -> Void,
-        virtualMachine: GravityVirtualMachine
-    ) {
-        self.cursor = cursor
-        self.access = access
-        self.reportDiagnostic = reportDiagnostic
-        self.virtualMachine = virtualMachine
-    }
-
-    func get(_ fieldName: String) -> GSValue {
-        guard let field = access.fields[fieldName],
-              let value = cursor.read(componentAt: access.componentIndex, field: field) else {
-            reportDiagnostic("Unknown or unreadable field '\(access.alias).\(fieldName)'")
-            return GSValue(nullIn: virtualMachine)
-        }
-        return AnnotatedGravityValueBridge.makeGravityValue(
-            value,
-            virtualMachine: virtualMachine
-        )
-    }
-
-    @discardableResult
-    func set(_ fieldName: String, _ value: GSValue) -> Bool {
-        guard let field = access.fields[fieldName] else {
-            reportDiagnostic("Unknown field '\(access.alias).\(fieldName)'")
-            return false
-        }
-        guard let fieldValue = AnnotatedGravityValueBridge.makeEditorFieldValue(value),
-              cursor.write(componentAt: access.componentIndex, field: field, value: fieldValue) else {
-            reportDiagnostic("Invalid value for '\(access.alias).\(fieldName)'")
-            return false
-        }
-        return true
     }
 }
 
@@ -508,9 +402,12 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let virtualMachine = GravityVirtualMachine(settings: .init(), delegate: delegate)
         self.virtualMachine = virtualMachine
         try virtualMachine.bindClass(with: AnnotatedGravitySystemContext.self)
+        try virtualMachine.bindClass(with: AnnotatedGravityWorldContext.self)
+        try virtualMachine.bindClass(with: AnnotatedGravityCommandsBridge.self)
         try virtualMachine.bindClass(with: AnnotatedGravityQueryBridge.self)
         try virtualMachine.bindClass(with: AnnotatedGravityQueryRow.self)
         try virtualMachine.bindClass(with: AnnotatedGravityComponentView.self)
+        try virtualMachine.bindClass(with: AnnotatedGravityResourceView.self)
 
         let binary = virtualMachine.loadGravityFile(from: module.entrySource)
         guard delegate.errors.isEmpty else {
@@ -545,10 +442,13 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         className: String,
         systemIdentifier: String,
         deltaTime: Double,
-        queries: [(propertyName: String, query: AnnotatedGravityQueryBridge)]
+        queries: [(propertyName: String, query: AnnotatedGravityQueryBridge)],
+        resources: [(propertyName: String, resource: AnnotatedGravityResourceView)],
+        world: AnnotatedGravityWorldContext
     ) {
         Self.runtimeLock.lock()
         defer { Self.runtimeLock.unlock() }
+        defer { world.invalidate() }
 
         guard let instance = instances[className] else {
             return
@@ -561,7 +461,14 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
                 return
             }
         }
-        let context = AnnotatedGravitySystemContext(deltaTime: deltaTime)
+        for (propertyName, resource) in resources {
+            let resourceValue = GSValue(object: resource, in: virtualMachine)
+            guard instance.setStoredProperty(named: propertyName, to: resourceValue) else {
+                delegate.append("Unable to bind @res property '\(propertyName)' in system '\(systemIdentifier)'")
+                return
+            }
+        }
+        let context = AnnotatedGravitySystemContext.make(deltaTime: deltaTime, world: world)
         _ = instance.callMethod(named: "update", with: [context])
     }
 
@@ -574,6 +481,31 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             componentAccesses: componentAccesses,
             reportDiagnostic: appendDiagnostic,
             virtualMachine: virtualMachine
+        )
+    }
+
+    func makeResourceBridge(
+        parameter: DynamicResource,
+        fields: [String: EditorComponentFieldDescriptor],
+        resourceName: String
+    ) -> AnnotatedGravityResourceView {
+        if !parameter.isAvailable && !parameter.isOptional {
+            appendDiagnostic("Required resource '\(resourceName)' is not available")
+        }
+        return AnnotatedGravityResourceView.make(
+            parameter: parameter,
+            fields: fields,
+            reportDiagnostic: appendDiagnostic,
+            virtualMachine: virtualMachine
+        )
+    }
+
+    func makeWorldBridge(commands: Commands?) -> AnnotatedGravityWorldContext {
+        AnnotatedGravityWorldContext.make(
+            commands: AnnotatedGravityCommandsBridge.make(
+                commands: commands,
+                reportDiagnostic: appendDiagnostic
+            )
         )
     }
 

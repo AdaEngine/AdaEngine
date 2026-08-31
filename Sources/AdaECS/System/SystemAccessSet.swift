@@ -47,10 +47,21 @@ public struct SystemAccessSet: Sendable, Equatable {
         resourceReads.insert(T.resourceIdentifier)
     }
 
+    /// Adds shared access for a resource resolved at runtime.
+    public mutating func addResourceRead(_ resource: ObjectIdentifier) {
+        resourceReads.insert(resource)
+    }
+
     /// Adds exclusive resource access.
     public mutating func addResourceWrite<T: Resource>(_ resource: T.Type) {
         resourceReads.insert(T.resourceIdentifier)
         resourceWrites.insert(T.resourceIdentifier)
+    }
+
+    /// Adds exclusive access for a resource resolved at runtime.
+    public mutating func addResourceWrite(_ resource: ObjectIdentifier) {
+        resourceReads.insert(resource)
+        resourceWrites.insert(resource)
     }
 
     /// Marks this access as producing deferred world commands.

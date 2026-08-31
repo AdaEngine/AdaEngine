@@ -161,6 +161,23 @@ public extension Commands {
             $0.removeResource(T.self)
         }
     }
+
+    /// Enqueues an entity spawn from component values detached from a scripting VM.
+    @_spi(Scripting)
+    @discardableResult
+    func spawn(detachedComponents components: [any Component]) -> EntityCommands {
+        spawn(bundle: ChainedComponentsBundle(components))
+    }
+
+    /// Enqueues a type-erased component value detached from a scripting VM.
+    @_spi(Scripting)
+    @discardableResult
+    func insert(_ component: any Component, into entity: Entity.ID) -> EntityCommands {
+        func insert<T: Component>(_ component: T) -> EntityCommands {
+            self.entity(entity).insert(component)
+        }
+        return _openExistential(component, do: insert)
+    }
 }
 
 @safe

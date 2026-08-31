@@ -13,7 +13,6 @@ import Foundation
 // We should register our components in engine, because we should initiate them in memory
 // This can help to avoid registering components during runtime.
 extension Component {
-    
     /// Call this method to add component to the engine.
     /// When engine will initiate component from scene file, it will try to find
     /// component in registered list.
@@ -28,7 +27,6 @@ extension Component {
 }
 
 extension Component {
-
     static var swiftName: String {
         TypeNameCache.name(for: self)
     }
@@ -40,20 +38,36 @@ extension Component {
 }
 
 enum ComponentStorage {
-    
+    private static let lock = NSLock()
     nonisolated(unsafe) private static var registeredComponents: [String: any Component.Type] = [:]
+    nonisolated(unsafe) private static var defaultFactories: [String: @Sendable () -> any Component] = [:]
 
     /// Return registered component or try to find it by NSClassFromString (works only for objc runtime)
     static func getRegisteredComponent(for name: String) -> (any Component.Type)? {
-        return unsafe self.registeredComponents[name] ?? (NSClassFromString(name) as? (any Component.Type))
+        let registered = lock.withLock { unsafe registeredComponents[name] }
+        return registered ?? (NSClassFromString(name) as? (any Component.Type))
     }
     
     static func addComponent<T: Component>(_ type: T.Type) {
-        unsafe self.registeredComponents[T.swiftName] = type
+        let name = T.swiftName
+        lock.withLock { unsafe registeredComponents[name] = type }
+    }
+
+    static func addComponent<T: Component>(_ type: T.Type, named name: String) {
+        lock.withLock { unsafe registeredComponents[name] = type }
+    }
+
+    static func addDefaultFactory(_ factory: @escaping @Sendable () -> any Component, named name: String) {
+        lock.withLock { unsafe defaultFactories[name] = factory }
+    }
+
+    static func makeDefaultComponent(named name: String) -> (any Component)? {
+        let factory = lock.withLock { unsafe defaultFactories[name] }
+        return factory?()
     }
 
     static func allRegisteredComponents() -> [String: any Component.Type] {
-        unsafe self.registeredComponents
+        lock.withLock { unsafe registeredComponents }
     }
 }
 

@@ -1,5 +1,5 @@
-import Foundation
 import AdaUtils
+import Foundation
 
 public extension World {
     func getComponents(for entity: Entity.ID) -> [(typeName: String, component: any Component)] {
@@ -42,10 +42,26 @@ public extension World {
         return self.has(componentType.identifier, in: entity)
     }
 
+    @discardableResult
+    func insertDefaultComponent(named typeName: String, into entity: Entity.ID) -> Bool {
+        guard let component = RuntimeTypeRegistry.makeDefaultComponent(named: typeName) else {
+            return false
+        }
+        insertTypeErasedComponent(component, into: entity)
+        return true
+    }
+
     func getResource(named typeName: String) -> (any Resource)? {
         guard let resourceType = RuntimeTypeRegistry.resourceType(named: typeName) else {
             return nil
         }
         return self.resources.getResource(resourceType)
+    }
+
+    private func insertTypeErasedComponent(_ component: any Component, into entity: Entity.ID) {
+        func insert<T: Component>(_ component: T) {
+            self.insert(component, for: entity)
+        }
+        insert(component)
     }
 }

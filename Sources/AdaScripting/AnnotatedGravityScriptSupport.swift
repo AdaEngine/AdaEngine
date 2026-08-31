@@ -4,9 +4,16 @@ import Gravity
 @GSExportable("AdaSystemContext")
 final class AnnotatedGravitySystemContext: @unchecked Sendable {
     let deltaTime: Double
+    let world: AnnotatedGravityWorldContext
 
-    init(deltaTime: Double) {
+    @GSExportableIgnore
+    static func make(deltaTime: Double, world: AnnotatedGravityWorldContext) -> AnnotatedGravitySystemContext {
+        AnnotatedGravitySystemContext(deltaTime: deltaTime, world: world)
+    }
+
+    private init(deltaTime: Double, world: AnnotatedGravityWorldContext) {
         self.deltaTime = deltaTime
+        self.world = world
     }
 }
 
@@ -63,6 +70,9 @@ final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unc
         forKey key: String
     ) -> Bool {
         guard let component = target.toObjectOf(AnnotatedGravityComponentView.self) else {
+            if let resource = target.toObjectOf(AnnotatedGravityResourceView.self) {
+                return resource.set(key, value)
+            }
             return false
         }
         return component.set(key, value)
@@ -79,6 +89,9 @@ final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unc
         }
         if let component = target.toObjectOf(AnnotatedGravityComponentView.self) {
             return component.get(key)
+        }
+        if let resource = target.toObjectOf(AnnotatedGravityResourceView.self) {
+            return resource.get(key)
         }
         return nil
     }

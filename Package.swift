@@ -79,6 +79,10 @@ var products: [Product] = [
         targets: ["AdaScripting"]
     ),
     .library(
+        name: "AdaScriptCompilerCore",
+        targets: ["AdaScriptCompilerCore"]
+    ),
+    .library(
         name: "AdaUI",
         targets: ["AdaUI"]
     ),
@@ -340,9 +344,14 @@ var targets: [Target] = [
         ],
         swiftSettings: swiftSettings
     ),
+    .target(
+        name: "AdaScriptCompilerCore",
+        swiftSettings: swiftSettings
+    ),
     .adaTarget(
         name: "AdaScripting",
         dependencies: [
+            "AdaScriptCompilerCore",
             "AdaApp",
             "AdaECS",
             .product(name: "Gravity", package: "gravity-lang")
@@ -662,6 +671,7 @@ targets.append(
 targets.append(
     .executableTarget(
         name: "AdaScriptGeneratorTool",
+        dependencies: ["AdaScriptCompilerCore"],
         path: "Plugins/AdaScriptGeneratorTool"
     )
 )
@@ -1091,7 +1101,7 @@ targets += [
     ),
     .testTarget(
         name: "AdaScriptingTests",
-        dependencies: ["AdaScripting", "AdaApp", "AdaECS", "AdaTransform", "Math"],
+        dependencies: ["AdaScriptCompilerCore", "AdaScripting", "AdaApp", "AdaECS", "AdaTransform", "Math"],
     ),
     .testTarget(
         name: "AdaAssetsTests",

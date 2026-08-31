@@ -2,7 +2,36 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Planned
+- Implementation: Partial (deferred commands foundation shipped)
+
+## Implementation status
+
+Last verified: 2026-08-31.
+
+Shipped:
+
+- [x] `update(context)` receives a checked `WorldContext` facade rather than a
+  Swift `World` reference.
+- [x] Direct `context.world.commands` use is detected per system by
+  `AdaScriptCompilerCore` and adds deferred-world access to `SystemAccessSet`.
+- [x] `spawn`, `insert`, `remove`, and `despawn` enqueue native AdaECS
+  `Commands`; mutations are applied after query parameters finish.
+- [x] Spawned and inserted component defaults are resolved by declaration name
+  or stable ID and detached from the Gravity VM before enqueueing.
+- [x] Retained command facades are invalidated after `update(context)` and
+  rejected when used later.
+- [x] Runtime validation rejects command access that was not granted by static
+  capability inference.
+
+Remaining before this ADR is implemented:
+
+- [ ] Convert component constructor expressions and field overrides into
+  detached native command payloads.
+- [ ] Implement explicit `@access` declarations for dynamic component access
+  and non-direct capability flow.
+- [ ] Add `@events`, `@eventWriter`, asset, and UI capabilities.
+- [ ] Add `@exclusiveWorld` startup/tooling access and immediate operations.
+- [ ] Add LSP completion and diagnostics for capability lifetime and access.
 
 ## Context
 
@@ -71,6 +100,25 @@ context.world.commands.remove(entity.id, Poison);
 context.world.commands.despawn(entity.id);
 context.world.commands.mountUI(GameHUD(), behaviour: "overlay");
 ```
+
+The first implementation accepts stable component names and creates their
+registered defaults. This keeps every queued value detached from the VM while
+the schema-value encoder is still pending:
+
+```ada
+var projectile = context.world.commands.spawn([
+    "game.transform",
+    "game.projectile"
+]);
+
+context.world.commands.insert(projectile, "game.damage");
+context.world.commands.remove(projectile, "game.damage");
+context.world.commands.despawn(projectile);
+```
+
+Capability inference currently recognizes direct `context.world.commands`
+access. An indirect alias that bypasses inference is rejected by the runtime
+instead of receiving undeclared world access.
 
 Commands are applied after the active system scope, when no script query row or
 component pointer can be invalidated by an archetype change. A system using

@@ -1,3 +1,4 @@
+import AdaScriptCompilerCore
 import Foundation
 
 public enum GravityScriptError: Error, Sendable, Equatable, CustomStringConvertible {
@@ -8,6 +9,7 @@ public enum GravityScriptError: Error, Sendable, Equatable, CustomStringConverti
     case invalidManifest(String)
     case invalidSourcePath(String)
     case unknownComponent(system: String, queryIndex: Int, component: String)
+    case unknownResource(system: String, resource: String)
     case unresolvedImport(source: String, importPath: String)
 
     public var description: String {
@@ -26,6 +28,8 @@ public enum GravityScriptError: Error, Sendable, Equatable, CustomStringConverti
             "Invalid Ada Script source path '\(path)'"
         case let .unknownComponent(system, queryIndex, component):
             "Unknown component '\(component)' in query \(queryIndex) of system '\(system)'"
+        case let .unknownResource(system, resource):
+            "Unknown resource '\(resource)' in system '\(system)'"
         case let .unresolvedImport(source, importPath):
             "Unable to resolve Ada Script import '\(importPath)' from '\(source)'"
         }
@@ -33,18 +37,7 @@ public enum GravityScriptError: Error, Sendable, Equatable, CustomStringConverti
 }
 
 /// One source file embedded in an Ada Script module.
-public struct GravityScriptSource: Hashable, Sendable {
-    /// Canonical target-relative path used as the source identity.
-    public let path: String
-
-    /// Gravity source text.
-    public let source: String
-
-    public init(path: String, source: String) {
-        self.path = path
-        self.source = source
-    }
-}
+public typealias GravityScriptSource = AdaScriptCompilerSource
 
 struct ResolvedGravityScriptModule: Sendable {
     struct Source: Sendable {
