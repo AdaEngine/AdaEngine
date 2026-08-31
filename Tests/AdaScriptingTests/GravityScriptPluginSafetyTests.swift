@@ -5,7 +5,8 @@ import AdaUtils
 import Math
 import Testing
 
-extension GravityScriptPluginTests {
+@Suite("Annotation-driven Gravity safety", .serialized)
+struct GravityScriptPluginSafetyTests {
     @Test("Reports an unknown native component during plugin setup")
     @MainActor
     func reportsUnknownComponentDuringSetup() async throws {
@@ -93,80 +94,70 @@ extension GravityScriptPluginTests {
 
         #expect(world.get(ScriptNumericFields.self, from: entity.id)?.vector == Vector2(2, 3))
         #expect(plugin.lastResult(for: "invalid.list") == .boolean(false))
-        #expect(plugin.diagnostics == ["Unsupported value for 'ScriptNumericFields.vector'"])
+        #expect(plugin.diagnostics == ["Invalid value for 'scriptNumericFields.vector'"])
     }
 
     private static let missingComponentSource = """
+    @system(scheduler: "update", id: "broken")
     class BrokenSystem {
-        func update(deltaTime, queries) {}
-    }
+        @query(MissingComponent)
+        var missing;
 
-    func main() {
-        return AdaPlugin.create("BrokenPlugin", [
-            AdaSystem.create("broken", "update", [
-                AdaQuery.read(["MissingComponent"])
-            ], BrokenSystem())
-        ]);
+        func update(context) {}
     }
     """
 
     private static let deferredComponentSource = """
+    @system(scheduler: "update", id: "deferred")
     class DeferredSystem {
-        func update(deltaTime, queries) {
-            return queries[0].count;
-        }
-    }
+        @query(DeferredScriptComponent)
+        var components;
 
-    func main() {
-        return AdaPlugin.create("DeferredPlugin", [
-            AdaSystem.create("deferred", "update", [
-                AdaQuery.read(["DeferredScriptComponent"])
-            ], DeferredSystem())
-        ]);
+        func update(context) {
+            var count = 0;
+            for (var entity in components) count += 1;
+            return count;
+        }
     }
     """
 
     private static let invalidFloatSource = """
+    @system(scheduler: "update", id: "invalid.float")
     class InvalidFloatSystem {
-        func update(deltaTime, queries) {
-            var entity = queries[0][0];
+        @query(ScriptNumericFields)
+        var entities;
+
+        func update(context) {
             var infinity = Float.max * Float.max;
             var notANumber = infinity - infinity;
-            return [
-                entity.set("ScriptNumericFields", "scalar", Float.max),
-                entity.set("ScriptNumericFields", "vector", [1, infinity]),
-                entity.set("ScriptNumericFields", "quaternion", [0, 0, notANumber, 1]),
-                entity.set("ScriptNumericFields", "color", [1, 1, 1, infinity]),
-                entity.set("ScriptNumericFields", "double", 42)
-            ];
+            for (var entity in entities) {
+                return [
+                    entity.scriptNumericFields.set("scalar", Float.max),
+                    entity.scriptNumericFields.set("vector", [1, infinity]),
+                    entity.scriptNumericFields.set("quaternion", [0, 0, notANumber, 1]),
+                    entity.scriptNumericFields.set("color", [1, 1, 1, infinity]),
+                    entity.scriptNumericFields.set("double", 42)
+                ];
+            }
+            return [];
         }
-    }
-
-    func main() {
-        return AdaPlugin.create("InvalidFloatPlugin", [
-            AdaSystem.create("invalid.float", "update", [
-                AdaQuery.write(["ScriptNumericFields"])
-            ], InvalidFloatSystem())
-        ]);
     }
     """
 
     private static let unsupportedListMemberSource = """
     class UnsupportedValue {}
 
+    @system(scheduler: "update", id: "invalid.list")
     class InvalidListSystem {
-        func update(deltaTime, queries) {
-            var entity = queries[0][0];
-            return entity.set("ScriptNumericFields", "vector", [UnsupportedValue(), 3, 4]);
-        }
-    }
+        @query(ScriptNumericFields)
+        var entities;
 
-    func main() {
-        return AdaPlugin.create("InvalidListPlugin", [
-            AdaSystem.create("invalid.list", "update", [
-                AdaQuery.write(["ScriptNumericFields"])
-            ], InvalidListSystem())
-        ]);
+        func update(context) {
+            for (var entity in entities) {
+                return entity.scriptNumericFields.set("vector", [UnsupportedValue(), 3, 4]);
+            }
+            return false;
+        }
     }
     """
 }

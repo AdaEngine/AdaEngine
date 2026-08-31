@@ -132,7 +132,7 @@ private extension ComponentMacro {
 
         let editorFields = properties.map { propertyName, propertyType, _ in
         """
-        AdaECS.EditorComponentFieldDescriptor(
+        unsafe AdaECS.EditorComponentFieldDescriptor(
             key: "\(propertyName)",
             label: "\(propertyName.editorFieldLabel)",
             kind: AdaECS.EditorComponentReflection.kind(for: \(propertyType).self),
@@ -154,6 +154,17 @@ private extension ComponentMacro {
                     return nil
                 }
                 return typedComponent
+            },
+            readPointer: { pointer in
+                let typedComponent = unsafe pointer.assumingMemoryBound(to: Self.self)
+                return AdaECS.EditorComponentReflection.read(unsafe typedComponent.pointee.\(propertyName))
+            },
+            writePointer: { pointer, fieldValue in
+                let typedComponent = unsafe pointer.assumingMemoryBound(to: Self.self)
+                return unsafe AdaECS.EditorComponentReflection.write(
+                    fieldValue,
+                    to: &typedComponent.pointee.\(propertyName)
+                )
             }
         )
         """

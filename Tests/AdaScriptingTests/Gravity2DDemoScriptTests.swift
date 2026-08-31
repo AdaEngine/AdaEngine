@@ -6,7 +6,8 @@ import Foundation
 import Math
 import Testing
 
-extension GravityScriptPluginTests {
+@Suite("Annotation-driven Gravity demo", .serialized)
+struct Gravity2DDemoScriptTests {
     @Test("Runs the Gravity 2D demo script with multiple batches")
     @MainActor
     func runsGravity2DDemoScript() async throws {

@@ -26,6 +26,8 @@ public struct GravityLanguageService: Sendable {
         let candidates: [GravityCompletionCandidate]
         if let receiver = context.receiver {
             candidates = memberCandidates(receiver: receiver, position: position, parsed: parsed, symbols: symbols)
+        } else if context.isAnnotation {
+            candidates = GravityBuiltins.annotationCandidates
         } else {
             candidates = GravityBuiltins.globalCandidates + symbols.map(GravityCompletionCandidate.init(symbol:))
         }
@@ -82,6 +84,7 @@ private struct GravityCompletionContext {
     var prefix: String
     var receiver: String?
     var replacementRange: GravitySourceRange
+    var isAnnotation = false
 
     init?(text: String, position: GravitySourcePosition) {
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
@@ -113,6 +116,11 @@ private struct GravityCompletionContext {
             return
         }
         let dotIndex = line.index(before: prefixStart)
+        if line[dotIndex] == "@" {
+            isAnnotation = true
+            receiver = nil
+            return
+        }
         guard line[dotIndex] == "." else {
             receiver = nil
             return

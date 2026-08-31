@@ -22,31 +22,25 @@ Sources/MyGame/
     └── Movement.ada
 ```
 
-Every Ada Script file is self-contained. It must define `main()` and return one plugin manifest:
+Declare a system and its query with annotations:
 
 ```ada
+@system(scheduler: "update")
 class MovementSystem {
-    func update(deltaTime, queries) {
-        var transforms = queries[0];
+    @query(Transform)
+    var transforms;
 
-        for (var index in 0..<transforms.count) {
-            var position = transforms.get(index, "Transform", "position");
-            position[0] += 100 * deltaTime;
-            transforms.set(index, "Transform", "position", position);
+    func update(context) {
+        for (var entity in transforms) {
+            var position = entity.transform.position;
+            position[0] += 100 * context.deltaTime;
+            entity.transform.position = position;
         }
     }
 }
-
-func main() {
-    return AdaPlugin.create("Movement", [
-        AdaSystem.createBatch("movement", "update", [
-            AdaQuery.write(["Transform"])
-        ], MovementSystem())
-    ]);
-}
 ```
 
-The value returned by `main()` describes how AdaEngine should install the script. AdaEngine calls `update(deltaTime, queries)` on the supplied system instance whenever its scheduler runs.
+AdaEngine discovers `@system` and `@query` metadata and calls `update(context)` whenever the selected scheduler runs.
 
 ## Enable automatic discovery
 
@@ -160,8 +154,8 @@ struct RuntimeScriptsPlugin: Plugin {
 }
 ```
 
-You can also use ``GravityScriptPlugin/init(source:)`` when the source is already in memory. Script compilation, `main()` execution, and manifest validation happen during initialization. Native component resolution happens later during plugin setup.
+You can also use ``GravityScriptPlugin/init(source:name:)`` when the source is already in memory. Script compilation and annotation validation happen during initialization. Native component resolution happens later during plugin setup.
 
 ## Next steps
 
-Read <doc:AdaScriptLanguage> for the language syntax, then <doc:AdaScriptECS> for queries, component fields, and system execution modes.
+Read <doc:AdaScriptLanguage> for annotation syntax, then <doc:AdaScriptECS> for queries, component fields, and native iterator behavior.

@@ -31,6 +31,7 @@ AdaEngine is a game engine fully written on Swift. The main idea is to encourage
 * **[API Docs](https://docs.adaengine.org/documentation/adaengine/):** AdaEngine's API docs, which are automatically generated from the doc comments in this repo.
 * **[Tutorials](https://docs.adaengine.org/tutorials/adaengine/)**: AdaEngine's official tutorials with how to start your first project.
 * **Building & Contributing Guides:** [Building](Sources/AdaEngine/AdaEngine.docc/Building.md), [Contributing](Sources/AdaEngine/AdaEngine.docc/Contributing.md)
+* **[Architecture Decision Records](Documentation/ArchitectureDecisions/README.md):** Accepted architectural decisions and their implementation status.
 
 ## ⭐️ Examples
 

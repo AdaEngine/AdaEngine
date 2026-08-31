@@ -37,83 +37,50 @@ struct GravityCompletionCandidate: Hashable, Sendable {
 
 enum GravityBuiltins {
     static let members: [String: [GravityCompletionCandidate]] = [
-        "AdaPlugin": [
-            GravityCompletionCandidate(
-                detail: "Create an AdaEngine script plugin",
-                insertText: "create(\"Plugin\", [])",
-                kind: .method,
-                label: "create(name, systems)",
-                sortText: "00"
-            )
-        ],
-        "AdaQuery": [
-            GravityCompletionCandidate(detail: "Read-only ECS query", insertText: "read([])", kind: .method, label: "read(components)", sortText: "00"),
-            GravityCompletionCandidate(detail: "Writable ECS query", insertText: "write([])", kind: .method, label: "write(components)", sortText: "01"),
-            GravityCompletionCandidate(
-                detail: "ECS query with explicit writes",
-                insertText: "readWrite([], [])",
-                kind: .method,
-                label: "readWrite(components, writeComponents)",
-                sortText: "02"
-            )
-        ],
-        "AdaSystem": [
-            GravityCompletionCandidate(
-                detail: "Create an entity-based Ada system",
-                insertText: "create(\"system.id\", \"update\", [], System())",
-                kind: .method,
-                label: "create(identifier, scheduler, queries, instance)",
-                sortText: "00"
-            ),
-            GravityCompletionCandidate(
-                detail: "Create a batch Ada system",
-                insertText: "createBatch(\"system.id\", \"update\", [], System())",
-                kind: .method,
-                label: "createBatch(identifier, scheduler, queries, instance)",
-                sortText: "01"
-            )
-        ],
         "$AdaEntity": [
-            GravityCompletionCandidate(detail: "Entity identifier", insertText: "id", kind: .property, label: "id", sortText: "00"),
-            GravityCompletionCandidate(
-                detail: "Read a declared ECS field",
-                insertText: "get(\"Component\", \"field\")",
-                kind: .method,
-                label: "get(component, field)",
-                sortText: "01"
-            ),
-            GravityCompletionCandidate(
-                detail: "Write a declared ECS field",
-                insertText: "set(\"Component\", \"field\", value)",
-                kind: .method,
-                label: "set(component, field, value)",
-                sortText: "02"
-            )
-        ],
-        "$AdaQueryCollection": [
-            GravityCompletionCandidate(detail: "Number of matched entities", insertText: "count", kind: .property, label: "count", sortText: "00"),
-            GravityCompletionCandidate(detail: "Entity identifier at index", insertText: "id(index)", kind: .method, label: "id(index)", sortText: "01"),
-            GravityCompletionCandidate(
-                detail: "Read a declared ECS field at index",
-                insertText: "get(index, \"Component\", \"field\")",
-                kind: .method,
-                label: "get(index, component, field)",
-                sortText: "02"
-            ),
-            GravityCompletionCandidate(
-                detail: "Write a declared ECS field at index",
-                insertText: "set(index, \"Component\", \"field\", value)",
-                kind: .method,
-                label: "set(index, component, field, value)",
-                sortText: "03"
-            )
+            GravityCompletionCandidate(detail: "Entity identifier", insertText: "id", kind: .property, label: "id", sortText: "00")
         ]
     ]
 
+    static let annotationCandidates: [GravityCompletionCandidate] = [
+        GravityCompletionCandidate(
+            detail: "Declare an AdaEngine ECS system",
+            insertText: "system(scheduler: \"update\")",
+            kind: .keyword,
+            label: "system",
+            sortText: "00"
+        ),
+        GravityCompletionCandidate(
+            detail: "Declare an iterator-based ECS query",
+            insertText: "query()",
+            kind: .keyword,
+            label: "query",
+            sortText: "01"
+        ),
+        GravityCompletionCandidate(
+            detail: "Declare explicit scheduler access",
+            insertText: "access(read: [], write: [])",
+            kind: .keyword,
+            label: "access",
+            sortText: "02"
+        ),
+        GravityCompletionCandidate(
+            detail: "Declare an Ada Script component",
+            insertText: "component(id: \"\")",
+            kind: .keyword,
+            label: "component",
+            sortText: "03"
+        ),
+        GravityCompletionCandidate(
+            detail: "Declare an Ada Script resource",
+            insertText: "resource(id: \"\")",
+            kind: .keyword,
+            label: "resource",
+            sortText: "04"
+        )
+    ]
+
     static let globalCandidates: [GravityCompletionCandidate] = [
-        GravityCompletionCandidate(detail: "AdaEngine Gravity API", insertText: "AdaPlugin", kind: .class, label: "AdaPlugin", sortText: "00"),
-        GravityCompletionCandidate(detail: "AdaEngine Gravity API", insertText: "AdaQuery", kind: .class, label: "AdaQuery", sortText: "01"),
-        GravityCompletionCandidate(detail: "AdaEngine Gravity API", insertText: "AdaSystem", kind: .class, label: "AdaSystem", sortText: "02"),
         GravityCompletionCandidate(detail: "Function declaration", insertText: "func name() {\n    \n}", kind: .snippet, label: "func", sortText: "10"),
         GravityCompletionCandidate(detail: "Class declaration", insertText: "class Name {\n    \n}", kind: .snippet, label: "class", sortText: "11"),
         GravityCompletionCandidate(detail: "Variable declaration", insertText: "var ", kind: .keyword, label: "var", sortText: "12"),

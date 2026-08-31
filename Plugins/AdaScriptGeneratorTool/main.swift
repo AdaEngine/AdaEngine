@@ -54,7 +54,12 @@ struct AdaScriptGeneratorTool {
             func setup(in app: borrowing AppWorlds) {
                 for script in Self.scripts {
                     do {
-                        app.addPlugin(try GravityScriptPlugin(source: script.source))
+                        app.addPlugin(
+                            try GravityScriptPlugin(
+                                source: script.source,
+                                name: script.path
+                            )
+                        )
                     } catch {
                         print("AdaEngine: failed to load script at \\(script.path): \\(error)")
                     }

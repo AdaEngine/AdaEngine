@@ -155,6 +155,21 @@ struct GravityDocumentAnalyzer {
 
     private static func inferTypes(_ tokens: [GravityToken]) -> [String: String] {
         var inferred: [String: String] = [:]
+        for index in tokens.indices where tokens[index].text == "@" {
+            guard index + 1 < tokens.count, tokens[index + 1].text == "query" else { continue }
+            var declarationIndex = index + 2
+            var parenthesisDepth = 0
+            while declarationIndex < tokens.count {
+                if tokens[declarationIndex].text == "(" { parenthesisDepth += 1 }
+                if tokens[declarationIndex].text == ")" { parenthesisDepth -= 1 }
+                if parenthesisDepth == 0, tokens[declarationIndex].text == "var",
+                   declarationIndex + 1 < tokens.count {
+                    inferred[tokens[declarationIndex + 1].text] = "$AdaQueryCollection"
+                    break
+                }
+                declarationIndex += 1
+            }
+        }
         for index in tokens.indices {
             guard tokens[index].text == "var" || tokens[index].text == "const",
                   index + 3 < tokens.count,
@@ -176,14 +191,15 @@ struct GravityDocumentAnalyzer {
         }
 
         for index in tokens.indices where tokens[index].text == "for" {
-            guard index + 4 < tokens.count,
-                  tokens[index + 1].text == "(",
-                  tokens[index + 3].text == "in",
-                  inferred[tokens[index + 4].text] == "$AdaQueryCollection"
-            else {
-                continue
-            }
-            inferred[tokens[index + 2].text] = "$AdaEntity"
+            guard index + 4 < tokens.count, tokens[index + 1].text == "(" else { continue }
+            let hasVariableKeyword = tokens[index + 2].text == "var"
+            let entityIndex = hasVariableKeyword ? index + 3 : index + 2
+            let inIndex = entityIndex + 1
+            let queryIndex = inIndex + 1
+            guard queryIndex < tokens.count,
+                  tokens[inIndex].text == "in",
+                  inferred[tokens[queryIndex].text] == "$AdaQueryCollection" else { continue }
+            inferred[tokens[entityIndex].text] = "$AdaEntity"
         }
         return inferred
     }

@@ -151,28 +151,37 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
     func initialContent(fileName: String) -> String {
         switch self {
         case .scene:
-            SceneDocumentFormat.defaultSceneYAML(
+            return SceneDocumentFormat.defaultSceneYAML(
                 projectName: URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
             )
         case .script:
-            """
+            let typeName = gravityTypeIdentifier(
+                URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
+            )
+            return """
             // \(fileName)
 
-            func main() {
-                return AdaPlugin.create("\(gravityStringLiteral(URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent))", []);
+            @system(scheduler: "update")
+            class \(typeName)System {
+                func update(context) {
+                }
             }
             """
         case .swift:
-            "import AdaEngine\n\n"
+            return "import AdaEngine\n\n"
         case .plainText:
-            ""
+            return ""
         }
     }
 
-    private func gravityStringLiteral(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
+    private func gravityTypeIdentifier(_ value: String) -> String {
+        let parts = value.split { !$0.isLetter && !$0.isNumber }
+        let joined = parts.map { part in
+            guard let first = part.first else { return "" }
+            return first.uppercased() + part.dropFirst()
+        }.joined()
+        guard let first = joined.first else { return "Script" }
+        return first.isNumber ? "Script\(joined)" : joined
     }
 }
 

@@ -27,16 +27,19 @@ struct GravityLanguageServerTests {
         #expect(update.replacementRange.start == GravitySourcePosition(line: 6, utf16Column: 11))
 
         let querySource = """
-        func update(deltaTime, queries) {
-            var movers = queries[0];
-            movers.ge
+        @query(Transform)
+        var movers;
+        func update(context) {
+            for (var entity in movers) {
+                entity.i
+            }
         }
         """
         let queryItems = service.completions(
             text: querySource,
-            position: GravitySourcePosition(line: 2, utf16Column: 13)
+            position: GravitySourcePosition(line: 4, utf16Column: 16)
         )
-        #expect(queryItems.contains { $0.label == "get(index, component, field)" })
+        #expect(queryItems.contains { $0.label == "id" })
     }
 
     @Test("Completion uses symbols from real workspace files")
@@ -66,15 +69,15 @@ struct GravityLanguageServerTests {
     @Test("Diagnostics report unfinished source without rejecting completion")
     func tolerantDiagnostics() {
         let service = GravityLanguageService()
-        let source = "func main() {\n    AdaQuery.re"
+        let source = "@system(scheduler: \"update\")\nclass Movement {\n    @que"
         let analysis = service.analyze(text: source)
         let completions = service.completions(
             text: source,
-            position: GravitySourcePosition(line: 1, utf16Column: 15)
+            position: GravitySourcePosition(line: 2, utf16Column: 8)
         )
 
         #expect(analysis.diagnostics.contains { $0.message == "Unclosed '{'" })
-        #expect(completions.contains { $0.label == "read(components)" })
+        #expect(completions.contains { $0.label == "query" })
     }
 
     @Test("Completion keeps type members while the class is unfinished")
@@ -117,7 +120,7 @@ struct GravityLanguageServerTests {
             "params": [
                 "textDocument": [
                     "languageId": "gravity",
-                    "text": "func main() {\n    AdaQuery.re",
+                    "text": "@que",
                     "uri": uri,
                     "version": 1
                 ]
@@ -131,14 +134,14 @@ struct GravityLanguageServerTests {
             "jsonrpc": "2.0",
             "method": "textDocument/completion",
             "params": [
-                "position": ["character": 15, "line": 1],
+                "position": ["character": 4, "line": 0],
                 "textDocument": ["uri": uri]
             ]
         ])
         let response = try #require(completion.outgoingMessages.first)
         let result = try #require(response["result"] as? [String: Any])
         let items = try #require(result["items"] as? [[String: Any]])
-        #expect(items.contains { $0["label"] as? String == "read(components)" })
+        #expect(items.contains { $0["label"] as? String == "query" })
 
         let shutdown = session.handle(["id": 3, "jsonrpc": "2.0", "method": "shutdown"])
         #expect(shutdown.outgoingMessages.count == 1)

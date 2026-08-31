@@ -19,7 +19,8 @@ struct EditorTreeSitterSyntaxHighlighterTests {
             const speed = 12.5;
             var title = 'Gravity';
             /* outer /* nested */ comment */
-            func main() { return AdaPlugin.create(title, []); }
+            @system(scheduler: "update")
+            class MovementSystem { func update(context) {} }
             """,
             language: .ada,
             palette: palette
@@ -28,7 +29,7 @@ struct EditorTreeSitterSyntaxHighlighterTests {
         #expect(tokens.contains(EditorCodeToken(text: "const", color: .green)))
         #expect(tokens.contains(EditorCodeToken(text: "'Gravity'", color: .blue)))
         #expect(tokens.contains(EditorCodeToken(text: "/* outer /* nested */ comment */", color: .yellow)))
-        #expect(tokens.contains(EditorCodeToken(text: "AdaPlugin", color: .orange)))
+        #expect(tokens.contains(EditorCodeToken(text: "MovementSystem", color: .orange)))
         #expect(tokens.contains(EditorCodeToken(text: "12.5", color: .red)))
         #expect(tokens.contains(EditorCodeToken(text: ";", color: .purple)))
     }

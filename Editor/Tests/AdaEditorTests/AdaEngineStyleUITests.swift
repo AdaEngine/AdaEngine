@@ -1260,12 +1260,14 @@ struct AdaEngineStyleUITests {
         #expect(adaSource == """
         // Movement.ada
 
-        func main() {
-            return AdaPlugin.create("Movement", []);
+        @system(scheduler: "update")
+        class MovementSystem {
+            func update(context) {
+            }
         }
         """)
         let gravityPlugin = try GravityScriptPlugin(source: adaSource)
-        #expect(gravityPlugin.descriptor.name == "Movement")
+        #expect(gravityPlugin.name == "AdaScript")
         #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Player.swift"), encoding: .utf8) == "import AdaEngine\n\n")
         #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Notes.txt"), encoding: .utf8).isEmpty)
     }

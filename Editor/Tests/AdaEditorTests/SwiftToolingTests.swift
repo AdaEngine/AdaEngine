@@ -219,32 +219,31 @@ struct SwiftToolingTests {
     func gravityCompletionOffersAdaAPIsAndSymbols() async throws {
         let service = SwiftPMWorkspaceService()
         let source = """
+        @system(scheduler: "update")
         class MovementSystem {
-            func update(deltaTime, queries) {}
-        }
-        func main() {
-            return AdaQuery.re
+            @que
+            func update(context) {}
         }
         """
         let apiItems = await service.completions(
             fileURL: URL(fileURLWithPath: "/tmp/Movement.ada"),
             language: .ada,
             text: source,
-            position: EditorSourceLocation(line: 4, character: 22)
+            position: EditorSourceLocation(line: 2, character: 8)
         )
 
-        let read = try #require(apiItems.first { $0.label == "read(components)" })
-        #expect(read.insertText == "read([])")
-        #expect(read.replacementRange == EditorSourceRange(
-            start: EditorSourceLocation(line: 4, character: 20),
-            end: EditorSourceLocation(line: 4, character: 22)
+        let query = try #require(apiItems.first { $0.label == "query" })
+        #expect(query.insertText == "query()")
+        #expect(query.replacementRange == EditorSourceRange(
+            start: EditorSourceLocation(line: 2, character: 5),
+            end: EditorSourceLocation(line: 2, character: 8)
         ))
 
         let symbolItems = await service.completions(
             fileURL: URL(fileURLWithPath: "/tmp/Movement.ada"),
             language: .ada,
             text: source + "\nMove",
-            position: EditorSourceLocation(line: 6, character: 4)
+            position: EditorSourceLocation(line: 5, character: 4)
         )
         #expect(symbolItems.contains { $0.label == "MovementSystem" && $0.insertText == "MovementSystem" })
     }
@@ -288,7 +287,7 @@ struct SwiftToolingTests {
             relativePath: "Sources/Game/Movement.ada",
             absolutePath: "/tmp/Game/Sources/Game/Movement.ada",
             language: .ada,
-            content: "AdaQuery.re"
+            content: "@que"
         )
         let viewModel = EditorViewModel(
             project: EditorProjectReference(name: "Game", path: "/tmp/Game"),
@@ -298,7 +297,7 @@ struct SwiftToolingTests {
 
         viewModel.handleCompletionPosition(
             document: document,
-            position: EditorSourceLocation(line: 0, character: 11),
+            position: EditorSourceLocation(line: 0, character: 4),
             text: document.content
         )
 

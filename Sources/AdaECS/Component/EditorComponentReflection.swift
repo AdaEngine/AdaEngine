@@ -31,6 +31,7 @@ public enum EditorFieldValue: Codable, Equatable, Sendable {
     case object([String: EditorFieldValue])
 }
 
+@safe
 public struct EditorComponentFieldDescriptor: @unchecked Sendable {
     public var key: String
     public var label: String
@@ -40,6 +41,10 @@ public struct EditorComponentFieldDescriptor: @unchecked Sendable {
     public var accepts: @Sendable (EditorFieldValue) -> Bool
     public var read: @Sendable (any Component) -> EditorFieldValue?
     public var write: @Sendable (any Component, EditorFieldValue) -> (any Component)?
+    /// Reads this field directly from a component column element.
+    package var readPointer: (@Sendable (UnsafeRawPointer) -> EditorFieldValue?)?
+    /// Writes this field directly into a component column element.
+    package var writePointer: (@Sendable (UnsafeMutableRawPointer, EditorFieldValue) -> Bool)?
 
     public init(
         key: String,
@@ -57,6 +62,31 @@ public struct EditorComponentFieldDescriptor: @unchecked Sendable {
         self.accepts = accepts
         self.read = read
         self.write = write
+        unsafe self.readPointer = nil
+        unsafe self.writePointer = nil
+    }
+
+    @unsafe
+    public init(
+        key: String,
+        label: String,
+        kind: EditorFieldKind,
+        isEditable: Bool,
+        accepts: @escaping @Sendable (EditorFieldValue) -> Bool = { _ in true },
+        read: @escaping @Sendable (any Component) -> EditorFieldValue?,
+        write: @escaping @Sendable (any Component, EditorFieldValue) -> (any Component)?,
+        readPointer: (@Sendable (UnsafeRawPointer) -> EditorFieldValue?)? = nil,
+        writePointer: (@Sendable (UnsafeMutableRawPointer, EditorFieldValue) -> Bool)? = nil
+    ) {
+        self.key = key
+        self.label = label
+        self.kind = kind
+        self.isEditable = isEditable
+        self.accepts = accepts
+        self.read = read
+        self.write = write
+        unsafe self.readPointer = readPointer
+        unsafe self.writePointer = writePointer
     }
 }
 
