@@ -2,7 +2,33 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Planned
+- Implementation: Implemented
+
+## Implementation status
+
+Last verified: 2026-08-31.
+
+- [x] Native and Gravity scriptable objects share `ScriptableObjectRegistry`,
+  stable identifiers, versions, aliases, exported-field metadata, and the same
+  polymorphic scene envelope.
+- [x] Unknown identifiers and unsupported future versions produce typed errors.
+- [x] Decoded objects remain detached; `ready`, `update`, `fixedUpdate`,
+  `event`, and `destroy` have explicit scoped lifecycle semantics.
+- [x] `destroy` runs once after component/entity detachment rather than relying
+  on object deallocation.
+- [x] The build plugin discovers `@scriptable` declarations and registers their
+  module runtime before scene objects are created.
+- [x] Gravity instances are owned by a shared module VM while serialized state
+  contains only detached `@export` values.
+- [x] `@component` and `@res` bindings are transient checked capabilities;
+  required components are validated before `ready` and resource writes update
+  ECS change ticks.
+- [x] Immediate-mode `updateGUI` was removed from the native lifecycle and demos
+  were migrated to scoped contexts.
+
+Component and resource bindings currently declare conservative write access.
+Narrowing read-only bindings is a scheduler optimization rather than a missing
+capability or safety boundary.
 
 ## Context
 
@@ -74,6 +100,10 @@ class PlayerController {
 entity. Their read and write access is inferred from lifecycle methods. They are
 transient and are never encoded.
 
+The current compiler uses a safe conservative form of inference: every bound
+component or resource is declared writable. This may serialize more work but
+does not hide access from the scheduler.
+
 Scriptable objects do not provide an immediate-mode `drawGUI` lifecycle. They
 mount, dismiss, or send inputs to declarative Ada Script views described by
 [ADR-0006](0006-ada-script-adaui-integration.md). This keeps layout, state,
@@ -94,6 +124,17 @@ Lifecycle APIs receive scoped context values instead of retaining hidden world
 and input references. Compatibility with the existing Swift API is not a
 constraint for the new design because this decision is implemented as a
 coordinated engine API change.
+
+Native types register explicitly before decoding:
+
+```swift
+try ScriptableObjectRegistry.register(
+    PlayerController.self,
+    identifier: "game.player-controller",
+    version: 2,
+    aliases: ["PlayerController"]
+)
+```
 
 ### Scene representation
 

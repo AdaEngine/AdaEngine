@@ -1,81 +1,5 @@
 import Foundation
 
-public struct AdaScriptCompilerSource: Hashable, Sendable {
-    public let path: String
-    public let source: String
-
-    public init(path: String, source: String) {
-        self.path = path
-        self.source = source
-    }
-}
-
-public struct AdaScriptDataSchema: Equatable, Sendable {
-    public enum Kind: Equatable, Sendable {
-        case component
-        case resource(autoInsert: Bool)
-    }
-
-    public let fields: [AdaScriptSchemaField]
-    public let id: String
-    public let kind: Kind
-    public let name: String
-    public let sourcePath: String
-}
-
-public struct AdaScriptSchemaField: Equatable, Sendable {
-    public enum Value: Equatable, Sendable {
-        case bool(Bool)
-        case double(Double)
-        case int(Int64)
-        case string(String)
-    }
-
-    public let defaultValue: Value
-    public let name: String
-}
-
-public struct AdaScriptResourceBinding: Equatable, Sendable {
-    public let isOptional: Bool
-    public let propertyName: String
-    public let resourceName: String
-    public let systemName: String
-
-    public init(isOptional: Bool, propertyName: String, resourceName: String, systemName: String) {
-        self.isOptional = isOptional
-        self.propertyName = propertyName
-        self.resourceName = resourceName
-        self.systemName = systemName
-    }
-}
-
-public struct AdaScriptSystemCapabilities: Equatable, Sendable {
-    public let systemName: String
-    public let usesDeferredCommands: Bool
-
-    public init(systemName: String, usesDeferredCommands: Bool) {
-        self.systemName = systemName
-        self.usesDeferredCommands = usesDeferredCommands
-    }
-}
-
-public enum AdaScriptSchemaError: Error, Equatable, CustomStringConvertible {
-    case duplicateID(String)
-    case duplicateName(String)
-    case invalid(path: String, message: String)
-
-    public var description: String {
-        switch self {
-        case .duplicateID(let id):
-            "Duplicate Ada Script data id '\(id)'"
-        case .duplicateName(let name):
-            "Duplicate Ada Script data declaration '\(name)'"
-        case let .invalid(path, message):
-            "Invalid Ada Script schema in '\(path)': \(message)"
-        }
-    }
-}
-
 public enum AdaScriptSchemaParser {
     public static func parse(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptDataSchema] {
         var schemas: [AdaScriptDataSchema] = []
@@ -114,6 +38,26 @@ public enum AdaScriptSchemaParser {
         }
         return capabilities
     }
+
+    public static func parseScriptables(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptableSchema] {
+        var schemas: [AdaScriptableSchema] = []
+        for source in sources.sorted(by: { $0.path < $1.path }) {
+            var parser = Parser(source: source.source, path: source.path)
+            schemas += try parser.parse().scriptables
+        }
+
+        var ids = Set<String>()
+        var names = Set<String>()
+        for schema in schemas {
+            guard ids.insert(schema.id).inserted else {
+                throw AdaScriptSchemaError.duplicateID(schema.id)
+            }
+            guard names.insert(schema.name).inserted else {
+                throw AdaScriptSchemaError.duplicateName(schema.name)
+            }
+        }
+        return schemas
+    }
 }
 
 private struct Annotation {
@@ -124,11 +68,12 @@ private struct Annotation {
 private enum Literal {
     case bool(Bool)
     case identifier(String)
+    case list([Self])
     case number(String)
     case string(String)
 }
 
-private struct Token {
+struct Token {
     enum Kind {
         case identifier
         case number
@@ -144,6 +89,7 @@ private struct Parser {
     struct Output {
         var resourceBindings: [AdaScriptResourceBinding] = []
         var schemas: [AdaScriptDataSchema] = []
+        var scriptables: [AdaScriptableSchema] = []
         var systemCapabilities: [AdaScriptSystemCapabilities] = []
     }
     private let path: String
@@ -168,6 +114,8 @@ private struct Parser {
                     let system = try parseSystemBody(systemName: name)
                     output.resourceBindings += system.resourceBindings
                     output.systemCapabilities.append(system.capabilities)
+                } else if let annotation = annotations.first(where: { $0.name == "scriptable" }) {
+                    output.scriptables.append(try parseScriptable(name: name, annotation: annotation))
                 } else {
                     try skipDeclarationBody()
                 }
@@ -191,6 +139,132 @@ private struct Parser {
 }
 
 private extension Parser {
+    private mutating func parseScriptable(name: String, annotation: Annotation) throws -> AdaScriptableSchema {
+        let body = try parseScriptableBody(name: name)
+        return AdaScriptableSchema(
+            aliases: try scriptableAliases(annotation),
+            bindings: body.bindings,
+            fields: body.fields,
+            id: try scriptableID(name: name, annotation: annotation),
+            name: name,
+            sourcePath: path,
+            version: scriptableVersion(annotation)
+        )
+    }
+
+    private mutating func parseScriptableBody(
+        name: String
+    ) throws -> (bindings: [AdaScriptableBinding], fields: [AdaScriptSchemaField]) {
+        guard match("{") else {
+            throw error("expected '{' after scriptable \(name)")
+        }
+        var depth = 1
+        var bindings: [AdaScriptableBinding] = []
+        var fields: [AdaScriptSchemaField] = []
+        var fieldNames = Set<String>()
+        while !isAtEnd, depth > 0 {
+            if depth == 1 {
+                let annotations = try parseAnnotations()
+                if annotations.contains(where: { $0.name == "export" }) {
+                    let field = try parseScriptableField(declarationName: name)
+                    guard fieldNames.insert(field.name).inserted else {
+                        throw error("duplicate field '\(field.name)' in \(name)")
+                    }
+                    fields.append(field)
+                    continue
+                }
+                if let bindingAnnotation = annotations.first(where: { $0.name == "component" || $0.name == "res" }) {
+                    bindings.append(try parseScriptableBinding(annotation: bindingAnnotation, declarationName: name))
+                    continue
+                }
+            }
+            advanceSystemBody(depth: &depth)
+        }
+        guard depth == 0 else {
+            throw error("unterminated scriptable declaration '\(name)'")
+        }
+        return (bindings, fields)
+    }
+
+    private func scriptableID(name: String, annotation: Annotation) throws -> String {
+        guard case .string(let id) = annotation.arguments["id"] else {
+            throw error("@scriptable on \(name) requires id: \"...\"")
+        }
+        return id
+    }
+
+    private func scriptableVersion(_ annotation: Annotation) -> Int {
+        if case .number(let value) = annotation.arguments["version"], let parsed = Int(value), parsed > 0 {
+            return parsed
+        }
+        return 1
+    }
+
+    private func scriptableAliases(_ annotation: Annotation) throws -> [String] {
+        if case .list(let values) = annotation.arguments["aliases"] {
+            return try values.map { value in
+                guard case .string(let alias) = value else {
+                    throw error("@scriptable aliases must contain strings")
+                }
+                return alias
+            }
+        }
+        return []
+    }
+
+    private mutating func parseScriptableBinding(
+        annotation: Annotation,
+        declarationName: String
+    ) throws -> AdaScriptableBinding {
+        guard match("var"), let propertyName = consumeIdentifier(), match(":"),
+              let typeName = consumeIdentifier(), match(";") else {
+            throw error("@\(annotation.name) in \(declarationName) must annotate 'var name: Type;'")
+        }
+        if annotation.name == "component" {
+            let required: Bool
+            if case .bool(let value) = annotation.arguments["required"] {
+                required = value
+            } else {
+                required = false
+            }
+            return AdaScriptableBinding(
+                kind: .component(required: required),
+                propertyName: propertyName,
+                typeName: typeName
+            )
+        }
+        let optional: Bool
+        if case .bool(let value) = annotation.arguments["optional"] {
+            optional = value
+        } else {
+            optional = false
+        }
+        return AdaScriptableBinding(
+            kind: .resource(optional: optional),
+            propertyName: propertyName,
+            typeName: typeName
+        )
+    }
+
+    private mutating func parseScriptableField(declarationName: String) throws -> AdaScriptSchemaField {
+        guard match("var"), let fieldName = consumeIdentifier() else {
+            throw error("@export in \(declarationName) must annotate a stored var")
+        }
+        if match(":") {
+            guard consumeIdentifier() != nil else {
+                throw error("expected field type for \(fieldName)")
+            }
+        }
+        guard match("=") else {
+            throw error("field '\(fieldName)' requires a constant default")
+        }
+        let defaultValue = try parseFieldValue(fieldName: fieldName)
+        guard match(";") else {
+            throw error("expected ';' after field '\(fieldName)'")
+        }
+        return AdaScriptSchemaField(defaultValue: defaultValue, name: fieldName)
+    }
+
     private mutating func parseSystemBody(
         systemName: String
     ) throws -> (resourceBindings: [AdaScriptResourceBinding], capabilities: AdaScriptSystemCapabilities) {
@@ -413,6 +487,9 @@ private extension Parser {
     }
 
     private mutating func parseLiteral(annotation: String, label: String) throws -> Literal {
+        if check("[") {
+            return .list(try parseLiteralList(annotation: annotation, label: label))
+        }
         guard let token = current else {
             throw error("missing value for @\(annotation) \(label)")
         }
@@ -431,6 +508,21 @@ private extension Parser {
         default:
             throw error("unsupported value for @\(annotation) \(label)")
         }
+    }
+
+    private mutating func parseLiteralList(annotation: String, label: String) throws -> [Literal] {
+        _ = match("[")
+        var values: [Literal] = []
+        while !isAtEnd, !check("]") {
+            values.append(try parseLiteral(annotation: annotation, label: label))
+            if !match(",") {
+                break
+            }
+        }
+        guard match("]") else {
+            throw error("unterminated list for @\(annotation) \(label)")
+        }
+        return values
     }
 
     private mutating func skipDeclarationBody() throws {
@@ -490,74 +582,5 @@ private extension Parser {
 
     private func error(_ message: String) -> AdaScriptSchemaError {
         .invalid(path: path, message: message)
-    }
-}
-
-private struct Lexer {
-    private let source: String
-    private var index: String.Index
-
-    init(source: String) {
-        self.source = source
-        self.index = source.startIndex
-    }
-
-    mutating func lex() -> [Token] {
-        var tokens: [Token] = []
-        while index < source.endIndex {
-            if source[index].isWhitespace {
-                advance()
-            } else if hasPrefix("//") {
-                while index < source.endIndex, source[index] != "\n" { advance() }
-            } else if hasPrefix("/*") {
-                advance(2)
-                while index < source.endIndex, !hasPrefix("*/") { advance() }
-                advance(2)
-            } else if source[index] == "\"" {
-                tokens.append(Token(kind: .string, text: lexString()))
-            } else if source[index].isLetter || source[index] == "_" {
-                tokens.append(Token(kind: .identifier, text: lexIdentifier()))
-            } else if source[index].isNumber {
-                tokens.append(Token(kind: .number, text: lexNumber()))
-            } else {
-                let character = source[index]
-                advance()
-                tokens.append(Token(kind: .punctuation, text: String(character)))
-            }
-        }
-        return tokens
-    }
-
-    private mutating func lexString() -> String {
-        advance()
-        var result = ""
-        while index < source.endIndex, source[index] != "\"" {
-            if source[index] == "\\" {
-                advance()
-            }
-            guard index < source.endIndex else { break }
-            result.append(source[index])
-            advance()
-        }
-        advance()
-        return result
-    }
-
-    private mutating func lexIdentifier() -> String {
-        let start = index
-        while index < source.endIndex, source[index].isLetter || source[index].isNumber || source[index] == "_" { advance() }
-        return String(source[start..<index])
-    }
-
-    private mutating func lexNumber() -> String {
-        let start = index
-        while index < source.endIndex, source[index].isNumber || ".eE+-".contains(source[index]) { advance() }
-        return String(source[start..<index])
-    }
-
-    private func hasPrefix(_ value: String) -> Bool { source[index...].hasPrefix(value) }
-
-    private mutating func advance(_ distance: Int = 1) {
-        index = source.index(index, offsetBy: distance, limitedBy: source.endIndex) ?? source.endIndex
     }
 }

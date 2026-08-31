@@ -128,4 +128,53 @@ struct AdaScriptSchemaParserTests {
             AdaScriptSystemCapabilities(systemName: "ReadOnlySystem", usesDeferredCommands: false)
         ])
     }
+
+    @Test("Parses scriptable identity, aliases, version, and exported state")
+    func parsesScriptables() throws {
+        let schemas = try AdaScriptSchemaParser.parseScriptables(sources: [
+            AdaScriptCompilerSource(
+                path: "Player.ada",
+                source: """
+                @scriptable(
+                    id: "game.player-controller",
+                    version: 2,
+                    aliases: ["PlayerController", "game.player"]
+                )
+                class PlayerController {
+                    @export var speed = 8.0;
+                    @component(required: true) var transform: Transform;
+                    @res(optional: true) var input: Input;
+                    var runtimeCache = 0;
+
+                    func update(context) {
+                        runtimeCache += 1;
+                    }
+                }
+                """
+            )
+        ])
+
+        #expect(schemas == [
+            AdaScriptableSchema(
+                aliases: ["PlayerController", "game.player"],
+                bindings: [
+                    AdaScriptableBinding(
+                        kind: .component(required: true),
+                        propertyName: "transform",
+                        typeName: "Transform"
+                    ),
+                    AdaScriptableBinding(
+                        kind: .resource(optional: true),
+                        propertyName: "input",
+                        typeName: "Input"
+                    )
+                ],
+                fields: [AdaScriptSchemaField(defaultValue: .double(8), name: "speed")],
+                id: "game.player-controller",
+                name: "PlayerController",
+                sourcePath: "Player.ada",
+                version: 2
+            )
+        ])
+    }
 }

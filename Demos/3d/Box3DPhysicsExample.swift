@@ -194,7 +194,6 @@ func Box3DPhysicsDemoSetup(_ commands: Commands) {
 }
 
 final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
-
     @RequiredComponent var cameraTransform: Transform
     @RequiredComponent var camera: Camera
 
@@ -217,7 +216,9 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
         return Quat(rotationMatrix: yaw * pitch)
     }
 
-    override func update(_ deltaTime: AdaUtils.TimeInterval) {
+    override func update(context: ScriptableObjectContext) {
+        let deltaTime = context.deltaTime
+        let input = context.input
         let dt = Float(deltaTime)
         var direction: Vector3 = .zero
 
@@ -228,7 +229,9 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
         if input.isKeyPressed(.e) { direction.y += 1 }
         if input.isKeyPressed(.q) { direction.y -= 1 }
         if input.isKeyPressed(.m) {
-            world?.getRefResource(PhysicsDebugOptions.self).wrappedValue.formUnion([.showPhysicsShapes, .showBoundingBoxes])
+            var options = context.resource(PhysicsDebugOptions.self) ?? []
+            options.formUnion([.showPhysicsShapes, .showBoundingBoxes])
+            context.setResource(options)
         }
 
         if direction != .zero {
@@ -252,14 +255,14 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
             lastMousePosition = nil
         }
 
-        updateGrab(deltaTime: dt)
+        updateGrab(context: context, input: input, deltaTime: dt)
     }
 
-    private func updateGrab(deltaTime: Float) {
+    private func updateGrab(context: ScriptableObjectContext, input: Input, deltaTime: Float) {
         let isLeftMousePressed = input.isMouseButtonPressed(.left)
         defer { wasLeftMousePressed = isLeftMousePressed }
 
-        guard let ray = mouseRay() else {
+        guard let ray = mouseRay(context: context, input: input) else {
             if !isLeftMousePressed, wasLeftMousePressed {
                 releaseGrab(ray: nil)
             }
@@ -267,7 +270,7 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
         }
 
         if isLeftMousePressed, !wasLeftMousePressed {
-            beginGrab(ray: ray)
+            beginGrab(context: context, ray: ray)
         }
 
         if isLeftMousePressed {
@@ -277,8 +280,8 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
         }
     }
 
-    private func mouseRay() -> Ray? {
-        guard let cameraGlobalTransform = entity?.components[GlobalTransform.self] else {
+    private func mouseRay(context: ScriptableObjectContext, input: Input) -> Ray? {
+        guard let cameraGlobalTransform = context.component(GlobalTransform.self) else {
             return nil
         }
 
@@ -291,11 +294,7 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
         )
     }
 
-    private func beginGrab(ray: Ray) {
-        guard let world else {
-            return
-        }
-
+    private func beginGrab(context: ScriptableObjectContext, ray: Ray) {
         let query = EntityQuery(
             where: .has(Box3DGrabbable.self)
                 && .has(PhysicsBody3DComponent.self)
@@ -304,7 +303,7 @@ final class Box3DFlyCamera: ScriptableObject, @unchecked Sendable {
         var closestEntity: Entity?
         var closestDistance = Float.greatestFiniteMagnitude
 
-        for candidate in world.performQuery(query) {
+        for candidate in context.entities(matching: query) {
             guard
                 let grabbable = candidate.components[Box3DGrabbable.self],
                 let transform = candidate.components[GlobalTransform.self],

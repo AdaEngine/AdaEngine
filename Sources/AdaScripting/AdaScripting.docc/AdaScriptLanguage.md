@@ -166,8 +166,51 @@ private backing type:
 world.insertDefaultComponent(named: "game.health", into: entity.id)
 ```
 
-Dynamic component mutation/removal, scene coding, vectors, colors, enums,
-entity references, and asset references are not part of this initial slice yet.
+Generated-component dynamic mutation/removal and scene coding, vectors, colors,
+enums, entity references, and asset references are not part of that data-schema
+slice yet.
+
+## Scriptable objects
+
+Use `@scriptable` for low-cardinality behavior attached to one entity. Systems
+remain the scalable path for processing large entity sets.
+
+```ada
+@scriptable(
+    id: "game.player-controller",
+    version: 2,
+    aliases: ["PlayerController"]
+)
+class PlayerController {
+    @export var speed = 8.0;
+    @component(required: true) var transform: Transform;
+    @res(optional: true) var settings: PlayerSettings;
+
+    func ready(context) {}
+
+    func update(context) {
+        transform.position += speed * context.deltaTime;
+    }
+
+    func fixedUpdate(context) {}
+    func event(events, context) {}
+    func destroy(context) {}
+}
+```
+
+The build plugin registers stable IDs, versions, aliases, exported scalar
+defaults, and transient component/resource bindings. Required components are
+checked before `ready`. Optional resources expose `available()`.
+
+`ScriptableComponents` encodes a polymorphic envelope containing only `type`,
+`version`, and detached `payload`. Entity bindings, resources, VM instances,
+world contexts, and lifecycle state are never serialized. Decoding does not run
+gameplay; attachment runs `ready` once and detachment runs `destroy` once.
+
+Scriptable contexts expose the same expiring deferred commands facade as
+systems. Retaining it after a callback produces a diagnostic. Scriptable
+objects intentionally have no immediate-mode GUI callback; declarative UI
+belongs to AdaUI script views.
 
 ## System context
 

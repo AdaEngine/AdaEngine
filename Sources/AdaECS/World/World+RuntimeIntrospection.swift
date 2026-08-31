@@ -58,6 +58,38 @@ public extension World {
         return self.resources.getResource(resourceType)
     }
 
+    @_spi(Scripting)
+    func readResourceField(
+        type: any Resource.Type,
+        field: EditorComponentFieldDescriptor
+    ) -> EditorFieldValue? {
+        guard let data = resources.getResourceData(for: type),
+              let pointer = unsafe data.pointer.buffer.pointer.baseAddress,
+              let readPointer = unsafe field.readPointer else {
+            return nil
+        }
+        return unsafe readPointer(UnsafeRawPointer(pointer))
+    }
+
+    @_spi(Scripting)
+    @discardableResult
+    func writeResourceField(
+        type: any Resource.Type,
+        field: EditorComponentFieldDescriptor,
+        value: EditorFieldValue
+    ) -> Bool {
+        guard field.accepts(value),
+              let data = resources.getResourceData(for: type),
+              let pointer = unsafe data.pointer.buffer.pointer.baseAddress,
+              let writePointer = unsafe field.writePointer,
+              unsafe writePointer(pointer, value) else {
+            return false
+        }
+        var changedTick = data.changedTick
+        changedTick.wrappedValue = currentTick
+        return true
+    }
+
     private func insertTypeErasedComponent(_ component: any Component, into entity: Entity.ID) {
         func insert<T: Component>(_ component: T) {
             self.insert(component, for: entity)

@@ -43,7 +43,6 @@ struct SimpleCubeExample: App {
 }
 
 final class FlyCamera: ScriptableObject, @unchecked Sendable {
-    
     @RequiredComponent var cameraTransform: Transform
     
     var speed: Float = 5.0
@@ -58,7 +57,9 @@ final class FlyCamera: ScriptableObject, @unchecked Sendable {
         return Quat(rotationMatrix: yaw * pitch)
     }
     
-    override func update(_ deltaTime: AdaUtils.TimeInterval) {
+    override func update(context: ScriptableObjectContext) {
+        let deltaTime = context.deltaTime
+        let input = context.input
         let dt = Float(deltaTime)
         
         // 1. Handle Movement

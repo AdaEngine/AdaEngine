@@ -168,12 +168,12 @@ final class PBRShowcaseFreeCamera: ScriptableObject, @unchecked Sendable {
         return Quat(rotationMatrix: yaw * pitch)
     }
 
-    override func update(_ deltaTime: AdaUtils.TimeInterval) {
-        updateMovement(deltaTime: deltaTime)
-        updateRotation()
+    override func update(context: ScriptableObjectContext) {
+        updateMovement(deltaTime: context.deltaTime, input: context.input)
+        updateRotation(input: context.input)
     }
 
-    private func updateMovement(deltaTime: AdaUtils.TimeInterval) {
+    private func updateMovement(deltaTime: AdaUtils.TimeInterval, input: Input) {
         var direction = Vector3.zero
         if input.isKeyPressed(.w) { direction.z += 1 }
         if input.isKeyPressed(.s) { direction.z -= 1 }
@@ -191,7 +191,7 @@ final class PBRShowcaseFreeCamera: ScriptableObject, @unchecked Sendable {
         cameraTransform.position += localDirection.xyz * (speed * Float(deltaTime))
     }
 
-    private func updateRotation() {
+    private func updateRotation(input: Input) {
         guard input.isMouseButtonPressed(.left) else {
             lastMousePosition = nil
             return

@@ -209,7 +209,6 @@ func LargePyramidBenchmarkSetup(_ commands: Commands) {
 }
 
 final class LargePyramidBenchmarkCamera: ScriptableObject, @unchecked Sendable {
-
     @RequiredComponent var cameraTransform: Transform
     @RequiredComponent var camera: Camera
 
@@ -237,11 +236,13 @@ final class LargePyramidBenchmarkCamera: ScriptableObject, @unchecked Sendable {
         return Quat(rotationMatrix: yaw * pitch)
     }
 
-    override func ready() {
+    override func ready(context: ScriptableObjectContext) {
         cameraTransform.rotation = cameraRotation
     }
 
-    override func update(_ deltaTime: AdaUtils.TimeInterval) {
+    override func update(context: ScriptableObjectContext) {
+        let deltaTime = context.deltaTime
+        let input = context.input
         let dt = Float(deltaTime)
         var direction: Vector3 = .zero
 
@@ -252,7 +253,9 @@ final class LargePyramidBenchmarkCamera: ScriptableObject, @unchecked Sendable {
         if input.isKeyPressed(.e) { direction.y += 1 }
         if input.isKeyPressed(.q) { direction.y -= 1 }
         if input.isKeyPressed(.m) {
-            world?.getRefResource(PhysicsDebugOptions.self).wrappedValue.formUnion([.showPhysicsShapes, .showBoundingBoxes])
+            var options = context.resource(PhysicsDebugOptions.self) ?? []
+            options.formUnion([.showPhysicsShapes, .showBoundingBoxes])
+            context.setResource(options)
         }
 
         if direction != .zero {
@@ -262,7 +265,7 @@ final class LargePyramidBenchmarkCamera: ScriptableObject, @unchecked Sendable {
 
         if input.mouseEvents[.left]?.phase == .began,
            shootCooldown.advance(with: deltaTime).isFixedTick {
-            shootProjectile()
+            shootProjectile(context: context, input: input)
         }
 
         if let phase = input.mouseEvents[.right]?.phase {
@@ -287,11 +290,10 @@ final class LargePyramidBenchmarkCamera: ScriptableObject, @unchecked Sendable {
         }
     }
 
-    private func shootProjectile() {
+    @MainActor
+    private func shootProjectile(context: ScriptableObjectContext, input: Input) {
         guard
-            let entity,
-            let world,
-            let cameraGlobalTransform = entity.components[GlobalTransform.self],
+            let cameraGlobalTransform = context.component(GlobalTransform.self),
             let ray = camera.viewportToWorld(
                 cameraGlobalTransform: cameraGlobalTransform.matrix,
                 point: input.getMousePosition()
@@ -300,20 +302,20 @@ final class LargePyramidBenchmarkCamera: ScriptableObject, @unchecked Sendable {
             return
         }
 
-        Task { @MainActor in
-            let spawnPosition = ray.point(in: 4.0)
-            world.spawn("Projectile") {
-                Mesh3DComponent(mesh: projectileMesh, materials: [projectileMaterial])
-                PhysicsBody3DComponent(
-                    shapes: [Shape3DResource.generateSphere(radius: 0.75)],
-                    mass: 40,
-                    material: PhysicsMaterial.generate(friction: 0.35, restitution: 0.12, density: 1.5),
-                    mode: .dynamic
-                )
-                Transform(position: spawnPosition)
-                NoFrustumCulling()
-                ScriptableComponents(scripts: [ProjectileLaunchScript(initialVelocity: ray.direction * 95)])
-            }
+        let mesh = projectileMesh
+        let material = projectileMaterial
+        let spawnPosition = ray.point(in: 4.0)
+        context.spawn("Projectile") {
+            Mesh3DComponent(mesh: mesh, materials: [material])
+            PhysicsBody3DComponent(
+                shapes: [Shape3DResource.generateSphere(radius: 0.75)],
+                mass: 40,
+                material: PhysicsMaterial.generate(friction: 0.35, restitution: 0.12, density: 1.5),
+                mode: .dynamic
+            )
+            Transform(position: spawnPosition)
+            NoFrustumCulling()
+            ScriptableComponents(scripts: [ProjectileLaunchScript(initialVelocity: ray.direction * 95)])
         }
     }
 }
@@ -332,16 +334,16 @@ final class ProjectileLaunchScript: ScriptableObject, @unchecked Sendable {
     }
 
     required init(from decoder: any Decoder) throws {
-        fatalError("init(from:) has not been implemented")
+        try super.init(from: decoder)
     }
 
-    override func update(_ deltaTime: AdaUtils.TimeInterval) {
-        guard remainingLaunchFrames > 0, var physicsBody = entity?.components[PhysicsBody3DComponent.self] else {
+    override func update(context: ScriptableObjectContext) {
+        guard remainingLaunchFrames > 0, var physicsBody = context.component(PhysicsBody3DComponent.self) else {
             return
         }
 
         physicsBody.linearVelocity = initialVelocity
-        entity?.components += physicsBody
+        context.setComponent(physicsBody)
         remainingLaunchFrames -= 1
     }
 }

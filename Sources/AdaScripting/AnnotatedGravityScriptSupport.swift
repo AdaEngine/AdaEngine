@@ -73,6 +73,12 @@ final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unc
             if let resource = target.toObjectOf(AnnotatedGravityResourceView.self) {
                 return resource.set(key, value)
             }
+            if let component = target.toObjectOf(GravityAttachedComponentView.self) {
+                return component.set(key, value)
+            }
+            if let resource = target.toObjectOf(GravityAttachedResourceView.self) {
+                return resource.set(key, value)
+            }
             return false
         }
         return component.set(key, value)
@@ -91,6 +97,12 @@ final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unc
             return component.get(key)
         }
         if let resource = target.toObjectOf(AnnotatedGravityResourceView.self) {
+            return resource.get(key)
+        }
+        if let component = target.toObjectOf(GravityAttachedComponentView.self) {
+            return component.get(key)
+        }
+        if let resource = target.toObjectOf(GravityAttachedResourceView.self) {
             return resource.get(key)
         }
         return nil

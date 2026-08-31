@@ -29,23 +29,19 @@ struct ScriptableComponentExamplePlugin: Plugin {
             ])
             Sprite(tintColor: .red, size: .init(width: 64, height: 64))
         }
-
-        app.spawn("Text") {
-            ScriptableComponents(scripts: [
-                GUIScriptableComponent()
-            ])
-        }
     }
 }
 
 final class PlayerScriptableComponent: ScriptableObject, @unchecked Sendable {
-
     @RequiredComponent
     private var sprite: Sprite
 
     private let speed: Float = 200
 
-    override func update(_ deltaTime: TimeInterval) {
+    override func update(context: ScriptableObjectContext) {
+        let deltaTime = context.deltaTime
+        let input = context.input
+        var transform = context.component(Transform.self) ?? Transform()
         if input.isKeyPressed(.w) {
             transform.position.y += speed * deltaTime
         }
@@ -61,48 +57,13 @@ final class PlayerScriptableComponent: ScriptableObject, @unchecked Sendable {
         if input.isKeyPressed(.d) {
             transform.position.x += speed * deltaTime
         }
+        context.setComponent(transform)
     }
 
-    override func physicsUpdate(_ deltaTime: TimeInterval) {
+    override func fixedUpdate(context: ScriptableObjectContext) {
+        let input = context.input
         if input.isKeyPressed(.space) {
             sprite.tintColor = .random()
         }
-    }
-}
-
-final class GUIScriptableComponent: ScriptableObject, @unchecked Sendable {
-
-    lazy var attributedText: AttributedText = {
-        var container = TextAttributeContainer()
-        container.font = .system(size: 0.5)
-        container.foregroundColor = .mint
-        return AttributedText("Hi AdaEngine", attributes: container)
-    }()
-
-    var position: Vector2 = .zero
-    let speed: Float = 200
-
-    override func update(_ deltaTime: TimeInterval) {
-        if input.isKeyPressed(.w) {
-            position.y += speed * deltaTime
-        }
-
-        if input.isKeyPressed(.s) {
-            position.y -= speed * deltaTime
-        }
-
-        if input.isKeyPressed(.a) {
-            position.x -= speed * deltaTime
-        }
-
-        if input.isKeyPressed(.d) {
-            position.x += speed * deltaTime
-        }
-    }
-
-    override func updateGUI(_ deltaTime: TimeInterval, context: UIGraphicsContext) {
-        let rect = Rect(x: 300, y: 500, width: 200, height: 100)
-        context.drawRect(rect, color: .yellow)
-        context.drawText(attributedText, in: rect)
     }
 }
