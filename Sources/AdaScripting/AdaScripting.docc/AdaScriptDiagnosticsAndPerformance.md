@@ -27,8 +27,8 @@ unsupported values, invalid numeric conversions, and query capabilities used
 outside their callback lifetime.
 
 Inspect ``GravityScriptPlugin/diagnostics`` after setup and during development.
-Use ``GravityScriptPlugin/lastResult(for:)`` for compact test assertions while
-treating ECS state as the primary behavior evidence.
+System `update(context)` callbacks are command-style; their return values are
+ignored. Tests should assert observable ECS state and diagnostics.
 
 ## Performance model
 

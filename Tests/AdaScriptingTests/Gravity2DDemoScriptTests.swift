@@ -55,7 +55,6 @@ struct Gravity2DDemoScriptTests {
         #expect(abs(bouncingTransform.scale.x - 0.67) < 0.0001)
         #expect(abs(bouncingTransform.scale.y - 0.67) < 0.0001)
         #expect(bouncingVelocity.velocity == Vector2(-5, 0))
-        #expect(plugin.lastResult(for: "gravity.swarm") == .list([.integer(2), .integer(2)]))
         #expect(plugin.diagnostics.isEmpty)
     }
 }

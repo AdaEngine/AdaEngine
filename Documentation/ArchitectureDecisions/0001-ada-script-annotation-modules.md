@@ -2,7 +2,44 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Partial
+- Implementation: Partial (foundation shipped)
+
+## Implementation status
+
+Last verified: 2026-08-31.
+
+Shipped:
+
+- [x] Gravity parses declaration annotations and retains their normalized
+  metadata in the compiled binary.
+- [x] The Swift Gravity binding exposes annotations and can load a module
+  without invoking `main()`.
+- [x] Ada Script discovers `@system` classes and nested `@query` properties
+  without executing a manifest.
+- [x] Ada Script rejects `main()` and the legacy `AdaPlugin`, `AdaSystem`, and
+  `AdaQuery` registration path has been removed.
+- [x] The build generator, Editor template, completion, diagnostics, demo, and
+  documentation use the annotation-driven entry model.
+
+Remaining before this ADR is implemented:
+
+- [x] Embed the complete target-relative source map and install one VM/plugin
+  for the Swift target rather than one plugin per source file.
+- [x] Resolve selected relative imports, extension omission, reachable shared
+  declarations, canonical paths, duplicate paths, target-root escapes, and
+  complete import cycles before entering Gravity.
+- [x] Scope Editor completion to selected imports and diagnose unresolved or
+  workspace-escaping paths.
+- [ ] Implement namespace imports and enforce public/private selected-import
+  visibility instead of exposing every declaration in a reachable file.
+- [ ] Populate the `AdaEngine` and `AdaUI` virtual modules.
+- [ ] Share one import parser/resolution model between runtime code generation
+  and the Editor, including cycle diagnostics in the LSP.
+- [ ] Retain complete target-relative source ranges and qualified declaration
+  identities in annotation metadata and diagnostics.
+- [ ] Diagnose unknown AdaEngine annotations and every unsupported annotation
+  target in the semantic layer.
+- [x] Generate one deterministic target-level registration entry point.
 
 ## Context
 

@@ -89,7 +89,6 @@ struct AnnotatedGravityScriptPluginTests {
         await world.runScheduler(.update)
 
         #expect(plugin.diagnostics.isEmpty)
-        #expect(plugin.lastResult(for: "annotated.movement") == .integer(2))
         #expect(world.get(AnnotatedPosition.self, from: first.id)?.value == 4)
         #expect(world.get(AnnotatedPosition.self, from: second.id)?.value == 8)
         #expect(world.get(AnnotatedPosition.self, from: filtered.id)?.value == 20)

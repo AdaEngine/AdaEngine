@@ -20,8 +20,13 @@ struct GravityDocumentAnalyzer {
         let tokens = lexResult.tokens.filter { $0.kind != .comment }
         let typeRegions = parseTypeRegions(tokens)
         let symbols = parseGlobalSymbols(tokens, typeRegions: typeRegions)
+        let parsedImports = GravityImportParser.parse(tokens)
         return GravityParsedDocument(
-            analysis: GravityDocumentAnalysis(diagnostics: lexResult.diagnostics, symbols: symbols),
+            analysis: GravityDocumentAnalysis(
+                diagnostics: lexResult.diagnostics + parsedImports.diagnostics,
+                imports: parsedImports.imports,
+                symbols: symbols
+            ),
             inferredTypes: inferTypes(tokens),
             tokens: lexResult.tokens,
             typeRegions: typeRegions

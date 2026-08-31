@@ -33,7 +33,6 @@ struct GravityScriptPluginSafetyTests {
         await world.runScheduler(.update)
 
         #expect(plugin.diagnostics.isEmpty)
-        #expect(plugin.lastResult(for: "deferred") == .integer(1))
     }
 
     @Test("Rejects non-finite and out-of-range floating-point writes")
@@ -61,15 +60,6 @@ struct GravityScriptPluginSafetyTests {
         #expect(fields.quaternion == Quat(x: 0, y: 0, z: 0, w: 1))
         #expect(fields.color == .white)
         #expect(fields.double == 42)
-        #expect(
-            plugin.lastResult(for: "invalid.float") == .list([
-                .boolean(false),
-                .boolean(false),
-                .boolean(false),
-                .boolean(false),
-                .boolean(true)
-            ])
-        )
         #expect(plugin.diagnostics.count == 4)
     }
 
@@ -93,7 +83,6 @@ struct GravityScriptPluginSafetyTests {
         await world.runScheduler(.update)
 
         #expect(world.get(ScriptNumericFields.self, from: entity.id)?.vector == Vector2(2, 3))
-        #expect(plugin.lastResult(for: "invalid.list") == .boolean(false))
         #expect(plugin.diagnostics == ["Invalid value for 'scriptNumericFields.vector'"])
     }
 
@@ -114,9 +103,7 @@ struct GravityScriptPluginSafetyTests {
         var components;
 
         func update(context) {
-            var count = 0;
-            for (var entity in components) count += 1;
-            return count;
+            for (var entity in components) {}
         }
     }
     """
@@ -131,15 +118,12 @@ struct GravityScriptPluginSafetyTests {
             var infinity = Float.max * Float.max;
             var notANumber = infinity - infinity;
             for (var entity in entities) {
-                return [
-                    entity.scriptNumericFields.set("scalar", Float.max),
-                    entity.scriptNumericFields.set("vector", [1, infinity]),
-                    entity.scriptNumericFields.set("quaternion", [0, 0, notANumber, 1]),
-                    entity.scriptNumericFields.set("color", [1, 1, 1, infinity]),
-                    entity.scriptNumericFields.set("double", 42)
-                ];
+                entity.scriptNumericFields.set("scalar", Float.max);
+                entity.scriptNumericFields.set("vector", [1, infinity]);
+                entity.scriptNumericFields.set("quaternion", [0, 0, notANumber, 1]);
+                entity.scriptNumericFields.set("color", [1, 1, 1, infinity]);
+                entity.scriptNumericFields.set("double", 42);
             }
-            return [];
         }
     }
     """
@@ -154,9 +138,8 @@ struct GravityScriptPluginSafetyTests {
 
         func update(context) {
             for (var entity in entities) {
-                return entity.scriptNumericFields.set("vector", [UnsupportedValue(), 3, 4]);
+                entity.scriptNumericFields.set("vector", [UnsupportedValue(), 3, 4]);
             }
-            return false;
         }
     }
     """

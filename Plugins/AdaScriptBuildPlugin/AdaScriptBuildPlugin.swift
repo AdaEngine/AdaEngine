@@ -19,7 +19,11 @@ struct AdaScriptBuildPlugin: BuildToolPlugin {
             .buildCommand(
                 displayName: "Generate Ada script plugins for \(target.name)",
                 executable: tool.url,
-                arguments: ["--output", output.path, "--root", target.directoryURL.path] + scripts.map(\.path),
+                arguments: [
+                    "--output", output.path,
+                    "--root", target.directoryURL.path,
+                    "--module-name", target.name
+                ] + scripts.map(\.path),
                 environment: [:],
                 inputFiles: scripts,
                 outputFiles: [output]

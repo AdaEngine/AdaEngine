@@ -12,6 +12,13 @@ final class AnnotatedGravitySystemContext: @unchecked Sendable {
 
 final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unchecked Sendable {
     private(set) var errors: [String] = []
+    private let pathsByFileID: [UInt32: String]
+    private let sourcesByPath: [String: ResolvedGravityScriptModule.Source]
+
+    init(module: ResolvedGravityScriptModule) {
+        self.pathsByFileID = module.pathsByFileID
+        self.sourcesByPath = module.sourcesByPath
+    }
 
     func append(_ message: String) { errors.append(message) }
 
@@ -20,14 +27,27 @@ final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unc
         file: String,
         fileId: inout UInt32,
         isStatic: inout Bool
-    ) -> String? { nil }
+    ) -> String? {
+        guard let source = sourcesByPath[file] else {
+            return nil
+        }
+        fileId = source.fileID
+        isStatic = true
+        return source.source
+    }
 
     func virtualMachine(
         _ virtualMachine: GravityVirtualMachine,
         didErrorWith message: String,
         errorType: error_type_t,
         errorDescription: error_desc_t
-    ) { errors.append(message) }
+    ) {
+        if let path = pathsByFileID[errorDescription.fileid] {
+            errors.append("\(path):\(errorDescription.lineno):\(errorDescription.colno): \(message)")
+        } else {
+            errors.append(message)
+        }
+    }
 
     func virtualMachineDidReciveLog(_ virtualMachine: GravityVirtualMachine, message: String) {}
     func virtualMachineDidClearLog(_ virtualMachine: GravityVirtualMachine) {}
@@ -87,33 +107,35 @@ enum AnnotatedGravityValueBridge {
     }
 
     static func makeEditorFieldValue(_ value: GSValue) -> EditorFieldValue? {
-        if value.isNull || value.isUndefined { return .null }
-        if value.isBool { return .bool(value.toBoolean) }
+        if value.isNull || value.isUndefined {
+            return .null
+        }
+        if value.isBool {
+            return .bool(value.toBoolean)
+        }
         if value.isInteger {
-            guard let integer = Int(exactly: value.toInteger) else { return nil }
+            guard let integer = Int(exactly: value.toInteger) else {
+                return nil
+            }
             return .int(integer)
         }
-        if value.isDouble { return .double(value.toDouble) }
-        if value.isString { return .string(value.toString) }
+        if value.isDouble {
+            return .double(value.toDouble)
+        }
+        if value.isString {
+            return .string(value.toString)
+        }
         if value.isList {
             var result: [EditorFieldValue] = []
             for item in value.toList {
-                guard let converted = makeEditorFieldValue(item) else { return nil }
+                guard let converted = makeEditorFieldValue(item) else {
+                    return nil
+                }
                 result.append(converted)
             }
             return .array(result)
         }
         return nil
-    }
-
-    static func detach(_ value: GSValue) -> GravityScriptValue {
-        if value.isNull || value.isUndefined { return .null }
-        if value.isBool { return .boolean(value.toBoolean) }
-        if value.isInteger { return .integer(value.toInteger) }
-        if value.isDouble { return .double(value.toDouble) }
-        if value.isString { return .string(value.toString) }
-        if value.isList { return .list(value.toList.map(detach)) }
-        return .string(value.toString)
     }
 }
 
@@ -123,23 +145,32 @@ extension GravityAnnotation {
     }
 
     func identifierListArgument(label: String) -> [String] {
-        guard let value = arguments.first(where: { $0.label == label })?.value else { return [] }
+        guard let value = arguments.first(where: { $0.label == label })?.value else {
+            return []
+        }
         switch value {
-        case .identifier(let value): return [value]
-        case .list(let values): return values.compactMap(\.identifierValue)
-        default: return []
+        case .identifier(let value):
+            return [value]
+        case .list(let values):
+            return values.compactMap(\.identifierValue)
+        default:
+            return []
         }
     }
 }
 
 extension GravityAnnotation.Value {
     var identifierValue: String? {
-        guard case .identifier(let value) = self else { return nil }
+        guard case .identifier(let value) = self else {
+            return nil
+        }
         return value
     }
 
     var stringValue: String? {
-        guard case .string(let value) = self else { return nil }
+        guard case .string(let value) = self else {
+            return nil
+        }
         return value
     }
 }

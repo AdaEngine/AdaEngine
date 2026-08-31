@@ -22,6 +22,27 @@ class CounterSystem {
 }
 ```
 
+## Imports
+
+Files with discovery annotations such as `@system` are module roots. Import a
+helper declaration explicitly from another target-relative source file:
+
+```ada
+import {
+    clampSpeed,
+    MovementSettings
+} from "../Shared/Movement";
+```
+
+Relative imports are resolved from the importing file. The `.ada` extension is
+optional. Absolute paths and imports which escape the Swift target source map
+are rejected. A reachable source is compiled once, and an import cycle reports
+the complete cycle.
+
+The current implementation supports selected relative imports. Namespace
+imports, public/private visibility enforcement, and the `AdaEngine` / `AdaUI`
+virtual-module declarations remain part of the next module-language slice.
+
 ## Annotations
 
 Gravity declaration annotations have three forms:
@@ -77,3 +98,7 @@ capabilities rather than detached values.
 
 Unsupported values and invalid numeric conversions are rejected without
 partially mutating a component.
+
+System `update(context)` callbacks are command-style. Their return values are
+ignored; observable behavior belongs in components, resources, events, or
+diagnostics.

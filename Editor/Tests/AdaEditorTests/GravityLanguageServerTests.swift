@@ -57,13 +57,43 @@ struct GravityLanguageServerTests {
         let workspace = GravityWorkspace()
         workspace.configure(rootURIs: [projectURL.absoluteString])
         let currentURL = projectURL.appendingPathComponent("Current.ada")
-        workspace.open(uri: currentURL.absoluteString, text: "SharedSystem.ti", version: 1)
+        workspace.open(
+            uri: currentURL.absoluteString,
+            text: "import { SharedSystem } from \"./Shared\";\nSharedSystem.ti",
+            version: 1
+        )
         let items = workspace.completions(
             uri: currentURL.absoluteString,
-            position: GravitySourcePosition(line: 0, utf16Column: 15)
+            position: GravitySourcePosition(line: 1, utf16Column: 15)
         )
 
+        #expect(workspace.analysis(for: currentURL.absoluteString)?.imports.first?.names == ["SharedSystem"])
+        #expect(workspace.analysis(for: currentURL.absoluteString)?.diagnostics.isEmpty == true)
         #expect(items.contains { $0.label == "tick" && $0.insertText == "tick()" })
+    }
+
+    @Test("Workspace reports unresolved and escaping imports")
+    func workspaceImportDiagnostics() throws {
+        let projectURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("GravityImports-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: projectURL) }
+        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+
+        let workspace = GravityWorkspace()
+        workspace.configure(rootURIs: [projectURL.absoluteString])
+        let currentURL = projectURL.appendingPathComponent("Current.ada")
+        workspace.open(
+            uri: currentURL.absoluteString,
+            text: """
+            import { Missing } from "./Missing";
+            import { Secret } from "../Secret";
+            """,
+            version: 1
+        )
+
+        let diagnostics = try #require(workspace.analysis(for: currentURL.absoluteString)?.diagnostics)
+        #expect(diagnostics.contains { $0.message == "Unable to resolve import './Missing'" })
+        #expect(diagnostics.contains { $0.message == "Import escapes the configured Ada Script workspace" })
     }
 
     @Test("Diagnostics report unfinished source without rejecting completion")

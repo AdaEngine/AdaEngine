@@ -122,12 +122,37 @@ public struct GravityDiagnostic: Equatable, Hashable, Sendable {
     }
 }
 
+public struct GravityImport: Equatable, Hashable, Sendable {
+    public var names: [String]
+    public var namespace: String?
+    public var path: String
+    public var range: GravitySourceRange
+
+    public init(
+        names: [String],
+        namespace: String? = nil,
+        path: String,
+        range: GravitySourceRange
+    ) {
+        self.names = names
+        self.namespace = namespace
+        self.path = path
+        self.range = range
+    }
+}
+
 public struct GravityDocumentAnalysis: Equatable, Sendable {
     public var diagnostics: [GravityDiagnostic]
+    public var imports: [GravityImport]
     public var symbols: [GravitySymbol]
 
-    public init(diagnostics: [GravityDiagnostic], symbols: [GravitySymbol]) {
+    public init(
+        diagnostics: [GravityDiagnostic],
+        imports: [GravityImport] = [],
+        symbols: [GravitySymbol]
+    ) {
         self.diagnostics = diagnostics
+        self.imports = imports
         self.symbols = symbols
     }
 }

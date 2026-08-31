@@ -3,32 +3,6 @@ import AdaApp
 import Foundation
 import Gravity
 
-public enum GravityScriptValue: Sendable, Equatable {
-    case boolean(Bool)
-    case double(Double)
-    case integer(Int64)
-    case list([GravityScriptValue])
-    case null
-    case string(String)
-}
-
-public enum GravityScriptError: Error, Sendable, Equatable, CustomStringConvertible {
-    case compilation([String])
-    case invalidManifest(String)
-    case unknownComponent(system: String, queryIndex: Int, component: String)
-
-    public var description: String {
-        switch self {
-        case .compilation(let diagnostics):
-            diagnostics.joined(separator: "\n")
-        case .invalidManifest(let message):
-            "Invalid Ada Script annotations: \(message)"
-        case .unknownComponent(let system, let queryIndex, let component):
-            "Unknown component '\(component)' in query \(queryIndex) of system '\(system)'"
-        }
-    }
-}
-
 /// Loads an annotation-driven Ada Script module.
 ///
 /// Systems and queries are discovered from `@system` and `@query`
@@ -49,13 +23,27 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
 
     public convenience init(contentsOf fileURL: URL) throws {
         try self.init(
-            source: String(contentsOf: fileURL, encoding: .utf8),
+            sources: [
+                GravityScriptSource(
+                    path: fileURL.lastPathComponent,
+                    source: String(contentsOf: fileURL, encoding: .utf8)
+                )
+            ],
             name: fileURL.deletingPathExtension().lastPathComponent
         )
     }
 
-    public init(source: String, name: String = "AdaScript") throws {
-        let runtime = try AnnotatedGravityRuntime(source: source)
+    public convenience init(source: String, name: String = "AdaScript") throws {
+        try self.init(
+            sources: [GravityScriptSource(path: "Main.ada", source: source)],
+            name: name
+        )
+    }
+
+    /// Creates one Ada Script module from a target-relative source map.
+    public init(sources: [GravityScriptSource], name: String) throws {
+        let module = try GravityScriptModuleResolver.resolve(sources)
+        let runtime = try AnnotatedGravityRuntime(module: module)
         let plans = try Self.makePlans(from: runtime.annotations)
         self.name = name
         self.runtime = runtime
@@ -80,10 +68,6 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
                 runtime.appendDiagnostic(String(describing: error))
             }
         }
-    }
-
-    public func lastResult(for systemIdentifier: String) -> GravityScriptValue? {
-        runtime.lastResult(for: systemIdentifier)
     }
 
     private static func makePlans(from annotations: [GravityAnnotation]) throws -> [AnnotatedSystemPlan] {
@@ -127,7 +111,9 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
             throw GravityScriptError.invalidManifest("@query can only annotate a stored property")
         }
         let components = annotation.arguments.compactMap { argument -> String? in
-            guard argument.label == nil else { return nil }
+            guard argument.label == nil else {
+                return nil
+            }
             return argument.value.identifierValue
         }
         guard !components.isEmpty else {
@@ -185,7 +171,9 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
 
         var access = SystemAccessSet()
         let componentAccesses = plan.components.enumerated().compactMap { index, name -> AnnotatedComponentAccess? in
-            guard let component = resolved[name] else { return nil }
+            guard let component = resolved[name] else {
+                return nil
+            }
             // The first vertical slice conservatively grants write access to
             // fetched components. Static access inference will narrow this set.
             access.addComponentWrite(component.identifier)
@@ -221,7 +209,9 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
 
     private static func defaultAlias(for componentName: String) -> String {
         let shortName = componentName.split(separator: ".").last.map(String.init) ?? componentName
-        guard let first = shortName.first else { return shortName }
+        guard let first = shortName.first else {
+            return shortName
+        }
         return first.lowercased() + shortName.dropFirst()
     }
 }
@@ -295,7 +285,9 @@ private struct AnnotatedGravityScriptSystem: System {
     }
 
     func update(context: UpdateContext) async {
-        guard let preparedSystem, let runtime else { return }
+        guard let preparedSystem, let runtime else {
+            return
+        }
         let queries = preparedSystem.queries.map { query in
             runtime.makeQueryBridge(
                 cursor: query.query.wrappedValue.makeCursor(),
@@ -500,13 +492,14 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
 
     let annotations: [GravityAnnotation]
 
+    // The runtime owns its delegate for exactly the VM lifetime; this is not a callback back-reference.
+    // swiftlint:disable:next weak_delegate
     private let delegate: AnnotatedGravityRuntimeDelegate
     private let virtualMachine: GravityVirtualMachine
     private var instances: [String: GSValue] = [:]
-    private var lastResults: [String: GravityScriptValue] = [:]
 
-    init(source: String) throws {
-        let delegate = AnnotatedGravityRuntimeDelegate()
+    init(module: ResolvedGravityScriptModule) throws {
+        let delegate = AnnotatedGravityRuntimeDelegate(module: module)
         self.delegate = delegate
 
         Self.runtimeLock.lock()
@@ -519,7 +512,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         try virtualMachine.bindClass(with: AnnotatedGravityQueryRow.self)
         try virtualMachine.bindClass(with: AnnotatedGravityComponentView.self)
 
-        let binary = virtualMachine.loadGravityFile(from: source)
+        let binary = virtualMachine.loadGravityFile(from: module.entrySource)
         guard delegate.errors.isEmpty else {
             throw GravityScriptError.compilation(delegate.errors)
         }
@@ -557,7 +550,9 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         Self.runtimeLock.lock()
         defer { Self.runtimeLock.unlock() }
 
-        guard let instance = instances[className] else { return }
+        guard let instance = instances[className] else {
+            return
+        }
 
         for (propertyName, query) in queries {
             let queryValue = GSValue(object: query, in: virtualMachine)
@@ -567,9 +562,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             }
         }
         let context = AnnotatedGravitySystemContext(deltaTime: deltaTime)
-        if let result = instance.callMethod(named: "update", with: [context]) {
-            lastResults[systemIdentifier] = AnnotatedGravityValueBridge.detach(result)
-        }
+        _ = instance.callMethod(named: "update", with: [context])
     }
 
     func makeQueryBridge(
@@ -582,10 +575,6 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             reportDiagnostic: appendDiagnostic,
             virtualMachine: virtualMachine
         )
-    }
-
-    func lastResult(for systemIdentifier: String) -> GravityScriptValue? {
-        Self.runtimeLock.withLock { lastResults[systemIdentifier] }
     }
 
     var diagnostics: [String] {

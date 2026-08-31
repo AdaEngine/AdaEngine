@@ -49,5 +49,5 @@ AdaEditor projects configure automatic script discovery by default. For an exist
 ### Runtime API
 
 - ``GravityScriptPlugin``
-- ``GravityScriptValue``
+- ``GravityScriptSource``
 - ``GravityScriptError``

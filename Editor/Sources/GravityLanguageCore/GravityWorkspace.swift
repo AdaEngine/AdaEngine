@@ -24,39 +24,47 @@ public final class GravityWorkspace {
     }
 
     public func open(uri: String, text: String, version: Int?) {
-        openDocuments[uri] = document(text: text, version: version)
+        openDocuments[Self.documentKey(uri)] = document(text: text, version: version)
     }
 
     public func change(uri: String, text: String, version: Int?) {
-        openDocuments[uri] = document(text: text, version: version)
+        openDocuments[Self.documentKey(uri)] = document(text: text, version: version)
     }
 
     public func close(uri: String) {
-        openDocuments.removeValue(forKey: uri)
+        let key = Self.documentKey(uri)
+        openDocuments.removeValue(forKey: key)
         if let url = Self.fileURL(from: uri), let text = try? String(contentsOf: url, encoding: .utf8) {
-            diskDocuments[uri] = document(text: text, version: nil)
+            diskDocuments[key] = document(text: text, version: nil)
         } else {
-            diskDocuments.removeValue(forKey: uri)
+            diskDocuments.removeValue(forKey: key)
         }
     }
 
     public func save(uri: String, text: String?) {
+        let key = Self.documentKey(uri)
         if let text {
-            if let document = openDocuments[uri] {
-                openDocuments[uri] = self.document(text: text, version: document.version)
+            if let document = openDocuments[key] {
+                openDocuments[key] = self.document(text: text, version: document.version)
             }
-            diskDocuments[uri] = document(text: text, version: nil)
+            diskDocuments[key] = document(text: text, version: nil)
         } else if let url = Self.fileURL(from: uri), let diskText = try? String(contentsOf: url, encoding: .utf8) {
-            diskDocuments[uri] = document(text: diskText, version: nil)
+            diskDocuments[key] = document(text: diskText, version: nil)
         }
     }
 
     public func text(for uri: String) -> String? {
-        openDocuments[uri]?.text ?? diskDocuments[uri]?.text
+        let key = Self.documentKey(uri)
+        return openDocuments[key]?.text ?? diskDocuments[key]?.text
     }
 
     public func analysis(for uri: String) -> GravityDocumentAnalysis? {
-        openDocuments[uri]?.analysis ?? diskDocuments[uri]?.analysis
+        let key = Self.documentKey(uri)
+        guard var analysis = (openDocuments[key] ?? diskDocuments[key])?.analysis else {
+            return nil
+        }
+        analysis.diagnostics += importDiagnostics(uri: key, imports: analysis.imports)
+        return analysis
     }
 
     public func completions(uri: String, position: GravitySourcePosition) -> [GravityCompletion] {
@@ -66,42 +74,93 @@ public final class GravityWorkspace {
         return languageService.completions(
             text: text,
             position: position,
-            workspaceSymbols: workspaceSymbols(excluding: uri)
+            workspaceSymbols: importedSymbols(for: uri)
         )
     }
 
     public func refreshFile(uri: String) {
-        guard openDocuments[uri] == nil,
+        let key = Self.documentKey(uri)
+        guard openDocuments[key] == nil,
               let url = Self.fileURL(from: uri),
               Self.isGravitySource(url),
               let text = try? String(contentsOf: url, encoding: .utf8)
         else {
             return
         }
-        diskDocuments[uri] = document(text: text, version: nil)
+        diskDocuments[key] = document(text: text, version: nil)
     }
 
     public func removeFile(uri: String) {
-        guard openDocuments[uri] == nil else {
+        let key = Self.documentKey(uri)
+        guard openDocuments[key] == nil else {
             return
         }
-        diskDocuments.removeValue(forKey: uri)
+        diskDocuments.removeValue(forKey: key)
     }
 
-    private func workspaceSymbols(excluding excludedURI: String) -> [GravitySymbol] {
+    private func importedSymbols(for uri: String) -> [GravitySymbol] {
+        let key = Self.documentKey(uri)
+        guard let document = openDocuments[key] ?? diskDocuments[key] else {
+            return []
+        }
         var symbols: [GravitySymbol] = []
-        for (uri, document) in mergedDocuments() where uri != excludedURI {
-            symbols += document.analysis.symbols
+        for scriptImport in document.analysis.imports {
+            guard case .source(_, let importedDocument) = resolve(scriptImport, from: key) else {
+                continue
+            }
+            if let namespace = scriptImport.namespace {
+                symbols.append(GravitySymbol(
+                    name: namespace,
+                    kind: .class,
+                    detail: "Imported Ada Script module",
+                    range: scriptImport.range,
+                    members: importedDocument.analysis.symbols
+                ))
+            } else {
+                let selectedNames = Set(scriptImport.names)
+                symbols += importedDocument.analysis.symbols.filter { selectedNames.contains($0.name) }
+            }
         }
         return symbols
     }
 
-    private func mergedDocuments() -> [String: Document] {
-        var documents = diskDocuments
-        for (uri, document) in openDocuments {
-            documents[uri] = document
+    private func importDiagnostics(uri: String, imports: [GravityImport]) -> [GravityDiagnostic] {
+        imports.compactMap { scriptImport in
+            switch resolve(scriptImport, from: uri) {
+            case .source, .virtual:
+                nil
+            case .invalid(let message):
+                GravityDiagnostic(message: message, range: scriptImport.range)
+            }
         }
-        return documents
+    }
+
+    private func resolve(_ scriptImport: GravityImport, from importerURI: String) -> ImportResolution {
+        if Self.virtualModuleNames.contains(scriptImport.path) {
+            return .virtual
+        }
+        guard scriptImport.path.hasPrefix("./") || scriptImport.path.hasPrefix("../") else {
+            return .invalid("Imports must be relative or name a supported virtual module")
+        }
+        guard let importerURL = Self.fileURL(from: importerURI) else {
+            return .invalid("Unable to resolve import from a non-file document")
+        }
+
+        var importedURL = importerURL.deletingLastPathComponent()
+            .appendingPathComponent(scriptImport.path)
+            .standardizedFileURL
+        if importedURL.pathExtension.isEmpty {
+            importedURL.appendPathExtension("ada")
+        }
+        guard rootURLs.contains(where: { Self.contains(importedURL, in: $0) }) else {
+            return .invalid("Import escapes the configured Ada Script workspace")
+        }
+
+        let importedURI = importedURL.absoluteString
+        guard let document = openDocuments[importedURI] ?? diskDocuments[importedURI] else {
+            return .invalid("Unable to resolve import '\(scriptImport.path)'")
+        }
+        return .source(importedURI, document)
     }
 
     private func document(text: String, version: Int?) -> Document {
@@ -131,12 +190,19 @@ public final class GravityWorkspace {
                 else {
                     continue
                 }
-                diskDocuments[fileURL.absoluteString] = document(text: text, version: nil)
+                diskDocuments[fileURL.standardizedFileURL.absoluteString] = document(text: text, version: nil)
             }
         }
     }
 
     private static let skippedDirectoryNames: Set<String> = [".ada", ".build", ".git", ".swiftpm", "DerivedData"]
+    private static let virtualModuleNames: Set<String> = ["AdaEngine", "AdaUI"]
+
+    private static func contains(_ fileURL: URL, in rootURL: URL) -> Bool {
+        let rootPath = rootURL.standardizedFileURL.path
+        let filePath = fileURL.standardizedFileURL.path
+        return filePath == rootPath || filePath.hasPrefix(rootPath.hasSuffix("/") ? rootPath : rootPath + "/")
+    }
 
     private static func fileURL(from uri: String) -> URL? {
         guard let url = URL(string: uri), url.isFileURL else {
@@ -145,8 +211,18 @@ public final class GravityWorkspace {
         return url.standardizedFileURL
     }
 
+    private static func documentKey(_ uri: String) -> String {
+        fileURL(from: uri)?.absoluteString ?? uri
+    }
+
     private static func isGravitySource(_ url: URL) -> Bool {
         let pathExtension = url.pathExtension.lowercased()
         return pathExtension == "ada" || pathExtension == "gravity"
+    }
+
+    private enum ImportResolution {
+        case invalid(String)
+        case source(String, Document)
+        case virtual
     }
 }

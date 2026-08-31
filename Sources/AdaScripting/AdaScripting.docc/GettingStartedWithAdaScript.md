@@ -6,7 +6,8 @@ Add an `.ada` file to an AdaEngine executable and run its systems without manual
 
 AdaEngine provides two ways to install Ada Script plugins:
 
-- **Automatic discovery** embeds every `.ada` file in an executable target at build time and generates one Swift plugin that installs them all.
+- **Automatic discovery** embeds every `.ada` file in an executable target at
+  build time and generates one plugin backed by one target-level script module.
 - **Manual loading** creates a ``GravityScriptPlugin`` from source text or a file URL at runtime.
 
 AdaEditor-created projects use automatic discovery. Use manual loading when scripts live outside the Swift target, come from a downloaded package, or need explicit error handling.
@@ -77,7 +78,11 @@ let package = Package(
 
 > Important: Choose a version requirement appropriate for your project instead of a branch dependency when consuming a released AdaEngine version.
 
-The build plugin finds `.ada` files through SwiftPM, sorts them by target-relative path, and generates `AdaScriptPluginsGenerated.swift` in the plugin work directory. Script source is embedded in the executable; the original files are not read at runtime.
+The build plugin finds `.ada` files through SwiftPM, sorts them by target-relative
+path, and generates `AdaScriptPluginsGenerated.swift` in the plugin work
+directory. The generated plugin passes one source map to one
+``GravityScriptPlugin``. Script source is embedded in the executable; the
+original files are not read at runtime.
 
 Install the generated plugin in your app scene:
 
@@ -154,7 +159,11 @@ struct RuntimeScriptsPlugin: Plugin {
 }
 ```
 
-You can also use ``GravityScriptPlugin/init(source:name:)`` when the source is already in memory. Script compilation and annotation validation happen during initialization. Native component resolution happens later during plugin setup.
+You can also use ``GravityScriptPlugin/init(source:name:)`` when one source is
+already in memory, or ``GravityScriptPlugin/init(sources:name:)`` with
+``GravityScriptSource`` values for a multi-file module. Script compilation,
+import resolution, and annotation validation happen during initialization.
+Native component resolution happens later during plugin setup.
 
 ## Next steps
 

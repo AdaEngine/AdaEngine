@@ -6,7 +6,7 @@ private enum GeneratorError: Error, CustomStringConvertible {
     var description: String {
         switch self {
         case .invalidArguments:
-            "Usage: AdaScriptGeneratorTool --output <path> --root <target-directory> [script.ada ...]"
+            "Usage: AdaScriptGeneratorTool --output <path> --root <target-directory> --module-name <name> [script.ada ...]"
         }
     }
 }
@@ -15,14 +15,22 @@ private enum GeneratorError: Error, CustomStringConvertible {
 struct AdaScriptGeneratorTool {
     static func main() throws {
         let arguments = Array(CommandLine.arguments.dropFirst())
-        guard arguments.count >= 4, arguments[0] == "--output", arguments[2] == "--root" else {
+        guard arguments.count >= 6,
+              arguments[0] == "--output",
+              arguments[2] == "--root",
+              arguments[4] == "--module-name" else {
             throw GeneratorError.invalidArguments
         }
 
         let outputURL = URL(fileURLWithPath: arguments[1], isDirectory: false)
         let rootURL = URL(fileURLWithPath: arguments[3], isDirectory: true)
-        let scriptURLs = arguments.dropFirst(4).map { URL(fileURLWithPath: $0, isDirectory: false) }
-        let generatedSource = try makeGeneratedSource(scriptURLs: scriptURLs, rootURL: rootURL)
+        let moduleName = arguments[5]
+        let scriptURLs = arguments.dropFirst(6).map { URL(fileURLWithPath: $0, isDirectory: false) }
+        let generatedSource = try makeGeneratedSource(
+            moduleName: moduleName,
+            scriptURLs: scriptURLs,
+            rootURL: rootURL
+        )
 
         try FileManager.default.createDirectory(
             at: outputURL.deletingLastPathComponent(),
@@ -34,15 +42,21 @@ struct AdaScriptGeneratorTool {
         }
     }
 
-    private static func makeGeneratedSource(scriptURLs: [URL], rootURL: URL) throws -> String {
+    private static func makeGeneratedSource(
+        moduleName: String,
+        scriptURLs: [URL],
+        rootURL: URL
+    ) throws -> String {
         let scripts = try scriptURLs.map { scriptURL in
             let source = try String(contentsOf: scriptURL, encoding: .utf8)
             return (path: relativePath(for: scriptURL, rootURL: rootURL), source: source)
         }
 
-        let entries = scripts.map { script in
-            "        (path: \(swiftStringLiteral(script.path)), source: \(swiftStringLiteral(script.source)))"
-        }.joined(separator: ",\n")
+        let entries = scripts
+            .map { script in
+                "        GravityScriptSource(path: \(swiftStringLiteral(script.path)), source: \(swiftStringLiteral(script.source)))"
+            }
+            .joined(separator: ",\n")
         let scriptsDeclaration = entries.isEmpty ? "[]" : "[\n\(entries)\n    ]"
 
         return """
@@ -52,21 +66,21 @@ struct AdaScriptGeneratorTool {
         struct AdaScriptPluginsGenerated: Plugin {
             @MainActor
             func setup(in app: borrowing AppWorlds) {
-                for script in Self.scripts {
-                    do {
-                        app.addPlugin(
-                            try GravityScriptPlugin(
-                                source: script.source,
-                                name: script.path
-                            )
+                guard !Self.sources.isEmpty else { return }
+                do {
+                    app.addPlugin(
+                        try GravityScriptPlugin(
+                            sources: Self.sources,
+                            name: \(swiftStringLiteral(moduleName))
                         )
-                    } catch {
-                        print("AdaEngine: failed to load script at \\(script.path): \\(error)")
-                    }
+                    )
+                } catch {
+                    print("AdaEngine: failed to load Ada Script module \\(Self.moduleName): \\(error)")
                 }
             }
 
-            private static let scripts: [(path: String, source: String)] = \(scriptsDeclaration)
+            private static let moduleName = \(swiftStringLiteral(moduleName))
+            private static let sources: [GravityScriptSource] = \(scriptsDeclaration)
         }
 
         """

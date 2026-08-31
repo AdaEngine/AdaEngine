@@ -2,7 +2,38 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Partial
+- Implementation: Partial (foundation shipped)
+
+## Implementation status
+
+Last verified: 2026-08-31.
+
+Shipped:
+
+- [x] Positional fetched components and `with` / `without` filters use the
+  canonical `@query(...)` declaration.
+- [x] Gravity iterates queries through `for (var entity in query)`.
+- [x] AdaECS binds component columns once per chunk and advances rows without
+  materializing an array of entity identifiers.
+- [x] Component fields are read and written through generated pointer thunks;
+  mutable stores update the component change tick.
+- [x] Direct row access such as `entity.transform.position` is supported.
+- [x] Pointer lifetimes remain inside the system update and raw pointers are not
+  exposed to Gravity.
+
+Remaining before this ADR is implemented:
+
+- [ ] Implement `optional`, `changed`, and `added` query clauses.
+- [ ] Implement explicit component aliases and duplicate-short-name
+  diagnostics.
+- [ ] Infer read and write access from the compiled script. The current runtime
+  conservatively declares every fetched component writable.
+- [ ] Implement and validate the explicit `@access` escape hatch for dynamic
+  access.
+- [x] Remove the temporary `lastResult` testing hook. A system `update(context)`
+  callback is command-style and its return value is not part of the ECS API.
+- [ ] Add the realistic typed-Swift versus Gravity iterator benchmark required
+  by this decision.
 
 ## Context
 

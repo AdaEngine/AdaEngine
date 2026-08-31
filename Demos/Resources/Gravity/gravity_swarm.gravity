@@ -64,6 +64,5 @@ class GravitySwarmSystem {
             pulseCount += 1;
         }
 
-        return [moverCount, pulseCount];
     }
 }
