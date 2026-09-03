@@ -1,8 +1,8 @@
-import Testing
-@testable import AdaUI
 @testable import AdaPlatform
+@testable import AdaUI
 import AdaUtils
 import Math
+import Testing
 
 @MainActor
 struct ShapeRenderingTests {
@@ -169,6 +169,48 @@ struct ShapeRenderingTests {
         #expect(result.vertices.map(\.position.x).max() == 50)
         #expect(result.vertices.map(\.position.y).min() == -100)
         #expect(result.vertices.map(\.position.y).max() == 0)
+    }
+
+    @Test
+    func tessellator_preservesQuadFullyInsideMaskPolygon() {
+        let clipPolygon = [
+            Vector2(-10, 10),
+            Vector2(110, 10),
+            Vector2(110, -110),
+            Vector2(-10, -110)
+        ]
+
+        let result = UITessellator().tessellateClippedQuad(
+            transform: Rect(x: 0, y: 0, width: 100, height: 100).toTransform3D,
+            texture: nil,
+            color: .red,
+            textureIndex: 0,
+            clipPolygons: [clipPolygon]
+        )
+
+        #expect(result.vertices.count == 4)
+        #expect(result.indices.count == 6)
+    }
+
+    @Test
+    func tessellator_rejectsQuadFullyOutsideMaskPolygon() {
+        let clipPolygon = [
+            Vector2(200, 0),
+            Vector2(300, 0),
+            Vector2(300, -100),
+            Vector2(200, -100)
+        ]
+
+        let result = UITessellator().tessellateClippedQuad(
+            transform: Rect(x: 0, y: 0, width: 100, height: 100).toTransform3D,
+            texture: nil,
+            color: .red,
+            textureIndex: 0,
+            clipPolygons: [clipPolygon]
+        )
+
+        #expect(result.vertices.isEmpty)
+        #expect(result.indices.isEmpty)
     }
 
     @Test

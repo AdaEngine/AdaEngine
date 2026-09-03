@@ -19,6 +19,8 @@ Use this skill for production work in the AdaEngine repository. Treat the checke
 4. Inspect the nearest implementation and tests before choosing an API. Search with `rg` and `rg --files`; do not infer current APIs from old examples.
 5. Choose the smallest module that owns the behavior. Avoid adding dependencies to the `AdaEngine` facade when a lower-level target is the correct home.
 
+For Apple Instruments `.trace` captures of AdaEngine or AdaEditor, read [references/instruments-trace-analysis.md](references/instruments-trace-analysis.md) and use the bundled exporter/analyzer instead of manually rewriting XML parsing commands.
+
 For an unfamiliar subsystem or a cross-module change, read [references/architecture.md](references/architecture.md). For ECS, system scheduling, resources, queries, or hot paths, also read [references/ecs-runtime.md](references/ecs-runtime.md). For AdaUI or AdaEditor, read [references/ui-editor.md](references/ui-editor.md). For platform, renderer, WebGPU, or WASM work, read [references/platform-render-web.md](references/platform-render-web.md). Before running validation, read [references/validation.md](references/validation.md).
 
 ## Non-Negotiable Engineering Rules

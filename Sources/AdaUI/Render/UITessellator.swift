@@ -5,10 +5,10 @@
 //  Created by Vladislav Prusakov on 19.12.2025.
 //
 
+import AdaCorePipelines
 import AdaRender
 import AdaText
 import AdaUtils
-import AdaCorePipelines
 import Math
 
 /// Tessellator for converting UI draw commands into vertex and index data.
@@ -724,10 +724,17 @@ public struct UITessellator {
         interpolate: (Vertex, Vertex, Float) -> Vertex
     ) -> [[Vertex]] {
         var result: [[Vertex]] = []
+        guard let vertexBounds = clipBounds(of: vertices, position: position) else {
+            return result
+        }
 
         for clipPolygon in clipPolygons {
-            var output = vertices
+            guard let polygonBounds = clipBounds(of: clipPolygon),
+                  vertexBounds.intersects(polygonBounds) else {
+                continue
+            }
             let isCounterClockwise = signedArea(of: clipPolygon) >= 0
+            var output = vertices
 
             for index in clipPolygon.indices {
                 let edgeStart = clipPolygon[index]
@@ -752,6 +759,63 @@ public struct UITessellator {
         }
 
         return result
+    }
+
+    private struct ClipBounds {
+        let minX: Float
+        let minY: Float
+        let maxX: Float
+        let maxY: Float
+
+        func intersects(_ other: Self) -> Bool {
+            minX <= other.maxX
+                && maxX >= other.minX
+                && minY <= other.maxY
+                && maxY >= other.minY
+        }
+    }
+
+    private func clipBounds<Vertex>(
+        of vertices: [Vertex],
+        position: (Vertex) -> Vector2
+    ) -> ClipBounds? {
+        guard let first = vertices.first else {
+            return nil
+        }
+
+        let firstPosition = position(first)
+        var minX = firstPosition.x
+        var minY = firstPosition.y
+        var maxX = firstPosition.x
+        var maxY = firstPosition.y
+        for vertex in vertices {
+            let point = position(vertex)
+            minX = min(minX, point.x)
+            minY = min(minY, point.y)
+            maxX = max(maxX, point.x)
+            maxY = max(maxY, point.y)
+        }
+
+        return Self.ClipBounds(minX: minX, minY: minY, maxX: maxX, maxY: maxY)
+    }
+
+    private func clipBounds(of polygon: [Vector2]) -> ClipBounds? {
+        guard polygon.count >= 3, let first = polygon.first else {
+            return nil
+        }
+
+        var minX = first.x
+        var minY = first.y
+        var maxX = first.x
+        var maxY = first.y
+        for point in polygon {
+            minX = min(minX, point.x)
+            minY = min(minY, point.y)
+            maxX = max(maxX, point.x)
+            maxY = max(maxY, point.y)
+        }
+
+        return Self.ClipBounds(minX: minX, minY: minY, maxX: maxX, maxY: maxY)
     }
 
     private func clipVectorPolygon(_ polygon: [Vector2], to clipPolygon: [Vector2]) -> [Vector2] {

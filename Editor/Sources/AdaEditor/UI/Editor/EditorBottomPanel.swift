@@ -73,12 +73,7 @@ struct EditorBottomPanel: View {
             if viewModel.problems.isEmpty {
                 outputLine("No problems. \(viewModel.workspaceStatus.title)")
             } else {
-                ForEach(viewModel.problems, id: \.self) { problem in
-                    outputLine(
-                        "\(problem.severity.rawValue.uppercased()) \(problem.filePath):\(problem.range.start.line + 1):\(problem.range.start.character + 1) \(problem.message)",
-                        color: diagnosticColor(for: problem.severity)
-                    )
-                }
+                problemLog
             }
         case "Build":
             commandButton("Build All") { viewModel.buildAll() }
@@ -92,9 +87,7 @@ struct EditorBottomPanel: View {
                 }
             }
             outputSectionTitle("Build Output")
-            ForEach(viewModel.outputLines) { line in
-                outputLine(line.text, color: logColor(for: line.text))
-            }
+            outputLog
         case "Tests":
             commandButton("Run All Tests") { viewModel.runTests() }
             ForEach(viewModel.testTargets, id: \.self) { target in
@@ -109,9 +102,37 @@ struct EditorBottomPanel: View {
                 }
             }
         default:
-            ForEach(viewModel.outputLines) { line in
-                outputLine(line.text, color: logColor(for: line.text))
-            }
+            outputLog
+        }
+    }
+
+    private var outputLog: some View {
+        LazyVStack(
+            viewModel.outputLines,
+            alignment: .leading,
+            spacing: 6,
+            estimatedRowHeight: 19,
+            overscan: 12,
+            reuseRowsWithStableIDs: true
+        ) { line in
+            outputLine(line.text, color: logColor(for: line.text))
+        }
+    }
+
+    private var problemLog: some View {
+        LazyVStack(
+            viewModel.problems,
+            id: \.self,
+            alignment: .leading,
+            spacing: 6,
+            estimatedRowHeight: 19,
+            overscan: 12,
+            reuseRowsWithStableIDs: true
+        ) { problem in
+            outputLine(
+                "\(problem.severity.rawValue.uppercased()) \(problem.filePath):\(problem.range.start.line + 1):\(problem.range.start.character + 1) \(problem.message)",
+                color: diagnosticColor(for: problem.severity)
+            )
         }
     }
 

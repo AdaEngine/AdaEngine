@@ -1,6 +1,7 @@
 @_spi(AdaEngine) import AdaEngine
 import Foundation
 import SwiftTreeSitter
+import Synchronization
 import TreeSitterSwift
 
 struct EditorCodeFileView: View {
@@ -549,16 +550,20 @@ private enum EditorTreeSitterSwiftSyntaxHighlighter {
         }
 
         let cursor = query.execute(in: tree)
+        let lines = source.components(separatedBy: .newlines)
         return cursor
             .resolve(with: .init(string: source))
             .highlights()
             .compactMap { namedRange in
-                span(for: namedRange, source: source, palette: palette)
+                span(for: namedRange, lines: lines, palette: palette)
             }
     }
 
-    private static func span(for namedRange: NamedRange, source: String, palette: EditorCodeColorPalette) -> EditorSyntaxHighlightSpan? {
-        let lines = source.components(separatedBy: .newlines)
+    private static func span(
+        for namedRange: NamedRange,
+        lines: [String],
+        palette: EditorCodeColorPalette
+    ) -> EditorSyntaxHighlightSpan? {
         let pointRange = namedRange.tsRange.points
         let start = pointRange.lowerBound
         let end = pointRange.upperBound
@@ -618,6 +623,25 @@ private enum EditorTreeSitterSwiftSyntaxHighlighter {
 }
 
 enum EditorSyntaxHighlighter {
+    private struct CacheKey: Hashable {
+        let source: String
+        let language: String
+        let palette: EditorCodeColorPalette
+    }
+
+    private struct CacheEntry {
+        let spans: [TextEditorTokenSpan]
+        var lastAccess: UInt64
+    }
+
+    private struct CacheState {
+        var entries: [CacheKey: CacheEntry] = [:]
+        var accessRevision: UInt64 = 0
+    }
+
+    private static let maximumCacheEntryCount = 8
+    private static let cache = Mutex(CacheState())
+
     private enum ScanState: Equatable {
         case normal
         case gravityBlockComment(Int)
@@ -626,8 +650,9 @@ enum EditorSyntaxHighlighter {
     }
 
     static func tokens(for source: String, language: EditorSourceLanguage, palette: EditorCodeColorPalette) -> [EditorCodeToken] {
-        spans(for: source, language: language, palette: palette).map { span in
-            let line = source.components(separatedBy: .newlines)[safe: span.line] ?? ""
+        let lines = source.components(separatedBy: .newlines)
+        return spans(for: source, language: language, palette: palette).map { span in
+            let line = lines[safe: span.line] ?? ""
             let startIndex = line.index(line.startIndex, offsetBy: min(span.startColumn, line.count))
             let endIndex = line.index(startIndex, offsetBy: min(span.length, line.distance(from: startIndex, to: line.endIndex)))
             return EditorCodeToken(text: String(line[startIndex..<endIndex]), color: span.color)
@@ -635,6 +660,20 @@ enum EditorSyntaxHighlighter {
     }
 
     static func spans(for source: String, language: EditorSourceLanguage, palette: EditorCodeColorPalette) -> [TextEditorTokenSpan] {
+        let key = CacheKey(source: source, language: language.rawValue, palette: palette)
+        if let cached = cachedSpans(for: key) {
+            return cached
+        }
+
+        let spans = makeSpans(for: source, language: language, palette: palette)
+        return cacheSpans(spans, for: key)
+    }
+
+    private static func makeSpans(
+        for source: String,
+        language: EditorSourceLanguage,
+        palette: EditorCodeColorPalette
+    ) -> [TextEditorTokenSpan] {
         guard supports(language) else {
             return []
         }
@@ -664,6 +703,49 @@ enum EditorSyntaxHighlighter {
 
         return spans
     }
+
+    private static func cachedSpans(for key: CacheKey) -> [TextEditorTokenSpan]? {
+        cache.withLock { state in
+            guard var entry = state.entries[key] else {
+                return nil
+            }
+
+            state.accessRevision &+= 1
+            entry.lastAccess = state.accessRevision
+            state.entries[key] = entry
+            return entry.spans
+        }
+    }
+
+    private static func cacheSpans(_ spans: [TextEditorTokenSpan], for key: CacheKey) -> [TextEditorTokenSpan] {
+        cache.withLock { state in
+            if var entry = state.entries[key] {
+                state.accessRevision &+= 1
+                entry.lastAccess = state.accessRevision
+                state.entries[key] = entry
+                return entry.spans
+            }
+
+            state.accessRevision &+= 1
+            state.entries[key] = CacheEntry(spans: spans, lastAccess: state.accessRevision)
+            if state.entries.count > maximumCacheEntryCount,
+               let staleKey = state.entries.min(by: { $0.value.lastAccess < $1.value.lastAccess })?.key {
+                state.entries.removeValue(forKey: staleKey)
+            }
+            return spans
+        }
+    }
+
+    #if DEBUG
+    static func hasCachedSpans(
+        for source: String,
+        language: EditorSourceLanguage,
+        palette: EditorCodeColorPalette
+    ) -> Bool {
+        let key = CacheKey(source: source, language: language.rawValue, palette: palette)
+        return cache.withLock { $0.entries[key] != nil }
+    }
+    #endif
 
     private static func treeSitterSwiftSpans(
         for source: String,

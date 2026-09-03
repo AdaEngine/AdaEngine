@@ -63,6 +63,55 @@ struct LazyVStackTests {
     }
 
     @Test
+    func lazyVStackReusesRowsWhoseStableIDsRepresentTheirContent() {
+        final class BuildCounter {
+            var count = 0
+        }
+
+        final class ListState {
+            var items = [0, 1, 2]
+        }
+
+        struct StableList: View {
+            let state: ListState
+            let counter: BuildCounter
+
+            var body: some View {
+                ScrollView(.vertical) {
+                    LazyVStack(
+                        state.items,
+                        id: \.self,
+                        estimatedRowHeight: 24,
+                        overscan: 2,
+                        reuseRowsWithStableIDs: true
+                    ) { item in
+                        counter.count += 1
+                        return Text("Row \(item)")
+                            .frame(width: 100, height: 24)
+                    }
+                }
+                .frame(width: 120, height: 120)
+            }
+        }
+
+        let state = ListState()
+        let counter = BuildCounter()
+        let tester = ViewTester {
+            StableList(state: state, counter: counter)
+        }
+        .setSize(Size(width: 120, height: 120))
+        .performLayout()
+        let initialBuildCount = counter.count
+
+        tester.invalidateContent().performLayout()
+        #expect(counter.count == initialBuildCount)
+
+        state.items[1] = 10
+        tester.invalidateContent().performLayout()
+        #expect(counter.count == initialBuildCount + 1)
+    }
+
+    @Test
     func lazyVStackUpdatesVisibleRowsWhenScrolled() throws {
         struct LargeList: View {
             let items = Array(0..<1_000)

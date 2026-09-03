@@ -138,7 +138,9 @@ struct ProjectOpeningView: View {
         }
 
         didAttemptAutoOpenLastProject = true
-        _ = viewModel.openLastProjectIfAvailable()
+        Task { @MainActor in
+            _ = await viewModel.openLastProjectIfAvailable()
+        }
     }
 
     private var sidebar: some View {

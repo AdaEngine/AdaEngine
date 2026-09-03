@@ -399,7 +399,7 @@ struct EditorProjectStoreTests {
 
     @Test("view model opens last available project on launch")
     @MainActor
-    func projectOpeningViewModelOpensLastAvailableProjectOnLaunch() throws {
+    func projectOpeningViewModelOpensLastAvailableProjectOnLaunch() async throws {
         let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectViewModelOpenLast")
         defer { removeEditorStoreTemporaryDirectory(rootURL) }
 
@@ -420,7 +420,7 @@ struct EditorProjectStoreTests {
         ])
 
         let viewModel = ProjectOpeningViewModel(store: store)
-        let didOpen = viewModel.openLastProjectIfAvailable()
+        let didOpen = await viewModel.openLastProjectIfAvailable()
 
         #expect(didOpen)
         #expect(viewModel.detailProject?.path == latestProjectURL.standardizedFileURL.path)
@@ -431,7 +431,7 @@ struct EditorProjectStoreTests {
 
     @Test("view model leaves welcome visible when last project is missing")
     @MainActor
-    func projectOpeningViewModelSkipsMissingLastProjectOnLaunch() throws {
+    func projectOpeningViewModelSkipsMissingLastProjectOnLaunch() async throws {
         let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectViewModelMissingLast")
         defer { removeEditorStoreTemporaryDirectory(rootURL) }
 
@@ -443,7 +443,7 @@ struct EditorProjectStoreTests {
         ])
 
         let viewModel = ProjectOpeningViewModel(store: store)
-        let didOpen = viewModel.openLastProjectIfAvailable()
+        let didOpen = await viewModel.openLastProjectIfAvailable()
 
         #expect(!didOpen)
         #expect(viewModel.detailProject == nil)

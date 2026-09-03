@@ -5,6 +5,8 @@ import AdaInput
 import AdaUtils
 import Foundation
 import Math
+import Observation
+import Synchronization
 import Testing
 
 @Suite("AdaEngineStyle UI mock")
@@ -467,6 +469,91 @@ struct AdaEngineStyleUITests {
         #expect(shortLine.text == "error: missing symbol")
         #expect(longLine.text.count < EditorWorkspaceLogLine.maximumTextLength + 50)
         #expect(longLine.text.hasSuffix("… [truncated]"))
+    }
+
+    @Test("output buffer appends chunks atomically and preserves its cap")
+    func outputBufferAppendsChunksAndPreservesCap() {
+        let existing = (0..<390).map { EditorWorkspaceLogLine(id: "old-\($0)", text: "old \($0)") }
+        let appended = (0..<20).map { "new \($0)" }
+
+        let result = EditorWorkspaceLogBuffer.appending(appended, to: existing)
+
+        #expect(result.count == EditorWorkspaceLogBuffer.maximumLineCount)
+        #expect(result.first?.id == "old-10")
+        #expect(result.suffix(20).map(\.text) == appended)
+    }
+
+    @Test("repeated source diagnostics do not invalidate an unchanged problem list")
+    @MainActor
+    func repeatedSourceDiagnosticsDoNotInvalidateProblems() {
+        let diagnostic = EditorDiagnostic(
+            filePath: "/tmp/Game/Sources/Game/main.swift",
+            range: EditorSourceRange(
+                start: EditorSourceLocation(line: 2, character: 4),
+                end: EditorSourceLocation(line: 2, character: 8)
+            ),
+            severity: .error,
+            message: "Unknown symbol",
+            source: "sourcekit-lsp"
+        )
+        let viewModel = EditorViewModel(problems: [])
+        let problemListChanges = Mutex(0)
+
+        withObservationTracking {
+            _ = viewModel.problems
+        } onChange: {
+            problemListChanges.withLock { $0 += 1 }
+        }
+        viewModel.receiveSourceDiagnostics([diagnostic], uri: "file:///tmp/Game/Sources/Game/main.swift")
+        #expect(problemListChanges.withLock { $0 } == 1)
+
+        withObservationTracking {
+            _ = viewModel.problems
+        } onChange: {
+            problemListChanges.withLock { $0 += 1 }
+        }
+        viewModel.receiveSourceDiagnostics([diagnostic], uri: "file:///tmp/Game/Sources/Game/main.swift")
+        #expect(problemListChanges.withLock { $0 } == 1)
+    }
+
+    @Test("repeated diagnostics from multiple files preserve problem order and observation state")
+    @MainActor
+    func repeatedMultiFileSourceDiagnosticsDoNotReorderProblems() {
+        let firstDiagnostic = EditorDiagnostic(
+            filePath: "/tmp/Game/Sources/Game/First.swift",
+            range: EditorSourceRange(
+                start: EditorSourceLocation(line: 1, character: 0),
+                end: EditorSourceLocation(line: 1, character: 4)
+            ),
+            severity: .warning,
+            message: "First warning",
+            source: "sourcekit-lsp"
+        )
+        let secondDiagnostic = EditorDiagnostic(
+            filePath: "/tmp/Game/Sources/Game/Second.swift",
+            range: EditorSourceRange(
+                start: EditorSourceLocation(line: 2, character: 0),
+                end: EditorSourceLocation(line: 2, character: 4)
+            ),
+            severity: .error,
+            message: "Second error",
+            source: "sourcekit-lsp"
+        )
+        let viewModel = EditorViewModel(problems: [])
+        viewModel.receiveSourceDiagnostics([firstDiagnostic], uri: "file:///tmp/Game/Sources/Game/First.swift")
+        viewModel.receiveSourceDiagnostics([secondDiagnostic], uri: "file:///tmp/Game/Sources/Game/Second.swift")
+        let problemListChanges = Mutex(0)
+
+        withObservationTracking {
+            _ = viewModel.problems
+        } onChange: {
+            problemListChanges.withLock { $0 += 1 }
+        }
+        viewModel.receiveSourceDiagnostics([firstDiagnostic], uri: "file:///tmp/Game/Sources/Game/First.swift")
+        viewModel.receiveSourceDiagnostics([secondDiagnostic], uri: "file:///tmp/Game/Sources/Game/Second.swift")
+
+        #expect(problemListChanges.withLock { $0 } == 0)
+        #expect(viewModel.problems == [firstDiagnostic, secondDiagnostic])
     }
 
     @Test("workspace failure status keeps build output out of compact chrome")
