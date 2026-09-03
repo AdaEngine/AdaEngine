@@ -1,9 +1,9 @@
-import Testing
-import AdaText
 @testable import AdaPlatform
+@testable import AdaText
 @testable import AdaUI
 import AdaUtils
 import Math
+import Testing
 
 @MainActor
 private final class GeometryRenderProbe {
@@ -19,6 +19,40 @@ private final class GeometryRenderProbe {
 struct TextRenderingRegressionTests {
     init() async throws {
         try Application.prepareForTest()
+    }
+
+    @Test
+    func textNodeDefersGlyphLayoutUntilMeasurement() {
+        var environment = EnvironmentValues()
+        environment.font = .system(size: 13)
+        let node = TextViewNode(
+            inputs: _ViewInputs(parentNode: nil, environment: environment),
+            content: Text("Deferred text layout")
+        )
+
+        #expect(node.layoutManager.layoutRevision == 0)
+
+        _ = node.sizeThatFits(.infinity)
+
+        #expect(node.layoutManager.layoutRevision == 1)
+    }
+
+    @Test
+    func unrelatedEnvironmentChangesReuseTextLayout() {
+        var environment = EnvironmentValues()
+        environment.font = .system(size: 13)
+        let node = TextViewNode(
+            inputs: _ViewInputs(parentNode: nil, environment: environment),
+            content: Text("Stable text layout")
+        )
+        _ = node.sizeThatFits(.infinity)
+        let revision = node.layoutManager.layoutRevision
+
+        environment.accentColor = .red
+        node.updateEnvironment(environment)
+        _ = node.sizeThatFits(.infinity)
+
+        #expect(node.layoutManager.layoutRevision == revision)
     }
 
     @Test

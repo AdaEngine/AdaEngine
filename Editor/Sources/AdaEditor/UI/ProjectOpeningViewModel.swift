@@ -36,6 +36,7 @@ final class ProjectOpeningViewModel {
     var validationDiagnostics: [ProjectOpeningDiagnostic] = []
     var projectToOpenInEditor: EditorProjectReference?
     var projectToOpenInEditorToken = 0
+    var isOpeningLastProject = false
 
     var projectNameBinding: Binding<String> {
         Binding(get: { self.projectName }, set: { self.projectName = $0 })
@@ -119,25 +120,84 @@ final class ProjectOpeningViewModel {
         }
     }
 
+    /// Opens the most recent project without performing potentially blocking filesystem I/O on the main actor.
     @discardableResult
-    func openLastProjectIfAvailable() -> Bool {
-        reloadRecentProjects()
+    func openLastProjectIfAvailable() async -> Bool {
+        guard !isOpeningLastProject else {
+            return false
+        }
 
+        reloadRecentProjects()
         guard let lastProject = recentProjects.first else {
             clearValidationDiagnostics()
             statusMessage = "Select a recent SwiftPM Ada project, create a blank one, or open an existing package."
             return false
         }
 
-        guard FileManager.default.fileExists(atPath: lastProject.path) else {
-            selectedProject = nil
-            clearValidationDiagnostics()
-            statusMessage = "Last project is no longer available: \(lastProject.path)"
+        isOpeningLastProject = true
+        defer { isOpeningLastProject = false }
+        let selectedPathBeforeOpening = selectedProject?.path
+        let storageURL = store.storageURL
+        let adaEnginePackageURL = store.adaEnginePackageURL
+
+        // Foundation does not provide asynchronous file reads here. Keep the blocking project validation
+        // and manifest update off the UI actor so unavailable or cloud-backed paths cannot freeze the window.
+        let result = await Task.detached(priority: .userInitiated) {
+            let backgroundStore = EditorProjectStore(
+                storageURL: storageURL,
+                fileManager: FileManager(),
+                adaEnginePackageURL: adaEnginePackageURL
+            )
+            guard backgroundStore.fileManager.fileExists(atPath: lastProject.path) else {
+                return BackgroundProjectOpenResult.unavailable
+            }
+
+            do {
+                let openedProject = try backgroundStore.openProject(
+                    at: URL(fileURLWithPath: lastProject.path, isDirectory: true)
+                )
+                return .opened(openedProject)
+            } catch let error as ProjectSystemError {
+                return .projectFailure(error)
+            } catch {
+                return .failure(error.localizedDescription)
+            }
+        }.value
+
+        guard selectedProject?.path == selectedPathBeforeOpening, projectToOpenInEditor == nil else {
             return false
         }
 
-        openProject(atPath: lastProject.path, openInEditor: true)
-        return projectToOpenInEditor != nil
+        return applyBackgroundProjectOpenResult(result, lastProject: lastProject)
+    }
+
+    private func applyBackgroundProjectOpenResult(
+        _ result: BackgroundProjectOpenResult,
+        lastProject: EditorProjectReference
+    ) -> Bool {
+        switch result {
+        case let .opened(openedProject):
+            isCreatingNewProject = false
+            selectedProject = openedProject
+            clearValidationDiagnostics()
+            statusMessage = "Opened project: \(openedProject.path)"
+            reloadRecentProjects()
+            projectToOpenInEditor = openedProject
+            projectToOpenInEditorToken += 1
+            return true
+        case .unavailable:
+            selectedProject = nil
+            clearValidationDiagnostics()
+            statusMessage = "Last project is no longer available: \(lastProject.path)"
+        case let .projectFailure(error):
+            selectedProject = nil
+            setFailureStatus(prefix: "Failed to open project", error: error)
+        case let .failure(message):
+            selectedProject = nil
+            clearValidationDiagnostics()
+            statusMessage = "Failed to open project: \(message)"
+        }
+        return false
     }
 
     func selectProject(_ reference: EditorProjectReference) {
@@ -292,4 +352,11 @@ final class ProjectOpeningViewModel {
         formatter.unitsStyle = .full
         return formatter
     }()
+}
+
+private enum BackgroundProjectOpenResult: Sendable {
+    case opened(EditorProjectReference)
+    case unavailable
+    case projectFailure(ProjectSystemError)
+    case failure(String)
 }

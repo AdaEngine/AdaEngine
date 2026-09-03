@@ -1,5 +1,5 @@
-@_spi(AdaEngine) import AdaEngine
 @testable import AdaEditor
+@_spi(AdaEngine) import AdaEngine
 import Testing
 
 @Suite("EditorTreeSitterSyntaxHighlighter")
@@ -78,5 +78,19 @@ struct EditorTreeSitterSyntaxHighlighterTests {
         #expect(spans.contains(TextEditorTokenSpan(line: 1, startColumn: 0, length: 3, color: .blue)))
         #expect(spans.contains(TextEditorTokenSpan(line: 2, startColumn: 0, length: 6, color: .blue)))
         #expect(spans.contains(TextEditorTokenSpan(line: 3, startColumn: 0, length: 3, color: .blue)))
+    }
+
+    @Test("reuses syntax spans while unrelated editor state changes")
+    func reusesSyntaxSpansForUnchangedSource() {
+        let source = "let adaEditorSyntaxCacheRegressionValue = 42"
+        let palette = EditorCodeColorPalette.dark
+
+        #expect(!EditorSyntaxHighlighter.hasCachedSpans(for: source, language: .swift, palette: palette))
+
+        let first = EditorSyntaxHighlighter.spans(for: source, language: .swift, palette: palette)
+        #expect(EditorSyntaxHighlighter.hasCachedSpans(for: source, language: .swift, palette: palette))
+
+        let second = EditorSyntaxHighlighter.spans(for: source, language: .swift, palette: palette)
+        #expect(second == first)
     }
 }

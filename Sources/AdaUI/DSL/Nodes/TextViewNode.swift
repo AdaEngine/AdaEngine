@@ -22,8 +22,6 @@ final class TextViewNode: ViewNode {
 
             self.layoutManager.setTextContainer(self.textContainer)
             self.drawLayoutManager.setTextContainer(self.textContainer)
-            self.layoutManager.invalidateLayout()
-            self.drawLayoutManager.invalidateLayout()
             self.sizeCache = [:]
         }
     }
@@ -34,14 +32,12 @@ final class TextViewNode: ViewNode {
         self.textContainer = Self.makeTextContainer(content: content, environment: inputs.environment)
         self.layoutManager = TextLayoutManager()
         self.layoutManager.setTextContainer(self.textContainer)
-        self.layoutManager.invalidateLayout()
         self.drawLayoutManager = TextLayoutManager()
         self.drawLayoutManager.setTextContainer(self.textContainer)
-        self.drawLayoutManager.invalidateLayout()
         self.textRenderer = inputs.environment.textRenderer ?? DefaultRichTextRenderer()
 
         super.init(content: content)
-        self.updateEnvironment(inputs.environment)
+        self.applyResolvedEnvironmentSilently(inputs.environment)
     }
 
     /// Cache the sizes while layoutmanager is consistent.
@@ -129,9 +125,9 @@ final class TextViewNode: ViewNode {
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
-        let previousVersion = self.environment.version
+        let previousEnvironment = self.environment
         super.updateEnvironment(environment)
-        guard self.environment.version != previousVersion else {
+        guard Self.textEnvironmentDidChange(from: previousEnvironment, to: self.environment) else {
             return
         }
 
@@ -163,6 +159,18 @@ final class TextViewNode: ViewNode {
         container.textAlignment = content.storage.multilineTextAlignment ?? .center
         container.writingDirection = environment.layoutDirection == .rightToLeft ? .rightToLeft : .leftToRight
         return container
+    }
+
+    private static func textEnvironmentDidChange(
+        from previous: EnvironmentValues,
+        to current: EnvironmentValues
+    ) -> Bool {
+        previous.font != current.font
+            || previous.foregroundColor != current.foregroundColor
+            || previous.lineLimit != current.lineLimit
+            || previous.lineBreakMode != current.lineBreakMode
+            || previous.multilineTextAlignment != current.multilineTextAlignment
+            || previous.layoutDirection != current.layoutDirection
     }
 }
 

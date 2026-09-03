@@ -372,6 +372,24 @@ struct EditorWorkspaceLogLine: Equatable, Sendable, Identifiable {
     }
 }
 
+enum EditorWorkspaceLogBuffer {
+    static let maximumLineCount = 400
+
+    static func appending(
+        _ textLines: [String],
+        to existingLines: [EditorWorkspaceLogLine]
+    ) -> [EditorWorkspaceLogLine] {
+        guard !textLines.isEmpty else {
+            return existingLines
+        }
+
+        let retainedExistingCount = max(0, maximumLineCount - textLines.count)
+        var result = Array(existingLines.suffix(retainedExistingCount))
+        result.append(contentsOf: textLines.suffix(maximumLineCount).map { EditorWorkspaceLogLine(text: $0) })
+        return result
+    }
+}
+
 @MainActor
 enum EditorPreviewStatus {
     case hidden
@@ -2945,8 +2963,8 @@ final class EditorViewModel {
     private func appendStreamingLines(_ lines: [String]) {
         for line in lines {
             buildActivity?.consume(line)
-            appendOutput(line)
         }
+        appendOutput(lines)
     }
 
     private static func streamingOutput(_ text: String, pending: String) -> (lines: [String], pending: String) {
@@ -2961,30 +2979,31 @@ final class EditorViewModel {
     }
 
     private func flushPendingWorkspaceOutput() {
-        for value in [pendingWorkspaceStandardOutput, pendingWorkspaceStandardError] where !value.isEmpty {
+        let pendingLines = [pendingWorkspaceStandardOutput, pendingWorkspaceStandardError].filter { !$0.isEmpty }
+        for value in pendingLines {
             buildActivity?.consume(value)
-            appendOutput(value)
         }
+        appendOutput(pendingLines)
         pendingWorkspaceStandardOutput = ""
         pendingWorkspaceStandardError = ""
     }
 
     private func appendOutput(_ result: EditorProcessResult) {
-        appendOutput("$ \(result.command.shellDescription)")
+        var lines = ["$ \(result.command.shellDescription)"]
         let output = result.combinedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
         if !output.isEmpty {
-            for line in output.components(separatedBy: .newlines) {
-                appendOutput(line)
-            }
+            lines.append(contentsOf: output.components(separatedBy: .newlines))
         }
-        appendOutput("Exited with code \(result.exitCode)")
+        lines.append("Exited with code \(result.exitCode)")
+        appendOutput(lines)
     }
 
     private func appendOutput(_ text: String) {
-        outputLines.append(EditorWorkspaceLogLine(text: text))
-        if outputLines.count > 400 {
-            outputLines.removeFirst(outputLines.count - 400)
-        }
+        appendOutput([text])
+    }
+
+    private func appendOutput(_ lines: [String]) {
+        outputLines = EditorWorkspaceLogBuffer.appending(lines, to: outputLines)
     }
 
     private func appendOutputBlock(_ text: String) {
@@ -2993,18 +3012,19 @@ final class EditorViewModel {
             return
         }
 
-        for line in output.components(separatedBy: .newlines) {
-            appendOutput(line)
-        }
+        appendOutput(output.components(separatedBy: .newlines))
     }
 
     private func showProblemsIfNeeded() {
         guard !problems.isEmpty else {
             return
         }
-
-        showBottomPanel = true
-        selectOutputTab("Problems")
+        if !showBottomPanel {
+            showBottomPanel = true
+        }
+        if activeOutputTab != "Problems" {
+            selectOutputTab("Problems")
+        }
     }
 
     func openProjectItem(_ item: EditorProjectSidebarViewModel.Item) {
@@ -3495,14 +3515,22 @@ final class EditorViewModel {
         )
     }
 
-    private func receiveSourceDiagnostics(_ diagnostics: [EditorDiagnostic], uri: String) {
+    func receiveSourceDiagnostics(_ diagnostics: [EditorDiagnostic], uri: String) {
         let publishedPath = URL(string: uri)?.path.removingPercentEncoding ?? uri
         let affectedPaths = Set(diagnostics.map(\.filePath) + [publishedPath])
 
-        problems.removeAll { diagnostic in
+        let firstAffectedIndex = problems.firstIndex { diagnostic in
             diagnostic.source == "sourcekit-lsp" && affectedPaths.contains(diagnostic.filePath)
         }
-        problems.append(contentsOf: diagnostics)
+        var updatedProblems = problems
+        updatedProblems.removeAll { diagnostic in
+            diagnostic.source == "sourcekit-lsp" && affectedPaths.contains(diagnostic.filePath)
+        }
+        let insertionIndex = min(firstAffectedIndex ?? updatedProblems.endIndex, updatedProblems.endIndex)
+        updatedProblems.insert(contentsOf: diagnostics, at: insertionIndex)
+        if updatedProblems != problems {
+            problems = updatedProblems
+        }
         for document in workbench.openDocuments {
             guard case .text(let textDocument) = document,
                   let absolutePath = textDocument.absolutePath,
@@ -3510,8 +3538,12 @@ final class EditorViewModel {
             else {
                 continue
             }
+            let documentDiagnostics = diagnostics.filter { $0.filePath == absolutePath }
+            guard documentDiagnostics != textDocument.diagnostics else {
+                continue
+            }
             workbench.updateTextDocument(id: textDocument.id) { updatedDocument in
-                updatedDocument.diagnostics = diagnostics.filter { $0.filePath == absolutePath }
+                updatedDocument.diagnostics = documentDiagnostics
             }
         }
         showProblemsIfNeeded()
