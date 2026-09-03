@@ -5,6 +5,7 @@
 //  Created by Codex on 18.05.2026.
 //
 
+import AdaText
 import AdaUtils
 
 /// Colors used by a text editor primitive.
@@ -53,12 +54,15 @@ public struct TextEditorTokenSpan: Hashable, Sendable {
     public var startColumn: Int
     public var length: Int
     public var color: Color
+    /// An optional font override for this token. When omitted, the editor's base font is used.
+    public var font: Font?
 
-    public init(line: Int, startColumn: Int, length: Int, color: Color) {
+    public init(line: Int, startColumn: Int, length: Int, color: Color, font: Font? = nil) {
         self.line = line
         self.startColumn = startColumn
         self.length = length
         self.color = color
+        self.font = font
     }
 }
 
@@ -84,6 +88,17 @@ public struct TextEditorSourceRange: Hashable, Sendable {
     }
 }
 
+/// A colored source range rendered as an underline in ``TextEditor``.
+public struct TextEditorSourceHighlight: Hashable, Sendable {
+    public var range: TextEditorSourceRange
+    public var color: Color
+
+    public init(range: TextEditorSourceRange, color: Color) {
+        self.range = range
+        self.color = color
+    }
+}
+
 /// A context menu item emitted by ``TextEditor`` source interactions.
 public struct TextEditorContextMenuItem {
     public var title: String
@@ -100,6 +115,7 @@ public struct TextEditorContextMenuItem {
 /// Optional source-aware interactions for ``TextEditor``.
 public struct TextEditorSourceInteraction {
     public var highlightedRanges: [TextEditorSourceRange]
+    public var sourceHighlights: [TextEditorSourceHighlight]
     public var hoveredRange: TextEditorSourceRange?
     public var focusedRange: TextEditorSourceRange?
     public var onHover: ((TextEditorSourcePosition?) -> Void)?
@@ -112,6 +128,7 @@ public struct TextEditorSourceInteraction {
 
     public init(
         highlightedRanges: [TextEditorSourceRange] = [],
+        sourceHighlights: [TextEditorSourceHighlight] = [],
         hoveredRange: TextEditorSourceRange? = nil,
         focusedRange: TextEditorSourceRange? = nil,
         onHover: ((TextEditorSourcePosition?) -> Void)? = nil,
@@ -123,6 +140,7 @@ public struct TextEditorSourceInteraction {
         contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])? = nil
     ) {
         self.highlightedRanges = highlightedRanges
+        self.sourceHighlights = sourceHighlights
         self.hoveredRange = hoveredRange
         self.focusedRange = focusedRange
         self.onHover = onHover

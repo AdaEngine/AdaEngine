@@ -30,6 +30,7 @@ struct EditorTreeSitterSyntaxHighlighterTests {
         #expect(tokens.contains(EditorCodeToken(text: "'Gravity'", color: .blue)))
         #expect(tokens.contains(EditorCodeToken(text: "/* outer /* nested */ comment */", color: .yellow)))
         #expect(tokens.contains(EditorCodeToken(text: "MovementSystem", color: .orange)))
+        #expect(tokens.contains(EditorCodeToken(text: "@system", color: .green)))
         #expect(tokens.contains(EditorCodeToken(text: "12.5", color: .red)))
         #expect(tokens.contains(EditorCodeToken(text: ";", color: .purple)))
     }

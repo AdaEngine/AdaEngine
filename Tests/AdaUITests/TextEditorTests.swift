@@ -6,6 +6,7 @@
 //
 
 import AdaInput
+import AdaText
 import Math
 import Testing
 @testable import AdaPlatform
@@ -308,9 +309,10 @@ struct TextEditorTests {
 
         let node = try #require(tester.sendMouseEvent(at: Point(100, 28), phase: .began, time: 0) as? TextEditorViewNode)
         let font = try #require(node.resolvedFontForRendering())
+        let tokenFont = Font.system(size: 12, weight: .bold)
         let line = "import AdaEngine"
         let lineSpans = [
-            TextEditorTokenSpan(line: 0, startColumn: 0, length: 6, color: .red),
+            TextEditorTokenSpan(line: 0, startColumn: 0, length: 6, color: .red, font: tokenFont),
             TextEditorTokenSpan(line: 0, startColumn: 7, length: 9, color: .blue)
         ]
 
@@ -319,7 +321,9 @@ struct TextEditorTests {
         let typeIndex = line.index(line.startIndex, offsetBy: 7)
 
         #expect(attributedText.text == line)
+        #expect(attributedText.attributes(at: line.startIndex).font == tokenFont)
         #expect(attributedText.attributes(at: spaceIndex).foregroundColor == .white)
+        #expect(attributedText.attributes(at: typeIndex).font == font)
         #expect(attributedText.attributes(at: typeIndex).foregroundColor == .blue)
     }
 
@@ -561,5 +565,23 @@ struct TextEditorTests {
 
         #expect(menuTitles == ["Go To", "Find References"])
         #expect(submenuTitles == ["Definition"])
+    }
+
+    @Test
+    func textEditor_sourceHighlightKeepsZeroLengthDiagnosticsVisible() {
+        let range = TextEditorSourceRange(
+            start: TextEditorSourcePosition(line: 2, column: 7),
+            end: TextEditorSourcePosition(line: 2, column: 7)
+        )
+
+        let columns = TextEditorViewNode.sourceUnderlineColumns(
+            for: range,
+            lineIndex: 2,
+            lineLength: 12
+        )
+
+        #expect(columns?.start == 7)
+        #expect(columns?.end == 7)
+        #expect(TextEditorViewNode.sourceUnderlineColumns(for: range, lineIndex: 1, lineLength: 12) == nil)
     }
 }

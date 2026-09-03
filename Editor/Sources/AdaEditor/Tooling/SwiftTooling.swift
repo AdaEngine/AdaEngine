@@ -597,6 +597,9 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func semanticTokens(fileURL: URL, language: EditorSourceLanguage, text: String) async -> [EditorSemanticToken] {
+        if language == .ada {
+            return []
+        }
         guard let sourceKitClient else {
             return []
         }
@@ -632,6 +635,14 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func definition(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorSourceSymbolTarget] {
+        if language == .ada {
+            return EditorGravityLanguageService.definition(
+                workspace: gravityWorkspace,
+                uri: fileURL.standardizedFileURL.absoluteString,
+                text: text,
+                position: position
+            ).map { [$0] } ?? []
+        }
         guard let sourceKitClient else {
             return []
         }

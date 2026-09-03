@@ -3,6 +3,7 @@ import GravityLanguageCore
 
 struct EditorGravityLanguageService: Sendable {
     private static let languageService = GravityLanguageService()
+    private static let annotationLabels: Set<String> = ["access", "component", "export", "query", "resource", "scriptable", "system"]
 
     static func completions(
         text: String,
@@ -12,6 +13,29 @@ struct EditorGravityLanguageService: Sendable {
         return completionItems(
             languageService.completions(text: text, position: lspPosition),
             text: text
+        )
+    }
+
+    static func definition(
+        workspace: GravityWorkspace,
+        uri: String,
+        text: String,
+        position: EditorSourceLocation
+    ) -> EditorSourceSymbolTarget? {
+        workspace.change(uri: uri, text: text, version: nil)
+        guard let definition = workspace.definition(
+            uri: uri,
+            position: lspPosition(from: position, in: text)
+        ) else {
+            return nil
+        }
+        let targetText = workspace.text(for: definition.uri) ?? ""
+        let fileURL = URL(string: definition.uri)
+        return EditorSourceSymbolTarget(
+            uri: definition.uri,
+            filePath: fileURL?.path.removingPercentEncoding ?? fileURL?.path ?? definition.uri,
+            range: editorRange(from: definition.range, in: targetText),
+            selectionRange: editorRange(from: definition.selectionRange, in: targetText)
         )
     }
 
@@ -38,8 +62,27 @@ struct EditorGravityLanguageService: Sendable {
                 detail: completion.detail,
                 insertText: completion.insertText,
                 replacementRange: editorRange(from: completion.replacementRange, in: text),
-                sortText: completion.sortText
+                sortText: completion.sortText,
+                kind: completionKind(for: completion)
             )
+        }
+    }
+
+    private static func completionKind(for completion: GravityCompletion) -> EditorCompletionKind {
+        if annotationLabels.contains(completion.label) {
+            return .annotation
+        }
+
+        return switch completion.kind {
+        case .class: .class
+        case .enum: .enum
+        case .function: .function
+        case .keyword: .keyword
+        case .method: .method
+        case .property: .property
+        case .snippet: .snippet
+        case .struct: .struct
+        case .variable: .variable
         }
     }
 

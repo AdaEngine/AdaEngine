@@ -7,6 +7,16 @@
 import Foundation
 import Observation
 
+enum ProjectOpeningSection: String, CaseIterable, Equatable, Sendable {
+    case projects
+    case templates
+    case samples
+
+    var title: String {
+        rawValue.capitalized
+    }
+}
+
 struct ProjectOpeningDiagnostic: Equatable, Identifiable, Sendable {
     var id: String { code + ":" + (fieldPath ?? "") + ":" + message }
     var code: String
@@ -31,6 +41,8 @@ final class ProjectOpeningViewModel {
     var isCreatingNewProject = false
     var existingProjectPath: String = ""
     var searchQuery: String = ""
+    var selectedSection = ProjectOpeningSection.projects
+    var selectedTemplate = EditorProjectTemplate.adaScript
     var selectedProject: EditorProjectReference?
     var statusMessage: String = "Select a recent SwiftPM Ada project, create a blank one, or open an existing package."
     var validationDiagnostics: [ProjectOpeningDiagnostic] = []
@@ -83,12 +95,8 @@ final class ProjectOpeningViewModel {
         !projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    var needsProjectLocation: Bool {
-        projectLocation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
     var canCreateProject: Bool {
-        hasValidProjectName && !needsProjectLocation
+        hasValidProjectName && !projectLocation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var projectLocationDisplayText: String {
@@ -218,7 +226,8 @@ final class ProjectOpeningViewModel {
         do {
             let createdProject = try store.createProject(
                 named: projectName,
-                at: URL(fileURLWithPath: projectLocation, isDirectory: true)
+                at: URL(fileURLWithPath: projectLocation, isDirectory: true),
+                template: selectedTemplate
             )
             isCreatingNewProject = false
             selectedProject = createdProject
@@ -256,8 +265,17 @@ final class ProjectOpeningViewModel {
         openProject(atPath: reference.path, openInEditor: true)
     }
 
-    func beginCreateNewProject() {
+    func beginCreateNewProject(
+        template: EditorProjectTemplate? = nil,
+        suggestedName: String? = nil
+    ) {
         selectedProject = nil
+        if let template {
+            selectedTemplate = template
+        }
+        if let suggestedName {
+            projectName = suggestedName
+        }
         isCreatingNewProject = true
         clearValidationDiagnostics()
         statusMessage = "Choose a name and location for the new Ada project."
@@ -273,6 +291,14 @@ final class ProjectOpeningViewModel {
             projectName = "BlankAdaProject"
         }
         createProject(openInEditor: true)
+    }
+
+    func selectSection(_ section: ProjectOpeningSection) {
+        selectedSection = section
+        isCreatingNewProject = false
+        selectedProject = nil
+        clearValidationDiagnostics()
+        statusMessage = "Browse \(section.title.lowercased())."
     }
 
     func abbreviatedPath(for project: EditorProjectReference) -> String {

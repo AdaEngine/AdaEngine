@@ -147,12 +147,79 @@ struct EditorSemanticToken: Equatable, Hashable, Sendable {
     var modifiers: [String]
 }
 
+enum EditorCompletionKind: Equatable, Hashable, Sendable {
+    case annotation
+    case `class`
+    case constant
+    case constructor
+    case color
+    case `enum`
+    case enumMember
+    case event
+    case field
+    case file
+    case folder
+    case function
+    case interface
+    case keyword
+    case method
+    case module
+    case `operator`
+    case property
+    case reference
+    case snippet
+    case `struct`
+    case typeParameter
+    case text
+    case unit
+    case value
+    case variable
+    case unknown
+
+    init(lspValue: Int?, label: String, insertText: String? = nil) {
+        if label.hasPrefix("@") || insertText?.hasPrefix("@") == true {
+            self = .annotation
+            return
+        }
+
+        self = switch lspValue {
+        case 1: .text
+        case 2: .method
+        case 3: .function
+        case 4: .constructor
+        case 5: .field
+        case 6: .variable
+        case 7: .class
+        case 8: .interface
+        case 9: .module
+        case 10: .property
+        case 11: .unit
+        case 12: .value
+        case 13: .enum
+        case 14: .keyword
+        case 15: .snippet
+        case 16: .color
+        case 17: .file
+        case 18: .reference
+        case 19: .folder
+        case 20: .enumMember
+        case 21: .constant
+        case 22: .struct
+        case 23: .event
+        case 24: .operator
+        case 25: .typeParameter
+        default: .unknown
+        }
+    }
+}
+
 struct EditorCompletionItem: Equatable, Hashable, Sendable {
     var label: String
     var detail: String?
     var insertText: String
     var replacementRange: EditorSourceRange?
     var sortText: String?
+    var kind: EditorCompletionKind = .unknown
 }
 
 struct SourceKitLSPDocumentIdentifier: Equatable, Hashable, Sendable {
@@ -607,7 +674,8 @@ actor SourceKitLSPClient {
                 detail: object["detail"]?.stringValue,
                 insertText: insertText,
                 replacementRange: textEdit?.range,
-                sortText: object["sortText"]?.stringValue
+                sortText: object["sortText"]?.stringValue,
+                kind: EditorCompletionKind(lspValue: object["kind"]?.intValue, label: label, insertText: insertText)
             )
         }
         .sorted { lhs, rhs in

@@ -144,41 +144,69 @@ struct ProjectOpeningView: View {
     }
 
     private var sidebar: some View {
-        VStack(alignment: .center, spacing: 22) {
+        VStack(alignment: .center, spacing: 6) {
             if let logoImage {
                 logoImage
                     .resizable()
                     .frame(width: 38, height: 38)
-                    .padding(.bottom, 12)
+                    .padding(.top, ProjectOpeningLayout.logoTopPadding)
+                    .padding(.bottom, 4)
             } else {
                 Text("A")
                     .font(.system(size: 18))
                     .foregroundColor(.white)
                     .frame(width: 38, height: 38)
-                    .padding(.bottom, 12)
+                    .padding(.top, ProjectOpeningLayout.logoTopPadding)
+                    .padding(.bottom, 4)
             }
 
-            launcherNavItem("⌂", active: true)
-            launcherNavItem("⇩", active: false)
+            launcherSectionButton(.projects)
+            launcherSectionButton(.templates)
+            launcherSectionButton(.samples)
 
             Spacer()
             Button {
                 EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: .general)
             } label: {
-                launcherNavItem("⚙", active: false)
+                Text("⚙")
+                    .font(.system(size: 20))
+                    .foregroundColor(LauncherColor.muted)
+                    .frame(width: 54, height: 36)
             }
             .buttonStyle(LauncherIconButtonStyle())
+            .frame(width: 54, height: 36)
         }
-        .frame(width: ProjectOpeningLayout.sidebarWidth, height: ProjectOpeningLayout.windowHeight - 62)
-        .padding(.top, ProjectOpeningLayout.logoTopPadding)
-        .padding(.bottom, 24)
+        .frame(width: ProjectOpeningLayout.sidebarWidth, height: ProjectOpeningLayout.windowHeight)
         .background(LauncherColor.sidebar)
     }
 
     private var projectExplorer: some View {
+        projectExplorerContent
+            .frame(width: ProjectOpeningLayout.explorerWidth, height: ProjectOpeningLayout.windowHeight)
+            .background(LauncherColor.explorer)
+            .overlay {
+                HStack(spacing: 0) {
+                    Spacer()
+                    LauncherColor.glassBorder.frame(width: 1)
+                }
+            }
+    }
+
+    private var projectExplorerContent: AnyView {
+        switch viewModel.selectedSection {
+        case .projects:
+            AnyView(projectsExplorer)
+        case .templates:
+            AnyView(templatesExplorer)
+        case .samples:
+            AnyView(samplesExplorer)
+        }
+    }
+
+    private var projectsExplorer: some View {
         VStack(alignment: .leading, spacing: 0) {
-            launcherListHeader("Recents")
-                .padding(.top, 20)
+            launcherListHeader("Recent Projects")
+                .padding(.top, 12)
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
@@ -195,71 +223,93 @@ struct ProjectOpeningView: View {
                     }
                 }
             }
-            .frame(width: ProjectOpeningLayout.explorerWidth, height: 390)
+            .frame(width: ProjectOpeningLayout.explorerWidth, height: 500, alignment: .topLeading)
 
-            launcherListHeader("Templates")
+            launcherListHeader("Open")
+            templateRow(
+                title: "Open Existing Package",
+                subtitle: viewModel.existingProjectPath.isEmpty ? "Choose a SwiftPM Ada project" : viewModel.existingProjectPath,
+                badge: "SPM",
+                isActive: false,
+                action: openProjectPicker
+            )
+        }
+    }
+
+    private var templatesExplorer: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            launcherListHeader("Project Templates")
                 .padding(.top, 12)
-
-            Button {
-                viewModel.beginCreateNewProject()
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Blank 3D Project")
-                        .font(.system(size: 14))
-                        .foregroundColor(.white)
-                    Text("Clean slate with Ada metadata")
-                        .font(.system(size: 10))
-                        .foregroundColor(LauncherColor.muted.opacity(0.65))
-                        .lineLimit(1)
-                }
-                .padding(.leading, 20)
-                .padding(.trailing, 20)
-                .frame(width: ProjectOpeningLayout.explorerWidth, height: 58, alignment: .leading)
-            }
-            .buttonStyle(LauncherPlainButtonStyle(active: false))
-
-            Button {
-                openProjectPicker()
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Open Existing Package")
-                        .font(.system(size: 14))
-                        .foregroundColor(.white)
-                    Text(viewModel.existingProjectPath.isEmpty ? "Paste path, then open" : viewModel.existingProjectPath)
-                        .font(.system(size: 10))
-                        .foregroundColor(LauncherColor.muted.opacity(0.65))
-                        .lineLimit(1)
-                }
-                .padding(.leading, 20)
-                .padding(.trailing, 20)
-                .frame(width: ProjectOpeningLayout.explorerWidth, height: 58, alignment: .leading)
-            }
-            .buttonStyle(LauncherPlainButtonStyle(active: false))
-
-            TextField("/path/to/Package", text: viewModel.existingProjectPathBinding)
-                .font(.system(size: 11))
-                .foregroundColor(.white)
-                .padding(.leading, 12)
-                .padding(.trailing, 12)
-                .frame(width: 280, height: 36)
-                .background(RoundedRectangleShape(cornerRadius: 8).fill(LauncherColor.input))
-                .overlay {
-                    RoundedRectangleShape(cornerRadius: 8).stroke(LauncherColor.inputBorder, lineWidth: 1)
-                }
-                .textFieldStyle(PlainTextFieldStyle())
-                .padding(.leading, 20)
-                .padding(.top, 8)
-
+            projectTemplateRow(.adaScript)
+            projectTemplateRow(.adaScriptWithSwift)
             Spacer()
         }
-        .frame(width: ProjectOpeningLayout.explorerWidth, height: ProjectOpeningLayout.windowHeight)
-        .background(LauncherColor.explorer)
-        .overlay {
-            HStack(spacing: 0) {
-                Spacer()
-                LauncherColor.glassBorder.frame(width: 1)
+    }
+
+    private var samplesExplorer: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            launcherListHeader("Starter Samples")
+                .padding(.top, 12)
+            templateRow(
+                title: "Ada Script System",
+                subtitle: "Per-frame system ready for gameplay code",
+                badge: "ADA",
+                isActive: false
+            ) {
+                viewModel.beginCreateNewProject(template: .adaScript, suggestedName: "ScriptSample")
             }
+            templateRow(
+                title: "Hybrid Window",
+                subtitle: "Ada Script system with an editable Swift app",
+                badge: "ADA+SWIFT",
+                isActive: false
+            ) {
+                viewModel.beginCreateNewProject(template: .adaScriptWithSwift, suggestedName: "HybridSample")
+            }
+            Spacer()
         }
+    }
+
+    private func projectTemplateRow(_ template: EditorProjectTemplate) -> some View {
+        templateRow(
+            title: template.displayName,
+            subtitle: template.summary,
+            badge: template == .adaScript ? "ADA" : "ADA+SWIFT",
+            isActive: viewModel.isCreatingNewProject && viewModel.selectedTemplate == template
+        ) {
+            viewModel.beginCreateNewProject(template: template)
+        }
+    }
+
+    private func templateRow(
+        title: String,
+        subtitle: String,
+        badge: String,
+        isActive: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .center, spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(badge)
+                        .font(.system(size: 9))
+                        .foregroundColor(LauncherColor.accentOrange)
+                }
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(LauncherColor.muted)
+                    .lineLimit(1)
+            }
+            .padding(.leading, 20)
+            .padding(.trailing, 20)
+            .frame(width: ProjectOpeningLayout.explorerWidth, height: 64, alignment: .leading)
+        }
+        .buttonStyle(LauncherPlainButtonStyle(active: isActive))
     }
 
     private var searchCapsule: some View {
@@ -354,6 +404,13 @@ struct ProjectOpeningView: View {
                 .padding(.top, 12)
 
             VStack(alignment: .leading, spacing: 18) {
+                createFormField(title: "Project Type") {
+                    HStack(alignment: .center, spacing: 10) {
+                        projectTypeButton(.adaScript)
+                        projectTypeButton(.adaScriptWithSwift)
+                    }
+                }
+
                 createFormField(title: "Project Name") {
                     TextField("AdaGame", text: viewModel.projectNameBinding)
                         .font(.system(size: 14))
@@ -394,7 +451,7 @@ struct ProjectOpeningView: View {
                     }
                 }
             }
-            .padding(.top, 38)
+            .padding(.top, 28)
 
             Spacer()
 
@@ -430,7 +487,6 @@ struct ProjectOpeningView: View {
         .frame(width: ProjectOpeningLayout.detailWidth, height: ProjectOpeningLayout.windowHeight, alignment: .topLeading)
         .background(LauncherColor.window)
     }
-
 
     private var statusAndDiagnostics: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -478,6 +534,30 @@ struct ProjectOpeningView: View {
                 .foregroundColor(LauncherColor.muted)
             content()
         }
+    }
+
+    private func projectTypeButton(_ template: EditorProjectTemplate) -> some View {
+        let isActive = viewModel.selectedTemplate == template
+        return Button {
+            viewModel.selectedTemplate = template
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(template.displayName)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white)
+                Text(template == .adaScript ? "Script-first" : "Hybrid")
+                    .font(.system(size: 10))
+                    .foregroundColor(LauncherColor.muted)
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 12)
+            .frame(width: 273, height: 52, alignment: .leading)
+            .background(RoundedRectangleShape(cornerRadius: 10).fill(isActive ? LauncherColor.accentViolet.opacity(0.18) : LauncherColor.input))
+            .overlay {
+                RoundedRectangleShape(cornerRadius: 10).stroke(isActive ? LauncherColor.accentViolet : LauncherColor.inputBorder, lineWidth: 1)
+            }
+        }
+        .buttonStyle(LauncherPlainButtonStyle(active: false))
     }
 
     private var emptyProjectLanding: some View {
@@ -562,12 +642,19 @@ struct ProjectOpeningView: View {
         viewModel.setProjectLocation(locationURL)
     }
 
-    private func launcherNavItem(_ symbol: String, active: Bool) -> some View {
-        Text(symbol)
-            .font(.system(size: 20))
-            .foregroundColor(active ? .white : LauncherColor.muted)
-            .frame(width: 42, height: 42)
-            .background(RoundedRectangleShape(cornerRadius: 10).fill(active ? LauncherColor.glassSurface : .clear))
+    private func launcherSectionButton(_ section: ProjectOpeningSection) -> some View {
+        let isActive = viewModel.selectedSection == section
+        return Button {
+            viewModel.selectSection(section)
+        } label: {
+            Text(section.title)
+                .font(.system(size: 9))
+                .foregroundColor(isActive ? .white : LauncherColor.muted)
+                .frame(width: 58, height: 34)
+                .background(RoundedRectangleShape(cornerRadius: 9).fill(isActive ? LauncherColor.glassSurface : .clear))
+        }
+        .buttonStyle(LauncherIconButtonStyle())
+        .frame(width: 58, height: 34)
     }
 
     private func launcherListHeader(_ title: String) -> some View {
@@ -604,8 +691,8 @@ struct ProjectOpeningView: View {
                     }
 
                     Text(viewModel.abbreviatedPath(for: project))
-                        .font(.system(size: 10))
-                        .foregroundColor(LauncherColor.muted.opacity(0.6))
+                        .font(.system(size: 11))
+                        .foregroundColor(LauncherColor.muted)
                         .lineLimit(1)
                 }
                 .padding(.leading, 20)
@@ -673,10 +760,11 @@ private struct LauncherGlassButtonStyle: ButtonStyle {
             .frame(width: ProjectOpeningLandingSpec.primaryButtonWidth, height: ProjectOpeningLandingSpec.primaryButtonHeight)
             .padding(.horizontal, 12)
             .glassEffect(
-                LauncherColor.landingButtonGlass,
+                configuration.state.isHighlighted
+                    ? LauncherColor.landingButtonGlass.tint(LauncherColor.accentViolet.opacity(0.32))
+                    : LauncherColor.landingButtonGlass,
                 in: RoundedRectangleShape(cornerRadius: 14)
             )
-            .scaleEffect(configuration.state.isHighlighted ? 1.1 : 1.0)
     }
 }
 

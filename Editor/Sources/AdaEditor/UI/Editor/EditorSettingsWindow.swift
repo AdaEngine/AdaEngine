@@ -41,10 +41,21 @@ final class EditorSettingsWindowViewModel {
     var selectedSection: EditorSettingsSection
     var searchText = ""
     var editorViewModel: EditorViewModel?
+    var codeFontSize: Double
+    var codeFontFamily: EditorCodeFontFamily
+    var codeFontWeight: EditorCodeFontWeight
+    var keywordFontWeight: EditorCodeFontWeight
+    var codePalettePreset: EditorCodePalettePreset
+    var generalSettingsStatusMessage = ""
 
     init(editorViewModel: EditorViewModel?, selectedSection: EditorSettingsSection) {
         self.editorViewModel = editorViewModel
         self.selectedSection = selectedSection
+        self.codeFontSize = editorViewModel?.workbench.codeFontSize ?? 12
+        self.codeFontFamily = editorViewModel?.workbench.codeFontFamily ?? .firaCode
+        self.codeFontWeight = editorViewModel?.workbench.codeFontWeight ?? .medium
+        self.keywordFontWeight = editorViewModel?.workbench.keywordFontWeight ?? .bold
+        self.codePalettePreset = EditorCodePalettePreset.matching(editorViewModel?.workbench.codeColorPalette ?? .dark)
     }
 
     var searchTextBinding: Binding<String> {
@@ -66,6 +77,61 @@ final class EditorSettingsWindowViewModel {
     func update(editorViewModel: EditorViewModel?, selectedSection: EditorSettingsSection) {
         self.editorViewModel = editorViewModel
         self.selectedSection = selectedSection
+        if let workbench = editorViewModel?.workbench {
+            codeFontSize = workbench.codeFontSize
+            codeFontFamily = workbench.codeFontFamily
+            codeFontWeight = workbench.codeFontWeight
+            keywordFontWeight = workbench.keywordFontWeight
+            codePalettePreset = EditorCodePalettePreset.matching(workbench.codeColorPalette)
+        }
+        generalSettingsStatusMessage = ""
+    }
+
+    func selectCodeFontFamily(_ family: EditorCodeFontFamily) {
+        codeFontFamily = family
+        generalSettingsStatusMessage = ""
+    }
+
+    func increaseCodeFontSize() {
+        codeFontSize = min(codeFontSize + 1, 28)
+        generalSettingsStatusMessage = ""
+    }
+
+    func decreaseCodeFontSize() {
+        codeFontSize = max(codeFontSize - 1, 8)
+        generalSettingsStatusMessage = ""
+    }
+
+    func resetCodeFontSize() {
+        codeFontSize = 12
+        generalSettingsStatusMessage = ""
+    }
+
+    func selectCodeFontWeight(_ weight: EditorCodeFontWeight) {
+        codeFontWeight = weight
+        generalSettingsStatusMessage = ""
+    }
+
+    func selectKeywordFontWeight(_ weight: EditorCodeFontWeight) {
+        keywordFontWeight = weight
+        generalSettingsStatusMessage = ""
+    }
+
+    func selectCodePalette(_ preset: EditorCodePalettePreset) {
+        codePalettePreset = preset
+        generalSettingsStatusMessage = ""
+    }
+
+    func applyGeneralSettings() {
+        guard let workbench = editorViewModel?.workbench else {
+            return
+        }
+        workbench.codeFontSize = codeFontSize
+        workbench.codeFontFamily = codeFontFamily
+        workbench.codeFontWeight = codeFontWeight
+        workbench.keywordFontWeight = keywordFontWeight
+        workbench.codeColorPalette = codePalettePreset.palette
+        generalSettingsStatusMessage = "Applied to open editors"
     }
 }
 
@@ -183,6 +249,7 @@ struct EditorSettingsWindowView: View {
                 RoundedRectangleShape(cornerRadius: 7)
                     .stroke(theme.editorColors.border, lineWidth: 1)
             }
+            .frame(minWidth: 0, maxWidth: .infinity)
             .padding(.horizontal, 12)
             .padding(.bottom, 12)
 
@@ -245,30 +312,37 @@ struct EditorSettingsWindowView: View {
     }
 
     private var content: some View {
-        ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .center, spacing: 10) {
-                    Text(viewModel.selectedSection.title)
-                        .font(.system(size: 24))
-                        .foregroundColor(theme.editorColors.text)
-                    Spacer()
-                    Text(viewModel.projectName)
-                        .font(.system(size: 10))
-                        .foregroundColor(theme.editorColors.muted)
-                        .padding(.horizontal, 9)
-                        .frame(height: 24)
-                        .background(
-                            RoundedRectangleShape(cornerRadius: 5)
-                                .fill(theme.editorColors.surface)
-                        )
-                }
-                .padding(.bottom, 22)
-
-                selectedSectionContent
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 10) {
+                Text(viewModel.selectedSection.title)
+                    .font(.system(size: 24))
+                    .foregroundColor(theme.editorColors.text)
+                    .lineLimit(1)
+                Spacer()
+                Text(viewModel.projectName)
+                    .font(.system(size: 10))
+                    .foregroundColor(theme.editorColors.muted)
+                    .lineLimit(1)
+                    .padding(.horizontal, 9)
+                    .frame(height: 24)
+                    .background(
+                        RoundedRectangleShape(cornerRadius: 5)
+                            .fill(theme.editorColors.surface)
+                    )
             }
             .padding(.horizontal, 34)
-            .padding(.vertical, 28)
-            .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+            .padding(.vertical, 24)
+
+            ScrollView(.vertical) {
+                selectedSectionContent
+                    .padding(.horizontal, 34)
+                    .padding(.bottom, 24)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+            }
+
+            if viewModel.editorViewModel != nil {
+                settingsFooter
+            }
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         .background(theme.editorColors.background)
@@ -279,7 +353,7 @@ struct EditorSettingsWindowView: View {
         if let editorViewModel = viewModel.editorViewModel {
             switch viewModel.selectedSection {
             case .general:
-                generalSettings(editorViewModel)
+                generalSettings
             case .project:
                 projectSettings(editorViewModel)
             case .agent:
@@ -290,21 +364,72 @@ struct EditorSettingsWindowView: View {
         }
     }
 
-    private func generalSettings(_ editorViewModel: EditorViewModel) -> some View {
-        settingsGroup("EDITOR") {
-            settingsRow(
-                title: "Code Font Size",
-                detail: "Controls the font size used by source editors."
-            ) {
-                HStack(spacing: 6) {
-                    compactButton("−") { editorViewModel.workbench.decreaseCodeFontSize() }
-                    Text("\(Int(editorViewModel.workbench.codeFontSize)) pt")
-                        .font(.system(size: 11))
-                        .foregroundColor(theme.editorColors.text)
-                        .frame(width: 48)
-                    compactButton("+") { editorViewModel.workbench.increaseCodeFontSize() }
-                    compactButton("Reset") { editorViewModel.workbench.resetCodeFontSize() }
+    private var generalSettings: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            settingsGroup("EDITOR FONT") {
+                settingsRow(
+                    title: "Font Family",
+                    detail: "Typeface used by source and scene editors."
+                ) {
+                    HStack(spacing: 6) {
+                        ForEach(EditorCodeFontFamily.allCases, id: \.self) { family in
+                            selectionButton(family.title, selected: viewModel.codeFontFamily == family) {
+                                viewModel.selectCodeFontFamily(family)
+                            }
+                        }
+                    }
                 }
+                settingsRow(
+                    title: "Base Weight",
+                    detail: "Default weight for code text."
+                ) {
+                    HStack(spacing: 6) {
+                        ForEach(EditorCodeFontWeight.allCases, id: \.self) { weight in
+                            selectionButton(weight.title, selected: viewModel.codeFontWeight == weight) {
+                                viewModel.selectCodeFontWeight(weight)
+                            }
+                        }
+                    }
+                }
+                settingsRow(
+                    title: "Code Font Size",
+                    detail: "Controls the font size used by source editors."
+                ) {
+                    HStack(spacing: 6) {
+                        compactButton("−", action: viewModel.decreaseCodeFontSize)
+                        Text("\(Int(viewModel.codeFontSize)) pt")
+                            .font(.system(size: 11))
+                            .foregroundColor(theme.editorColors.text)
+                            .frame(width: 48)
+                        compactButton("+", action: viewModel.increaseCodeFontSize)
+                        compactButton("Reset", action: viewModel.resetCodeFontSize)
+                    }
+                }
+            }
+            settingsGroup("SYNTAX APPEARANCE") {
+                settingsRow(
+                    title: "Color Palette",
+                    detail: "Colors used for syntax categories."
+                ) {
+                    HStack(spacing: 6) {
+                        ForEach(EditorCodePalettePreset.allCases, id: \.self) { preset in
+                            paletteButton(preset)
+                        }
+                    }
+                }
+                settingsRow(
+                    title: "Keyword Font",
+                    detail: "Emphasize language keywords and annotations."
+                ) {
+                    HStack(spacing: 6) {
+                        ForEach(EditorCodeFontWeight.allCases, id: \.self) { weight in
+                            selectionButton(weight.title, selected: viewModel.keywordFontWeight == weight) {
+                                viewModel.selectKeywordFontWeight(weight)
+                            }
+                        }
+                    }
+                }
+                codeAppearancePreview
             }
         }
     }
@@ -339,11 +464,6 @@ struct EditorSettingsWindowView: View {
                     }
                 }
             }
-            saveSection(
-                title: "Save Project Settings",
-                status: editorViewModel.projectSettingsStatusMessage,
-                action: editorViewModel.saveProjectSettings
-            )
         }
     }
 
@@ -384,11 +504,6 @@ struct EditorSettingsWindowView: View {
                     .foregroundColor(theme.editorColors.muted)
                     .lineLimit(3)
             }
-            saveSection(
-                title: "Save Agent Settings",
-                status: editorViewModel.agent.settingsStatusMessage,
-                action: editorViewModel.agent.saveAgentSettings
-            )
         }
     }
 
@@ -414,6 +529,7 @@ struct EditorSettingsWindowView: View {
             Text(title)
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.blue)
+                .lineLimit(1)
             Divider()
             content()
         }
@@ -429,9 +545,11 @@ struct EditorSettingsWindowView: View {
                 Text(title)
                     .font(.system(size: 13))
                     .foregroundColor(theme.editorColors.text)
+                    .lineLimit(1)
                 Text(detail)
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
+                    .lineLimit(1)
             }
             Spacer()
             control()
@@ -495,27 +613,122 @@ struct EditorSettingsWindowView: View {
         .buttonStyle(DefaultButtonStyle())
     }
 
-    private func saveSection(title: String, status: String, action: @escaping () -> Void) -> some View {
-        settingsGroup("SAVE") {
-            Button(action: action) {
-                Text(title)
-                    .font(.system(size: 12))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .frame(height: 34)
-                    .background(
-                        RoundedRectangleShape(cornerRadius: 6)
-                            .fill(theme.editorColors.blue)
-                    )
-            }
-            .buttonStyle(DefaultButtonStyle())
-
-            if !status.isEmpty {
-                Text(status)
+    private func paletteButton(_ preset: EditorCodePalettePreset) -> some View {
+        let isSelected = viewModel.codePalettePreset == preset
+        return Button {
+            viewModel.selectCodePalette(preset)
+        } label: {
+            HStack(spacing: 6) {
+                CircleShape()
+                    .fill(preset.palette.keyword)
+                    .frame(width: 9, height: 9)
+                Text(preset.title)
                     .font(.system(size: 11))
-                    .foregroundColor(theme.editorColors.muted)
-                    .lineLimit(3)
+                    .foregroundColor(isSelected ? theme.editorColors.text : theme.editorColors.muted)
+                    .lineLimit(1)
             }
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(
+                RoundedRectangleShape(cornerRadius: 6)
+                    .fill(isSelected ? theme.editorColors.blue.opacity(0.22) : theme.editorColors.surface)
+            )
         }
+        .buttonStyle(DefaultButtonStyle())
+    }
+
+    private var codeAppearancePreview: some View {
+        let palette = viewModel.codePalettePreset.palette
+        let baseFont = AdaEditorCodeFont.font(
+            family: viewModel.codeFontFamily,
+            weight: viewModel.codeFontWeight,
+            size: 13
+        )
+        let keywordFont = AdaEditorCodeFont.font(
+            family: viewModel.codeFontFamily,
+            weight: viewModel.keywordFontWeight,
+            size: 13
+        )
+        return HStack(spacing: 0) {
+            Text("func ")
+                .font(keywordFont)
+                .foregroundColor(palette.keyword)
+            Text("update")
+                .font(baseFont)
+                .foregroundColor(palette.type)
+            Text("() { ")
+                .font(baseFont)
+                .foregroundColor(palette.punctuation)
+            Text("let ")
+                .font(keywordFont)
+                .foregroundColor(palette.keyword)
+            Text("title = ")
+                .font(baseFont)
+                .foregroundColor(palette.plainText)
+            Text("\"Ada\"")
+                .font(baseFont)
+                .foregroundColor(palette.string)
+            Text(" }")
+                .font(baseFont)
+                .foregroundColor(palette.punctuation)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 42, maxHeight: 42)
+        .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surfaceElevated))
+        .overlay {
+            RoundedRectangleShape(cornerRadius: 6)
+                .stroke(theme.editorColors.border, lineWidth: 1)
+        }
+    }
+
+    private var settingsFooter: some View {
+        let configuration = footerConfiguration
+        return VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 12) {
+                if !configuration.status.isEmpty {
+                    Text(configuration.status)
+                        .font(.system(size: 11))
+                        .foregroundColor(theme.editorColors.muted)
+                        .lineLimit(1)
+                }
+                Spacer()
+                primaryButton(configuration.title, action: configuration.action)
+            }
+            .padding(.horizontal, 34)
+            .frame(height: 64)
+            .background(theme.editorColors.surface)
+        }
+    }
+
+    private var footerConfiguration: (title: String, status: String, action: () -> Void) {
+        guard let editorViewModel = viewModel.editorViewModel else {
+            return ("Apply", "", {})
+        }
+
+        switch viewModel.selectedSection {
+        case .general:
+            return ("Apply", viewModel.generalSettingsStatusMessage, viewModel.applyGeneralSettings)
+        case .project:
+            return ("Save Project Settings", editorViewModel.projectSettingsStatusMessage, editorViewModel.saveProjectSettings)
+        case .agent:
+            return ("Save Agent Settings", editorViewModel.agent.settingsStatusMessage, editorViewModel.agent.saveAgentSettings)
+        }
+    }
+
+    private func primaryButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundColor(.white)
+                .padding(.horizontal, 14)
+                .frame(height: 34)
+                .background(
+                    RoundedRectangleShape(cornerRadius: 6)
+                        .fill(theme.editorColors.blue)
+                )
+        }
+        .buttonStyle(DefaultButtonStyle())
     }
 }

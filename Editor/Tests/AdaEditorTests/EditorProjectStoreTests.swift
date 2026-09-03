@@ -45,6 +45,7 @@ struct EditorProjectStoreTests {
         #expect(main.contains("try await Game.main()"))
         #expect(main.contains("assetBundle: .module"))
         #expect(main.contains(".addPlugins(AdaScriptPluginsGenerated())"))
+        #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Sources/My_Game/Main.ada").path))
         let sceneURL = projectURL.appendingPathComponent("Assets/Scenes/Main.ascn", isDirectory: false)
         #expect(FileManager.default.fileExists(atPath: sceneURL.path))
         #expect(try String(contentsOf: sceneURL, encoding: .utf8).contains("format: ada.scene"))
@@ -248,7 +249,9 @@ struct EditorProjectStoreTests {
         #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditorToken == 1)
         #expect(ProjectSystem.isAdaProject(at: projectURL))
-        #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Sources", isDirectory: true).appendingPathComponent("Editor_Flow", isDirectory: true).appendingPathComponent("main.swift").path))
+        let targetURL = projectURL.appendingPathComponent("Sources/Editor_Flow", isDirectory: true)
+        #expect(FileManager.default.fileExists(atPath: targetURL.appendingPathComponent("AdaRuntimeBootstrap.swift").path))
+        #expect(FileManager.default.fileExists(atPath: targetURL.appendingPathComponent("Main.ada").path))
 
         let handoffProject = try #require(viewModel.consumeProjectToOpenInEditor())
         #expect(handoffProject.path == projectURL.standardizedFileURL.path)

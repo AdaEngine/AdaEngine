@@ -51,6 +51,7 @@ public struct GravitySymbol: Equatable, Hashable, Sendable {
     public var kind: GravitySymbolKind
     public var detail: String
     public var range: GravitySourceRange
+    public var selectionRange: GravitySourceRange
     public var members: [Self]
 
     public init(
@@ -58,13 +59,27 @@ public struct GravitySymbol: Equatable, Hashable, Sendable {
         kind: GravitySymbolKind,
         detail: String,
         range: GravitySourceRange,
+        selectionRange: GravitySourceRange? = nil,
         members: [Self] = []
     ) {
         self.name = name
         self.kind = kind
         self.detail = detail
         self.range = range
+        self.selectionRange = selectionRange ?? range
         self.members = members
+    }
+}
+
+public struct GravityDefinition: Equatable, Hashable, Sendable {
+    public var uri: String
+    public var range: GravitySourceRange
+    public var selectionRange: GravitySourceRange
+
+    public init(uri: String, range: GravitySourceRange, selectionRange: GravitySourceRange) {
+        self.uri = uri
+        self.range = range
+        self.selectionRange = selectionRange
     }
 }
 

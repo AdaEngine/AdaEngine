@@ -53,7 +53,7 @@ private enum ContextMenuPresenter {
             session: session,
             level: 0
         )
-        session.setWindow(window, at: 0)
+        session.setWindow(window, items: presentation.items, at: 0)
         window.showWindow(makeFocused: false)
     }
 
@@ -98,7 +98,13 @@ private enum ContextMenuPresenter {
         session.closeSubmenus(from: parentLevel + 1)
         let level = parentLevel + 1
         let size = menuSize(for: items)
-        let origin = submenuOrigin(parentWindow: parentWindow, rowIndex: rowIndex, menuSize: size, sourceWindow: session.sourceWindow)
+        let origin = submenuOrigin(
+            parentWindow: parentWindow,
+            parentItems: session.items(at: parentLevel),
+            rowIndex: rowIndex,
+            menuSize: size,
+            sourceWindow: session.sourceWindow
+        )
         let window = makeWindow(
             items: items,
             origin: origin,
@@ -106,7 +112,7 @@ private enum ContextMenuPresenter {
             session: session,
             level: level
         )
-        session.setWindow(window, at: level)
+        session.setWindow(window, items: items, at: level)
         window.showWindow(makeFocused: false)
     }
 
@@ -165,12 +171,14 @@ private enum ContextMenuPresenter {
     }
 
     private static func menuSize(for items: [ContextMenuPresentation.Item]) -> Size {
-        let longestTitleCount = items.map(\.title.count).max() ?? 0
+        let longestTitleCount = items.lazy.filter { !$0.isSeparator }.map(\.title.count).max() ?? 0
         let width = max(
             ContextMenuMetrics.minimumWidth,
-            min(ContextMenuMetrics.maximumWidth, Float(longestTitleCount * 8 + 40))
+            min(ContextMenuMetrics.maximumWidth, Float(longestTitleCount * 7 + 44))
         )
-        let height = Float(items.count) * ContextMenuMetrics.rowHeight + ContextMenuMetrics.verticalPadding * 2
+        let height = items.reduce(ContextMenuMetrics.verticalPadding * 2) { height, item in
+            height + ContextMenuMetrics.height(for: item)
+        }
         return Size(width: width, height: height)
     }
 
@@ -198,6 +206,7 @@ private enum ContextMenuPresenter {
 
     private static func submenuOrigin(
         parentWindow: UIWindow,
+        parentItems: [ContextMenuPresentation.Item],
         rowIndex: Int,
         menuSize: Size,
         sourceWindow: UIWindow?
@@ -210,7 +219,7 @@ private enum ContextMenuPresenter {
         let parentSize = parentWindow.frame.size
         var origin = Point(
             x: parentOrigin.x + parentSize.width - ContextMenuMetrics.submenuOverlap,
-            y: parentOrigin.y + parentSize.height - ContextMenuMetrics.verticalPadding - Float(rowIndex) * ContextMenuMetrics.rowHeight - menuSize.height
+            y: parentOrigin.y + parentSize.height - ContextMenuMetrics.verticalPadding - rowOffset(for: rowIndex, in: parentItems) - menuSize.height
         )
 
         if let screenSize = (sourceWindow ?? parentWindow).screen?.size {
@@ -223,6 +232,12 @@ private enum ContextMenuPresenter {
 
         return origin
     }
+
+    private static func rowOffset(for rowIndex: Int, in items: [ContextMenuPresentation.Item]) -> Float {
+        items.prefix(rowIndex).reduce(0) { offset, item in
+            offset + ContextMenuMetrics.height(for: item)
+        }
+    }
 }
 
 @MainActor
@@ -231,14 +246,20 @@ private final class ContextMenuSession {
     var app: AppWorlds!
     private var onDismiss: (() -> Void)?
     private var windowsByLevel: [Int: UIWindow] = [:]
+    private var itemsByLevel: [Int: [ContextMenuPresentation.Item]] = [:]
 
     init(sourceWindow: UIWindow?, onDismiss: (() -> Void)?) {
         self.sourceWindow = sourceWindow
         self.onDismiss = onDismiss
     }
 
-    func setWindow(_ window: UIWindow, at level: Int) {
+    func setWindow(_ window: UIWindow, items: [ContextMenuPresentation.Item], at level: Int) {
         windowsByLevel[level] = window
+        itemsByLevel[level] = items
+    }
+
+    func items(at level: Int) -> [ContextMenuPresentation.Item] {
+        itemsByLevel[level] ?? []
     }
 
     func contains(_ window: UIWindow) -> Bool {
@@ -248,6 +269,7 @@ private final class ContextMenuSession {
     func closeSubmenus(from level: Int) {
         for closeLevel in windowsByLevel.keys.filter({ $0 >= level }).sorted(by: >) {
             windowsByLevel.removeValue(forKey: closeLevel)?.close()
+            itemsByLevel.removeValue(forKey: closeLevel)
         }
     }
 
@@ -259,12 +281,17 @@ private final class ContextMenuSession {
 }
 
 private enum ContextMenuMetrics {
-    static let rowHeight: Float = 32
-    static let verticalPadding: Float = 6
+    static let rowHeight: Float = 28
+    static let separatorHeight: Float = 9
+    static let verticalPadding: Float = 5
     static let submenuOverlap: Float = 4
-    static let minimumWidth: Float = 280
-    static let maximumWidth: Float = 360
-    static let horizontalPadding: Float = 12
+    static let minimumWidth: Float = 184
+    static let maximumWidth: Float = 320
+    static let horizontalPadding: Float = 10
+
+    static func height(for item: ContextMenuPresentation.Item) -> Float {
+        item.isSeparator ? separatorHeight : rowHeight
+    }
 }
 
 private struct ContextMenuWindowContent: View {
@@ -280,64 +307,74 @@ private struct ContextMenuWindowContent: View {
             }
         }
         .padding(.vertical, ContextMenuMetrics.verticalPadding)
-        .frame(width: rowWidth + ContextMenuMetrics.horizontalPadding * 2)
-        .background(RoundedRectangleShape(cornerRadius: 8).fill(backgroundColor))
+        .frame(width: menuWidth)
+        .background(RoundedRectangleShape(cornerRadius: 7).fill(backgroundColor))
+        .overlay {
+            RoundedRectangleShape(cornerRadius: 7)
+                .stroke(borderColor, lineWidth: 1)
+        }
     }
 
+    @ViewBuilder
     private func menuRow(for item: ContextMenuPresentation.Item, at index: Int) -> some View {
-        Button(action: {
-            if item.submenu.isEmpty {
-                ContextMenuPresenter.performAction(item.action, in: session)
-            } else if let window {
-                ContextMenuPresenter.presentSubmenu(
-                    items: item.submenu,
-                    from: window,
-                    parentLevel: level,
-                    rowIndex: index,
-                    in: session
-                )
+        if item.isSeparator {
+            RectangleShape()
+                .fill(borderColor)
+                .frame(width: menuWidth - 16, height: 1)
+                .padding(.horizontal, 8)
+                .frame(width: menuWidth, height: ContextMenuMetrics.separatorHeight)
+        } else {
+            Button(action: {
+                if item.submenu.isEmpty {
+                    ContextMenuPresenter.performAction(item.action, in: session)
+                } else if let window {
+                    ContextMenuPresenter.presentSubmenu(
+                        items: item.submenu,
+                        from: window,
+                        parentLevel: level,
+                        rowIndex: index,
+                        in: session
+                    )
+                }
+            }) {
+                HStack(spacing: 8) {
+                    Text(item.title)
+                        .font(.system(size: 12))
+                        .foregroundColor(item.role == .destructive ? destructiveTextColor : primaryTextColor)
+                        .lineLimit(1)
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                    if !item.submenu.isEmpty {
+                        Text(">").font(.system(size: 12)).foregroundColor(primaryTextColor.opacity(0.74))
+                    }
+                }
+                .padding(.horizontal, ContextMenuMetrics.horizontalPadding)
+                .frame(width: menuWidth, height: ContextMenuMetrics.rowHeight)
             }
-        }) {
-            HStack(spacing: 8) {
-                Text(item.title)
-                    .font(.system(size: 13))
-                    .foregroundColor(item.role == .destructive ? destructiveTextColor : primaryTextColor)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                Spacer()
-                if !item.submenu.isEmpty {
-                    Text(">")
-                        .font(.system(size: 13))
-                        .foregroundColor(primaryTextColor.opacity(0.74))
+            .buttonStyle(ContextMenuButtonStyle(role: item.role))
+            .onHover { isHovered in
+                guard isHovered else { return }
+
+                if item.submenu.isEmpty {
+                    ContextMenuPresenter.closeSubmenus(from: level + 1, in: session)
+                } else if let window {
+                    ContextMenuPresenter.presentSubmenu(
+                        items: item.submenu,
+                        from: window,
+                        parentLevel: level,
+                        rowIndex: index,
+                        in: session
+                    )
                 }
             }
-            .frame(width: rowWidth, height: ContextMenuMetrics.rowHeight)
-            .padding(.horizontal, ContextMenuMetrics.horizontalPadding)
-        }
-        .buttonStyle(ContextMenuButtonStyle(role: item.role))
-        .onHover { isHovered in
-            guard isHovered else { return }
-
-            if item.submenu.isEmpty {
-                ContextMenuPresenter.closeSubmenus(from: level + 1, in: session)
-            } else if let window {
-                ContextMenuPresenter.presentSubmenu(
-                    items: item.submenu,
-                    from: window,
-                    parentLevel: level,
-                    rowIndex: index,
-                    in: session
-                )
-            }
         }
     }
 
-    private var rowWidth: Float {
+    private var menuWidth: Float {
         max(
-            ContextMenuMetrics.minimumWidth - ContextMenuMetrics.horizontalPadding * 2,
+            ContextMenuMetrics.minimumWidth,
             min(
-                ContextMenuMetrics.maximumWidth - ContextMenuMetrics.horizontalPadding * 2,
-                Float((items.map(\.title.count).max() ?? 0) * 8 + 16)
+                ContextMenuMetrics.maximumWidth,
+                Float((items.lazy.filter { !$0.isSeparator }.map(\.title.count).max() ?? 0) * 7 + 44)
             )
         )
     }
@@ -356,7 +393,8 @@ private struct ContextMenuButtonStyle: ButtonStyle {
     }
 }
 
-private let backgroundColor = Color.black
-private let highlightColor = Color(red: 0.22, green: 0.24, blue: 0.28, alpha: 1)
-private let primaryTextColor = Color(red: 0.94, green: 0.95, blue: 0.97, alpha: 1)
+private let backgroundColor = Color(red: 24 / 255, green: 25 / 255, blue: 29 / 255, alpha: 1)
+private let borderColor = Color(red: 66 / 255, green: 70 / 255, blue: 78 / 255, alpha: 1)
+private let highlightColor = Color(red: 39 / 255, green: 41 / 255, blue: 46 / 255, alpha: 1)
+private let primaryTextColor = Color(red: 223 / 255, green: 225 / 255, blue: 229 / 255, alpha: 1)
 private let destructiveTextColor = Color(red: 1.0, green: 0.36, blue: 0.36, alpha: 1)

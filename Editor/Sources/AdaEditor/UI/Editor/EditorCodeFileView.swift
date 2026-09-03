@@ -8,6 +8,9 @@ struct EditorCodeFileView: View {
     let document: EditorTextDocument
     let text: Binding<String>
     let fontSize: Double
+    let fontFamily: EditorCodeFontFamily
+    let fontWeight: EditorCodeFontWeight
+    let keywordFontWeight: EditorCodeFontWeight
     let colorPalette: EditorCodeColorPalette
     let onSourceHover: ((EditorTextDocument, EditorSourceLocation?) -> Void)?
     let onGoToDefinition: ((EditorTextDocument, EditorSourceLocation) -> Void)?
@@ -78,8 +81,8 @@ private extension EditorCodeFileView {
 
     var codeEditor: some View {
         TextEditor(text: text, tokenSpans: tokenSpans, sourceInteraction: sourceInteraction)
-            .font(AdaEditorCodeFont.font(size: fontSize))
-            .foregroundColor(theme.editorColors.text)
+            .font(AdaEditorCodeFont.font(family: fontFamily, weight: fontWeight, size: fontSize))
+            .foregroundColor(colorPalette.plainText)
             .accentColor(theme.editorColors.blue)
             .textEditorColors(editorColors)
             .drawingGroup()
@@ -101,32 +104,37 @@ private extension EditorCodeFileView {
         }
     }
 
-    func completionList(width: Float) -> some View {
+    func completionList(width: Float, height: Float) -> some View {
         let rowWidth = Swift.max(Float.zero, width - EditorCompletionPopupLayout.horizontalPadding * 2)
+        let listHeight = Swift.max(Float.zero, height - EditorCompletionPopupLayout.verticalPadding * 2)
 
-        return VStack(alignment: .leading, spacing: 0) {
-            ForEach(document.completionItems, id: \.self) { item in
-                Button(action: { onApplyCompletion?(item, document) }) {
-                    HStack(spacing: 8) {
-                        Text(item.label)
-                            .font(AdaEditorCodeFont.font(size: 11))
-                            .foregroundColor(theme.editorColors.text)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        if let detail = item.detail, detail != item.label {
-                            Text(detail)
-                                .font(.system(size: 10))
-                                .foregroundColor(theme.editorColors.muted)
+        return ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(document.completionItems, id: \.self) { item in
+                    Button(action: { onApplyCompletion?(item, document) }) {
+                        HStack(spacing: 8) {
+                            completionKindBadge(item.kind)
+                            Text(EditorCompletionPresentation.label(for: item))
+                                .font(AdaEditorCodeFont.font(size: 11))
+                                .foregroundColor(theme.editorColors.text)
                                 .lineLimit(1)
-                                .frame(width: EditorCompletionPopupLayout.detailWidth, alignment: .leading)
+                                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                            if let detail = EditorCompletionPresentation.detail(for: item) {
+                                Text(detail)
+                                    .font(.system(size: 10))
+                                    .foregroundColor(theme.editorColors.muted)
+                                    .lineLimit(1)
+                                    .frame(width: EditorCompletionPopupLayout.detailWidth, alignment: .leading)
+                            }
                         }
+                        .padding(.horizontal, 8)
+                        .frame(width: rowWidth, height: EditorCompletionPopupLayout.rowHeight, alignment: .leading)
                     }
-                    .padding(.horizontal, 10)
-                    .frame(width: rowWidth, height: EditorCompletionPopupLayout.rowHeight, alignment: .leading)
+                    .buttonStyle(EditorCompletionButtonStyle(theme: theme))
                 }
-                .buttonStyle(EditorCompletionButtonStyle(theme: theme))
             }
         }
+        .frame(width: rowWidth, height: listHeight, alignment: .topLeading)
         .padding(.horizontal, EditorCompletionPopupLayout.horizontalPadding)
         .padding(.vertical, EditorCompletionPopupLayout.verticalPadding)
         .frame(width: width, alignment: .topLeading)
@@ -147,7 +155,7 @@ private extension EditorCodeFileView {
                 itemCount: document.completionItems.count
             )
 
-            completionList(width: popupFrame.width)
+            completionList(width: popupFrame.width, height: popupFrame.height)
                 .frame(width: popupFrame.width, height: popupFrame.height, alignment: .topLeading)
                 .offset(x: popupFrame.minX, y: popupFrame.minY)
         }
@@ -163,9 +171,15 @@ private extension EditorCodeFileView {
                 description: displayText
             )
 
-            Text(displayText)
-                .font(AdaEditorCodeFont.font(size: 11))
-                .foregroundColor(theme.editorColors.text)
+            Text(
+                EditorSourceHoverPresentation.attributedText(
+                    displayText,
+                    language: document.language,
+                    palette: colorPalette,
+                    font: AdaEditorCodeFont.font(family: fontFamily, weight: fontWeight, size: 11),
+                    keywordFont: AdaEditorCodeFont.font(family: fontFamily, weight: keywordFontWeight, size: 11)
+                )
+            )
                 .lineLimit(EditorSourceHoverPopupLayout.maximumLineCount)
                 .padding(EditorSourceHoverPopupLayout.contentPadding)
                 .frame(width: popupFrame.width, height: popupFrame.height, alignment: .topLeading)
@@ -181,10 +195,16 @@ private extension EditorCodeFileView {
     }
 
     var sourceInteraction: TextEditorSourceInteraction? {
-        let supportsLanguageTooling = document.language == .swift || document.language == .packageManifest
+        let supportsLanguageTooling = document.language.supportsLanguageTooling
 
         return TextEditorSourceInteraction(
-            highlightedRanges: (document.symbolHighlights + document.diagnostics.map(\.range)).map(\.textEditorRange),
+            highlightedRanges: document.symbolHighlights.map(\.textEditorRange),
+            sourceHighlights: document.diagnostics.map { diagnostic in
+                TextEditorSourceHighlight(
+                    range: diagnostic.range.textEditorRange,
+                    color: diagnosticColor(for: diagnostic.severity)
+                )
+            },
             hoveredRange: document.sourceHoverRange?.textEditorRange,
             focusedRange: document.focusedRange?.textEditorRange,
             onHover: { position in
@@ -217,8 +237,18 @@ private extension EditorCodeFileView {
     }
 
     var tokenSpans: [TextEditorTokenSpan] {
+        let keywordFont = AdaEditorCodeFont.font(
+            family: fontFamily,
+            weight: keywordFontWeight,
+            size: fontSize
+        )
         if document.semanticTokens.isEmpty {
-            return EditorSyntaxHighlighter.spans(for: document.content, language: document.language, palette: colorPalette)
+            return EditorSyntaxHighlighter.spans(
+                for: document.content,
+                language: document.language,
+                palette: colorPalette,
+                keywordFont: keywordFont
+            )
         }
 
         return document.semanticTokens.map { token in
@@ -226,7 +256,8 @@ private extension EditorCodeFileView {
                 line: token.line,
                 startColumn: token.startCharacter,
                 length: token.length,
-                color: color(for: token)
+                color: color(for: token),
+                font: token.type == "keyword" || token.type == "macro" ? keywordFont : nil
             )
         }
     }
@@ -236,10 +267,10 @@ private extension EditorCodeFileView {
             background: theme.editorColors.surfaceElevated,
             border: theme.editorColors.border.opacity(0.55),
             focusedBorder: theme.editorColors.blue,
-            gutter: theme.editorColors.muted,
+            gutter: colorPalette.lineNumber,
             gutterRule: theme.editorColors.border.opacity(0.45),
-            currentLineBackground: theme.editorColors.blue.opacity(0.12),
-            selection: theme.editorColors.blue.opacity(0.26)
+            currentLineBackground: colorPalette.currentLineBackground,
+            selection: colorPalette.selection
         )
     }
 
@@ -274,6 +305,27 @@ private extension EditorCodeFileView {
         default:
             colorPalette.plainText
         }
+    }
+
+    func diagnosticColor(for severity: EditorDiagnosticSeverity) -> Color {
+        switch severity {
+        case .error:
+            Color(red: 1, green: 0.28, blue: 0.32)
+        case .warning:
+            .orange
+        case .information:
+            theme.editorColors.blue
+        case .hint:
+            theme.editorColors.muted
+        }
+    }
+
+    func completionKindBadge(_ kind: EditorCompletionKind) -> some View {
+        Text(kind.badgeTitle)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(.white)
+            .frame(width: 20, height: 20)
+            .background(RoundedRectangleShape(cornerRadius: 5).fill(kind.badgeColor))
     }
 }
 
@@ -332,6 +384,123 @@ enum EditorSourceHoverPresentation {
             .replacingOccurrences(of: "`", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    static func attributedText(
+        _ text: String,
+        language: EditorSourceLanguage,
+        palette: EditorCodeColorPalette,
+        font: Font,
+        keywordFont: Font
+    ) -> AttributedText {
+        var attributes = TextAttributeContainer()
+        attributes.font = font
+        attributes.foregroundColor = palette.plainText
+        var attributedText = AttributedText(text, attributes: attributes)
+        let spans = EditorSyntaxHighlighter.spans(
+            for: text,
+            language: language,
+            palette: palette,
+            keywordFont: keywordFont
+        )
+        let lines = text.components(separatedBy: .newlines)
+        var lineOffsets: [Int] = []
+        var offset = 0
+        for line in lines {
+            lineOffsets.append(offset)
+            offset += line.count + 1
+        }
+
+        for span in spans where lines.indices.contains(span.line) {
+            let lineLength = lines[span.line].count
+            let start = max(0, min(span.startColumn, lineLength))
+            let end = max(start, min(span.startColumn + span.length, lineLength))
+            guard start < end else { continue }
+
+            var spanAttributes = attributes
+            spanAttributes.foregroundColor = span.color
+            spanAttributes.font = span.font ?? font
+            let startIndex = text.index(text.startIndex, offsetBy: lineOffsets[span.line] + start)
+            let endIndex = text.index(text.startIndex, offsetBy: lineOffsets[span.line] + end)
+            attributedText.setAttributes(spanAttributes, at: startIndex..<endIndex)
+        }
+        return attributedText
+    }
+}
+
+enum EditorCompletionPresentation {
+    static func label(for item: EditorCompletionItem) -> String {
+        singleLine(item.label, maximumLength: item.detail == nil ? 52 : 34)
+    }
+
+    static func detail(for item: EditorCompletionItem) -> String? {
+        guard let detail = item.detail, detail != item.label else { return nil }
+        return singleLine(detail, maximumLength: 24)
+    }
+
+    static func singleLine(_ value: String, maximumLength: Int) -> String {
+        let normalized = value.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard normalized.count > maximumLength else { return normalized }
+        return String(normalized.prefix(max(1, maximumLength - 1))) + "…"
+    }
+}
+
+private extension EditorCompletionKind {
+    var badgeTitle: String {
+        switch self {
+        case .annotation: "@"
+        case .class: "C"
+        case .constant: "K"
+        case .constructor: "I"
+        case .color: "●"
+        case .enum: "E"
+        case .enumMember: "e"
+        case .event: "E"
+        case .field: "F"
+        case .file: "D"
+        case .folder: "F"
+        case .function: "ƒ"
+        case .interface: "I"
+        case .keyword: "#"
+        case .method: "M"
+        case .module: "N"
+        case .operator: "±"
+        case .property: "P"
+        case .reference: "R"
+        case .snippet: "S"
+        case .struct: "S"
+        case .typeParameter: "T"
+        case .text: "T"
+        case .unit: "U"
+        case .value: "V"
+        case .variable: "V"
+        case .unknown: "·"
+        }
+    }
+
+    var badgeColor: Color {
+        switch self {
+        case .annotation, .keyword:
+            Color(red: 0.72, green: 0.33, blue: 0.88)
+        case .class, .interface, .struct, .typeParameter:
+            Color(red: 0.65, green: 0.31, blue: 0.84)
+        case .enum, .enumMember:
+            Color(red: 0.95, green: 0.58, blue: 0.08)
+        case .function:
+            Color(red: 0.22, green: 0.78, blue: 0.36)
+        case .constructor, .method:
+            Color(red: 0.10, green: 0.55, blue: 0.95)
+        case .field, .property:
+            Color(red: 0.12, green: 0.68, blue: 0.82)
+        case .color:
+            Color(red: 0.92, green: 0.34, blue: 0.47)
+        case .constant, .event, .operator, .value, .variable:
+            Color(red: 0.30, green: 0.58, blue: 0.88)
+        case .file, .folder, .module, .reference, .snippet, .text, .unit:
+            Color(red: 0.46, green: 0.48, blue: 0.54)
+        case .unknown:
+            Color(red: 0.40, green: 0.42, blue: 0.47)
+        }
+    }
 }
 
 struct EditorCompletionPopupLayout {
@@ -341,6 +510,7 @@ struct EditorCompletionPopupLayout {
     static let horizontalPadding: Float = 4
     static let verticalPadding: Float = 4
     static let detailWidth: Float = 118
+    static let maximumVisibleRowCount = 10
 
     static func frame(
         viewportSize: Size,
@@ -350,7 +520,7 @@ struct EditorCompletionPopupLayout {
     ) -> Rect {
         let availableWidth = max(0, viewportSize.width - viewportInset * 2)
         let width = min(preferredWidth, availableWidth)
-        let rowCount = max(1, itemCount)
+        let rowCount = min(maximumVisibleRowCount, max(1, itemCount))
         let height = Float(rowCount) * rowHeight + verticalPadding * 2
         let lineHeight = max(18, Float(fontSize) * 1.45)
         let characterAdvance = max(6, Float(fontSize) * 0.58)
@@ -411,9 +581,27 @@ private extension EditorSourceRange {
 }
 
 enum AdaEditorCodeFont {
-    private static let resource: FontResource? = {
+    private static let lightResource = loadResource(named: "FiraCode-Light")
+    private static let regularResource = loadResource(named: "FiraCode-Regular")
+    private static let mediumResource = loadResource(named: "FiraCode-Medium")
+    private static let semiboldResource = loadResource(named: "FiraCode-SemiBold")
+    private static let boldResource = loadResource(named: "FiraCode-Bold")
+
+    static func font(size: Double) -> Font {
+        font(family: .firaCode, weight: .medium, size: size)
+    }
+
+    static func font(family: EditorCodeFontFamily, weight: EditorCodeFontWeight, size: Double) -> Font {
+        guard family == .firaCode, let resource = resource(for: weight) else {
+            return .system(size: size, weight: systemWeight(for: weight))
+        }
+
+        return Font(fontResource: resource, pointSize: size)
+    }
+
+    private static func loadResource(named name: String) -> FontResource? {
         guard let fontURL = Foundation.Bundle.editor.url(
-            forResource: "FiraCode-Medium",
+            forResource: name,
             withExtension: "ttf",
             subdirectory: "Assets/Fonts"
         ) else {
@@ -426,14 +614,34 @@ enum AdaEditorCodeFont {
             includeDefaultCharset: true,
             additionalCodepoints: []
         )
-    }()
+    }
 
-    static func font(size: Double) -> Font {
-        guard let resource else {
-            return .system(size: size)
+    private static func resource(for weight: EditorCodeFontWeight) -> FontResource? {
+        switch weight {
+        case .light:
+            lightResource
+        case .regular:
+            regularResource
+        case .medium:
+            mediumResource
+        case .semibold:
+            semiboldResource
+        case .bold:
+            boldResource
         }
+    }
 
-        return Font(fontResource: resource, pointSize: size)
+    private static func systemWeight(for weight: EditorCodeFontWeight) -> FontWeight {
+        switch weight {
+        case .light:
+            .light
+        case .regular, .medium:
+            .regular
+        case .semibold:
+            .semibold
+        case .bold:
+            .bold
+        }
     }
 }
 
@@ -627,6 +835,7 @@ enum EditorSyntaxHighlighter {
         let source: String
         let language: String
         let palette: EditorCodeColorPalette
+        let keywordFont: Font?
     }
 
     private struct CacheEntry {
@@ -659,13 +868,29 @@ enum EditorSyntaxHighlighter {
         }
     }
 
-    static func spans(for source: String, language: EditorSourceLanguage, palette: EditorCodeColorPalette) -> [TextEditorTokenSpan] {
-        let key = CacheKey(source: source, language: language.rawValue, palette: palette)
+    static func spans(
+        for source: String,
+        language: EditorSourceLanguage,
+        palette: EditorCodeColorPalette,
+        keywordFont: Font? = nil
+    ) -> [TextEditorTokenSpan] {
+        let key = CacheKey(source: source, language: language.rawValue, palette: palette, keywordFont: keywordFont)
         if let cached = cachedSpans(for: key) {
             return cached
         }
 
-        let spans = makeSpans(for: source, language: language, palette: palette)
+        let spans = makeSpans(for: source, language: language, palette: palette).map { span in
+            guard span.color == palette.keyword else {
+                return span
+            }
+            return TextEditorTokenSpan(
+                line: span.line,
+                startColumn: span.startColumn,
+                length: span.length,
+                color: span.color,
+                font: keywordFont
+            )
+        }
         return cacheSpans(spans, for: key)
     }
 
@@ -742,7 +967,7 @@ enum EditorSyntaxHighlighter {
         language: EditorSourceLanguage,
         palette: EditorCodeColorPalette
     ) -> Bool {
-        let key = CacheKey(source: source, language: language.rawValue, palette: palette)
+        let key = CacheKey(source: source, language: language.rawValue, palette: palette, keywordFont: nil)
         return cache.withLock { $0.entries[key] != nil }
     }
     #endif
@@ -915,7 +1140,12 @@ enum EditorSyntaxHighlighter {
                 column = endColumn
                 continue
             }
-
+            if characters[column] == "@", column + 1 < characters.count, isIdentifierStart(characters[column + 1]) {
+                let endColumn = identifierEnd(in: characters, from: column + 1)
+                appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.keyword, to: &spans)
+                column = endColumn
+                continue
+            }
             if isNumberStart(characters, at: column) {
                 let endColumn = numberEnd(in: characters, from: column)
                 appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.number, to: &spans)

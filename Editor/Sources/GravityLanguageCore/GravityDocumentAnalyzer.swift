@@ -66,6 +66,7 @@ struct GravityDocumentAnalyzer {
                 kind: kind,
                 detail: "Gravity \(kindDescription(kind))",
                 range: GravitySourceRange(start: tokens[index].range.start, end: tokens[closeBraceIndex].range.end),
+                selectionRange: nameToken.range,
                 members: members
             )
             regions.append(GravityTypeRegion(

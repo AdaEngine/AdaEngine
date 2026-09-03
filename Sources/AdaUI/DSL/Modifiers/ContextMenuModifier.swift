@@ -40,13 +40,22 @@ public struct ContextMenuPresentation {
         public let role: Role?
         public let action: (() -> Void)?
         public let submenu: [Item]
+        public let isSeparator: Bool
 
-        public init(id: Int, title: String, role: Role? = nil, action: (() -> Void)? = nil, submenu: [Item] = []) {
+        public init(
+            id: Int,
+            title: String,
+            role: Role? = nil,
+            action: (() -> Void)? = nil,
+            submenu: [Item] = [],
+            isSeparator: Bool = false
+        ) {
             self.id = id
             self.title = title
             self.role = role
             self.action = action
             self.submenu = submenu
+            self.isSeparator = isSeparator
         }
     }
 
@@ -298,7 +307,8 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                         title: item.title,
                         role: item.role,
                         action: item.action,
-                        submenu: item.submenu.presentationItems()
+                        submenu: item.submenu.presentationItems(),
+                        isSeparator: item.isSeparator
                     )
                 },
                 onDismiss: onDismiss
@@ -312,17 +322,20 @@ private struct ContextMenuItemDescription {
     let role: ContextMenuPresentation.Item.Role?
     let action: (() -> Void)?
     let submenu: [ContextMenuItemDescription]
+    let isSeparator: Bool
 
     init(
         title: String,
         role: ContextMenuPresentation.Item.Role? = nil,
         action: (() -> Void)? = nil,
-        submenu: [ContextMenuItemDescription] = []
+        submenu: [ContextMenuItemDescription] = [],
+        isSeparator: Bool = false
     ) {
         self.title = title
         self.role = role
         self.action = action
         self.submenu = submenu
+        self.isSeparator = isSeparator
     }
 }
 
@@ -374,6 +387,13 @@ extension EmptyView: ContextMenuItemsConvertible {
 }
 
 @MainActor
+extension Divider: ContextMenuItemsConvertible {
+    fileprivate var contextMenuItems: [ContextMenuItemDescription] {
+        [ContextMenuItemDescription(title: "", isSeparator: true)]
+    }
+}
+
+@MainActor
 extension Optional: ContextMenuItemsConvertible where Wrapped: View {
     fileprivate var contextMenuItems: [ContextMenuItemDescription] {
         switch self {
@@ -421,7 +441,8 @@ private extension [ContextMenuItemDescription] {
                 title: item.title,
                 role: item.role,
                 action: item.action,
-                submenu: item.submenu.presentationItems()
+                submenu: item.submenu.presentationItems(),
+                isSeparator: item.isSeparator
             )
         }
     }

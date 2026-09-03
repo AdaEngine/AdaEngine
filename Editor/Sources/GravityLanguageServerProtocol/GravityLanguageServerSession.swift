@@ -62,6 +62,8 @@ public final class GravityLanguageServerSession {
             return didSave(params: params)
         case "textDocument/completion":
             return completion(id: id, params: params)
+        case "textDocument/definition":
+            return definition(id: id, params: params)
         case "textDocument/documentSymbol":
             return documentSymbols(id: id, params: params)
         case "workspace/didChangeWatchedFiles":
@@ -94,6 +96,7 @@ public final class GravityLanguageServerSession {
                 "triggerCharacters": ["."]
             ],
             "documentSymbolProvider": true,
+            "definitionProvider": true,
             "positionEncoding": "utf-16",
             "textDocumentSync": [
                 "change": 1,
@@ -179,6 +182,18 @@ public final class GravityLanguageServerSession {
         }
         let symbols = workspace.analysis(for: uri)?.symbols.map(Self.documentSymbol(from:)) ?? []
         return GravityLanguageServerAction(outgoingMessages: [response(id: id, result: symbols)])
+    }
+
+    private func definition(id: Any?, params: [String: Any]) -> GravityLanguageServerAction {
+        guard let id,
+              let document = params["textDocument"] as? [String: Any],
+              let uri = document["uri"] as? String,
+              let position = Self.position(from: params["position"])
+        else {
+            return GravityLanguageServerAction(outgoingMessages: id.map { [errorResponse(id: $0, code: -32602, message: "Invalid definition parameters")] } ?? [])
+        }
+        let result: Any = workspace.definition(uri: uri, position: position).map(Self.locationLink(from:)) ?? NSNull()
+        return GravityLanguageServerAction(outgoingMessages: [response(id: id, result: result)])
     }
 
     private func didChangeWatchedFiles(params: [String: Any]) -> GravityLanguageServerAction {
@@ -271,11 +286,19 @@ public final class GravityLanguageServerSession {
             "kind": symbol.kind.rawValue,
             "name": symbol.name,
             "range": lspRange(from: symbol.range),
-            "selectionRange": lspRange(from: symbol.range)
+            "selectionRange": lspRange(from: symbol.selectionRange)
         ]
         if !symbol.members.isEmpty {
             result["children"] = symbol.members.map(documentSymbol(from:))
         }
         return result
+    }
+
+    private static func locationLink(from definition: GravityDefinition) -> [String: Any] {
+        [
+            "targetRange": lspRange(from: definition.range),
+            "targetSelectionRange": lspRange(from: definition.selectionRange),
+            "targetUri": definition.uri
+        ]
     }
 }

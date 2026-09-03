@@ -77,6 +77,20 @@ enum GravityBuiltins {
             kind: .keyword,
             label: "resource",
             sortText: "04"
+        ),
+        GravityCompletionCandidate(
+            detail: "Declare a serializable Ada Script object",
+            insertText: "scriptable(id: \"\")",
+            kind: .keyword,
+            label: "scriptable",
+            sortText: "05"
+        ),
+        GravityCompletionCandidate(
+            detail: "Export a stored scriptable property",
+            insertText: "export",
+            kind: .keyword,
+            label: "export",
+            sortText: "06"
         )
     ]
 

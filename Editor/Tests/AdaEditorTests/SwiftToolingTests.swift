@@ -234,6 +234,7 @@ struct SwiftToolingTests {
 
         let query = try #require(apiItems.first { $0.label == "query" })
         #expect(query.insertText == "query()")
+        #expect(query.kind == .annotation)
         #expect(query.replacementRange == EditorSourceRange(
             start: EditorSourceLocation(line: 2, character: 5),
             end: EditorSourceLocation(line: 2, character: 8)
@@ -245,7 +246,44 @@ struct SwiftToolingTests {
             text: source + "\nMove",
             position: EditorSourceLocation(line: 5, character: 4)
         )
-        #expect(symbolItems.contains { $0.label == "MovementSystem" && $0.insertText == "MovementSystem" })
+        #expect(symbolItems.contains { $0.label == "MovementSystem" && $0.insertText == "MovementSystem" && $0.kind == .class })
+        let scriptableItems = await service.completions(
+            fileURL: URL(fileURLWithPath: "/tmp/Scriptable.ada"),
+            language: .ada,
+            text: "@scr",
+            position: EditorSourceLocation(line: 0, character: 4)
+        )
+        let exportItems = await service.completions(
+            fileURL: URL(fileURLWithPath: "/tmp/Export.ada"),
+            language: .ada,
+            text: "@exp",
+            position: EditorSourceLocation(line: 0, character: 4)
+        )
+        #expect(scriptableItems.contains { $0.label == "scriptable" && $0.kind == .annotation })
+        #expect(exportItems.contains { $0.label == "export" && $0.kind == .annotation })
+    }
+
+    @Test("Gravity files enable editor tooling and definition navigation")
+    func gravityEditorToolingAndDefinition() async throws {
+        #expect(EditorSourceLanguage.detect(fileName: "Movement.gravity") == .ada)
+        #expect(EditorSourceLanguage.ada.supportsLanguageTooling)
+
+        let service = SwiftPMWorkspaceService()
+        let source = "func tick() {}\nfunc update() { tick(); }"
+        let fileURL = URL(fileURLWithPath: "/tmp/Movement.gravity")
+        let targets = await service.definition(
+            fileURL: fileURL,
+            language: .ada,
+            text: source,
+            position: EditorSourceLocation(line: 1, character: 18)
+        )
+
+        let target = try #require(targets.first)
+        #expect(target.filePath == fileURL.path)
+        #expect(target.selectionRange == EditorSourceRange(
+            start: EditorSourceLocation(line: 0, character: 5),
+            end: EditorSourceLocation(line: 0, character: 9)
+        ))
     }
 
     @Test("Gravity editor completion uses workspace symbols and character columns")
@@ -763,6 +801,7 @@ struct SwiftToolingTests {
                 .object([
                     "label": .string("update"),
                     "detail": .string("func update()"),
+                    "kind": .int(2),
                     "sortText": .string("002"),
                     "textEdit": .object([
                         "newText": .string("update()"),
@@ -772,12 +811,14 @@ struct SwiftToolingTests {
                 .object([
                     "label": .string("upAxis"),
                     "insertText": .string("upAxis"),
+                    "kind": .int(10),
                     "sortText": .string("001")
                 ])
             ])
         ]))
 
         #expect(items.map(\.label) == ["upAxis", "update"])
+        #expect(items.map(\.kind) == [.property, .method])
         #expect(items[1].insertText == "update()")
         #expect(items[1].replacementRange == EditorSourceRange(
             start: EditorSourceLocation(line: 4, character: 8),

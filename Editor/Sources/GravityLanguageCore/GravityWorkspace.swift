@@ -74,8 +74,52 @@ public final class GravityWorkspace {
         return languageService.completions(
             text: text,
             position: position,
-            workspaceSymbols: importedSymbols(for: uri)
+            workspaceSymbols: workspaceSymbols(for: uri)
         )
+    }
+
+    public func definition(uri: String, position: GravitySourcePosition) -> GravityDefinition? {
+        let key = Self.documentKey(uri)
+        guard let document = openDocuments[key] ?? diskDocuments[key] else {
+            return nil
+        }
+        let parsed = GravityDocumentAnalyzer.parse(document.text)
+        guard let tokenIndex = parsed.tokens.firstIndex(where: {
+            $0.kind == .identifier && $0.range.contains(position)
+        }) else {
+            return nil
+        }
+
+        let token = parsed.tokens[tokenIndex]
+        let workspaceSymbols = locatedWorkspaceSymbols(for: key)
+        if tokenIndex >= 2, parsed.tokens[tokenIndex - 1].text == "." {
+            let receiver = parsed.tokens[tokenIndex - 2].text
+            let typeName: String?
+            if receiver == "this" {
+                typeName = GravityDocumentAnalyzer.typeContaining(position, in: parsed.typeRegions)?.name
+            } else {
+                typeName = parsed.inferredTypes[receiver] ?? receiver
+            }
+            if let typeName,
+               let locatedType = locatedSymbol(named: typeName, localURI: key, localSymbols: parsed.analysis.symbols, workspaceSymbols: workspaceSymbols),
+               let member = locatedType.symbol.members.first(where: { $0.name == token.text }) {
+                return Self.definition(uri: locatedType.uri, symbol: member)
+            }
+        }
+
+        if let containingType = GravityDocumentAnalyzer.typeContaining(position, in: parsed.typeRegions),
+           let member = containingType.members.first(where: { $0.name == token.text }) {
+            return Self.definition(uri: key, symbol: member)
+        }
+        guard let located = locatedSymbol(
+            named: token.text,
+            localURI: key,
+            localSymbols: parsed.analysis.symbols,
+            workspaceSymbols: workspaceSymbols
+        ) else {
+            return nil
+        }
+        return Self.definition(uri: located.uri, symbol: located.symbol)
     }
 
     public func refreshFile(uri: String) {
@@ -98,30 +142,66 @@ public final class GravityWorkspace {
         diskDocuments.removeValue(forKey: key)
     }
 
-    private func importedSymbols(for uri: String) -> [GravitySymbol] {
+    private func workspaceSymbols(for uri: String) -> [GravitySymbol] {
+        locatedWorkspaceSymbols(for: uri).map(\.symbol)
+    }
+
+    private func locatedWorkspaceSymbols(for uri: String) -> [(uri: String, symbol: GravitySymbol)] {
+        let key = Self.documentKey(uri)
+        var located = locatedImportedSymbols(for: key)
+        let importedKeys = Set(located.map { "\($0.uri):\($0.symbol.kind.rawValue):\($0.symbol.name)" })
+        let documents = diskDocuments.merging(openDocuments) { _, open in open }
+        for documentURI in documents.keys.sorted() where documentURI != key {
+            guard let document = documents[documentURI] else { continue }
+            located += document.analysis.symbols.compactMap { symbol in
+                let symbolKey = "\(documentURI):\(symbol.kind.rawValue):\(symbol.name)"
+                return importedKeys.contains(symbolKey) ? nil : (uri: documentURI, symbol: symbol)
+            }
+        }
+        return located
+    }
+
+    private func locatedImportedSymbols(for uri: String) -> [(uri: String, symbol: GravitySymbol)] {
         let key = Self.documentKey(uri)
         guard let document = openDocuments[key] ?? diskDocuments[key] else {
             return []
         }
-        var symbols: [GravitySymbol] = []
+        var symbols: [(uri: String, symbol: GravitySymbol)] = []
         for scriptImport in document.analysis.imports {
-            guard case .source(_, let importedDocument) = resolve(scriptImport, from: key) else {
+            guard case .source(let importedURI, let importedDocument) = resolve(scriptImport, from: key) else {
                 continue
             }
             if let namespace = scriptImport.namespace {
-                symbols.append(GravitySymbol(
-                    name: namespace,
-                    kind: .class,
-                    detail: "Imported Ada Script module",
-                    range: scriptImport.range,
-                    members: importedDocument.analysis.symbols
+                symbols.append((
+                    uri: importedURI,
+                    symbol: GravitySymbol(
+                        name: namespace,
+                        kind: .class,
+                        detail: "Imported Ada Script module",
+                        range: scriptImport.range,
+                        members: importedDocument.analysis.symbols
+                    )
                 ))
             } else {
                 let selectedNames = Set(scriptImport.names)
-                symbols += importedDocument.analysis.symbols.filter { selectedNames.contains($0.name) }
+                symbols += importedDocument.analysis.symbols
+                    .filter { selectedNames.contains($0.name) }
+                    .map { (uri: importedURI, symbol: $0) }
             }
         }
         return symbols
+    }
+
+    private func locatedSymbol(
+        named name: String,
+        localURI: String,
+        localSymbols: [GravitySymbol],
+        workspaceSymbols: [(uri: String, symbol: GravitySymbol)]
+    ) -> (uri: String, symbol: GravitySymbol)? {
+        if let symbol = localSymbols.first(where: { $0.name == name }) {
+            return (localURI, symbol)
+        }
+        return workspaceSymbols.first(where: { $0.symbol.name == name })
     }
 
     private func importDiagnostics(uri: String, imports: [GravityImport]) -> [GravityDiagnostic] {
@@ -174,7 +254,7 @@ public final class GravityWorkspace {
             guard let enumerator = fileManager.enumerator(
                 at: rootURL,
                 includingPropertiesForKeys: resourceKeys,
-                options: [.skipsHiddenFiles]
+                options: []
             ) else {
                 continue
             }
@@ -195,7 +275,7 @@ public final class GravityWorkspace {
         }
     }
 
-    private static let skippedDirectoryNames: Set<String> = [".ada", ".build", ".git", ".swiftpm", "DerivedData"]
+    private static let skippedDirectoryNames: Set<String> = [".build", ".codex", ".git", ".swiftpm", "DerivedData"]
     private static let virtualModuleNames: Set<String> = ["AdaEngine", "AdaUI"]
 
     private static func contains(_ fileURL: URL, in rootURL: URL) -> Bool {
@@ -218,6 +298,10 @@ public final class GravityWorkspace {
     private static func isGravitySource(_ url: URL) -> Bool {
         let pathExtension = url.pathExtension.lowercased()
         return pathExtension == "ada" || pathExtension == "gravity"
+    }
+
+    private static func definition(uri: String, symbol: GravitySymbol) -> GravityDefinition {
+        GravityDefinition(uri: uri, range: symbol.range, selectionRange: symbol.selectionRange)
     }
 
     private enum ImportResolution {

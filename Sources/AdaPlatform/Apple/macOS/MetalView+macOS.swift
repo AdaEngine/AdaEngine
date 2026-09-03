@@ -238,6 +238,71 @@ extension MetalView {
         input?.mousePosition = position
         input?.wrappedValue.receiveEvent(mouseEvent)
     }
+
+    public override func otherMouseDown(with event: NSEvent) {
+        guard event.buttonNumber == 2 else {
+            super.otherMouseDown(with: event)
+            return
+        }
+
+        if let eventWindow = event.window, eventWindow.firstResponder !== self {
+            eventWindow.makeFirstResponder(self)
+        }
+
+        let position = self.mousePosition(for: event)
+        let isContinuous = input?.wrappedValue.mouseEvents[.middle]?.phase == .began
+        let mouseEvent = MouseEvent(
+            window: self.windowID,
+            button: .middle,
+            mousePosition: position,
+            phase: isContinuous ? .changed : .began,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
+            time: TimeInterval(event.timestamp)
+        )
+
+        input?.mousePosition = position
+        input?.wrappedValue.receiveEvent(mouseEvent)
+    }
+
+    public override func otherMouseUp(with event: NSEvent) {
+        guard event.buttonNumber == 2 else {
+            super.otherMouseUp(with: event)
+            return
+        }
+
+        let position = self.mousePosition(for: event)
+        let mouseEvent = MouseEvent(
+            window: self.windowID,
+            button: .middle,
+            mousePosition: position,
+            phase: .ended,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
+            time: TimeInterval(event.timestamp)
+        )
+
+        input?.mousePosition = position
+        input?.wrappedValue.receiveEvent(mouseEvent)
+    }
+
+    public override func otherMouseDragged(with event: NSEvent) {
+        guard event.buttonNumber == 2 else {
+            super.otherMouseDragged(with: event)
+            return
+        }
+
+        let position = self.mousePosition(for: event)
+        let mouseEvent = MouseEvent(
+            window: self.windowID,
+            button: .middle,
+            mousePosition: position,
+            phase: .changed,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
+            time: TimeInterval(event.timestamp)
+        )
+
+        input?.mousePosition = position
+        input?.wrappedValue.receiveEvent(mouseEvent)
+    }
     
     public override func mouseMoved(with event: NSEvent) {
         let position = self.mousePosition(for: event)

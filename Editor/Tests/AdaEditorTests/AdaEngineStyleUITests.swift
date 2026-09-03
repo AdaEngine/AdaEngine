@@ -161,10 +161,91 @@ struct AdaEngineStyleUITests {
 
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.TestTab.Select"))
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.TestTab.Close"))
+        container.onMouseEvent(
+            MouseEvent(
+                window: RID(),
+                button: .middle,
+                mousePosition: Point(80, 16),
+                phase: .began,
+                modifierKeys: [],
+                time: 0
+            )
+        )
+        container.onMouseEvent(
+            MouseEvent(
+                window: RID(),
+                button: .middle,
+                mousePosition: Point(80, 16),
+                phase: .ended,
+                modifierKeys: [],
+                time: 0.1
+            )
+        )
 
         #expect(counters.selected == 1)
         #expect(counters.closed == 1)
-        #expect(counters.middleClicked == 0)
+        #expect(counters.middleClicked == 1)
+    }
+
+    @Test("long tab keeps its close button inside the selectable cell")
+    @MainActor
+    func longTabKeepsCloseButtonInsideCell() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            let app = AppWorlds(main: World(name: "AdaEditorTabTests"))
+            RenderWorldPlugin().setup(in: app)
+        }
+
+        let document = EditorWorkbenchDocument.asset(
+            EditorAssetDocument(
+                id: "asset:TrustNoOneRuntimePlugin.swift",
+                title: "TrustNoOneRuntimePlugin.swift",
+                relativePath: "TrustNoOneRuntimePlugin.swift",
+                absolutePath: nil,
+                assetReference: nil,
+                kind: .generic,
+                fileExtension: "swift",
+                byteCount: nil,
+                modifiedAt: nil,
+                errorMessage: nil
+            )
+        )
+        let workbench = EditorWorkbenchViewModel(
+            openDocuments: [document],
+            activeDocumentID: document.id
+        )
+        let container = UIContainerView(
+            rootView: EditorCenterWorkbench(
+                viewModel: workbench,
+                inspectorViewModel: EditorInspectorSidebarViewModel(),
+                playModeState: .editing,
+                onSourceHover: nil,
+                onGoToDefinition: nil,
+                onCompletionPosition: nil,
+                onCompletionRequest: nil,
+                onApplyCompletion: nil,
+                onTextSelection: nil,
+                onChatSelection: nil,
+                sourceContextMenuItems: nil,
+                onSelectDocument: nil,
+                onRevealDocument: nil,
+                onCopyDocumentPath: nil,
+                onSelectPreview: nil,
+                onRebuildPreview: nil,
+                onShowPreviewBuildOutput: nil
+            )
+        )
+        container.frame = Rect(x: 0, y: 0, width: 260, height: 120)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+
+        let tab = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Tab.\(document.title)"))
+        let close = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Tab.Close.\(document.id)"))
+        #expect(close.absoluteFrame.minX >= tab.absoluteFrame.minX)
+        #expect(close.absoluteFrame.maxX <= tab.absoluteFrame.maxX)
+
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Tab.Close.\(document.id)"))
+        #expect(workbench.openDocuments.isEmpty)
     }
 
     @Test("project search results use the editor viewport instead of the toolbar frame")
@@ -306,6 +387,55 @@ struct AdaEngineStyleUITests {
         let text = EditorSourceHoverPresentation.displayText(from: "```swift\nfunc update()\n```\nUpdates the scene.")
 
         #expect(text == "func update()\nUpdates the scene.")
+    }
+
+    @Test("source hover presentation applies syntax colors")
+    @MainActor
+    func sourceHoverPresentationAppliesSyntaxColors() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            let app = AppWorlds(main: World(name: "AdaEditorSourceHoverTests"))
+            RenderWorldPlugin().setup(in: app)
+        }
+
+        let text = "private func update(value: Int) -> Bool"
+        let attributedText = EditorSourceHoverPresentation.attributedText(
+            text,
+            language: .swift,
+            palette: .dark,
+            font: .system(size: 11),
+            keywordFont: .system(size: 11, weight: .bold)
+        )
+        let privateIndex = try #require(text.range(of: "private")?.lowerBound)
+        let intIndex = try #require(text.range(of: "Int")?.lowerBound)
+
+        #expect(attributedText.attributes(at: privateIndex).foregroundColor == EditorCodeColorPalette.dark.keyword)
+        #expect(attributedText.attributes(at: intIndex).foregroundColor == EditorCodeColorPalette.dark.type)
+    }
+
+    @Test("completion presentation stays on one line and caps visible rows")
+    func completionPresentationStaysOnOneLine() {
+        let item = EditorCompletionItem(
+            label: "withUnsafeBufferPointer(\n  body: (UnsafeBufferPointer<Element>) throws -> Result\n)",
+            detail: "Array method\nResult",
+            insertText: "withUnsafeBufferPointer",
+            replacementRange: nil,
+            sortText: nil,
+            kind: .method
+        )
+        let label = EditorCompletionPresentation.label(for: item)
+        let detail = EditorCompletionPresentation.detail(for: item)
+        let frame = EditorCompletionPopupLayout.frame(
+            viewportSize: Size(width: 900, height: 700),
+            caretPosition: EditorSourceLocation(line: 1, character: 8),
+            fontSize: 12,
+            itemCount: 40
+        )
+
+        #expect(!label.contains("\n"))
+        #expect(detail?.contains("\n") == false)
+        #expect(label.count <= 34)
+        #expect(frame.height == EditorCompletionPopupLayout.rowHeight * 10 + EditorCompletionPopupLayout.verticalPadding * 2)
     }
 
     @Test("workspace reserves sidebars and output panel before sizing the scene viewport")
@@ -514,6 +644,41 @@ struct AdaEngineStyleUITests {
         }
         viewModel.receiveSourceDiagnostics([diagnostic], uri: "file:///tmp/Game/Sources/Game/main.swift")
         #expect(problemListChanges.withLock { $0 } == 1)
+    }
+
+    @Test("build diagnostics are attached to open source documents")
+    @MainActor
+    func buildDiagnosticsAttachToOpenDocuments() throws {
+        let filePath = "/tmp/Game/Sources/Game/main.swift"
+        let document = EditorTextDocument(
+            id: "text:Sources/Game/main.swift",
+            title: "main.swift",
+            relativePath: "Sources/Game/main.swift",
+            absolutePath: filePath,
+            language: .swift,
+            content: "let value = missing"
+        )
+        let diagnostic = EditorDiagnostic(
+            filePath: filePath,
+            range: EditorSourceRange(
+                start: EditorSourceLocation(line: 0, character: 12),
+                end: EditorSourceLocation(line: 0, character: 19)
+            ),
+            severity: .error,
+            message: "cannot find 'missing' in scope",
+            source: "swift"
+        )
+        let viewModel = EditorViewModel(
+            workbench: EditorWorkbenchViewModel(openDocuments: [.text(document)], activeDocumentID: document.id)
+        )
+
+        viewModel.replaceBuildDiagnostics(with: [diagnostic])
+
+        guard case .text(let updatedDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected active text document")
+            return
+        }
+        #expect(updatedDocument.diagnostics == [diagnostic])
     }
 
     @Test("repeated diagnostics from multiple files preserve problem order and observation state")
@@ -927,6 +1092,27 @@ struct AdaEngineStyleUITests {
         settingsViewModel.searchText = "agent"
         #expect(settingsViewModel.filteredSections == [.agent])
         #expect(settingsViewModel.editorViewModel === editorViewModel)
+    }
+
+    @Test("general settings apply code font and syntax appearance")
+    @MainActor
+    func generalSettingsApplyCodeAppearance() {
+        let editorViewModel = EditorViewModel()
+        let settingsViewModel = EditorSettingsWindowViewModel(editorViewModel: editorViewModel, selectedSection: .general)
+
+        settingsViewModel.increaseCodeFontSize()
+        settingsViewModel.selectCodeFontFamily(.system)
+        settingsViewModel.selectCodeFontWeight(.regular)
+        settingsViewModel.selectKeywordFontWeight(.semibold)
+        settingsViewModel.selectCodePalette(.monokai)
+        settingsViewModel.applyGeneralSettings()
+
+        #expect(editorViewModel.workbench.codeFontSize == 13)
+        #expect(editorViewModel.workbench.codeFontFamily == .system)
+        #expect(editorViewModel.workbench.codeFontWeight == .regular)
+        #expect(editorViewModel.workbench.keywordFontWeight == .semibold)
+        #expect(editorViewModel.workbench.codeColorPalette == EditorCodeColorPalette.monokai)
+        #expect(settingsViewModel.generalSettingsStatusMessage == "Applied to open editors")
     }
 
     @Test("workbench closes tabs and keeps a valid active document")

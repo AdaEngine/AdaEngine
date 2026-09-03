@@ -45,6 +45,90 @@ struct EditorCodeColorPalette: Hashable, Sendable {
         currentLineBackground: Color(red: 43 / 255, green: 45 / 255, blue: 52 / 255),
         selection: Color(red: 53 / 255, green: 116 / 255, blue: 240 / 255).opacity(0.24)
     )
+
+    static let monokai = EditorCodeColorPalette(
+        plainText: Color(red: 248 / 255, green: 248 / 255, blue: 242 / 255),
+        keyword: Color(red: 249 / 255, green: 38 / 255, blue: 114 / 255),
+        type: Color(red: 166 / 255, green: 226 / 255, blue: 46 / 255),
+        string: Color(red: 230 / 255, green: 219 / 255, blue: 116 / 255),
+        number: Color(red: 174 / 255, green: 129 / 255, blue: 255 / 255),
+        comment: Color(red: 117 / 255, green: 113 / 255, blue: 94 / 255),
+        punctuation: Color(red: 248 / 255, green: 248 / 255, blue: 242 / 255),
+        lineNumber: Color(red: 144 / 255, green: 142 / 255, blue: 126 / 255),
+        currentLineBackground: Color(red: 62 / 255, green: 61 / 255, blue: 50 / 255),
+        selection: Color(red: 73 / 255, green: 72 / 255, blue: 62 / 255)
+    )
+
+    static let solarized = EditorCodeColorPalette(
+        plainText: Color(red: 131 / 255, green: 148 / 255, blue: 150 / 255),
+        keyword: Color(red: 133 / 255, green: 153 / 255, blue: 0 / 255),
+        type: Color(red: 38 / 255, green: 139 / 255, blue: 210 / 255),
+        string: Color(red: 42 / 255, green: 161 / 255, blue: 152 / 255),
+        number: Color(red: 211 / 255, green: 54 / 255, blue: 130 / 255),
+        comment: Color(red: 88 / 255, green: 110 / 255, blue: 117 / 255),
+        punctuation: Color(red: 147 / 255, green: 161 / 255, blue: 161 / 255),
+        lineNumber: Color(red: 88 / 255, green: 110 / 255, blue: 117 / 255),
+        currentLineBackground: Color(red: 7 / 255, green: 54 / 255, blue: 66 / 255),
+        selection: Color(red: 38 / 255, green: 139 / 255, blue: 210 / 255).opacity(0.25)
+    )
+}
+
+enum EditorCodePalettePreset: String, CaseIterable, Hashable, Sendable {
+    case adaDark
+    case monokai
+    case solarized
+
+    var title: String {
+        switch self {
+        case .adaDark:
+            "Ada Dark"
+        case .monokai:
+            "Monokai"
+        case .solarized:
+            "Solarized Dark"
+        }
+    }
+
+    var palette: EditorCodeColorPalette {
+        switch self {
+        case .adaDark:
+            .dark
+        case .monokai:
+            .monokai
+        case .solarized:
+            .solarized
+        }
+    }
+
+    static func matching(_ palette: EditorCodeColorPalette) -> EditorCodePalettePreset {
+        allCases.first { $0.palette == palette } ?? .adaDark
+    }
+}
+
+enum EditorCodeFontFamily: String, CaseIterable, Hashable, Sendable {
+    case firaCode
+    case system
+
+    var title: String {
+        switch self {
+        case .firaCode:
+            "Fira Code"
+        case .system:
+            "System"
+        }
+    }
+}
+
+enum EditorCodeFontWeight: String, CaseIterable, Hashable, Sendable {
+    case light
+    case regular
+    case medium
+    case semibold
+    case bold
+
+    var title: String {
+        rawValue.capitalized
+    }
 }
 
 enum EditorSourceLanguage: String, Sendable {
@@ -69,7 +153,7 @@ enum EditorSourceLanguage: String, Sendable {
         }
 
         switch fileExtension {
-        case "ada":
+        case "ada", "gravity":
             return .ada
         case "c", "h":
             return .c
@@ -90,6 +174,10 @@ enum EditorSourceLanguage: String, Sendable {
         default:
             return .plainText
         }
+    }
+
+    var supportsLanguageTooling: Bool {
+        self == .ada || self == .swift || self == .packageManifest
     }
 }
 
@@ -695,6 +783,9 @@ final class EditorWorkbenchViewModel {
     var activeDocumentID: String
     var codeColorPalette: EditorCodeColorPalette
     var codeFontSize: Double
+    var codeFontFamily: EditorCodeFontFamily
+    var codeFontWeight: EditorCodeFontWeight
+    var keywordFontWeight: EditorCodeFontWeight
     var previewStatus: EditorPreviewStatus
     var selectedPreviewID: String?
 
@@ -718,6 +809,9 @@ final class EditorWorkbenchViewModel {
         activeDocumentID: String = "scene:Assets/Scenes/Main.ascn",
         codeColorPalette: EditorCodeColorPalette = .dark,
         codeFontSize: Double = 12,
+        codeFontFamily: EditorCodeFontFamily = .firaCode,
+        codeFontWeight: EditorCodeFontWeight = .medium,
+        keywordFontWeight: EditorCodeFontWeight = .bold,
         previewStatus: EditorPreviewStatus = .hidden,
         selectedPreviewID: String? = nil
     ) {
@@ -729,6 +823,9 @@ final class EditorWorkbenchViewModel {
         self.activeDocumentID = activeDocumentID
         self.codeColorPalette = codeColorPalette
         self.codeFontSize = codeFontSize
+        self.codeFontFamily = codeFontFamily
+        self.codeFontWeight = codeFontWeight
+        self.keywordFontWeight = keywordFontWeight
         self.previewStatus = previewStatus
         self.selectedPreviewID = selectedPreviewID
         if openDocuments.contains(where: { $0.id == activeDocumentID }) {
@@ -2155,7 +2252,7 @@ final class EditorViewModel {
             }
             await MainActor.run {
                 self.packageModel = result.packageModel
-                self.problems = Self.replacingBuildDiagnostics(in: self.problems, with: result.diagnostics)
+                self.replaceBuildDiagnostics(with: result.diagnostics)
                 self.showProblemsIfNeeded()
                 let failureOutput = result.describeResult.combinedOutput.isEmpty
                     ? result.resolveResult.combinedOutput
@@ -2935,10 +3032,7 @@ final class EditorViewModel {
                     self.appendOutput(result)
                 }
                 self.buildActivity?.finish(succeeded: result.succeeded)
-                self.problems = Self.replacingBuildDiagnostics(
-                    in: self.problems,
-                    with: EditorDiagnostic.diagnostics(from: result, projectURL: projectURL)
-                )
+                self.replaceBuildDiagnostics(with: EditorDiagnostic.diagnostics(from: result, projectURL: projectURL))
                 self.showProblemsIfNeeded()
                 self.workspaceStatus = result.succeeded ? .ready : .failed(result.combinedOutput)
                 self.workspaceTask = nil
@@ -3531,14 +3625,23 @@ final class EditorViewModel {
         if updatedProblems != problems {
             problems = updatedProblems
         }
+        synchronizeOpenDocumentDiagnostics()
+        showProblemsIfNeeded()
+    }
+
+    func replaceBuildDiagnostics(with diagnostics: [EditorDiagnostic]) {
+        problems = Self.replacingBuildDiagnostics(in: problems, with: diagnostics)
+        synchronizeOpenDocumentDiagnostics()
+    }
+
+    private func synchronizeOpenDocumentDiagnostics() {
         for document in workbench.openDocuments {
             guard case .text(let textDocument) = document,
-                  let absolutePath = textDocument.absolutePath,
-                  affectedPaths.contains(absolutePath)
+                  let absolutePath = textDocument.absolutePath
             else {
                 continue
             }
-            let documentDiagnostics = diagnostics.filter { $0.filePath == absolutePath }
+            let documentDiagnostics = problems.filter { $0.filePath == absolutePath }
             guard documentDiagnostics != textDocument.diagnostics else {
                 continue
             }
@@ -3546,7 +3649,6 @@ final class EditorViewModel {
                 updatedDocument.diagnostics = documentDiagnostics
             }
         }
-        showProblemsIfNeeded()
     }
 
     static func replacingBuildDiagnostics(in existing: [EditorDiagnostic], with diagnostics: [EditorDiagnostic]) -> [EditorDiagnostic] {
@@ -3653,7 +3755,7 @@ final class EditorViewModel {
 
     private func refreshSemanticTokens(for document: EditorWorkbenchDocument) {
         guard case .text(let textDocument) = document,
-              (textDocument.language == .swift || textDocument.language == .packageManifest),
+              textDocument.language.supportsLanguageTooling,
               let absolutePath = textDocument.absolutePath
         else {
             return
@@ -3679,7 +3781,7 @@ final class EditorViewModel {
     }
 
     private func supportsSourceNavigation(_ document: EditorTextDocument) -> Bool {
-        (document.language == .swift || document.language == .packageManifest) && document.absolutePath != nil
+        document.language.supportsLanguageTooling && document.absolutePath != nil
     }
 
     private func supportsCompletions(_ document: EditorTextDocument) -> Bool {
@@ -4007,7 +4109,7 @@ final class EditorViewModel {
 
     private static func isTextFile(_ url: URL) -> Bool {
         let textExtensions: Set<String> = [
-            "ada", "c", "cc", "cpp", "cxx", "frag", "glsl", "h", "hpp", "hxx", "json", "md", "markdown",
+            "ada", "c", "cc", "cpp", "cxx", "frag", "glsl", "gravity", "h", "hpp", "hxx", "json", "md", "markdown",
             "ascn", "metal", "plist", "scn", "scene", "shader", "swift", "toml", "txt", "vert", "xml", "yaml", "yml"
         ]
         let lowercasedName = url.lastPathComponent.lowercased()

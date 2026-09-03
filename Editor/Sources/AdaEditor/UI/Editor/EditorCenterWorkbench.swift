@@ -61,7 +61,7 @@ extension EditorCenterWorkbench {
     }
     
     private func editorTab(_ document: EditorWorkbenchDocument, active: Bool) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             Button(action: { onSelectDocument?(document.id) ?? viewModel.selectDocument(id: document.id) }) {
                 HStack(spacing: 7) {
                     Text(tabIcon(for: document))
@@ -72,10 +72,13 @@ extension EditorCenterWorkbench {
                         .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
                         .lineLimit(1)
                 }
-                .padding(.leading, 10)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
                 .frame(height: 26)
             }
             .buttonStyle(DefaultButtonStyle())
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 26, maxHeight: 26)
+            .accessibilityIdentifier("AdaEditor.Tab.Select.\(document.id)")
 
             Button(action: { viewModel.closeDocument(id: document.id) }) {
                 Text("×")
@@ -85,7 +88,8 @@ extension EditorCenterWorkbench {
                     .background(RoundedRectangleShape(cornerRadius: 4).fill(active ? theme.editorColors.surface.opacity(0.62) : Color.clear))
             }
             .buttonStyle(DefaultButtonStyle())
-            .padding(.trailing, 8)
+            .padding(.trailing, 6)
+            .accessibilityIdentifier("AdaEditor.Tab.Close.\(document.id)")
         }
         .frame(width: editorTabWidth(document), height: 26)
         .background(RoundedRectangleShape(cornerRadius: 5).fill(active ? theme.editorColors.surface : theme.editorColors.surfaceElevated))
@@ -122,6 +126,7 @@ extension EditorCenterWorkbench {
                     viewModel.closeDocumentsToRight(of: document.id)
                 }
             }
+            Divider()
             Button("Close Clean") {
                 viewModel.closeCleanDocuments()
             }
@@ -129,12 +134,14 @@ extension EditorCenterWorkbench {
                 viewModel.closeAllDocuments()
             }
             if document.absolutePath != nil {
+                Divider()
                 Button("Copy Path") {
                     onCopyDocumentPath?(document, false)
                 }
                 Button("Copy Relative Path") {
                     onCopyDocumentPath?(document, true)
                 }
+                Divider()
                 Button("Reveal in Finder") {
                     onRevealDocument?(document)
                 }
@@ -328,6 +335,9 @@ extension EditorCenterWorkbench {
             document: document,
             text: viewModel.textDocumentBinding(documentID: document.id),
             fontSize: viewModel.codeFontSize,
+            fontFamily: viewModel.codeFontFamily,
+            fontWeight: viewModel.codeFontWeight,
+            keywordFontWeight: viewModel.keywordFontWeight,
             colorPalette: viewModel.codeColorPalette,
             onSourceHover: onSourceHover,
             onGoToDefinition: onGoToDefinition,
@@ -421,12 +431,12 @@ extension EditorCenterWorkbench {
     private func sceneDocumentLine(document: EditorSceneDocument, lineIndex: Int) -> some View {
         HStack(alignment: .center, spacing: 12) {
             Text(String(lineIndex + 1))
-                .font(AdaEditorCodeFont.font(size: viewModel.codeFontSize - 1))
+                .font(AdaEditorCodeFont.font(family: viewModel.codeFontFamily, weight: viewModel.codeFontWeight, size: viewModel.codeFontSize - 1))
                 .foregroundColor(viewModel.codeColorPalette.lineNumber)
                 .frame(width: 46, alignment: .trailing)
             TextField("", text: viewModel.sceneLineBinding(documentID: document.id, lineIndex: lineIndex))
-                .font(AdaEditorCodeFont.font(size: viewModel.codeFontSize))
-                .foregroundColor(theme.editorColors.text)
+                .font(AdaEditorCodeFont.font(family: viewModel.codeFontFamily, weight: viewModel.codeFontWeight, size: viewModel.codeFontSize))
+                .foregroundColor(viewModel.codeColorPalette.plainText)
                 .textFieldStyle(PlainTextFieldStyle())
                 .frame(width: 820, height: max(22, Float(viewModel.codeFontSize * 1.8)), alignment: .leading)
         }

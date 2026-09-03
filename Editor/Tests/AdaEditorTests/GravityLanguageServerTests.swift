@@ -72,6 +72,64 @@ struct GravityLanguageServerTests {
         #expect(items.contains { $0.label == "tick" && $0.insertText == "tick()" })
     }
 
+    @Test("Workspace indexes generated Gravity sources in hidden Ada directories")
+    func generatedWorkspaceCompletion() throws {
+        let projectURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("GravityGenerated-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: projectURL) }
+        let generatedURL = projectURL.appendingPathComponent(".ada/generated", isDirectory: true)
+        try FileManager.default.createDirectory(at: generatedURL, withIntermediateDirectories: true)
+        try "class GeneratedSystem { func update() {} }".write(
+            to: generatedURL.appendingPathComponent("Generated.gravity"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let workspace = GravityWorkspace()
+        workspace.configure(rootURIs: [projectURL.absoluteString])
+        let currentURL = generatedURL.appendingPathComponent("Current.ada")
+        workspace.open(
+            uri: currentURL.absoluteString,
+            text: "import { GeneratedSystem } from \"./Generated.gravity\";\nGeneratedSystem.up",
+            version: 1
+        )
+
+        let items = workspace.completions(
+            uri: currentURL.absoluteString,
+            position: GravitySourcePosition(line: 1, utf16Column: 18)
+        )
+        #expect(items.contains { $0.label == "update" })
+    }
+
+    @Test("Definition resolves local and imported Gravity methods")
+    func definition() throws {
+        let projectURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("GravityDefinition-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: projectURL) }
+        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+        let sharedURL = projectURL.appendingPathComponent("Shared.ada")
+        try "class SharedSystem { func tick() {} }".write(to: sharedURL, atomically: true, encoding: .utf8)
+
+        let workspace = GravityWorkspace()
+        workspace.configure(rootURIs: [projectURL.absoluteString])
+        let currentURL = projectURL.appendingPathComponent("Current.ada")
+        workspace.open(
+            uri: currentURL.absoluteString,
+            text: "import { SharedSystem } from \"./Shared\";\nSharedSystem.tick()",
+            version: 1
+        )
+
+        let target = try #require(workspace.definition(
+            uri: currentURL.absoluteString,
+            position: GravitySourcePosition(line: 1, utf16Column: 15)
+        ))
+        #expect(target.uri == sharedURL.absoluteString)
+        #expect(target.selectionRange == GravitySourceRange(
+            start: GravitySourcePosition(line: 0, utf16Column: 26),
+            end: GravitySourcePosition(line: 0, utf16Column: 30)
+        ))
+    }
+
     @Test("Workspace reports unresolved and escaping imports")
     func workspaceImportDiagnostics() throws {
         let projectURL = FileManager.default.temporaryDirectory
@@ -142,6 +200,7 @@ struct GravityLanguageServerTests {
         let initializeResult = try #require(initializeResponse["result"] as? [String: Any])
         let capabilities = try #require(initializeResult["capabilities"] as? [String: Any])
         #expect(capabilities["positionEncoding"] as? String == "utf-16")
+        #expect(capabilities["definitionProvider"] as? Bool == true)
 
         let uri = "file:///tmp/Movement.ada"
         let opened = session.handle([
@@ -173,7 +232,28 @@ struct GravityLanguageServerTests {
         let items = try #require(result["items"] as? [[String: Any]])
         #expect(items.contains { $0["label"] as? String == "query" })
 
-        let shutdown = session.handle(["id": 3, "jsonrpc": "2.0", "method": "shutdown"])
+        _ = session.handle([
+            "jsonrpc": "2.0",
+            "method": "textDocument/didChange",
+            "params": [
+                "contentChanges": [["text": "func tick() {}\nfunc update() { tick(); }"]],
+                "textDocument": ["uri": uri, "version": 2]
+            ]
+        ])
+        let definition = session.handle([
+            "id": 3,
+            "jsonrpc": "2.0",
+            "method": "textDocument/definition",
+            "params": [
+                "position": ["character": 18, "line": 1],
+                "textDocument": ["uri": uri]
+            ]
+        ])
+        let definitionResponse = try #require(definition.outgoingMessages.first)
+        let location = try #require(definitionResponse["result"] as? [String: Any])
+        #expect(location["targetUri"] as? String == uri)
+
+        let shutdown = session.handle(["id": 4, "jsonrpc": "2.0", "method": "shutdown"])
         #expect(shutdown.outgoingMessages.count == 1)
         #expect(session.handle(["jsonrpc": "2.0", "method": "exit"]).exitCode == 0)
     }

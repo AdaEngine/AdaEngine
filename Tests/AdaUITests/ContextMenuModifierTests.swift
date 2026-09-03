@@ -83,6 +83,35 @@ struct ContextMenuModifierTests {
     }
 
     @Test
+    func contextMenuPreservesSeparators() {
+        var captured: ContextMenuPresentation?
+        ContextMenuPresentationCenter.present = { presentation in
+            captured = presentation
+        }
+        defer {
+            ContextMenuPresentationCenter.present = nil
+        }
+
+        let tester = ViewTester {
+            Color.red
+                .frame(width: 100, height: 100)
+                .contextMenu {
+                    Button("Close") {}
+                    Divider()
+                    Button("Copy Path") {}
+                }
+        }
+        .setSize(Size(width: 100, height: 100))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(50, 50), button: .right, phase: .began)
+
+        #expect(captured?.items.count == 3)
+        #expect(captured?.items.map(\.isSeparator) == [false, true, false])
+        #expect(captured?.items.filter { !$0.isSeparator }.map(\.title) == ["Close", "Copy Path"])
+    }
+
+    @Test
     func scrollViewEmptyAreaFallsThroughToBackgroundContextMenu() {
         var captured: ContextMenuPresentation?
         ContextMenuPresentationCenter.present = { presentation in

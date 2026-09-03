@@ -72,37 +72,97 @@ extension TextEditorViewNode {
             return
         }
 
+        let accentColor = self.environment.accentColor.opacity(0.72)
+        for sourceRange in sourceInteraction.highlightedRanges {
+            drawSourceUnderline(
+                sourceRange,
+                color: accentColor,
+                in: &context,
+                line: line,
+                lineIndex: lineIndex,
+                rowY: rowY,
+                lineHeight: lineHeight,
+                pointSize: pointSize,
+                font: font
+            )
+        }
+
+        if let hoveredRange = sourceInteraction.hoveredRange,
+           !sourceInteraction.highlightedRanges.contains(hoveredRange) {
+            drawSourceUnderline(
+                hoveredRange,
+                color: accentColor,
+                in: &context,
+                line: line,
+                lineIndex: lineIndex,
+                rowY: rowY,
+                lineHeight: lineHeight,
+                pointSize: pointSize,
+                font: font
+            )
+        }
+
+        for highlight in sourceInteraction.sourceHighlights {
+            drawSourceUnderline(
+                highlight.range,
+                color: highlight.color,
+                in: &context,
+                line: line,
+                lineIndex: lineIndex,
+                rowY: rowY,
+                lineHeight: lineHeight,
+                pointSize: pointSize,
+                font: font
+            )
+        }
+    }
+
+    private func drawSourceUnderline(
+        _ sourceRange: TextEditorSourceRange,
+        color: Color,
+        in context: inout UIGraphicsContext,
+        line: LineInfo,
+        lineIndex: Int,
+        rowY: Float,
+        lineHeight: Float,
+        pointSize: Float,
+        font: Font?
+    ) {
+        guard let columns = Self.sourceUnderlineColumns(
+            for: sourceRange,
+            lineIndex: lineIndex,
+            lineLength: line.text.count
+        ) else {
+            return
+        }
+
         let characterAdvance = self.characterAdvance(for: pointSize)
         let textRect = self.textRect()
-        var sourceRanges = sourceInteraction.highlightedRanges
-        if let hoveredRange = sourceInteraction.hoveredRange,
-           !sourceRanges.contains(hoveredRange) {
-            sourceRanges.append(hoveredRange)
+        let startX = textRect.minX + self.caretXOffset(forColumn: columns.start, in: line.text, font: font, pointSize: pointSize)
+        let endX = textRect.minX + self.caretXOffset(forColumn: columns.end, in: line.text, font: font, pointSize: pointSize)
+        let highlightRect = Rect(
+            x: startX,
+            y: rowY + max(0, lineHeight - 3),
+            width: max(characterAdvance, endX - startX),
+            height: 2
+        )
+        context.drawRect(highlightRect, color: color)
+    }
+
+    static func sourceUnderlineColumns(
+        for sourceRange: TextEditorSourceRange,
+        lineIndex: Int,
+        lineLength: Int
+    ) -> (start: Int, end: Int)? {
+        guard lineIndex >= sourceRange.start.line, lineIndex <= sourceRange.end.line else {
+            return nil
         }
 
-        for sourceRange in sourceRanges {
-            let range = self.rangeOffsets(for: sourceRange)
-            let lineStart = line.startOffset
-            let lineEnd = line.startOffset + line.text.count
-            let start = max(range.lowerBound, lineStart)
-            let end = min(range.upperBound, lineEnd)
-
-            guard end > start else {
-                continue
-            }
-
-            let startColumn = max(0, min(start - lineStart, line.text.count))
-            let endColumn = max(0, min(end - lineStart, line.text.count))
-            let startX = textRect.minX + self.caretXOffset(forColumn: startColumn, in: line.text, font: font, pointSize: pointSize)
-            let endX = textRect.minX + self.caretXOffset(forColumn: endColumn, in: line.text, font: font, pointSize: pointSize)
-            let highlightRect = Rect(
-                x: startX,
-                y: rowY + max(0, lineHeight - 3),
-                width: max(characterAdvance, endX - startX),
-                height: 2
-            )
-            context.drawRect(highlightRect, color: self.environment.accentColor.opacity(0.72))
-        }
+        let startColumn = lineIndex == sourceRange.start.line ? sourceRange.start.column : 0
+        let requestedEndColumn = lineIndex == sourceRange.end.line ? sourceRange.end.column : lineLength
+        let clampedStart = max(0, min(startColumn, lineLength))
+        let clampedEnd = max(clampedStart, min(requestedEndColumn, lineLength))
+        return (clampedStart, clampedEnd)
     }
 
     func drawString(_ string: String, font: Font, color: Color, in context: inout UIGraphicsContext, at point: Point) {
@@ -246,6 +306,7 @@ extension TextEditorViewNode {
 
             var spanAttributes = fallbackAttributes
             spanAttributes.foregroundColor = span.color
+            spanAttributes.font = span.font ?? font
             let startIndex = lineText.index(lineText.startIndex, offsetBy: start)
             let endIndex = lineText.index(lineText.startIndex, offsetBy: end)
             attributedText.setAttributes(spanAttributes, at: startIndex..<endIndex)

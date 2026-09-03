@@ -1,6 +1,118 @@
 import AdaPackageManifestTool
 import Foundation
 
+/// The source-language starter used when AdaEditor creates a project.
+public enum EditorProjectTemplate: String, CaseIterable, Equatable, Sendable {
+    /// Gameplay starts in Ada Script. Swift is limited to the generated application bootstrap.
+    case adaScript
+    /// Gameplay can be implemented in both Ada Script and Swift from the start.
+    case adaScriptWithSwift
+
+    public var displayName: String {
+        switch self {
+        case .adaScript:
+            "Ada Script"
+        case .adaScriptWithSwift:
+            "Ada Script + Swift"
+        }
+    }
+
+    public var summary: String {
+        switch self {
+        case .adaScript:
+            "Script-first project with a generated Swift bootstrap"
+        case .adaScriptWithSwift:
+            "Hybrid project with editable Swift and Ada Script sources"
+        }
+    }
+}
+
+private enum EditorProjectTemplateSourceFactory {
+    static func manifest(projectName: String, targetName: String, adaEnginePackageURL: URL) -> String {
+        """
+        // swift-tools-version: 6.2
+        import PackageDescription
+
+        let package = Package(
+            name: "\(projectName)",
+            platforms: [
+                .iOS(.v18),
+                .tvOS(.v18),
+                .visionOS(.v2),
+                .macOS(.v15)
+            ],
+            products: [
+                .executable(name: "\(projectName)", targets: ["\(targetName)"])
+            ],
+            dependencies: [
+                .package(name: "AdaEngine", path: "\(escapedManifestString(adaEnginePackageURL.path))")
+            ],
+            targets: [
+                .executableTarget(
+                    name: "\(targetName)",
+                    dependencies: [.product(name: "AdaEngine", package: "AdaEngine")],
+                    resources: [.copy("../../Assets")],
+                    plugins: [.plugin(name: "AdaScriptBuildPlugin", package: "AdaEngine")]
+                )
+            ]
+        )
+        """
+    }
+
+    static func swiftBootstrap(for template: EditorProjectTemplate) -> String {
+        let appDeclaration = """
+            struct Game: App {
+                var body: some AppScene {
+                    WindowGroup(
+                        content: {
+                            Text("Hello, AdaEngine!")
+                        },
+                        assetBundle: .module
+                    )
+                    .addPlugins(AdaScriptPluginsGenerated())
+                }
+            }
+        """
+
+        switch template {
+        case .adaScript:
+            return """
+            import AdaEngine
+
+            @main
+            \(appDeclaration)
+
+            """
+        case .adaScriptWithSwift:
+            return """
+            import AdaEngine
+            import Foundation
+
+            try await Game.main()
+
+            \(appDeclaration)
+
+            """
+        }
+    }
+
+    static let adaScript = """
+    @system(scheduler: "update", id: "game.main")
+    class MainSystem {
+        func update(context) {
+            // Add gameplay here. This system runs once per frame.
+        }
+    }
+
+    """
+
+    private static func escapedManifestString(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+}
+
 /// A recently created or opened AdaEditor project persisted in the editor application data.
 public struct EditorProjectReference: Codable, Equatable, Identifiable, Sendable {
     public var id: String
@@ -56,13 +168,18 @@ public struct EditorProjectStore {
     }
 
     @discardableResult
-    public func createProject(named name: String, at parentDirectory: URL, openedAt: Date = Date()) throws -> EditorProjectReference {
+    public func createProject(
+        named name: String,
+        at parentDirectory: URL,
+        template: EditorProjectTemplate = .adaScriptWithSwift,
+        openedAt: Date = Date()
+    ) throws -> EditorProjectReference {
         let projectName = try normalizedProjectName(name)
         let projectURL = parentDirectory.appendingPathComponent(projectName, isDirectory: true)
 
         try validateCreationDestination(projectURL)
         try fileManager.createDirectory(at: projectURL, withIntermediateDirectories: true)
-        try createInitialProjectFiles(named: projectName, at: projectURL)
+        try createInitialProjectFiles(named: projectName, at: projectURL, template: template)
         _ = try ProjectSystem.createDefaultProject(at: projectURL, fileManager: fileManager)
         _ = try ensureAdaEngineDependency(at: projectURL)
 
@@ -165,75 +282,40 @@ public struct EditorProjectStore {
         try ProjectSystem.saveProject(project, at: projectURL, fileManager: fileManager)
     }
 
-    private func createInitialProjectFiles(named projectName: String, at projectURL: URL) throws {
-        try createSwiftPackage(named: projectName, at: projectURL)
+    private func createInitialProjectFiles(named projectName: String, at projectURL: URL, template: EditorProjectTemplate) throws {
+        try createSwiftPackage(named: projectName, at: projectURL, template: template)
         try createAssetsDirectory(at: projectURL)
         try createDefaultScene(named: projectName, at: projectURL)
         try createReadme(named: projectName, at: projectURL)
     }
 
-    private func createSwiftPackage(named projectName: String, at projectURL: URL) throws {
+    private func createSwiftPackage(named projectName: String, at projectURL: URL, template: EditorProjectTemplate) throws {
         let manifestURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
         guard !fileManager.fileExists(atPath: manifestURL.path) else {
             return
         }
 
         let safeTargetName = projectName.replacingOccurrences(of: "-", with: "_")
-        let manifest = """
-        // swift-tools-version: 6.2
-        import PackageDescription
-
-        let package = Package(
-            name: "\(projectName)",
-            platforms: [
-                .iOS(.v18),
-                .tvOS(.v18),
-                .visionOS(.v2),
-                .macOS(.v15)
-            ],
-            products: [
-                .executable(name: "\(projectName)", targets: ["\(safeTargetName)"])
-            ],
-            dependencies: [
-                .package(name: "AdaEngine", path: "\(Self.escapedManifestString(adaEnginePackageURL.path))")
-            ],
-            targets: [
-                .executableTarget(
-                    name: "\(safeTargetName)",
-                    dependencies: [.product(name: "AdaEngine", package: "AdaEngine")],
-                    resources: [.copy("../../Assets")],
-                    plugins: [.plugin(name: "AdaScriptBuildPlugin", package: "AdaEngine")]
-                )
-            ]
+        let manifest = EditorProjectTemplateSourceFactory.manifest(
+            projectName: projectName,
+            targetName: safeTargetName,
+            adaEnginePackageURL: adaEnginePackageURL
         )
-        """
 
         try manifest.write(to: manifestURL, atomically: true, encoding: .utf8)
         let sourcesURL = projectURL
             .appendingPathComponent("Sources", isDirectory: true)
             .appendingPathComponent(safeTargetName, isDirectory: true)
         try fileManager.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
-        let main = """
-        import AdaEngine
-        import Foundation
+        let swiftFileName = template == .adaScript ? "AdaRuntimeBootstrap.swift" : "main.swift"
+        try EditorProjectTemplateSourceFactory.swiftBootstrap(for: template).write(
+            to: sourcesURL.appendingPathComponent(swiftFileName, isDirectory: false),
+            atomically: true,
+            encoding: .utf8
+        )
 
-        try await Game.main()
-
-        struct Game: App {
-            var body: some AppScene {
-                WindowGroup(
-                    content: {
-                        Text("Hello, AdaEngine!")
-                    },
-                    assetBundle: .module
-                )
-                .addPlugins(AdaScriptPluginsGenerated())
-            }
-        }
-
-        """
-        try main.write(
-            to: sourcesURL.appendingPathComponent("main.swift", isDirectory: false),
+        try EditorProjectTemplateSourceFactory.adaScript.write(
+            to: sourcesURL.appendingPathComponent("Main.ada", isDirectory: false),
             atomically: true,
             encoding: .utf8
         )
@@ -291,12 +373,6 @@ public struct EditorProjectStore {
         guard contents.isEmpty else {
             throw EditorProjectStoreError.projectDirectoryNotEmpty(path: projectURL.path)
         }
-    }
-
-    private static func escapedManifestString(_ value: String) -> String {
-        value
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     private func createAssetsDirectory(at projectURL: URL) throws {
