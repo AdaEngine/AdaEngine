@@ -39,6 +39,9 @@ struct EditorProjectSidebar: View {
     let onFindInFolder: (EditorProjectSidebarViewModel.Item) -> Void
     let onFindInProjectRoot: () -> Void
     let onCopyPath: (EditorProjectSidebarViewModel.Item, Bool) -> Void
+    let onDeleteItem: (EditorProjectSidebarViewModel.Item) -> Void
+
+    @State private var hoveredItemID: String?
     
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
@@ -150,6 +153,7 @@ struct EditorProjectSidebar: View {
                 Button("Import Assets") {
                     onImportAssets()
                 }
+                Divider()
                 if let projectRootItem {
                     Button("Reveal in Finder") {
                         onRevealItem(projectRootItem)
@@ -163,6 +167,7 @@ struct EditorProjectSidebar: View {
                     Button("Copy Path") {
                         onCopyPath(projectRootItem, false)
                     }
+                    Divider()
                 }
                 Button("Expand All") {
                     viewModel.expandAll()
@@ -193,9 +198,19 @@ struct EditorProjectSidebar: View {
             .padding(.leading, 6 + Float(item.level) * 16)
             .padding(.trailing, 6)
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 26, maxHeight: 26, alignment: .leading)
-            .background(RoundedRectangleShape(cornerRadius: 5).fill(item.isActive ? theme.editorColors.blue.opacity(0.22) : Color.clear))
+            .background(
+                RoundedRectangleShape(cornerRadius: 5)
+                    .fill(projectTreeRowBackground(for: item))
+            )
         }
         .buttonStyle(DefaultButtonStyle())
+        .onHover { isHovered in
+            if isHovered {
+                hoveredItemID = item.id
+            } else if hoveredItemID == item.id {
+                hoveredItemID = nil
+            }
+        }
         .contextMenu(onPresent: { viewModel.select(item) }) {
             Button("New File") {
                 onNewFile()
@@ -208,6 +223,7 @@ struct EditorProjectSidebar: View {
                     onOpenRawItem(item)
                 }
             }
+            Divider()
             Button("Reveal in Finder") {
                 onRevealItem(item)
             }
@@ -222,6 +238,7 @@ struct EditorProjectSidebar: View {
             Button("Find in Folder...") {
                 onFindInFolder(item)
             }
+            Divider()
             Button("Copy Path") {
                 onCopyPath(item, false)
             }
@@ -229,6 +246,7 @@ struct EditorProjectSidebar: View {
                 onCopyPath(item, true)
             }
             if item.isFolder {
+                Divider()
                 Button("Expand All") {
                     viewModel.expandAll()
                 }
@@ -236,8 +254,22 @@ struct EditorProjectSidebar: View {
                     viewModel.collapseAll()
                 }
             }
+            Divider()
+            Button("Delete", role: .destructive) {
+                onDeleteItem(item)
+            }
         }
         .accessibilityIdentifier("AdaEditor.ProjectTree.\(item.title)")
+    }
+
+    private func projectTreeRowBackground(for item: EditorProjectSidebarViewModel.Item) -> Color {
+        if item.isActive {
+            return theme.editorColors.blue.opacity(0.22)
+        }
+        if hoveredItemID == item.id {
+            return theme.editorColors.blue.opacity(0.12)
+        }
+        return .clear
     }
 
     private func disclosureIcon(for item: EditorProjectSidebarViewModel.Item) -> String {

@@ -118,6 +118,49 @@ struct TextEditorTests {
     }
 
     @Test
+    func textEditor_routesCompletionKeysBeforeEditingCommands() {
+        final class Model {
+            var text = "value"
+            var selectionMoves: [Int] = []
+            var acceptedCompletionCount = 0
+        }
+
+        let model = Model()
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                ),
+                sourceInteraction: TextEditorSourceInteraction(
+                    onMoveCompletionSelection: { delta in
+                        model.selectionMoves.append(delta)
+                        return true
+                    },
+                    onAcceptCompletion: {
+                        model.acceptedCompletionCount += 1
+                        return true
+                    }
+                )
+            )
+            .font(.system(size: 12))
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(100, 28), phase: .began, time: 0)
+        tester.sendMouseEvent(at: Point(100, 28), phase: .ended, time: 0.01)
+        tester.sendKeyEvent(.arrowUp, time: 0.02)
+        tester.sendKeyEvent(.arrowDown, time: 0.03)
+        tester.sendKeyEvent(.enter, time: 0.04)
+
+        #expect(model.selectionMoves == [-1, 1])
+        #expect(model.acceptedCompletionCount == 1)
+        #expect(model.text == "value")
+    }
+
+    @Test
     func textEditor_supportsCopyPasteAndTabInsertion() {
         final class Model {
             var text = "value"

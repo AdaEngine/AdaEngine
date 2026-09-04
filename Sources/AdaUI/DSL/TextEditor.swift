@@ -122,6 +122,8 @@ public struct TextEditorSourceInteraction {
     public var onPrimaryClick: ((TextEditorSourcePosition) -> Void)?
     public var onCaretChange: ((TextEditorSourcePosition, String) -> Void)?
     public var onRequestCompletion: ((TextEditorSourcePosition, String) -> Void)?
+    public var onMoveCompletionSelection: ((Int) -> Bool)?
+    public var onAcceptCompletion: (() -> Bool)?
     public var onSelectionChange: ((TextEditorSourceRange?, String?) -> Void)?
     public var onChatSelection: ((TextEditorSourceRange, String) -> Void)?
     public var contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])?
@@ -135,6 +137,8 @@ public struct TextEditorSourceInteraction {
         onPrimaryClick: ((TextEditorSourcePosition) -> Void)? = nil,
         onCaretChange: ((TextEditorSourcePosition, String) -> Void)? = nil,
         onRequestCompletion: ((TextEditorSourcePosition, String) -> Void)? = nil,
+        onMoveCompletionSelection: ((Int) -> Bool)? = nil,
+        onAcceptCompletion: (() -> Bool)? = nil,
         onSelectionChange: ((TextEditorSourceRange?, String?) -> Void)? = nil,
         onChatSelection: ((TextEditorSourceRange, String) -> Void)? = nil,
         contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])? = nil
@@ -147,6 +151,8 @@ public struct TextEditorSourceInteraction {
         self.onPrimaryClick = onPrimaryClick
         self.onCaretChange = onCaretChange
         self.onRequestCompletion = onRequestCompletion
+        self.onMoveCompletionSelection = onMoveCompletionSelection
+        self.onAcceptCompletion = onAcceptCompletion
         self.onSelectionChange = onSelectionChange
         self.onChatSelection = onChatSelection
         self.contextMenuItems = contextMenuItems

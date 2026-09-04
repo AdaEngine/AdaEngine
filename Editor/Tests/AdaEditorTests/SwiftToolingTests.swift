@@ -403,6 +403,53 @@ struct SwiftToolingTests {
         #expect(updatedDocument.completionPosition == nil)
     }
 
+    @Test("completion selection moves with arrows and Enter applies the selected item")
+    @MainActor
+    func completionSelectionMovesAndApplies() {
+        let suggestions = [
+            EditorCompletionItem(label: "if", detail: nil, insertText: "if", replacementRange: nil, sortText: nil),
+            EditorCompletionItem(label: "import", detail: nil, insertText: "import", replacementRange: nil, sortText: nil),
+        ]
+        let document = EditorTextDocument(
+            id: "main",
+            title: "main.ada",
+            relativePath: "Sources/Game/main.ada",
+            absolutePath: "/tmp/Game/Sources/Game/main.ada",
+            language: .ada,
+            content: "i",
+            completionItems: suggestions,
+            completionPosition: EditorSourceLocation(line: 0, character: 1)
+        )
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "Game", path: "/tmp/Game"),
+            workspaceService: RecordingWorkspaceService(),
+            workbench: EditorWorkbenchViewModel(activeEditorTab: "main.ada", openDocuments: [.text(document)], activeDocumentID: document.id)
+        )
+
+        #expect(viewModel.moveCompletionSelection(in: document, by: 1))
+        guard case .text(let selectedDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected active text document")
+            return
+        }
+        #expect(selectedDocument.selectedCompletionIndex == 1)
+        #expect(viewModel.moveCompletionSelection(in: selectedDocument, by: 1))
+
+        guard case .text(let clampedDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected active text document")
+            return
+        }
+        #expect(clampedDocument.selectedCompletionIndex == 1)
+        #expect(viewModel.applySelectedCompletion(in: clampedDocument))
+
+        guard case .text(let completedDocument)? = viewModel.workbench.activeDocument else {
+            Issue.record("Expected active text document")
+            return
+        }
+        #expect(completedDocument.content == "import")
+        #expect(completedDocument.completionItems.isEmpty)
+        #expect(completedDocument.completionPosition == nil)
+    }
+
     @Test("command hover stores the selected symbol range and available description")
     @MainActor
     func commandHoverStoresRangeAndDescription() async throws {

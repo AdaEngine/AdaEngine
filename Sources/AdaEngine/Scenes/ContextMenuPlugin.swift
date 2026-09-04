@@ -172,10 +172,7 @@ private enum ContextMenuPresenter {
 
     private static func menuSize(for items: [ContextMenuPresentation.Item]) -> Size {
         let longestTitleCount = items.lazy.filter { !$0.isSeparator }.map(\.title.count).max() ?? 0
-        let width = max(
-            ContextMenuMetrics.minimumWidth,
-            min(ContextMenuMetrics.maximumWidth, Float(longestTitleCount * 7 + 44))
-        )
+        let width = ContextMenuMetrics.width(longestTitleCharacterCount: longestTitleCount)
         let height = items.reduce(ContextMenuMetrics.verticalPadding * 2) { height, item in
             height + ContextMenuMetrics.height(for: item)
         }
@@ -280,7 +277,7 @@ private final class ContextMenuSession {
     }
 }
 
-private enum ContextMenuMetrics {
+enum ContextMenuMetrics {
     static let rowHeight: Float = 28
     static let separatorHeight: Float = 9
     static let verticalPadding: Float = 5
@@ -288,6 +285,17 @@ private enum ContextMenuMetrics {
     static let minimumWidth: Float = 184
     static let maximumWidth: Float = 320
     static let horizontalPadding: Float = 10
+    static let itemSpacing: Float = 8
+    static let submenuIndicatorWidth: Float = 8
+
+    static func width(longestTitleCharacterCount: Int) -> Float {
+        max(minimumWidth, min(maximumWidth, Float(longestTitleCharacterCount * 7 + 44)))
+    }
+
+    static func titleWidth(menuWidth: Float, hasSubmenu: Bool) -> Float {
+        let submenuWidth = hasSubmenu ? itemSpacing + submenuIndicatorWidth : 0
+        return max(0, menuWidth - horizontalPadding * 2 - submenuWidth)
+    }
 
     static func height(for item: ContextMenuPresentation.Item) -> Float {
         item.isSeparator ? separatorHeight : rowHeight
@@ -337,14 +345,21 @@ private struct ContextMenuWindowContent: View {
                     )
                 }
             }) {
-                HStack(spacing: 8) {
+                HStack(spacing: ContextMenuMetrics.itemSpacing) {
                     Text(item.title)
                         .font(.system(size: 12))
                         .foregroundColor(item.role == .destructive ? destructiveTextColor : primaryTextColor)
                         .lineLimit(1)
-                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                        .frame(
+                            width: ContextMenuMetrics.titleWidth(menuWidth: menuWidth, hasSubmenu: !item.submenu.isEmpty),
+                            height: ContextMenuMetrics.rowHeight,
+                            alignment: .leading
+                        )
                     if !item.submenu.isEmpty {
-                        Text(">").font(.system(size: 12)).foregroundColor(primaryTextColor.opacity(0.74))
+                        Text(">")
+                            .font(.system(size: 12))
+                            .foregroundColor(primaryTextColor.opacity(0.74))
+                            .frame(width: ContextMenuMetrics.submenuIndicatorWidth, height: ContextMenuMetrics.rowHeight)
                     }
                 }
                 .padding(.horizontal, ContextMenuMetrics.horizontalPadding)
@@ -370,12 +385,8 @@ private struct ContextMenuWindowContent: View {
     }
 
     private var menuWidth: Float {
-        max(
-            ContextMenuMetrics.minimumWidth,
-            min(
-                ContextMenuMetrics.maximumWidth,
-                Float((items.lazy.filter { !$0.isSeparator }.map(\.title.count).max() ?? 0) * 7 + 44)
-            )
+        ContextMenuMetrics.width(
+            longestTitleCharacterCount: items.lazy.filter { !$0.isSeparator }.map(\.title.count).max() ?? 0
         )
     }
 }

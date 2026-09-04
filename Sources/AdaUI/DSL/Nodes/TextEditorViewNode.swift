@@ -261,6 +261,23 @@ final class TextEditorViewNode: ViewNode {
             return
         }
 
+        if event.modifiers.isEmpty {
+            let completionCommandHandled = switch event.keyCode {
+            case .arrowUp:
+                self.sourceInteraction?.onMoveCompletionSelection?(-1) == true
+            case .arrowDown:
+                self.sourceInteraction?.onMoveCompletionSelection?(1) == true
+            case .enter:
+                self.sourceInteraction?.onAcceptCompletion?() == true
+            default:
+                false
+            }
+            if completionCommandHandled {
+                self.resetCaretBlink()
+                return
+            }
+        }
+
         if event.keyCode == .escape, let requestCompletion = self.sourceInteraction?.onRequestCompletion {
             let position = self.position(forOffset: self.selectionHead, lines: self.lines())
             requestCompletion(

@@ -295,6 +295,7 @@ struct EditorTextDocument: Equatable, Sendable {
     var semanticTokens: [EditorSemanticToken] = []
     var completionItems: [EditorCompletionItem] = []
     var completionPosition: EditorSourceLocation?
+    var selectedCompletionIndex = 0
     var symbolHighlights: [EditorSourceRange] = []
     var sourceHoverRange: EditorSourceRange?
     var sourceHoverDescription: String?
@@ -639,7 +640,9 @@ final class EditorProjectSidebarViewModel {
     var isDisplayModeMenuPresented: Bool
 
     var visibleItems: [Item] {
-        displayedItems.filter { !isHiddenByCollapsedFolder($0) }
+        let displayedItems = displayedItems
+        let displayedFolderIDs = Set(displayedItems.lazy.filter(\.isFolder).map(\.id))
+        return displayedItems.filter { !isHiddenByCollapsedFolder($0, displayedFolderIDs: displayedFolderIDs) }
     }
 
     var selectedItem: Item? {
@@ -754,9 +757,10 @@ final class EditorProjectSidebarViewModel {
         collapsedFolderIDs = Set(items.lazy.filter(\.isFolder).map(\.id))
     }
 
-    private func isHiddenByCollapsedFolder(_ item: Item) -> Bool {
+    private func isHiddenByCollapsedFolder(_ item: Item, displayedFolderIDs: Set<String>) -> Bool {
         collapsedFolderIDs.contains { collapsedFolderID in
             guard
+                displayedFolderIDs.contains(collapsedFolderID),
                 item.id != collapsedFolderID,
                 let collapsedFolder = items.first(where: { $0.id == collapsedFolderID })
             else {
@@ -962,6 +966,32 @@ final class EditorWorkbenchViewModel {
 
         let nextIndex = min(closingIndex, openDocuments.count - 1)
         selectDocument(id: openDocuments[nextIndex].id, recordsNavigation: false)
+    }
+
+    func discardDocuments(atOrBelow relativePath: String) {
+        let discardedIDs = openDocuments.compactMap { document -> String? in
+            document.relativePath == relativePath || document.relativePath.hasPrefix("\(relativePath)/") ? document.id : nil
+        }
+        guard !discardedIDs.isEmpty else {
+            return
+        }
+
+        let discardedIDSet = Set(discardedIDs)
+        let wasActiveDocumentDiscarded = discardedIDSet.contains(activeDocumentID)
+        openDocuments.removeAll { discardedIDSet.contains($0.id) }
+        navigationHistory.removeAll { discardedIDSet.contains($0) }
+        navigationHistoryIndex = min(navigationHistoryIndex, navigationHistory.count - 1)
+
+        guard wasActiveDocumentDiscarded else {
+            return
+        }
+        guard let nextDocument = openDocuments.first else {
+            activeDocumentID = ""
+            activeEditorTab = ""
+            onActiveDocumentChanged?()
+            return
+        }
+        selectDocument(id: nextDocument.id, recordsNavigation: false)
     }
 
     func closeOtherDocuments(keeping documentID: String) {
@@ -1780,6 +1810,7 @@ final class EditorViewModel {
     var selectedTestFilter: String
     var playModeState: EditorPlayModeState
     var isNewFileDialogPresented = false
+    var pendingDeleteProjectItem: EditorProjectSidebarViewModel.Item?
     var newFileKind = EditorNewFileKind.scene
     var newFileName = ""
     var newFileDestinationRelativePath = ""
@@ -1974,6 +2005,17 @@ final class EditorViewModel {
         )
     }
 
+    var isDeleteProjectItemAlertPresentedBinding: Binding<Bool> {
+        Binding(
+            get: { self.pendingDeleteProjectItem != nil },
+            set: { isPresented in
+                if !isPresented {
+                    self.pendingDeleteProjectItem = nil
+                }
+            }
+        )
+    }
+
     var newFileLocationTitle: String {
         newFileDestinationRelativePath.isEmpty ? (project?.name ?? "Project") : newFileDestinationRelativePath
     }
@@ -2007,6 +2049,44 @@ final class EditorViewModel {
     func dismissNewFileDialog() {
         isNewFileDialogPresented = false
         newFileErrorMessage = nil
+    }
+
+    func presentDeleteProjectItemAlert(_ item: EditorProjectSidebarViewModel.Item) {
+        guard fileURL(for: item) != nil else {
+            appendOutput("Delete is unavailable for this item.")
+            return
+        }
+        pendingDeleteProjectItem = item
+    }
+
+    @discardableResult
+    func deleteProjectItem(_ item: EditorProjectSidebarViewModel.Item) -> Bool {
+        pendingDeleteProjectItem = nil
+        guard let projectURL, let itemURL = fileURL(for: item) else {
+            appendOutput("Delete is unavailable for this item.")
+            return false
+        }
+
+        let standardizedProjectURL = projectURL.standardizedFileURL
+        let standardizedItemURL = itemURL.standardizedFileURL
+        guard standardizedItemURL.path != standardizedProjectURL.path,
+              standardizedItemURL.path.hasPrefix("\(standardizedProjectURL.path)/")
+        else {
+            appendOutput("Delete failed: the item is outside the project.")
+            return false
+        }
+
+        do {
+            try fileManager.removeItem(at: standardizedItemURL)
+            workbench.discardDocuments(atOrBelow: item.relativePath)
+            refreshProjectFiles(logsRefresh: false)
+            refreshSourceControl()
+            appendOutput("Deleted \(item.relativePath)")
+            return true
+        } catch {
+            appendOutput("Delete failed for \(item.relativePath): \(error.localizedDescription)")
+            return false
+        }
     }
 
     @discardableResult
@@ -2590,7 +2670,7 @@ final class EditorViewModel {
         }
     }
 
-    private func refreshProjectFiles() {
+    private func refreshProjectFiles(logsRefresh: Bool = true) {
         let selectedID = projectSidebar.selectedItem?.id
         let collapsedIDs = projectSidebar.collapsedFolderIDs
         let items = Self.projectTreeItems(for: project, fileManager: fileManager)
@@ -2600,7 +2680,9 @@ final class EditorViewModel {
             projectSidebar.select(selected)
         }
         toolbar.searchableItems = items
-        appendOutput("Refreshed project files")
+        if logsRefresh {
+            appendOutput("Refreshed project files")
+        }
     }
 
     func selectWorkbenchDocument(id documentID: String) {
@@ -3448,6 +3530,7 @@ final class EditorViewModel {
         workbench.updateTextDocument(id: document.id) { updatedDocument in
             updatedDocument.completionItems = []
             updatedDocument.completionPosition = nil
+            updatedDocument.selectedCompletionIndex = 0
         }
         guard supportsCompletions(document), let fileURL = document.fileURL else {
             return
@@ -3487,6 +3570,7 @@ final class EditorViewModel {
             workbench.updateTextDocument(id: document.id) { updatedDocument in
                 updatedDocument.completionItems = []
                 updatedDocument.completionPosition = nil
+                updatedDocument.selectedCompletionIndex = 0
             }
             return
         }
@@ -3530,6 +3614,7 @@ final class EditorViewModel {
                     }
                     updatedDocument.completionItems = Array(items.prefix(8))
                     updatedDocument.completionPosition = position
+                    updatedDocument.selectedCompletionIndex = 0
                 }
                 self.completionTask = nil
             }
@@ -3550,10 +3635,41 @@ final class EditorViewModel {
             updatedDocument.errorMessage = nil
             updatedDocument.completionItems = []
             updatedDocument.completionPosition = nil
+            updatedDocument.selectedCompletionIndex = 0
             updatedDocument.focusedRange = EditorSourceRange(start: edit.caret, end: edit.caret)
         }
         completionTask?.cancel()
         completionTask = nil
+    }
+
+    @discardableResult
+    func moveCompletionSelection(in document: EditorTextDocument, by delta: Int) -> Bool {
+        guard delta != 0,
+              case .text(let currentDocument)? = workbench.openDocuments.first(where: { $0.id == document.id }),
+              !currentDocument.completionItems.isEmpty
+        else {
+            return false
+        }
+
+        let lastIndex = currentDocument.completionItems.count - 1
+        let currentIndex = min(max(0, currentDocument.selectedCompletionIndex), lastIndex)
+        let selectedIndex = min(max(0, currentIndex + delta), lastIndex)
+        workbench.updateTextDocument(id: document.id) { updatedDocument in
+            updatedDocument.selectedCompletionIndex = selectedIndex
+        }
+        return true
+    }
+
+    @discardableResult
+    func applySelectedCompletion(in document: EditorTextDocument) -> Bool {
+        guard case .text(let currentDocument)? = workbench.openDocuments.first(where: { $0.id == document.id }),
+              currentDocument.completionItems.indices.contains(currentDocument.selectedCompletionIndex)
+        else {
+            return false
+        }
+
+        applyCompletion(currentDocument.completionItems[currentDocument.selectedCompletionIndex], to: currentDocument)
+        return true
     }
 
     static func applyingCompletion(

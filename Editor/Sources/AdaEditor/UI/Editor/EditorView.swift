@@ -195,6 +195,20 @@ struct EditorView: View {
         .fullScreenCover(isPresented: viewModel.isNewFileDialogPresentedBinding) {
             EditorNewFileDialog(viewModel: viewModel)
         }
+        .alert(
+            "Delete item?",
+            isPresented: viewModel.isDeleteProjectItemAlertPresentedBinding,
+            presenting: viewModel.pendingDeleteProjectItem,
+            actions: { item in
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) {
+                    viewModel.deleteProjectItem(item)
+                }
+            },
+            message: { item in
+                Text("\(item.title) will be permanently deleted from the project.")
+            }
+        )
         .menuBar(EditorMenuBar.makeMenus())
         .keyboardShortcuts(editorKeyboardShortcuts)
         .onChange(of: viewModel.settingsPresentationToken) { _, _ in
@@ -348,6 +362,12 @@ private struct EditorWorkspaceRegion: View {
                             onApplyCompletion: { item, document in
                                 viewModel.applyCompletion(item, to: document)
                             },
+                            onMoveCompletionSelection: { document, delta in
+                                viewModel.moveCompletionSelection(in: document, by: delta)
+                            },
+                            onAcceptCompletion: { document in
+                                viewModel.applySelectedCompletion(in: document)
+                            },
                             onTextSelection: { document, range, text in
                                 viewModel.handleTextSelection(document: document, range: range, text: text)
                             },
@@ -462,6 +482,9 @@ private struct EditorLeftSidebarContent: View {
                 },
                 onCopyPath: { item, relative in
                     viewModel.copyProjectItemPath(item, relative: relative)
+                },
+                onDeleteItem: { item in
+                    viewModel.presentDeleteProjectItemAlert(item)
                 }
             )
         }

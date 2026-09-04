@@ -224,6 +224,8 @@ struct AdaEngineStyleUITests {
                 onCompletionPosition: nil,
                 onCompletionRequest: nil,
                 onApplyCompletion: nil,
+                onMoveCompletionSelection: nil,
+                onAcceptCompletion: nil,
                 onTextSelection: nil,
                 onChatSelection: nil,
                 sourceContextMenuItems: nil,
@@ -1400,6 +1402,7 @@ struct AdaEngineStyleUITests {
         let project = EditorProjectReference(name: "EditorProjectSidebarCollapse", path: rootURL.path)
         let viewModel = EditorViewModel(project: project)
         let sourcesItem = try #require(viewModel.projectSidebar.items.first { $0.relativePath == "Sources" })
+        viewModel.projectSidebar.selectDisplayMode(.files)
 
         #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Sources/Game/main.swift" })
         viewModel.openProjectItem(sourcesItem)
@@ -1441,10 +1444,46 @@ struct AdaEngineStyleUITests {
             "Sources/Tools/tool.swift",
         ])
 
+        viewModel.projectSidebar.collapseAll()
+        #expect(viewModel.projectSidebar.visibleItems.map(\.relativePath) == [
+            "Assets",
+            "Sources/Game",
+            "Sources/Tools",
+        ])
+
+        viewModel.projectSidebar.expandAll()
+        #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Sources/Game/main.swift" })
+
         viewModel.projectSidebar.selectDisplayMode(.files)
         #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Sources" })
         #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "README.md" })
         #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Package.swift" })
+    }
+
+    @Test("project sidebar deletes real project files and closes their editors")
+    @MainActor
+    func projectSidebarDeletesProjectFiles() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorProjectSidebarDelete")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        let sourceURL = rootURL.appendingPathComponent("Sources/Game", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceURL, withIntermediateDirectories: true)
+        let fileURL = sourceURL.appendingPathComponent("Player.swift", isDirectory: false)
+        try "struct Player {}\n".write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let viewModel = EditorViewModel(project: EditorProjectReference(name: "EditorProjectSidebarDelete", path: rootURL.path))
+        let item = try #require(viewModel.projectSidebar.items.first { $0.relativePath == "Sources/Game/Player.swift" })
+        viewModel.openProjectItem(item)
+        #expect(viewModel.workbench.openDocuments.contains { $0.relativePath == "Sources/Game/Player.swift" })
+
+        viewModel.presentDeleteProjectItemAlert(item)
+        #expect(viewModel.pendingDeleteProjectItem == item)
+        #expect(viewModel.deleteProjectItem(item))
+
+        #expect(!FileManager.default.fileExists(atPath: fileURL.path))
+        #expect(!viewModel.projectSidebar.items.contains { $0.relativePath == "Sources/Game/Player.swift" })
+        #expect(!viewModel.workbench.openDocuments.contains { $0.relativePath == "Sources/Game/Player.swift" })
+        #expect(viewModel.pendingDeleteProjectItem == nil)
     }
 
     @Test("toolbar search finds nested project files and supports a folder scope")

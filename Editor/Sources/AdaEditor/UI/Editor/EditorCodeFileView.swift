@@ -17,6 +17,8 @@ struct EditorCodeFileView: View {
     let onCompletionPosition: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
     let onCompletionRequest: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
     let onApplyCompletion: ((EditorCompletionItem, EditorTextDocument) -> Void)?
+    let onMoveCompletionSelection: ((EditorTextDocument, Int) -> Bool)?
+    let onAcceptCompletion: ((EditorTextDocument) -> Bool)?
     let onTextSelection: ((EditorTextDocument, EditorSourceRange?, String?) -> Void)?
     let onChatSelection: ((EditorTextDocument, EditorSourceRange, String) -> Void)?
     let sourceContextMenuItems: ((EditorTextDocument, EditorSourceLocation) -> [TextEditorContextMenuItem])?
@@ -110,7 +112,8 @@ private extension EditorCodeFileView {
 
         return ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(document.completionItems, id: \.self) { item in
+                ForEach(0..<document.completionItems.count) { index in
+                    let item = document.completionItems[index]
                     Button(action: { onApplyCompletion?(item, document) }) {
                         HStack(spacing: 8) {
                             completionKindBadge(item.kind)
@@ -130,7 +133,12 @@ private extension EditorCodeFileView {
                         .padding(.horizontal, 8)
                         .frame(width: rowWidth, height: EditorCompletionPopupLayout.rowHeight, alignment: .leading)
                     }
-                    .buttonStyle(EditorCompletionButtonStyle(theme: theme))
+                    .buttonStyle(
+                        EditorCompletionButtonStyle(
+                            theme: theme,
+                            isKeyboardSelected: index == document.selectedCompletionIndex
+                        )
+                    )
                 }
             }
         }
@@ -222,6 +230,14 @@ private extension EditorCodeFileView {
             onRequestCompletion: { position, currentText in
                 guard supportsLanguageTooling else { return }
                 onCompletionRequest?(document, EditorSourceLocation(textEditorPosition: position), currentText)
+            },
+            onMoveCompletionSelection: { delta in
+                guard supportsLanguageTooling else { return false }
+                return onMoveCompletionSelection?(document, delta) ?? false
+            },
+            onAcceptCompletion: {
+                guard supportsLanguageTooling else { return false }
+                return onAcceptCompletion?(document) ?? false
             },
             onSelectionChange: { range, text in
                 onTextSelection?(document, range.map { EditorSourceRange(textEditorRange: $0) }, text)
@@ -541,10 +557,11 @@ struct EditorCompletionPopupLayout {
 
 private struct EditorCompletionButtonStyle: ButtonStyle {
     let theme: Theme
+    let isKeyboardSelected: Bool
 
     func makeBody(configuration: Configuration) -> some View {
         let colors = theme.editorColors
-        let backgroundColor = if configuration.isSelected {
+        let backgroundColor = if isKeyboardSelected || configuration.isSelected {
             colors.blue.opacity(0.28)
         } else if configuration.isHighlighted {
             colors.border.opacity(0.72)
