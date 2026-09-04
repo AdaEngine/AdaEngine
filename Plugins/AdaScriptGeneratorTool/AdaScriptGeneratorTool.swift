@@ -57,6 +57,7 @@ struct AdaScriptGeneratorTool {
         }
         let schemas = try AdaScriptSchemaParser.parse(sources: compilerSources)
         let scriptables = try AdaScriptSchemaParser.parseScriptables(sources: compilerSources)
+        let views = try AdaScriptSchemaParser.parseViews(sources: compilerSources)
         let hasSystems = try !AdaScriptSchemaParser.parseSystemCapabilities(sources: compilerSources).isEmpty
 
         let scriptsDeclaration = embeddedSourcesDeclaration(scripts)
@@ -67,6 +68,8 @@ struct AdaScriptGeneratorTool {
             .map { schemaRegistration($0, moduleName: moduleName) }
             .joined(separator: "\n        ")
         let scriptableRegistration = scriptableRegistration(scriptables)
+        let viewAccessors = AdaScriptViewSourceGenerator.accessors(views, moduleName: moduleName)
+        let viewRegistration = AdaScriptViewSourceGenerator.registration(views, moduleName: moduleName)
         let systemRegistration = systemRegistration(hasSystems: hasSystems, moduleName: moduleName)
 
         return """
@@ -75,6 +78,8 @@ struct AdaScriptGeneratorTool {
 
         \(dataDeclarations)
 
+        \(viewAccessors)
+
         struct AdaScriptPluginsGenerated: Plugin {
             @MainActor
             func setup(in app: borrowing AppWorlds) {
@@ -82,6 +87,7 @@ struct AdaScriptGeneratorTool {
                 guard !Self.sources.isEmpty else { return }
                 do {
                     \(scriptableRegistration)
+                    \(viewRegistration)
                     \(systemRegistration)
                 } catch {
                     print("AdaEngine: failed to load Ada Script module \\(Self.moduleName): \\(error)")
@@ -89,7 +95,7 @@ struct AdaScriptGeneratorTool {
             }
 
             private static let moduleName = \(swiftStringLiteral(moduleName))
-            private static let sources: [GravityScriptSource] = \(scriptsDeclaration)
+            private static let sources: [AdaScriptSource] = \(scriptsDeclaration)
         }
 
         """
@@ -98,7 +104,7 @@ struct AdaScriptGeneratorTool {
     private static func embeddedSourcesDeclaration(_ scripts: [(path: String, source: String)]) -> String {
         let entries = scripts
             .map { script in
-                "        GravityScriptSource(path: \(swiftStringLiteral(script.path)), source: \(swiftStringLiteral(script.source)))"
+                "        AdaScriptSource(path: \(swiftStringLiteral(script.path)), source: \(swiftStringLiteral(script.source)))"
             }
             .joined(separator: ",\n")
         return entries.isEmpty ? "[]" : "[\n\(entries)\n    ]"
@@ -112,7 +118,7 @@ struct AdaScriptGeneratorTool {
             .map(scriptableSchemaDeclaration)
             .joined(separator: ",\n")
         return """
-                try GravityScriptableObjectRegistration.register(
+                try AdaScriptObjectRegistration.register(
                     schemas: [
         \(declarations)
                     ],
@@ -128,7 +134,7 @@ struct AdaScriptGeneratorTool {
         }
         return """
                 app.addPlugin(
-                    try GravityScriptPlugin(
+                    try AdaScriptPlugin(
                         sources: Self.sources,
                         name: \(swiftStringLiteral(moduleName))
                     )
@@ -147,7 +153,7 @@ struct AdaScriptGeneratorTool {
             }
             .joined(separator: ", ")
         return """
-                        GravityScriptableSchema(
+                        AdaScriptObjectSchema(
                             identifier: \(swiftStringLiteral(schema.id)),
                             className: \(swiftStringLiteral(schema.name)),
                             version: \(schema.version),
@@ -167,7 +173,7 @@ struct AdaScriptGeneratorTool {
             kind = ".resource(optional: \(optional))"
         }
         return """
-        GravityScriptableBinding(
+        AdaScriptObjectBinding(
             kind: \(kind),
             propertyName: \(swiftStringLiteral(binding.propertyName)),
             typeName: \(swiftStringLiteral(binding.typeName))

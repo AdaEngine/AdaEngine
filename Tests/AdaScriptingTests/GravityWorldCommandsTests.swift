@@ -9,7 +9,7 @@ struct GravityWorldCommandsTests {
     @MainActor
     func defersDespawnDuringIteration() async throws {
         registerComponents()
-        let plugin = try GravityScriptPlugin(
+        let plugin = try AdaScriptPlugin(
             source: """
             @system(id: "cleanup.system")
             class CleanupSystem {
@@ -41,7 +41,7 @@ struct GravityWorldCommandsTests {
     @MainActor
     func mutatesStructureWithDefaults() async throws {
         registerComponents()
-        let plugin = try GravityScriptPlugin(
+        let plugin = try AdaScriptPlugin(
             source: """
             @system(id: "spawn.system")
             class SpawnSystem {
@@ -69,7 +69,7 @@ struct GravityWorldCommandsTests {
     @MainActor
     func rejectsRetainedCapability() async throws {
         registerComponents()
-        let plugin = try GravityScriptPlugin(
+        let plugin = try AdaScriptPlugin(
             source: """
             var savedCommands = 0;
             var commandUpdates = 0;
@@ -102,7 +102,7 @@ struct GravityWorldCommandsTests {
     @MainActor
     func rejectsUndeclaredCapability() async throws {
         registerComponents()
-        let plugin = try GravityScriptPlugin(
+        let plugin = try AdaScriptPlugin(
             source: """
             @system(id: "undeclared.system")
             class UndeclaredSystem {

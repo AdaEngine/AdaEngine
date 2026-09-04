@@ -8,7 +8,7 @@ AdaEngine provides two ways to install Ada Script plugins:
 
 - **Automatic discovery** embeds every `.ada` file in an executable target at
   build time and generates one plugin backed by one target-level script module.
-- **Manual loading** creates a ``GravityScriptPlugin`` from source text or a file URL at runtime.
+- **Manual loading** creates an ``AdaScriptPlugin`` from source text or a file URL at runtime.
 
 AdaEditor-created projects use automatic discovery. Use manual loading when scripts live outside the Swift target, come from a downloaded package, or need explicit error handling.
 
@@ -81,7 +81,7 @@ let package = Package(
 The build plugin finds `.ada` files through SwiftPM, sorts them by target-relative
 path, and generates `AdaScriptPluginsGenerated.swift` in the plugin work
 directory. The generated plugin passes one source map to one
-``GravityScriptPlugin``. Script source is embedded in the executable; the
+``AdaScriptPlugin``. Script source is embedded in the executable; the
 original files are not read at runtime.
 
 Install the generated plugin in your app scene:
@@ -100,7 +100,7 @@ struct MyGame: App {
 }
 ```
 
-Rebuilding the target after adding, removing, renaming, or editing an `.ada` file refreshes the generated source. Files ending in `.gravity` are supported by manual loading but are not discovered by `AdaScriptBuildPlugin`.
+Rebuilding the target after adding, removing, renaming, or editing an `.ada` file refreshes the generated source.
 
 The same generated source contains native backing structs and registration for
 scalar `@component` and `@resource` declarations. Because these declarations
@@ -144,7 +144,7 @@ The `@Component` macro supplies field reflection for supported property types. A
 
 ## Load a script manually
 
-Create a ``GravityScriptPlugin`` when you need control over the source location or loading failure:
+Create an ``AdaScriptPlugin`` when you need control over the source location or loading failure:
 
 ```swift
 import AdaEngine
@@ -155,7 +155,7 @@ struct RuntimeScriptsPlugin: Plugin {
     @MainActor
     func setup(in app: borrowing AppWorlds) {
         do {
-            let script = try GravityScriptPlugin(contentsOf: scriptURL)
+            let script = try AdaScriptPlugin(contentsOf: scriptURL)
             app.addPlugin(script)
         } catch {
             print("Could not load Ada Script: \(error)")
@@ -164,9 +164,9 @@ struct RuntimeScriptsPlugin: Plugin {
 }
 ```
 
-You can also use ``GravityScriptPlugin/init(source:name:)`` when one source is
-already in memory, or ``GravityScriptPlugin/init(sources:name:)`` with
-``GravityScriptSource`` values for a multi-file module. Script compilation,
+You can also use ``AdaScriptPlugin/init(source:name:)`` when one source is
+already in memory, or ``AdaScriptPlugin/init(sources:name:)`` with
+``AdaScriptSource`` values for a multi-file module. Script compilation,
 import resolution, and annotation validation happen during initialization.
 Native component resolution happens later during plugin setup.
 

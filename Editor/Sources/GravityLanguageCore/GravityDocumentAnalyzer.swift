@@ -146,13 +146,13 @@ struct GravityDocumentAnalyzer {
         switch keyword {
         case "func":
             kind = memberContext ? .method : .function
-            detail = memberContext ? "Gravity method" : "Gravity function"
+            detail = memberContext ? "Ada Script method" : "Ada Script function"
         case "var":
             kind = memberContext ? .property : .variable
-            detail = memberContext ? "Gravity property" : "Gravity variable"
+            detail = memberContext ? "Ada Script property" : "Ada Script variable"
         case "const":
             kind = memberContext ? .property : .constant
-            detail = memberContext ? "Gravity property" : "Gravity constant"
+            detail = memberContext ? "Ada Script property" : "Ada Script constant"
         default:
             return nil
         }

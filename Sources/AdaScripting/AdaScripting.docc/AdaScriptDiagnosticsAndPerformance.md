@@ -5,10 +5,10 @@ native chunk path.
 
 ## Compilation diagnostics
 
-``GravityScriptPlugin`` compiles the source and reads declaration metadata
+``AdaScriptPlugin`` compiles the source and reads declaration metadata
 without executing a `main()` manifest. Initialization throws
-``GravityScriptError/compilation(_:)`` for Gravity syntax or semantic errors and
-``GravityScriptError/invalidManifest(_:)`` for invalid AdaEngine annotations.
+``AdaScriptError/compilation(_:)`` for syntax or semantic errors and
+``AdaScriptError/invalidManifest(_:)`` for invalid AdaEngine annotations.
 
 Examples include `@system` on a non-class declaration, duplicate system
 identifiers, `@query` outside a system class, a query with no fetched
@@ -26,7 +26,7 @@ Runtime diagnostics include unknown component aliases, unknown fields,
 unsupported values, invalid numeric conversions, and query capabilities used
 outside their callback lifetime.
 
-Inspect ``GravityScriptPlugin/diagnostics`` after setup and during development.
+Inspect ``AdaScriptPlugin/diagnostics`` after setup and during development.
 System `update(context)` callbacks are command-style; their return values are
 ignored. Tests should assert observable ECS state and diagnostics.
 
@@ -41,7 +41,7 @@ The hot path avoids arrays of matched entity identifiers, one Swift bridge
 object per entity, repeated entity-location lookups, existential component
 copies, and whole-component reinsertion.
 
-Gravity's C runtime is globally shared and non-reentrant, so VM entry remains
+The current embedded C runtime is globally shared and non-reentrant, so runtime entry remains
 serialized. Scalability comes from native filtering, column iteration, cached
 metadata, and narrow bridge calls rather than multiple concurrent VMs.
 

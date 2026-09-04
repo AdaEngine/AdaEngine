@@ -1,8 +1,15 @@
-import AdaScriptCompilerCore
+@testable import AdaScriptCompilerCore
 import Testing
 
 @Suite("Ada Script schema parser")
 struct AdaScriptSchemaParserTests {
+    @Test("Humanizes view titles without splitting acronyms")
+    func humanizesViewTitles() {
+        #expect(humanizedAdaScriptViewTitle("MainView") == "Main View")
+        #expect(humanizedAdaScriptViewTitle("HUDView") == "HUD View")
+        #expect(humanizedAdaScriptViewTitle("settings_panel") == "settings panel")
+    }
+
     @Test("Parses component and resource primitive schemas")
     func parsesPrimitiveSchemas() throws {
         let schemas = try AdaScriptSchemaParser.parse(sources: [
@@ -176,5 +183,152 @@ struct AdaScriptSchemaParserTests {
                 version: 2
             )
         ])
+    }
+}
+
+extension AdaScriptSchemaParserTests {
+    @Test("Parses AdaUI view metadata")
+    func parsesViews() throws {
+        let schemas = try AdaScriptSchemaParser.parseViews(sources: [
+            AdaScriptCompilerSource(
+                path: "Views/Welcome.ada",
+                source: """
+                // Previewed in AdaEditor.
+                @view(id: "game.welcome", title: "Welcome")
+                class WelcomeView {
+                    func body() {
+                        Text("Hello");
+                    }
+                }
+
+                @view
+                class SettingsView {
+                    func body() { EmptyView(); }
+                }
+                """
+            )
+        ])
+
+        #expect(schemas == [
+            AdaScriptViewSchema(
+                className: "WelcomeView",
+                id: "game.welcome",
+                line: 3,
+                sourcePath: "Views/Welcome.ada",
+                title: "Welcome"
+            ),
+            AdaScriptViewSchema(
+                className: "SettingsView",
+                id: "SettingsView",
+                isIDExplicit: false,
+                isTitleExplicit: false,
+                line: 10,
+                sourcePath: "Views/Welcome.ada",
+                title: "Settings View"
+            )
+        ])
+    }
+
+    @Test("Rejects @view on value types")
+    func rejectsViewStruct() {
+        #expect(throws: AdaScriptSchemaError.self) {
+            try AdaScriptSchemaParser.parseViews(sources: [
+                AdaScriptCompilerSource(path: "Invalid.ada", source: "@view struct InvalidView {}")
+            ])
+        }
+    }
+
+    @Test("Lowers implicit view-builder blocks")
+    func lowersViewBuilderBlocks() throws {
+        let lowered = try AdaScriptViewBuilderLowerer.lower(
+            source: """
+            @view
+            class CardView {
+                func body() {
+                    VStack(spacing: 12) {
+                        Text("Title").fontSize(24);
+                        HStack {
+                            Text("Detail");
+                            Spacer();
+                        }
+                    }.padding(16);
+                }
+            }
+            """,
+            path: "Card.ada"
+        )
+
+        #expect(lowered.contains("return adaUIBuilder.vStack().spacing(12)"))
+        #expect(lowered.contains(".child(adaUIBuilder.text(\"Title\").fontSize(24))"))
+        #expect(lowered.contains(".child(adaUIBuilder.hStack().child(adaUIBuilder.text(\"Detail\")).child(adaUIBuilder.spacer()))"))
+        #expect(lowered.contains(".padding(16);"))
+        #expect(!lowered.contains("VStack(spacing:"))
+    }
+
+    @Test("Rejects unsupported builder constructors")
+    func rejectsUnsupportedViewConstructor() {
+        #expect(throws: AdaScriptViewBuilderError.self) {
+            try AdaScriptViewBuilderLowerer.lower(
+                source: "@view class BadView { func body() { UnknownView(); } }",
+                path: "Bad.ada"
+            )
+        }
+    }
+
+    @Test("Lowers button actions into view instance methods")
+    func lowersButtonActions() throws {
+        let lowered = try AdaScriptViewBuilderLowerer.lower(
+            source: """
+            @view
+            class CounterView {
+                @state var label = "Before";
+
+                func body() {
+                    Button("Change") {
+                        label = "After";
+                    };
+                }
+            }
+            """,
+            path: "Counter.ada"
+        )
+
+        #expect(lowered.contains("return adaUIBuilder.button(\"Change\", \"__ada_view_action_0\")"))
+        #expect(lowered.contains("func __ada_view_action_0()"))
+        #expect(lowered.contains("label = \"After\";"))
+    }
+
+    @Test("Parses symbolic environment bindings")
+    func parsesViewEnvironment() throws {
+        let views = try AdaScriptSchemaParser.parseViews(sources: [
+            AdaScriptCompilerSource(
+                path: "Themed.ada",
+                source: """
+                @view
+                class ThemedView {
+                    @environment(colorScheme) var scheme;
+                    @environment(scaleFactor) var scale: Float;
+                    func body() { Text(scheme); }
+                }
+                """
+            )
+        ])
+
+        #expect(views[0].environment == [
+            AdaScriptViewEnvironmentBinding(key: "colorScheme", propertyName: "scheme"),
+            AdaScriptViewEnvironmentBinding(key: "scaleFactor", propertyName: "scale")
+        ])
+    }
+
+    @Test("Rejects bindings until nested script views can preserve identity")
+    func rejectsBindingsWithoutNestedViews() {
+        #expect(throws: AdaScriptSchemaError.self) {
+            try AdaScriptSchemaParser.parseViews(sources: [
+                AdaScriptCompilerSource(
+                    path: "Child.ada",
+                    source: "@view class ChildView { @binding var value; func body() { Text(value); } }"
+                )
+            ])
+        }
     }
 }

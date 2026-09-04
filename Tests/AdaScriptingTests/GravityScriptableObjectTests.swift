@@ -67,14 +67,14 @@ struct GravityScriptableObjectTests {
             ScriptableBoundResource.self,
             fields: [Self.resourceValueField]
         )
-        try GravityScriptableObjectRegistration.register(
+        try AdaScriptObjectRegistration.register(
             schemas: [Self.schema],
             sources: [Self.source],
             moduleName: "GravityScriptableObjectTests"
         )
     }
 
-    private static let source = GravityScriptSource(
+    private static let source = AdaScriptSource(
         path: "Counter.ada",
         source: """
         @scriptable(id: "test.gravity-counter", version: 2, aliases: ["LegacyCounter"])
@@ -100,18 +100,18 @@ struct GravityScriptableObjectTests {
         """
     )
 
-    private static let schema = GravityScriptableSchema(
+    private static let schema = AdaScriptObjectSchema(
         identifier: "test.gravity-counter",
         className: "CounterScript",
         version: 2,
         aliases: ["LegacyCounter"],
         bindings: [
-            GravityScriptableBinding(
+            AdaScriptObjectBinding(
                 kind: .component(required: true),
                 propertyName: "target",
                 typeName: "ScriptableBoundCounter"
             ),
-            GravityScriptableBinding(
+            AdaScriptObjectBinding(
                 kind: .resource(optional: false),
                 propertyName: "settings",
                 typeName: "ScriptableBoundResource"

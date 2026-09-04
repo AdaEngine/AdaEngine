@@ -8,11 +8,11 @@ import Gravity
 ///
 /// Systems and queries are discovered from `@system` and `@query`
 /// declarations. Ada Script modules do not define a `main()` function.
-public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
+public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
     public let name: String
 
     public var pluginIdentifier: String {
-        "AdaScripting.Gravity.\(name)"
+        "AdaScripting.Module.\(name)"
     }
 
     public var diagnostics: [String] {
@@ -25,7 +25,7 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
     public convenience init(contentsOf fileURL: URL) throws {
         try self.init(
             sources: [
-                GravityScriptSource(
+                AdaScriptSource(
                     path: fileURL.lastPathComponent,
                     source: String(contentsOf: fileURL, encoding: .utf8)
                 )
@@ -36,13 +36,13 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
 
     public convenience init(source: String, name: String = "AdaScript") throws {
         try self.init(
-            sources: [GravityScriptSource(path: "Main.ada", source: source)],
+            sources: [AdaScriptSource(path: "Main.ada", source: source)],
             name: name
         )
     }
 
     /// Creates one Ada Script module from a target-relative source map.
-    public init(sources: [GravityScriptSource], name: String) throws {
+    public init(sources: [AdaScriptSource], name: String) throws {
         let module = try GravityScriptModuleResolver.resolve(sources)
         let runtime = try AnnotatedGravityRuntime(module: module)
         let resourceBindings = try AdaScriptSchemaParser.parseResourceBindings(sources: sources)
@@ -84,25 +84,25 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
     ) throws -> [AnnotatedSystemPlan] {
         let systemAnnotations = annotations.filter { $0.name == "system" }
         guard !systemAnnotations.isEmpty else {
-            throw GravityScriptError.invalidManifest("Ada Script module must declare at least one @system class")
+            throw AdaScriptError.invalidManifest("Ada Script module must declare at least one @system class")
         }
 
         let systemClassNames = Set(systemAnnotations.map(\.target.identifier))
         for query in annotations where query.name == "query" {
             guard let parent = query.target.parentIdentifier, systemClassNames.contains(parent) else {
-                throw GravityScriptError.invalidManifest("@query must be declared inside an @system class")
+                throw AdaScriptError.invalidManifest("@query must be declared inside an @system class")
             }
         }
 
         var identifiers = Set<String>()
         return try systemAnnotations.map { annotation in
             guard annotation.target.kind == .class else {
-                throw GravityScriptError.invalidManifest("@system can only annotate a class")
+                throw AdaScriptError.invalidManifest("@system can only annotate a class")
             }
             let className = annotation.target.identifier
             let identifier = annotation.stringArgument(label: "id") ?? className
             guard identifiers.insert(identifier).inserted else {
-                throw GravityScriptError.invalidManifest("system identifiers must be unique")
+                throw AdaScriptError.invalidManifest("system identifiers must be unique")
             }
             let scheduler = SchedulerName(rawValue: annotation.stringArgument(label: "scheduler") ?? "update")
             let queryPlans = try annotations
@@ -131,7 +131,7 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
 
     private static func makeQueryPlan(_ annotation: GravityAnnotation) throws -> AnnotatedQueryPlan {
         guard annotation.target.kind == .variableDeclaration else {
-            throw GravityScriptError.invalidManifest("@query can only annotate a stored property")
+            throw AdaScriptError.invalidManifest("@query can only annotate a stored property")
         }
         let components = annotation.arguments.compactMap { argument -> String? in
             guard argument.label == nil else {
@@ -140,7 +140,7 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
             return argument.value.identifierValue
         }
         guard !components.isEmpty else {
-            throw GravityScriptError.invalidManifest("@query requires at least one fetched component")
+            throw AdaScriptError.invalidManifest("@query requires at least one fetched component")
         }
         return AnnotatedQueryPlan(
             propertyName: annotation.target.identifier,
@@ -172,7 +172,7 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
         systemIdentifier: String
     ) throws -> PreparedAnnotatedResource {
         guard let resourceType = RuntimeTypeRegistry.resourceType(named: plan.resourceName) else {
-            throw GravityScriptError.unknownResource(system: systemIdentifier, resource: plan.resourceName)
+            throw AdaScriptError.unknownResource(system: systemIdentifier, resource: plan.resourceName)
         }
         let descriptor = RuntimeResourceReflectionRegistry.descriptor(for: resourceType)
         return PreparedAnnotatedResource(
@@ -192,7 +192,7 @@ public final class GravityScriptPlugin: Plugin, @unchecked Sendable {
         let allNames = plan.components + plan.withComponents + plan.withoutComponents
         for name in allNames where resolved[name] == nil {
             guard let component = resolveComponent(named: name) else {
-                throw GravityScriptError.unknownComponent(
+                throw AdaScriptError.unknownComponent(
                     system: systemIdentifier,
                     queryIndex: queryIndex,
                     component: name
@@ -318,9 +318,9 @@ private struct AnnotatedGravityScriptSystem: System {
 
     var systemIdentifier: String {
         guard let preparedSystem else {
-            return "AdaScripting.Gravity.Unconfigured"
+            return "AdaScripting.System.Unconfigured"
         }
-        return "AdaScripting.Gravity.\(pluginIdentifier.utf8.count):\(pluginIdentifier)\(preparedSystem.identifier.utf8.count):\(preparedSystem.identifier)"
+        return "AdaScripting.System.\(pluginIdentifier.utf8.count):\(pluginIdentifier)\(preparedSystem.identifier.utf8.count):\(preparedSystem.identifier)"
     }
 
     var queries: SystemQueries {
@@ -382,8 +382,6 @@ private struct AnnotatedGravityScriptSystem: System {
 }
 
 private final class AnnotatedGravityRuntime: @unchecked Sendable {
-    private static let runtimeLock = NSRecursiveLock()
-
     let annotations: [GravityAnnotation]
 
     // The runtime owns its delegate for exactly the VM lifetime; this is not a callback back-reference.
@@ -396,8 +394,8 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let delegate = AnnotatedGravityRuntimeDelegate(module: module)
         self.delegate = delegate
 
-        Self.runtimeLock.lock()
-        defer { Self.runtimeLock.unlock() }
+        AdaScriptRuntimeCoordinator.lock.lock()
+        defer { AdaScriptRuntimeCoordinator.lock.unlock() }
 
         let virtualMachine = GravityVirtualMachine(settings: .init(), delegate: delegate)
         self.virtualMachine = virtualMachine
@@ -408,31 +406,33 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         try virtualMachine.bindClass(with: AnnotatedGravityQueryRow.self)
         try virtualMachine.bindClass(with: AnnotatedGravityComponentView.self)
         try virtualMachine.bindClass(with: AnnotatedGravityResourceView.self)
+        try virtualMachine.bindClass(with: AdaScriptViewBridge.self)
+        virtualMachine.setValue(AdaScriptViewBridge(), forKey: "adaUIBuilder")
 
         let binary = virtualMachine.loadGravityFile(from: module.entrySource)
         guard delegate.errors.isEmpty else {
-            throw GravityScriptError.compilation(delegate.errors)
+            throw AdaScriptError.compilation(delegate.errors)
         }
         self.annotations = binary.annotations
         virtualMachine.load(binary)
         guard delegate.errors.isEmpty else {
-            throw GravityScriptError.compilation(delegate.errors)
+            throw AdaScriptError.compilation(delegate.errors)
         }
         if virtualMachine.getValue(forKey: "main").isClosure {
-            throw GravityScriptError.invalidManifest("Ada Script modules must not declare main()")
+            throw AdaScriptError.invalidManifest("Ada Script modules must not declare main()")
         }
     }
 
     func instantiateSystems(_ plans: [AnnotatedSystemPlan]) throws {
-        Self.runtimeLock.lock()
-        defer { Self.runtimeLock.unlock() }
+        AdaScriptRuntimeCoordinator.lock.lock()
+        defer { AdaScriptRuntimeCoordinator.lock.unlock() }
         for plan in plans {
             let systemClass = virtualMachine.getValue(forKey: plan.className)
             guard systemClass.isClass, let instance = systemClass.callAsFunction(), instance.isInstance else {
-                throw GravityScriptError.invalidManifest("Unable to instantiate @system class '\(plan.className)'")
+                throw AdaScriptError.invalidManifest("Unable to instantiate @system class '\(plan.className)'")
             }
             guard instance.hasMethod(named: "update") else {
-                throw GravityScriptError.invalidManifest("@system class '\(plan.className)' must define update(context)")
+                throw AdaScriptError.invalidManifest("@system class '\(plan.className)' must define update(context)")
             }
             instances[plan.className] = instance
         }
@@ -446,8 +446,8 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         resources: [(propertyName: String, resource: AnnotatedGravityResourceView)],
         world: AnnotatedGravityWorldContext
     ) {
-        Self.runtimeLock.lock()
-        defer { Self.runtimeLock.unlock() }
+        AdaScriptRuntimeCoordinator.lock.lock()
+        defer { AdaScriptRuntimeCoordinator.lock.unlock() }
         defer { world.invalidate() }
 
         guard let instance = instances[className] else {
@@ -510,10 +510,10 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
     }
 
     var diagnostics: [String] {
-        Self.runtimeLock.withLock { delegate.errors }
+        AdaScriptRuntimeCoordinator.lock.withLock { delegate.errors }
     }
 
     func appendDiagnostic(_ message: String) {
-        Self.runtimeLock.withLock { delegate.append(message) }
+        AdaScriptRuntimeCoordinator.lock.withLock { delegate.append(message) }
     }
 }

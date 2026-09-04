@@ -215,7 +215,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scene:
             "AdaEngine scene"
         case .script:
-            "Gravity script"
+            "Ada Script source"
         case .swift:
             "Swift source file"
         case .plainText:
@@ -243,7 +243,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
                 projectName: URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
             )
         case .script:
-            let typeName = gravityTypeIdentifier(
+            let typeName = adaScriptTypeIdentifier(
                 URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
             )
             return """
@@ -262,13 +262,19 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         }
     }
 
-    private func gravityTypeIdentifier(_ value: String) -> String {
+    private func adaScriptTypeIdentifier(_ value: String) -> String {
         let parts = value.split { !$0.isLetter && !$0.isNumber }
-        let joined = parts.map { part in
-            guard let first = part.first else { return "" }
-            return first.uppercased() + part.dropFirst()
-        }.joined()
-        guard let first = joined.first else { return "Script" }
+        let joined = parts
+            .map { part in
+                guard let first = part.first else {
+                    return ""
+                }
+                return first.uppercased() + part.dropFirst()
+            }
+            .joined()
+        guard let first = joined.first else {
+            return "Script"
+        }
         return first.isNumber ? "Script\(joined)" : joined
     }
 }
@@ -1831,6 +1837,8 @@ final class EditorViewModel {
     @ObservationIgnored
     private let previewBuilder: EditorPreviewBuilder
     @ObservationIgnored
+    private let adaScriptPreviewBuilder: EditorAdaScriptPreviewBuilder
+    @ObservationIgnored
     private let previewLibrary = EditorPreviewDynamicLibrary()
     @ObservationIgnored
     private var workspaceTask: Task<Void, Never>?
@@ -1863,6 +1871,7 @@ final class EditorViewModel {
         workspaceService: any SwiftPMWorkspaceServicing = SwiftPMWorkspaceService(),
         sourceControlService: any GitRepositoryServicing = GitRepositoryService(),
         previewBuilder: EditorPreviewBuilder = EditorPreviewBuilder(),
+        adaScriptPreviewBuilder: EditorAdaScriptPreviewBuilder = EditorAdaScriptPreviewBuilder(),
         toolbar: EditorToolbarViewModel = EditorToolbarViewModel(),
         toolStrip: EditorToolStripViewModel = EditorToolStripViewModel(),
         projectSidebar: EditorProjectSidebarViewModel? = nil,
@@ -1889,6 +1898,7 @@ final class EditorViewModel {
         self.sourceControlService = sourceControlService
         self.fileManager = fileManager
         self.previewBuilder = previewBuilder
+        self.adaScriptPreviewBuilder = adaScriptPreviewBuilder
         self.autosaveDelay = autosaveDelay
         self.toolbar = toolbar
         self.toolStrip = toolStrip
@@ -2735,12 +2745,12 @@ final class EditorViewModel {
     }
 
     func rebuildSelectedPreview() {
-        guard let document = activeSwiftTextDocument() else {
+        guard let document = activePreviewTextDocument() else {
             workbench.previewStatus = .hidden
             return
         }
 
-        let declarations = EditorPreviewScanner.declarations(in: document.content)
+        let declarations = EditorPreviewScanner.declarations(in: document.content, language: document.language)
         guard !declarations.isEmpty else {
             workbench.previewStatus = .hidden
             return
@@ -2752,14 +2762,14 @@ final class EditorViewModel {
     }
 
     func refreshPreviewForActiveDocument() {
-        guard let document = activeSwiftTextDocument() else {
+        guard let document = activePreviewTextDocument() else {
             workbench.previewStatus = .hidden
             workbench.selectedPreviewID = nil
             previewTask?.cancel()
             return
         }
 
-        let declarations = EditorPreviewScanner.declarations(in: document.content)
+        let declarations = EditorPreviewScanner.declarations(in: document.content, language: document.language)
         guard !declarations.isEmpty else {
             workbench.previewStatus = .hidden
             workbench.selectedPreviewID = nil
@@ -2933,9 +2943,9 @@ final class EditorViewModel {
         selectOutputTab("Build")
     }
 
-    private func activeSwiftTextDocument() -> EditorTextDocument? {
+    private func activePreviewTextDocument() -> EditorTextDocument? {
         guard case .text(let document)? = workbench.activeDocument,
-              document.language == .swift || document.language == .packageManifest
+              document.language == .ada || document.language == .swift || document.language == .packageManifest
         else {
             return nil
         }
@@ -2944,11 +2954,35 @@ final class EditorViewModel {
     }
 
     private func buildPreview(_ declaration: EditorPreviewDeclaration) {
-        guard let projectURL, let packageModel, let document = activeSwiftTextDocument() else {
+        guard let projectURL, let packageModel, let document = activePreviewTextDocument() else {
             workbench.previewStatus = .unavailable("Preview requires an open Swift package workspace.")
             return
         }
 
+        switch declaration.kind {
+        case .adaScript:
+            buildAdaScriptPreview(
+                declaration,
+                projectURL: projectURL,
+                packageModel: packageModel,
+                document: document
+            )
+        case .swift:
+            buildSwiftPreview(
+                declaration,
+                projectURL: projectURL,
+                packageModel: packageModel,
+                document: document
+            )
+        }
+    }
+
+    private func buildSwiftPreview(
+        _ declaration: EditorPreviewDeclaration,
+        projectURL: URL,
+        packageModel: SwiftPackageModel,
+        document: EditorTextDocument
+    ) {
         previewTask?.cancel()
         workbench.previewStatus = .building(declaration, "Preparing preview build...")
         appendOutput("Building preview \(declaration.title) from \(document.relativePath)")
@@ -2960,7 +2994,9 @@ final class EditorViewModel {
             declaration: declaration
         )
         previewTask = Task { [weak self] in
-            guard let self else { return }
+            guard let self else {
+                return
+            }
             do {
                 let artifact = try await self.previewBuilder.build(request)
                 await MainActor.run {
@@ -2990,6 +3026,54 @@ final class EditorViewModel {
                     self.appendOutputBlock(String(describing: error))
                     self.previewTask = nil
                 }
+            }
+        }
+    }
+
+    private func buildAdaScriptPreview(
+        _ declaration: EditorPreviewDeclaration,
+        projectURL: URL,
+        packageModel: SwiftPackageModel,
+        document: EditorTextDocument
+    ) {
+        previewTask?.cancel()
+        workbench.previewStatus = .building(declaration, "Preparing Ada Script preview...")
+        appendOutput("Building Ada Script preview \(declaration.title) from \(document.relativePath)")
+
+        let request = EditorPreviewBuildRequest(
+            projectURL: projectURL,
+            document: document,
+            packageModel: packageModel,
+            declaration: declaration
+        )
+        previewTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            do {
+                let artifact = try await self.adaScriptPreviewBuilder.build(request)
+                try Task.checkCancellation()
+                let rootView = try AdaScriptView(
+                    sources: artifact.sources,
+                    identifier: artifact.identifier
+                )
+                let view = UIContainerView(rootView: rootView)
+
+                guard case .text(let activeDocument)? = self.workbench.activeDocument,
+                      activeDocument.id == document.id,
+                      self.workbench.selectedPreviewID == declaration.id else {
+                    return
+                }
+                self.workbench.previewStatus = .loaded(declaration, view)
+                self.appendOutput("Loaded Ada Script preview \(declaration.title)")
+                self.previewTask = nil
+            } catch is CancellationError {
+                self.previewTask = nil
+            } catch {
+                self.workbench.previewStatus = .failed(declaration, "Ada Script preview failed. See Build Output for details.", true)
+                self.appendOutput("Ada Script preview failed:")
+                self.appendOutputBlock(String(describing: error))
+                self.previewTask = nil
             }
         }
     }

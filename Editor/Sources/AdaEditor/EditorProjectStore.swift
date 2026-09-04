@@ -65,7 +65,7 @@ private enum EditorProjectTemplateSourceFactory {
                 var body: some AppScene {
                     WindowGroup(
                         content: {
-                            Text("Hello, AdaEngine!")
+                            AdaScriptViewsGenerated.mainView
                         },
                         assetBundle: .module
                     )
@@ -97,6 +97,16 @@ private enum EditorProjectTemplateSourceFactory {
     }
 
     static let adaScript = """
+    @view
+    class MainView {
+        func body() {
+            VStack(spacing: 12) {
+                Text("Hello, AdaEngine!").fontSize(28);
+                Text("Edit Main.ada to build your interface.");
+            }.padding(24);
+        }
+    }
+
     @system(scheduler: "update", id: "game.main")
     class MainSystem {
         func update(context) {

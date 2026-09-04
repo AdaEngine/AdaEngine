@@ -5,6 +5,27 @@ import Testing
 
 @Suite("Gravity language server")
 struct GravityLanguageServerTests {
+    @Test("Completion offers @view and AdaUI builders")
+    func adaUIViewCompletion() {
+        let service = GravityLanguageService()
+        let annotationItems = service.completions(
+            text: "@vi",
+            position: GravitySourcePosition(line: 0, utf16Column: 3)
+        )
+        let viewItems = service.completions(
+            text: "func body() { Te }",
+            position: GravitySourcePosition(line: 0, utf16Column: 16)
+        )
+        let stateItems = service.completions(
+            text: "@sta",
+            position: GravitySourcePosition(line: 0, utf16Column: 4)
+        )
+
+        #expect(annotationItems.contains { $0.label == "view" })
+        #expect(stateItems.contains { $0.label == "state" })
+        #expect(viewItems.contains { $0.label == "Text" })
+    }
+
     @Test("Completion understands document types and Ada query values")
     func semanticCompletion() throws {
         let service = GravityLanguageService()
@@ -190,17 +211,7 @@ struct GravityLanguageServerTests {
     @Test("LSP lifecycle publishes diagnostics and returns completion")
     func protocolLifecycle() throws {
         let session = GravityLanguageServerSession()
-        let initialize = session.handle([
-            "id": 1,
-            "jsonrpc": "2.0",
-            "method": "initialize",
-            "params": ["rootUri": NSNull()]
-        ])
-        let initializeResponse = try #require(initialize.outgoingMessages.first)
-        let initializeResult = try #require(initializeResponse["result"] as? [String: Any])
-        let capabilities = try #require(initializeResult["capabilities"] as? [String: Any])
-        #expect(capabilities["positionEncoding"] as? String == "utf-16")
-        #expect(capabilities["definitionProvider"] as? Bool == true)
+        try validateInitialization(of: session)
 
         let uri = "file:///tmp/Movement.ada"
         let opened = session.handle([
@@ -249,13 +260,9 @@ struct GravityLanguageServerTests {
                 "textDocument": ["uri": uri]
             ]
         ])
-        let definitionResponse = try #require(definition.outgoingMessages.first)
-        let location = try #require(definitionResponse["result"] as? [String: Any])
-        #expect(location["targetUri"] as? String == uri)
+        try validateDefinition(definition, uri: uri)
 
-        let shutdown = session.handle(["id": 4, "jsonrpc": "2.0", "method": "shutdown"])
-        #expect(shutdown.outgoingMessages.count == 1)
-        #expect(session.handle(["jsonrpc": "2.0", "method": "exit"]).exitCode == 0)
+        validateShutdown(of: session)
     }
 
     @Test("Framer accepts split and consecutive LSP messages")
@@ -279,5 +286,31 @@ struct GravityLanguageServerTests {
         #expect(throws: GravityLSPFramingError.invalidContentLength) {
             try framer.append(Data("Content-Length: -1\r\n\r\n".utf8))
         }
+    }
+
+    private func validateInitialization(of session: GravityLanguageServerSession) throws {
+        let initialize = session.handle([
+            "id": 1,
+            "jsonrpc": "2.0",
+            "method": "initialize",
+            "params": ["rootUri": NSNull()]
+        ])
+        let response = try #require(initialize.outgoingMessages.first)
+        let result = try #require(response["result"] as? [String: Any])
+        let capabilities = try #require(result["capabilities"] as? [String: Any])
+        #expect(capabilities["positionEncoding"] as? String == "utf-16")
+        #expect(capabilities["definitionProvider"] as? Bool == true)
+    }
+
+    private func validateShutdown(of session: GravityLanguageServerSession) {
+        let shutdown = session.handle(["id": 4, "jsonrpc": "2.0", "method": "shutdown"])
+        #expect(shutdown.outgoingMessages.count == 1)
+        #expect(session.handle(["jsonrpc": "2.0", "method": "exit"]).exitCode == 0)
+    }
+
+    private func validateDefinition(_ result: GravityLanguageServerAction, uri: String) throws {
+        let response = try #require(result.outgoingMessages.first)
+        let location = try #require(response["result"] as? [String: Any])
+        #expect(location["targetUri"] as? String == uri)
     }
 }

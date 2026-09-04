@@ -1,10 +1,10 @@
 # Ada Script Language
 
-Use Gravity syntax with AdaEngine declaration annotations.
+Use Ada Script syntax with AdaEngine declaration annotations.
 
 ## Source files
 
-Ada Script uses `.ada` files. A file contains ordinary Gravity classes,
+Ada Script uses `.ada` files. A file contains classes,
 functions, variables, and control flow. Ada Script modules do not declare a
 `main()` function and do not assemble plugin manifests.
 
@@ -45,7 +45,7 @@ virtual-module declarations remain part of the next module-language slice.
 
 ## Annotations
 
-Gravity declaration annotations have three forms:
+Ada Script declaration annotations have three forms:
 
 ```ada
 @name
@@ -63,6 +63,9 @@ The initial AdaEngine annotations are:
 - `@access` for explicit scheduler access;
 - `@component` and `@resource` for generated data declarations;
 - `@scriptable` for attached script objects;
+- `@view` for declarative AdaUI views;
+- `@state` for state owned by an Ada Script view;
+- `@environment` for read-only AdaUI environment values;
 - `@export` for persistent and inspectable fields.
 
 ## Script-defined data
@@ -79,13 +82,13 @@ struct Health {
 
 @resource(id: "game.balance", autoInsert: true)
 struct GameBalance {
-    @export var gravity = 9.8;
+    @export var acceleration = 9.8;
 }
 ```
 
 The first schema slice supports `Bool`, signed `Int64`, finite `Double`, and
 `String` defaults. Generated Swift symbol names are private implementation
-details. Runtime lookup accepts both the Gravity declaration name (`Health`) and
+details. Runtime lookup accepts both the Ada Script declaration name (`Health`) and
 the stable ID (`game.health`). `autoInsert: true` inserts the generated resource
 before systems are installed.
 
@@ -94,13 +97,13 @@ resource pointer during `update(context)`; field writes update the resource
 change tick:
 
 ```ada
-@system(id: "gravity.system")
-class GravitySystem {
+@system(id: "physics.system")
+class PhysicsSystem {
     @res
     var balance: GameBalance;
 
     func update(context) {
-        balance.gravity += 0.1;
+        balance.acceleration += 0.1;
     }
 }
 ```
@@ -140,7 +143,7 @@ class CleanupSystem {
 }
 ```
 
-The initial command API creates registered component defaults by Gravity name
+The initial command API creates registered component defaults by Ada Script name
 or stable ID:
 
 ```ada
@@ -211,6 +214,12 @@ Scriptable contexts expose the same expiring deferred commands facade as
 systems. Retaining it after a callback produces a diagnostic. Scriptable
 objects intentionally have no immediate-mode GUI callback; declarative UI
 belongs to AdaUI script views.
+
+## AdaUI views
+
+Use `@view` on a class whose `body()` contains declarative AdaUI expressions. See
+<doc:AdaScriptViews> for the supported view constructors, modifiers, and
+AdaEditor preview workflow.
 
 ## System context
 

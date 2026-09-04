@@ -14,7 +14,7 @@ struct GravityResourceBindingTests {
             fields: [Self.gravityField]
         )
 
-        let plugin = try GravityScriptPlugin(
+        let plugin = try AdaScriptPlugin(
             source: """
             @system(id: "resource.system")
             class ResourceSystem {
@@ -43,7 +43,7 @@ struct GravityResourceBindingTests {
         RuntimeTypeRegistry.registerResource(ScriptBalance.self, names: ["ScriptBalance", "test.balance"])
         RuntimeResourceReflectionRegistry.register(ScriptBalance.self, fields: [Self.gravityField])
 
-        let plugin = try GravityScriptPlugin(
+        let plugin = try AdaScriptPlugin(
             source: """
             @system(id: "resource.system")
             class ResourceSystem {

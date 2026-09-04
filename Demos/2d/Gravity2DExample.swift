@@ -92,7 +92,7 @@ struct Gravity2DExamplePlugin: Plugin {
         }
 
         do {
-            let gravityPlugin = try GravityScriptPlugin(contentsOf: scriptURL)
+            let gravityPlugin = try AdaScriptPlugin(contentsOf: scriptURL)
             app.addPlugin(gravityPlugin)
             print("Gravity2DExample: loaded \(gravityPlugin.name)")
         } catch {

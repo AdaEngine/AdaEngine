@@ -6,11 +6,11 @@ import Math
 import Testing
 
 @Suite("Annotation-driven Gravity safety", .serialized)
-struct GravityScriptPluginSafetyTests {
+struct AdaScriptPluginSafetyTests {
     @Test("Reports an unknown native component during plugin setup")
     @MainActor
     func reportsUnknownComponentDuringSetup() async throws {
-        let plugin = try GravityScriptPlugin(source: Self.missingComponentSource)
+        let plugin = try AdaScriptPlugin(source: Self.missingComponentSource)
         let app = AppWorlds(main: World(name: "Missing Component Test"))
         app.addPlugin(plugin)
 
@@ -22,7 +22,7 @@ struct GravityScriptPluginSafetyTests {
     @Test("Resolves components registered by an earlier plugin setup")
     @MainActor
     func resolvesComponentsDuringOrderedPluginSetup() async throws {
-        let plugin = try GravityScriptPlugin(source: Self.deferredComponentSource)
+        let plugin = try AdaScriptPlugin(source: Self.deferredComponentSource)
         let world = World(name: "Deferred Component Registration Test")
         world.spawn { DeferredScriptComponent() }
         let app = AppWorlds(main: world)
@@ -39,7 +39,7 @@ struct GravityScriptPluginSafetyTests {
     @MainActor
     func rejectsInvalidFloatingPointWrites() async throws {
         ScriptNumericFields.registerComponent()
-        let plugin = try GravityScriptPlugin(source: Self.invalidFloatSource)
+        let plugin = try AdaScriptPlugin(source: Self.invalidFloatSource)
         let world = World(name: "Invalid Gravity Float Test")
         let entity = world.spawn {
             ScriptNumericFields(
@@ -67,7 +67,7 @@ struct GravityScriptPluginSafetyTests {
     @MainActor
     func rejectsUnsupportedListMembersAtomically() async throws {
         ScriptNumericFields.registerComponent()
-        let plugin = try GravityScriptPlugin(source: Self.unsupportedListMemberSource)
+        let plugin = try AdaScriptPlugin(source: Self.unsupportedListMemberSource)
         let world = World(name: "Unsupported Gravity List Member Test")
         let entity = world.spawn {
             ScriptNumericFields(

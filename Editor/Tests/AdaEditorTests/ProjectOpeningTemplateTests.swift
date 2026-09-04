@@ -22,6 +22,8 @@ struct ProjectOpeningTemplateTests {
         #expect(FileManager.default.fileExists(atPath: targetURL.appendingPathComponent("AdaRuntimeBootstrap.swift").path))
         #expect(!FileManager.default.fileExists(atPath: targetURL.appendingPathComponent("main.swift").path))
         let script = try String(contentsOf: targetURL.appendingPathComponent("Main.ada"), encoding: .utf8)
+        #expect(script.contains("@view"))
+        #expect(script.contains("func body()"))
         #expect(script.contains("@system"))
         #expect(script.contains("func update(context)"))
     }

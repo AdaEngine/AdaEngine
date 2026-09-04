@@ -4,11 +4,11 @@ import AdaScripting
 import Testing
 
 @Suite("Annotation-driven Gravity scripts", .serialized)
-struct AnnotatedGravityScriptPluginTests {
+struct AnnotatedAdaScriptPluginTests {
     @Test("Rejects legacy main manifests")
     func rejectsMainFunction() {
-        #expect(throws: GravityScriptError.self) {
-            try GravityScriptPlugin(source: """
+        #expect(throws: AdaScriptError.self) {
+            try AdaScriptPlugin(source: """
             @system(scheduler: "update")
             class EmptySystem {
                 func update(context) {}
@@ -23,8 +23,8 @@ struct AnnotatedGravityScriptPluginTests {
 
     @Test("Rejects queries outside annotated systems")
     func rejectsOrphanQueries() {
-        #expect(throws: GravityScriptError.self) {
-            try GravityScriptPlugin(source: """
+        #expect(throws: AdaScriptError.self) {
+            try AdaScriptPlugin(source: """
             @query(AnnotatedPosition)
             var orphan;
 
@@ -44,7 +44,7 @@ struct AnnotatedGravityScriptPluginTests {
         AnnotatedMovable.registerComponent()
         AnnotatedFrozen.registerComponent()
 
-        let plugin = try GravityScriptPlugin(source: """
+        let plugin = try AdaScriptPlugin(source: """
         @system(scheduler: "update", id: "annotated.movement")
         class MovementSystem {
             @query(

@@ -39,6 +39,24 @@ enum GravityBuiltins {
     static let members: [String: [GravityCompletionCandidate]] = [
         "$AdaEntity": [
             GravityCompletionCandidate(detail: "Entity identifier", insertText: "id", kind: .property, label: "id", sortText: "00")
+        ],
+        "View": [
+            viewMember("accessibilityIdentifier", detail: "Set an AdaUI accessibility identifier"),
+            viewMember("background", detail: "Set a named or hexadecimal background color"),
+            viewMember("child", detail: "Append a child to a stack"),
+            viewMember("divider", detail: "Create an AdaUI divider"),
+            viewMember("empty", detail: "Create an empty AdaUI view"),
+            viewMember("fontSize", detail: "Set the inherited font size"),
+            viewMember("foregroundColor", detail: "Set a named or hexadecimal foreground color"),
+            viewMember("frame", detail: "Set a fixed width and height"),
+            viewMember("hStack", detail: "Create a horizontal AdaUI stack"),
+            viewMember("opacity", detail: "Set view opacity"),
+            viewMember("padding", detail: "Add equal padding on every edge"),
+            viewMember("spacer", detail: "Create a flexible AdaUI spacer"),
+            viewMember("spacing", detail: "Set stack spacing"),
+            viewMember("text", detail: "Create an AdaUI text view"),
+            viewMember("vStack", detail: "Create a vertical AdaUI stack"),
+            viewMember("zStack", detail: "Create an overlaying AdaUI stack")
         ]
     ]
 
@@ -91,6 +109,27 @@ enum GravityBuiltins {
             kind: .keyword,
             label: "export",
             sortText: "06"
+        ),
+        GravityCompletionCandidate(
+            detail: "Declare a previewable AdaUI view",
+            insertText: "view(id: \"\", title: \"\")",
+            kind: .keyword,
+            label: "view",
+            sortText: "07"
+        ),
+        GravityCompletionCandidate(
+            detail: "Declare view-owned reactive state",
+            insertText: "state",
+            kind: .keyword,
+            label: "state",
+            sortText: "08"
+        ),
+        GravityCompletionCandidate(
+            detail: "Read an AdaUI environment value",
+            insertText: "environment()",
+            kind: .keyword,
+            label: "environment",
+            sortText: "09"
         )
     ]
 
@@ -102,12 +141,22 @@ enum GravityBuiltins {
         GravityCompletionCandidate(detail: "Conditional statement", insertText: "if () {\n    \n}", kind: .snippet, label: "if", sortText: "14"),
         GravityCompletionCandidate(detail: "Alternative branch", insertText: "else {\n    \n}", kind: .snippet, label: "else", sortText: "15"),
         GravityCompletionCandidate(detail: "For loop", insertText: "for (item in items) {\n    \n}", kind: .snippet, label: "for", sortText: "16"),
-        GravityCompletionCandidate(detail: "While loop", insertText: "while () {\n    \n}", kind: .snippet, label: "while", sortText: "17")
+        GravityCompletionCandidate(detail: "While loop", insertText: "while () {\n    \n}", kind: .snippet, label: "while", sortText: "17"),
+        GravityCompletionCandidate(detail: "AdaUI text", insertText: "Text(\"\")", kind: .class, label: "Text", sortText: "18"),
+        GravityCompletionCandidate(detail: "Vertical AdaUI stack", insertText: "VStack {\n    \n}", kind: .class, label: "VStack", sortText: "18"),
+        GravityCompletionCandidate(detail: "Horizontal AdaUI stack", insertText: "HStack {\n    \n}", kind: .class, label: "HStack", sortText: "18"),
+        GravityCompletionCandidate(detail: "Overlaying AdaUI stack", insertText: "ZStack {\n    \n}", kind: .class, label: "ZStack", sortText: "18"),
+        GravityCompletionCandidate(detail: "Flexible AdaUI space", insertText: "Spacer()", kind: .class, label: "Spacer", sortText: "18"),
+        GravityCompletionCandidate(detail: "AdaUI divider", insertText: "Divider()", kind: .class, label: "Divider", sortText: "18")
     ] + keywordCandidates
 
     private static let keywordCandidates = [
         "break", "case", "const", "continue", "enum", "event", "extern", "false", "import", "null", "private", "public", "repeat", "static", "struct", "switch", "true"
     ].enumerated().map { index, keyword in
-        GravityCompletionCandidate(detail: "Gravity keyword", insertText: keyword, kind: .keyword, label: keyword, sortText: "\(30 + index)")
+        GravityCompletionCandidate(detail: "Ada Script keyword", insertText: keyword, kind: .keyword, label: keyword, sortText: "\(30 + index)")
+    }
+
+    private static func viewMember(_ name: String, detail: String) -> GravityCompletionCandidate {
+        GravityCompletionCandidate(detail: detail, insertText: "\(name)()", kind: .method, label: name, sortText: "00")
     }
 }

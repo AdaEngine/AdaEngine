@@ -107,6 +107,75 @@ public struct AdaScriptSystemCapabilities: Equatable, Sendable {
     }
 }
 
+/// Compile-time metadata for a declarative AdaUI view declared in Ada Script.
+public struct AdaScriptViewSchema: Equatable, Sendable {
+    public let className: String
+    public let environment: [AdaScriptViewEnvironmentBinding]
+    public let id: String
+    public let isIDExplicit: Bool
+    public let isTitleExplicit: Bool
+    public let line: Int
+    public let sourcePath: String
+    public let title: String
+
+    public init(
+        className: String,
+        environment: [AdaScriptViewEnvironmentBinding] = [],
+        id: String,
+        isIDExplicit: Bool = true,
+        isTitleExplicit: Bool = true,
+        line: Int,
+        sourcePath: String,
+        title: String
+    ) {
+        self.className = className
+        self.environment = environment
+        self.id = id
+        self.isIDExplicit = isIDExplicit
+        self.isTitleExplicit = isTitleExplicit
+        self.line = line
+        self.sourcePath = sourcePath
+        self.title = title
+    }
+}
+
+public struct AdaScriptViewEnvironmentBinding: Equatable, Sendable {
+    public let key: String
+    public let propertyName: String
+
+    public init(key: String, propertyName: String) {
+        self.key = key
+        self.propertyName = propertyName
+    }
+}
+
+func humanizedAdaScriptViewTitle(_ name: String) -> String {
+    let characters = Array(name)
+    var result = ""
+    for index in characters.indices {
+        let character = characters[index]
+        if character == "_" {
+            if result.last != " " {
+                result.append(" ")
+            }
+        } else {
+            let previous = index > characters.startIndex ? characters[index - 1] : nil
+            let nextIndex = characters.index(after: index)
+            let next = nextIndex < characters.endIndex ? characters[nextIndex] : nil
+            let startsWord = character.isUppercase && (
+                previous?.isLowercase == true
+                    || previous?.isNumber == true
+                    || (previous?.isUppercase == true && next?.isLowercase == true)
+            )
+            if startsWord, result.last != " " {
+                result.append(" ")
+            }
+            result.append(character)
+        }
+    }
+    return result
+}
+
 public enum AdaScriptSchemaError: Error, Equatable, CustomStringConvertible {
     case duplicateID(String)
     case duplicateName(String)

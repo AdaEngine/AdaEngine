@@ -1,7 +1,7 @@
 import AdaScriptCompilerCore
 import Foundation
 
-public enum GravityScriptError: Error, Sendable, Equatable, CustomStringConvertible {
+public enum AdaScriptError: Error, Sendable, Equatable, CustomStringConvertible {
     case compilation([String])
     case duplicateSourcePath(String)
     case importCycle([String])
@@ -37,7 +37,7 @@ public enum GravityScriptError: Error, Sendable, Equatable, CustomStringConverti
 }
 
 /// One source file embedded in an Ada Script module.
-public typealias GravityScriptSource = AdaScriptCompilerSource
+public typealias AdaScriptSource = AdaScriptCompilerSource
 
 struct ResolvedGravityScriptModule: Sendable {
     struct Source: Sendable {
@@ -51,14 +51,20 @@ struct ResolvedGravityScriptModule: Sendable {
 }
 
 enum GravityScriptModuleResolver {
-    static func resolve(_ sources: [GravityScriptSource]) throws -> ResolvedGravityScriptModule {
+    static func resolve(_ sources: [AdaScriptSource]) throws -> ResolvedGravityScriptModule {
         var parsedSources: [String: ParsedSource] = [:]
         for source in sources {
             let path = try canonicalSourcePath(source.path)
             guard parsedSources[path] == nil else {
-                throw GravityScriptError.duplicateSourcePath(path)
+                throw AdaScriptError.duplicateSourcePath(path)
             }
-            var scanner = AdaScriptSourceScanner(source: source.source, path: path)
+            let loweredSource: String
+            do {
+                loweredSource = try AdaScriptViewBuilderLowerer.lower(source: source.source, path: path)
+            } catch let error as AdaScriptViewBuilderError {
+                throw AdaScriptError.invalidManifest(error.description)
+            }
+            var scanner = AdaScriptSourceScanner(source: loweredSource, path: path)
             parsedSources[path] = try scanner.scan()
         }
 
@@ -93,9 +99,10 @@ enum GravityScriptModuleResolver {
             pathsByFileID[fileID] = path
         }
 
-        let entrySource = orderedPaths
+        let includes = orderedPaths
             .map { path in "#include \"\(escapeGravityString(path))\"" }
             .joined(separator: "\n")
+        let entrySource = "extern var adaUIBuilder;\n\(includes)"
 
         return ResolvedGravityScriptModule(
             entrySource: entrySource,
@@ -124,9 +131,9 @@ enum GravityScriptModuleResolver {
             return
         case .visiting:
             guard let cycleStart = stack.firstIndex(of: path) else {
-                throw GravityScriptError.importCycle(stack + [path])
+                throw AdaScriptError.importCycle(stack + [path])
             }
-            throw GravityScriptError.importCycle(Array(stack[cycleStart...]) + [path])
+            throw AdaScriptError.importCycle(Array(stack[cycleStart...]) + [path])
         case nil:
             break
         }
@@ -144,7 +151,7 @@ enum GravityScriptModuleResolver {
             }
             let resolvedPath = try resolveImport(importPath, from: path)
             guard parsedSources[resolvedPath] != nil else {
-                throw GravityScriptError.unresolvedImport(source: path, importPath: importPath)
+                throw AdaScriptError.unresolvedImport(source: path, importPath: importPath)
             }
             try visit(
                 resolvedPath,
@@ -167,7 +174,7 @@ enum GravityScriptModuleResolver {
 
     private static func resolveImport(_ importPath: String, from sourcePath: String) throws -> String {
         guard importPath.hasPrefix("./") || importPath.hasPrefix("../") else {
-            throw GravityScriptError.invalidImport(
+            throw AdaScriptError.invalidImport(
                 source: sourcePath,
                 message: "imports must be relative or name a supported virtual module: '\(importPath)'"
             )
@@ -187,7 +194,7 @@ enum GravityScriptModuleResolver {
               !normalizedSeparators.hasPrefix("/"),
               !isWindowsAbsolutePath(normalizedSeparators),
               !normalizedSeparators.contains("\"") else {
-            throw GravityScriptError.invalidSourcePath(path)
+            throw AdaScriptError.invalidSourcePath(path)
         }
 
         var components = baseComponents
@@ -197,7 +204,7 @@ enum GravityScriptModuleResolver {
                 continue
             case "..":
                 guard !components.isEmpty else {
-                    throw GravityScriptError.invalidSourcePath(path)
+                    throw AdaScriptError.invalidSourcePath(path)
                 }
                 components.removeLast()
             default:
@@ -205,7 +212,7 @@ enum GravityScriptModuleResolver {
             }
         }
         guard !components.isEmpty else {
-            throw GravityScriptError.invalidSourcePath(path)
+            throw AdaScriptError.invalidSourcePath(path)
         }
         return components.joined(separator: "/")
     }
@@ -454,7 +461,7 @@ private struct AdaScriptSourceScanner {
         index = source.index(index, offsetBy: distance, limitedBy: source.endIndex) ?? source.endIndex
     }
 
-    private func invalidImport(_ message: String) -> GravityScriptError {
+    private func invalidImport(_ message: String) -> AdaScriptError {
         .invalidImport(source: path, message: message)
     }
 }

@@ -1,68 +1,7 @@
-import Foundation
-
-public enum AdaScriptSchemaParser {
-    public static func parse(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptDataSchema] {
-        var schemas: [AdaScriptDataSchema] = []
-        for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
-            schemas += try parser.parse().schemas
-        }
-
-        var ids = Set<String>()
-        var names = Set<String>()
-        for schema in schemas {
-            guard ids.insert(schema.id).inserted else {
-                throw AdaScriptSchemaError.duplicateID(schema.id)
-            }
-            guard names.insert(schema.name).inserted else {
-                throw AdaScriptSchemaError.duplicateName(schema.name)
-            }
-        }
-        return schemas
-    }
-
-    public static func parseResourceBindings(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptResourceBinding] {
-        var bindings: [AdaScriptResourceBinding] = []
-        for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
-            bindings += try parser.parse().resourceBindings
-        }
-        return bindings
-    }
-
-    public static func parseSystemCapabilities(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptSystemCapabilities] {
-        var capabilities: [AdaScriptSystemCapabilities] = []
-        for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
-            capabilities += try parser.parse().systemCapabilities
-        }
-        return capabilities
-    }
-
-    public static func parseScriptables(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptableSchema] {
-        var schemas: [AdaScriptableSchema] = []
-        for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
-            schemas += try parser.parse().scriptables
-        }
-
-        var ids = Set<String>()
-        var names = Set<String>()
-        for schema in schemas {
-            guard ids.insert(schema.id).inserted else {
-                throw AdaScriptSchemaError.duplicateID(schema.id)
-            }
-            guard names.insert(schema.name).inserted else {
-                throw AdaScriptSchemaError.duplicateName(schema.name)
-            }
-        }
-        return schemas
-    }
-}
-
 private struct Annotation {
     let arguments: [String: Literal]
     let name: String
+    let positionalArguments: [Literal]
 }
 
 private enum Literal {
@@ -81,16 +20,20 @@ struct Token {
         case string
     }
 
+    let endOffset: Int
     let kind: Kind
+    let line: Int
+    let startOffset: Int
     let text: String
 }
 
-private struct Parser {
+struct Parser {
     struct Output {
         var resourceBindings: [AdaScriptResourceBinding] = []
         var schemas: [AdaScriptDataSchema] = []
         var scriptables: [AdaScriptableSchema] = []
         var systemCapabilities: [AdaScriptSystemCapabilities] = []
+        var views: [AdaScriptViewSchema] = []
     }
     private let path: String
     private let tokens: [Token]
@@ -107,6 +50,7 @@ private struct Parser {
         while !isAtEnd {
             let annotations = try parseAnnotations()
             if match("class") {
+                let declarationLine = current?.line ?? 1
                 guard let name = consumeIdentifier() else {
                     throw error("expected class name")
                 }
@@ -116,6 +60,8 @@ private struct Parser {
                     output.systemCapabilities.append(system.capabilities)
                 } else if let annotation = annotations.first(where: { $0.name == "scriptable" }) {
                     output.scriptables.append(try parseScriptable(name: name, annotation: annotation))
+                } else if let annotation = annotations.first(where: { $0.name == "view" }) {
+                    output.views.append(try parseView(name: name, annotation: annotation, line: declarationLine))
                 } else {
                     try skipDeclarationBody()
                 }
@@ -128,6 +74,9 @@ private struct Parser {
             guard let name = consumeIdentifier() else {
                 throw error("expected struct name")
             }
+            if annotations.contains(where: { $0.name == "view" }) {
+                throw error("@view can only annotate a class")
+            }
             guard let schemaAnnotation = annotations.first(where: { $0.name == "component" || $0.name == "resource" }) else {
                 try skipDeclarationBody()
                 continue
@@ -139,6 +88,87 @@ private struct Parser {
 }
 
 private extension Parser {
+    private mutating func parseView(name: String, annotation: Annotation, line: Int) throws -> AdaScriptViewSchema {
+        let environment = try parseViewBody(name: name)
+        let id: String
+        let isIDExplicit: Bool
+        if case .string(let explicitID) = annotation.arguments["id"] {
+            id = explicitID
+            isIDExplicit = true
+        } else {
+            id = name
+            isIDExplicit = false
+        }
+
+        let title: String
+        let isTitleExplicit: Bool
+        if case .string(let explicitTitle) = annotation.arguments["title"] {
+            title = explicitTitle
+            isTitleExplicit = true
+        } else {
+            title = humanizedAdaScriptViewTitle(name)
+            isTitleExplicit = false
+        }
+
+        return AdaScriptViewSchema(
+            className: name,
+            environment: environment,
+            id: id,
+            isIDExplicit: isIDExplicit,
+            isTitleExplicit: isTitleExplicit,
+            line: line,
+            sourcePath: path,
+            title: title
+        )
+    }
+
+    private mutating func parseViewBody(name: String) throws -> [AdaScriptViewEnvironmentBinding] {
+        guard match("{") else {
+            throw error("expected '{' after view \(name)")
+        }
+        var bindings: [AdaScriptViewEnvironmentBinding] = []
+        var depth = 1
+        while !isAtEnd, depth > 0 {
+            if depth == 1 {
+                let annotations = try parseAnnotations()
+                if let binding = try parseViewEnvironmentBinding(annotations, viewName: name) {
+                    bindings.append(binding)
+                    continue
+                }
+                if annotations.contains(where: { $0.name == "binding" }) {
+                    throw error("@binding in \(name) requires nested script-view parameters, which are not implemented yet")
+                }
+            }
+            advanceSystemBody(depth: &depth)
+        }
+        guard depth == 0 else {
+            throw error("unterminated view declaration '\(name)'")
+        }
+        return bindings
+    }
+
+    private mutating func parseViewEnvironmentBinding(
+        _ annotations: [Annotation],
+        viewName: String
+    ) throws -> AdaScriptViewEnvironmentBinding? {
+        guard let environment = annotations.first(where: { $0.name == "environment" }) else {
+            return nil
+        }
+        guard case .identifier(let key)? = environment.positionalArguments.first else {
+            throw error("@environment in \(viewName) requires a symbolic key")
+        }
+        guard match("var"), let propertyName = consumeIdentifier() else {
+            throw error("@environment in \(viewName) must annotate a stored var")
+        }
+        if match(":"), consumeIdentifier() == nil {
+            throw error("expected environment value type for \(propertyName)")
+        }
+        guard match(";") else {
+            throw error("expected ';' after environment property '\(propertyName)'")
+        }
+        return AdaScriptViewEnvironmentBinding(key: key, propertyName: propertyName)
+    }
+
     private mutating func parseScriptable(name: String, annotation: Annotation) throws -> AdaScriptableSchema {
         let body = try parseScriptableBody(name: name)
         return AdaScriptableSchema(
@@ -440,6 +470,7 @@ private extension Parser {
                 throw error("expected annotation name")
             }
             var arguments: [String: Literal] = [:]
+            var positionalArguments: [Literal] = []
             if match("(") {
                 while !isAtEnd, !check(")") {
                     if current?.kind == .identifier, checkNext(":") {
@@ -448,7 +479,7 @@ private extension Parser {
                         }
                         arguments[label] = try parseLiteral(annotation: name, label: label)
                     } else {
-                        try skipAnnotationValue(annotation: name)
+                        positionalArguments.append(try parseLiteral(annotation: name, label: "value"))
                     }
                     if !match(",") {
                         break
@@ -458,32 +489,9 @@ private extension Parser {
                     throw error("unterminated @\(name) annotation")
                 }
             }
-            result.append(Annotation(arguments: arguments, name: name))
+            result.append(Annotation(arguments: arguments, name: name, positionalArguments: positionalArguments))
         }
         return result
-    }
-
-    private mutating func skipAnnotationValue(annotation: String) throws {
-        guard !isAtEnd else {
-            throw error("missing value in @\(annotation)")
-        }
-        if match("[") {
-            var depth = 1
-            while !isAtEnd, depth > 0 {
-                if match("[") {
-                    depth += 1
-                } else if match("]") {
-                    depth -= 1
-                } else {
-                    advance()
-                }
-            }
-            guard depth == 0 else {
-                throw error("unterminated list in @\(annotation)")
-            }
-        } else {
-            advance()
-        }
     }
 
     private mutating func parseLiteral(annotation: String, label: String) throws -> Literal {

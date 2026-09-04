@@ -21,7 +21,7 @@ struct Gravity2DDemoScriptTests {
             .deletingLastPathComponent()
         let scriptURL = repositoryURL
             .appendingPathComponent("Demos/Resources/Gravity/gravity_swarm.gravity")
-        let plugin = try GravityScriptPlugin(contentsOf: scriptURL)
+        let plugin = try AdaScriptPlugin(contentsOf: scriptURL)
         let world = World(name: "Gravity 2D Demo Script Test")
         let movingEntity = world.spawn {
             Transform(position: Vector3(0, 0, 0))

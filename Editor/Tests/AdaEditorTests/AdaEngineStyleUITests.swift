@@ -1578,7 +1578,7 @@ struct AdaEngineStyleUITests {
             }
         }
         """)
-        let gravityPlugin = try GravityScriptPlugin(source: adaSource)
+        let gravityPlugin = try AdaScriptPlugin(source: adaSource)
         #expect(gravityPlugin.name == "AdaScript")
         #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Player.swift"), encoding: .utf8) == "import AdaEngine\n\n")
         #expect(try String(contentsOf: sourcesURL.appendingPathComponent("Notes.txt"), encoding: .utf8).isEmpty)

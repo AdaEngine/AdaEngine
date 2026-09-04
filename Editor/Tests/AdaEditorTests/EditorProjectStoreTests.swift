@@ -45,6 +45,7 @@ struct EditorProjectStoreTests {
         #expect(main.contains("try await Game.main()"))
         #expect(main.contains("assetBundle: .module"))
         #expect(main.contains(".addPlugins(AdaScriptPluginsGenerated())"))
+        #expect(main.contains("AdaScriptViewsGenerated.mainView"))
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Sources/My_Game/Main.ada").path))
         let sceneURL = projectURL.appendingPathComponent("Assets/Scenes/Main.ascn", isDirectory: false)
         #expect(FileManager.default.fileExists(atPath: sceneURL.path))

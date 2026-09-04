@@ -356,6 +356,7 @@ var targets: [Target] = [
             "AdaECS",
             "AdaInput",
             "AdaScene",
+            "AdaUI",
             .product(name: "Gravity", package: "gravity-lang")
         ],
         swiftSettings: swiftSettings
@@ -1103,7 +1104,7 @@ targets += [
     ),
     .testTarget(
         name: "AdaScriptingTests",
-        dependencies: ["AdaScriptCompilerCore", "AdaScripting", "AdaApp", "AdaECS", "AdaInput", "AdaScene", "AdaTransform", "Math"],
+        dependencies: ["AdaScriptCompilerCore", "AdaScripting", "AdaApp", "AdaECS", "AdaInput", "AdaRender", "AdaScene", "AdaTransform", "AdaUI", "Math"],
     ),
     .testTarget(
         name: "AdaAssetsTests",

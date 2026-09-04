@@ -10,10 +10,16 @@ import Glibc
 #endif
 
 struct EditorPreviewDeclaration: Equatable, Sendable, Identifiable {
+    enum Kind: Equatable, Sendable {
+        case adaScript
+        case swift
+    }
+
     var id: String
     var title: String
     var typeName: String
     var line: Int
+    var kind: Kind = .swift
 
     var symbolName: String {
         "ada_editor_preview_make_\(typeName.map { character in character.isLetter || character.isNumber || character == "_" ? character : "_" }.map(String.init).joined())"
@@ -42,6 +48,17 @@ struct EditorPreviewBuildArtifact: Equatable, Sendable {
 }
 
 enum EditorPreviewScanner {
+    static func declarations(in source: String, language: EditorSourceLanguage) -> [EditorPreviewDeclaration] {
+        switch language {
+        case .ada:
+            adaScriptDeclarations(in: source)
+        case .packageManifest, .swift:
+            declarations(in: source)
+        default:
+            []
+        }
+    }
+
     static func declarations(in source: String) -> [EditorPreviewDeclaration] {
         let sourceFile = Parser.parse(source: source)
         let locationConverter = SourceLocationConverter(fileName: "", tree: sourceFile)
@@ -63,6 +80,21 @@ enum EditorPreviewScanner {
                 line: location.line
             )
         }
+    }
+
+    private static func adaScriptDeclarations(in source: String) -> [EditorPreviewDeclaration] {
+        let metadata = try? AdaScriptViewScanner.declarations(in: [
+            AdaScriptSource(path: "Preview.ada", source: source)
+        ])
+        return metadata?.map {
+            EditorPreviewDeclaration(
+                id: $0.identifier,
+                title: $0.title,
+                typeName: $0.className,
+                line: $0.line,
+                kind: .adaScript
+            )
+        } ?? []
     }
 }
 
@@ -660,7 +692,7 @@ final class EditorPreviewDynamicLibrary {
     }
 }
 
-private extension SwiftPackageModel {
+extension SwiftPackageModel {
     func target(containing document: EditorTextDocument, projectURL: URL) -> SwiftPackageTarget? {
         guard let absolutePath = document.absolutePath else {
             return nil

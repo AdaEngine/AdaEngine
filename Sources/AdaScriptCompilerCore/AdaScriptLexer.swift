@@ -3,6 +3,8 @@ import Foundation
 struct Lexer {
     private let source: String
     private var index: String.Index
+    private var line = 1
+    private var offset = 0
 
     init(source: String) {
         self.source = source
@@ -21,21 +23,32 @@ struct Lexer {
                 while index < source.endIndex, !hasPrefix("*/") { advance() }
                 advance(2)
             } else if source[index] == "\"" {
-                tokens.append(Token(kind: .string, text: lexString()))
+                let startOffset = offset
+                let tokenLine = line
+                let result = lexString()
+                tokens.append(Token(endOffset: result.endOffset, kind: .string, line: tokenLine, startOffset: startOffset, text: result.text))
             } else if source[index].isLetter || source[index] == "_" {
-                tokens.append(Token(kind: .identifier, text: lexIdentifier()))
+                let startOffset = offset
+                let tokenLine = line
+                let text = lexIdentifier()
+                tokens.append(Token(endOffset: offset, kind: .identifier, line: tokenLine, startOffset: startOffset, text: text))
             } else if source[index].isNumber {
-                tokens.append(Token(kind: .number, text: lexNumber()))
+                let startOffset = offset
+                let tokenLine = line
+                let text = lexNumber()
+                tokens.append(Token(endOffset: offset, kind: .number, line: tokenLine, startOffset: startOffset, text: text))
             } else {
+                let startOffset = offset
+                let tokenLine = line
                 let character = source[index]
                 advance()
-                tokens.append(Token(kind: .punctuation, text: String(character)))
+                tokens.append(Token(endOffset: offset, kind: .punctuation, line: tokenLine, startOffset: startOffset, text: String(character)))
             }
         }
         return tokens
     }
 
-    private mutating func lexString() -> String {
+    private mutating func lexString() -> (endOffset: Int, text: String) {
         advance()
         var result = ""
         while index < source.endIndex, source[index] != "\"" {
@@ -47,7 +60,7 @@ struct Lexer {
             advance()
         }
         advance()
-        return result
+        return (offset, result)
     }
 
     private mutating func lexIdentifier() -> String {
@@ -65,6 +78,12 @@ struct Lexer {
     private func hasPrefix(_ value: String) -> Bool { source[index...].hasPrefix(value) }
 
     private mutating func advance(_ distance: Int = 1) {
-        index = source.index(index, offsetBy: distance, limitedBy: source.endIndex) ?? source.endIndex
+        for _ in 0..<distance where index < source.endIndex {
+            if source[index] == "\n" {
+                line += 1
+            }
+            index = source.index(after: index)
+            offset += 1
+        }
     }
 }

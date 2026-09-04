@@ -4,9 +4,9 @@ import AdaInput
 import Foundation
 import Gravity
 
-public struct GravityScriptableSchema: Sendable {
+public struct AdaScriptObjectSchema: Sendable {
     public let aliases: [String]
-    public let bindings: [GravityScriptableBinding]
+    public let bindings: [AdaScriptObjectBinding]
     public let className: String
     public let fields: [String: EditorFieldValue]
     public let identifier: String
@@ -17,7 +17,7 @@ public struct GravityScriptableSchema: Sendable {
         className: String,
         version: Int,
         aliases: [String],
-        bindings: [GravityScriptableBinding] = [],
+        bindings: [AdaScriptObjectBinding] = [],
         fields: [String: EditorFieldValue]
     ) {
         self.aliases = aliases
@@ -29,7 +29,7 @@ public struct GravityScriptableSchema: Sendable {
     }
 }
 
-public struct GravityScriptableBinding: Sendable {
+public struct AdaScriptObjectBinding: Sendable {
     public enum Kind: Sendable {
         case component(required: Bool)
         case resource(optional: Bool)
@@ -46,11 +46,11 @@ public struct GravityScriptableBinding: Sendable {
     }
 }
 
-public enum GravityScriptableObjectRegistration {
+public enum AdaScriptObjectRegistration {
     @MainActor
     public static func register(
-        schemas: [GravityScriptableSchema],
-        sources: [GravityScriptSource],
+        schemas: [AdaScriptObjectSchema],
+        sources: [AdaScriptSource],
         moduleName: String
     ) throws {
         _ = moduleName
@@ -91,9 +91,9 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
     let declaredAccess: SystemAccessSet
     let requiredComponents: [ComponentId]
     let runtime: GravityScriptableModuleRuntime
-    let schema: GravityScriptableSchema
+    let schema: AdaScriptObjectSchema
 
-    init(schema: GravityScriptableSchema, runtime: GravityScriptableModuleRuntime) throws {
+    init(schema: AdaScriptObjectSchema, runtime: GravityScriptableModuleRuntime) throws {
         let bindings = try schema.bindings.map {
             try Self.resolve($0, scriptableIdentifier: schema.identifier)
         }
@@ -119,13 +119,13 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
     }
 
     private static func resolve(
-        _ binding: GravityScriptableBinding,
+        _ binding: AdaScriptObjectBinding,
         scriptableIdentifier: String
     ) throws -> ResolvedGravityScriptableBinding {
         switch binding.kind {
         case .component(let required):
             guard let type = RuntimeTypeRegistry.componentType(named: binding.typeName) else {
-                throw GravityScriptError.unknownComponent(
+                throw AdaScriptError.unknownComponent(
                     system: scriptableIdentifier,
                     queryIndex: 0,
                     component: binding.typeName
@@ -139,7 +139,7 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
             )
         case .resource(let optional):
             guard let type = RuntimeTypeRegistry.resourceType(named: binding.typeName) else {
-                throw GravityScriptError.unknownResource(
+                throw AdaScriptError.unknownResource(
                     system: scriptableIdentifier,
                     resource: binding.typeName
                 )
@@ -161,7 +161,7 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
                   !context.scriptingWorld.has(type.identifier, in: context.entityID) else {
                 continue
             }
-            throw GravityScriptError.invalidManifest(
+            throw AdaScriptError.invalidManifest(
                 "Required component '\(String(describing: type))' for '\(propertyName)' is missing"
             )
         }
@@ -324,7 +324,6 @@ private final class GravityScriptableLifecycleContext: @unchecked Sendable {
 }
 
 private final class GravityScriptableModuleRuntime: @unchecked Sendable {
-    private let lock = NSRecursiveLock()
     private let factoryNamesByClass: [String: String]
     private let getterNamesByClass: [String: [String: String]]
     // The runtime owns its delegate for exactly the VM lifetime; this is not a callback back-reference.
@@ -334,7 +333,7 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
     private var classNamesByInstance: [UUID: String] = [:]
     private var instances: [UUID: GSValue] = [:]
 
-    init(sources: [GravityScriptSource], schemas: [GravityScriptableSchema]) throws {
+    init(sources: [AdaScriptSource], schemas: [AdaScriptObjectSchema]) throws {
         let module = try GravityScriptModuleResolver.resolve(sources)
         let factoryNamesByClass = Dictionary(uniqueKeysWithValues: schemas.enumerated().map { index, schema in
             (schema.className, "__ada_make_scriptable_\(index)")
@@ -362,6 +361,8 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
         try virtualMachine.bindClass(with: AnnotatedGravityResourceView.self)
         try virtualMachine.bindClass(with: GravityAttachedComponentView.self)
         try virtualMachine.bindClass(with: GravityAttachedResourceView.self)
+        try virtualMachine.bindClass(with: AdaScriptViewBridge.self)
+        virtualMachine.setValue(AdaScriptViewBridge(), forKey: "adaUIBuilder")
         let factories = factoryNamesByClass
             .map { className, factoryName in
                 "func \(factoryName)() { return \(className)(); }"
@@ -377,24 +378,24 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
         let generatedSource = (factories + getters).joined(separator: "\n")
         let binary = virtualMachine.loadGravityFile(from: module.entrySource + "\n" + generatedSource)
         guard delegate.errors.isEmpty else {
-            throw GravityScriptError.compilation(delegate.errors)
+            throw AdaScriptError.compilation(delegate.errors)
         }
         virtualMachine.load(binary)
         guard delegate.errors.isEmpty else {
-            throw GravityScriptError.compilation(delegate.errors)
+            throw AdaScriptError.compilation(delegate.errors)
         }
     }
 
     func instantiate(className: String, payload: [String: EditorFieldValue]) throws -> UUID {
-        try lock.withLock {
+        try AdaScriptRuntimeCoordinator.lock.withLock {
             guard let factoryName = factoryNamesByClass[className] else {
-                throw GravityScriptError.invalidManifest("Missing @scriptable factory for '\(className)'")
+                throw AdaScriptError.invalidManifest("Missing @scriptable factory for '\(className)'")
             }
             let factory = virtualMachine.getValue(forKey: factoryName)
             guard factory.isClosure,
                   let instance = factory.callConstructor(with: []),
                   instance.isInstance else {
-                throw GravityScriptError.invalidManifest("Unable to instantiate @scriptable class '\(className)'")
+                throw AdaScriptError.invalidManifest("Unable to instantiate @scriptable class '\(className)'")
             }
             for (name, value) in payload {
                 _ = instance.setStoredProperty(
@@ -415,7 +416,7 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
         context: ScriptableObjectContext,
         bindings: [ResolvedGravityScriptableBinding]
     ) {
-        lock.withLock {
+        AdaScriptRuntimeCoordinator.lock.withLock {
             guard let instance = instances[instanceID], instance.hasMethod(named: method) else {
                 return
             }
@@ -438,7 +439,7 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
         context: ScriptableObjectContext,
         bindings: [ResolvedGravityScriptableBinding]
     ) {
-        lock.withLock {
+        AdaScriptRuntimeCoordinator.lock.withLock {
             guard let instance = instances[instanceID], instance.hasMethod(named: "event") else {
                 return
             }
@@ -459,7 +460,7 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
         instanceID: UUID,
         fields: [String: EditorFieldValue].Keys
     ) -> [String: EditorFieldValue] {
-        lock.withLock {
+        AdaScriptRuntimeCoordinator.lock.withLock {
             guard let instance = instances[instanceID] else {
                 return [:]
             }
@@ -483,7 +484,7 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
     }
 
     func remove(instanceID: UUID) {
-        lock.withLock {
+        AdaScriptRuntimeCoordinator.lock.withLock {
             instances[instanceID] = nil
             classNamesByInstance[instanceID] = nil
         }

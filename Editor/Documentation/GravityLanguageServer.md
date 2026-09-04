@@ -1,6 +1,6 @@
-# Gravity Language Server
+# Ada Script Language Server
 
-`gravity-lsp` is AdaEngine's language server for Gravity/Ada Script files. AdaEditor uses the same language core internally, while other editors can start the executable over standard input and output.
+`gravity-lsp` is the current executable name for AdaEngine's Ada Script language server. AdaEditor uses the same language core internally, while other editors can start the executable over standard input and output.
 
 ## Build
 
@@ -16,12 +16,12 @@ The debug executable is written to SwiftPM's binary directory. To get its exact 
 swift build --show-bin-path
 ```
 
-Then configure an LSP client to start `<bin-path>/gravity-lsp` for files ending in `.ada` or `.gravity`, with the language identifier `gravity`. The server communicates using standard LSP `Content-Length` framing over stdin/stdout; logs must not be written to stdout.
+Then configure an LSP client to start `<bin-path>/gravity-lsp` for files ending in `.ada`, with the language identifier `ada`. The server communicates using standard LSP `Content-Length` framing over stdin/stdout; logs must not be written to stdout.
 
 ## Supported features
 
-- Completion for Gravity declarations, inferred local values, and AdaEngine scripting APIs such as `AdaPlugin`, `AdaQuery`, `AdaSystem`, query collections, and entities.
-- Workspace symbols collected from `.ada` and `.gravity` files below the configured root, including `.ada/generated`.
+- Completion for Ada Script declarations, inferred local values, and AdaEngine scripting APIs such as `AdaPlugin`, `AdaQuery`, `AdaSystem`, query collections, and entities.
+- Workspace symbols collected from `.ada` files below the configured root, including `.ada/generated`.
 - Full-document synchronization for open and changed documents.
 - Document symbols.
 - Go-to-definition for local and workspace types, functions, and methods.

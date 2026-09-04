@@ -11,7 +11,7 @@ struct GravityScriptModuleTests {
         ModulePosition.registerComponent()
         ModuleCounter.registerComponent()
 
-        let plugin = try GravityScriptPlugin(
+        let plugin = try AdaScriptPlugin(
             sources: Self.multiFileSources,
             name: "MultiFileTest"
         )
@@ -32,9 +32,9 @@ struct GravityScriptModuleTests {
     @Test("Reports the complete reachable import cycle")
     func reportsImportCycle() {
         #expect {
-            try GravityScriptPlugin(
+            try AdaScriptPlugin(
                 sources: [
-                    GravityScriptSource(
+                    AdaScriptSource(
                         path: "A.ada",
                         source: """
                         import { helper } from "./B";
@@ -45,7 +45,7 @@ struct GravityScriptModuleTests {
                         }
                         """
                     ),
-                    GravityScriptSource(
+                    AdaScriptSource(
                         path: "B.ada",
                         source: """
                         import { CycleSystem } from "./A";
@@ -56,16 +56,16 @@ struct GravityScriptModuleTests {
                 name: "Cycle"
             )
         } throws: { error in
-            (error as? GravityScriptError) == .importCycle(["A.ada", "B.ada", "A.ada"])
+            (error as? AdaScriptError) == .importCycle(["A.ada", "B.ada", "A.ada"])
         }
     }
 
     @Test("Rejects imports that escape the target source map")
     func rejectsEscapingImport() {
-        #expect(throws: GravityScriptError.self) {
-            try GravityScriptPlugin(
+        #expect(throws: AdaScriptError.self) {
+            try AdaScriptPlugin(
                 sources: [
-                    GravityScriptSource(
+                    AdaScriptSource(
                         path: "Systems/Unsafe.ada",
                         source: """
                         import { Secret } from "../../Secret";
@@ -85,24 +85,24 @@ struct GravityScriptModuleTests {
     @Test("Rejects duplicate canonical source paths")
     func rejectsDuplicateSourcePaths() {
         #expect {
-            try GravityScriptPlugin(
+            try AdaScriptPlugin(
                 sources: [
-                    GravityScriptSource(path: "Shared/../Main.ada", source: ""),
-                    GravityScriptSource(path: "Main.ada", source: "")
+                    AdaScriptSource(path: "Shared/../Main.ada", source: ""),
+                    AdaScriptSource(path: "Main.ada", source: "")
                 ],
                 name: "Duplicate"
             )
         } throws: { error in
-            (error as? GravityScriptError) == .duplicateSourcePath("Main.ada")
+            (error as? AdaScriptError) == .duplicateSourcePath("Main.ada")
         }
     }
 
     @Test("Preserves the imported source identity in compiler diagnostics")
     func preservesImportedSourceIdentity() {
         #expect {
-            try GravityScriptPlugin(
+            try AdaScriptPlugin(
                 sources: [
-                    GravityScriptSource(
+                    AdaScriptSource(
                         path: "Main.ada",
                         source: """
                         import { broken } from "./Shared/Broken";
@@ -113,12 +113,12 @@ struct GravityScriptModuleTests {
                         }
                         """
                     ),
-                    GravityScriptSource(path: "Shared/Broken.ada", source: "func broken( {")
+                    AdaScriptSource(path: "Shared/Broken.ada", source: "func broken( {")
                 ],
                 name: "Diagnostics"
             )
         } throws: { error in
-            guard let scriptError = error as? GravityScriptError,
+            guard let scriptError = error as? AdaScriptError,
                   case .compilation(let diagnostics) = scriptError else { return false }
             return diagnostics.contains { $0.hasPrefix("Shared/Broken.ada:") }
         }
@@ -126,10 +126,10 @@ struct GravityScriptModuleTests {
 
     @Test("Rejects namespace imports until namespace isolation is implemented")
     func rejectsNamespaceImports() {
-        #expect(throws: GravityScriptError.self) {
-            try GravityScriptPlugin(
+        #expect(throws: AdaScriptError.self) {
+            try AdaScriptPlugin(
                 sources: [
-                    GravityScriptSource(
+                    AdaScriptSource(
                         path: "Main.ada",
                         source: """
                         import * as Shared from "./Shared";
@@ -140,7 +140,7 @@ struct GravityScriptModuleTests {
                         }
                         """
                     ),
-                    GravityScriptSource(path: "Shared.ada", source: "func helper() {}")
+                    AdaScriptSource(path: "Shared.ada", source: "func helper() {}")
                 ],
                 name: "Namespace"
             )
@@ -148,7 +148,7 @@ struct GravityScriptModuleTests {
     }
 
     private static let multiFileSources = [
-        GravityScriptSource(
+        AdaScriptSource(
             path: "Shared/Steps.ada",
             source: """
             func importedStep() {
@@ -156,7 +156,7 @@ struct GravityScriptModuleTests {
             }
             """
         ),
-        GravityScriptSource(
+        AdaScriptSource(
             path: "Systems/Movement.ada",
             source: """
             import {
@@ -176,7 +176,7 @@ struct GravityScriptModuleTests {
             }
             """
         ),
-        GravityScriptSource(
+        AdaScriptSource(
             path: "Systems/Counter.ada",
             source: """
             @system(id: "module.counter")
@@ -192,7 +192,7 @@ struct GravityScriptModuleTests {
             }
             """
         ),
-        GravityScriptSource(path: "Unused/Broken.ada", source: "func broken( {")
+        AdaScriptSource(path: "Unused/Broken.ada", source: "func broken( {")
     ]
 }
 
