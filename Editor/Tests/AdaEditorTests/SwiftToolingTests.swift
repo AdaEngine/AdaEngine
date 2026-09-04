@@ -132,6 +132,28 @@ struct SwiftToolingTests {
         #expect(message.contains("read-only"))
     }
 
+    @Test("Gravity workspace builds in process without invoking SwiftPM")
+    @MainActor
+    func gravityWorkspaceSkipsSwiftPM() async throws {
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("GravityWorkspace-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+        let project = try EditorProjectStore(
+            storageURL: rootURL.appendingPathComponent("projects.json")
+        ).createProject(named: "TabletGame", at: rootURL, template: .adaScript)
+        let service = RecordingWorkspaceService()
+        let viewModel = EditorViewModel(project: project, workspaceService: service)
+
+        viewModel.startEditorSessionIfNeeded()
+        await Task.yield()
+
+        #expect(await service.bootstrapCallCount == 0)
+        #expect(await service.commands.isEmpty)
+        #expect(viewModel.workspaceStatus == .ready)
+        #expect(viewModel.outputLines.contains { $0.text.contains("Gravity build succeeded") })
+    }
+
     @Test("new caret position clears stale completions before debounce")
     @MainActor
     func caretChangeClearsCompletionImmediately() {
@@ -1421,6 +1443,7 @@ private actor WorkspaceOutputRecorder {
 }
 
 private actor RecordingWorkspaceService: SwiftPMWorkspaceServicing {
+    private(set) var bootstrapCallCount = 0
     private(set) var commands: [SwiftPMCommandKind] = []
     private(set) var completionRequests: [(position: EditorSourceLocation, text: String)] = []
     private let hoverResponse: EditorSymbolHover?
@@ -1439,6 +1462,7 @@ private actor RecordingWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func bootstrap(projectURL: URL) -> SwiftPMBootstrapResult {
+        bootstrapCallCount += 1
         let toolchain = SwiftToolchain(swiftExecutablePath: "swift", sourceKitLSPExecutablePath: nil)
         let resolve = EditorProcessResult(
             command: makeCommand(.resolve, projectURL: projectURL, toolchain: toolchain),

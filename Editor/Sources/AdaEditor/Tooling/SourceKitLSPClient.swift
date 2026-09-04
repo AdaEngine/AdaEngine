@@ -908,6 +908,7 @@ enum SourceKitLSPError: Error, Equatable, Sendable {
     case buildSettingsUnavailable(String)
 }
 
+#if os(macOS)
 actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
     nonisolated static let launchArguments = ["--experimental-feature", "sourcekit-options-request"]
 
@@ -1124,6 +1125,43 @@ actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
         }
     }
 }
+#else
+actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
+    nonisolated static let launchArguments = ["--experimental-feature", "sourcekit-options-request"]
+
+    enum IncomingMessageRoute: Equatable {
+        case serverMessage(method: String, id: JSONRPCValue?)
+        case response(id: Int)
+        case invalid
+    }
+
+    func start(executablePath _: String, projectURL _: URL) async throws {
+        throw SourceKitLSPError.sourceKitLSPUnavailable
+    }
+
+    func request(method _: String, params _: JSONRPCValue?) async throws -> JSONRPCValue? {
+        throw SourceKitLSPError.sourceKitLSPUnavailable
+    }
+
+    func notify(method _: String, params _: JSONRPCValue?) async throws {
+        throw SourceKitLSPError.sourceKitLSPUnavailable
+    }
+
+    func setNotificationHandler(_: (@Sendable (String, JSONRPCValue?) async -> Void)?) {}
+
+    func stop() {}
+
+    nonisolated static func route(for object: [String: JSONRPCValue]) -> IncomingMessageRoute {
+        if case .string(let method)? = object["method"] {
+            return .serverMessage(method: method, id: object["id"])
+        }
+        if let requestID = object["id"]?.intValue {
+            return .response(id: requestID)
+        }
+        return .invalid
+    }
+}
+#endif
 
 enum JSONRPCValue: Codable, Equatable, Sendable {
     case string(String)

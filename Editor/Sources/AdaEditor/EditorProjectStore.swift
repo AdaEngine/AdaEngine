@@ -3,7 +3,7 @@ import Foundation
 
 /// The source-language starter used when AdaEditor creates a project.
 public enum EditorProjectTemplate: String, CaseIterable, Equatable, Sendable {
-    /// Gameplay starts in Ada Script. Swift is limited to the generated application bootstrap.
+    /// Gameplay and application entry points are loaded directly from Ada Script project metadata.
     case adaScript
     /// Gameplay can be implemented in both Ada Script and Swift from the start.
     case adaScriptWithSwift
@@ -20,7 +20,7 @@ public enum EditorProjectTemplate: String, CaseIterable, Equatable, Sendable {
     public var summary: String {
         switch self {
         case .adaScript:
-            "Script-first project with a generated Swift bootstrap"
+            "Portable Gravity project without Swift or Package.swift"
         case .adaScriptWithSwift:
             "Hybrid project with editable Swift and Ada Script sources"
         }
@@ -97,7 +97,7 @@ private enum EditorProjectTemplateSourceFactory {
     }
 
     static let adaScript = """
-    @view
+    @view(id: "game.main")
     class MainView {
         func body() {
             VStack(spacing: 12) {
@@ -157,8 +157,16 @@ public struct EditorProjectStore {
     }
 
     public static func defaultStorageURL(fileManager: FileManager = .default) -> URL {
-        let applicationSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support", isDirectory: true)
+        let applicationSupport: URL
+        if let applicationSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            applicationSupport = applicationSupportURL
+        } else {
+            #if os(macOS)
+            applicationSupport = fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support", isDirectory: true)
+            #else
+            applicationSupport = fileManager.temporaryDirectory
+            #endif
+        }
 
         return applicationSupport
             .appendingPathComponent("AdaEditor", isDirectory: true)
@@ -185,13 +193,17 @@ public struct EditorProjectStore {
         openedAt: Date = Date()
     ) throws -> EditorProjectReference {
         let projectName = try normalizedProjectName(name)
-        let projectURL = parentDirectory.appendingPathComponent(projectName, isDirectory: true)
+        let directoryName = template == .adaScript ? "\(projectName).adaproject" : projectName
+        let projectURL = parentDirectory.appendingPathComponent(directoryName, isDirectory: true)
 
         try validateCreationDestination(projectURL)
         try fileManager.createDirectory(at: projectURL, withIntermediateDirectories: true)
         try createInitialProjectFiles(named: projectName, at: projectURL, template: template)
-        _ = try ProjectSystem.createDefaultProject(at: projectURL, fileManager: fileManager)
-        _ = try ensureAdaEngineDependency(at: projectURL)
+        let buildSystem: AdaProjectBuildSystem = template == .adaScript ? .gravity : .swiftpm
+        _ = try ProjectSystem.createDefaultProject(at: projectURL, buildSystem: buildSystem, fileManager: fileManager)
+        if buildSystem == .swiftpm {
+            _ = try ensureAdaEngineDependency(at: projectURL)
+        }
 
         return try rememberProject(at: projectURL, name: projectName, openedAt: openedAt)
     }
@@ -199,7 +211,9 @@ public struct EditorProjectStore {
     @discardableResult
     public func openProject(at projectURL: URL, openedAt: Date = Date()) throws -> EditorProjectReference {
         let project = try ProjectSystem.validateProjectLayout(at: projectURL, fileManager: fileManager)
-        _ = try ensureAdaEngineDependency(at: projectURL)
+        if project.build.system == .swiftpm {
+            _ = try ensureAdaEngineDependency(at: projectURL)
+        }
         let displayName = project.project.displayName ?? project.project.name ?? projectURL.lastPathComponent
 
         return try rememberProject(at: projectURL, name: displayName, openedAt: openedAt)
@@ -261,6 +275,10 @@ public struct EditorProjectStore {
     /// Atomically updates project metadata and synchronizes build file/resource selection into Package.swift.
     public func saveProjectSettings(_ project: AdaProject, at projectURL: URL, targetName: String) throws {
         try ProjectSystem.validate(project)
+        guard project.build.system == .swiftpm else {
+            try ProjectSystem.saveProject(project, at: projectURL, fileManager: fileManager)
+            return
+        }
         let manifestURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
         let originalManifest = try String(contentsOf: manifestURL, encoding: .utf8)
         let result = try PackageManifestEditor.edit(
@@ -293,10 +311,25 @@ public struct EditorProjectStore {
     }
 
     private func createInitialProjectFiles(named projectName: String, at projectURL: URL, template: EditorProjectTemplate) throws {
-        try createSwiftPackage(named: projectName, at: projectURL, template: template)
+        switch template {
+        case .adaScript:
+            try createGravitySources(at: projectURL)
+        case .adaScriptWithSwift:
+            try createSwiftPackage(named: projectName, at: projectURL, template: template)
+        }
         try createAssetsDirectory(at: projectURL)
         try createDefaultScene(named: projectName, at: projectURL)
-        try createReadme(named: projectName, at: projectURL)
+        try createReadme(named: projectName, at: projectURL, template: template)
+    }
+
+    private func createGravitySources(at projectURL: URL) throws {
+        let sourcesURL = projectURL.appendingPathComponent("Sources", isDirectory: true)
+        try fileManager.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
+        try EditorProjectTemplateSourceFactory.adaScript.write(
+            to: sourcesURL.appendingPathComponent("Main.ada", isDirectory: false),
+            atomically: true,
+            encoding: .utf8
+        )
     }
 
     private func createSwiftPackage(named projectName: String, at projectURL: URL, template: EditorProjectTemplate) throws {
@@ -411,21 +444,28 @@ public struct EditorProjectStore {
         )
     }
 
-    private func createReadme(named projectName: String, at projectURL: URL) throws {
+    private func createReadme(named projectName: String, at projectURL: URL, template: EditorProjectTemplate) throws {
         let readmeURL = projectURL.appendingPathComponent("README.md", isDirectory: false)
         guard !fileManager.fileExists(atPath: readmeURL.path) else {
             return
         }
 
+        let buildDescription = template == .adaScript
+            ? "`build.system` is `gravity`; AdaEditor loads the project directly without compiling Swift."
+            : "`Package.swift` defines the native Swift executable and Ada Script build plugin."
+        let packageDescription = template == .adaScript
+            ? ""
+            : "- `Package.swift` — SwiftPM package manifest.\n"
         let readme = """
         # \(projectName)
 
         Created with AdaEditor.
 
+        \(buildDescription)
+
         ## Structure
 
-        - `Package.swift` — SwiftPM package manifest.
-        - `.ada/project.json` — AdaEditor project metadata.
+        \(packageDescription)- `.ada/project.json` — AdaEditor project metadata.
         - `Sources/` — game source files.
         - `Assets/` — game assets and scene documents.
         """

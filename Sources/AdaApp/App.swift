@@ -36,8 +36,7 @@ public extension App {
         JavaScriptEventLoop.installGlobalExecutor()
         Task { @MainActor in
             do {
-                let appContext = try AppContext<Self>()
-                try await appContext.run()
+                try await AppRuntime.run(Self())
             } catch {
                 print("AdaEngine finished with error: \(error)")
             }
@@ -46,8 +45,19 @@ public extension App {
     }
     #else
     static func main() async throws {
-        let appContext = try AppContext<Self>()
-        try await appContext.run()
+        try await AppRuntime.run(Self())
     }
     #endif
+}
+
+/// Starts a native AdaEngine application from a preconstructed app value.
+///
+/// Process entry points use this host API. Runtime-loaded projects create
+/// sessions inside that host instead of defining or invoking another `@main`.
+@MainActor
+public enum AppRuntime {
+    public static func run<Application: App>(_ application: Application) async throws {
+        let appContext = AppContext(application)
+        try await appContext.run()
+    }
 }

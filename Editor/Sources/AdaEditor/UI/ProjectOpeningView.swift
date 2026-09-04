@@ -113,8 +113,10 @@ struct ProjectOpeningView: View {
                 case .newProject:
                     viewModel.beginCreateNewProject()
                 case .openProject:
-                    guard let url = ProjectOpenPicker.pickProjectURL() else { return true }
-                    viewModel.openProject(at: url)
+                    ProjectOpenPicker.presentProjectPicker { url in
+                        guard let url else { return }
+                        viewModel.openProject(at: url)
+                    }
                 case .showProjectSettings:
                     EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: .project)
                 default:
@@ -625,12 +627,13 @@ struct ProjectOpeningView: View {
     }
 
     private func openProjectPicker() {
-        guard let projectURL = ProjectOpenPicker.pickProjectURL() else {
-            viewModel.statusMessage = "Open project cancelled."
-            return
+        ProjectOpenPicker.presentProjectPicker { projectURL in
+            guard let projectURL else {
+                viewModel.statusMessage = "Open project cancelled."
+                return
+            }
+            viewModel.openProject(at: projectURL)
         }
-
-        viewModel.openProject(at: projectURL)
     }
 
     private func chooseProjectLocation() {

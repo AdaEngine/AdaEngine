@@ -49,6 +49,7 @@ enum SwiftToolchainLocator {
     }
 
     private static func runCapture(executable: String, arguments: [String]) async -> String? {
+        #if os(macOS)
         await withCheckedContinuation { continuation in
             let process = Process()
             let output = Pipe()
@@ -69,6 +70,9 @@ enum SwiftToolchainLocator {
                 continuation.resume(returning: nil)
             }
         }
+        #else
+        nil
+        #endif
     }
 }
 
@@ -238,6 +242,7 @@ extension EditorProcessRunning {
     }
 }
 
+#if os(macOS)
 actor EditorProcessRunner: EditorProcessRunning {
     private var activeProcesses: [UUID: Process] = [:]
 
@@ -309,6 +314,20 @@ actor EditorProcessRunner: EditorProcessRunning {
         }
     }
 }
+#else
+actor EditorProcessRunner: EditorProcessRunning {
+    func run(_ command: EditorProcessCommand) async -> EditorProcessResult {
+        EditorProcessResult(
+            command: command,
+            exitCode: 126,
+            standardOutput: "",
+            standardError: "External processes are unavailable on this platform."
+        )
+    }
+
+    func cancelAll() {}
+}
+#endif
 
 enum SwiftPMCommandKind: Equatable, Sendable {
     case resolve
@@ -324,6 +343,7 @@ enum SwiftPMCommandKind: Equatable, Sendable {
 
 enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
     case macOS = "macOS"
+    case iPadOS = "iPadOS"
     case web = "Web"
 }
 

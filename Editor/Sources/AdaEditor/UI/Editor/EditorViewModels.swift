@@ -1917,7 +1917,11 @@ final class EditorViewModel {
         self.symbolReferences = symbolReferences
         self.selectedRunProduct = selectedRunProduct
         let savedProject = project.flatMap { try? ProjectSystem.loadProject(at: URL(fileURLWithPath: $0.path, isDirectory: true), fileManager: fileManager) }
+        #if os(iOS)
+        self.selectedRunDestination = selectedRunDestination ?? .iPadOS
+        #else
         self.selectedRunDestination = selectedRunDestination ?? Self.editorRunDestination(from: savedProject?.run.destination ?? .macOS)
+        #endif
         self.projectResourceRootsText = savedProject?.paths.resourceRoots.joined(separator: "\n") ?? ""
         self.projectIncludedFilesText = savedProject?.build.includedFiles.joined(separator: "\n") ?? ""
         self.projectExcludedFilesText = savedProject?.build.excludedFiles.joined(separator: "\n") ?? ""
@@ -2255,19 +2259,27 @@ final class EditorViewModel {
             projectSettingsStatusMessage = "No project is open."
             return
         }
-        guard let targetName = selectedRunTargetName else {
-            projectSettingsStatusMessage = "Load the package and select an executable target first."
-            return
-        }
 
         do {
             var settings = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
+            let targetName: String
+            if settings.build.system == .swiftpm {
+                guard let selectedRunTargetName else {
+                    projectSettingsStatusMessage = "Load the package and select an executable target first."
+                    return
+                }
+                targetName = selectedRunTargetName
+            } else {
+                targetName = ""
+            }
             settings.paths.resourceRoots = Self.pathList(from: projectResourceRootsText)
             settings.build.includedFiles = Self.pathList(from: projectIncludedFilesText)
             settings.build.excludedFiles = Self.pathList(from: projectExcludedFilesText)
             settings.run.destination = selectedRunDestination.adaProjectDestination
             try EditorProjectStore(fileManager: fileManager).saveProjectSettings(settings, at: projectURL, targetName: targetName)
-            projectSettingsStatusMessage = "Project settings saved to .ada/project.json and Package.swift."
+            projectSettingsStatusMessage = settings.build.system == .gravity
+                ? "Project settings saved to .ada/project.json."
+                : "Project settings saved to .ada/project.json and Package.swift."
             bootstrapWorkspaceIfNeeded(force: true)
         } catch {
             projectSettingsStatusMessage = "Failed to save project settings: \(error.localizedDescription)"
@@ -2285,6 +2297,7 @@ final class EditorViewModel {
     private static func editorRunDestination(from destination: AdaProjectRunDestination) -> EditorRunDestination {
         switch destination {
         case .macOS: .macOS
+        case .iPadOS: .iPadOS
         case .web: .web
         }
     }
@@ -2320,6 +2333,28 @@ final class EditorViewModel {
         }
         guard force || workspaceStatus == .idle || packageModel == nil else {
             return
+        }
+
+        if let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager) {
+            if settings.build.system == .gravity {
+                buildGravityProject(settings, at: projectURL, statusTitle: "Prepare Gravity Workspace")
+                return
+            }
+            #if os(iOS)
+            do {
+                try ProjectSystem.validateRunCompatibility(
+                    of: settings,
+                    at: projectURL,
+                    destination: .iPadOS,
+                    fileManager: fileManager
+                )
+            } catch {
+                workspaceStatus = .failed(error.message)
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput(error.message)
+                return
+            }
+            #endif
         }
 
         workspaceStatus = .resolving
@@ -2460,10 +2495,22 @@ final class EditorViewModel {
     }
 
     func buildAll() {
+        if let projectURL,
+           let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
+           settings.build.system == .gravity {
+            buildGravityProject(settings, at: projectURL, statusTitle: "Build Gravity Project")
+            return
+        }
         executeWorkspaceCommand(.build(target: nil, buildTests: true), statusTitle: "Build")
     }
 
     func buildTarget(_ target: String) {
+        if let projectURL,
+           let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
+           settings.build.system == .gravity {
+            buildGravityProject(settings, at: projectURL, statusTitle: "Build Gravity Project")
+            return
+        }
         executeWorkspaceCommand(.build(target: target, buildTests: false), statusTitle: "Build \(target)")
     }
 
@@ -2478,6 +2525,18 @@ final class EditorViewModel {
                 return
             }
         }
+        if let projectURL,
+           let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
+           settings.build.system == .gravity {
+            guard buildGravityProject(settings, at: projectURL, statusTitle: "Build Gravity Project") else {
+                return
+            }
+            let message = "Gravity project compiled successfully. Runtime-session window launch is not available in this build yet."
+            workspaceStatus = .failed(message)
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            appendOutput(message)
+            return
+        }
         switch selectedRunDestination {
         case .macOS:
             executeWorkspaceCommand(.run(target: product, arguments: []), statusTitle: product.map { "Run \($0) on macOS" } ?? "Run on macOS")
@@ -2490,7 +2549,61 @@ final class EditorViewModel {
                 .runWeb(target: product, outputPath: "dist/web", serve: true),
                 statusTitle: "Run \(product) on Web · http://127.0.0.1:8080"
             )
+        case .iPadOS:
+            guard let projectURL,
+                  let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager) else {
+                workspaceStatus = .failed("Unable to load project settings for iPadOS.")
+                return
+            }
+            do {
+                try ProjectSystem.validateRunCompatibility(of: settings, at: projectURL, destination: .iPadOS, fileManager: fileManager)
+            } catch {
+                workspaceStatus = .failed(error.message)
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput(error.message)
+            }
         }
+    }
+
+    @discardableResult
+    private func buildGravityProject(
+        _ settings: AdaProject,
+        at projectURL: URL,
+        statusTitle: String
+    ) -> Bool {
+        workspaceStatus = .running(statusTitle)
+        buildActivity = EditorBuildActivity(title: statusTitle)
+        footer.setWorkspaceFooterTitle(workspaceStatus.title)
+        appendOutput("Compiling Ada Script sources with Gravity (SwiftPM disabled)...")
+        do {
+            try ProjectSystem.validateRunCompatibility(
+                of: settings,
+                at: projectURL,
+                destination: selectedRunDestination.adaProjectDestination,
+                fileManager: fileManager
+            )
+            let report = try EditorGravityProjectBuilder(fileManager: fileManager).build(project: settings, at: projectURL)
+            packageModel = nil
+            workspaceStatus = .ready
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            buildActivity?.finish(succeeded: true)
+            appendOutput(
+                "Gravity build succeeded: \(report.sourceCount) source(s), \(report.systemCount) system(s), \(report.viewCount) view(s), entry \(report.entryView)."
+            )
+            refreshPreviewForActiveDocument()
+            return true
+        } catch let error as ProjectSystemError {
+            workspaceStatus = .failed(error.message)
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            buildActivity?.finish(succeeded: false)
+            appendOutput(error.message)
+        } catch {
+            workspaceStatus = .failed(error.localizedDescription)
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            buildActivity?.finish(succeeded: false)
+            appendOutput(error.localizedDescription)
+        }
+        return false
     }
 
     var isProjectRunning: Bool {
@@ -2670,13 +2783,16 @@ final class EditorViewModel {
     }
 
     private func openProjectFromMenu() {
-        guard workbench.saveAllDocuments(), let url = ProjectOpenPicker.pickProjectURL() else { return }
-        do {
-            let project = try EditorProjectStore(fileManager: fileManager).openProject(at: url)
-            ProjectEditorLauncher.openEditor(for: project)
-        } catch {
-            workspaceStatus = .failed("Unable to open project: \(error.localizedDescription)")
-            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+        guard workbench.saveAllDocuments() else { return }
+        ProjectOpenPicker.presentProjectPicker { [weak self] url in
+            guard let self, let url else { return }
+            do {
+                let project = try EditorProjectStore(fileManager: self.fileManager).openProject(at: url)
+                ProjectEditorLauncher.openEditor(for: project)
+            } catch {
+                self.workspaceStatus = .failed("Unable to open project: \(error.localizedDescription)")
+                self.footer.setWorkspaceFooterTitle(self.workspaceStatus.title)
+            }
         }
     }
 
@@ -3171,6 +3287,30 @@ final class EditorViewModel {
         guard let projectURL else {
             workspaceStatus = .failed("No project is open.")
             return
+        }
+        if let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager) {
+            if settings.build.system == .gravity {
+                let message = "SwiftPM commands are unavailable for Gravity projects."
+                workspaceStatus = .failed(message)
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput(message)
+                return
+            }
+            #if os(iOS)
+            do {
+                try ProjectSystem.validateRunCompatibility(
+                    of: settings,
+                    at: projectURL,
+                    destination: .iPadOS,
+                    fileManager: fileManager
+                )
+            } catch {
+                workspaceStatus = .failed(error.message)
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput(error.message)
+                return
+            }
+            #endif
         }
 
         workspaceTask?.cancel()
@@ -4356,6 +4496,7 @@ private extension EditorRunDestination {
     var adaProjectDestination: AdaProjectRunDestination {
         switch self {
         case .macOS: .macOS
+        case .iPadOS: .iPadOS
         case .web: .web
         }
     }

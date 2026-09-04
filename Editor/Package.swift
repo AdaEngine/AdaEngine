@@ -67,10 +67,11 @@ let package = Package(
             name: "AdaEditor",
             dependencies: [
                 .product(name: "AdaEngine", package: "AdaEngine"),
+                .product(name: "AdaScriptCompilerCore", package: "AdaEngine"),
                 .product(name: "Math", package: "AdaEngine"),
                 .product(name: "AdaMCPPlugin", package: "AdaMCP"),
-                .product(name: "ACP", package: "swift-acp"),
-                .product(name: "ACPModel", package: "swift-acp"),
+                .product(name: "ACP", package: "swift-acp", condition: .when(platforms: [.macOS])),
+                .product(name: "ACPModel", package: "swift-acp", condition: .when(platforms: [.macOS])),
                 .product(name: "SwiftParser", package: "swift-syntax"),
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),

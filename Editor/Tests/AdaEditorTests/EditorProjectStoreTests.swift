@@ -86,6 +86,7 @@ struct EditorProjectStoreTests {
         defer { removeEditorStoreTemporaryDirectory(rootURL) }
 
         let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        try ProjectSystem.saveProject(ProjectSystem.defaultProject(projectName: rootURL.lastPathComponent), at: rootURL)
 
         do {
             _ = try store.openProject(at: rootURL)
@@ -123,6 +124,7 @@ struct EditorProjectStoreTests {
         let storageURL = rootURL.appendingPathComponent("projects.json")
         let store = EditorProjectStore(storageURL: storageURL)
         let viewModel = ProjectOpeningViewModel(store: store)
+        try ProjectSystem.saveProject(ProjectSystem.defaultProject(projectName: rootURL.lastPathComponent), at: rootURL)
 
         viewModel.openProject(at: rootURL)
 
@@ -228,7 +230,7 @@ struct EditorProjectStoreTests {
         #expect(viewModel.projectToOpenInEditor == nil)
         #expect(viewModel.projectToOpenInEditorToken == 0)
         #expect(viewModel.statusMessage == "Choose a project name and location before creating.")
-        #expect(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("Lost-Project", isDirectory: true).path) == false)
+        #expect(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("Lost-Project.adaproject", isDirectory: true).path) == false)
     }
 
     @Test("create blank template creates project and requests editor handoff")
@@ -245,14 +247,16 @@ struct EditorProjectStoreTests {
 
         viewModel.createBlankTemplateProject()
 
-        let projectURL = rootURL.appendingPathComponent("Editor-Flow", isDirectory: true)
+        let projectURL = rootURL.appendingPathComponent("Editor-Flow.adaproject", isDirectory: true)
         #expect(viewModel.detailProject?.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditorToken == 1)
         #expect(ProjectSystem.isAdaProject(at: projectURL))
-        let targetURL = projectURL.appendingPathComponent("Sources/Editor_Flow", isDirectory: true)
-        #expect(FileManager.default.fileExists(atPath: targetURL.appendingPathComponent("AdaRuntimeBootstrap.swift").path))
-        #expect(FileManager.default.fileExists(atPath: targetURL.appendingPathComponent("Main.ada").path))
+        let sourcesURL = projectURL.appendingPathComponent("Sources", isDirectory: true)
+        #expect(!FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
+        #expect(!FileManager.default.fileExists(atPath: sourcesURL.appendingPathComponent("AdaRuntimeBootstrap.swift").path))
+        #expect(FileManager.default.fileExists(atPath: sourcesURL.appendingPathComponent("Main.ada").path))
+        #expect(try ProjectSystem.loadProject(at: projectURL).build.system == .gravity)
 
         let handoffProject = try #require(viewModel.consumeProjectToOpenInEditor())
         #expect(handoffProject.path == projectURL.standardizedFileURL.path)

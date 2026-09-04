@@ -12,7 +12,25 @@ struct EditorPackageConfigurationTests {
         #expect(manifest.contains(".package(name: \"AdaEngine\", path: \"..\")"))
         #expect(manifest.contains("name: \"AdaEditor\""))
         #expect(manifest.contains(".product(name: \"AdaEngine\", package: \"AdaEngine\")"))
+        #expect(manifest.contains(".product(name: \"AdaScriptCompilerCore\", package: \"AdaEngine\")"))
         #expect(manifest.contains(".copy(\"Assets\")"))
+    }
+
+    @Test("iPad app registers portable projects, Files access, and multiple scenes")
+    func iPadBundleDeclaresDocumentRuntimeCapabilities() throws {
+        let editorRoot = try editorPackageRoot()
+        let data = try Data(contentsOf: editorRoot.appendingPathComponent("Sources/AdaEditor/Platforms/iOS/Info.plist"))
+        let value = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        let exportedTypes = try #require(value["UTExportedTypeDeclarations"] as? [[String: Any]])
+        let projectType = try #require(exportedTypes.first)
+        let tags = try #require(projectType["UTTypeTagSpecification"] as? [String: Any])
+        let sceneManifest = try #require(value["UIApplicationSceneManifest"] as? [String: Any])
+
+        #expect(projectType["UTTypeIdentifier"] as? String == "org.adaengine.project")
+        #expect(tags["public.filename-extension"] as? [String] == ["adaproject"])
+        #expect(value["LSSupportsOpeningDocumentsInPlace"] as? Bool == true)
+        #expect(value["UISupportsDocumentBrowser"] as? Bool == true)
+        #expect(sceneManifest["UIApplicationSupportsMultipleScenes"] as? Bool == true)
     }
 
     @Test("xcodegen project points at the local editor package")
