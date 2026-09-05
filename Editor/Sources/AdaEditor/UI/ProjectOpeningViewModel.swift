@@ -62,6 +62,14 @@ final class ProjectOpeningViewModel {
         Binding(get: { self.existingProjectPath }, set: { self.existingProjectPath = $0 })
     }
 
+    var existingProjectPathDisplayText: String {
+        let trimmed = existingProjectPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return "Choose an Ada project package"
+        }
+        return Self.abbreviatedPath(trimmed)
+    }
+
     var searchQueryBinding: Binding<String> {
         Binding(get: { self.searchQuery }, set: { self.searchQuery = $0 })
     }
@@ -363,14 +371,7 @@ final class ProjectOpeningViewModel {
     }
 
     static func abbreviatedPath(_ path: String) -> String {
-        let homePath = NSHomeDirectory()
-        if path == homePath {
-            return "~"
-        }
-        if path.hasPrefix(homePath + "/") {
-            return "~" + path.dropFirst(homePath.count)
-        }
-        return path
+        EditorProjectPathDisplayFormatter.string(for: path)
     }
 
     private static let relativeDateFormatter: RelativeDateTimeFormatter = {

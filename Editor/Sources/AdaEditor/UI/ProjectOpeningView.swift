@@ -248,7 +248,7 @@ struct ProjectOpeningView: View {
             launcherListHeader("Open")
             templateRow(
                 title: "Open Existing Package",
-                subtitle: viewModel.existingProjectPath.isEmpty ? "Choose a SwiftPM Ada project" : viewModel.existingProjectPath,
+                subtitle: viewModel.existingProjectPathDisplayText,
                 badge: "SPM",
                 isActive: false,
                 action: openProjectPicker

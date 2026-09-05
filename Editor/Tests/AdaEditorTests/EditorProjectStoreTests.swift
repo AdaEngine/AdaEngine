@@ -136,7 +136,7 @@ struct EditorProjectStoreTests {
         #expect(viewModel.statusMessage.contains("Choose a folder that contains Package.swift"))
     }
 
-    @Test("view model filters recent projects and abbreviates home paths")
+    @Test("view model filters recent projects and abbreviates display paths")
     @MainActor
     func projectOpeningViewModelFiltersAndFormatsProjects() throws {
         let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectViewModel")
@@ -160,6 +160,14 @@ struct EditorProjectStoreTests {
         viewModel.selectProject(projects[0])
         #expect(viewModel.detailProject?.name == "NeonNights_RPG")
         #expect(ProjectOpeningViewModel.abbreviatedPath(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("AdaProjects/Neon").path).hasPrefix("~/"))
+
+        let simulatorProjectPath = "/Users/developer/Library/Developer/CoreSimulator/Devices/IPAD/data/Containers/Data/Application/APP/Documents/AdaGame.adaproject"
+        #expect(ProjectOpeningViewModel.abbreviatedPath(simulatorProjectPath) == "On My iPad/AdaGame.adaproject")
+        viewModel.existingProjectPath = simulatorProjectPath
+        #expect(viewModel.existingProjectPathDisplayText == "On My iPad/AdaGame.adaproject")
+
+        let iCloudProjectPath = "/Users/developer/Library/Mobile Documents/com~apple~CloudDocs/AdaProjects/CloudGame.adaproject"
+        #expect(ProjectOpeningViewModel.abbreviatedPath(iCloudProjectPath) == "iCloud Drive/AdaProjects/CloudGame.adaproject")
     }
 
     @Test("editor project switcher filters recents and excludes the current project")
