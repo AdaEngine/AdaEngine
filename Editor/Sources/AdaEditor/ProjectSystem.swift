@@ -4,8 +4,8 @@ import Foundation
 public enum ProjectSystem {
     public static let metadataDirectoryName = ".ada"
     public static let metadataFileName = "project.json"
-    public static let currentSchemaVersion = 2
-    public static let supportedSchemaVersions: Set<Int> = [1, currentSchemaVersion]
+    public static let currentSchemaVersion = 3
+    public static let supportedSchemaVersions: Set<Int> = [1, 2, currentSchemaVersion]
     public static let knownBuildSystems: Set<String> = ["adascript", "swiftpm"]
 
     public static func metadataURL(forProjectAt projectURL: URL) -> URL {
@@ -105,6 +105,8 @@ public enum ProjectSystem {
 
     /// Persists validated project settings without exposing callers to the on-disk JSON format.
     public static func saveProject(_ project: AdaProject, at projectURL: URL, fileManager: FileManager = .default) throws(ProjectSystemError) {
+        var project = project
+        project.schemaVersion = currentSchemaVersion
         try validate(project)
 
         let metadataDirectory = projectURL.appendingPathComponent(metadataDirectoryName, isDirectory: true)
@@ -138,7 +140,10 @@ public enum ProjectSystem {
             build: .init(system: buildSystem),
             run: .init(destination: .macOS, executable: nil, arguments: [], environment: [:], workingDirectory: "."),
             runtime: buildSystem.isAdaScript
-                ? .init(moduleName: projectName, entryView: "game.main")
+                ? .init(
+                    moduleName: projectName,
+                    entry: .init(scene: SceneDocumentFormat.defaultScenePath, view: "game.main")
+                )
                 : .init(),
             editor: .init(startupScene: SceneDocumentFormat.defaultScenePath),
             ai: .init(mcp: .init(enabled: true))
@@ -181,7 +186,7 @@ public enum ProjectSystem {
         try validateRelativePath(project.paths.run.workingDirectory, keyPath: "paths.run.workingDirectory")
         try validateRelativePath(project.run.workingDirectory, keyPath: "run.workingDirectory")
         try validateRelativePath(project.run.executable, keyPath: "run.executable")
-        try validateRelativePath(project.runtime.startupScene, keyPath: "runtime.startupScene")
+        try validateRelativePath(project.runtime.entry.scene, keyPath: "runtime.entry.scene")
         try validateRelativePath(project.editor.startupScene, keyPath: "editor.startupScene")
         try validatePathArray(project.build.targets, keyPath: "build.targets")
         try validatePathArray(project.build.includedFiles, keyPath: "build.includedFiles")
@@ -194,9 +199,23 @@ public enum ProjectSystem {
             guard project.runtime.moduleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
                 throw .invalidField(path: "runtime.moduleName", message: "AdaScript projects require a module name.")
             }
-            guard project.runtime.entryView?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-                throw .invalidField(path: "runtime.entryView", message: "AdaScript projects require an entry view identifier.")
+            let entry = project.runtime.entry
+            let hasEntry = [entry.scene, entry.startupSystem, entry.view].contains { value in
+                value?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
             }
+            guard hasEntry else {
+                throw .invalidField(
+                    path: "runtime.entry",
+                    message: "AdaScript projects require a startup scene, root view, or startup system."
+                )
+            }
+            try validateRuntimePlugins(project.runtime.plugins)
+            do {
+                _ = try EditorAdaScriptRuntimePluginResolver.resolve(project.runtime.plugins)
+            } catch {
+                throw .invalidField(path: "runtime.plugins", message: error.localizedDescription)
+            }
+            try validateRuntimeWindow(project.runtime.window)
         }
 
         return project
@@ -566,19 +585,6 @@ public enum AdaProjectRunDestination: String, Codable, CaseIterable, Equatable, 
     case macOS = "macos"
     case iPadOS = "ipados"
     case web
-}
-
-/// Runtime-owned entry points for projects that do not compile a native Swift executable.
-public struct AdaProjectRuntime: Codable, Equatable, Sendable {
-    public var moduleName: String
-    public var entryView: String?
-    public var startupScene: String?
-
-    public init(moduleName: String = "", entryView: String? = nil, startupScene: String? = nil) {
-        self.moduleName = moduleName
-        self.entryView = entryView
-        self.startupScene = startupScene
-    }
 }
 
 public struct AdaProjectEditor: Codable, Equatable, Sendable {

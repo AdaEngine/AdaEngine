@@ -200,15 +200,20 @@ struct ProjectSystemTests {
 
         let project = try ProjectSystem.createDefaultProject(at: projectURL, buildSystem: .adaScript)
 
-        #expect(project.schemaVersion == 2)
+        #expect(project.schemaVersion == 3)
         #expect(project.build.system == .adaScript)
         #expect(project.paths.build == nil)
         #expect(project.runtime.moduleName == "PortableGame")
         #expect(project.runtime.entryView == "game.main")
+        #expect(project.runtime.startupScene == SceneDocumentFormat.defaultScenePath)
         #expect(!FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
         #expect(try ProjectSystem.validateProjectLayout(at: projectURL) == project)
         let metadata = try String(contentsOf: ProjectSystem.metadataURL(forProjectAt: projectURL), encoding: .utf8)
         #expect(metadata.contains(#""system" : "adascript""#))
+        #expect(metadata.contains(#""preset" : "game2d""#))
+        #expect(metadata.contains(#""scene" : "Assets/Scenes/Main.ascn""#))
+        #expect(metadata.contains(#""view" : "game.main""#))
+        #expect(!metadata.contains(#""entryView""#))
         #expect(!metadata.contains(#""system" : "gravity""#))
     }
 
@@ -324,7 +329,7 @@ private let expectedDefaultProjectJSON = """
     },
     "workingDirectory" : "."
   },
-  "schemaVersion" : 2
+  "schemaVersion" : 3
 }
 """
 

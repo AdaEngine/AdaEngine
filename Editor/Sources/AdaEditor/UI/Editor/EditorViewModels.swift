@@ -2256,7 +2256,7 @@ final class EditorViewModel {
         }
     }
 
-    func saveProjectSettings() {
+    func saveProjectSettings(runtime: AdaProjectRuntime? = nil) {
         guard let projectURL else {
             projectSettingsStatusMessage = "No project is open."
             return
@@ -2278,6 +2278,9 @@ final class EditorViewModel {
             settings.build.includedFiles = Self.pathList(from: projectIncludedFilesText)
             settings.build.excludedFiles = Self.pathList(from: projectExcludedFilesText)
             settings.run.destination = selectedRunDestination.adaProjectDestination
+            if let runtime {
+                settings.runtime = runtime
+            }
             try EditorProjectStore(fileManager: fileManager).saveProjectSettings(settings, at: projectURL, targetName: targetName)
             projectSettingsStatusMessage = settings.build.system == .adaScript
                 ? "Project settings saved to .ada/project.json."
@@ -2591,8 +2594,9 @@ final class EditorViewModel {
             footer.setWorkspaceFooterTitle(workspaceStatus.title)
             buildActivity?.finish(succeeded: true)
             appendOutput(
-                "AdaScript build succeeded: \(report.sourceCount) source(s), \(report.systemCount) system(s), \(report.viewCount) view(s), entry \(report.entryView)."
+                "AdaScript build succeeded: \(report.sourceCount) source(s), \(report.systemCount) system(s), \(report.viewCount) view(s), entry \(report.entryDescription)."
             )
+            appendOutput("Runtime plugins: \(report.pluginIDs.joined(separator: ", "))")
             refreshPreviewForActiveDocument()
             return artifact
         } catch let error as ProjectSystemError {
@@ -2617,22 +2621,27 @@ final class EditorViewModel {
             let runtimeView = try EditorAdaScriptProjectRuntimeView(artifact: artifact)
             let windowManager = try requireWindowManager()
             adaScriptRuntimeWindow?.close()
+            let windowSettings = artifact.window
+            let width = Float(windowSettings.size.width)
+            let height = Float(windowSettings.size.height)
+            let windowTitle = windowSettings.title?.nilIfEmpty ?? projectName
             let configuration = UIWindow.Configuration(
-                title: projectName,
-                frame: Rect(x: 0, y: 0, width: 1024, height: 700),
-                minimumSize: Size(width: 640, height: 420),
+                title: windowTitle,
+                frame: Rect(x: 0, y: 0, width: width, height: height),
+                minimumSize: Size(width: min(640, width), height: min(420, height)),
                 mode: .windowed,
                 showsImmediately: false,
-                makeKey: true
+                makeKey: true,
+                isResizable: windowSettings.isResizable
             )
             let window = windowManager.spawnWindow(configuration: configuration) {
                 runtimeView
             }
             window.showWindow(makeFocused: true)
             adaScriptRuntimeWindow = window
-            workspaceStatus = .running("Run \(projectName)")
+            workspaceStatus = .running("Run \(windowTitle)")
             footer.setWorkspaceFooterTitle(workspaceStatus.title)
-            appendOutput("Running AdaScript project \(projectName) in a separate window.")
+            appendOutput("Running AdaScript project \(windowTitle) in a separate window.")
         } catch {
             workspaceStatus = .failed(error.localizedDescription)
             footer.setWorkspaceFooterTitle(workspaceStatus.title)
