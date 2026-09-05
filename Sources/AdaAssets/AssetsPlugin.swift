@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 29.05.2025.
 //
 
-import AdaApp
+@_spi(Internal) import AdaApp
 import AdaECS
 import Foundation
 import Logging
@@ -20,9 +20,22 @@ public struct AssetsPlugin: Plugin {
         self.assetBundleResourceURL = assetBundle.flatMap(Self.assetsResourceURL(in:))
     }
 
+    /// Initializes assets from a runtime-selected directory.
+    ///
+    /// This entry point is used by document-backed AdaScript projects that do
+    /// not have a Swift source location or resource bundle of their own.
+    public init(assetDirectory: URL) {
+        self.filePath = #filePath
+        self.assetBundleResourceURL = assetDirectory.standardizedFileURL
+    }
+
     public func setup(in app: AppWorlds) {
         do {
-            try AssetsManager.initialize(filePath: filePath, assetBundleResourceURL: assetBundleResourceURL)
+            try AssetsManager.initialize(
+                filePath: filePath,
+                assetBundleResourceURL: assetBundleResourceURL,
+                scopeID: app.executionID
+            )
             app.addSystem(AssetsProcessSystem.self, on: .preUpdate)
         } catch {
             Logger(label: "org.adaengine.AssetsPlugin").error("Setup failed with error: \(error)")

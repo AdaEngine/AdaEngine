@@ -177,7 +177,7 @@ public final class GravityWorkspace {
                     symbol: GravitySymbol(
                         name: namespace,
                         kind: .class,
-                        detail: "Imported Ada Script module",
+                        detail: "Imported AdaScript module",
                         range: scriptImport.range,
                         members: importedDocument.analysis.symbols
                     )
@@ -233,7 +233,7 @@ public final class GravityWorkspace {
             importedURL.appendPathExtension("ada")
         }
         guard rootURLs.contains(where: { Self.contains(importedURL, in: $0) }) else {
-            return .invalid("Import escapes the configured Ada Script workspace")
+            return .invalid("Import escapes the configured AdaScript workspace")
         }
 
         let importedURI = importedURL.absoluteString

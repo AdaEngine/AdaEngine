@@ -1,94 +1,77 @@
-private struct Annotation {
-    let arguments: [String: Literal]
-    let name: String
-    let positionalArguments: [Literal]
-}
-
-private enum Literal {
-    case bool(Bool)
-    case identifier(String)
-    case list([Self])
-    case number(String)
-    case string(String)
-}
-
-struct Token {
-    enum Kind {
-        case identifier
-        case number
-        case punctuation
-        case string
-    }
-
-    let endOffset: Int
-    let kind: Kind
-    let line: Int
-    let startOffset: Int
-    let text: String
-}
-
-struct Parser {
-    struct Output {
-        var resourceBindings: [AdaScriptResourceBinding] = []
-        var schemas: [AdaScriptDataSchema] = []
-        var scriptables: [AdaScriptableSchema] = []
-        var systemCapabilities: [AdaScriptSystemCapabilities] = []
-        var views: [AdaScriptViewSchema] = []
-    }
-    private let path: String
-    private let tokens: [Token]
-    private var index = 0
-
-    init(source: String, path: String) {
-        var lexer = Lexer(source: source)
-        self.tokens = lexer.lex()
-        self.path = path
-    }
-
+extension Parser {
     mutating func parse() throws -> Output {
         var output = Output()
         while !isAtEnd {
             let annotations = try parseAnnotations()
             if match("class") {
-                let declarationLine = current?.line ?? 1
-                guard let name = consumeIdentifier() else {
-                    throw error("expected class name")
-                }
-                if annotations.contains(where: { $0.name == "system" }) {
-                    let system = try parseSystemBody(systemName: name)
-                    output.resourceBindings += system.resourceBindings
-                    output.systemCapabilities.append(system.capabilities)
-                } else if let annotation = annotations.first(where: { $0.name == "scriptable" }) {
-                    output.scriptables.append(try parseScriptable(name: name, annotation: annotation))
-                } else if let annotation = annotations.first(where: { $0.name == "view" }) {
-                    output.views.append(try parseView(name: name, annotation: annotation, line: declarationLine))
-                } else {
-                    try skipDeclarationBody()
-                }
+                try parseClass(annotations: annotations, output: &output)
                 continue
             }
-            guard match("struct") else {
-                advance()
+            if match("struct") {
+                try parseStruct(annotations: annotations, output: &output)
                 continue
             }
-            guard let name = consumeIdentifier() else {
-                throw error("expected struct name")
-            }
-            if annotations.contains(where: { $0.name == "view" }) {
-                throw error("@view can only annotate a class")
-            }
-            guard let schemaAnnotation = annotations.first(where: { $0.name == "component" || $0.name == "resource" }) else {
-                try skipDeclarationBody()
-                continue
-            }
-            output.schemas.append(try parseSchema(name: name, annotation: schemaAnnotation))
+            advance()
         }
         return output
+    }
+
+    private mutating func parseClass(annotations: [Annotation], output: inout Output) throws {
+        let declarationLine = current?.line ?? 1
+        guard let name = consumeIdentifier() else {
+            throw error("expected class name")
+        }
+        let viewAnnotation = annotations.first(where: { $0.name == "view" })
+        let previewAnnotations = annotations.filter { $0.name == "previewable" }
+        guard previewAnnotations.count <= 1 else {
+            throw error("@previewable can only be applied once to \(name)")
+        }
+        guard previewAnnotations.isEmpty || viewAnnotation != nil else {
+            throw error("@previewable can only annotate an @view class")
+        }
+
+        if annotations.contains(where: { $0.name == "system" }) {
+            let system = try parseSystemBody(systemName: name)
+            output.resourceBindings += system.resourceBindings
+            output.systemCapabilities.append(system.capabilities)
+        } else if let annotation = annotations.first(where: { $0.name == "scriptable" }) {
+            output.scriptables.append(try parseScriptable(name: name, annotation: annotation))
+        } else if let viewAnnotation {
+            output.views.append(
+                try parseView(
+                    name: name,
+                    annotation: viewAnnotation,
+                    previewAnnotation: previewAnnotations.first,
+                    line: declarationLine
+                )
+            )
+        } else {
+            try skipDeclarationBody()
+        }
+    }
+
+    private mutating func parseStruct(annotations: [Annotation], output: inout Output) throws {
+        guard let name = consumeIdentifier() else {
+            throw error("expected struct name")
+        }
+        if annotations.contains(where: { $0.name == "view" || $0.name == "previewable" }) {
+            throw error("@view and @previewable can only annotate a class")
+        }
+        guard let schemaAnnotation = annotations.first(where: { $0.name == "component" || $0.name == "resource" }) else {
+            try skipDeclarationBody()
+            return
+        }
+        output.schemas.append(try parseSchema(name: name, annotation: schemaAnnotation))
     }
 }
 
 private extension Parser {
-    private mutating func parseView(name: String, annotation: Annotation, line: Int) throws -> AdaScriptViewSchema {
+    private mutating func parseView(
+        name: String,
+        annotation: Annotation,
+        previewAnnotation: Annotation?,
+        line: Int
+    ) throws -> AdaScriptViewSchema {
         let environment = try parseViewBody(name: name)
         let id: String
         let isIDExplicit: Bool
@@ -102,7 +85,10 @@ private extension Parser {
 
         let title: String
         let isTitleExplicit: Bool
-        if case .string(let explicitTitle) = annotation.arguments["title"] {
+        if let previewTitle = try previewAnnotation?.previewTitle(viewName: name, path: path) {
+            title = previewTitle
+            isTitleExplicit = true
+        } else if case .string(let explicitTitle) = annotation.arguments["title"] {
             title = explicitTitle
             isTitleExplicit = true
         } else {
@@ -115,6 +101,7 @@ private extension Parser {
             environment: environment,
             id: id,
             isIDExplicit: isIDExplicit,
+            isPreviewable: previewAnnotation != nil,
             isTitleExplicit: isTitleExplicit,
             line: line,
             sourcePath: path,

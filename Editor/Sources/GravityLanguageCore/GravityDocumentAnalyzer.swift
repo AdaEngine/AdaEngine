@@ -64,7 +64,7 @@ struct GravityDocumentAnalyzer {
             let symbol = GravitySymbol(
                 name: nameToken.text,
                 kind: kind,
-                detail: "Gravity \(kindDescription(kind))",
+                detail: "AdaScript \(kindDescription(kind))",
                 range: GravitySourceRange(start: tokens[index].range.start, end: tokens[closeBraceIndex].range.end),
                 selectionRange: nameToken.range,
                 members: members
@@ -146,13 +146,13 @@ struct GravityDocumentAnalyzer {
         switch keyword {
         case "func":
             kind = memberContext ? .method : .function
-            detail = memberContext ? "Ada Script method" : "Ada Script function"
+            detail = memberContext ? "AdaScript method" : "AdaScript function"
         case "var":
             kind = memberContext ? .property : .variable
-            detail = memberContext ? "Ada Script property" : "Ada Script variable"
+            detail = memberContext ? "AdaScript property" : "AdaScript variable"
         case "const":
             kind = memberContext ? .property : .constant
-            detail = memberContext ? "Ada Script property" : "Ada Script constant"
+            detail = memberContext ? "AdaScript property" : "AdaScript constant"
         default:
             return nil
         }

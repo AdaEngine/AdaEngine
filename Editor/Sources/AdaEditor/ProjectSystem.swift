@@ -4,9 +4,9 @@ import Foundation
 public enum ProjectSystem {
     public static let metadataDirectoryName = ".ada"
     public static let metadataFileName = "project.json"
-    public static let currentSchemaVersion = 1
-    public static let supportedSchemaVersions: Set<Int> = [currentSchemaVersion]
-    public static let knownBuildSystems: Set<String> = ["swiftpm"]
+    public static let currentSchemaVersion = 3
+    public static let supportedSchemaVersions: Set<Int> = [1, 2, currentSchemaVersion]
+    public static let knownBuildSystems: Set<String> = ["adascript", "swiftpm"]
 
     public static func metadataURL(forProjectAt projectURL: URL) -> URL {
         projectURL
@@ -15,19 +15,27 @@ public enum ProjectSystem {
     }
 
     public static func isAdaProject(at projectURL: URL, fileManager: FileManager = .default) -> Bool {
-        fileManager.fileExists(atPath: metadataURL(forProjectAt: projectURL).path)
-            && fileManager.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path)
+        (try? validateProjectLayout(at: projectURL, fileManager: fileManager)) != nil
     }
 
-    /// Validates that a folder is an AdaEditor-openable SwiftPM Ada project.
+    /// Validates that a folder contains an Ada project supported by its declared build system.
     @discardableResult
     public static func validateProjectLayout(at projectURL: URL, fileManager: FileManager = .default) throws(ProjectSystemError) -> AdaProject {
-        let manifestURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
-        guard fileManager.fileExists(atPath: manifestURL.path) else {
-            throw .swiftPackageManifestMissing(path: "Package.swift")
+        let project = try loadProject(at: projectURL, fileManager: fileManager)
+        if project.build.system == .swiftpm {
+            let manifestURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
+            guard fileManager.fileExists(atPath: manifestURL.path) else {
+                throw .swiftPackageManifestMissing(path: "Package.swift")
+            }
+        } else if project.build.system == .adaScript {
+            let sourcePath = project.paths.sources ?? "Sources"
+            var isDirectory: ObjCBool = false
+            let sourceURL = projectURL.appendingPathComponent(sourcePath, isDirectory: true)
+            guard fileManager.fileExists(atPath: sourceURL.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+                throw .sourceDirectoryMissing(path: sourcePath)
+            }
         }
-
-        return try loadProject(at: projectURL, fileManager: fileManager)
+        return project
     }
 
     public static func loadProject(at projectURL: URL, fileManager: FileManager = .default) throws(ProjectSystemError) -> AdaProject {
@@ -63,13 +71,22 @@ public enum ProjectSystem {
     }
 
     @discardableResult
-    public static func createDefaultProject(at projectURL: URL, fileManager: FileManager = .default) throws(ProjectSystemError) -> AdaProject {
-        let packageURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
-        guard fileManager.fileExists(atPath: packageURL.path) else {
-            throw .swiftPackageManifestMissing(path: "Package.swift")
+    public static func createDefaultProject(
+        at projectURL: URL,
+        buildSystem: AdaProjectBuildSystem = .swiftpm,
+        fileManager: FileManager = .default
+    ) throws(ProjectSystemError) -> AdaProject {
+        if buildSystem == .swiftpm {
+            let packageURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
+            guard fileManager.fileExists(atPath: packageURL.path) else {
+                throw .swiftPackageManifestMissing(path: "Package.swift")
+            }
         }
 
-        let project = defaultProject(projectName: projectURL.lastPathComponent)
+        let inferredProjectName = buildSystem.isAdaScript && projectURL.pathExtension.lowercased() == "adaproject"
+            ? projectURL.deletingPathExtension().lastPathComponent
+            : projectURL.lastPathComponent
+        let project = defaultProject(projectName: inferredProjectName, buildSystem: buildSystem)
         let metadataDirectory = projectURL.appendingPathComponent(metadataDirectoryName, isDirectory: true)
         let metadataURL = metadataURL(forProjectAt: projectURL)
 
@@ -88,6 +105,8 @@ public enum ProjectSystem {
 
     /// Persists validated project settings without exposing callers to the on-disk JSON format.
     public static func saveProject(_ project: AdaProject, at projectURL: URL, fileManager: FileManager = .default) throws(ProjectSystemError) {
+        var project = project
+        project.schemaVersion = currentSchemaVersion
         try validate(project)
 
         let metadataDirectory = projectURL.appendingPathComponent(metadataDirectoryName, isDirectory: true)
@@ -102,7 +121,10 @@ public enum ProjectSystem {
         }
     }
 
-    public static func defaultProject(projectName: String = "AdaEngineProject") -> AdaProject {
+    public static func defaultProject(
+        projectName: String = "AdaEngineProject",
+        buildSystem: AdaProjectBuildSystem = .swiftpm
+    ) -> AdaProject {
         AdaProject(
             schemaVersion: currentSchemaVersion,
             project: .init(name: projectName),
@@ -110,13 +132,19 @@ public enum ProjectSystem {
             paths: .init(
                 sources: "Sources",
                 assets: "Assets",
-                build: ".build",
+                build: buildSystem == .swiftpm ? ".build" : nil,
                 generated: nil,
                 resourceRoots: ["Assets"],
                 run: .init(workingDirectory: ".")
             ),
-            build: .init(system: .swiftpm),
+            build: .init(system: buildSystem),
             run: .init(destination: .macOS, executable: nil, arguments: [], environment: [:], workingDirectory: "."),
+            runtime: buildSystem.isAdaScript
+                ? .init(
+                    moduleName: projectName,
+                    entry: .init(scene: SceneDocumentFormat.defaultScenePath, view: "game.main")
+                )
+                : .init(),
             editor: .init(startupScene: SceneDocumentFormat.defaultScenePath),
             ai: .init(mcp: .init(enabled: true))
         )
@@ -136,14 +164,18 @@ public enum ProjectSystem {
         _ = try migrateAndValidate(project, sourcePath: sourcePath)
     }
 
-    /// Future schema-version migration entry point. Currently validates and returns v1 unchanged.
+    /// Validates supported schema versions without rewriting older project metadata.
     public static func migrateAndValidate(_ project: AdaProject, sourcePath: String = ProjectSystemPath.metadataFile) throws(ProjectSystemError) -> AdaProject {
         guard supportedSchemaVersions.contains(project.schemaVersion) else {
             throw .unsupportedSchemaVersion(path: "schemaVersion", version: project.schemaVersion, supportedVersions: supportedSchemaVersions.sorted())
         }
 
-        guard knownBuildSystems.contains(project.build.system.rawValue) else {
+        guard knownBuildSystems.contains(project.build.system.rawValue) || project.build.system == .legacyGravity else {
             throw .unknownBuildSystem(path: "build.system", value: project.build.system.rawValue, supportedValues: knownBuildSystems.sorted())
+        }
+        var project = project
+        if project.build.system == .legacyGravity {
+            project.build.system = .adaScript
         }
 
         try validateRelativePath(project.paths.sources, keyPath: "paths.sources")
@@ -154,6 +186,7 @@ public enum ProjectSystem {
         try validateRelativePath(project.paths.run.workingDirectory, keyPath: "paths.run.workingDirectory")
         try validateRelativePath(project.run.workingDirectory, keyPath: "run.workingDirectory")
         try validateRelativePath(project.run.executable, keyPath: "run.executable")
+        try validateRelativePath(project.runtime.entry.scene, keyPath: "runtime.entry.scene")
         try validateRelativePath(project.editor.startupScene, keyPath: "editor.startupScene")
         try validatePathArray(project.build.targets, keyPath: "build.targets")
         try validatePathArray(project.build.includedFiles, keyPath: "build.includedFiles")
@@ -162,7 +195,66 @@ public enum ProjectSystem {
         try validateRelativePath(project.ai.agent.target.cwd, keyPath: "ai.agent.target.cwd")
         try validatePathArray(project.ai.agent.skillsDirectories, keyPath: "ai.agent.skillsDirectories")
 
+        if project.build.system == .adaScript {
+            guard project.runtime.moduleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+                throw .invalidField(path: "runtime.moduleName", message: "AdaScript projects require a module name.")
+            }
+            let entry = project.runtime.entry
+            let hasEntry = [entry.scene, entry.startupSystem, entry.view].contains { value in
+                value?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            }
+            guard hasEntry else {
+                throw .invalidField(
+                    path: "runtime.entry",
+                    message: "AdaScript projects require a startup scene, root view, or startup system."
+                )
+            }
+            try validateRuntimePlugins(project.runtime.plugins)
+            do {
+                _ = try EditorAdaScriptRuntimePluginResolver.resolve(project.runtime.plugins)
+            } catch {
+                throw .invalidField(path: "runtime.plugins", message: error.localizedDescription)
+            }
+            try validateRuntimeWindow(project.runtime.window)
+        }
+
         return project
+    }
+
+    /// Validates whether a project can execute on a destination without invoking a platform toolchain.
+    public static func validateRunCompatibility(
+        of project: AdaProject,
+        at projectURL: URL,
+        destination: AdaProjectRunDestination,
+        fileManager: FileManager = .default
+    ) throws(ProjectSystemError) {
+        if destination == .iPadOS, !project.build.system.isAdaScript {
+            throw .unsupportedBuildSystemForPlatform(
+                platform: destination.rawValue,
+                buildSystem: project.build.system.rawValue
+            )
+        }
+        guard project.build.system.isAdaScript else {
+            return
+        }
+
+        let sourceRoot = project.paths.sources ?? "Sources"
+        let sourceURL = projectURL.appendingPathComponent(sourceRoot, isDirectory: true)
+        guard let enumerator = fileManager.enumerator(
+            at: sourceURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            throw .sourceDirectoryMissing(path: sourceRoot)
+        }
+        for case let fileURL as URL in enumerator where fileURL.pathExtension.lowercased() == "swift" {
+            let rootPath = projectURL.standardizedFileURL.path
+            let filePath = fileURL.standardizedFileURL.path
+            let relativePath = filePath.hasPrefix(rootPath + "/")
+                ? String(filePath.dropFirst(rootPath.count + 1))
+                : fileURL.lastPathComponent
+            throw .unsupportedSourceLanguage(platform: destination.rawValue, path: relativePath)
+        }
     }
 
     private static func encode(_ project: AdaProject) throws -> Data {
@@ -251,6 +343,7 @@ public struct AdaProject: Codable, Equatable, Sendable {
     public var paths: AdaProjectPaths
     public var build: AdaProjectBuild
     public var run: AdaProjectRun
+    public var runtime: AdaProjectRuntime
     public var editor: AdaProjectEditor
     public var ai: AdaProjectAI
 
@@ -261,6 +354,7 @@ public struct AdaProject: Codable, Equatable, Sendable {
         paths: AdaProjectPaths = AdaProjectPaths(),
         build: AdaProjectBuild = AdaProjectBuild(),
         run: AdaProjectRun = AdaProjectRun(),
+        runtime: AdaProjectRuntime = AdaProjectRuntime(),
         editor: AdaProjectEditor = AdaProjectEditor(),
         ai: AdaProjectAI = AdaProjectAI()
     ) {
@@ -270,12 +364,13 @@ public struct AdaProject: Codable, Equatable, Sendable {
         self.paths = paths
         self.build = build
         self.run = run
+        self.runtime = runtime
         self.editor = editor
         self.ai = ai
     }
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, project, engine, paths, build, run, editor, ai
+        case schemaVersion, project, engine, paths, build, run, runtime, editor, ai
         case legacyBuildSystem = "buildSystem"
     }
 
@@ -293,6 +388,7 @@ public struct AdaProject: Codable, Equatable, Sendable {
             self.build = AdaProjectBuild()
         }
         run = try container.decodeIfPresent(AdaProjectRun.self, forKey: .run) ?? AdaProjectRun()
+        runtime = try container.decodeIfPresent(AdaProjectRuntime.self, forKey: .runtime) ?? AdaProjectRuntime()
         editor = try container.decodeIfPresent(AdaProjectEditor.self, forKey: .editor) ?? AdaProjectEditor()
         ai = try container.decodeIfPresent(AdaProjectAI.self, forKey: .ai) ?? AdaProjectAI()
     }
@@ -305,6 +401,9 @@ public struct AdaProject: Codable, Equatable, Sendable {
         try container.encode(paths, forKey: .paths)
         try container.encode(build, forKey: .build)
         try container.encode(run, forKey: .run)
+        if runtime != AdaProjectRuntime() {
+            try container.encode(runtime, forKey: .runtime)
+        }
         try container.encode(editor, forKey: .editor)
         try container.encode(ai, forKey: .ai)
     }
@@ -484,6 +583,7 @@ public struct AdaProjectRun: Codable, Equatable, Sendable {
 
 public enum AdaProjectRunDestination: String, Codable, CaseIterable, Equatable, Sendable {
     case macOS = "macos"
+    case iPadOS = "ipados"
     case web
 }
 
@@ -627,11 +727,20 @@ public struct AdaProjectBuildSystem: RawRepresentable, Codable, Equatable, Hasha
     }
 
     public static let swiftpm = AdaProjectBuildSystem(rawValue: "swiftpm")
+    public static let adaScript = AdaProjectBuildSystem(rawValue: "adascript")
+    static let legacyGravity = AdaProjectBuildSystem(rawValue: "gravity")
+    @available(*, deprecated, renamed: "adaScript")
+    public static let gravity = legacyGravity
+
+    public var isAdaScript: Bool {
+        self == .adaScript || self == .legacyGravity
+    }
 }
 
 public enum ProjectSystemError: Error, Equatable, Sendable {
     case metadataFileMissing(path: String)
     case swiftPackageManifestMissing(path: String)
+    case sourceDirectoryMissing(path: String)
     case fileReadFailed(path: String, message: String)
     case fileWriteFailed(path: String, message: String)
     case invalidJSON(path: String, message: String)
@@ -640,6 +749,8 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
     case missingRequiredField(path: String, message: String)
     case invalidField(path: String, message: String)
     case unknownBuildSystem(path: String, value: String, supportedValues: [String])
+    case unsupportedBuildSystemForPlatform(platform: String, buildSystem: String)
+    case unsupportedSourceLanguage(platform: String, path: String)
     case absolutePathNotAllowed(path: String, value: String)
     case pathTraversalNotAllowed(path: String, value: String)
     case invalidPath(path: String, value: String, reason: String)
@@ -649,6 +760,7 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
         switch self {
         case .metadataFileMissing: "project.metadataFileMissing"
         case .swiftPackageManifestMissing: "project.swiftPackageManifestMissing"
+        case .sourceDirectoryMissing: "project.sourceDirectoryMissing"
         case .fileReadFailed: "project.fileReadFailed"
         case .fileWriteFailed: "project.fileWriteFailed"
         case .invalidJSON: "project.invalidJSON"
@@ -657,6 +769,8 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
         case .missingRequiredField: "project.missingRequiredField"
         case .invalidField: "project.invalidField"
         case .unknownBuildSystem: "project.unknownBuildSystem"
+        case .unsupportedBuildSystemForPlatform: "project.unsupportedBuildSystemForPlatform"
+        case .unsupportedSourceLanguage: "project.unsupportedSourceLanguage"
         case .absolutePathNotAllowed: "project.absolutePathNotAllowed"
         case .pathTraversalNotAllowed: "project.pathTraversalNotAllowed"
         case .invalidPath: "project.invalidPath"
@@ -668,6 +782,7 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
         switch self {
         case .metadataFileMissing(let path): "Ada project metadata file is missing at \(path)."
         case .swiftPackageManifestMissing(let path): "SwiftPM manifest is missing at \(path)."
+        case .sourceDirectoryMissing(let path): "Project source directory is missing at \(path)."
         case .fileReadFailed(let path, let message): "Failed to read \(path): \(message)"
         case .fileWriteFailed(let path, let message): "Failed to write \(path): \(message)"
         case .invalidJSON(let path, let message): "Invalid JSON in \(path): \(message)"
@@ -678,6 +793,10 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
         case .invalidField(let path, let message): "Invalid field at \(path): \(message)"
         case .unknownBuildSystem(_, let value, let supportedValues):
             "Unknown build system '\(value)'. Supported values: \(supportedValues.joined(separator: ", "))."
+        case let .unsupportedBuildSystemForPlatform(platform, buildSystem):
+            "Projects using '\(buildSystem)' cannot run on \(platform). iPadOS runs AdaScript-only projects."
+        case let .unsupportedSourceLanguage(platform, path):
+            "Swift source '\(path)' cannot run on \(platform). AdaScript projects must contain only AdaScript gameplay code."
         case .absolutePathNotAllowed(let path, let value): "Absolute path is not allowed at \(path): \(value)"
         case .pathTraversalNotAllowed(let path, let value): "Path traversal is not allowed at \(path): \(value)"
         case .invalidPath(let path, let value, let reason): "Invalid path at \(path): \(value). \(reason)"
@@ -692,6 +811,8 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
             "Create the project with AdaEditor New Project, or add .ada/project.json using the Ada project schema."
         case .swiftPackageManifestMissing:
             "Choose a folder that contains Package.swift, or create a new Ada project from the start screen."
+        case .sourceDirectoryMissing:
+            "Create the source directory declared by paths.sources and add at least one .ada file."
         case .fileReadFailed:
             "Check file permissions and make sure the project metadata is readable."
         case .fileWriteFailed:
@@ -699,15 +820,17 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
         case .invalidJSON:
             "Fix the JSON syntax in .ada/project.json and try opening the project again."
         case .missingSchemaVersion:
-            "Add schemaVersion: 1 to .ada/project.json."
+            "Add schemaVersion: \(ProjectSystem.currentSchemaVersion) to .ada/project.json."
         case .unsupportedSchemaVersion:
-            "Open the project with a compatible AdaEditor version, or migrate .ada/project.json to schemaVersion 1."
+            "Open the project with a compatible AdaEditor version, or migrate .ada/project.json to schemaVersion \(ProjectSystem.currentSchemaVersion)."
         case .missingRequiredField:
             "Add the required field to .ada/project.json."
         case .invalidField:
             "Update the field value in .ada/project.json to match the expected type."
         case .unknownBuildSystem:
-            "Set build.system to swiftpm in .ada/project.json."
+            "Set build.system to adascript or swiftpm in .ada/project.json."
+        case .unsupportedBuildSystemForPlatform, .unsupportedSourceLanguage:
+            "Open this project on macOS, or convert it to an AdaScript project without Swift sources."
         case .absolutePathNotAllowed, .pathTraversalNotAllowed, .invalidPath:
             "Use project-relative POSIX paths such as Sources or Assets/Scenes/Main.ascn."
         case .encodingFailed:
@@ -719,6 +842,7 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
         switch self {
         case .metadataFileMissing(let path),
              .swiftPackageManifestMissing(let path),
+             .sourceDirectoryMissing(let path),
              .fileReadFailed(let path, _),
              .fileWriteFailed(let path, _),
              .invalidJSON(let path, _),
@@ -730,6 +854,10 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
              .absolutePathNotAllowed(let path, _),
              .pathTraversalNotAllowed(let path, _),
              .invalidPath(let path, _, _):
+            path
+        case .unsupportedBuildSystemForPlatform:
+            "build.system"
+        case .unsupportedSourceLanguage(_, let path):
             path
         case .encodingFailed:
             nil

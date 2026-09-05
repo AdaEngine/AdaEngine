@@ -47,8 +47,12 @@ final class EditorSettingsWindowViewModel {
     var keywordFontWeight: EditorCodeFontWeight
     var codePalettePreset: EditorCodePalettePreset
     var generalSettingsStatusMessage = ""
+    var runtimeDraft: EditorRuntimeSettingsDraft
+    var runtimeSettings: AdaProjectRuntime
+    var runtimeSettingsStatusMessage = ""
 
     init(editorViewModel: EditorViewModel?, selectedSection: EditorSettingsSection) {
+        let runtimeSettings = Self.loadRuntimeSettings(from: editorViewModel)
         self.editorViewModel = editorViewModel
         self.selectedSection = selectedSection
         self.codeFontSize = editorViewModel?.workbench.codeFontSize ?? 12
@@ -56,6 +60,8 @@ final class EditorSettingsWindowViewModel {
         self.codeFontWeight = editorViewModel?.workbench.codeFontWeight ?? .medium
         self.keywordFontWeight = editorViewModel?.workbench.keywordFontWeight ?? .bold
         self.codePalettePreset = EditorCodePalettePreset.matching(editorViewModel?.workbench.codeColorPalette ?? .dark)
+        self.runtimeSettings = runtimeSettings
+        self.runtimeDraft = EditorRuntimeSettingsDraft(runtime: runtimeSettings)
     }
 
     var searchTextBinding: Binding<String> {
@@ -84,7 +90,10 @@ final class EditorSettingsWindowViewModel {
             keywordFontWeight = workbench.keywordFontWeight
             codePalettePreset = EditorCodePalettePreset.matching(workbench.codeColorPalette)
         }
+        runtimeSettings = Self.loadRuntimeSettings(from: editorViewModel)
+        runtimeDraft = EditorRuntimeSettingsDraft(runtime: runtimeSettings)
         generalSettingsStatusMessage = ""
+        runtimeSettingsStatusMessage = ""
     }
 
     func selectCodeFontFamily(_ family: EditorCodeFontFamily) {
@@ -132,6 +141,91 @@ final class EditorSettingsWindowViewModel {
         workbench.keywordFontWeight = keywordFontWeight
         workbench.codeColorPalette = codePalettePreset.palette
         generalSettingsStatusMessage = "Applied to open editors"
+    }
+
+    var isAdaScriptProject: Bool {
+        editorViewModel?.projectURL.flatMap {
+            try? ProjectSystem.loadProject(at: $0).build.system.isAdaScript
+        } ?? false
+    }
+
+    func runtimeTextBinding(_ keyPath: WritableKeyPath<EditorRuntimeSettingsDraft, String>) -> Binding<String> {
+        Binding(
+            get: { self.runtimeDraft[keyPath: keyPath] },
+            set: {
+                self.runtimeDraft[keyPath: keyPath] = $0
+                self.runtimeSettingsStatusMessage = ""
+            }
+        )
+    }
+
+    func selectRuntimePreset(_ preset: AdaProjectRuntimePluginPreset) {
+        var plugins = runtimeSettings.plugins
+        plugins.preset = preset
+        plugins.enable = []
+        plugins.disable = []
+        do {
+            _ = try EditorAdaScriptRuntimePluginResolver.resolve(plugins)
+            runtimeSettings.plugins = plugins
+            runtimeSettingsStatusMessage = ""
+        } catch {
+            runtimeSettingsStatusMessage = error.localizedDescription
+        }
+    }
+
+    func isRuntimePluginEnabled(_ pluginID: AdaProjectRuntimePluginID) -> Bool {
+        (try? EditorAdaScriptRuntimePluginResolver.resolve(runtimeSettings.plugins))?.contains(pluginID) == true
+    }
+
+    func toggleRuntimePlugin(_ pluginID: AdaProjectRuntimePluginID) {
+        var plugins = runtimeSettings.plugins
+        if isRuntimePluginEnabled(pluginID) {
+            plugins.enable.removeAll { $0 == pluginID }
+            if !plugins.disable.contains(pluginID) {
+                plugins.disable.append(pluginID)
+            }
+        } else {
+            plugins.disable.removeAll { $0 == pluginID }
+            if !plugins.enable.contains(pluginID) {
+                plugins.enable.append(pluginID)
+            }
+        }
+        plugins.enable.sort { $0.rawValue < $1.rawValue }
+        plugins.disable.sort { $0.rawValue < $1.rawValue }
+        do {
+            _ = try EditorAdaScriptRuntimePluginResolver.resolve(plugins)
+            runtimeSettings.plugins = plugins
+            runtimeSettingsStatusMessage = ""
+        } catch {
+            runtimeSettingsStatusMessage = error.localizedDescription
+        }
+    }
+
+    func toggleRuntimeWindowResizable() {
+        runtimeDraft.windowIsResizable.toggle()
+        runtimeSettingsStatusMessage = ""
+    }
+
+    func saveProjectSettings() {
+        guard let editorViewModel else {
+            return
+        }
+        do {
+            runtimeSettings = try runtimeDraft.applying(to: runtimeSettings)
+            _ = try EditorAdaScriptRuntimePluginResolver.resolve(runtimeSettings.plugins)
+            editorViewModel.saveProjectSettings(runtime: runtimeSettings)
+            runtimeSettingsStatusMessage = editorViewModel.projectSettingsStatusMessage
+        } catch {
+            runtimeSettingsStatusMessage = error.localizedDescription
+        }
+    }
+
+    private static func loadRuntimeSettings(from editorViewModel: EditorViewModel?) -> AdaProjectRuntime {
+        guard let projectURL = editorViewModel?.projectURL,
+              let project = try? ProjectSystem.loadProject(at: projectURL) else {
+            return AdaProjectRuntime()
+        }
+        return project.runtime
     }
 }
 
@@ -436,6 +530,12 @@ struct EditorSettingsWindowView: View {
 
     private func projectSettings(_ editorViewModel: EditorViewModel) -> some View {
         VStack(alignment: .leading, spacing: 24) {
+            if viewModel.isAdaScriptProject {
+                EditorRuntimeProjectSettingsView(
+                    projectName: editorViewModel.project?.name ?? "Game",
+                    viewModel: viewModel
+                )
+            }
             settingsGroup("RESOURCE ROOTS") {
                 settingsField(
                     "Assets, Localization",
@@ -711,7 +811,10 @@ struct EditorSettingsWindowView: View {
         case .general:
             return ("Apply", viewModel.generalSettingsStatusMessage, viewModel.applyGeneralSettings)
         case .project:
-            return ("Save Project Settings", editorViewModel.projectSettingsStatusMessage, editorViewModel.saveProjectSettings)
+            let status = viewModel.runtimeSettingsStatusMessage.isEmpty
+                ? editorViewModel.projectSettingsStatusMessage
+                : viewModel.runtimeSettingsStatusMessage
+            return ("Save Project Settings", status, viewModel.saveProjectSettings)
         case .agent:
             return ("Save Agent Settings", editorViewModel.agent.settingsStatusMessage, editorViewModel.agent.saveAgentSettings)
         }

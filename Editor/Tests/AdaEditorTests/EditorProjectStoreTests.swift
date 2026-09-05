@@ -86,6 +86,7 @@ struct EditorProjectStoreTests {
         defer { removeEditorStoreTemporaryDirectory(rootURL) }
 
         let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        try ProjectSystem.saveProject(ProjectSystem.defaultProject(projectName: rootURL.lastPathComponent), at: rootURL)
 
         do {
             _ = try store.openProject(at: rootURL)
@@ -123,6 +124,7 @@ struct EditorProjectStoreTests {
         let storageURL = rootURL.appendingPathComponent("projects.json")
         let store = EditorProjectStore(storageURL: storageURL)
         let viewModel = ProjectOpeningViewModel(store: store)
+        try ProjectSystem.saveProject(ProjectSystem.defaultProject(projectName: rootURL.lastPathComponent), at: rootURL)
 
         viewModel.openProject(at: rootURL)
 
@@ -134,7 +136,7 @@ struct EditorProjectStoreTests {
         #expect(viewModel.statusMessage.contains("Choose a folder that contains Package.swift"))
     }
 
-    @Test("view model filters recent projects and abbreviates home paths")
+    @Test("view model filters recent projects and abbreviates display paths")
     @MainActor
     func projectOpeningViewModelFiltersAndFormatsProjects() throws {
         let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectViewModel")
@@ -158,6 +160,14 @@ struct EditorProjectStoreTests {
         viewModel.selectProject(projects[0])
         #expect(viewModel.detailProject?.name == "NeonNights_RPG")
         #expect(ProjectOpeningViewModel.abbreviatedPath(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("AdaProjects/Neon").path).hasPrefix("~/"))
+
+        let simulatorProjectPath = "/Users/developer/Library/Developer/CoreSimulator/Devices/IPAD/data/Containers/Data/Application/APP/Documents/AdaGame.adaproject"
+        #expect(ProjectOpeningViewModel.abbreviatedPath(simulatorProjectPath) == "On My iPad/AdaGame.adaproject")
+        viewModel.existingProjectPath = simulatorProjectPath
+        #expect(viewModel.existingProjectPathDisplayText == "On My iPad/AdaGame.adaproject")
+
+        let iCloudProjectPath = "/Users/developer/Library/Mobile Documents/com~apple~CloudDocs/AdaProjects/CloudGame.adaproject"
+        #expect(ProjectOpeningViewModel.abbreviatedPath(iCloudProjectPath) == "iCloud Drive/AdaProjects/CloudGame.adaproject")
     }
 
     @Test("editor project switcher filters recents and excludes the current project")
@@ -228,7 +238,7 @@ struct EditorProjectStoreTests {
         #expect(viewModel.projectToOpenInEditor == nil)
         #expect(viewModel.projectToOpenInEditorToken == 0)
         #expect(viewModel.statusMessage == "Choose a project name and location before creating.")
-        #expect(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("Lost-Project", isDirectory: true).path) == false)
+        #expect(FileManager.default.fileExists(atPath: rootURL.appendingPathComponent("Lost-Project.adaproject", isDirectory: true).path) == false)
     }
 
     @Test("create blank template creates project and requests editor handoff")
@@ -245,14 +255,16 @@ struct EditorProjectStoreTests {
 
         viewModel.createBlankTemplateProject()
 
-        let projectURL = rootURL.appendingPathComponent("Editor-Flow", isDirectory: true)
+        let projectURL = rootURL.appendingPathComponent("Editor-Flow.adaproject", isDirectory: true)
         #expect(viewModel.detailProject?.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditorToken == 1)
         #expect(ProjectSystem.isAdaProject(at: projectURL))
-        let targetURL = projectURL.appendingPathComponent("Sources/Editor_Flow", isDirectory: true)
-        #expect(FileManager.default.fileExists(atPath: targetURL.appendingPathComponent("AdaRuntimeBootstrap.swift").path))
-        #expect(FileManager.default.fileExists(atPath: targetURL.appendingPathComponent("Main.ada").path))
+        let sourcesURL = projectURL.appendingPathComponent("Sources", isDirectory: true)
+        #expect(!FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
+        #expect(!FileManager.default.fileExists(atPath: sourcesURL.appendingPathComponent("AdaRuntimeBootstrap.swift").path))
+        #expect(FileManager.default.fileExists(atPath: sourcesURL.appendingPathComponent("Main.ada").path))
+        #expect(try ProjectSystem.loadProject(at: projectURL).build.system == .adaScript)
 
         let handoffProject = try #require(viewModel.consumeProjectToOpenInEditor())
         #expect(handoffProject.path == projectURL.standardizedFileURL.path)
@@ -284,22 +296,22 @@ struct EditorProjectStoreTests {
         #expect(ProjectOpeningLayout.windowWidth == 1024)
         #expect(ProjectOpeningLayout.windowHeight == 700)
         #expect(ProjectOpeningLayout.columnsWidth == ProjectOpeningLayout.windowWidth)
-        #expect(ProjectOpeningLayout.detailContentWidth == 556)
+        #expect(ProjectOpeningLayout.detailContentWidth == 572)
         #expect(ProjectOpeningLayout.trafficLightOffsetY == 0)
         #expect(ProjectOpeningLayout.logoTopPadding > ProjectOpeningLayout.trafficLightOffsetY)
         #expect(ProjectOpeningAssets.adaEngineLogoResourceName == "AdaEngine")
         #expect(ProjectOpeningAssets.adaEngineLogoSubdirectory == "Assets")
         #expect(ProjectOpeningLayout.fixedDetailContentHeight <= ProjectOpeningLayout.windowHeight - ProjectOpeningLayout.detailPadding * 2)
-        #expect(ProjectOpeningWindowConfiguration.isResizable == false)
+        #expect(ProjectOpeningWindowConfiguration.isResizable == true)
         #expect(ProjectOpeningWindowConfiguration.hasShadow == true)
         #expect(ProjectOpeningLayout.detailActionButtonCount == 0)
         #expect(ProjectOpeningLayout.searchUsesGradient == false)
-        #expect(ProjectOpeningLayout.searchCapsuleWidth == 280)
-        #expect(ProjectOpeningLayout.searchCapsuleHeight > ProjectOpeningLayout.actionButtonHeight)
-        #expect(ProjectOpeningLayout.searchBottomPadding == 20)
-        #expect(ProjectOpeningLayout.usesNavigationSplitView == true)
-        #expect(ProjectOpeningLayout.detailUsesNavigationStack == true)
-        #expect(ProjectOpeningLayout.detailUsesSearchable == true)
+        #expect(ProjectOpeningLayout.searchCapsuleWidth == ProjectOpeningLayout.explorerWidth - 32)
+        #expect(ProjectOpeningLayout.searchCapsuleHeight < ProjectOpeningLayout.actionButtonHeight)
+        #expect(ProjectOpeningLayout.searchBottomPadding == 12)
+        #expect(ProjectOpeningLayout.usesNavigationSplitView == false)
+        #expect(ProjectOpeningLayout.detailUsesNavigationStack == false)
+        #expect(ProjectOpeningLayout.detailUsesSearchable == false)
     }
 
     @Test("empty project landing exposes logo and required actions")
@@ -376,6 +388,55 @@ struct EditorProjectStoreTests {
         #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditorToken == 1)
         #expect(viewModel.statusMessage.hasPrefix("Opened project:"))
+    }
+
+    @Test("incoming project URL is buffered until the opening view model is ready")
+    @MainActor
+    func incomingProjectURLIsBufferedUntilOpeningViewModelIsReady() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorIncomingProjectURL")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let project = try store.createProject(named: "Incoming", at: rootURL, template: .adaScript)
+        let projectURL = URL(fileURLWithPath: project.path, isDirectory: true)
+        let viewModel = ProjectOpeningViewModel(store: store)
+        let notificationName = Notification.Name("AdaEditorTests.IncomingProjectURL")
+        let notificationCenter = NotificationCenter()
+        let router = EditorProjectOpenURLRouter(
+            notificationCenter: notificationCenter,
+            notificationName: notificationName
+        )
+
+        notificationCenter.post(name: notificationName, object: projectURL)
+        #expect(viewModel.projectToOpenInEditor == nil)
+
+        #expect(router.attach(viewModel))
+        #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
+        #expect(viewModel.projectToOpenInEditorToken == 1)
+    }
+
+    @Test("incoming project URL reaches an already active opening view model")
+    @MainActor
+    func incomingProjectURLReachesActiveOpeningViewModel() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorRunningProjectURL")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let project = try store.createProject(named: "Running", at: rootURL, template: .adaScript)
+        let projectURL = URL(fileURLWithPath: project.path, isDirectory: true)
+        let viewModel = ProjectOpeningViewModel(store: store)
+        let notificationName = Notification.Name("AdaEditorTests.RunningProjectURL")
+        let notificationCenter = NotificationCenter()
+        let router = EditorProjectOpenURLRouter(
+            notificationCenter: notificationCenter,
+            notificationName: notificationName
+        )
+        #expect(!router.attach(viewModel))
+
+        notificationCenter.post(name: notificationName, object: projectURL)
+
+        #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
+        #expect(viewModel.projectToOpenInEditorToken == 1)
     }
 
     @Test("view model opens recent project and requests editor handoff")

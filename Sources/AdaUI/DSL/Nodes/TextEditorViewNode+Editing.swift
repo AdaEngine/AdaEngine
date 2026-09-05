@@ -151,6 +151,26 @@ extension TextEditorViewNode {
         self.replaceSelection(with: inserted)
     }
 
+    func insertNewlineWithIndentation() {
+        let insertionOffset = self.selectionRange.lowerBound
+        let lines = self.lines()
+        let position = self.position(forOffset: insertionOffset, lines: lines)
+        guard lines.indices.contains(position.line) else {
+            self.replaceSelection(with: "\n")
+            return
+        }
+
+        let lineText = lines[position.line].text
+        let prefixEnd = lineText.index(
+            lineText.startIndex,
+            offsetBy: min(max(0, position.column), lineText.count)
+        )
+        let indentation = lineText[..<prefixEnd].prefix { character in
+            character == " " || character == "\t"
+        }
+        self.replaceSelection(with: "\n" + String(indentation))
+    }
+
     func replaceSelection(with insertedText: String) {
         self.performEdit { [self] in
             let range = self.selectionRange

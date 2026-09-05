@@ -1,5 +1,7 @@
+#if canImport(ACP) && canImport(ACPModel)
 import ACP
 import ACPModel
+#endif
 import Foundation
 
 struct EditorAgentRunRequest: Sendable {
@@ -40,6 +42,7 @@ protocol EditorAgentServicing: Sendable {
 enum EditorAgentServiceError: Error, LocalizedError, Sendable {
     case disabled
     case missingCommand
+    case unsupportedPlatform
     case sessionUnavailable
     case pathOutsideProject(String)
 
@@ -49,6 +52,8 @@ enum EditorAgentServiceError: Error, LocalizedError, Sendable {
             "Agent is disabled for this project."
         case .missingCommand:
             "ACP target command is not configured."
+        case .unsupportedPlatform:
+            "ACP agent integration is unavailable on this platform."
         case .sessionUnavailable:
             "ACP session is unavailable."
         case .pathOutsideProject(let path):
@@ -57,6 +62,7 @@ enum EditorAgentServiceError: Error, LocalizedError, Sendable {
     }
 }
 
+#if canImport(ACP) && canImport(ACPModel)
 actor EditorACPAgentService: EditorAgentServicing {
     private struct ManagedSession {
         var client: Client
@@ -438,6 +444,33 @@ actor EditorACPAgentService: EditorAgentServicing {
         }
     }
 }
+#else
+actor EditorACPAgentService: EditorAgentServicing {
+    func connect(
+        _: EditorAgentRunRequest,
+        onEvent _: @escaping @Sendable (EditorAgentEvent) async -> Void,
+        onProjectFileChanged _: @escaping @Sendable (String) async -> Void
+    ) async throws -> EditorAgentSessionConfiguration {
+        throw EditorAgentServiceError.unsupportedPlatform
+    }
+
+    func send(
+        _: EditorAgentRunRequest,
+        onEvent _: @escaping @Sendable (EditorAgentEvent) async -> Void,
+        onProjectFileChanged _: @escaping @Sendable (String) async -> Void
+    ) async throws -> EditorAgentRunResult {
+        throw EditorAgentServiceError.unsupportedPlatform
+    }
+
+    func setConfiguration(sessionID _: String, selectorID _: String, valueID _: String) async throws -> EditorAgentSessionConfiguration {
+        throw EditorAgentServiceError.unsupportedPlatform
+    }
+
+    func cancel(sessionID _: String) async {}
+
+    func shutdown() async {}
+}
+#endif
 
 enum EditorAgentPromptContext {
     static func text(for request: EditorAgentRunRequest) -> String {
@@ -515,6 +548,7 @@ enum EditorAgentPromptContext {
     }
 }
 
+#if canImport(ACP) && canImport(ACPModel)
 private actor EditorACPClientDelegate: ClientDelegate {
     private let terminalDelegate = TerminalDelegate()
     private let projectURL: URL
@@ -630,6 +664,7 @@ private actor EditorACPClientDelegate: ClientDelegate {
         return String(standardized.path.dropFirst(projectURL.path.count + 1))
     }
 }
+#endif
 
 private extension String {
     var nilIfEmpty: String? {

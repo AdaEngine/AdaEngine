@@ -181,8 +181,9 @@ final class MetalDrawable: Drawable, @unchecked Sendable {
         }
         let span = AdaTrace.startSpan("Display.present")
         span.attributes["ada.profile.category"] = "display"
-        span.attributes["ada.display.drawable_id"] = Int64(mtlDrawable.drawableID)
         span.attributes["ada.display.submitted_time"] = CACurrentMediaTime()
+        #if os(macOS)
+        span.attributes["ada.display.drawable_id"] = Int64(mtlDrawable.drawableID)
         mtlDrawable.addPresentedHandler { drawable in
             let presentedTime = drawable.presentedTime
             span.attributes["ada.display.presented_time"] = presentedTime
@@ -198,6 +199,11 @@ final class MetalDrawable: Drawable, @unchecked Sendable {
             }
             span.end()
         }
+        #else
+        commandBuffer.addCompletedHandler { _ in
+            span.end()
+        }
+        #endif
         commandBuffer.label = "(AdaRender internal) Present"
         commandBuffer.present(self.mtlDrawable)
         commandBuffer.commit()

@@ -113,6 +113,7 @@ public struct AdaScriptViewSchema: Equatable, Sendable {
     public let environment: [AdaScriptViewEnvironmentBinding]
     public let id: String
     public let isIDExplicit: Bool
+    public let isPreviewable: Bool
     public let isTitleExplicit: Bool
     public let line: Int
     public let sourcePath: String
@@ -123,6 +124,7 @@ public struct AdaScriptViewSchema: Equatable, Sendable {
         environment: [AdaScriptViewEnvironmentBinding] = [],
         id: String,
         isIDExplicit: Bool = true,
+        isPreviewable: Bool = false,
         isTitleExplicit: Bool = true,
         line: Int,
         sourcePath: String,
@@ -132,6 +134,7 @@ public struct AdaScriptViewSchema: Equatable, Sendable {
         self.environment = environment
         self.id = id
         self.isIDExplicit = isIDExplicit
+        self.isPreviewable = isPreviewable
         self.isTitleExplicit = isTitleExplicit
         self.line = line
         self.sourcePath = sourcePath

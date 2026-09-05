@@ -77,3 +77,69 @@ public enum AdaScriptSchemaParser {
         return schemas
     }
 }
+
+struct Annotation {
+    let arguments: [String: Literal]
+    let name: String
+    let positionalArguments: [Literal]
+
+    func previewTitle(viewName: String, path: String) throws -> String? {
+        guard arguments.keys.allSatisfy({ $0 == "title" }) else {
+            throw AdaScriptSchemaError.invalid(path: path, message: "@previewable on \(viewName) only supports title")
+        }
+        let titleCount = positionalArguments.count + (arguments["title"] == nil ? 0 : 1)
+        guard titleCount <= 1 else {
+            throw AdaScriptSchemaError.invalid(path: path, message: "@previewable on \(viewName) accepts one title")
+        }
+        guard let literal = arguments["title"] ?? positionalArguments.first else {
+            return nil
+        }
+        guard case .string(let title) = literal else {
+            throw AdaScriptSchemaError.invalid(path: path, message: "@previewable title on \(viewName) must be a string")
+        }
+        return title
+    }
+}
+
+enum Literal {
+    case bool(Bool)
+    case identifier(String)
+    case list([Self])
+    case number(String)
+    case string(String)
+}
+
+struct Token {
+    enum Kind {
+        case identifier
+        case number
+        case punctuation
+        case string
+    }
+
+    let endOffset: Int
+    let kind: Kind
+    let line: Int
+    let startOffset: Int
+    let text: String
+}
+
+struct Parser {
+    struct Output {
+        var resourceBindings: [AdaScriptResourceBinding] = []
+        var schemas: [AdaScriptDataSchema] = []
+        var scriptables: [AdaScriptableSchema] = []
+        var systemCapabilities: [AdaScriptSystemCapabilities] = []
+        var views: [AdaScriptViewSchema] = []
+    }
+
+    let path: String
+    let tokens: [Token]
+    var index = 0
+
+    init(source: String, path: String) {
+        var lexer = Lexer(source: source)
+        self.tokens = lexer.lex()
+        self.path = path
+    }
+}

@@ -107,7 +107,7 @@ public final class GravityLanguageServerSession {
         return GravityLanguageServerAction(outgoingMessages: [
             response(id: id, result: [
                 "capabilities": capabilities,
-                "serverInfo": ["name": "AdaEngine Gravity Language Server", "version": "0.1.0"]
+                "serverInfo": ["name": "AdaEngine AdaScript Language Server", "version": "0.1.0"]
             ])
         ])
     }

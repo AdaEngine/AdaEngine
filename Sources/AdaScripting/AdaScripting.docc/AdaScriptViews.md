@@ -10,6 +10,7 @@ and emits a typed accessor. Use `id` or `title` only when an explicit override
 is required.
 
 ```ada
+@previewable
 @view
 class WelcomeView {
     @state var message = "Hello from Ada Script";
@@ -74,10 +75,28 @@ silently disconnected value.
 
 ## Preview in AdaEditor
 
-Open a `.ada` file containing `@view`. AdaEditor lists each declaration by its
-title, gathers the target's `.ada` sources, substitutes the current unsaved
-document, evaluates the selected view, and mounts the resulting native AdaUI
-tree in the Preview panel.
+Add `@previewable` to an `@view` class that should be an AdaEditor Preview entry
+point. Runtime-only views remain plain `@view` declarations and do not clutter
+the Preview list.
+
+```ada
+@previewable(title: "Welcome – Dark")
+@view
+class WelcomeDarkPreview {
+    func body() {
+        Text("Welcome preview").background("#20232aff");
+    }
+}
+```
+
+The `title` argument is optional; AdaEditor otherwise uses `@view(title:)` or a
+humanized class name. `@previewable` without `@view`, duplicate annotations, and
+non-string titles produce compile-time diagnostics.
+
+When a `.ada` file is open, AdaEditor lists its `@previewable` declarations,
+gathers the target's `.ada` sources, substitutes the current unsaved document,
+evaluates the selected view, and mounts the resulting native AdaUI tree in the
+Preview panel.
 
 Preview actions and state use the same persistent instance path as runtime
 views. Cross-view bindings and state migration across source generations remain

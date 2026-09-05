@@ -83,21 +83,21 @@ enum GravityBuiltins {
             sortText: "02"
         ),
         GravityCompletionCandidate(
-            detail: "Declare an Ada Script component",
+            detail: "Declare an AdaScript component",
             insertText: "component(id: \"\")",
             kind: .keyword,
             label: "component",
             sortText: "03"
         ),
         GravityCompletionCandidate(
-            detail: "Declare an Ada Script resource",
+            detail: "Declare an AdaScript resource",
             insertText: "resource(id: \"\")",
             kind: .keyword,
             label: "resource",
             sortText: "04"
         ),
         GravityCompletionCandidate(
-            detail: "Declare a serializable Ada Script object",
+            detail: "Declare a serializable AdaScript object",
             insertText: "scriptable(id: \"\")",
             kind: .keyword,
             label: "scriptable",
@@ -111,25 +111,32 @@ enum GravityBuiltins {
             sortText: "06"
         ),
         GravityCompletionCandidate(
-            detail: "Declare a previewable AdaUI view",
-            insertText: "view(id: \"\", title: \"\")",
+            detail: "Declare an AdaUI view",
+            insertText: "view",
             kind: .keyword,
             label: "view",
             sortText: "07"
+        ),
+        GravityCompletionCandidate(
+            detail: "Expose an AdaUI view in AdaEditor previews",
+            insertText: "previewable",
+            kind: .keyword,
+            label: "previewable",
+            sortText: "08"
         ),
         GravityCompletionCandidate(
             detail: "Declare view-owned reactive state",
             insertText: "state",
             kind: .keyword,
             label: "state",
-            sortText: "08"
+            sortText: "09"
         ),
         GravityCompletionCandidate(
             detail: "Read an AdaUI environment value",
             insertText: "environment()",
             kind: .keyword,
             label: "environment",
-            sortText: "09"
+            sortText: "10"
         )
     ]
 
@@ -153,7 +160,7 @@ enum GravityBuiltins {
     private static let keywordCandidates = [
         "break", "case", "const", "continue", "enum", "event", "extern", "false", "import", "null", "private", "public", "repeat", "static", "struct", "switch", "true"
     ].enumerated().map { index, keyword in
-        GravityCompletionCandidate(detail: "Ada Script keyword", insertText: keyword, kind: .keyword, label: keyword, sortText: "\(30 + index)")
+        GravityCompletionCandidate(detail: "AdaScript keyword", insertText: keyword, kind: .keyword, label: keyword, sortText: "\(30 + index)")
     }
 
     private static func viewMember(_ name: String, detail: String) -> GravityCompletionCandidate {

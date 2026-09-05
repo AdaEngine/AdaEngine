@@ -193,6 +193,27 @@ struct ShapeRenderingTests {
     }
 
     @Test
+    func tessellator_doesNotFastAcceptNonRectangularClipBounds() {
+        let clipPolygon = [
+            Vector2(50, 0),
+            Vector2(100, -50),
+            Vector2(50, -100),
+            Vector2(0, -50)
+        ]
+
+        let result = UITessellator().tessellateClippedQuad(
+            transform: Rect(x: 10, y: 10, width: 80, height: 80).toTransform3D,
+            texture: nil,
+            color: .red,
+            textureIndex: 0,
+            clipPolygons: [clipPolygon]
+        )
+
+        #expect(result.vertices.count == 8)
+        #expect(result.indices.count == 18)
+    }
+
+    @Test
     func tessellator_rejectsQuadFullyOutsideMaskPolygon() {
         let clipPolygon = [
             Vector2(200, 0),

@@ -61,7 +61,7 @@ struct ProjectSystemTests {
         #expect(project.buildSystem == .swiftpm)
     }
 
-    @Test("detects Ada project only when metadata and Package.swift exist")
+    @Test("detects SwiftPM and AdaScript projects using their declared layouts")
     func detectsAdaProject() throws {
         let projectURL = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(projectURL) }
@@ -69,9 +69,15 @@ struct ProjectSystemTests {
         try "// swift-tools-version: 6.2\n".write(to: projectURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
         #expect(!ProjectSystem.isAdaProject(at: projectURL))
 
-        try FileManager.default.createDirectory(at: projectURL.appendingPathComponent(".ada"), withIntermediateDirectories: true)
-        try "{}".write(to: ProjectSystem.metadataURL(forProjectAt: projectURL), atomically: true, encoding: .utf8)
+        try ProjectSystem.saveProject(ProjectSystem.defaultProject(), at: projectURL)
 
+        #expect(ProjectSystem.isAdaProject(at: projectURL))
+
+        try FileManager.default.removeItem(at: projectURL.appendingPathComponent("Package.swift"))
+        #expect(!ProjectSystem.isAdaProject(at: projectURL))
+
+        try FileManager.default.createDirectory(at: projectURL.appendingPathComponent("Sources"), withIntermediateDirectories: true)
+        try ProjectSystem.saveProject(ProjectSystem.defaultProject(buildSystem: .adaScript), at: projectURL)
         #expect(ProjectSystem.isAdaProject(at: projectURL))
     }
 
@@ -125,7 +131,7 @@ struct ProjectSystemTests {
             _ = try ProjectSystem.loadProject(from: Data(#"{"schemaVersion":1,"build":{"system":"xcode"}}"#.utf8))
             Issue.record("Expected loadProject to throw")
         } catch let error as ProjectSystemError {
-            #expect(error == .unknownBuildSystem(path: "build.system", value: "xcode", supportedValues: ["swiftpm"]))
+            #expect(error == .unknownBuildSystem(path: "build.system", value: "xcode", supportedValues: ["adascript", "swiftpm"]))
             #expect(error.code == "project.unknownBuildSystem")
             #expect(error.fieldPath == "build.system")
         }
@@ -184,6 +190,64 @@ struct ProjectSystemTests {
             #expect(error == .swiftPackageManifestMissing(path: "Package.swift"))
             #expect(error.code == "project.swiftPackageManifestMissing")
         }
+    }
+
+    @Test("creates an AdaScript project without Package.swift")
+    func createsAdaScriptProjectWithoutSwiftPM() throws {
+        let projectURL = try makeTemporaryDirectory(named: "PortableGame")
+        defer { removeTemporaryDirectory(projectURL) }
+        try FileManager.default.createDirectory(at: projectURL.appendingPathComponent("Sources"), withIntermediateDirectories: true)
+
+        let project = try ProjectSystem.createDefaultProject(at: projectURL, buildSystem: .adaScript)
+
+        #expect(project.schemaVersion == 3)
+        #expect(project.build.system == .adaScript)
+        #expect(project.paths.build == nil)
+        #expect(project.runtime.moduleName == "PortableGame")
+        #expect(project.runtime.entryView == "game.main")
+        #expect(project.runtime.startupScene == SceneDocumentFormat.defaultScenePath)
+        #expect(!FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
+        #expect(try ProjectSystem.validateProjectLayout(at: projectURL) == project)
+        let metadata = try String(contentsOf: ProjectSystem.metadataURL(forProjectAt: projectURL), encoding: .utf8)
+        #expect(metadata.contains(#""system" : "adascript""#))
+        #expect(metadata.contains(#""preset" : "game2d""#))
+        #expect(metadata.contains(#""scene" : "Assets/Scenes/Main.ascn""#))
+        #expect(metadata.contains(#""view" : "game.main""#))
+        #expect(!metadata.contains(#""entryView""#))
+        #expect(!metadata.contains(#""system" : "gravity""#))
+    }
+
+    @Test("iPadOS accepts AdaScript projects and rejects SwiftPM or Swift sources")
+    func validatesIPadOSRuntimeCompatibility() throws {
+        let projectURL = try makeTemporaryDirectory(named: "TabletGame")
+        defer { removeTemporaryDirectory(projectURL) }
+        let sourcesURL = projectURL.appendingPathComponent("Sources", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
+
+        let adaScriptProject = ProjectSystem.defaultProject(projectName: "TabletGame", buildSystem: .adaScript)
+        try "@view(id: \"game.main\") class MainView {}\n".write(
+            to: sourcesURL.appendingPathComponent("Main.ada"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try ProjectSystem.validateRunCompatibility(of: adaScriptProject, at: projectURL, destination: .iPadOS)
+
+        let swiftPMProject = ProjectSystem.defaultProject(projectName: "HybridGame")
+        #expect(throws: ProjectSystemError.unsupportedBuildSystemForPlatform(platform: "ipados", buildSystem: "swiftpm")) {
+            try ProjectSystem.validateRunCompatibility(of: swiftPMProject, at: projectURL, destination: .iPadOS)
+        }
+
+        try "import AdaEngine\n".write(to: sourcesURL.appendingPathComponent("Gameplay.swift"), atomically: true, encoding: .utf8)
+        #expect(throws: ProjectSystemError.unsupportedSourceLanguage(platform: "ipados", path: "Sources/Gameplay.swift")) {
+            try ProjectSystem.validateRunCompatibility(of: adaScriptProject, at: projectURL, destination: .iPadOS)
+        }
+    }
+
+    @Test("loads the legacy gravity build-system spelling as AdaScript")
+    func loadsLegacyGravityBuildSystem() throws {
+        let project = try ProjectSystem.loadProject(from: Data(#"{"schemaVersion":2,"build":{"system":"gravity"},"runtime":{"moduleName":"Game","entryView":"game.main"}}"#.utf8))
+
+        #expect(project.build.system == .adaScript)
     }
 
     @Test("project settings persist resource roots build selection and web destination")
@@ -265,7 +329,7 @@ private let expectedDefaultProjectJSON = """
     },
     "workingDirectory" : "."
   },
-  "schemaVersion" : 1
+  "schemaVersion" : 3
 }
 """
 

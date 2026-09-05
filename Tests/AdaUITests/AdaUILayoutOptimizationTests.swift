@@ -5,6 +5,7 @@
 
 import Math
 import Observation
+import Synchronization
 import Testing
 @testable import AdaPlatform
 @testable import AdaUI
@@ -13,6 +14,24 @@ import Testing
 struct AdaUILayoutOptimizationTests {
     init() async throws {
         try Application.prepareForTest()
+    }
+
+    @Test
+    func scrollViewProxyRegistryDoesNotTriggerObservationInvalidation() {
+        let proxy = _ScrollViewProxy()
+        let didInvalidate = Mutex(false)
+
+        withObservationTracking {
+            _ = proxy.subscribedScrollViewNodes.count
+        } onChange: {
+            didInvalidate.withLock { value in
+                value = true
+            }
+        }
+
+        proxy.subscribedScrollViewNodes = []
+
+        #expect(!didInvalidate.withLock { $0 })
     }
 
     @Test

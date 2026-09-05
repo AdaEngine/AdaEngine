@@ -6,6 +6,13 @@ struct EditorAdaScriptPreviewArtifact: Sendable {
     var sources: [AdaScriptSource]
 }
 
+struct EditorAdaScriptPreviewBuildRequest: Equatable, Sendable {
+    var projectURL: URL
+    var document: EditorTextDocument
+    var packageModel: SwiftPackageModel?
+    var declaration: EditorPreviewDeclaration
+}
+
 actor EditorAdaScriptPreviewBuilder {
     private let fileManager: FileManager
 
@@ -13,24 +20,36 @@ actor EditorAdaScriptPreviewBuilder {
         self.fileManager = fileManager
     }
 
-    func build(_ request: EditorPreviewBuildRequest) throws -> EditorAdaScriptPreviewArtifact {
+    func build(_ request: EditorAdaScriptPreviewBuildRequest) throws -> EditorAdaScriptPreviewArtifact {
         guard request.declaration.kind == .adaScript else {
-            throw EditorPreviewBuildFailure(message: "Expected an Ada Script preview declaration.")
+            throw EditorPreviewBuildFailure(message: "Expected an AdaScript preview declaration.")
         }
-        guard let target = request.packageModel.target(containing: request.document, projectURL: request.projectURL) else {
-            throw EditorPreviewBuildFailure(message: "Could not resolve the SwiftPM target for \(request.document.relativePath).")
+        let sourceRoot: URL
+        let sourceGroupName: String
+        if let packageModel = request.packageModel {
+            guard let target = packageModel.target(containing: request.document, projectURL: request.projectURL) else {
+                throw EditorPreviewBuildFailure(message: "Could not resolve the SwiftPM target for \(request.document.relativePath).")
+            }
+            sourceRoot = URL(
+                fileURLWithPath: target.path ?? "Sources/\(target.name)",
+                relativeTo: request.projectURL
+            ).standardizedFileURL
+            sourceGroupName = target.name
+        } else {
+            let project = try ProjectSystem.loadProject(at: request.projectURL, fileManager: fileManager)
+            guard project.build.system == .adaScript else {
+                throw EditorPreviewBuildFailure(message: "AdaScript previews require an AdaScript or SwiftPM project.")
+            }
+            let sourcePath = project.paths.sources ?? "Sources"
+            sourceRoot = request.projectURL.appendingPathComponent(sourcePath, isDirectory: true).standardizedFileURL
+            sourceGroupName = project.runtime.moduleName
         }
-
-        let sourceRoot = URL(
-            fileURLWithPath: target.path ?? "Sources/\(target.name)",
-            relativeTo: request.projectURL
-        ).standardizedFileURL
         guard let enumerator = fileManager.enumerator(
             at: sourceRoot,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles]
         ) else {
-            throw EditorPreviewBuildFailure(message: "Could not enumerate Ada Script sources in \(target.name).")
+            throw EditorPreviewBuildFailure(message: "Could not enumerate AdaScript sources in \(sourceGroupName).")
         }
 
         let activeURL = request.document.absolutePath.map {
@@ -54,9 +73,20 @@ actor EditorAdaScriptPreviewBuilder {
         }
         sources.sort { $0.path < $1.path }
         guard !sources.isEmpty else {
-            throw EditorPreviewBuildFailure(message: "Target \(target.name) contains no .ada sources.")
+            throw EditorPreviewBuildFailure(message: "\(sourceGroupName) contains no .ada sources.")
         }
         return EditorAdaScriptPreviewArtifact(identifier: request.declaration.id, sources: sources)
+    }
+
+    func build(_ request: EditorPreviewBuildRequest) throws -> EditorAdaScriptPreviewArtifact {
+        try build(
+            EditorAdaScriptPreviewBuildRequest(
+                projectURL: request.projectURL,
+                document: request.document,
+                packageModel: request.packageModel,
+                declaration: request.declaration
+            )
+        )
     }
 
     private func relativePath(from root: URL, to file: URL) -> String {

@@ -42,20 +42,53 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
     }
 
     /// Creates one Ada Script module from a target-relative source map.
-    public init(sources: [AdaScriptSource], name: String) throws {
+    public init(
+        sources: [AdaScriptSource],
+        name: String,
+        startupSystemIdentifier: String? = nil
+    ) throws {
         let module = try GravityScriptModuleResolver.resolve(sources)
         let runtime = try AnnotatedGravityRuntime(module: module)
         let resourceBindings = try AdaScriptSchemaParser.parseResourceBindings(sources: sources)
         let capabilities = try AdaScriptSchemaParser.parseSystemCapabilities(sources: sources)
-        let plans = try Self.makePlans(
+        var plans = try Self.makePlans(
             from: runtime.annotations,
             resourceBindings: resourceBindings,
             systemCapabilities: capabilities
         )
+        if let startupSystemIdentifier {
+            guard let startupIndex = plans.firstIndex(where: { $0.identifier == startupSystemIdentifier }) else {
+                throw AdaScriptError.invalidManifest(
+                    "Startup system '\(startupSystemIdentifier)' does not match an @system id."
+                )
+            }
+            guard plans[startupIndex].scheduler == .startup else {
+                throw AdaScriptError.invalidManifest(
+                    "Startup system '\(startupSystemIdentifier)' must use scheduler: \"startup\"."
+                )
+            }
+            let startupPlan = plans.remove(at: startupIndex)
+            plans.insert(startupPlan, at: 0)
+        }
         self.name = name
         self.runtime = runtime
         self.plans = plans
         try runtime.instantiateSystems(plans)
+    }
+
+    /// Compiles and validates a plugin while keeping its complete VM lifetime serialized.
+    nonisolated public static func validate(
+        sources: [AdaScriptSource],
+        name: String,
+        startupSystemIdentifier: String? = nil
+    ) throws {
+        try AdaScriptRuntimeCoordinator.lock.withLock {
+            _ = try AdaScriptPlugin(
+                sources: sources,
+                name: name,
+                startupSystemIdentifier: startupSystemIdentifier
+            )
+        }
     }
 
     @MainActor

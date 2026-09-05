@@ -231,11 +231,12 @@ struct EditorProjectSwitcherPanel: View {
     }
 
     private func openLocalProject() {
-        guard let url = ProjectOpenPicker.pickProjectURL(),
-              let project = viewModel.projectForOpening(at: url) else {
-            return
+        ProjectOpenPicker.presentProjectPicker { url in
+            guard let url, let project = viewModel.projectForOpening(at: url) else {
+                return
+            }
+            onOpenProject(project)
         }
-        onOpenProject(project)
     }
 }
 

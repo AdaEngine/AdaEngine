@@ -1550,8 +1550,8 @@ struct AdaEngineStyleUITests {
             (.swift, "Player", "Player.swift"),
             (.plainText, "Notes", "Notes.txt"),
         ]
-        #expect(EditorNewFileKind.script.title == "Ada Script")
-        #expect(EditorNewFileKind.script.detail == "Gravity script")
+        #expect(EditorNewFileKind.script.title == "AdaScript")
+        #expect(EditorNewFileKind.script.detail == "AdaScript source")
 
         for (kind, enteredName, expectedName) in cases {
             viewModel.presentNewFileDialog()

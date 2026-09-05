@@ -6,11 +6,11 @@
 //
 
 #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+@_spi(Internal) import AdaUI
 import UIKit
 
-// swiftlint:disable type_name
 class AppleEmbeddedAppDelegate: NSObject, UIApplicationDelegate {
-    var window: UIWindow?
+    var window: UIKit.UIWindow?
 
     func application(
         _ application: UIApplication,
@@ -36,9 +36,11 @@ class AppleEmbeddedAppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
         didDiscardSceneSessions sceneSessions: Set<UISceneSession>
-    ) { }
+    ) {
+        (UIWindowManager.shared as? AppleEmbeddedWindowManager)?
+            .sceneSessionsDidDiscard(sceneSessions)
+    }
     #endif
 }
 
-// swiftlint:enable type_name
 #endif

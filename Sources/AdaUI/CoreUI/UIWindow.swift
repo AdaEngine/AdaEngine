@@ -5,8 +5,8 @@
 //  Created by v.prusakov on 5/29/22.
 //
 
-import AdaECS
 import AdaApp
+import AdaECS
 import AdaInput
 import AdaUtils
 import Foundation
@@ -65,6 +65,9 @@ open class UIWindow: UIView {
     /// Flag indicates that window is active.
     public internal(set) var isActive: Bool = false
 
+    /// Called after the native window or scene has been removed.
+    public var onDidDisappear: (@MainActor () -> Void)?
+
     public convenience override init() {
         self.init(frame: .zero)
     }
@@ -115,7 +118,7 @@ open class UIWindow: UIView {
     
     /// Called once when window did disapper from screen.
     open func windowDidDisappear() {
-        
+        onDidDisappear?()
     }
     
     open func windowDidBecameActive() {
@@ -256,6 +259,7 @@ public extension UIWindow {
         public var hasShadow: Bool
         public var isResizable: Bool
         public var allowsMousePassthrough: Bool
+        public var scenePresentation: ScenePresentation
 
         public init(
             title: String? = nil,
@@ -273,7 +277,8 @@ public extension UIWindow {
             makeKey: Bool = true,
             hasShadow: Bool = true,
             isResizable: Bool = true,
-            allowsMousePassthrough: Bool = false
+            allowsMousePassthrough: Bool = false,
+            scenePresentation: ScenePresentation = .current
         ) {
             self.title = title
             self.frame = frame
@@ -291,7 +296,18 @@ public extension UIWindow {
             self.hasShadow = hasShadow
             self.isResizable = isResizable
             self.allowsMousePassthrough = allowsMousePassthrough
+            self.scenePresentation = scenePresentation
         }
+    }
+
+    /// Describes which native scene should host a platform window.
+    enum ScenePresentation: Sendable, Equatable {
+        /// Present the window in the scene that is currently active.
+        case current
+
+        /// Ask the platform to create an independent window scene.
+        /// Platforms without window-scene support use their normal window presentation.
+        case new
     }
 
     enum Chrome: Sendable, Equatable {

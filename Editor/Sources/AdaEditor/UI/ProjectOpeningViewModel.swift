@@ -44,7 +44,7 @@ final class ProjectOpeningViewModel {
     var selectedSection = ProjectOpeningSection.projects
     var selectedTemplate = EditorProjectTemplate.adaScript
     var selectedProject: EditorProjectReference?
-    var statusMessage: String = "Select a recent SwiftPM Ada project, create a blank one, or open an existing package."
+    var statusMessage: String = "Select a recent Ada project, create a blank one, or open an existing project."
     var validationDiagnostics: [ProjectOpeningDiagnostic] = []
     var projectToOpenInEditor: EditorProjectReference?
     var projectToOpenInEditorToken = 0
@@ -60,6 +60,14 @@ final class ProjectOpeningViewModel {
 
     var existingProjectPathBinding: Binding<String> {
         Binding(get: { self.existingProjectPath }, set: { self.existingProjectPath = $0 })
+    }
+
+    var existingProjectPathDisplayText: String {
+        let trimmed = existingProjectPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return "Choose an Ada project package"
+        }
+        return Self.abbreviatedPath(trimmed)
     }
 
     var searchQueryBinding: Binding<String> {
@@ -138,7 +146,7 @@ final class ProjectOpeningViewModel {
         reloadRecentProjects()
         guard let lastProject = recentProjects.first else {
             clearValidationDiagnostics()
-            statusMessage = "Select a recent SwiftPM Ada project, create a blank one, or open an existing package."
+            statusMessage = "Select a recent Ada project, create a blank one, or open an existing project."
             return false
         }
 
@@ -363,14 +371,7 @@ final class ProjectOpeningViewModel {
     }
 
     static func abbreviatedPath(_ path: String) -> String {
-        let homePath = FileManager.default.homeDirectoryForCurrentUser.path
-        if path == homePath {
-            return "~"
-        }
-        if path.hasPrefix(homePath + "/") {
-            return "~" + path.dropFirst(homePath.count)
-        }
-        return path
+        EditorProjectPathDisplayFormatter.string(for: path)
     }
 
     private static let relativeDateFormatter: RelativeDateTimeFormatter = {
@@ -378,6 +379,19 @@ final class ProjectOpeningViewModel {
         formatter.unitsStyle = .full
         return formatter
     }()
+}
+
+extension ProjectOpeningViewModel {
+    func applyProjectLocationPickerResult(_ result: ProjectLocationPickerResult) {
+        switch result {
+        case .selected(let url):
+            setProjectLocation(url)
+        case .cancelled:
+            statusMessage = "Project location selection cancelled."
+        case .unavailable(let message):
+            statusMessage = "Could not choose a project location: \(message)"
+        }
+    }
 }
 
 private enum BackgroundProjectOpenResult: Sendable {

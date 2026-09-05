@@ -202,7 +202,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scene:
             "Scene"
         case .script:
-            "Ada Script"
+            "AdaScript"
         case .swift:
             "Swift"
         case .plainText:
@@ -215,7 +215,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scene:
             "AdaEngine scene"
         case .script:
-            "Ada Script source"
+            "AdaScript source"
         case .swift:
             "Swift source file"
         case .plainText:
@@ -1784,6 +1784,12 @@ final class EditorSourceControlViewModel {
     }
 }
 
+private enum EditorAdaScriptProjectBuildOutcome: Sendable {
+    case success(EditorAdaScriptProjectBuildArtifact)
+    case projectFailure(ProjectSystemError)
+    case failure(String)
+}
+
 @Observable
 @MainActor
 final class EditorViewModel {
@@ -1846,6 +1852,8 @@ final class EditorViewModel {
     private var sourceControlTask: Task<Void, Never>?
     @ObservationIgnored
     private var previewTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var adaScriptRuntimeWindow: UIWindow?
     @ObservationIgnored
     private var completionTask: Task<Void, Never>?
     @ObservationIgnored
@@ -1917,7 +1925,11 @@ final class EditorViewModel {
         self.symbolReferences = symbolReferences
         self.selectedRunProduct = selectedRunProduct
         let savedProject = project.flatMap { try? ProjectSystem.loadProject(at: URL(fileURLWithPath: $0.path, isDirectory: true), fileManager: fileManager) }
+        #if os(iOS)
+        self.selectedRunDestination = selectedRunDestination ?? .iPadOS
+        #else
         self.selectedRunDestination = selectedRunDestination ?? Self.editorRunDestination(from: savedProject?.run.destination ?? .macOS)
+        #endif
         self.projectResourceRootsText = savedProject?.paths.resourceRoots.joined(separator: "\n") ?? ""
         self.projectIncludedFilesText = savedProject?.build.includedFiles.joined(separator: "\n") ?? ""
         self.projectExcludedFilesText = savedProject?.build.excludedFiles.joined(separator: "\n") ?? ""
@@ -2250,24 +2262,35 @@ final class EditorViewModel {
         }
     }
 
-    func saveProjectSettings() {
+    func saveProjectSettings(runtime: AdaProjectRuntime? = nil) {
         guard let projectURL else {
             projectSettingsStatusMessage = "No project is open."
-            return
-        }
-        guard let targetName = selectedRunTargetName else {
-            projectSettingsStatusMessage = "Load the package and select an executable target first."
             return
         }
 
         do {
             var settings = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
+            let targetName: String
+            if settings.build.system == .swiftpm {
+                guard let selectedRunTargetName else {
+                    projectSettingsStatusMessage = "Load the package and select an executable target first."
+                    return
+                }
+                targetName = selectedRunTargetName
+            } else {
+                targetName = ""
+            }
             settings.paths.resourceRoots = Self.pathList(from: projectResourceRootsText)
             settings.build.includedFiles = Self.pathList(from: projectIncludedFilesText)
             settings.build.excludedFiles = Self.pathList(from: projectExcludedFilesText)
             settings.run.destination = selectedRunDestination.adaProjectDestination
+            if let runtime {
+                settings.runtime = runtime
+            }
             try EditorProjectStore(fileManager: fileManager).saveProjectSettings(settings, at: projectURL, targetName: targetName)
-            projectSettingsStatusMessage = "Project settings saved to .ada/project.json and Package.swift."
+            projectSettingsStatusMessage = settings.build.system == .adaScript
+                ? "Project settings saved to .ada/project.json."
+                : "Project settings saved to .ada/project.json and Package.swift."
             bootstrapWorkspaceIfNeeded(force: true)
         } catch {
             projectSettingsStatusMessage = "Failed to save project settings: \(error.localizedDescription)"
@@ -2285,6 +2308,7 @@ final class EditorViewModel {
     private static func editorRunDestination(from destination: AdaProjectRunDestination) -> EditorRunDestination {
         switch destination {
         case .macOS: .macOS
+        case .iPadOS: .iPadOS
         case .web: .web
         }
     }
@@ -2320,6 +2344,28 @@ final class EditorViewModel {
         }
         guard force || workspaceStatus == .idle || packageModel == nil else {
             return
+        }
+
+        if let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager) {
+            if settings.build.system == .adaScript {
+                buildAdaScriptProject(settings, at: projectURL, statusTitle: "Prepare AdaScript Workspace")
+                return
+            }
+            #if os(iOS)
+            do {
+                try ProjectSystem.validateRunCompatibility(
+                    of: settings,
+                    at: projectURL,
+                    destination: .iPadOS,
+                    fileManager: fileManager
+                )
+            } catch {
+                workspaceStatus = .failed(error.message)
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput(error.message)
+                return
+            }
+            #endif
         }
 
         workspaceStatus = .resolving
@@ -2460,10 +2506,22 @@ final class EditorViewModel {
     }
 
     func buildAll() {
+        if let projectURL,
+           let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
+           settings.build.system == .adaScript {
+            buildAdaScriptProject(settings, at: projectURL, statusTitle: "Build AdaScript Project")
+            return
+        }
         executeWorkspaceCommand(.build(target: nil, buildTests: true), statusTitle: "Build")
     }
 
     func buildTarget(_ target: String) {
+        if let projectURL,
+           let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
+           settings.build.system == .adaScript {
+            buildAdaScriptProject(settings, at: projectURL, statusTitle: "Build AdaScript Project")
+            return
+        }
         executeWorkspaceCommand(.build(target: target, buildTests: false), statusTitle: "Build \(target)")
     }
 
@@ -2478,6 +2536,19 @@ final class EditorViewModel {
                 return
             }
         }
+        if let projectURL,
+           let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
+           settings.build.system == .adaScript {
+            let projectName = settings.project.displayName ?? settings.project.name ?? project?.name ?? "AdaScript Project"
+            buildAdaScriptProject(
+                settings,
+                at: projectURL,
+                statusTitle: "Build AdaScript Project"
+            ) { [weak self] artifact in
+                self?.launchAdaScriptProject(artifact, projectName: projectName)
+            }
+            return
+        }
         switch selectedRunDestination {
         case .macOS:
             executeWorkspaceCommand(.run(target: product, arguments: []), statusTitle: product.map { "Run \($0) on macOS" } ?? "Run on macOS")
@@ -2490,7 +2561,157 @@ final class EditorViewModel {
                 .runWeb(target: product, outputPath: "dist/web", serve: true),
                 statusTitle: "Run \(product) on Web · http://127.0.0.1:8080"
             )
+        case .iPadOS:
+            guard let projectURL,
+                  let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager) else {
+                workspaceStatus = .failed("Unable to load project settings for iPadOS.")
+                return
+            }
+            do {
+                try ProjectSystem.validateRunCompatibility(of: settings, at: projectURL, destination: .iPadOS, fileManager: fileManager)
+            } catch {
+                workspaceStatus = .failed(error.message)
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput(error.message)
+            }
         }
+    }
+
+    private func buildAdaScriptProject(
+        _ settings: AdaProject,
+        at projectURL: URL,
+        statusTitle: String,
+        onSuccess: @escaping @MainActor (EditorAdaScriptProjectBuildArtifact) -> Void = { _ in }
+    ) {
+        guard workspaceTask == nil else {
+            return
+        }
+        workspaceStatus = .running(statusTitle)
+        buildActivity = EditorBuildActivity(title: statusTitle)
+        footer.setWorkspaceFooterTitle(workspaceStatus.title)
+        appendOutput("Compiling AdaScript sources (SwiftPM disabled)...")
+        let destination = selectedRunDestination.adaProjectDestination
+        workspaceTask = Task { [weak self] in
+            let outcome = await Task.detached(priority: .userInitiated) {
+                Self.prepareAdaScriptProject(
+                    settings,
+                    at: projectURL,
+                    destination: destination
+                )
+            }.value
+            guard !Task.isCancelled, let self else {
+                return
+            }
+            self.workspaceTask = nil
+            switch outcome {
+            case .success(let artifact):
+                self.finishAdaScriptProjectBuild(artifact)
+                onSuccess(artifact)
+            case .projectFailure(let error):
+                self.finishAdaScriptProjectBuildFailure(message: error.message)
+            case .failure(let message):
+                self.finishAdaScriptProjectBuildFailure(message: message)
+            }
+        }
+    }
+
+    nonisolated private static func prepareAdaScriptProject(
+        _ settings: AdaProject,
+        at projectURL: URL,
+        destination: AdaProjectRunDestination
+    ) -> EditorAdaScriptProjectBuildOutcome {
+        let fileManager = FileManager()
+        do {
+            try ProjectSystem.validateRunCompatibility(
+                of: settings,
+                at: projectURL,
+                destination: destination,
+                fileManager: fileManager
+            )
+            return .success(
+                try EditorAdaScriptProjectBuilder(fileManager: fileManager).prepare(
+                    project: settings,
+                    at: projectURL
+                )
+            )
+        } catch let error as ProjectSystemError {
+            return .projectFailure(error)
+        } catch {
+            return .failure(error.localizedDescription)
+        }
+    }
+
+    private func finishAdaScriptProjectBuild(_ artifact: EditorAdaScriptProjectBuildArtifact) {
+        let report = artifact.report
+        packageModel = nil
+        workspaceStatus = .ready
+        footer.setWorkspaceFooterTitle(workspaceStatus.title)
+        buildActivity?.finish(succeeded: true)
+        appendOutput(
+            "AdaScript build succeeded: \(report.sourceCount) source(s), \(report.systemCount) system(s), \(report.viewCount) view(s), entry \(report.entryDescription)."
+        )
+        appendOutput("Runtime plugins: \(report.pluginIDs.joined(separator: ", "))")
+        refreshPreviewForActiveDocument()
+    }
+
+    private func finishAdaScriptProjectBuildFailure(message: String) {
+        workspaceStatus = .failed(message)
+        footer.setWorkspaceFooterTitle(workspaceStatus.title)
+        buildActivity?.finish(succeeded: false)
+        appendOutput(message)
+    }
+
+    private func launchAdaScriptProject(
+        _ artifact: EditorAdaScriptProjectBuildArtifact,
+        projectName: String
+    ) {
+        do {
+            let runtimeView = try EditorAdaScriptProjectRuntimeView(artifact: artifact)
+            let windowManager = try requireWindowManager()
+            adaScriptRuntimeWindow?.close()
+            let windowSettings = artifact.window
+            let width = Float(windowSettings.size.width)
+            let height = Float(windowSettings.size.height)
+            let windowTitle = windowSettings.title?.nilIfEmpty ?? projectName
+            let configuration = UIWindow.Configuration(
+                title: windowTitle,
+                frame: Rect(x: 0, y: 0, width: width, height: height),
+                minimumSize: Size(width: min(640, width), height: min(420, height)),
+                mode: .windowed,
+                showsImmediately: false,
+                makeKey: true,
+                isResizable: windowSettings.isResizable,
+                scenePresentation: .new
+            )
+            let window = windowManager.spawnWindow(configuration: configuration) {
+                runtimeView
+            }
+            window.onDidDisappear = { [weak self, weak window] in
+                guard let self, self.adaScriptRuntimeWindow === window else {
+                    return
+                }
+                self.adaScriptRuntimeWindow = nil
+                self.workspaceStatus = .ready
+                self.footer.setWorkspaceFooterTitle(self.workspaceStatus.title)
+                self.appendOutput("AdaScript project \(windowTitle) stopped.")
+            }
+            window.showWindow(makeFocused: true)
+            adaScriptRuntimeWindow = window
+            workspaceStatus = .running("Run \(windowTitle)")
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            appendOutput("Running AdaScript project \(windowTitle) in a separate window scene.")
+        } catch {
+            workspaceStatus = .failed(error.localizedDescription)
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            appendOutput("AdaScript launch failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func requireWindowManager() throws -> UIWindowManager {
+        guard let windowManager = UIWindowManager.shared else {
+            throw EditorAdaScriptRuntimeError.windowManagerUnavailable
+        }
+        return windowManager
     }
 
     var isProjectRunning: Bool {
@@ -2558,6 +2779,14 @@ final class EditorViewModel {
     }
 
     func cancelWorkspaceCommand() {
+        if let adaScriptRuntimeWindow {
+            adaScriptRuntimeWindow.close()
+            self.adaScriptRuntimeWindow = nil
+            workspaceStatus = .ready
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            appendOutput("Stopped AdaScript project.")
+            return
+        }
         workspaceTask?.cancel()
         workspaceTask = nil
         workspaceStatus = .cancelled
@@ -2670,13 +2899,16 @@ final class EditorViewModel {
     }
 
     private func openProjectFromMenu() {
-        guard workbench.saveAllDocuments(), let url = ProjectOpenPicker.pickProjectURL() else { return }
-        do {
-            let project = try EditorProjectStore(fileManager: fileManager).openProject(at: url)
-            ProjectEditorLauncher.openEditor(for: project)
-        } catch {
-            workspaceStatus = .failed("Unable to open project: \(error.localizedDescription)")
-            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+        guard workbench.saveAllDocuments() else { return }
+        ProjectOpenPicker.presentProjectPicker { [weak self] url in
+            guard let self, let url else { return }
+            do {
+                let project = try EditorProjectStore(fileManager: self.fileManager).openProject(at: url)
+                ProjectEditorLauncher.openEditor(for: project)
+            } catch {
+                self.workspaceStatus = .failed("Unable to open project: \(error.localizedDescription)")
+                self.footer.setWorkspaceFooterTitle(self.workspaceStatus.title)
+            }
         }
     }
 
@@ -2780,7 +3012,7 @@ final class EditorViewModel {
         let selected = declarations.first { $0.id == workbench.selectedPreviewID } ?? declarations[0]
         workbench.selectedPreviewID = selected.id
 
-        guard packageModel != nil else {
+        guard selected.kind == .adaScript || packageModel != nil else {
             workbench.previewStatus = .unavailable("Resolve the SwiftPM workspace before building previews.")
             return
         }
@@ -2954,8 +3186,8 @@ final class EditorViewModel {
     }
 
     private func buildPreview(_ declaration: EditorPreviewDeclaration) {
-        guard let projectURL, let packageModel, let document = activePreviewTextDocument() else {
-            workbench.previewStatus = .unavailable("Preview requires an open Swift package workspace.")
+        guard let projectURL, let document = activePreviewTextDocument() else {
+            workbench.previewStatus = .unavailable("Preview requires an open project.")
             return
         }
 
@@ -2968,6 +3200,10 @@ final class EditorViewModel {
                 document: document
             )
         case .swift:
+            guard let packageModel else {
+                workbench.previewStatus = .unavailable("Resolve the SwiftPM workspace before building Swift previews.")
+                return
+            }
             buildSwiftPreview(
                 declaration,
                 projectURL: projectURL,
@@ -3033,14 +3269,14 @@ final class EditorViewModel {
     private func buildAdaScriptPreview(
         _ declaration: EditorPreviewDeclaration,
         projectURL: URL,
-        packageModel: SwiftPackageModel,
+        packageModel: SwiftPackageModel?,
         document: EditorTextDocument
     ) {
         previewTask?.cancel()
-        workbench.previewStatus = .building(declaration, "Preparing Ada Script preview...")
-        appendOutput("Building Ada Script preview \(declaration.title) from \(document.relativePath)")
+        workbench.previewStatus = .building(declaration, "Preparing AdaScript preview...")
+        appendOutput("Building AdaScript preview \(declaration.title) from \(document.relativePath)")
 
-        let request = EditorPreviewBuildRequest(
+        let request = EditorAdaScriptPreviewBuildRequest(
             projectURL: projectURL,
             document: document,
             packageModel: packageModel,
@@ -3065,13 +3301,13 @@ final class EditorViewModel {
                     return
                 }
                 self.workbench.previewStatus = .loaded(declaration, view)
-                self.appendOutput("Loaded Ada Script preview \(declaration.title)")
+                self.appendOutput("Loaded AdaScript preview \(declaration.title)")
                 self.previewTask = nil
             } catch is CancellationError {
                 self.previewTask = nil
             } catch {
-                self.workbench.previewStatus = .failed(declaration, "Ada Script preview failed. See Build Output for details.", true)
-                self.appendOutput("Ada Script preview failed:")
+                self.workbench.previewStatus = .failed(declaration, "AdaScript preview failed. See Build Output for details.", true)
+                self.appendOutput("AdaScript preview failed:")
                 self.appendOutputBlock(String(describing: error))
                 self.previewTask = nil
             }
@@ -3171,6 +3407,30 @@ final class EditorViewModel {
         guard let projectURL else {
             workspaceStatus = .failed("No project is open.")
             return
+        }
+        if let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager) {
+            if settings.build.system == .adaScript {
+                let message = "SwiftPM commands are unavailable for AdaScript projects."
+                workspaceStatus = .failed(message)
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput(message)
+                return
+            }
+            #if os(iOS)
+            do {
+                try ProjectSystem.validateRunCompatibility(
+                    of: settings,
+                    at: projectURL,
+                    destination: .iPadOS,
+                    fileManager: fileManager
+                )
+            } catch {
+                workspaceStatus = .failed(error.message)
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput(error.message)
+                return
+            }
+            #endif
         }
 
         workspaceTask?.cancel()
@@ -4356,6 +4616,7 @@ private extension EditorRunDestination {
     var adaProjectDestination: AdaProjectRunDestination {
         switch self {
         case .macOS: .macOS
+        case .iPadOS: .iPadOS
         case .web: .web
         }
     }

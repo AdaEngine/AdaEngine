@@ -45,10 +45,19 @@ enum SwiftToolchainLocator {
             return candidate
         }
 
+        #if os(Windows)
+        let systemRoot = ProcessInfo.processInfo.environment["SystemRoot"] ?? #"C:\Windows"#
+        let whereExecutable = URL(fileURLWithPath: systemRoot, isDirectory: true)
+            .appendingPathComponent("System32/where.exe")
+            .path
+        return await runCapture(executable: whereExecutable, arguments: [fallbackName])
+        #else
         return await runCapture(executable: "/usr/bin/env", arguments: ["which", fallbackName])
+        #endif
     }
 
     private static func runCapture(executable: String, arguments: [String]) async -> String? {
+        #if os(macOS) || os(Linux) || os(Windows)
         await withCheckedContinuation { continuation in
             let process = Process()
             let output = Pipe()
@@ -59,6 +68,9 @@ enum SwiftToolchainLocator {
             process.terminationHandler = { process in
                 let data = output.fileHandleForReading.readDataToEndOfFile()
                 let value = String(data: data, encoding: .utf8)?
+                    .split(whereSeparator: \Character.isNewline)
+                    .first
+                    .map(String.init)?
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 continuation.resume(returning: process.terminationStatus == 0 && value?.isEmpty == false ? value : nil)
             }
@@ -69,6 +81,9 @@ enum SwiftToolchainLocator {
                 continuation.resume(returning: nil)
             }
         }
+        #else
+        nil
+        #endif
     }
 }
 
@@ -238,6 +253,7 @@ extension EditorProcessRunning {
     }
 }
 
+#if os(macOS) || os(Linux) || os(Windows)
 actor EditorProcessRunner: EditorProcessRunning {
     private var activeProcesses: [UUID: Process] = [:]
 
@@ -309,6 +325,20 @@ actor EditorProcessRunner: EditorProcessRunning {
         }
     }
 }
+#else
+actor EditorProcessRunner: EditorProcessRunning {
+    func run(_ command: EditorProcessCommand) async -> EditorProcessResult {
+        EditorProcessResult(
+            command: command,
+            exitCode: 126,
+            standardOutput: "",
+            standardError: "External processes are unavailable on this platform."
+        )
+    }
+
+    func cancelAll() {}
+}
+#endif
 
 enum SwiftPMCommandKind: Equatable, Sendable {
     case resolve
@@ -324,6 +354,7 @@ enum SwiftPMCommandKind: Equatable, Sendable {
 
 enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
     case macOS = "macOS"
+    case iPadOS = "iPadOS"
     case web = "Web"
 }
 

@@ -62,6 +62,7 @@ public class TileSet: @unsafe Asset, Codable, @unchecked Sendable {
     @discardableResult
     public func addTileSource(_ source: TileSource) -> TileSource.ID {
         let identifier = source.id != TileSource.invalidSource ? source.id : getTileSourceNextId()
+        currentTileSourceId = max(currentTileSourceId, identifier)
         source.id = identifier
         self.sources[identifier] = source
         source.tileSet = self

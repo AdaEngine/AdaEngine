@@ -10,6 +10,7 @@ public struct AdaScriptViewMetadata: Equatable, Sendable {
     public let className: String
     public let environment: [AdaScriptViewEnvironment]
     public let identifier: String
+    public let isPreviewable: Bool
     public let line: Int
     public let sourcePath: String
     public let title: String
@@ -18,6 +19,7 @@ public struct AdaScriptViewMetadata: Equatable, Sendable {
         className: String,
         environment: [AdaScriptViewEnvironment] = [],
         identifier: String,
+        isPreviewable: Bool = false,
         line: Int = 1,
         sourcePath: String = "",
         title: String
@@ -25,6 +27,7 @@ public struct AdaScriptViewMetadata: Equatable, Sendable {
         self.className = className
         self.environment = environment
         self.identifier = identifier
+        self.isPreviewable = isPreviewable
         self.line = line
         self.sourcePath = sourcePath
         self.title = title
@@ -49,6 +52,7 @@ public enum AdaScriptViewScanner {
                 className: $0.className,
                 environment: $0.environment.map { AdaScriptViewEnvironment(key: $0.key, propertyName: $0.propertyName) },
                 identifier: $0.id,
+                isPreviewable: $0.isPreviewable,
                 line: $0.line,
                 sourcePath: $0.sourcePath,
                 title: $0.title
@@ -83,6 +87,21 @@ public struct AdaScriptView: View {
         try storage.updateEnvironment(defaultAdaScriptViewEnvironment())
         self.directStorage = storage
         self.identifier = identifier
+    }
+
+    /// Compiles and validates a source-backed view without constructing UI state.
+    ///
+    /// Editor build tooling uses this entry point away from the main actor before
+    /// publishing a prepared runtime artifact back to the UI.
+    nonisolated public static func validate(
+        sources: [AdaScriptSource],
+        identifier: String
+    ) throws {
+        try AdaScriptRuntimeCoordinator.lock.withLock {
+            let metadata = try AdaScriptViewScanner.declarations(in: sources)
+            let runtime = try AdaScriptViewModuleRuntime(sources: sources, views: metadata)
+            try runtime.validate(identifier: identifier)
+        }
     }
 
     public var body: some View {
@@ -241,8 +260,16 @@ final class AdaScriptViewModuleRuntime: @unchecked Sendable {
         try AdaScriptViewStorage(runtime: self, identifier: identifier)
     }
 
+    func validate(identifier: String) throws {
+        _ = try makeInstance(identifier: identifier)
+    }
+
     @MainActor
     func instantiate(identifier: String) throws -> GSValue {
+        try makeInstance(identifier: identifier)
+    }
+
+    private func makeInstance(identifier: String) throws -> GSValue {
         try AdaScriptRuntimeCoordinator.lock.withLock {
             guard let factoryName = factoryNamesByIdentifier[identifier] else {
                 throw AdaScriptError.invalidManifest("Unknown @view id '\(identifier)'")

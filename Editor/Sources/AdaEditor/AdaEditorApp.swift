@@ -13,6 +13,10 @@ import AdaMCPPlugin
 
 @main
 struct AdaEditorApp: App {
+    init() {
+        _ = EditorProjectOpenURLRouter.shared
+    }
+
     var body: some AppScene {
         WindowGroup {
             ProjectOpeningView()

@@ -1,7 +1,11 @@
 name: AdaEditor
 options:
-  bundleIdPrefix: com.adaengine
+  bundleIdPrefix: org.adaengine
+  fileTypes:
+    "icon":
+      file: true
   deploymentTarget:
+    iOS: "18.0"
     macOS: "15.0"
 packages:
   AdaEditor:
@@ -10,12 +14,65 @@ targets:
   AdaEditor-macOS:
     type: application
     platform: macOS
-    sources: []
+    sources:
+      - path: ../Assets/AdaEngine.icon
+        buildPhase: resources
+        group: Assets
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine
         PRODUCT_NAME: AdaEditor
-        PRODUCT_BUNDLE_IDENTIFIER: com.adaengine.editor
+        PRODUCT_BUNDLE_IDENTIFIER: org.adaengine.editor
         INFOPLIST_FILE: Sources/AdaEditor/Platforms/macOS/Info.plist
+        DEVELOPMENT_TEAM: 8PYCRS3EA3
+        "CODE_SIGN_IDENTITY[sdk=macosx*]": "-"
+    dependencies:
+      - package: AdaEditor
+        product: AdaEditor
+    postBuildScripts:
+      - name: Stage SwiftPM executable
+        shell: /bin/zsh
+        showEnvVars: false
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+
+          source_binary="${BUILT_PRODUCTS_DIR}/AdaEditor"
+          destination_binary="${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}"
+          source_resources="${BUILT_PRODUCTS_DIR}/AdaEditor_AdaEditor.bundle"
+          destination_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEditor_AdaEditor.bundle"
+
+          if [[ ! -x "${source_binary}" ]]; then
+            echo "error: SwiftPM executable not found at ${source_binary}" >&2
+            exit 1
+          fi
+          if [[ ! -d "${source_resources}" ]]; then
+            echo "error: SwiftPM resource bundle not found at ${source_resources}" >&2
+            exit 1
+          fi
+
+          mkdir -p "${destination_binary:h}"
+          /usr/bin/ditto "${source_binary}" "${destination_binary}"
+          /bin/chmod +x "${destination_binary}"
+          mkdir -p "${destination_resources:h}"
+          /usr/bin/ditto "${source_resources}" "${destination_resources}"
+  AdaEditor-iPadOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: ../Assets/AdaEngine.icon
+        buildPhase: resources
+        group: Assets
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine
+        PRODUCT_NAME: AdaEditor
+        PRODUCT_BUNDLE_IDENTIFIER: org.adaengine.editor
+        INFOPLIST_FILE: Sources/AdaEditor/Platforms/iOS/Info.plist
+        DEVELOPMENT_TEAM: 8PYCRS3EA3
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: 2
+        SUPPORTS_MACCATALYST: false
     dependencies:
       - package: AdaEditor
         product: AdaEditor
@@ -54,3 +111,25 @@ schemes:
     run:
       config: Debug
       executable: AdaEditor-macOS
+  AdaEditor-Distribution:
+    build:
+      targets:
+        AdaEditor-macOS: all
+    run:
+      config: Release
+      executable: AdaEditor-macOS
+    profile:
+      config: Release
+    analyze:
+      config: Release
+    archive:
+      config: Release
+  AdaEditor-iPadOS:
+    build:
+      targets:
+        AdaEditor-iPadOS: all
+    run:
+      config: Debug
+      executable: AdaEditor-iPadOS
+    archive:
+      config: Release

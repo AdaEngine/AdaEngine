@@ -162,12 +162,13 @@ public class TileMap: @unsafe Asset, @unchecked Sendable {
 
     /// The tile set did change.
     private func tileSetDidChange() {
-        self.setNeedsUpdate()
+        self.setNeedsUpdate(updateLayers: true)
 
         self.tileSet.tileMap = self
 
         for layer in layers {
             layer.tileSet = self.tileSet
+            layer.tileMap = self
         }
     }
 }

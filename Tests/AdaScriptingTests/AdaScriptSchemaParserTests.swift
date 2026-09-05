@@ -194,6 +194,7 @@ extension AdaScriptSchemaParserTests {
                 path: "Views/Welcome.ada",
                 source: """
                 // Previewed in AdaEditor.
+                @previewable(title: "Welcome Preview")
                 @view(id: "game.welcome", title: "Welcome")
                 class WelcomeView {
                     func body() {
@@ -213,16 +214,17 @@ extension AdaScriptSchemaParserTests {
             AdaScriptViewSchema(
                 className: "WelcomeView",
                 id: "game.welcome",
-                line: 3,
+                isPreviewable: true,
+                line: 4,
                 sourcePath: "Views/Welcome.ada",
-                title: "Welcome"
+                title: "Welcome Preview"
             ),
             AdaScriptViewSchema(
                 className: "SettingsView",
                 id: "SettingsView",
                 isIDExplicit: false,
                 isTitleExplicit: false,
-                line: 10,
+                line: 11,
                 sourcePath: "Views/Welcome.ada",
                 title: "Settings View"
             )
@@ -238,11 +240,24 @@ extension AdaScriptSchemaParserTests {
         }
     }
 
+    @Test("Rejects @previewable without @view")
+    func rejectsPreviewableNonView() {
+        #expect(throws: AdaScriptSchemaError.self) {
+            try AdaScriptSchemaParser.parseViews(sources: [
+                AdaScriptCompilerSource(
+                    path: "Invalid.ada",
+                    source: "@previewable class InvalidPreview { func body() { Text(\"No\"); } }"
+                )
+            ])
+        }
+    }
+
     @Test("Lowers implicit view-builder blocks")
     func lowersViewBuilderBlocks() throws {
         let lowered = try AdaScriptViewBuilderLowerer.lower(
             source: """
             @view
+            @previewable
             class CardView {
                 func body() {
                     VStack(spacing: 12) {
