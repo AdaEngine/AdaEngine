@@ -19,7 +19,11 @@ Original review numbers are stable identifiers.
 
 GPT-5.6 Luna completed the first batch. The user requested publication of all
 current workspace changes before starting the next batch.
-Next batch: sprite correctness (5, 6, 7).
+First batch and existing workspace changes published as `07fea4dd` on
+`codex/gravity-ipados-project-foundation`; remote SHA verified with no divergence.
+GPT-5.6 Luna completed sprite correctness (5, 6, 7). This second batch is
+local and uncommitted. Next: tilemap ownership/lifecycle (2, 9, 10, 11, 12,
+remaining 14).
 
 ## Findings and acceptance criteria
 
@@ -29,9 +33,9 @@ Next batch: sprite correctness (5, 6, 7).
 | 2 | P1 | open | TileEntityAtlasSource.getEntity returns the same entity for repeated cells. | Two cells referencing one entity tile create independent instances without duplicate-child assertions; define template/clone semantics. |
 | 3 | P2 | open | OffscreenViewportContainerNode updates its factory but the existing coordinator retains the initial updateContent closure. | A parent rebuild updates captured values used by updateContent while make still runs once. |
 | 4 | P2 | open | GameLoopBegan broadcasts globally from each world; AnimatedTexture consumes all broadcasts. | Adding/removing SceneViews does not change animation speed in another world. |
-| 5 | P2 | open | SpriteRenderSystem skips non-sprite items without ending the current batch. | Sprite/text/sprite depth order remains correct when sprites share a texture. |
-| 6 | P2 | open | SpriteRenderSystem uses the first texture size for subsequent sprites in a batch. | Different-sized slices of one atlas retain their own natural size when Sprite.size is nil. |
-| 7 | P2 | open | UpdateBoundings tracks Changed<Transform>, not changes to Sprite dimensions/texture. | Changing a stationary sprite's dimensions updates culling bounds. |
+| 5 | P2 | verified | SpriteRenderSystem skips non-sprite items without ending the current batch. | Sprite/text/sprite depth order remains correct when sprites share a texture. |
+| 6 | P2 | verified | SpriteRenderSystem uses the first texture size for subsequent sprites in a batch. | Different-sized slices of one atlas retain their own natural size when Sprite.size is nil. |
+| 7 | P2 | verified | UpdateBoundings tracks Changed<Transform>, not changes to Sprite dimensions/texture. | Changing a stationary sprite's dimensions updates culling bounds. |
 | 8 | P2 | verified | TileMap's default layer lacks the tileMap backreference. | Editing the default layer after a completed update dirties the owning map. |
 | 9 | P2 | open | TileMapSystem clears asset-level dirty flags after processing the first component. | Two components sharing one TileMap both initialize and receive subsequent edits. |
 | 10 | P2 | open | TileMapSystem creates TileRoot outside the owner hierarchy and bakes owner translation into cells. | Owner translation/rotation/scale propagate correctly and recursive owner deletion removes tiles. |
@@ -70,3 +74,13 @@ CLANG_MODULE_CACHE_PATH=/tmp/adaengine-tilemap-first-fixes-clang-cache \
 SWIFT_MODULE_CACHE_PATH=/tmp/adaengine-tilemap-first-fixes-clang-cache \
 swift test --scratch-path /tmp/adaengine-tilemap-first-fixes-build --filter TileMapTests
 ```
+
+### Sprite batch validation
+
+- Three production-path headless regressions passed in SpriteRenderSystemTests:
+  separation around a text item, same-atlas natural dimensions, and bounds after
+  a stationary Sprite.size change.
+- Broader validation: all 28 tests in AdaSpriteTests and VisibilitySystemTests
+  passed using the same isolated build and `--skip-build`.
+- Parent reviewed the source/test diff; `git diff --check` passed.
+- GPU visual output and current Debug FPS remain unmeasured.

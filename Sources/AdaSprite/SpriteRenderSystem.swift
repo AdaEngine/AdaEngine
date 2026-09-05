@@ -115,7 +115,11 @@ public func ExtractSprite(
 func UpdateBoundings(
     _ sprites: FilterQuery<
         Entity, Sprite, Ref<BoundingComponent>,
-        And<With<Sprite>, Changed<Transform>, Without<NoFrustumCulling>>,
+        And<
+            With<Sprite>,
+            Or<Changed<Transform>, Changed<Sprite>>,
+            Without<NoFrustumCulling>
+        >,
     >,
     _ meshes: FilterQuery<
         Mesh2D, Ref<BoundingComponent>,
@@ -215,12 +219,27 @@ public struct SpriteRenderSystem {
 
         var currentTexture: Texture2D?
         var batchStartIndex: Int32 = 0
-        var batchImageSize: Size = .zero
         var instanceCount: Int32 = 0
         var batchEntityId: Entity.ID?
 
+        func finishCurrentBatch() {
+            if let batchEntity = batchEntityId,
+               let texture = currentTexture,
+               batchStartIndex < instanceCount
+            {
+                spriteBatches.batches[batchEntity] = SpriteBatch(
+                    texture: texture,
+                    range: batchStartIndex..<instanceCount
+                )
+            }
+        }
+
         for index in renderItems.items.items.indices {
             guard let sprite = extractedSprites.sprites[renderItems.items.items[index].entity] else {
+                finishCurrentBatch()
+                currentTexture = nil
+                batchEntityId = nil
+                batchStartIndex = instanceCount
                 continue
             }
 
@@ -228,21 +247,14 @@ public struct SpriteRenderSystem {
             let worldTransform = sprite.worldTransform
 
             // Check if we need to start a new batch (texture changed)
-            let needsNewBatch = currentTexture == nil || !isSameTexture(currentTexture!, texture)
+            let needsNewBatch = currentTexture.map { !isSameTexture($0, texture) } ?? true
 
             if needsNewBatch {
-                // Finish current batch if exists
-                if let batchEntity = batchEntityId, batchStartIndex < instanceCount {
-                    spriteBatches.batches[batchEntity] = SpriteBatch(
-                        texture: currentTexture!,
-                        range: batchStartIndex..<instanceCount
-                    )
-                }
+                finishCurrentBatch()
 
                 // Start new batch
                 currentTexture = texture
                 batchStartIndex = instanceCount
-                batchImageSize = texture.size.toSize()
                 batchEntityId = renderItems.items.items[index].entity
             }
 
@@ -253,7 +265,7 @@ public struct SpriteRenderSystem {
                 flipY: sprite.flipY
             )
 
-            let size = sprite.size ?? batchImageSize
+            let size = sprite.size ?? texture.size.toSize()
 
             // Add sprite vertices (4 vertices per quad)
             let vertexOffset = UInt32(spriteData.vertexBuffer.count)
@@ -281,13 +293,7 @@ public struct SpriteRenderSystem {
             instanceCount += 1
         }
 
-        // Finish last batch
-        if let batchEntity = batchEntityId, let texture = currentTexture, batchStartIndex < instanceCount {
-            spriteBatches.batches[batchEntity] = SpriteBatch(
-                texture: texture,
-                range: batchStartIndex..<instanceCount
-            )
-        }
+        finishCurrentBatch()
 
         // Early exit if no sprites to render
         if spriteData.vertexBuffer.isEmpty {
