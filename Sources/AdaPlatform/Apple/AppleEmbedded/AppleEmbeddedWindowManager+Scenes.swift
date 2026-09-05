@@ -10,6 +10,28 @@ import Foundation
 import UIKit
 
 extension AppleEmbeddedWindowManager {
+    func destroySceneIfRequestWasCancelled(
+        _ requestToken: String?,
+        windowScene: UIWindowScene
+    ) -> Bool {
+        guard let requestToken,
+              cancelledSceneRequestTokens.remove(requestToken) != nil else {
+            return false
+        }
+        UIApplication.shared.requestSceneSessionDestruction(windowScene.session, options: nil)
+        return true
+    }
+
+    func cancelPendingSceneRequests(for window: AdaUI.UIWindow) {
+        let requestTokens = pendingSceneWindows.compactMap { requestToken, pendingWindow in
+            pendingWindow.window === window ? requestToken : nil
+        }
+        for requestToken in requestTokens {
+            pendingSceneWindows[requestToken] = nil
+            cancelledSceneRequestTokens.insert(requestToken)
+        }
+    }
+
     func sceneSessionsDidDiscard(_ sceneSessions: Set<UISceneSession>) {
         for sceneSession in sceneSessions {
             dedicatedSceneSessionIDs.remove(sceneSession.persistentIdentifier)
@@ -66,8 +88,13 @@ extension AppleEmbeddedWindowManager {
             options: options
         )
         UIApplication.shared.activateSceneSession(for: request) { [weak self] error in
-            guard let self,
-                  let pendingWindow = self.pendingSceneWindows.removeValue(forKey: requestToken) else {
+            guard let self else {
+                return
+            }
+            if self.cancelledSceneRequestTokens.remove(requestToken) != nil {
+                return
+            }
+            guard let pendingWindow = self.pendingSceneWindows.removeValue(forKey: requestToken) else {
                 return
             }
             self.presentWindow(

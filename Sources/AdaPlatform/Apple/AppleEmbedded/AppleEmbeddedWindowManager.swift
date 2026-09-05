@@ -20,6 +20,7 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
     private var isUIKitReady = false
     private var pendingWindows: [(window: AdaUI.UIWindow, isFocused: Bool)] = []
     var pendingSceneWindows: [String: (window: AdaUI.UIWindow, isFocused: Bool)] = [:]
+    var cancelledSceneRequestTokens: Set<String> = []
     var windowIDsBySceneSession: [String: AdaUI.UIWindow.ID] = [:]
     var dedicatedSceneSessionIDs: Set<String> = []
 
@@ -29,6 +30,10 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
 
     func sceneDidConnect(_ windowScene: UIWindowScene, requestToken: String? = nil) {
         isUIKitReady = true
+
+        if destroySceneIfRequestWasCancelled(requestToken, windowScene: windowScene) {
+            return
+        }
 
         if let requestToken,
            let pendingWindow = pendingSceneWindows.removeValue(forKey: requestToken) {
@@ -153,7 +158,7 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
             fatalError("System window not exist.")
         }
 
-        pendingSceneWindows = pendingSceneWindows.filter { $0.value.window !== window }
+        cancelPendingSceneRequests(for: window)
         let sceneSession = nsWindow.windowScene?.session
         if let sceneSession {
             windowIDsBySceneSession.removeValue(forKey: sceneSession.persistentIdentifier)

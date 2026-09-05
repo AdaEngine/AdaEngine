@@ -15,7 +15,7 @@ struct AdaScriptProjectRuntimeTests {
 
     @Test("Run opens an AdaScript project in a separate window scene")
     @MainActor
-    func runOpensSeparateWindowScene() throws {
+    func runOpensSeparateWindowScene() async throws {
         if unsafe RenderEngine.shared == nil {
             unsafe RenderEngine.configurations.preferredBackend = .headless
             let app = AppWorlds(main: World(name: "AdaScriptRuntimeTests"))
@@ -42,6 +42,11 @@ struct AdaScriptProjectRuntimeTests {
 
         let viewModel = EditorViewModel(project: project)
         viewModel.runSelectedTarget()
+        #expect(viewModel.workspaceStatus == .running("Build AdaScript Project"))
+
+        for _ in 0..<100 where windowManager.shownWindowCount == 0 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
 
         #expect(windowManager.shownWindowCount == 1)
         #expect(windowManager.windows.count == 1)

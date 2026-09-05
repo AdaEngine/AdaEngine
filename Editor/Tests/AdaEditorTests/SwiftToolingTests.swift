@@ -146,7 +146,10 @@ struct SwiftToolingTests {
         let viewModel = EditorViewModel(project: project, workspaceService: service)
 
         viewModel.startEditorSessionIfNeeded()
-        await Task.yield()
+        #expect(viewModel.workspaceStatus == .running("Prepare AdaScript Workspace"))
+        for _ in 0..<100 where viewModel.workspaceStatus != .ready {
+            try await Task.sleep(for: .milliseconds(5))
+        }
 
         #expect(await service.bootstrapCallCount == 0)
         #expect(await service.commands.isEmpty)

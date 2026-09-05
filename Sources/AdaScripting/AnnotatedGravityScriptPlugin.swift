@@ -76,6 +76,21 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         try runtime.instantiateSystems(plans)
     }
 
+    /// Compiles and validates a plugin while keeping its complete VM lifetime serialized.
+    nonisolated public static func validate(
+        sources: [AdaScriptSource],
+        name: String,
+        startupSystemIdentifier: String? = nil
+    ) throws {
+        try AdaScriptRuntimeCoordinator.lock.withLock {
+            _ = try AdaScriptPlugin(
+                sources: sources,
+                name: name,
+                startupSystemIdentifier: startupSystemIdentifier
+            )
+        }
+    }
+
     @MainActor
     public func setup(in app: borrowing AppWorlds) {
         for plan in plans {

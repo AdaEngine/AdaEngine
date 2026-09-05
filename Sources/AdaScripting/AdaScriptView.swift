@@ -89,6 +89,21 @@ public struct AdaScriptView: View {
         self.identifier = identifier
     }
 
+    /// Compiles and validates a source-backed view without constructing UI state.
+    ///
+    /// Editor build tooling uses this entry point away from the main actor before
+    /// publishing a prepared runtime artifact back to the UI.
+    nonisolated public static func validate(
+        sources: [AdaScriptSource],
+        identifier: String
+    ) throws {
+        try AdaScriptRuntimeCoordinator.lock.withLock {
+            let metadata = try AdaScriptViewScanner.declarations(in: sources)
+            let runtime = try AdaScriptViewModuleRuntime(sources: sources, views: metadata)
+            try runtime.validate(identifier: identifier)
+        }
+    }
+
     public var body: some View {
         _ = revision
         do {
@@ -245,8 +260,16 @@ final class AdaScriptViewModuleRuntime: @unchecked Sendable {
         try AdaScriptViewStorage(runtime: self, identifier: identifier)
     }
 
+    func validate(identifier: String) throws {
+        _ = try makeInstance(identifier: identifier)
+    }
+
     @MainActor
     func instantiate(identifier: String) throws -> GSValue {
+        try makeInstance(identifier: identifier)
+    }
+
+    private func makeInstance(identifier: String) throws -> GSValue {
         try AdaScriptRuntimeCoordinator.lock.withLock {
             guard let factoryName = factoryNamesByIdentifier[identifier] else {
                 throw AdaScriptError.invalidManifest("Unknown @view id '\(identifier)'")

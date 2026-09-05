@@ -55,7 +55,6 @@ enum EditorAdaScriptProjectBuildError: Error, Equatable, LocalizedError, Sendabl
 }
 
 /// Builds a portable AdaScript project directly in the editor process without invoking SwiftPM.
-@MainActor
 struct EditorAdaScriptProjectBuilder {
     private let fileManager: FileManager
 
@@ -132,12 +131,12 @@ struct EditorAdaScriptProjectBuilder {
             guard views.contains(where: { $0.identifier == entryView }) else {
                 throw EditorAdaScriptProjectBuildError.entryViewMissing(identifier: entryView)
             }
-            _ = try AdaScriptView(sources: sources, identifier: entryView)
+            try AdaScriptView.validate(sources: sources, identifier: entryView)
         }
 
         let systems = try AdaScriptSchemaParser.parseSystemCapabilities(sources: sources)
         if !systems.isEmpty || entry.startupSystem != nil {
-            _ = try AdaScriptPlugin(
+            try AdaScriptPlugin.validate(
                 sources: sources,
                 name: project.runtime.moduleName,
                 startupSystemIdentifier: entry.startupSystem
