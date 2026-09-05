@@ -51,6 +51,9 @@ jobs:
             --target AdaUtils \
             --target Math
 
+      - name: Apply AdaEngine documentation theme
+        run: node scripts/apply-docc-theme.mjs docs
+
       - name: Add custom domain and redirects
         run: |
           printf 'docs.adaengine.org\n' > docs/CNAME

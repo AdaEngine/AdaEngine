@@ -13,7 +13,7 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
 
     private(set) var view: Representable.ViewType?
     private var coordinator: Representable.Coordinator
-    let representable: Representable
+    private(set) var representable: Representable
 
     init<Content: View>(
         representable: Representable,
@@ -44,11 +44,22 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
-        if let view = self.view, view.hitTest(point, with: event) != nil {
-            return self
-        }
+        guard let view, view.isInteractionEnabled, !view.isHidden,
+              view.hitTest(point, with: event) != nil else { return nil }
+        return self
+    }
 
-        return super.hitTest(point, with: event)
+    override var canBecomeFocused: Bool {
+        view?.isInteractionEnabled == true && view?.acceptsKeyboardFocus == true
+    }
+
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+        guard let newNode = newNode as? UIViewRepresentableNode<Representable> else { return }
+        representable = newNode.representable
+        markNeedsLayout()
+        owner?.containerView?.setNeedsLayout()
+        invalidateNearestLayer()
     }
 
     override func point(inside point: Point, with event: any InputEvent) -> Bool {
@@ -73,23 +84,40 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
     }
 
     override func onReceiveEvent(_ event: any InputEvent) {
+        guard view?.isInteractionEnabled == true else { return }
         view?.onEvent(event)
     }
 
     override func onKeyEvent(_ event: KeyEvent) {
+        guard view?.isInteractionEnabled == true else { return }
         view?.onKeyEvent(event)
     }
 
     override func onTextInputEvent(_ event: TextInputEvent) {
+        guard view?.isInteractionEnabled == true else { return }
         view?.onTextInputEvent(event)
     }
 
     override func onMouseEvent(_ event: MouseEvent) {
-        view?.onMouseEvent(event)
+        guard let view, view.isInteractionEnabled else { return }
+        let origin = absoluteFrame().origin
+        view.onMouseEvent(MouseEvent(
+            window: event.window,
+            button: event.button,
+            scrollDelta: event.scrollDelta,
+            mousePosition: event.mousePosition - origin,
+            phase: event.phase,
+            modifierKeys: event.modifierKeys,
+            time: event.time
+        ))
     }
 
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
-        view?.onTouchesEvent(touches)
+        guard let view, view.isInteractionEnabled else { return }
+        let origin = absoluteFrame().origin
+        view.onTouchesEvent(Set(touches.map { touch in
+            TouchEvent(window: touch.window, location: touch.location - origin, phase: touch.phase, time: touch.time)
+        }))
     }
 
     override func update(_ deltaTime: TimeInterval) {

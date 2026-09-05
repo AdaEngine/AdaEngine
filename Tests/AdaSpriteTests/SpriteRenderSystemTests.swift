@@ -10,6 +10,36 @@ import Testing
 @MainActor
 @Suite("Sprite render system")
 struct SpriteRenderSystemTests {
+    @Test("Sprite depth sorting includes its parent transform")
+    func depthSortingUsesWorldPosition() async throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+        Camera.registerComponent()
+        VisibleEntities.registerComponent()
+        let sprite = ExtractedSprite(
+            entityId: 101,
+            texture: .whiteTexture,
+            size: nil,
+            flipX: false,
+            flipY: false,
+            tintColor: .white,
+            transform: Transform(position: [0, 0, 2]),
+            worldTransform: Transform3D(translation: [0, 0, 12])
+        )
+        let world = try Self.makeRenderWorld(extractedSprites: [101: sprite], items: [])
+        world.insertResource(RenderItems<Transparent2DRenderItem>())
+        world.addSystem(PrepareSpritesSystem.self, on: .preUpdate)
+        world.spawn {
+            Camera()
+            VisibleEntities(entityIds: [101])
+        }
+
+        await world.runScheduler(.preUpdate)
+
+        let items = try #require(world.getResource(RenderItems<Transparent2DRenderItem>.self))
+        #expect(items.items.count == 1)
+        #expect(items.items.first?.sortKey == 12)
+    }
+
     @Test("A non-sprite item separates sprite batches")
     func nonSpriteItemsSeparateSpriteBatches() async throws {
         try Self.setupHeadlessRenderEngineIfNeeded()

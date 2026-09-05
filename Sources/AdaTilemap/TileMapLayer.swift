@@ -25,7 +25,11 @@ public class TileMapLayer: Identifiable, @unchecked Sendable {
     public internal(set) weak var tileMap: TileMap?
 
     /// The z index of the tile map layer.
-    public var zIndex: Int = 0
+    public var zIndex: Int = 0 {
+        didSet {
+            self.setNeedsUpdate()
+        }
+    }
 
     /// A data structure that contains the atlas coordinates and the source id of a tile.
     struct TileCellData {
@@ -38,7 +42,7 @@ public class TileMapLayer: Identifiable, @unchecked Sendable {
     /// The tile cells of the tile map layer.
     private(set) var tileCells: OrderedDictionary<PointInt, TileCellData> = [:] {
         didSet {
-            self.needUpdates = true
+            self.setNeedsUpdate()
         }
     }
 
@@ -52,9 +56,14 @@ public class TileMapLayer: Identifiable, @unchecked Sendable {
     /// A Boolean value indicating whether the tile map layer needs to be updated.
     internal private(set) var needUpdates = false {
         didSet {
-            self.tileMap?.setNeedsUpdate()
+            if needUpdates {
+                self.tileMap?.setNeedsUpdate(advanceRevision: false)
+            }
         }
     }
+
+    /// The revision of this layer's renderable state.
+    internal private(set) var updateRevision: UInt64 = 0
 
     /// Set a cell for the tile map layer.
     ///
@@ -102,6 +111,7 @@ public class TileMapLayer: Identifiable, @unchecked Sendable {
     /// Set the tile map layer needs update.
     func setNeedsUpdate() {
         self.needUpdates = true
+        self.updateRevision &+= 1
     }
 
     /// Update the tile map layer did finish.

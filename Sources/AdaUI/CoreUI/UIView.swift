@@ -68,6 +68,9 @@ open class UIView {
     /// A Boolean value indicating whether the view is interactive.
     open var isInteractionEnabled: Bool = true
 
+    /// Whether an embedded view can receive keyboard focus from the AdaUI hierarchy.
+    open var acceptsKeyboardFocus: Bool { false }
+
     public var userInterfaceIdiom: UserInterfaceIdiom = .desktop {
         didSet {
             if oldValue != userInterfaceIdiom {

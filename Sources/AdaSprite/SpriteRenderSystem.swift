@@ -168,7 +168,7 @@ func PrepareSprites(
                     entity: sprite.entityId,
                     drawPass: spriteDrawPass.wrappedValue,
                     renderPipeline: pipeline,
-                    sortKey: sprite.transform.position.z,
+                    sortKey: sprite.worldTransform.w.z,
                     batchRange: 0..<0
                 )
             )

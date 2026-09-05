@@ -37,6 +37,15 @@ public extension Entity {
         init(from other: borrowing Self) {
             self.entity = other.entity
             self.notFlushedComponents = other.notFlushedComponents
+            if let world = other.world,
+               let location = world.entities.entities[other.entity] {
+                let chunk = world.archetypes
+                    .archetypes[location.archetypeId]
+                    .chunks.chunks[location.chunkIndex]
+                for (identifier, component) in chunk.getComponents(for: other.entity) {
+                    self.notFlushedComponents[identifier] = component
+                }
+            }
         }
         
         /// Create component set from decoder.

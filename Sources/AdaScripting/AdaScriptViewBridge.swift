@@ -40,7 +40,7 @@ final class AdaScriptViewBridge: @unchecked Sendable {
         AdaScriptViewBridge(model: AdaScriptViewModel(content: .empty))
     }
 
-    func fontSize(_ value: Double) -> AdaScriptViewBridge {
+    func fontSize(_ value: GSValue) -> AdaScriptViewBridge {
         replacingStyle { $0.fontSize = value.finiteNonnegativeFloat }
     }
 
@@ -48,7 +48,7 @@ final class AdaScriptViewBridge: @unchecked Sendable {
         replacingStyle { $0.foregroundColor = value }
     }
 
-    func frame(_ width: Double, _ height: Double) -> AdaScriptViewBridge {
+    func frame(_ width: GSValue, _ height: GSValue) -> AdaScriptViewBridge {
         replacingStyle {
             $0.width = width.finiteNonnegativeFloat
             $0.height = height.finiteNonnegativeFloat
@@ -59,11 +59,11 @@ final class AdaScriptViewBridge: @unchecked Sendable {
         AdaScriptViewBridge(model: AdaScriptViewModel(content: .hStack(children: [], spacing: nil)))
     }
 
-    func opacity(_ value: Double) -> AdaScriptViewBridge {
+    func opacity(_ value: GSValue) -> AdaScriptViewBridge {
         replacingStyle { $0.opacity = min(max(value.finiteFloat ?? 1, 0), 1) }
     }
 
-    func padding(_ value: Double) -> AdaScriptViewBridge {
+    func padding(_ value: GSValue) -> AdaScriptViewBridge {
         replacingStyle { $0.padding = value.finiteNonnegativeFloat }
     }
 
@@ -71,11 +71,11 @@ final class AdaScriptViewBridge: @unchecked Sendable {
         AdaScriptViewBridge(model: AdaScriptViewModel(content: .spacer(minLength: nil)))
     }
 
-    func spacerMinLength(_ value: Double) -> AdaScriptViewBridge {
+    func spacerMinLength(_ value: GSValue) -> AdaScriptViewBridge {
         AdaScriptViewBridge(model: model.replacingSpacerMinLength(value.finiteNonnegativeFloat))
     }
 
-    func spacing(_ value: Double) -> AdaScriptViewBridge {
+    func spacing(_ value: GSValue) -> AdaScriptViewBridge {
         AdaScriptViewBridge(model: model.replacingSpacing(value.finiteNonnegativeFloat))
     }
 
@@ -270,9 +270,19 @@ private struct AdaScriptColor {
     }
 }
 
-private extension Double {
+private extension GSValue {
     var finiteFloat: Float? {
-        let converted = Float(self)
+        // Gravity stores integers and floating-point numbers in the same union.
+        // Read the active numeric type before converting to Swift floating point.
+        let number: Double
+        if isInteger {
+            number = Double(toInteger)
+        } else if isDouble {
+            number = toDouble
+        } else {
+            return nil
+        }
+        let converted = Float(number)
         return converted.isFinite ? converted : nil
     }
 

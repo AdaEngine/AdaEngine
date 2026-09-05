@@ -440,6 +440,14 @@ struct AdaEngineStyleUITests {
         #expect(frame.height == EditorCompletionPopupLayout.rowHeight * 10 + EditorCompletionPopupLayout.verticalPadding * 2)
     }
 
+    @Test("preview split width stays resizable while preserving editor space")
+    func previewSplitWidthIsResizable() {
+        #expect(EditorPreviewSplitLayout.previewWidth(requestedWidth: 500, availableWidth: 1_000) == 500)
+        #expect(EditorPreviewSplitLayout.previewWidth(requestedWidth: 100, availableWidth: 1_000) == 260)
+        #expect(EditorPreviewSplitLayout.previewWidth(requestedWidth: 900, availableWidth: 1_000) == 672)
+        #expect(EditorPreviewSplitLayout.previewWidth(requestedWidth: 360, availableWidth: 500) == 172)
+    }
+
     @Test("workspace reserves sidebars and output panel before sizing the scene viewport")
     func workspaceReservesPanelsBeforeSizingViewport() {
         let layout = EditorWorkspaceLayout(
@@ -1458,6 +1466,36 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Sources" })
         #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "README.md" })
         #expect(viewModel.projectSidebar.visibleItems.contains { $0.relativePath == "Package.swift" })
+    }
+
+    @Test("AdaScript-only project exposes its source root as a target")
+    @MainActor
+    func adaScriptProjectSidebarShowsTarget() throws {
+        let rootURL = try makeAdaEngineStyleUITemporaryDirectory(named: "EditorProjectSidebarAdaScript")
+        defer { removeAdaEngineStyleUITemporaryDirectory(rootURL) }
+
+        let sourcesURL = rootURL.appendingPathComponent("Sources", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
+        try "@view(id: \"game.main\") class MainView {}\n".write(
+            to: sourcesURL.appendingPathComponent("Main.ada", isDirectory: false),
+            atomically: true,
+            encoding: .utf8
+        )
+        _ = try ProjectSystem.createDefaultProject(at: rootURL, buildSystem: .adaScript)
+
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "EditorProjectSidebarAdaScript", path: rootURL.path)
+        )
+
+        #expect(viewModel.projectSidebar.displayMode == .targets)
+        #expect(viewModel.projectSidebar.visibleItems.map(\.relativePath) == [
+            "Sources",
+            "Sources/Main.ada",
+        ])
+        #expect(viewModel.projectSidebar.visibleItems.first?.title == "EditorProjectSidebarAdaScript")
+
+        viewModel.projectSidebar.collapseAll()
+        #expect(viewModel.projectSidebar.visibleItems.map(\.relativePath) == ["Sources"])
     }
 
     @Test("project sidebar deletes real project files and closes their editors")

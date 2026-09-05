@@ -41,12 +41,19 @@ public class TileEntityAtlasSource: TileSource, @unchecked Sendable {
         self.tiles[atlasCoordinates] = data
     }
 
+    /// Returns a fresh entity instance for the tile template.
+    ///
+    /// Component values are copied from the stored template. Parent and child
+    /// relationships are cleared so repeated cells cannot share hierarchy state
+    /// with one another or with the template.
     public func getEntity(at atlasCoordinates: PointInt) -> Entity {
         guard let data = self.tiles[atlasCoordinates] else {
             fatalError("Entity not found at coordinates \(atlasCoordinates)")
         }
 
-        return data.entity
+        let entity = data.entity.copy()
+        entity.components[RelationshipComponent.self] = RelationshipComponent()
+        return entity
     }
 
     public func removeTile(at atlasCoordinates: PointInt) {

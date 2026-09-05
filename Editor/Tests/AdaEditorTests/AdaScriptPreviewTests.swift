@@ -1,9 +1,68 @@
 @testable import AdaEditor
+@_spi(AdaEngine) import AdaEngine
 import Foundation
 import Testing
 
 @Suite("Ada Script previews")
 struct AdaScriptPreviewTests {
+    @Test("successful autosave swaps preview and failed compilation retains the last working view")
+    @MainActor
+    func autosavePublishesOnlySuccessfulPreview() async throws {
+        let fileManager = FileManager.default
+        let projectURL = fileManager.temporaryDirectory
+            .appendingPathComponent("AdaEditorAdaScriptAutoPreview-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fileManager.removeItem(at: projectURL) }
+        let sourcesURL = projectURL.appendingPathComponent("Sources", isDirectory: true)
+        try fileManager.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
+
+        let initialSource = "@previewable @view class HUDView { func body() { Text(\"Initial\"); } }"
+        let sourceURL = sourcesURL.appendingPathComponent("HUD.ada", isDirectory: false)
+        try initialSource.write(to: sourceURL, atomically: true, encoding: .utf8)
+        try ProjectSystem.saveProject(
+            ProjectSystem.defaultProject(projectName: "Game", buildSystem: .adaScript),
+            at: projectURL
+        )
+        let document = EditorTextDocument(
+            id: "hud",
+            title: "HUD.ada",
+            relativePath: "Sources/HUD.ada",
+            absolutePath: sourceURL.path,
+            language: .ada,
+            content: initialSource,
+            lastSavedContent: initialSource
+        )
+        let workbench = EditorWorkbenchViewModel(
+            activeEditorTab: document.title,
+            openDocuments: [.text(document)],
+            activeDocumentID: document.id
+        )
+        let viewModel = EditorViewModel(
+            project: EditorProjectReference(name: "Game", path: projectURL.path),
+            workbench: workbench,
+            autosaveDelay: .milliseconds(1)
+        )
+
+        viewModel.refreshPreviewForActiveDocument()
+        let initialView = try await waitForLoadedPreview(in: workbench)
+
+        let updatedSource = "@previewable @view class HUDView { func body() { Text(\"Updated\"); } }"
+        workbench.textDocumentBinding(documentID: document.id).wrappedValue = updatedSource
+        let updatedView = try await waitForLoadedPreview(in: workbench, replacing: initialView)
+        #expect(updatedView !== initialView)
+
+        workbench.textDocumentBinding(documentID: document.id).wrappedValue = "@previewable @view class HUDView { func body() { Text( }"
+        for _ in 0..<200 {
+            if case .failed(_, let message, _) = workbench.previewStatus {
+                #expect(message.contains("failed"))
+                #expect(workbench.loadedPreview?.view === updatedView)
+                return
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+
+        Issue.record("AdaEditor did not report the invalid automatic preview build")
+    }
+
     @Test("editor view model loads a selected Ada Script preview")
     @MainActor
     func editorViewModelLoadsPreview() async throws {
@@ -150,5 +209,20 @@ struct AdaScriptPreviewTests {
             ],
             dependencies: []
         )
+    }
+
+    @MainActor
+    private func waitForLoadedPreview(
+        in workbench: EditorWorkbenchViewModel,
+        replacing previousView: UIView? = nil
+    ) async throws -> UIView {
+        for _ in 0..<200 {
+            if case .loaded(_, let view) = workbench.previewStatus,
+               previousView == nil || view !== previousView {
+                return view
+            }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        throw EditorPreviewBuildFailure(message: "Timed out waiting for a loaded preview.")
     }
 }

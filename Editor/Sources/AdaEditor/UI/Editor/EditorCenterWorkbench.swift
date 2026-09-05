@@ -24,6 +24,9 @@ struct EditorCenterWorkbench: View {
     
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
+
+    @State private var previewPanelWidth: Float = EditorPreviewSplitLayout.defaultPreviewWidth
+    @State private var previewPanelWidthAtDragStart: Float?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -286,30 +289,67 @@ extension EditorCenterWorkbench {
         case .hidden:
             codeFileView(document: document)
         default:
-            HStack(spacing: 0) {
-                codeFileView(document: document)
-                    .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
-                    .layoutPriority(100)
-
-                Divider()
-                    .frame(width: 1)
-
-                EditorPreviewPanel(
-                    status: viewModel.previewStatus,
-                    selectedPreviewID: viewModel.selectedPreviewID,
-                    onSelectPreview: { declaration in
-                        onSelectPreview?(declaration)
-                    },
-                    onRebuild: {
-                        onRebuildPreview?()
-                    },
-                    onShowBuildOutput: {
-                        onShowPreviewBuildOutput?()
-                    }
+            GeometryReader { geometry in
+                let previewWidth = EditorPreviewSplitLayout.previewWidth(
+                    requestedWidth: previewPanelWidth,
+                    availableWidth: geometry.size.width
                 )
-                .frame(minWidth: 360, maxWidth: 360, maxHeight: .infinity)
+                let editorWidth = max(
+                    0,
+                    geometry.size.width - EditorPreviewSplitLayout.resizeHandleWidth - previewWidth
+                )
+
+                HStack(spacing: 0) {
+                    codeFileView(document: document)
+                        .frame(width: editorWidth)
+                        .frame(maxHeight: .infinity)
+
+                    previewResizeHandle(availableWidth: geometry.size.width, currentWidth: previewWidth)
+
+                    EditorPreviewPanel(
+                        status: viewModel.previewStatus,
+                        selectedPreviewID: viewModel.selectedPreviewID,
+                        retainedPreviewView: viewModel.loadedPreview?.view,
+                        onSelectPreview: { declaration in
+                            onSelectPreview?(declaration)
+                        },
+                        onRebuild: {
+                            onRebuildPreview?()
+                        },
+                        onShowBuildOutput: {
+                            onShowPreviewBuildOutput?()
+                        }
+                    )
+                    .frame(width: previewWidth)
+                    .frame(maxHeight: .infinity)
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
             }
         }
+    }
+
+    private func previewResizeHandle(availableWidth: Float, currentWidth: Float) -> some View {
+        ZStack {
+            RectangleShape()
+                .fill(theme.editorColors.border)
+                .frame(width: 1)
+            EditorResizeHandle(
+                axis: .horizontal,
+                onResize: { translation in
+                    let startWidth = previewPanelWidthAtDragStart ?? currentWidth
+                    previewPanelWidthAtDragStart = startWidth
+                    previewPanelWidth = EditorPreviewSplitLayout.previewWidth(
+                        requestedWidth: startWidth - translation.width,
+                        availableWidth: availableWidth
+                    )
+                },
+                onResizeEnded: {
+                    previewPanelWidthAtDragStart = nil
+                }
+            )
+        }
+        .frame(width: EditorPreviewSplitLayout.resizeHandleWidth)
+        .frame(maxHeight: .infinity)
     }
 
     private func codeFileView(document: EditorTextDocument) -> some View {
@@ -567,8 +607,10 @@ extension EditorCenterWorkbench {
 }
 
 private struct EditorPreviewPanel: View {
+    @State private var previewControls = EditorPreviewControls()
     let status: EditorPreviewStatus
     let selectedPreviewID: String?
+    let retainedPreviewView: UIView?
     let onSelectPreview: (EditorPreviewDeclaration) -> Void
     let onRebuild: () -> Void
     let onShowBuildOutput: () -> Void
@@ -641,12 +683,28 @@ private struct EditorPreviewPanel: View {
             let selected = declarations.first { $0.id == selectedPreviewID } ?? declarations.first
             messageView(title: selected?.title ?? "Preview", message: "Build the preview to render it.")
         case .building(let declaration, let message):
-            progressView(title: declaration.title, message: message)
+            if let retainedPreviewView {
+                retainedPreviewContent(retainedPreviewView) {
+                    statusBanner(title: declaration.title, message: message, showsBuildOutputButton: false)
+                }
+            } else {
+                progressView(title: declaration.title, message: message)
+            }
         case .loaded(_, let view):
-            EditorPreviewLoadedView(previewView: view)
+            EditorPreviewViewport(previewView: view, settings: previewControls)
                 .padding(12)
         case .failed(let declaration, let message, let hasBuildOutput):
-            messageView(title: declaration?.title ?? "Preview failed", message: message, showsBuildOutputButton: hasBuildOutput)
+            if let retainedPreviewView {
+                retainedPreviewContent(retainedPreviewView) {
+                    statusBanner(
+                        title: declaration?.title ?? "Preview failed",
+                        message: message,
+                        showsBuildOutputButton: hasBuildOutput
+                    )
+                }
+            } else {
+                messageView(title: declaration?.title ?? "Preview failed", message: message, showsBuildOutputButton: hasBuildOutput)
+            }
         }
     }
 
@@ -689,6 +747,42 @@ private struct EditorPreviewPanel: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    private func retainedPreviewContent<Overlay: View>(
+        _ view: UIView,
+        @ViewBuilder overlay: @escaping () -> Overlay
+    ) -> some View {
+        ZStack(anchor: .topLeading) {
+            EditorPreviewViewport(previewView: view, settings: previewControls)
+                .padding(12)
+            overlay()
+                .padding(12)
+        }
+    }
+
+    private func statusBanner(
+        title: String,
+        message: String,
+        showsBuildOutputButton: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(theme.editorColors.text)
+            Text(message)
+                .font(.system(size: 10))
+                .foregroundColor(theme.editorColors.muted)
+            if showsBuildOutputButton {
+                showBuildOutputButton
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangleShape(cornerRadius: 7).fill(theme.editorColors.surfaceElevated.opacity(0.94)))
+        .overlay {
+            RoundedRectangleShape(cornerRadius: 7)
+                .stroke(theme.editorColors.border, lineWidth: 1)
+        }
+    }
+
     private func messageView(title: String, message: String, showsBuildOutputButton: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
@@ -720,32 +814,17 @@ private struct EditorPreviewPanel: View {
     }
 }
 
-private struct EditorPreviewLoadedView: UIViewRepresentable {
-    final class Coordinator {
-        weak var currentPreviewView: UIView?
-    }
+struct EditorPreviewSplitLayout {
+    static let defaultPreviewWidth: Float = 360
+    static let minimumPreviewWidth: Float = 260
+    static let minimumEditorWidth: Float = 320
+    static let resizeHandleWidth: Float = 8
 
-    let previewView: UIView
-
-    func makeUIView(in context: Context) -> UIView {
-        UIView()
-    }
-
-    func updateUIView(_ view: UIView, in context: Context) {
-        if context.coordinator.currentPreviewView !== previewView {
-            context.coordinator.currentPreviewView?.removeFromParentView()
-            view.addSubview(previewView)
-            context.coordinator.currentPreviewView = previewView
+    static func previewWidth(requestedWidth: Float, availableWidth: Float) -> Float {
+        let maximumWidth = max(0, availableWidth - resizeHandleWidth - minimumEditorWidth)
+        guard maximumWidth >= minimumPreviewWidth else {
+            return maximumWidth
         }
-
-        previewView.frame = view.bounds
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, view: UIView, context: Context) -> Size {
-        proposal.replacingUnspecifiedDimensions()
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
+        return min(max(requestedWidth, minimumPreviewWidth), maximumWidth)
     }
 }
