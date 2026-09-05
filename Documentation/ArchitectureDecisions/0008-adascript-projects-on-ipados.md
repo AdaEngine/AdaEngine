@@ -1,4 +1,4 @@
-# ADR-0008: Run portable Gravity projects on iPadOS
+# ADR-0008: Run portable AdaScript projects on iPadOS
 
 - Status: Accepted
 - Date: 2026-09-05
@@ -10,7 +10,7 @@ AdaEditor needs to create, edit, synchronize, and run Ada Script projects on
 iPadOS. An iPad application cannot rely on a user-installed Swift toolchain or
 compile arbitrary project Swift sources. The native AdaEngine and AdaEditor
 code can still ship as a precompiled Swift application while project-owned game
-behavior is compiled by the embedded Gravity runtime.
+behavior is compiled by the embedded AdaScript runtime.
 
 The existing project model assumes every project is a SwiftPM executable. Even
 the Ada Script template emits `Package.swift` and a generated Swift `@main`
@@ -22,7 +22,7 @@ scene.
 [ADR-0003](0003-ada-script-components-and-resources.md) also generates native
 Swift backing types for every Ada Script component and resource. That is a good
 compiled-project representation, but schema changes cannot work in a
-Gravity-only project without a runtime ECS layout.
+AdaScript-only project without a runtime ECS layout.
 
 Projects may live in Files, iCloud Drive, or another File Provider. Those URLs
 are not guaranteed to be continuously local and must use coordinated,
@@ -34,7 +34,7 @@ whose atomic filesystem operations must not be confused with document sync.
 ### Separate the native host from project code
 
 AdaEditor remains a precompiled Swift application with the only process-level
-`@main`. A Gravity project contains no generated Swift bootstrap and does not
+`@main`. An AdaScript project contains no generated Swift bootstrap and does not
 invoke `App.main()`.
 
 The host owns one platform application and creates project runtime sessions.
@@ -44,34 +44,34 @@ second `UIApplicationMain` or install another process-wide platform plugin.
 
 The existing Swift `App` protocol remains available to native applications.
 Its bootstrap will be factored through the same host runtime primitives rather
-than becoming a Gravity protocol.
+than becoming an AdaScript protocol.
 
 ### Declare the build system in project metadata
 
 Schema version 2 recognizes two build systems:
 
-- `gravity` is a portable project loaded directly from `.ada` sources;
+- `adascript` is a portable project loaded directly from `.ada` sources;
 - `swiftpm` is a native or hybrid project that may contain Swift.
 
-A Gravity project uses `.ada/project.json`, `Sources`, and `Assets` without a
+An AdaScript project uses `.ada/project.json`, `Sources`, and `Assets` without a
 `Package.swift`. Its runtime settings declare a stable module name, an entry
 `@view` identifier, and an optional startup scene.
 
 SwiftPM remains supported on platforms with a suitable native toolchain. On
-iPadOS, Build and Run reject every SwiftPM project and every Gravity project
+iPadOS, Build and Run reject every SwiftPM project and every AdaScript project
 whose source root contains a `.swift` file. The diagnostic identifies the build
 system or offending source path and recommends opening the project on macOS or
-converting it to Gravity.
+converting it to AdaScript.
 
 Opening a project for inspection is distinct from executing it. AdaEditor may
 show unsupported source files, but must not silently ignore or attempt to build
 them on iPadOS.
 
-### Compile Gravity in process
+### Compile AdaScript in process
 
-Opening or building a Gravity workspace enumerates its complete source root,
+Opening or building an AdaScript workspace enumerates its complete source root,
 creates target-relative `AdaScriptSource` values, validates annotations and the
-configured entry view, and compiles the module through the serialized Gravity
+configured entry view, and compiles the module through the serialized AdaScript
 runtime coordinator. It does not invoke SwiftPM.
 
 Runtime activation follows the immutable-generation and safe-point rules from
@@ -91,7 +91,7 @@ rejected because it would lose archetype filtering, per-component conflicts,
 change tracking, and chunk iteration. Native Swift component types adapt to the
 same layout abstraction without losing their typed APIs.
 
-Until runtime layouts ship, Gravity builds that declare `@component` or
+Until runtime layouts ship, AdaScript builds that declare `@component` or
 `@resource` fail with an explicit runtime-layout diagnostic. They must never
 fall back to generating and compiling Swift on iPadOS.
 
@@ -138,13 +138,13 @@ lock files and atomic renames.
 
 Shipped in the first foundation slice:
 
-- [x] Schema version 2 and the `gravity` build-system value.
-- [x] Gravity project validation without `Package.swift`.
+- [x] Schema version 2 and the `adascript` build-system value.
+- [x] AdaScript project validation without `Package.swift`.
 - [x] Stable runtime module and entry-view settings.
 - [x] A pure Ada Script template with no generated Swift source.
 - [x] Native `App.main()` delegates process startup through `AppRuntime`.
 - [x] iPadOS compatibility diagnostics for SwiftPM and `.swift` sources.
-- [x] In-process Gravity workspace compilation without SwiftPM.
+- [x] In-process AdaScript workspace compilation without SwiftPM.
 - [x] Explicit rejection of script data schemas until runtime ECS layouts ship.
 - [x] `.adaproject` directory packages, exported iOS content type, and in-place
   Files project picker.
@@ -160,7 +160,7 @@ Remaining:
 - [ ] Add `UIDocument` coordination, security-scoped bookmark persistence, and
   relaunch restoration for cloud-backed projects.
 - [ ] Integrate `swift-libgit2` using local worktrees and Keychain credentials.
-- [ ] Validate a real iCloud project open, Gravity build, separate-window run,
+- [ ] Validate a real iCloud project open, AdaScript build, separate-window run,
   editing, save, relaunch, and restoration flow on an iPad device.
 
 ## Consequences
@@ -168,7 +168,7 @@ Remaining:
 - Portable projects no longer need a Swift package or generated application
   entry point.
 - Hybrid projects remain first-class on desktop but cannot execute on iPadOS.
-- Project settings become the source of truth for Gravity startup.
+- Project settings become the source of truth for AdaScript startup.
 - The Editor can compile portable projects on device before the complete game
   session and Files layers ship.
 - Runtime ECS layouts and session-scoped platform resources are foundational
@@ -178,9 +178,9 @@ Remaining:
 
 ## Rejected alternatives
 
-### Make Gravity implement the Swift `App` protocol
+### Make AdaScript implement the Swift `App` protocol
 
-Rejected because a Gravity value cannot be the process entry point of the
+Rejected because an AdaScript value cannot be the process entry point of the
 precompiled iPad application, and starting a second application lifecycle is
 invalid. Project sessions are the correct dynamic boundary.
 

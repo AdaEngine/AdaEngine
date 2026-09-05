@@ -4,7 +4,7 @@ import Testing
 
 @Suite("EditorTreeSitterSyntaxHighlighter")
 struct EditorTreeSitterSyntaxHighlighterTests {
-    @Test("highlights Gravity syntax without treating it as Swift")
+    @Test("highlights AdaScript syntax without treating it as Swift")
     func highlightsGravitySyntax() {
         var palette = EditorCodeColorPalette.dark
         palette.keyword = .green
@@ -17,7 +17,7 @@ struct EditorTreeSitterSyntaxHighlighterTests {
         let tokens = EditorSyntaxHighlighter.tokens(
             for: """
             const speed = 12.5;
-            var title = 'Gravity';
+            var title = 'AdaScript';
             /* outer /* nested */ comment */
             @system(scheduler: "update")
             class MovementSystem { func update(context) {} }
@@ -27,7 +27,7 @@ struct EditorTreeSitterSyntaxHighlighterTests {
         )
 
         #expect(tokens.contains(EditorCodeToken(text: "const", color: .green)))
-        #expect(tokens.contains(EditorCodeToken(text: "'Gravity'", color: .blue)))
+        #expect(tokens.contains(EditorCodeToken(text: "'AdaScript'", color: .blue)))
         #expect(tokens.contains(EditorCodeToken(text: "/* outer /* nested */ comment */", color: .yellow)))
         #expect(tokens.contains(EditorCodeToken(text: "MovementSystem", color: .orange)))
         #expect(tokens.contains(EditorCodeToken(text: "@system", color: .green)))

@@ -132,11 +132,11 @@ struct SwiftToolingTests {
         #expect(message.contains("read-only"))
     }
 
-    @Test("Gravity workspace builds in process without invoking SwiftPM")
+    @Test("AdaScript workspace builds in process without invoking SwiftPM")
     @MainActor
-    func gravityWorkspaceSkipsSwiftPM() async throws {
+    func adaScriptWorkspaceSkipsSwiftPM() async throws {
         let rootURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("GravityWorkspace-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("AdaScriptWorkspace-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: rootURL) }
         let project = try EditorProjectStore(
@@ -151,7 +151,7 @@ struct SwiftToolingTests {
         #expect(await service.bootstrapCallCount == 0)
         #expect(await service.commands.isEmpty)
         #expect(viewModel.workspaceStatus == .ready)
-        #expect(viewModel.outputLines.contains { $0.text.contains("Gravity build succeeded") })
+        #expect(viewModel.outputLines.contains { $0.text.contains("AdaScript build succeeded") })
     }
 
     @Test("new caret position clears stale completions before debounce")
@@ -237,7 +237,7 @@ struct SwiftToolingTests {
         ))
     }
 
-    @Test("Gravity completion offers Ada APIs and document declarations")
+    @Test("AdaScript completion offers Ada APIs and document declarations")
     func gravityCompletionOffersAdaAPIsAndSymbols() async throws {
         let service = SwiftPMWorkspaceService()
         let source = """
@@ -285,7 +285,7 @@ struct SwiftToolingTests {
         #expect(exportItems.contains { $0.label == "export" && $0.kind == .annotation })
     }
 
-    @Test("Gravity files enable editor tooling and definition navigation")
+    @Test("AdaScript files enable editor tooling and definition navigation")
     func gravityEditorToolingAndDefinition() async throws {
         #expect(EditorSourceLanguage.detect(fileName: "Movement.gravity") == .ada)
         #expect(EditorSourceLanguage.ada.supportsLanguageTooling)
@@ -308,10 +308,10 @@ struct SwiftToolingTests {
         ))
     }
 
-    @Test("Gravity editor completion uses workspace symbols and character columns")
+    @Test("AdaScript editor completion uses workspace symbols and character columns")
     func gravityEditorCompletionUsesWorkspaceAndCharacterColumns() throws {
         let projectURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("GravityEditorCompletion-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("AdaScriptEditorCompletion-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: projectURL) }
         try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
         try "class SharedSystem { func tick() {} }".write(

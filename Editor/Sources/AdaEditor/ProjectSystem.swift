@@ -6,7 +6,7 @@ public enum ProjectSystem {
     public static let metadataFileName = "project.json"
     public static let currentSchemaVersion = 2
     public static let supportedSchemaVersions: Set<Int> = [1, currentSchemaVersion]
-    public static let knownBuildSystems: Set<String> = ["gravity", "swiftpm"]
+    public static let knownBuildSystems: Set<String> = ["adascript", "swiftpm"]
 
     public static func metadataURL(forProjectAt projectURL: URL) -> URL {
         projectURL
@@ -27,7 +27,7 @@ public enum ProjectSystem {
             guard fileManager.fileExists(atPath: manifestURL.path) else {
                 throw .swiftPackageManifestMissing(path: "Package.swift")
             }
-        } else if project.build.system == .gravity {
+        } else if project.build.system == .adaScript {
             let sourcePath = project.paths.sources ?? "Sources"
             var isDirectory: ObjCBool = false
             let sourceURL = projectURL.appendingPathComponent(sourcePath, isDirectory: true)
@@ -83,7 +83,7 @@ public enum ProjectSystem {
             }
         }
 
-        let inferredProjectName = buildSystem == .gravity && projectURL.pathExtension.lowercased() == "adaproject"
+        let inferredProjectName = buildSystem.isAdaScript && projectURL.pathExtension.lowercased() == "adaproject"
             ? projectURL.deletingPathExtension().lastPathComponent
             : projectURL.lastPathComponent
         let project = defaultProject(projectName: inferredProjectName, buildSystem: buildSystem)
@@ -137,7 +137,7 @@ public enum ProjectSystem {
             ),
             build: .init(system: buildSystem),
             run: .init(destination: .macOS, executable: nil, arguments: [], environment: [:], workingDirectory: "."),
-            runtime: buildSystem == .gravity
+            runtime: buildSystem.isAdaScript
                 ? .init(moduleName: projectName, entryView: "game.main")
                 : .init(),
             editor: .init(startupScene: SceneDocumentFormat.defaultScenePath),
@@ -165,8 +165,12 @@ public enum ProjectSystem {
             throw .unsupportedSchemaVersion(path: "schemaVersion", version: project.schemaVersion, supportedVersions: supportedSchemaVersions.sorted())
         }
 
-        guard knownBuildSystems.contains(project.build.system.rawValue) else {
+        guard knownBuildSystems.contains(project.build.system.rawValue) || project.build.system == .legacyGravity else {
             throw .unknownBuildSystem(path: "build.system", value: project.build.system.rawValue, supportedValues: knownBuildSystems.sorted())
+        }
+        var project = project
+        if project.build.system == .legacyGravity {
+            project.build.system = .adaScript
         }
 
         try validateRelativePath(project.paths.sources, keyPath: "paths.sources")
@@ -186,12 +190,12 @@ public enum ProjectSystem {
         try validateRelativePath(project.ai.agent.target.cwd, keyPath: "ai.agent.target.cwd")
         try validatePathArray(project.ai.agent.skillsDirectories, keyPath: "ai.agent.skillsDirectories")
 
-        if project.build.system == .gravity {
+        if project.build.system == .adaScript {
             guard project.runtime.moduleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-                throw .invalidField(path: "runtime.moduleName", message: "Gravity projects require a module name.")
+                throw .invalidField(path: "runtime.moduleName", message: "AdaScript projects require a module name.")
             }
             guard project.runtime.entryView?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-                throw .invalidField(path: "runtime.entryView", message: "Gravity projects require an entry view identifier.")
+                throw .invalidField(path: "runtime.entryView", message: "AdaScript projects require an entry view identifier.")
             }
         }
 
@@ -205,13 +209,13 @@ public enum ProjectSystem {
         destination: AdaProjectRunDestination,
         fileManager: FileManager = .default
     ) throws(ProjectSystemError) {
-        if destination == .iPadOS, project.build.system != .gravity {
+        if destination == .iPadOS, !project.build.system.isAdaScript {
             throw .unsupportedBuildSystemForPlatform(
                 platform: destination.rawValue,
                 buildSystem: project.build.system.rawValue
             )
         }
-        guard project.build.system == .gravity else {
+        guard project.build.system.isAdaScript else {
             return
         }
 
@@ -717,7 +721,14 @@ public struct AdaProjectBuildSystem: RawRepresentable, Codable, Equatable, Hasha
     }
 
     public static let swiftpm = AdaProjectBuildSystem(rawValue: "swiftpm")
-    public static let gravity = AdaProjectBuildSystem(rawValue: "gravity")
+    public static let adaScript = AdaProjectBuildSystem(rawValue: "adascript")
+    static let legacyGravity = AdaProjectBuildSystem(rawValue: "gravity")
+    @available(*, deprecated, renamed: "adaScript")
+    public static let gravity = legacyGravity
+
+    public var isAdaScript: Bool {
+        self == .adaScript || self == .legacyGravity
+    }
 }
 
 public enum ProjectSystemError: Error, Equatable, Sendable {
@@ -777,9 +788,9 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
         case .unknownBuildSystem(_, let value, let supportedValues):
             "Unknown build system '\(value)'. Supported values: \(supportedValues.joined(separator: ", "))."
         case let .unsupportedBuildSystemForPlatform(platform, buildSystem):
-            "Projects using '\(buildSystem)' cannot run on \(platform). iPadOS runs Gravity-only projects."
+            "Projects using '\(buildSystem)' cannot run on \(platform). iPadOS runs AdaScript-only projects."
         case let .unsupportedSourceLanguage(platform, path):
-            "Swift source '\(path)' cannot run on \(platform). Gravity projects must contain only Ada Script gameplay code."
+            "Swift source '\(path)' cannot run on \(platform). AdaScript projects must contain only AdaScript gameplay code."
         case .absolutePathNotAllowed(let path, let value): "Absolute path is not allowed at \(path): \(value)"
         case .pathTraversalNotAllowed(let path, let value): "Path traversal is not allowed at \(path): \(value)"
         case .invalidPath(let path, let value, let reason): "Invalid path at \(path): \(value). \(reason)"
@@ -811,9 +822,9 @@ public enum ProjectSystemError: Error, Equatable, Sendable {
         case .invalidField:
             "Update the field value in .ada/project.json to match the expected type."
         case .unknownBuildSystem:
-            "Set build.system to gravity or swiftpm in .ada/project.json."
+            "Set build.system to adascript or swiftpm in .ada/project.json."
         case .unsupportedBuildSystemForPlatform, .unsupportedSourceLanguage:
-            "Open this project on macOS, or convert it to a Gravity project without Swift sources."
+            "Open this project on macOS, or convert it to an AdaScript project without Swift sources."
         case .absolutePathNotAllowed, .pathTraversalNotAllowed, .invalidPath:
             "Use project-relative POSIX paths such as Sources or Assets/Scenes/Main.ascn."
         case .encodingFailed:

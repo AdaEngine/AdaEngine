@@ -20,6 +20,15 @@ public struct AssetsPlugin: Plugin {
         self.assetBundleResourceURL = assetBundle.flatMap(Self.assetsResourceURL(in:))
     }
 
+    /// Initializes assets from a runtime-selected directory.
+    ///
+    /// This entry point is used by document-backed AdaScript projects that do
+    /// not have a Swift source location or resource bundle of their own.
+    public init(assetDirectory: URL) {
+        self.filePath = #filePath
+        self.assetBundleResourceURL = assetDirectory.standardizedFileURL
+    }
+
     public func setup(in app: AppWorlds) {
         do {
             try AssetsManager.initialize(filePath: filePath, assetBundleResourceURL: assetBundleResourceURL)

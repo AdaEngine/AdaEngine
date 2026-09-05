@@ -3,7 +3,7 @@ import GravityLanguageCore
 import GravityLanguageServerProtocol
 import Testing
 
-@Suite("Gravity language server")
+@Suite("AdaScript language server")
 struct GravityLanguageServerTests {
     @Test("Completion offers @view and AdaUI builders")
     func adaUIViewCompletion() {
@@ -66,7 +66,7 @@ struct GravityLanguageServerTests {
     @Test("Completion uses symbols from real workspace files")
     func workspaceCompletion() throws {
         let projectURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("GravityLSP-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("AdaScriptLSP-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: projectURL) }
         try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
         try "class SharedSystem { func tick() {} }".write(
@@ -93,10 +93,10 @@ struct GravityLanguageServerTests {
         #expect(items.contains { $0.label == "tick" && $0.insertText == "tick()" })
     }
 
-    @Test("Workspace indexes generated Gravity sources in hidden Ada directories")
+    @Test("Workspace indexes generated AdaScript sources in hidden Ada directories")
     func generatedWorkspaceCompletion() throws {
         let projectURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("GravityGenerated-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("AdaScriptGenerated-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: projectURL) }
         let generatedURL = projectURL.appendingPathComponent(".ada/generated", isDirectory: true)
         try FileManager.default.createDirectory(at: generatedURL, withIntermediateDirectories: true)
@@ -122,10 +122,10 @@ struct GravityLanguageServerTests {
         #expect(items.contains { $0.label == "update" })
     }
 
-    @Test("Definition resolves local and imported Gravity methods")
+    @Test("Definition resolves local and imported AdaScript methods")
     func definition() throws {
         let projectURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("GravityDefinition-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("AdaScriptDefinition-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: projectURL) }
         try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
         let sharedURL = projectURL.appendingPathComponent("Shared.ada")
@@ -154,7 +154,7 @@ struct GravityLanguageServerTests {
     @Test("Workspace reports unresolved and escaping imports")
     func workspaceImportDiagnostics() throws {
         let projectURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("GravityImports-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("AdaScriptImports-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: projectURL) }
         try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
 
@@ -172,7 +172,7 @@ struct GravityLanguageServerTests {
 
         let diagnostics = try #require(workspace.analysis(for: currentURL.absoluteString)?.diagnostics)
         #expect(diagnostics.contains { $0.message == "Unable to resolve import './Missing'" })
-        #expect(diagnostics.contains { $0.message == "Import escapes the configured Ada Script workspace" })
+        #expect(diagnostics.contains { $0.message == "Import escapes the configured AdaScript workspace" })
     }
 
     @Test("Diagnostics report unfinished source without rejecting completion")

@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Project opening templates")
 struct ProjectOpeningTemplateTests {
-    @Test("Ada Script template creates a portable Gravity project without SwiftPM")
+    @Test("AdaScript template creates a portable project without SwiftPM")
     @MainActor
     func createAdaScriptProject() throws {
         let rootURL = FileManager.default.temporaryDirectory
@@ -31,21 +31,21 @@ struct ProjectOpeningTemplateTests {
         #expect(script.contains("@system"))
         #expect(script.contains("func update(context)"))
         let project = try ProjectSystem.loadProject(at: projectURL)
-        #expect(project.build.system == .gravity)
+        #expect(project.build.system == .adaScript)
         #expect(project.runtime.entryView == "game.main")
         try ProjectSystem.validateRunCompatibility(of: project, at: projectURL, destination: .iPadOS)
-        let report = try EditorGravityProjectBuilder().build(project: project, at: projectURL)
+        let report = try EditorAdaScriptProjectBuilder().build(project: project, at: projectURL)
         #expect(report.sourceCount == 1)
         #expect(report.systemCount == 1)
         #expect(report.viewCount == 1)
         #expect(report.entryView == "game.main")
     }
 
-    @Test("Gravity project reports native data schemas instead of compiling Swift")
+    @Test("AdaScript project reports native data schemas instead of compiling Swift")
     @MainActor
-    func gravityProjectRejectsNativeDataGeneration() throws {
+    func adaScriptProjectRejectsNativeDataGeneration() throws {
         let rootURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("EditorGravityDataProject-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("EditorAdaScriptDataProject-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: rootURL) }
         let reference = try EditorProjectStore(
@@ -62,8 +62,8 @@ struct ProjectOpeningTemplateTests {
         """.write(to: mainURL, atomically: true, encoding: .utf8)
         let project = try ProjectSystem.loadProject(at: projectURL)
 
-        #expect(throws: EditorGravityProjectBuildError.nativeDataRequiresRuntimeLayout(names: ["Health"])) {
-            try EditorGravityProjectBuilder().build(project: project, at: projectURL)
+        #expect(throws: EditorAdaScriptProjectBuildError.nativeDataRequiresRuntimeLayout(names: ["Health"])) {
+            try EditorAdaScriptProjectBuilder().build(project: project, at: projectURL)
         }
         #expect(!FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
     }
@@ -72,7 +72,7 @@ struct ProjectOpeningTemplateTests {
     func projectOpeningSectionsAndTemplates() {
         #expect(ProjectOpeningSection.allCases == [.projects, .templates, .samples])
         #expect(EditorProjectTemplate.allCases == [.adaScript, .adaScriptWithSwift])
-        #expect(EditorProjectTemplate.adaScript.displayName == "Ada Script")
-        #expect(EditorProjectTemplate.adaScriptWithSwift.displayName == "Ada Script + Swift")
+        #expect(EditorProjectTemplate.adaScript.displayName == "AdaScript")
+        #expect(EditorProjectTemplate.adaScriptWithSwift.displayName == "AdaScript + Swift")
     }
 }

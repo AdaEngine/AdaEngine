@@ -11,18 +11,18 @@ public enum EditorProjectTemplate: String, CaseIterable, Equatable, Sendable {
     public var displayName: String {
         switch self {
         case .adaScript:
-            "Ada Script"
+            "AdaScript"
         case .adaScriptWithSwift:
-            "Ada Script + Swift"
+            "AdaScript + Swift"
         }
     }
 
     public var summary: String {
         switch self {
         case .adaScript:
-            "Portable Gravity project without Swift or Package.swift"
+            "Portable AdaScript project without Swift or Package.swift"
         case .adaScriptWithSwift:
-            "Hybrid project with editable Swift and Ada Script sources"
+            "Hybrid project with editable Swift and AdaScript sources"
         }
     }
 }
@@ -199,7 +199,7 @@ public struct EditorProjectStore {
         try validateCreationDestination(projectURL)
         try fileManager.createDirectory(at: projectURL, withIntermediateDirectories: true)
         try createInitialProjectFiles(named: projectName, at: projectURL, template: template)
-        let buildSystem: AdaProjectBuildSystem = template == .adaScript ? .gravity : .swiftpm
+        let buildSystem: AdaProjectBuildSystem = template == .adaScript ? .adaScript : .swiftpm
         _ = try ProjectSystem.createDefaultProject(at: projectURL, buildSystem: buildSystem, fileManager: fileManager)
         if buildSystem == .swiftpm {
             _ = try ensureAdaEngineDependency(at: projectURL)
@@ -313,7 +313,7 @@ public struct EditorProjectStore {
     private func createInitialProjectFiles(named projectName: String, at projectURL: URL, template: EditorProjectTemplate) throws {
         switch template {
         case .adaScript:
-            try createGravitySources(at: projectURL)
+            try createAdaScriptSources(at: projectURL)
         case .adaScriptWithSwift:
             try createSwiftPackage(named: projectName, at: projectURL, template: template)
         }
@@ -322,7 +322,7 @@ public struct EditorProjectStore {
         try createReadme(named: projectName, at: projectURL, template: template)
     }
 
-    private func createGravitySources(at projectURL: URL) throws {
+    private func createAdaScriptSources(at projectURL: URL) throws {
         let sourcesURL = projectURL.appendingPathComponent("Sources", isDirectory: true)
         try fileManager.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
         try EditorProjectTemplateSourceFactory.adaScript.write(
@@ -451,8 +451,8 @@ public struct EditorProjectStore {
         }
 
         let buildDescription = template == .adaScript
-            ? "`build.system` is `gravity`; AdaEditor loads the project directly without compiling Swift."
-            : "`Package.swift` defines the native Swift executable and Ada Script build plugin."
+            ? "`build.system` is `adascript`; AdaEditor loads the project directly without compiling Swift."
+            : "`Package.swift` defines the native Swift executable and AdaScript build plugin."
         let packageDescription = template == .adaScript
             ? ""
             : "- `Package.swift` — SwiftPM package manifest.\n"

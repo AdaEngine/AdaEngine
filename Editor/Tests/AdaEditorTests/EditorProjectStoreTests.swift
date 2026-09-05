@@ -256,7 +256,7 @@ struct EditorProjectStoreTests {
         #expect(!FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
         #expect(!FileManager.default.fileExists(atPath: sourcesURL.appendingPathComponent("AdaRuntimeBootstrap.swift").path))
         #expect(FileManager.default.fileExists(atPath: sourcesURL.appendingPathComponent("Main.ada").path))
-        #expect(try ProjectSystem.loadProject(at: projectURL).build.system == .gravity)
+        #expect(try ProjectSystem.loadProject(at: projectURL).build.system == .adaScript)
 
         let handoffProject = try #require(viewModel.consumeProjectToOpenInEditor())
         #expect(handoffProject.path == projectURL.standardizedFileURL.path)

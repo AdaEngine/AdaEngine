@@ -253,7 +253,7 @@ struct ProjectOpeningView: View {
             launcherListHeader("Starter Samples")
                 .padding(.top, 12)
             templateRow(
-                title: "Ada Script System",
+                title: "AdaScript System",
                 subtitle: "Per-frame system ready for gameplay code",
                 badge: "ADA",
                 isActive: false
@@ -262,7 +262,7 @@ struct ProjectOpeningView: View {
             }
             templateRow(
                 title: "Hybrid Window",
-                subtitle: "Ada Script system with an editable Swift app",
+                subtitle: "AdaScript system with an editable Swift app",
                 badge: "ADA+SWIFT",
                 isActive: false
             ) {

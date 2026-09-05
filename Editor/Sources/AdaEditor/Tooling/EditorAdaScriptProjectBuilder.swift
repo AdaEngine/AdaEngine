@@ -2,7 +2,7 @@ import AdaEngine
 import AdaScriptCompilerCore
 import Foundation
 
-struct EditorGravityProjectBuildReport: Equatable, Sendable {
+struct EditorAdaScriptProjectBuildReport: Equatable, Sendable {
     let entryView: String
     let moduleName: String
     let sourceCount: Int
@@ -10,52 +10,64 @@ struct EditorGravityProjectBuildReport: Equatable, Sendable {
     let viewCount: Int
 }
 
-enum EditorGravityProjectBuildError: Error, Equatable, LocalizedError, Sendable {
+struct EditorAdaScriptProjectBuildArtifact: Sendable {
+    let assetsDirectory: URL
+    let entryView: String
+    let moduleName: String
+    let report: EditorAdaScriptProjectBuildReport
+    let sources: [AdaScriptSource]
+}
+
+enum EditorAdaScriptProjectBuildError: Error, Equatable, LocalizedError, Sendable {
     case entryViewMissing(identifier: String)
     case nativeDataRequiresRuntimeLayout(names: [String])
     case noSources(path: String)
-    case notGravityProject(buildSystem: String)
+    case notAdaScriptProject(buildSystem: String)
     case sourceReadFailed(path: String, message: String)
 
     var errorDescription: String? {
         switch self {
         case .entryViewMissing(let identifier):
-            "Gravity entry view '\(identifier)' was not found. Set runtime.entryView to an existing @view id."
+            "AdaScript entry view '\(identifier)' was not found. Set runtime.entryView to an existing @view id."
         case .nativeDataRequiresRuntimeLayout(let names):
-            "Gravity runtime components and resources are not available yet: \(names.joined(separator: ", "))."
+            "AdaScript runtime components and resources are not available yet: \(names.joined(separator: ", "))."
         case .noSources(let path):
             "No .ada source files were found under \(path)."
-        case let .notGravityProject(buildSystem):
-            "Expected a Gravity project, but build.system is '\(buildSystem)'."
+        case let .notAdaScriptProject(buildSystem):
+            "Expected an AdaScript project, but build.system is '\(buildSystem)'."
         case let .sourceReadFailed(path, message):
             "Failed to read \(path): \(message)"
         }
     }
 }
 
-/// Builds a portable Ada Script project directly in the editor process without invoking SwiftPM.
+/// Builds a portable AdaScript project directly in the editor process without invoking SwiftPM.
 @MainActor
-struct EditorGravityProjectBuilder {
+struct EditorAdaScriptProjectBuilder {
     private let fileManager: FileManager
 
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
     }
 
-    func build(project: AdaProject, at projectURL: URL) throws -> EditorGravityProjectBuildReport {
-        guard project.build.system == .gravity else {
-            throw EditorGravityProjectBuildError.notGravityProject(buildSystem: project.build.system.rawValue)
+    func build(project: AdaProject, at projectURL: URL) throws -> EditorAdaScriptProjectBuildReport {
+        try prepare(project: project, at: projectURL).report
+    }
+
+    func prepare(project: AdaProject, at projectURL: URL) throws -> EditorAdaScriptProjectBuildArtifact {
+        guard project.build.system.isAdaScript else {
+            throw EditorAdaScriptProjectBuildError.notAdaScriptProject(buildSystem: project.build.system.rawValue)
         }
 
         let sourceRoot = project.paths.sources ?? "Sources"
         let sources = try loadSources(at: projectURL.appendingPathComponent(sourceRoot, isDirectory: true))
         guard !sources.isEmpty else {
-            throw EditorGravityProjectBuildError.noSources(path: sourceRoot)
+            throw EditorAdaScriptProjectBuildError.noSources(path: sourceRoot)
         }
 
         let dataSchemas = try AdaScriptSchemaParser.parse(sources: sources)
         guard dataSchemas.isEmpty else {
-            throw EditorGravityProjectBuildError.nativeDataRequiresRuntimeLayout(
+            throw EditorAdaScriptProjectBuildError.nativeDataRequiresRuntimeLayout(
                 names: dataSchemas.map(\.name).sorted()
             )
         }
@@ -63,7 +75,7 @@ struct EditorGravityProjectBuilder {
         let views = try AdaScriptViewScanner.declarations(in: sources)
         let entryView = project.runtime.entryView ?? ""
         guard views.contains(where: { $0.identifier == entryView }) else {
-            throw EditorGravityProjectBuildError.entryViewMissing(identifier: entryView)
+            throw EditorAdaScriptProjectBuildError.entryViewMissing(identifier: entryView)
         }
 
         let systems = try AdaScriptSchemaParser.parseSystemCapabilities(sources: sources)
@@ -72,12 +84,20 @@ struct EditorGravityProjectBuilder {
         }
         _ = try AdaScriptView(sources: sources, identifier: entryView)
 
-        return EditorGravityProjectBuildReport(
+        let report = EditorAdaScriptProjectBuildReport(
             entryView: entryView,
             moduleName: project.runtime.moduleName,
             sourceCount: sources.count,
             systemCount: systems.count,
             viewCount: views.count
+        )
+        let assetsPath = project.paths.assets ?? "Assets"
+        return EditorAdaScriptProjectBuildArtifact(
+            assetsDirectory: projectURL.appendingPathComponent(assetsPath, isDirectory: true),
+            entryView: entryView,
+            moduleName: project.runtime.moduleName,
+            report: report,
+            sources: sources
         )
     }
 
@@ -105,7 +125,7 @@ struct EditorGravityProjectBuilder {
                     )
                 )
             } catch {
-                throw EditorGravityProjectBuildError.sourceReadFailed(
+                throw EditorAdaScriptProjectBuildError.sourceReadFailed(
                     path: relativePath,
                     message: error.localizedDescription
                 )
