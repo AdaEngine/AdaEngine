@@ -46,6 +46,20 @@ struct EditorPackageConfigurationTests {
         #expect(!project.contains("type: tool"))
     }
 
+    @Test("XcodeGen packages the AdaEngine Icon Composer app icon")
+    func xcodegenPackagesAppIcon() throws {
+        let editorRoot = try editorPackageRoot()
+        let project = try String(contentsOf: editorRoot.appendingPathComponent("project.yml"), encoding: .utf8)
+        let iconURL = editorRoot
+            .deletingLastPathComponent()
+            .appendingPathComponent("Assets/AdaEngine.icon", isDirectory: true)
+
+        #expect(project.contains("\"icon\":\n      file: true"))
+        #expect(project.contains("path: ../Assets/AdaEngine.icon"))
+        #expect(project.components(separatedBy: "ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine").count == 3)
+        #expect(FileManager.default.fileExists(atPath: iconURL.appendingPathComponent("icon.json").path))
+    }
+
     private func editorPackageRoot() throws -> URL {
         var url = URL(fileURLWithPath: #filePath)
         while url.lastPathComponent != "Editor" {

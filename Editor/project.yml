@@ -1,6 +1,9 @@
 name: AdaEditor
 options:
   bundleIdPrefix: org.adaengine
+  fileTypes:
+    "icon":
+      file: true
   deploymentTarget:
     iOS: "18.0"
     macOS: "15.0"
@@ -11,9 +14,13 @@ targets:
   AdaEditor-macOS:
     type: application
     platform: macOS
-    sources: []
+    sources:
+      - path: ../Assets/AdaEngine.icon
+        buildPhase: resources
+        group: Assets
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine
         PRODUCT_NAME: AdaEditor
         PRODUCT_BUNDLE_IDENTIFIER: org.adaengine.editor
         INFOPLIST_FILE: Sources/AdaEditor/Platforms/macOS/Info.plist
@@ -52,9 +59,13 @@ targets:
   AdaEditor-iPadOS:
     type: application
     platform: iOS
-    sources: []
+    sources:
+      - path: ../Assets/AdaEngine.icon
+        buildPhase: resources
+        group: Assets
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine
         PRODUCT_NAME: AdaEditor
         PRODUCT_BUNDLE_IDENTIFIER: org.adaengine.editor
         INFOPLIST_FILE: Sources/AdaEditor/Platforms/iOS/Info.plist
