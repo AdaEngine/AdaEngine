@@ -7,9 +7,15 @@ import Testing
 
 @Suite("AdaScript project runtime", .serialized)
 struct AdaScriptProjectRuntimeTests {
-    @Test("Run opens an AdaScript project in a separate window")
+    @Test("Regular windows stay in the current native scene by default")
     @MainActor
-    func runOpensSeparateWindow() throws {
+    func regularWindowsUseCurrentScene() {
+        #expect(UIWindow.Configuration().scenePresentation == .current)
+    }
+
+    @Test("Run opens an AdaScript project in a separate window scene")
+    @MainActor
+    func runOpensSeparateWindowScene() throws {
         if unsafe RenderEngine.shared == nil {
             unsafe RenderEngine.configurations.preferredBackend = .headless
             let app = AppWorlds(main: World(name: "AdaScriptRuntimeTests"))
@@ -39,13 +45,15 @@ struct AdaScriptProjectRuntimeTests {
 
         #expect(windowManager.shownWindowCount == 1)
         #expect(windowManager.windows.count == 1)
+        #expect(windowManager.shownWindowScenePresentation == .new)
         #expect(viewModel.workspaceStatus == .running("Run RuntimeGame"))
-        #expect(viewModel.outputLines.contains { $0.text == "Running AdaScript project RuntimeGame in a separate window." })
+        #expect(viewModel.outputLines.contains { $0.text == "Running AdaScript project RuntimeGame in a separate window scene." })
 
         viewModel.cancelWorkspaceCommand()
 
         #expect(windowManager.closedWindowCount == 1)
         #expect(viewModel.workspaceStatus == .ready)
+        #expect(viewModel.outputLines.contains { $0.text == "AdaScript project RuntimeGame stopped." })
     }
 
     @Test("Preview loads for an AdaScript project without SwiftPM")
@@ -97,9 +105,11 @@ struct AdaScriptProjectRuntimeTests {
 private final class AdaScriptRuntimeTestWindowManager: UIWindowManager {
     private(set) var closedWindowCount = 0
     private(set) var shownWindowCount = 0
+    private(set) var shownWindowScenePresentation: UIWindow.ScenePresentation?
 
     override func showWindow(_ window: UIWindow, isFocused: Bool) {
         shownWindowCount += 1
+        shownWindowScenePresentation = window.configuration.scenePresentation
         if isFocused {
             setActiveWindow(window)
         }
@@ -107,6 +117,7 @@ private final class AdaScriptRuntimeTestWindowManager: UIWindowManager {
 
     override func closeWindow(_ window: UIWindow) {
         closedWindowCount += 1
+        window.windowDidDisappear()
     }
 
     override func setWindowMode(_ window: UIWindow, mode: UIWindow.Mode) {}

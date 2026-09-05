@@ -2632,16 +2632,26 @@ final class EditorViewModel {
                 mode: .windowed,
                 showsImmediately: false,
                 makeKey: true,
-                isResizable: windowSettings.isResizable
+                isResizable: windowSettings.isResizable,
+                scenePresentation: .new
             )
             let window = windowManager.spawnWindow(configuration: configuration) {
                 runtimeView
+            }
+            window.onDidDisappear = { [weak self, weak window] in
+                guard let self, self.adaScriptRuntimeWindow === window else {
+                    return
+                }
+                self.adaScriptRuntimeWindow = nil
+                self.workspaceStatus = .ready
+                self.footer.setWorkspaceFooterTitle(self.workspaceStatus.title)
+                self.appendOutput("AdaScript project \(windowTitle) stopped.")
             }
             window.showWindow(makeFocused: true)
             adaScriptRuntimeWindow = window
             workspaceStatus = .running("Run \(windowTitle)")
             footer.setWorkspaceFooterTitle(workspaceStatus.title)
-            appendOutput("Running AdaScript project \(windowTitle) in a separate window.")
+            appendOutput("Running AdaScript project \(windowTitle) in a separate window scene.")
         } catch {
             workspaceStatus = .failed(error.localizedDescription)
             footer.setWorkspaceFooterTitle(workspaceStatus.title)

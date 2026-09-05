@@ -6,27 +6,45 @@
 //
 
 #if IOS || TVOS || VISIONOS
-import UIKit
+import AdaECS
 @_spi(Internal) import AdaInput
-@_spi(Internal) import AdaUI
 import AdaRender
+@_spi(Internal) import AdaUI
 import AdaUtils
 import Math
 import MetalKit
-import AdaECS
+import UIKit
 
-// swiftlint:disable:next type_name
 final class AppleEmbeddedWindowManager: UIWindowManager {
     private let screenManager: any ScreenManager
     private var isUIKitReady = false
     private var pendingWindows: [(window: AdaUI.UIWindow, isFocused: Bool)] = []
+    var pendingSceneWindows: [String: (window: AdaUI.UIWindow, isFocused: Bool)] = [:]
+    var windowIDsBySceneSession: [String: AdaUI.UIWindow.ID] = [:]
 
     init(screenManager: any ScreenManager) {
         self.screenManager = screenManager
     }
 
-    func sceneDidConnect(_ windowScene: UIWindowScene) {
+    func sceneDidConnect(_ windowScene: UIWindowScene, requestToken: String? = nil) {
         isUIKitReady = true
+
+        if let requestToken,
+           let pendingWindow = pendingSceneWindows.removeValue(forKey: requestToken) {
+            presentWindow(
+                pendingWindow.window,
+                isFocused: pendingWindow.isFocused,
+                scene: windowScene
+            )
+            return
+        }
+
+        if let windowID = windowIDsBySceneSession[windowScene.session.persistentIdentifier],
+           let window = windows[windowID] {
+            presentWindow(window, isFocused: windowScene.activationState == .foregroundActive, scene: windowScene)
+            return
+        }
+
         let pending = pendingWindows
         pendingWindows.removeAll()
         for entry in pending {
@@ -35,7 +53,9 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
     }
 
     override func createWindow(for window: AdaUI.UIWindow) {
-        let scene = activeWindowScene()
+        let scene = window.configuration.scenePresentation == .new
+            ? nil
+            : activeWindowScene()
         let screen = scene?.screen ?? UIScreen.main
         let sceneBounds = scene?.coordinateSpace.bounds ?? screen.bounds
         let frame = sceneBounds.toEngineRect
@@ -80,6 +100,12 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
     
     // - TODO: (Vlad) I'm not really sure, that we should make window unfocused
     override func showWindow(_ window: AdaUI.UIWindow, isFocused: Bool) {
+        if window.configuration.scenePresentation == .new,
+           (window.systemWindow as? UIKit.UIWindow)?.windowScene == nil {
+            requestNewScene(for: window, isFocused: isFocused)
+            return
+        }
+
         guard !isUIKitReady else {
             presentWindow(window, isFocused: isFocused, scene: nil)
             return
@@ -87,7 +113,7 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         pendingWindows.append((window: window, isFocused: isFocused))
     }
 
-    private func presentWindow(_ window: AdaUI.UIWindow, isFocused: Bool, scene: UIWindowScene?) {
+    func presentWindow(_ window: AdaUI.UIWindow, isFocused: Bool, scene: UIWindowScene?) {
         guard let uiWindow = window.systemWindow as? UIKit.UIWindow else {
             fatalError("System window not exist.")
         }
@@ -95,6 +121,9 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         attachWindowToSceneIfNeeded(uiWindow, preferredScene: scene)
         if isFocused, let sceneDelegate = uiWindow.windowScene?.delegate as? AppleEmbeddedSceneDelegate {
             sceneDelegate.window = uiWindow
+        }
+        if let sessionIdentifier = uiWindow.windowScene?.session.persistentIdentifier {
+            windowIDsBySceneSession[sessionIdentifier] = window.id
         }
         if isFocused {
             uiWindow.makeKeyAndVisible()
@@ -122,10 +151,20 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
             fatalError("System window not exist.")
         }
 
+        pendingSceneWindows = pendingSceneWindows.filter { $0.value.window !== window }
+        let sceneSession = nsWindow.windowScene?.session
+        if let sceneSession {
+            windowIDsBySceneSession.removeValue(forKey: sceneSession.persistentIdentifier)
+        }
+
         self.removeWindow(window, setActiveAnotherIfNeeded: true)
         
         nsWindow.isHidden = true
         nsWindow.windowScene = nil
+
+        if window.configuration.scenePresentation == .new, let sceneSession {
+            UIApplication.shared.requestSceneSessionDestruction(sceneSession, options: nil)
+        }
     }
 
     override func getScreen(for window: AdaUI.UIWindow) -> Screen? {
@@ -254,17 +293,6 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         }
     }
 
-    private func activeWindowScene() -> UIWindowScene? {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first {
-                $0.activationState == .foregroundActive
-                    || $0.activationState == .foregroundInactive
-            }
-            ?? UIApplication.shared.connectedScenes
-                .compactMap { $0 as? UIWindowScene }
-                .first
-    }
 }
 
 final class _AdaUIWindow: UIKit.UIWindow, SystemWindow, UIPointerInteractionDelegate {
