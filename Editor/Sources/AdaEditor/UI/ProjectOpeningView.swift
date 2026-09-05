@@ -637,12 +637,9 @@ struct ProjectOpeningView: View {
     }
 
     private func chooseProjectLocation() {
-        guard let locationURL = ProjectOpenPicker.pickProjectLocationURL() else {
-            viewModel.statusMessage = "Project location selection cancelled."
-            return
+        ProjectOpenPicker.presentProjectLocationPicker { result in
+            viewModel.applyProjectLocationPickerResult(result)
         }
-
-        viewModel.setProjectLocation(locationURL)
     }
 
     private func launcherSectionButton(_ section: ProjectOpeningSection) -> some View {
