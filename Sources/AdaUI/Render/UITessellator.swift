@@ -733,7 +733,19 @@ public struct UITessellator {
                   vertexBounds.intersects(polygonBounds) else {
                 continue
             }
-            let isCounterClockwise = signedArea(of: clipPolygon) >= 0
+            let polygonArea = signedArea(of: clipPolygon)
+            // Scroll views use rectangular clips. Preserve the quad directly when it is
+            // fully visible instead of allocating an intermediate polygon per edge.
+            if isAxisAlignedRectangle(
+                clipPolygon,
+                bounds: polygonBounds,
+                signedArea: polygonArea
+            ), polygonBounds.contains(vertexBounds) {
+                result.append(vertices)
+                continue
+            }
+
+            let isCounterClockwise = polygonArea >= 0
             var output = vertices
 
             for index in clipPolygon.indices {
@@ -773,6 +785,34 @@ public struct UITessellator {
                 && minY <= other.maxY
                 && maxY >= other.minY
         }
+
+        func contains(_ other: Self) -> Bool {
+            minX <= other.minX
+                && maxX >= other.maxX
+                && minY <= other.minY
+                && maxY >= other.maxY
+        }
+    }
+
+    private func isAxisAlignedRectangle(
+        _ polygon: [Vector2],
+        bounds: ClipBounds,
+        signedArea: Float
+    ) -> Bool {
+        guard polygon.count == 4 else {
+            return false
+        }
+
+        let width = bounds.maxX - bounds.minX
+        let height = bounds.maxY - bounds.minY
+        let epsilon: Float = 0.0001
+        guard width > epsilon, height > epsilon else {
+            return false
+        }
+
+        let rectangleArea = width * height
+        let tolerance = epsilon * max(1, rectangleArea)
+        return abs(abs(signedArea) - rectangleArea) <= tolerance
     }
 
     private func clipBounds<Vertex>(

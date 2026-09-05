@@ -10,6 +10,7 @@ public struct AdaScriptViewMetadata: Equatable, Sendable {
     public let className: String
     public let environment: [AdaScriptViewEnvironment]
     public let identifier: String
+    public let isPreviewable: Bool
     public let line: Int
     public let sourcePath: String
     public let title: String
@@ -18,6 +19,7 @@ public struct AdaScriptViewMetadata: Equatable, Sendable {
         className: String,
         environment: [AdaScriptViewEnvironment] = [],
         identifier: String,
+        isPreviewable: Bool = false,
         line: Int = 1,
         sourcePath: String = "",
         title: String
@@ -25,6 +27,7 @@ public struct AdaScriptViewMetadata: Equatable, Sendable {
         self.className = className
         self.environment = environment
         self.identifier = identifier
+        self.isPreviewable = isPreviewable
         self.line = line
         self.sourcePath = sourcePath
         self.title = title
@@ -49,6 +52,7 @@ public enum AdaScriptViewScanner {
                 className: $0.className,
                 environment: $0.environment.map { AdaScriptViewEnvironment(key: $0.key, propertyName: $0.propertyName) },
                 identifier: $0.id,
+                isPreviewable: $0.isPreviewable,
                 line: $0.line,
                 sourcePath: $0.sourcePath,
                 title: $0.title

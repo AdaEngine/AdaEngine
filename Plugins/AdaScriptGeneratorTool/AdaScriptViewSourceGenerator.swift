@@ -38,6 +38,7 @@ enum AdaScriptViewSourceGenerator {
                                 className: \(swiftStringLiteral(view.className)),
                                 environment: [\(environment)],
                                 identifier: \(swiftStringLiteral(identifier(view, moduleName: moduleName))),
+                                isPreviewable: \(view.isPreviewable),
                                 line: \(view.line),
                                 sourcePath: \(swiftStringLiteral(view.sourcePath)),
                                 title: \(swiftStringLiteral(view.title))

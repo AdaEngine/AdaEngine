@@ -214,30 +214,10 @@ extension EditorCenterWorkbench {
     private func assetPreview(document: EditorAssetDocument) -> some View {
         switch document.kind {
         case .image:
-            imageAssetPreview(document: document)
+            EditorImageAssetPreview(document: document)
         case .audio, .generic:
             assetMetadataPreview(document: document)
         }
-    }
-
-    private func imageAssetPreview(document: EditorAssetDocument) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            assetPreviewHeader(document: document)
-            ZStack {
-                theme.editorColors.background
-                if let path = document.absolutePath, let image = try? Image(contentsOf: URL(fileURLWithPath: path, isDirectory: false)) {
-                    image
-                        .resizable()
-                        .aspectRatio(Float(image.width) / Float(max(1, image.height)), contentMode: .fit)
-                        .padding(20)
-                } else {
-                    assetPreviewError(document.errorMessage ?? "Unable to load image preview.")
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .padding(16)
-        .background(theme.editorColors.background)
     }
 
     private func assetMetadataPreview(document: EditorAssetDocument) -> some View {

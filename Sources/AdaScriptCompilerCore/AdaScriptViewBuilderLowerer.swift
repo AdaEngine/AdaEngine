@@ -44,16 +44,7 @@ private extension AdaScriptViewBuilderLowerer {
                 continue
             }
 
-            var declarationIndex = index + 2
-            if tokens.indices.contains(declarationIndex), tokens[declarationIndex].text == "(" {
-                declarationIndex = try indexAfterGroup(
-                    openingIndex: declarationIndex,
-                    opening: "(",
-                    closing: ")",
-                    tokens: tokens,
-                    path: path
-                )
-            }
+            let declarationIndex = try declarationIndex(afterViewAt: index, tokens: tokens, path: path)
             guard tokens.indices.contains(declarationIndex), tokens[declarationIndex].text == "class" else {
                 index += 2
                 continue
@@ -84,6 +75,39 @@ private extension AdaScriptViewBuilderLowerer {
             index = classClose + 1
         }
         return replacements
+    }
+
+    static func declarationIndex(afterViewAt viewIndex: Int, tokens: [Token], path: String) throws -> Int {
+        var declarationIndex = viewIndex + 2
+        if tokens.indices.contains(declarationIndex), tokens[declarationIndex].text == "(" {
+            declarationIndex = try indexAfterGroup(
+                openingIndex: declarationIndex,
+                opening: "(",
+                closing: ")",
+                tokens: tokens,
+                path: path
+            )
+        }
+        while tokens.indices.contains(declarationIndex), tokens[declarationIndex].text == "@" {
+            guard tokens.indices.contains(declarationIndex + 1), tokens[declarationIndex + 1].kind == .identifier else {
+                throw AdaScriptViewBuilderError(
+                    path: path,
+                    line: tokens[declarationIndex].line,
+                    message: "expected annotation name after @view"
+                )
+            }
+            declarationIndex += 2
+            if tokens.indices.contains(declarationIndex), tokens[declarationIndex].text == "(" {
+                declarationIndex = try indexAfterGroup(
+                    openingIndex: declarationIndex,
+                    opening: "(",
+                    closing: ")",
+                    tokens: tokens,
+                    path: path
+                )
+            }
+        }
+        return declarationIndex
     }
 
     struct Replacement {

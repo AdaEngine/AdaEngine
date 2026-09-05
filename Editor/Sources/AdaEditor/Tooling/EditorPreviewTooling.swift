@@ -86,7 +86,7 @@ enum EditorPreviewScanner {
         let metadata = try? AdaScriptViewScanner.declarations(in: [
             AdaScriptSource(path: "Preview.ada", source: source)
         ])
-        return metadata?.map {
+        return metadata?.filter(\.isPreviewable).map {
             EditorPreviewDeclaration(
                 id: $0.identifier,
                 title: $0.title,

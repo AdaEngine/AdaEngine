@@ -56,6 +56,40 @@ struct TextEditorTests {
     }
 
     @Test
+    func textEditor_newlinePreservesCurrentIndentation() {
+        final class Model {
+            var text = "placeholder"
+        }
+
+        let model = Model()
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(
+                    get: { model.text },
+                    set: { model.text = $0 }
+                )
+            )
+            .font(.system(size: 12))
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(100, 28), phase: .began, time: 0)
+        tester.sendMouseEvent(at: Point(100, 28), phase: .ended, time: 0.01)
+        tester.sendKeyEvent(.a, modifiers: [.control], time: 0.02)
+        tester.sendTextInput("\t    return value", time: 0.03)
+        tester.sendKeyEvent(.enter, time: 0.04)
+        tester.sendTextInput("next", time: 0.05)
+
+        #expect(model.text == "\t    return value\n\t    next")
+
+        tester.sendKeyEvent(.z, modifiers: [.control], time: 0.06)
+        tester.sendKeyEvent(.z, modifiers: [.control], time: 0.07)
+        #expect(model.text == "\t    return value")
+    }
+
+    @Test
     func textEditor_supportsCommandUndoAndRedo() {
         final class Model {
             var text = "original"

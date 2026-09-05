@@ -97,6 +97,7 @@ private enum EditorProjectTemplateSourceFactory {
     }
 
     static let adaScript = """
+    @previewable
     @view(id: "game.main")
     class MainView {
         func body() {

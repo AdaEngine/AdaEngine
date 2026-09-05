@@ -64,6 +64,7 @@ The initial AdaEngine annotations are:
 - `@component` and `@resource` for generated data declarations;
 - `@scriptable` for attached script objects;
 - `@view` for declarative AdaUI views;
+- `@previewable` for AdaUI views exposed in AdaEditor Preview;
 - `@state` for state owned by an Ada Script view;
 - `@environment` for read-only AdaUI environment values;
 - `@export` for persistent and inspectable fields.
@@ -217,9 +218,10 @@ belongs to AdaUI script views.
 
 ## AdaUI views
 
-Use `@view` on a class whose `body()` contains declarative AdaUI expressions. See
+Use `@view` on a class whose `body()` contains declarative AdaUI expressions.
+Add `@previewable` when that view should appear in AdaEditor Preview. See
 <doc:AdaScriptViews> for the supported view constructors, modifiers, and
-AdaEditor preview workflow.
+preview workflow.
 
 ## System context
 

@@ -8,28 +8,30 @@
 
 private typealias LauncherColor = AdaColorPalette
 enum ProjectOpeningLayout {
-    static let usesNavigationSplitView = true
-    static let detailUsesNavigationStack = true
-    static let detailUsesSearchable = true
+    static let usesNavigationSplitView = false
+    static let detailUsesNavigationStack = false
+    static let detailUsesSearchable = false
     static let windowWidth: Float = 1024
     static let windowHeight: Float = 700
     static let sidebarWidth: Float = 68
     static let explorerWidth: Float = 320
     static let detailWidth: Float = windowWidth - sidebarWidth - explorerWidth
-    static let detailPadding: Float = 40
+    static let detailPadding: Float = 32
     static let detailContentWidth: Float = detailWidth - detailPadding * 2
-    static let previewHeight: Float = 220
+    static let previewHeight: Float = 200
     static let detailRowHeight: Float = 44
     static let detailsRowCount: Float = 5
     static let actionButtonHeight: Float = 42
     static let actionButtonSpacing: Float = 12
     static let detailActionButtonCount = 0
     static let searchUsesGradient = false
-    static let searchCapsuleWidth: Float = 280
-    static let searchCapsuleHeight: Float = 46
-    static let searchBottomPadding: Float = 20
+    static let searchCapsuleWidth: Float = explorerWidth - 32
+    static let searchCapsuleHeight: Float = 38
+    static let searchBottomPadding: Float = 12
     static let trafficLightOffsetY: Float = 0
-    static let logoTopPadding: Float = 22
+    static let logoTopPadding: Float = 58
+    static let explorerTopPadding: Float = 56
+    static let landingTopPadding: Float = 62
     static let textFieldBackgroundAlpha: Float = 0.11
     static let textFieldFocusedBorderAlpha: Float = 0.24
 
@@ -43,8 +45,20 @@ enum ProjectOpeningLayout {
 }
 
 enum ProjectOpeningWindowConfiguration {
-    static let isResizable = false
+    static let isResizable = true
     static let hasShadow = true
+}
+
+enum ProjectOpeningAccessibility {
+    static let sidebar = "AdaEditor.Launcher.Sidebar"
+    static let explorer = "AdaEditor.Launcher.Explorer"
+    static let detail = "AdaEditor.Launcher.Detail"
+    static let search = "AdaEditor.Launcher.Search"
+    static let createProject = "AdaEditor.Launcher.CreateProject"
+    static let createHeader = "AdaEditor.Launcher.CreateHeader"
+    static let createDescription = "AdaEditor.Launcher.CreateDescription"
+    static let projectType = "AdaEditor.Launcher.ProjectType"
+    static let createActions = "AdaEditor.Launcher.CreateActions"
 }
 
 enum ProjectOpeningLandingSpec {
@@ -60,8 +74,6 @@ struct ProjectOpeningView: View {
     let autoOpenLastProject: Bool
     let initiallyCreatingProject: Bool
     @State private var viewModel = ProjectOpeningViewModel()
-    @State private var columnVisibility = NavigationSplitViewVisibility.all
-    @State private var preferredCompactColumn = NavigationSplitViewColumn.detail
     @State private var didAttemptAutoOpenLastProject = false
     private let logoImage = ProjectOpeningAssets.loadAdaEngineLogo()
 
@@ -71,31 +83,27 @@ struct ProjectOpeningView: View {
     }
 
     var body: some View {
-        NavigationSplitView(
-            columnVisibility: $columnVisibility,
-            preferredCompactColumn: $preferredCompactColumn
-        ) {
+        HStack(spacing: 0) {
             sidebar
-                .navigationSplitViewColumnWidth(ProjectOpeningLayout.sidebarWidth)
-        } content: {
             projectExplorer
-                .navigationSplitViewColumnWidth(ProjectOpeningLayout.explorerWidth)
-        } detail: {
-            NavigationStack {
-                projectDetail
-                    .searchable(
-                        text: viewModel.searchQueryBinding,
-                        placement: .overlay(alignment: .topTrailing),
-                        prompt: "Search projects..."
-                    )
-                    .navigationBarHidden(true)
-                    .foregroundColor(.white)
-            }
-            .navigationSplitViewColumnWidth(ProjectOpeningLayout.detailWidth)
+            projectDetail
+                .frame(
+                    minWidth: 0,
+                    maxWidth: .infinity,
+                    minHeight: 0,
+                    maxHeight: .infinity,
+                    alignment: .topLeading
+                )
+                .foregroundColor(.white)
+                .accessibilityIdentifier(ProjectOpeningAccessibility.detail)
         }
-        .frame(width: ProjectOpeningLayout.windowWidth, height: ProjectOpeningLayout.windowHeight)
-        .background(LauncherColor.window)
-        .frame(minWidth: ProjectOpeningLayout.windowWidth, minHeight: ProjectOpeningLayout.windowHeight)
+        .frame(
+            minWidth: ProjectOpeningLayout.windowWidth,
+            maxWidth: .infinity,
+            minHeight: ProjectOpeningLayout.windowHeight,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
         .background(LauncherColor.window)
         .menuBar(EditorMenuBar.makeMenus())
         .onChange(of: viewModel.projectToOpenInEditorToken) { _, _ in
@@ -178,13 +186,16 @@ struct ProjectOpeningView: View {
             .buttonStyle(LauncherIconButtonStyle())
             .frame(width: 54, height: 36)
         }
-        .frame(width: ProjectOpeningLayout.sidebarWidth, height: ProjectOpeningLayout.windowHeight)
+        .frame(width: ProjectOpeningLayout.sidebarWidth)
+        .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
         .background(LauncherColor.sidebar)
+        .accessibilityIdentifier(ProjectOpeningAccessibility.sidebar)
     }
 
     private var projectExplorer: some View {
         projectExplorerContent
-            .frame(width: ProjectOpeningLayout.explorerWidth, height: ProjectOpeningLayout.windowHeight)
+            .frame(width: ProjectOpeningLayout.explorerWidth)
+            .frame(minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
             .background(LauncherColor.explorer)
             .overlay {
                 HStack(spacing: 0) {
@@ -192,6 +203,7 @@ struct ProjectOpeningView: View {
                     LauncherColor.glassBorder.frame(width: 1)
                 }
             }
+            .accessibilityIdentifier(ProjectOpeningAccessibility.explorer)
     }
 
     private var projectExplorerContent: AnyView {
@@ -207,8 +219,12 @@ struct ProjectOpeningView: View {
 
     private var projectsExplorer: some View {
         VStack(alignment: .leading, spacing: 0) {
+            searchCapsule
+                .padding(.leading, 16)
+                .padding(.top, ProjectOpeningLayout.explorerTopPadding)
+                .padding(.bottom, ProjectOpeningLayout.searchBottomPadding)
+
             launcherListHeader("Recent Projects")
-                .padding(.top, 12)
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
@@ -225,7 +241,9 @@ struct ProjectOpeningView: View {
                     }
                 }
             }
-            .frame(width: ProjectOpeningLayout.explorerWidth, height: 500, alignment: .topLeading)
+            .frame(width: ProjectOpeningLayout.explorerWidth)
+            .frame(minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+            .layoutPriority(1)
 
             launcherListHeader("Open")
             templateRow(
@@ -241,7 +259,7 @@ struct ProjectOpeningView: View {
     private var templatesExplorer: some View {
         VStack(alignment: .leading, spacing: 0) {
             launcherListHeader("Project Templates")
-                .padding(.top, 12)
+                .padding(.top, ProjectOpeningLayout.explorerTopPadding)
             projectTemplateRow(.adaScript)
             projectTemplateRow(.adaScriptWithSwift)
             Spacer()
@@ -251,7 +269,7 @@ struct ProjectOpeningView: View {
     private var samplesExplorer: some View {
         VStack(alignment: .leading, spacing: 0) {
             launcherListHeader("Starter Samples")
-                .padding(.top, 12)
+                .padding(.top, ProjectOpeningLayout.explorerTopPadding)
             templateRow(
                 title: "AdaScript System",
                 subtitle: "Per-frame system ready for gameplay code",
@@ -334,6 +352,7 @@ struct ProjectOpeningView: View {
             CapsuleShape().stroke(LauncherColor.searchCapsuleBorder, lineWidth: 1)
         }
         .textFieldStyle(PlainTextFieldStyle())
+        .accessibilityIdentifier(ProjectOpeningAccessibility.search)
     }
 
     private var projectDetail: some View {
@@ -357,7 +376,7 @@ struct ProjectOpeningView: View {
                     .foregroundColor(.white)
                     .lineLimit(1)
             }
-            .frame(height: 59, alignment: .topLeading)
+            .frame(width: ProjectOpeningLayout.detailContentWidth, height: 59, alignment: .topLeading)
 
             Spacer().frame(height: 32)
 
@@ -367,7 +386,8 @@ struct ProjectOpeningView: View {
                     .font(.system(size: 11))
                     .foregroundColor(LauncherColor.muted.opacity(0.4))
             }
-            .frame(width: ProjectOpeningLayout.detailContentWidth, height: ProjectOpeningLayout.previewHeight)
+            .frame(height: ProjectOpeningLayout.previewHeight)
+            .frame(maxWidth: .infinity)
             .overlay {
                 RoundedRectangleShape(cornerRadius: 12).stroke(LauncherColor.glassBorder, lineWidth: 1)
             }
@@ -383,20 +403,31 @@ struct ProjectOpeningView: View {
             Spacer()
         }
         .padding(ProjectOpeningLayout.detailPadding)
-        .frame(width: ProjectOpeningLayout.detailWidth, height: ProjectOpeningLayout.windowHeight, alignment: .topLeading)
+        .frame(
+            minWidth: 0,
+            maxWidth: .infinity,
+            minHeight: 0,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
         .background(LauncherColor.window))
     }
 
     private var createProjectForm: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("CREATE NEW PROJECT")
-                .font(.system(size: 10))
-                .foregroundColor(LauncherColor.accentViolet)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("CREATE NEW PROJECT")
+                    .font(.system(size: 10))
+                    .foregroundColor(LauncherColor.accentViolet)
 
-            Text("New Ada Project")
-                .font(.system(size: 36))
-                .foregroundColor(.white)
-                .padding(.top, 4)
+                Text("New Ada Project")
+                    .font(.system(size: 36))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .frame(width: ProjectOpeningLayout.detailContentWidth, alignment: .leading)
+            }
+            .frame(width: ProjectOpeningLayout.detailContentWidth, height: 59, alignment: .topLeading)
+            .accessibilityIdentifier(ProjectOpeningAccessibility.createHeader)
 
             Text("Choose a project name and a destination folder. AdaEditor will create a new folder with the project files inside it.")
                 .font(.system(size: 13))
@@ -404,6 +435,7 @@ struct ProjectOpeningView: View {
                 .lineLimit(3)
                 .frame(width: ProjectOpeningLayout.detailContentWidth, alignment: .leading)
                 .padding(.top, 12)
+                .accessibilityIdentifier(ProjectOpeningAccessibility.createDescription)
 
             VStack(alignment: .leading, spacing: 18) {
                 createFormField(title: "Project Type") {
@@ -412,6 +444,7 @@ struct ProjectOpeningView: View {
                         projectTypeButton(.adaScriptWithSwift)
                     }
                 }
+                .accessibilityIdentifier(ProjectOpeningAccessibility.projectType)
 
                 createFormField(title: "Project Name") {
                     TextField("AdaGame", text: viewModel.projectNameBinding)
@@ -419,7 +452,8 @@ struct ProjectOpeningView: View {
                         .foregroundColor(.white)
                         .padding(.leading, 14)
                         .padding(.trailing, 14)
-                        .frame(width: ProjectOpeningLayout.detailContentWidth, height: 44)
+                        .frame(height: 44)
+                        .frame(maxWidth: .infinity)
                         .background(RoundedRectangleShape(cornerRadius: 10).fill(LauncherColor.input))
                         .overlay {
                             RoundedRectangleShape(cornerRadius: 10).stroke(LauncherColor.inputBorder, lineWidth: 1)
@@ -446,7 +480,8 @@ struct ProjectOpeningView: View {
                     }
                     .padding(.leading, 14)
                     .padding(.trailing, 8)
-                    .frame(width: ProjectOpeningLayout.detailContentWidth, height: 44)
+                    .frame(height: 44)
+                    .frame(maxWidth: .infinity)
                     .background(RoundedRectangleShape(cornerRadius: 10).fill(LauncherColor.input))
                     .overlay {
                         RoundedRectangleShape(cornerRadius: 10).stroke(LauncherColor.inputBorder, lineWidth: 1)
@@ -461,7 +496,8 @@ struct ProjectOpeningView: View {
                 .font(.system(size: 12))
                 .foregroundColor(LauncherColor.muted)
                 .lineLimit(2)
-                .frame(width: ProjectOpeningLayout.detailContentWidth, height: 34, alignment: .leading)
+                .frame(height: 34, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(alignment: .center, spacing: 12) {
                 Button {
@@ -483,10 +519,17 @@ struct ProjectOpeningView: View {
                 .disabled(!viewModel.canCreateProject)
                 .opacity(viewModel.canCreateProject ? 1.0 : 0.45)
             }
-            .frame(width: ProjectOpeningLayout.detailContentWidth)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier(ProjectOpeningAccessibility.createActions)
         }
         .padding(ProjectOpeningLayout.detailPadding)
-        .frame(width: ProjectOpeningLayout.detailWidth, height: ProjectOpeningLayout.windowHeight, alignment: .topLeading)
+        .frame(
+            minWidth: 0,
+            maxWidth: .infinity,
+            minHeight: 0,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
         .background(LauncherColor.window)
     }
 
@@ -519,14 +562,14 @@ struct ProjectOpeningView: View {
                     }
                 }
                 .padding(12)
-                .frame(width: ProjectOpeningLayout.detailContentWidth, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangleShape(cornerRadius: 10).fill(LauncherColor.input))
                 .overlay {
                     RoundedRectangleShape(cornerRadius: 10).stroke(LauncherColor.accentOrange.opacity(0.45), lineWidth: 1)
                 }
             }
         }
-        .frame(width: ProjectOpeningLayout.detailContentWidth, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func createFormField<Content: View>(title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
@@ -553,7 +596,7 @@ struct ProjectOpeningView: View {
             }
             .padding(.leading, 12)
             .padding(.trailing, 12)
-            .frame(width: 273, height: 52, alignment: .leading)
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 52, maxHeight: 52, alignment: .leading)
             .background(RoundedRectangleShape(cornerRadius: 10).fill(isActive ? LauncherColor.accentViolet.opacity(0.18) : LauncherColor.input))
             .overlay {
                 RoundedRectangleShape(cornerRadius: 10).stroke(isActive ? LauncherColor.accentViolet : LauncherColor.inputBorder, lineWidth: 1)
@@ -564,13 +607,11 @@ struct ProjectOpeningView: View {
 
     private var emptyProjectLanding: some View {
         VStack(alignment: .center, spacing: 0) {
-            Spacer()
-
             if let logoImage {
                 logoImage
                     .resizable()
                     .frame(width: ProjectOpeningLandingSpec.logoSize, height: ProjectOpeningLandingSpec.logoSize)
-                    .padding(.bottom, 42)
+                    .padding(.bottom, 20)
             } else {
                 Text("A")
                     .font(.system(size: 64))
@@ -580,8 +621,18 @@ struct ProjectOpeningView: View {
                     .overlay {
                         RoundedRectangleShape(cornerRadius: 28).stroke(LauncherColor.glassBorder, lineWidth: 1)
                     }
-                    .padding(.bottom, 42)
+                    .padding(.bottom, 20)
             }
+
+            Text("AdaEngine")
+                .font(.system(size: 26))
+                .foregroundColor(.white)
+
+            Text("Create a new game project or continue with an existing package.")
+                .font(.system(size: 12))
+                .foregroundColor(LauncherColor.muted)
+                .padding(.top, 6)
+                .padding(.bottom, 26)
 
             VStack(alignment: .center, spacing: 14) {
                 Button {
@@ -589,6 +640,7 @@ struct ProjectOpeningView: View {
                 } label: {
                     Text(ProjectOpeningLandingSpec.primaryButtonTitles[0])
                 }
+                .accessibilityIdentifier(ProjectOpeningAccessibility.createProject)
 
                 Button {
                     openProjectPicker()
@@ -622,7 +674,13 @@ struct ProjectOpeningView: View {
             .buttonStyle(LauncherGrayButtonStyle())
             .padding(.bottom, 24)
         }
-        .frame(width: ProjectOpeningLayout.detailWidth, height: ProjectOpeningLayout.windowHeight)
+        .padding(.top, ProjectOpeningLayout.landingTopPadding)
+        .frame(
+            minWidth: 0,
+            maxWidth: .infinity,
+            minHeight: 0,
+            maxHeight: .infinity
+        )
         .background(LauncherColor.window)
     }
 
@@ -711,7 +769,7 @@ struct ProjectOpeningView: View {
             detailRow(label: "Metadata", value: project == nil ? ".ada/project.json" : "Ready", highlighted: false)
             detailRow(label: "Last Opened", value: viewModel.lastOpenedText(for: project), highlighted: false)
         }
-        .frame(width: ProjectOpeningLayout.detailContentWidth)
+        .frame(maxWidth: .infinity)
         .background(LauncherColor.glassBorder)
         .overlay {
             RoundedRectangleShape(cornerRadius: 10).stroke(LauncherColor.glassBorder, lineWidth: 1)
@@ -731,7 +789,8 @@ struct ProjectOpeningView: View {
         }
         .padding(.leading, 16)
         .padding(.trailing, 16)
-        .frame(width: ProjectOpeningLayout.detailContentWidth, height: ProjectOpeningLayout.detailRowHeight)
+        .frame(height: ProjectOpeningLayout.detailRowHeight)
+        .frame(maxWidth: .infinity)
         .background(LauncherColor.window)
     }
 }

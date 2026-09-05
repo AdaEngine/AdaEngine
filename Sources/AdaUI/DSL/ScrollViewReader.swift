@@ -65,6 +65,8 @@ public struct ScrollViewReader<Content: View>: View {
 
 @MainActor @Observable
 final class _ScrollViewProxy {
+    // Runtime node registration is bookkeeping and must not invalidate reader content.
+    @ObservationIgnored
     var subscribedScrollViewNodes: WeakSet<ScrollViewNode> = []
 
     func subsribe(_ scrollView: ScrollViewNode) {

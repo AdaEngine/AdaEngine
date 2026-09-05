@@ -20,8 +20,13 @@ struct GravityLanguageServerTests {
             text: "@sta",
             position: GravitySourcePosition(line: 0, utf16Column: 4)
         )
+        let previewItems = service.completions(
+            text: "@pre",
+            position: GravitySourcePosition(line: 0, utf16Column: 4)
+        )
 
         #expect(annotationItems.contains { $0.label == "view" })
+        #expect(previewItems.contains { $0.label == "previewable" })
         #expect(stateItems.contains { $0.label == "state" })
         #expect(viewItems.contains { $0.label == "Text" })
     }

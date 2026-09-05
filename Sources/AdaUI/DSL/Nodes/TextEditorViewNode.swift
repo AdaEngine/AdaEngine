@@ -293,7 +293,7 @@ final class TextEditorViewNode: ViewNode {
 
         switch event.keyCode {
         case .enter:
-            self.insertText("\n")
+            self.insertNewlineWithIndentation()
         case .tab:
             self.insertText("    ")
         case .arrowLeft:

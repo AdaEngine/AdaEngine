@@ -111,25 +111,32 @@ enum GravityBuiltins {
             sortText: "06"
         ),
         GravityCompletionCandidate(
-            detail: "Declare a previewable AdaUI view",
-            insertText: "view(id: \"\", title: \"\")",
+            detail: "Declare an AdaUI view",
+            insertText: "view",
             kind: .keyword,
             label: "view",
             sortText: "07"
+        ),
+        GravityCompletionCandidate(
+            detail: "Expose an AdaUI view in AdaEditor previews",
+            insertText: "previewable",
+            kind: .keyword,
+            label: "previewable",
+            sortText: "08"
         ),
         GravityCompletionCandidate(
             detail: "Declare view-owned reactive state",
             insertText: "state",
             kind: .keyword,
             label: "state",
-            sortText: "08"
+            sortText: "09"
         ),
         GravityCompletionCandidate(
             detail: "Read an AdaUI environment value",
             insertText: "environment()",
             kind: .keyword,
             label: "environment",
-            sortText: "09"
+            sortText: "10"
         )
     ]
 

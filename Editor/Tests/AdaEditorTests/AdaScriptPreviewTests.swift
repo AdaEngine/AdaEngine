@@ -13,7 +13,7 @@ struct AdaScriptPreviewTests {
         defer { try? fileManager.removeItem(at: projectURL) }
         let sourceRoot = projectURL.appendingPathComponent("Sources/Game/Views", isDirectory: true)
         try fileManager.createDirectory(at: sourceRoot, withIntermediateDirectories: true)
-        let source = "@view class HUDView { func body() { Text(\"Preview\"); } }"
+        let source = "@previewable(title: \"HUD Preview\") @view class HUDView { func body() { Text(\"Preview\"); } }"
         let sourceURL = sourceRoot.appendingPathComponent("HUD.ada")
         try source.write(to: sourceURL, atomically: true, encoding: .utf8)
         let document = EditorTextDocument(
@@ -37,6 +37,7 @@ struct AdaScriptPreviewTests {
         for _ in 0..<100 {
             if case .loaded(let declaration, _) = workbench.previewStatus {
                 #expect(declaration.id == "HUDView")
+                #expect(declaration.title == "HUD Preview")
                 return
             }
             try await Task.sleep(for: .milliseconds(5))
@@ -52,9 +53,15 @@ struct AdaScriptPreviewTests {
     func scannerFindsViews() {
         let declarations = EditorPreviewScanner.declarations(
             in: """
+            @previewable(title: "HUD Preview")
             @view(id: "game.hud", title: "HUD")
             class HUDView {
                 func body() { Text("Score"); }
+            }
+
+            @view
+            class RuntimeOnlyView {
+                func body() { Text("Hidden"); }
             }
 
             @system
@@ -68,9 +75,9 @@ struct AdaScriptPreviewTests {
         #expect(declarations == [
             EditorPreviewDeclaration(
                 id: "game.hud",
-                title: "HUD",
+                title: "HUD Preview",
                 typeName: "HUDView",
-                line: 2,
+                line: 3,
                 kind: .adaScript
             )
         ])
@@ -95,7 +102,7 @@ struct AdaScriptPreviewTests {
         )
 
         let model = packageModel()
-        let content = "@view class HUDView { func body() { Text(\"Unsaved\"); } }"
+        let content = "@previewable @view class HUDView { func body() { Text(\"Unsaved\"); } }"
         let document = EditorTextDocument(
             id: "hud",
             title: "HUD.ada",
