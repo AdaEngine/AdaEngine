@@ -16,7 +16,7 @@ struct EditorPackageConfigurationTests {
         #expect(manifest.contains(".copy(\"Assets\")"))
     }
 
-    @Test("iPad app registers portable projects, Files access, and multiple scenes")
+    @Test("iPad app registers portable projects, Files access, resizable scenes, and a launch screen")
     func iPadBundleDeclaresDocumentRuntimeCapabilities() throws {
         let editorRoot = try editorPackageRoot()
         let data = try Data(contentsOf: editorRoot.appendingPathComponent("Sources/AdaEditor/Platforms/iOS/Info.plist"))
@@ -31,6 +31,7 @@ struct EditorPackageConfigurationTests {
         #expect(value["LSSupportsOpeningDocumentsInPlace"] as? Bool == true)
         #expect(value["UISupportsDocumentBrowser"] as? Bool == true)
         #expect(sceneManifest["UIApplicationSupportsMultipleScenes"] as? Bool == true)
+        #expect(value["UILaunchScreen"] as? [String: Any] != nil)
     }
 
     @Test("xcodegen project points at the local editor package")
