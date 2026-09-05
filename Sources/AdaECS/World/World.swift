@@ -274,14 +274,12 @@ public extension World {
     /// - Returns: A world instance.
     @discardableResult
     func removeEntity(_ entity: borrowing Entity, recursively: Bool = false) -> Self {
+        // Read the hierarchy while its component storage still exists.
+        let children = recursively ? entity.children : []
         self.removeEntityRecord(entity.id)
 
-        guard recursively && !entity.children.isEmpty else {
-            return self
-        }
-
-        for child in entity.children {
-            self.removeEntity(child, recursively: recursively)
+        for child in children {
+            self.removeEntity(child, recursively: true)
         }
 
         return self
@@ -296,17 +294,7 @@ public extension World {
             return self
         }
 
-        self.removeEntityRecord(entity.id)
-
-        guard recursively && !entity.children.isEmpty else {
-            return self
-        }
-
-        for child in entity.children {
-            self.removeEntity(child, recursively: recursively)
-        }
-
-        return self
+        return self.removeEntity(entity, recursively: recursively)
     }
 
     /// Remove entity from world.

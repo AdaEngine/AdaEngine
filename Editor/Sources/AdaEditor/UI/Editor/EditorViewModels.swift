@@ -495,6 +495,17 @@ enum EditorPreviewStatus {
     case failed(EditorPreviewDeclaration?, String, Bool)
 }
 
+@MainActor
+struct EditorLoadedPreview {
+    var documentID: String
+    var declaration: EditorPreviewDeclaration
+    var view: UIView
+
+    func matches(documentID: String, previewID: String) -> Bool {
+        self.documentID == documentID && declaration.id == previewID
+    }
+}
+
 @Observable
 @MainActor
 final class EditorToolbarViewModel {
@@ -612,6 +623,11 @@ final class EditorToolStripViewModel {
 @Observable
 @MainActor
 final class EditorProjectSidebarViewModel {
+    struct SourceRootTarget: Equatable {
+        var relativePath: String
+        var title: String
+    }
+
     enum DisplayMode: String, CaseIterable {
         case targets
         case files
@@ -644,6 +660,7 @@ final class EditorProjectSidebarViewModel {
     var collapsedFolderIDs: Set<String>
     var displayMode: DisplayMode
     var isDisplayModeMenuPresented: Bool
+    let sourceRootTarget: SourceRootTarget?
 
     var visibleItems: [Item] {
         let displayedItems = displayedItems
@@ -690,11 +707,17 @@ final class EditorProjectSidebarViewModel {
             isFolder: false,
             kind: .scene
         )
-    ], collapsedFolderIDs: Set<String> = [], displayMode: DisplayMode = .targets, isDisplayModeMenuPresented: Bool = false) {
+    ],
+        collapsedFolderIDs: Set<String> = [],
+        displayMode: DisplayMode = .targets,
+        isDisplayModeMenuPresented: Bool = false,
+        sourceRootTarget: SourceRootTarget? = nil
+    ) {
         self.items = items
         self.collapsedFolderIDs = collapsedFolderIDs
         self.displayMode = displayMode
         self.isDisplayModeMenuPresented = isDisplayModeMenuPresented
+        self.sourceRootTarget = sourceRootTarget
     }
 
     private var displayedItems: [Item] {
@@ -707,8 +730,15 @@ final class EditorProjectSidebarViewModel {
     }
 
     private var targetItems: [Item] {
-        let targetRoots = items.filter { item in
+        var targetRoots = items.filter { item in
             item.assetRoot == item.relativePath || isSourceTarget(item)
+        }
+        if let sourceRootTarget,
+           var sourceRoot = items.first(where: { $0.isFolder && $0.relativePath == sourceRootTarget.relativePath }),
+           !targetRoots.contains(where: { $0.id == sourceRoot.id }) {
+            sourceRoot.title = sourceRootTarget.title
+            targetRoots.append(sourceRoot)
+            targetRoots.sort { $0.relativePath.localizedStandardCompare($1.relativePath) == .orderedAscending }
         }
 
         return targetRoots.flatMap { root in
@@ -719,6 +749,9 @@ final class EditorProjectSidebarViewModel {
 
                 var targetItem = item
                 targetItem.level -= root.level
+                if targetItem.id == root.id {
+                    targetItem.title = root.title
+                }
                 return targetItem
             }
         }
@@ -798,6 +831,7 @@ final class EditorWorkbenchViewModel {
     var keywordFontWeight: EditorCodeFontWeight
     var previewStatus: EditorPreviewStatus
     var selectedPreviewID: String?
+    var loadedPreview: EditorLoadedPreview?
 
     @ObservationIgnored
     private var onActiveDocumentChanged: (() -> Void)?
@@ -823,7 +857,8 @@ final class EditorWorkbenchViewModel {
         codeFontWeight: EditorCodeFontWeight = .medium,
         keywordFontWeight: EditorCodeFontWeight = .bold,
         previewStatus: EditorPreviewStatus = .hidden,
-        selectedPreviewID: String? = nil
+        selectedPreviewID: String? = nil,
+        loadedPreview: EditorLoadedPreview? = nil
     ) {
         self.aiPrompt = aiPrompt
         self.hoveredChip = hoveredChip
@@ -838,6 +873,7 @@ final class EditorWorkbenchViewModel {
         self.keywordFontWeight = keywordFontWeight
         self.previewStatus = previewStatus
         self.selectedPreviewID = selectedPreviewID
+        self.loadedPreview = loadedPreview
         if openDocuments.contains(where: { $0.id == activeDocumentID }) {
             self.navigationHistory = [activeDocumentID]
             self.navigationHistoryIndex = 0
@@ -1853,6 +1889,8 @@ final class EditorViewModel {
     @ObservationIgnored
     private var previewTask: Task<Void, Never>?
     @ObservationIgnored
+    private var previewBuildGeneration = 0
+    @ObservationIgnored
     private var adaScriptRuntimeWindow: UIWindow?
     @ObservationIgnored
     private var completionTask: Task<Void, Never>?
@@ -1901,6 +1939,20 @@ final class EditorViewModel {
         playModeState: EditorPlayModeState = .editing,
         autosaveDelay: Duration = .milliseconds(350)
     ) {
+        let savedProject = project.flatMap {
+            try? ProjectSystem.loadProject(at: URL(fileURLWithPath: $0.path, isDirectory: true), fileManager: fileManager)
+        }
+        let sourceRootTarget = savedProject.flatMap { savedProject -> EditorProjectSidebarViewModel.SourceRootTarget? in
+            guard savedProject.build.system.isAdaScript else {
+                return nil
+            }
+            let moduleName = savedProject.runtime.moduleName.isEmpty ? (project?.name ?? "Sources") : savedProject.runtime.moduleName
+            return EditorProjectSidebarViewModel.SourceRootTarget(
+                relativePath: savedProject.paths.sources ?? "Sources",
+                title: moduleName
+            )
+        }
+
         self.project = project
         self.workspaceService = workspaceService
         self.sourceControlService = sourceControlService
@@ -1910,7 +1962,10 @@ final class EditorViewModel {
         self.autosaveDelay = autosaveDelay
         self.toolbar = toolbar
         self.toolStrip = toolStrip
-        self.projectSidebar = projectSidebar ?? EditorProjectSidebarViewModel(items: Self.projectTreeItems(for: project, fileManager: fileManager))
+        self.projectSidebar = projectSidebar ?? EditorProjectSidebarViewModel(
+            items: Self.projectTreeItems(for: project, fileManager: fileManager),
+            sourceRootTarget: sourceRootTarget
+        )
         self.workbench = workbench ?? Self.defaultWorkbench(for: project)
         self.inspectorSidebar = inspectorSidebar
         self.agent = agent ?? EditorAgentViewModel(project: project, fileManager: fileManager)
@@ -1924,7 +1979,6 @@ final class EditorViewModel {
         self.problems = problems
         self.symbolReferences = symbolReferences
         self.selectedRunProduct = selectedRunProduct
-        let savedProject = project.flatMap { try? ProjectSystem.loadProject(at: URL(fileURLWithPath: $0.path, isDirectory: true), fileManager: fileManager) }
         #if os(iOS)
         self.selectedRunDestination = selectedRunDestination ?? .iPadOS
         #else
@@ -1979,6 +2033,9 @@ final class EditorViewModel {
 
             if self.workbench.saveDocument(document) {
                 self.appendOutput("Autosaved \(document.relativePath)")
+                if self.workbench.activeDocumentID == documentID {
+                    self.refreshPreviewForActiveDocument()
+                }
             }
         }
     }
@@ -2947,6 +3004,7 @@ final class EditorViewModel {
     func saveActiveDocument() {
         if workbench.saveActiveDocument() {
             refreshSourceControl()
+            refreshPreviewForActiveDocument()
         }
     }
 
@@ -2997,20 +3055,31 @@ final class EditorViewModel {
         guard let document = activePreviewTextDocument() else {
             workbench.previewStatus = .hidden
             workbench.selectedPreviewID = nil
-            previewTask?.cancel()
+            workbench.loadedPreview = nil
+            cancelPreviewBuild()
             return
         }
 
         let declarations = EditorPreviewScanner.declarations(in: document.content, language: document.language)
         guard !declarations.isEmpty else {
+            if let loadedPreview = workbench.loadedPreview,
+               loadedPreview.documentID == document.id {
+                workbench.selectedPreviewID = loadedPreview.declaration.id
+                buildPreview(loadedPreview.declaration)
+                return
+            }
             workbench.previewStatus = .hidden
             workbench.selectedPreviewID = nil
-            previewTask?.cancel()
+            workbench.loadedPreview = nil
+            cancelPreviewBuild()
             return
         }
 
         let selected = declarations.first { $0.id == workbench.selectedPreviewID } ?? declarations[0]
         workbench.selectedPreviewID = selected.id
+        if workbench.loadedPreview?.matches(documentID: document.id, previewID: selected.id) != true {
+            workbench.loadedPreview = nil
+        }
 
         guard selected.kind == .adaScript || packageModel != nil else {
             workbench.previewStatus = .unavailable("Resolve the SwiftPM workspace before building previews.")
@@ -3190,6 +3259,9 @@ final class EditorViewModel {
             workbench.previewStatus = .unavailable("Preview requires an open project.")
             return
         }
+        if workbench.loadedPreview?.matches(documentID: document.id, previewID: declaration.id) != true {
+            workbench.loadedPreview = nil
+        }
 
         switch declaration.kind {
         case .adaScript:
@@ -3219,7 +3291,7 @@ final class EditorViewModel {
         packageModel: SwiftPackageModel,
         document: EditorTextDocument
     ) {
-        previewTask?.cancel()
+        let generation = beginPreviewBuild()
         workbench.previewStatus = .building(declaration, "Preparing preview build...")
         appendOutput("Building preview \(declaration.title) from \(document.relativePath)")
 
@@ -3236,9 +3308,11 @@ final class EditorViewModel {
             do {
                 let artifact = try await self.previewBuilder.build(request)
                 await MainActor.run {
-                    guard case .text(let activeDocument)? = self.workbench.activeDocument,
-                          activeDocument.id == document.id,
-                          self.workbench.selectedPreviewID == declaration.id
+                    guard self.isCurrentPreviewBuild(
+                        generation,
+                        documentID: document.id,
+                        previewID: declaration.id
+                    )
                     else {
                         return
                     }
@@ -3246,10 +3320,19 @@ final class EditorViewModel {
                     do {
                         self.appendOutputBlock(artifact.buildOutput)
                         let view = try self.previewLibrary.load(artifact: artifact)
+                        self.workbench.loadedPreview = EditorLoadedPreview(
+                            documentID: document.id,
+                            declaration: declaration,
+                            view: view
+                        )
                         self.workbench.previewStatus = .loaded(declaration, view)
                         self.appendOutput("Loaded preview \(declaration.title)")
                     } catch {
-                        self.workbench.previewStatus = .failed(declaration, "Preview load failed. See Build Output for details.", true)
+                        self.workbench.previewStatus = .failed(
+                            declaration,
+                            self.previewFailureMessage(prefix: "Preview load failed", error: error),
+                            true
+                        )
                         self.appendOutput("Preview load failed:")
                         self.appendOutputBlock(String(describing: error))
                     }
@@ -3257,7 +3340,18 @@ final class EditorViewModel {
                 }
             } catch {
                 await MainActor.run {
-                    self.workbench.previewStatus = .failed(declaration, "Preview build failed. See Build Output for details.", true)
+                    guard self.isCurrentPreviewBuild(
+                        generation,
+                        documentID: document.id,
+                        previewID: declaration.id
+                    ) else {
+                        return
+                    }
+                    self.workbench.previewStatus = .failed(
+                        declaration,
+                        self.previewFailureMessage(prefix: "Preview build failed", error: error),
+                        true
+                    )
                     self.appendOutput("Preview build failed:")
                     self.appendOutputBlock(String(describing: error))
                     self.previewTask = nil
@@ -3272,7 +3366,7 @@ final class EditorViewModel {
         packageModel: SwiftPackageModel?,
         document: EditorTextDocument
     ) {
-        previewTask?.cancel()
+        let generation = beginPreviewBuild()
         workbench.previewStatus = .building(declaration, "Preparing AdaScript preview...")
         appendOutput("Building AdaScript preview \(declaration.title) from \(document.relativePath)")
 
@@ -3295,23 +3389,80 @@ final class EditorViewModel {
                 )
                 let view = UIContainerView(rootView: rootView)
 
-                guard case .text(let activeDocument)? = self.workbench.activeDocument,
-                      activeDocument.id == document.id,
-                      self.workbench.selectedPreviewID == declaration.id else {
+                guard self.isCurrentPreviewBuild(
+                    generation,
+                    documentID: document.id,
+                    previewID: declaration.id
+                ) else {
                     return
                 }
+                self.workbench.loadedPreview = EditorLoadedPreview(
+                    documentID: document.id,
+                    declaration: declaration,
+                    view: view
+                )
                 self.workbench.previewStatus = .loaded(declaration, view)
                 self.appendOutput("Loaded AdaScript preview \(declaration.title)")
                 self.previewTask = nil
             } catch is CancellationError {
-                self.previewTask = nil
+                if generation == self.previewBuildGeneration {
+                    self.previewTask = nil
+                }
             } catch {
-                self.workbench.previewStatus = .failed(declaration, "AdaScript preview failed. See Build Output for details.", true)
+                guard self.isCurrentPreviewBuild(
+                    generation,
+                    documentID: document.id,
+                    previewID: declaration.id
+                ) else {
+                    return
+                }
+                self.workbench.previewStatus = .failed(
+                    declaration,
+                    self.previewFailureMessage(prefix: "AdaScript preview failed", error: error),
+                    true
+                )
                 self.appendOutput("AdaScript preview failed:")
                 self.appendOutputBlock(String(describing: error))
                 self.previewTask = nil
             }
         }
+    }
+
+    private func beginPreviewBuild() -> Int {
+        previewTask?.cancel()
+        previewBuildGeneration += 1
+        return previewBuildGeneration
+    }
+
+    private func cancelPreviewBuild() {
+        previewTask?.cancel()
+        previewTask = nil
+        previewBuildGeneration += 1
+    }
+
+    private func isCurrentPreviewBuild(_ generation: Int, documentID: String, previewID: String) -> Bool {
+        guard generation == previewBuildGeneration,
+              case .text(let activeDocument)? = workbench.activeDocument
+        else {
+            return false
+        }
+        return activeDocument.id == documentID && workbench.selectedPreviewID == previewID
+    }
+
+    private func previewFailureMessage(prefix: String, error: any Error) -> String {
+        let detail = String(describing: error)
+            .split(whereSeparator: \.isNewline)
+            .first
+            .map(String.init)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let detail, !detail.isEmpty else {
+            return "\(prefix). See Build Output for details."
+        }
+        let maximumDetailLength = 220
+        let displayedDetail = detail.count > maximumDetailLength
+            ? "\(detail.prefix(maximumDetailLength))…"
+            : detail
+        return "\(prefix): \(displayedDetail)"
     }
 
     private func executeSourceControlCommand(

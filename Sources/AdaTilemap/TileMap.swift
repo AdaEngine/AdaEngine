@@ -29,6 +29,9 @@ public class TileMap: @unsafe Asset, @unchecked Sendable {
     /// A Boolean value indicating whether the tile map needs to be updated.
     internal private(set) var needsUpdate: Bool = false
 
+    /// The revision of the tile map's renderable state.
+    internal private(set) var updateRevision: UInt64 = 0
+
     /// Initialize a new tile map.
     public init() {
         self.tileSetDidChange()
@@ -108,6 +111,7 @@ public class TileMap: @unsafe Asset, @unchecked Sendable {
         }
 
         self.layers.remove(at: index)
+        self.setNeedsUpdate()
     }
 
     /// Set a cell for a layer.
@@ -145,8 +149,11 @@ public class TileMap: @unsafe Asset, @unchecked Sendable {
     /// Set the tile map needs update.
     ///
     /// - Parameter updateLayers: A Boolean value indicating whether the layers need to be updated.
-    func setNeedsUpdate(updateLayers: Bool = false) {
+    func setNeedsUpdate(updateLayers: Bool = false, advanceRevision: Bool = true) {
         self.needsUpdate = true
+        if advanceRevision {
+            self.updateRevision &+= 1
+        }
 
         if updateLayers {
             self.layers.forEach { $0.setNeedsUpdate() }

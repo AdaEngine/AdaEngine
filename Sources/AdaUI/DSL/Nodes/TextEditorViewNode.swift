@@ -289,7 +289,14 @@ final class TextEditorViewNode: ViewNode {
         }
 
         let extendSelection = event.modifiers.contains(.shift)
+        #if os(macOS) || os(iOS) || os(tvOS) || os(visionOS)
+        let movesToLineBoundary = event.modifiers.contains(.main)
+        let movesByWordBoundary = event.modifiers.contains(.alt)
+        #else
+        let movesToLineBoundary = false
         let movesByWordBoundary = event.modifiers.contains(.main)
+            || event.modifiers.contains(.control)
+        #endif
 
         switch event.keyCode {
         case .enter:
@@ -297,13 +304,17 @@ final class TextEditorViewNode: ViewNode {
         case .tab:
             self.insertText("    ")
         case .arrowLeft:
-            if movesByWordBoundary {
+            if movesToLineBoundary {
+                self.moveCaretToLineStart(extendSelection: extendSelection)
+            } else if movesByWordBoundary {
                 self.moveCaretByWordBoundary(direction: -1, extendSelection: extendSelection)
             } else {
                 self.moveCaretHorizontally(delta: -1, extendSelection: extendSelection)
             }
         case .arrowRight:
-            if movesByWordBoundary {
+            if movesToLineBoundary {
+                self.moveCaretToLineEnd(extendSelection: extendSelection)
+            } else if movesByWordBoundary {
                 self.moveCaretByWordBoundary(direction: 1, extendSelection: extendSelection)
             } else {
                 self.moveCaretHorizontally(delta: 1, extendSelection: extendSelection)
@@ -313,7 +324,7 @@ final class TextEditorViewNode: ViewNode {
         case .arrowDown:
             self.moveCaretVertically(delta: 1, extendSelection: extendSelection)
         case .home:
-            if movesByWordBoundary {
+            if event.modifiers.contains(.main) {
                 self.moveCaretToDocumentStart(extendSelection: extendSelection)
             } else {
                 self.moveCaretToLineStart(extendSelection: extendSelection)

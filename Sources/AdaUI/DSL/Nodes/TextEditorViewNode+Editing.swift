@@ -127,6 +127,14 @@ extension TextEditorViewNode {
         self.preferredColumn = nil
     }
 
+    func moveCaretToLineEnd(extendSelection: Bool) {
+        let lines = self.lines()
+        let position = self.position(forOffset: self.caretOffset, lines: lines)
+        let line = lines[position.line]
+        self.moveCaret(to: line.startOffset + line.text.count, extendSelection: extendSelection)
+        self.preferredColumn = nil
+    }
+
     func moveCaret(to offset: Int, extendSelection: Bool) {
         if extendSelection {
             self.selectionHead = max(0, min(offset, self.text.count))

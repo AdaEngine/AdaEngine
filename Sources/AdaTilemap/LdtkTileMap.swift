@@ -231,7 +231,9 @@ extension LDtk {
             }
 
             if currentProject?.defs.layers != project.defs.layers {
-                self.layers.removeAll()
+                for layer in self.layers {
+                    self.removeLayer(layer)
+                }
 
                 /// Add layers from project to tile map.
                 for layer in project.defs.layers {

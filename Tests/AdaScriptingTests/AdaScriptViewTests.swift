@@ -1,5 +1,5 @@
 @testable import AdaRender
-import AdaScripting
+@testable import AdaScripting
 @testable import AdaUI
 import Math
 import Testing
@@ -49,6 +49,99 @@ struct AdaScriptViewTests {
         let root = try #require(container.uiTreeRoots().first)
         #expect(flatten(root).contains { $0.accessibilityIdentifier == "welcome-root" })
         #expect(flatten(root).filter { $0.viewType.contains("AdaUI.Text") }.count == 2)
+    }
+
+    @Test("Integer and decimal font sizes produce the same laid out text")
+    func integerFontSizePreservesTextLayout() throws {
+        let view = try AdaScriptView(
+            sources: [
+                AdaScriptSource(
+                    path: "Views/Numeric.ada",
+                    source: """
+                    @view
+                    class NumericView {
+                        func body() {
+                            VStack(spacing: 12) {
+                                Text("Hello").fontSize(28);
+                                Text("Hello").fontSize(28.0);
+                                Text("Plain");
+                            }
+                            .padding(24);
+                        }
+                    }
+                    """
+                )
+            ],
+            identifier: "NumericView"
+        )
+        let container = UIContainerView(rootView: view)
+        container.frame.size = Size(width: 280, height: 180)
+        container.layoutSubviews()
+
+        let root = try #require(container.uiTreeRoots().first)
+        let textNodes = flatten(root).filter { $0.viewType.contains("AdaUI.Text") }
+        #expect(textNodes.count == 3)
+        guard textNodes.count == 3 else {
+            return
+        }
+
+        let integerNode = textNodes[0]
+        let decimalNode = textNodes[1]
+        let plainNode = textNodes[2]
+        #expect(integerNode.frame.height > 0)
+        #expect(integerNode.absoluteFrame.size == decimalNode.absoluteFrame.size)
+        #expect(integerNode.absoluteFrame.height > plainNode.absoluteFrame.height)
+        #expect(decimalNode.absoluteFrame.minY > integerNode.absoluteFrame.maxY)
+        #expect(plainNode.absoluteFrame.minY > decimalNode.absoluteFrame.maxY)
+
+        let nativeText = try #require(findTextNode(in: container.viewTree.rootNode))
+        #expect(nativeText.environment.font?.pointSize == 28)
+        let context = UIGraphicsContext()
+        nativeText.draw(with: context)
+        #expect(context.getDrawCommands().contains { command in
+            guard case let .drawGlyph(glyph, _, _) = command else { return false }
+            return glyph.position.z > glyph.position.x && glyph.position.w > glyph.position.y
+        })
+    }
+
+    @Test("Numeric modifiers preserve integer and fractional values", arguments: [false, true])
+    func numericModifiersPreserveValues(fractional: Bool) throws {
+        func literal(_ value: Int) -> String { "\(value)" + (fractional ? ".5" : "") }
+        let sources = [AdaScriptSource(path: "Numeric.ada", source: """
+        @view class NumericView {
+            func body() {
+                VStack(spacing: \(literal(12))) {
+                    Text("Hello").fontSize(\(literal(28))).padding(\(literal(24)))
+                        .frame(\(literal(120)), \(literal(80))).opacity(\(fractional ? "0.5" : "1"));
+                    Spacer(\(literal(16)));
+                };
+            }
+        }
+        """)]
+        let runtime = try AdaScriptViewModuleRuntime(
+            sources: sources,
+            views: AdaScriptViewScanner.declarations(in: sources)
+        )
+        let storage = try runtime.makeStorage(identifier: "NumericView")
+        try storage.updateEnvironment([:])
+        let model = try #require(storage.model)
+        guard case let .vStack(children, spacing) = model.content else {
+            Issue.record("Expected a VStack from the script")
+            return
+        }
+        try #require(children.count == 2)
+        let fraction: Float = fractional ? 0.5 : 0
+        #expect(spacing == 12 + fraction)
+        #expect(children[0].style.fontSize == 28 + fraction)
+        #expect(children[0].style.padding == 24 + fraction)
+        #expect(children[0].style.width == 120 + fraction)
+        #expect(children[0].style.height == 80 + fraction)
+        #expect(children[0].style.opacity == (fractional ? 0.5 : 1))
+        guard case let .spacer(minLength) = children[1].content else {
+            Issue.record("Expected a Spacer from the script")
+            return
+        }
+        #expect(minLength == 16 + fraction)
     }
 
     @Test("Requires body() to return a view value")
@@ -136,5 +229,10 @@ struct AdaScriptViewTests {
         }
         values += node.transientEnvironmentChildren.flatMap(textValues)
         return values
+    }
+
+    private func findTextNode(in node: ViewNode) -> TextViewNode? {
+        if let textNode = node as? TextViewNode { return textNode }
+        return node.transientEnvironmentChildren.lazy.compactMap { findTextNode(in: $0) }.first
     }
 }

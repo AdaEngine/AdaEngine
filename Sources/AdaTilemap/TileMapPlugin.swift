@@ -49,36 +49,57 @@ public struct TileMapSystem: Sendable {
         tileMap.forEach { entity, tileMapComponent, transform in
             let tileMap = tileMapComponent.tileMap
 
-            if !tileMap.needsUpdate {
+            let displaySizeChanged = tileMapComponent.lastRenderedTileDisplaySize != tileMapComponent.tileDisplaySize
+            let mapIdentityChanged = tileMapComponent.lastRenderedTileMapID != ObjectIdentifier(tileMap)
+            let mapRevisionChanged = tileMapComponent.lastRenderedTileMapRevision != tileMap.updateRevision
+            let layerRevisionChanged = tileMap.layers.contains {
+                tileMapComponent.lastRenderedLayerRevisions[$0.id] != $0.updateRevision
+            }
+            guard tileMap.needsUpdate || displaySizeChanged || mapIdentityChanged || mapRevisionChanged || layerRevisionChanged else {
                 return
             }
 
-            for layer in tileMap.layers {
-                if
-                    let entityId = tileMapComponent.tileLayers[layer.id],
-                    let entity = context.world.getEntityByID(entityId)
-                {
-                    self.setEntityActive(entity, isActive: layer.isEnabled)
+            if mapIdentityChanged {
+                for rootID in tileMapComponent.tileLayers.values {
+                    self.removeTileRoot(rootID)
                 }
+                tileMapComponent.tileLayers.removeAll()
+                tileMapComponent.lastRenderedLayerRevisions.removeAll()
+            }
 
+            let layerIDs = Set(tileMap.layers.map(\.id))
+            let removedLayers = tileMapComponent.tileLayers.filter { !layerIDs.contains($0.key) }
+            for (layerID, rootID) in removedLayers {
+                self.removeTileRoot(rootID)
+                tileMapComponent.tileLayers[layerID] = nil
+                tileMapComponent.lastRenderedLayerRevisions[layerID] = nil
+            }
+
+            for layer in tileMap.layers {
                 self.addTiles(
                     for: layer,
                     tileMapComponent: tileMapComponent,
                     transform: transform,
                     entity: entity,
-                    world: context.world
+                    forceUpdate: displaySizeChanged
+                        || mapIdentityChanged
+                        || mapRevisionChanged
+                        || tileMapComponent.lastRenderedLayerRevisions[layer.id] != layer.updateRevision
                 )
+                tileMapComponent.lastRenderedLayerRevisions[layer.id] = layer.updateRevision
             }
             tileMap.updateDidFinish()
+            tileMapComponent.lastRenderedTileMapID = ObjectIdentifier(tileMap)
+            tileMapComponent.lastRenderedTileMapRevision = tileMap.updateRevision
+            tileMapComponent.lastRenderedTileDisplaySize = tileMapComponent.tileDisplaySize
         }
     }
 
-    private func setEntityActive(_ entity: Entity, isActive: Bool) {
-        entity.isActive = isActive
-
-        for child in entity.children {
-            child.isActive = isActive
+    private func removeTileRoot(_ entityID: Entity.ID) {
+        commands.queue.push { world in
+            world.getEntityByID(entityID)?.removeFromParent()
         }
+        commands.entity(entityID).removeFromWorld(recursively: true)
     }
 
     private func addTiles(
@@ -86,7 +107,7 @@ public struct TileMapSystem: Sendable {
         tileMapComponent: Ref<TileMapComponent>,
         transform: Transform,
         entity: Entity,
-        world: World
+        forceUpdate: Bool
     ) {
         let tileSize = tileMapComponent.wrappedValue.tileDisplaySize
         guard let tileSet = layer.tileSet else {
@@ -96,14 +117,27 @@ public struct TileMapSystem: Sendable {
             return
         }
 
-        if layer.needUpdates {
+        if layer.needUpdates || forceUpdate {
             if let entity = tileMapComponent.tileLayers[layer.id] {
-                commands.entity(entity).removeFromWorld(recursively: true)
+                self.removeTileRoot(entity)
             }
 
-            let tileParent = commands.spawn("TileRoot<\((layer.id, layer.name))>") {
+            let tileParent = Entity(name: "TileRoot<\((layer.id, layer.name))>") {
                 RelationshipComponent()
                 Transform()
+            }
+            tileParent.isActive = layer.isEnabled
+            _ = commands.insertEntity(tileParent)
+            let tileParentID = tileParent.id
+            let ownerID = entity.id
+            commands.queue.push { world in
+                guard
+                    let owner = world.getEntityByID(ownerID),
+                    let parent = world.getEntityByID(tileParentID)
+                else {
+                    return
+                }
+                owner.addChild(parent)
             }
 
             for (position, tile) in layer.tileCells {
@@ -117,9 +151,9 @@ public struct TileMapSystem: Sendable {
 
                 let tileData = source.getTileData(at: tile.atlasCoordinates)
                 let position = Vector3(
-                    x: transform.position.x + Float(position.x) * tileSize.width,
-                    y: transform.position.y + Float(position.y) * tileSize.height,
-                    z: transform.position.z + Float(layer.zIndex)
+                    x: Float(position.x) * tileSize.width,
+                    y: Float(position.y) * tileSize.height,
+                    z: Float(layer.zIndex)
                 )
 
                 let tileEntity: Entity
@@ -150,6 +184,8 @@ public struct TileMapSystem: Sendable {
                     continue
                 }
 
+                tileEntity.isActive = layer.isEnabled
+
 //                if tileData.useCollisition {
 //                    tileEntity.components += Collision2DComponent(
 //                        shapes: [.generateBox()],
@@ -160,9 +196,19 @@ public struct TileMapSystem: Sendable {
 //                    )
 //                }
 
-                tileParent.addChild(tileEntity)
+                _ = commands.insertEntity(tileEntity)
+                let tileEntityID = tileEntity.id
+                commands.queue.push { world in
+                    guard
+                        let parent = world.getEntityByID(tileParentID),
+                        let child = world.getEntityByID(tileEntityID)
+                    else {
+                        return
+                    }
+                    parent.addChild(child)
+                }
             }
-            tileMapComponent.tileLayers[layer.id] = tileParent.entityId
+            tileMapComponent.tileLayers[layer.id] = tileParentID
             layer.updateDidFinish()
         }
     }
