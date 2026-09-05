@@ -244,7 +244,7 @@ enum ProjectOpenPicker {
     }
 
     @MainActor
-    private static func retainSecurityScopedAccess(to url: URL) -> URL {
+    static func retainSecurityScopedAccess(to url: URL) -> URL {
         let standardizedURL = url.standardizedFileURL
         let key = standardizedURL.path
         if securityScopedAccesses[key] == nil {

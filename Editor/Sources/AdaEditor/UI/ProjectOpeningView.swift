@@ -113,6 +113,7 @@ struct ProjectOpeningView: View {
             ProjectEditorLauncher.openEditor(for: project)
         }
         .onAppear {
+            let didRouteIncomingProject = EditorProjectOpenURLRouter.shared.attach(viewModel)
             EditorMenuCommandRouter.shared.install(owner: viewModel) { [weak viewModel] command in
                 guard let viewModel else { return false }
                 switch command {
@@ -135,9 +136,12 @@ struct ProjectOpeningView: View {
             if initiallyCreatingProject {
                 viewModel.beginCreateNewProject()
             }
-            openLastProjectOnLaunchIfNeeded()
+            if !didRouteIncomingProject {
+                openLastProjectOnLaunchIfNeeded()
+            }
         }
         .onDisappear {
+            EditorProjectOpenURLRouter.shared.detach(viewModel)
             EditorMenuCommandRouter.shared.uninstall(owner: viewModel)
         }
     }

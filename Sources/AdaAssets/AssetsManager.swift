@@ -5,10 +5,12 @@
 //  Created by v.prusakov on 6/19/22.
 //
 
+@_spi(Internal) import AdaApp
 import AdaECS
 import AdaUtils
 import Foundation
 import Logging
+import Synchronization
 import Tracing
 
 #if WASM && canImport(JavaScriptFoundationCompat) && canImport(JavaScriptKit)
@@ -32,7 +34,7 @@ public enum AssetError: LocalizedError {
 }
 
 // TODO: In the future, we should compile assets into binary
-// TODO: Remove unsafe and statics
+// TODO: Remove static convenience APIs
 
 /// Manager using for loading and saving assets in file system.
 /// Each asset loaded from manager stored in memory cache.
@@ -66,27 +68,20 @@ public struct AssetsManager: Resource {
 
     private static let logger = Logger(label: "org.adaengine.AssetsManager")
 
-    private nonisolated(unsafe) static var resourceDirectory: URL!
-
     private static let resKeyWord = "@res://"
     nonisolated(unsafe) private static var registredAssetTypes: [String: any Asset.Type] = [:]
 
     @AssetActor
-    private static var storage: AssetsStorage = AssetsStorage()
+    private static var defaultScopeState = AssetsScopeState()
 
     @AssetActor
-    private static var fileWatcher: FileWatcher?
+    private static var scopeStates: [UUID: AssetsScopeState] = [:]
 
-    /// If hot reloading is enabled, the file watcher will be started.
-    /// Default value is true.
-    @AssetActor
-    private static var isHotReloadingEnabled: Bool = true {
-        didSet {
-            self.updateHotReloadingAssets()
-        }
+    private static let scopeConfigurations = Mutex(AssetsScopeConfigurations())
+
+    static var projectDirectories: ProjectDirectories! {
+        currentProjectDirectories
     }
-
-    nonisolated(unsafe) static var projectDirectories: ProjectDirectories!
 
     // MARK: - LOADING -
 
@@ -130,7 +125,7 @@ public struct AssetsManager: Resource {
         }
         
         if handleChanges {
-            self.storage.hotReloadingAssets[path, default: []].insert(
+            self.scopeState.storage.hotReloadingAssets[path, default: []].insert(
                 HotReloadingAsset(
                     path: processedPath,
                     resource: A.self,
@@ -143,7 +138,7 @@ public struct AssetsManager: Resource {
         
         let resource: A = try await self.load(from: processedPath, originalPath: path, bundle: nil)
         let handle = AssetHandle(resource)
-        self.storage.loadedAssets[path, default: []].insert(WeakBox(handle))
+        self.scopeState.storage.loadedAssets[path, default: []].insert(WeakBox(handle))
 
         return handle
     }
@@ -173,8 +168,11 @@ public struct AssetsManager: Resource {
         _ type: R.Type,
         at path: String
     ) throws -> AssetHandle<R> {
+        let scopeID = AppWorldsExecutionContext.currentID
         let task = UnsafeTask<AssetHandle<R>> {
-            return try await load(type, at: path)
+            try await AppWorldsExecutionContext.$currentID.withValue(scopeID) {
+                try await load(type, at: path)
+            }
         }
 
         return try task.get()
@@ -224,7 +222,7 @@ public struct AssetsManager: Resource {
             bundle: bundle
         )
         let handle = AssetHandle(resource)
-        self.storage.loadedAssets[path, default: []].insert(WeakBox(handle))
+        self.scopeState.storage.loadedAssets[path, default: []].insert(WeakBox(handle))
 
         return handle
     }
@@ -257,8 +255,11 @@ public struct AssetsManager: Resource {
         at path: String,
         from bundle: Bundle
     ) throws -> AssetHandle<R> {
+        let scopeID = AppWorldsExecutionContext.currentID
         let task = UnsafeTask<AssetHandle<R>> {
-            return try await load(type, at: path, from: bundle)
+            try await AppWorldsExecutionContext.$currentID.withValue(scopeID) {
+                try await load(type, at: path, from: bundle)
+            }
         }
 
         return try task.get()
@@ -333,13 +334,13 @@ public struct AssetsManager: Resource {
     /// Unload specific resource type from memory.
     @AssetActor
     public static func unload<R: Asset>(_ res: R.Type, at path: String) {
-        let loadedAssetIndex = self.storage.loadedAssets[path, default: []].firstIndex(where: {
+        let loadedAssetIndex = self.scopeState.storage.loadedAssets[path, default: []].firstIndex(where: {
             $0.value is AssetHandle<R>
         })
         if let loadedAssetIndex {
-            self.storage.loadedAssets[path]?.remove(at: loadedAssetIndex)
+            self.scopeState.storage.loadedAssets[path]?.remove(at: loadedAssetIndex)
         }
-        self.storage.hotReloadingAssets[path] = nil
+        self.scopeState.storage.hotReloadingAssets[path] = nil
         self.updateFileWatcher()
     }
 
@@ -361,7 +362,7 @@ public struct AssetsManager: Resource {
 
     @AssetActor
     public static func cachedAssets() -> [CachedAssetInfo] {
-        storage.loadedAssets.flatMap { path, handles in
+        scopeState.storage.loadedAssets.flatMap { path, handles in
             let grouped = Dictionary(grouping: handles.compactMap { $0.value as? AnyAssetHandleInfo }) {
                 $0.assetTypeName
             }
@@ -393,8 +394,14 @@ public struct AssetsManager: Resource {
             try FileSystem.current.createDirectory(at: url, withIntermediateDirectories: true)
         }
 
-        unsafe self.resourceDirectory = url
-        self.storage.loadedAssets.removeAll()
+        setProjectDirectories(
+            ProjectDirectories(
+                source: url.deletingLastPathComponent(),
+                assetsDirectory: url
+            ),
+            scopeID: AppWorldsExecutionContext.currentID
+        )
+        self.scopeState.storage.loadedAssets.removeAll()
     }
 
     public static func resolveProjectDirectories(
@@ -415,29 +422,36 @@ public struct AssetsManager: Resource {
     // TODO: (Vlad) where we should call this method in embeddable view?
     // TODO: (Vlad) We must set current dev path to the asset manager
     @_spi(AdaEngine)
-    public static func initialize(filePath: StaticString, assetBundleResourceURL: URL? = nil) throws {
+    public static func initialize(
+        filePath: StaticString,
+        assetBundleResourceURL: URL? = nil,
+        scopeID: UUID? = AppWorldsExecutionContext.currentID
+    ) throws {
         if let resources = assetBundleResourceURL {
-            unsafe self.resourceDirectory = resources
-            unsafe self.projectDirectories = ProjectDirectories(
-                source: resources.deletingLastPathComponent(),
-                assetsDirectory: resources
+            setProjectDirectories(
+                ProjectDirectories(
+                    source: resources.deletingLastPathComponent(),
+                    assetsDirectory: resources
+                ),
+                scopeID: scopeID
             )
             return
         }
 
         #if WASM
         let resources = URL(string: "Assets")!
-        unsafe self.resourceDirectory = resources
-        unsafe self.projectDirectories = ProjectDirectories(
-            source: URL(string: ".")!,
-            assetsDirectory: resources
+        setProjectDirectories(
+            ProjectDirectories(
+                source: URL(string: ".")!,
+                assetsDirectory: resources
+            ),
+            scopeID: scopeID
         )
         #else
         let projectDirectories = try resolveProjectDirectories(filePath: filePath)
-        unsafe self.projectDirectories = projectDirectories
 
         #if DEBUG
-            unsafe self.resourceDirectory = projectDirectories.assetsDirectory
+            setProjectDirectories(projectDirectories, scopeID: scopeID)
         #else
             let fileSystem = FileSystem.current
             let resources = projectDirectories.assetsDirectory
@@ -446,7 +460,7 @@ public struct AssetsManager: Resource {
                 try fileSystem.createDirectory(at: resources, withIntermediateDirectories: true)
             }
 
-            unsafe self.resourceDirectory = resources
+            setProjectDirectories(projectDirectories, scopeID: scopeID)
         #endif
         #endif
     }
@@ -454,17 +468,36 @@ public struct AssetsManager: Resource {
     @_spi(AdaEngine)
     @AssetActor
     public static func processResources() async throws {
-        for (path, assets) in self.storage.hotReloadingAssets {
+        for (path, assets) in self.scopeState.storage.hotReloadingAssets {
             for asset in assets where asset.needsUpdate {
-                guard let loadedAssets = self.storage.loadedAssets[path] else {
+                guard let loadedAssets = self.scopeState.storage.loadedAssets[path] else {
                     logger.error("Resource \(asset.resource) is not found")
-                    self.storage.hotReloadingAssets[path] = nil
+                    self.scopeState.storage.hotReloadingAssets[path] = nil
                     continue
                 }
 
                 await process(loadedAssets: loadedAssets, at: path, asset: asset)
             }
         }
+    }
+
+    /// Releases cache and hot-reload state owned by a finished app-world session.
+    @_spi(Internal)
+    @AssetActor
+    public static func destroyScope(_ scopeID: UUID) {
+        if let state = scopeStates.removeValue(forKey: scopeID) {
+            state.fileWatcher?.stop()
+        }
+        scopeConfigurations.withLock { configurations in
+            configurations.directoriesByScope[scopeID] = nil
+        }
+    }
+
+    static func withScope<Result>(
+        _ scopeID: UUID,
+        operation: () async throws -> Result
+    ) async rethrows -> Result {
+        try await AppWorldsExecutionContext.$currentID.withValue(scopeID, operation: operation)
     }
 
     @AssetActor
@@ -481,7 +514,7 @@ public struct AssetsManager: Resource {
             defer {
                 var asset = asset
                 asset.needsUpdate = false
-                self.storage.hotReloadingAssets[path]?.insert(asset)
+                self.scopeState.storage.hotReloadingAssets[path]?.insert(asset)
             }
 
             do {
@@ -503,11 +536,12 @@ public struct AssetsManager: Resource {
 
     @AssetActor
     private static func updateHotReloadingAssets() {
+        let state = self.scopeState
         do {
-            if self.isHotReloadingEnabled {
-                try self.fileWatcher?.start()
+            if state.isHotReloadingEnabled {
+                try state.fileWatcher?.start()
             } else {
-                self.fileWatcher?.stop()
+                state.fileWatcher?.stop()
             }
         } catch {
             logger.error("Error updating hot reloading assets: \(error)")
@@ -622,6 +656,42 @@ public struct AssetsManager: Resource {
         true
         #endif
     }
+
+    private static var currentProjectDirectories: ProjectDirectories? {
+        let scopeID = AppWorldsExecutionContext.currentID
+        return scopeConfigurations.withLock { configurations in
+            guard let scopeID else {
+                return configurations.defaultDirectories
+            }
+            return configurations.directoriesByScope[scopeID]
+        }
+    }
+
+    private static func setProjectDirectories(
+        _ projectDirectories: ProjectDirectories,
+        scopeID: UUID?
+    ) {
+        scopeConfigurations.withLock { configurations in
+            if let scopeID {
+                configurations.directoriesByScope[scopeID] = projectDirectories
+            } else {
+                configurations.defaultDirectories = projectDirectories
+            }
+        }
+    }
+
+    @AssetActor
+    private static var scopeState: AssetsScopeState {
+        guard let scopeID = AppWorldsExecutionContext.currentID else {
+            return defaultScopeState
+        }
+        if let state = scopeStates[scopeID] {
+            return state
+        }
+        let state = AssetsScopeState()
+        scopeStates[scopeID] = state
+        return state
+    }
 }
 
 extension AssetsManager {
@@ -661,7 +731,7 @@ extension AssetsManager {
         path: String,
         resourceType: A.Type
     ) -> WeakBox<AnyObject>? {
-        self.storage.loadedAssets[path]?.first(where: { $0.value is AssetHandle<A> })
+        self.scopeState.storage.loadedAssets[path]?.first(where: { $0.value is AssetHandle<A> })
     }
 
     /// Replace tag `@res://` to relative path or create url from given path.
@@ -671,7 +741,9 @@ extension AssetsManager {
 
         if path.hasPrefix(self.resKeyWord) && !path.hasPrefix("file://") {
             path.removeFirst(self.resKeyWord.count)
-            url = unsafe self.resourceDirectory.appendingPathComponent(path)
+            let resourceDirectory = currentProjectDirectories?.assetsDirectory
+                ?? URL(fileURLWithPath: ".", isDirectory: true)
+            url = resourceDirectory.appendingPathComponent(path)
         } else {
             url = path.hasPrefix("file://") ? URL(string: path)! : URL(fileURLWithPath: path)
         }
@@ -691,13 +763,14 @@ extension AssetsManager {
 
     @AssetActor
     private static func updateFileWatcher() {
-        if self.storage.hotReloadingAssets.values.isEmpty {
+        let state = self.scopeState
+        if state.storage.hotReloadingAssets.values.isEmpty {
             return
         }
 
         // Collect unique directory paths - on Windows, FileWatcher needs directories, not files
         var watchedDirectories = Set<String>()
-        for (_, asset) in self.storage.hotReloadingAssets {
+        for (_, asset) in state.storage.hotReloadingAssets {
             guard let firstAsset = asset.first else {
                 continue
             }
@@ -727,36 +800,40 @@ extension AssetsManager {
             return
         }
 
-        if self.fileWatcher?.paths == watchedPaths {
+        if state.fileWatcher?.paths == watchedPaths {
             return
         }
 
-        self.fileWatcher = FileWatcher(
+        let scopeID = AppWorldsExecutionContext.currentID
+        state.fileWatcher = FileWatcher(
             paths: watchedPaths,
             latency: 0.1,
             block: { fsPaths in
                 // Dispatch to AssetActor to avoid race conditions
                 Task { @AssetActor in
-                    for path in fsPaths {
-                        // Resolve symlinks in incoming paths as well for consistent matching
-                        let resolvedDirectoryPath = URL(fileURLWithPath: path.pathString)
-                            .resolvingSymlinksInPath().path
-
-                        // Find all assets in this directory and mark them for update
-                        for (assetPath, assets) in self.storage.hotReloadingAssets {
-                            guard let firstAsset = assets.first else {
-                                continue
-                            }
-                            let assetDirectoryPath = firstAsset.path.url.deletingLastPathComponent()
+                    AppWorldsExecutionContext.$currentID.withValue(scopeID) {
+                        let state = self.scopeState
+                        for path in fsPaths {
+                            // Resolve symlinks in incoming paths as well for consistent matching
+                            let resolvedDirectoryPath = URL(fileURLWithPath: path.pathString)
                                 .resolvingSymlinksInPath().path
 
-                            // Check if this asset is in the changed directory
-                            if assetDirectoryPath == resolvedDirectoryPath {
-                                for var asset in assets {
-                                    asset.needsUpdate = true
-                                    self.storage.hotReloadingAssets[assetPath]?.insert(asset)
+                            // Find all assets in this directory and mark them for update
+                            for (assetPath, assets) in state.storage.hotReloadingAssets {
+                                guard let firstAsset = assets.first else {
+                                    continue
                                 }
-                                logger.info("Marked asset at path \(assetPath) for hot reload.")
+                                let assetDirectoryPath = firstAsset.path.url.deletingLastPathComponent()
+                                    .resolvingSymlinksInPath().path
+
+                                // Check if this asset is in the changed directory
+                                if assetDirectoryPath == resolvedDirectoryPath {
+                                    for var asset in assets {
+                                        asset.needsUpdate = true
+                                        state.storage.hotReloadingAssets[assetPath]?.insert(asset)
+                                    }
+                                    logger.info("Marked asset at path \(assetPath) for hot reload.")
+                                }
                             }
                         }
                     }
@@ -765,8 +842,8 @@ extension AssetsManager {
         )
 
         do {
-            if self.isHotReloadingEnabled {
-                try self.fileWatcher?.start()
+            if state.isHotReloadingEnabled {
+                try state.fileWatcher?.start()
                 logger.info("Started file watcher for paths: \(watchedPaths)")
             }
         } catch {
@@ -812,6 +889,17 @@ extension AssetsManager {
             hasher.combine(self.needsUpdate)
         }
     }
+}
+
+private struct AssetsScopeConfigurations: Sendable {
+    var defaultDirectories: ProjectDirectories?
+    var directoriesByScope: [UUID: ProjectDirectories] = [:]
+}
+
+private final class AssetsScopeState {
+    var storage = AssetsManager.AssetsStorage()
+    var fileWatcher: FileWatcher?
+    var isHotReloadingEnabled = true
 }
 
 /// Actor for loading and saving resources.

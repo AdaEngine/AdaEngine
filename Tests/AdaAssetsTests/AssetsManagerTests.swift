@@ -1,9 +1,8 @@
-
-import Foundation
-import Testing
-import AdaUtils
 @testable @_spi(AdaEngine) import AdaAssets
+import AdaUtils
+import Foundation
 import Math
+import Testing
 
 // TODO: We should fix tests
 
@@ -51,6 +50,44 @@ struct AssetsManagerTests: Sendable {
         let resolved = AssetsManager.resolveAssetURL(at: "@res://sprites/hero.png")
 
         #expect(resolved == assetsURL.appendingPathComponent("sprites/hero.png"))
+    }
+
+    @Test("Asset scopes isolate resource roots and caches")
+    func assetScopesIsolateResourceRootsAndCaches() async throws {
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AssetsManagerScopes-\(UUID().uuidString)", isDirectory: true)
+        let editorAssetsURL = rootURL.appendingPathComponent("EditorAssets", isDirectory: true)
+        let runtimeAssetsURL = rootURL.appendingPathComponent("RuntimeAssets", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+
+        let editorScopeID = UUID()
+        let runtimeScopeID = UUID()
+        try AssetsManager.initialize(filePath: #filePath, assetBundleResourceURL: editorAssetsURL, scopeID: editorScopeID)
+        try AssetsManager.initialize(filePath: #filePath, assetBundleResourceURL: runtimeAssetsURL, scopeID: runtimeScopeID)
+
+        try await AssetsManager.withScope(editorScopeID) {
+            try await AssetsManager.save(TestAsset(testData: "editor"), at: "@res://", name: "icon.txt")
+        }
+        try await AssetsManager.withScope(runtimeScopeID) {
+            try await AssetsManager.save(TestAsset(testData: "runtime"), at: "@res://", name: "icon.txt")
+        }
+
+        let editorHandle = try await AssetsManager.withScope(editorScopeID) {
+            #expect(AssetsManager.resolveAssetURL(at: "@res://icon.txt") == editorAssetsURL.appendingPathComponent("icon.txt"))
+            return try await AssetsManager.load(TestAsset.self, at: "@res://icon.txt")
+        }
+        let runtimeHandle = try await AssetsManager.withScope(runtimeScopeID) {
+            #expect(AssetsManager.resolveAssetURL(at: "@res://icon.txt") == runtimeAssetsURL.appendingPathComponent("icon.txt"))
+            return try await AssetsManager.load(TestAsset.self, at: "@res://icon.txt")
+        }
+        let editorHandleAgain = try await AssetsManager.withScope(editorScopeID) {
+            try await AssetsManager.load(TestAsset.self, at: "@res://icon.txt")
+        }
+
+        #expect(editorHandle.asset.testData == "editor")
+        #expect(runtimeHandle.asset.testData == "runtime")
+        #expect(editorHandle === editorHandleAgain)
+        #expect(editorHandle !== runtimeHandle)
     }
 
     // FIXME: Im tired to fix it right now

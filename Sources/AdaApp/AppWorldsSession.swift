@@ -12,3 +12,10 @@ import Foundation
 public enum AppWorldsSession {
     public static weak var current: AppWorlds?
 }
+
+/// Identifies the `AppWorlds` whose code is currently being executed.
+/// Runtime services use this task-local identifier to keep per-world state isolated.
+@_spi(Internal)
+public enum AppWorldsExecutionContext {
+    @TaskLocal public static var currentID: UUID?
+}

@@ -12,6 +12,7 @@ import UIKit
 extension AppleEmbeddedWindowManager {
     func sceneSessionsDidDiscard(_ sceneSessions: Set<UISceneSession>) {
         for sceneSession in sceneSessions {
+            dedicatedSceneSessionIDs.remove(sceneSession.persistentIdentifier)
             guard let windowID = windowIDsBySceneSession.removeValue(forKey: sceneSession.persistentIdentifier),
                   let window = windows[windowID],
                   let uiWindow = window.systemWindow as? UIKit.UIWindow else {

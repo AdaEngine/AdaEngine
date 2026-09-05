@@ -21,6 +21,7 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
     private var pendingWindows: [(window: AdaUI.UIWindow, isFocused: Bool)] = []
     var pendingSceneWindows: [String: (window: AdaUI.UIWindow, isFocused: Bool)] = [:]
     var windowIDsBySceneSession: [String: AdaUI.UIWindow.ID] = [:]
+    var dedicatedSceneSessionIDs: Set<String> = []
 
     init(screenManager: any ScreenManager) {
         self.screenManager = screenManager
@@ -31,6 +32,7 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
 
         if let requestToken,
            let pendingWindow = pendingSceneWindows.removeValue(forKey: requestToken) {
+            dedicatedSceneSessionIDs.insert(windowScene.session.persistentIdentifier)
             presentWindow(
                 pendingWindow.window,
                 isFocused: pendingWindow.isFocused,
@@ -162,7 +164,8 @@ final class AppleEmbeddedWindowManager: UIWindowManager {
         nsWindow.isHidden = true
         nsWindow.windowScene = nil
 
-        if window.configuration.scenePresentation == .new, let sceneSession {
+        if let sceneSession,
+           dedicatedSceneSessionIDs.remove(sceneSession.persistentIdentifier) != nil {
             UIApplication.shared.requestSceneSessionDestruction(sceneSession, options: nil)
         }
     }

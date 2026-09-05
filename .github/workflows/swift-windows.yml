@@ -14,7 +14,9 @@ defaults:
 jobs:
   Windows:
     name: Windows with SwiftPM
-    runs-on: windows-latest
+    # Swift 6.2.3 ships Clang 19, while the Visual Studio 2026 STL on
+    # windows-latest requires Clang 20 or newer.
+    runs-on: windows-2022
     env:
       ADAENGINE_HEADLESS: "1"
       ADAENGINE_SKIP_WEBGPU_PLUGINS: "1"

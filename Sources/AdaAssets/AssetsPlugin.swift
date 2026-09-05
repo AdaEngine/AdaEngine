@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 29.05.2025.
 //
 
-import AdaApp
+@_spi(Internal) import AdaApp
 import AdaECS
 import Foundation
 import Logging
@@ -31,7 +31,11 @@ public struct AssetsPlugin: Plugin {
 
     public func setup(in app: AppWorlds) {
         do {
-            try AssetsManager.initialize(filePath: filePath, assetBundleResourceURL: assetBundleResourceURL)
+            try AssetsManager.initialize(
+                filePath: filePath,
+                assetBundleResourceURL: assetBundleResourceURL,
+                scopeID: app.executionID
+            )
             app.addSystem(AssetsProcessSystem.self, on: .preUpdate)
         } catch {
             Logger(label: "org.adaengine.AssetsPlugin").error("Setup failed with error: \(error)")

@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaUtils
+import Foundation
 import Logging
 import Tracing
 
@@ -25,6 +26,8 @@ public protocol WorldExctractor {
 /// A class that represents a collection of worlds.
 @MainActor
 public final class AppWorlds {
+    @_spi(Internal)
+    public let executionID = UUID()
 
     #if ENABLE_RUN_IN_CONCURRENCY
     public typealias ApplicationRunnerBlock = () async -> Void
@@ -93,16 +96,18 @@ public extension AppWorlds {
     /// Update the app.
     /// - Parameter deltaTime: The delta time.
     func update() async throws {
-        let worldName = main.name ?? "UnknownWorld"
-        let framePacing = main.getResource(ApplicationFramePacing.self)
-        try await AdaTrace.span("AppWorlds.update") { span in
-            span.attributes["ada.profile.category"] = "frame"
-            span.attributes["ada.world.name"] = worldName
-            if let framePacing {
-                span.attributes["ada.frame.target_fps"] = framePacing.maximumFramesPerSecond
-                span.attributes["ada.frame.budget_ms"] = framePacing.minimumFrameDuration * 1_000
+        try await withExecutionContext {
+            let worldName = main.name ?? "UnknownWorld"
+            let framePacing = main.getResource(ApplicationFramePacing.self)
+            try await AdaTrace.span("AppWorlds.update") { span in
+                span.attributes["ada.profile.category"] = "frame"
+                span.attributes["ada.world.name"] = worldName
+                if let framePacing {
+                    span.attributes["ada.frame.target_fps"] = framePacing.maximumFramesPerSecond
+                    span.attributes["ada.frame.budget_ms"] = framePacing.minimumFrameDuration * 1_000
+                }
+                try await self.updateFrameContents()
             }
-            try await self.updateFrameContents()
         }
     }
 
@@ -210,20 +215,34 @@ public extension AppWorlds {
 
     /// Setup plugins.
     func build() async throws {
-        await self.setupPlugins(self.plugins[...])
-        assert(self.pluginDepth == 0, "Plugins installed recursevly")
+        try await withExecutionContext {
+            await self.setupPlugins(self.plugins[...])
+            assert(self.pluginDepth == 0, "Plugins installed recursevly")
 
-        for subWorld in self.subWorlds.values {
-            try await subWorld.build()
-        }
+            for subWorld in self.subWorlds.values {
+                try await subWorld.build()
+            }
 
-        /// Wait until all plugins is loaded
-        while !self.plugins.allSatisfy({ $0.isLoaded(in: self) }) {
-            await Task.yield()
+            /// Wait until all plugins is loaded
+            while !self.plugins.allSatisfy({ $0.isLoaded(in: self) }) {
+                await Task.yield()
+            }
+
+            self.plugins.forEach { $0.finish(for: self) }
+            self.isConfigured = true
         }
-    
-        self.plugins.forEach { $0.finish(for: self) }
-        self.isConfigured = true
+    }
+
+    /// Executes synchronous work in this world's task-local runtime context.
+    @_spi(Internal)
+    func withExecutionContext<Result>(_ operation: () throws -> Result) rethrows -> Result {
+        try AppWorldsExecutionContext.$currentID.withValue(executionID, operation: operation)
+    }
+
+    /// Executes asynchronous work in this world's task-local runtime context.
+    @_spi(Internal)
+    func withExecutionContext<Result>(_ operation: () async throws -> Result) async rethrows -> Result {
+        try await AppWorldsExecutionContext.$currentID.withValue(executionID, operation: operation)
     }
 }
 

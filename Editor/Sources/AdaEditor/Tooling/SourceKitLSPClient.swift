@@ -908,7 +908,7 @@ enum SourceKitLSPError: Error, Equatable, Sendable {
     case buildSettingsUnavailable(String)
 }
 
-#if os(macOS)
+#if os(macOS) || os(Linux) || os(Windows)
 actor SourceKitLSPStdioConnection: SourceKitLSPConnecting {
     nonisolated static let launchArguments = ["--experimental-feature", "sourcekit-options-request"]
 

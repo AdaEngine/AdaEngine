@@ -390,6 +390,55 @@ struct EditorProjectStoreTests {
         #expect(viewModel.statusMessage.hasPrefix("Opened project:"))
     }
 
+    @Test("incoming project URL is buffered until the opening view model is ready")
+    @MainActor
+    func incomingProjectURLIsBufferedUntilOpeningViewModelIsReady() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorIncomingProjectURL")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let project = try store.createProject(named: "Incoming", at: rootURL, template: .adaScript)
+        let projectURL = URL(fileURLWithPath: project.path, isDirectory: true)
+        let viewModel = ProjectOpeningViewModel(store: store)
+        let notificationName = Notification.Name("AdaEditorTests.IncomingProjectURL")
+        let notificationCenter = NotificationCenter()
+        let router = EditorProjectOpenURLRouter(
+            notificationCenter: notificationCenter,
+            notificationName: notificationName
+        )
+
+        notificationCenter.post(name: notificationName, object: projectURL)
+        #expect(viewModel.projectToOpenInEditor == nil)
+
+        #expect(router.attach(viewModel))
+        #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
+        #expect(viewModel.projectToOpenInEditorToken == 1)
+    }
+
+    @Test("incoming project URL reaches an already active opening view model")
+    @MainActor
+    func incomingProjectURLReachesActiveOpeningViewModel() throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorRunningProjectURL")
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let project = try store.createProject(named: "Running", at: rootURL, template: .adaScript)
+        let projectURL = URL(fileURLWithPath: project.path, isDirectory: true)
+        let viewModel = ProjectOpeningViewModel(store: store)
+        let notificationName = Notification.Name("AdaEditorTests.RunningProjectURL")
+        let notificationCenter = NotificationCenter()
+        let router = EditorProjectOpenURLRouter(
+            notificationCenter: notificationCenter,
+            notificationName: notificationName
+        )
+        #expect(!router.attach(viewModel))
+
+        notificationCenter.post(name: notificationName, object: projectURL)
+
+        #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
+        #expect(viewModel.projectToOpenInEditorToken == 1)
+    }
+
     @Test("view model opens recent project and requests editor handoff")
     @MainActor
     func projectOpeningViewModelOpensRecentProjectForEditorHandoff() throws {

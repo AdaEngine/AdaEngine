@@ -5,8 +5,8 @@
 //  Created by AdaEngine on 04.04.2026.
 //
 
-import AdaApp
-import AdaAssets
+@_spi(Internal) import AdaApp
+@_spi(Internal) import AdaAssets
 import AdaAudio
 import AdaCorePipelines
 import AdaECS
@@ -113,6 +113,11 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         isShutdown = true
         stopAudioPlaybacks()
         AppWorldsSession.current?.removeSubworld(by: hostSubworldName)
+        if let executionID = appWorlds?.executionID {
+            Task { @AssetActor in
+                AssetsManager.destroyScope(executionID)
+            }
+        }
         appWorlds = nil
         cameraEntity = nil
         targetRenderTexture = nil
@@ -166,7 +171,9 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         guard let appWorlds, hasCalledSetup else {
             return
         }
-        updateContentClosure(appWorlds.main, deltaTime)
+        appWorlds.withExecutionContext {
+            updateContentClosure(appWorlds.main, deltaTime)
+        }
         ageRetiredDisplayTargets()
         prepareNextRenderTarget()
 
