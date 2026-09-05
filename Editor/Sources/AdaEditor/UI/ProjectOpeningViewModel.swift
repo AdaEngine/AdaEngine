@@ -286,17 +286,6 @@ final class ProjectOpeningViewModel {
         statusMessage = "Project location: \(projectLocationDisplayText)"
     }
 
-    func applyProjectLocationPickerResult(_ result: ProjectLocationPickerResult) {
-        switch result {
-        case .selected(let url):
-            setProjectLocation(url)
-        case .cancelled:
-            statusMessage = "Project location selection cancelled."
-        case .unavailable(let message):
-            statusMessage = "Could not choose a project location: \(message)"
-        }
-    }
-
     func createBlankTemplateProject() {
         if projectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             projectName = "BlankAdaProject"
@@ -389,6 +378,19 @@ final class ProjectOpeningViewModel {
         formatter.unitsStyle = .full
         return formatter
     }()
+}
+
+extension ProjectOpeningViewModel {
+    func applyProjectLocationPickerResult(_ result: ProjectLocationPickerResult) {
+        switch result {
+        case .selected(let url):
+            setProjectLocation(url)
+        case .cancelled:
+            statusMessage = "Project location selection cancelled."
+        case .unavailable(let message):
+            statusMessage = "Could not choose a project location: \(message)"
+        }
+    }
 }
 
 private enum BackgroundProjectOpenResult: Sendable {
