@@ -12,8 +12,8 @@ struct EditorAgentSidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            adaEditorPanelTitle("AGENT", trailing: viewModel.connectionState.title, theme: theme)
-            sessionToolbar
+            agentHeader
+            conversationToolbar
             transcript
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             composer
@@ -25,67 +25,84 @@ struct EditorAgentSidebar: View {
         .mask(RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner))
     }
 
-    private var sessionToolbar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                ScrollView(.horizontal) {
-                    HStack(spacing: 6) {
-                        ForEach(viewModel.sessions, id: \.id) { session in
-                            sessionButton(session)
-                        }
+    private var agentHeader: some View {
+        HStack(spacing: 8) {
+            Text(viewModel.projectName)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(theme.editorColors.text)
+                .lineLimit(1)
+            Spacer()
+            Text(viewModel.connectionState.title)
+                .font(.system(size: 9))
+                .foregroundColor(theme.editorColors.muted)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 38)
+        .background(theme.editorColors.background)
+        .accessibilityIdentifier("AdaEditor.Agent.Header")
+    }
+
+    private var conversationToolbar: some View {
+        HStack(spacing: 6) {
+            Text("\u{E0CA}")
+                .font(AdaEditorMaterialSymbolFont.font(size: 17))
+                .foregroundColor(theme.editorColors.muted)
+                .frame(width: 26, height: 30)
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(viewModel.sessions, id: \.id) { session in
+                        sessionButton(session)
                     }
-                    .padding(.vertical, 2)
-                    .fixedSize(horizontal: true, vertical: false)
                 }
-                Button(action: {
-                    Task {
-                        try? await viewModel.createSession()
-                    }
-                }) {
-                    Text("+")
-                        .font(.system(size: 14))
-                        .foregroundColor(theme.editorColors.text)
-                        .frame(width: 26, height: 24)
-                        .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.blue.opacity(0.18)))
+                .fixedSize(horizontal: true, vertical: false)
+            }
+            toolbarButton(symbol: "\u{E8B8}", title: "Connect", action: viewModel.connect)
+            toolbarButton(symbol: "\u{E872}", title: "Delete session", action: viewModel.deleteActiveSession)
+            Button(action: {
+                Task {
+                    try? await viewModel.createSession()
                 }
-                .buttonStyle(DefaultButtonStyle())
-                Button(action: { viewModel.deleteActiveSession() }) {
-                    Text("×")
-                        .font(.system(size: 13))
-                        .foregroundColor(theme.editorColors.muted)
-                        .frame(width: 26, height: 24)
-                        .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surface))
-                }
-                .buttonStyle(DefaultButtonStyle())
-                Button(action: { viewModel.connect() }) {
-                    Text("Connect")
-                        .font(.system(size: 10))
-                        .foregroundColor(theme.editorColors.blue)
-                        .padding(.horizontal, 8)
-                        .frame(height: 24)
-                        .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.blue.opacity(0.12)))
-                }
-                .buttonStyle(DefaultButtonStyle())
+            }) {
+                Text("+")
+                    .font(.system(size: 18))
+                    .foregroundColor(theme.editorColors.text)
+                    .frame(width: 30, height: 30)
+            }
+            .buttonStyle(DefaultButtonStyle())
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 42)
+        .background(theme.editorColors.surface)
+        .overlay {
+            VStack(spacing: 0) {
+                Spacer()
+                RectangleShape().fill(theme.editorColors.border.opacity(0.55)).frame(height: 1)
             }
         }
-        .padding(10)
-        .background(theme.editorColors.surface)
+        .accessibilityIdentifier("AdaEditor.Agent.ConversationToolbar")
+    }
+
+    private func toolbarButton(symbol: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(symbol)
+                .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                .foregroundColor(theme.editorColors.muted)
+                .frame(width: 30, height: 30)
+        }
+        .buttonStyle(DefaultButtonStyle())
+        .accessibilityIdentifier("AdaEditor.Agent.\(title)")
     }
 
     private func sessionButton(_ session: EditorAgentSessionSummary) -> some View {
         let active = session.id == viewModel.activeSession?.id
         return Button(action: { viewModel.selectSession(session) }) {
             Text(session.title)
-                .font(.system(size: 10))
+                .font(.system(size: 11, weight: active ? .bold : .regular))
                 .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
                 .lineLimit(1)
-                .padding(.horizontal, 8)
-                .frame(height: 24)
-                .background(RoundedRectangleShape(cornerRadius: 5).fill(active ? theme.editorColors.blue.opacity(0.20) : theme.editorColors.surfaceElevated))
-                .overlay {
-                    RoundedRectangleShape(cornerRadius: 5)
-                        .stroke(active ? theme.editorColors.blue.opacity(0.60) : theme.editorColors.border.opacity(0.40), lineWidth: 1)
-                }
+                .padding(.horizontal, 6)
+                .frame(height: 30)
         }
         .buttonStyle(DefaultButtonStyle())
     }
@@ -95,61 +112,66 @@ struct EditorAgentSidebar: View {
         if viewModel.sessionConfiguration.selectors.isEmpty {
             fallbackModeSelector
         } else {
-            ForEach(
-                viewModel.sessionConfiguration.selectors.filter { $0.category != .other },
-                id: \.id
-            ) { selector in
-                configurationSelector(selector)
-            }
-        }
-    }
-
-    private var fallbackModeSelector: some View {
-        HStack(spacing: 5) {
-            Text("MODE")
-                .font(.system(size: 9))
-                .foregroundColor(theme.editorColors.muted)
-            ForEach(EditorAgentChatMode.allCases, id: \.rawValue) { mode in
-                Button(action: { viewModel.mode = mode }) {
-                    Text(mode.title)
-                        .font(.system(size: 10))
-                        .foregroundColor(viewModel.mode == mode ? theme.editorColors.text : theme.editorColors.muted)
-                        .padding(.horizontal, 7)
-                        .frame(height: 22)
-                        .background(RoundedRectangleShape(cornerRadius: 5).fill(viewModel.mode == mode ? theme.editorColors.purple.opacity(0.18) : Color.clear))
-                }
-                .buttonStyle(DefaultButtonStyle())
-            }
-        }
-    }
-
-    private func configurationSelector(_ selector: EditorAgentConfigurationSelector) -> some View {
-        HStack(spacing: 5) {
-            Text(selector.category.rawValue.uppercased())
-                .font(.system(size: 9))
-                .foregroundColor(theme.editorColors.muted)
-                .frame(width: 62, alignment: .leading)
             ScrollView(.horizontal) {
-                HStack(spacing: 5) {
-                    ForEach(selector.choices, id: \.id) { choice in
-                        let selected = selector.currentValueID == choice.id
-                        Button(action: { viewModel.selectConfiguration(selectorID: selector.id, valueID: choice.id) }) {
-                            Text(choice.name)
-                                .font(.system(size: 10))
-                                .foregroundColor(selected ? theme.editorColors.text : theme.editorColors.muted)
-                                .padding(.horizontal, 7)
-                                .frame(height: 22)
-                                .background(
-                                    RoundedRectangleShape(cornerRadius: 5)
-                                        .fill(selected ? theme.editorColors.purple.opacity(0.18) : Color.clear)
-                                )
-                        }
-                        .buttonStyle(DefaultButtonStyle())
+                HStack(spacing: 4) {
+                    ForEach(
+                        viewModel.sessionConfiguration.selectors.filter { $0.category != .other },
+                        id: \.id
+                    ) { selector in
+                        configurationSelector(selector)
                     }
                 }
                 .fixedSize(horizontal: true, vertical: false)
             }
         }
+    }
+
+    private var fallbackModeSelector: some View {
+        Button(action: cycleFallbackMode) {
+            HStack(spacing: 3) {
+                Text(viewModel.mode.title)
+                    .font(.system(size: 10))
+                Text("⌃")
+                    .font(.system(size: 9))
+            }
+            .foregroundColor(theme.editorColors.muted)
+            .padding(.horizontal, 6)
+            .frame(height: 26)
+        }
+        .buttonStyle(DefaultButtonStyle())
+    }
+
+    private func configurationSelector(_ selector: EditorAgentConfigurationSelector) -> some View {
+        Button(action: { cycleConfiguration(selector) }) {
+            HStack(spacing: 3) {
+                Text(selectedChoiceName(in: selector))
+                    .font(.system(size: 10))
+                    .lineLimit(1)
+                Text("⌃")
+                    .font(.system(size: 9))
+            }
+            .foregroundColor(theme.editorColors.muted)
+            .padding(.horizontal, 6)
+            .frame(height: 26)
+        }
+        .buttonStyle(DefaultButtonStyle())
+    }
+
+    private func selectedChoiceName(in selector: EditorAgentConfigurationSelector) -> String {
+        selector.choices.first { $0.id == selector.currentValueID }?.name ?? selector.category.rawValue
+    }
+
+    private func cycleConfiguration(_ selector: EditorAgentConfigurationSelector) {
+        guard !selector.choices.isEmpty else { return }
+        let currentIndex = selector.choices.firstIndex { $0.id == selector.currentValueID } ?? -1
+        let nextChoice = selector.choices[(currentIndex + 1) % selector.choices.count]
+        viewModel.selectConfiguration(selectorID: selector.id, valueID: nextChoice.id)
+    }
+
+    private func cycleFallbackMode() {
+        let modes = EditorAgentChatMode.allCases
+        let currentIndex = modes.firstIndex(of: viewModel.mode) ?? -1
+        viewModel.mode = modes[(currentIndex + 1) % modes.count]
     }
 
     private var transcript: some View {
@@ -171,34 +193,6 @@ struct EditorAgentSidebar: View {
         EditorAgentEventCard(event: event, viewModel: viewModel)
     }
 
-    private var contextControls: some View {
-        HStack(spacing: 6) {
-            Button(action: { showsContextPicker.toggle() }) {
-                Text(viewModel.pendingAttachments.isEmpty ? "+ Context" : "Context · \(viewModel.pendingAttachments.count)")
-                    .font(.system(size: 10))
-                    .foregroundColor(showsContextPicker ? theme.editorColors.text : theme.editorColors.blue)
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.blue.opacity(showsContextPicker ? 0.20 : 0.10)))
-            }
-            .buttonStyle(DefaultButtonStyle())
-            .accessibilityIdentifier("AdaEditor.Agent.AddContext")
-            Button(action: { viewModel.presentContextFilePicker() }) {
-                Text("Browse")
-                    .font(.system(size: 10))
-                    .foregroundColor(theme.editorColors.muted)
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surfaceElevated))
-            }
-            .buttonStyle(DefaultButtonStyle())
-            .accessibilityIdentifier("AdaEditor.Agent.BrowseContext")
-            Text("Files and images")
-                .font(.system(size: 9))
-                .foregroundColor(theme.editorColors.muted)
-        }
-    }
-
     @ViewBuilder
     private var contextPicker: some View {
         if showsContextPicker {
@@ -211,6 +205,14 @@ struct EditorAgentSidebar: View {
                     .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.background))
                     .textFieldStyle(PlainTextFieldStyle())
                     .accessibilityIdentifier("AdaEditor.Agent.ContextSearch")
+                Button(action: { viewModel.presentContextFilePicker() }) {
+                    Text("Browse files and images…")
+                        .font(.system(size: 10))
+                        .foregroundColor(theme.editorColors.blue)
+                        .frame(height: 24)
+                }
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.Agent.BrowseContext")
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(viewModel.contextFiles(matching: contextSearchText), id: \.id) { entry in
@@ -261,53 +263,102 @@ struct EditorAgentSidebar: View {
     }
 
     private var composer: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             sceneContextIndicator
             codeSelectionIndicator
-            configurationControls
-            contextControls
             contextPicker
             pendingAttachmentList
-            skillControls
             skillPicker
             autocompleteList
-            TextField("Ask the agent. Use @ to attach files.", text: viewModel.promptBinding)
-                .font(.system(size: 11))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("•••")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(theme.editorColors.muted.opacity(0.75))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 14)
+
+                TextEditor(
+                    "Ask the agent. Use @ to attach files.",
+                    text: viewModel.promptBinding,
+                    showsLineNumbers: false
+                )
+                .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
-                .padding(.horizontal, 9)
-                .frame(height: 34)
-                .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.background))
-                .textFieldStyle(PlainTextFieldStyle())
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 88, maxHeight: 132)
+                .textEditorColors(composerTextEditorColors)
                 .accessibilityIdentifier("AdaEditor.Agent.Prompt")
-            HStack(spacing: 8) {
-                if !viewModel.pendingAttachments.isEmpty {
-                    Text("\(viewModel.pendingAttachments.count) attached")
-                        .font(.system(size: 10))
-                        .foregroundColor(theme.editorColors.blue)
+
+                HStack(spacing: 4) {
+                    compactComposerButton("+", active: showsContextPicker) {
+                        showsContextPicker.toggle()
+                    }
+                    .accessibilityIdentifier("AdaEditor.Agent.AddContext")
+                    if !viewModel.availableSkills.isEmpty {
+                        compactComposerButton(
+                            viewModel.selectedSkillIDs.isEmpty ? "Skills" : "Skills \(viewModel.selectedSkillIDs.count)",
+                            active: showsSkillPicker
+                        ) {
+                            showsSkillPicker.toggle()
+                        }
+                        .accessibilityIdentifier("AdaEditor.Agent.Skills")
+                    }
+                    configurationControls
+                    Spacer()
+                    if viewModel.isSending {
+                        Button(action: { viewModel.interrupt() }) {
+                            Text("■")
+                                .font(.system(size: 10))
+                                .foregroundColor(theme.editorColors.muted)
+                                .frame(width: 30, height: 30)
+                        }
+                        .buttonStyle(DefaultButtonStyle())
+                    }
+                    Button(action: { viewModel.sendPrompt() }) {
+                        Text("→")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(theme.editorColors.background)
+                            .frame(width: 34, height: 34)
+                            .background(CircleShape().fill(theme.editorColors.text.opacity(viewModel.canSend ? 1 : 0.28)))
+                    }
+                    .buttonStyle(DefaultButtonStyle())
+                    .disabled(!viewModel.canSend)
+                    .accessibilityIdentifier("AdaEditor.Agent.Send")
                 }
-                Spacer()
-                Button(action: { viewModel.interrupt() }) {
-                    Text("Stop")
-                        .font(.system(size: 10))
-                        .foregroundColor(theme.editorColors.muted)
-                        .padding(.horizontal, 10)
-                        .frame(height: 24)
-                }
-                .buttonStyle(DefaultButtonStyle())
-                Button(action: { viewModel.sendPrompt() }) {
-                    Text(viewModel.isSending ? "Sending" : "Send")
-                        .font(.system(size: 10))
-                        .foregroundColor(theme.editorColors.text)
-                        .padding(.horizontal, 12)
-                        .frame(height: 26)
-                        .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.blue.opacity(viewModel.canSend ? 0.72 : 0.25)))
-                }
-                .buttonStyle(DefaultButtonStyle())
-                .accessibilityIdentifier("AdaEditor.Agent.Send")
             }
+            .padding(8)
+            .background(RoundedRectangleShape(cornerRadius: 10).fill(theme.editorColors.surfaceElevated))
+            .overlay {
+                RoundedRectangleShape(cornerRadius: 10)
+                    .stroke(theme.editorColors.border.opacity(0.8), lineWidth: 1)
+            }
+            .accessibilityIdentifier("AdaEditor.Agent.Composer")
         }
-        .padding(10)
+        .padding(8)
         .background(theme.editorColors.surface)
+    }
+
+    private var composerTextEditorColors: TextEditorColors {
+        TextEditorColors(
+            background: theme.editorColors.surfaceElevated,
+            border: Color.clear,
+            focusedBorder: Color.clear,
+            gutter: Color.clear,
+            gutterRule: Color.clear,
+            currentLineBackground: Color.clear,
+            selection: theme.editorColors.blue.opacity(0.24)
+        )
+    }
+
+    private func compactComposerButton(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: title == "+" ? 18 : 10))
+                .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
+                .padding(.horizontal, title == "+" ? 5 : 7)
+                .frame(height: 28)
+                .background(RoundedRectangleShape(cornerRadius: 6).fill(active ? theme.editorColors.blue.opacity(0.14) : Color.clear))
+        }
+        .buttonStyle(DefaultButtonStyle())
     }
 
     @ViewBuilder
@@ -353,46 +404,6 @@ struct EditorAgentSidebar: View {
             .overlay {
                 RoundedRectangleShape(cornerRadius: 6)
                     .stroke(theme.editorColors.blue.opacity(0.24), lineWidth: 1)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var skillControls: some View {
-        if !viewModel.availableSkills.isEmpty {
-            HStack(spacing: 6) {
-                Button(action: { showsSkillPicker.toggle() }) {
-                    Text(viewModel.selectedSkillIDs.isEmpty ? "Skills" : "Skills · \(viewModel.selectedSkillIDs.count)")
-                        .font(.system(size: 10))
-                        .foregroundColor(showsSkillPicker ? theme.editorColors.text : theme.editorColors.purple)
-                        .padding(.horizontal, 8)
-                        .frame(height: 24)
-                        .background(
-                            RoundedRectangleShape(cornerRadius: 5)
-                                .fill(theme.editorColors.purple.opacity(showsSkillPicker ? 0.22 : 0.10))
-                        )
-                }
-                .buttonStyle(DefaultButtonStyle())
-                .accessibilityIdentifier("AdaEditor.Agent.Skills")
-
-                if !viewModel.selectedSkills.isEmpty {
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 5) {
-                            ForEach(viewModel.selectedSkills, id: \.id) { skill in
-                                Button(action: { viewModel.toggleSkill(skill) }) {
-                                    Text("/\(skill.id) ×")
-                                        .font(.system(size: 9))
-                                        .foregroundColor(theme.editorColors.text)
-                                        .padding(.horizontal, 7)
-                                        .frame(height: 22)
-                                        .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.purple.opacity(0.18)))
-                                }
-                                .buttonStyle(DefaultButtonStyle())
-                            }
-                        }
-                        .fixedSize(horizontal: true, vertical: false)
-                    }
-                }
             }
         }
     }

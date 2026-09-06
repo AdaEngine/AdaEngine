@@ -325,7 +325,7 @@ extension MetalView {
 
         let event = MouseEvent(
             window: self.windowID,
-            button: .none,
+            button: .left,
             mousePosition: position,
             phase: .changed,
             modifierKeys: KeyModifier(modifiers: event.modifierFlags),

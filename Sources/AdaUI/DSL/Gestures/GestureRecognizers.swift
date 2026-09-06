@@ -171,7 +171,14 @@ final class DragGestureRecognizer: GestureRecognizer {
     }
 
     override func mouseEventChanged(_ event: MouseEvent) {
-        guard event.button == .left || event.button == .none else { return }
+        // A plain hover after capture means the platform missed the mouse-up
+        // (for example, because it happened outside the window). End the drag
+        // so it cannot keep consuming cursor movement without a pressed button.
+        if event.button == .none, startLocation != nil {
+            finishMouseDrag()
+            return
+        }
+        guard event.button == .left else { return }
         guard let start = startLocation else { return }
 
         let current = event.mousePosition
@@ -190,6 +197,10 @@ final class DragGestureRecognizer: GestureRecognizer {
 
     override func mouseEventEnded(_ event: MouseEvent) {
         guard event.button == .left else { return }
+        finishMouseDrag()
+    }
+
+    private func finishMouseDrag() {
         defer {
             startLocation = nil
             lastLocation = nil

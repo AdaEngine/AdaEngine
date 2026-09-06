@@ -917,10 +917,11 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
             
             inputRef.wrappedValue.mousePosition = position
             let modifiers = getWindowsKeyModifiers()
+            let mouseButton: MouseButton = (wParam & 0x0001) != 0 ? .left : .none
             
             let mouseEvent = MouseEvent(
                 window: window.id,
-                button: .none,
+                button: mouseButton,
                 mousePosition: position,
                 phase: .changed,
                 modifierKeys: modifiers,

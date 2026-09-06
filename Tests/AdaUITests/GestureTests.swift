@@ -221,6 +221,32 @@ struct GestureTests {
         #expect(ended)
     }
 
+    @Test
+    func dragGesture_recoversWhenMouseButtonReleaseWasMissed() {
+        var changedCount = 0
+        var endedCount = 0
+
+        let tester = ViewTester {
+            Color.red
+                .frame(width: 200, height: 200)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in changedCount += 1 }
+                        .onEnded { _ in endedCount += 1 }
+                )
+        }
+        .setSize(Size(width: 200, height: 200))
+        .performLayout()
+
+        tester.sendMouseEvent(at: Point(100, 100), phase: .began)
+        tester.sendMouseEvent(at: Point(130, 100), button: .left, phase: .changed)
+        tester.sendMouseEvent(at: Point(140, 100), button: .none, phase: .changed)
+        tester.sendMouseEvent(at: Point(150, 100), button: .none, phase: .changed)
+
+        #expect(changedCount == 1)
+        #expect(endedCount == 1)
+    }
+
     // MARK: - LongPressGesture
 
     @Test

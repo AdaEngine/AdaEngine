@@ -770,7 +770,8 @@ private extension EditorSceneViewportModel {
             EditorInspectorSidebarViewModel.AddableComponent(
                 typeName: $0.typeName,
                 displayName: $0.displayName,
-                category: $0.category
+                category: $0.category,
+                description: $0.description
             )
         }
         let gizmo = decodeGizmo(from: entity)

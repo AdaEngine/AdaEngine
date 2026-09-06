@@ -60,6 +60,7 @@ final class TextEditorViewNode: ViewNode {
     var textBinding: Binding<String>
     var tokenSpans: [TextEditorTokenSpan]
     var sourceInteraction: TextEditorSourceInteraction?
+    var showsLineNumbers: Bool
     var text: String
 
     var isFocused = false
@@ -93,6 +94,7 @@ final class TextEditorViewNode: ViewNode {
         self.textBinding = content.text
         self.tokenSpans = content.tokenSpans
         self.sourceInteraction = content.sourceInteraction
+        self.showsLineNumbers = content.showsLineNumbers
         self.text = Self.normalizeInputText(content.text.wrappedValue)
         super.init(content: content)
         self.updateEnvironment(inputs.environment)
@@ -111,7 +113,7 @@ final class TextEditorViewNode: ViewNode {
         let maxLineCharacterCount = max(lines.map(\.text.count).max() ?? 0, self.placeholder.count, 1)
         let maxLineWidth = Float(maxLineCharacterCount) * self.characterAdvance(for: pointSize)
         let ideal = Size(
-            width: max(Constants.minimumWidth, Constants.horizontalInset * 2 + Constants.gutterWidth + Constants.gutterSpacing + maxLineWidth),
+            width: max(Constants.minimumWidth, Constants.horizontalInset * 2 + self.gutterInset + maxLineWidth),
             height: max(Constants.minimumHeight, Constants.verticalInset * 2 + lineHeight * Float(max(lines.count, 1)))
         )
 
@@ -137,6 +139,7 @@ final class TextEditorViewNode: ViewNode {
         self.textBinding = node.textBinding
         self.tokenSpans = node.tokenSpans
         self.sourceInteraction = node.sourceInteraction
+        self.showsLineNumbers = node.showsLineNumbers
 
         let externalText = Self.normalizeInputText(node.textBinding.wrappedValue)
         if externalText != self.text {
@@ -371,12 +374,14 @@ final class TextEditorViewNode: ViewNode {
             return
         }
 
-        context.drawLine(
-            start: Point(textRect.origin.x - Constants.gutterSpacing * 0.5, -contentRect.minY),
-            end: Point(textRect.origin.x - Constants.gutterSpacing * 0.5, -contentRect.maxY),
-            lineWidth: 1,
-            color: editorColors.gutterRule
-        )
+        if self.showsLineNumbers {
+            context.drawLine(
+                start: Point(textRect.origin.x - Constants.gutterSpacing * 0.5, -contentRect.minY),
+                end: Point(textRect.origin.x - Constants.gutterSpacing * 0.5, -contentRect.maxY),
+                lineWidth: 1,
+                color: editorColors.gutterRule
+            )
+        }
 
         let clipRect = self.visualAbsoluteContentRect()
         context.clip(to: clipRect) { clippedContext in
@@ -419,14 +424,16 @@ final class TextEditorViewNode: ViewNode {
                 )
 
                 if let resolvedFont {
-                    let number = String(lineIndex + 1)
-                    self.drawString(
-                        number,
-                        font: resolvedFont,
-                        color: editorColors.gutter,
-                        in: &clippedContext,
-                        at: Point(contentRect.minX + Constants.gutterWidth - Float(number.count) * self.characterAdvance(for: pointSize), rowY)
-                    )
+                    if self.showsLineNumbers {
+                        let number = String(lineIndex + 1)
+                        self.drawString(
+                            number,
+                            font: resolvedFont,
+                            color: editorColors.gutter,
+                            in: &clippedContext,
+                            at: Point(contentRect.minX + Constants.gutterWidth - Float(number.count) * self.characterAdvance(for: pointSize), rowY)
+                        )
+                    }
                     self.drawLineText(
                         line.text,
                         lineIndex: lineIndex,

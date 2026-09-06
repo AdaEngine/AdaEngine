@@ -357,11 +357,15 @@ extension TextEditorViewNode {
     func textRect() -> Rect {
         let content = self.textContentRect()
         return Rect(
-            x: content.origin.x + Constants.gutterWidth + Constants.gutterSpacing,
+            x: content.origin.x + self.gutterInset,
             y: content.origin.y,
-            width: max(0, content.width - Constants.gutterWidth - Constants.gutterSpacing),
+            width: max(0, content.width - self.gutterInset),
             height: content.height
         )
+    }
+
+    var gutterInset: Float {
+        self.showsLineNumbers ? Constants.gutterWidth + Constants.gutterSpacing : 0
     }
 
     func visualAbsoluteContentRect() -> Rect {

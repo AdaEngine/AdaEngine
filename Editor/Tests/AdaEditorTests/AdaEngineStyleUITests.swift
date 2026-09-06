@@ -490,19 +490,18 @@ struct AdaEngineStyleUITests {
             requestedRightPanelWidth: 300,
             requestedBottomPanelHeight: 180,
             fallbackLeftPanelWidth: 260,
-            fallbackRightPanelWidth: 300,
-            panelSpacing: 8
+            fallbackRightPanelWidth: 300
         )
 
         #expect(layout.leftPanelWidth == 260)
-        #expect(layout.mainPanelWidth == 616)
+        #expect(layout.mainPanelWidth == 624)
         #expect(layout.rightPanelWidth == 300)
         #expect(layout.mainPanelHeight == 512)
         #expect(layout.bottomPanelHeight == 180)
     }
 
-    @Test("workspace compresses sidebars before the scene viewport")
-    func workspaceCompressesSidebarsBeforeViewport() {
+    @Test("workspace lets sidebars consume the available width without artificial limits")
+    func workspaceSidebarsCanConsumeAvailableWidth() {
         let layout = EditorWorkspaceLayout(
             size: Size(width: 936, height: 620),
             showsLeftPanel: true,
@@ -512,11 +511,12 @@ struct AdaEngineStyleUITests {
             requestedRightPanelWidth: 600,
             requestedBottomPanelHeight: 520,
             fallbackLeftPanelWidth: 260,
-            fallbackRightPanelWidth: 300,
-            panelSpacing: 8
+            fallbackRightPanelWidth: 300
         )
 
-        #expect(abs(layout.mainPanelWidth - EditorWorkspaceLayout.minimumMainPanelWidth) < 0.001)
+        #expect(abs(layout.leftPanelWidth - 460) < 0.001)
+        #expect(abs(layout.rightPanelWidth - 460) < 0.001)
+        #expect(layout.mainPanelWidth == 0)
         #expect(abs(layout.mainPanelHeight - EditorWorkspaceLayout.minimumMainPanelHeight) < 0.001)
     }
 
@@ -531,12 +531,29 @@ struct AdaEngineStyleUITests {
             requestedRightPanelWidth: 300,
             requestedBottomPanelHeight: 180,
             fallbackLeftPanelWidth: 260,
-            fallbackRightPanelWidth: 300,
-            panelSpacing: 8
+            fallbackRightPanelWidth: 300
         )
 
         #expect(layout.leftPanelWidth == 900)
         #expect(layout.mainPanelWidth == 892)
+    }
+
+    @Test("workspace does not impose an artificial maximum on the right sidebar")
+    func workspaceRightSidebarHasNoArtificialMaximum() {
+        let layout = EditorWorkspaceLayout(
+            size: Size(width: 1_800, height: 700),
+            showsLeftPanel: false,
+            showsRightPanel: true,
+            showsBottomPanel: false,
+            requestedLeftPanelWidth: 260,
+            requestedRightPanelWidth: 1_200,
+            requestedBottomPanelHeight: 180,
+            fallbackLeftPanelWidth: 260,
+            fallbackRightPanelWidth: 300
+        )
+
+        #expect(layout.rightPanelWidth == 1_200)
+        #expect(layout.mainPanelWidth == 592)
     }
 
     @Test("workspace expands the editor viewport into hidden sidebar slots")
@@ -550,8 +567,7 @@ struct AdaEngineStyleUITests {
             requestedRightPanelWidth: 300,
             requestedBottomPanelHeight: 180,
             fallbackLeftPanelWidth: 260,
-            fallbackRightPanelWidth: 300,
-            panelSpacing: 8
+            fallbackRightPanelWidth: 300
         )
         let leftHidden = EditorWorkspaceLayout(
             size: Size(width: 1_200, height: 700),
@@ -562,8 +578,7 @@ struct AdaEngineStyleUITests {
             requestedRightPanelWidth: 300,
             requestedBottomPanelHeight: 180,
             fallbackLeftPanelWidth: 260,
-            fallbackRightPanelWidth: 300,
-            panelSpacing: 8
+            fallbackRightPanelWidth: 300
         )
         let rightHidden = EditorWorkspaceLayout(
             size: Size(width: 1_200, height: 700),
@@ -574,8 +589,7 @@ struct AdaEngineStyleUITests {
             requestedRightPanelWidth: 300,
             requestedBottomPanelHeight: 180,
             fallbackLeftPanelWidth: 260,
-            fallbackRightPanelWidth: 300,
-            panelSpacing: 8
+            fallbackRightPanelWidth: 300
         )
         let hidden = EditorWorkspaceLayout(
             size: Size(width: 1_200, height: 700),
@@ -586,13 +600,12 @@ struct AdaEngineStyleUITests {
             requestedRightPanelWidth: 300,
             requestedBottomPanelHeight: 180,
             fallbackLeftPanelWidth: 260,
-            fallbackRightPanelWidth: 300,
-            panelSpacing: 8
+            fallbackRightPanelWidth: 300
         )
 
-        #expect(visible.mainPanelWidth == 616)
+        #expect(visible.mainPanelWidth == 624)
         #expect(leftHidden.leftPanelWidth == 0)
-        #expect(leftHidden.mainPanelWidth == 884)
+        #expect(leftHidden.mainPanelWidth == 892)
         #expect(rightHidden.rightPanelWidth == 0)
         #expect(rightHidden.mainPanelWidth == 932)
         #expect(hidden.leftPanelWidth == 0)

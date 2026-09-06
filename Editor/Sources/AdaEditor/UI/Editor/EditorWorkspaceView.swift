@@ -40,8 +40,7 @@ struct EditorWorkspaceView<
                 requestedRightPanelWidth: inspectorSidebarWidth,
                 requestedBottomPanelHeight: outputPanelHeight,
                 fallbackLeftPanelWidth: metrics.projectSidebarWidth,
-                fallbackRightPanelWidth: metrics.inspectorWidth,
-                panelSpacing: metrics.panelSpacing
+                fallbackRightPanelWidth: metrics.inspectorWidth
             )
 
             ZStack(anchor: .topLeading) {
@@ -49,7 +48,7 @@ struct EditorWorkspaceView<
                 let mainPanelX = leftHandleX + (viewModel.showLeftPanel ? EditorWorkspaceLayout.resizeHandleSize : 0)
                 let rightHandleX = mainPanelX + layout.mainPanelWidth
                 let rightPanelX = rightHandleX
-                    + (viewModel.showRightPanel ? EditorWorkspaceLayout.resizeHandleSize + metrics.panelSpacing : 0)
+                    + (viewModel.showRightPanel ? EditorWorkspaceLayout.resizeHandleSize : 0)
 
                 if viewModel.showLeftPanel {
                     leftPanel()
@@ -141,7 +140,6 @@ extension EditorWorkspaceView {
 
 struct EditorWorkspaceLayout: Equatable {
     static let resizeHandleSize: Float = 8
-    static let minimumMainPanelWidth: Float = 360
     static let minimumMainPanelHeight: Float = 140
 
     let leftPanelWidth: Float
@@ -159,12 +157,10 @@ struct EditorWorkspaceLayout: Equatable {
         requestedRightPanelWidth: Float,
         requestedBottomPanelHeight: Float,
         fallbackLeftPanelWidth: Float,
-        fallbackRightPanelWidth: Float,
-        panelSpacing: Float
+        fallbackRightPanelWidth: Float
     ) {
         let horizontalHandleWidth = Float((showsLeftPanel ? 1 : 0) + (showsRightPanel ? 1 : 0)) * Self.resizeHandleSize
-        let rightPanelSpacing = showsRightPanel ? panelSpacing : 0
-        let availablePanelWidth = max(0, size.width - horizontalHandleWidth - rightPanelSpacing - Self.minimumMainPanelWidth)
+        let availablePanelWidth = max(0, size.width - horizontalHandleWidth)
         let panelWidths = Self.panelWidths(
             availableWidth: availablePanelWidth,
             showsLeftPanel: showsLeftPanel,
@@ -177,7 +173,7 @@ struct EditorWorkspaceLayout: Equatable {
 
         leftPanelWidth = panelWidths.left
         rightPanelWidth = panelWidths.right
-        mainPanelWidth = max(0, size.width - horizontalHandleWidth - rightPanelSpacing - leftPanelWidth - rightPanelWidth)
+        mainPanelWidth = max(0, size.width - horizontalHandleWidth - leftPanelWidth - rightPanelWidth)
 
         bottomPanelHeight = showsBottomPanel
             ? Self.clampedBottomPanelHeight(requestedBottomPanelHeight, in: size)
@@ -202,13 +198,11 @@ private extension EditorWorkspaceLayout {
         fallbackLeftPanelWidth: Float,
         fallbackRightPanelWidth: Float
     ) -> (left: Float, right: Float) {
-        let minimumLeftWidth: Float = showsLeftPanel ? 180 : 0
-        let minimumRightWidth: Float = showsRightPanel ? 220 : 0
         let desiredLeftWidth = showsLeftPanel
-            ? clampedPanelWidth(requestedLeftPanelWidth, fallback: fallbackLeftPanelWidth, minimum: minimumLeftWidth, maximum: nil)
+            ? resolvedPanelWidth(requestedLeftPanelWidth, fallback: fallbackLeftPanelWidth)
             : 0
         let desiredRightWidth = showsRightPanel
-            ? clampedPanelWidth(requestedRightPanelWidth, fallback: fallbackRightPanelWidth, minimum: minimumRightWidth, maximum: 600)
+            ? resolvedPanelWidth(requestedRightPanelWidth, fallback: fallbackRightPanelWidth)
             : 0
         let desiredTotal = desiredLeftWidth + desiredRightWidth
 
@@ -216,35 +210,17 @@ private extension EditorWorkspaceLayout {
             return (desiredLeftWidth, desiredRightWidth)
         }
 
-        guard availableWidth >= minimumLeftWidth + minimumRightWidth else {
-            guard desiredTotal > 0 else {
-                return (0, 0)
-            }
-            return (
-                availableWidth * desiredLeftWidth / desiredTotal,
-                availableWidth * desiredRightWidth / desiredTotal
-            )
+        guard desiredTotal > 0 else {
+            return (0, 0)
         }
-
-        let leftFlexibleWidth = desiredLeftWidth - minimumLeftWidth
-        let rightFlexibleWidth = desiredRightWidth - minimumRightWidth
-        let totalFlexibleWidth = leftFlexibleWidth + rightFlexibleWidth
-        guard totalFlexibleWidth > 0 else {
-            return (desiredLeftWidth, desiredRightWidth)
-        }
-
-        let availableFlexibleWidth = availableWidth - minimumLeftWidth - minimumRightWidth
         return (
-            minimumLeftWidth + availableFlexibleWidth * leftFlexibleWidth / totalFlexibleWidth,
-            minimumRightWidth + availableFlexibleWidth * rightFlexibleWidth / totalFlexibleWidth
+            availableWidth * desiredLeftWidth / desiredTotal,
+            availableWidth * desiredRightWidth / desiredTotal
         )
     }
 
-    static func clampedPanelWidth(_ width: Float, fallback: Float, minimum: Float, maximum: Float?) -> Float {
+    static func resolvedPanelWidth(_ width: Float, fallback: Float) -> Float {
         let resolvedWidth = width.isFinite ? width : fallback
-        guard let maximum else {
-            return max(minimum, resolvedWidth)
-        }
-        return max(minimum, min(resolvedWidth, maximum))
+        return max(0, resolvedWidth)
     }
 }

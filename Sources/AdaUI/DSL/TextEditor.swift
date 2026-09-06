@@ -165,6 +165,7 @@ public struct TextEditor: View {
     let text: Binding<String>
     let tokenSpans: [TextEditorTokenSpan]
     let sourceInteraction: TextEditorSourceInteraction?
+    let showsLineNumbers: Bool
 
     public var body: some View {
         ScrollView([.horizontal, .vertical]) {
@@ -172,7 +173,8 @@ public struct TextEditor: View {
                 placeholder: placeholder,
                 text: text,
                 tokenSpans: tokenSpans,
-                sourceInteraction: sourceInteraction
+                sourceInteraction: sourceInteraction,
+                showsLineNumbers: showsLineNumbers
             )
         }
     }
@@ -182,30 +184,37 @@ public struct TextEditor: View {
     /// - Parameters:
     ///   - placeholder: Text displayed when the editor is empty.
     ///   - text: Two-way binding for the editor content.
+    ///   - showsLineNumbers: Whether the source-style gutter and line numbers are visible.
     public init(
         _ placeholder: String = "",
         text: Binding<String>,
         tokenSpans: [TextEditorTokenSpan] = [],
-        sourceInteraction: TextEditorSourceInteraction? = nil
+        sourceInteraction: TextEditorSourceInteraction? = nil,
+        showsLineNumbers: Bool = true
     ) {
         self.placeholder = placeholder
         self.text = text
         self.tokenSpans = tokenSpans
         self.sourceInteraction = sourceInteraction
+        self.showsLineNumbers = showsLineNumbers
     }
 
     /// Creates a text editor.
     ///
-    /// - Parameter text: Two-way binding for the editor content.
+    /// - Parameters:
+    ///   - text: Two-way binding for the editor content.
+    ///   - showsLineNumbers: Whether the source-style gutter and line numbers are visible.
     public init(
         text: Binding<String>,
         tokenSpans: [TextEditorTokenSpan] = [],
-        sourceInteraction: TextEditorSourceInteraction? = nil
+        sourceInteraction: TextEditorSourceInteraction? = nil,
+        showsLineNumbers: Bool = true
     ) {
         self.placeholder = ""
         self.text = text
         self.tokenSpans = tokenSpans
         self.sourceInteraction = sourceInteraction
+        self.showsLineNumbers = showsLineNumbers
     }
 
 }
@@ -218,6 +227,7 @@ struct TextEditorPrimitive: View, ViewNodeBuilder {
     let text: Binding<String>
     let tokenSpans: [TextEditorTokenSpan]
     let sourceInteraction: TextEditorSourceInteraction?
+    let showsLineNumbers: Bool
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
         TextEditorViewNode(inputs: context, content: self)

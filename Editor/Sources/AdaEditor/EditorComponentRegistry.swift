@@ -133,6 +133,7 @@ struct EditorComponentDescriptor: @unchecked Sendable {
     var typeName: String
     var displayName: String
     var category: String
+    var description: String
     var requiredComponentTypeNames: [String]
     var fields: [EditorComponentField]
     var makeDefaultPayload: @Sendable () -> EditorComponentPayload
@@ -221,6 +222,7 @@ enum EditorComponentRegistry {
             typeName: descriptor.typeName,
             displayName: descriptor.displayName,
             category: "Reflected",
+            description: "A reflected \(descriptor.displayName) component with \(descriptor.fields.count) editable propert\(descriptor.fields.count == 1 ? "y" : "ies").",
             requiredComponentTypeNames: descriptor.requiredComponentTypeNames,
             fields: descriptor.fields.map {
                 EditorComponentField(
@@ -250,6 +252,7 @@ private extension EditorComponentRegistry {
         typeName: EditorBuiltInComponentType.transform,
         displayName: "Transform",
         category: "Core",
+        description: "Controls the entity's position, rotation, and scale in the scene.",
         requiredComponentTypeNames: [],
         fields: [
             EditorComponentField(key: "position", label: "Position", kind: .vector3),
@@ -272,6 +275,7 @@ private extension EditorComponentRegistry {
         typeName: EditorBuiltInComponentType.camera,
         displayName: "Camera",
         category: "Rendering",
+        description: "Renders the scene from this entity with configurable order and background.",
         requiredComponentTypeNames: [],
         fields: [
             EditorComponentField(key: "isActive", label: "Active", kind: .bool),
@@ -303,13 +307,14 @@ private extension EditorComponentRegistry {
         typeName: EditorBuiltInComponentType.sprite,
         displayName: "Sprite",
         category: "2D",
+        description: "Draws a 2D texture with tint, flip, and size controls.",
         requiredComponentTypeNames: [EditorBuiltInComponentType.visibility],
         fields: [
             EditorComponentField(key: "tintColor", label: "Tint", kind: .color),
             EditorComponentField(key: "flipX", label: "Flip X", kind: .bool),
             EditorComponentField(key: "flipY", label: "Flip Y", kind: .bool),
-            EditorComponentField(key: "texture", label: "Texture", kind: .assetReference, isEditable: false),
-            EditorComponentField(key: "size", label: "Size", kind: .vector2, isEditable: false)
+            EditorComponentField(key: "texture", label: "Texture", kind: .assetReference),
+            EditorComponentField(key: "size", label: "Size", kind: .vector2)
         ],
         makeDefaultPayload: {
             [
@@ -321,7 +326,20 @@ private extension EditorComponentRegistry {
             ]
         },
         decode: { payload in
-            try EditorComponentPayloadDecoder.decode(Sprite.self, payload: payload) as! Sprite
+            let texture: AssetHandle<Texture2D>?
+            if let textureReference = payload["texture"]?.stringValue, !textureReference.isEmpty {
+                texture = try? AssetsManager.loadSync(Texture2D.self, at: textureReference)
+            } else {
+                texture = nil
+            }
+            let size = payload["size"]?.vector2Value.map { Size(width: $0.x, height: $0.y) }
+            return Sprite(
+                texture: texture,
+                tintColor: payload["tintColor"]?.colorValue ?? .white,
+                flipX: payload["flipX"]?.boolValue ?? false,
+                flipY: payload["flipY"]?.boolValue ?? false,
+                size: size
+            )
         }
     )
 
@@ -329,6 +347,7 @@ private extension EditorComponentRegistry {
         typeName: EditorBuiltInComponentType.visibility,
         displayName: "Visibility",
         category: "Rendering",
+        description: "Controls whether the entity is visible or inherits visibility from its parent.",
         requiredComponentTypeNames: [],
         fields: [
             EditorComponentField(key: "value", label: "State", kind: .enumeration(["visible", "hidden", "inherited"]))
@@ -352,6 +371,7 @@ private extension EditorComponentRegistry {
         typeName: EditorBuiltInComponentType.light2D,
         displayName: "Light 2D",
         category: "2D",
+        description: "Adds a point or directional light to a 2D scene.",
         requiredComponentTypeNames: [EditorBuiltInComponentType.visibility],
         fields: [
             EditorComponentField(key: "kind", label: "Kind", kind: .enumeration(["point", "directional"])),
@@ -395,6 +415,7 @@ private extension EditorComponentRegistry {
         typeName: EditorBuiltInComponentType.lightOccluder2D,
         displayName: "Light Occluder 2D",
         category: "2D",
+        description: "Defines geometry that blocks 2D lights and casts shadows.",
         requiredComponentTypeNames: [EditorBuiltInComponentType.visibility],
         fields: [
             EditorComponentField(key: "isEnabled", label: "Enabled", kind: .bool),
@@ -412,6 +433,7 @@ private extension EditorComponentRegistry {
         typeName: EditorBuiltInComponentType.lightModulate2D,
         displayName: "Light Modulate 2D",
         category: "2D",
+        description: "Applies a global ambient light color to a 2D scene.",
         requiredComponentTypeNames: [],
         fields: [
             EditorComponentField(key: "color", label: "Color", kind: .color)

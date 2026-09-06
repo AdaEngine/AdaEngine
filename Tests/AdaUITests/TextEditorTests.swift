@@ -19,6 +19,25 @@ struct TextEditorTests {
     }
 
     @Test
+    func textEditor_canHideSourceLineNumbersForPlainMultilineInput() throws {
+        var text = "Prompt"
+        let tester = ViewTester {
+            TextEditor(
+                text: Binding(get: { text }, set: { text = $0 }),
+                showsLineNumbers: false
+            )
+            .frame(width: 360, height: 160)
+        }
+        .setSize(Size(width: 380, height: 180))
+        .performLayout()
+
+        let node = try #require(tester.sendMouseEvent(at: Point(20, 28), phase: .began) as? TextEditorViewNode)
+
+        #expect(!node.showsLineNumbers)
+        #expect(node.textRect().minX == node.textContentRect().minX)
+    }
+
+    @Test
     func textEditor_supportsMultilineEditingAndUndoRedo() {
         final class Model {
             var text = "alpha"

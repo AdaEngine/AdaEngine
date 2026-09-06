@@ -1,0 +1,380 @@
+@_spi(AdaEngine) import AdaEngine
+import AdaPackageManifestTool
+import Foundation
+import Observation
+
+extension EditorWorkbenchViewModel {
+    func sceneLines(for document: EditorSceneDocument) -> [String] {
+        let lines = document.content.components(separatedBy: .newlines)
+        return lines.isEmpty ? [""] : lines
+    }
+
+    func sceneLineBinding(documentID: String, lineIndex: Int) -> Binding<String> {
+        Binding(
+            get: {
+                guard
+                    let document = self.sceneDocument(id: documentID),
+                    self.sceneLines(for: document).indices.contains(lineIndex)
+                else {
+                    return ""
+                }
+
+                return self.sceneLines(for: document)[lineIndex]
+            },
+            set: { newValue in
+                self.updateSceneLine(documentID: documentID, lineIndex: lineIndex, value: newValue)
+            }
+        )
+    }
+
+    func textDocumentBinding(documentID: String) -> Binding<String> {
+        Binding(
+            get: {
+                self.textDocument(id: documentID)?.content ?? ""
+            },
+            set: { newValue in
+                guard self.textDocument(id: documentID)?.isReadOnly == false else {
+                    return
+                }
+                self.updateTextDocument(id: documentID) { document in
+                    document.content = newValue
+                    document.errorMessage = nil
+                    document.isDirty = true
+                    document.statusMessage = "Edited"
+                }
+            }
+        )
+    }
+
+    @discardableResult
+    func saveActiveDocument() -> Bool {
+        guard let activeDocument else {
+            return false
+        }
+
+        return saveDocument(activeDocument)
+    }
+
+    @discardableResult
+    func saveAllDocuments() -> Bool {
+        var didSaveAll = true
+        for document in openDocuments where document.isDirty {
+            if !saveDocument(document) {
+                didSaveAll = false
+            }
+        }
+        return didSaveAll
+    }
+
+    @discardableResult
+    func saveActiveDocumentIfNeeded() -> Bool {
+        guard let activeDocument, activeDocument.isDirty else {
+            return false
+        }
+
+        return saveDocument(activeDocument)
+    }
+
+    var activeDocumentSaveFailureDescription: String? {
+        switch activeDocument {
+        case .scene(let document)?:
+            document.statusMessage ?? document.errorMessage
+        case .text(let document)?:
+            document.statusMessage ?? document.errorMessage
+        case .asset?:
+            "assets cannot be saved from the code editor"
+        case nil:
+            nil
+        }
+    }
+
+    @discardableResult
+    func saveDocument(_ document: EditorWorkbenchDocument) -> Bool {
+        switch document {
+        case .scene(let document):
+            return saveSceneDocument(id: document.id)
+        case .text(let document):
+            return saveTextDocument(id: document.id)
+        case .asset:
+            return false
+        }
+    }
+
+    func appendSceneLine(documentID: String) {
+        updateSceneDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Edit blocked: file is read-only"
+                return
+            }
+            document.content += document.content.hasSuffix("\n") ? "" : "\n"
+            document.content += "  "
+            document.isDirty = true
+            document.statusMessage = "Edited"
+            document.loadSummary = EditorSceneFileLoader.summary(from: document.content)
+            document.sceneModel = EditorSceneFileLoader.model(from: document.content)
+        }
+    }
+
+    @discardableResult
+    func saveSceneDocument(id documentID: String) -> Bool {
+        var didSave = false
+        updateSceneDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Save blocked: file is read-only"
+                document.errorMessage = document.errorMessage ?? "Symbolic-link scene files are read-only in the editor."
+                return
+            }
+            guard let absolutePath = document.absolutePath else {
+                document.statusMessage = "Sample scene cannot be saved"
+                return
+            }
+
+            do {
+                let sceneModel = try EditorSceneModel.decode(from: document.content)
+                if let lastSavedContent = document.lastSavedContent {
+                    let currentDiskContent = try String(contentsOf: URL(fileURLWithPath: absolutePath), encoding: .utf8)
+                    guard currentDiskContent == lastSavedContent else {
+                        document.statusMessage = "Save blocked: file changed on disk"
+                        document.errorMessage = "Reload the scene before overwriting external changes."
+                        return
+                    }
+                }
+
+                try document.content.write(to: URL(fileURLWithPath: absolutePath), atomically: true, encoding: .utf8)
+                document.sceneModel = sceneModel
+                document.loadSummary = EditorSceneFileLoader.summary(from: document.content)
+                document.lastSavedContent = document.content
+                document.isDirty = false
+                document.errorMessage = nil
+                document.statusMessage = "Saved"
+                didSave = true
+            } catch {
+                document.statusMessage = "Save blocked"
+                document.errorMessage = error.localizedDescription
+            }
+        }
+        return didSave
+    }
+
+    @discardableResult
+    func saveTextDocument(id documentID: String) -> Bool {
+        var didSave = false
+        updateTextDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Save blocked: file is read-only"
+                document.errorMessage = document.errorMessage ?? "The file could not be decoded as UTF-8 and will not be overwritten."
+                return
+            }
+            guard let absolutePath = document.absolutePath else {
+                document.statusMessage = "Sample file cannot be saved"
+                return
+            }
+
+            do {
+                if let lastSavedContent = document.lastSavedContent {
+                    let currentDiskContent = try String(contentsOf: URL(fileURLWithPath: absolutePath, isDirectory: false), encoding: .utf8)
+                    guard currentDiskContent == lastSavedContent else {
+                        document.statusMessage = "Save blocked: file changed on disk"
+                        document.errorMessage = "Reload the file before overwriting external changes."
+                        return
+                    }
+                }
+
+                try document.content.write(to: URL(fileURLWithPath: absolutePath, isDirectory: false), atomically: true, encoding: .utf8)
+                document.lastSavedContent = document.content
+                document.isDirty = false
+                document.errorMessage = nil
+                document.statusMessage = "Saved"
+                didSave = true
+            } catch {
+                document.statusMessage = "Save failed: \(error.localizedDescription)"
+                document.errorMessage = error.localizedDescription
+            }
+        }
+        return didSave
+    }
+
+    func replaceSceneDocument(_ document: EditorSceneDocument) {
+        guard let index = openDocuments.firstIndex(where: { $0.id == document.id }) else {
+            return
+        }
+
+        guard case .scene(var previousDocument) = openDocuments[index] else {
+            return
+        }
+        guard !previousDocument.isReadOnly else {
+            previousDocument.statusMessage = "Edit blocked: file is read-only"
+            previousDocument.errorMessage = previousDocument.errorMessage ?? "Symbolic-link scene files are read-only in the editor."
+            openDocuments[index] = .scene(previousDocument)
+            notifyActiveDocumentChangedIfNeeded(documentID: document.id)
+            return
+        }
+
+        openDocuments[index] = .scene(document)
+        notifyActiveDocumentChangedIfNeeded(documentID: document.id)
+        if document.isDirty,
+           document.content != previousDocument.content || document.sceneModel != previousDocument.sceneModel || !previousDocument.isDirty {
+            onDocumentEdited?(document.id)
+        }
+    }
+
+    func addEntity(to documentID: String) {
+        updateSceneModelDocument(id: documentID, status: "Entity added") { model in
+            _ = model.addEntity()
+        }
+    }
+
+    func selectSceneEntity(documentID: String, entityID: String?) {
+        updateSceneModelDocument(id: documentID, status: "Selected") { model in
+            model.selectEntity(entityID)
+        }
+    }
+
+    func toggleSceneEntityExpanded(documentID: String, entityID: String) {
+        updateSceneModelDocument(id: documentID, status: "Hierarchy updated") { model in
+            model.toggleEntityExpanded(entityID)
+        }
+    }
+
+    func addComponent(typeName: String, toSelectedEntityIn documentID: String) {
+        updateSceneModelDocument(id: documentID, status: "Component added") { model in
+            guard let selectedEntityID = model.editor?.selectedEntity else {
+                return
+            }
+            model.addComponent(typeName: typeName, to: selectedEntityID)
+        }
+    }
+
+    func removeComponent(typeName: String, fromSelectedEntityIn documentID: String) {
+        updateSceneModelDocument(id: documentID, status: "Component removed") { model in
+            guard let selectedEntityID = model.editor?.selectedEntity else {
+                return
+            }
+            model.removeComponent(typeName: typeName, from: selectedEntityID)
+        }
+    }
+
+    func updateComponentField(
+        typeName: String,
+        field: EditorComponentField,
+        value: String,
+        inSelectedEntityOf documentID: String
+    ) {
+        updateSceneModelDocument(id: documentID, status: "Edited") { model in
+            guard let selectedEntityID = model.editor?.selectedEntity else {
+                return
+            }
+            model.updateField(typeName: typeName, field: field, value: value, in: selectedEntityID)
+        }
+    }
+
+    func sceneDocument(id documentID: String) -> EditorSceneDocument? {
+        guard case .scene(let document)? = openDocuments.first(where: { $0.id == documentID }) else {
+            return nil
+        }
+
+        return document
+    }
+
+    func textDocument(id documentID: String) -> EditorTextDocument? {
+        guard case .text(let document)? = openDocuments.first(where: { $0.id == documentID }) else {
+            return nil
+        }
+
+        return document
+    }
+
+    func updateSceneLine(documentID: String, lineIndex: Int, value: String) {
+        updateSceneDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Edit blocked: file is read-only"
+                return
+            }
+            var lines = document.content.components(separatedBy: .newlines)
+            guard lines.indices.contains(lineIndex) else {
+                return
+            }
+
+            lines[lineIndex] = value
+            document.content = lines.joined(separator: "\n")
+            document.isDirty = true
+            document.statusMessage = "Edited"
+            document.errorMessage = nil
+            document.loadSummary = EditorSceneFileLoader.summary(from: document.content)
+            document.sceneModel = EditorSceneFileLoader.model(from: document.content)
+        }
+    }
+
+    func updateSceneModelDocument(id documentID: String, status: String, update: (inout EditorSceneModel) -> Void) {
+        updateSceneDocument(id: documentID) { document in
+            guard !document.isReadOnly else {
+                document.statusMessage = "Edit blocked: file is read-only"
+                return
+            }
+            guard var model = document.sceneModel ?? EditorSceneFileLoader.model(from: document.content) else {
+                document.statusMessage = "Scene model unavailable"
+                return
+            }
+
+            update(&model)
+
+            do {
+                document.sceneModel = model
+                document.content = try model.encodedYAML()
+                document.loadSummary = EditorSceneFileLoader.summary(from: document.content)
+                document.isDirty = true
+                document.statusMessage = status
+                document.errorMessage = nil
+            } catch {
+                document.statusMessage = "Scene encode failed"
+                document.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func updateSceneDocument(id documentID: String, update: (inout EditorSceneDocument) -> Void) {
+        guard let index = openDocuments.firstIndex(where: { $0.id == documentID }) else {
+            return
+        }
+
+        guard case .scene(var document) = openDocuments[index] else {
+            return
+        }
+
+        let previousContent = document.content
+        let wasDirty = document.isDirty
+        update(&document)
+        openDocuments[index] = .scene(document)
+        notifyActiveDocumentChangedIfNeeded(documentID: documentID)
+        if document.isDirty, document.content != previousContent || !wasDirty {
+            onDocumentEdited?(documentID)
+        }
+    }
+
+    func updateTextDocument(id documentID: String, update: (inout EditorTextDocument) -> Void) {
+        guard let index = openDocuments.firstIndex(where: { $0.id == documentID }) else {
+            return
+        }
+
+        guard case .text(var document) = openDocuments[index] else {
+            return
+        }
+
+        let previousContent = document.content
+        let wasDirty = document.isDirty
+        update(&document)
+        openDocuments[index] = .text(document)
+        notifyActiveDocumentChangedIfNeeded(documentID: documentID)
+        if document.isDirty, document.content != previousContent || !wasDirty {
+            onDocumentEdited?(documentID)
+        }
+    }
+
+    func notifyActiveDocumentChangedIfNeeded(documentID: String) {
+        guard activeDocumentID == documentID else {
+            return
+        }
+
+        onActiveDocumentChanged?()
+    }
+}

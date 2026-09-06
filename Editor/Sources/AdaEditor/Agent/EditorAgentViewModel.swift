@@ -116,6 +116,10 @@ final class EditorAgentViewModel {
         project.map { URL(fileURLWithPath: $0.path, isDirectory: true) }
     }
 
+    var projectName: String {
+        project?.name ?? "Ada Agent"
+    }
+
     func configureForProject() {
         guard let projectURL else {
             statusMessage = "No project is open."
