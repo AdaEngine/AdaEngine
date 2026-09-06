@@ -26,11 +26,6 @@ struct EditorInspectorSidebar: View {
                                 .font(.system(size: 11))
                                 .foregroundColor(theme.editorColors.muted)
                         }
-                        inspectorSection("TRANSFORM") {
-                            ForEach(selectedEntity.transformFields, id: \.label) { field in
-                                transformRow(field)
-                            }
-                        }
                         inspectorSection("COMPONENTS") {
                             ForEach(selectedEntity.components, id: \.typeName) { component in
                                 componentEditor(component)
@@ -81,19 +76,6 @@ struct EditorInspectorSidebar: View {
         .padding(12)
     }
 
-    private func transformRow(_ field: EditorInspectorSidebarViewModel.TransformField) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            fieldLabel(field.label)
-            fieldControl(
-                value: field.value,
-                kind: field.field.kind,
-                isEditable: field.field.isEditable,
-                scalarBinding: viewModel.transformFieldBinding(field),
-                axisBinding: { viewModel.transformVectorAxisBinding(field: field, axisIndex: $0) }
-            )
-        }
-    }
-
     private func componentEditor(_ component: EditorInspectorSidebarViewModel.ComponentSection) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
@@ -119,7 +101,7 @@ struct EditorInspectorSidebar: View {
     }
 
     private func componentFieldRow(_ field: EditorInspectorSidebarViewModel.ComponentField) -> some View {
-        HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             fieldLabel(field.field.label)
             fieldControl(
                 value: field.value,
@@ -135,7 +117,7 @@ struct EditorInspectorSidebar: View {
         Text(label)
             .font(.system(size: 11))
             .foregroundColor(theme.editorColors.muted)
-            .frame(width: 82, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -414,7 +396,7 @@ private extension EditorInspectorSidebar {
                 .buttonStyle(DefaultButtonStyle())
             }
             ForEach(object.fields, id: \.field.id) { field in
-                HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 6) {
                     fieldLabel(field.field.label)
                     fieldControl(
                         value: field.value,
