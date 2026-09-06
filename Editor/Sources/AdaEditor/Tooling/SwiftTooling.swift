@@ -237,10 +237,6 @@ actor SwiftPMBuildProgressTracker {
         self.lastEmissionTime = now
     }
 
-    func parse(line: String, knownFiles: [URL]) -> SwiftPMBuildProgress {
-        parser.parse(line: line, knownFiles: knownFiles)
-    }
-
     func consume(
         _ event: EditorProcessOutputEvent,
         knownFiles: [URL],

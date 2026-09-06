@@ -32,11 +32,13 @@ struct SwiftToolingTests {
         let toolchain = SwiftToolchain(swiftExecutablePath: "/usr/bin/swift", sourceKitLSPExecutablePath: "/usr/bin/sourcekit-lsp")
         let projectURL = URL(fileURLWithPath: "/tmp/Game", isDirectory: true)
         let buildPrefix = ["build", "--jobs", String(SwiftPMWorkspaceService.responsiveBuildJobCount)]
+        let targetBuild = service.makeCommand(.build(target: "Game", buildTests: false), projectURL: projectURL, toolchain: toolchain)
+        let testBuild = service.makeCommand(.build(target: nil, buildTests: true), projectURL: projectURL, toolchain: toolchain)
 
         #expect(service.makeCommand(.resolve, projectURL: projectURL, toolchain: toolchain).arguments == ["package", "resolve"])
         #expect(service.makeCommand(.describe, projectURL: projectURL, toolchain: toolchain).arguments == ["package", "describe", "--type", "json"])
-        #expect(service.makeCommand(.build(target: "Game", buildTests: false), projectURL: projectURL, toolchain: toolchain).arguments == buildPrefix + ["--target", "Game"])
-        #expect(service.makeCommand(.build(target: nil, buildTests: true), projectURL: projectURL, toolchain: toolchain).arguments == buildPrefix + ["--build-tests"])
+        #expect(targetBuild.arguments == buildPrefix + ["--target", "Game"])
+        #expect(testBuild.arguments == buildPrefix + ["--build-tests"])
         #expect(service.makeCommand(.run(target: "Game", arguments: ["--debug"]), projectURL: projectURL, toolchain: toolchain).arguments == ["run", "Game", "--", "--debug"])
         let webCommand = service.makeCommand(.runWeb(target: "Game", outputPath: "dist/web", serve: true), projectURL: projectURL, toolchain: toolchain)
         #expect(webCommand.arguments == [
