@@ -598,18 +598,25 @@ public struct AdaProjectEditor: Codable, Equatable, Sendable {
 public struct AdaProjectAI: Codable, Equatable, Sendable {
     public var mcp: AdaProjectMCP
     public var agent: AdaProjectAgent
+    public var imageGeneration: AdaProjectImageGeneration
 
-    public init(mcp: AdaProjectMCP = AdaProjectMCP(), agent: AdaProjectAgent = AdaProjectAgent()) {
+    public init(
+        mcp: AdaProjectMCP = AdaProjectMCP(),
+        agent: AdaProjectAgent = AdaProjectAgent(),
+        imageGeneration: AdaProjectImageGeneration = AdaProjectImageGeneration()
+    ) {
         self.mcp = mcp
         self.agent = agent
+        self.imageGeneration = imageGeneration
     }
 
-    private enum CodingKeys: String, CodingKey { case mcp, agent }
+    private enum CodingKeys: String, CodingKey { case mcp, agent, imageGeneration }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         mcp = try container.decodeIfPresent(AdaProjectMCP.self, forKey: .mcp) ?? AdaProjectMCP()
         agent = try container.decodeIfPresent(AdaProjectAgent.self, forKey: .agent) ?? AdaProjectAgent()
+        imageGeneration = try container.decodeIfPresent(AdaProjectImageGeneration.self, forKey: .imageGeneration) ?? AdaProjectImageGeneration()
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -618,6 +625,63 @@ public struct AdaProjectAI: Codable, Equatable, Sendable {
         if agent != AdaProjectAgent() {
             try container.encode(agent, forKey: .agent)
         }
+        if imageGeneration != AdaProjectImageGeneration() {
+            try container.encode(imageGeneration, forKey: .imageGeneration)
+        }
+    }
+}
+
+public struct AdaProjectImageGeneration: Codable, Equatable, Sendable {
+    public var enabled: Bool
+    public var provider: String
+    public var model: String
+    public var size: String
+    public var quality: String
+    public var background: String
+    public var outputFormat: String
+
+    public init(
+        enabled: Bool = false,
+        provider: String = "openai",
+        model: String = "gpt-image-2",
+        size: String = "1024x1024",
+        quality: String = "medium",
+        background: String = "transparent",
+        outputFormat: String = "png"
+    ) {
+        self.enabled = enabled
+        self.provider = provider
+        self.model = model
+        self.size = size
+        self.quality = quality
+        self.background = background
+        self.outputFormat = outputFormat
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled, provider, model, size, quality, background, outputFormat
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        provider = try container.decodeIfPresent(String.self, forKey: .provider) ?? "openai"
+        model = try container.decodeIfPresent(String.self, forKey: .model) ?? "gpt-image-2"
+        size = try container.decodeIfPresent(String.self, forKey: .size) ?? "1024x1024"
+        quality = try container.decodeIfPresent(String.self, forKey: .quality) ?? "medium"
+        background = try container.decodeIfPresent(String.self, forKey: .background) ?? "transparent"
+        outputFormat = try container.decodeIfPresent(String.self, forKey: .outputFormat) ?? "png"
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(enabled, forKey: .enabled)
+        try container.encode(provider, forKey: .provider)
+        try container.encode(model, forKey: .model)
+        try container.encode(size, forKey: .size)
+        try container.encode(quality, forKey: .quality)
+        try container.encode(background, forKey: .background)
+        try container.encode(outputFormat, forKey: .outputFormat)
     }
 }
 
