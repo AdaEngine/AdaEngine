@@ -3692,6 +3692,7 @@ final class EditorViewModel {
 
 
     private func handleWorkspaceProgress(_ progress: SwiftPMWorkspaceProgress) {
+        let phaseChanged = lastLoggedWorkspaceProgressPhase != progress.phase
         buildActivity?.consume(progress)
         switch progress.phase {
         case .ready:
@@ -3705,9 +3706,11 @@ final class EditorViewModel {
         default:
             workspaceStatus = .preparing(progress)
         }
-        footer.setWorkspaceFooterTitle(workspaceStatus.title)
+        if progress.phase != .indexingBuild || phaseChanged {
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+        }
 
-        if lastLoggedWorkspaceProgressPhase != progress.phase {
+        if phaseChanged {
             appendOutput("Workspace: \(progress.progressText)")
             if let detail = progress.detail, !detail.isEmpty {
                 appendOutput(detail)

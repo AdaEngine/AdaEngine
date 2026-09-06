@@ -72,10 +72,12 @@ struct SwiftToolingTests {
             outputChunks: [
                 [],
                 [],
-                [EditorProcessOutputEvent(
-                    stream: .standardOutput,
-                    text: "[1/2] Compiling Game main.swift\n[2/2] Compiling Game Player.swift\n"
-                )]
+                [
+                    EditorProcessOutputEvent(
+                        stream: .standardOutput,
+                        text: "[1/2] Compiling Game main.swift\n[2/2] Compiling Game Player.swift\n"
+                    )
+                ]
             ]
         )
         let recorder = WorkspaceProgressRecorder()

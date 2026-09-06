@@ -113,8 +113,6 @@ struct EditorProcessCommand: Equatable, Sendable {
     }
 }
 
-
-
 enum EditorProcessOutputStream: Equatable, Sendable {
     case standardOutput
     case standardError
@@ -230,7 +228,7 @@ actor SwiftPMBuildProgressTracker {
     private var lastEmissionTime: TimeInterval
 
     init(
-        minimumEmissionInterval: TimeInterval = 0.15,
+        minimumEmissionInterval: TimeInterval = 0.5,
         now: TimeInterval = Date.timeIntervalSinceReferenceDate
     ) {
         self.minimumEmissionInterval = max(0, minimumEmissionInterval)
@@ -306,7 +304,6 @@ actor SwiftPMBuildProgressTracker {
         return batch
     }
 }
-
 
 struct EditorProcessResult: Equatable, Sendable {
     var command: EditorProcessCommand
@@ -644,7 +641,12 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         let resolveCommand = makeCommand(.resolve, projectURL: projectURL, toolchain: resolvedToolchain)
         await progress(SwiftPMWorkspaceProgress(phase: .resolvingDependencies, title: "Resolving SwiftPM dependencies", command: resolveCommand))
         let resolveResult = await processRunner.run(resolveCommand) { event in
-            await progress(SwiftPMWorkspaceProgress(phase: .resolvingDependencies, title: "Resolving SwiftPM dependencies", detail: event.text.trimmingCharacters(in: .whitespacesAndNewlines), command: resolveCommand))
+            await progress(SwiftPMWorkspaceProgress(
+                phase: .resolvingDependencies,
+                title: "Resolving SwiftPM dependencies",
+                detail: event.text.trimmingCharacters(in: .whitespacesAndNewlines),
+                command: resolveCommand
+            ))
         }
 
         let describeCommand = makeCommand(.describe, projectURL: projectURL, toolchain: resolvedToolchain)
@@ -656,20 +658,12 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
 
         let indexBuildResult: EditorProcessResult?
         if resolveResult.succeeded && describeResult.succeeded {
-            let sourceFiles = Self.swiftSourceFiles(projectURL: projectURL, packageModel: packageModel, includeTests: false, fileManager: .default)
-            await progress(SwiftPMWorkspaceProgress(phase: .scanningSources, title: "Scanning Swift source files", completedFileCount: 0, totalFileCount: sourceFiles.count))
-            await progress(SwiftPMWorkspaceProgress(phase: .scanningSources, title: "Scanned Swift source files", completedFileCount: sourceFiles.count, totalFileCount: sourceFiles.count))
-            let buildCommand = makeCommand(.build(target: nil, buildTests: false), projectURL: projectURL, toolchain: resolvedToolchain)
-            await progress(SwiftPMWorkspaceProgress(phase: .indexingBuild, title: "Indexing Swift package", completedFileCount: 0, totalFileCount: sourceFiles.count, command: buildCommand))
-            let progressTracker = SwiftPMBuildProgressTracker()
-            indexBuildResult = await processRunner.run(buildCommand) { event in
-                if let batch = await progressTracker.consume(event, knownFiles: sourceFiles) {
-                    await progress(Self.indexingProgress(batch: batch, sourceFiles: sourceFiles, command: buildCommand))
-                }
-            }
-            if let batch = await progressTracker.finish(knownFiles: sourceFiles) {
-                await progress(Self.indexingProgress(batch: batch, sourceFiles: sourceFiles, command: buildCommand))
-            }
+            indexBuildResult = await buildWorkspaceIndex(
+                projectURL: projectURL,
+                packageModel: packageModel,
+                toolchain: resolvedToolchain,
+                progress: progress
+            )
         } else {
             indexBuildResult = nil
         }
@@ -697,6 +691,47 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             indexBuildResult: indexBuildResult,
             diagnostics: diagnostics
         )
+    }
+
+    private func buildWorkspaceIndex(
+        projectURL: URL,
+        packageModel: SwiftPackageModel?,
+        toolchain: SwiftToolchain,
+        progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void
+    ) async -> EditorProcessResult {
+        let sourceFiles = Self.swiftSourceFiles(projectURL: projectURL, packageModel: packageModel, includeTests: false, fileManager: .default)
+        await progress(SwiftPMWorkspaceProgress(
+            phase: .scanningSources,
+            title: "Scanning Swift source files",
+            completedFileCount: 0,
+            totalFileCount: sourceFiles.count
+        ))
+        await progress(SwiftPMWorkspaceProgress(
+            phase: .scanningSources,
+            title: "Scanned Swift source files",
+            completedFileCount: sourceFiles.count,
+            totalFileCount: sourceFiles.count
+        ))
+
+        let buildCommand = makeCommand(.build(target: nil, buildTests: false), projectURL: projectURL, toolchain: toolchain)
+        await progress(SwiftPMWorkspaceProgress(
+            phase: .indexingBuild,
+            title: "Indexing Swift package",
+            completedFileCount: 0,
+            totalFileCount: sourceFiles.count,
+            command: buildCommand
+        ))
+
+        let progressTracker = SwiftPMBuildProgressTracker()
+        let result = await processRunner.run(buildCommand) { event in
+            if let batch = await progressTracker.consume(event, knownFiles: sourceFiles) {
+                await progress(Self.indexingProgress(batch: batch, sourceFiles: sourceFiles, command: buildCommand))
+            }
+        }
+        if let batch = await progressTracker.finish(knownFiles: sourceFiles) {
+            await progress(Self.indexingProgress(batch: batch, sourceFiles: sourceFiles, command: buildCommand))
+        }
+        return result
     }
 
     func execute(_ kind: SwiftPMCommandKind, projectURL: URL) async -> EditorProcessResult {
@@ -913,7 +948,9 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             return []
         }
         return enumerator.compactMap { item in
-            guard let url = item as? URL, url.pathExtension == "swift" else { return nil }
+            guard let url = item as? URL, url.pathExtension == "swift" else {
+                return nil
+            }
             return url
         }
     }
