@@ -334,7 +334,58 @@ final class EditorAgentViewModel {
         guard let projectURL else {
             return
         }
-        pendingAttachments.append(EditorAgentAttachmentContext.attachment(forFileAt: url, projectURL: projectURL, fileManager: fileManager))
+        let attachment = EditorAgentAttachmentContext.attachment(forFileAt: url, projectURL: projectURL, fileManager: fileManager)
+        guard pendingAttachments.contains(where: { $0.absolutePath == attachment.absolutePath }) == false else {
+            return
+        }
+        pendingAttachments.append(attachment)
+    }
+
+    func removeAttachment(id: String) {
+        pendingAttachments.removeAll { $0.id == id }
+    }
+
+    func contextFiles(matching query: String, limit: Int = 40) -> [EditorAgentProjectFileSearch.Entry] {
+        guard let projectURL else {
+            return []
+        }
+        return EditorAgentProjectFileSearch.search(
+            projectURL: projectURL,
+            query: query,
+            limit: limit,
+            fileManager: fileManager
+        ).filter { !$0.isDirectory }
+    }
+
+    func attachProjectFile(_ entry: EditorAgentProjectFileSearch.Entry) {
+        guard let projectURL, !entry.isDirectory else {
+            return
+        }
+        attachFile(at: projectURL.appendingPathComponent(entry.path, isDirectory: false))
+    }
+
+    func presentContextFilePicker() {
+        ProjectOpenPicker.presentAgentContextPicker { [weak self] result in
+            guard let self else {
+                return
+            }
+            switch result {
+            case .selected(let urls):
+                for url in urls {
+                    self.attachFile(at: url)
+                }
+            case .cancelled:
+                break
+            case .unavailable(let message):
+                self.statusMessage = message
+            }
+        }
+    }
+
+    func resolvePermission(requestID: String, optionID: String?) {
+        Task {
+            await service.resolvePermission(requestID: requestID, optionID: optionID)
+        }
     }
 
     func insertAutocomplete(_ entry: EditorAgentProjectFileSearch.Entry) {
@@ -515,14 +566,7 @@ final class EditorAgentViewModel {
             return
         }
 
-        if event.kind == .message,
-           event.message?.role == .assistant,
-           event.message?.segments.first?.kind == .text,
-           let lastIndex = session.events.lastIndex(where: { $0.kind == .message && $0.message?.role == .assistant && $0.message?.segments.first?.kind == .text }) {
-            session.events[lastIndex] = event
-        } else {
-            session.events.append(event)
-        }
+        EditorAgentEventReducer.upsert(event, into: &session.events)
 
         session.updatedAt = Date()
         if let userText = session.events.compactMap(\.message).first(where: { $0.role == .user })?.segments.first?.text {
@@ -584,6 +628,50 @@ final class EditorAgentViewModel {
     private func uniqueSkills(_ skills: [EditorAgentSkill]) -> [EditorAgentSkill] {
         var seen = Set<String>()
         return skills.filter { seen.insert($0.id).inserted }
+    }
+}
+
+enum EditorAgentEventReducer {
+    static func upsert(_ event: EditorAgentEvent, into events: inout [EditorAgentEvent]) {
+        guard let index = events.firstIndex(where: { $0.id == event.id }) else {
+            events.append(event)
+            return
+        }
+
+        if event.isDelta == true,
+           var existingMessage = events[index].message,
+           let deltaMessage = event.message,
+           let deltaSegment = deltaMessage.segments.first,
+           let segmentIndex = existingMessage.segments.firstIndex(where: { $0.kind == deltaSegment.kind }) {
+            let existingText = existingMessage.segments[segmentIndex].text ?? ""
+            existingMessage.segments[segmentIndex].text = existingText + (deltaSegment.text ?? "")
+            events[index].message = existingMessage
+            events[index].createdAt = event.createdAt
+            return
+        }
+
+        if let incomingTool = event.toolCall, var currentTool = events[index].toolCall {
+            if incomingTool.title != "Tool call" {
+                currentTool.title = incomingTool.title
+            }
+            if incomingTool.kind != "other" {
+                currentTool.kind = incomingTool.kind
+            }
+            currentTool.status = incomingTool.status ?? currentTool.status
+            if !incomingTool.content.isEmpty {
+                currentTool.content = incomingTool.content
+            }
+            if !incomingTool.locations.isEmpty {
+                currentTool.locations = incomingTool.locations
+            }
+            var merged = event
+            merged.toolCall = currentTool
+            merged.title = currentTool.title
+            events[index] = merged
+            return
+        }
+
+        events[index] = event
     }
 }
 

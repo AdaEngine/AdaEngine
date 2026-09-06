@@ -41,6 +41,9 @@ enum ProjectOpenPicker {
     static let atlasImageTitle = "Add Images to Atlas"
     static let atlasImagePrompt = "Add"
     static let atlasImageMessage = "Choose PNG images to include in the texture atlas."
+    static let agentContextTitle = "Add Agent Context"
+    static let agentContextPrompt = "Add"
+    static let agentContextMessage = "Choose files or images to include in the next agent message."
 
     @MainActor
     static func presentProjectPicker(completion: @escaping @MainActor (URL?) -> Void) {
@@ -162,6 +165,49 @@ enum ProjectOpenPicker {
     }
 
     @MainActor
+    static func presentAgentContextPicker(
+        completion: @escaping @MainActor (AssetFilePickerResult) -> Void
+    ) {
+        #if canImport(AppKit)
+        let panel = NSOpenPanel()
+        panel.title = agentContextTitle
+        panel.prompt = agentContextPrompt
+        panel.message = agentContextMessage
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = true
+        panel.canCreateDirectories = false
+        panel.resolvesAliases = true
+
+        guard panel.runModal() == .OK else {
+            completion(.cancelled)
+            return
+        }
+        guard !panel.urls.isEmpty else {
+            completion(.unavailable("The system picker did not return any files."))
+            return
+        }
+        completion(.selected(panel.urls))
+        #elseif canImport(UIKit)
+        guard let presenter = activeViewController() else {
+            completion(.unavailable("AdaEditor has no active window from which to open Files."))
+            return
+        }
+        let picker = UIDocumentPickerViewController(
+            forOpeningContentTypes: [.data, .image, .plainText],
+            asCopy: true
+        )
+        let delegate = AgentContextDocumentPickerDelegate(completion: completion)
+        activeAgentContextPickerDelegate = delegate
+        picker.delegate = delegate
+        picker.allowsMultipleSelection = true
+        presenter.present(picker, animated: true)
+        #else
+        completion(.unavailable("File selection is not supported on this platform."))
+        #endif
+    }
+
+    @MainActor
     static func presentAtlasImagePicker(
         completion: @escaping @MainActor (AssetFilePickerResult) -> Void
     ) {
@@ -228,6 +274,8 @@ enum ProjectOpenPicker {
     #if canImport(UIKit)
     @MainActor
     private static var activeProjectPickerDelegate: ProjectDocumentPickerDelegate?
+    @MainActor
+    private static var activeAgentContextPickerDelegate: AgentContextDocumentPickerDelegate?
     @MainActor
     private static var activeProjectLocationPickerDelegate: ProjectLocationDocumentPickerDelegate?
     @MainActor
@@ -297,6 +345,32 @@ enum ProjectOpenPicker {
         private func finish(with result: ProjectLocationPickerResult) {
             completion(result)
             activeProjectLocationPickerDelegate = nil
+        }
+    }
+
+    @MainActor
+    private final class AgentContextDocumentPickerDelegate: NSObject, UIDocumentPickerDelegate {
+        private let completion: @MainActor (AssetFilePickerResult) -> Void
+
+        init(completion: @escaping @MainActor (AssetFilePickerResult) -> Void) {
+            self.completion = completion
+        }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard !urls.isEmpty else {
+                finish(with: .unavailable("Files did not return any selected files."))
+                return
+            }
+            finish(with: .selected(urls))
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            finish(with: .cancelled)
+        }
+
+        private func finish(with result: AssetFilePickerResult) {
+            completion(result)
+            activeAgentContextPickerDelegate = nil
         }
     }
 

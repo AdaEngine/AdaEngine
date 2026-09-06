@@ -8,7 +8,7 @@
 @_spi(AdaEngine) import AdaEngine
 
 enum AdaEngineStyleContent {
-    static let topToolbarLabels = ["Search Everywhere", "main_scene", "Hot Reload", "Run"]
+    static let topToolbarLabels = ["Search Everywhere", "main_scene", "Run"]
     static let leftTopSidebarTools = [
         EditorToolStripItem(identifier: "fileTree", title: "File Tree", icon: "\u{E2C7}"),
         EditorToolStripItem(identifier: "entityTree", title: "Entity Tree", icon: "\u{E97A}"),
@@ -110,6 +110,7 @@ struct EditorView: View {
     let hotReloadState: EditorHotReloadState
     @State private var viewModel: EditorViewModel
     @State private var projectSwitcher: EditorProjectSwitcherViewModel
+    @State private var isRunDestinationMenuPresented = false
     @Environment(\.theme) private var theme
 
     init(project: EditorProjectReference?, hotReloadState: EditorHotReloadState) {
@@ -124,9 +125,17 @@ struct EditorView: View {
             let metrics = AdaEngineStyleLayoutMetrics(size: geometry.size)
             VStack(spacing: metrics.workspaceSpacer) {
                 EditorTopToolbarRegion(
-                    hotReloadState: hotReloadState,
                     viewModel: viewModel,
-                    projectSwitcher: projectSwitcher
+                    projectSwitcher: projectSwitcher,
+                    isRunDestinationMenuPresented: isRunDestinationMenuPresented,
+                    onToggleRunDestinationMenu: {
+                        projectSwitcher.dismiss()
+                        isRunDestinationMenuPresented.toggle()
+                    },
+                    onToggleProjectSwitcher: {
+                        isRunDestinationMenuPresented = false
+                        projectSwitcher.toggle()
+                    }
                 )
                 .onAppear {
                     viewModel.startEditorSessionIfNeeded()
@@ -186,10 +195,19 @@ struct EditorView: View {
                     .zIndex(20)
                 }
             }
+            .overlay(anchor: .topTrailing) {
+                EditorRunDestinationOverlay(
+                    isPresented: isRunDestinationMenuPresented,
+                    selectedDestination: viewModel.selectedRunDestination,
+                    toolbarHeight: metrics.topToolbarHeight,
+                    onDismiss: { isRunDestinationMenuPresented = false },
+                    onSelect: viewModel.selectRunDestination
+                )
+            }
         }
         .padding(.all, 4)
         .background {
-            theme.editorColors.background
+            EditorSafeAreaBackground()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .fullScreenCover(isPresented: viewModel.isNewFileDialogPresentedBinding) {
@@ -283,32 +301,6 @@ struct EditorView: View {
                 viewModel.workbench.resetCodeFontSize()
             },
         ]
-    }
-}
-
-private struct EditorTopToolbarRegion: View {
-    let hotReloadState: EditorHotReloadState
-    let viewModel: EditorViewModel
-    let projectSwitcher: EditorProjectSwitcherViewModel
-
-    var body: some View {
-        EditorTopToolbar(
-            project: viewModel.project,
-            isProjectSwitcherPresented: projectSwitcher.isPresented,
-            hotReloadState: hotReloadState,
-            viewModel: viewModel.toolbar,
-            runDestination: viewModel.selectedRunDestination,
-            isRunEnabled: !viewModel.isProjectRunning,
-            isStopEnabled: viewModel.isProjectRunning,
-            onSelectRunDestination: { destination in
-                viewModel.selectRunDestination(destination)
-            },
-            onToggleProjectSwitcher: {
-                projectSwitcher.toggle()
-            },
-            onRun: viewModel.runFromToolbar,
-            onStop: viewModel.stopFromToolbar
-        )
     }
 }
 

@@ -66,7 +66,9 @@ final class TextEditorViewNode: ViewNode {
     var isCursorActive = false
     var isSourceCursorActive = false
     var isSelectingWithMouse = false
+    var isSelectingWithTouch = false
     var mousePressStartPoint: Point?
+    var touchPressStartPoint: Point?
     var lastTapTime: AdaUtils.TimeInterval?
     var lastTapPosition: Point?
     var lastHoveredSourcePosition: TextEditorSourcePosition?
@@ -158,18 +160,7 @@ final class TextEditorViewNode: ViewNode {
         return self
     }
 
-    override func onFocusChanged(isFocused: Bool) {
-        self.isFocused = isFocused
-        if !isFocused {
-            self.isSelectingWithMouse = false
-            self.mousePressStartPoint = nil
-            self.clearTapCandidate()
-        }
-        self.caretVisible = isFocused
-        self.caretBlinkElapsed = 0
-        self.owner?.window?.windowManager.textInputFocusDidChange(isFocused)
-        self.requestDisplay()
-    }
+    override func onFocusChanged(isFocused: Bool) { self.updateTextEditorFocus(isFocused) }
 
     override func onMouseEvent(_ event: MouseEvent) {
         if self.handleSourceInteractionMouseEvent(event) {
@@ -227,11 +218,9 @@ final class TextEditorViewNode: ViewNode {
         self.requestDisplay()
     }
 
-    override func onMouseLeave() {
-        self.notifySourceHover(nil)
-        self.resetSourceCursorIfNeeded()
-        self.resetTextCursorIfNeeded()
-    }
+    override func onTouchesEvent(_ touches: Set<TouchEvent>) { self.handleTextEditorTouches(touches) }
+
+    override func onMouseLeave() { self.handleTextEditorMouseLeave() }
 
     override func onTextInputEvent(_ event: TextInputEvent) {
         guard self.isFocused else {

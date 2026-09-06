@@ -5,6 +5,8 @@ struct EditorAgentSidebar: View {
 
     @State private var showsSkillPicker = false
     @State private var skillSearchText = ""
+    @State private var showsContextPicker = false
+    @State private var contextSearchText = ""
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
 
@@ -65,7 +67,6 @@ struct EditorAgentSidebar: View {
                 }
                 .buttonStyle(DefaultButtonStyle())
             }
-            configurationControls
         }
         .padding(10)
         .background(theme.editorColors.surface)
@@ -167,47 +168,95 @@ struct EditorAgentSidebar: View {
     }
 
     private func eventRow(_ event: EditorAgentEvent) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(eventTitle(event))
-                .font(.system(size: 10))
-                .foregroundColor(eventColor(event))
-            if let message = event.message {
-                ForEach(Array(message.segments.enumerated()), id: \.offset) { _, segment in
-                    segmentView(segment, role: message.role)
-                }
-            } else if let details = event.details {
-                Text(details)
+        EditorAgentEventCard(event: event, viewModel: viewModel)
+    }
+
+    private var contextControls: some View {
+        HStack(spacing: 6) {
+            Button(action: { showsContextPicker.toggle() }) {
+                Text(viewModel.pendingAttachments.isEmpty ? "+ Context" : "Context · \(viewModel.pendingAttachments.count)")
+                    .font(.system(size: 10))
+                    .foregroundColor(showsContextPicker ? theme.editorColors.text : theme.editorColors.blue)
+                    .padding(.horizontal, 8)
+                    .frame(height: 24)
+                    .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.blue.opacity(showsContextPicker ? 0.20 : 0.10)))
+            }
+            .buttonStyle(DefaultButtonStyle())
+            .accessibilityIdentifier("AdaEditor.Agent.AddContext")
+            Button(action: { viewModel.presentContextFilePicker() }) {
+                Text("Browse")
                     .font(.system(size: 10))
                     .foregroundColor(theme.editorColors.muted)
-                    .lineLimit(8)
+                    .padding(.horizontal, 8)
+                    .frame(height: 24)
+                    .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surfaceElevated))
             }
-        }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangleShape(cornerRadius: 6).fill(eventBackground(event)))
-        .overlay {
-            RoundedRectangleShape(cornerRadius: 6)
-                .stroke(theme.editorColors.border.opacity(0.35), lineWidth: 1)
+            .buttonStyle(DefaultButtonStyle())
+            .accessibilityIdentifier("AdaEditor.Agent.BrowseContext")
+            Text("Files and images")
+                .font(.system(size: 9))
+                .foregroundColor(theme.editorColors.muted)
         }
     }
 
-    private func segmentView(_ segment: EditorAgentMessageSegment, role: EditorAgentRole) -> some View {
-        switch segment.kind {
-        case .text, .thinking:
-            Text(segment.text ?? "")
-                .font(.system(size: 11))
-                .foregroundColor(role == .user ? theme.editorColors.text : theme.editorColors.muted)
-                .lineLimit(12)
-        case .attachment:
-            Text(segment.attachment?.relativePath ?? segment.attachment?.name ?? "Attachment")
-                .font(.system(size: 10))
-                .foregroundColor(theme.editorColors.blue)
-                .lineLimit(1)
-        case .skill:
-            Text("/\(segment.skill?.name ?? "skill")")
-                .font(.system(size: 10))
-                .foregroundColor(theme.editorColors.purple)
-                .lineLimit(1)
+    @ViewBuilder
+    private var contextPicker: some View {
+        if showsContextPicker {
+            VStack(alignment: .leading, spacing: 6) {
+                TextField("Search project files", text: Binding(get: { contextSearchText }, set: { contextSearchText = $0 }))
+                    .font(.system(size: 10))
+                    .foregroundColor(theme.editorColors.text)
+                    .padding(.horizontal, 8)
+                    .frame(height: 28)
+                    .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.background))
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .accessibilityIdentifier("AdaEditor.Agent.ContextSearch")
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(viewModel.contextFiles(matching: contextSearchText), id: \.id) { entry in
+                            Button(action: { viewModel.attachProjectFile(entry) }) {
+                                HStack(spacing: 6) {
+                                    Text(contextFileLabel(entry.path))
+                                        .font(.system(size: 9))
+                                        .foregroundColor(theme.editorColors.blue)
+                                        .frame(width: 28)
+                                    Text(entry.path)
+                                        .font(.system(size: 10))
+                                        .foregroundColor(theme.editorColors.text)
+                                        .lineLimit(1)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 5)
+                                .frame(height: 24)
+                            }
+                            .buttonStyle(DefaultButtonStyle())
+                        }
+                    }
+                }
+                .frame(height: 150)
+            }
+            .padding(6)
+            .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surfaceElevated))
+            .overlay {
+                RoundedRectangleShape(cornerRadius: 6)
+                    .stroke(theme.editorColors.border.opacity(0.45), lineWidth: 1)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pendingAttachmentList: some View {
+        if !viewModel.pendingAttachments.isEmpty {
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(viewModel.pendingAttachments, id: \.id) { attachment in
+                        EditorAgentAttachmentCard(attachment: attachment) {
+                            viewModel.removeAttachment(id: attachment.id)
+                        }
+                    }
+                }
+                .fixedSize(horizontal: true, vertical: false)
+            }
         }
     }
 
@@ -215,6 +264,10 @@ struct EditorAgentSidebar: View {
         VStack(alignment: .leading, spacing: 8) {
             sceneContextIndicator
             codeSelectionIndicator
+            configurationControls
+            contextControls
+            contextPicker
+            pendingAttachmentList
             skillControls
             skillPicker
             autocompleteList
@@ -489,31 +542,12 @@ struct EditorAgentSidebar: View {
         }
     }
 
-    private func eventTitle(_ event: EditorAgentEvent) -> String {
-        if let title = event.title {
-            return title
+    private func contextFileLabel(_ path: String) -> String {
+        let fileExtension = URL(fileURLWithPath: path).pathExtension.uppercased()
+        if ["PNG", "JPG", "JPEG", "GIF"].contains(fileExtension) {
+            return "IMG"
         }
-        if let role = event.message?.role {
-            return role.rawValue.uppercased()
-        }
-        return event.kind.rawValue
+        return fileExtension.isEmpty ? "FILE" : String(fileExtension.prefix(4))
     }
 
-    private func eventColor(_ event: EditorAgentEvent) -> Color {
-        switch event.kind {
-        case .error:
-            return theme.editorColors.purple
-        case .toolCall, .toolResult, .permission:
-            return theme.editorColors.blue
-        case .message, .runStatus:
-            return theme.editorColors.muted
-        }
-    }
-
-    private func eventBackground(_ event: EditorAgentEvent) -> Color {
-        if event.message?.role == .user {
-            return theme.editorColors.blue.opacity(0.10)
-        }
-        return theme.editorColors.surface
-    }
 }

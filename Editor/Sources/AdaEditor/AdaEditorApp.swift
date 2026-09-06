@@ -23,7 +23,13 @@ struct AdaEditorApp: App {
         }
         .windowMode(.windowed)
         .windowTitle("AdaEngine Editor")
-        .windowTitleBar(WindowTitleBar(background: .transparent, reservesSafeArea: false, dragRegionHeight: 52))
+        .windowTitleBar(
+            WindowTitleBar(
+                background: .transparent,
+                reservesSafeArea: EditorWindowSafeAreaPolicy.reservesSystemSafeArea,
+                dragRegionHeight: 52
+            )
+        )
         .windowTrafficLightOffset(x: 0, y: ProjectOpeningLayout.trafficLightOffsetY)
         .windowShadow(ProjectOpeningWindowConfiguration.hasShadow)
         .windowResizable(ProjectOpeningWindowConfiguration.isResizable)

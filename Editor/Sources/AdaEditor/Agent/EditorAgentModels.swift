@@ -173,6 +173,68 @@ enum EditorAgentEventKind: String, Codable, Equatable, Sendable {
     case error
 }
 
+enum EditorAgentToolStatus: String, Codable, Equatable, Sendable {
+    case pending
+    case inProgress
+    case completed
+    case failed
+}
+
+enum EditorAgentToolContentKind: String, Codable, Equatable, Sendable {
+    case text
+    case diff
+    case terminal
+    case image
+    case resource
+}
+
+struct EditorAgentToolContent: Codable, Equatable, Sendable {
+    var kind: EditorAgentToolContentKind
+    var text: String? = nil
+    var path: String? = nil
+    var oldText: String? = nil
+    var newText: String? = nil
+    var terminalID: String? = nil
+    var imageData: String? = nil
+    var mimeType: String? = nil
+    var uri: String? = nil
+}
+
+struct EditorAgentToolLocation: Codable, Equatable, Sendable {
+    var path: String?
+    var line: Int?
+}
+
+struct EditorAgentToolCall: Codable, Equatable, Identifiable, Sendable {
+    var id: String
+    var title: String
+    var kind: String
+    var status: EditorAgentToolStatus?
+    var content: [EditorAgentToolContent]
+    var locations: [EditorAgentToolLocation]
+}
+
+enum EditorAgentPermissionState: String, Codable, Equatable, Sendable {
+    case pending
+    case selected
+    case cancelled
+}
+
+struct EditorAgentPermissionOption: Codable, Equatable, Identifiable, Sendable {
+    var id: String
+    var name: String
+    var kind: String
+}
+
+struct EditorAgentPermissionRequest: Codable, Equatable, Identifiable, Sendable {
+    var id: String
+    var summary: String
+    var toolCallID: String?
+    var options: [EditorAgentPermissionOption]
+    var state: EditorAgentPermissionState
+    var selectedOptionID: String?
+}
+
 struct EditorAgentEvent: Codable, Equatable, Identifiable, Sendable {
     var id: String
     var kind: EditorAgentEventKind
@@ -181,6 +243,9 @@ struct EditorAgentEvent: Codable, Equatable, Identifiable, Sendable {
     var title: String?
     var details: String?
     var isSuccessful: Bool?
+    var isDelta: Bool?
+    var toolCall: EditorAgentToolCall?
+    var permission: EditorAgentPermissionRequest?
 
     init(
         id: String = UUID().uuidString,
@@ -189,7 +254,10 @@ struct EditorAgentEvent: Codable, Equatable, Identifiable, Sendable {
         message: EditorAgentMessage? = nil,
         title: String? = nil,
         details: String? = nil,
-        isSuccessful: Bool? = nil
+        isSuccessful: Bool? = nil,
+        isDelta: Bool? = nil,
+        toolCall: EditorAgentToolCall? = nil,
+        permission: EditorAgentPermissionRequest? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -198,6 +266,9 @@ struct EditorAgentEvent: Codable, Equatable, Identifiable, Sendable {
         self.title = title
         self.details = details
         self.isSuccessful = isSuccessful
+        self.isDelta = isDelta
+        self.toolCall = toolCall
+        self.permission = permission
     }
 }
 

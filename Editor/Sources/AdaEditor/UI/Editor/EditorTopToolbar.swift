@@ -3,15 +3,16 @@
 struct EditorTopToolbar: View {
     static let searchAccessibilityIdentifier = "AdaEditor.ProjectSearch"
     static let projectSwitcherAccessibilityIdentifier = "AdaEditor.ProjectSwitcher.Button"
+    static let projectSwitcherIconAccessibilityIdentifier = "AdaEditor.ProjectSwitcher.Icon"
 
     let project: EditorProjectReference?
     let isProjectSwitcherPresented: Bool
-    let hotReloadState: EditorHotReloadState
+    let isRunDestinationMenuPresented: Bool
     let viewModel: EditorToolbarViewModel
     let runDestination: EditorRunDestination
     let isRunEnabled: Bool
     let isStopEnabled: Bool
-    let onSelectRunDestination: (EditorRunDestination) -> Void
+    let onToggleRunDestinationMenu: () -> Void
     let onToggleProjectSwitcher: () -> Void
     let onRun: () -> Void
     let onStop: () -> Void
@@ -44,18 +45,10 @@ struct EditorTopToolbar: View {
                         .lineLimit(1)
                 }
 
-                if metrics.showsToolbarHotReloadStatus {
-                    adaEditorToolbarPill(
-                        hotReloadState.toolbarTitle,
-                        active: hotReloadState.isEnabled && hotReloadState.errorMessage == nil,
-                        theme: theme
-                    )
-                }
-
                 runDestinationControls
                 runStopControls
             }
-            .padding(.trailing, 12)
+            .padding(.trailing, 16)
             .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity)
@@ -66,6 +59,7 @@ struct EditorTopToolbar: View {
             HStack(spacing: 6) {
                 Text("\u{E2C7}")
                     .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                    .accessibilityIdentifier(Self.projectSwitcherIconAccessibilityIdentifier)
                 if metrics.toolbarProjectSwitcherWidth > 32 {
                     Text(project?.name ?? "Projects")
                         .font(.system(size: 12))
@@ -76,36 +70,32 @@ struct EditorTopToolbar: View {
             }
             .foregroundColor(theme.editorColors.text)
             .padding(.horizontal, metrics.toolbarProjectSwitcherWidth > 32 ? 8 : 0)
-            .frame(width: metrics.toolbarProjectSwitcherWidth, height: 30)
+            .frame(width: metrics.toolbarProjectSwitcherWidth, height: 30, alignment: .leading)
         }
         .buttonStyle(DefaultButtonStyle())
         .accessibilityIdentifier(Self.projectSwitcherAccessibilityIdentifier)
     }
 
     private var runDestinationControls: some View {
-        HStack(spacing: 3) {
-            ForEach(EditorRunDestination.allCases, id: \.self) { destination in
-                Button(action: { onSelectRunDestination(destination) }) {
-                    Text(destination.rawValue)
-                        .font(.system(size: 11, weight: runDestination == destination ? .bold : .regular))
-                        .foregroundColor(runDestination == destination ? theme.editorColors.blue : theme.editorColors.muted)
-                        .padding(.horizontal, 9)
-                        .frame(height: 28)
-                        .background(
-                            RoundedRectangleShape(cornerRadius: 6)
-                                .fill(runDestination == destination ? theme.editorColors.blue.opacity(0.20) : Color.clear)
-                        )
-                }
-                .buttonStyle(DefaultButtonStyle())
+        Button(action: onToggleRunDestinationMenu) {
+            HStack(spacing: 5) {
+                Text(runDestination.rawValue)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(theme.editorColors.blue)
+                Text(isRunDestinationMenuPresented ? "\u{E5CE}" : "\u{E5CF}")
+                    .font(AdaEditorMaterialSymbolFont.font(size: 15))
+                    .foregroundColor(theme.editorColors.muted)
             }
+            .padding(.horizontal, 8)
+            .frame(width: metrics.toolbarRunDestinationWidth, height: 28)
         }
-        .padding(3)
+        .buttonStyle(DefaultButtonStyle())
         .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.surfaceElevated))
         .overlay {
             RoundedRectangleShape(cornerRadius: 8)
                 .stroke(theme.editorColors.border.opacity(0.72), lineWidth: 1)
         }
-        .accessibilityIdentifier("AdaEditor.RunDestination")
+        .accessibilityIdentifier("AdaEditor.RunDestination.Button")
     }
 
     private var runStopControls: some View {
@@ -117,30 +107,69 @@ struct EditorTopToolbar: View {
                 .disabled(!isStopEnabled)
                 .opacity(isStopEnabled ? 1 : 0.45)
         }
-        .padding(3)
-        .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.surfaceElevated))
-        .overlay {
-            RoundedRectangleShape(cornerRadius: 8)
-                .stroke(theme.editorColors.border.opacity(0.72), lineWidth: 1)
-        }
+        .frame(width: metrics.toolbarRunControlsWidth)
     }
 
     private func toolbarActionButton(title: String, symbol: String, color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Text(symbol)
-                    .font(AdaEditorMaterialSymbolFont.font(size: 20))
-                if metrics.showsRunButtonTitle {
-                    Text(title)
-                }
+            Text(symbol)
+                .font(AdaEditorMaterialSymbolFont.font(size: 20))
+                .frame(width: 30, height: 30)
+        }
+        .foregroundColor(color)
+        .buttonStyle(DefaultButtonStyle())
+        .accessibilityIdentifier("AdaEditor.Toolbar.\(title)")
+    }
+}
+
+struct EditorRunDestinationMenu: View {
+    let selectedDestination: EditorRunDestination
+    let onSelect: (EditorRunDestination) -> Void
+
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(EditorRunDestination.allCases, id: \.self) { destination in
+                Button(
+                    action: { onSelect(destination) },
+                    label: {
+                        HStack(spacing: 8) {
+                            Text(destination.rawValue)
+                                .font(.system(size: 12))
+                            Spacer()
+                            if selectedDestination == destination {
+                                Text("\u{E5CA}")
+                                    .font(AdaEditorMaterialSymbolFont.font(size: 15))
+                            }
+                        }
+                        .foregroundColor(selectedDestination == destination ? theme.editorColors.blue : theme.editorColors.text)
+                        .padding(.horizontal, 10)
+                        .frame(width: EditorRunDestinationMenuLayout.width, height: EditorRunDestinationMenuLayout.rowHeight)
+                    }
+                )
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.RunDestination.\(destination.rawValue)")
             }
         }
-        .font(.system(size: 12, weight: .bold))
-        .foregroundColor(color)
-        .padding(.horizontal, metrics.showsRunButtonTitle ? 9 : 7)
-        .frame(height: 28)
-        .background(RoundedRectangleShape(cornerRadius: 6).fill(color.opacity(0.11)))
-        .buttonStyle(DefaultButtonStyle())
+        .padding(4)
+        .frame(width: EditorRunDestinationMenuLayout.width + 8)
+        .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.surfaceElevated))
+        .overlay {
+            RoundedRectangleShape(cornerRadius: 8)
+                .stroke(theme.editorColors.border, lineWidth: 1)
+        }
+        .accessibilityIdentifier("AdaEditor.RunDestination.Menu")
+    }
+}
+
+enum EditorRunDestinationMenuLayout {
+    static let width: Float = 108
+    static let rowHeight: Float = 30
+    static let trailingOffset: Float = 92
+
+    static func topOffset(toolbarHeight: Float) -> Float {
+        toolbarHeight - 2
     }
 }
 

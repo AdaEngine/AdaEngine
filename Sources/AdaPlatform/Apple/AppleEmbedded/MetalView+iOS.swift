@@ -80,46 +80,29 @@ extension MetalView {
     // MARK: - Standard Edit Actions
 
     open override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-        if action == #selector(copy(_:)) || action == #selector(paste(_:)) || action == #selector(cut(_:)) {
+        if action == #selector(copy(_:))
+            || action == #selector(paste(_:))
+            || action == #selector(cut(_:))
+            || action == #selector(selectAll(_:)) {
             return true
         }
         return super.canPerformAction(action, withSender: sender)
     }
 
     open override func copy(_ sender: Any?) {
-        let keyEvent = KeyEvent(
-            window: self.windowID,
-            keyCode: .c,
-            modifiers: .main,
-            status: .down,
-            time: TimeInterval(CACurrentMediaTime()),
-            isRepeated: false
-        )
-        input?.wrappedValue.receiveEvent(keyEvent)
+        performTextEditingCommand(.copy)
     }
 
     open override func paste(_ sender: Any?) {
-        let keyEvent = KeyEvent(
-            window: self.windowID,
-            keyCode: .v,
-            modifiers: .main,
-            status: .down,
-            time: TimeInterval(CACurrentMediaTime()),
-            isRepeated: false
-        )
-        input?.wrappedValue.receiveEvent(keyEvent)
+        performTextEditingCommand(.paste)
     }
 
     open override func cut(_ sender: Any?) {
-        let keyEvent = KeyEvent(
-            window: self.windowID,
-            keyCode: .x,
-            modifiers: .main,
-            status: .down,
-            time: TimeInterval(CACurrentMediaTime()),
-            isRepeated: false
-        )
-        input?.wrappedValue.receiveEvent(keyEvent)
+        performTextEditingCommand(.cut)
+    }
+
+    override open func selectAll(_ sender: Any?) {
+        performTextEditingCommand(.selectAll)
     }
 
     // MARK: - Touch Events
@@ -209,6 +192,12 @@ extension MetalView {
                )
 
                input?.wrappedValue.receiveEvent(keyEvent)
+               self.sendHardwareTextInput(
+                   keyCode: keyCode,
+                   modifiers: keyEvent.modifiers,
+                   characters: key.characters,
+                   time: keyEvent.time
+               )
                didHandleEvent = true
            }
 
@@ -235,6 +224,12 @@ extension MetalView {
                )
 
                input?.wrappedValue.receiveEvent(keyEvent)
+               self.sendHardwareTextInput(
+                   keyCode: keyCode,
+                   modifiers: keyEvent.modifiers,
+                   characters: key.characters,
+                   time: keyEvent.time
+               )
            }
        }
 
@@ -289,6 +284,7 @@ extension MetalView {
 
        open override func didMoveToWindow() {
            super.didMoveToWindow()
+           configureTextInputAssistant()
            setupMouseTracking()
        }
 
@@ -350,6 +346,92 @@ extension MetalView {
            let x = Float(location.x)
            let y = Float(location.y)
            return Point(x, y)
+       }
+
+       private func sendHardwareTextInput(
+           keyCode: KeyCode,
+           modifiers: KeyModifier,
+           characters: String,
+           time: AdaUtils.TimeInterval
+       ) {
+           guard let payload = AppleHardwareTextInput.payload(
+               keyCode: keyCode,
+               modifiers: modifiers,
+               characters: characters
+           ) else {
+               return
+           }
+
+           input?.wrappedValue.receiveEvent(
+               TextInputEvent(
+                   window: self.windowID,
+                   text: payload.text,
+                   action: payload.action,
+                   time: time
+               )
+           )
+       }
+
+       private func performTextEditingCommand(_ command: UITextEditingCommand) {
+           _ = self.windowManager?.windows[self.windowID]?.uiPerformTextEditingCommand(command)
+       }
+
+       private func configureTextInputAssistant() {
+           #if os(iOS)
+           let undoButton = UIBarButtonItem(
+               title: "Undo",
+               style: .plain,
+               target: self,
+               action: #selector(performUndo(_:))
+           )
+           let redoButton = UIBarButtonItem(
+               title: "Redo",
+               style: .plain,
+               target: self,
+               action: #selector(performRedo(_:))
+           )
+           let cutButton = UIBarButtonItem(
+               title: "Cut",
+               style: .plain,
+               target: self,
+               action: #selector(cut(_:))
+           )
+           let copyButton = UIBarButtonItem(
+               title: "Copy",
+               style: .plain,
+               target: self,
+               action: #selector(copy(_:))
+           )
+           let pasteButton = UIBarButtonItem(
+               title: "Paste",
+               style: .plain,
+               target: self,
+               action: #selector(paste(_:))
+           )
+           let selectAllButton = UIBarButtonItem(
+               title: "Select All",
+               style: .plain,
+               target: self,
+               action: #selector(selectAll(_:))
+           )
+           self.inputAssistantItem.leadingBarButtonGroups = [
+               UIBarButtonItemGroup(barButtonItems: [undoButton, redoButton], representativeItem: nil)
+           ]
+           self.inputAssistantItem.trailingBarButtonGroups = [
+               UIBarButtonItemGroup(
+                   barButtonItems: [cutButton, copyButton, pasteButton, selectAllButton],
+                   representativeItem: nil
+               )
+           ]
+           #endif
+       }
+
+       @objc private func performUndo(_ sender: Any?) {
+           performTextEditingCommand(.undo)
+       }
+
+       @objc private func performRedo(_ sender: Any?) {
+           performTextEditingCommand(.redo)
        }
 }
 

@@ -5,6 +5,14 @@
 
 @_spi(AdaEngine) import AdaEngine
 
+enum EditorWindowSafeAreaPolicy {
+    #if os(iOS)
+    static let reservesSystemSafeArea = true
+    #else
+    static let reservesSystemSafeArea = false
+    #endif
+}
+
 @MainActor
 enum ProjectEditorLauncher {
     static let windowTitlePrefix = "AdaEditor"
@@ -22,7 +30,7 @@ enum ProjectEditorLauncher {
             mode: .fullScreenWindowed,
             titleBar: .init(
                 background: .transparent,
-                reservesSafeArea: false,
+                reservesSafeArea: EditorWindowSafeAreaPolicy.reservesSystemSafeArea,
                 dragRegionHeight: 52,
                 trafficLightOffset: Point(x: 0, y: ProjectOpeningLayout.trafficLightOffsetY)
             ),
@@ -46,7 +54,7 @@ enum ProjectEditorLauncher {
             mode: .windowed,
             titleBar: .init(
                 background: .transparent,
-                reservesSafeArea: false,
+                reservesSafeArea: EditorWindowSafeAreaPolicy.reservesSystemSafeArea,
                 dragRegionHeight: 52,
                 trafficLightOffset: Point(x: 0, y: ProjectOpeningLayout.trafficLightOffsetY)
             ),

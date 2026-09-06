@@ -283,12 +283,12 @@ struct AdaEngineStyleUITests {
             rootView: EditorTopToolbar(
                 project: EditorProjectReference(name: "Example", path: "/tmp/Example"),
                 isProjectSwitcherPresented: false,
-                hotReloadState: .unavailable,
+                isRunDestinationMenuPresented: false,
                 viewModel: EditorToolbarViewModel(),
                 runDestination: .macOS,
                 isRunEnabled: true,
                 isStopEnabled: false,
-                onSelectRunDestination: { _ in },
+                onToggleRunDestinationMenu: {},
                 onToggleProjectSwitcher: {},
                 onRun: {},
                 onStop: {}
@@ -335,7 +335,8 @@ struct AdaEngineStyleUITests {
         #expect(compact.outputTabs.count < AdaEngineStyleContent.outputTabs.count)
         #expect(compact.toolbarWindowControlClearance == 60)
         #expect(!compact.showsToolbarSceneName)
-        #expect(!compact.showsToolbarHotReloadStatus)
+        #expect(compact.toolbarRunDestinationWidth == 96)
+        #expect(compact.toolbarRunControlsWidth == 64)
     }
 
     @Test("empty hierarchy fills its panel and stays top aligned")
@@ -519,6 +520,25 @@ struct AdaEngineStyleUITests {
         #expect(abs(layout.mainPanelHeight - EditorWorkspaceLayout.minimumMainPanelHeight) < 0.001)
     }
 
+    @Test("workspace does not impose an artificial maximum on the left sidebar")
+    func workspaceLeftSidebarHasNoArtificialMaximum() {
+        let layout = EditorWorkspaceLayout(
+            size: Size(width: 1_800, height: 700),
+            showsLeftPanel: true,
+            showsRightPanel: false,
+            showsBottomPanel: false,
+            requestedLeftPanelWidth: 900,
+            requestedRightPanelWidth: 300,
+            requestedBottomPanelHeight: 180,
+            fallbackLeftPanelWidth: 260,
+            fallbackRightPanelWidth: 300,
+            panelSpacing: 8
+        )
+
+        #expect(layout.leftPanelWidth == 900)
+        #expect(layout.mainPanelWidth == 892)
+    }
+
     @Test("workspace expands the editor viewport into hidden sidebar slots")
     func workspaceExpandsViewportWhenSidebarsAreHidden() {
         let visible = EditorWorkspaceLayout(
@@ -584,6 +604,7 @@ struct AdaEngineStyleUITests {
     func requiredReferenceLabels() {
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("Search Everywhere"))
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("main_scene"))
+        #expect(!AdaEngineStyleContent.topToolbarLabels.contains("Hot Reload"))
         #expect(AdaEngineStyleContent.leftTopSidebarTools.map(\.title) == ["File Tree", "Entity Tree", "Source Control", "Tests"])
         #expect(AdaEngineStyleContent.leftBottomSidebarTools.map(\.title) == ["Logs", "Build", "Animator"])
         #expect(AdaEngineStyleContent.rightSidebarTools.map(\.title) == ["Agent Chat", "Inspector", "Project Dependencies", "Swift Package Tasks", "Plugins", "Project Settings"])

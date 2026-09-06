@@ -39,6 +39,9 @@ private enum ContextMenuPresenter {
     static func present(_ presentation: ContextMenuPresentation, in app: AppWorlds) {
         guard !presentation.items.isEmpty else { return }
 
+        #if os(iOS)
+        IOSContextMenuPresentationCenter.present(presentation)
+        #else
         activeSession?.closeAll()
 
         let session = ContextMenuSession(
@@ -55,10 +58,14 @@ private enum ContextMenuPresenter {
         )
         session.setWindow(window, items: presentation.items, at: 0)
         window.showWindow(makeFocused: false)
+        #endif
     }
 
     @discardableResult
     static func dismissAll() -> Bool {
+        #if os(iOS)
+        return IOSContextMenuPresentationCenter.dismissAll()
+        #else
         guard let session = activeSession else {
             return false
         }
@@ -66,24 +73,33 @@ private enum ContextMenuPresenter {
         session.closeAll()
         activeSession = nil
         return true
+        #endif
     }
 
     static func dismissForInteraction(in window: UIWindow?) {
+        #if os(iOS)
+        IOSContextMenuPresentationCenter.dismissForInteraction(in: window)
+        #else
         guard let activeSession, let window, !activeSession.contains(window) else {
             return
         }
 
         activeSession.closeAll()
         self.activeSession = nil
+        #endif
     }
 
     static func dismissForDeactivation(of window: UIWindow?) {
+        #if os(iOS)
+        IOSContextMenuPresentationCenter.dismissForDeactivation(of: window)
+        #else
         guard let activeSession, let window, activeSession.sourceWindow === window else {
             return
         }
 
         activeSession.closeAll()
         self.activeSession = nil
+        #endif
     }
 
     fileprivate static func presentSubmenu(

@@ -538,13 +538,24 @@ struct EditorCompletionPopupLayout {
     ) -> Rect {
         let availableWidth = max(0, viewportSize.width - viewportInset * 2)
         let width = min(preferredWidth, availableWidth)
-        let rowCount = min(maximumVisibleRowCount, max(1, itemCount))
-        let height = Float(rowCount) * rowHeight + verticalPadding * 2
+        let availableHeight = max(0, viewportSize.height - viewportInset * 2)
+        let availableRowCount = max(1, Int((availableHeight - verticalPadding * 2) / rowHeight))
+        let rowCount = min(maximumVisibleRowCount, availableRowCount, max(1, itemCount))
+        let height = min(availableHeight, Float(rowCount) * rowHeight + verticalPadding * 2)
         let lineHeight = max(18, Float(fontSize) * 1.45)
         let characterAdvance = max(6, Float(fontSize) * 0.58)
         let position = caretPosition ?? EditorSourceLocation(line: 0, character: 0)
         let desiredX = Float(82) + Float(max(0, position.character)) * characterAdvance
-        let desiredY = Float(18) + Float(max(0, position.line) + 1) * lineHeight
+        let caretTop = Float(18) + Float(max(0, position.line)) * lineHeight
+        let desiredYBelow = caretTop + lineHeight
+        let desiredYAbove = caretTop - height
+        let desiredY = if desiredYBelow + height <= viewportSize.height - viewportInset {
+            desiredYBelow
+        } else if desiredYAbove >= viewportInset {
+            desiredYAbove
+        } else {
+            desiredYBelow
+        }
         let maxX = max(viewportInset, viewportSize.width - width - viewportInset)
         let maxY = max(viewportInset, viewportSize.height - height - viewportInset)
 

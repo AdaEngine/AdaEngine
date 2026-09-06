@@ -36,6 +36,7 @@ protocol EditorAgentServicing: Sendable {
         onProjectFileChanged: @escaping @Sendable (String) async -> Void
     ) async throws -> EditorAgentRunResult
     func setConfiguration(sessionID: String, selectorID: String, valueID: String) async throws -> EditorAgentSessionConfiguration
+    func resolvePermission(requestID: String, optionID: String?) async
     func cancel(sessionID: String) async
     func shutdown() async
 }
@@ -64,6 +65,42 @@ enum EditorAgentServiceError: Error, LocalizedError, Sendable {
 }
 
 #if canImport(ACP) && canImport(ACPModel)
+private actor EditorAgentPermissionBroker {
+    private struct PendingPermission {
+        var sessionID: String
+        var continuation: CheckedContinuation<String?, Never>
+    }
+
+    private var continuations: [String: PendingPermission] = [:]
+
+    func request(id: String, sessionID: String) async -> String? {
+        await withCheckedContinuation { continuation in
+            continuations[id] = PendingPermission(sessionID: sessionID, continuation: continuation)
+        }
+    }
+
+    func resolve(id: String, optionID: String?) {
+        continuations.removeValue(forKey: id)?.continuation.resume(returning: optionID)
+    }
+
+    func cancel(sessionID: String) {
+        let ids = continuations.compactMap { id, pending in
+            pending.sessionID == sessionID ? id : nil
+        }
+        for id in ids {
+            continuations.removeValue(forKey: id)?.continuation.resume(returning: nil)
+        }
+    }
+
+    func cancelAll() {
+        let pending = continuations.values.map(\.continuation)
+        continuations.removeAll()
+        for continuation in pending {
+            continuation.resume(returning: nil)
+        }
+    }
+}
+
 actor EditorACPAgentService: EditorAgentServicing {
     private struct ManagedSession {
         var client: Client
@@ -72,10 +109,13 @@ actor EditorACPAgentService: EditorAgentServicing {
         var agentName: String?
         var notificationTask: Task<Void, Never>
         var assistantText: String
+        var assistantEventID: String
+        var thinkingEventID: String
         var configuration: EditorAgentSessionConfiguration
     }
 
     private var sessions: [String: ManagedSession] = [:]
+    private let permissionBroker = EditorAgentPermissionBroker()
 
     func connect(
         _ request: EditorAgentRunRequest,
@@ -105,6 +145,8 @@ actor EditorACPAgentService: EditorAgentServicing {
             onProjectFileChanged: onProjectFileChanged
         )
         managed.assistantText = ""
+        managed.assistantEventID = UUID().uuidString
+        managed.thinkingEventID = UUID().uuidString
         sessions[request.session.id] = managed
 
         let response = try await managed.client.sendPrompt(
@@ -158,7 +200,12 @@ actor EditorACPAgentService: EditorAgentServicing {
         return managed.configuration
     }
 
+    func resolvePermission(requestID: String, optionID: String?) async {
+        await permissionBroker.resolve(id: requestID, optionID: optionID)
+    }
+
     func cancel(sessionID: String) async {
+        await permissionBroker.cancel(sessionID: sessionID)
         guard let managed = sessions[sessionID] else {
             return
         }
@@ -166,6 +213,7 @@ actor EditorACPAgentService: EditorAgentServicing {
     }
 
     func shutdown() async {
+        await permissionBroker.cancelAll()
         for session in sessions.values {
             session.notificationTask.cancel()
             await session.client.terminate()
@@ -190,8 +238,10 @@ actor EditorACPAgentService: EditorAgentServicing {
         let client = Client()
         let projectURL = request.projectURL.standardizedFileURL
         let delegate = EditorACPClientDelegate(
+            localSessionID: request.session.id,
             projectURL: projectURL,
             permissionMode: agentConfig.permissionMode,
+            permissionBroker: permissionBroker,
             onEvent: onEvent,
             onProjectFileChanged: onProjectFileChanged
         )
@@ -256,6 +306,8 @@ actor EditorACPAgentService: EditorAgentServicing {
             agentName: agentName,
             notificationTask: notificationTask,
             assistantText: "",
+            assistantEventID: UUID().uuidString,
+            thinkingEventID: UUID().uuidString,
             configuration: Self.configuration(
                 agentName: agentName,
                 modes: modes,
@@ -376,44 +428,63 @@ actor EditorACPAgentService: EditorAgentServicing {
             managed.assistantText += text
             sessions[localSessionID] = managed
             await onEvent(EditorAgentEvent(
+                id: managed.assistantEventID,
                 kind: .message,
                 message: EditorAgentMessage(
+                    id: managed.assistantEventID,
                     role: .assistant,
-                    segments: [.init(kind: .text, text: managed.assistantText)]
-                )
+                    segments: [.init(kind: .text, text: text)]
+                ),
+                isDelta: true
             ))
         case .agentThoughtChunk(let block):
             let text = flatten(content: block)
             guard !text.isEmpty else { return }
             await onEvent(EditorAgentEvent(
+                id: managed.thinkingEventID,
                 kind: .message,
-                message: EditorAgentMessage(role: .assistant, segments: [.init(kind: .thinking, text: text)])
+                message: EditorAgentMessage(
+                    id: managed.thinkingEventID,
+                    role: .assistant,
+                    segments: [.init(kind: .thinking, text: text)]
+                ),
+                isDelta: true
             ))
         case .plan(let plan):
             let text = plan.entries.map { "[\($0.status)] \($0.content)" }.joined(separator: "\n")
             guard !text.isEmpty else { return }
             await onEvent(EditorAgentEvent(kind: .runStatus, title: "Plan", details: text))
         case .toolCall(let toolCall):
-            let details = toolCall.content.compactMap(\.displayText).joined(separator: "\n")
+            let model = Self.toolCall(
+                id: toolCall.toolCallId,
+                title: toolCall.title,
+                kind: toolCall.kind,
+                status: toolCall.status,
+                content: toolCall.content,
+                locations: toolCall.locations
+            )
             await onEvent(EditorAgentEvent(
+                id: "tool-\(toolCall.toolCallId)",
                 kind: .toolCall,
-                title: toolCall.title ?? toolCall.kind?.rawValue ?? "Tool call",
-                details: details.nilIfEmpty
+                title: model.title,
+                isSuccessful: model.status == .completed ? true : (model.status == .failed ? false : nil),
+                toolCall: model
             ))
-            if toolCall.status == .completed || toolCall.status == .failed {
-                await onEvent(EditorAgentEvent(
-                    kind: .toolResult,
-                    title: toolCall.title ?? toolCall.kind?.rawValue ?? "Tool result",
-                    details: details.nilIfEmpty,
-                    isSuccessful: toolCall.status == .completed
-                ))
-            }
         case .toolCallUpdate(let details):
+            let model = Self.toolCall(
+                id: details.toolCallId,
+                title: details.title,
+                kind: details.kind,
+                status: details.status,
+                content: details.content,
+                locations: details.locations
+            )
             await onEvent(EditorAgentEvent(
-                kind: .toolResult,
-                title: "Tool \(details.toolCallId)",
-                details: details.content?.compactMap(\.displayText).joined(separator: "\n").nilIfEmpty,
-                isSuccessful: details.status.map { $0 == .completed }
+                id: "tool-\(details.toolCallId)",
+                kind: .toolCall,
+                title: model.title,
+                isSuccessful: model.status == .completed ? true : (model.status == .failed ? false : nil),
+                toolCall: model
             ))
         case .sessionInfoUpdate(let info):
             if let title = info.title {
@@ -444,6 +515,66 @@ actor EditorACPAgentService: EditorAgentServicing {
             return ""
         }
     }
+
+    private static func toolCall(
+        id: String,
+        title: String?,
+        kind: ToolKind?,
+        status: ToolStatus?,
+        content: [ToolCallContent]?,
+        locations: [ToolLocation]?
+    ) -> EditorAgentToolCall {
+        EditorAgentToolCall(
+            id: id,
+            title: title ?? kind?.rawValue ?? "Tool call",
+            kind: kind?.rawValue ?? "other",
+            status: editorStatus(status),
+            content: (content ?? []).compactMap(editorContent),
+            locations: (locations ?? []).map { .init(path: $0.path, line: $0.line) }
+        )
+    }
+
+    private static func editorStatus(_ status: ToolStatus?) -> EditorAgentToolStatus? {
+        switch status {
+        case .pending:
+            .pending
+        case .inProgress:
+            .inProgress
+        case .completed:
+            .completed
+        case .failed:
+            .failed
+        case nil:
+            nil
+        }
+    }
+
+    private static func editorContent(_ content: ToolCallContent) -> EditorAgentToolContent? {
+        switch content {
+        case .diff(let diff):
+            return .init(kind: .diff, path: diff.path, oldText: diff.oldText, newText: diff.newText)
+        case .terminal(let terminal):
+            return .init(kind: .terminal, terminalID: terminal.terminalId)
+        case .content(let block):
+            switch block {
+            case .text(let text):
+                return .init(kind: .text, text: text.text)
+            case .image(let image):
+                return .init(kind: .image, imageData: image.data, mimeType: image.mimeType, uri: image.uri)
+            case .resourceLink(let resource):
+                return .init(kind: .resource, text: resource.title ?? resource.name, mimeType: resource.mimeType, uri: resource.uri)
+            case .resource(let resource):
+                return .init(
+                    kind: .resource,
+                    text: resource.resource.text,
+                    mimeType: resource.resource.mimeType,
+                    uri: resource.resource.uri
+                )
+            case .audio:
+                return nil
+            }
+        }
+    }
 }
 #else
 actor EditorACPAgentService: EditorAgentServicing {
@@ -466,6 +597,8 @@ actor EditorACPAgentService: EditorAgentServicing {
     func setConfiguration(sessionID _: String, selectorID _: String, valueID _: String) async throws -> EditorAgentSessionConfiguration {
         throw EditorAgentServiceError.unsupportedPlatform
     }
+
+    func resolvePermission(requestID _: String, optionID _: String?) async {}
 
     func cancel(sessionID _: String) async {}
 
@@ -567,19 +700,25 @@ enum EditorAgentPromptContext {
 #if canImport(ACP) && canImport(ACPModel)
 private actor EditorACPClientDelegate: ClientDelegate {
     private let terminalDelegate = TerminalDelegate()
+    private let localSessionID: String
     private let projectURL: URL
     private let permissionMode: AdaProjectAgentPermissionMode
+    private let permissionBroker: EditorAgentPermissionBroker
     private let onEvent: @Sendable (EditorAgentEvent) async -> Void
     private let onProjectFileChanged: @Sendable (String) async -> Void
 
     init(
+        localSessionID: String,
         projectURL: URL,
         permissionMode: AdaProjectAgentPermissionMode,
+        permissionBroker: EditorAgentPermissionBroker,
         onEvent: @escaping @Sendable (EditorAgentEvent) async -> Void,
         onProjectFileChanged: @escaping @Sendable (String) async -> Void
     ) {
+        self.localSessionID = localSessionID
         self.projectURL = projectURL.standardizedFileURL
         self.permissionMode = permissionMode
+        self.permissionBroker = permissionBroker
         self.onEvent = onEvent
         self.onProjectFileChanged = onProjectFileChanged
     }
@@ -644,19 +783,67 @@ private actor EditorACPClientDelegate: ClientDelegate {
         let summary = request.message?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
             ?? request.toolCall.map { "Permission requested for tool call \($0.toolCallId)" }
             ?? "Permission requested"
-        await onEvent(EditorAgentEvent(kind: .permission, title: "Permission", details: summary))
+        let requestID = "permission-\(request.toolCall?.toolCallId ?? UUID().uuidString)"
+        let options = (request.options ?? []).map {
+            EditorAgentPermissionOption(id: $0.optionId, name: $0.name, kind: $0.kind)
+        }
+        let pending = EditorAgentPermissionRequest(
+            id: requestID,
+            summary: summary,
+            toolCallID: request.toolCall?.toolCallId,
+            options: options,
+            state: .pending,
+            selectedOptionID: nil
+        )
+        await onEvent(EditorAgentEvent(
+            id: requestID,
+            kind: .permission,
+            title: "Approval required",
+            details: summary,
+            permission: pending
+        ))
 
-        switch permissionMode {
-        case .allowOnce:
-            if let optionID = request.options?.first(where: { $0.optionId == PermissionDecision.allowOnce.rawValue })?.optionId {
-                await onEvent(EditorAgentEvent(kind: .permission, title: "Allowed once", details: summary, isSuccessful: true))
-                return RequestPermissionResponse(outcome: PermissionOutcome(optionId: optionID))
-            }
-            fallthrough
-        case .deny:
-            await onEvent(EditorAgentEvent(kind: .permission, title: "Denied", details: summary, isSuccessful: false))
+        guard permissionMode != .deny else {
+            await onEvent(EditorAgentEvent(
+                id: requestID,
+                kind: .permission,
+                title: "Denied",
+                details: summary,
+                isSuccessful: false,
+                permission: .init(
+                    id: requestID,
+                    summary: summary,
+                    toolCallID: request.toolCall?.toolCallId,
+                    options: options,
+                    state: .cancelled,
+                    selectedOptionID: nil
+                )
+            ))
             return RequestPermissionResponse(outcome: PermissionOutcome(cancelled: true))
         }
+
+        let selectedOptionID = await permissionBroker.request(id: requestID, sessionID: localSessionID)
+        let selectedOption = options.first { $0.id == selectedOptionID }
+        let allowed = selectedOption?.kind.hasPrefix("allow") == true
+        await onEvent(EditorAgentEvent(
+            id: requestID,
+            kind: .permission,
+            title: selectedOption?.name ?? "Cancelled",
+            details: summary,
+            isSuccessful: selectedOptionID == nil ? false : allowed,
+            permission: .init(
+                id: requestID,
+                summary: summary,
+                toolCallID: request.toolCall?.toolCallId,
+                options: options,
+                state: selectedOptionID == nil ? .cancelled : .selected,
+                selectedOptionID: selectedOptionID
+            )
+        ))
+        if let selectedOptionID {
+            return RequestPermissionResponse(outcome: PermissionOutcome(optionId: selectedOptionID))
+        }
+        return RequestPermissionResponse(outcome: PermissionOutcome(cancelled: true))
     }
 
     private func resolvedProjectURL(_ path: String) throws -> URL {

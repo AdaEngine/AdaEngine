@@ -205,10 +205,10 @@ private extension EditorWorkspaceLayout {
         let minimumLeftWidth: Float = showsLeftPanel ? 180 : 0
         let minimumRightWidth: Float = showsRightPanel ? 220 : 0
         let desiredLeftWidth = showsLeftPanel
-            ? clampedPanelWidth(requestedLeftPanelWidth, fallback: fallbackLeftPanelWidth, minimum: minimumLeftWidth)
+            ? clampedPanelWidth(requestedLeftPanelWidth, fallback: fallbackLeftPanelWidth, minimum: minimumLeftWidth, maximum: nil)
             : 0
         let desiredRightWidth = showsRightPanel
-            ? clampedPanelWidth(requestedRightPanelWidth, fallback: fallbackRightPanelWidth, minimum: minimumRightWidth)
+            ? clampedPanelWidth(requestedRightPanelWidth, fallback: fallbackRightPanelWidth, minimum: minimumRightWidth, maximum: 600)
             : 0
         let desiredTotal = desiredLeftWidth + desiredRightWidth
 
@@ -240,8 +240,11 @@ private extension EditorWorkspaceLayout {
         )
     }
 
-    static func clampedPanelWidth(_ width: Float, fallback: Float, minimum: Float) -> Float {
+    static func clampedPanelWidth(_ width: Float, fallback: Float, minimum: Float, maximum: Float?) -> Float {
         let resolvedWidth = width.isFinite ? width : fallback
-        return max(minimum, min(resolvedWidth, 600))
+        guard let maximum else {
+            return max(minimum, resolvedWidth)
+        }
+        return max(minimum, min(resolvedWidth, maximum))
     }
 }
