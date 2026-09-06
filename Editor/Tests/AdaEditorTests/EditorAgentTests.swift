@@ -92,11 +92,50 @@ struct EditorAgentTests {
         Use careful refactors.
         """.write(to: skillURL, atomically: true, encoding: .utf8)
 
-        let skills = EditorAgentSkillStore.discoverSkills(projectURL: rootURL, directories: [".skills"])
+        let skills = EditorAgentSkillStore.discoverSkills(
+            projectURL: rootURL,
+            directories: [".skills"],
+            builtInRootURL: nil
+        )
 
         #expect(skills.map(\.id) == ["refactor"])
         #expect(skills.first?.name == "Refactor")
         #expect(skills.first?.allowedTools == ["files.read", "files.write"])
+    }
+
+    @Test("project Ada skills override bundled skills by id")
+    func projectSkillsOverrideBundledSkills() throws {
+        let rootURL = try makeAgentTemporaryDirectory(named: "SkillOverrides")
+        defer { removeAgentTemporaryDirectory(rootURL) }
+        let builtInRootURL = rootURL.appendingPathComponent("BuiltIn", isDirectory: true)
+        let builtInSkillURL = builtInRootURL.appendingPathComponent("scene/SKILL.md")
+        let projectSkillURL = rootURL.appendingPathComponent(".ada/skills/scene/SKILL.md")
+        try FileManager.default.createDirectory(at: builtInSkillURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: projectSkillURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "---\nid: scene\nname: Built-in Scene\n---\nBuilt in.".write(to: builtInSkillURL, atomically: true, encoding: .utf8)
+        try "---\nid: scene\nname: Project Scene\n---\nProject override.".write(to: projectSkillURL, atomically: true, encoding: .utf8)
+
+        let skills = EditorAgentSkillStore.discoverSkills(
+            projectURL: rootURL,
+            directories: [],
+            builtInRootURL: builtInRootURL
+        )
+
+        #expect(skills.count == 1)
+        #expect(skills.first?.name == "Project Scene")
+        #expect(skills.first?.instructions.contains("Project override.") == true)
+    }
+
+    @Test("bundled AdaEditor skills are discoverable")
+    func bundledSkillsAreDiscoverable() {
+        let skills = EditorAgentSkillStore.discoverSkills(
+            projectURL: URL(fileURLWithPath: "/tmp/NoProjectSkills", isDirectory: true),
+            directories: []
+        )
+
+        #expect(skills.map(\.id).contains("ada-project-orientation"))
+        #expect(skills.map(\.id).contains("ada-scene-authoring"))
+        #expect(skills.map(\.id).contains("ada-visual-verification"))
     }
 
     @Test("session store persists index and active session")
@@ -144,6 +183,15 @@ struct EditorAgentTests {
 
     @Test("prompt context includes selected scene entity")
     func promptContextIncludesSelectedSceneEntity() throws {
+        let availableSkill = EditorAgentSkill(
+            id: "ada-scene-authoring",
+            name: "Ada Scene Authoring",
+            description: "Build and edit Ada scenes.",
+            localPath: "/skills/scene/SKILL.md",
+            userInvocable: true,
+            allowedTools: [],
+            instructions: "Use structured scene edits."
+        )
         let request = EditorAgentRunRequest(
             project: ProjectSystem.defaultProject(projectName: "Prompt"),
             projectURL: URL(fileURLWithPath: "/tmp/Prompt", isDirectory: true),
@@ -170,7 +218,8 @@ struct EditorAgentTests {
                 ),
                 text: "moveLeft()"
             ),
-            skills: []
+            skills: [],
+            availableSkills: [availableSkill]
         )
 
         let prompt = EditorAgentPromptContext.text(for: request)
@@ -183,6 +232,8 @@ struct EditorAgentTests {
         #expect(prompt.contains("Sources/Player.swift"))
         #expect(prompt.contains("moveLeft()"))
         #expect(prompt.contains("[AdaEditor Project Capabilities]"))
+        #expect(prompt.contains("[Available AdaEditor Skills]"))
+        #expect(prompt.contains("/ada-scene-authoring: Build and edit Ada scenes."))
         #expect(prompt.contains("Move it to the left"))
     }
 
@@ -224,6 +275,8 @@ struct EditorAgentTests {
         let request = try #require(await service.recordedRequest())
         #expect(request.attachments.map(\.relativePath) == ["Sources/main.swift"])
         #expect(request.sceneContext?.selectedEntityID == "root")
+        #expect(request.skills.contains { $0.id == "ada-project-orientation" })
+        #expect(request.availableSkills.contains { $0.id == "ada-visual-verification" })
         #expect(viewModel.activeSession?.events.contains { $0.message?.role == .assistant } == true)
         #expect(viewModel.activeSession?.upstreamSessionID == "fake-upstream")
     }

@@ -355,7 +355,9 @@ final class EditorAgentViewModel {
 
         let preparedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         let invokedSkills = skillsInvokedByPrompt(preparedPrompt)
-        let requestSkills = selectedSkills + invokedSkills.filter { skill in !selectedSkillIDs.contains(skill.id) }
+        let visibleRequestSkills = uniqueSkills(selectedSkills + invokedSkills)
+        let coreSkills = availableSkills.filter { $0.id == "ada-project-orientation" }
+        let requestSkills = uniqueSkills(coreSkills + visibleRequestSkills)
         let requestPrompt = promptRemovingSkillSlashCommand(preparedPrompt, invokedSkills: invokedSkills)
 
         let tokenAttachments = EditorAgentPathTokens.attachmentPaths(in: preparedPrompt).compactMap { path -> EditorAgentAttachment? in
@@ -371,7 +373,7 @@ final class EditorAgentViewModel {
             EditorAgentMessageSegment(kind: .text, text: preparedPrompt)
         ] + attachmentsToSend.map {
             EditorAgentMessageSegment(kind: .attachment, attachment: $0)
-        } + requestSkills.map {
+        } + visibleRequestSkills.map {
             EditorAgentMessageSegment(kind: .skill, skill: $0)
         }
 
@@ -405,7 +407,8 @@ final class EditorAgentViewModel {
                     attachments: attachments,
                     sceneContext: sceneContext,
                     codeSelection: codeSelectionToSend,
-                    skills: requestSkills
+                    skills: requestSkills,
+                    availableSkills: availableSkills
                 ),
                 onEvent: { [weak self] event in
                     await MainActor.run {
@@ -451,7 +454,8 @@ final class EditorAgentViewModel {
                     attachments: [],
                     sceneContext: nil,
                     codeSelection: nil,
-                    skills: []
+                    skills: [],
+                    availableSkills: availableSkills
                 ),
                 onEvent: { [weak self] event in
                     await MainActor.run {
@@ -575,6 +579,11 @@ final class EditorAgentViewModel {
             result.append(attachment)
         }
         return result
+    }
+
+    private func uniqueSkills(_ skills: [EditorAgentSkill]) -> [EditorAgentSkill] {
+        var seen = Set<String>()
+        return skills.filter { seen.insert($0.id).inserted }
     }
 }
 

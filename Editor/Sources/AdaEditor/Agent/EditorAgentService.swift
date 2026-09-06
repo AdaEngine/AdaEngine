@@ -14,6 +14,7 @@ struct EditorAgentRunRequest: Sendable {
     var sceneContext: EditorAgentSceneContext?
     var codeSelection: EditorAgentCodeSelectionContext?
     var skills: [EditorAgentSkill]
+    var availableSkills: [EditorAgentSkill] = []
 }
 
 struct EditorAgentRunResult: Sendable {
@@ -488,6 +489,10 @@ enum EditorAgentPromptContext {
 
         text += "\n\n\(projectCapabilitiesBlock(request.project))"
 
+        if !request.availableSkills.isEmpty {
+            text += "\n\n\(skillCatalogBlock(request.availableSkills))"
+        }
+
         text += "\n\n\(request.prompt)"
 
         for skill in request.skills where skill.userInvocable {
@@ -545,6 +550,17 @@ enum EditorAgentPromptContext {
         - The AdaEditor Runtime MCP server exposes live worlds, entities, components, assets, render captures, UI, traces, and profiler data.
         - After edits, run the narrowest relevant build or test and report failures precisely.
         """
+    }
+
+    private static func skillCatalogBlock(_ skills: [EditorAgentSkill]) -> String {
+        let entries = skills.map { skill in
+            let description = skill.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return "- /\(skill.id): \(description?.isEmpty == false ? description ?? skill.name : skill.name)"
+        }
+        return ([
+            "[Available AdaEditor Skills]",
+            "Use a matching skill when its workflow applies. Full instructions for active skills follow below."
+        ] + entries).joined(separator: "\n")
     }
 }
 
