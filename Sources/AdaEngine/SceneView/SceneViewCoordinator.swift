@@ -484,6 +484,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
         makeClosure(&app)
         MainSchedulerPlugin().setup(in: app)
+        app.insertResource(OffscreenRenderWorld())
         app.insertResource(PrimaryWindowId(windowId: RID()))
 
         return app

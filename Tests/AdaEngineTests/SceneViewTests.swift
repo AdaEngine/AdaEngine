@@ -67,6 +67,39 @@ struct SceneViewTests {
     }
 
     @Test
+    func sceneViewDoesNotAcquireHostWindow() async throws {
+        unsafe RenderEngine.configurations.preferredBackend = .headless
+        let coordinator = SceneViewCoordinator(
+            make: { app in
+                app.addPlugin(TransformPlugin())
+                app.addPlugin(RenderWorldPlugin())
+                app.addPlugin(CameraPlugin())
+            },
+            updateContent: { _, _ in }
+        )
+        defer { coordinator.shutdown() }
+        coordinator.bootstrapIfNeeded()
+        for _ in 0..<500 where coordinator.appWorlds == nil {
+            await Task.yield()
+        }
+
+        let app = try #require(coordinator.appWorlds)
+        let engine = try #require(unsafe RenderEngine.shared)
+        let hostWindowID = RID()
+        try engine.createWindow(hostWindowID, for: SceneViewTestSurface(), size: SizeInt(width: 16, height: 16))
+        defer { try? engine.destroyWindow(hostWindowID) }
+
+        coordinator.updateSize(SizeInt(width: 16, height: 16), scaleFactor: 1)
+        try await app.update()
+
+        let renderWorld = try #require(app.getSubworldBuilder(by: .renderWorld))
+        let surfaces = try #require(renderWorld.main.getResource(WindowSurfaces.self))
+        #expect(surfaces.windows.isEmpty)
+        #expect(sceneViewCamera(in: app.main) != nil)
+        #expect(try engine.getRenderWindows().windows.firstValue(for: hostWindowID) != nil)
+    }
+
+    @Test
     func pendingRenderTarget_isNotSubmittedAgain() async throws {
         unsafe RenderEngine.configurations.preferredBackend = .headless
 
@@ -202,4 +235,10 @@ struct SceneViewTests {
         }
         return nil
     }
+}
+
+@MainActor
+private struct SceneViewTestSurface: RenderSurface {
+    var scaleFactor: Float { 1 }
+    var prefferedPixelFormat: PixelFormat { .bgra8 }
 }

@@ -63,7 +63,10 @@ public struct RenderWorldPlugin: Plugin {
         unsafe renderWorld
             .insertResource(renderDevice)
             .insertResource(RenderEngineHandler(renderEngine: RenderEngine.shared))
-            .insertResource(WindowSurfaces(windows: [:]))
+            .insertResource(WindowSurfaces(
+                windows: [:],
+                allowsWindowRendering: app.main.getResource(OffscreenRenderWorld.self) == nil
+            ))
             .addSystem(CreateWindowSurfacesSystem.self, on: .prepare)
             .addSystem(DefaultSchedulerRunner.self, on: .renderRunner)
             .addSystem(RenderSystem.self, on: .render)
@@ -168,9 +171,15 @@ public struct WindowSurface: Sendable {
 
 public final class WindowSurfaces: Resource, @unchecked Sendable {
     public var windows: SparseSet<WindowRef, WindowSurface>
+    let allowsWindowRendering: Bool
 
-    public init(windows: SparseSet<WindowRef, WindowSurface>) {
+    public convenience init(windows: SparseSet<WindowRef, WindowSurface>) {
+        self.init(windows: windows, allowsWindowRendering: true)
+    }
+
+    init(windows: SparseSet<WindowRef, WindowSurface>, allowsWindowRendering: Bool) {
         self.windows = windows
+        self.allowsWindowRendering = allowsWindowRendering
     }
 }
 
@@ -183,6 +192,10 @@ public func CreateWindowSurfaces(
     _ primaryWindow: Extract<Res<PrimaryWindowId>>
 ) async {
     surfaces.windows.removeAll()
+    // Keep this system in the camera dependency graph, but never acquire host drawables offscreen.
+    guard surfaces.wrappedValue.allowsWindowRendering else {
+        return
+    }
     let device = renderDevice.renderDevice
 
     do {
@@ -208,6 +221,12 @@ public func CreateWindowSurfaces(
     } catch {
         Logger(label: "org.adaengine.AdaRender").error("\(error)")
     }
+}
+
+/// Insert before building plugins to render only into textures, without presenting windows.
+@_spi(Internal)
+public struct OffscreenRenderWorld: Resource {
+    public init() {}
 }
 
 public struct PrimaryWindowId: Resource {
