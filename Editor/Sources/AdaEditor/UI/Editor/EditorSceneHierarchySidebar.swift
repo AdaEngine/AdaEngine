@@ -30,6 +30,8 @@ struct EditorSceneHierarchySidebar: View {
                 .fill(theme.editorColors.surfaceElevated)
         )
         .mask(RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("AdaEditor.SceneHierarchy")
     }
 
     private var trailingTitle: String {
@@ -42,15 +44,23 @@ struct EditorSceneHierarchySidebar: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("No scene selected")
-                .font(.system(size: 12))
-                .foregroundColor(theme.editorColors.text)
+            HStack(spacing: 7) {
+                Text("\u{E24B}")
+                    .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                    .foregroundColor(theme.editorColors.muted)
+                Text("No scene open")
+                    .font(.system(size: 12))
+                    .foregroundColor(theme.editorColors.text)
+                    .lineLimit(1)
+            }
             Text("Open a scene file to inspect its entities.")
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
+                .lineLimit(2)
         }
         .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("AdaEditor.SceneHierarchy.EmptyState")
     }
 
     private func hierarchyRow(_ item: EditorSceneHierarchyItem) -> some View {

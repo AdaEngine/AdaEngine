@@ -21,11 +21,6 @@ struct EditorRuntimeProjectSettingsView: View {
     private var entrySettings: some View {
         settingsGroup("RUNTIME ENTRY") {
             settingsField("Game", detail: "AdaScript module name.", text: viewModel.runtimeTextBinding(\.moduleName))
-            settingsField(
-                "Assets/Scenes/Main.ascn",
-                detail: "Optional startup scene, relative to the project root.",
-                text: viewModel.runtimeTextBinding(\.scene)
-            )
             settingsField("game.main", detail: "Optional root AdaUI view identifier.", text: viewModel.runtimeTextBinding(\.view))
             settingsField(
                 "game.bootstrap",
@@ -79,7 +74,7 @@ struct EditorRuntimeProjectSettingsView: View {
     }
 
     private var windowSettings: some View {
-        settingsGroup("RUNTIME WINDOW") {
+        settingsGroup("DISPLAY") {
             settingsField(
                 projectName,
                 detail: "Window title. Empty uses the project name.",
@@ -106,6 +101,8 @@ struct EditorRuntimeProjectSettingsView: View {
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.blue)
                 .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .accessibilityIdentifier("AdaEditor.Settings.Group.\(title)")
             Divider()
             content()
         }
@@ -121,9 +118,12 @@ struct EditorRuntimeProjectSettingsView: View {
                 Text(title)
                     .font(.system(size: 13))
                     .foregroundColor(theme.editorColors.text)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 Text(detail)
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
+                    .lineLimit(1)
             }
             Spacer()
             control()

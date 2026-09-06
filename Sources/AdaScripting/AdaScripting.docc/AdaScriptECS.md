@@ -17,6 +17,25 @@ class MovementSystem {
 The scheduler defaults to `update`. System identifiers must be unique within a
 script module.
 
+## Order systems
+
+Use repeatable `@after` and `@before` annotations when component and resource
+access alone does not express the required execution order:
+
+```ada
+@after(id: "game.input")
+@before(id: "game.physics")
+@system(scheduler: "update", id: "game.movement")
+class MovementSystem {
+    func update(context) {
+    }
+}
+```
+
+Dependency IDs resolve within the same AdaScript module. Both systems must use
+the same scheduler. AdaScript rejects unknown IDs, self-dependencies, and
+dependency cycles while loading the module.
+
 ## Declare a query
 
 Apply `@query` to a stored system property:

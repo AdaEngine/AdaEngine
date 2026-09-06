@@ -57,6 +57,22 @@ public enum AdaScriptSchemaParser {
         return capabilities
     }
 
+    public static func parseTools(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptToolSchema] {
+        var schemas: [AdaScriptToolSchema] = []
+        for source in sources.sorted(by: { $0.path < $1.path }) {
+            var parser = Parser(source: source.source, path: source.path)
+            schemas += try parser.parse().tools
+        }
+
+        var ids = Set<String>()
+        for schema in schemas {
+            guard ids.insert(schema.id).inserted else {
+                throw AdaScriptSchemaError.duplicateToolID(schema.id)
+            }
+        }
+        return schemas
+    }
+
     public static func parseViews(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptViewSchema] {
         var schemas: [AdaScriptViewSchema] = []
         for source in sources.sorted(by: { $0.path < $1.path }) {
@@ -130,6 +146,7 @@ struct Parser {
         var schemas: [AdaScriptDataSchema] = []
         var scriptables: [AdaScriptableSchema] = []
         var systemCapabilities: [AdaScriptSystemCapabilities] = []
+        var tools: [AdaScriptToolSchema] = []
         var views: [AdaScriptViewSchema] = []
     }
 

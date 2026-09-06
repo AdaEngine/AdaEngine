@@ -310,6 +310,8 @@ private extension EditorCodeFileView {
             colorPalette.keyword
         case "class", "enum", "interface", "struct", "type", "typeParameter":
             colorPalette.type
+        case "function", "method":
+            colorPalette.type
         case "string":
             colorPalette.string
         case "number":

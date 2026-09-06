@@ -107,6 +107,60 @@ public struct AdaScriptSystemCapabilities: Equatable, Sendable {
     }
 }
 
+/// Compile-time metadata for an AdaEditor tool declared in AdaScript.
+public enum AdaScriptToolPlatform: String, CaseIterable, Equatable, Sendable {
+    /// The native macOS AdaEditor host.
+    case macOS = "macos"
+    /// The native iPadOS AdaEditor host.
+    case iPadOS = "ipados"
+}
+
+/// A host capability requested statically by an AdaEditor tool.
+public enum AdaScriptToolPermission: String, CaseIterable, Equatable, Sendable {
+    case clipboardRead = "clipboard.read"
+    case clipboardWrite = "clipboard.write"
+    case documentRead = "editor.documents.read"
+    case documentWrite = "editor.documents.write"
+    case network
+    case process
+    case workspaceRead = "workspace.read"
+    case workspaceWrite = "workspace.write"
+}
+
+public struct AdaScriptToolSchema: Equatable, Sendable {
+    public let apiVersion: Int
+    public let className: String
+    public let id: String
+    public let line: Int
+    public let name: String
+    public let permissions: [AdaScriptToolPermission]
+    public let platforms: [AdaScriptToolPlatform]
+    public let sourcePath: String
+    public let version: String
+
+    public init(
+        apiVersion: Int,
+        className: String,
+        id: String,
+        line: Int,
+        name: String,
+        permissions: [AdaScriptToolPermission],
+        platforms: [AdaScriptToolPlatform],
+        sourcePath: String,
+        version: String
+    ) {
+        self.apiVersion = apiVersion
+        self.className = className
+        self.id = id
+        self.line = line
+        self.name = name
+        self.permissions = permissions
+        self.platforms = platforms
+        self.sourcePath = sourcePath
+        self.version = version
+    }
+}
+
 /// Compile-time metadata for a declarative AdaUI view declared in Ada Script.
 public struct AdaScriptViewSchema: Equatable, Sendable {
     public let className: String
@@ -182,6 +236,7 @@ func humanizedAdaScriptViewTitle(_ name: String) -> String {
 public enum AdaScriptSchemaError: Error, Equatable, CustomStringConvertible {
     case duplicateID(String)
     case duplicateName(String)
+    case duplicateToolID(String)
     case invalid(path: String, message: String)
 
     public var description: String {
@@ -190,6 +245,8 @@ public enum AdaScriptSchemaError: Error, Equatable, CustomStringConvertible {
             "Duplicate Ada Script data id '\(id)'"
         case .duplicateName(let name):
             "Duplicate Ada Script data declaration '\(name)'"
+        case .duplicateToolID(let id):
+            "Duplicate AdaEditor tool id '\(id)'"
         case let .invalid(path, message):
             "Invalid Ada Script schema in '\(path)': \(message)"
         }

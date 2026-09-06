@@ -116,9 +116,17 @@ struct AdaScriptRuntimeConfigurationTests {
             editorViewModel: editorViewModel,
             selectedSection: .project
         )
+        let alternateScenePath = "Assets/Scenes/Opening.ascn"
+        try SceneDocumentFormat.defaultSceneYAML(projectName: "Opening").write(
+            to: URL(fileURLWithPath: reference.path, isDirectory: true).appendingPathComponent(alternateScenePath),
+            atomically: true,
+            encoding: .utf8
+        )
+        editorViewModel.projectDisplayNameText = "Configured Game"
+        editorViewModel.projectBundleIdentifierText = "dev.adaengine.configured-game"
+        editorViewModel.projectMainSceneText = alternateScenePath
         settingsViewModel.runtimeSettings.plugins.preset = .game3D
         settingsViewModel.runtimeSettings.plugins.enable = [.physics2D]
-        settingsViewModel.runtimeDraft.scene = "Assets/Scenes/Main.ascn"
         settingsViewModel.runtimeDraft.view = "game.main"
         settingsViewModel.runtimeDraft.gravityX = "1.5"
         settingsViewModel.runtimeDraft.gravityY = "-12"
@@ -141,5 +149,16 @@ struct AdaScriptRuntimeConfigurationTests {
         #expect(saved.runtime.plugins.settings.physics2D.gravity == [1.5, -12])
         #expect(saved.runtime.window.title == "Configured Runtime")
         #expect(saved.runtime.window.size == AdaProjectRuntimeWindowSize(width: 1440, height: 900))
+        #expect(saved.project.displayName == "Configured Game")
+        #expect(saved.project.bundleIdentifier == "dev.adaengine.configured-game")
+        #expect(saved.editor.startupScene == alternateScenePath)
+        #expect(saved.runtime.entry.scene == alternateScenePath)
+
+        let artifact = try EditorAdaScriptProjectBuilder(fileManager: fileManager).prepare(
+            project: saved,
+            at: URL(fileURLWithPath: reference.path, isDirectory: true)
+        )
+        #expect(artifact.report.startupScene == alternateScenePath)
+        #expect(artifact.report.entryDescription.contains("scene \(alternateScenePath)"))
     }
 }

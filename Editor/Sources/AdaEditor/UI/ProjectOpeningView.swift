@@ -28,7 +28,7 @@ enum ProjectOpeningLayout {
     static let searchCapsuleWidth: Float = explorerWidth - 32
     static let searchCapsuleHeight: Float = 38
     static let searchBottomPadding: Float = 12
-    static let trafficLightOffsetY: Float = 0
+    static let trafficLightOffsetY: Float = 8
     static let logoTopPadding: Float = 58
     static let explorerTopPadding: Float = 56
     static let landingTopPadding: Float = 62

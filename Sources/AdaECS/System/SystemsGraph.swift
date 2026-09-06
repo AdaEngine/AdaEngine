@@ -66,7 +66,7 @@ public struct SystemsGraph: Sendable {
             name: system.systemIdentifier,
             typeName: T.swiftName,
             system: system,
-            dependencies: T.dependencies,
+            dependencies: system.systemDependencies,
             queries: system.queries
         )
         self.nodes[node.name] = node
@@ -170,8 +170,11 @@ public struct SystemsGraph: Sendable {
         
         let edge = Edge(outputNode: outputSystemName, inputNode: inputSystemName)
         let reversedEdge = Edge(outputNode: inputSystemName, inputNode: outputSystemName)
-        
-        guard self.validateEdge(edge, shouldExists: false) && self.validateEdge(reversedEdge, shouldExists: false) else {
+
+        if self.hasEdge(edge) {
+            return
+        }
+        guard !self.hasEdge(reversedEdge) else {
             assertionFailure("[SystemsGraph] Detected a cycle betweens \"\(outputSystemName)\" and \"\(inputSystemName)\"")
             return
         }
@@ -181,18 +184,6 @@ public struct SystemsGraph: Sendable {
         
         self.nodes[inputSystemName] = inputNode
         self.nodes[outputSystemName] = outputNode
-    }
-    
-    /// Validate an edge.
-    /// - Parameter edge: The edge to validate.
-    /// - Parameter shouldExists: Whether the edge should exist.
-    /// - Returns: True if the edge is valid, otherwise false.
-    private func validateEdge(_ edge: Edge, shouldExists: Bool) -> Bool {
-        if shouldExists {
-            return hasEdge(edge)
-        } else {
-            return !hasEdge(edge)
-        }
     }
     
     /// Check if an edge exists.

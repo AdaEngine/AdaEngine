@@ -3,7 +3,10 @@ import GravityLanguageCore
 
 struct EditorGravityLanguageService: Sendable {
     private static let languageService = GravityLanguageService()
-    private static let annotationLabels: Set<String> = ["access", "component", "export", "query", "resource", "scriptable", "system"]
+    private static let annotationLabels: Set<String> = [
+        "access", "component", "environment", "export", "previewable", "query", "res",
+        "resource", "scriptable", "state", "system", "tool", "view"
+    ]
 
     static func completions(
         text: String,
@@ -13,6 +16,36 @@ struct EditorGravityLanguageService: Sendable {
         return completionItems(
             languageService.completions(text: text, position: lspPosition),
             text: text
+        )
+    }
+
+    static func semanticTokens(text: String) -> [EditorSemanticToken] {
+        languageService.semanticTokens(text: text).compactMap { token in
+            guard token.range.start.line == token.range.end.line else {
+                return nil
+            }
+            let start = editorPosition(from: token.range.start, in: text)
+            let end = editorPosition(from: token.range.end, in: text)
+            return EditorSemanticToken(
+                line: start.line,
+                startCharacter: start.character,
+                length: max(0, end.character - start.character),
+                type: token.kind.rawValue,
+                modifiers: []
+            )
+        }
+    }
+
+    static func hover(text: String, position: EditorSourceLocation) -> EditorSymbolHover? {
+        guard let hover = languageService.hover(
+            text: text,
+            position: lspPosition(from: position, in: text)
+        ) else {
+            return nil
+        }
+        return EditorSymbolHover(
+            contents: hover.contents,
+            range: editorRange(from: hover.range, in: text)
         )
     }
 

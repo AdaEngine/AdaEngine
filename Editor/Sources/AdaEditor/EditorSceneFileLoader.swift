@@ -33,11 +33,15 @@ enum EditorSceneFileLoader {
 
     @discardableResult
     @MainActor
-    static func load(content: String, into world: World) -> EditorSceneRuntimeLoadResult {
+    static func load(
+        content: String,
+        into world: World,
+        loadsScriptableObjects: Bool = true
+    ) -> EditorSceneRuntimeLoadResult {
         do {
-            registerEditorSceneComponents()
+            registerEditorSceneComponents(loadsScriptableObjects: loadsScriptableObjects)
             let sceneModel = try EditorSceneModel.decode(from: content)
-            return instantiate(sceneModel, in: world)
+            return instantiate(sceneModel, in: world, loadsScriptableObjects: loadsScriptableObjects)
         } catch {
             return .emptyWithWarnings([error.localizedDescription])
         }
@@ -45,19 +49,30 @@ enum EditorSceneFileLoader {
 
     @discardableResult
     @MainActor
-    static func load(model sceneModel: EditorSceneModel, into world: World) -> EditorSceneRuntimeLoadResult {
-        registerEditorSceneComponents()
-        return instantiate(sceneModel, in: world)
+    static func load(
+        model sceneModel: EditorSceneModel,
+        into world: World,
+        loadsScriptableObjects: Bool = true
+    ) -> EditorSceneRuntimeLoadResult {
+        registerEditorSceneComponents(loadsScriptableObjects: loadsScriptableObjects)
+        return instantiate(sceneModel, in: world, loadsScriptableObjects: loadsScriptableObjects)
     }
 
     @MainActor
-    private static func registerEditorSceneComponents() {
+    private static func registerEditorSceneComponents(loadsScriptableObjects: Bool) {
         EditorComponentRegistry.registerBuiltIns()
         EditorGizmo.registerComponent()
+        if loadsScriptableObjects {
+            ScriptableComponents.registerComponent()
+        }
     }
 
     @MainActor
-    private static func instantiate(_ sceneModel: EditorSceneModel, in world: World) -> EditorSceneRuntimeLoadResult {
+    private static func instantiate(
+        _ sceneModel: EditorSceneModel,
+        in world: World,
+        loadsScriptableObjects: Bool
+    ) -> EditorSceneRuntimeLoadResult {
         var warnings: [String] = []
         var entitiesByEditorID: [String: Entity] = [:]
         var runtimeEntityIDsByEditorID: [String: Entity.ID] = [:]
@@ -71,6 +86,9 @@ enum EditorSceneFileLoader {
             editorIDsByRuntimeEntityID[entity.id] = sceneEntity.id
 
             for (componentName, componentPayload) in sceneEntity.components {
+                if componentName == EditorBuiltInComponentType.scriptableComponents, !loadsScriptableObjects {
+                    continue
+                }
                 guard RuntimeTypeRegistry.componentType(named: componentName) != nil
                     || EditorComponentRegistry.descriptor(named: componentName) != nil else {
                     warnings.append("Unknown component: \(componentName)")

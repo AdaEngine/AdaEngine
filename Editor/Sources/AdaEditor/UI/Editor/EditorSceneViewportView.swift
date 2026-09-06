@@ -4,6 +4,10 @@ struct EditorSceneViewportView: View {
     let document: EditorSceneDocument
     let inspectorViewModel: EditorInspectorSidebarViewModel
     let playModeState: EditorPlayModeState
+    let playRuntime: EditorScenePlayRuntime?
+    let onEntitySelected: (() -> Void)?
+    let onPlay: (() -> Void)?
+    let onStop: (() -> Void)?
     let onDocumentChanged: (EditorSceneDocument) -> Void
 
     @State private var runtimeWarnings: [String] = []
@@ -48,7 +52,11 @@ struct EditorSceneViewportView: View {
                 ZStack(anchor: .bottomLeading) {
                     SceneView(make: { app in
                         configureSceneViewApp(&app)
-                        let result = EditorSceneFileLoader.load(content: document.content, into: app.main)
+                        let result = EditorSceneFileLoader.load(
+                            content: document.content,
+                            into: app.main,
+                            loadsScriptableObjects: false
+                        )
                         if runtimeWarnings != result.warnings {
                             runtimeWarnings = result.warnings
                         }
@@ -71,6 +79,7 @@ struct EditorSceneViewportView: View {
                     viewportSceneOverlay
                         .frame(width: geometry.size.width, height: geometry.size.height)
 
+                    sceneControls(size: geometry.size)
                     statusBar
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
@@ -87,6 +96,11 @@ struct EditorSceneViewportView: View {
                 ZStack(anchor: .bottomLeading) {
                     SceneView(make: { app in
                         configureSceneViewApp(&app)
+                        do {
+                            try playRuntime?.install(in: &app)
+                        } catch {
+                            runtimeWarnings = [error.localizedDescription]
+                        }
                         let result = EditorSceneFileLoader.load(content: document.content, into: app.main)
                         if runtimeWarnings != result.warnings {
                             runtimeWarnings = result.warnings
@@ -94,6 +108,7 @@ struct EditorSceneViewportView: View {
                     }, updateContent: { _, _ in })
                     .frame(width: geometry.size.width, height: geometry.size.height)
 
+                    sceneControls(size: geometry.size)
                     playStatusBar
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
@@ -105,6 +120,7 @@ struct EditorSceneViewportView: View {
 
     @MainActor
     private func configureSceneViewApp(_ app: inout AppWorlds) {
+        EditorComponentRegistry.registerBuiltIns()
         app.addPlugin(TransformPlugin())
         app.addPlugin(InputPlugin())
         app.addPlugin(RenderWorldPlugin())
@@ -116,7 +132,9 @@ struct EditorSceneViewportView: View {
         app.addPlugin(Mesh2DPlugin())
         app.addPlugin(TextPlugin())
         app.addPlugin(ScenePlugin())
-        app.addPlugin(ScriptableObjectPlugin())
+        if isPlayingThisDocument {
+            app.addPlugin(ScriptableObjectPlugin())
+        }
         app.addPlugin(Physics2DPlugin())
         app.addPlugin(TileMapPlugin())
         app.addPlugin(Core2DPlugin())
@@ -142,12 +160,9 @@ struct EditorSceneViewportView: View {
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
             Spacer()
-            viewportModeButton(.twoD)
-            viewportModeButton(.threeD)
-            toolbarDivider
-            ForEach(EditorSceneViewportTool.allCases, id: \.rawValue) { tool in
-                toolButton(tool)
-            }
+            Text(isPlayingThisDocument ? "PLAY MODE" : "SCENE")
+                .font(.system(size: 10))
+                .foregroundColor(isPlayingThisDocument ? theme.editorColors.purple : theme.editorColors.muted)
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
@@ -163,17 +178,31 @@ struct EditorSceneViewportView: View {
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
             Spacer()
-            adaEditorToolbarPill("Playing", active: true, theme: theme)
+            Text("PLAY MODE")
+                .font(.system(size: 10))
+                .foregroundColor(theme.editorColors.purple)
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
         .background(theme.editorColors.surface)
     }
 
-    private var toolbarDivider: some View {
-        RectangleShape()
-            .fill(theme.editorColors.border.opacity(0.8))
-            .frame(width: 1, height: 18)
+    private func sceneControls(size: Size) -> some View {
+        EditorSceneViewportControls(
+            activeTool: activeTool,
+            displayMode: displayMode,
+            isPlaying: isPlayingThisDocument,
+            size: size,
+            onCreate: { preset in
+                inspectorViewModel.addEntityRequested(preset)
+                onEntitySelected?()
+                redrawViewport()
+            },
+            onPlay: { onPlay?() },
+            onSelectDisplayMode: selectViewportMode,
+            onSelectTool: selectTool,
+            onStop: { onStop?() }
+        )
     }
 
     private var viewportGridLayer: some View {
@@ -248,29 +277,6 @@ struct EditorSceneViewportView: View {
         (document.loadSummary.warnings + runtimeWarnings).isEmpty ? theme.editorColors.muted : theme.editorColors.purple
     }
 
-    private func viewportModeButton(_ mode: EditorSceneViewportDisplayMode) -> some View {
-        Button(action: { selectViewportMode(mode) }) {
-            viewportModeButton(mode.rawValue, active: displayMode == mode)
-        }
-        .buttonStyle(DefaultButtonStyle())
-    }
-
-    private func viewportModeButton(_ title: String, active: Bool) -> some View {
-        Text(title)
-            .font(.system(size: 10))
-            .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
-            .padding(.horizontal, 8)
-            .frame(height: 22)
-            .background(RoundedRectangleShape(cornerRadius: 5).fill(active ? theme.editorColors.blue.opacity(0.20) : theme.editorColors.surfaceElevated))
-    }
-
-    private func toolButton(_ tool: EditorSceneViewportTool) -> some View {
-        Button(action: { selectTool(tool) }) {
-            viewportModeButton(tool.rawValue, active: activeTool == tool)
-        }
-        .buttonStyle(DefaultButtonStyle())
-    }
-
     private func selectViewportMode(_ mode: EditorSceneViewportDisplayMode) {
         displayMode = mode
         viewportModel.setDisplayMode(mode)
@@ -292,8 +298,12 @@ struct EditorSceneViewportView: View {
 
         let loadResult = viewportModel.configure(
             sceneContent: document.content,
+            scriptableObjectCatalog: inspectorViewModel.scriptableObjectCatalog,
             onSelectionChanged: { [weak inspectorViewModel] selection in
                 inspectorViewModel?.selectEntity(selection)
+                if selection != nil {
+                    onEntitySelected?()
+                }
             },
             onDocumentContentChanged: { content in
                 var updatedDocument = document
@@ -319,9 +329,9 @@ struct EditorSceneViewportView: View {
                 viewportModel.updateSelectedGizmo(gizmo)
                 viewProxy.redraw()
             },
-            addEntity: {
+            addEntity: { preset in
                 Self.mutateSceneDocument(document: document, status: "Entity added", onDocumentChanged: onDocumentChanged) { model in
-                    _ = model.addEntity()
+                    _ = model.addEntity(preset: preset)
                 }
             },
             addComponent: { typeName in
@@ -346,6 +356,30 @@ struct EditorSceneViewportView: View {
                         return
                     }
                     model.updateField(typeName: typeName, field: field, value: value, in: selectedEntityID)
+                }
+            },
+            addScriptableObject: { descriptor in
+                Self.mutateSceneDocument(document: document, status: "Scriptable object added", onDocumentChanged: onDocumentChanged) { model in
+                    guard let selectedEntityID = model.editor?.selectedEntity else {
+                        return
+                    }
+                    model.addScriptableObject(descriptor, to: selectedEntityID)
+                }
+            },
+            removeScriptableObject: { identifier in
+                Self.mutateSceneDocument(document: document, status: "Scriptable object removed", onDocumentChanged: onDocumentChanged) { model in
+                    guard let selectedEntityID = model.editor?.selectedEntity else {
+                        return
+                    }
+                    model.removeScriptableObject(identifier: identifier, from: selectedEntityID)
+                }
+            },
+            updateScriptableObjectField: { identifier, field, value in
+                Self.mutateSceneDocument(document: document, status: "Edited", onDocumentChanged: onDocumentChanged) { model in
+                    guard let selectedEntityID = model.editor?.selectedEntity else {
+                        return
+                    }
+                    model.updateScriptableObjectField(identifier: identifier, field: field, value: value, in: selectedEntityID)
                 }
             }
         )

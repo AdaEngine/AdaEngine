@@ -219,6 +219,10 @@ struct AdaEngineStyleUITests {
                 viewModel: workbench,
                 inspectorViewModel: EditorInspectorSidebarViewModel(),
                 playModeState: .editing,
+                scenePlayRuntime: nil,
+                onPlayScene: nil,
+                onStopScene: nil,
+                onSceneEntitySelected: nil,
                 onSourceHover: nil,
                 onGoToDefinition: nil,
                 onCompletionPosition: nil,
@@ -329,9 +333,35 @@ struct AdaEngineStyleUITests {
         #expect(compact.aiFlightBoxWidth <= compact.workbenchWidth)
         #expect(compact.aiFlightBoxHeight < desktop.aiFlightBoxHeight)
         #expect(compact.outputTabs.count < AdaEngineStyleContent.outputTabs.count)
-        #expect(compact.toolbarWindowControlClearance >= 76)
+        #expect(compact.toolbarWindowControlClearance == 60)
         #expect(!compact.showsToolbarSceneName)
         #expect(!compact.showsToolbarHotReloadStatus)
+    }
+
+    @Test("empty hierarchy fills its panel and stays top aligned")
+    @MainActor
+    func emptyHierarchyFillsPanel() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            let app = AppWorlds(main: World(name: "EmptyHierarchyLayoutTests"))
+            RenderWorldPlugin().setup(in: app)
+        }
+        let size = Size(width: 260, height: 700)
+        let container = UIContainerView(rootView: EditorSceneHierarchySidebar(
+            document: nil,
+            onSelectEntity: { _ in },
+            onToggleEntityExpanded: { _ in }
+        ))
+        container.frame = Rect(origin: .zero, size: size)
+        container.bounds.size = size
+        container.layoutIfNeeded()
+
+        let hierarchy = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy"))
+        let emptyState = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.EmptyState"))
+
+        #expect(hierarchy.absoluteFrame.height == size.height)
+        #expect(emptyState.absoluteFrame.minY < 80)
+        #expect(emptyState.absoluteFrame.maxY <= size.height)
     }
 
     @Test("code completion popup remains inside the editor viewport")
@@ -1102,6 +1132,39 @@ struct AdaEngineStyleUITests {
         settingsViewModel.searchText = "agent"
         #expect(settingsViewModel.filteredSections == [.agent])
         #expect(settingsViewModel.editorViewModel === editorViewModel)
+    }
+
+    @Test("settings headings remain on one line")
+    @MainActor
+    func settingsHeadingsRemainOnOneLine() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            let app = AppWorlds(main: World(name: "EditorSettingsLayoutTests"))
+            RenderWorldPlugin().setup(in: app)
+        }
+        let projectURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("EditorSettingsLayout-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: projectURL) }
+        try ProjectSystem.saveProject(ProjectSystem.defaultProject(projectName: "SettingsLayout"), at: projectURL)
+        let editorViewModel = EditorViewModel(
+            project: EditorProjectReference(name: "SettingsLayout", path: projectURL.path)
+        )
+        let settingsViewModel = EditorSettingsWindowViewModel(editorViewModel: editorViewModel, selectedSection: .project)
+        let container = UIContainerView(rootView: EditorSettingsWindowView(viewModel: settingsViewModel))
+        container.frame = Rect(
+            x: 0,
+            y: 0,
+            width: EditorSettingsWindowController.windowWidth,
+            height: EditorSettingsWindowController.windowHeight
+        )
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+
+        let title = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Settings.Title"))
+        let buildSelection = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Settings.Group.BUILD FILE SELECTION"))
+
+        #expect(title.absoluteFrame.height < 40)
+        #expect(buildSelection.absoluteFrame.height < 24)
     }
 
     @Test("general settings apply code font and syntax appearance")

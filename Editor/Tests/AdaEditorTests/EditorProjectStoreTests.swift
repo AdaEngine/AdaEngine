@@ -297,7 +297,7 @@ struct EditorProjectStoreTests {
         #expect(ProjectOpeningLayout.windowHeight == 700)
         #expect(ProjectOpeningLayout.columnsWidth == ProjectOpeningLayout.windowWidth)
         #expect(ProjectOpeningLayout.detailContentWidth == 572)
-        #expect(ProjectOpeningLayout.trafficLightOffsetY == 0)
+        #expect(ProjectOpeningLayout.trafficLightOffsetY == 8)
         #expect(ProjectOpeningLayout.logoTopPadding > ProjectOpeningLayout.trafficLightOffsetY)
         #expect(ProjectOpeningAssets.adaEngineLogoResourceName == "AdaEngine")
         #expect(ProjectOpeningAssets.adaEngineLogoSubdirectory == "Assets")

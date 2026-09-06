@@ -187,6 +187,62 @@ struct AdaScriptSchemaParserTests {
 }
 
 extension AdaScriptSchemaParserTests {
+    @Test("Parses AdaEditor tool metadata without executing source")
+    func parsesTools() throws {
+        let tools = try AdaScriptSchemaParser.parseTools(sources: [
+            AdaScriptCompilerSource(
+                path: "Editor/Tools/Formatter.ada",
+                source: """
+                @tool(
+                    id: "com.example.formatter",
+                    name: "Example Formatter",
+                    version: "1.2.0",
+                    api: 1,
+                    platforms: ["macos", "ipados"],
+                    permissions: ["editor.documents.read", "editor.documents.write"]
+                )
+                class ExampleFormatter {
+                    func activate(editor) {
+                        editor.addFormatter(id: "ada", languages: ["ada"], action: "format");
+                    }
+                }
+                """
+            )
+        ])
+
+        #expect(tools == [
+            AdaScriptToolSchema(
+                apiVersion: 1,
+                className: "ExampleFormatter",
+                id: "com.example.formatter",
+                line: 9,
+                name: "Example Formatter",
+                permissions: [.documentRead, .documentWrite],
+                platforms: [.macOS, .iPadOS],
+                sourcePath: "Editor/Tools/Formatter.ada",
+                version: "1.2.0"
+            )
+        ])
+    }
+
+    @Test("Rejects invalid and duplicate AdaEditor tool identities")
+    func rejectsInvalidTools() {
+        #expect(throws: AdaScriptSchemaError.self) {
+            try AdaScriptSchemaParser.parseTools(sources: [
+                AdaScriptCompilerSource(
+                    path: "Invalid.ada",
+                    source: "@tool(id: \"tool\", version: \"1\") class InvalidTool {}"
+                )
+            ])
+        }
+        #expect(throws: AdaScriptSchemaError.duplicateToolID("com.example.tool")) {
+            try AdaScriptSchemaParser.parseTools(sources: [
+                AdaScriptCompilerSource(path: "A.ada", source: "@tool(id: \"com.example.tool\") class A {}"),
+                AdaScriptCompilerSource(path: "B.ada", source: "@tool(id: \"com.example.tool\") class B {}")
+            ])
+        }
+    }
+
     @Test("Parses AdaUI view metadata")
     func parsesViews() throws {
         let schemas = try AdaScriptSchemaParser.parseViews(sources: [

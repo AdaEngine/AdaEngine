@@ -57,7 +57,7 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
     }
 
     var toolbarWindowControlClearance: Float {
-        76
+        60
     }
 
     var toolbarProjectSwitcherWidth: Float {

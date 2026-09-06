@@ -59,6 +59,7 @@ user code during module discovery.
 The initial AdaEngine annotations are:
 
 - `@system` for ECS systems;
+- `@after` and `@before` for ordering systems by their module-local IDs;
 - `@query` for native ECS iterators;
 - `@access` for explicit scheduler access;
 - `@component` and `@resource` for generated data declarations;

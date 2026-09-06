@@ -306,12 +306,8 @@ private struct EditorTopToolbarRegion: View {
             onToggleProjectSwitcher: {
                 projectSwitcher.toggle()
             },
-            onRun: {
-                viewModel.runSelectedTarget()
-            },
-            onStop: {
-                viewModel.cancelWorkspaceCommand()
-            }
+            onRun: viewModel.runFromToolbar,
+            onStop: viewModel.stopFromToolbar
         )
     }
 }
@@ -347,6 +343,10 @@ private struct EditorWorkspaceRegion: View {
                             viewModel: viewModel.workbench,
                             inspectorViewModel: viewModel.inspectorSidebar,
                             playModeState: viewModel.playModeState,
+                            scenePlayRuntime: viewModel.scenePlayRuntime,
+                            onPlayScene: viewModel.runActiveSceneInEditor,
+                            onStopScene: viewModel.stopPlayMode,
+                            onSceneEntitySelected: viewModel.presentSceneInspector,
                             onSourceHover: { document, position in
                                 viewModel.handleSourceHover(document: document, position: position)
                             },

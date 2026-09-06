@@ -211,9 +211,14 @@ final class EditorSettingsWindowViewModel {
             return
         }
         do {
-            runtimeSettings = try runtimeDraft.applying(to: runtimeSettings)
-            _ = try EditorAdaScriptRuntimePluginResolver.resolve(runtimeSettings.plugins)
-            editorViewModel.saveProjectSettings(runtime: runtimeSettings)
+            if isAdaScriptProject {
+                runtimeDraft.scene = editorViewModel.projectMainSceneText
+                runtimeSettings = try runtimeDraft.applying(to: runtimeSettings)
+                _ = try EditorAdaScriptRuntimePluginResolver.resolve(runtimeSettings.plugins)
+                editorViewModel.saveProjectSettings(runtime: runtimeSettings)
+            } else {
+                editorViewModel.saveProjectSettings()
+            }
             runtimeSettingsStatusMessage = editorViewModel.projectSettingsStatusMessage
         } catch {
             runtimeSettingsStatusMessage = error.localizedDescription
@@ -412,6 +417,9 @@ struct EditorSettingsWindowView: View {
                     .font(.system(size: 24))
                     .foregroundColor(theme.editorColors.text)
                     .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
+                    .accessibilityIdentifier("AdaEditor.Settings.Title")
                 Spacer()
                 Text(viewModel.projectName)
                     .font(.system(size: 10))
@@ -530,6 +538,25 @@ struct EditorSettingsWindowView: View {
 
     private func projectSettings(_ editorViewModel: EditorViewModel) -> some View {
         VStack(alignment: .leading, spacing: 24) {
+            settingsGroup("PROJECT") {
+                settingsField(
+                    editorViewModel.project?.name ?? "Game",
+                    detail: "Display name used by the project and runtime window.",
+                    text: editorViewModel.projectDisplayNameBinding
+                )
+                settingsField(
+                    "com.example.game",
+                    detail: "Bundle identifier used by packaged applications.",
+                    text: editorViewModel.projectBundleIdentifierBinding
+                )
+                settingsField(
+                    "Assets/Scenes/Main.ascn",
+                    detail: viewModel.isAdaScriptProject
+                        ? "Main scene loaded when the game starts and used by Play Mode."
+                        : "Fallback for editor Play Mode; Swift games choose their scene in App code.",
+                    text: editorViewModel.projectMainSceneBinding
+                )
+            }
             if viewModel.isAdaScriptProject {
                 EditorRuntimeProjectSettingsView(
                     projectName: editorViewModel.project?.name ?? "Game",
@@ -562,6 +589,15 @@ struct EditorSettingsWindowView: View {
                             editorViewModel.selectRunDestination(destination)
                         }
                     }
+                }
+            }
+            if !viewModel.isAdaScriptProject {
+                settingsGroup("LAUNCH") {
+                    settingsField(
+                        "--debug",
+                        detail: "Arguments passed to the Swift executable, one per line.",
+                        text: editorViewModel.projectRunArgumentsBinding
+                    )
                 }
             }
         }
@@ -630,6 +666,8 @@ struct EditorSettingsWindowView: View {
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.blue)
                 .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .accessibilityIdentifier("AdaEditor.Settings.Group.\(title)")
             Divider()
             content()
         }
@@ -646,6 +684,7 @@ struct EditorSettingsWindowView: View {
                     .font(.system(size: 13))
                     .foregroundColor(theme.editorColors.text)
                     .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 Text(detail)
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)

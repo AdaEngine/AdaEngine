@@ -7,6 +7,69 @@ public struct GravityLanguageService: Sendable {
         GravityDocumentAnalyzer.parse(text).analysis
     }
 
+    public func semanticTokens(text: String) -> [GravitySemanticToken] {
+        GravitySemanticAnalyzer.tokens(in: text)
+    }
+
+    public func hover(text: String, position: GravitySourcePosition) -> GravityHover? {
+        let parsed = GravityDocumentAnalyzer.parse(text)
+        let tokens = parsed.tokens.filter { $0.kind != .comment }
+        guard let tokenIndex = tokens.firstIndex(where: { $0.kind == .identifier && $0.range.contains(position) }) else {
+            return nil
+        }
+        let token = tokens[tokenIndex]
+        if tokenIndex > 0,
+           tokens[tokenIndex - 1].text == "@",
+           let annotation = GravityBuiltins.annotationCandidates.first(where: { $0.label == token.text }) {
+            return GravityHover(contents: annotation.detail, range: token.range)
+        }
+        if let receiverPath = Self.receiverPath(beforeMemberAt: tokenIndex, tokens: tokens),
+           let receiverType = resolvedType(receiverPath: receiverPath, position: position, parsed: parsed),
+           let member = GravityAPICatalog.member(named: token.text, in: receiverType) {
+            return GravityHover(contents: member.detail, range: token.range)
+        }
+        let symbols = parsed.analysis.symbols + parsed.analysis.symbols.flatMap(\.members)
+        guard let symbol = symbols.first(where: { $0.name == token.text }) else {
+            return nil
+        }
+        return GravityHover(contents: symbol.detail, range: token.range)
+    }
+
+    public func signatureHelp(text: String, position: GravitySourcePosition) -> GravitySignatureHelp? {
+        let parsed = GravityDocumentAnalyzer.parse(text)
+        let tokens = parsed.tokens.filter { $0.kind != .comment && $0.range.start < position }
+        var openParentheses: [Int] = []
+        for index in tokens.indices {
+            if tokens[index].text == "(" {
+                openParentheses.append(index)
+            } else if tokens[index].text == ")" {
+                _ = openParentheses.popLast()
+            }
+        }
+        guard let openIndex = openParentheses.last,
+              openIndex > 0,
+              tokens[openIndex - 1].kind == .identifier,
+              let receiverPath = Self.receiverPath(beforeMemberAt: openIndex - 1, tokens: tokens),
+              let receiverType = resolvedType(receiverPath: receiverPath, position: position, parsed: parsed),
+              let member = GravityAPICatalog.member(named: tokens[openIndex - 1].text, in: receiverType)
+        else {
+            return nil
+        }
+
+        var activeParameter = 0
+        var nestedDepth = 0
+        for token in tokens.dropFirst(openIndex + 1) {
+            if token.text == "(" || token.text == "[" || token.text == "{" {
+                nestedDepth += 1
+            } else if token.text == ")" || token.text == "]" || token.text == "}" {
+                nestedDepth = max(0, nestedDepth - 1)
+            } else if token.text == ",", nestedDepth == 0 {
+                activeParameter += 1
+            }
+        }
+        return GravitySignatureHelp(activeParameter: activeParameter, label: member.detail)
+    }
+
     public func completions(
         text: String,
         position: GravitySourcePosition,
@@ -24,8 +87,8 @@ public struct GravityLanguageService: Sendable {
 
         let symbols = (parsed.analysis.symbols + workspaceSymbols).uniqued(on: { "\($0.kind.rawValue):\($0.name)" })
         let candidates: [GravityCompletionCandidate]
-        if let receiver = context.receiver {
-            candidates = memberCandidates(receiver: receiver, position: position, parsed: parsed, symbols: symbols)
+        if let receiverPath = context.receiverPath {
+            candidates = memberCandidates(receiverPath: receiverPath, position: position, parsed: parsed, symbols: symbols)
         } else if context.isAnnotation {
             candidates = GravityBuiltins.annotationCandidates
         } else {
@@ -60,29 +123,69 @@ public struct GravityLanguageService: Sendable {
     }
 
     private func memberCandidates(
-        receiver: String,
+        receiverPath: [String],
         position: GravitySourcePosition,
         parsed: GravityParsedDocument,
         symbols: [GravitySymbol]
     ) -> [GravityCompletionCandidate] {
-        if let builtins = GravityBuiltins.members[receiver] {
-            return builtins
-        }
-        if receiver == "this", let containingType = GravityDocumentAnalyzer.typeContaining(position, in: parsed.typeRegions) {
-            return containingType.members.map(GravityCompletionCandidate.init(symbol:))
+        guard !receiverPath.isEmpty else {
+            return []
         }
 
-        let inferredType = parsed.inferredTypes[receiver] ?? receiver
+        guard let inferredType = resolvedType(receiverPath: receiverPath, position: position, parsed: parsed) else {
+            return []
+        }
+
         if let builtins = GravityBuiltins.members[inferredType] {
             return builtins
         }
         return symbols.first(where: { $0.name == inferredType && !$0.members.isEmpty })?.members.map(GravityCompletionCandidate.init(symbol:)) ?? []
     }
+
+    private func resolvedType(
+        receiverPath: [String],
+        position: GravitySourcePosition,
+        parsed: GravityParsedDocument
+    ) -> String? {
+        guard let receiver = receiverPath.first else {
+            return nil
+        }
+        let containingRegion = parsed.typeRegions.first { $0.symbol.range.contains(position) }
+        var inferredType: String
+        if receiver == "this", let containingRegion {
+            inferredType = containingRegion.symbol.name
+        } else {
+            inferredType = containingRegion?.implicitTypes[receiver] ?? parsed.inferredTypes[receiver] ?? receiver
+        }
+        for memberName in receiverPath.dropFirst() {
+            guard let returnType = GravityAPICatalog.member(named: memberName, in: inferredType)?.returnType else {
+                return nil
+            }
+            inferredType = returnType
+        }
+        return inferredType
+    }
+
+    private static func receiverPath(beforeMemberAt memberIndex: Int, tokens: [GravityToken]) -> [String]? {
+        guard memberIndex >= 2, tokens[memberIndex - 1].text == "." else {
+            return nil
+        }
+        var result: [String] = []
+        var cursor = memberIndex - 2
+        while cursor >= 0, tokens[cursor].kind == .identifier {
+            result.insert(tokens[cursor].text, at: 0)
+            guard cursor >= 2, tokens[cursor - 1].text == "." else {
+                break
+            }
+            cursor -= 2
+        }
+        return result.isEmpty ? nil : result
+    }
 }
 
 private struct GravityCompletionContext {
     var prefix: String
-    var receiver: String?
+    var receiverPath: [String]?
     var replacementRange: GravitySourceRange
     var isAnnotation = false
 
@@ -112,30 +215,32 @@ private struct GravityCompletionContext {
         )
 
         guard prefixStart > line.startIndex else {
-            receiver = nil
+            receiverPath = nil
             return
         }
         let dotIndex = line.index(before: prefixStart)
         if line[dotIndex] == "@" {
             isAnnotation = true
-            receiver = nil
+            receiverPath = nil
             return
         }
         guard line[dotIndex] == "." else {
-            receiver = nil
+            receiverPath = nil
             return
         }
-        var receiverStart = dotIndex
-        while receiverStart > line.startIndex {
-            let previous = line.index(before: receiverStart)
+        var expressionStart = dotIndex
+        while expressionStart > line.startIndex {
+            let previous = line.index(before: expressionStart)
             let character = line[previous]
-            guard character == "_" || character.isLetter || character.isNumber else {
+            guard character == "_" || character == "." || character.isLetter || character.isNumber else {
                 break
             }
-            receiverStart = previous
+            expressionStart = previous
         }
-        let value = String(line[receiverStart..<dotIndex])
-        receiver = value.isEmpty ? nil : value
+        let components = line[expressionStart..<dotIndex]
+            .split(separator: ".")
+            .map(String.init)
+        receiverPath = components.isEmpty ? nil : components
     }
 }
 

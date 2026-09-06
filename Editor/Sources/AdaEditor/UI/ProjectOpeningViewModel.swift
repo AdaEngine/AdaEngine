@@ -155,6 +155,8 @@ final class ProjectOpeningViewModel {
         let selectedPathBeforeOpening = selectedProject?.path
         let storageURL = store.storageURL
         let adaEnginePackageURL = store.adaEnginePackageURL
+        let documentsDirectoryURL = store.documentsDirectoryURL
+        let lastProjectURL = retainedProjectURL(for: lastProject)
 
         // Foundation does not provide asynchronous file reads here. Keep the blocking project validation
         // and manifest update off the UI actor so unavailable or cloud-backed paths cannot freeze the window.
@@ -162,15 +164,16 @@ final class ProjectOpeningViewModel {
             let backgroundStore = EditorProjectStore(
                 storageURL: storageURL,
                 fileManager: FileManager(),
-                adaEnginePackageURL: adaEnginePackageURL
+                adaEnginePackageURL: adaEnginePackageURL,
+                documentsDirectoryURL: documentsDirectoryURL
             )
-            guard backgroundStore.fileManager.fileExists(atPath: lastProject.path) else {
+            guard backgroundStore.fileManager.fileExists(atPath: lastProjectURL.path) else {
                 return BackgroundProjectOpenResult.unavailable
             }
 
             do {
                 let openedProject = try backgroundStore.openProject(
-                    at: URL(fileURLWithPath: lastProject.path, isDirectory: true)
+                    at: lastProjectURL
                 )
                 return .opened(openedProject)
             } catch let error as ProjectSystemError {
@@ -265,12 +268,12 @@ final class ProjectOpeningViewModel {
             statusMessage = "Select a project first."
             return
         }
-        openProject(atPath: project.path, openInEditor: true)
+        openProject(at: retainedProjectURL(for: project), openInEditor: true)
     }
 
     func openRecentProject(_ reference: EditorProjectReference) {
         selectProject(reference)
-        openProject(atPath: reference.path, openInEditor: true)
+        openProject(at: retainedProjectURL(for: reference), openInEditor: true)
     }
 
     func beginCreateNewProject(
@@ -338,23 +341,6 @@ final class ProjectOpeningViewModel {
         return projectToOpenInEditor
     }
 
-    private func openProject(atPath path: String, openInEditor: Bool = false) {
-        do {
-            isCreatingNewProject = false
-            selectedProject = try store.openProject(at: URL(fileURLWithPath: path, isDirectory: true))
-            clearValidationDiagnostics()
-            statusMessage = "Opened project: \(selectedProject?.path ?? "")"
-            reloadRecentProjects()
-            if openInEditor, let selectedProject {
-                projectToOpenInEditor = selectedProject
-                projectToOpenInEditorToken += 1
-            }
-        } catch {
-            selectedProject = nil
-            setFailureStatus(prefix: "Failed to open project", error: error)
-        }
-    }
-
     private func setFailureStatus(prefix: String, error: Error) {
         if let projectError = error as? ProjectSystemError {
             let diagnostic = ProjectOpeningDiagnostic(error: projectError)
@@ -379,6 +365,41 @@ final class ProjectOpeningViewModel {
         formatter.unitsStyle = .full
         return formatter
     }()
+}
+
+private extension ProjectOpeningViewModel {
+    func openProject(atPath path: String, openInEditor: Bool = false) {
+        openProject(
+            at: URL(fileURLWithPath: path, isDirectory: true),
+            openInEditor: openInEditor
+        )
+    }
+
+    func openProject(at url: URL, openInEditor: Bool = false) {
+        do {
+            isCreatingNewProject = false
+            selectedProject = try store.openProject(at: url)
+            clearValidationDiagnostics()
+            statusMessage = "Opened project: \(selectedProject?.path ?? "")"
+            reloadRecentProjects()
+            if openInEditor, let selectedProject {
+                projectToOpenInEditor = selectedProject
+                projectToOpenInEditorToken += 1
+            }
+        } catch {
+            selectedProject = nil
+            setFailureStatus(prefix: "Failed to open project", error: error)
+        }
+    }
+
+    func retainedProjectURL(for project: EditorProjectReference) -> URL {
+        let projectURL = store.resolveProjectURL(for: project)
+        #if canImport(UIKit)
+        return ProjectOpenPicker.retainSecurityScopedAccess(to: projectURL)
+        #else
+        return projectURL
+        #endif
+    }
 }
 
 extension ProjectOpeningViewModel {

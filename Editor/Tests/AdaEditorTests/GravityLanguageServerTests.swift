@@ -305,6 +305,9 @@ struct GravityLanguageServerTests {
         let capabilities = try #require(result["capabilities"] as? [String: Any])
         #expect(capabilities["positionEncoding"] as? String == "utf-16")
         #expect(capabilities["definitionProvider"] as? Bool == true)
+        #expect(capabilities["hoverProvider"] as? Bool == true)
+        #expect(capabilities["semanticTokensProvider"] != nil)
+        #expect(capabilities["signatureHelpProvider"] != nil)
     }
 
     private func validateShutdown(of session: GravityLanguageServerSession) {

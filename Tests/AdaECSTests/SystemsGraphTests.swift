@@ -33,6 +33,40 @@ struct SystemsGraphTests {
 
         #expect(graph.nodes.isEmpty)
     }
+
+    @Test("Instance dependencies support dynamically identified systems")
+    func instanceDependenciesSupportDynamicSystems() {
+        var graph = SystemsGraph()
+        graph.addSystem(CustomIdentifierSystem(identifier: "dynamic.first"))
+        graph.addSystem(DynamicDependentSystem(identifier: "dynamic.second", after: "dynamic.first"))
+
+        graph.linkSystems()
+
+        #expect(graph.getOuputNodes(for: "dynamic.first").map(\.name) == ["dynamic.second"])
+        #expect(graph.getInputNodes(for: "dynamic.second").map(\.name) == ["dynamic.first"])
+    }
+
+    @Test("Equivalent dependency declarations create one edge")
+    func equivalentDependenciesCreateOneEdge() {
+        var graph = SystemsGraph()
+        graph.addSystem(
+            DynamicDependencySystem(
+                dependencies: [.before("dynamic.second")],
+                identifier: "dynamic.first"
+            )
+        )
+        graph.addSystem(
+            DynamicDependencySystem(
+                dependencies: [.after("dynamic.first")],
+                identifier: "dynamic.second"
+            )
+        )
+
+        graph.linkSystems()
+
+        #expect(graph.getOuputNodes(for: "dynamic.first").map(\.name) == ["dynamic.second"])
+        #expect(graph.getInputNodes(for: "dynamic.second").map(\.name) == ["dynamic.first"])
+    }
 }
 
 private struct CustomIdentifierSystem: System {
@@ -55,6 +89,40 @@ private struct DependentIdentifierSystem: System {
     ]
 
     init(world: World) {}
+
+    func update(context: UpdateContext) async {}
+}
+
+private struct DynamicDependentSystem: System {
+    let systemDependencies: [SystemDependency]
+    let systemIdentifier: String
+
+    init(identifier: String, after dependency: String) {
+        self.systemDependencies = [.after(dependency)]
+        self.systemIdentifier = identifier
+    }
+
+    init(world: World) {
+        self.systemDependencies = []
+        self.systemIdentifier = "dynamic.default"
+    }
+
+    func update(context: UpdateContext) async {}
+}
+
+private struct DynamicDependencySystem: System {
+    let systemDependencies: [SystemDependency]
+    let systemIdentifier: String
+
+    init(dependencies: [SystemDependency], identifier: String) {
+        self.systemDependencies = dependencies
+        self.systemIdentifier = identifier
+    }
+
+    init(world: World) {
+        self.systemDependencies = []
+        self.systemIdentifier = "dynamic.default"
+    }
 
     func update(context: UpdateContext) async {}
 }

@@ -5,16 +5,24 @@
 
 import Foundation
 
+#if canImport(UniformTypeIdentifiers)
+import UniformTypeIdentifiers
+#endif
 #if canImport(AppKit)
 import AppKit
 #endif
 #if canImport(UIKit)
 import UIKit
-import UniformTypeIdentifiers
 #endif
 
 enum ProjectLocationPickerResult: Equatable, Sendable {
     case selected(URL)
+    case cancelled
+    case unavailable(String)
+}
+
+enum AssetFilePickerResult: Equatable, Sendable {
+    case selected([URL])
     case cancelled
     case unavailable(String)
 }
@@ -30,6 +38,9 @@ enum ProjectOpenPicker {
     static let assetImportTitle = "Import Assets"
     static let assetImportPrompt = "Import"
     static let assetImportMessage = "Choose asset files to copy into the project's Assets directory."
+    static let atlasImageTitle = "Add Images to Atlas"
+    static let atlasImagePrompt = "Add"
+    static let atlasImageMessage = "Choose PNG images to include in the texture atlas."
 
     @MainActor
     static func presentProjectPicker(completion: @escaping @MainActor (URL?) -> Void) {
@@ -150,6 +161,50 @@ enum ProjectOpenPicker {
         #endif
     }
 
+    @MainActor
+    static func presentAtlasImagePicker(
+        completion: @escaping @MainActor (AssetFilePickerResult) -> Void
+    ) {
+        #if canImport(AppKit)
+        let panel = NSOpenPanel()
+        panel.title = atlasImageTitle
+        panel.prompt = atlasImagePrompt
+        panel.message = atlasImageMessage
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = true
+        panel.canCreateDirectories = false
+        panel.resolvesAliases = true
+        panel.allowedContentTypes = [.png]
+
+        guard panel.runModal() == .OK else {
+            completion(.cancelled)
+            return
+        }
+        guard !panel.urls.isEmpty else {
+            completion(.unavailable("The system picker did not return any images."))
+            return
+        }
+        completion(.selected(panel.urls))
+        #elseif canImport(UIKit)
+        guard let presenter = activeViewController() else {
+            completion(.unavailable("AdaEditor has no active window from which to open Files."))
+            return
+        }
+        let picker = UIDocumentPickerViewController(
+            forOpeningContentTypes: [.png],
+            asCopy: true
+        )
+        let delegate = AtlasImageDocumentPickerDelegate(completion: completion)
+        activeAtlasImagePickerDelegate = delegate
+        picker.delegate = delegate
+        picker.allowsMultipleSelection = true
+        presenter.present(picker, animated: true)
+        #else
+        completion(.unavailable("Image selection is not supported on this platform."))
+        #endif
+    }
+
     static func projectDirectoryURL(fromPickerSelection selectedURL: URL) -> URL {
         if selectedURL.lastPathComponent == "Package.swift" {
             return selectedURL.deletingLastPathComponent().standardizedFileURL
@@ -175,6 +230,8 @@ enum ProjectOpenPicker {
     private static var activeProjectPickerDelegate: ProjectDocumentPickerDelegate?
     @MainActor
     private static var activeProjectLocationPickerDelegate: ProjectLocationDocumentPickerDelegate?
+    @MainActor
+    private static var activeAtlasImagePickerDelegate: AtlasImageDocumentPickerDelegate?
     @MainActor
     private static var securityScopedAccesses: [String: SecurityScopedURLAccess] = [:]
 
@@ -240,6 +297,32 @@ enum ProjectOpenPicker {
         private func finish(with result: ProjectLocationPickerResult) {
             completion(result)
             activeProjectLocationPickerDelegate = nil
+        }
+    }
+
+    @MainActor
+    private final class AtlasImageDocumentPickerDelegate: NSObject, UIDocumentPickerDelegate {
+        private let completion: @MainActor (AssetFilePickerResult) -> Void
+
+        init(completion: @escaping @MainActor (AssetFilePickerResult) -> Void) {
+            self.completion = completion
+        }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard !urls.isEmpty else {
+                finish(with: .unavailable("Files did not return any images."))
+                return
+            }
+            finish(with: .selected(urls.map { retainSecurityScopedAccess(to: $0) }))
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            finish(with: .cancelled)
+        }
+
+        private func finish(with result: AssetFilePickerResult) {
+            completion(result)
+            activeAtlasImagePickerDelegate = nil
         }
     }
 

@@ -4,6 +4,22 @@ import Yams
 
 typealias EditorComponentPayload = [String: EditorSceneValue]
 
+enum EditorSceneEntityPreset: String, CaseIterable, Equatable, Sendable {
+    case empty
+    case camera
+    case sprite
+    case light2D
+
+    var title: String {
+        switch self {
+        case .empty: "Empty Entity"
+        case .camera: "Camera"
+        case .sprite: "Sprite"
+        case .light2D: "Light 2D"
+        }
+    }
+}
+
 enum EditorSceneValue: Codable, Equatable, Sendable {
     case null
     case bool(Bool)
@@ -199,6 +215,21 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
         return entity
     }
 
+    mutating func addEntity(preset: EditorSceneEntityPreset) -> EditorSceneEntity {
+        let entity = addEntity(name: preset.title)
+        switch preset {
+        case .empty:
+            break
+        case .camera:
+            addComponent(typeName: EditorBuiltInComponentType.camera, to: entity.id)
+        case .sprite:
+            addComponent(typeName: EditorBuiltInComponentType.sprite, to: entity.id)
+        case .light2D:
+            addComponent(typeName: EditorBuiltInComponentType.light2D, to: entity.id)
+        }
+        return entities.first { $0.id == entity.id } ?? entity
+    }
+
     mutating func selectEntity(_ entityID: String?) {
         var editor = self.editor ?? EditorSceneState()
         editor.selectedEntity = entityID
@@ -254,11 +285,78 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
         entities[entityIndex].components[typeName] = payload
     }
 
+    mutating func addScriptableObject(_ descriptor: EditorScriptableObjectDescriptor, to entityID: String) {
+        guard let entityIndex = entities.firstIndex(where: { $0.id == entityID }) else {
+            return
+        }
+        for requiredType in descriptor.requiredComponentTypeNames where entities[entityIndex].components[requiredType] == nil {
+            entities[entityIndex].components[requiredType] = EditorComponentRegistry.defaultPayload(for: requiredType)
+        }
+
+        var scripts = scriptableObjectValues(in: entities[entityIndex])
+        guard !scripts.contains(where: { $0.scriptableObjectIdentifier == descriptor.identifier }) else {
+            return
+        }
+        scripts.append(.object([
+            "type": .string(descriptor.identifier),
+            "version": .int(descriptor.version),
+            "payload": .object(Dictionary(uniqueKeysWithValues: descriptor.fields.map { ($0.name, $0.defaultValue) }))
+        ]))
+        entities[entityIndex].components[EditorBuiltInComponentType.scriptableComponents] = ["scripts": .array(scripts)]
+    }
+
+    mutating func removeScriptableObject(identifier: String, from entityID: String) {
+        guard let entityIndex = entities.firstIndex(where: { $0.id == entityID }) else {
+            return
+        }
+        let scripts = scriptableObjectValues(in: entities[entityIndex]).filter {
+            $0.scriptableObjectIdentifier != identifier
+        }
+        if scripts.isEmpty {
+            entities[entityIndex].components[EditorBuiltInComponentType.scriptableComponents] = nil
+        } else {
+            entities[entityIndex].components[EditorBuiltInComponentType.scriptableComponents] = ["scripts": .array(scripts)]
+        }
+    }
+
+    mutating func updateScriptableObjectField(
+        identifier: String,
+        field: EditorComponentField,
+        value: String,
+        in entityID: String
+    ) {
+        guard let entityIndex = entities.firstIndex(where: { $0.id == entityID }) else {
+            return
+        }
+        var scripts = scriptableObjectValues(in: entities[entityIndex])
+        guard let scriptIndex = scripts.firstIndex(where: { $0.scriptableObjectIdentifier == identifier }),
+              case .object(var script) = scripts[scriptIndex] else {
+            return
+        }
+        var payload: EditorComponentPayload
+        if case .object(let existingPayload)? = script["payload"] {
+            payload = existingPayload
+        } else {
+            payload = [:]
+        }
+        field.write(value, to: &payload)
+        script["payload"] = .object(payload)
+        scripts[scriptIndex] = .object(script)
+        entities[entityIndex].components[EditorBuiltInComponentType.scriptableComponents] = ["scripts": .array(scripts)]
+    }
+
     func selectedEntity() -> EditorSceneEntity? {
         guard let selectedEntity = editor?.selectedEntity else {
             return nil
         }
         return entities.first { $0.id == selectedEntity }
+    }
+
+    private func scriptableObjectValues(in entity: EditorSceneEntity) -> [EditorSceneValue] {
+        guard case .array(let scripts)? = entity.components[EditorBuiltInComponentType.scriptableComponents]?["scripts"] else {
+            return []
+        }
+        return scripts
     }
 
     private static func normalizedSceneName(_ projectName: String) -> String {
@@ -278,6 +376,16 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
         }
 
         return result.reversed()
+    }
+}
+
+private extension EditorSceneValue {
+    var scriptableObjectIdentifier: String? {
+        guard case .object(let object) = self,
+              case .string(let identifier)? = object["type"] else {
+            return nil
+        }
+        return identifier
     }
 }
 

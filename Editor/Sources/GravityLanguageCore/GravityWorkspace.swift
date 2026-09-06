@@ -78,6 +78,27 @@ public final class GravityWorkspace {
         )
     }
 
+    public func semanticTokens(uri: String) -> [GravitySemanticToken] {
+        guard let text = text(for: uri) else {
+            return []
+        }
+        return languageService.semanticTokens(text: text)
+    }
+
+    public func hover(uri: String, position: GravitySourcePosition) -> GravityHover? {
+        guard let text = text(for: uri) else {
+            return nil
+        }
+        return languageService.hover(text: text, position: position)
+    }
+
+    public func signatureHelp(uri: String, position: GravitySourcePosition) -> GravitySignatureHelp? {
+        guard let text = text(for: uri) else {
+            return nil
+        }
+        return languageService.signatureHelp(text: text, position: position)
+    }
+
     public func definition(uri: String, position: GravitySourcePosition) -> GravityDefinition? {
         let key = Self.documentKey(uri)
         guard let document = openDocuments[key] ?? diskDocuments[key] else {

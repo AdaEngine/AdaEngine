@@ -93,6 +93,113 @@ struct AnnotatedAdaScriptPluginTests {
         #expect(world.get(AnnotatedPosition.self, from: second.id)?.value == 8)
         #expect(world.get(AnnotatedPosition.self, from: filtered.id)?.value == 20)
     }
+
+    @Test("Orders systems with before and after annotations")
+    @MainActor
+    func ordersAnnotatedSystems() async throws {
+        AnnotatedPosition.registerComponent()
+
+        let plugin = try AdaScriptPlugin(source: """
+        @system(id: "add")
+        class AddSystem {
+            @query(AnnotatedPosition)
+            var positions;
+
+            func update(context) {
+                for (var entity in positions) {
+                    entity.annotatedPosition.value += 1;
+                }
+            }
+        }
+
+        @after(id: "add")
+        @before(id: "finish")
+        @system(id: "double")
+        class DoubleSystem {
+            @query(AnnotatedPosition)
+            var positions;
+
+            func update(context) {
+                for (var entity in positions) {
+                    entity.annotatedPosition.value *= 2;
+                }
+            }
+        }
+
+        @system(id: "finish")
+        class FinishSystem {
+            @query(AnnotatedPosition)
+            var positions;
+
+            func update(context) {
+                for (var entity in positions) {
+                    entity.annotatedPosition.value += 3;
+                }
+            }
+        }
+        """, name: "SystemOrdering")
+
+        let world = World(name: "Ada Script system ordering test")
+        let entity = world.spawn {
+            AnnotatedPosition(value: 1)
+        }
+
+        plugin.setup(in: AppWorlds(main: world))
+        await world.runScheduler(.update)
+
+        #expect(plugin.diagnostics.isEmpty)
+        #expect(world.get(AnnotatedPosition.self, from: entity.id)?.value == 7)
+    }
+
+    @Test("Validates system dependency annotations")
+    func validatesSystemDependencies() {
+        #expect(throws: AdaScriptError.invalidManifest(
+            "system 'consumer' depends on unknown system 'missing'"
+        )) {
+            try AdaScriptPlugin(source: """
+            @after(id: "missing")
+            @system(id: "consumer")
+            class ConsumerSystem { func update(context) {} }
+            """)
+        }
+
+        #expect(throws: AdaScriptError.invalidManifest(
+            "systems 'consumer' and 'bootstrap' must use the same scheduler"
+        )) {
+            try AdaScriptPlugin(source: """
+            @system(scheduler: "startup", id: "bootstrap")
+            class BootstrapSystem { func update(context) {} }
+
+            @after(id: "bootstrap")
+            @system(id: "consumer")
+            class ConsumerSystem { func update(context) {} }
+            """)
+        }
+
+        #expect(throws: AdaScriptError.invalidManifest(
+            "system 'recursive' cannot depend on itself"
+        )) {
+            try AdaScriptPlugin(source: """
+            @before(id: "recursive")
+            @system(id: "recursive")
+            class RecursiveSystem { func update(context) {} }
+            """)
+        }
+
+        #expect(throws: AdaScriptError.invalidManifest(
+            "system dependency cycle: first -> second -> first"
+        )) {
+            try AdaScriptPlugin(source: """
+            @after(id: "second")
+            @system(id: "first")
+            class FirstSystem { func update(context) {} }
+
+            @after(id: "first")
+            @system(id: "second")
+            class SecondSystem { func update(context) {} }
+            """)
+        }
+    }
 }
 
 @Component

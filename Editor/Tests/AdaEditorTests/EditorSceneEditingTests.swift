@@ -1,5 +1,6 @@
 @testable import AdaEditor
 @_spi(AdaEngine) import AdaEngine
+import Foundation
 import Testing
 
 private enum EditorReflectionMode: String, CaseIterable, EditorEnumReflectable, Codable, Sendable {
@@ -81,6 +82,65 @@ struct EditorSceneEditingTests {
         #expect(decoded.editor?.selectedEntity == entity.id)
     }
 
+    @Test("scene creation presets add useful component sets")
+    func sceneCreationPresetsAddComponents() throws {
+        var model = EditorSceneModel.default(projectName: "Presets")
+
+        let camera = model.addEntity(preset: .camera)
+        let sprite = model.addEntity(preset: .sprite)
+        let light = model.addEntity(preset: .light2D)
+
+        #expect(model.entities.first { $0.id == camera.id }?.components[EditorBuiltInComponentType.camera] != nil)
+        #expect(model.entities.first { $0.id == sprite.id }?.components[EditorBuiltInComponentType.sprite] != nil)
+        #expect(model.entities.first { $0.id == sprite.id }?.components[EditorBuiltInComponentType.visibility] != nil)
+        #expect(model.entities.first { $0.id == light.id }?.components[EditorBuiltInComponentType.light2D] != nil)
+    }
+
+    @Test("AdaScript scriptable objects round-trip through scene YAML and runtime loading")
+    @MainActor
+    func scriptableObjectsRoundTripThroughSceneRuntime() throws {
+        let fileManager = FileManager.default
+        let projectURL = fileManager.temporaryDirectory
+            .appendingPathComponent("EditorScriptables-\(UUID().uuidString)", isDirectory: true)
+        defer { try? fileManager.removeItem(at: projectURL) }
+        let sourcesURL = projectURL.appendingPathComponent("Sources", isDirectory: true)
+        try fileManager.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
+        let identifier = "editor.test.\(UUID().uuidString)"
+        try """
+        @scriptable(id: "\(identifier)", version: 2)
+        class SceneController {
+            @export var speed = 4.5;
+            @export var enabled = true;
+            @component(required: true) var transform: Transform;
+        }
+        """.write(to: sourcesURL.appendingPathComponent("SceneController.ada"), atomically: true, encoding: .utf8)
+        let project = ProjectSystem.defaultProject(projectName: "ScriptableScene", buildSystem: .adaScript)
+        let support = try EditorScriptableObjectCatalogLoader.load(project: project, at: projectURL, fileManager: fileManager)
+        let descriptor = try #require(support.descriptors.first)
+        var model = EditorSceneModel.default(projectName: "ScriptableScene")
+        let entityID = try #require(model.editor?.selectedEntity)
+
+        model.addScriptableObject(descriptor, to: entityID)
+        model.updateScriptableObjectField(
+            identifier: identifier,
+            field: EditorComponentField(key: "speed", label: "speed", kind: .float),
+            value: "9.25",
+            in: entityID
+        )
+        let decodedModel = try EditorSceneModel.decode(from: model.encodedYAML())
+        var app = AppWorlds(main: World(name: "EditorScriptableSceneRuntime"))
+        EditorComponentRegistry.registerBuiltIns()
+        app.addPlugin(ScriptableObjectPlugin())
+        try support.playRuntime.install(in: &app)
+        let loadResult = EditorSceneFileLoader.load(model: decodedModel, into: app.main)
+        let runtimeEntityID = try #require(loadResult.entitiesByEditorID[entityID])
+        let scripts = try #require(app.main.get(ScriptableComponents.self, from: runtimeEntityID)?.scripts)
+
+        #expect(support.descriptors.map(\.identifier) == [identifier])
+        #expect(scripts.count == 1)
+        #expect(loadResult.warnings.isEmpty)
+    }
+
     @Test("scene hierarchy builds visible rows with components and resources")
     func sceneHierarchyBuildsVisibleRows() throws {
         var model = EditorSceneModel.default(projectName: "Hierarchy")
@@ -144,6 +204,96 @@ struct EditorSceneEditingTests {
         let aabb = AABB(center: .zero, halfExtents: Vector3(1, 1, 1))
         let distance = try #require(EditorPicking.rayAABBIntersectionDistance(ray: ray, aabb: aabb))
         #expect(distance == 4)
+
+        let centerRay = EditorPicking.perspectiveRay(
+            point: Point(x: 640, y: 360),
+            viewportSize: Size(width: 1280, height: 720),
+            cameraPosition: Vector3(0, 0, -5),
+            front: Vector3(0, 0, 1),
+            right: Vector3(1, 0, 0),
+            verticalFieldOfView: .degrees(62)
+        )
+        #expect(centerRay.direction == Vector3(0, 0, 1))
+    }
+
+    @Test("3D viewport raycast selects the nearest scene entity")
+    @MainActor
+    func viewportRaycastSelectsNearestEntity() throws {
+        let cameraPosition = Vector3(0, 6, -10)
+        let front = Vector3(0, Math.sin(-0.42), Math.cos(-0.42)).normalized
+        var model = EditorSceneModel.default(projectName: "Raycast")
+        let entityID = try #require(model.editor?.selectedEntity)
+        let transformDescriptor = try #require(EditorComponentRegistry.descriptor(named: EditorBuiltInComponentType.transform))
+        let positionField = try #require(transformDescriptor.fields.first { $0.key == "position" })
+        let targetPosition = cameraPosition + front * 10
+        model.updateField(
+            typeName: EditorBuiltInComponentType.transform,
+            field: positionField,
+            value: "\(targetPosition.x), \(targetPosition.y), \(targetPosition.z)",
+            in: entityID
+        )
+        let content = try model.encodedYAML()
+        let world = World()
+        let camera = world.spawn("SceneView_Camera") {
+            Camera()
+            Transform()
+        }
+        let loadResult = EditorSceneFileLoader.load(content: content, into: world, loadsScriptableObjects: false)
+        let viewportModel = EditorSceneViewportModel()
+        viewportModel.configure(sceneContent: content, onSelectionChanged: { _ in }, onDocumentContentChanged: { _ in })
+        viewportModel.attachSceneWorld(world, loadResult: loadResult)
+        viewportModel.setViewportSize(Size(width: 1280, height: 720))
+        viewportModel.setDisplayMode(.threeD)
+
+        #expect(viewportModel.pick3D(at: Point(x: 640, y: 360)) == entityID)
+        #expect(world.getEntityByID(camera.id) === camera)
+    }
+
+    @Test("scene viewport pill creates entities and starts Play Mode")
+    @MainActor
+    func sceneViewportPillControls() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            let app = AppWorlds(main: World(name: "EditorSceneViewportPillTests"))
+            RenderWorldPlugin().setup(in: app)
+        }
+        let content = try EditorSceneModel.default(projectName: "Pill").encodedYAML()
+        let document = EditorSceneDocument(
+            id: "scene:pill",
+            title: "Pill.ascn",
+            relativePath: "Assets/Scenes/Pill.ascn",
+            absolutePath: nil,
+            content: content,
+            lastSavedContent: content,
+            isReadOnly: false,
+            sceneModel: EditorSceneFileLoader.model(from: content),
+            errorMessage: nil,
+            isDirty: false,
+            statusMessage: nil,
+            loadSummary: EditorSceneFileLoader.summary(from: content)
+        )
+        var updatedDocument: EditorSceneDocument?
+        var didRequestPlay = false
+        let container = UIContainerView(rootView: EditorSceneViewportView(
+            document: document,
+            inspectorViewModel: EditorInspectorSidebarViewModel(),
+            playModeState: .editing,
+            playRuntime: nil,
+            onEntitySelected: nil,
+            onPlay: { didRequestPlay = true },
+            onStop: nil,
+            onDocumentChanged: { updatedDocument = $0 }
+        ))
+        container.frame = Rect(x: 0, y: 0, width: 900, height: 600)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+
+        _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneViewport.Controls"))
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.SceneViewport.Create"))
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.SceneViewport.Control.Play"))
+
+        #expect(updatedDocument?.sceneModel?.entities.count == 2)
+        #expect(didRequestPlay)
     }
 
     @Test("2D viewport grid and default entity marker render as quads")

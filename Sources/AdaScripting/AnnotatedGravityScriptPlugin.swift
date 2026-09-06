@@ -51,7 +51,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         let runtime = try AnnotatedGravityRuntime(module: module)
         let resourceBindings = try AdaScriptSchemaParser.parseResourceBindings(sources: sources)
         let capabilities = try AdaScriptSchemaParser.parseSystemCapabilities(sources: sources)
-        var plans = try Self.makePlans(
+        var plans = try AdaScriptSystemPlanBuilder.makePlans(
             from: runtime.annotations,
             resourceBindings: resourceBindings,
             systemCapabilities: capabilities
@@ -95,7 +95,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
     public func setup(in app: borrowing AppWorlds) {
         for plan in plans {
             do {
-                let prepared = try Self.prepare(plan, world: app.main)
+                let prepared = try Self.prepare(plan, pluginIdentifier: name, world: app.main)
                 app.main.schedulers.addSystem(
                     AnnotatedGravityScriptSystem(
                         pluginIdentifier: name,
@@ -110,80 +110,11 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         }
     }
 
-    private static func makePlans(
-        from annotations: [GravityAnnotation],
-        resourceBindings: [AdaScriptResourceBinding],
-        systemCapabilities: [AdaScriptSystemCapabilities]
-    ) throws -> [AnnotatedSystemPlan] {
-        let systemAnnotations = annotations.filter { $0.name == "system" }
-        guard !systemAnnotations.isEmpty else {
-            throw AdaScriptError.invalidManifest("Ada Script module must declare at least one @system class")
-        }
-
-        let systemClassNames = Set(systemAnnotations.map(\.target.identifier))
-        for query in annotations where query.name == "query" {
-            guard let parent = query.target.parentIdentifier, systemClassNames.contains(parent) else {
-                throw AdaScriptError.invalidManifest("@query must be declared inside an @system class")
-            }
-        }
-
-        var identifiers = Set<String>()
-        return try systemAnnotations.map { annotation in
-            guard annotation.target.kind == .class else {
-                throw AdaScriptError.invalidManifest("@system can only annotate a class")
-            }
-            let className = annotation.target.identifier
-            let identifier = annotation.stringArgument(label: "id") ?? className
-            guard identifiers.insert(identifier).inserted else {
-                throw AdaScriptError.invalidManifest("system identifiers must be unique")
-            }
-            let scheduler = SchedulerName(rawValue: annotation.stringArgument(label: "scheduler") ?? "update")
-            let queryPlans = try annotations
-                .filter { $0.name == "query" && $0.target.parentIdentifier == className }
-                .map(makeQueryPlan)
-            return AnnotatedSystemPlan(
-                className: className,
-                identifier: identifier,
-                scheduler: scheduler,
-                queries: queryPlans,
-                resources: resourceBindings
-                    .filter { $0.systemName == className }
-                    .map {
-                        AnnotatedResourcePlan(
-                            isOptional: $0.isOptional,
-                            propertyName: $0.propertyName,
-                            resourceName: $0.resourceName
-                        )
-                    },
-                usesDeferredCommands: systemCapabilities
-                    .first { $0.systemName == className }?
-                    .usesDeferredCommands == true
-            )
-        }
-    }
-
-    private static func makeQueryPlan(_ annotation: GravityAnnotation) throws -> AnnotatedQueryPlan {
-        guard annotation.target.kind == .variableDeclaration else {
-            throw AdaScriptError.invalidManifest("@query can only annotate a stored property")
-        }
-        let components = annotation.arguments.compactMap { argument -> String? in
-            guard argument.label == nil else {
-                return nil
-            }
-            return argument.value.identifierValue
-        }
-        guard !components.isEmpty else {
-            throw AdaScriptError.invalidManifest("@query requires at least one fetched component")
-        }
-        return AnnotatedQueryPlan(
-            propertyName: annotation.target.identifier,
-            components: components,
-            withComponents: annotation.identifierListArgument(label: "with"),
-            withoutComponents: annotation.identifierListArgument(label: "without")
-        )
-    }
-
-    private static func prepare(_ plan: AnnotatedSystemPlan, world: World) throws -> PreparedAnnotatedSystem {
+    private static func prepare(
+        _ plan: AnnotatedSystemPlan,
+        pluginIdentifier: String,
+        world: World
+    ) throws -> PreparedAnnotatedSystem {
         let queries = try plan.queries.enumerated().map { queryIndex, query in
             try prepareQuery(query, systemIdentifier: plan.identifier, queryIndex: queryIndex)
         }
@@ -193,6 +124,14 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         return PreparedAnnotatedSystem(
             className: plan.className,
             commands: plan.usesDeferredCommands ? Commands(entities: world.entities, commandsQueue: world.commandQueue) : nil,
+            dependencies: plan.dependencies.map { dependency in
+                switch dependency {
+                case .before(let identifier):
+                    .before(AnnotatedGravityScriptSystem.makeIdentifier(plugin: pluginIdentifier, system: identifier))
+                case .after(let identifier):
+                    .after(AnnotatedGravityScriptSystem.makeIdentifier(plugin: pluginIdentifier, system: identifier))
+                }
+            },
             identifier: plan.identifier,
             scheduler: plan.scheduler,
             queries: queries,
@@ -293,8 +232,9 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
     }
 }
 
-private struct AnnotatedSystemPlan: Sendable {
+struct AnnotatedSystemPlan: Sendable {
     let className: String
+    let dependencies: [SystemDependency]
     let identifier: String
     let scheduler: SchedulerName
     let queries: [AnnotatedQueryPlan]
@@ -302,13 +242,13 @@ private struct AnnotatedSystemPlan: Sendable {
     let usesDeferredCommands: Bool
 }
 
-private struct AnnotatedResourcePlan: Sendable {
+struct AnnotatedResourcePlan: Sendable {
     let isOptional: Bool
     let propertyName: String
     let resourceName: String
 }
 
-private struct AnnotatedQueryPlan: Sendable {
+struct AnnotatedQueryPlan: Sendable {
     let propertyName: String
     let components: [String]
     let withComponents: [String]
@@ -318,6 +258,7 @@ private struct AnnotatedQueryPlan: Sendable {
 private struct PreparedAnnotatedSystem: Sendable {
     let className: String
     let commands: Commands?
+    let dependencies: [SystemDependency]
     let identifier: String
     let scheduler: SchedulerName
     let queries: [PreparedAnnotatedQuery]
@@ -353,7 +294,11 @@ private struct AnnotatedGravityScriptSystem: System {
         guard let preparedSystem else {
             return "AdaScripting.System.Unconfigured"
         }
-        return "AdaScripting.System.\(pluginIdentifier.utf8.count):\(pluginIdentifier)\(preparedSystem.identifier.utf8.count):\(preparedSystem.identifier)"
+        return Self.makeIdentifier(plugin: pluginIdentifier, system: preparedSystem.identifier)
+    }
+
+    var systemDependencies: [SystemDependency] {
+        preparedSystem?.dependencies ?? []
     }
 
     var queries: SystemQueries {
@@ -380,6 +325,10 @@ private struct AnnotatedGravityScriptSystem: System {
         self.pluginIdentifier = pluginIdentifier
         self.runtime = runtime
         self.preparedSystem = preparedSystem
+    }
+
+    static func makeIdentifier(plugin: String, system: String) -> String {
+        "AdaScripting.System.\(plugin.utf8.count):\(plugin)\(system.utf8.count):\(system)"
     }
 
     func update(context: UpdateContext) async {

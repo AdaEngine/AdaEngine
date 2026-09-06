@@ -36,29 +36,7 @@ struct GravityCompletionCandidate: Hashable, Sendable {
 }
 
 enum GravityBuiltins {
-    static let members: [String: [GravityCompletionCandidate]] = [
-        "$AdaEntity": [
-            GravityCompletionCandidate(detail: "Entity identifier", insertText: "id", kind: .property, label: "id", sortText: "00")
-        ],
-        "View": [
-            viewMember("accessibilityIdentifier", detail: "Set an AdaUI accessibility identifier"),
-            viewMember("background", detail: "Set a named or hexadecimal background color"),
-            viewMember("child", detail: "Append a child to a stack"),
-            viewMember("divider", detail: "Create an AdaUI divider"),
-            viewMember("empty", detail: "Create an empty AdaUI view"),
-            viewMember("fontSize", detail: "Set the inherited font size"),
-            viewMember("foregroundColor", detail: "Set a named or hexadecimal foreground color"),
-            viewMember("frame", detail: "Set a fixed width and height"),
-            viewMember("hStack", detail: "Create a horizontal AdaUI stack"),
-            viewMember("opacity", detail: "Set view opacity"),
-            viewMember("padding", detail: "Add equal padding on every edge"),
-            viewMember("spacer", detail: "Create a flexible AdaUI spacer"),
-            viewMember("spacing", detail: "Set stack spacing"),
-            viewMember("text", detail: "Create an AdaUI text view"),
-            viewMember("vStack", detail: "Create a vertical AdaUI stack"),
-            viewMember("zStack", detail: "Create an overlaying AdaUI stack")
-        ]
-    ]
+    static let members = GravityAPICatalog.members.mapValues { $0.map(\.completionCandidate) }
 
     static let annotationCandidates: [GravityCompletionCandidate] = [
         GravityCompletionCandidate(
@@ -137,6 +115,13 @@ enum GravityBuiltins {
             kind: .keyword,
             label: "environment",
             sortText: "10"
+        ),
+        GravityCompletionCandidate(
+            detail: "Declare an AdaEditor tool",
+            insertText: "tool(id: \"\", name: \"\", version: \"1.0.0\", api: 1, platforms: [\"macos\", \"ipados\"], permissions: [])",
+            kind: .keyword,
+            label: "tool",
+            sortText: "11"
         )
     ]
 
@@ -161,9 +146,5 @@ enum GravityBuiltins {
         "break", "case", "const", "continue", "enum", "event", "extern", "false", "import", "null", "private", "public", "repeat", "static", "struct", "switch", "true"
     ].enumerated().map { index, keyword in
         GravityCompletionCandidate(detail: "AdaScript keyword", insertText: keyword, kind: .keyword, label: keyword, sortText: "\(30 + index)")
-    }
-
-    private static func viewMember(_ name: String, detail: String) -> GravityCompletionCandidate {
-        GravityCompletionCandidate(detail: detail, insertText: "\(name)()", kind: .method, label: name, sortText: "00")
     }
 }

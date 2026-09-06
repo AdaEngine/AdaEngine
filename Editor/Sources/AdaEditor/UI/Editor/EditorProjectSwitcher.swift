@@ -61,7 +61,12 @@ final class EditorProjectSwitcherViewModel {
             dismiss()
             return nil
         }
-        return projectForOpening(at: URL(fileURLWithPath: project.path, isDirectory: true))
+        let resolvedURL = store.resolveProjectURL(for: project)
+        #if canImport(UIKit)
+        return projectForOpening(at: ProjectOpenPicker.retainSecurityScopedAccess(to: resolvedURL))
+        #else
+        return projectForOpening(at: resolvedURL)
+        #endif
     }
 
     func projectForOpening(at url: URL) -> EditorProjectReference? {

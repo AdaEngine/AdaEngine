@@ -120,6 +120,52 @@ public struct GravityCompletion: Equatable, Hashable, Sendable {
     }
 }
 
+public enum GravitySemanticTokenKind: String, CaseIterable, Equatable, Hashable, Sendable {
+    case type
+    case `class`
+    case `enum`
+    case property
+    case method
+    case function
+    case variable
+    case parameter
+    case keyword
+    case string
+    case number
+    case comment
+    case macro
+}
+
+public struct GravitySemanticToken: Equatable, Hashable, Sendable {
+    public var kind: GravitySemanticTokenKind
+    public var range: GravitySourceRange
+
+    public init(kind: GravitySemanticTokenKind, range: GravitySourceRange) {
+        self.kind = kind
+        self.range = range
+    }
+}
+
+public struct GravityHover: Equatable, Hashable, Sendable {
+    public var contents: String
+    public var range: GravitySourceRange
+
+    public init(contents: String, range: GravitySourceRange) {
+        self.contents = contents
+        self.range = range
+    }
+}
+
+public struct GravitySignatureHelp: Equatable, Hashable, Sendable {
+    public var activeParameter: Int
+    public var label: String
+
+    public init(activeParameter: Int, label: String) {
+        self.activeParameter = activeParameter
+        self.label = label
+    }
+}
+
 public enum GravityDiagnosticSeverity: Int, Equatable, Hashable, Sendable {
     case error = 1
     case warning = 2

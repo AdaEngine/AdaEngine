@@ -130,12 +130,23 @@ public struct EditorProjectReference: Codable, Equatable, Identifiable, Sendable
     public var name: String
     public var path: String
     public var lastOpenedAt: Date
+    public var bookmarkData: Data?
+    public var documentsRelativePath: String?
 
-    public init(id: String = UUID().uuidString, name: String, path: String, lastOpenedAt: Date = Date()) {
+    public init(
+        id: String = UUID().uuidString,
+        name: String,
+        path: String,
+        lastOpenedAt: Date = Date(),
+        bookmarkData: Data? = nil,
+        documentsRelativePath: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.path = path
         self.lastOpenedAt = lastOpenedAt
+        self.bookmarkData = bookmarkData
+        self.documentsRelativePath = documentsRelativePath
     }
 }
 
@@ -146,44 +157,18 @@ public struct EditorProjectStore {
     public let storageURL: URL
     public let fileManager: FileManager
     public let adaEnginePackageURL: URL
+    public let documentsDirectoryURL: URL?
 
     public init(
         storageURL: URL? = nil,
         fileManager: FileManager = .default,
-        adaEnginePackageURL: URL? = nil
+        adaEnginePackageURL: URL? = nil,
+        documentsDirectoryURL: URL? = nil
     ) {
         self.fileManager = fileManager
         self.storageURL = storageURL ?? Self.defaultStorageURL(fileManager: fileManager)
         self.adaEnginePackageURL = (adaEnginePackageURL ?? Self.defaultAdaEnginePackageURL()).standardizedFileURL
-    }
-
-    public static func defaultStorageURL(fileManager: FileManager = .default) -> URL {
-        let applicationSupport: URL
-        if let applicationSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
-            applicationSupport = applicationSupportURL
-        } else {
-            #if os(macOS)
-            applicationSupport = fileManager.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support", isDirectory: true)
-            #else
-            applicationSupport = fileManager.temporaryDirectory
-            #endif
-        }
-
-        return applicationSupport
-            .appendingPathComponent("AdaEditor", isDirectory: true)
-            .appendingPathComponent("projects.json", isDirectory: false)
-    }
-
-    public func loadProjects() throws -> [EditorProjectReference] {
-        guard fileManager.fileExists(atPath: storageURL.path) else {
-            return []
-        }
-
-        let data = try Data(contentsOf: storageURL)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode([EditorProjectReference].self, from: data)
-            .sorted { $0.lastOpenedAt > $1.lastOpenedAt }
+        self.documentsDirectoryURL = (documentsDirectoryURL ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask).first)?.standardizedFileURL
     }
 
     @discardableResult
@@ -226,24 +211,20 @@ public struct EditorProjectStore {
         let standardizedPath = projectURL.standardizedFileURL.path
         let displayName = name ?? projectURL.lastPathComponent
         let existingID = projects.first(where: { $0.path == standardizedPath })?.id
-        let reference = EditorProjectReference(id: existingID ?? UUID().uuidString, name: displayName, path: standardizedPath, lastOpenedAt: openedAt)
+        let existingBookmark = projects.first(where: { $0.path == standardizedPath })?.bookmarkData
+        let reference = EditorProjectReference(
+            id: existingID ?? UUID().uuidString,
+            name: displayName,
+            path: standardizedPath,
+            lastOpenedAt: openedAt,
+            bookmarkData: makeBookmarkData(for: projectURL) ?? existingBookmark,
+            documentsRelativePath: documentsRelativePath(for: projectURL)
+        )
 
         projects.removeAll { $0.path == standardizedPath }
         projects.insert(reference, at: 0)
         try saveProjects(projects)
         return reference
-    }
-
-    public func saveProjects(_ projects: [EditorProjectReference]) throws {
-        let directory = storageURL.deletingLastPathComponent()
-        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        encoder.dateEncodingStrategy = .iso8601
-        let recentProjects = Array(projects.sorted { $0.lastOpenedAt > $1.lastOpenedAt }.prefix(Self.maximumRecentProjectCount))
-        let data = try encoder.encode(recentProjects)
-        try data.write(to: storageURL, options: [.atomic])
     }
 
     /// Adds a remote SwiftPM dependency to the project's real Package.swift.

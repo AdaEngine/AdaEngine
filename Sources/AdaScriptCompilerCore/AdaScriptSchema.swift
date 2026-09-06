@@ -22,7 +22,14 @@ extension Parser {
             throw error("expected class name")
         }
         let viewAnnotation = annotations.first(where: { $0.name == "view" })
+        let toolAnnotations = annotations.filter { $0.name == "tool" }
         let previewAnnotations = annotations.filter { $0.name == "previewable" }
+        guard toolAnnotations.count <= 1 else {
+            throw error("@tool can only be applied once to \(name)")
+        }
+        guard toolAnnotations.isEmpty || annotations.allSatisfy({ $0.name == "tool" }) else {
+            throw error("@tool cannot be combined with other declaration annotations on \(name)")
+        }
         guard previewAnnotations.count <= 1 else {
             throw error("@previewable can only be applied once to \(name)")
         }
@@ -30,7 +37,10 @@ extension Parser {
             throw error("@previewable can only annotate an @view class")
         }
 
-        if annotations.contains(where: { $0.name == "system" }) {
+        if let toolAnnotation = toolAnnotations.first {
+            output.tools.append(try parseTool(name: name, annotation: toolAnnotation, line: declarationLine))
+            try skipDeclarationBody()
+        } else if annotations.contains(where: { $0.name == "system" }) {
             let system = try parseSystemBody(systemName: name)
             output.resourceBindings += system.resourceBindings
             output.systemCapabilities.append(system.capabilities)
@@ -54,8 +64,8 @@ extension Parser {
         guard let name = consumeIdentifier() else {
             throw error("expected struct name")
         }
-        if annotations.contains(where: { $0.name == "view" || $0.name == "previewable" }) {
-            throw error("@view and @previewable can only annotate a class")
+        if annotations.contains(where: { $0.name == "view" || $0.name == "previewable" || $0.name == "tool" }) {
+            throw error("@view, @previewable, and @tool can only annotate a class")
         }
         guard let schemaAnnotation = annotations.first(where: { $0.name == "component" || $0.name == "resource" }) else {
             try skipDeclarationBody()

@@ -280,6 +280,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
 }
 
 enum EditorAssetPreviewKind: String, Equatable, Sendable {
+    case atlas
     case image
     case audio
     case generic
@@ -1482,6 +1483,8 @@ final class EditorInspectorSidebarViewModel {
         var transformFields: [TransformField]
         var components: [ComponentSection]
         var addableComponents: [AddableComponent]
+        var scriptableObjects: [ScriptableObjectSection] = []
+        var addableScriptableObjects: [EditorScriptableObjectDescriptor] = []
         var gizmo: EditorGizmo?
         var hasExplicitGizmo: Bool
     }
@@ -1505,21 +1508,34 @@ final class EditorInspectorSidebarViewModel {
         var category: String
     }
 
+    struct ScriptableObjectSection: Equatable {
+        var identifier: String
+        var displayName: String
+        var fields: [ComponentField]
+    }
+
     var transformFields: [TransformField]
     var scriptName: String
     var scriptDescription: String
     var selectedEntity: SelectedEntity?
+    var scriptableObjectCatalog: [EditorScriptableObjectDescriptor] = []
 
     @ObservationIgnored
     var applyGizmoChange: ((EditorGizmo) -> Void)?
     @ObservationIgnored
-    var addEntity: (() -> Void)?
+    var addEntity: ((EditorSceneEntityPreset) -> Void)?
     @ObservationIgnored
     var addComponent: ((String) -> Void)?
     @ObservationIgnored
     var removeComponent: ((String) -> Void)?
     @ObservationIgnored
     var updateComponentField: ((String, EditorComponentField, String) -> Void)?
+    @ObservationIgnored
+    var addScriptableObject: ((EditorScriptableObjectDescriptor) -> Void)?
+    @ObservationIgnored
+    var removeScriptableObject: ((String) -> Void)?
+    @ObservationIgnored
+    var updateScriptableObjectField: ((String, EditorComponentField, String) -> Void)?
     @ObservationIgnored
     private var sceneViewportActionOwner: ObjectIdentifier?
     @ObservationIgnored
@@ -1555,10 +1571,13 @@ final class EditorInspectorSidebarViewModel {
     func setSceneViewportActions(
         owner: AnyObject,
         applyGizmoChange: @escaping (EditorGizmo) -> Void,
-        addEntity: @escaping () -> Void,
+        addEntity: @escaping (EditorSceneEntityPreset) -> Void,
         addComponent: @escaping (String) -> Void,
         removeComponent: @escaping (String) -> Void,
-        updateComponentField: @escaping (String, EditorComponentField, String) -> Void
+        updateComponentField: @escaping (String, EditorComponentField, String) -> Void,
+        addScriptableObject: @escaping (EditorScriptableObjectDescriptor) -> Void,
+        removeScriptableObject: @escaping (String) -> Void,
+        updateScriptableObjectField: @escaping (String, EditorComponentField, String) -> Void
     ) {
         sceneViewportActionOwner = ObjectIdentifier(owner)
         self.applyGizmoChange = applyGizmoChange
@@ -1566,6 +1585,9 @@ final class EditorInspectorSidebarViewModel {
         self.addComponent = addComponent
         self.removeComponent = removeComponent
         self.updateComponentField = updateComponentField
+        self.addScriptableObject = addScriptableObject
+        self.removeScriptableObject = removeScriptableObject
+        self.updateScriptableObjectField = updateScriptableObjectField
     }
 
     func clearSceneViewportActions(owner: AnyObject) {
@@ -1579,6 +1601,9 @@ final class EditorInspectorSidebarViewModel {
         addComponent = nil
         removeComponent = nil
         updateComponentField = nil
+        addScriptableObject = nil
+        removeScriptableObject = nil
+        updateScriptableObjectField = nil
     }
 
     func addGizmo() {
@@ -1586,8 +1611,8 @@ final class EditorInspectorSidebarViewModel {
         updateGizmo(gizmo)
     }
 
-    func addEntityRequested() {
-        addEntity?()
+    func addEntityRequested(_ preset: EditorSceneEntityPreset = .empty) {
+        addEntity?(preset)
     }
 
     func addComponentRequested(_ typeName: String) {
@@ -1596,6 +1621,35 @@ final class EditorInspectorSidebarViewModel {
 
     func removeComponentRequested(_ typeName: String) {
         removeComponent?(typeName)
+    }
+
+    func addScriptableObjectRequested(_ descriptor: EditorScriptableObjectDescriptor) {
+        addScriptableObject?(descriptor)
+    }
+
+    func removeScriptableObjectRequested(_ identifier: String) {
+        removeScriptableObject?(identifier)
+    }
+
+    func scriptableObjectFieldBinding(identifier: String, field: EditorComponentField) -> Binding<String> {
+        Binding(
+            get: {
+                self.selectedEntity?
+                    .scriptableObjects
+                    .first { $0.identifier == identifier }?
+                    .fields
+                    .first { $0.field.key == field.key }?
+                    .value ?? ""
+            },
+            set: { value in
+                guard let objectIndex = self.selectedEntity?.scriptableObjects.firstIndex(where: { $0.identifier == identifier }),
+                      let fieldIndex = self.selectedEntity?.scriptableObjects[objectIndex].fields.firstIndex(where: { $0.field.key == field.key }) else {
+                    return
+                }
+                self.selectedEntity?.scriptableObjects[objectIndex].fields[fieldIndex].value = value
+                self.updateScriptableObjectField?(identifier, field, value)
+            }
+        )
     }
 
     func componentFieldBinding(typeName: String, field: EditorComponentField) -> Binding<String> {
@@ -1851,9 +1905,13 @@ final class EditorViewModel {
     var dependencyLocation = ""
     var dependencyRequirement = #"from: "1.0.0""#
     var dependencyStatusMessage = ""
+    var projectDisplayNameText = ""
+    var projectBundleIdentifierText = ""
+    var projectMainSceneText = ""
     var projectResourceRootsText = ""
     var projectIncludedFilesText = ""
     var projectExcludedFilesText = ""
+    var projectRunArgumentsText = ""
     var projectSettingsStatusMessage = ""
     var selectedTestFilter: String
     var playModeState: EditorPlayModeState
@@ -1865,6 +1923,7 @@ final class EditorViewModel {
     var newFileErrorMessage: String?
     var requestedSettingsSection: EditorSettingsSection?
     var settingsPresentationToken = 0
+    var scenePlayRuntime: EditorScenePlayRuntime?
     
     var showLeftPanel = true
     var showRightPanel = false
@@ -1942,6 +2001,16 @@ final class EditorViewModel {
         let savedProject = project.flatMap {
             try? ProjectSystem.loadProject(at: URL(fileURLWithPath: $0.path, isDirectory: true), fileManager: fileManager)
         }
+        let scriptableObjectSupport: EditorScriptableObjectCatalogLoader.Result? = project.flatMap { reference in
+            guard let savedProject, savedProject.build.system.isAdaScript else {
+                return nil
+            }
+            return try? EditorScriptableObjectCatalogLoader.load(
+                project: savedProject,
+                at: URL(fileURLWithPath: reference.path, isDirectory: true),
+                fileManager: fileManager
+            )
+        }
         let sourceRootTarget = savedProject.flatMap { savedProject -> EditorProjectSidebarViewModel.SourceRootTarget? in
             guard savedProject.build.system.isAdaScript else {
                 return nil
@@ -1967,6 +2036,7 @@ final class EditorViewModel {
             sourceRootTarget: sourceRootTarget
         )
         self.workbench = workbench ?? Self.defaultWorkbench(for: project)
+        inspectorSidebar.scriptableObjectCatalog = scriptableObjectSupport?.descriptors ?? []
         self.inspectorSidebar = inspectorSidebar
         self.agent = agent ?? EditorAgentViewModel(project: project, fileManager: fileManager)
         self.sourceControl = sourceControl
@@ -1984,9 +2054,14 @@ final class EditorViewModel {
         #else
         self.selectedRunDestination = selectedRunDestination ?? Self.editorRunDestination(from: savedProject?.run.destination ?? .macOS)
         #endif
+        self.projectDisplayNameText = savedProject?.project.displayName ?? savedProject?.project.name ?? project?.name ?? ""
+        self.projectBundleIdentifierText = savedProject?.project.bundleIdentifier ?? ""
+        self.projectMainSceneText = savedProject?.runtime.entry.scene ?? savedProject?.editor.startupScene ?? ""
         self.projectResourceRootsText = savedProject?.paths.resourceRoots.joined(separator: "\n") ?? ""
         self.projectIncludedFilesText = savedProject?.build.includedFiles.joined(separator: "\n") ?? ""
         self.projectExcludedFilesText = savedProject?.build.excludedFiles.joined(separator: "\n") ?? ""
+        self.projectRunArgumentsText = savedProject?.run.arguments.joined(separator: "\n") ?? ""
+        self.scenePlayRuntime = scriptableObjectSupport?.playRuntime
         self.selectedTestFilter = selectedTestFilter
         self.playModeState = playModeState
         self.toolbar.searchableItems = self.projectSidebar.items
@@ -2249,12 +2324,28 @@ final class EditorViewModel {
         Binding(get: { self.projectResourceRootsText }, set: { self.projectResourceRootsText = $0 })
     }
 
+    var projectDisplayNameBinding: Binding<String> {
+        Binding(get: { self.projectDisplayNameText }, set: { self.projectDisplayNameText = $0 })
+    }
+
+    var projectBundleIdentifierBinding: Binding<String> {
+        Binding(get: { self.projectBundleIdentifierText }, set: { self.projectBundleIdentifierText = $0 })
+    }
+
+    var projectMainSceneBinding: Binding<String> {
+        Binding(get: { self.projectMainSceneText }, set: { self.projectMainSceneText = $0 })
+    }
+
     var projectIncludedFilesBinding: Binding<String> {
         Binding(get: { self.projectIncludedFilesText }, set: { self.projectIncludedFilesText = $0 })
     }
 
     var projectExcludedFilesBinding: Binding<String> {
         Binding(get: { self.projectExcludedFilesText }, set: { self.projectExcludedFilesText = $0 })
+    }
+
+    var projectRunArgumentsBinding: Binding<String> {
+        Binding(get: { self.projectRunArgumentsText }, set: { self.projectRunArgumentsText = $0 })
     }
 
     func selectRunDestination(_ destination: EditorRunDestination) {
@@ -2337,12 +2428,19 @@ final class EditorViewModel {
             } else {
                 targetName = ""
             }
+            settings.project.displayName = Self.optionalText(from: projectDisplayNameText)
+            settings.project.bundleIdentifier = Self.optionalText(from: projectBundleIdentifierText)
+            settings.editor.startupScene = Self.optionalText(from: projectMainSceneText)
             settings.paths.resourceRoots = Self.pathList(from: projectResourceRootsText)
             settings.build.includedFiles = Self.pathList(from: projectIncludedFilesText)
             settings.build.excludedFiles = Self.pathList(from: projectExcludedFilesText)
             settings.run.destination = selectedRunDestination.adaProjectDestination
+            settings.run.arguments = Self.lineList(from: projectRunArgumentsText)
             if let runtime {
                 settings.runtime = runtime
+                if settings.build.system.isAdaScript {
+                    settings.runtime.entry.scene = settings.editor.startupScene
+                }
             }
             try EditorProjectStore(fileManager: fileManager).saveProjectSettings(settings, at: projectURL, targetName: targetName)
             projectSettingsStatusMessage = settings.build.system == .adaScript
@@ -2360,6 +2458,18 @@ final class EditorViewModel {
             .components(separatedBy: CharacterSet(charactersIn: ",\n"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+
+    private static func lineList(from text: String) -> [String] {
+        text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private static func optionalText(from text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func editorRunDestination(from destination: AdaProjectRunDestination) -> EditorRunDestination {
@@ -2593,8 +2703,11 @@ final class EditorViewModel {
                 return
             }
         }
+        let projectSettings = projectURL.flatMap {
+            try? ProjectSystem.loadProject(at: $0, fileManager: fileManager)
+        }
         if let projectURL,
-           let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
+           let settings = projectSettings,
            settings.build.system == .adaScript {
             let projectName = settings.project.displayName ?? settings.project.name ?? project?.name ?? "AdaScript Project"
             buildAdaScriptProject(
@@ -2608,7 +2721,10 @@ final class EditorViewModel {
         }
         switch selectedRunDestination {
         case .macOS:
-            executeWorkspaceCommand(.run(target: product, arguments: []), statusTitle: product.map { "Run \($0) on macOS" } ?? "Run on macOS")
+            executeWorkspaceCommand(
+                .run(target: product, arguments: projectSettings?.run.arguments ?? []),
+                statusTitle: product.map { "Run \($0) on macOS" } ?? "Run on macOS"
+            )
         case .web:
             guard let product else {
                 workspaceStatus = .failed("Select an executable product before running for Web.")
@@ -2792,6 +2908,7 @@ final class EditorViewModel {
         guard !playModeState.isPlaying else {
             return
         }
+        reloadScriptableObjectSupport()
 
         guard let document = sceneDocumentForPlay() else {
             return
@@ -2807,6 +2924,27 @@ final class EditorViewModel {
         playModeState = .playing(sceneDocumentID: document.id, title: document.title)
         workspaceStatus = .running("Play \(document.title)")
         appendOutput("Playing \(document.relativePath)")
+    }
+
+    func runFromToolbar() {
+        if workbench.activeSceneDocument != nil {
+            runActiveSceneInEditor()
+        } else {
+            runSelectedTarget()
+        }
+    }
+
+    func stopFromToolbar() {
+        if playModeState.isPlaying {
+            stopPlayMode()
+        } else {
+            cancelWorkspaceCommand()
+        }
+    }
+
+    func presentSceneInspector() {
+        toolStrip.activeRightTool = "inspector"
+        showRightPanel = true
     }
 
     func stopPlayMode() {
@@ -2836,6 +2974,10 @@ final class EditorViewModel {
     }
 
     func cancelWorkspaceCommand() {
+        if playModeState.isPlaying {
+            stopPlayMode()
+            return
+        }
         if let adaScriptRuntimeWindow {
             adaScriptRuntimeWindow.close()
             self.adaScriptRuntimeWindow = nil
@@ -2868,7 +3010,10 @@ final class EditorViewModel {
         case .save:
             saveActiveDocument()
         case .saveAll:
-            if workbench.saveAllDocuments() { refreshSourceControl() }
+            if workbench.saveAllDocuments() {
+                refreshSourceControl()
+                reloadScriptableObjectSupport()
+            }
         case .findInProject:
             findInProjectRoot()
             _ = EditorSearchShortcutMonitor.shared.focusSearchField()
@@ -2904,7 +3049,11 @@ final class EditorViewModel {
         case .build:
             buildAll()
         case .run:
-            runSelectedTarget()
+            if workbench.activeSceneDocument != nil {
+                runActiveSceneInEditor()
+            } else {
+                runSelectedTarget()
+            }
         case .runTests:
             runTests()
         case .stop:
@@ -2979,6 +3128,7 @@ final class EditorViewModel {
             projectSidebar.select(selected)
         }
         toolbar.searchableItems = items
+        reloadScriptableObjectSupport()
         if logsRefresh {
             appendOutput("Refreshed project files")
         }
@@ -3005,6 +3155,7 @@ final class EditorViewModel {
         if workbench.saveActiveDocument() {
             refreshSourceControl()
             refreshPreviewForActiveDocument()
+            reloadScriptableObjectSupport()
         }
     }
 
@@ -3015,9 +3166,25 @@ final class EditorViewModel {
         }
         if workbench.saveActiveDocumentIfNeeded() {
             refreshSourceControl()
+            reloadScriptableObjectSupport()
             return true
         }
         return false
+    }
+
+    private func reloadScriptableObjectSupport() {
+        guard let projectURL,
+              let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
+              settings.build.system.isAdaScript,
+              let support = try? EditorScriptableObjectCatalogLoader.load(
+                  project: settings,
+                  at: projectURL,
+                  fileManager: fileManager
+              ) else {
+            return
+        }
+        inspectorSidebar.scriptableObjectCatalog = support.descriptors
+        scenePlayRuntime = support.playRuntime
     }
 
     func synchronizeAgentSceneContext() {
@@ -3550,7 +3717,7 @@ final class EditorViewModel {
             }
             lastLoggedWorkspaceProgressPhase = progress.phase
         } else if progress.phase == .indexingBuild, let detail = progress.detail, !detail.isEmpty {
-            appendOutput(detail)
+            appendOutputBlock(detail)
         }
     }
 
@@ -4669,6 +4836,7 @@ final class EditorViewModel {
         let absolutePath = absoluteFilePath(from: item.id)
         let url = absolutePath.map { URL(fileURLWithPath: $0, isDirectory: false) }
         let values = url.flatMap { try? $0.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]) }
+        let fileExtension = URL(fileURLWithPath: item.title).pathExtension.lowercased()
 
         return EditorAssetDocument(
             id: "asset:\(item.relativePath)",
@@ -4676,15 +4844,21 @@ final class EditorViewModel {
             relativePath: item.relativePath,
             absolutePath: absolutePath,
             assetReference: item.assetRoot.flatMap { assetReference(for: item.relativePath, assetsRoot: $0) },
-            kind: assetPreviewKind(for: item.kind),
-            fileExtension: URL(fileURLWithPath: item.title).pathExtension.lowercased(),
+            kind: assetPreviewKind(for: item.kind, fileExtension: fileExtension),
+            fileExtension: fileExtension,
             byteCount: values?.fileSize.map(Int64.init),
             modifiedAt: values?.contentModificationDate,
             errorMessage: item.kind == .image && item.title.lowercased().hasSuffix(".png") == false ? "Only PNG image decoding is currently available in editor preview." : nil
         )
     }
 
-    private static func assetPreviewKind(for kind: EditorProjectFileKind) -> EditorAssetPreviewKind {
+    private static func assetPreviewKind(
+        for kind: EditorProjectFileKind,
+        fileExtension: String
+    ) -> EditorAssetPreviewKind {
+        if fileExtension == "atlas" {
+            return .atlas
+        }
         switch kind {
         case .image:
             return .image

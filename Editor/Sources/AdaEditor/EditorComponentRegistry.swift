@@ -11,6 +11,7 @@ enum EditorBuiltInComponentType {
     static let lightModulate2D = String(reflecting: LightModulate2D.self)
     static let globalTransform = String(reflecting: GlobalTransform.self)
     static let bounding = String(reflecting: BoundingComponent.self)
+    static let scriptableComponents = String(reflecting: ScriptableComponents.self)
 }
 
 enum EditorComponentFieldKind: Equatable, Sendable {
@@ -164,15 +165,15 @@ enum EditorComponentRegistry {
 
     @MainActor
     static func registerBuiltIns() {
-        Transform.registerComponent()
-        GlobalTransform.registerComponent()
-        Camera.registerComponent()
-        Sprite.registerComponent()
-        Visibility.registerComponent()
-        BoundingComponent.registerComponent()
-        Light2D.registerComponent()
-        LightOccluder2D.registerComponent()
-        LightModulate2D.registerComponent()
+        RuntimeTypeRegistry.registerComponent(Transform.self, names: ["Transform"])
+        RuntimeTypeRegistry.registerComponent(GlobalTransform.self, names: ["GlobalTransform"])
+        RuntimeTypeRegistry.registerComponent(Camera.self, names: ["Camera"])
+        RuntimeTypeRegistry.registerComponent(Sprite.self, names: ["Sprite"])
+        RuntimeTypeRegistry.registerComponent(Visibility.self, names: ["Visibility"])
+        RuntimeTypeRegistry.registerComponent(BoundingComponent.self, names: ["BoundingComponent"])
+        RuntimeTypeRegistry.registerComponent(Light2D.self, names: ["Light2D"])
+        RuntimeTypeRegistry.registerComponent(LightOccluder2D.self, names: ["LightOccluder2D"])
+        RuntimeTypeRegistry.registerComponent(LightModulate2D.self, names: ["LightModulate2D"])
 
         EditorComponentReflectionRegistry.register(Transform.editorComponentDescriptor)
         EditorComponentReflectionRegistry.register(GlobalTransform.editorComponentDescriptor)

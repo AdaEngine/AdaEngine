@@ -21,6 +21,7 @@ struct EditorAdaScriptProjectBuildArtifact: Sendable {
     let plugins: EditorAdaScriptResolvedRuntimePlugins
     let report: EditorAdaScriptProjectBuildReport
     let sceneModel: EditorSceneModel?
+    let scenePlayRuntime: EditorScenePlayRuntime
     let sources: [AdaScriptSource]
     let window: AdaProjectRuntimeWindow
 }
@@ -83,6 +84,10 @@ struct EditorAdaScriptProjectBuilder {
                 names: dataSchemas.map(\.name).sorted()
             )
         }
+        let scriptableObjectSupport = try EditorScriptableObjectCatalogLoader.makeResult(
+            project: project,
+            sources: sources
+        )
 
         let preparedEntry = try prepareEntry(project: project, sources: sources, projectURL: projectURL)
         let plugins = try EditorAdaScriptRuntimePluginResolver.resolve(project.runtime.plugins)
@@ -111,6 +116,7 @@ struct EditorAdaScriptProjectBuilder {
             plugins: plugins,
             report: report,
             sceneModel: preparedEntry.sceneModel,
+            scenePlayRuntime: scriptableObjectSupport.playRuntime,
             sources: sources,
             window: project.runtime.window
         )

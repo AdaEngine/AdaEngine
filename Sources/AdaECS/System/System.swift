@@ -87,11 +87,21 @@ public protocol System: Sendable {
 
     /// An array of dependencies for this system.
     static var dependencies: [SystemDependency] { get }
+
+    /// The dependencies resolved for this system instance.
+    ///
+    /// Dynamic systems can override this property when their ordering is not
+    /// known at the Swift type level. The default uses ``dependencies``.
+    var systemDependencies: [SystemDependency] { get }
 }
 
 public extension System {
     static var dependencies: [SystemDependency] {
         return []
+    }
+
+    var systemDependencies: [SystemDependency] {
+        Self.dependencies
     }
 
     var queries: SystemQueries {

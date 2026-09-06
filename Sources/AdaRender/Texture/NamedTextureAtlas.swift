@@ -6,21 +6,30 @@
 import AdaAssets
 import Foundation
 import Math
+import Synchronization
 
 /// Texture atlas keyed by string names (for packed UI assets). Distinct from grid-based ``TextureAtlas``.
 public final class NamedTextureAtlas: Asset, @unchecked Sendable {
-
     public private(set) var texture: Texture2D
 
     public private(set) var entriesByKey: [String: AtlasRegion]
 
     public var assetMetaInfo: AssetMetaInfo?
 
-    private var sliceCache: [String: Slice] = [:]
+    /// The source descriptor when this atlas was loaded from an `.atlas` resource.
+    public private(set) var descriptor: Descriptor?
 
-    public init(texture: Texture2D, entriesByKey: [String: AtlasRegion], assetMetaInfo: AssetMetaInfo? = nil) {
+    private let sliceCache = Mutex([String: Slice]())
+
+    public init(
+        texture: Texture2D,
+        entriesByKey: [String: AtlasRegion],
+        descriptor: Descriptor? = nil,
+        assetMetaInfo: AssetMetaInfo? = nil
+    ) {
         self.texture = texture
         self.entriesByKey = entriesByKey
+        self.descriptor = descriptor
         self.assetMetaInfo = assetMetaInfo
     }
 
@@ -29,15 +38,22 @@ public final class NamedTextureAtlas: Asset, @unchecked Sendable {
     }
 
     public func slice(for key: String) -> Texture2D? {
-        if let cached = sliceCache[key] {
-            return cached
+        sliceCache.withLock { cache in
+            if let cached = cache[key] {
+                return cached
+            }
+            guard let region = entriesByKey[key] else {
+                return nil
+            }
+            let piece = Slice(namedAtlas: self, region: region)
+            cache[key] = piece
+            return piece
         }
-        guard let region = entriesByKey[key] else {
-            return nil
-        }
-        let piece = Slice(namedAtlas: self, region: region)
-        sliceCache[key] = piece
-        return piece
+    }
+
+    /// Returns the metadata for a named image without creating a texture slice.
+    public func region(for key: String) -> AtlasRegion? {
+        entriesByKey[key]
     }
 
     public func contains(_ key: String) -> Bool {
@@ -74,25 +90,70 @@ public final class NamedTextureAtlas: Asset, @unchecked Sendable {
     }
 
     public required init(from assetDecoder: any AssetDecoder) async throws {
-        throw AssetDecodingError.decodingProblem("NamedTextureAtlas: asset file loading is not implemented.")
+        guard Self.extensions().contains(assetDecoder.assetMeta.filePath.pathExtension.lowercased()) else {
+            throw AssetDecodingError.invalidAssetExtension(assetDecoder.assetMeta.filePath.pathExtension)
+        }
+
+        let descriptor = try assetDecoder.decode(Descriptor.self)
+        let baseURL = assetDecoder.assetMeta.filePath.deletingLastPathComponent()
+        var inputs: [NamedTextureAtlasPacker.Input] = []
+        inputs.reserveCapacity(descriptor.images.count)
+
+        for source in descriptor.images {
+            let resolvedPath = Self.resolve(source.path, relativeTo: baseURL)
+            let imageHandle = try await AssetsManager.load(Image.self, at: resolvedPath)
+            guard let image = imageHandle.asset else {
+                throw AssetDecodingError.decodingProblem("NamedTextureAtlas: image at \(source.path) was not loaded.")
+            }
+            let key = source.key ?? Self.defaultKey(for: source.path)
+            inputs.append(NamedTextureAtlasPacker.Input(key: key, image: image))
+        }
+
+        let result = try NamedTextureAtlasPacker.pack(inputs, descriptor: descriptor)
+        self.texture = Texture2D(image: result.image, samplerDescription: descriptor.filter.samplerDescriptor)
+        self.entriesByKey = result.entriesByKey
+        self.descriptor = descriptor
     }
 
     public func encodeContents(with assetEncoder: any AssetEncoder) async throws {
-        throw AssetDecodingError.decodingProblem("NamedTextureAtlas: asset encoding is not implemented.")
+        guard let descriptor else {
+            throw AssetDecodingError.decodingProblem("NamedTextureAtlas: only atlases created from a descriptor can be encoded.")
+        }
+        try assetEncoder.encode(descriptor)
     }
 
     public static func extensions() -> [String] {
-        []
+        ["atlas"]
+    }
+
+    private static func resolve(_ path: String, relativeTo baseURL: URL) -> String {
+        if path.hasPrefix("@res://") || path.hasPrefix("file://") || isAbsolutePath(path) {
+            return path
+        }
+        return baseURL.appendingPathComponent(path, isDirectory: false).standardizedFileURL.path
+    }
+
+    private static func isAbsolutePath(_ path: String) -> Bool {
+        if path.hasPrefix("/") || path.hasPrefix("\\\\") {
+            return true
+        }
+        let prefix = Array(path.prefix(3))
+        return prefix.count == 3
+            && prefix[0].isLetter
+            && prefix[1] == ":"
+            && (prefix[2] == "/" || prefix[2] == "\\")
+    }
+
+    private static func defaultKey(for path: String) -> String {
+        URL(fileURLWithPath: path, isDirectory: false).deletingPathExtension().lastPathComponent
     }
 }
 
 // MARK: - Slice
 
 public extension NamedTextureAtlas {
-
     /// A ``Texture2D`` view into one named region of the atlas.
     final class Slice: Texture2D, @unchecked Sendable {
-
         public private(set) var namedAtlas: NamedTextureAtlas
 
         private let uvMin: Vector2
@@ -134,7 +195,17 @@ public extension NamedTextureAtlas {
             case key
         }
 
-        public convenience required init(from assetDecoder: any AssetDecoder) async throws {
+        public required convenience init(from assetDecoder: any AssetDecoder) async throws {
+            if let query = assetDecoder.assetMeta.queryParams.first {
+                let key = query.value ?? query.name
+                let namedAtlas = try await NamedTextureAtlas(from: assetDecoder)
+                guard let region = namedAtlas.entriesByKey[key] else {
+                    throw AssetDecodingError.decodingProblem("NamedTextureAtlas.Slice: missing key \(key).")
+                }
+                self.init(namedAtlas: namedAtlas, region: region)
+                return
+            }
+
             guard let container = try assetDecoder.decoder?.container(keyedBy: CodingKeys.self) else {
                 throw DecodingError.dataCorrupted(
                     DecodingError.Context(codingPath: [], debugDescription: "Failed to decode \(Self.self). Decoder not passed.")
@@ -149,7 +220,7 @@ public extension NamedTextureAtlas {
             self.init(namedAtlas: namedAtlas, region: region)
         }
 
-        public override func encodeContents(with encoder: any AssetEncoder) async throws {
+        override public func encodeContents(with encoder: any AssetEncoder) async throws {
             throw AssetDecodingError.decodingProblem("NamedTextureAtlas.Slice: encoding not supported.")
         }
     }

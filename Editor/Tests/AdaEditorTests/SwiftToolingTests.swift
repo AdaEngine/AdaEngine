@@ -31,11 +31,12 @@ struct SwiftToolingTests {
         let service = SwiftPMWorkspaceService(processRunner: FakeProcessRunner(results: []))
         let toolchain = SwiftToolchain(swiftExecutablePath: "/usr/bin/swift", sourceKitLSPExecutablePath: "/usr/bin/sourcekit-lsp")
         let projectURL = URL(fileURLWithPath: "/tmp/Game", isDirectory: true)
+        let buildPrefix = ["build", "--jobs", String(SwiftPMWorkspaceService.responsiveBuildJobCount)]
 
         #expect(service.makeCommand(.resolve, projectURL: projectURL, toolchain: toolchain).arguments == ["package", "resolve"])
         #expect(service.makeCommand(.describe, projectURL: projectURL, toolchain: toolchain).arguments == ["package", "describe", "--type", "json"])
-        #expect(service.makeCommand(.build(target: "Game", buildTests: false), projectURL: projectURL, toolchain: toolchain).arguments == ["build", "--target", "Game"])
-        #expect(service.makeCommand(.build(target: nil, buildTests: true), projectURL: projectURL, toolchain: toolchain).arguments == ["build", "--build-tests"])
+        #expect(service.makeCommand(.build(target: "Game", buildTests: false), projectURL: projectURL, toolchain: toolchain).arguments == buildPrefix + ["--target", "Game"])
+        #expect(service.makeCommand(.build(target: nil, buildTests: true), projectURL: projectURL, toolchain: toolchain).arguments == buildPrefix + ["--build-tests"])
         #expect(service.makeCommand(.run(target: "Game", arguments: ["--debug"]), projectURL: projectURL, toolchain: toolchain).arguments == ["run", "Game", "--", "--debug"])
         let webCommand = service.makeCommand(.runWeb(target: "Game", outputPath: "dist/web", serve: true), projectURL: projectURL, toolchain: toolchain)
         #expect(webCommand.arguments == [
@@ -47,10 +48,64 @@ struct SwiftToolingTests {
         #expect(service.makeCommand(.test(filter: "GameTests"), projectURL: projectURL, toolchain: toolchain).arguments == ["test", "--parallel", "--filter", "GameTests"])
     }
 
+    @Test("workspace bootstrap builds production targets and batches indexing progress")
+    func workspaceBootstrapUsesResponsiveIndexBuild() async throws {
+        let projectURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("WorkspaceBootstrap-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: projectURL, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: projectURL) }
+
+        let toolchain = SwiftToolchain(swiftExecutablePath: "/usr/bin/swift", sourceKitLSPExecutablePath: nil)
+        let placeholderCommand = EditorProcessCommand(
+            executablePath: toolchain.swiftExecutablePath,
+            arguments: [],
+            workingDirectory: projectURL
+        )
+        let runner = FakeProcessRunner(
+            results: [
+                EditorProcessResult(command: placeholderCommand, exitCode: 0, standardOutput: "", standardError: ""),
+                EditorProcessResult(command: placeholderCommand, exitCode: 0, standardOutput: packageDescriptionJSON, standardError: ""),
+                EditorProcessResult(command: placeholderCommand, exitCode: 0, standardOutput: "", standardError: "")
+            ],
+            outputChunks: [
+                [],
+                [],
+                [EditorProcessOutputEvent(
+                    stream: .standardOutput,
+                    text: "[1/2] Compiling Game main.swift\n[2/2] Compiling Game Player.swift\n"
+                )]
+            ]
+        )
+        let recorder = WorkspaceProgressRecorder()
+        let service = SwiftPMWorkspaceService(processRunner: runner, toolchain: toolchain)
+
+        let result = await service.bootstrap(projectURL: projectURL) { update in
+            await recorder.append(update)
+        }
+        let commands = await runner.commands
+        let updates = await recorder.updates
+        let indexingUpdates = updates.filter { $0.phase == .indexingBuild }
+        let buildArguments = try #require(commands.last?.arguments)
+        let finalIndexingUpdateIndex = try #require(updates.lastIndex { $0.phase == .indexingBuild })
+        let sourceKitUpdateIndex = try #require(updates.lastIndex { $0.phase == .startingSourceKitLSP })
+
+        #expect(result.succeeded)
+        #expect(!buildArguments.contains("--build-tests"))
+        #expect(buildArguments == ["build", "--jobs", String(SwiftPMWorkspaceService.responsiveBuildJobCount)])
+        #expect(indexingUpdates.count == 2)
+        #expect(indexingUpdates.last?.detail == "[1/2] Compiling Game main.swift\n[2/2] Compiling Game Player.swift")
+        #expect(finalIndexingUpdateIndex < sourceKitUpdateIndex)
+    }
+
     @Test("run uses executable product while project settings map to its target")
     @MainActor
     func runUsesExecutableProductName() async throws {
-        let projectURL = URL(fileURLWithPath: "/tmp/My-Game", isDirectory: true)
+        let projectURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RunSettings-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: projectURL) }
+        var projectSettings = ProjectSystem.defaultProject(projectName: "My-Game")
+        projectSettings.run.arguments = ["--debug", "--level=intro"]
+        try ProjectSystem.saveProject(projectSettings, at: projectURL)
         let project = EditorProjectReference(name: "My-Game", path: projectURL.path)
         let packageModel = SwiftPackageModel(
             name: "My-Game",
@@ -72,13 +127,13 @@ struct SwiftToolingTests {
         #expect(viewModel.selectedRunTargetName == "My_Game")
         viewModel.runSelectedTarget()
         try await waitForRecordedCommands(service, count: 1)
-        #expect(await service.commands.first == .run(target: "My-Game", arguments: []))
+        #expect(await service.commands.first == .run(target: "My-Game", arguments: ["--debug", "--level=intro"]))
 
         let cleanDocument = EditorTextDocument(
             id: "main",
             title: "main.swift",
             relativePath: "Sources/My_Game/main.swift",
-            absolutePath: "/tmp/My-Game/Sources/My_Game/main.swift",
+            absolutePath: projectURL.appendingPathComponent("Sources/My_Game/main.swift").path,
             language: .swift,
             content: "print(1)",
             isDirty: false
@@ -764,9 +819,23 @@ struct SwiftToolingTests {
 
         let modeledFiles = SwiftPMWorkspaceService.swiftSourceFiles(projectURL: projectURL, packageModel: model, fileManager: fileManager)
         #expect(modeledFiles.map(\.lastPathComponent) == ["Game.swift", "GameTests.swift"])
+        let productionFiles = SwiftPMWorkspaceService.swiftSourceFiles(
+            projectURL: projectURL,
+            packageModel: model,
+            includeTests: false,
+            fileManager: fileManager
+        )
+        #expect(productionFiles.map(\.lastPathComponent) == ["Game.swift"])
 
         let fallbackFiles = SwiftPMWorkspaceService.swiftSourceFiles(projectURL: projectURL, packageModel: nil, fileManager: fileManager)
         #expect(fallbackFiles.map(\.lastPathComponent) == ["Game.swift", "Ignored.swift", "GameTests.swift"])
+        let productionFallbackFiles = SwiftPMWorkspaceService.swiftSourceFiles(
+            projectURL: projectURL,
+            packageModel: nil,
+            includeTests: false,
+            fileManager: fileManager
+        )
+        #expect(productionFallbackFiles.map(\.lastPathComponent) == ["Game.swift", "Ignored.swift"])
     }
 
     @Test("build progress parser extracts Swift file target and unique completion count")
@@ -787,6 +856,56 @@ struct SwiftToolingTests {
         #expect(second == SwiftPMBuildProgress(completed: 2, currentFile: "Player.swift", currentTarget: "Game"))
         #expect(nonSwift == SwiftPMBuildProgress(completed: 2, currentFile: nil, currentTarget: nil))
     }
+
+    @Test("indexing progress preserves split lines and emits one batch")
+    func indexingProgressCoalescesOutput() async throws {
+        let knownFiles = [
+            URL(fileURLWithPath: "/tmp/Game/Sources/Game/main.swift"),
+            URL(fileURLWithPath: "/tmp/Game/Sources/Game/Player.swift")
+        ]
+        let tracker = SwiftPMBuildProgressTracker(minimumEmissionInterval: 60, now: 0)
+
+        let firstBatch = await tracker.consume(
+            EditorProcessOutputEvent(stream: .standardOutput, text: "[1/2] Compiling Game main."),
+            knownFiles: knownFiles,
+            now: 0.01
+        )
+        let secondBatch = await tracker.consume(
+            EditorProcessOutputEvent(stream: .standardOutput, text: "swift\n[2/2] Compiling Game Player.swift\n"),
+            knownFiles: knownFiles,
+            now: 0.02
+        )
+        let flushedBatch = try #require(await tracker.finish(knownFiles: knownFiles, now: 0.03))
+
+        #expect(firstBatch == nil)
+        #expect(secondBatch == nil)
+        #expect(flushedBatch.lines == [
+            "[1/2] Compiling Game main.swift",
+            "[2/2] Compiling Game Player.swift"
+        ])
+        #expect(flushedBatch.buildProgress == SwiftPMBuildProgress(completed: 2, currentFile: "Player.swift", currentTarget: "Game"))
+    }
+
+    #if os(macOS) || os(Linux)
+    @Test("process runner remains responsive while a child process is running")
+    func processRunnerCanCancelRunningProcess() async throws {
+        let runner = EditorProcessRunner()
+        let command = EditorProcessCommand(
+            executablePath: "/bin/sleep",
+            arguments: ["3"],
+            workingDirectory: URL(fileURLWithPath: "/tmp", isDirectory: true)
+        )
+        let resultTask = Task {
+            await runner.run(command)
+        }
+
+        try await Task.sleep(for: .milliseconds(100))
+        await runner.cancelAll()
+        let result = await resultTask.value
+
+        #expect(!result.succeeded)
+    }
+    #endif
 
     @Test("fake process runner streams output before returning final result")
     func fakeProcessRunnerStreamsOutput() async {
@@ -1445,6 +1564,14 @@ private actor WorkspaceOutputRecorder {
     }
 }
 
+private actor WorkspaceProgressRecorder {
+    private(set) var updates: [SwiftPMWorkspaceProgress] = []
+
+    func append(_ update: SwiftPMWorkspaceProgress) {
+        updates.append(update)
+    }
+}
+
 private actor RecordingWorkspaceService: SwiftPMWorkspaceServicing {
     private(set) var bootstrapCallCount = 0
     private(set) var commands: [SwiftPMCommandKind] = []
@@ -1509,21 +1636,21 @@ private actor RecordingWorkspaceService: SwiftPMWorkspaceServicing {
 }
 
 private func waitForRecordedCommands(_ service: RecordingWorkspaceService, count: Int) async throws {
-    for _ in 0..<100 {
+    for _ in 0..<500 {
         if await service.commands.count >= count {
             return
         }
-        try await Task.sleep(for: .milliseconds(5))
+        try await Task.sleep(for: .milliseconds(10))
     }
     Issue.record("Timed out waiting for \(count) workspace commands")
 }
 
 private func waitForCompletionRequests(_ service: RecordingWorkspaceService, count: Int) async throws {
-    for _ in 0..<100 {
+    for _ in 0..<500 {
         if await service.completionRequests.count >= count {
             return
         }
-        try await Task.sleep(for: .milliseconds(5))
+        try await Task.sleep(for: .milliseconds(10))
     }
     Issue.record("Timed out waiting for \(count) completion requests")
 }

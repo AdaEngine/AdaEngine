@@ -8,7 +8,9 @@ struct GravityParsedDocument: Sendable {
 }
 
 struct GravityTypeRegion: Sendable {
+    var annotations: Set<String>
     var closeBraceIndex: Int
+    var implicitTypes: [String: String]
     var openBraceIndex: Int
     var symbol: GravitySymbol
 }
@@ -53,6 +55,7 @@ struct GravityDocumentAnalyzer {
             let matchedCloseBraceIndex = matchingCloseBrace(for: openBraceIndex, in: tokens)
             let memberUpperBound = matchedCloseBraceIndex ?? tokens.count
             let closeBraceIndex = matchedCloseBraceIndex ?? (tokens.count - 1)
+            let annotations = annotationNames(before: index, in: tokens)
 
             let members = parseDeclarations(
                 tokens,
@@ -70,7 +73,14 @@ struct GravityDocumentAnalyzer {
                 members: members
             )
             regions.append(GravityTypeRegion(
+                annotations: annotations,
                 closeBraceIndex: closeBraceIndex,
+                implicitTypes: implicitTypes(
+                    annotations: annotations,
+                    openBraceIndex: openBraceIndex,
+                    closeBraceIndex: closeBraceIndex,
+                    tokens: tokens
+                ),
                 openBraceIndex: openBraceIndex,
                 symbol: symbol
             ))

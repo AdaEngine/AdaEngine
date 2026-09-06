@@ -1,4 +1,5 @@
 @_spi(AdaEngine) import AdaEngine
+import Math
 
 enum EditorSceneViewportDisplayMode: String {
     case twoD = "2D"
@@ -22,6 +23,7 @@ final class EditorSceneViewportModel {
     private var editorIDsByEntityID: [Entity.ID: String] = [:]
     private var sceneContent = ""
     private var sceneModel: EditorSceneModel?
+    private var scriptableObjectCatalog: [EditorScriptableObjectDescriptor] = []
     private var selectedEditorID: String?
     private var activeTool: EditorSceneViewportTool = .translate
 
@@ -52,11 +54,13 @@ final class EditorSceneViewportModel {
     @discardableResult
     func configure(
         sceneContent: String,
+        scriptableObjectCatalog: [EditorScriptableObjectDescriptor] = [],
         onSelectionChanged: @escaping (EditorInspectorSidebarViewModel.SelectedEntity?) -> Void,
         onDocumentContentChanged: @escaping (String) -> Void
     ) -> EditorSceneRuntimeLoadResult? {
         let contentChanged = self.sceneContent != sceneContent
         self.sceneContent = sceneContent
+        self.scriptableObjectCatalog = scriptableObjectCatalog
         self.onSelectionChanged = onSelectionChanged
         self.onDocumentContentChanged = onDocumentContentChanged
         self.onSelectEntity = { [weak self] editorID in
@@ -121,7 +125,7 @@ final class EditorSceneViewportModel {
         }
         world.flush()
 
-        let result = EditorSceneFileLoader.load(content: sceneContent, into: world)
+        let result = EditorSceneFileLoader.load(content: sceneContent, into: world, loadsScriptableObjects: false)
         entitiesByEditorID = result.entitiesByEditorID
         editorIDsByEntityID = result.editorIDsByEntityID
         cameraEntityID = findCameraEntity(in: world)?.id
@@ -702,12 +706,13 @@ extension EditorSceneViewportModel {
             return nil
         }
 
-        let ray = EditorPicking.approximateRay(
+        let ray = EditorPicking.perspectiveRay(
             point: screenPoint,
             viewportSize: viewportSize,
             cameraPosition: threeDPosition,
             front: front3D,
-            right: right3D
+            right: right3D,
+            verticalFieldOfView: .degrees(62)
         )
 
         return world.getEntities()
@@ -757,7 +762,9 @@ private extension EditorSceneViewportModel {
         }
 
         let transformFields = transformFields(from: entity)
-        let componentNames = entity.components.keys.sorted()
+        let componentNames = entity.components.keys
+            .filter { $0 != EditorBuiltInComponentType.scriptableComponents }
+            .sorted()
         let components = componentNames.map { componentSection(typeName: $0, payload: entity.components[$0] ?? [:]) }
         let addableComponents = EditorComponentRegistry.addableDescriptors(for: entity).map {
             EditorInspectorSidebarViewModel.AddableComponent(
@@ -767,6 +774,8 @@ private extension EditorSceneViewportModel {
             )
         }
         let gizmo = decodeGizmo(from: entity)
+        let scriptableObjects = scriptableObjectSections(from: entity)
+        let attachedScriptableIDs = Set(scriptableObjects.map(\.identifier))
 
         return EditorInspectorSidebarViewModel.SelectedEntity(
             editorID: entity.id,
@@ -775,9 +784,51 @@ private extension EditorSceneViewportModel {
             transformFields: transformFields,
             components: components,
             addableComponents: addableComponents,
+            scriptableObjects: scriptableObjects,
+            addableScriptableObjects: scriptableObjectCatalog.filter { !attachedScriptableIDs.contains($0.identifier) },
             gizmo: gizmo,
             hasExplicitGizmo: entity.components[EditorSceneYAMLDocument.editorGizmoComponentName] != nil
         )
+    }
+
+    func scriptableObjectSections(from entity: EditorSceneEntity) -> [EditorInspectorSidebarViewModel.ScriptableObjectSection] {
+        guard case .array(let values)? = entity.components[EditorBuiltInComponentType.scriptableComponents]?["scripts"] else {
+            return []
+        }
+        return values.compactMap { value in
+            guard case .object(let object) = value,
+                  case .string(let identifier)? = object["type"] else {
+                return nil
+            }
+            let descriptor = scriptableObjectCatalog.first { $0.identifier == identifier }
+            let payload: EditorComponentPayload = if case .object(let payload)? = object["payload"] {
+                payload
+            } else {
+                [:]
+            }
+            let fields: [EditorInspectorSidebarViewModel.ComponentField]
+            if let descriptor {
+                fields = descriptor.fields.map { field in
+                    let editorField = EditorComponentField(key: field.name, label: field.name, kind: field.kind)
+                    return EditorInspectorSidebarViewModel.ComponentField(
+                        typeName: identifier,
+                        field: editorField,
+                        value: editorField.displayValue(in: payload)
+                    )
+                }
+            } else {
+                fields = [EditorInspectorSidebarViewModel.ComponentField(
+                    typeName: identifier,
+                    field: EditorComponentField(key: "payload", label: "Payload", kind: .readOnly, isEditable: false),
+                    value: EditorSceneValue.object(payload).stringValue
+                )]
+            }
+            return EditorInspectorSidebarViewModel.ScriptableObjectSection(
+                identifier: identifier,
+                displayName: descriptor?.name ?? identifier,
+                fields: fields
+            )
+        }
     }
 
     func componentSection(typeName: String, payload: EditorComponentPayload) -> EditorInspectorSidebarViewModel.ComponentSection {
@@ -853,99 +904,6 @@ private extension EditorSceneViewportModel {
 
     func shortComponentName(_ componentName: String) -> String {
         componentName.components(separatedBy: ".").last ?? componentName
-    }
-}
-
-enum EditorPicking {
-    static func contains2D(_ point: Vector2, transform: Transform, bounds: BoundingComponent?) -> Bool {
-        let aabb = localAABB(from: bounds)
-        let fallbackHalfExtent: Float = 0.35
-        let halfX = max(abs(aabb.halfExtents.x * transform.scale.x), fallbackHalfExtent)
-        let halfY = max(abs(aabb.halfExtents.y * transform.scale.y), fallbackHalfExtent)
-        let center = transform.position.xy + aabb.center.xy
-
-        return point.x >= center.x - halfX
-            && point.x <= center.x + halfX
-            && point.y >= center.y - halfY
-            && point.y <= center.y + halfY
-    }
-
-    static func intersectionDistance(ray: Ray, transform: Transform, bounds: BoundingComponent?) -> Float? {
-        let aabb = localAABB(from: bounds)
-        let fallback = Vector3(0.35)
-        let halfExtents = Vector3(
-            max(abs(aabb.halfExtents.x * transform.scale.x), fallback.x),
-            max(abs(aabb.halfExtents.y * transform.scale.y), fallback.y),
-            max(abs(aabb.halfExtents.z * transform.scale.z), fallback.z)
-        )
-        let worldAABB = AABB(center: transform.position + aabb.center, halfExtents: halfExtents)
-        return rayAABBIntersectionDistance(ray: ray, aabb: worldAABB)
-    }
-
-    static func approximateRay(
-        point: Point,
-        viewportSize: Size,
-        cameraPosition: Vector3,
-        front: Vector3,
-        right: Vector3
-    ) -> Ray {
-        let safeWidth = max(1, viewportSize.width)
-        let safeHeight = max(1, viewportSize.height)
-        let ndc = Vector2(
-            (point.x / safeWidth) * 2 - 1,
-            1 - (point.y / safeHeight) * 2
-        )
-        let up = right.cross(front).normalized
-        let direction = (front + right * ndc.x + up * ndc.y).normalized
-        return Ray(origin: cameraPosition, direction: direction)
-    }
-
-    static func rayAABBIntersectionDistance(ray: Ray, aabb: AABB) -> Float? {
-        let minPoint = aabb.min
-        let maxPoint = aabb.max
-        var tMin: Float = -.greatestFiniteMagnitude
-        var tMax: Float = .greatestFiniteMagnitude
-
-        for axis in 0..<3 {
-            let origin = ray.origin[axis]
-            let direction = ray.direction[axis]
-            let minValue = minPoint[axis]
-            let maxValue = maxPoint[axis]
-
-            if abs(direction) < 0.000_001 {
-                if origin < minValue || origin > maxValue {
-                    return nil
-                }
-                continue
-            }
-
-            let inverseDirection = 1 / direction
-            var near = (minValue - origin) * inverseDirection
-            var far = (maxValue - origin) * inverseDirection
-            if near > far {
-                swap(&near, &far)
-            }
-            tMin = Swift.max(tMin, near)
-            tMax = Swift.min(tMax, far)
-            if tMin > tMax {
-                return nil
-            }
-        }
-
-        if tMax < 0 {
-            return nil
-        }
-        return Swift.max(0, tMin)
-    }
-
-    private static func localAABB(from bounds: BoundingComponent?) -> AABB {
-        guard let bounds else {
-            return .empty
-        }
-        switch bounds.bounds {
-        case .aabb(let aabb):
-            return aabb
-        }
     }
 }
 

@@ -9,44 +9,60 @@ struct EditorInspectorSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             adaEditorPanelTitle("INSPECTOR", trailing: "", theme: theme)
-            inspectorSection("SCENE") {
-                Button(action: { viewModel.addEntityRequested() }) {
-                    Text("+ Entity")
-                        .font(.system(size: 11))
-                        .foregroundColor(theme.editorColors.blue)
-                        .padding(.horizontal, 8)
-                        .frame(height: 24)
-                        .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.blue.opacity(0.12)))
-                }
-                .buttonStyle(DefaultButtonStyle())
-            }
-            if let selectedEntity = viewModel.selectedEntity {
-                inspectorSection(selectedEntity.name.uppercased()) {
-                    Text(selectedEntity.editorID)
-                        .font(.system(size: 11))
-                        .foregroundColor(theme.editorColors.muted)
-                }
-                inspectorSection("TRANSFORM") {
-                    ForEach(selectedEntity.transformFields, id: \.label) { field in
-                        transformRow(field)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    inspectorSection("CREATE") {
+                        HStack(spacing: 5) {
+                            ForEach(EditorSceneEntityPreset.allCases, id: \.rawValue) { preset in
+                                compactActionButton(preset.title) {
+                                    viewModel.addEntityRequested(preset)
+                                }
+                            }
+                        }
+                    }
+                    if let selectedEntity = viewModel.selectedEntity {
+                        inspectorSection(selectedEntity.name.uppercased()) {
+                            Text(selectedEntity.editorID)
+                                .font(.system(size: 11))
+                                .foregroundColor(theme.editorColors.muted)
+                        }
+                        inspectorSection("TRANSFORM") {
+                            ForEach(selectedEntity.transformFields, id: \.label) { field in
+                                transformRow(field)
+                            }
+                        }
+                        inspectorSection("COMPONENTS") {
+                            ForEach(selectedEntity.components, id: \.typeName) { component in
+                                componentEditor(component)
+                            }
+                            ForEach(selectedEntity.addableComponents, id: \.typeName) { component in
+                                addComponentButton(component)
+                            }
+                        }
+                        if !selectedEntity.scriptableObjects.isEmpty || !selectedEntity.addableScriptableObjects.isEmpty {
+                            inspectorSection("SCRIPTABLE OBJECTS") {
+                                ForEach(selectedEntity.scriptableObjects, id: \.identifier) { object in
+                                    scriptableObjectEditor(object)
+                                }
+                                ForEach(selectedEntity.addableScriptableObjects, id: \.identifier) { descriptor in
+                                    addScriptableObjectButton(descriptor)
+                                }
+                            }
+                        }
+                        inspectorSection("GIZMO") {
+                            gizmoEditor(selectedEntity)
+                        }
+                    } else {
+                        inspectorSection("SELECTION") {
+                            Text("Click an entity in the scene or hierarchy to inspect it.")
+                                .font(.system(size: 11))
+                                .foregroundColor(theme.editorColors.muted)
+                                .lineLimit(2)
+                        }
                     }
                 }
-                inspectorSection("COMPONENTS") {
-                    ForEach(selectedEntity.components, id: \.typeName) { component in
-                        componentEditor(component)
-                    }
-                }
-                inspectorSection("GIZMO") {
-                    gizmoEditor(selectedEntity)
-                }
-            } else {
-                inspectorSection("SELECTION") {
-                    Text("No entity selected")
-                        .font(.system(size: 11))
-                        .foregroundColor(theme.editorColors.muted)
-                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-            Spacer()
         }
         .background(
             RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner)
@@ -347,5 +363,90 @@ struct EditorInspectorSidebar: View {
 
     private func shortComponentName(_ componentName: String) -> String {
         componentName.components(separatedBy: ".").last ?? componentName
+    }
+}
+
+private extension EditorInspectorSidebar {
+    func compactActionButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 10))
+                .foregroundColor(theme.editorColors.blue)
+                .padding(.horizontal, 7)
+                .frame(height: 24)
+                .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.blue.opacity(0.12)))
+        }
+        .buttonStyle(DefaultButtonStyle())
+    }
+
+    func addComponentButton(_ component: EditorInspectorSidebarViewModel.AddableComponent) -> some View {
+        Button(action: { viewModel.addComponentRequested(component.typeName) }) {
+            HStack(spacing: 6) {
+                Text("+")
+                    .foregroundColor(theme.editorColors.blue)
+                Text(component.displayName)
+                    .foregroundColor(theme.editorColors.text)
+                Spacer()
+                Text(component.category)
+                    .foregroundColor(theme.editorColors.muted)
+            }
+            .font(.system(size: 10))
+            .padding(.horizontal, 8)
+            .frame(height: 26)
+            .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surface))
+        }
+        .buttonStyle(DefaultButtonStyle())
+        .accessibilityIdentifier("AdaEditor.Inspector.AddComponent.\(component.typeName)")
+    }
+
+    func scriptableObjectEditor(_ object: EditorInspectorSidebarViewModel.ScriptableObjectSection) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text(object.displayName)
+                    .font(.system(size: 11))
+                    .foregroundColor(theme.editorColors.text)
+                Spacer()
+                Button(action: { viewModel.removeScriptableObjectRequested(object.identifier) }) {
+                    Text("Remove")
+                        .font(.system(size: 10))
+                        .foregroundColor(theme.editorColors.muted)
+                }
+                .buttonStyle(DefaultButtonStyle())
+            }
+            ForEach(object.fields, id: \.field.id) { field in
+                HStack(spacing: 6) {
+                    fieldLabel(field.field.label)
+                    fieldControl(
+                        value: field.value,
+                        kind: field.field.kind,
+                        isEditable: field.field.isEditable,
+                        scalarBinding: viewModel.scriptableObjectFieldBinding(identifier: object.identifier, field: field.field),
+                        axisBinding: { _ in viewModel.scriptableObjectFieldBinding(identifier: object.identifier, field: field.field) }
+                    )
+                }
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    func addScriptableObjectButton(_ descriptor: EditorScriptableObjectDescriptor) -> some View {
+        Button(action: { viewModel.addScriptableObjectRequested(descriptor) }) {
+            HStack(spacing: 6) {
+                Text("+")
+                    .foregroundColor(theme.editorColors.purple)
+                Text(descriptor.name)
+                    .foregroundColor(theme.editorColors.text)
+                Spacer()
+                Text(descriptor.sourcePath)
+                    .foregroundColor(theme.editorColors.muted)
+                    .lineLimit(1)
+            }
+            .font(.system(size: 10))
+            .padding(.horizontal, 8)
+            .frame(height: 26)
+            .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surface))
+        }
+        .buttonStyle(DefaultButtonStyle())
+        .accessibilityIdentifier("AdaEditor.Inspector.AddScriptableObject.\(descriptor.identifier)")
     }
 }

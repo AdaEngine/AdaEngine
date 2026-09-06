@@ -215,11 +215,99 @@ struct SwiftPMBuildProgress: Equatable, Sendable {
     var currentTarget: String?
 }
 
-private actor SwiftPMBuildProgressTracker {
+struct SwiftPMIndexingProgressBatch: Equatable, Sendable {
+    var lines: [String]
+    var buildProgress: SwiftPMBuildProgress
+}
+
+actor SwiftPMBuildProgressTracker {
     private var parser = SwiftPMBuildProgressParser()
+    private var pendingStandardOutput = ""
+    private var pendingStandardError = ""
+    private var pendingLines: [String] = []
+    private var latestProgress = SwiftPMBuildProgress(completed: 0, currentFile: nil, currentTarget: nil)
+    private let minimumEmissionInterval: TimeInterval
+    private var lastEmissionTime: TimeInterval
+
+    init(
+        minimumEmissionInterval: TimeInterval = 0.15,
+        now: TimeInterval = Date.timeIntervalSinceReferenceDate
+    ) {
+        self.minimumEmissionInterval = max(0, minimumEmissionInterval)
+        self.lastEmissionTime = now
+    }
 
     func parse(line: String, knownFiles: [URL]) -> SwiftPMBuildProgress {
         parser.parse(line: line, knownFiles: knownFiles)
+    }
+
+    func consume(
+        _ event: EditorProcessOutputEvent,
+        knownFiles: [URL],
+        now: TimeInterval = Date.timeIntervalSinceReferenceDate
+    ) -> SwiftPMIndexingProgressBatch? {
+        consume(lines: completeLines(from: event), knownFiles: knownFiles)
+        guard now - lastEmissionTime >= minimumEmissionInterval else {
+            return nil
+        }
+        return drain(now: now)
+    }
+
+    func finish(
+        knownFiles: [URL],
+        now: TimeInterval = Date.timeIntervalSinceReferenceDate
+    ) -> SwiftPMIndexingProgressBatch? {
+        let trailingLines = [pendingStandardOutput, pendingStandardError]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        pendingStandardOutput = ""
+        pendingStandardError = ""
+        consume(lines: trailingLines, knownFiles: knownFiles)
+        return drain(now: now)
+    }
+
+    private func completeLines(from event: EditorProcessOutputEvent) -> [String] {
+        let pending = switch event.stream {
+        case .standardOutput: pendingStandardOutput
+        case .standardError: pendingStandardError
+        }
+        let combined = pending + event.text
+        let lines = combined.components(separatedBy: .newlines)
+        let endsWithNewline = combined.last?.isNewline == true
+        let completeLineCount = endsWithNewline ? lines.count : max(0, lines.count - 1)
+
+        switch event.stream {
+        case .standardOutput:
+            pendingStandardOutput = endsWithNewline ? "" : lines.last ?? ""
+        case .standardError:
+            pendingStandardError = endsWithNewline ? "" : lines.last ?? ""
+        }
+
+        return lines.prefix(completeLineCount)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func consume(lines: [String], knownFiles: [URL]) {
+        for line in lines {
+            let parsed = parser.parse(line: line, knownFiles: knownFiles)
+            latestProgress = SwiftPMBuildProgress(
+                completed: parsed.completed,
+                currentFile: parsed.currentFile ?? latestProgress.currentFile,
+                currentTarget: parsed.currentTarget ?? latestProgress.currentTarget
+            )
+            pendingLines.append(line)
+        }
+    }
+
+    private func drain(now: TimeInterval) -> SwiftPMIndexingProgressBatch? {
+        guard !pendingLines.isEmpty else {
+            return nil
+        }
+        let batch = SwiftPMIndexingProgressBatch(lines: pendingLines, buildProgress: latestProgress)
+        pendingLines.removeAll(keepingCapacity: true)
+        lastEmissionTime = now
+        return batch
     }
 }
 
@@ -277,6 +365,13 @@ actor EditorProcessRunner: EditorProcessRunning {
         activeProcesses[processID] = process
         defer { activeProcesses[processID] = nil }
 
+        let terminationEvents = AsyncStream<Void> { continuation in
+            process.terminationHandler = { _ in
+                continuation.yield(())
+                continuation.finish()
+            }
+        }
+
         do {
             try process.run()
         } catch {
@@ -290,7 +385,9 @@ actor EditorProcessRunner: EditorProcessRunning {
 
         async let standardOutput = Self.collectOutput(from: output, stream: .standardOutput, output: outputHandler)
         async let standardError = Self.collectOutput(from: error, stream: .standardError, output: outputHandler)
-        process.waitUntilExit()
+        for await _ in terminationEvents {
+            break
+        }
 
         return await EditorProcessResult(
             command: command,
@@ -305,12 +402,22 @@ actor EditorProcessRunner: EditorProcessRunning {
         stream: EditorProcessOutputStream,
         output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void
     ) async -> String {
-        var collected = Data()
-        while true {
-            let data = pipe.fileHandleForReading.availableData
-            guard !data.isEmpty else {
-                break
+        let handle = pipe.fileHandleForReading
+        let chunks = AsyncStream<Data> { continuation in
+            handle.readabilityHandler = { readableHandle in
+                let data = readableHandle.availableData
+                guard !data.isEmpty else {
+                    readableHandle.readabilityHandler = nil
+                    continuation.finish()
+                    return
+                }
+                continuation.yield(data)
             }
+        }
+        defer { handle.readabilityHandler = nil }
+
+        var collected = Data()
+        for await data in chunks {
             collected.append(data)
             if let text = String(data: data, encoding: .utf8), !text.isEmpty {
                 await output(EditorProcessOutputEvent(stream: stream, text: text))
@@ -465,6 +572,8 @@ extension SwiftPMWorkspaceServicing {
 }
 
 actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
+    static let responsiveBuildJobCount = min(4, max(1, ProcessInfo.processInfo.activeProcessorCount / 2))
+
     private let processRunner: any EditorProcessRunning
     private let gravityWorkspace = GravityWorkspace()
     private var toolchain: SwiftToolchain?
@@ -473,10 +582,12 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
 
     init(
         processRunner: any EditorProcessRunning = EditorProcessRunner(),
-        sourceKitClient: SourceKitLSPClient? = nil
+        sourceKitClient: SourceKitLSPClient? = nil,
+        toolchain: SwiftToolchain? = nil
     ) {
         self.processRunner = processRunner
         self.sourceKitClient = sourceKitClient
+        self.toolchain = toolchain
     }
 
     nonisolated func makeCommand(_ kind: SwiftPMCommandKind, projectURL: URL, toolchain: SwiftToolchain) -> EditorProcessCommand {
@@ -522,7 +633,11 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         gravityWorkspace.configure(rootURIs: [projectURL.standardizedFileURL.absoluteString])
         await progress(SwiftPMWorkspaceProgress(phase: .loadingProjectMetadata, title: "Loading project metadata", detail: projectURL.path))
         await progress(SwiftPMWorkspaceProgress(phase: .locatingToolchain, title: "Locating Swift toolchain", detail: "Searching swift and sourcekit-lsp"))
-        let resolvedToolchain = await SwiftToolchainLocator.locate()
+        let resolvedToolchain = if let toolchain {
+            toolchain
+        } else {
+            await SwiftToolchainLocator.locate()
+        }
         toolchain = resolvedToolchain
         await progress(SwiftPMWorkspaceProgress(
             phase: .locatingToolchain,
@@ -543,38 +658,30 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             : EditorProcessResult(command: describeCommand, exitCode: 1, standardOutput: "", standardError: "Skipped because dependency resolution failed.")
         let packageModel = describeResult.succeeded ? SwiftPackageModel.parse(from: describeResult.standardOutput) : nil
 
+        let indexBuildResult: EditorProcessResult?
+        if resolveResult.succeeded && describeResult.succeeded {
+            let sourceFiles = Self.swiftSourceFiles(projectURL: projectURL, packageModel: packageModel, includeTests: false, fileManager: .default)
+            await progress(SwiftPMWorkspaceProgress(phase: .scanningSources, title: "Scanning Swift source files", completedFileCount: 0, totalFileCount: sourceFiles.count))
+            await progress(SwiftPMWorkspaceProgress(phase: .scanningSources, title: "Scanned Swift source files", completedFileCount: sourceFiles.count, totalFileCount: sourceFiles.count))
+            let buildCommand = makeCommand(.build(target: nil, buildTests: false), projectURL: projectURL, toolchain: resolvedToolchain)
+            await progress(SwiftPMWorkspaceProgress(phase: .indexingBuild, title: "Indexing Swift package", completedFileCount: 0, totalFileCount: sourceFiles.count, command: buildCommand))
+            let progressTracker = SwiftPMBuildProgressTracker()
+            indexBuildResult = await processRunner.run(buildCommand) { event in
+                if let batch = await progressTracker.consume(event, knownFiles: sourceFiles) {
+                    await progress(Self.indexingProgress(batch: batch, sourceFiles: sourceFiles, command: buildCommand))
+                }
+            }
+            if let batch = await progressTracker.finish(knownFiles: sourceFiles) {
+                await progress(Self.indexingProgress(batch: batch, sourceFiles: sourceFiles, command: buildCommand))
+            }
+        } else {
+            indexBuildResult = nil
+        }
+
         if resolveResult.succeeded && describeResult.succeeded {
             let lspTitle = resolvedToolchain.hasSourceKitLSP ? "Starting SourceKit-LSP" : "SourceKit-LSP unavailable"
             await progress(SwiftPMWorkspaceProgress(phase: .startingSourceKitLSP, title: lspTitle, detail: resolvedToolchain.sourceKitLSPExecutablePath))
             await startSourceKitLSPIfAvailable(toolchain: resolvedToolchain, projectURL: projectURL)
-        }
-
-        let indexBuildResult: EditorProcessResult?
-        if resolveResult.succeeded && describeResult.succeeded {
-            let sourceFiles = Self.swiftSourceFiles(projectURL: projectURL, packageModel: packageModel, fileManager: .default)
-            await progress(SwiftPMWorkspaceProgress(phase: .scanningSources, title: "Scanning Swift source files", completedFileCount: 0, totalFileCount: sourceFiles.count))
-            await progress(SwiftPMWorkspaceProgress(phase: .scanningSources, title: "Scanned Swift source files", completedFileCount: sourceFiles.count, totalFileCount: sourceFiles.count))
-            let buildCommand = makeCommand(.build(target: nil, buildTests: true), projectURL: projectURL, toolchain: resolvedToolchain)
-            await progress(SwiftPMWorkspaceProgress(phase: .indexingBuild, title: "Indexing Swift package", completedFileCount: 0, totalFileCount: sourceFiles.count, command: buildCommand))
-            let progressTracker = SwiftPMBuildProgressTracker()
-            indexBuildResult = await processRunner.run(buildCommand) { event in
-                let lines = event.text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-                for line in lines {
-                    let parsed = await progressTracker.parse(line: line, knownFiles: sourceFiles)
-                    await progress(SwiftPMWorkspaceProgress(
-                        phase: .indexingBuild,
-                        title: "Indexing Swift package",
-                        detail: line,
-                        completedFileCount: parsed.completed,
-                        totalFileCount: sourceFiles.count,
-                        currentFile: parsed.currentFile,
-                        currentTarget: parsed.currentTarget,
-                        command: buildCommand
-                    ))
-                }
-            }
-        } else {
-            indexBuildResult = nil
         }
 
         let diagnostics = [resolveResult, describeResult, indexBuildResult]
@@ -629,7 +736,7 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
 
     func semanticTokens(fileURL: URL, language: EditorSourceLanguage, text: String) async -> [EditorSemanticToken] {
         if language == .ada {
-            return []
+            return EditorGravityLanguageService.semanticTokens(text: text)
         }
         guard let sourceKitClient else {
             return []
@@ -700,6 +807,9 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func hover(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> EditorSymbolHover? {
+        if language == .ada {
+            return EditorGravityLanguageService.hover(text: text, position: position)
+        }
         guard let sourceKitClient else {
             return nil
         }
@@ -726,7 +836,7 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     nonisolated private func buildArguments(target: String?, buildTests: Bool) -> [String] {
-        var arguments = ["build"]
+        var arguments = ["build", "--jobs", String(Self.responsiveBuildJobCount)]
         if buildTests {
             arguments.append("--build-tests")
         }
@@ -771,10 +881,15 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         return arguments
     }
 
-    static func swiftSourceFiles(projectURL: URL, packageModel: SwiftPackageModel?, fileManager: FileManager = .default) -> [URL] {
+    static func swiftSourceFiles(
+        projectURL: URL,
+        packageModel: SwiftPackageModel?,
+        includeTests: Bool = true,
+        fileManager: FileManager = .default
+    ) -> [URL] {
         var files: Set<URL> = []
         if let packageModel {
-            for target in packageModel.targets {
+            for target in packageModel.targets where includeTests || target.type != "test" {
                 let targetRoot = projectURL.appendingPathComponent(target.path ?? "Sources/\(target.name)", isDirectory: true)
                 if target.sources.isEmpty {
                     for file in swiftFiles(under: targetRoot, fileManager: fileManager) {
@@ -789,7 +904,8 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         }
 
         if files.isEmpty {
-            for directory in ["Sources", "Tests"] {
+            let directories = includeTests ? ["Sources", "Tests"] : ["Sources"]
+            for directory in directories {
                 files.formUnion(swiftFiles(under: projectURL.appendingPathComponent(directory, isDirectory: true), fileManager: fileManager).map { $0.standardizedFileURL })
             }
         }
@@ -804,6 +920,23 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             guard let url = item as? URL, url.pathExtension == "swift" else { return nil }
             return url
         }
+    }
+
+    nonisolated private static func indexingProgress(
+        batch: SwiftPMIndexingProgressBatch,
+        sourceFiles: [URL],
+        command: EditorProcessCommand
+    ) -> SwiftPMWorkspaceProgress {
+        SwiftPMWorkspaceProgress(
+            phase: .indexingBuild,
+            title: "Indexing Swift package",
+            detail: batch.lines.joined(separator: "\n"),
+            completedFileCount: batch.buildProgress.completed,
+            totalFileCount: sourceFiles.count,
+            currentFile: batch.buildProgress.currentFile,
+            currentTarget: batch.buildProgress.currentTarget,
+            command: command
+        )
     }
 
     private func startSourceKitLSPIfAvailable(toolchain: SwiftToolchain, projectURL: URL) async {

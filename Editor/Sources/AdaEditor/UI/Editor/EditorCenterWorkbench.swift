@@ -5,6 +5,10 @@ struct EditorCenterWorkbench: View {
     let viewModel: EditorWorkbenchViewModel
     let inspectorViewModel: EditorInspectorSidebarViewModel
     let playModeState: EditorPlayModeState
+    let scenePlayRuntime: EditorScenePlayRuntime?
+    let onPlayScene: (() -> Void)?
+    let onStopScene: (() -> Void)?
+    let onSceneEntitySelected: (() -> Void)?
     let onSourceHover: ((EditorTextDocument, EditorSourceLocation?) -> Void)?
     let onGoToDefinition: ((EditorTextDocument, EditorSourceLocation) -> Void)?
     let onCompletionPosition: ((EditorTextDocument, EditorSourceLocation, String) -> Void)?
@@ -167,6 +171,8 @@ extension EditorCenterWorkbench {
             return document.language == .swift ? "<>" : "{}"
         case .asset(let document):
             switch document.kind {
+            case .atlas:
+                return "▦"
             case .image:
                 return "□"
             case .audio:
@@ -189,6 +195,8 @@ extension EditorCenterWorkbench {
             return theme.editorColors.blue
         case .asset(let document):
             switch document.kind {
+            case .atlas:
+                return theme.editorColors.blue
             case .image:
                 return theme.editorColors.blue
             case .audio:
@@ -216,6 +224,8 @@ extension EditorCenterWorkbench {
     @ViewBuilder
     private func assetPreview(document: EditorAssetDocument) -> some View {
         switch document.kind {
+        case .atlas:
+            EditorTextureAtlasAssetEditor(document: document)
         case .image:
             EditorImageAssetPreview(document: document)
         case .audio, .generic:
@@ -394,6 +404,10 @@ extension EditorCenterWorkbench {
             document: document,
             inspectorViewModel: inspectorViewModel,
             playModeState: playModeState,
+            playRuntime: scenePlayRuntime,
+            onEntitySelected: onSceneEntitySelected,
+            onPlay: onPlayScene,
+            onStop: onStopScene,
             onDocumentChanged: { updatedDocument in
                 viewModel.replaceSceneDocument(updatedDocument)
             }

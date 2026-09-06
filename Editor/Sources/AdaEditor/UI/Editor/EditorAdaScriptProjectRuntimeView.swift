@@ -19,19 +19,15 @@ struct EditorAdaScriptProjectRuntimeView: View {
 
     init(artifact: EditorAdaScriptProjectBuildArtifact) throws {
         self.artifact = artifact
+        EditorComponentRegistry.registerBuiltIns()
         self.entryView = try artifact.entry.view.map { identifier in
             try AdaScriptView(
                 sources: artifact.sources,
                 identifier: identifier
             )
         }
-        self.scriptPlugin = artifact.report.systemCount == 0
-            ? nil
-            : try AdaScriptPlugin(
-                sources: artifact.sources,
-                name: artifact.moduleName,
-                startupSystemIdentifier: artifact.entry.startupSystem
-            )
+        try artifact.scenePlayRuntime.registerScriptableObjects()
+        self.scriptPlugin = try artifact.scenePlayRuntime.makeScriptPlugin()
     }
 
     var body: some View {

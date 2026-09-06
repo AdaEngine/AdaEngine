@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Planned
+- Implementation: Partial (foundation shipped)
 
 ## Context
 
