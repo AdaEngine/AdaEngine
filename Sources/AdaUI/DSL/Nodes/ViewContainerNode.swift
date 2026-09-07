@@ -36,13 +36,13 @@ class ViewContainerNode: ViewNode {
     private static var observationTrackingDepth = 0
 
     init<Content: View>(content: Content, nodes: [ViewNode]) {
-        self.nodes = nodes
+        self.nodes = Self.flattenVirtualNodes(nodes)
         self.body = { [content] inputs in
             return Content._makeListView(_ViewGraphNode(value: content), inputs: inputs)
         }
         super.init(content: content)
 
-        for node in nodes {
+        for node in self.nodes {
             node.parent = self
         }
     }
@@ -183,19 +183,7 @@ class ViewContainerNode: ViewNode {
 
     /// Compare and update old child nodes with a new nodes.
     func reconcileChildNodes(from newNodes: [ViewNode], propagateLayout: Bool = true) {
-        var allNewNodes = [ViewNode]()
-        allNewNodes.reserveCapacity(newNodes.count)
-
-        // Unfold new nodes if needed
-        for node in newNodes {
-            if let container = node as? ViewContainerNode, container.isVirtual {
-                allNewNodes.append(contentsOf: container.nodes)
-
-                continue
-            }
-
-            allNewNodes.append(node)
-        }
+        let allNewNodes = Self.flattenVirtualNodes(newNodes)
 
         let oldNodes = self.nodes
         let reconciliation = self.reconcileNodesById(allNewNodes)
@@ -232,6 +220,22 @@ class ViewContainerNode: ViewNode {
         if !oldNodes.isEmpty || !allNewNodes.isEmpty {
             self.markNeedsLayout(propagateToParent: propagateLayout)
         }
+    }
+
+    /// Initial construction and updates must expose the same children to reconciliation.
+    /// Nested tuples and ForEach can otherwise leave a virtual wrapper on the first
+    /// build that disappears on the next update, replacing every node beneath it.
+    private static func flattenVirtualNodes(_ nodes: [ViewNode]) -> [ViewNode] {
+        var result: [ViewNode] = []
+        result.reserveCapacity(nodes.count)
+        for node in nodes {
+            if let container = node as? ViewContainerNode, container.isVirtual {
+                result.append(contentsOf: flattenVirtualNodes(container.nodes))
+            } else {
+                result.append(node)
+            }
+        }
+        return result
     }
 
     private struct Reconciliation {

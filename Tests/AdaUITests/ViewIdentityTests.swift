@@ -20,6 +20,37 @@ struct ViewIdentityTests {
     }
 
     @Test
+    func nestedVirtualGroupsPreserveRowsOnFirstUpdate() throws {
+        let items = BindingBox(["a", "b", "c"])
+        let recorder = IdentityRecorder()
+        let tester = ViewTester {
+            VStack {
+                Text("Components")
+                Group {
+                    ForEach(items.value, id: \.self) { item in
+                        StatefulIdentityRow(label: item, recorder: recorder)
+                    }
+                    Text("Add Component")
+                }
+            }
+        }
+        .setSize(Size(width: 300, height: 400))
+        .performLayout()
+        let initialRow = try #require(tester.findNodeByAccessibilityIdentifier("row-b"))
+        let counter = try #require(recorder.counters["b"])
+
+        counter.wrappedValue = 7
+        tester.invalidateContent().performLayout()
+        #expect(tester.findNodeByAccessibilityIdentifier("row-b") === initialRow)
+        #expect(recorder.values["b"] == 7)
+
+        items.value = ["c", "b", "a"]
+        tester.invalidateContent().performLayout()
+        #expect(tester.findNodeByAccessibilityIdentifier("row-b") === initialRow)
+        #expect(recorder.values["b"] == 7)
+    }
+
+    @Test
     func forEachReorderPreservesStateByExplicitID() {
         let items = BindingBox(["a", "b", "c"])
         let recorder = IdentityRecorder()
