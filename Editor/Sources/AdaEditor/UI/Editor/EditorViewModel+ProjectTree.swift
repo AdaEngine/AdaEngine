@@ -14,6 +14,15 @@ extension EditorViewModel {
     }
 
     static func document(for item: EditorProjectSidebarViewModel.Item) -> EditorWorkbenchDocument {
+        if URL(fileURLWithPath: item.title).pathExtension.lowercased() == "ui" {
+            let content = textFileContent(for: item)
+            return .ui(EditorTextDocument(
+                id: "ui:\(item.relativePath)", title: item.title, relativePath: item.relativePath,
+                absolutePath: absoluteFilePath(from: item.id), language: .plainText,
+                content: content.value, lastSavedContent: content.errorMessage == nil ? content.value : nil,
+                isReadOnly: item.isSymbolicLink || content.errorMessage != nil, errorMessage: content.errorMessage
+            ))
+        }
         switch item.kind {
         case .scene:
             let content = sceneFileContent(for: item)
@@ -289,9 +298,19 @@ extension EditorViewModel {
         }
     }
 
+    static func uiSourcePaths(from items: [EditorProjectSidebarViewModel.Item]) -> [String] {
+        items.compactMap { item in
+            let ext = URL(fileURLWithPath: item.title).pathExtension.lowercased()
+            guard ["ui", "ada"].contains(ext) else { return nil }
+            if ext == "ui", let root = item.assetRoot { return assetReference(for: item.relativePath, assetsRoot: root) }
+            return item.relativePath
+        }.sorted()
+    }
+
     func syncInspectorTextureAssets() {
         inspectorSidebar.textureAssets = Self.textureAssets(from: projectSidebar.items)
         inspectorSidebar.sceneAssets = Self.sceneAssets(from: projectSidebar.items)
+        inspectorSidebar.uiSourcePaths = Self.uiSourcePaths(from: projectSidebar.items)
     }
 
     static func assetsDirectoryURL(for projectURL: URL, fileManager: FileManager) -> URL {
@@ -310,7 +329,7 @@ extension EditorViewModel {
     static func isTextFile(_ url: URL) -> Bool {
         let textExtensions: Set<String> = [
             "ada", "c", "cc", "cpp", "cxx", "frag", "glsl", "gravity", "h", "hpp", "hxx", "json", "md", "markdown",
-            "ascn", "metal", "plist", "scn", "scene", "shader", "swift", "toml", "txt", "vert", "xml", "yaml", "yml"
+            "ui", "ascn", "metal", "plist", "scn", "scene", "shader", "swift", "toml", "txt", "vert", "xml", "yaml", "yml"
         ]
         let lowercasedName = url.lastPathComponent.lowercased()
 

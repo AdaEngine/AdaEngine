@@ -13,6 +13,7 @@ extension EditorViewModel {
         projectSidebar.select(item)
         let document = Self.document(for: item)
         workbench.open(document)
+        if case .ui = document { refreshUIExports() }
         refreshSemanticTokens(for: document)
         refreshPreviewForActiveDocument()
 
@@ -209,18 +210,21 @@ extension EditorViewModel {
         }
 
         let changedURL = projectURL.appendingPathComponent(relativePath).standardizedFileURL
+        EventManager.default.send(UISceneResourceChanged(url: changedURL))
+        if relativePath == ".ada/ui-exports.json" { refreshUIExports() }
         for document in workbench.openDocuments {
             guard document.relativePath == relativePath else {
                 continue
             }
 
             switch document {
-            case .text(let textDocument):
+            case .text(let textDocument), .ui(let textDocument):
                 guard !textDocument.isDirty else {
                     continue
                 }
                 do {
                     let content = try String(contentsOf: changedURL, encoding: .utf8)
+                    workbench.uiSceneModels[textDocument.id]?.reload(content: content)
                     workbench.updateTextDocument(id: textDocument.id) { updatedDocument in
                         updatedDocument.content = content
                         updatedDocument.lastSavedContent = content

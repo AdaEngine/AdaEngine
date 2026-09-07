@@ -62,6 +62,7 @@ let miniaudioSources = ["miniaudio.c"]
 #endif
 
 var products: [Product] = [
+    .library(name: "AdaUIDescription", targets: ["AdaUIDescription"]),
     .library(
         name: "AdaEngine",
         targets: ["AdaEngine"]
@@ -479,9 +480,13 @@ var targets: [Target] = [
         ],
         swiftSettings: swiftSettings
     ),
+    .target(name: "AdaUIDescription", dependencies: [.product(name: "Yams", package: "Yams")], swiftSettings: swiftSettings),
+    .testTarget(name: "AdaUIDescriptionTests", dependencies: ["AdaUIDescription"]),
     .adaTarget(
         name: "AdaUI",
         dependencies: [
+            "AdaUIDescription",
+            "AdaAssets",
             "AdaAnimation",
             "AdaApp",
             "AdaECS",

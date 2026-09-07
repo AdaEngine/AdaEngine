@@ -12,6 +12,7 @@ enum EditorBuiltInComponentType {
     static let globalTransform = String(reflecting: GlobalTransform.self)
     static let bounding = String(reflecting: BoundingComponent.self)
     static let scriptableComponents = String(reflecting: ScriptableComponents.self)
+    static let uiComponent = String(reflecting: UIComponent.self)
     static let sceneInstance = String(reflecting: SceneInstance.self)
 }
 
@@ -160,7 +161,8 @@ enum EditorComponentRegistry {
         light2DDescriptor,
         lightOccluder2DDescriptor,
         lightModulate2DDescriptor,
-        sceneInstanceDescriptor
+        sceneInstanceDescriptor,
+        uiComponentDescriptor
     ]
 
     private static let overrideDescriptorsByName: [String: EditorComponentDescriptor] = Dictionary(
@@ -179,6 +181,7 @@ enum EditorComponentRegistry {
         RuntimeTypeRegistry.registerComponent(LightOccluder2D.self, names: ["LightOccluder2D"])
         RuntimeTypeRegistry.registerComponent(LightModulate2D.self, names: ["LightModulate2D"])
         RuntimeTypeRegistry.registerComponent(SceneInstance.self, names: ["SceneInstance"])
+        RuntimeTypeRegistry.registerComponent(UIComponent.self, names: ["UIComponent"])
 
         EditorComponentReflectionRegistry.register(Transform.editorComponentDescriptor)
         EditorComponentReflectionRegistry.register(GlobalTransform.editorComponentDescriptor)
@@ -448,6 +451,32 @@ private extension EditorComponentRegistry {
         },
         decode: { payload in
             try EditorComponentPayloadDecoder.decode(LightModulate2D.self, payload: payload) as! LightModulate2D
+        }
+    )
+
+    static let uiComponentDescriptor = EditorComponentDescriptor(
+        typeName: EditorBuiltInComponentType.uiComponent,
+        displayName: "UI Component", category: "UI",
+        description: "Displays a UI scene, AdaScript View, or exported Swift View.",
+        requiredComponentTypeNames: [EditorBuiltInComponentType.transform],
+        fields: [
+            .init(key: "kind", label: "Source", kind: .enumeration(["ui", "script", "swiftView"])),
+            .init(key: "path", label: "UI / AdaScript file", kind: .string),
+            .init(key: "identifier", label: "View identifier", kind: .string),
+            .init(key: "contextName", label: "Data context", kind: .string),
+            .init(key: "inputs", label: "Inputs (JSON)", kind: .string),
+            .init(key: "behaviour", label: "Behaviour", kind: .enumeration(["overlay", "default"]))
+        ],
+        makeDefaultPayload: { ["kind": .string("ui"), "path": .string(""), "identifier": .string(""), "contextName": .string(""), "inputs": .string("{}"), "behaviour": .string("overlay")] },
+        decode: { payload in
+            let inputsText = payload["inputs"]?.stringValue ?? "{}"
+            let inputs = try JSONDecoder().decode([String: UIValue].self, from: Data(inputsText.utf8))
+            let source = UIComponentSource(
+                kind: UIComponentSource.Kind(rawValue: payload["kind"]?.stringValue ?? "ui") ?? .ui,
+                path: payload["path"]?.stringValue ?? "", identifier: payload["identifier"]?.stringValue ?? "",
+                contextName: payload["contextName"]?.stringValue ?? "", inputs: inputs
+            )
+            return UIComponent(source: source, behaviour: UIComponent.Behaviour(rawValue: payload["behaviour"]?.stringValue ?? "overlay") ?? .overlay)
         }
     )
 

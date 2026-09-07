@@ -164,6 +164,7 @@ struct EditorNewFileDialog: View {
 
     private func fileKindIcon(_ kind: EditorNewFileKind) -> String {
         switch kind {
+        case .uiScene: "UI"
         case .scene:
             "#"
         case .script, .swift:

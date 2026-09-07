@@ -63,7 +63,11 @@ private extension UIComponentSystem {
         globalTransform: GlobalTransform,
         deltaTime: TimeInterval
     ) {
-        let view = component.view
+        let view: UIView
+        do {
+            let runtime = entity.world?.getResource(UIComponentRuntimeResource.self)?.runtime
+            view = try component.resolveView(runtime: runtime)
+        } catch { return }
         let behaviour = component.behaviour
 
         if let viewOwner = (view as? ViewOwner) {

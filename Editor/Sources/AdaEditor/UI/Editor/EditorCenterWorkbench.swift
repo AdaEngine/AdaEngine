@@ -168,6 +168,8 @@ extension EditorCenterWorkbench {
         switch document {
         case .git:
             return "±"
+        case .ui:
+            return "UI"
         case .scene:
             return "#"
         case .text(let document):
@@ -194,6 +196,8 @@ extension EditorCenterWorkbench {
         switch document {
         case .git:
             return theme.editorColors.blue
+        case .ui:
+            return theme.editorColors.blue
         case .scene:
             return theme.editorColors.purple
         case .text:
@@ -219,6 +223,8 @@ extension EditorCenterWorkbench {
             EditorGitDiffView(document: document, workbench: viewModel)
         case .scene(let document):
             sceneDocumentEditor(document: document)
+        case .ui(let document):
+            EditorUISceneEditor(model: viewModel.uiSceneModel(for: document, resourceRoot: sceneResourceRootURL))
         case .text(let document):
             textDocumentEditor(document: document)
         case .asset(let document):
@@ -410,6 +416,7 @@ extension EditorCenterWorkbench {
         EditorSceneViewportView(
             document: document,
             resourceRootURL: sceneResourceRootURL,
+            uiCatalog: viewModel.uiCatalog,
             inspectorViewModel: inspectorViewModel,
             playModeState: playModeState,
             playRuntime: scenePlayRuntime,

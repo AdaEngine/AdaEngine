@@ -145,6 +145,21 @@ struct EditorInspectorSidebar: View {
     private func componentFieldRow(_ field: EditorInspectorSidebarViewModel.ComponentField) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             fieldLabel(field.field.label)
+            if field.typeName == EditorBuiltInComponentType.uiComponent, field.field.key == "path" {
+                Button("Choose UI source…") { activeSceneFieldID = activeSceneFieldID == "ui-source" ? nil : "ui-source" }
+                if activeSceneFieldID == "ui-source" {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(viewModel.uiSourcePaths, id: \.self) { path in
+                                Button(path) {
+                                    viewModel.componentFieldBinding(typeName: field.typeName, field: field.field).wrappedValue = path
+                                    activeSceneFieldID = nil
+                                }
+                            }
+                        }
+                    }.frame(maxHeight: 180)
+                }
+            }
             fieldControl(
                 fieldID: "\(field.typeName).\(field.field.key)",
                 value: field.value,

@@ -4,6 +4,7 @@ import Foundation
 struct EditorSceneViewportView: View {
     let document: EditorSceneDocument
     let resourceRootURL: URL?
+    var uiCatalog: UICatalog = .standard
     let inspectorViewModel: EditorInspectorSidebarViewModel
     let playModeState: EditorPlayModeState
     let playRuntime: EditorScenePlayRuntime?
@@ -128,7 +129,23 @@ struct EditorSceneViewportView: View {
     }
 
     @MainActor
+    static func uiProjectRoot(from resourceRoot: URL) -> URL {
+        var candidate = resourceRoot
+        while candidate.path != "/" {
+            if FileManager.default.fileExists(atPath: candidate.appendingPathComponent(".ada/project.json").path)
+                || FileManager.default.fileExists(atPath: candidate.appendingPathComponent("Package.swift").path) { return candidate }
+            candidate.deleteLastPathComponent()
+        }
+        return resourceRoot
+    }
+
     private func configureSceneViewApp(_ app: inout AppWorlds) {
+        if let resourceRootURL {
+            let runtime = UIComponentRuntime(resourceRoot: resourceRootURL, catalog: uiCatalog)
+            runtime.enableAdaScript(sourceRoot: Self.uiProjectRoot(from: resourceRootURL))
+            app.main.insertResource(UIComponentRuntimeResource(runtime))
+        }
+
         EditorComponentRegistry.registerBuiltIns()
         app.addPlugin(TransformPlugin())
         app.addPlugin(InputPlugin())
