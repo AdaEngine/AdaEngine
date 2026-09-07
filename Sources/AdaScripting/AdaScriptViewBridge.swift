@@ -223,7 +223,7 @@ struct AdaScriptRenderedView: View {
             document.root.visit { node in
                 for action in node.actions.values { context.on(action) { _ in performAction(action) } }
             }
-            return AnyView(UISceneView(session: try UISceneSession(document: document, context: context, catalog: catalog)))
+            return AnyView(UISceneView(session: try UISceneInstance(document: document, context: context, catalog: catalog)))
         } catch { return AnyView(Text(error.localizedDescription).foregroundColor(.red)) }
     }
 }

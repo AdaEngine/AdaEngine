@@ -41,7 +41,7 @@ public final class UIComponentRuntime {
         switch source.kind {
         case .ui:
             let url = try resources.resolve(source.path)
-            let session = try UISceneSession(document: resources.load(url), context: context, catalog: catalog, resources: resources, sourceURL: url)
+            let session = try UISceneInstance(document: resources.load(url), context: context, catalog: catalog, resources: resources, sourceURL: url)
             sessions.append(WeakUISession(session))
             return AnyView(UISceneView(session: session))
         case .script:
@@ -49,7 +49,7 @@ public final class UIComponentRuntime {
             return try scriptFactory(source, context, resources)
         case .swiftView:
             let node = UINodeDescription(type: source.identifier, arguments: source.inputs.mapValues { .init(value: $0) })
-            return AnyView(UISceneView(session: try UISceneSession(document: .init(root: node), context: context, catalog: catalog, resources: resources)))
+            return AnyView(UISceneView(session: try UISceneInstance(document: .init(root: node), context: context, catalog: catalog, resources: resources)))
         }
     }
 
@@ -66,8 +66,8 @@ public final class UIComponentRuntime {
 }
 
 private final class WeakUISession {
-    weak var value: UISceneSession?
-    init(_ value: UISceneSession) { self.value = value }
+    weak var value: UISceneInstance?
+    init(_ value: UISceneInstance) { self.value = value }
 }
 
 /// Insert into a world's resources before loading entities with file-backed UI components.

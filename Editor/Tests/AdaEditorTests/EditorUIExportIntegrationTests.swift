@@ -30,7 +30,7 @@ struct EditorUIExportIntegrationTests {
         context.on("selectItem") { _ in actions += 1 }
         let resources = UISceneResources(rootURL: project.appendingPathComponent("Assets"))
         let source = try resources.resolve("Inventory.ui")
-        let session = try UISceneSession(document: resources.load(source), context: context, catalog: catalog, resources: resources, sourceURL: source)
+        let session = try UISceneInstance(document: resources.load(source), context: context, catalog: catalog, resources: resources, sourceURL: source)
         let container = UIContainerView(rootView: UISceneView(session: session))
         container.frame = Rect(x: 0, y: 0, width: 800, height: 600)
         container.layoutSubviews()
@@ -41,7 +41,12 @@ struct EditorUIExportIntegrationTests {
         _ = try container.uiTapNode(matching: .runtimeID(first.runtimeId))
         #expect(actions == 1)
         context.set("items", to: .array([.object(["id": .string("potion"), "name": .string("Potion")])]))
-        container.layoutSubviews()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while ContinuousClock.now < deadline {
+            container.layoutSubviews()
+            if flatten(container.uiTreeRoots()).filter({ $0.sceneNodeID == "use-item" }).count == 1 { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
         #expect(flatten(container.uiTreeRoots()).filter { $0.sceneNodeID == "use-item" }.count == 1)
     }
 }

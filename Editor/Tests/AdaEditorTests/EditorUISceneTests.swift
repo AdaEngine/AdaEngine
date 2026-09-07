@@ -68,6 +68,19 @@ struct EditorUISceneTests {
         }
     }
 
+    @Test func compactDesignerSwitchesPanelsWithoutLosingCanvasSpace() throws {
+        let model = EditorUISceneModel(content: try UISceneDocument().encodedYAML(), sourceURL: nil, resourceRoot: nil)
+        let container = UIContainerView(rootView: EditorUISceneEditor(model: model))
+        container.frame = Rect(x: 0, y: 0, width: 480, height: 900)
+        container.layoutSubviews()
+        let pane = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.CompactPanel"))
+        #expect(pane.absoluteFrame.width == 480)
+        #expect(pane.absoluteFrame.height == 820)
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Panel.Components"))
+        container.layoutSubviews()
+        #expect(!container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.UIScene.Add.Text")).isEmpty)
+    }
+
     @Test func zoomPreservesLogicalCanvasDimensions() throws {
         let preview = UIContainerView(rootView: Text("Canvas"))
         let host = EditorPreviewHostView()

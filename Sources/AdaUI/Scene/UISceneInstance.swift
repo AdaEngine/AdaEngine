@@ -6,7 +6,8 @@ import Observation
 
 /// Owns one mounted UI instance. Invalid edits leave the last successfully constructed tree mounted.
 @MainActor @Observable
-public final class UISceneSession {
+public final class UISceneInstance {
+    private var contentRevision: UInt64 = 0
     public private(set) var document: UISceneDocument
     public let context: UIBindingContext
     public let catalog: UICatalog
@@ -29,18 +30,29 @@ public final class UISceneSession {
 
     @discardableResult
     public func update(_ candidate: UISceneDocument) -> Bool {
+        let previousInstances = instances
+        let previousStates = instances.mapValues { $0.snapshot() }
+        let previousContext = context.snapshot()
         do {
             try candidate.validate()
             try validateInputs(candidate, context: context)
             let view = try makeRoot(candidate)
             document = candidate
             lastView = view
+            contentRevision &+= 1
             diagnostic = nil
             return true
-        } catch { diagnostic = error.localizedDescription; return false }
+        } catch {
+            context.restore(previousContext)
+            for (key, state) in previousStates { previousInstances[key]?.restore(state) }
+            instances = previousInstances
+            diagnostic = error.localizedDescription
+            return false
+        }
     }
 
     public func render() -> AnyView {
+        _ = contentRevision
         do { lastView = try makeRoot(document) }
         catch { context.report(UIDiagnostic(error.localizedDescription)) }
         return lastView
@@ -207,8 +219,8 @@ public final class UISceneSession {
 
 @MainActor
 public struct UISceneView: View {
-    public let session: UISceneSession
-    public init(session: UISceneSession) { self.session = session }
+    public let session: UISceneInstance
+    public init(session: UISceneInstance) { self.session = session }
     public var body: some View {
         session.render().onEvent(UISceneResourceChanged.self) { [weak session] event in
             Task { @MainActor in session?.resourceChanged(event) }

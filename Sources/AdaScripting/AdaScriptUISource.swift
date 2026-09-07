@@ -24,7 +24,7 @@ extension UIComponentRuntime {
             let catalog = try catalog.adding(script: exported, sources: sources)
             let node = UINodeDescription(type: exported.signature.id,
                 arguments: Dictionary(uniqueKeysWithValues: parameters.map { ($0.name, UIArgument(binding: $0.name)) }))
-            return AnyView(UISceneView(session: try UISceneSession(document: .init(root: node), context: context, catalog: catalog)))
+            return AnyView(UISceneView(session: try UISceneInstance(document: .init(root: node), context: context, catalog: catalog)))
         }
     }
 }

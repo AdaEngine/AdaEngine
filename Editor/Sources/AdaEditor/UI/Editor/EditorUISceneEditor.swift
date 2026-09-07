@@ -4,22 +4,41 @@ struct EditorUISceneEditor: View {
     let model: EditorUISceneModel
     @Environment(\.theme) private var theme
     @State private var modifierSearch = ""
-    @State private var draggedID: String?
+    @State private var compactPanel = "Canvas"
 
     var body: some View {
         GeometryReader { geometry in
             let footerHeight: Float = (model.error == nil ? 0 : 44) + (model.lastAction == nil ? 0 : 24)
-            let contentHeight = max(0, geometry.size.height - 44 - footerHeight)
+            let isCompact = geometry.size.width < 900
+            let tabsHeight: Float = isCompact && !model.showsSource ? 36 : 0
+            let contentHeight = max(0, geometry.size.height - 44 - tabsHeight - footerHeight)
             let paletteWidth: Float = geometry.size.width < 1050 ? 140 : 170
             let hierarchyWidth: Float = geometry.size.width < 1050 ? 150 : 190
             let inspectorWidth: Float = geometry.size.width < 1050 ? 210 : 240
             let canvasWidth = max(0, geometry.size.width - paletteWidth - hierarchyWidth - inspectorWidth - 3)
             VStack(spacing: 0) {
-                controls.frame(width: geometry.size.width, height: 44, alignment: .topLeading)
+                if isCompact {
+                    ScrollView(.horizontal) { controls.fixedSize(horizontal: true, vertical: false) }
+                        .frame(width: geometry.size.width, height: 44, alignment: .topLeading)
+                } else { controls.frame(width: geometry.size.width, height: 44, alignment: .topLeading) }
+                if isCompact, !model.showsSource {
+                    HStack(spacing: 14) {
+                        ForEach(["Canvas", "Components", "Hierarchy", "Inspector"], id: \.self) { name in
+                            Button(name) { compactPanel = name }
+                                .foregroundColor(compactPanel == name ? theme.editorColors.blue : theme.editorColors.text)
+                                .accessibilityIdentifier("AdaEditor.UIScene.Panel.\(name)")
+                        }
+                    }.font(.system(size: 12))
+                        .frame(width: geometry.size.width, height: tabsHeight, alignment: .leading)
+                }
                 if model.showsSource {
                     TextEditor(text: Binding(get: { model.rawSource }, set: { model.editSource($0) }))
                         .disabled(model.isReadOnly)
                         .frame(width: geometry.size.width, height: contentHeight)
+                } else if isCompact {
+                    compactContent
+                        .frame(width: geometry.size.width, height: contentHeight, alignment: .topLeading)
+                        .accessibilityIdentifier("AdaEditor.UIScene.CompactPanel")
                 } else {
                     HStack(alignment: .top, spacing: 1) {
                         palette.frame(width: paletteWidth, height: contentHeight, alignment: .topLeading)
@@ -48,6 +67,16 @@ struct EditorUISceneEditor: View {
         .textFieldStyle(PlainTextFieldStyle())
         .background(theme.editorColors.surface)
         .accessibilityIdentifier("AdaEditor.UIScene")
+    }
+
+    @ViewBuilder
+    private var compactContent: some View {
+        switch compactPanel {
+        case "Components": palette
+        case "Hierarchy": hierarchy
+        case "Inspector": inspector
+        default: canvas
+        }
     }
 
     private var controls: some View {

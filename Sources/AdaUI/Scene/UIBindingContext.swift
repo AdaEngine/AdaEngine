@@ -73,6 +73,20 @@ public final class UIBindingContext {
         if diagnostics.last != diagnostic { diagnostics.append(diagnostic) }
     }
 
+    struct Snapshot {
+        let values: [String: UIValue]
+        let bindings: [String: Binding<UIValue>]
+        let handlers: [String: Action]
+    }
+
+    func snapshot() -> Snapshot { Snapshot(values: values, bindings: bindings, handlers: handlers) }
+    func restore(_ snapshot: Snapshot) {
+        values = snapshot.values
+        bindings = snapshot.bindings
+        handlers = snapshot.handlers
+        revision &+= 1
+    }
+
     public func applyDefaults(_ inputs: [UIParameter]) {
         for input in inputs where value(input.name) == nil {
             if let value = input.defaultValue { set(input.name, to: value) }

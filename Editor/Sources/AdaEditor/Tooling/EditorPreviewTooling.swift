@@ -248,13 +248,7 @@ actor EditorPreviewBuilder {
             }
         }
         collect(target)
-        var objects: [String] = []
-        if let files = fileManager.enumerator(at: scratchDirectory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
-            for case let url as URL in files where url.pathExtension == "o" {
-                let directory = url.deletingLastPathComponent().lastPathComponent
-                if targetNames.contains(String(directory.dropLast(".build".count))), directory.hasSuffix(".build") { objects.append(url.path) }
-            }
-        }
+        let objects = compiledUIObjects(in: scratchDirectory, targetNames: targetNames)
         guard !objects.isEmpty else { throw EditorPreviewBuildFailure(message: "No compiled object files for UI provider '\(target.name)'.") }
         let output = scratchDirectory.appendingPathComponent("libAdaEditorUIExports.dylib")
         let compiler = URL(fileURLWithPath: toolchain.swiftExecutablePath).deletingLastPathComponent().appendingPathComponent("swiftc")
@@ -263,6 +257,17 @@ actor EditorPreviewBuilder {
             workingDirectory: scratchDirectory))
         guard result.succeeded else { throw EditorPreviewBuildFailure(message: result.combinedOutput) }
         return output
+    }
+
+    private func compiledUIObjects(in directory: URL, targetNames: Set<String>) -> [String] {
+        var objects: [String] = []
+        if let files = fileManager.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
+            for case let url as URL in files where url.pathExtension == "o" {
+                let folder = url.deletingLastPathComponent().lastPathComponent
+                if folder.hasSuffix(".build"), targetNames.contains(String(folder.dropLast(".build".count))) { objects.append(url.path) }
+            }
+        }
+        return objects
     }
 
     private static let productName = "AdaEditorPreviewBundle"
