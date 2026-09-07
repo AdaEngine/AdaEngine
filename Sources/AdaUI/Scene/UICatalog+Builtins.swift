@@ -5,10 +5,7 @@ import AdaUtils
 import Math
 
 extension UICatalog {
-    public static var standard: Self {
-        // Built-in identifiers are unique by construction; custom catalogs use the throwing initializer.
-        Self(builtinViews: builtinViews, builtinModifiers: builtinModifiers)
-    }
+    public static let standard = Self(builtinViews: builtinViews, builtinModifiers: builtinModifiers)
 
     private init(builtinViews: [UINativeViewDescriptor], builtinModifiers: [UINativeModifierDescriptor]) {
         views = Dictionary(uniqueKeysWithValues: builtinViews.map { ($0.signature.id, $0) })
@@ -79,7 +76,7 @@ extension UICatalog {
             view("RoundedRectangle", [number("cornerRadius", 8), string("color", "#ffffffff")]) { AnyView(RoundedRectangleShape(cornerRadius: Float($0.number("cornerRadius"))).fill(try $0.color("color"))) },
             view("Circle", [string("color", "#ffffffff")]) { AnyView(Circle().fill(try $0.color("color"))) },
             view("Color", [string("color", "#ffffffff")]) { AnyView(try $0.color("color")) },
-            // Structural entries are interpreted by UISceneSession, with the same metadata used by the editor.
+            // Structural entries are interpreted by UISceneInstance, with the same metadata used by the editor.
             view("If", [.init("condition", type: .bool, defaultValue: .bool(true))], content: .children) { AnyView($0.content) },
             view("ForEach", [.init("items", type: .array, defaultValue: .array([])), string("idKey", "id")], content: .single) { AnyView($0.content) },
             view("UI", [string("path")]) { _ in AnyView(EmptyView()) }

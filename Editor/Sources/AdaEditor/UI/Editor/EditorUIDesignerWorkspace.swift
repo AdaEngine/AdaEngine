@@ -25,6 +25,7 @@ extension EditorUISceneEditor {
                         AnyView(designerLibrary).frame(width: layout.sidebarWidth, height: layout.contentHeight)
                         RectangleShape().fill(theme.editorColors.border.opacity(0.5)).frame(width: 1)
                         AnyView(designerCanvas(layout: layout)).frame(width: layout.canvasWidth, height: layout.contentHeight)
+                            .accessibilityIdentifier("AdaEditor.UIScene.CanvasPanel")
                         RectangleShape().fill(theme.editorColors.border.opacity(0.5)).frame(width: 1)
                         AnyView(designerInspector).frame(width: layout.inspectorWidth, height: layout.contentHeight)
                     }.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -32,6 +33,7 @@ extension EditorUISceneEditor {
                     switch compactPane {
                     case .library: AnyView(designerLibrary).frame(width: layout.size.width, height: layout.contentHeight)
                     case .canvas: AnyView(designerCanvas(layout: layout)).frame(width: layout.canvasWidth, height: layout.contentHeight)
+                            .accessibilityIdentifier("AdaEditor.UIScene.CanvasPanel")
                     case .inspector: AnyView(designerInspector).frame(width: layout.size.width, height: layout.contentHeight)
                     }
                 }

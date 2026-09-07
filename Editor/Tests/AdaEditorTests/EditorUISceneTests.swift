@@ -58,6 +58,44 @@ struct EditorUISceneTests {
         #expect(model.error == nil)
     }
 
+    @Test(arguments: [Size(width: 1440, height: 900), Size(width: 1100, height: 720)])
+    func designerPanelsFillAvailableHeight(_ size: Size) throws {
+        let model = EditorUISceneModel(content: try UISceneDocument().encodedYAML(), sourceURL: nil, resourceRoot: nil)
+        let container = UIContainerView(rootView: EditorUISceneEditor(model: model))
+        container.frame = Rect(origin: .zero, size: size)
+        container.layoutSubviews()
+        let layout = EditorUIDesignerLayout(size: size)
+        for panel in ["Library", "CanvasPanel", "Inspector"] {
+            let node = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.\(panel)"))
+            #expect(abs(node.absoluteFrame.height - layout.contentHeight) < 1)
+            #expect(abs(node.absoluteFrame.minY - (layout.toolbarHeight + 1)) < 1)
+            #expect(node.absoluteFrame.maxY <= size.height + 1)
+        }
+    }
+
+    @Test func compactDesignerSwitchesPanelsWithoutLosingCanvasSpace() throws {
+        let model = EditorUISceneModel(content: try UISceneDocument().encodedYAML(), sourceURL: nil, resourceRoot: nil)
+        let container = UIContainerView(rootView: EditorUISceneEditor(model: model))
+        container.frame = Rect(x: 0, y: 0, width: 480, height: 900)
+        container.layoutSubviews()
+        let pane = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.CanvasPanel"))
+        #expect(pane.absoluteFrame.width == 480)
+        #expect(pane.absoluteFrame.height == EditorUIDesignerLayout(size: Size(width: 480, height: 900)).contentHeight)
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Pane.Library"))
+        container.layoutSubviews()
+        #expect(!container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.UIScene.Add.Text")).isEmpty)
+    }
+
+    @Test func zoomPreservesLogicalCanvasDimensions() throws {
+        let preview = UIContainerView(rootView: Text("Canvas"))
+        let host = EditorPreviewHostView()
+        host.frame = Rect(x: 0, y: 0, width: 1600, height: 1200)
+        host.configure(previewView: preview, zoom: 2, isInteractive: false, contentSize: Size(width: 800, height: 600))
+        host.layoutSubviews()
+        #expect(preview.frame.size == Size(width: 800, height: 600))
+        #expect(host.previewPoint(from: Point(800, 600)) == Point(400, 300))
+    }
+
     @Test func hierarchyEditsUndoAndRejectCyclesAndInvalidContent() throws {
         let model = EditorUISceneModel(content: try UISceneDocument().encodedYAML(), sourceURL: nil, resourceRoot: nil)
         let rootID = model.selectedID

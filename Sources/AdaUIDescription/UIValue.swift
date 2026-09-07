@@ -41,6 +41,24 @@ public indirect enum UIValue: Codable, Hashable, Sendable {
         guard case .object(let values) = self else { return nil }
         return values[key]?.value(at: path.dropFirst())
     }
+    public func setting(_ value: UIValue, at path: ArraySlice<String>) -> UIValue? {
+        guard let key = path.first else { return value }
+        guard case .object(var values) = self else { return nil }
+        if path.count == 1 { values[key] = value }
+        else {
+            guard let updated = values[key]?.setting(value, at: path.dropFirst()) else { return nil }
+            values[key] = updated
+        }
+        return .object(values)
+    }
+
+    public var type: UIValueType {
+        switch self {
+        case .null: .any; case .bool: .bool; case .number: .number
+        case .string: .string; case .array: .array; case .object: .object
+        }
+    }
+
 }
 
 public enum UIValueType: String, Codable, CaseIterable, Sendable {
@@ -82,6 +100,15 @@ public struct UIParameter: Codable, Hashable, Sendable {
         self.defaultValue = defaultValue
         self.isBinding = isBinding
     }
+    private enum CodingKeys: String, CodingKey { case name, type, defaultValue, isBinding }
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        type = try c.decode(UIValueType.self, forKey: .type)
+        defaultValue = c.contains(.defaultValue) ? try c.decode(UIValue.self, forKey: .defaultValue) : nil
+        isBinding = try c.decodeIfPresent(Bool.self, forKey: .isBinding) ?? false
+    }
+
 }
 
 public struct UIActionSignature: Codable, Hashable, Sendable {
@@ -92,6 +119,13 @@ public struct UIActionSignature: Codable, Hashable, Sendable {
         self.name = name
         self.parameters = parameters
     }
+    private enum CodingKeys: String, CodingKey { case name, parameters }
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        parameters = try c.decodeIfPresent([UIParameter].self, forKey: .parameters) ?? []
+    }
+
 }
 
 public enum UIContentShape: String, Codable, Sendable { case none, single, children }

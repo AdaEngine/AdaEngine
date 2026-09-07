@@ -27,7 +27,16 @@ public final class UIBindingContext {
     public func set(_ path: String, to value: UIValue) {
         guard self.value(path) != value else { return }
         if let binding = bindings[path] { binding.wrappedValue = value }
-        else { values[path] = value }
+        else if values[path] != nil { values[path] = value }
+        else {
+            let parts = path.split(separator: ".").map(String.init)
+            if let first = parts.first, parts.count > 1,
+               let original = bindings[first]?.wrappedValue ?? values[first],
+               let updated = original.setting(value, at: parts.dropFirst()) {
+                if let binding = bindings[first] { binding.wrappedValue = updated } else { values[first] = updated }
+            } else if let parent, parent.value(path) != nil { parent.set(path, to: value) }
+            else { values[path] = value }
+        }
         revision &+= 1
     }
 
@@ -36,6 +45,8 @@ public final class UIBindingContext {
         bindings[name] = binding
         if !existed { revision &+= 1 }
     }
+
+    public func unbind(_ name: String) { bindings.removeValue(forKey: name) }
 
     public func binding(_ name: String) -> Binding<UIValue> {
         Binding(get: { self.value(name) ?? .null }, set: { self.set(name, to: $0) })
@@ -60,6 +71,20 @@ public final class UIBindingContext {
 
     public func report(_ diagnostic: UIDiagnostic) {
         if diagnostics.last != diagnostic { diagnostics.append(diagnostic) }
+    }
+
+    struct Snapshot {
+        let values: [String: UIValue]
+        let bindings: [String: Binding<UIValue>]
+        let handlers: [String: Action]
+    }
+
+    func snapshot() -> Snapshot { Snapshot(values: values, bindings: bindings, handlers: handlers) }
+    func restore(_ snapshot: Snapshot) {
+        values = snapshot.values
+        bindings = snapshot.bindings
+        handlers = snapshot.handlers
+        revision &+= 1
     }
 
     public func applyDefaults(_ inputs: [UIParameter]) {

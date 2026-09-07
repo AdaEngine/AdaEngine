@@ -16,7 +16,7 @@ final class EditorUISceneModel {
     var height: Float = 600
     var error: String?
     var lastAction: String?
-    var session: UISceneSession?
+    var session: UISceneInstance?
     var preview: UIView?
     var isReadOnly: Bool
     var catalog: UICatalog
@@ -186,6 +186,19 @@ final class EditorUISceneModel {
         } catch { self.error = error.localizedDescription }
     }
 
+    func install(catalog: UICatalog) {
+        guard self.catalog.generation != catalog.generation else { return }
+        let context = session?.context ?? UIBindingContext()
+        self.catalog = catalog
+        do {
+            let candidate = try UISceneInstance(document: document, context: context, catalog: catalog, resources: resources, sourceURL: sourceURL)
+            session = candidate
+            preview = UIContainerView(rootView: UISceneView(session: candidate))
+            preview?.backgroundColor = .clear
+            error = nil
+        } catch { self.error = error.localizedDescription }
+    }
+
     func rebuild() {
         let context = session?.context ?? UIBindingContext()
         for input in document.inputs {
@@ -205,7 +218,7 @@ final class EditorUISceneModel {
             if let session {
                 if !session.update(document) { error = session.diagnostic; return }
             } else {
-                let newSession = try UISceneSession(document: document, context: context, catalog: catalog, resources: resources, sourceURL: sourceURL)
+                let newSession = try UISceneInstance(document: document, context: context, catalog: catalog, resources: resources, sourceURL: sourceURL)
                 session = newSession
                 preview = UIContainerView(rootView: UISceneView(session: newSession))
                 preview?.backgroundColor = .clear

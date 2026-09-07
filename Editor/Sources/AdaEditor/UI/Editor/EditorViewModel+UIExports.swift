@@ -10,12 +10,11 @@ extension EditorViewModel {
             do {
                 let catalog = try await workbench.uiExportLoader.load(projectURL: projectURL, packageModel: packageModel, builder: previewBuilder)
                 guard !Task.isCancelled, self.projectURL == projectURL else { return }
+                guard workbench.uiCatalog.generation != catalog.generation else { return }
                 workbench.uiCatalog = catalog
                 workbench.uiCatalogError = nil
                 for model in workbench.uiSceneModels.values {
-                    model.catalog = catalog
-                    model.session = nil
-                    model.rebuild()
+                    model.install(catalog: catalog)
                 }
             } catch {
                 guard !Task.isCancelled else { return }

@@ -210,14 +210,20 @@ actor EditorPreviewBuilder {
             target: target
         )
 
+        let buildTarget = request.uiExportProvider == nil ? ["--product", Self.productName] : ["--target", target.name]
         let command = EditorProcessCommand(
             executablePath: resolvedToolchain.swiftExecutablePath,
-            arguments: ["build", "--product", Self.productName, "--scratch-path", scratchDirectory.path],
+            arguments: ["build"] + buildTarget + ["--scratch-path", scratchDirectory.path, "--jobs", "4"],
             workingDirectory: previewDirectory
         )
         let result = await processRunner.run(command)
         guard result.succeeded else {
             throw EditorPreviewBuildFailure(message: result.combinedOutput.isEmpty ? "Preview build failed." : result.combinedOutput)
+        }
+
+        if request.uiExportProvider != nil {
+            let libraryURL = try await linkUIExportModule(request: request, target: target, scratchDirectory: scratchDirectory, toolchain: resolvedToolchain)
+            return EditorPreviewBuildArtifact(libraryURL: libraryURL, symbolName: request.declaration.symbolName, buildOutput: result.combinedOutput)
         }
 
         guard let libraryURL = newestDynamicLibrary(in: scratchDirectory) else {
@@ -229,6 +235,39 @@ actor EditorPreviewBuilder {
             symbolName: request.declaration.symbolName,
             buildOutput: result.combinedOutput
         )
+    }
+
+    /// Native UI factories must use the engine already loaded by the host. Linking
+    /// the complete SwiftPM product embeds a second RenderEngine and its global state.
+    private func linkUIExportModule(request: EditorPreviewBuildRequest, target: SwiftPackageTarget, scratchDirectory: URL, toolchain: SwiftToolchain) async throws -> URL {
+        var targetNames = Set<String>()
+        func collect(_ target: SwiftPackageTarget) {
+            guard targetNames.insert(target.name).inserted else { return }
+            for name in target.targetDependencies {
+                if let dependency = request.packageModel.target(named: name) { collect(dependency) }
+            }
+        }
+        collect(target)
+        let objects = compiledUIObjects(in: scratchDirectory, targetNames: targetNames)
+        guard !objects.isEmpty else { throw EditorPreviewBuildFailure(message: "No compiled object files for UI provider '\(target.name)'.") }
+        let output = scratchDirectory.appendingPathComponent("libAdaEditorUIExports.dylib")
+        let compiler = URL(fileURLWithPath: toolchain.swiftExecutablePath).deletingLastPathComponent().appendingPathComponent("swiftc")
+        let result = await processRunner.run(EditorProcessCommand(executablePath: compiler.path,
+            arguments: ["-emit-library", "-Xlinker", "-undefined", "-Xlinker", "dynamic_lookup", "-o", output.path] + objects.sorted(),
+            workingDirectory: scratchDirectory))
+        guard result.succeeded else { throw EditorPreviewBuildFailure(message: result.combinedOutput) }
+        return output
+    }
+
+    private func compiledUIObjects(in directory: URL, targetNames: Set<String>) -> [String] {
+        var objects: [String] = []
+        if let files = fileManager.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]) {
+            for case let url as URL in files where url.pathExtension == "o" {
+                let folder = url.deletingLastPathComponent().lastPathComponent
+                if folder.hasSuffix(".build"), targetNames.contains(String(folder.dropLast(".build".count))) { objects.append(url.path) }
+            }
+        }
+        return objects
     }
 
     private static let productName = "AdaEditorPreviewBundle"
@@ -355,7 +394,7 @@ actor EditorPreviewBuilder {
             return
         }
 
-        guard target.type == "regular" || target.type == "executable" else {
+        guard target.type == "regular" || target.type == "library" || target.type == "executable" else {
             throw EditorPreviewBuildFailure(message: "Preview target \(target.name) depends on unsupported SwiftPM target type \(target.type).")
         }
 
@@ -569,7 +608,8 @@ actor EditorPreviewBuilder {
 
         var candidates: [URL] = []
         for case let url as URL in enumerator {
-            guard ["dylib", "so", "dll"].contains(url.pathExtension.lowercased()),
+            guard !url.pathComponents.contains(where: { $0.hasSuffix(".dSYM") }),
+                  ["dylib", "so", "dll"].contains(url.pathExtension.lowercased()),
                   url.deletingPathExtension().lastPathComponent.contains(Self.productName),
                   (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
             else {
@@ -711,11 +751,11 @@ extension SwiftPackageModel {
             return nil
         }
 
-        let fileURL = URL(fileURLWithPath: absolutePath, isDirectory: false).standardizedFileURL
-        let relativePath = fileURL.path.replacingOccurrences(of: projectURL.standardizedFileURL.path + "/", with: "")
+        let fileURL = URL(fileURLWithPath: absolutePath, isDirectory: false).resolvingSymlinksInPath().standardizedFileURL
+        let relativePath = fileURL.path.replacingOccurrences(of: projectURL.resolvingSymlinksInPath().standardizedFileURL.path + "/", with: "")
 
         return targets.first { target in
-            guard target.type == "regular" || target.type == "executable" else {
+            guard target.type == "regular" || target.type == "library" || target.type == "executable" else {
                 return false
             }
 
