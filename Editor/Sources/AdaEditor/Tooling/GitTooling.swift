@@ -45,8 +45,14 @@ struct GitStatusEntry: Equatable, Sendable, Identifiable {
         "\(path):\(originalPath ?? ""):\(indexStatus?.rawValue ?? " "):\(workingTreeStatus?.rawValue ?? " ")"
     }
 
+    var isConflicted: Bool {
+        indexStatus == .unmerged || workingTreeStatus == .unmerged
+            || (indexStatus == .added && workingTreeStatus == .added)
+            || (indexStatus == .deleted && workingTreeStatus == .deleted)
+    }
+
     var isStaged: Bool {
-        indexStatus != nil && indexStatus != .untracked && indexStatus != .ignored
+        !isConflicted && indexStatus != nil && indexStatus != .untracked && indexStatus != .ignored
     }
 
     var hasWorkingTreeChange: Bool {
@@ -78,6 +84,8 @@ struct GitBranch: Equatable, Sendable, Identifiable {
 }
 
 struct GitRepositorySnapshot: Equatable, Sendable {
+    var rootURL: URL?
+    var diffFiles: [GitDiffFile] = []
     var branchName: String?
     var upstreamName: String?
     var isDetached: Bool
@@ -122,8 +130,12 @@ struct GitRepositorySnapshot: Equatable, Sendable {
         return branchName ?? "No branch"
     }
 
-    var footerTitle: String {
-        "Git: \(branchName ?? "unavailable")\(hasChanges ? "*" : "")"
+    var footerTitle: String? {
+        guard branchName != nil || isDetached else {
+            return nil
+        }
+        let title = isDetached ? "Detached HEAD" : branchTitle
+        return "Git: \(title)\(hasChanges ? "*" : "")"
     }
 
     var trackingTitle: String {
@@ -144,6 +156,7 @@ struct GitRepositorySnapshot: Equatable, Sendable {
 enum GitCommandKind: Equatable, Sendable {
     case status
     case branches
+    case initializeRepository
     case stage(paths: [String])
     case unstage(paths: [String])
     case stash(message: String)
@@ -165,13 +178,16 @@ struct GitRepositoryLoadResult: Equatable, Sendable {
 }
 
 protocol GitRepositoryServicing: Sendable {
+    func history(projectURL: URL, head: String?, offset: Int) async -> Result<GitHistoryPage, GitReadError>
+    func review(projectURL: URL, commit: GitCommit) async -> Result<GitReview, GitReadError>
+    func patch(rootURL: URL, file: GitDiffFile) async -> Result<GitFilePatch, GitReadError>
     func makeCommand(_ kind: GitCommandKind, projectURL: URL) -> EditorProcessCommand
     func snapshot(projectURL: URL) async -> GitRepositoryLoadResult
     func execute(_ kind: GitCommandKind, projectURL: URL) async -> EditorProcessResult
 }
 
 actor GitRepositoryService: GitRepositoryServicing {
-    private let processRunner: any EditorProcessRunning
+    let processRunner: any EditorProcessRunning
 
     init(processRunner: any EditorProcessRunning = EditorProcessRunner()) {
         self.processRunner = processRunner
@@ -180,9 +196,11 @@ actor GitRepositoryService: GitRepositoryServicing {
     nonisolated func makeCommand(_ kind: GitCommandKind, projectURL: URL) -> EditorProcessCommand {
         let arguments: [String] = switch kind {
         case .status:
-            ["git", "status", "--porcelain=v1", "-b"]
+            ["git", "status", "--porcelain=v1", "-b", "-z", "--untracked-files=all"]
         case .branches:
             ["git", "branch", "--format=%(HEAD)%09%(refname:short)%09%(upstream:short)"]
+        case .initializeRepository:
+            ["git", "init"]
         case .stage(let paths):
             paths.isEmpty ? ["git", "add", "-A"] : ["git", "add", "--"] + paths
         case .unstage(let paths):
@@ -210,7 +228,20 @@ actor GitRepositoryService: GitRepositoryServicing {
     }
 
     func snapshot(projectURL: URL) async -> GitRepositoryLoadResult {
-        let statusResult = await processRunner.run(makeCommand(.status, projectURL: projectURL))
+        let rootResult = await repositoryRoot(at: projectURL)
+        guard case .success(let rootURL) = rootResult else {
+            let message: String
+            if case .failure(let error) = rootResult { message = error.message } else { message = "Repository unavailable." }
+            var snapshot = GitRepositorySnapshot.empty
+            snapshot.statusMessage = message
+            return GitRepositoryLoadResult(snapshot: snapshot, statusResult: EditorProcessResult(
+                command: makeCommand(.status, projectURL: projectURL),
+                exitCode: 1,
+                standardOutput: "",
+                standardError: message
+            ), branchResult: nil)
+        }
+        let statusResult = await processRunner.run(makeCommand(.status, projectURL: rootURL))
         guard statusResult.succeeded else {
             return GitRepositoryLoadResult(
                 snapshot: GitRepositorySnapshot(
@@ -228,8 +259,9 @@ actor GitRepositoryService: GitRepositoryServicing {
             )
         }
 
-        let branchResult = await processRunner.run(makeCommand(.branches, projectURL: projectURL))
+        let branchResult = await processRunner.run(makeCommand(.branches, projectURL: rootURL))
         var snapshot = GitRepositorySnapshot.parseStatus(from: statusResult.standardOutput)
+        snapshot.rootURL = rootURL
         if branchResult.succeeded {
             snapshot.branches = GitRepositorySnapshot.parseBranches(from: branchResult.standardOutput)
             snapshot.upstreamName = snapshot.upstreamName ?? snapshot.branches.first(where: \.isCurrent)?.upstream
@@ -237,16 +269,37 @@ actor GitRepositoryService: GitRepositoryServicing {
             snapshot.statusMessage = branchResult.combinedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
+        switch await changeFiles(snapshot: snapshot, root: rootURL) {
+        case .success(let files): snapshot.diffFiles = files
+        case .failure(let error): snapshot.statusMessage = error.message
+        }
         return GitRepositoryLoadResult(snapshot: snapshot, statusResult: statusResult, branchResult: branchResult)
     }
 
     func execute(_ kind: GitCommandKind, projectURL: URL) async -> EditorProcessResult {
-        await processRunner.run(makeCommand(kind, projectURL: projectURL))
+        if case .initializeRepository = kind {
+            return await processRunner.run(makeCommand(.initializeRepository, projectURL: projectURL))
+        }
+        guard case .success(let root) = await repositoryRoot(at: projectURL) else {
+            return EditorProcessResult(command: makeCommand(kind, projectURL: projectURL), exitCode: 1, standardOutput: "", standardError: "Repository unavailable.")
+        }
+        if case .unstage(let paths) = kind {
+            let head = await readGit(["rev-parse", "--verify", "HEAD"], at: root)
+            if !head.succeeded {
+                return await readGit(["rm", "--cached", "-r", "--"] + (paths.isEmpty ? ["."] : paths), at: root)
+            }
+        }
+        var command = makeCommand(kind, projectURL: root)
+        command.arguments.insert("--literal-pathspecs", at: 1)
+        return await processRunner.run(command)
     }
 }
 
 extension GitRepositorySnapshot {
     static func parseStatus(from output: String) -> GitRepositorySnapshot {
+        if output.contains("\0") {
+            return parseNullStatus(output)
+        }
         var branchName: String?
         var upstreamName: String?
         var isDetached = false
@@ -284,6 +337,29 @@ extension GitRepositorySnapshot {
         )
     }
 
+    private static func parseNullStatus(_ output: String) -> GitRepositorySnapshot {
+        let fields = output.components(separatedBy: "\0")
+        var snapshot = parseStatus(from: fields.first?.hasPrefix("## ") == true ? fields[0] : "")
+        var index = fields.first?.hasPrefix("## ") == true ? 1 : 0
+        while index < fields.count {
+            let record = fields[index]
+            index += 1
+            guard record.count >= 4 else { continue }
+            let markers = Array(record.prefix(2))
+            let indexStatus = status(from: markers[0])
+            let workingStatus = status(from: markers[1])
+            var original: String?
+            if indexStatus == .renamed || indexStatus == .copied || workingStatus == .renamed || workingStatus == .copied {
+                guard index < fields.count else { break }
+                original = fields[index]
+                index += 1
+            }
+            snapshot.files.append(GitStatusEntry(path: String(record.dropFirst(3)), originalPath: original, indexStatus: indexStatus, workingTreeStatus: workingStatus))
+        }
+        snapshot.statusMessage = snapshot.files.isEmpty ? "Working tree clean" : nil
+        return snapshot
+    }
+
     static func parseBranches(from output: String) -> [GitBranch] {
         output.components(separatedBy: .newlines).compactMap { line in
             guard !line.isEmpty else {
@@ -305,6 +381,9 @@ extension GitRepositorySnapshot {
     private static func parseBranchHeader(_ header: String) -> (name: String?, upstream: String?, isDetached: Bool, ahead: Int, behind: Int) {
         var trackingText: String?
         var branchText = header
+        for prefix in ["No commits yet on ", "Initial commit on "] where branchText.hasPrefix(prefix) {
+            branchText = String(branchText.dropFirst(prefix.count))
+        }
         if let bracketRange = header.range(of: " [", options: .backwards), header.hasSuffix("]") {
             trackingText = String(header[bracketRange.upperBound..<header.index(before: header.endIndex)])
             branchText = String(header[..<bracketRange.lowerBound])

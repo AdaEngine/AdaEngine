@@ -36,12 +36,24 @@ enum EditorSceneFileLoader {
     static func load(
         content: String,
         into world: World,
-        loadsScriptableObjects: Bool = true
+        loadsScriptableObjects: Bool = true,
+        sourceURL: URL? = nil,
+        resourceRootURL: URL? = nil
     ) -> EditorSceneRuntimeLoadResult {
         do {
             registerEditorSceneComponents(loadsScriptableObjects: loadsScriptableObjects)
             let sceneModel = try EditorSceneModel.decode(from: content)
-            return instantiate(sceneModel, in: world, loadsScriptableObjects: loadsScriptableObjects)
+            let sourceURL = sourceURL?.resolvingSymlinksInPath().standardizedFileURL
+            return instantiate(
+                sceneModel,
+                in: world,
+                loadsScriptableObjects: loadsScriptableObjects,
+                sourceURL: sourceURL,
+                resourceRootURL: resourceRootURL,
+                parentEntity: nil,
+                idPrefix: "",
+                ancestry: sourceURL.map { Set([$0]) } ?? []
+            )
         } catch {
             return .emptyWithWarnings([error.localizedDescription])
         }
@@ -52,10 +64,22 @@ enum EditorSceneFileLoader {
     static func load(
         model sceneModel: EditorSceneModel,
         into world: World,
-        loadsScriptableObjects: Bool = true
+        loadsScriptableObjects: Bool = true,
+        sourceURL: URL? = nil,
+        resourceRootURL: URL? = nil
     ) -> EditorSceneRuntimeLoadResult {
         registerEditorSceneComponents(loadsScriptableObjects: loadsScriptableObjects)
-        return instantiate(sceneModel, in: world, loadsScriptableObjects: loadsScriptableObjects)
+        let sourceURL = sourceURL?.resolvingSymlinksInPath().standardizedFileURL
+        return instantiate(
+            sceneModel,
+            in: world,
+            loadsScriptableObjects: loadsScriptableObjects,
+            sourceURL: sourceURL,
+            resourceRootURL: resourceRootURL,
+            parentEntity: nil,
+            idPrefix: "",
+            ancestry: sourceURL.map { Set([$0]) } ?? []
+        )
     }
 
     @MainActor
@@ -71,9 +95,15 @@ enum EditorSceneFileLoader {
     private static func instantiate(
         _ sceneModel: EditorSceneModel,
         in world: World,
-        loadsScriptableObjects: Bool
+        loadsScriptableObjects: Bool,
+        sourceURL: URL?,
+        resourceRootURL: URL?,
+        parentEntity: Entity?,
+        idPrefix: String,
+        ancestry: Set<URL>
     ) -> EditorSceneRuntimeLoadResult {
         var warnings: [String] = []
+        var entityCount = sceneModel.entities.count
         var entitiesByEditorID: [String: Entity] = [:]
         var runtimeEntityIDsByEditorID: [String: Entity.ID] = [:]
         var editorIDsByRuntimeEntityID: [Entity.ID: String] = [:]
@@ -81,9 +111,10 @@ enum EditorSceneFileLoader {
         for sceneEntity in sceneModel.entities {
             let entity = world.spawn(sceneEntity.name)
             entity.isActive = sceneEntity.enabled
+            let runtimeEditorID = "\(idPrefix)\(sceneEntity.id)"
             entitiesByEditorID[sceneEntity.id] = entity
-            runtimeEntityIDsByEditorID[sceneEntity.id] = entity.id
-            editorIDsByRuntimeEntityID[entity.id] = sceneEntity.id
+            runtimeEntityIDsByEditorID[runtimeEditorID] = entity.id
+            editorIDsByRuntimeEntityID[entity.id] = runtimeEditorID
 
             for (componentName, componentPayload) in sceneEntity.components {
                 if componentName == EditorBuiltInComponentType.scriptableComponents, !loadsScriptableObjects {
@@ -124,8 +155,49 @@ enum EditorSceneFileLoader {
             parent.addChild(entity)
         }
 
+        if let parentEntity {
+            for sceneEntity in sceneModel.entities where sceneEntity.parent == nil || sceneEntity.parent?.isEmpty == true {
+                if let entity = entitiesByEditorID[sceneEntity.id] {
+                    parentEntity.addChild(entity)
+                }
+            }
+        }
+
+        for (editorEntityID, clips) in Dictionary(grouping: sceneModel.animations ?? [], by: \.targetEntityID) {
+            guard let entity = entitiesByEditorID[editorEntityID] else {
+                warnings.append("Missing animation target \(editorEntityID)")
+                continue
+            }
+            guard let transform = world.get(Transform.self, from: entity.id) else {
+                warnings.append("Animation target \(editorEntityID) has no Transform")
+                continue
+            }
+            let runtimeClips = clips.map { $0.makeRuntimeClip(initialTransform: transform) }
+            guard !runtimeClips.isEmpty else { continue }
+            world.insert(
+                KeyframeAnimator(clips: runtimeClips, initialClipName: runtimeClips.first?.name, isPlaying: true),
+                for: entity.id
+            )
+        }
+
+        let nested = instantiateNestedScenes(
+            in: sceneModel,
+            entitiesByEditorID: entitiesByEditorID,
+            world: world,
+            loadsScriptableObjects: loadsScriptableObjects,
+            sourceURL: sourceURL,
+            resourceRootURL: resourceRootURL,
+            idPrefix: idPrefix,
+            ancestry: ancestry
+        )
+        entityCount += nested.entityCount
+        warnings.append(contentsOf: nested.warnings)
+        for (runtimeID, editorID) in nested.editorIDsByEntityID {
+            editorIDsByRuntimeEntityID[runtimeID] = editorID
+        }
+
         return EditorSceneRuntimeLoadResult(
-            entityCount: sceneModel.entities.count,
+            entityCount: entityCount,
             warnings: warnings,
             entitiesByEditorID: runtimeEntityIDsByEditorID,
             editorIDsByEntityID: editorIDsByRuntimeEntityID
@@ -135,6 +207,103 @@ enum EditorSceneFileLoader {
     private static func insertComponent(_ component: any Component, into entity: Entity, in world: World) {
         world.insert(component, for: entity.id)
     }
+
+    @MainActor
+    private static func instantiateNestedScenes(
+        in sceneModel: EditorSceneModel,
+        entitiesByEditorID: [String: Entity],
+        world: World,
+        loadsScriptableObjects: Bool,
+        sourceURL: URL?,
+        resourceRootURL: URL?,
+        idPrefix: String,
+        ancestry: Set<URL>
+    ) -> NestedSceneResult {
+        var result = NestedSceneResult()
+        for sceneEntity in sceneModel.entities {
+            guard let instancePayload = sceneEntity.components[EditorBuiltInComponentType.sceneInstance],
+                  let reference = instancePayload["scene"]?.stringValue,
+                  !reference.isEmpty,
+                  let instanceEntity = entitiesByEditorID[sceneEntity.id] else {
+                continue
+            }
+            guard let nestedURL = resolveSceneReference(reference, relativeTo: sourceURL, resourceRootURL: resourceRootURL) else {
+                result.warnings.append("Unable to resolve nested scene \(reference)")
+                continue
+            }
+            guard !ancestry.contains(nestedURL) else {
+                result.warnings.append("Nested scene cycle: \(nestedURL.path)")
+                continue
+            }
+            do {
+                let nestedModel = try EditorSceneModel.decode(from: String(contentsOf: nestedURL, encoding: .utf8))
+                var nestedAncestry = ancestry
+                nestedAncestry.insert(nestedURL)
+                let runtimeEditorID = "\(idPrefix)\(sceneEntity.id)"
+                let nested = instantiate(
+                    nestedModel,
+                    in: world,
+                    loadsScriptableObjects: loadsScriptableObjects,
+                    sourceURL: nestedURL,
+                    resourceRootURL: resourceRootURL,
+                    parentEntity: instanceEntity,
+                    idPrefix: "\(runtimeEditorID)/",
+                    ancestry: nestedAncestry
+                )
+                result.entityCount += nested.entityCount
+                result.warnings.append(contentsOf: nested.warnings.map { "\(reference): \($0)" })
+                for runtimeEntityID in nested.editorIDsByEntityID.keys {
+                    result.editorIDsByEntityID[runtimeEntityID] = runtimeEditorID
+                }
+            } catch {
+                result.warnings.append("Failed to load nested scene \(reference): \(error.localizedDescription)")
+            }
+        }
+        return result
+    }
+
+    private static func resolveSceneReference(
+        _ reference: String,
+        relativeTo sourceURL: URL?,
+        resourceRootURL: URL?
+    ) -> URL? {
+        let trimmed = reference.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return nil
+        }
+
+        let resolvedURL: URL?
+        if trimmed.hasPrefix("@res://") {
+            guard let resourceRootURL else {
+                return nil
+            }
+            resolvedURL = resourceRootURL.appendingPathComponent(String(trimmed.dropFirst("@res://".count)))
+        } else if trimmed.hasPrefix("file://") {
+            resolvedURL = URL(string: trimmed)
+        } else if trimmed.hasPrefix("/") {
+            resolvedURL = URL(fileURLWithPath: trimmed, isDirectory: false)
+        } else {
+            resolvedURL = sourceURL?.deletingLastPathComponent().appendingPathComponent(trimmed)
+        }
+
+        guard let resolvedURL else {
+            return nil
+        }
+        let standardizedURL = resolvedURL.resolvingSymlinksInPath().standardizedFileURL
+        if trimmed.hasPrefix("@res://"), let resourceRootURL {
+            let root = resourceRootURL.resolvingSymlinksInPath().standardizedFileURL.path
+            guard standardizedURL.path == root || standardizedURL.path.hasPrefix("\(root)/") else {
+                return nil
+            }
+        }
+        return SceneDocumentFormat.isSceneFile(standardizedURL) ? standardizedURL : nil
+    }
+}
+
+private struct NestedSceneResult {
+    var entityCount = 0
+    var warnings: [String] = []
+    var editorIDsByEntityID: [Entity.ID: String] = [:]
 }
 
 private extension EditorSceneRuntimeLoadResult {

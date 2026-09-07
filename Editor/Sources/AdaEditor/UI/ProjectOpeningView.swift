@@ -75,6 +75,7 @@ struct ProjectOpeningView: View {
     let initiallyCreatingProject: Bool
     @State private var viewModel = ProjectOpeningViewModel()
     @State private var didAttemptAutoOpenLastProject = false
+    @State private var presentedSettingsSection: EditorSettingsSection?
     private let logoImage = ProjectOpeningAssets.loadAdaEngineLogo()
 
     init(autoOpenLastProject: Bool = true, initiallyCreatingProject: Bool = false) {
@@ -105,6 +106,18 @@ struct ProjectOpeningView: View {
             alignment: .topLeading
         )
         .background(LauncherColor.window)
+        #if os(iOS)
+        .fullScreenCover(item: $presentedSettingsSection) { section in
+            EditorSettingsWindowView(
+                viewModel: EditorSettingsWindowViewModel(
+                    editorViewModel: viewModel.selectedProject.map { EditorViewModel(project: $0) },
+                    selectedSection: section
+                ),
+                showsCloseButton: true
+            )
+            .theme(.adaEditor)
+        }
+        #endif
         .menuBar(EditorMenuBar.makeMenus())
         .onChange(of: viewModel.projectToOpenInEditorToken) { _, _ in
             guard let project = viewModel.consumeProjectToOpenInEditor() else {
@@ -118,7 +131,7 @@ struct ProjectOpeningView: View {
                 guard let viewModel else { return false }
                 switch command {
                 case .showSettings:
-                    EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: .general)
+                    presentSettings(.general)
                 case .newProject:
                     viewModel.beginCreateNewProject()
                 case .openProject:
@@ -127,7 +140,7 @@ struct ProjectOpeningView: View {
                         viewModel.openProject(at: url)
                     }
                 case .showProjectSettings:
-                    EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: .project)
+                    presentSettings(.project)
                 default:
                     return false
                 }
@@ -179,8 +192,8 @@ struct ProjectOpeningView: View {
             launcherSectionButton(.samples)
 
             Spacer()
-            Button {
-                EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: .general)
+            LauncherSidebarTooltipButton("Settings") {
+                presentSettings(.general)
             } label: {
                 Text("⚙")
                     .font(.system(size: 20))
@@ -194,6 +207,14 @@ struct ProjectOpeningView: View {
         .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
         .background(LauncherColor.sidebar)
         .accessibilityIdentifier(ProjectOpeningAccessibility.sidebar)
+    }
+
+    private func presentSettings(_ section: EditorSettingsSection) {
+        #if os(iOS)
+        presentedSettingsSection = section
+        #else
+        EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: section)
+        #endif
     }
 
     private var projectExplorer: some View {
@@ -487,9 +508,23 @@ struct ProjectOpeningView: View {
                     .frame(height: 44)
                     .frame(maxWidth: .infinity)
                     .background(RoundedRectangleShape(cornerRadius: 10).fill(LauncherColor.input))
-                    .overlay {
-                        RoundedRectangleShape(cornerRadius: 10).stroke(LauncherColor.inputBorder, lineWidth: 1)
+                        .overlay {
+                            RoundedRectangleShape(cornerRadius: 10).stroke(LauncherColor.inputBorder, lineWidth: 1)
+                        }
+                }
+
+                createFormField(title: "Version control") {
+                    Button {
+                        viewModel.shouldCreateGitRepositoryBinding.wrappedValue.toggle()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(viewModel.shouldCreateGitRepositoryBinding.wrappedValue ? "☑" : "☐")
+                                .foregroundColor(LauncherColor.accentViolet)
+                            Text("Create GIT repository")
+                                .foregroundColor(.white)
+                        }
                     }
+                    .buttonStyle(LauncherInlineButtonStyle())
                 }
             }
             .padding(.top, 28)
@@ -657,6 +692,7 @@ struct ProjectOpeningView: View {
             Spacer()
 
             HStack(alignment: .center, spacing: 10) {
+                EditorDocumentationButton()
                 Button {
                     viewModel.statusMessage = "Issue reporting will open from AdaEditor soon."
                 } label: {
@@ -706,7 +742,7 @@ struct ProjectOpeningView: View {
 
     private func launcherSectionButton(_ section: ProjectOpeningSection) -> some View {
         let isActive = viewModel.selectedSection == section
-        return Button {
+        return LauncherSidebarTooltipButton(section.title) {
             viewModel.selectSection(section)
         } label: {
             Text(section.title)
@@ -805,6 +841,62 @@ private struct LauncherPlainButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background(configuration.state.isHighlighted ? Color.white.opacity(0.10) : (active ? Color.white.opacity(0.06) : .clear))
+    }
+}
+
+private struct LauncherSidebarTooltipButton<Label: View>: View {
+    let tooltip: String
+    let action: () -> Void
+    let label: () -> Label
+
+    @State private var isTooltipVisible = false
+    @State private var tooltipTask: Task<Void, Never>?
+
+    init(_ tooltip: String, action: @escaping () -> Void, @ViewBuilder label: @escaping () -> Label) {
+        self.tooltip = tooltip
+        self.action = action
+        self.label = label
+    }
+
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            label()
+        }
+        .onHover { isHovered in
+            tooltipTask?.cancel()
+
+            if isHovered {
+                tooltipTask = Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1))
+                    guard !Task.isCancelled else {
+                        return
+                    }
+                    isTooltipVisible = true
+                }
+            } else {
+                isTooltipVisible = false
+            }
+        }
+        .overlay(alignment: .trailing) {
+            if isTooltipVisible {
+                Text(tooltip)
+                    .font(.system(size: 11))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(RoundedRectangleShape(cornerRadius: 8).fill(LauncherColor.window.opacity(0.92)))
+                    .overlay {
+                        RoundedRectangleShape(cornerRadius: 8).stroke(LauncherColor.glassBorder, lineWidth: 1)
+                    }
+                    .offset(x: 8)
+            }
+        }
+        .onDisappear {
+            tooltipTask?.cancel()
+            isTooltipVisible = false
+        }
     }
 }
 

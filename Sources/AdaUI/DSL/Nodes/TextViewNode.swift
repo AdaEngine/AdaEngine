@@ -74,9 +74,11 @@ final class TextViewNode: ViewNode {
             y: -snapToPixel(self.frame.origin.y)
         )
 
-        // Calculate visual offsets to center text within the frame (render coordinates: +Y is up).
+        // Preserve the layout manager's horizontal alignment and side bearings.
+        // Optical centering is only appropriate for explicitly centered text.
         var horizontalOffset: Float = 0
         var verticalOffset: Float = 0
+        var exceedsBounds = self.drawLayoutManager.boundingSize().height > self.frame.height
         if !self.drawLayoutManager.textLines.isEmpty {
             var minX: Float = .infinity
             var maxX: Float = -.infinity
@@ -86,6 +88,7 @@ final class TextViewNode: ViewNode {
             for line in self.drawLayoutManager.textLines {
                 for run in line {
                     for glyph in run {
+                        exceedsBounds = exceedsBounds || glyph.advanceX > self.frame.width
                         minX = min(minX, glyph.position.x)
                         maxX = max(maxX, glyph.position.z)
                         maxTopY = max(maxTopY, glyph.position.w)
@@ -94,7 +97,7 @@ final class TextViewNode: ViewNode {
                 }
             }
 
-            if minX.isFinite, maxX.isFinite {
+            if self.drawLayoutManager.resolvedTextAlignment == .center, minX.isFinite, maxX.isFinite {
                 let textCenterX = (minX + maxX) / 2
                 let frameCenterX = self.frame.size.width / 2
                 horizontalOffset = frameCenterX - textCenterX
@@ -106,11 +109,32 @@ final class TextViewNode: ViewNode {
                 verticalOffset = frameCenterY - textCenterY
             }
         }
-        
-        context.translateBy(x: snapToPixel(horizontalOffset), y: snapToPixel(verticalOffset))
+
+        self.drawLayout(
+            in: &context,
+            offset: Point(x: snapToPixel(horizontalOffset), y: snapToPixel(verticalOffset)),
+            clipsToBounds: exceedsBounds
+        )
+    }
+
+    private func drawLayout(in context: inout UIGraphicsContext, offset: Point, clipsToBounds: Bool) {
+        // A proposal can be smaller than one glyph or one line. Keep drawing
+        // within that constraint without treating atlas padding as overflow.
+        let clipBounds = Rect(origin: .zero, size: self.frame.size)
+        let usesClipRect = clipsToBounds && context.pushTransformedClipRect(clipBounds)
+        let usesClipPath = clipsToBounds && !usesClipRect
+        if usesClipPath {
+            context.pushClipPath(RectangleShape().path(in: clipBounds))
+        }
+        context.translateBy(x: offset.x, y: offset.y)
 
         let layout = Text.Layout(lines: self.drawLayoutManager.textLines)
         self.textRenderer.draw(layout: layout, in: &context)
+        if usesClipRect {
+            context.popClipRect()
+        } else if usesClipPath {
+            context.popClipPath()
+        }
     }
 
     override func update(from newNode: ViewNode) {

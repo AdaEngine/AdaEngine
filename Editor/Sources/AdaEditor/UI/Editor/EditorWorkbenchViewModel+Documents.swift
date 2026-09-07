@@ -81,6 +81,8 @@ extension EditorWorkbenchViewModel {
             document.statusMessage ?? document.errorMessage
         case .text(let document)?:
             document.statusMessage ?? document.errorMessage
+        case .git?:
+            nil
         case .asset?:
             "assets cannot be saved from the code editor"
         case nil:
@@ -95,7 +97,7 @@ extension EditorWorkbenchViewModel {
             return saveSceneDocument(id: document.id)
         case .text(let document):
             return saveTextDocument(id: document.id)
-        case .asset:
+        case .asset, .git:
             return false
         }
     }
@@ -233,6 +235,71 @@ extension EditorWorkbenchViewModel {
     func toggleSceneEntityExpanded(documentID: String, entityID: String) {
         updateSceneModelDocument(id: documentID, status: "Hierarchy updated") { model in
             model.toggleEntityExpanded(entityID)
+        }
+    }
+
+    func addSceneEntity(documentID: String, parentID: String?) {
+        updateSceneModelDocument(id: documentID, status: "Entity added") { model in
+            _ = model.addEntity(name: "Entity", parentID: parentID)
+        }
+    }
+
+    func addScenePrefab(documentID: String, parentID: String?) {
+        updateSceneModelDocument(id: documentID, status: "Scene prefab added") { model in
+            _ = model.addSceneInstance(parentID: parentID)
+        }
+    }
+
+    func renameSceneEntity(documentID: String, entityID: String, name: String) {
+        updateSceneModelDocument(id: documentID, status: "Entity renamed") { model in
+            _ = model.renameEntity(entityID, to: name)
+        }
+    }
+
+    func setSceneEntityEnabled(documentID: String, entityID: String, isEnabled: Bool) {
+        updateSceneModelDocument(id: documentID, status: isEnabled ? "Entity shown" : "Entity hidden") { model in
+            _ = model.setEntityEnabled(entityID, isEnabled: isEnabled)
+        }
+    }
+
+    func deleteSceneEntity(documentID: String, entityID: String) {
+        updateSceneModelDocument(id: documentID, status: "Entity deleted") { model in
+            _ = model.deleteEntity(entityID)
+        }
+    }
+
+    func duplicateSceneEntity(documentID: String, entityID: String) {
+        updateSceneModelDocument(id: documentID, status: "Entity duplicated") { model in
+            _ = model.duplicateEntity(entityID)
+        }
+    }
+
+    @discardableResult
+    func copySceneEntity(documentID: String, entityID: String) -> Bool {
+        guard let model = sceneDocument(id: documentID)?.sceneModel,
+              let payload = model.clipboardPayload(for: entityID) else {
+            return false
+        }
+        UIClipboard.setString(payload)
+        return true
+    }
+
+    @discardableResult
+    func pasteSceneEntity(documentID: String, parentID: String?) -> Bool {
+        guard let payload = UIClipboard.getString(),
+              EditorSceneModel.canPasteEntityPayload(payload) else {
+            return false
+        }
+        var didPaste = false
+        updateSceneModelDocument(id: documentID, status: "Entity pasted") { model in
+            didPaste = model.pasteEntity(from: payload, parentID: parentID) != nil
+        }
+        return didPaste
+    }
+
+    func reparentSceneEntity(documentID: String, entityID: String, parentID: String) {
+        updateSceneModelDocument(id: documentID, status: "Entity reparented") { model in
+            _ = model.reparentEntity(entityID, to: parentID)
         }
     }
 

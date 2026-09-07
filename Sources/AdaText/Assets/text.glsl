@@ -37,7 +37,8 @@ layout (binding = 0) uniform texture2D u_FontAtlas;
 layout (binding = 1) uniform sampler   u_FontSampler;
 
 float ScreenPxRange() {
-    float pxRange = 2.0f;
+    // Must match FontAtlasGenerator.atlasPixelRange, including cached atlases.
+    float pxRange = 4.0f;
     ivec2 textureSize = textureSize(sampler2D(u_FontAtlas, u_FontSampler), 0);
     vec2 unitRange = vec2(pxRange) / vec2(textureSize);
     vec2 screenTexSize = vec2(1.0) / fwidth(v_TexCoordinate);
@@ -56,9 +57,14 @@ void text_fragment() {
     vec3 msd = texture(sampler2D(u_FontAtlas, u_FontSampler), v_TexCoordinate).rgb;
     float sd = Median(msd);
     float pxDistance = ScreenPxRange() * (sd - 0.5f);
-    float fillAlpha = clamp(pxDistance + 0.5, 0.0, 1.0);
+    float fillAlpha = clamp(pxDistance + 0.5, 0.0, 1.0) * fgColor.a;
     float outlineAlpha = clamp(pxDistance + v_OutlineWidth + 0.5, 0.0, 1.0) * outlineColor.a;
 
-    vec4 outlinedGlyph = mix(vec4(outlineColor.rgb, 0.0), outlineColor, outlineAlpha);
-    color = mix(outlinedGlyph, fgColor, fillAlpha * fgColor.a);
+    // Composite fill over outline, then return straight-alpha color for the
+    // pipeline's sourceAlpha RGB blending. Premultiplied RGB here would apply
+    // edge coverage twice and make small regular-weight text appear too thin.
+    float visibleOutlineAlpha = outlineAlpha * (1.0 - fillAlpha);
+    float alpha = fillAlpha + visibleOutlineAlpha;
+    vec3 premultipliedColor = fgColor.rgb * fillAlpha + outlineColor.rgb * visibleOutlineAlpha;
+    color = vec4(alpha > 0.0 ? premultipliedColor / alpha : vec3(0.0), alpha);
 }

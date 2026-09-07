@@ -233,12 +233,16 @@ extension EditorViewModel {
     ) {
         guard let projectURL else {
             sourceControl.statusMessage = "No project is open."
-            footer.setSourceControlFooterTitle("Git: unavailable")
+            footer.setSourceControlFooterTitle(nil)
             return
         }
 
-        sourceControlTask?.cancel()
+        guard !sourceControl.isRunning else { return }
+        sourceControl.refreshTask?.cancel()
+        sourceControl.refreshGeneration = UUID()
+        sourceControl.isRefreshing = false
         sourceControl.isRunning = true
+        sourceControl.commandError = nil
         sourceControl.statusMessage = "Running \(statusTitle)..."
         appendOutput("$ \(statusTitle)")
 
@@ -247,6 +251,7 @@ extension EditorViewModel {
             let result = await self.sourceControlService.execute(kind, projectURL: projectURL)
             await MainActor.run {
                 self.appendOutput(result)
+                self.sourceControl.commandError = result.succeeded ? nil : result.combinedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
                 self.sourceControl.statusMessage = result.succeeded
                     ? "\(statusTitle) finished."
                     : result.combinedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -276,6 +281,7 @@ extension EditorViewModel {
             return branchOutput.isEmpty ? "Source control unavailable." : branchOutput
         }
 
+        if let message = result.snapshot.statusMessage, message != "Working tree clean" { return message }
         if result.snapshot.hasChanges {
             return "\(result.snapshot.files.count) changed file\(result.snapshot.files.count == 1 ? "" : "s")."
         }

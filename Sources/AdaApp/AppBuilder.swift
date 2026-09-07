@@ -52,6 +52,9 @@ public final class AppWorlds {
     @usableFromInline
     var installedPlugins: [String: String] = [:]
 
+    private var activeUpdates = 0
+    private var updateWaiters: [CheckedContinuation<Void, Never>] = []
+
     private var pluginDepth = 0
 
     /// The runner.
@@ -93,9 +96,32 @@ public extension AppWorlds {
         self.runner = block
     }
 
-    /// Update the app.
-    /// - Parameter deltaTime: The delta time.
+    /// Executes a synchronous tooling operation between frame updates.
+    /// Call on the root AppWorlds so subworld schedulers and extraction are also covered.
+    /// Do not call from a running system: it would wait for its own frame to finish.
+    func withWorldAccess<T>(_ operation: @MainActor () throws -> T) async throws -> T {
+        while activeUpdates > 0 {
+            await withCheckedContinuation { updateWaiters.append($0) }
+        }
+        try Task.checkCancellation()
+        return try operation()
+    }
+
+    /// Updates this world and its subworlds, serializing concurrent frame requests.
     func update() async throws {
+        while activeUpdates > 0 {
+            await withCheckedContinuation { updateWaiters.append($0) }
+        }
+        try Task.checkCancellation()
+        activeUpdates += 1
+        defer {
+            activeUpdates -= 1
+            if activeUpdates == 0 {
+                let waiters = updateWaiters
+                updateWaiters.removeAll(keepingCapacity: true)
+                for waiter in waiters { waiter.resume() }
+            }
+        }
         try await withExecutionContext {
             let worldName = main.name ?? "UnknownWorld"
             let framePacing = main.getResource(ApplicationFramePacing.self)

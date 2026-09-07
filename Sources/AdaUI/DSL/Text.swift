@@ -263,52 +263,12 @@ extension Text {
         let layoutManager: TextLayoutManager
 
         public func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-            if proposal == .zero || proposal == .infinity {
-                self.layoutManager.fitToSize(Size(width: .infinity, height: .infinity))
-                return self.layoutManager.boundingSize()
-            }
-
-            var idealWidth: Float = .infinity
-            var idealHeight: Float = .infinity
-
-            if let width = proposal.width, width != .infinity {
-                idealWidth = width
-            }
-
-            if let height = proposal.height, height != .infinity {
-                idealHeight = height
-            }
-
-            self.layoutManager.fitToSize(Size(width: idealWidth, height: idealHeight))
-            return self.visualBoundingSize()
-        }
-
-        private func visualBoundingSize() -> Size {
-            let layoutSize = self.layoutManager.boundingSize()
-            var minX = Float.infinity
-            var maxX = -Float.infinity
-
-            for line in self.layoutManager.textLines {
-                for run in line {
-                    for glyph in run {
-                        minX = min(minX, glyph.position.x)
-                        maxX = max(maxX, glyph.position.z)
-                    }
-                }
-            }
-
-            guard minX.isFinite, maxX.isFinite else {
-                return layoutSize
-            }
-
-            let visibleWidth = max(0, maxX - minX)
-            let originWidth = max(maxX, visibleWidth)
-            let width = minX > 0 ? visibleWidth : originWidth
-
-            return Size(
-                width: width.rounded(.up) + 1,
-                height: layoutSize.height
-            )
+            let width = max(0, proposal.width ?? .infinity)
+            let height = max(0, proposal.height ?? .infinity)
+            self.layoutManager.fitToSize(Size(width: width, height: height))
+            // Preserve fractional typographic dimensions. Pixel snapping belongs
+            // to rendering and must not enlarge the parent's constraints.
+            return self.layoutManager.size
         }
     }
 }

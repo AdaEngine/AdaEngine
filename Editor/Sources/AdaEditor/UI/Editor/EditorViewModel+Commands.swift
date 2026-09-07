@@ -89,33 +89,28 @@ extension EditorViewModel {
     }
 
     func refreshSourceControl() {
+        guard !sourceControl.isRunning else { return }
+        sourceControl.refreshTask?.cancel()
+        let generation = UUID()
+        sourceControl.refreshGeneration = generation
         guard let projectURL else {
             sourceControl.snapshot = .empty
             sourceControl.statusMessage = "No project is open."
-            footer.setSourceControlFooterTitle("Git: unavailable")
+            footer.setSourceControlFooterTitle(nil)
+            updateOpenGitReviews()
             return
         }
-
-        sourceControlTask?.cancel()
-        sourceControl.isRunning = true
-        sourceControl.statusMessage = "Refreshing source control..."
-
-        sourceControlTask = Task { [weak self] in
-            guard let self else { return }
-            let result = await self.sourceControlService.snapshot(projectURL: projectURL)
-            await MainActor.run {
-                self.sourceControl.snapshot = result.snapshot
-                self.sourceControl.statusMessage = self.sourceControlStatusMessage(for: result)
-                self.sourceControl.isRunning = false
-                self.footer.setSourceControlFooterTitle(result.snapshot.footerTitle)
-                if !result.succeeded {
-                    self.appendOutput(result.statusResult)
-                    if let branchResult = result.branchResult, !branchResult.succeeded {
-                        self.appendOutput(branchResult)
-                    }
-                }
-                self.sourceControlTask = nil
-            }
+        sourceControl.isRefreshing = true
+        sourceControl.statusMessage = "Refreshing source control…"
+        sourceControl.refreshTask = Task { [weak self, sourceControlService] in
+            let result = await sourceControlService.snapshot(projectURL: projectURL)
+            guard let self, self.projectURL == projectURL, self.sourceControl.refreshGeneration == generation, !Task.isCancelled else { return }
+            self.sourceControl.snapshot = result.snapshot
+            self.sourceControl.statusMessage = self.sourceControlStatusMessage(for: result)
+            self.sourceControl.isRefreshing = false
+            self.footer.setSourceControlFooterTitle(result.snapshot.footerTitle)
+            if !result.succeeded { self.appendOutput(result.statusResult) }
+            self.updateOpenGitReviews()
         }
     }
 
@@ -179,6 +174,10 @@ extension EditorViewModel {
         }
 
         executeSourceControlCommand(.createBranch(name: branchName), statusTitle: "Create Branch \(branchName)", clearsNewBranchName: true)
+    }
+
+    func createSourceControlRepository() {
+        executeSourceControlCommand(.initializeRepository, statusTitle: "Create .git")
     }
 
     func buildAll() {

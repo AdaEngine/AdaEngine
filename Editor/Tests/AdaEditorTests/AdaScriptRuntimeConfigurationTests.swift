@@ -50,6 +50,15 @@ struct AdaScriptRuntimeConfigurationTests {
         #expect(resolved.pluginIDs == [.core2D, .sprite, .mesh2D, .tilemap, .upscale])
     }
 
+    @Test("plugin settings sections cover every catalog plugin once")
+    func pluginSettingsSectionsCoverCatalog() {
+        let sectionPluginIDs = EditorAdaScriptRuntimePluginCatalog.settingsSections
+            .flatMap(\.allPluginIDs)
+
+        #expect(Set(sectionPluginIDs) == Set(EditorAdaScriptRuntimePluginCatalog.descriptors.map(\.id)))
+        #expect(Set(sectionPluginIDs).count == sectionPluginIDs.count)
+    }
+
     @Test("plugin resolver rejects a disabled dependency")
     func rejectsDisabledDependency() {
         let configuration = AdaProjectRuntimePlugins(

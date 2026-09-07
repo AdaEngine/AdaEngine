@@ -27,6 +27,8 @@ final class EditorAgentViewModel {
     var agentSkillsDirectories = ""
     var agentPermissionMode = AdaProjectAgentPermissionMode.allowOnce
     var settingsStatusMessage = ""
+    let catalog: EditorAgentCatalogViewModel
+    var isConnectingCatalogAgent = false
 
     @ObservationIgnored
     private let project: EditorProjectReference?
@@ -45,11 +47,13 @@ final class EditorAgentViewModel {
         project: EditorProjectReference?,
         fileManager: FileManager = .default,
         service: any EditorAgentServicing = EditorACPAgentService(),
+        catalog: EditorAgentCatalogViewModel = EditorAgentCatalogViewModel(),
         onProjectFileChanged: @escaping (String) -> Void = { _ in }
     ) {
         self.project = project
         self.fileManager = fileManager
         self.service = service
+        self.catalog = catalog
         self.onProjectFileChanged = onProjectFileChanged
         configureForProject()
     }
@@ -105,7 +109,7 @@ final class EditorAgentViewModel {
     }
 
     var canSend: Bool {
-        !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
+        !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending && !isConnectingCatalogAgent
     }
 
     var selectedSkills: [EditorAgentSkill] {
@@ -233,7 +237,7 @@ final class EditorAgentViewModel {
     }
 
     func connect() {
-        guard connectionState != .connecting else {
+        guard connectionState != .connecting, !isConnectingCatalogAgent else {
             return
         }
         Task {
@@ -263,6 +267,73 @@ final class EditorAgentViewModel {
         }
     }
 
+    @discardableResult
+    func useCatalogAgent(_ entry: EditorInstalledAgent) async -> Bool {
+        guard !isSending, let projectURL else {
+            settingsStatusMessage = "Open a project before connecting an agent."
+            return false
+        }
+        do {
+            var configuration = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
+            configuration.ai.agent.enabled = true
+            configuration.ai.agent.target = entry.target
+            try ProjectSystem.saveProject(configuration, at: projectURL, fileManager: fileManager)
+            await service.shutdown()
+            projectConfig = configuration
+            loadSettings(from: configuration.ai.agent)
+            // ACP session IDs belong to one provider; never resume them in another agent.
+            try await createSession()
+            connectionState = .disconnected
+            settingsStatusMessage = "\(entry.name) selected for this project. Connect or send a message in Agent Chat."
+            return true
+        } catch {
+            settingsStatusMessage = "Unable to use \(entry.name): \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    var canConnectCatalogAgent: Bool {
+        projectURL != nil && !isSending && !isConnectingCatalogAgent && !catalog.isBusy && connectionState != .connecting
+    }
+
+    func isCatalogAgentSelected(_ entry: EditorInstalledAgent) -> Bool {
+        projectConfig?.ai.agent.enabled == true && projectConfig?.ai.agent.target == entry.target
+    }
+
+    func connectCatalogAgent(
+        installed: EditorInstalledAgent? = nil,
+        local: EditorDiscoveredAgent? = nil,
+        registry: EditorRegistryAgent? = nil
+    ) async {
+        guard canConnectCatalogAgent else { return }
+        isConnectingCatalogAgent = true
+        defer { isConnectingCatalogAgent = false }
+        settingsStatusMessage = ""
+        let entry: EditorInstalledAgent?
+        if let installed {
+            entry = installed
+        } else if let local, local.target != nil {
+            entry = await catalog.add(local)
+        } else if let registry = registry ?? local.flatMap({ catalog.adapter(for: $0) }) {
+            entry = await catalog.install(registry)
+        } else {
+            settingsStatusMessage = "ACP adapter unavailable. Refresh the registry or configure an ACP command below."
+            return
+        }
+        guard let entry else { return }
+        guard await useCatalogAgent(entry) else { return }
+        settingsStatusMessage = "Connecting to \(entry.name)…"
+        await connectAsync()
+        switch connectionState {
+        case .ready:
+            settingsStatusMessage = "\(entry.name) connected. Open Agent Chat to send a message."
+        case .failed(let message):
+            settingsStatusMessage = "\(entry.name) selected, but connection failed: \(message)"
+        default:
+            settingsStatusMessage = statusMessage ?? "Connection did not complete. Try Connect again."
+        }
+    }
+
     func toggleAgentEnabled() {
         agentEnabled.toggle()
     }
@@ -272,25 +343,32 @@ final class EditorAgentViewModel {
     }
 
     func saveAgentSettings() {
-        guard let projectURL, var projectConfig else {
+        guard let projectURL else {
             settingsStatusMessage = "No project is open."
             return
         }
 
-        let environment = Self.environment(from: agentEnvironment)
-        projectConfig.ai.agent = AdaProjectAgent(
-            enabled: agentEnabled,
-            target: AdaProjectAgentTarget(
-                command: agentCommand.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-                arguments: Self.lineList(from: agentArguments),
-                environment: environment,
-                cwd: agentWorkingDirectory.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-            ),
-            permissionMode: agentPermissionMode,
-            skillsDirectories: Self.lineList(from: agentSkillsDirectories)
-        )
-
         do {
+            var projectConfig = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
+            let oldTarget = self.projectConfig?.ai.agent.target
+            let arguments = agentArguments == oldTarget?.arguments.joined(separator: "\n")
+                ? oldTarget?.arguments ?? [] : Self.lineList(from: agentArguments)
+            let oldEnvironment = oldTarget?.environment.sorted { $0.key < $1.key }
+                .map { "\($0.key)=\($0.value)" }.joined(separator: "\n")
+            let environment = agentEnvironment == oldEnvironment
+                ? oldTarget?.environment ?? [:] : Self.environment(from: agentEnvironment)
+            projectConfig.ai.agent = AdaProjectAgent(
+                enabled: agentEnabled,
+                target: AdaProjectAgentTarget(
+                    command: agentCommand.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                    arguments: arguments,
+                    environment: environment,
+                    cwd: agentWorkingDirectory.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+                ),
+                permissionMode: agentPermissionMode,
+                skillsDirectories: Self.lineList(from: agentSkillsDirectories)
+            )
+
             try ProjectSystem.saveProject(projectConfig, at: projectURL, fileManager: fileManager)
             self.projectConfig = projectConfig
             availableSkills = EditorAgentSkillStore.discoverSkills(

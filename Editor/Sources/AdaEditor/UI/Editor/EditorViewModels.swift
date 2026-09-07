@@ -331,12 +331,15 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
     case scene(EditorSceneDocument)
     case text(EditorTextDocument)
     case asset(EditorAssetDocument)
+    case git(EditorGitDocument)
 
     var id: String {
         switch self {
         case .scene(let document):
             document.id
         case .text(let document):
+            document.id
+        case .git(let document):
             document.id
         case .asset(let document):
             document.id
@@ -349,6 +352,8 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
             document.title
         case .text(let document):
             document.title
+        case .git(let document):
+            document.title
         case .asset(let document):
             document.title
         }
@@ -360,6 +365,8 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
             document.relativePath
         case .text(let document):
             document.relativePath
+        case .git:
+            ""
         case .asset(let document):
             document.relativePath
         }
@@ -371,6 +378,8 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
             document.absolutePath
         case .text(let document):
             document.absolutePath
+        case .git:
+            nil
         case .asset(let document):
             document.absolutePath
         }
@@ -382,7 +391,7 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
             document.isDirty
         case .text(let document):
             document.isDirty
-        case .asset:
+        case .asset, .git:
             false
         }
     }

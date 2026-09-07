@@ -47,8 +47,44 @@ struct EditorRuntimeProjectSettingsView: View {
 
     private var pluginSettings: some View {
         settingsGroup("FEATURE PLUGINS") {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(EditorAdaScriptRuntimePluginCatalog.descriptors, id: \.id) { descriptor in
+            VStack(alignment: .leading, spacing: 18) {
+                ForEach(EditorAdaScriptRuntimePluginCatalog.settingsSections) { section in
+                    pluginSection(section)
+                }
+            }
+        }
+    }
+
+    private func pluginSection(_ section: EditorAdaScriptRuntimePluginSection) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(section.title.uppercased())
+                .font(.system(size: 11))
+                .foregroundColor(theme.editorColors.muted)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .accessibilityIdentifier("AdaEditor.Settings.PluginSection.\(section.id)")
+            if !section.plugins.isEmpty {
+                pluginRows(section.plugins)
+            }
+            ForEach(section.sections) { child in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(child.title)
+                        .font(.system(size: 12))
+                        .foregroundColor(theme.editorColors.text)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .accessibilityIdentifier("AdaEditor.Settings.PluginSection.\(section.id).\(child.id)")
+                    pluginRows(child.plugins)
+                }
+                .padding(.leading, 16)
+            }
+        }
+    }
+
+    private func pluginRows(_ pluginIDs: [AdaProjectRuntimePluginID]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(pluginIDs, id: \.self) { pluginID in
+                if let descriptor = EditorAdaScriptRuntimePluginCatalog.descriptorByID[pluginID] {
                     pluginRow(descriptor)
                 }
             }

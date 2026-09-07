@@ -151,6 +151,7 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
     var engineVersion: String?
     var scene: EditorSceneMetadata
     var entities: [EditorSceneEntity]
+    var animations: [EditorAnimationClip]?
     var editor: EditorSceneState?
 
     init(
@@ -159,6 +160,7 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
         engineVersion: String? = "1.0.0",
         scene: EditorSceneMetadata,
         entities: [EditorSceneEntity],
+        animations: [EditorAnimationClip]? = nil,
         editor: EditorSceneState? = nil
     ) {
         self.format = format
@@ -166,6 +168,7 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
         self.engineVersion = engineVersion
         self.scene = scene
         self.entities = entities
+        self.animations = animations
         self.editor = editor
     }
 
@@ -200,12 +203,18 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
     }
 
     mutating func addEntity(name: String = "Entity") -> EditorSceneEntity {
-        let selectedID = editor?.selectedEntity
+        addEntity(name: name, parentID: editor?.selectedEntity)
+    }
+
+    mutating func addEntity(name: String, parentID: String?) -> EditorSceneEntity {
+        let resolvedParentID = parentID.flatMap { requestedID in
+            entities.contains(where: { $0.id == requestedID }) ? requestedID : nil
+        }
         let entity = EditorSceneEntity(
             id: UUID().uuidString,
             name: name,
             enabled: true,
-            parent: selectedID,
+            parent: resolvedParentID,
             components: [
                 EditorBuiltInComponentType.transform: EditorComponentRegistry.defaultPayload(for: EditorBuiltInComponentType.transform)
             ]
@@ -377,6 +386,7 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
 
         return result.reversed()
     }
+
 }
 
 private extension EditorSceneValue {

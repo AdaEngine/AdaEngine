@@ -208,6 +208,42 @@ enum ProjectOpenPicker {
     }
 
     @MainActor
+    static func presentBuildFilePicker(
+        directoryURL: URL,
+        completion: @escaping @MainActor (AssetFilePickerResult) -> Void
+    ) {
+        #if canImport(AppKit)
+        let panel = NSOpenPanel()
+        panel.title = "Add Build Files and Directories"
+        panel.prompt = "Add"
+        panel.message = "Choose files or folders inside the project."
+        panel.directoryURL = directoryURL
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = true
+        panel.canCreateDirectories = false
+        panel.resolvesAliases = true
+        panel.begin { response in
+            completion(response == .OK ? .selected(panel.urls) : .cancelled)
+        }
+        #elseif canImport(UIKit)
+        guard let presenter = activeViewController() else {
+            completion(.unavailable("AdaEditor has no active window from which to open Files."))
+            return
+        }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item, .folder], asCopy: false)
+        picker.directoryURL = directoryURL
+        let delegate = BuildFileDocumentPickerDelegate(completion: completion)
+        activeBuildFilePickerDelegate = delegate
+        picker.delegate = delegate
+        picker.allowsMultipleSelection = true
+        presenter.present(picker, animated: true)
+        #else
+        completion(.unavailable("File selection is not supported on this platform."))
+        #endif
+    }
+
+    @MainActor
     static func presentAtlasImagePicker(
         completion: @escaping @MainActor (AssetFilePickerResult) -> Void
     ) {
@@ -280,6 +316,8 @@ enum ProjectOpenPicker {
     private static var activeProjectLocationPickerDelegate: ProjectLocationDocumentPickerDelegate?
     @MainActor
     private static var activeAtlasImagePickerDelegate: AtlasImageDocumentPickerDelegate?
+    @MainActor
+    private static var activeBuildFilePickerDelegate: BuildFileDocumentPickerDelegate?
     @MainActor
     private static var securityScopedAccesses: [String: SecurityScopedURLAccess] = [:]
 
@@ -397,6 +435,28 @@ enum ProjectOpenPicker {
         private func finish(with result: AssetFilePickerResult) {
             completion(result)
             activeAtlasImagePickerDelegate = nil
+        }
+    }
+
+    @MainActor
+    private final class BuildFileDocumentPickerDelegate: NSObject, UIDocumentPickerDelegate {
+        private let completion: @MainActor (AssetFilePickerResult) -> Void
+
+        init(completion: @escaping @MainActor (AssetFilePickerResult) -> Void) {
+            self.completion = completion
+        }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            finish(with: .selected(urls))
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            finish(with: .cancelled)
+        }
+
+        private func finish(with result: AssetFilePickerResult) {
+            completion(result)
+            activeBuildFilePickerDelegate = nil
         }
     }
 

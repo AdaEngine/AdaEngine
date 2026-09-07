@@ -36,3 +36,18 @@ open AdaEditor.xcodeproj
 ```
 
 The generated project uses the local `AdaEditor` SwiftPM package. To build and run the editor, select the `AdaEditor (Editor)` scheme that Xcode creates for the package's executable product.
+
+## Offline Documentation
+
+Open **Help > AdaEngine Documentation**, or use the **Documentation** button on the welcome screen or editor toolbar. The native SwiftUI reader includes full-text guide search, section navigation, Back/Forward history, and copyable code examples. On macOS it opens a reusable window; on iPadOS it opens an in-app reader with a Done button.
+
+The bundled library contains the editor guide and substantive Markdown articles from the AdaEngine and AdaScripting DocC catalogs. It works without internet or a source checkout. Generated API reference pages and external websites are not bundled; external links are labeled **Internet**.
+
+After changing a source article, regenerate and verify the checked-in snapshot:
+
+```bash
+python3 scripts/update-offline-documentation.py
+python3 scripts/update-offline-documentation.py --check
+```
+
+The snapshot lives in `Sources/AdaEditor/Assets/Documentation/catalog.json` and ships through the existing SwiftPM `Assets` resource copy, including the macOS and iPadOS app wrappers. The generator preserves code examples, removes DocC presentation metadata, and validates internal article links.

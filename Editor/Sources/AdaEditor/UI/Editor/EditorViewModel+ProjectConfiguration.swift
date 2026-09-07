@@ -43,6 +43,10 @@ extension EditorViewModel {
         project.map { URL(fileURLWithPath: $0.path, isDirectory: true) }
     }
 
+    var projectAssetsURL: URL? {
+        projectURL.map { Self.assetsDirectoryURL(for: $0, fileManager: fileManager) }
+    }
+
     var projectRootSidebarItem: EditorProjectSidebarViewModel.Item? {
         guard let project, let projectURL else {
             return nil
@@ -102,17 +106,27 @@ extension EditorViewModel {
         ".\(newFileKind.fileExtension)"
     }
 
-    func presentNewFileDialog() {
+    var newFilePreviewPath: String {
+        let name = newFileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return "" }
+        let fileName = (name as NSString).pathExtension.isEmpty ? "\(name).\(newFileKind.fileExtension)" : name
+        return newFileDestinationRelativePath.isEmpty ? fileName : "\(newFileDestinationRelativePath)/\(fileName)"
+    }
+
+    func presentNewFileDialog(kind: EditorNewFileKind? = nil) {
         guard projectURL != nil else {
             appendOutput("New file is unavailable: no project is open.")
             return
         }
 
+        isNewFileKindPreselected = kind != nil
+        if let kind { newFileKind = kind }
+
         let selectedItem = projectSidebar.selectedItem
         if let selectedItem {
             newFileDestinationRelativePath = selectedItem.isFolder
                 ? selectedItem.relativePath
-                : URL(fileURLWithPath: selectedItem.relativePath, isDirectory: false).deletingLastPathComponent().relativePath
+                : (selectedItem.relativePath as NSString).deletingLastPathComponent
             if newFileDestinationRelativePath == "." {
                 newFileDestinationRelativePath = ""
             }
@@ -261,14 +275,6 @@ extension EditorViewModel {
         Binding(get: { self.projectMainSceneText }, set: { self.projectMainSceneText = $0 })
     }
 
-    var projectIncludedFilesBinding: Binding<String> {
-        Binding(get: { self.projectIncludedFilesText }, set: { self.projectIncludedFilesText = $0 })
-    }
-
-    var projectExcludedFilesBinding: Binding<String> {
-        Binding(get: { self.projectExcludedFilesText }, set: { self.projectExcludedFilesText = $0 })
-    }
-
     var projectRunArgumentsBinding: Binding<String> {
         Binding(get: { self.projectRunArgumentsText }, set: { self.projectRunArgumentsText = $0 })
     }
@@ -357,8 +363,8 @@ extension EditorViewModel {
             settings.project.bundleIdentifier = Self.optionalText(from: projectBundleIdentifierText)
             settings.editor.startupScene = Self.optionalText(from: projectMainSceneText)
             settings.paths.resourceRoots = Self.pathList(from: projectResourceRootsText)
-            settings.build.includedFiles = Self.pathList(from: projectIncludedFilesText)
-            settings.build.excludedFiles = Self.pathList(from: projectExcludedFilesText)
+            settings.build.includedFiles = projectIncludedFiles
+            settings.build.excludedFiles = projectExcludedFiles
             settings.run.destination = selectedRunDestination.adaProjectDestination
             settings.run.arguments = Self.lineList(from: projectRunArgumentsText)
             if let runtime {

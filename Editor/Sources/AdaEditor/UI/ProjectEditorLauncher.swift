@@ -39,7 +39,7 @@ enum ProjectEditorLauncher {
         )
         
         let editorWindow = UIWindowManager.shared.spawnWindow(configuration: configuration) {
-            EditorView(project: project, hotReloadState: .unavailable)
+            EditorView(project: project)
         }
         promoteToPrimaryWindow(editorWindow)
         editorWindow.showWindow(makeFocused: true)

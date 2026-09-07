@@ -272,8 +272,26 @@ extension EditorViewModel {
         }
     }
 
+    static func sceneAssets(from items: [EditorProjectSidebarViewModel.Item]) -> [EditorInspectorSidebarViewModel.SceneAsset] {
+        items.compactMap { item in
+            guard item.kind == .scene,
+                  let assetsRoot = item.assetRoot,
+                  let reference = assetReference(for: item.relativePath, assetsRoot: assetsRoot),
+                  let absolutePath = absoluteFilePath(from: item.id)
+            else {
+                return nil
+            }
+            return EditorInspectorSidebarViewModel.SceneAsset(
+                name: item.title,
+                reference: reference,
+                absolutePath: absolutePath
+            )
+        }
+    }
+
     func syncInspectorTextureAssets() {
         inspectorSidebar.textureAssets = Self.textureAssets(from: projectSidebar.items)
+        inspectorSidebar.sceneAssets = Self.sceneAssets(from: projectSidebar.items)
     }
 
     static func assetsDirectoryURL(for projectURL: URL, fileManager: FileManager) -> URL {

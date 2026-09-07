@@ -16,6 +16,9 @@ struct GitToolingTests {
         """)
 
         #expect(snapshot.branchName == "feature/source-control")
+        #expect(snapshot.footerTitle == "Git: feature/source-control*")
+        #expect(GitRepositorySnapshot.empty.footerTitle == nil)
+        #expect(GitRepositorySnapshot.parseStatus(from: "## HEAD (no branch)").footerTitle == "Git: Detached HEAD")
         #expect(snapshot.upstreamName == "origin/feature/source-control")
         #expect(snapshot.aheadCount == 1)
         #expect(snapshot.behindCount == 2)
@@ -44,7 +47,7 @@ struct GitToolingTests {
         let service = GitRepositoryService(processRunner: GitFakeProcessRunner(results: []))
         let projectURL = URL(fileURLWithPath: "/tmp/Game", isDirectory: true)
 
-        #expect(service.makeCommand(.status, projectURL: projectURL).arguments == ["git", "status", "--porcelain=v1", "-b"])
+        #expect(service.makeCommand(.status, projectURL: projectURL).arguments == ["git", "status", "--porcelain=v1", "-b", "-z", "--untracked-files=all"])
         #expect(service.makeCommand(.branches, projectURL: projectURL).arguments == ["git", "branch", "--format=%(HEAD)%09%(refname:short)%09%(upstream:short)"])
         #expect(service.makeCommand(.stage(paths: ["Sources/App.swift"]), projectURL: projectURL).arguments == ["git", "add", "--", "Sources/App.swift"])
         #expect(service.makeCommand(.stage(paths: []), projectURL: projectURL).arguments == ["git", "add", "-A"])
@@ -76,10 +79,7 @@ struct GitToolingTests {
         let viewModel = EditorViewModel(project: project, sourceControlService: service)
 
         viewModel.refreshSourceControl()
-        try await waitForGitCondition {
-            viewModel.sourceControl.snapshot.branchName == "main"
-                && viewModel.sourceControl.snapshot.changedFiles.map(\.path) == ["Sources/App.swift"]
-        }
+        await viewModel.sourceControl.refreshTask?.value
 
         #expect(viewModel.sourceControl.snapshot.branchName == "main")
         #expect(viewModel.sourceControl.snapshot.changedFiles.map(\.path) == ["Sources/App.swift"])
@@ -118,19 +118,6 @@ struct GitToolingTests {
 
         #expect(await workspaceService.bootstrapCallCount == 1)
         #expect(await sourceControlService.snapshotCallCount == 1)
-    }
-}
-
-@MainActor
-private func waitForGitCondition(
-    timeout: Duration = .seconds(3),
-    pollInterval: Duration = .milliseconds(20),
-    condition: () -> Bool
-) async throws {
-    let clock = ContinuousClock()
-    let deadline = clock.now.advanced(by: timeout)
-    while !condition(), clock.now < deadline {
-        try await Task.sleep(for: pollInterval)
     }
 }
 

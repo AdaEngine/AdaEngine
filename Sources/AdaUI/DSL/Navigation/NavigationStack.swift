@@ -175,7 +175,9 @@ public extension View {
             configuration.titlePosition = position
         }
     }
-    
+
+    /// Sets the base color used by the navigation bar's fading background gradient.
+    /// Pass `nil` to restore the default black gradient.
     func navigationBarColor(_ color: Color?) -> some View {
         self.transformEnvironment(\.navigationBarConfiguration) { configuration in
             configuration.navigationBarColor = color
@@ -301,7 +303,7 @@ final class NavigationStackNode: ViewNode {
     private var pathBinding: Binding<NavigationPath>
     private(set) var navigationContext: NavigationContext
     private var viewInputs: _ViewInputs
-    private let contentBuilder: (_ViewInputs) -> ViewNode
+    private var contentBuilder: (_ViewInputs) -> ViewNode
     private var currentContentNode: ViewNode
     private var navigationBarNode: NavigationBarNode?
     private var reservedNavigationBarHeight: Float = 0
@@ -313,6 +315,11 @@ final class NavigationStackNode: ViewNode {
     /// Subtree searched for keyboard shortcut targets (matches visible stack content).
     var shortcutContentSubtree: ViewNode {
         currentContentNode
+    }
+
+    /// Visible subtrees exposed to AdaUI inspection and automation.
+    var inspectionChildNodes: [ViewNode] {
+        [navigationBarNode, currentContentNode].compactMap { $0 }
     }
 
     init(
@@ -505,6 +512,18 @@ final class NavigationStackNode: ViewNode {
         syncNavigationBar()
     }
 
+    override func update(from newNode: ViewNode) {
+        guard let other = newNode as? NavigationStackNode else {
+            return
+        }
+
+        super.update(from: other)
+        pathBinding = other.pathBinding
+        viewInputs = other.viewInputs
+        contentBuilder = other.contentBuilder
+        rebuildContent()
+    }
+
     private static func navigationBarState(in node: ViewNode) -> NavigationBarState {
         if let modifier = node as? ViewModifierNode {
             let childState = navigationBarState(in: modifier.contentNode)
@@ -618,7 +637,7 @@ final class NavigationStackNode: ViewNode {
 
 // MARK: - NavigationBarNode
 
-private final class NavigationBarNode: ViewNode {
+final class NavigationBarNode: ViewNode {
     private enum Constants {
         static let height: Float = 92
         static let horizontalPadding: Float = 16
@@ -645,6 +664,10 @@ private final class NavigationBarNode: ViewNode {
 
     private var chromeTopInset: Float {
         max(0, environment.navigationBarChromeInsets.top)
+    }
+
+    var resolvedBackgroundColor: Color {
+        configuration.navigationBarColor ?? .black
     }
 
     init(
@@ -805,8 +828,7 @@ private final class NavigationBarNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = environment
-        let config = context.environment.navigationBarConfiguration
-        let navigationBarColor = config.navigationBarColor ?? .black
+        let navigationBarColor = resolvedBackgroundColor
         context.translateBy(x: frame.origin.x, y: -frame.origin.y)
         context.drawLinearGradient(
             ResolvedLinearGradient(
@@ -859,6 +881,10 @@ private final class NavigationBarNode: ViewNode {
         ].compactMap { $0 }
     }
 
+    var inspectionChildNodes: [ViewNode] {
+        childNodes
+    }
+
     private func rebuildChildren() {
         for node in childNodes {
             node.parent = nil
@@ -886,7 +912,9 @@ private final class NavigationBarNode: ViewNode {
             .font(.system(size: pointSize))
             .foregroundColor(.white)
             .lineLimit(1)
-        return Text._makeView(_ViewGraphNode(value: view), inputs: inputs).node
+        let node = Text._makeView(_ViewGraphNode(value: view), inputs: inputs).node
+        node.accessibilityIdentifier = "AdaUI.NavigationBar.Title"
+        return node
     }
 
     private func makeSplitBackButtonNode(action: NavigationSplitCompactBackAction) -> ViewNode {

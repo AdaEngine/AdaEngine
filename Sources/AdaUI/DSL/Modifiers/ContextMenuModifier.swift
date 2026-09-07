@@ -10,7 +10,7 @@ import AdaUtils
 import Math
 
 public extension View {
-    /// Presents a context menu when the view receives a secondary click or a long press.
+    /// Presents a context menu after a secondary click, or a long press on iOS and Android.
     func contextMenu<MenuItems: View>(
         onPresent: (() -> Void)? = nil,
         onDismiss: (() -> Void)? = nil,
@@ -152,18 +152,23 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                 return self
             }
 
+            #if IOS || ANDROID
             if mouseEvent.button == .left, mouseEvent.phase == .began {
                 activeContentEventNode = super.hitTest(point, with: event)
                 return self
             }
+            #endif
 
             return super.hitTest(point, with: event)
         }
 
+        #if IOS || ANDROID
         if let touchEvent = event as? TouchEvent, touchEvent.phase == .began {
             activeContentEventNode = super.hitTest(point, with: event)
+            return self
         }
-        return self
+        #endif
+        return super.hitTest(point, with: event)
     }
 
     override func onMouseEvent(_ event: MouseEvent) {
@@ -175,11 +180,13 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                 return
             }
 
+            #if IOS || ANDROID
             if event.button == .left {
                 lastPressMouseEvent = event
                 lastPressTouches = nil
                 startPressTracking(at: event.mousePosition)
             }
+            #endif
         case .changed:
             if pressStartLocation != nil {
                 pressLocation = event.mousePosition
@@ -196,6 +203,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     }
 
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        #if IOS || ANDROID
         guard let touch = touches.first else {
             contentNode.onTouchesEvent(touches)
             return
@@ -218,9 +226,13 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
         if touch.phase == .ended || touch.phase == .cancelled {
             resetPressTracking()
         }
+        #else
+        contentNode.onTouchesEvent(touches)
+        #endif
     }
 
     override func update(_ deltaTime: TimeInterval) {
+        #if IOS || ANDROID
         if pressStartLocation != nil, !didPresentForCurrentPress {
             elapsedPressDuration += deltaTime
             if elapsedPressDuration >= minimumPressDuration {
@@ -229,6 +241,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                 present(at: pressLocation ?? pressStartLocation ?? .zero)
             }
         }
+        #endif
 
         super.update(deltaTime)
     }

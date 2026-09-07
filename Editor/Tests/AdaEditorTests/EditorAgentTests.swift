@@ -493,7 +493,13 @@ struct EditorAgentTests {
     }
 }
 
-private actor FakeEditorAgentService: EditorAgentServicing {
+actor FakeEditorAgentService: EditorAgentServicing {
+    let connectionError: EditorAgentServiceError?
+
+    init(connectionError: EditorAgentServiceError? = nil) {
+        self.connectionError = connectionError
+    }
+
     var lastRequest: EditorAgentRunRequest?
 
     func connect(
@@ -502,6 +508,7 @@ private actor FakeEditorAgentService: EditorAgentServicing {
         onProjectFileChanged _: @escaping @Sendable (String) async -> Void
     ) async throws -> EditorAgentSessionConfiguration {
         lastRequest = request
+        if let connectionError { throw connectionError }
         return .empty
     }
 

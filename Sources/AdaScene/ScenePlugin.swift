@@ -12,6 +12,7 @@ public struct ScenePlugin: Plugin {
 
     public func setup(in app: AppWorlds) {
         EditorGizmo.registerComponent()
+        SceneInstance.registerComponent()
         KeyframeAnimationPlugin().setup(in: app)
         if includesModel3D {
             Model3DPlugin().setup(in: app)

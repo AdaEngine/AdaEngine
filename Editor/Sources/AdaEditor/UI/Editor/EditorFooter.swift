@@ -172,7 +172,6 @@ enum EditorActivityPresentation {
 }
 
 struct EditorFooter: View {
-    let hotReloadState: EditorHotReloadState
     let viewModel: EditorFooterViewModel
     let activities: [EditorActivityEvent]
     
@@ -181,7 +180,7 @@ struct EditorFooter: View {
     
     var body: some View {
         HStack(spacing: 14) {
-            ForEach(viewModel.leftItems(hotReloadState: hotReloadState), id: \.self) {
+            ForEach(viewModel.leftItems, id: \.self) {
                 Text($0)
             }
             Spacer()

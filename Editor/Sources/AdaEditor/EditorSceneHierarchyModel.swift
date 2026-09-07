@@ -109,7 +109,7 @@ private extension EditorSceneHierarchyModel {
 
             let componentName = shortComponentName(typeName)
             if let descriptor = EditorComponentRegistry.descriptor(named: typeName) {
-                for field in descriptor.fields where field.kind == .assetReference {
+                for field in descriptor.fields where field.kind == .assetReference || field.kind == .sceneReference {
                     appendResource(
                         componentName: componentName,
                         fieldName: field.label,
@@ -230,7 +230,8 @@ private extension EditorSceneHierarchyModel {
     static func valueLooksResourceLike(_ value: String) -> Bool {
         let lowercasedValue = value.lowercased()
         let resourceExtensions = [
-            ".atlas", ".dae", ".fbx", ".glb", ".gltf", ".jpg", ".jpeg", ".json", ".material", ".mp3", ".obj", ".png", ".shader", ".wav", ".yaml", ".yml"
+            ".ascn", ".atlas", ".dae", ".fbx", ".glb", ".gltf", ".jpg", ".jpeg", ".json", ".material", ".mp3", ".obj", ".png", ".scene", ".scn",
+            ".shader", ".wav", ".yaml", ".yml"
         ]
         return lowercasedValue.hasPrefix("assets/")
             || lowercasedValue.hasPrefix("res://")

@@ -30,7 +30,7 @@ enum EditorSettingsSection: String, CaseIterable, Hashable, Sendable {
         case .project:
             "\u{E2C7}"
         case .agent:
-            "\u{E7FD}"
+            "\u{E0CA}"
         }
     }
 }
@@ -239,7 +239,29 @@ enum EditorSettingsWindowController {
     static let windowTitle = "AdaEditor Settings"
     static let windowWidth: Float = 980
     static let windowHeight: Float = 680
+    static let titleBarDragRegionHeight: Float = 52
 
+    static var windowConfiguration: UIWindow.Configuration {
+        UIWindow.Configuration(
+            title: windowTitle,
+            frame: Rect(x: 0, y: 0, width: windowWidth, height: windowHeight),
+            minimumSize: Size(width: 760, height: 520),
+            mode: .windowed,
+            chrome: .standard,
+            titleBar: .init(
+                background: .transparent,
+                reservesSafeArea: true,
+                dragRegionHeight: titleBarDragRegionHeight
+            ),
+            background: .opaque(EditorThemeColors.dark.background),
+            showsImmediately: false,
+            makeKey: true,
+            hasShadow: true,
+            isResizable: true
+        )
+    }
+
+    #if os(macOS)
     private static weak var settingsWindow: UIWindow?
     private static var settingsViewModel: EditorSettingsWindowViewModel?
 
@@ -275,20 +297,7 @@ enum EditorSettingsWindowController {
             editorViewModel: resolvedEditorViewModel,
             selectedSection: selectedSection
         )
-        let configuration = UIWindow.Configuration(
-            title: windowTitle,
-            frame: Rect(x: 0, y: 0, width: windowWidth, height: windowHeight),
-            minimumSize: Size(width: 760, height: 520),
-            mode: .windowed,
-            chrome: .standard,
-            titleBar: .standard,
-            background: .opaque(EditorThemeColors.dark.background),
-            showsImmediately: false,
-            makeKey: true,
-            hasShadow: true,
-            isResizable: true
-        )
-        let window = windowManager.spawnWindow(configuration: configuration) {
+        let window = windowManager.spawnWindow(configuration: windowConfiguration) {
             EditorSettingsWindowView(viewModel: viewModel)
                 .theme(.adaEditor)
         }
@@ -296,14 +305,23 @@ enum EditorSettingsWindowController {
         settingsWindow = window
         window.showWindow(makeFocused: true)
     }
+    #endif
 }
 
 struct EditorSettingsWindowView: View {
     static let accessibilityIdentifier = "AdaEditor.Settings.Window"
+    static let closeAccessibilityIdentifier = "AdaEditor.Settings.Close"
 
     let viewModel: EditorSettingsWindowViewModel
+    let showsCloseButton: Bool
 
     @Environment(\.theme) private var theme
+    @Environment(\.dismiss) private var dismiss
+
+    init(viewModel: EditorSettingsWindowViewModel, showsCloseButton: Bool = false) {
+        self.viewModel = viewModel
+        self.showsCloseButton = showsCloseButton
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -411,43 +429,52 @@ struct EditorSettingsWindowView: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: 10) {
-                Text(viewModel.selectedSection.title)
-                    .font(.system(size: 24))
-                    .foregroundColor(theme.editorColors.text)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .layoutPriority(1)
-                    .accessibilityIdentifier("AdaEditor.Settings.Title")
-                Spacer()
-                Text(viewModel.projectName)
-                    .font(.system(size: 10))
-                    .foregroundColor(theme.editorColors.muted)
-                    .lineLimit(1)
-                    .padding(.horizontal, 9)
-                    .frame(height: 24)
-                    .background(
-                        RoundedRectangleShape(cornerRadius: 5)
-                            .fill(theme.editorColors.surface)
-                    )
-            }
-            .padding(.horizontal, 34)
-            .padding(.vertical, 24)
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 0) {
+                ScrollView(.vertical) {
+                    selectedSectionContent
+                        .padding(.horizontal, 34)
+                        .padding(.bottom, 24)
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+                }
 
-            ScrollView(.vertical) {
-                selectedSectionContent
-                    .padding(.horizontal, 34)
-                    .padding(.bottom, 24)
-                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+                if viewModel.editorViewModel != nil {
+                    settingsFooter
+                }
             }
-
-            if viewModel.editorViewModel != nil {
-                settingsFooter
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+            .background(theme.editorColors.background)
+            .navigationTitle(viewModel.selectedSection.title)
+            .navigationTitlePosition(.leading)
+            .navigationBarColor(theme.editorColors.background)
+            .navigationBarTrailingItems {
+                navigationBarTrailingContent
             }
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         .background(theme.editorColors.background)
+    }
+
+    private var navigationBarTrailingContent: some View {
+        HStack(spacing: 8) {
+            Text(viewModel.projectName)
+                .font(.system(size: 10))
+                .foregroundColor(theme.editorColors.muted)
+                .lineLimit(1)
+                .padding(.horizontal, 9)
+                .frame(height: 24)
+                .background(
+                    RoundedRectangleShape(cornerRadius: 5)
+                        .fill(theme.editorColors.surface)
+                )
+            if showsCloseButton {
+                Button("Close") {
+                    dismiss()
+                }
+                .font(.system(size: 11))
+                .accessibilityIdentifier(Self.closeAccessibilityIdentifier)
+            }
+        }
     }
 
     @ViewBuilder
@@ -571,16 +598,8 @@ struct EditorSettingsWindowView: View {
                 )
             }
             settingsGroup("BUILD FILE SELECTION") {
-                settingsField(
-                    "Sources/Game, Sources/Shared.swift",
-                    detail: "Included files and directories.",
-                    text: editorViewModel.projectIncludedFilesBinding
-                )
-                settingsField(
-                    "Sources/Game/Drafts",
-                    detail: "Excluded files and directories.",
-                    text: editorViewModel.projectExcludedFilesBinding
-                )
+                EditorBuildFileList(viewModel: editorViewModel, selection: .included)
+                EditorBuildFileList(viewModel: editorViewModel, selection: .excluded)
             }
             settingsGroup("RUN DESTINATION") {
                 HStack(spacing: 8) {
@@ -605,6 +624,7 @@ struct EditorSettingsWindowView: View {
 
     private func agentSettings(_ editorViewModel: EditorViewModel) -> some View {
         VStack(alignment: .leading, spacing: 24) {
+            EditorAgentCatalogView(agent: editorViewModel.agent)
             settingsGroup("ACP CONNECTION") {
                 Text("Configure the stdio ACP agent launched for this project.")
                     .font(.system(size: 11))

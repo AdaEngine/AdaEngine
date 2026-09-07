@@ -18,6 +18,7 @@ final class EditorViewModel {
     var projectSidebar: EditorProjectSidebarViewModel
     var workbench: EditorWorkbenchViewModel
     var inspectorSidebar: EditorInspectorSidebarViewModel
+    var animationPanel: EditorAnimationPanelViewModel
     var agent: EditorAgentViewModel
     var sourceControl: EditorSourceControlViewModel
     var footer: EditorFooterViewModel
@@ -38,8 +39,8 @@ final class EditorViewModel {
     var projectBundleIdentifierText = ""
     var projectMainSceneText = ""
     var projectResourceRootsText = ""
-    var projectIncludedFilesText = ""
-    var projectExcludedFilesText = ""
+    var projectIncludedFiles: [String] = []
+    var projectExcludedFiles: [String] = []
     var projectRunArgumentsText = ""
     var projectSettingsStatusMessage = ""
     var selectedTestFilter: String
@@ -47,6 +48,7 @@ final class EditorViewModel {
     var isNewFileDialogPresented = false
     var pendingDeleteProjectItem: EditorProjectSidebarViewModel.Item?
     var newFileKind = EditorNewFileKind.scene
+    var isNewFileKindPreselected = false
     var newFileName = ""
     var newFileDestinationRelativePath = ""
     var newFileErrorMessage: String?
@@ -111,6 +113,7 @@ final class EditorViewModel {
         projectSidebar: EditorProjectSidebarViewModel? = nil,
         workbench: EditorWorkbenchViewModel? = nil,
         inspectorSidebar: EditorInspectorSidebarViewModel = EditorInspectorSidebarViewModel(),
+        animationPanel: EditorAnimationPanelViewModel = EditorAnimationPanelViewModel(),
         agent: EditorAgentViewModel? = nil,
         sourceControl: EditorSourceControlViewModel = EditorSourceControlViewModel(),
         footer: EditorFooterViewModel = EditorFooterViewModel(),
@@ -167,6 +170,7 @@ final class EditorViewModel {
         self.workbench = workbench ?? Self.defaultWorkbench(for: project)
         inspectorSidebar.scriptableObjectCatalog = scriptableObjectSupport?.descriptors ?? []
         self.inspectorSidebar = inspectorSidebar
+        self.animationPanel = animationPanel
         self.agent = agent ?? EditorAgentViewModel(project: project, fileManager: fileManager)
         self.sourceControl = sourceControl
         self.activeOutputTab = activeOutputTab
@@ -187,13 +191,14 @@ final class EditorViewModel {
         self.projectBundleIdentifierText = savedProject?.project.bundleIdentifier ?? ""
         self.projectMainSceneText = savedProject?.runtime.entry.scene ?? savedProject?.editor.startupScene ?? ""
         self.projectResourceRootsText = savedProject?.paths.resourceRoots.joined(separator: "\n") ?? ""
-        self.projectIncludedFilesText = savedProject?.build.includedFiles.joined(separator: "\n") ?? ""
-        self.projectExcludedFilesText = savedProject?.build.excludedFiles.joined(separator: "\n") ?? ""
+        self.projectIncludedFiles = savedProject?.build.includedFiles ?? []
+        self.projectExcludedFiles = savedProject?.build.excludedFiles ?? []
         self.projectRunArgumentsText = savedProject?.run.arguments.joined(separator: "\n") ?? ""
         self.scenePlayRuntime = scriptableObjectSupport?.playRuntime
         self.selectedTestFilter = selectedTestFilter
         self.playModeState = playModeState
         self.inspectorSidebar.textureAssets = Self.textureAssets(from: self.projectSidebar.items)
+        self.inspectorSidebar.sceneAssets = Self.sceneAssets(from: self.projectSidebar.items)
         self.toolbar.searchableItems = self.projectSidebar.items
         self.agent.setProjectFileChangedHandler { [weak self] relativePath in
             self?.handleAgentProjectFileChanged(relativePath: relativePath, fileManager: fileManager)

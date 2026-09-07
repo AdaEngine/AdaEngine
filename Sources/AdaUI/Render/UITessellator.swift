@@ -734,13 +734,12 @@ public struct UITessellator {
                 continue
             }
             let polygonArea = signedArea(of: clipPolygon)
-            // Scroll views use rectangular clips. Preserve the quad directly when it is
-            // fully visible instead of allocating an intermediate polygon per edge.
-            if isAxisAlignedRectangle(
-                clipPolygon,
-                bounds: polygonBounds,
-                signedArea: polygonArea
-            ), polygonBounds.contains(vertexBounds) {
+            // Preserve fully contained geometry under rounded/rotated masks too.
+            // Bounding-box overlap alone is insufficient: every clip half-plane
+            // must contain the entire vertex bounds before bypassing clipping.
+            if polygonBounds.contains(vertexBounds),
+               (isAxisAlignedRectangle(clipPolygon, bounds: polygonBounds, signedArea: polygonArea)
+                || containsBounds(vertexBounds, in: clipPolygon, signedArea: polygonArea)) {
                 result.append(vertices)
                 continue
             }
@@ -771,6 +770,31 @@ public struct UITessellator {
         }
 
         return result
+    }
+
+    private func containsBounds(_ bounds: ClipBounds, in polygon: [Vector2], signedArea: Float) -> Bool {
+        guard signedArea.isFinite, abs(signedArea) > 0.0001,
+              bounds.minX.isFinite, bounds.maxX.isFinite,
+              bounds.minY.isFinite, bounds.maxY.isFinite else {
+            return false
+        }
+
+        let direction: Float = signedArea > 0 ? 1 : -1
+        for index in polygon.indices {
+            let start = polygon[index]
+            let end = polygon[(index + 1) % polygon.count]
+            let normalX = (start.y - end.y) * direction
+            let normalY = (end.x - start.x) * direction
+            // This corner has the smallest inward distance to the edge. If it
+            // is inside, all four bounds corners (and the enclosed quad) are.
+            let x = normalX >= 0 ? bounds.minX : bounds.maxX
+            let y = normalY >= 0 ? bounds.minY : bounds.maxY
+            let distance = normalX * (x - start.x) + normalY * (y - start.y)
+            guard distance.isFinite, distance >= 0 else {
+                return false
+            }
+        }
+        return true
     }
 
     private struct ClipBounds {

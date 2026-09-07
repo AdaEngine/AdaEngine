@@ -44,7 +44,11 @@ struct AdaEditorApp: App {
                 endpoint: "/mcp",
                 serverName: "AdaEngine Editor",
                 serverVersion: "0.1.0",
-                instructions: "Inspect the live AdaEngine Editor runtime."
+                instructions: """
+                    Inspect and automate the live AdaEngine Editor. Use world.list_worlds to select Main or a SceneView subworld,
+                    automation.capabilities for writable types, automation.run for YAML/JSON steps, logs.read for cursor-based logs,
+                    and profiler.live_snapshot for metrics. Runtime ECS changes are not saved to scene files.
+                    """
             ))
         )
 #endif

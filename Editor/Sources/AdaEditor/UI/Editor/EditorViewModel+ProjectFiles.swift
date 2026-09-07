@@ -252,7 +252,7 @@ extension EditorViewModel {
                     sceneDocument.statusMessage = "Reload failed"
                     workbench.replaceSceneDocument(sceneDocument)
                 }
-            case .asset:
+            case .asset, .git:
                 continue
             }
         }

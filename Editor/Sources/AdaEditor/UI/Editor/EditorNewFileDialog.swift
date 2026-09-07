@@ -13,28 +13,30 @@ struct EditorNewFileDialog: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             VStack(alignment: .leading, spacing: 0) {
-                Text("New File")
+                Text(viewModel.isNewFileKindPreselected ? "New \(viewModel.newFileKind.title)" : "New File")
                     .font(.system(size: 18))
                     .foregroundColor(theme.editorColors.text)
                     .padding(.bottom, 6)
 
-                Text("Choose a file type and name.")
+                Text(viewModel.isNewFileKindPreselected ? viewModel.newFileKind.detail : "Choose a file type and name.")
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(.bottom, 16)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(EditorNewFileKind.allCases, id: \.self) { kind in
-                        fileKindRow(kind)
+                if !viewModel.isNewFileKindPreselected {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(EditorNewFileKind.allCases, id: \.self) { kind in
+                            fileKindRow(kind)
+                        }
                     }
+                    .padding(4)
+                    .background(RoundedRectangleShape(cornerRadius: 7).fill(theme.editorColors.background))
+                    .overlay {
+                        RoundedRectangleShape(cornerRadius: 7)
+                            .stroke(theme.editorColors.border, lineWidth: 1)
+                    }
+                    .padding(.bottom, 16)
                 }
-                .padding(4)
-                .background(RoundedRectangleShape(cornerRadius: 7).fill(theme.editorColors.background))
-                .overlay {
-                    RoundedRectangleShape(cornerRadius: 7)
-                        .stroke(theme.editorColors.border, lineWidth: 1)
-                }
-                .padding(.bottom, 16)
 
                 Text("File name")
                     .font(.system(size: 11))
@@ -62,6 +64,14 @@ struct EditorNewFileDialog: View {
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.muted)
                 .padding(.top, 6)
+
+                if !viewModel.newFilePreviewPath.isEmpty {
+                    Text("Preview: \(viewModel.newFilePreviewPath)")
+                        .font(.system(size: 10))
+                        .foregroundColor(theme.editorColors.muted)
+                        .padding(.top, 6)
+                        .accessibilityIdentifier("AdaEditor.NewFile.Preview")
+                }
 
                 if let errorMessage = viewModel.newFileErrorMessage {
                     Text(errorMessage)

@@ -1,7 +1,9 @@
 @_spi(AdaEngine) import AdaEngine
+import Foundation
 
 struct EditorSceneViewportView: View {
     let document: EditorSceneDocument
+    let resourceRootURL: URL?
     let inspectorViewModel: EditorInspectorSidebarViewModel
     let playModeState: EditorPlayModeState
     let playRuntime: EditorScenePlayRuntime?
@@ -10,12 +12,12 @@ struct EditorSceneViewportView: View {
     let onStop: (() -> Void)?
     let onDocumentChanged: (EditorSceneDocument) -> Void
 
-    @State private var runtimeWarnings: [String] = []
+    @State var runtimeWarnings: [String] = []
     @State private var displayMode: EditorSceneViewportDisplayMode = .twoD
     @State private var activeTool: EditorSceneViewportTool = .translate
-    @State private var viewportModel = EditorSceneViewportModel()
-    @Environment(\.theme) private var theme
-    @Environment(\.viewProxy) private var viewProxy
+    @State var viewportModel = EditorSceneViewportModel()
+    @Environment(\.theme) var theme
+    @Environment(\.viewProxy) var viewProxy
 
     var body: some View {
         let _ = isPlayingThisDocument ? preparePlayModeViewport() : configureViewportModel()
@@ -55,7 +57,9 @@ struct EditorSceneViewportView: View {
                         let result = EditorSceneFileLoader.load(
                             content: document.content,
                             into: app.main,
-                            loadsScriptableObjects: false
+                            loadsScriptableObjects: false,
+                            sourceURL: document.absolutePath.map { URL(fileURLWithPath: $0) },
+                            resourceRootURL: resourceRootURL
                         )
                         if runtimeWarnings != result.warnings {
                             runtimeWarnings = result.warnings
@@ -101,7 +105,12 @@ struct EditorSceneViewportView: View {
                         } catch {
                             runtimeWarnings = [error.localizedDescription]
                         }
-                        let result = EditorSceneFileLoader.load(content: document.content, into: app.main)
+                        let result = EditorSceneFileLoader.load(
+                            content: document.content,
+                            into: app.main,
+                            sourceURL: document.absolutePath.map { URL(fileURLWithPath: $0) },
+                            resourceRootURL: resourceRootURL
+                        )
                         if runtimeWarnings != result.warnings {
                             runtimeWarnings = result.warnings
                         }
@@ -144,9 +153,10 @@ struct EditorSceneViewportView: View {
     }
 
     private var viewportSceneOverlay: some View {
-        ZStack {
+        ZStack(anchor: .topLeading) {
             viewportGridLayer
             viewportGizmoLayer
+            viewportCoordinateRulerLayer
         }
         .allowsHitTesting(false)
     }
@@ -287,140 +297,6 @@ struct EditorSceneViewportView: View {
         activeTool = tool
         viewportModel.setActiveTool(tool)
         redrawViewport()
-    }
-
-    private func configureViewportModel() {
-        let viewportModel = viewportModel
-        let inspectorViewModel = inspectorViewModel
-        let document = document
-        let onDocumentChanged = onDocumentChanged
-        let viewProxy = viewProxy
-
-        let loadResult = viewportModel.configure(
-            sceneContent: document.content,
-            scriptableObjectCatalog: inspectorViewModel.scriptableObjectCatalog,
-            onSelectionChanged: { [weak inspectorViewModel] selection in
-                inspectorViewModel?.selectEntity(selection)
-                if selection != nil {
-                    onEntitySelected?()
-                }
-            },
-            onDocumentContentChanged: { content in
-                var updatedDocument = document
-                updatedDocument.content = content
-                updatedDocument.sceneModel = EditorSceneFileLoader.model(from: content)
-                updatedDocument.isDirty = true
-                updatedDocument.statusMessage = "Edited"
-                updatedDocument.errorMessage = nil
-                updatedDocument.loadSummary = EditorSceneFileLoader.summary(from: content)
-                onDocumentChanged(updatedDocument)
-            }
-        )
-        if let loadResult, runtimeWarnings != loadResult.warnings {
-            runtimeWarnings = loadResult.warnings
-            viewProxy.redraw()
-        }
-        inspectorViewModel.setSceneViewportActions(
-            owner: viewportModel,
-            applyGizmoChange: { [weak viewportModel] gizmo in
-                guard let viewportModel else {
-                    return
-                }
-                viewportModel.updateSelectedGizmo(gizmo)
-                viewProxy.redraw()
-            },
-            addEntity: { preset in
-                Self.mutateSceneDocument(document: document, status: "Entity added", onDocumentChanged: onDocumentChanged) { model in
-                    _ = model.addEntity(preset: preset)
-                }
-            },
-            addComponent: { typeName in
-                Self.mutateSceneDocument(document: document, status: "Component added", onDocumentChanged: onDocumentChanged) { model in
-                    guard let selectedEntityID = model.editor?.selectedEntity else {
-                        return
-                    }
-                    model.addComponent(typeName: typeName, to: selectedEntityID)
-                }
-            },
-            removeComponent: { typeName in
-                Self.mutateSceneDocument(document: document, status: "Component removed", onDocumentChanged: onDocumentChanged) { model in
-                    guard let selectedEntityID = model.editor?.selectedEntity else {
-                        return
-                    }
-                    model.removeComponent(typeName: typeName, from: selectedEntityID)
-                }
-            },
-            updateComponentField: { typeName, field, value in
-                Self.mutateSceneDocument(document: document, status: "Edited", onDocumentChanged: onDocumentChanged) { model in
-                    guard let selectedEntityID = model.editor?.selectedEntity else {
-                        return
-                    }
-                    model.updateField(typeName: typeName, field: field, value: value, in: selectedEntityID)
-                }
-            },
-            addScriptableObject: { descriptor in
-                Self.mutateSceneDocument(document: document, status: "Scriptable object added", onDocumentChanged: onDocumentChanged) { model in
-                    guard let selectedEntityID = model.editor?.selectedEntity else {
-                        return
-                    }
-                    model.addScriptableObject(descriptor, to: selectedEntityID)
-                }
-            },
-            removeScriptableObject: { identifier in
-                Self.mutateSceneDocument(document: document, status: "Scriptable object removed", onDocumentChanged: onDocumentChanged) { model in
-                    guard let selectedEntityID = model.editor?.selectedEntity else {
-                        return
-                    }
-                    model.removeScriptableObject(identifier: identifier, from: selectedEntityID)
-                }
-            },
-            updateScriptableObjectField: { identifier, field, value in
-                Self.mutateSceneDocument(document: document, status: "Edited", onDocumentChanged: onDocumentChanged) { model in
-                    guard let selectedEntityID = model.editor?.selectedEntity else {
-                        return
-                    }
-                    model.updateScriptableObjectField(identifier: identifier, field: field, value: value, in: selectedEntityID)
-                }
-            }
-        )
-    }
-
-    private func preparePlayModeViewport() {
-        viewportModel.disconnect()
-        inspectorViewModel.clearSceneViewportActions(owner: viewportModel)
-    }
-
-    private func redrawViewport() {
-        viewProxy.redraw()
-    }
-
-    private func mutateSceneDocument(status: String, update: (inout EditorSceneModel) -> Void) {
-        Self.mutateSceneDocument(document: document, status: status, onDocumentChanged: onDocumentChanged, update: update)
-    }
-
-    private static func mutateSceneDocument(
-        document: EditorSceneDocument,
-        status: String,
-        onDocumentChanged: (EditorSceneDocument) -> Void,
-        update: (inout EditorSceneModel) -> Void
-    ) {
-        guard var model = document.sceneModel ?? EditorSceneFileLoader.model(from: document.content) else {
-            return
-        }
-
-        update(&model)
-        guard let content = try? model.encodedYAML() else {
-            return
-        }
-
-        var updatedDocument = document
-        updatedDocument.sceneModel = model
-        updatedDocument.content = content
-        updatedDocument.isDirty = true
-        updatedDocument.statusMessage = status
-        updatedDocument.errorMessage = nil
-        updatedDocument.loadSummary = EditorSceneFileLoader.summary(from: content)
-        onDocumentChanged(updatedDocument)
     }
 
     private func viewportMessage(title: String, message: String) -> some View {

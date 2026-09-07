@@ -306,6 +306,13 @@ extension EditorViewModel {
         showRightPanel = false
     }
 
+    var settingsPresentationBinding: Binding<EditorSettingsSection?> {
+        Binding(
+            get: { self.requestedSettingsSection },
+            set: { self.requestedSettingsSection = $0 }
+        )
+    }
+
     func isLeftTopToolPresented(_ item: EditorToolStripItem) -> Bool {
         toolStrip.activeLeftTopTool == item.identifier && showLeftPanel
     }

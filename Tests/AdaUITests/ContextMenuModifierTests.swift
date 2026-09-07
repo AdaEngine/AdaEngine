@@ -151,7 +151,7 @@ struct ContextMenuModifierTests {
     }
 
     @Test
-    func contextMenuPresentsAfterLongPress() {
+    func primaryMouseHoldDoesNotPresentContextMenuOnDesktop() {
         var captured: ContextMenuPresentation?
 
         ContextMenuPresentationCenter.present = { presentation in
@@ -173,14 +173,14 @@ struct ContextMenuModifierTests {
         #expect(captured == nil)
 
         tester.advanceFrame(deltaTime: 0.4)
-        #expect(captured?.location == Point(40, 40))
-        #expect(captured?.items.map(\.title) == ["Open"])
+        #expect(captured == nil)
+        tester.sendMouseEvent(at: Point(40, 40), phase: .ended)
 
         ContextMenuPresentationCenter.present = nil
     }
 
     @Test
-    func longPressContextMenuCancelsPrimaryButtonAction() {
+    func primaryMouseHoldPreservesButtonActionOnDesktop() {
         var captured: ContextMenuPresentation?
         var didTapPrimaryAction = false
 
@@ -204,8 +204,8 @@ struct ContextMenuModifierTests {
         tester.advanceFrame(deltaTime: 0.8)
         tester.sendMouseEvent(at: Point(50, 50), phase: .ended)
 
-        #expect(captured?.items.map(\.title) == ["Open"])
-        #expect(!didTapPrimaryAction)
+        #expect(captured == nil)
+        #expect(didTapPrimaryAction)
 
         ContextMenuPresentationCenter.present = nil
     }

@@ -1,9 +1,30 @@
 @testable import AdaEditor
+@_spi(AdaEngine) import AdaEngine
 import Foundation
 import Testing
+#if canImport(AppKit) && os(macOS)
+import AppKit
+#endif
 
 @Suite("Editor inspector")
 struct EditorInspectorTests {
+    #if canImport(AppKit) && os(macOS)
+    @Test("platform color picker presents a real NSColorPanel")
+    @MainActor
+    func platformColorPickerPresentsNSColorPanel() {
+        _ = NSApplication.shared
+        EditorPlatformColorPicker.present(
+            value: EditorInspectorColorValue(red: 0.2, green: 0.4, blue: 0.6, alpha: 0.8),
+            onChange: { _ in }
+        )
+
+        let panel = NSColorPanel.shared
+        #expect(panel.showsAlpha)
+        #expect(panel.isVisible)
+        panel.orderOut(nil)
+    }
+    #endif
+
     @Test("component picker searches names, categories, and descriptions")
     @MainActor
     func componentPickerSearchesCatalogMetadata() {
@@ -27,6 +48,50 @@ struct EditorInspectorTests {
         #expect(viewModel.addableComponents(matching: "render").map(\.typeName) == ["Camera"])
         #expect(viewModel.addableComponents(matching: "shadow").map(\.typeName) == ["Light2D"])
         #expect(viewModel.addableComponents(matching: "2d").map(\.typeName) == ["Light2D"])
+    }
+
+    @Test("Add Component uses a full modal and adds the selected component")
+    @MainActor
+    func addComponentUsesFullModal() throws {
+        let viewModel = EditorInspectorSidebarViewModel()
+        viewModel.selectEntity(
+            EditorInspectorSidebarViewModel.SelectedEntity(
+                editorID: "entity-1",
+                name: "Player",
+                componentNames: [],
+                transformFields: [],
+                components: [],
+                addableComponents: [
+                    .init(typeName: "Camera", displayName: "Camera", category: "Rendering", description: "Renders the scene."),
+                    .init(typeName: "Light2D", displayName: "Light 2D", category: "2D", description: "Casts shadows.")
+                ],
+                gizmo: nil,
+                hasExplicitGizmo: false
+            )
+        )
+        var addedComponent: String?
+        viewModel.addComponent = { addedComponent = $0 }
+        viewModel.presentComponentPicker()
+
+        let container = UIContainerView(
+            rootView: Color.clear
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .fullScreenCover(isPresented: viewModel.componentPickerPresentationBinding) {
+                    EditorAddComponentDialog(viewModel: viewModel)
+                }
+        )
+        container.frame = Rect(x: 0, y: 0, width: 1024, height: 768)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+
+        let dialog = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.AddComponent.Dialog"))
+        #expect(dialog.frame.width >= 600)
+        #expect(dialog.frame.height >= 600)
+        #expect(!container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.Inspector.ComponentSearch")).isEmpty)
+
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Inspector.AddComponent.Camera"))
+        #expect(addedComponent == "Camera")
+        #expect(!viewModel.isComponentPickerPresented)
     }
 
     @Test("color values round trip RGBA and hex")

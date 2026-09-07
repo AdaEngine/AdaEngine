@@ -63,6 +63,13 @@ final class EditorInspectorSidebarViewModel {
         var absolutePath: String
     }
 
+    struct SceneAsset: Equatable, Identifiable {
+        var id: String { reference }
+        var name: String
+        var reference: String
+        var absolutePath: String
+    }
+
     struct ScriptableObjectSection: Equatable {
         var identifier: String
         var displayName: String
@@ -73,8 +80,11 @@ final class EditorInspectorSidebarViewModel {
     var scriptName: String
     var scriptDescription: String
     var selectedEntity: SelectedEntity?
+    var isComponentPickerPresented = false
+    var componentSearchText = ""
     var scriptableObjectCatalog: [EditorScriptableObjectDescriptor] = []
     var textureAssets: [TextureAsset] = []
+    var sceneAssets: [SceneAsset] = []
 
     @ObservationIgnored
     var applyGizmoChange: ((EditorGizmo) -> Void)?
@@ -122,6 +132,9 @@ final class EditorInspectorSidebarViewModel {
         selectedEntity = entity
         transformFields = entity?.transformFields ?? []
         vectorAxisDrafts.removeAll()
+        if entity == nil {
+            dismissComponentPicker()
+        }
     }
 
     func setSceneViewportActions(
@@ -175,6 +188,39 @@ final class EditorInspectorSidebarViewModel {
         addComponent?(typeName)
     }
 
+    var componentPickerPresentationBinding: Binding<Bool> {
+        Binding(
+            get: { self.isComponentPickerPresented },
+            set: { isPresented in
+                if isPresented {
+                    self.presentComponentPicker()
+                } else {
+                    self.dismissComponentPicker()
+                }
+            }
+        )
+    }
+
+    var componentSearchTextBinding: Binding<String> {
+        Binding(
+            get: { self.componentSearchText },
+            set: { self.componentSearchText = $0 }
+        )
+    }
+
+    func presentComponentPicker() {
+        guard selectedEntity?.addableComponents.isEmpty == false else {
+            return
+        }
+        componentSearchText = ""
+        isComponentPickerPresented = true
+    }
+
+    func dismissComponentPicker() {
+        isComponentPickerPresented = false
+        componentSearchText = ""
+    }
+
     func addableComponents(matching query: String) -> [AddableComponent] {
         let components = selectedEntity?.addableComponents ?? []
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -202,6 +248,16 @@ final class EditorInspectorSidebarViewModel {
         let droppedPath = url.resolvingSymlinksInPath().standardizedFileURL.path
         return textureAssets.first {
             URL(fileURLWithPath: $0.absolutePath).resolvingSymlinksInPath().standardizedFileURL.path == droppedPath
+        }
+    }
+
+    func sceneAssets(matching query: String) -> [SceneAsset] {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedQuery.isEmpty else {
+            return sceneAssets
+        }
+        return sceneAssets.filter {
+            $0.name.lowercased().contains(normalizedQuery) || $0.reference.lowercased().contains(normalizedQuery)
         }
     }
 

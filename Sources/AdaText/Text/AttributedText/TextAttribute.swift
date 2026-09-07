@@ -32,8 +32,7 @@ public struct ForegroundColorTextAttribute: TextAttributeKey {
 public struct OutlineColorTextAttribute: TextAttributeKey {
     /// The value type.
     public typealias Value = Color
-    /// Not ``Color/clear`` (white RGB, zero alpha): the text fragment shader mixes
-    /// `outline.rgb` with the fill at MSDF edges; that would add a light halo on dark text.
+    /// A transparent outline contributes neither color nor opacity at glyph edges.
     public static let defaultValue: Color = Color(red: 0, green: 0, blue: 0, alpha: 0)
 }
 

@@ -1,0 +1,1859 @@
+[
+  {
+    "id": "EditorGuide",
+    "title": "AdaEditor Guide",
+    "section": "Editor",
+    "source": "Editor/Documentation/EditorGuide.md",
+    "blocks": [
+      {
+        "kind": "heading",
+        "text": "Open or create a project",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Use **Create new project** on the welcome screen, or choose **File > Open Project** to open an existing project. AdaScript projects use `.ada` source files. Projects with native Swift code also use Swift Package Manager.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Explore and edit",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The Project Navigator shows project files. Select a source file to edit it, or a `.ascn` scene to open the scene viewport. Use the scene hierarchy to select entities and the Inspector to edit their components. Use **File > New File** to create files and **File > Import Assets** to bring assets into the project.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Use **File > Save** to save the active document, or **File > Save All** to save all documents. The Code menu includes tab actions and editor font size controls.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Build and run",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Choose **Build > Build Project** to build the project. **Build > Run** runs the active scene inside the editor when a scene is selected; otherwise it runs the selected target. **Build > Stop** stops the current operation. Build Output and Problems show progress and diagnostics.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Settings",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Open **Settings** for editor preferences and **Project > Project Settings** for project configuration. Project Dependencies and Swift Package Tasks are available in the Project menu.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Read documentation offline",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Choose **Help > AdaEngine Documentation** or use the **Documentation** button. These guides ship with the editor and are available without a network connection or an engine checkout. Search matches article titles and contents. Use the article list, section links, and Back and Forward buttons to navigate. Code examples and complete articles can be copied.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The offline library contains hand-written engine and AdaScript guides. Generated API reference pages and external websites are not included. External links are marked as requiring internet.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Start scripting",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Read Getting Started with AdaScript, then AdaScript Language and AdaScript ECS. For declarative user interfaces and previews, see AdaUI Views in AdaScript.",
+        "level": 0,
+        "links": [
+          {
+            "title": "Getting Started with AdaScript",
+            "destination": "GettingStartedWithAdaScript"
+          },
+          {
+            "title": "AdaScript Language",
+            "destination": "AdaScriptLanguage"
+          },
+          {
+            "title": "AdaScript ECS",
+            "destination": "AdaScriptECS"
+          },
+          {
+            "title": "AdaUI Views in AdaScript",
+            "destination": "AdaScriptViews"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AdaEngine",
+    "title": "AdaEngine",
+    "section": "AdaEngine",
+    "source": "Sources/AdaEngine/AdaEngine.docc/AdaEngine.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Bringing simple and powerful game engine for your awesome games.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Additional Resources",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• GitHub Repo\n• Discussions\n• AdaEngine Website",
+        "level": 0,
+        "links": [
+          {
+            "title": "GitHub Repo",
+            "destination": "https://github.com/adaengine/adaengine"
+          },
+          {
+            "title": "Discussions",
+            "destination": "https://github.com/adaengine/adaengine/discussions"
+          },
+          {
+            "title": "AdaEngine Website",
+            "destination": "https://www.adaengine.org/"
+          }
+        ]
+      },
+      {
+        "kind": "heading",
+        "text": "Overview",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaEngine is a modern, open-source game engine written in Swift, designed for building 2D and 3D games with simplicity and performance in mind. Its architecture leverages the Entity Component System (ECS) paradigm, enabling developers to create games and interactive experiences using a modular and scalable approach.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaEngine provides a suite of built-in features, including:\n• High-level rendering system supporting 2D and 3D graphics\n• Physics, animation, input handling, audio, and UI systems\n• Asset management pipeline and streamlined workflows\n• Cross-platform support across Apple platforms and Linux\n• Hot-reload capabilities for assets and scripts\n• Modern Swift API with async/await, property wrappers, and result builders",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "With AdaEngine, both beginners and experienced Swift developers can build games rapidly, focusing on gameplay instead of low-level boilerplate. Extensive documentation and tutorials make it easy to get started, from setting up your first scene to advanced gameplay mechanics.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaEngine is actively developed, and contributions from the community are welcome.\nFor more details and guides, check out the tutorials below.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Topics",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Tutorials",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• AdaEngine",
+        "level": 0,
+        "links": [
+          {
+            "title": "AdaEngine",
+            "destination": "AdaEngine"
+          }
+        ]
+      },
+      {
+        "kind": "heading",
+        "text": "Guides",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• Building AdaEngine\n• Contributing to AdaEngine\n• AdaUI View Identity\n• visionOS Windowed Mode",
+        "level": 0,
+        "links": [
+          {
+            "title": "Building AdaEngine",
+            "destination": "Building"
+          },
+          {
+            "title": "Contributing to AdaEngine",
+            "destination": "Contributing"
+          },
+          {
+            "title": "AdaUI View Identity",
+            "destination": "AdaUIIdentity"
+          },
+          {
+            "title": "visionOS Windowed Mode",
+            "destination": "VisionOSWindowed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "Building",
+    "title": "Building AdaEngine",
+    "section": "AdaEngine",
+    "source": "Sources/AdaEngine/AdaEngine.docc/Building.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "This guide covers two scenarios:\n• Development build for working on AdaEngine itself.\n• Using AdaEngine as a dependency in your own app.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Requirements",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• Swift 6.2 toolchain\n• Xcode 26.3 (macOS) or Visual Studio Code with the Swift extension\n• Git",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Development build",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "1\\. Clone the repository:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "git clone https://github.com/AdaEngine/AdaEngine.git\ncd AdaEngine",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "2\\. WebGPU (first build). If you plan to use WebGPU, run the tint build plugin once (this executes `Plugins/WebGPUTintPlugin/WebGPUTintPlugin.swift`):",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swift package plugin build-tint",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "This command downloads the Dawn/Tint sources from GitHub and builds the `tint` binary. SwiftPM will ask to allow network access for the plugin. Confirm the prompt to proceed.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "3\\. Open `Package.swift` in Xcode 26.3, or build from the command line:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swift build",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "4\\. Run tests:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swift test --parallel",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "5\\. (Optional) Run SwiftLint if you have it installed locally:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swiftlint --config .swiftlint.yml",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Using AdaEngine in your app",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Xcode",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "1\\. Open your project in Xcode 26.3.\n2\\. Go to `File > Add Packages...`.\n3\\. Enter the package URL: `https://github.com/AdaEngine/AdaEngine.git`.\n4\\. Choose a version range and add the package to your app target.\n5\\. Import the module in your code:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "import AdaEngine",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Swift Package Manager",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Add AdaEngine to your `Package.swift`:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "// Package.swift\nlet package = Package(\n    name: \"MyGame\",\n    dependencies: [\n        .package(url: \"https://github.com/AdaEngine/AdaEngine.git\", from: \"X.Y.Z\")\n    ],\n    targets: [\n        .target(\n            name: \"MyGame\",\n            dependencies: [\"AdaEngine\"]\n        )\n    ]\n)",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Replace `X.Y.Z` with the latest release tag.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "If your app enables WebGPU, run the tint build plugin once in the AdaEngine package directory before the first build:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swift package plugin build-tint",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "SwiftPM will ask to allow network access for the plugin. Confirm the prompt to let it download the Dawn/Tint sources.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Exporting a Web app",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaEngine includes an experimental WebAssembly export command for browser-hosted games.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Requirements:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• Swift 6.3.2 release toolchain.\n• `swift-6.3.2-RELEASE_wasm` installed with `swift sdk install`.\n• A game executable product that depends on `AdaEngine`. Add `AdaWeb` if the app needs browser-specific helpers.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Swift.org documents the current WebAssembly SDK installation flow at:\nhttps://www.swift.org/documentation/articles/wasm-getting-started.html",
+        "level": 0,
+        "links": [
+          {
+            "title": "https://www.swift.org/documentation/articles/wasm-getting-started.html",
+            "destination": "https://www.swift.org/documentation/articles/wasm-getting-started.html"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "text": "Export a package product:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swift package --allow-writing-to-package-directory \\\n  export-web \\\n  --product MyGame \\\n  --output dist/web",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "If several WASM SDKs are installed, pass the SDK id explicitly:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swift package --allow-writing-to-package-directory \\\n  export-web \\\n  --product MyGame \\\n  --swift-sdk swift-6.3.2-RELEASE_wasm",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The plugin emits `index.html`, `main.js`, `runtime.mjs`, the built `.wasm`, `package.json`, `ada-web-manifest.json`, `ada-resource-manifest.json`, copied SwiftPM resource bundles, and copies a package-level `Assets` directory when present. Use `npm install && npm run serve` in the output directory to serve the bundle locally.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "AdaUIIdentity",
+    "title": "AdaUI View Identity",
+    "section": "AdaEngine",
+    "source": "Sources/AdaEngine/AdaEngine.docc/Articles/Developers/AdaUIIdentity.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "AdaUI reconciles a new view tree against the mounted `ViewNode` tree. A node is preserved only when the new node and old node describe the same identity and the new node can update the old node. Preserved nodes keep their `@State`, focus state, in-flight animation controllers, layers, and other node-local runtime state. Recreated nodes start with fresh runtime state.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Identity Model",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "For every sibling list, AdaUI resolves identity in this order:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "1\\. Explicit identity from `.id(_:)` or `ForEach` data IDs.\n2\\. Structural identity from result-builder constructs, including the active branch of `if` / `else`.\n3\\. Structural sibling position for children without explicit IDs.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Explicit IDs are scoped to the current sibling list. IDs must be unique within that list; duplicate IDs are ambiguous and are not a stable state-preservation contract.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "`.id(_:)`",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`.id(_:)` binds a node to a hashable identity value. If the value is unchanged, AdaUI may move that node to a different sibling index and preserve its runtime state. If the value changes, AdaUI treats the view as a different node and recreates it.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The view type still participates in matching. A node with the same explicit ID but an incompatible concrete node type is recreated instead of being updated in place.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "`ForEach`",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`ForEach` wraps each generated child in an explicit identity:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• `ForEach(data)` uses each element's `Identifiable.id`.\n• `ForEach(data, id: keyPath)` uses the key-path value.\n• `ForEach(0..<n)` is position-based and is intended for constant ranges.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Reordering identified data preserves the child nodes associated with those IDs, so row `@State`, focus, and animations follow the data item rather than the visual index. Inserting or deleting an item only creates or removes nodes for the affected IDs.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Conditional Branches",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`if` / `else` branches add a structural branch discriminator. This prevents state from moving between two branches that happen to produce the same view type at the same sibling position. Switching from one branch to the other recreates that branch's node; explicit IDs are still scoped by the active branch structure.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "`@State` Properties",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`@State` storage belongs to the preserved view node and to the exact property wrapper slot inside that view. The slot key includes the wrapper's declaration order among state-like wrappers, its reflected property label, and its value type.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Renaming a `@State` property creates a new storage slot. Reordering `@State` properties also creates new slots for the moved wrappers. Adding or removing a state wrapper preserves only wrappers whose slot key is unchanged.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "This rule intentionally resets state after source-level declaration edits rather than migrating values between properties. It prevents a rebuild from moving state between different properties or between different view instances. Dynamic or reorderable view instances still need `.id(_:)` or `ForEach(_:id:)` so the owning view node has stable identity.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Unkeyed Children",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Children without explicit IDs are matched by structural sibling position. AdaUI uses common-prefix and common-suffix matching for unkeyed runs, which preserves unaffected nodes around an insertion or deletion in the middle. Reordering unkeyed siblings has no semantic identity signal, so state is not guaranteed to follow a particular data item; use `.id(_:)` or `ForEach(_:id:)` for reorderable content.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Mixed Keyed And Unkeyed Children",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "In a mixed sibling list, keyed nodes are matched by ID first. The remaining unkeyed nodes are reconciled by their structural order with the same prefix/suffix rules. This keeps static unkeyed content stable around keyed inserts, deletes, and reorders, while still requiring explicit IDs for dynamic reorderable items.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "VisionOSWindowed",
+    "title": "visionOS Windowed Mode",
+    "section": "AdaEngine",
+    "source": "Sources/AdaEngine/AdaEngine.docc/VisionOSWindowed.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Run AdaEngine apps in visionOS Shared Space using the existing `WindowGroup` scene model.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Overview",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaEngine's first visionOS milestone is windowed rendering. Apps launch as normal visionOS windows backed by UIKit scenes, `MTKView`, and the Metal render backend. Existing apps that use `WindowGroup` do not need a new public API for this mode.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "import AdaEngine\n\n@main\nstruct VisionOSWindowedApp: App {\n    var body: some AppScene {\n        WindowGroup {\n            Text(\"AdaEngine on visionOS\")\n                .padding()\n        }\n    }\n}",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Windowed mode intentionally does not create a Full Space, stereo renderer, ARKit session, or `CompositorServices.LayerRenderer` surface. Those belong to a later immersive rendering milestone.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "SPMDebug",
+    "title": "Known issues and how to debug SPM targets",
+    "section": "AdaEngine",
+    "source": "Sources/AdaEngine/AdaEngine.docc/Articles/Developers/SPMDebug.md",
+    "blocks": [
+      {
+        "kind": "heading",
+        "text": "Xcode Instruments: \"Required kernel recording resources are in use by another document\"",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "When profiling an SPM project (without an xcodeproj) in Instruments, you may see a message about kernel recording resources being in use, even when no other Instruments documents are open.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "**Cause:** The message is misleading. The real cause is that the binary does not have the `get-task-allow` entitlement. SPM does not distinguish between “release” and “profiling,” so profiling uses a release build without this entitlement.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "**Solution:** Re-sign the binary with the `get-task-allow` entitlement before launching Instruments.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "1\\. Open your scheme (Cmd-Shift-,).\n2\\. In **Profile → Pre-actions**, add a Pre-action.\n3\\. Set the shell to `/bin/zsh`.\n4\\. Paste the re-sign script below (the `=(...)` syntax is zsh process substitution):",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "# For Instruments, re-sign binary with get-task-allow entitlement\ncodesign -s - -v -f --entitlements =(echo -n '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"https://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n    <dict>\n        <key>com.apple.security.get-task-allow</key>\n        <true/>\n    </dict>\n</plist>') ${TARGET_BUILD_DIR}/${PRODUCT_NAME}",
+        "language": "zsh",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "See also: Solving \"Required kernel recording resources...\" in Instruments (Rob Napier).",
+        "level": 0,
+        "links": [
+          {
+            "title": "Solving \"Required kernel recording resources...\" in Instruments",
+            "destination": "https://cocoaphony.micro.blog/2022/10/29/solving-required-kernel.html"
+          }
+        ]
+      },
+      {
+        "kind": "text",
+        "text": "The script is stored in `.swiftpm/xcode/xcshareddata/xcschemes/<schemename>.xcscheme`. The pre-action runs only for Profile, so it does not affect normal builds.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "**Note:** Pre-action scripts do not receive `SRCROOT`; if the script fails, Xcode will not show details—check Console.app for logs.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "Contributing",
+    "title": "Contributing to AdaEngine",
+    "section": "AdaEngine",
+    "source": "Sources/AdaEngine/AdaEngine.docc/Contributing.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "We welcome contributions of all kinds: bug fixes, features, documentation, and examples.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Quick start",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "1\\. Fork the repository and create a topic branch from `main`.\n2\\. Make your changes and keep commits focused.\n3\\. Run the test suite:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swift test --parallel",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "4\\. Open a pull request with a clear description of the change.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Requirements",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• Swift 6.2 toolchain\n• Xcode 26.3 (macOS) or Visual Studio Code with the Swift extension",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Code style",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• SwiftLint is enforced via the SwiftPM build tool plugin.\n• If you have SwiftLint installed locally, you can run it directly:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swiftlint --config .swiftlint.yml",
+        "language": "bash",
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Tests",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• Add or update tests for behavioral changes when practical.\n• Prefer targeted tests over broad refactors.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "More details",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "For the full contributing guide, see:\\n- CONTRIBUTING.md",
+        "level": 0,
+        "links": [
+          {
+            "title": "CONTRIBUTING.md",
+            "destination": "https://github.com/AdaEngine/AdaEngine/blob/main/CONTRIBUTING.md"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AdaScripting",
+    "title": "AdaScript",
+    "section": "AdaScript",
+    "source": "Sources/AdaScripting/AdaScripting.docc/AdaScripting.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Write gameplay systems in AdaScript while keeping entity filtering and access planning in AdaEngine's native ECS.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Overview",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaScript is AdaEngine's scripting layer for gameplay and declarative AdaUI. Its source files use the `.ada` extension. The current implementation uses an embedded language runtime, while the public API, diagnostics, and tooling consistently present AdaScript concepts.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Annotations are not only syntax. AdaEngine resolves every query into native archetypes and component columns and publishes its component access to the scheduler.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Use AdaScript for gameplay rules that benefit from quick iteration. Keep rendering backends, custom data structures, and other low-level or performance-critical facilities in Swift.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(scheduler: \"update\")\nclass MovementSystem {\n    @query(Transform, Movement)\n    var movers;\n\n    func update(context) {\n        for (var entity in movers) {\n            var position = entity.transform.position;\n            var velocity = entity.movement.velocity;\n            position[0] += velocity[0] * context.deltaTime;\n            position[1] += velocity[1] * context.deltaTime;\n            entity.transform.position = position;\n        }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaEditor projects configure automatic script discovery by default. For an existing Swift package, follow Getting Started with AdaScript to enable the build plugin and register the generated script plugins.",
+        "level": 0,
+        "links": [
+          {
+            "title": "Getting Started with AdaScript",
+            "destination": "GettingStartedWithAdaScript"
+          }
+        ]
+      },
+      {
+        "kind": "heading",
+        "text": "Topics",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Essentials",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• Getting Started with AdaScript\n• AdaScript Language",
+        "level": 0,
+        "links": [
+          {
+            "title": "Getting Started with AdaScript",
+            "destination": "GettingStartedWithAdaScript"
+          },
+          {
+            "title": "AdaScript Language",
+            "destination": "AdaScriptLanguage"
+          }
+        ]
+      },
+      {
+        "kind": "heading",
+        "text": "ECS Integration",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• AdaScript ECS\n• AdaScript Diagnostics and Performance",
+        "level": 0,
+        "links": [
+          {
+            "title": "AdaScript ECS",
+            "destination": "AdaScriptECS"
+          },
+          {
+            "title": "AdaScript Diagnostics and Performance",
+            "destination": "AdaScriptDiagnosticsAndPerformance"
+          }
+        ]
+      },
+      {
+        "kind": "heading",
+        "text": "User Interfaces",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• AdaUI Views in AdaScript",
+        "level": 0,
+        "links": [
+          {
+            "title": "AdaUI Views in AdaScript",
+            "destination": "AdaScriptViews"
+          }
+        ]
+      },
+      {
+        "kind": "heading",
+        "text": "Runtime API",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• `AdaScriptPlugin`\n• `AdaScriptSource`\n• `AdaScriptError`\n• `AdaScriptView`\n• `AdaScriptViewRegistry`",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "GettingStartedWithAdaScript",
+    "title": "Getting Started with AdaScript",
+    "section": "AdaScript",
+    "source": "Sources/AdaScripting/AdaScripting.docc/GettingStartedWithAdaScript.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Add an `.ada` file to an AdaEngine executable and run its systems without manually loading each script.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Overview",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaEngine provides two ways to install AdaScript plugins:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• **Automatic discovery** embeds every `.ada` file in an executable target at\n  build time and generates one plugin backed by one target-level script module.\n• **Manual loading** creates an `AdaScriptPlugin` from source text or a file URL at runtime.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaEditor-created projects use automatic discovery. Use manual loading when scripts live outside the Swift target, come from a downloaded package, or need explicit error handling.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Create a script",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Add `Movement.ada` anywhere below the executable target's source directory, for example:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "Sources/MyGame/\n├── main.swift\n└── Scripts/\n    └── Movement.ada",
+        "language": "text",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Declare a system and its query with annotations:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(scheduler: \"update\")\nclass MovementSystem {\n    @query(Transform)\n    var transforms;\n\n    func update(context) {\n        for (var entity in transforms) {\n            var position = entity.transform.position;\n            position[0] += 100 * context.deltaTime;\n            entity.transform.position = position;\n        }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaEngine discovers `@system` and `@query` metadata and calls `update(context)` whenever the selected scheduler runs.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Enable automatic discovery",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Expose `AdaScriptBuildPlugin` to your executable target in `Package.swift`:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "// swift-tools-version: 6.2\nimport PackageDescription\n\nlet package = Package(\n    name: \"MyGame\",\n    platforms: [\n        .macOS(.v15)\n    ],\n    dependencies: [\n        .package(\n            url: \"https://github.com/AdaEngine/AdaEngine.git\",\n            branch: \"main\"\n        )\n    ],\n    targets: [\n        .executableTarget(\n            name: \"MyGame\",\n            dependencies: [\n                .product(name: \"AdaEngine\", package: \"AdaEngine\")\n            ],\n            plugins: [\n                .plugin(name: \"AdaScriptBuildPlugin\", package: \"AdaEngine\")\n            ]\n        )\n    ]\n)",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "> Important: Choose a version requirement appropriate for your project instead of a branch dependency when consuming a released AdaEngine version.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The build plugin finds `.ada` files through SwiftPM, sorts them by target-relative\npath, and generates `AdaScriptPluginsGenerated.swift` in the plugin work\ndirectory. The generated plugin passes one source map to one\n`AdaScriptPlugin`. Script source is embedded in the executable; the\noriginal files are not read at runtime.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Install the generated plugin in your app scene:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "import AdaEngine\n\n@main\nstruct MyGame: App {\n    var body: some AppScene {\n        WindowGroup {\n            GameView()\n        }\n        .addPlugins(AdaScriptPluginsGenerated())\n    }\n}",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Rebuilding the target after adding, removing, renaming, or editing an `.ada` file refreshes the generated source.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The same generated source contains native backing structs and registration for\nscalar `@component` and `@resource` declarations. Because these declarations\nchange Swift layout, adding or editing their stored fields requires rebuilding\nthe target rather than source-only reload.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Register custom components",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaScript resolves component names while plugins are set up. Register custom Swift components before the generated script plugin:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "import AdaEngine\n\n@Component\nstruct Movement: Codable, Sendable {\n    var velocity: Vector2\n}\n\nstruct GameComponentsPlugin: Plugin {\n    @MainActor\n    func setup(in app: borrowing AppWorlds) {\n        Movement.registerComponent()\n    }\n}\n\n@main\nstruct MyGame: App {\n    var body: some AppScene {\n        WindowGroup {\n            GameView()\n        }\n        .addPlugins(\n            GameComponentsPlugin(),\n            AdaScriptPluginsGenerated()\n        )\n    }\n}",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The `@Component` macro supplies field reflection for supported property types. A plain `Component` can participate in query matching, but its fields are not automatically available through the script bridge.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Load a script manually",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Create an `AdaScriptPlugin` when you need control over the source location or loading failure:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "import AdaEngine\n\nstruct RuntimeScriptsPlugin: Plugin {\n    let scriptURL: URL\n\n    @MainActor\n    func setup(in app: borrowing AppWorlds) {\n        do {\n            let script = try AdaScriptPlugin(contentsOf: scriptURL)\n            app.addPlugin(script)\n        } catch {\n            print(\"Could not load Ada Script: \\(error)\")\n        }\n    }\n}",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "You can also use `AdaScriptPlugin/init(source:name:)` when one source is\nalready in memory, or `AdaScriptPlugin/init(sources:name:)` with\n`AdaScriptSource` values for a multi-file module. Script compilation,\nimport resolution, and annotation validation happen during initialization.\nNative component resolution happens later during plugin setup.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Next steps",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Read AdaScript Language for annotation syntax, then AdaScript ECS for queries, component fields, and native iterator behavior.",
+        "level": 0,
+        "links": [
+          {
+            "title": "AdaScript Language",
+            "destination": "AdaScriptLanguage"
+          },
+          {
+            "title": "AdaScript ECS",
+            "destination": "AdaScriptECS"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "AdaScriptLanguage",
+    "title": "AdaScript Language",
+    "section": "AdaScript",
+    "source": "Sources/AdaScripting/AdaScripting.docc/AdaScriptLanguage.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Use AdaScript syntax with AdaEngine declaration annotations.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Source files",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaScript uses `.ada` files. A file contains classes,\nfunctions, variables, and control flow. AdaScript modules do not declare a\n`main()` function and do not assemble plugin manifests.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(scheduler: \"update\")\nclass CounterSystem {\n    @query(Counter)\n    var counters;\n\n    func update(context) {\n        for (var entity in counters) {\n            entity.counter.value += 1;\n        }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Imports",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Files with discovery annotations such as `@system` are module roots. Import a\nhelper declaration explicitly from another target-relative source file:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "import {\n    clampSpeed,\n    MovementSettings\n} from \"../Shared/Movement\";",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Relative imports are resolved from the importing file. The `.ada` extension is\noptional. Absolute paths and imports which escape the Swift target source map\nare rejected. A reachable source is compiled once, and an import cycle reports\nthe complete cycle.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The current implementation supports selected relative imports. Namespace\nimports, public/private visibility enforcement, and the `AdaEngine` / `AdaUI`\nvirtual-module declarations remain part of the next module-language slice.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Annotations",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaScript declaration annotations have three forms:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@name\n@name(value)\n@name(key: value, other: [a, b])",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Arguments are compile-time constants or symbolic identifiers. They do not run\nuser code during module discovery.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The initial AdaEngine annotations are:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• `@system` for ECS systems;\n• `@after` and `@before` for ordering systems by their module-local IDs;\n• `@query` for native ECS iterators;\n• `@access` for explicit scheduler access;\n• `@component` and `@resource` for generated data declarations;\n• `@scriptable` for attached script objects;\n• `@view` for declarative AdaUI views;\n• `@previewable` for AdaUI views exposed in AdaEditor Preview;\n• `@state` for state owned by an AdaScript view;\n• `@environment` for read-only AdaUI environment values;\n• `@export` for persistent and inspectable fields.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Script-defined data",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The build plugin generates native backing types for scalar component and\nresource schemas:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@component(id: \"game.health\")\nstruct Health {\n    @export var current = 100.0;\n    @export var maximum = 120;\n}\n\n@resource(id: \"game.balance\", autoInsert: true)\nstruct GameBalance {\n    @export var acceleration = 9.8;\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The first schema slice supports `Bool`, signed `Int64`, finite `Double`, and\n`String` defaults. Generated Swift symbol names are private implementation\ndetails. Runtime lookup accepts both the AdaScript declaration name (`Health`) and\nthe stable ID (`game.health`). `autoInsert: true` inserts the generated resource\nbefore systems are installed.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Bind a resource directly on a system with `@res`. The binding uses a native ECS\nresource pointer during `update(context)`; field writes update the resource\nchange tick:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"physics.system\")\nclass PhysicsSystem {\n    @res\n    var balance: GameBalance;\n\n    func update(context) {\n        balance.acceleration += 0.1;\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A missing required resource is reported through plugin diagnostics. Optional\nresources can be guarded with `available()`:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@res(optional: true)\nvar debugSettings: DebugSettings;\n\nif (debugSettings.available()) {\n    debugSettings.enabled = true;\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Resource access is currently conservative: each `@res` requests scheduler write\naccess. Static read/write inference and explicit access overrides are planned.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "World commands",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Systems receive a capability-scoped world facade. Structural changes are\nqueued through `context.world.commands` and applied only after the current\nsystem parameters finish, so an active query iterator cannot be invalidated:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"cleanup.system\")\nclass CleanupSystem {\n    @query(Expired)\n    var expired;\n\n    func update(context) {\n        for (var entity in expired) {\n            context.world.commands.despawn(entity.id);\n        }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The initial command API creates registered component defaults by AdaScript name\nor stable ID:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "var entity = context.world.commands.spawn([\"game.health\"]);\ncontext.world.commands.insert(entity, \"game.poison\");\ncontext.world.commands.remove(entity, \"game.poison\");\ncontext.world.commands.despawn(entity);",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Direct command use is inferred per system and declares deferred-world access to\nthe scheduler. Command facades expire when `update(context)` returns; using a\nretained or undeclared facade reports a plugin diagnostic and performs no\nmutation. Component constructor arguments, explicit dynamic `@access`, events,\nassets, UI commands, and exclusive immediate world access are planned.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Script-defined data requires `AdaScriptBuildPlugin`; manual runtime-only source\nloading cannot introduce a new native Swift layout.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Swift and Editor tooling can attach the generated default without naming its\nprivate backing type:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "world.insertDefaultComponent(named: \"game.health\", into: entity.id)",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Generated-component dynamic mutation/removal and scene coding, vectors, colors,\nenums, entity references, and asset references are not part of that data-schema\nslice yet.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Scriptable objects",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Use `@scriptable` for low-cardinality behavior attached to one entity. Systems\nremain the scalable path for processing large entity sets.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@scriptable(\n    id: \"game.player-controller\",\n    version: 2,\n    aliases: [\"PlayerController\"]\n)\nclass PlayerController {\n    @export var speed = 8.0;\n    @component(required: true) var transform: Transform;\n    @res(optional: true) var settings: PlayerSettings;\n\n    func ready(context) {}\n\n    func update(context) {\n        transform.position += speed * context.deltaTime;\n    }\n\n    func fixedUpdate(context) {}\n    func event(events, context) {}\n    func destroy(context) {}\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The build plugin registers stable IDs, versions, aliases, exported scalar\ndefaults, and transient component/resource bindings. Required components are\nchecked before `ready`. Optional resources expose `available()`.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`ScriptableComponents` encodes a polymorphic envelope containing only `type`,\n`version`, and detached `payload`. Entity bindings, resources, VM instances,\nworld contexts, and lifecycle state are never serialized. Decoding does not run\ngameplay; attachment runs `ready` once and detachment runs `destroy` once.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Scriptable contexts expose the same expiring deferred commands facade as\nsystems. Retaining it after a callback produces a diagnostic. Scriptable\nobjects intentionally have no immediate-mode GUI callback; declarative UI\nbelongs to AdaUI script views.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "AdaUI views",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Use `@view` on a class whose `body()` contains declarative AdaUI expressions.\nAdd `@previewable` when that view should appear in AdaEditor Preview. See\nAdaUI Views in AdaScript for the supported view constructors, modifiers, and\npreview workflow.",
+        "level": 0,
+        "links": [
+          {
+            "title": "AdaUI Views in AdaScript",
+            "destination": "AdaScriptViews"
+          }
+        ]
+      },
+      {
+        "kind": "heading",
+        "text": "System context",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`update(context)` receives a scoped system context. `context.deltaTime` is the\ncurrent scheduler delta. Context and query values must not be retained after\nthe callback.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "State",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Fields on a system instance persist between scheduler updates:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(scheduler: \"update\")\nclass LifetimeSystem {\n    var elapsed = 0.0;\n\n    func update(context) {\n        elapsed += context.deltaTime;\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Use local variables for per-call calculations. Store ECS gameplay state in\ncomponents and shared singleton state in resources rather than global mutable\nvariables.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Values crossing the bridge",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaScript bridge values are detached booleans, integers, finite floating-point\nnumbers, strings, lists, and null. ECS component views are borrowed native\ncapabilities rather than detached values.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Unsupported values and invalid numeric conversions are rejected without\npartially mutating a component.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "System `update(context)` callbacks are command-style. Their return values are\nignored; observable behavior belongs in components, resources, events, or\ndiagnostics.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "AdaScriptECS",
+    "title": "AdaScript ECS",
+    "section": "AdaScript",
+    "source": "Sources/AdaScripting/AdaScripting.docc/AdaScriptECS.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Declare annotation-driven systems and iterate native AdaECS component columns.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Declare a system",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Apply `@system` to a class and implement `update(context)`:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(scheduler: \"update\", id: \"game.movement\")\nclass MovementSystem {\n    func update(context) {\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The scheduler defaults to `update`. System identifiers must be unique within a\nscript module.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Order systems",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Use repeatable `@after` and `@before` annotations when component and resource\naccess alone does not express the required execution order:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@after(id: \"game.input\")\n@before(id: \"game.physics\")\n@system(scheduler: \"update\", id: \"game.movement\")\nclass MovementSystem {\n    func update(context) {\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Dependency IDs resolve within the same AdaScript module. Both systems must use\nthe same scheduler. AdaScript rejects unknown IDs, self-dependencies, and\ndependency cycles while loading the module.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Declare a query",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Apply `@query` to a stored system property:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@query(\n    Health,\n    Movement,\n    with: Movable,\n    without: Frozen\n)\nvar entities;",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Positional components are fetched and available on each row. `with` and\n`without` only filter matching archetypes.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Aliases use lower-camel-case component names:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "for (var entity in entities) {\n    var position = entity.movement.position;\n    entity.health.current -= 1.0;\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`entity.id` exposes the native entity identifier.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Iterator behavior",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaScript queries are native iterators. AdaECS resolves matching archetypes,\nbinds component columns when entering a chunk, and advances their pointers by\nrow stride. The bridge does not create an entity proxy for every result and\ndoes not perform a world component lookup for every field access.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A query row and its component views are borrowed. Do not retain them after the\nloop or system update returns. Structural changes must use deferred commands.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Inactive entities are skipped. Empty queries execute zero loop iterations.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Component fields",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The `@Component` Swift macro generates the runtime field accessors used by Ada\nScript. Register native components before the script plugin is set up.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Supported field values include booleans, integers, finite floating-point\nvalues, strings, vectors, quaternions, colors, and reflected enums. A rejected\nwrite leaves the component unchanged and appends a development diagnostic.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Access planning",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The current implementation conservatively declares write access for fetched\ncomponents. This keeps scheduling correct while compiler-level read/write\ninference is completed. Filter-only components do not receive write access.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The intended final behavior derives read and write sets from row field usage,\nwith explicit `@access` metadata as the escape hatch for dynamic code.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Multiple queries",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "One system may declare multiple independent iterators:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(scheduler: \"update\")\nclass TargetingSystem {\n    @query(Player, Transform)\n    var players;\n\n    @query(Enemy, Target, without: Dead)\n    var enemies;\n\n    func update(context) {\n        for (var enemy in enemies) {\n            for (var player in players) {\n                enemy.target.entity = player.id;\n                break;\n            }\n        }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Queries are refreshed by the scheduler before each system execution.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "AdaScriptViews",
+    "title": "AdaUI Views in AdaScript",
+    "section": "AdaScript",
+    "source": "Sources/AdaScripting/AdaScripting.docc/AdaScriptViews.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Declare native AdaUI view trees in `.ada` files and preview them directly in AdaEditor.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Declare a view",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Annotate a class with `@view`. The build plugin derives its runtime identity\nfrom the Swift module and class name, humanizes the class name for AdaEditor,\nand emits a typed accessor. Use `id` or `title` only when an explicit override\nis required.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@previewable\n@view\nclass WelcomeView {\n    @state var message = \"Hello from Ada Script\";\n    @environment(colorScheme) var colorScheme;\n\n    func body() {\n        VStack(spacing: 12) {\n            Text(message).fontSize(28);\n            Text(\"Appearance: \" + colorScheme);\n            HStack {\n                Text(\"Native AdaUI\");\n                Spacer();\n            }\n            Button(\"Change message\") {\n                message = \"State updated\";\n            };\n        }\n        .padding(24)\n        .background(\"#20232aff\");\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`body()` is an implicit view-builder context. AdaEngine lowers its declarative\nexpressions into the same native `View` graph used by Swift declarations. It\ndoes not use an immediate-mode drawing callback or retain live ECS pointers.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Show a registered view",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`AdaScriptBuildPlugin` embeds `.ada` files and registers their `@view`\ndeclarations from `AdaScriptPluginsGenerated`. Use the generated typed accessor\nin a Swift window or another AdaUI hierarchy:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "WindowGroup {\n    AdaScriptViewsGenerated.welcomeView\n}\n.addPlugins(AdaScriptPluginsGenerated())",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The first view slice supports `Text`, `VStack`, `HStack`, `ZStack`, `Spacer`,\n`Divider`, and `EmptyView`. Container children are collected implicitly by the\n`body()` view builder. Available modifiers are\n`.padding`, `.frame`, `.fontSize`, `.foregroundColor`, `.background`,\n`.opacity`, and `.accessibilityIdentifier`. Colors accept common names or\n`#RRGGBB` / `#RRGGBBAA` strings.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "State and environment",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Declare view-owned values with `@state`. The script view instance remains alive\nwhile its AdaUI identity remains alive. A `Button` action mutates that same\ninstance, reevaluates `body()`, and invalidates the native view subtree.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Use `@environment(key)` to bind a read-only AdaUI environment value before each\nevaluation. The current keys are `colorScheme`, `isEnabled`, `scaleFactor`, and\n`userInterfaceIdiom`.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The intended two-way child-view syntax is `@binding var value;` with `$value`\nat the call site. Nested script-view parameters are not implemented in this\nslice, so `@binding` currently produces a compile-time diagnostic instead of a\nsilently disconnected value.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Preview in AdaEditor",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Add `@previewable` to an `@view` class that should be an AdaEditor Preview entry\npoint. Runtime-only views remain plain `@view` declarations and do not clutter\nthe Preview list.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@previewable(title: \"Welcome – Dark\")\n@view\nclass WelcomeDarkPreview {\n    func body() {\n        Text(\"Welcome preview\").background(\"#20232aff\");\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The `title` argument is optional; AdaEditor otherwise uses `@view(title:)` or a\nhumanized class name. `@previewable` without `@view`, duplicate annotations, and\nnon-string titles produce compile-time diagnostics.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "When a `.ada` file is open, AdaEditor lists its `@previewable` declarations,\ngathers the target's `.ada` sources, substitutes the current unsaved document,\nevaluates the selected view, and mounts the resulting native AdaUI tree in the\nPreview panel.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Preview actions and state use the same persistent instance path as runtime\nviews. Cross-view bindings and state migration across source generations remain\nfollow-up work.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "AdaScriptDiagnosticsAndPerformance",
+    "title": "AdaScript Diagnostics and Performance",
+    "section": "AdaScript",
+    "source": "Sources/AdaScripting/AdaScripting.docc/AdaScriptDiagnosticsAndPerformance.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Understand annotation, setup, and runtime failures and keep ECS work on the\nnative chunk path.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Compilation diagnostics",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`AdaScriptPlugin` compiles the source and reads declaration metadata\nwithout executing a `main()` manifest. Initialization throws\n`AdaScriptError/compilation(_:)` for syntax or semantic errors and\n`AdaScriptError/invalidManifest(_:)` for invalid AdaEngine annotations.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Examples include `@system` on a non-class declaration, duplicate system\nidentifiers, `@query` outside a system class, a query with no fetched\ncomponents, and a system class that cannot be initialized.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Setup diagnostics",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Native component identifiers are resolved during plugin setup so earlier\nplugins can register game components. Unknown or ambiguous component names skip\nthe affected system and append a diagnostic.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Runtime diagnostics",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Runtime diagnostics include unknown component aliases, unknown fields,\nunsupported values, invalid numeric conversions, and query capabilities used\noutside their callback lifetime.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Inspect `AdaScriptPlugin/diagnostics` after setup and during development.\nSystem `update(context)` callbacks are command-style; their return values are\nignored. Tests should assert observable ECS state and diagnostics.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Performance model",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "AdaScript query execution traverses native archetypes and chunks. Component\ncolumns are bound once per chunk, and field access advances a typed pointer by\nrow stride. A successful write mutates the component in place and updates its\nchange tick.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The hot path avoids arrays of matched entity identifiers, one Swift bridge\nobject per entity, repeated entity-location lookups, existential component\ncopies, and whole-component reinsertion.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The current embedded C runtime is globally shared and non-reentrant, so runtime entry remains\nserialized. Scalability comes from native filtering, column iteration, cached\nmetadata, and narrow bridge calls rather than multiple concurrent VMs.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Benchmark scripting changes with multiple archetypes and chunks and compare\nthem with a typed Swift query. Validate semantics before drawing performance\nconclusions.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  }
+]

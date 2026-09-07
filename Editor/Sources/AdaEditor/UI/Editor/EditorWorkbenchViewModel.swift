@@ -173,6 +173,7 @@ final class EditorWorkbenchViewModel {
         }
 
         let closingDocument = openDocuments[closingIndex]
+        if case .git(let document) = closingDocument { document.close() }
         if closingDocument.isDirty, !saveDocument(closingDocument) {
             return
         }

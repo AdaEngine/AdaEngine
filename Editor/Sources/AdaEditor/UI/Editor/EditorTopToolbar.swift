@@ -45,6 +45,7 @@ struct EditorTopToolbar: View {
                         .lineLimit(1)
                 }
 
+                EditorDocumentationButton()
                 runDestinationControls
                 runStopControls
             }

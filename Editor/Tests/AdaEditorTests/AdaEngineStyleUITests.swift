@@ -220,6 +220,7 @@ struct AdaEngineStyleUITests {
                 inspectorViewModel: EditorInspectorSidebarViewModel(),
                 playModeState: .editing,
                 scenePlayRuntime: nil,
+                sceneResourceRootURL: nil,
                 onPlayScene: nil,
                 onStopScene: nil,
                 onSceneEntitySelected: nil,
@@ -363,6 +364,131 @@ struct AdaEngineStyleUITests {
         #expect(hierarchy.absoluteFrame.height == size.height)
         #expect(emptyState.absoluteFrame.minY < 80)
         #expect(emptyState.absoluteFrame.maxY <= size.height)
+    }
+
+    @Test("scene hierarchy rows show icons separators selection and hover")
+    @MainActor
+    func sceneHierarchyRowsExposeVisualStates() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            let app = AppWorlds(main: World(name: "SceneHierarchyRowTests"))
+            RenderWorldPlugin().setup(in: app)
+        }
+        var model = EditorSceneModel.default(projectName: "HierarchyRows")
+        let rootID = try #require(model.entities.first?.id)
+        let selectedEntity = model.addEntity(name: "Colored sprite 01")
+        model.addComponent(typeName: EditorBuiltInComponentType.sprite, to: selectedEntity.id)
+        model.selectEntity(selectedEntity.id)
+        let content = try model.encodedYAML()
+        let document = EditorSceneDocument(
+            id: "scene:hierarchy-rows",
+            title: "HierarchyRows.ascn",
+            relativePath: "Assets/Scenes/HierarchyRows.ascn",
+            absolutePath: nil,
+            content: content,
+            lastSavedContent: content,
+            isReadOnly: false,
+            sceneModel: model,
+            errorMessage: nil,
+            isDirty: false,
+            statusMessage: nil,
+            loadSummary: EditorSceneFileLoader.summary(from: content)
+        )
+        var selectedEntityID: String?
+        var addedChildParentID: String?
+        var reparentedEntityIDs: (entity: String, parent: String)?
+        var contextMenu: ContextMenuPresentation?
+        ContextMenuPresentationCenter.present = { contextMenu = $0 }
+        defer { ContextMenuPresentationCenter.present = nil }
+        let container = UIContainerView(rootView: EditorSceneHierarchySidebar(
+            document: document,
+            onSelectEntity: { selectedEntityID = $0 },
+            onToggleEntityExpanded: { _ in },
+            onAddEntity: { addedChildParentID = $0 },
+            onReparentEntity: { entityID, parentID in
+                reparentedEntityIDs = (entityID, parentID)
+            }
+        ))
+        container.frame = Rect(x: 0, y: 0, width: 320, height: 300)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+
+        let selectedRow = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.Row.\(selectedEntity.id)"))
+        _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.Icon.\(selectedEntity.id)"))
+        _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.Separator.\(selectedEntity.id)"))
+        _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.Selected.\(selectedEntity.id)"))
+
+        #expect(selectedRow.absoluteFrame.height <= 36)
+
+        let rootRow = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.Row.\(rootID)"))
+        container.uiReceivePassthroughMouseMoved(
+            MouseEvent(
+                window: RID(),
+                button: .none,
+                mousePosition: Point(x: rootRow.absoluteFrame.midX, y: rootRow.absoluteFrame.midY),
+                phase: .changed,
+                modifierKeys: [],
+                time: 0
+            )
+        )
+        container.layoutIfNeeded()
+
+        _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.RowState.\(rootID).hovered"))
+
+        let selectableRow = try container.uiNode(
+            matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.Select.\(selectedEntity.id)")
+        )
+        _ = try container.uiTapNode(
+            matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.Select.\(selectedEntity.id)")
+        )
+        #expect(selectedEntityID == selectedEntity.id)
+
+        let selectedPoint = container.convert(
+            Point(x: selectableRow.absoluteFrame.midX, y: selectableRow.absoluteFrame.midY),
+            to: container.window
+        )
+        container.onMouseEvent(MouseEvent(window: RID(), button: .right, mousePosition: selectedPoint, phase: .began, modifierKeys: [], time: 0.02))
+        let menuItems = contextMenu?.items.filter { !$0.isSeparator } ?? []
+        #expect(menuItems.map(\.title) == [
+            "Add Child Entity",
+            "Add Child Scene Prefab",
+            "Hide",
+            "Rename",
+            "Duplicate",
+            "Copy",
+            "Paste as Child",
+            "Delete"
+        ])
+        menuItems.first(where: { $0.title == "Add Child Entity" })?.action?()
+        #expect(addedChildParentID == selectedEntity.id)
+
+        let rootPoint = container.convert(
+            Point(x: rootRow.absoluteFrame.midX, y: rootRow.absoluteFrame.midY),
+            to: container.window
+        )
+        container.onMouseEvent(MouseEvent(window: RID(), button: .left, mousePosition: selectedPoint, phase: .began, modifierKeys: [], time: 0.03))
+        container.onMouseEvent(MouseEvent(window: RID(), button: .left, mousePosition: rootPoint, phase: .changed, modifierKeys: [], time: 0.04))
+        container.onMouseEvent(MouseEvent(window: RID(), button: .left, mousePosition: rootPoint, phase: .ended, modifierKeys: [], time: 0.05))
+        #expect(reparentedEntityIDs?.entity == selectedEntity.id)
+        #expect(reparentedEntityIDs?.parent == rootID)
+
+        contextMenu = nil
+        container.onMouseEvent(
+            MouseEvent(
+                window: RID(),
+                button: .right,
+                mousePosition: Point(x: 290, y: 260),
+                phase: .began,
+                modifierKeys: [],
+                time: 0.06
+            )
+        )
+        #expect(contextMenu?.items.filter { !$0.isSeparator }.map(\.title) == ["Add", "Paste"])
+        #expect(contextMenu?.items.first?.submenu.map(\.title) == ["Entity", "Scene Prefab"])
+
+        menuItems.first(where: { $0.title == "Rename" })?.action?()
+        container.layoutIfNeeded()
+        _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.SceneHierarchy.RenameField.\(selectedEntity.id)"))
     }
 
     @Test("code completion popup remains inside the editor viewport")
@@ -638,6 +764,14 @@ struct AdaEngineStyleUITests {
         #expect(allIcons.allSatisfy { $0.icon.unicodeScalars.count == 1 })
     }
 
+    @Test("settings sections use renderable Material Symbols")
+    func settingsSectionsUseRenderableMaterialSymbols() {
+        let iconCodepoints = EditorSettingsSection.allCases.compactMap { $0.icon.unicodeScalars.first?.value }
+
+        #expect(iconCodepoints.count == EditorSettingsSection.allCases.count)
+        #expect(Set(iconCodepoints).isSubset(of: Set(AdaEditorMaterialSymbolFont.codepoints)))
+    }
+
     @Test("project tree uses renderable Material Symbols")
     func projectTreeUsesRenderableMaterialSymbols() {
         let iconCodepoints = EditorProjectTreeIcon.allSymbols.compactMap { $0.unicodeScalars.first?.value }
@@ -645,6 +779,14 @@ struct AdaEngineStyleUITests {
         #expect(iconCodepoints.count == EditorProjectTreeIcon.allSymbols.count)
         #expect(Set(iconCodepoints).isSubset(of: Set(AdaEditorMaterialSymbolFont.codepoints)))
         #expect(EditorProjectTreeIcon.allSymbols.allSatisfy { $0.unicodeScalars.count == 1 })
+    }
+
+    @Test("scene hierarchy icons are renderable Material Symbols")
+    func sceneHierarchyIconsAreRenderableMaterialSymbols() {
+        let iconCodepoints = EditorSceneHierarchyIcon.allSymbols.compactMap { $0.unicodeScalars.first?.value }
+
+        #expect(iconCodepoints.count == EditorSceneHierarchyIcon.allSymbols.count)
+        #expect(Set(iconCodepoints).isSubset(of: Set(AdaEditorMaterialSymbolFont.codepoints)))
     }
 
     @Test("AI flight box and inspector include requested interactive copy")
@@ -658,11 +800,21 @@ struct AdaEngineStyleUITests {
     }
 
     @Test("status and output panel include required runtime messages")
+    @MainActor
     func statusAndOutputMessages() {
         #expect(AdaEngineStyleContent.logLines.contains { $0.contains("Ada Engine initialized") })
         #expect(AdaEngineStyleContent.logLines.contains { $0.contains("AI optimization note") })
-        #expect(AdaEngineStyleContent.footerLeft == ["Built in 142ms", "Renderer Ready"])
-        #expect(AdaEngineStyleContent.footerRight == ["3:12 LF UTF-8", "Git: main*"])
+        let footer = EditorFooterViewModel()
+        #expect(footer.leftItems.isEmpty)
+        #expect(footer.rightItems.isEmpty)
+        footer.setWorkspaceFooterTitle("Preparing")
+        footer.setWorkspaceFooterTitle("Ready")
+        footer.setSourceControlFooterTitle("Git: main")
+        footer.setSourceControlFooterTitle("Git: feature*")
+        #expect(footer.leftItems == ["Workspace: Ready"])
+        #expect(footer.rightItems == ["Git: feature*"])
+        footer.setSourceControlFooterTitle(nil)
+        #expect(footer.rightItems.isEmpty)
     }
 
     @Test("output lines cap pathological compiler invocations")
@@ -895,6 +1047,7 @@ struct AdaEngineStyleUITests {
         #expect(!viewModel.isRightToolPresented(AdaEngineStyleContent.rightSidebarTools[0]))
         #expect(viewModel.toolStrip.leftTopTools == AdaEngineStyleContent.leftTopSidebarTools)
         #expect(viewModel.toolStrip.leftBottomTools == AdaEngineStyleContent.leftBottomSidebarTools)
+        #expect(viewModel.toolStrip.leftBottomTools.contains { $0.identifier == "animator" })
         #expect(viewModel.toolStrip.rightTools == AdaEngineStyleContent.rightSidebarTools)
         #expect(viewModel.projectSidebar.items.map(\.title) == AdaEngineStyleContent.projectTreeItems)
         #expect(viewModel.workbench.activeEditorTab == "Main.ascn")
@@ -902,7 +1055,7 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.workbench.openDocuments.map(\.title) == AdaEngineStyleContent.editorTabs)
         #expect(viewModel.workbench.codeColorPalette == EditorCodeColorPalette.dark)
         #expect(viewModel.inspectorSidebar.scriptName == AdaEngineStyleContent.inspectorScript)
-        #expect(viewModel.footer.rightItems == AdaEngineStyleContent.footerRight)
+        #expect(viewModel.footer.rightItems.isEmpty)
         #expect(viewModel.showsDebugOverlay == nil)
         #expect(viewModel.playModeState == .editing)
     }
@@ -911,7 +1064,6 @@ struct AdaEngineStyleUITests {
     @MainActor
     func editorViewModelMutatesInteractionState() {
         let viewModel = EditorViewModel()
-        let hotReloadState = EditorHotReloadState(isEnabled: true, watchedPathCount: 2, lastReloadedPath: nil, errorMessage: nil)
 
         viewModel.toolbar.searchText = "Renderer"
         viewModel.toolStrip.selectRightTool(AdaEngineStyleContent.rightSidebarTools[5])
@@ -929,7 +1081,7 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.workbench.activeOutputTab == "Terminal")
         #expect(viewModel.workbench.aiPrompt == "Generate a platformer controller")
         #expect(viewModel.workbench.hoveredChip == "Refactor current scene")
-        #expect(viewModel.footer.leftItems(hotReloadState: hotReloadState) == ["Built in 142ms", "Renderer Ready", "Hot Reload: 2 paths"])
+        #expect(viewModel.footer.leftItems.isEmpty)
         #expect(viewModel.showsDebugOverlay == .layoutBounds)
 
         viewModel.buildActivity = EditorBuildActivity(title: "Build")
@@ -1140,9 +1292,9 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.settingsPresentationToken == 1)
     }
 
-    @Test("settings commands request the separate settings window")
+    @Test("settings commands request the platform settings presentation")
     @MainActor
-    func settingsCommandsRequestSeparateWindow() {
+    func settingsCommandsRequestPlatformPresentation() {
         let viewModel = EditorViewModel()
 
         #expect(viewModel.handleMenuCommand(.showSettings))
@@ -1154,6 +1306,51 @@ struct AdaEngineStyleUITests {
         #expect(viewModel.requestedSettingsSection == .project)
         #expect(viewModel.settingsPresentationToken == 2)
         #expect(!viewModel.showRightPanel)
+    }
+
+    @Test("settings presentation binding dismisses the requested section")
+    @MainActor
+    func settingsPresentationBindingDismissesRequestedSection() {
+        let viewModel = EditorViewModel()
+
+        viewModel.presentSettings(.agent)
+        #expect(viewModel.settingsPresentationBinding.wrappedValue == .agent)
+
+        viewModel.settingsPresentationBinding.wrappedValue = nil
+        #expect(viewModel.requestedSettingsSection == nil)
+    }
+
+    @Test("settings window reserves a draggable title bar")
+    @MainActor
+    func settingsWindowReservesDraggableTitleBar() {
+        let configuration = EditorSettingsWindowController.windowConfiguration
+
+        #expect(configuration.titleBar.background == .transparent)
+        #expect(configuration.titleBar.reservesSafeArea)
+        #expect(configuration.titleBar.dragRegionHeight == EditorSettingsWindowController.titleBarDragRegionHeight)
+    }
+
+    @Test("modal settings close button invokes dismiss")
+    @MainActor
+    func modalSettingsCloseButtonInvokesDismiss() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            let app = AppWorlds(main: World(name: "EditorSettingsDismissTests"))
+            RenderWorldPlugin().setup(in: app)
+        }
+        let settingsViewModel = EditorSettingsWindowViewModel(editorViewModel: EditorViewModel(), selectedSection: .general)
+        var didDismiss = false
+        let container = UIContainerView(
+            rootView: EditorSettingsWindowView(viewModel: settingsViewModel, showsCloseButton: true)
+                .environment(\.dismiss, DismissAction { didDismiss = true })
+        )
+        container.frame = Rect(x: 0, y: 0, width: 1024, height: 700)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier(EditorSettingsWindowView.closeAccessibilityIdentifier))
+
+        #expect(didDismiss)
     }
 
     @Test("settings search filters navigation sections")
@@ -1194,7 +1391,7 @@ struct AdaEngineStyleUITests {
         container.bounds.size = container.frame.size
         container.layoutIfNeeded()
 
-        let title = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Settings.Title"))
+        let title = try container.uiNode(matching: .accessibilityIdentifier("AdaUI.NavigationBar.Title"))
         let buildSelection = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Settings.Group.BUILD FILE SELECTION"))
 
         #expect(title.absoluteFrame.height < 40)

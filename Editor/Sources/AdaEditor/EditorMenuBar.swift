@@ -42,6 +42,14 @@ final class EditorMenuCommandRouter {
 
     @discardableResult
     func perform(_ command: EditorMenuCommand) -> Bool {
+        if command == .showDocumentation {
+            return EditorDocumentationWindowController.open()
+        }
+        #if os(macOS)
+        if let handled = EditorDocumentationWindowController.handleMenuCommand(command) {
+            return handled
+        }
+        #endif
         if let editingCommand = command.textEditingCommand,
            UIWindowManager.shared?.activeWindow?.uiPerformTextEditingCommand(editingCommand) == true {
             return true
@@ -67,9 +75,6 @@ final class EditorMenuCommandRouter {
             NSApp.keyWindow?.zoom(nil)
         case .bringAllToFront:
             NSApp.arrangeInFront(nil)
-        case .showDocumentation:
-            guard let url = URL(string: "https://adaengine.org/documentation/adaengine") else { return false }
-            NSWorkspace.shared.open(url)
         case .showSourceRepository:
             guard let url = URL(string: "https://github.com/AdaEngine/AdaEngine") else { return false }
             NSWorkspace.shared.open(url)

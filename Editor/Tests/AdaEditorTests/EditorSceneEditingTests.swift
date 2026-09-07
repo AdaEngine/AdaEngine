@@ -1,5 +1,6 @@
 @testable import AdaEditor
 @_spi(AdaEngine) import AdaEngine
+@_spi(Internal) import AdaEngine
 import Foundation
 import Testing
 
@@ -18,6 +19,14 @@ private struct EditorReflectedComponent: Codable, Sendable {
         self.color = color
         self.offset = offset
         self.mode = mode
+    }
+}
+
+private actor EditorRenderCompletionProbe {
+    private(set) var isCompleted = false
+
+    func markCompleted() {
+        isCompleted = true
     }
 }
 
@@ -161,6 +170,91 @@ struct EditorSceneEditingTests {
         #expect(childItem.resources == [
             EditorSceneHierarchyResource(componentName: "Sprite", fieldName: "Texture", value: "Assets/Textures/player.png")
         ])
+        #expect(EditorSceneHierarchyIcon.symbol(for: childItem) == EditorSceneHierarchyIcon.image)
+    }
+
+    @Test("hierarchy entity commands preserve a valid parent-child tree")
+    func hierarchyEntityCommandsPreserveTree() throws {
+        var model = EditorSceneModel.default(projectName: "Hierarchy Commands")
+        let rootID = try #require(model.rootEntityID)
+        let parent = model.addEntity(name: "Parent", parentID: rootID)
+        let child = model.addEntity(name: "Child", parentID: parent.id)
+
+        let didRename = model.renameEntity(child.id, to: "Renamed Child")
+        let didHide = model.setEntityEnabled(child.id, isEnabled: false)
+        #expect(didRename)
+        #expect(didHide)
+        #expect(model.entities.first(where: { $0.id == child.id })?.name == "Renamed Child")
+        #expect(model.entities.first(where: { $0.id == child.id })?.enabled == false)
+        #expect(!model.canReparentEntity(parent.id, to: child.id))
+        let didReparentRoot = model.reparentEntity(rootID, to: child.id)
+        let didReparentChild = model.reparentEntity(child.id, to: rootID)
+        #expect(!didReparentRoot)
+        #expect(didReparentChild)
+        #expect(model.entities.first(where: { $0.id == child.id })?.parent == rootID)
+
+        let didDeleteParent = model.deleteEntity(parent.id)
+        #expect(didDeleteParent)
+        #expect(!model.entities.contains(where: { $0.id == parent.id }))
+        #expect(model.entities.contains(where: { $0.id == child.id }))
+        let didDeleteRoot = model.deleteEntity(rootID)
+        #expect(!didDeleteRoot)
+    }
+
+    @Test("duplicate copy paste and scene prefab commands preserve subtrees")
+    func hierarchyClipboardAndPrefabCommandsPreserveSubtrees() throws {
+        var model = EditorSceneModel.default(projectName: "Hierarchy Clipboard")
+        let rootID = try #require(model.rootEntityID)
+        let parent = model.addEntity(name: "Parent", parentID: rootID)
+        let child = model.addEntity(name: "Child", parentID: parent.id)
+
+        let duplicatedEntity = model.duplicateEntity(parent.id)
+        let duplicate = try #require(duplicatedEntity)
+        let duplicateChildren = model.entities.filter { $0.parent == duplicate.id }
+        #expect(duplicate.name == "Parent Copy")
+        #expect(duplicate.parent == rootID)
+        #expect(duplicateChildren.count == 1)
+        #expect(duplicateChildren.first?.name == child.name)
+
+        let payload = try #require(model.clipboardPayload(for: parent.id))
+        #expect(EditorSceneModel.canPasteEntityPayload(payload))
+        #expect(!EditorSceneModel.canPasteEntityPayload("not an AdaEditor entity"))
+        let pastedEntity = model.pasteEntity(from: payload, parentID: duplicate.id)
+        let pasted = try #require(pastedEntity)
+        #expect(pasted.parent == duplicate.id)
+        #expect(model.entities.filter { $0.parent == pasted.id }.count == 1)
+
+        let prefab = model.addSceneInstance(parentID: rootID)
+        #expect(prefab.parent == rootID)
+        #expect(prefab.components[EditorBuiltInComponentType.sceneInstance] != nil)
+
+        let roundTrippedModel = try EditorSceneModel.decode(from: model.encodedYAML())
+        #expect(roundTrippedModel == model)
+    }
+
+    @Test("middle mouse drag pans the 2D viewport without changing selection")
+    @MainActor
+    func middleMouseDragPans2DViewport() {
+        let viewportModel = EditorSceneViewportModel()
+        var selectedEntityID: String?
+        viewportModel.onSelectEntity = { selectedEntityID = $0 }
+
+        #expect(viewportModel.handleInput(mouseEvent(button: .middle, position: Point(x: 100, y: 100), phase: .began)))
+        #expect(viewportModel.handleInput(mouseEvent(button: .middle, position: Point(x: 124, y: 88), phase: .changed)))
+        #expect(viewportModel.twoDCenter == Vector2(-24, -12))
+        #expect(viewportModel.handleInput(mouseEvent(button: .middle, position: Point(x: 124, y: 88), phase: .ended)))
+        #expect(selectedEntityID == nil)
+    }
+
+    private func mouseEvent(button: MouseButton, position: Point, phase: MouseEvent.Phase) -> MouseEvent {
+        MouseEvent(
+            window: RID(),
+            button: button,
+            mousePosition: position,
+            phase: phase,
+            modifierKeys: [],
+            time: 0
+        )
     }
 
     @Test("scene model expands ancestors when selecting child entity")
@@ -276,6 +370,7 @@ struct EditorSceneEditingTests {
         var didRequestPlay = false
         let container = UIContainerView(rootView: EditorSceneViewportView(
             document: document,
+            resourceRootURL: nil,
             inspectorViewModel: EditorInspectorSidebarViewModel(),
             playModeState: .editing,
             playRuntime: nil,
@@ -320,6 +415,64 @@ struct EditorSceneEditingTests {
         })
     }
 
+    @Test("3D grid projection matches the render camera")
+    @MainActor
+    func threeDGridProjectionMatchesRenderCamera() async throws {
+        let size = Size(width: 1280, height: 720)
+        let world = World()
+        world.addSystem(TransformSystem.self, on: .preUpdate)
+        world.addSystem(CameraSystem.self, on: .preUpdate)
+        let cameraEntity = world.spawn("SceneView_Camera") {
+            Camera()
+            Transform()
+        }
+        let viewportModel = EditorSceneViewportModel()
+        viewportModel.attachSceneWorld(world, loadResult: .empty)
+        viewportModel.setViewportSize(size)
+        viewportModel.setDisplayMode(.threeD)
+        _ = viewportModel.update(deltaTime: 0.5)
+        let cameraState = viewportModel.cameraState(for: size)
+        let cameraForward = cameraState.transform.matrix.z.xyz.normalized
+        let forwardDifference = Vector3(
+            cameraForward.x - viewportModel.front3D.x,
+            cameraForward.y - viewportModel.front3D.y,
+            cameraForward.z - viewportModel.front3D.z
+        )
+        #expect(forwardDifference.squaredLength < 0.0001)
+        await world.runScheduler(.preUpdate)
+        await world.runScheduler(.preUpdate)
+
+        let worldPoint = Vector3(6, 0, 14)
+        let gridPoint = try #require(viewportModel.project(worldPoint, size: size))
+        let uniform = try #require(cameraEntity.components[GlobalViewUniform.self])
+        let clipPoint = uniform.viewProjectionMatrix * Vector4(worldPoint, 1)
+        let ndc = clipPoint.xyz / clipPoint.w
+        let renderPoint = Vector2(
+            size.width * (ndc.x + 1) * 0.5,
+            size.height * (1 - ndc.y) * 0.5
+        )
+
+        let difference = Vector2(gridPoint.x - renderPoint.x, gridPoint.y - renderPoint.y)
+        #expect(difference.squaredLength < 0.0001)
+
+        let clippedSegment = try #require(viewportModel.clipSegmentToNearPlane(
+            start: Vector3(0, 0, -68),
+            end: Vector3(0, 0, 48),
+            size: size
+        ))
+        #expect(viewportModel.project(clippedSegment.start, size: size) != nil)
+        #expect(viewportModel.project(clippedSegment.end, size: size) != nil)
+
+        var gridContext = UIGraphicsContext()
+        viewportModel.draw3DGrid(in: &gridContext, size: size, theme: .adaEditor)
+        let projectedLineCount = gridContext.getDrawCommands().reduce(into: 0) { count, command in
+            if case .drawLine = command {
+                count += 1
+            }
+        }
+        #expect(projectedLineCount > 10)
+    }
+
     @Test("viewport reloads edited scene content without recreating camera")
     @MainActor
     func viewportReloadsSceneContentInAttachedWorld() throws {
@@ -348,27 +501,135 @@ struct EditorSceneEditingTests {
         #expect(sceneEntities.contains { $0.name == "Reloaded" })
     }
 
-    @Test("viewport mode updates camera render graph")
+    @Test("viewport mode animates projection before settling on the target render graph")
     @MainActor
-    func viewportModeUpdatesCameraRenderGraph() throws {
+    func viewportModeUpdatesCameraRenderGraph() async throws {
         let world = World()
+        world.addSystem(TransformSystem.self, on: .preUpdate)
+        world.addSystem(CameraSystem.self, on: .preUpdate)
+        world.addSystem(VisibilitySystem.self, on: .preUpdate)
         let cameraEntity = world.spawn("SceneView_Camera") {
             Camera()
             Transform()
+            VisibleEntities()
             CameraRenderGraph(subgraphLabel: "Scene 2D Render Graph", inputSlot: "view")
+        }
+        let visibleEntity = world.spawn("Visible Sprite") {
+            Transform()
+            BoundingComponent(bounds: .aabb(AABB(center: .zero, halfExtents: Vector3(8, 8, 0))))
+            Visibility.visible
         }
         let viewportModel = EditorSceneViewportModel()
 
         viewportModel.attachSceneWorld(world, loadResult: .empty)
         viewportModel.setViewportSize(Size(width: 640, height: 360))
+        await world.runScheduler(.preUpdate)
+        #expect(cameraEntity.components[VisibleEntities.self]?.entityIds.contains(visibleEntity.id) == true)
         viewportModel.setDisplayMode(.threeD)
+
+        #expect(viewportModel.perspectiveTransitionProgress == 0)
+        #expect(viewportModel.isPerspectiveTransitionActive)
+        _ = viewportModel.update(deltaTime: 0.25)
+
+        #expect(abs(viewportModel.perspectiveTransitionProgress - 0.5) < 0.001)
+        let transitioningCamera = try #require(cameraEntity.components[Camera.self])
+        if case .custom = transitioningCamera.projection {
+            // Expected interpolated projection.
+        } else {
+            Issue.record("Expected a custom projection while transitioning to 3D")
+        }
+
+        _ = viewportModel.update(deltaTime: 0.25)
 
         let threeDGraph = try #require(cameraEntity.components[CameraRenderGraph.self])
         #expect(threeDGraph.subgraphLabel.rawValue == "Scene 3D Render Graph")
+        #expect(viewportModel.perspectiveTransitionProgress == 1)
+        #expect(!viewportModel.isPerspectiveTransitionActive)
+        let threeDCamera = try #require(cameraEntity.components[Camera.self])
+        if case .perspective = threeDCamera.projection {
+            // Expected final projection.
+        } else {
+            Issue.record("Expected a perspective projection after the transition")
+        }
 
         viewportModel.setDisplayMode(.twoD)
+        _ = viewportModel.update(deltaTime: 0.5)
+        await world.runScheduler(.preUpdate)
 
         let twoDGraph = try #require(cameraEntity.components[CameraRenderGraph.self])
         #expect(twoDGraph.subgraphLabel.rawValue == "Scene 2D Render Graph")
+        #expect(viewportModel.perspectiveTransitionProgress == 0)
+        #expect(cameraEntity.components[VisibleEntities.self]?.entityIds.contains(visibleEntity.id) == true)
+        #expect(cameraEntity.components[GlobalTransform.self]?.matrix == cameraEntity.components[Transform.self]?.matrix)
+    }
+
+    @Test("3D SceneView rendering signals that its offscreen texture is ready")
+    @MainActor
+    func threeDSceneViewRenderingSignalsCompletion() async throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+        }
+
+        let app = AppWorlds(main: World(name: "Editor3DOffscreenCompletion"))
+        app.main.setSchedulers([.preUpdate])
+        app.updateScheduler = .preUpdate
+        app
+            .addPlugin(TransformPlugin())
+            .addPlugin(RenderWorldPlugin())
+            .addPlugin(CameraPlugin())
+            .addPlugin(Model3DPlugin())
+            .addPlugin(Core3DPlugin())
+            .addPlugin(UpscalePlugin())
+        app.insertResource(OffscreenRenderWorld())
+        app.insertResource(PrimaryWindowId(windowId: RID()))
+
+        try await app.build()
+
+        let target = RenderTexture(size: SizeInt(width: 64, height: 64), scaleFactor: 1, format: .bgra8)
+        let completion = EditorRenderCompletionProbe()
+        target.renderCompletedHandler = { _ in
+            Task {
+                await completion.markCompleted()
+            }
+        }
+        app.main.spawn("SceneView Camera") {
+            Camera(renderTarget: target)
+            Transform()
+            VisibleEntities()
+            Visibility.visible
+            CameraRenderGraph(subgraphLabel: .main3D, inputSlot: Core3DPlugin.InputNode.view)
+        }
+
+        try await app.update()
+        await Task.yield()
+
+        #expect(await completion.isCompleted)
+    }
+
+    @Test("2D coordinate ruler follows the visible world range and fades during transition")
+    @MainActor
+    func viewportCoordinateRulerTracksVisibleWorldRange() {
+        let viewportModel = EditorSceneViewportModel()
+        let size = Size(width: 640, height: 360)
+        viewportModel.setViewportSize(size)
+
+        let twoDRuler = viewportModel.coordinateRuler(in: size)
+        #expect(twoDRuler.opacity == 1)
+        #expect(twoDRuler.labels.contains { $0.axis == .x })
+        #expect(twoDRuler.labels.contains { $0.axis == .y })
+        #expect(twoDRuler.labels.allSatisfy { label in
+            label.position.x >= 0 && label.position.x <= size.width
+                && label.position.y >= 0 && label.position.y <= size.height
+        })
+
+        viewportModel.setDisplayMode(.threeD)
+        _ = viewportModel.update(deltaTime: 0.25)
+        let transitioningRuler = viewportModel.coordinateRuler(in: size)
+        #expect(transitioningRuler.opacity > 0 && transitioningRuler.opacity < 1)
+
+        _ = viewportModel.update(deltaTime: 0.25)
+        let threeDRuler = viewportModel.coordinateRuler(in: size)
+        #expect(threeDRuler.opacity == 0)
+        #expect(threeDRuler.labels.isEmpty)
     }
 }

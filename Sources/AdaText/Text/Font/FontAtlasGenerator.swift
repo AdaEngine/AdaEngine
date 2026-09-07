@@ -25,6 +25,10 @@ final class FontAtlasGenerator: Sendable {
 
     static let shared = FontAtlasGenerator()
 
+    /// Distance range encoded in both generated and cached MTSDF atlases.
+    /// Keep the text shader's ScreenPxRange in sync with this value.
+    static let atlasPixelRange: Double = 4
+
     private static let cacheMagic: UInt32 = 0x35424641
     private static let cacheVersion = 6
 
@@ -72,7 +76,7 @@ final class FontAtlasGenerator: Sendable {
     func generateAtlas(fontPath: URL, fontDescriptor: FontDescriptor) -> FontHandle? {
         var atlasFontDescriptor = font_atlas_descriptor()
         atlasFontDescriptor.angleThreshold = 3.0
-        atlasFontDescriptor.atlasPixelRange = 4.0
+        atlasFontDescriptor.atlasPixelRange = Self.atlasPixelRange
         atlasFontDescriptor.coloringSeed = 3
         atlasFontDescriptor.threads = 8
         atlasFontDescriptor.expensiveColoring = 1
@@ -211,7 +215,7 @@ final class FontAtlasGenerator: Sendable {
     private func makeAtlasDescriptor(from fontDescriptor: FontDescriptor) -> font_atlas_descriptor {
         var atlasFontDescriptor = font_atlas_descriptor()
         atlasFontDescriptor.angleThreshold = 3.0
-        atlasFontDescriptor.atlasPixelRange = 4.0
+        atlasFontDescriptor.atlasPixelRange = Self.atlasPixelRange
         atlasFontDescriptor.coloringSeed = 3
         atlasFontDescriptor.threads = 8
         atlasFontDescriptor.expensiveColoring = 1

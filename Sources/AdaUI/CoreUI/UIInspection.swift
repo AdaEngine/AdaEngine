@@ -538,6 +538,12 @@ private extension ViewNode {
         if let rootNode = self as? ViewRootNode {
             return [rootNode.contentNode]
         }
+        if let navigationStack = self as? NavigationStackNode {
+            return navigationStack.inspectionChildNodes
+        }
+        if let navigationBar = self as? NavigationBarNode {
+            return navigationBar.inspectionChildNodes
+        }
         if let container = self as? ViewContainerNode {
             return container.nodes
         }

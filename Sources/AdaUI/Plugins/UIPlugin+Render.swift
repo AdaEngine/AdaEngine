@@ -66,12 +66,23 @@ public struct UILayerDrawCacheEntry: Sendable {
     /// command revision, so the inherited clip participates in cache validity.
     public var clipRect: Rect?
 
-    public init(version: UInt64, drawDataItems: [UIDrawData], cacheable: Bool, windowId: WindowID? = nil, clipRect: Rect? = nil) {
+    /// Inherited path mask baked into the cached geometry, in render coordinates.
+    public var clipPolygons: [[Vector2]]?
+
+    public init(
+        version: UInt64,
+        drawDataItems: [UIDrawData],
+        cacheable: Bool,
+        windowId: WindowID? = nil,
+        clipRect: Rect? = nil,
+        clipPolygons: [[Vector2]]? = nil
+    ) {
         self.version = version
         self.drawDataItems = drawDataItems
         self.cacheable = cacheable
         self.windowId = windowId
         self.clipRect = clipRect
+        self.clipPolygons = clipPolygons
     }
 }
 
@@ -194,6 +205,12 @@ public struct UIRenderTesselationSystem {
                 case let .beginLayer(id, version, cacheable):
                     activeLayerIDs.insert(id)
                     var inheritedState = layerStack.last?.state ?? rootState
+                    if let parentIndex = layerStack.indices.last {
+                        // A parent's slices are emitted around its children. Caching
+                        // only its final slice would lose/reorder earlier geometry.
+                        // Rebuild container layers and cache their leaf layers instead.
+                        layerStack[parentIndex].cacheable = false
+                    }
                     // Flush current state to preserve draw order.
                     if layerStack.isEmpty {
                         flushStateIfNeeded(&rootState, renderDevice: renderDevice.renderDevice).map { rootState.drawDataItems.append($0) }
@@ -209,12 +226,13 @@ public struct UIRenderTesselationSystem {
                         inheritedState = layerStack[layerStack.count - 1].state
                     }
 
-                    let canUseLayerCache = cacheable && inheritedState.currentClipPolygons == nil
+                    let canUseLayerCache = cacheable
                     if canUseLayerCache,
                        let cached = layerDrawCache.entries[id],
                        cached.version == version,
                        cached.cacheable,
-                       cached.clipRect == inheritedState.currentClipRect {
+                       cached.clipRect == inheritedState.currentClipRect,
+                       cached.clipPolygons == inheritedState.currentClipPolygons {
                         appendRenderItems(cached.drawDataItems, sortKey: &sortKey, windowId: windowId)
                         layerStack.append(ActiveLayer(id: id, version: version, mode: .skipping, cacheable: cacheable, state: inheritedState))
                     } else {
@@ -237,15 +255,7 @@ public struct UIRenderTesselationSystem {
                         flushStateIfNeeded(&layer.state, renderDevice: renderDevice.renderDevice).map { layer.state.drawDataItems.append($0) }
                         appendRenderItems(layer.state.drawDataItems, sortKey: &sortKey, windowId: windowId)
 
-                        if layer.cacheable {
-                            layerDrawCache.entries[id] = UILayerDrawCacheEntry(
-                                version: layer.version,
-                                drawDataItems: layer.state.drawDataItems,
-                                cacheable: true,
-                                windowId: windowId,
-                                clipRect: layer.state.currentClipRect
-                            )
-                        }
+                        cacheLayer(layer, windowId: windowId)
                     }
 
                 default:
@@ -288,6 +298,21 @@ public struct UIRenderTesselationSystem {
         }
 
         buildState.needsRebuild = false
+    }
+
+    private func cacheLayer(_ layer: ActiveLayer, windowId: WindowID?) {
+        guard layer.cacheable else {
+            layerDrawCache.entries[layer.id] = nil
+            return
+        }
+        layerDrawCache.entries[layer.id] = UILayerDrawCacheEntry(
+            version: layer.version,
+            drawDataItems: layer.state.drawDataItems,
+            cacheable: true,
+            windowId: windowId,
+            clipRect: layer.inheritedClipRect,
+            clipPolygons: layer.inheritedClipPolygons
+        )
     }
 
     private func removeStaleRenderItems() {
@@ -343,6 +368,8 @@ public struct UIRenderTesselationSystem {
         var mode: Mode
         var cacheable: Bool
         var state: DrawBuildState
+        let inheritedClipRect: Rect?
+        let inheritedClipPolygons: [[Vector2]]?
 
         init(id: UInt64, version: UInt64, mode: Mode, cacheable: Bool, state: DrawBuildState = DrawBuildState()) {
             self.id = id
@@ -350,6 +377,8 @@ public struct UIRenderTesselationSystem {
             self.mode = mode
             self.cacheable = cacheable
             self.state = state
+            self.inheritedClipRect = state.currentClipRect
+            self.inheritedClipPolygons = state.currentClipPolygons
         }
     }
 

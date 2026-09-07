@@ -7,9 +7,9 @@
 
 import AdaRender
 import AdaUtils
-import Math
 import AtlasFontGenerator
 import Foundation
+import Math
 
 // FIXME: Fix TextRun, that should equals AttributedString.Run
 /// A region where text layout occurs.
@@ -253,6 +253,9 @@ public final class TextLayoutManager: @unchecked Sendable {
         lineSpacing: 0
     )
 
+    /// The typographic size before alignment, bounded by the available size.
+    /// This includes glyph advances but excludes distance-field atlas padding
+    /// and the unused width of a finite text container.
     public private(set) var size: Size = .zero
     public private(set) var textLines: [TextLine] = []
     
@@ -364,7 +367,6 @@ public final class TextLayoutManager: @unchecked Sendable {
         in attributedText: AttributedText
     ) -> Float {
         var x: Double = 0
-        var maxWidth: Double = 0
         var index = range.lowerBound
 
         while index < range.upperBound {
@@ -386,10 +388,6 @@ public final class TextLayoutManager: @unchecked Sendable {
                 let glyphMetrics = glyphFontHandle.metrics
                 let glyphFontScale = font.pointSize / glyphMetrics.emSize
 
-                var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
-                glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
-                maxWidth = max(maxWidth, (pr * glyphFontScale) + x)
-
                 var advance = glyph.advance
                 let nextIndex = attributedText.text.index(after: index)
                 if nextIndex < range.upperBound,
@@ -407,7 +405,7 @@ public final class TextLayoutManager: @unchecked Sendable {
             index = attributedText.text.index(after: index)
         }
 
-        return Float(maxWidth)
+        return Float(x)
     }
 
     private func shiftedGlyph(_ glyph: Glyph, offsetByX offset: Float) -> Glyph {
@@ -448,6 +446,15 @@ public final class TextLayoutManager: @unchecked Sendable {
         self.invalidateLayout()
     }
 
+    private var hasAvailableSpace: Bool {
+        availableSize.width > 0 && availableSize.height > 0 && textContainer.numberOfLines != 0
+    }
+
+    private func canStartLine(at baseline: Double, height: Double, rowCount: Int) -> Bool {
+        rowCount < (textContainer.numberOfLines ?? Int.max)
+            && (rowCount == 0 || Float(-baseline + height) <= availableSize.height)
+    }
+
     // swiftlint:disable function_body_length
 
     // FIXME: TextLayoutManager calculate the wrong position
@@ -464,16 +471,27 @@ public final class TextLayoutManager: @unchecked Sendable {
 
         let lines = attributedText.text.components(separatedBy: .newlines)
         self.textLines = []
+        self.size = .zero
 
-        let numberOfLines = self.textContainer.numberOfLines ?? lines.count
+        let numberOfLines = self.textContainer.numberOfLines ?? Int.max
         if numberOfLines < 0 {
             assertionFailure("Line limit can't be less than zero.")
             return
         }
 
+        guard hasAvailableSpace else {
+            self.isLayoutValid = true
+            return
+        }
+
         var currentTextIndex = attributedText.text.startIndex
+        var visualRowCount = 0
+        var reachedLimit = false
 
         for lineString in lines[..<min(numberOfLines, lines.count)] {
+            guard !reachedLimit else {
+                break
+            }
             // Find the range of this line in the original attributed text
             let lineStartIndex = currentTextIndex
             let lineEndIndex = attributedText.text.index(lineStartIndex, offsetBy: lineString.count, limitedBy: attributedText.text.endIndex) ?? attributedText.text.endIndex
@@ -486,6 +504,12 @@ public final class TextLayoutManager: @unchecked Sendable {
             }
             
             let lineRange = lineStartIndex..<lineEndIndex
+            let initialFont = attributedText.attributes(at: lineStartIndex).font
+            let initialLineHeight = initialFont.lineHeight + lineHeightOffset
+            guard canStartLine(at: y, height: initialLineHeight, rowCount: visualRowCount) else {
+                break
+            }
+            visualRowCount += 1
             var textLine = TextLine(attributedText: attributedText, range: lineRange)
             var textRun = TextRun()
             
@@ -498,19 +522,20 @@ public final class TextLayoutManager: @unchecked Sendable {
             var maxWidth: Double = 0
             var maxAscent: Double = 0
             var maxDescent: Double = 0
-            var maxLineHeight: Double = 0
+            var maxLineHeight: Double = initialLineHeight
             var visualRowStartGlyphIndex = 0
             var visualRowStartTextIndex = lineStartIndex
-            var visualRowMaxWidth: Double = 0
 
             func alignCurrentVisualRow() {
                 guard visualRowStartGlyphIndex < textRun.glyphs.count else {
-                    visualRowMaxWidth = 0
                     visualRowStartGlyphIndex = textRun.glyphs.count
                     return
                 }
 
-                let rowWidth = Float(visualRowMaxWidth)
+                // Atlas quads include distance-field padding and must not
+                // influence measurement, alignment, or line breaking.
+                let rowWidth = Float(x)
+                self.size.width = max(self.size.width, rowWidth)
                 var offset: Float = 0
 
                 if self.availableSize.width.isFinite && self.availableSize.width > rowWidth {
@@ -530,9 +555,22 @@ public final class TextLayoutManager: @unchecked Sendable {
                     }
                 }
 
-                maxWidth = max(maxWidth, Double(offset) + visualRowMaxWidth)
-                visualRowMaxWidth = 0
+                maxWidth = max(maxWidth, Double(offset) + Double(rowWidth))
                 visualRowStartGlyphIndex = textRun.glyphs.count
+            }
+
+            func startVisualRow(at textIndex: String.Index) -> Bool {
+                guard visualRowCount < numberOfLines,
+                      Float(-y + 2 * maxLineHeight) <= availableSize.height else {
+                    reachedLimit = true
+                    return false
+                }
+                alignCurrentVisualRow()
+                x = 0
+                y -= maxLineHeight
+                visualRowStartTextIndex = textIndex
+                visualRowCount += 1
+                return true
             }
 
             func matchingAttributeRunEnd(
@@ -556,7 +594,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                 xOffset: Double = 0,
                 yOffset: Double = 0,
                 advanceX: Double
-            ) -> (right: Double, top: Double)? {
+            ) {
                 let glyphFontHandle = fontResource.handle
                 let glyphMetrics = glyphFontHandle.metrics
                 let glyphFontScale = pointSize / glyphMetrics.emSize
@@ -572,10 +610,6 @@ public final class TextLayoutManager: @unchecked Sendable {
                 pb = (pb + yOffset) * glyphFontScale + baselineY
                 pr = (pr + xOffset) * glyphFontScale + baselineX
                 pt = (pt + yOffset) * glyphFontScale + baselineY
-
-                if abs(Float(pt)) > availableSize.height {
-                    return nil
-                }
 
                 let texelWidth = 1 / Double(glyphFontHandle.atlasTexture.width)
                 let texelHeight = 1 / Double(glyphFontHandle.atlasTexture.height)
@@ -595,8 +629,6 @@ public final class TextLayoutManager: @unchecked Sendable {
                         size: Size(width: Float(glyphFontSize), height: Float(glyphFontSize))
                     )
                 )
-
-                return (right: pr, top: pt)
             }
 
             func appendShapedRunIfPossible(
@@ -668,10 +700,9 @@ public final class TextLayoutManager: @unchecked Sendable {
                         }
 
                         if Float(x + widthBeforeNextWord) > availableSize.width {
-                            alignCurrentVisualRow()
-                            x = 0
-                            y -= maxLineHeight
-                            visualRowStartTextIndex = startIndex
+                            guard startVisualRow(at: startIndex) else {
+                                return lineEndIndex
+                            }
                             if groupIsWhitespace {
                                 renderIndex = groupEndIndex
                                 continue
@@ -681,18 +712,14 @@ public final class TextLayoutManager: @unchecked Sendable {
 
                     while renderIndex < groupEndIndex {
                         let (shapedGlyph, glyph, _) = renderGlyphs[renderIndex]
-                        var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
-                        glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
-
-                        let projectedRight = Float((pr + shapedGlyph.xOffset) * glyphFontScale + x)
-                        if projectedRight > availableSize.width {
-                            alignCurrentVisualRow()
-                            x = 0
-                            y -= maxLineHeight
-                            visualRowStartTextIndex = startIndex
+                        let projectedAdvance = Float(x + shapedGlyph.xAdvance * glyphFontScale + kern)
+                        if projectedAdvance > availableSize.width && x > 0 {
+                            guard startVisualRow(at: startIndex) else {
+                                return lineEndIndex
+                            }
                         }
 
-                        guard let bounds = appendGlyphToCurrentRun(
+                        appendGlyphToCurrentRun(
                             glyph: glyph,
                             fontResource: fontResource,
                             attributes: attributes,
@@ -702,11 +729,8 @@ public final class TextLayoutManager: @unchecked Sendable {
                             xOffset: shapedGlyph.xOffset,
                             yOffset: shapedGlyph.yOffset,
                             advanceX: x + (shapedGlyph.xAdvance * glyphFontScale) + kern
-                        ) else {
-                            return lineEndIndex
-                        }
+                        )
 
-                        visualRowMaxWidth = max(visualRowMaxWidth, bounds.right)
                         x += (shapedGlyph.xAdvance * glyphFontScale) + kern
                         renderIndex += 1
                     }
@@ -715,55 +739,42 @@ public final class TextLayoutManager: @unchecked Sendable {
                 return runEndIndex
             }
 
+            func wrapBeforeWord(at index: inout String.Index) {
+                guard textContainer.lineBreakMode == .byWordWrapping,
+                      availableSize.width.isFinite, x > 0 else {
+                    return
+                }
+                let wordStartIndex: String.Index
+                if isWhitespace(attributedText.text[index]) {
+                    wordStartIndex = nextNonWhitespaceIndex(
+                        from: index,
+                        in: attributedText.text,
+                        limitedBy: lineEndIndex
+                    )
+                } else if isWordStart(at: index, in: attributedText.text, lineStartIndex: lineStartIndex) {
+                    wordStartIndex = index
+                } else {
+                    return
+                }
+                guard wordStartIndex < lineEndIndex else {
+                    return
+                }
+                let wordEndIndex = nextWordEndIndex(
+                    from: wordStartIndex,
+                    in: attributedText.text,
+                    limitedBy: lineEndIndex
+                )
+                let width = typographicWidth(of: index..<wordEndIndex, in: attributedText)
+                if Float(x) + width > availableSize.width, startVisualRow(at: wordStartIndex) {
+                    index = wordStartIndex
+                }
+            }
+
             var index = lineStartIndex
             while index < lineEndIndex {
-                let shouldWrapByWord = self.textContainer.lineBreakMode == .byWordWrapping
-                    && self.availableSize.width.isFinite
-                    && self.availableSize.width > 0
-
-                if shouldWrapByWord && x > 0 {
-                    let char = attributedText.text[index]
-
-                    if isWhitespace(char) {
-                        let wordStartIndex = nextNonWhitespaceIndex(
-                            from: index,
-                            in: attributedText.text,
-                            limitedBy: lineEndIndex
-                        )
-
-                        if wordStartIndex < lineEndIndex {
-                            let wordEndIndex = nextWordEndIndex(
-                                from: wordStartIndex,
-                                in: attributedText.text,
-                                limitedBy: lineEndIndex
-                            )
-                            let width = typographicWidth(of: index..<wordEndIndex, in: attributedText)
-
-                            if Float(x) + width > self.availableSize.width {
-                                alignCurrentVisualRow()
-                                x = 0
-                                y -= maxLineHeight
-                                visualRowStartTextIndex = wordStartIndex
-                                index = wordStartIndex
-                                continue
-                            }
-                        }
-                    } else if isWordStart(at: index, in: attributedText.text, lineStartIndex: lineStartIndex) {
-                        let wordEndIndex = nextWordEndIndex(
-                            from: index,
-                            in: attributedText.text,
-                            limitedBy: lineEndIndex
-                        )
-                        let width = typographicWidth(of: index..<wordEndIndex, in: attributedText)
-
-                        if Float(x) + width > self.availableSize.width {
-                            alignCurrentVisualRow()
-                            x = 0
-                            y -= maxLineHeight
-                            visualRowStartTextIndex = index
-                            continue
-                        }
-                    }
+                wrapBeforeWord(at: &index)
+                if reachedLimit {
+                    break
                 }
 
                 let attributes = attributedText.attributes(at: index)
@@ -820,7 +831,7 @@ public final class TextLayoutManager: @unchecked Sendable {
                     var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
                     glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
 
-                    let shouldWrapBeforeGlyph = Float((pr * glyphFontScale) + x) > availableSize.width
+                    let shouldWrapBeforeGlyph = Float(x + glyphFontScale * advance + kern) > availableSize.width
                     let isJapaneseWrappingContext = TextLineBreakRules.isJapaneseWrappingContext(
                         at: index,
                         in: attributedText.text,
@@ -834,19 +845,13 @@ public final class TextLayoutManager: @unchecked Sendable {
                             rowStartIndex: visualRowStartTextIndex
                         )
 
-                    if shouldWrapBeforeGlyph && canWrapBeforeGlyph {
-                        alignCurrentVisualRow()
-                        x = 0
-                        y -= maxLineHeight
-                        visualRowStartTextIndex = index
+                    if shouldWrapBeforeGlyph && canWrapBeforeGlyph && x > 0 {
+                        guard startVisualRow(at: index) else {
+                            break
+                        }
                     }
 
                     let nextCaretX = x + glyphFontScale * advance + kern
-
-                    if abs(Float((pt * glyphFontScale) + y)) > availableSize.height {
-                        index = lineEndIndex
-                        break
-                    }
 
                     pl = (pl * glyphFontScale) + x
                     pb = (pb * glyphFontScale) + y
@@ -871,8 +876,6 @@ public final class TextLayoutManager: @unchecked Sendable {
                             size: Size(width: Float(glyphFontSize), height: Float(glyphFontSize))
                         )
                     )
-
-                    visualRowMaxWidth = max(visualRowMaxWidth, pr)
 
                     x = nextCaretX
                 }
@@ -906,9 +909,13 @@ public final class TextLayoutManager: @unchecked Sendable {
             textLine.typographicBounds.rect = boundingBox
             self.textLines.append(textLine)
             
+            self.size.height += Float(visualHeight)
+
             // Move y down for the next line
             y -= maxLineHeight
         }
+        self.size.width = min(self.size.width, availableSize.width)
+        self.size.height = min(self.size.height, availableSize.height)
         self.isLayoutValid = true
     }
 

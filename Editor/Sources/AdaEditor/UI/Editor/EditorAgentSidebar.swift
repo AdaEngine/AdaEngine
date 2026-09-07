@@ -2,6 +2,7 @@
 
 struct EditorAgentSidebar: View {
     let viewModel: EditorAgentViewModel
+    var onOpenCatalog: (() -> Void)?
 
     @State private var showsSkillPicker = false
     @State private var skillSearchText = ""
@@ -32,6 +33,11 @@ struct EditorAgentSidebar: View {
                 .foregroundColor(theme.editorColors.text)
                 .lineLimit(1)
             Spacer()
+            if let onOpenCatalog {
+                Button("Agents", action: onOpenCatalog)
+                    .font(.system(size: 11))
+                    .accessibilityIdentifier("AdaEditor.Agent.OpenCatalog")
+            }
             Text(viewModel.connectionState.title)
                 .font(.system(size: 9))
                 .foregroundColor(theme.editorColors.muted)

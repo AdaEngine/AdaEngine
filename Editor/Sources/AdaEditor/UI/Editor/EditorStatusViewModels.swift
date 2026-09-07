@@ -9,18 +9,16 @@ final class EditorFooterViewModel {
     var leftItems: [String]
     var rightItems: [String]
 
-    init(leftItems: [String] = AdaEngineStyleContent.footerLeft, rightItems: [String] = AdaEngineStyleContent.footerRight) {
+    init(leftItems: [String] = [], rightItems: [String] = []) {
         self.leftItems = leftItems
         self.rightItems = rightItems
     }
 
-    func leftItems(hotReloadState: EditorHotReloadState) -> [String] {
-        leftItems + [hotReloadState.footerTitle]
-    }
-
-    func setSourceControlFooterTitle(_ title: String) {
+    func setSourceControlFooterTitle(_ title: String?) {
         var items = rightItems.filter { !$0.hasPrefix("Git:") }
-        items.append(title)
+        if let title {
+            items.append(title)
+        }
         rightItems = items
     }
 
@@ -34,11 +32,30 @@ final class EditorFooterViewModel {
 @Observable
 @MainActor
 final class EditorSourceControlViewModel {
+    var showsHistory = false
+    var showsRepositoryActions = false
+    var commits: [GitCommit] = []
+    var historyHead: String?
+    var hasMoreHistory = false
+    var isLoadingHistory = false
+    var isRefreshing = false
+    var historyError: String?
+    var commandError: String?
+    var documents: [String: EditorGitDocument] = [:]
+    @ObservationIgnored var historyGeneration = UUID()
+    @ObservationIgnored var refreshGeneration = UUID()
+    @ObservationIgnored var historyTask: Task<Void, Never>?
+    @ObservationIgnored var refreshTask: Task<Void, Never>?
+
     var snapshot: GitRepositorySnapshot
     var commitMessage: String
     var newBranchName: String
     var statusMessage: String
-    var isRunning: Bool
+    var isRunning: Bool {
+        didSet {
+            for document in documents.values { document.isRunningCommand = isRunning }
+        }
+    }
 
     init(
         snapshot: GitRepositorySnapshot = .empty,
@@ -75,7 +92,7 @@ final class EditorSourceControlViewModel {
     }
 
     var canCreateBranch: Bool {
-        !isRunning && !trimmedNewBranchName.isEmpty
+        !isRunning && !trimmedNewBranchName.isEmpty && snapshot.rootURL != nil
     }
 
     var hasChanges: Bool {

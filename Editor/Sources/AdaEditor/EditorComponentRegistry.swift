@@ -12,6 +12,7 @@ enum EditorBuiltInComponentType {
     static let globalTransform = String(reflecting: GlobalTransform.self)
     static let bounding = String(reflecting: BoundingComponent.self)
     static let scriptableComponents = String(reflecting: ScriptableComponents.self)
+    static let sceneInstance = String(reflecting: SceneInstance.self)
 }
 
 enum EditorComponentFieldKind: Equatable, Sendable {
@@ -25,6 +26,7 @@ enum EditorComponentFieldKind: Equatable, Sendable {
     case vector4
     case color
     case assetReference
+    case sceneReference
     case readOnly
 }
 
@@ -95,7 +97,7 @@ struct EditorComponentField: Equatable, Identifiable, Sendable {
             payload[key] = .int(Int(rawValue.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0)
         case .float:
             payload[key] = .double(Double(rawValue.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0)
-        case .string, .assetReference:
+        case .string, .assetReference, .sceneReference:
             payload[key] = rawValue.isEmpty ? .null : .string(rawValue)
         case .enumeration(let cases):
             payload[key] = .string(cases.contains(rawValue) ? rawValue : cases.first ?? rawValue)
@@ -157,7 +159,8 @@ enum EditorComponentRegistry {
         visibilityDescriptor,
         light2DDescriptor,
         lightOccluder2DDescriptor,
-        lightModulate2DDescriptor
+        lightModulate2DDescriptor,
+        sceneInstanceDescriptor
     ]
 
     private static let overrideDescriptorsByName: [String: EditorComponentDescriptor] = Dictionary(
@@ -175,6 +178,7 @@ enum EditorComponentRegistry {
         RuntimeTypeRegistry.registerComponent(Light2D.self, names: ["Light2D"])
         RuntimeTypeRegistry.registerComponent(LightOccluder2D.self, names: ["LightOccluder2D"])
         RuntimeTypeRegistry.registerComponent(LightModulate2D.self, names: ["LightModulate2D"])
+        RuntimeTypeRegistry.registerComponent(SceneInstance.self, names: ["SceneInstance"])
 
         EditorComponentReflectionRegistry.register(Transform.editorComponentDescriptor)
         EditorComponentReflectionRegistry.register(GlobalTransform.editorComponentDescriptor)
@@ -185,6 +189,7 @@ enum EditorComponentRegistry {
         EditorComponentReflectionRegistry.register(Light2D.editorComponentDescriptor)
         EditorComponentReflectionRegistry.register(LightOccluder2D.editorComponentDescriptor)
         EditorComponentReflectionRegistry.register(LightModulate2D.editorComponentDescriptor)
+        EditorComponentReflectionRegistry.register(SceneInstance.editorComponentDescriptor)
     }
 
     static func descriptor(named typeName: String) -> EditorComponentDescriptor? {
@@ -443,6 +448,23 @@ private extension EditorComponentRegistry {
         },
         decode: { payload in
             try EditorComponentPayloadDecoder.decode(LightModulate2D.self, payload: payload) as! LightModulate2D
+        }
+    )
+
+    static let sceneInstanceDescriptor = EditorComponentDescriptor(
+        typeName: EditorBuiltInComponentType.sceneInstance,
+        displayName: "Scene Instance",
+        category: "Scene",
+        description: "Instantiates another scene as a reusable prefab beneath this entity.",
+        requiredComponentTypeNames: [EditorBuiltInComponentType.transform],
+        fields: [
+            EditorComponentField(key: "scene", label: "Scene", kind: .sceneReference)
+        ],
+        makeDefaultPayload: {
+            ["scene": .null]
+        },
+        decode: { payload in
+            SceneInstance(scene: payload["scene"]?.stringValue ?? "")
         }
     )
 }

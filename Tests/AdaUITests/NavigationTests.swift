@@ -184,6 +184,26 @@ struct NavigationStackTests {
     }
 
     @Test
+    func navigationBar_updatesTitleWhenRootStateChanges() async throws {
+        let driver = NavigationTitleStateDriver()
+        let tester = ViewTester {
+            NavigationTitleStateHost(driver: driver)
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+        await flushNavigationLifecycleActions()
+
+        #expect(textNodes(in: tester.containerView.viewTree.rootNode).contains { $0.text == "General" })
+
+        let title = try #require(driver.title)
+        title.wrappedValue = "Agent"
+        tester.performLayout()
+
+        #expect(textNodes(in: tester.containerView.viewTree.rootNode).contains { $0.text == "Agent" })
+        #expect(!textNodes(in: tester.containerView.viewTree.rootNode).contains { $0.text == "General" })
+    }
+
+    @Test
     func navigationStack_nestedScrollContentExtendsUnderNavigationBar() throws {
         let tester = ViewTester {
             NavigationStack {
@@ -257,6 +277,33 @@ struct NavigationStackTests {
 
         let content = try #require(textNodes(in: tester.containerView.viewTree.rootNode).first { $0.text == "Content" })
         #expect(content.frame.origin.y > 150)
+    }
+
+    @Test
+    func navigationBar_customColorAndItemsAreVisibleToInspection() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                Color.clear
+                    .navigationTitle("Settings")
+                    .navigationTitlePosition(.leading)
+                    .navigationBarColor(.red)
+                    .navigationBarTrailingItems {
+                        Button("Close") {}
+                            .accessibilityIdentifier("Navigation.Close")
+                    }
+            }
+        }
+        .setSize(Size(width: 400, height: 400))
+        .performLayout()
+
+        let stack = try #require(navigationStackNodes(in: tester.containerView.viewTree.rootNode).first)
+        let bar = try #require(stack.inspectionChildNodes.first { $0 is NavigationBarNode } as? NavigationBarNode)
+        let title = try tester.containerView.uiNode(matching: .accessibilityIdentifier("AdaUI.NavigationBar.Title"))
+        let close = try tester.containerView.uiNode(matching: .accessibilityIdentifier("Navigation.Close"))
+
+        #expect(bar.resolvedBackgroundColor == .red)
+        #expect(title.absoluteFrame.height > 0)
+        #expect(close.isInteractable)
     }
 
     @Test
@@ -590,6 +637,39 @@ private struct NavigationRootStateHost: View {
 
 private final class NavigationRootStateDriver {
     var counter: Binding<Int>?
+}
+
+private struct NavigationTitleStateHost: View {
+    @State private var title = "General"
+
+    let driver: NavigationTitleStateDriver
+
+    var body: some View {
+        NavigationStack {
+            NavigationTitleStateBindingProbe(title: $title, driver: driver)
+                .navigationTitle(title)
+        }
+    }
+}
+
+private final class NavigationTitleStateDriver {
+    var title: Binding<String>?
+}
+
+private struct NavigationTitleStateBindingProbe: View {
+    @Binding var title: String
+
+    let driver: NavigationTitleStateDriver
+
+    init(title: Binding<String>, driver: NavigationTitleStateDriver) {
+        self._title = title
+        self.driver = driver
+        self.driver.title = title
+    }
+
+    var body: some View {
+        Color.clear
+    }
 }
 
 @MainActor

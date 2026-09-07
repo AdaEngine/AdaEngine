@@ -3,65 +3,75 @@
 struct EditorInspectorSidebar: View {
     let viewModel: EditorInspectorSidebarViewModel
 
-    @State var showsComponentPicker = false
-    @State var componentSearchText = ""
-    @State private var activeAssetFieldID: String?
-    @State private var assetSearchText = ""
-    @State private var colorFieldModes: [String: ColorFieldMode] = [:]
-    @State private var colorTextDrafts: [String: String] = [:]
+    @State var activeAssetFieldID: String?
+    @State var assetSearchText = ""
+    @State var colorFieldModes: [String: ColorFieldMode] = [:]
+    @State var colorTextDrafts: [String: String] = [:]
+    @State var activeSceneFieldID: String?
+    @State var sceneSearchText = ""
+    @State private var collapsedComponentTypeNames: Set<String> = []
     
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            adaEditorPanelTitle("INSPECTOR", trailing: "", theme: theme)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    inspectorSection("CREATE") {
-                        HStack(spacing: 5) {
-                            ForEach(EditorSceneEntityPreset.allCases, id: \.rawValue) { preset in
-                                compactActionButton(preset.title) {
-                                    viewModel.addEntityRequested(preset)
+        ZStack(anchor: .topTrailing) {
+            VStack(alignment: .leading, spacing: 0) {
+                adaEditorPanelTitle("INSPECTOR", trailing: "", theme: theme)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        inspectorSection("CREATE") {
+                            HStack(spacing: 5) {
+                                ForEach(EditorSceneEntityPreset.allCases, id: \.rawValue) { preset in
+                                    compactActionButton(preset.title) {
+                                        viewModel.addEntityRequested(preset)
+                                    }
                                 }
+                            }
+                        }
+                        if let selectedEntity = viewModel.selectedEntity {
+                            inspectorSection(selectedEntity.name.uppercased()) {
+                                Text(selectedEntity.editorID)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(theme.editorColors.muted)
+                            }
+                            inspectorSection("COMPONENTS") {
+                                ForEach(selectedEntity.components, id: \.typeName) { component in
+                                    componentEditor(component)
+                                }
+                                addComponentPicker
+                            }
+                            if !selectedEntity.scriptableObjects.isEmpty || !selectedEntity.addableScriptableObjects.isEmpty {
+                                inspectorSection("SCRIPTABLE OBJECTS") {
+                                    ForEach(selectedEntity.scriptableObjects, id: \.identifier) { object in
+                                        scriptableObjectEditor(object)
+                                    }
+                                    ForEach(selectedEntity.addableScriptableObjects, id: \.identifier) { descriptor in
+                                        addScriptableObjectButton(descriptor)
+                                    }
+                                }
+                            }
+                            inspectorSection("GIZMO") {
+                                gizmoEditor(selectedEntity)
+                            }
+                        } else {
+                            inspectorSection("SELECTION") {
+                                Text("Click an entity in the scene or hierarchy to inspect it.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(theme.editorColors.muted)
+                                    .lineLimit(2)
                             }
                         }
                     }
-                    if let selectedEntity = viewModel.selectedEntity {
-                        inspectorSection(selectedEntity.name.uppercased()) {
-                            Text(selectedEntity.editorID)
-                                .font(.system(size: 11))
-                                .foregroundColor(theme.editorColors.muted)
-                        }
-                        inspectorSection("COMPONENTS") {
-                            ForEach(selectedEntity.components, id: \.typeName) { component in
-                                componentEditor(component)
-                            }
-                            addComponentPicker
-                        }
-                        if !selectedEntity.scriptableObjects.isEmpty || !selectedEntity.addableScriptableObjects.isEmpty {
-                            inspectorSection("SCRIPTABLE OBJECTS") {
-                                ForEach(selectedEntity.scriptableObjects, id: \.identifier) { object in
-                                    scriptableObjectEditor(object)
-                                }
-                                ForEach(selectedEntity.addableScriptableObjects, id: \.identifier) { descriptor in
-                                    addScriptableObjectButton(descriptor)
-                                }
-                            }
-                        }
-                        inspectorSection("GIZMO") {
-                            gizmoEditor(selectedEntity)
-                        }
-                    } else {
-                        inspectorSection("SELECTION") {
-                            Text("Click an entity in the scene or hierarchy to inspect it.")
-                                .font(.system(size: 11))
-                                .foregroundColor(theme.editorColors.muted)
-                                .lineLimit(2)
-                        }
-                    }
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+
+            if activeSceneFieldID != nil {
+                scenePickerPanel
+                    .padding(.horizontal, 12)
+                    .offset(y: 42)
+                    .zIndex(20)
             }
         }
         .background(
@@ -82,11 +92,21 @@ struct EditorInspectorSidebar: View {
     }
 
     private func componentEditor(_ component: EditorInspectorSidebarViewModel.ComponentSection) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let isCollapsed = collapsedComponentTypeNames.contains(component.typeName)
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Text(component.displayName)
-                    .font(.system(size: 11))
-                    .foregroundColor(theme.editorColors.text)
+                Button(action: { toggleComponentCollapsed(component.typeName) }) {
+                    HStack(spacing: 5) {
+                        Text(isCollapsed ? "\u{E5CC}" : "\u{E5CF}")
+                            .font(AdaEditorMaterialSymbolFont.font(size: 15))
+                            .foregroundColor(theme.editorColors.muted)
+                        Text(component.displayName)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(theme.editorColors.text)
+                    }
+                }
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.Inspector.ToggleComponent.\(component.typeName)")
                 Spacer()
                 if component.canRemove {
                     Button(action: { viewModel.removeComponentRequested(component.typeName) }) {
@@ -100,11 +120,26 @@ struct EditorInspectorSidebar: View {
                 }
             }
 
-            ForEach(component.fields, id: \.field.id) { field in
-                componentFieldRow(field)
+            if !isCollapsed {
+                ForEach(component.fields, id: \.field.id) { field in
+                    componentFieldRow(field)
+                }
             }
+
+            RectangleShape()
+                .fill(theme.editorColors.border.opacity(0.7))
+                .frame(height: 1)
+                .padding(.top, 4)
         }
         .padding(.vertical, 6)
+    }
+
+    private func toggleComponentCollapsed(_ typeName: String) {
+        if collapsedComponentTypeNames.contains(typeName) {
+            collapsedComponentTypeNames.remove(typeName)
+        } else {
+            collapsedComponentTypeNames.insert(typeName)
+        }
     }
 
     private func componentFieldRow(_ field: EditorInspectorSidebarViewModel.ComponentField) -> some View {
@@ -147,6 +182,8 @@ struct EditorInspectorSidebar: View {
             colorField(fieldID: fieldID, value: value, text: scalarBinding)
         } else if case .assetReference = kind, isEditable {
             assetReferenceField(fieldID: fieldID, value: value, text: scalarBinding)
+        } else if case .sceneReference = kind, isEditable {
+            sceneReferenceField(fieldID: fieldID, value: value)
         } else if isEditable {
             editorTextField(text: scalarBinding)
         } else {
@@ -175,33 +212,36 @@ struct EditorInspectorSidebar: View {
     }
 
     private func vectorAxisField(label: String, value: String, isEditable: Bool, text: Binding<String>) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             Text(label)
-                .font(.system(size: 9))
-                .foregroundColor(theme.editorColors.blue.opacity(0.78))
-                .frame(width: 10)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 24, height: 32)
+                .background(RectangleShape().fill(axisColor(for: label)))
             if isEditable {
                 TextField("", text: text)
-                    .font(.system(size: 11))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
-                    .multilineTextAlignment(.trailing)
+                    .multilineTextAlignment(.leading)
                     .textFieldStyle(PlainTextFieldStyle())
+                    .padding(.horizontal, 7)
             } else {
                 Text(value)
-                    .font(.system(size: 11))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundColor(theme.editorColors.muted)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.horizontal, 7)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.horizontal, 6)
         .frame(minWidth: 72, maxWidth: .infinity, minHeight: 32, maxHeight: 32)
         .background(RoundedRectangleShape(cornerRadius: 5).fill(isEditable ? theme.editorColors.surface : theme.editorColors.surfaceElevated))
+        .mask(RoundedRectangleShape(cornerRadius: 5))
         .overlay { RoundedRectangleShape(cornerRadius: 5).stroke(theme.editorColors.border.opacity(0.92), lineWidth: 1) }
     }
 
-    private func editorTextField(text: Binding<String>) -> some View {
+    func editorTextField(text: Binding<String>) -> some View {
         TextField("", text: text)
-            .font(.system(size: 11))
+            .font(.system(size: 11, weight: .bold))
             .foregroundColor(theme.editorColors.text)
             .textFieldStyle(PlainTextFieldStyle())
             .padding(.horizontal, 8)
@@ -209,6 +249,16 @@ struct EditorInspectorSidebar: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surface))
         .overlay { RoundedRectangleShape(cornerRadius: 5).stroke(theme.editorColors.border.opacity(0.92), lineWidth: 1) }
+    }
+
+    private func axisColor(for label: String) -> Color {
+        switch label {
+        case "X": Color(red: 0.78, green: 0.24, blue: 0.28)
+        case "Y": Color(red: 0.24, green: 0.60, blue: 0.31)
+        case "Z": Color(red: 0.22, green: 0.43, blue: 0.82)
+        case "W": Color(red: 0.57, green: 0.32, blue: 0.76)
+        default: theme.editorColors.muted
+        }
     }
 
     private func boolField(text: Binding<String>) -> some View {
@@ -259,220 +309,6 @@ struct EditorInspectorSidebar: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func colorField(fieldID: String, value: String, text: Binding<String>) -> some View {
-        let colorValue = EditorInspectorColorValue(value)
-        let mode = colorFieldModes[fieldID] ?? .rgba
-        return VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 6) {
-                colorPickerSwatch(fieldID: fieldID, value: colorValue, text: text)
-                editorTextField(text: colorTextBinding(fieldID: fieldID, mode: mode, value: colorValue, text: text))
-            }
-            HStack(spacing: 4) {
-                colorModeButton(.rgba, fieldID: fieldID, selectedMode: mode)
-                colorModeButton(.hex, fieldID: fieldID, selectedMode: mode)
-                Spacer()
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func colorPreview(from value: String) -> Color {
-        let components = value
-            .split { $0 == "," || $0 == " " || $0 == "\t" }
-            .map { Float($0.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0 }
-        return Color(
-            red: components.indices.contains(0) ? components[0] : 0,
-            green: components.indices.contains(1) ? components[1] : 0,
-            blue: components.indices.contains(2) ? components[2] : 0,
-            alpha: components.indices.contains(3) ? components[3] : 1
-        )
-    }
-
-    @ViewBuilder
-    private func colorPickerSwatch(
-        fieldID: String,
-        value: EditorInspectorColorValue,
-        text: Binding<String>
-    ) -> some View {
-        #if canImport(AppKit) && os(macOS)
-        EditorInspectorColorWell(value: value) { updatedValue in
-            colorTextDrafts[fieldID] = nil
-            text.wrappedValue = updatedValue.rgbaString
-        }
-        .frame(width: 30, height: 28)
-        #elseif canImport(UIKit) && os(iOS)
-        EditorInspectorIOSColorWell(value: value) { updatedValue in
-            colorTextDrafts[fieldID] = nil
-            text.wrappedValue = updatedValue.rgbaString
-        }
-        .frame(width: 30, height: 28)
-        #else
-        RectangleShape()
-            .fill(colorPreview(from: value.rgbaString))
-            .frame(width: 30, height: 28)
-            .overlay { RoundedRectangleShape(cornerRadius: 5).stroke(theme.editorColors.border.opacity(0.92), lineWidth: 1) }
-        #endif
-    }
-
-    private func colorTextBinding(
-        fieldID: String,
-        mode: ColorFieldMode,
-        value: EditorInspectorColorValue,
-        text: Binding<String>
-    ) -> Binding<String> {
-        Binding(
-            get: {
-                if let draft = colorTextDrafts[fieldID] {
-                    return draft
-                }
-                return mode == .rgba ? value.rgbaString : value.hexString
-            },
-            set: { updatedText in
-                colorTextDrafts[fieldID] = updatedText
-                let updatedValue = mode == .rgba
-                    ? EditorInspectorColorValue(rgbaText: updatedText)
-                    : EditorInspectorColorValue(hexText: updatedText)
-                guard let updatedValue else {
-                    return
-                }
-                text.wrappedValue = updatedValue.rgbaString
-            }
-        )
-    }
-
-    private func colorModeButton(_ mode: ColorFieldMode, fieldID: String, selectedMode: ColorFieldMode) -> some View {
-        Button(action: {
-            colorFieldModes[fieldID] = mode
-            colorTextDrafts[fieldID] = nil
-        }) {
-            Text(mode.title)
-                .font(.system(size: 9))
-                .foregroundColor(mode == selectedMode ? theme.editorColors.text : theme.editorColors.muted)
-                .padding(.horizontal, 7)
-                .frame(height: 20)
-                .background(
-                    RoundedRectangleShape(cornerRadius: 4)
-                        .fill(mode == selectedMode ? theme.editorColors.blue.opacity(0.22) : theme.editorColors.surface)
-                )
-        }
-        .buttonStyle(DefaultButtonStyle())
-    }
-
-    private func assetReferenceField(fieldID: String, value: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Button(action: {
-                activeAssetFieldID = activeAssetFieldID == fieldID ? nil : fieldID
-                assetSearchText = ""
-            }) {
-                HStack(spacing: 7) {
-                    Text("\u{E3F4}")
-                        .font(AdaEditorMaterialSymbolFont.font(size: 17))
-                        .foregroundColor(theme.editorColors.purple)
-                    Text(value.isEmpty ? "Choose texture…" : value)
-                        .font(.system(size: 10))
-                        .foregroundColor(value.isEmpty ? theme.editorColors.muted : theme.editorColors.text)
-                        .lineLimit(1)
-                    Spacer()
-                    Text("\u{E8B6}")
-                        .font(AdaEditorMaterialSymbolFont.font(size: 15))
-                        .foregroundColor(theme.editorColors.muted)
-                }
-                .padding(.horizontal, 8)
-                .frame(height: 32)
-                .frame(maxWidth: .infinity)
-                .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.surface))
-                .overlay { RoundedRectangleShape(cornerRadius: 5).stroke(theme.editorColors.border.opacity(0.92), lineWidth: 1) }
-            }
-            .buttonStyle(DefaultButtonStyle())
-            .accessibilityIdentifier("AdaEditor.Inspector.AssetReference.\(fieldID)")
-            .overlay {
-                #if canImport(AppKit) && os(macOS)
-                EditorInspectorTextureDropTarget(
-                    onClick: {
-                        activeAssetFieldID = activeAssetFieldID == fieldID ? nil : fieldID
-                        assetSearchText = ""
-                    },
-                    onDrop: { url in
-                        guard let asset = viewModel.textureAsset(droppedFileURL: url) else {
-                            return
-                        }
-                        text.wrappedValue = asset.reference
-                        activeAssetFieldID = nil
-                    }
-                )
-                #endif
-            }
-
-            if activeAssetFieldID == fieldID {
-                assetPicker(text: text)
-            }
-        }
-    }
-
-    private func assetPicker(text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            TextField("Search project textures", text: Binding(get: { assetSearchText }, set: { assetSearchText = $0 }))
-                .font(.system(size: 10))
-                .foregroundColor(theme.editorColors.text)
-                .padding(.horizontal, 8)
-                .frame(height: 28)
-                .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.background))
-                .textFieldStyle(PlainTextFieldStyle())
-            ScrollView {
-                VStack(alignment: .leading, spacing: 2) {
-                    Button(action: {
-                        text.wrappedValue = ""
-                        activeAssetFieldID = nil
-                    }) {
-                        HStack(spacing: 6) {
-                            Text("\u{E14C}")
-                                .font(AdaEditorMaterialSymbolFont.font(size: 15))
-                                .foregroundColor(theme.editorColors.muted)
-                            Text("None")
-                                .font(.system(size: 10))
-                                .foregroundColor(theme.editorColors.text)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 6)
-                        .frame(height: 28)
-                    }
-                    .buttonStyle(DefaultButtonStyle())
-                    if viewModel.textureAssets(matching: assetSearchText).isEmpty {
-                        Text("No image assets found in this project.")
-                            .font(.system(size: 9))
-                            .foregroundColor(theme.editorColors.muted)
-                            .padding(6)
-                    } else {
-                        ForEach(viewModel.textureAssets(matching: assetSearchText), id: \.id) { asset in
-                            Button(action: {
-                                text.wrappedValue = asset.reference
-                                activeAssetFieldID = nil
-                            }) {
-                                HStack(spacing: 6) {
-                                    Text("\u{E3F4}")
-                                        .font(AdaEditorMaterialSymbolFont.font(size: 15))
-                                        .foregroundColor(theme.editorColors.purple)
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text(asset.name).font(.system(size: 10)).foregroundColor(theme.editorColors.text)
-                                        Text(asset.reference).font(.system(size: 9)).foregroundColor(theme.editorColors.muted).lineLimit(1)
-                                    }
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 6)
-                                .frame(height: 32)
-                            }
-                            .buttonStyle(DefaultButtonStyle())
-                        }
-                    }
-                }
-            }
-            .frame(height: 126)
-        }
-        .padding(6)
-        .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surfaceElevated))
-        .overlay { RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.border.opacity(0.65), lineWidth: 1) }
-    }
-
     private func readonlyField(_ value: String) -> some View {
         Text(value)
             .font(.system(size: 11))
@@ -521,7 +357,7 @@ struct EditorInspectorSidebar: View {
                 .buttonStyle(DefaultButtonStyle())
 
                 TextField("Name", text: viewModel.gizmoNameBinding)
-                    .font(.system(size: 11))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
                     .textFieldStyle(PlainTextFieldStyle())
                     .padding(.horizontal, 8)

@@ -6,6 +6,7 @@ struct EditorCenterWorkbench: View {
     let inspectorViewModel: EditorInspectorSidebarViewModel
     let playModeState: EditorPlayModeState
     let scenePlayRuntime: EditorScenePlayRuntime?
+    let sceneResourceRootURL: URL?
     let onPlayScene: (() -> Void)?
     let onStopScene: (() -> Void)?
     let onSceneEntitySelected: (() -> Void)?
@@ -165,6 +166,8 @@ extension EditorCenterWorkbench {
 
     private func tabIcon(for document: EditorWorkbenchDocument) -> String {
         switch document {
+        case .git:
+            return "±"
         case .scene:
             return "#"
         case .text(let document):
@@ -189,6 +192,8 @@ extension EditorCenterWorkbench {
 
     private func tabIconColor(for document: EditorWorkbenchDocument) -> Color {
         switch document {
+        case .git:
+            return theme.editorColors.blue
         case .scene:
             return theme.editorColors.purple
         case .text:
@@ -210,6 +215,8 @@ extension EditorCenterWorkbench {
     @ViewBuilder
     private func activeDocumentView(metrics: AdaEngineStyleLayoutMetrics) -> some View {
         switch viewModel.activeDocument {
+        case .git(let document):
+            EditorGitDiffView(document: document, workbench: viewModel)
         case .scene(let document):
             sceneDocumentEditor(document: document)
         case .text(let document):
@@ -402,6 +409,7 @@ extension EditorCenterWorkbench {
     private func sceneDocumentEditor(document: EditorSceneDocument) -> some View {
         EditorSceneViewportView(
             document: document,
+            resourceRootURL: sceneResourceRootURL,
             inspectorViewModel: inspectorViewModel,
             playModeState: playModeState,
             playRuntime: scenePlayRuntime,

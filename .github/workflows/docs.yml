@@ -24,6 +24,8 @@ jobs:
         with:
           xcode-version: '26.1.1'
       - uses: actions/checkout@v4
+      - name: Verify editor offline documentation
+        run: python3 Editor/scripts/update-offline-documentation.py --check
       - name: Build Documentation
         run: |
           swift package \

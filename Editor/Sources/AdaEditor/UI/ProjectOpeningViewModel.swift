@@ -49,6 +49,7 @@ final class ProjectOpeningViewModel {
     var projectToOpenInEditor: EditorProjectReference?
     var projectToOpenInEditorToken = 0
     var isOpeningLastProject = false
+    var shouldCreateGitRepository = true
 
     var projectNameBinding: Binding<String> {
         Binding(get: { self.projectName }, set: { self.projectName = $0 })
@@ -56,6 +57,10 @@ final class ProjectOpeningViewModel {
 
     var projectLocationBinding: Binding<String> {
         Binding(get: { self.projectLocation }, set: { self.projectLocation = $0 })
+    }
+
+    var shouldCreateGitRepositoryBinding: Binding<Bool> {
+        Binding(get: { self.shouldCreateGitRepository }, set: { self.shouldCreateGitRepository = $0 })
     }
 
     var existingProjectPathBinding: Binding<String> {
@@ -240,10 +245,19 @@ final class ProjectOpeningViewModel {
                 at: URL(fileURLWithPath: projectLocation, isDirectory: true),
                 template: selectedTemplate
             )
+            if shouldCreateGitRepository {
+                let gitResult = initializeGitRepositoryIfNeeded(at: createdProject.path)
+                if let gitResult {
+                    statusMessage = "Created project: \(createdProject.path). \(gitResult)"
+                } else {
+                    statusMessage = "Created project: \(createdProject.path)"
+                }
+            } else {
+                statusMessage = "Created project: \(createdProject.path)"
+            }
             isCreatingNewProject = false
             selectedProject = createdProject
             clearValidationDiagnostics()
-            statusMessage = "Created project: \(createdProject.path)"
             reloadRecentProjects()
             if openInEditor {
                 projectToOpenInEditor = createdProject
@@ -281,6 +295,7 @@ final class ProjectOpeningViewModel {
         suggestedName: String? = nil
     ) {
         selectedProject = nil
+        shouldCreateGitRepository = true
         if let template {
             selectedTemplate = template
         }
@@ -365,6 +380,45 @@ final class ProjectOpeningViewModel {
         formatter.unitsStyle = .full
         return formatter
     }()
+
+    private func initializeGitRepositoryIfNeeded(at path: String) -> String? {
+        let command: [String]
+        #if os(Windows)
+        command = ["git", "init"]
+        #else
+        command = ["/usr/bin/env", "git", "init"]
+        #endif
+
+        let process = Process()
+        let output = Pipe()
+        let error = Pipe()
+        process.executableURL = URL(fileURLWithPath: command[0])
+        process.arguments = Array(command.dropFirst())
+        process.currentDirectoryURL = URL(fileURLWithPath: path, isDirectory: true)
+        process.standardOutput = output
+        process.standardError = error
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return "Git initialization failed: \(error.localizedDescription)"
+        }
+
+        guard process.terminationStatus == 0 else {
+            let outputText = output.readableString
+            let errorText = error.readableString
+            let reason = outputText.isEmpty ? (errorText.isEmpty ? "exit code \(process.terminationStatus)" : errorText) : outputText
+            return "Git initialization failed: \(reason)"
+        }
+        return nil
+    }
+}
+
+private extension Pipe {
+    var readableString: String {
+        String(data: fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
 }
 
 private extension ProjectOpeningViewModel {

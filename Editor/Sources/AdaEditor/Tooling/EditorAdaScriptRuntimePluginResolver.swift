@@ -6,6 +6,28 @@ struct EditorAdaScriptRuntimePluginDescriptor: Equatable, Identifiable, Sendable
     let id: AdaProjectRuntimePluginID
 }
 
+struct EditorAdaScriptRuntimePluginSection: Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let plugins: [AdaProjectRuntimePluginID]
+    let sections: [EditorAdaScriptRuntimePluginSection]
+
+    init(
+        _ title: String,
+        plugins: [AdaProjectRuntimePluginID] = [],
+        sections: [EditorAdaScriptRuntimePluginSection] = []
+    ) {
+        self.id = title
+        self.title = title
+        self.plugins = plugins
+        self.sections = sections
+    }
+
+    var allPluginIDs: [AdaProjectRuntimePluginID] {
+        plugins + sections.flatMap(\.allPluginIDs)
+    }
+}
+
 enum EditorAdaScriptRuntimePluginCatalog {
     static let descriptors: [EditorAdaScriptRuntimePluginDescriptor] = [
         .init(dependencies: [.upscale], displayName: "2D Rendering", id: .core2D),
@@ -22,6 +44,25 @@ enum EditorAdaScriptRuntimePluginCatalog {
     ]
 
     static let descriptorByID = Dictionary(uniqueKeysWithValues: descriptors.map { ($0.id, $0) })
+
+    /// Organizes runtime capabilities by the subsystem they extend in Project Settings.
+    static let settingsSections: [EditorAdaScriptRuntimePluginSection] = [
+        .init(
+            "Rendering",
+            sections: [
+                .init("2D", plugins: [.core2D, .sprite, .mesh2D, .light2D]),
+                .init("3D", plugins: [.core3D, .model3D])
+            ]
+        ),
+        .init(
+            "Simulation",
+            sections: [
+                .init("2D", plugins: [.physics2D, .tilemap]),
+                .init("3D", plugins: [.physics3D])
+            ]
+        ),
+        .init("Platform", plugins: [.audio, .upscale])
+    ]
 
     static func presetPlugins(_ preset: AdaProjectRuntimePluginPreset) -> Set<AdaProjectRuntimePluginID> {
         switch preset {

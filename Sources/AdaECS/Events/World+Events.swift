@@ -8,6 +8,11 @@
 import AdaUtils
 
 extension World {
+    /// Whether the event lifecycle resource has been installed (normally by EventsPlugin).
+    public var supportsEventDelivery: Bool {
+        getResource(HandledEvents.self) != nil
+    }
+
     /// Register new event if it is not registered yet.
     /// - Parameter type: The type of the event to register.
     /// - Note: This method is called automatically when you use `Events` or `EventsSender` property wrappers.
