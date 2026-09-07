@@ -1,4 +1,5 @@
 @_spi(AdaEngine) import AdaEngine
+import AdaScriptCompilerCore
 import Foundation
 
 struct EditorAdaScriptPreviewArtifact: Sendable {
@@ -71,6 +72,7 @@ actor EditorAdaScriptPreviewBuilder {
                 )
             )
         }
+        sources += try AdaScriptLibraryLock.load(at: request.projectURL).loadSources(at: request.projectURL)
         sources.sort { $0.path < $1.path }
         guard !sources.isEmpty else {
             throw EditorPreviewBuildFailure(message: "\(sourceGroupName) contains no .ada sources.")

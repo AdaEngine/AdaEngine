@@ -25,14 +25,16 @@ final class EditorPreviewHostView: UIView {
     private(set) var previewView: UIView?
     private(set) var zoom: Float = 1
     private(set) var isInteractive = false
+    private(set) var contentSize: Size?
     private var activeMouseEvent: MouseEvent?
     private var activeTouches: Set<TouchEvent> = []
 
     override var acceptsKeyboardFocus: Bool { isInteractive }
 
-    func configure(previewView: UIView, zoom: Float, isInteractive: Bool) {
-        let resolvedZoom = zoom.isFinite ? min(max(zoom, 0.25), 3) : 1
-        guard self.previewView !== previewView || self.zoom != resolvedZoom || self.isInteractive != isInteractive else { return }
+    func configure(previewView: UIView, zoom: Float, isInteractive: Bool, contentSize: Size? = nil) {
+        let minimumZoom: Float = contentSize == nil ? 0.25 : 0.02
+        let resolvedZoom = zoom.isFinite ? min(max(zoom, minimumZoom), 3) : 1
+        guard self.previewView !== previewView || self.zoom != resolvedZoom || self.isInteractive != isInteractive || self.contentSize != contentSize else { return }
         if self.isInteractive && (!isInteractive || self.previewView !== previewView), let activeMouseEvent {
             onMouseEvent(MouseEvent(
                 window: activeMouseEvent.window,
@@ -54,6 +56,7 @@ final class EditorPreviewHostView: UIView {
             addSubview(previewView)
         }
         self.zoom = resolvedZoom
+        self.contentSize = contentSize
         self.isInteractive = isInteractive
         isInteractionEnabled = isInteractive
         backgroundColor = .clear
@@ -62,12 +65,13 @@ final class EditorPreviewHostView: UIView {
     }
 
     override func layoutSubviews() {
-        previewView?.frame = Rect(origin: .zero, size: bounds.size)
+        previewView?.frame = Rect(origin: .zero, size: contentSize ?? bounds.size)
         super.layoutSubviews()
     }
 
     private var contentOrigin: Point {
-        Point(x: bounds.width * (1 - zoom) / 2, y: bounds.height * (1 - zoom) / 2)
+        let content = contentSize ?? bounds.size
+        return Point(x: (bounds.width - content.width * zoom) / 2, y: (bounds.height - content.height * zoom) / 2)
     }
 
     func previewPoint(from point: Point) -> Point {

@@ -2,7 +2,7 @@
 import Foundation
 import PackageDescription
 
-let adaMCPLocalPath = "../../AdaMCP"
+let adaMCPLocalPath = ProcessInfo.processInfo.environment["ADA_MCP_LOCAL_PATH"] ?? "../../AdaMCP"
 let adaMCPPackage: Package.Dependency = true/*ProcessInfo.processInfo.environment["ADA_MCP_LOCAL"] == "1"*/
     ? .package(name: "AdaMCP", path: adaMCPLocalPath)
     : .package(url: "https://github.com/AdaEngine/AdaMCP.git", branch: "main")
@@ -28,6 +28,7 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "AdaEngine", path: ".."),
+        .package(name: "AdaDebugging", path: "Debugging"),
         adaMCPPackage,
         .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
         .package(url: "https://github.com/TeamSloppy/swift-acp", branch: "main"),
@@ -66,6 +67,7 @@ let package = Package(
         .executableTarget(
             name: "AdaEditor",
             dependencies: [
+                .product(name: "AdaDebugging", package: "AdaDebugging"),
                 .product(name: "AdaEngine", package: "AdaEngine"),
                 .product(name: "AdaScriptCompilerCore", package: "AdaEngine"),
                 .product(name: "Math", package: "AdaEngine"),
@@ -92,6 +94,7 @@ let package = Package(
         .testTarget(
             name: "AdaEditorTests",
             dependencies: [
+                .product(name: "AdaDebugging", package: "AdaDebugging"),
                 "AdaEditor",
                 "AdaPackageManifestTool",
                 "GravityLanguageCore",

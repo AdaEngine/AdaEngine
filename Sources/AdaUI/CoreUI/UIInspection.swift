@@ -63,6 +63,7 @@ public struct UINodeSummary: Codable, Hashable, Sendable {
 }
 
 public struct UINodeSnapshot: Codable, Hashable, Sendable {
+    public let sceneNodeID: String?
     public let runtimeId: String
     public let accessibilityIdentifier: String?
     public let nodeType: String
@@ -88,8 +89,10 @@ public struct UINodeSnapshot: Codable, Hashable, Sendable {
         isHidden: Bool?,
         isInteractable: Bool,
         parent: UINodeSummary?,
-        children: [UINodeSnapshot]
+        children: [UINodeSnapshot],
+        sceneNodeID: String? = nil
     ) {
+        self.sceneNodeID = sceneNodeID
         self.runtimeId = runtimeId
         self.accessibilityIdentifier = accessibilityIdentifier
         self.nodeType = nodeType
@@ -530,7 +533,8 @@ private extension ViewNode {
             isHidden: summary.isHidden,
             isInteractable: summary.isInteractable,
             parent: self.parent?.uiSummary(focusedNode: focusedNode),
-            children: childSnapshots
+            children: childSnapshots,
+            sceneNodeID: self.uiSceneNodeID
         )
     }
 

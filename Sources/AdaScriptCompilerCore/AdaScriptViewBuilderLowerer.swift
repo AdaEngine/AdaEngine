@@ -283,6 +283,19 @@ private struct ViewExpressionParser {
             return try spacerExpression(arguments: arguments, line: line)
         case "Text":
             return try textExpression(arguments: arguments, line: line)
+        case "NativeView":
+            guard let identifier = arguments.first, identifier.label == nil else {
+                throw AdaScriptViewBuilderError(path: path, line: line, message: "NativeView requires an exported descriptor identifier")
+            }
+            var expression = "adaUIBuilder.nativeView(\(identifier.source))"
+            for argument in arguments.dropFirst() {
+                guard let label = argument.label else { throw error("NativeView arguments must be named") }
+                expression += ".argument(\"\(label)\", \(argument.source))"
+            }
+            if index < endIndex, tokens[index].text == "{" {
+                for child in try parseChildren(name: name, line: line) { expression += ".child(\(child))" }
+            }
+            return expression
         default:
             throw AdaScriptViewBuilderError(path: path, line: line, message: "unsupported view constructor '\(name)'")
         }

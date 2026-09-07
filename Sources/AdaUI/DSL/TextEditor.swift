@@ -112,8 +112,24 @@ public struct TextEditorContextMenuItem {
     }
 }
 
+/// A source gutter marker. Lines use the same zero-based coordinates as source positions.
+public struct TextEditorLineMarker: Hashable, Sendable {
+    public var line: Int
+    public var color: Color
+    public var isFilled: Bool
+
+    public init(line: Int, color: Color, isFilled: Bool = true) {
+        self.line = line
+        self.color = color
+        self.isFilled = isFilled
+    }
+}
+
 /// Optional source-aware interactions for ``TextEditor``.
 public struct TextEditorSourceInteraction {
+    public var lineMarkers: [TextEditorLineMarker]
+    public var executionLine: Int?
+    public var onGutterClick: ((Int) -> Void)?
     public var highlightedRanges: [TextEditorSourceRange]
     public var sourceHighlights: [TextEditorSourceHighlight]
     public var hoveredRange: TextEditorSourceRange?
@@ -129,6 +145,9 @@ public struct TextEditorSourceInteraction {
     public var contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])?
 
     public init(
+        lineMarkers: [TextEditorLineMarker] = [],
+        executionLine: Int? = nil,
+        onGutterClick: ((Int) -> Void)? = nil,
         highlightedRanges: [TextEditorSourceRange] = [],
         sourceHighlights: [TextEditorSourceHighlight] = [],
         hoveredRange: TextEditorSourceRange? = nil,
@@ -143,6 +162,9 @@ public struct TextEditorSourceInteraction {
         onChatSelection: ((TextEditorSourceRange, String) -> Void)? = nil,
         contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])? = nil
     ) {
+        self.lineMarkers = lineMarkers
+        self.executionLine = executionLine
+        self.onGutterClick = onGutterClick
         self.highlightedRanges = highlightedRanges
         self.sourceHighlights = sourceHighlights
         self.hoveredRange = hoveredRange

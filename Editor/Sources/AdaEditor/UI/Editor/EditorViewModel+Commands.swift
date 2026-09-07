@@ -201,6 +201,7 @@ extension EditorViewModel {
     }
 
     func runSelectedTarget() {
+        guard !debugger.isActive else { return }
         let product = selectedRunProduct ?? runProducts.first
         if workbench.activeDocument?.isDirty == true {
             guard saveActiveDocumentIfNeeded() else {
@@ -396,6 +397,7 @@ extension EditorViewModel {
     }
 
     var isProjectRunning: Bool {
+        if debugger.isActive { return true }
         if case .running = workspaceStatus {
             return true
         }
@@ -413,6 +415,7 @@ extension EditorViewModel {
     }
 
     func runActiveSceneInEditor() {
+        guard !debugger.isActive else { return }
         guard !playModeState.isPlaying else {
             return
         }
@@ -482,6 +485,10 @@ extension EditorViewModel {
     }
 
     func cancelWorkspaceCommand() {
+        if debugger.isActive {
+            debugger.stop()
+            return
+        }
         if playModeState.isPlaying {
             stopPlayMode()
             return

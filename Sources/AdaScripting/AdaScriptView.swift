@@ -66,6 +66,7 @@ public enum AdaScriptViewScanner {
 public struct AdaScriptView: View {
     private let directStorage: AdaScriptViewStorage?
     private let identifier: String
+    private let catalog: UICatalog
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.scaleFactor) private var scaleFactor
@@ -74,13 +75,15 @@ public struct AdaScriptView: View {
     @State private var storage: AdaScriptViewStorage?
 
     /// Creates a view registered by `AdaScriptBuildPlugin`.
-    public init(_ identifier: String) {
+    public init(_ identifier: String, catalog: UICatalog = .standard) {
+        self.catalog = catalog
         self.directStorage = nil
         self.identifier = identifier
     }
 
     /// Creates a view directly from source, primarily for tools and previews.
-    public init(sources: [AdaScriptSource], identifier: String) throws {
+    public init(sources: [AdaScriptSource], identifier: String, catalog: UICatalog = .standard) throws {
+        self.catalog = catalog
         let metadata = try AdaScriptViewScanner.declarations(in: sources)
         let runtime = try AdaScriptViewModuleRuntime(sources: sources, views: metadata)
         let storage = try runtime.makeStorage(identifier: identifier)
@@ -145,7 +148,8 @@ public struct AdaScriptView: View {
                             resolvedStorage.error = error
                         }
                         revision.wrappedValue += 1
-                    }
+                    },
+                    catalog: catalog
                 )
             )
         } catch {
@@ -222,8 +226,13 @@ final class AdaScriptViewModuleRuntime: @unchecked Sendable {
     // swiftlint:disable:next weak_delegate
     private let delegate: AnnotatedGravityRuntimeDelegate
     private let virtualMachine: GravityVirtualMachine
+    private let exportedParameters: [String]
 
-    init(sources: [AdaScriptSource], views: [AdaScriptViewMetadata]) throws {
+    init(sources: [AdaScriptSource], views: [AdaScriptViewMetadata], exportedParameters: [String] = []) throws {
+        guard exportedParameters.allSatisfy({ $0.range(of: "^[A-Za-z_][A-Za-z0-9_]*$", options: .regularExpression) != nil }) else {
+            throw UIDiagnostic("Exported UI parameter names must be stored-property identifiers.")
+        }
+        self.exportedParameters = exportedParameters
         let module = try GravityScriptModuleResolver.resolve(sources)
         self.factoryNamesByIdentifier = Dictionary(uniqueKeysWithValues: views.enumerated().map { index, view in
             (view.identifier, "__ada_make_view_\(index)")
@@ -243,7 +252,10 @@ final class AdaScriptViewModuleRuntime: @unchecked Sendable {
                     "func __ada_make_view_\(index)() { return \(view.className)(); }"
                 }
                 .joined(separator: "\n")
-            let binary = virtualMachine.loadGravityFile(from: module.entrySource + "\n" + factories)
+            let getters = exportedParameters.enumerated().map { index, name in
+                "func __ada_ui_get_\(index)(instance) { return instance.\(name); }"
+            }.joined(separator: "\n")
+            let binary = virtualMachine.loadGravityFile(from: module.entrySource + "\n" + factories + "\n" + getters)
             guard delegate.errors.isEmpty else {
                 throw AdaScriptError.compilation(delegate.errors)
             }
@@ -284,6 +296,29 @@ final class AdaScriptViewModuleRuntime: @unchecked Sendable {
                 throw AdaScriptError.invalidManifest("@view '\(identifier)' must define body()")
             }
             return instance
+        }
+    }
+
+    @MainActor
+    func writeInputs(_ values: [String: UIValue], instance: GSValue) throws {
+        try AdaScriptRuntimeCoordinator.lock.withLock {
+            for (name, value) in values {
+                guard exportedParameters.contains(name), instance.setStoredProperty(named: name, to: AdaScriptUIValueBridge.make(value, in: virtualMachine)) else {
+                    throw UIDiagnostic("Cannot bind exported property '\(name)'.")
+                }
+            }
+        }
+    }
+
+    @MainActor
+    func readInput(_ name: String, instance: GSValue) throws -> UIValue {
+        try AdaScriptRuntimeCoordinator.lock.withLock {
+            guard let index = exportedParameters.firstIndex(of: name),
+                  let value = virtualMachine.getValue(forKey: "__ada_ui_get_\(index)").callConstructor(with: [instance]),
+                  let field = AdaScriptUIValueBridge.detached(value) else {
+                throw UIDiagnostic("Cannot read exported binding '\(name)'.")
+            }
+            return field
         }
     }
 
@@ -350,6 +385,17 @@ final class AdaScriptViewStorage {
         self.instance = instance
         self.model = nil
     }
+
+    private var inputs: [String: UIValue] = [:]
+
+    func updateInputs(_ values: [String: UIValue]) throws {
+        guard inputs != values else { return }
+        try runtime.writeInputs(values, instance: instance)
+        inputs = values
+        model = nil
+    }
+
+    func readInput(_ name: String) throws -> UIValue { try runtime.readInput(name, instance: instance) }
 
     func updateEnvironment(_ environment: [String: EditorFieldValue]) throws {
         guard model == nil || self.environment != environment else {

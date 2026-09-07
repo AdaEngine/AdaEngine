@@ -16,6 +16,7 @@ struct EditorTopToolbar: View {
     let onToggleProjectSwitcher: () -> Void
     let onRun: () -> Void
     let onStop: () -> Void
+    var onDebug: (() -> Void)? = nil
     
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
@@ -101,6 +102,10 @@ struct EditorTopToolbar: View {
 
     private var runStopControls: some View {
         HStack(spacing: 4) {
+            if let onDebug {
+                toolbarActionButton(title: "Debug", symbol: "\u{E868}", color: theme.editorColors.blue, action: onDebug)
+                    .disabled(!isRunEnabled)
+            }
             toolbarActionButton(title: "Run", symbol: "\u{E037}", color: Color(red: 110 / 255, green: 205 / 255, blue: 126 / 255), action: onRun)
                 .disabled(!isRunEnabled)
                 .opacity(isRunEnabled ? 1 : 0.45)

@@ -79,7 +79,7 @@ extension EditorWorkbenchViewModel {
         switch activeDocument {
         case .scene(let document)?:
             document.statusMessage ?? document.errorMessage
-        case .text(let document)?:
+        case .text(let document)?, .ui(let document)?:
             document.statusMessage ?? document.errorMessage
         case .git?:
             nil
@@ -95,7 +95,7 @@ extension EditorWorkbenchViewModel {
         switch document {
         case .scene(let document):
             return saveSceneDocument(id: document.id)
-        case .text(let document):
+        case .text(let document), .ui(let document):
             return saveTextDocument(id: document.id)
         case .asset, .git:
             return false
@@ -344,11 +344,10 @@ extension EditorWorkbenchViewModel {
     }
 
     func textDocument(id documentID: String) -> EditorTextDocument? {
-        guard case .text(let document)? = openDocuments.first(where: { $0.id == documentID }) else {
-            return nil
+        switch openDocuments.first(where: { $0.id == documentID }) {
+        case .text(let document), .ui(let document): return document
+        default: return nil
         }
-
-        return document
     }
 
     func updateSceneLine(documentID: String, lineIndex: Int, value: String) {
@@ -423,14 +422,14 @@ extension EditorWorkbenchViewModel {
             return
         }
 
-        guard case .text(var document) = openDocuments[index] else {
-            return
-        }
+        guard var document = textDocument(id: documentID) else { return }
+        let isUI: Bool
+        if case .ui = openDocuments[index] { isUI = true } else { isUI = false }
 
         let previousContent = document.content
         let wasDirty = document.isDirty
         update(&document)
-        openDocuments[index] = .text(document)
+        openDocuments[index] = isUI ? .ui(document) : .text(document)
         notifyActiveDocumentChangedIfNeeded(documentID: documentID)
         if document.isDirty, document.content != previousContent || !wasDirty {
             onDocumentEdited?(documentID)

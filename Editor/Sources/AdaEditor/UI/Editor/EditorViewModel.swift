@@ -12,6 +12,7 @@ enum EditorAdaScriptProjectBuildOutcome: Sendable {
 @Observable
 @MainActor
 final class EditorViewModel {
+    let debugger = EditorDebugger()
     let project: EditorProjectReference?
     var toolbar: EditorToolbarViewModel
     var toolStrip: EditorToolStripViewModel
@@ -199,6 +200,7 @@ final class EditorViewModel {
         self.playModeState = playModeState
         self.inspectorSidebar.textureAssets = Self.textureAssets(from: self.projectSidebar.items)
         self.inspectorSidebar.sceneAssets = Self.sceneAssets(from: self.projectSidebar.items)
+        self.inspectorSidebar.uiSourcePaths = Self.uiSourcePaths(from: self.projectSidebar.items)
         self.toolbar.searchableItems = self.projectSidebar.items
         self.agent.setProjectFileChangedHandler { [weak self] relativePath in
             self?.handleAgentProjectFileChanged(relativePath: relativePath, fileManager: fileManager)
@@ -208,10 +210,13 @@ final class EditorViewModel {
         }
         self.workbench.setActiveDocumentChangedHandler { [weak self] in
             self?.synchronizeAgentSceneContext()
+            self?.rememberDebugSource()
         }
         self.workbench.setDocumentEditedHandler { [weak self] documentID in
+            self?.updateDebugSource(documentID: documentID)
             self?.scheduleAutosave(documentID: documentID)
         }
+        configureDebugger()
         synchronizeAgentSceneContext()
     }
 }

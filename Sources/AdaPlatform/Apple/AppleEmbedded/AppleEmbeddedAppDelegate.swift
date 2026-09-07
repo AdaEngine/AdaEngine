@@ -22,7 +22,7 @@ class AppleEmbeddedAppDelegate: NSObject, UIApplicationDelegate {
     #if os(iOS) || os(tvOS) || os(visionOS)
     func application(
         _ application: UIApplication,
-        configurationForConnecting connectingSceneSession: UISceneSession,
+        configurationForConnecting connectingSceneSession: UIKit.UISceneSession,
         options: UIScene.ConnectionOptions
     ) -> UISceneConfiguration {
         let configuration = UISceneConfiguration(
@@ -35,7 +35,7 @@ class AppleEmbeddedAppDelegate: NSObject, UIApplicationDelegate {
 
     func application(
         _ application: UIApplication,
-        didDiscardSceneSessions sceneSessions: Set<UISceneSession>
+        didDiscardSceneSessions sceneSessions: Set<UIKit.UISceneSession>
     ) {
         (UIWindowManager.shared as? AppleEmbeddedWindowManager)?
             .sceneSessionsDidDiscard(sceneSessions)

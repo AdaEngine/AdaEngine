@@ -31,6 +31,10 @@ struct EditorBottomPanel: View {
             .background(theme.editorColors.surface)
             
             GeometryReader { geometry in
+                if viewModel.activeOutputTab == "Debug" {
+                    EditorDebugPanel(debugger: viewModel.debugger)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                } else {
                 ScrollViewReader { proxy in
                     HStack(spacing: 0) {
                         ScrollView([.horizontal, .vertical]) {
@@ -55,6 +59,7 @@ struct EditorBottomPanel: View {
                         }
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+                }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -275,6 +280,7 @@ struct EditorBottomPanel: View {
                 }
         }
         .buttonStyle(DefaultButtonStyle())
+        .accessibilityIdentifier("AdaEditor.Output.Tab.\(tab)")
     }
 
     private func outputTabWidth(_ tab: String) -> Float {

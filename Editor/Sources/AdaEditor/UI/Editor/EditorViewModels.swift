@@ -181,12 +181,14 @@ enum EditorProjectFileKind: Equatable, Sendable {
 
 enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
     case scene
+    case uiScene
     case script
     case swift
     case plainText
 
     var title: String {
         switch self {
+        case .uiScene: "UI Scene"
         case .scene:
             "Scene"
         case .script:
@@ -200,6 +202,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
 
     var detail: String {
         switch self {
+        case .uiScene: "Declarative AdaUI scene"
         case .scene:
             "AdaEngine scene"
         case .script:
@@ -213,6 +216,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
 
     var fileExtension: String {
         switch self {
+        case .uiScene: "ui"
         case .scene:
             SceneDocumentFormat.canonicalExtension
         case .script:
@@ -226,6 +230,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
 
     func initialContent(fileName: String) -> String {
         switch self {
+        case .uiScene: return (try? UISceneDocument().encodedYAML()) ?? ""
         case .scene:
             return SceneDocumentFormat.defaultSceneYAML(
                 projectName: URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
@@ -329,6 +334,7 @@ struct EditorAssetDocument: Equatable, Sendable {
 
 enum EditorWorkbenchDocument: Equatable, Sendable {
     case scene(EditorSceneDocument)
+    case ui(EditorTextDocument)
     case text(EditorTextDocument)
     case asset(EditorAssetDocument)
     case git(EditorGitDocument)
@@ -337,7 +343,7 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
         switch self {
         case .scene(let document):
             document.id
-        case .text(let document):
+        case .text(let document), .ui(let document):
             document.id
         case .git(let document):
             document.id
@@ -350,7 +356,7 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
         switch self {
         case .scene(let document):
             document.title
-        case .text(let document):
+        case .text(let document), .ui(let document):
             document.title
         case .git(let document):
             document.title
@@ -363,7 +369,7 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
         switch self {
         case .scene(let document):
             document.relativePath
-        case .text(let document):
+        case .text(let document), .ui(let document):
             document.relativePath
         case .git:
             ""
@@ -376,7 +382,7 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
         switch self {
         case .scene(let document):
             document.absolutePath
-        case .text(let document):
+        case .text(let document), .ui(let document):
             document.absolutePath
         case .git:
             nil
@@ -389,7 +395,7 @@ enum EditorWorkbenchDocument: Equatable, Sendable {
         switch self {
         case .scene(let document):
             document.isDirty
-        case .text(let document):
+        case .text(let document), .ui(let document):
             document.isDirty
         case .asset, .git:
             false

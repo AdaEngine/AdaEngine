@@ -16,6 +16,10 @@ extension TextEditorViewNode {
         }
 
         let localPoint = self.convertPointFromRoot(event.mousePosition)
+        if let line = gutterLine(at: localPoint), let action = sourceInteraction.onGutterClick {
+            if event.phase == .began, event.button == .left { action(line) }
+            if event.button == .left { return true }
+        }
         let sourcePosition = self.sourcePosition(at: localPoint)
 
         if event.phase == .began, event.button == .right {
@@ -44,6 +48,14 @@ extension TextEditorViewNode {
         }
 
         return false
+    }
+
+    func gutterLine(at point: Point) -> Int? {
+        guard showsLineNumbers, sourceInteraction?.onGutterClick != nil else { return nil }
+        let content = textContentRect()
+        guard point.x >= content.minX, point.x < textRect().minX, point.y >= content.minY else { return nil }
+        let line = Int((point.y - content.minY) / lineHeight(for: resolvedFontPointSize()))
+        return lines().indices.contains(line) ? line : nil
     }
 
     func notifySourceHover(_ position: TextEditorSourcePosition?) {

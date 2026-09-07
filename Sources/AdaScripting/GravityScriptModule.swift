@@ -173,6 +173,18 @@ enum GravityScriptModuleResolver {
     }
 
     private static func resolveImport(_ importPath: String, from sourcePath: String) throws -> String {
+        if importPath.hasPrefix("@") {
+            let parts = importPath.dropFirst().split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
+            guard parts.count == 2, AdaScriptLibraryManifest.isIdentifier(String(parts[0])) else {
+                throw AdaScriptError.invalidImport(source: sourcePath, message: "library imports use @library.id/path")
+            }
+            var path = String(parts[1])
+            if URL(fileURLWithPath: path).pathExtension.isEmpty { path += ".ada" }
+            guard AdaScriptLibraryManifest.isSourcePath(path) else {
+                throw AdaScriptError.invalidImport(source: sourcePath, message: "invalid library source path")
+            }
+            return "Libraries/\(parts[0])/\(path)"
+        }
         guard importPath.hasPrefix("./") || importPath.hasPrefix("../") else {
             throw AdaScriptError.invalidImport(
                 source: sourcePath,

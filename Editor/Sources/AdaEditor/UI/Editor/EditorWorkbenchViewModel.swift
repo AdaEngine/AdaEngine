@@ -18,6 +18,11 @@ final class EditorWorkbenchViewModel {
     var codeFontWeight: EditorCodeFontWeight
     var keywordFontWeight: EditorCodeFontWeight
     var previewStatus: EditorPreviewStatus
+    var uiCatalog: UICatalog = .standard
+    var uiCatalogError: String?
+    @ObservationIgnored var uiExportLoader = EditorUIExportLoader()
+    @ObservationIgnored var uiExportTask: Task<Void, Never>?
+    @ObservationIgnored var uiSceneModels: [String: EditorUISceneModel] = [:]
     var selectedPreviewID: String?
     var loadedPreview: EditorLoadedPreview?
 
@@ -183,6 +188,7 @@ final class EditorWorkbenchViewModel {
             onActiveDocumentWillChange?()
         }
         openDocuments.remove(at: closingIndex)
+        uiSceneModels.removeValue(forKey: documentID)
 
         guard wasActiveDocument else {
             return
@@ -210,6 +216,7 @@ final class EditorWorkbenchViewModel {
         let discardedIDSet = Set(discardedIDs)
         let wasActiveDocumentDiscarded = discardedIDSet.contains(activeDocumentID)
         openDocuments.removeAll { discardedIDSet.contains($0.id) }
+        uiSceneModels = uiSceneModels.filter { !discardedIDSet.contains($0.key) }
         navigationHistory.removeAll { discardedIDSet.contains($0) }
         navigationHistoryIndex = min(navigationHistoryIndex, navigationHistory.count - 1)
 

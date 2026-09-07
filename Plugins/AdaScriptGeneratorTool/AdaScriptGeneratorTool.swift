@@ -26,11 +26,18 @@ struct AdaScriptGeneratorTool {
         let outputURL = URL(fileURLWithPath: arguments[1], isDirectory: false)
         let rootURL = URL(fileURLWithPath: arguments[3], isDirectory: true)
         let moduleName = arguments[5]
-        let scriptURLs = arguments.dropFirst(6).map { URL(fileURLWithPath: $0, isDirectory: false) }
+        var remaining = Array(arguments.dropFirst(6))
+        var librariesRoot: URL?
+        if remaining.first == "--libraries-root", remaining.count >= 2 {
+            librariesRoot = URL(fileURLWithPath: remaining[1], isDirectory: true)
+            remaining.removeFirst(2)
+        }
+        let scriptURLs = remaining.map { URL(fileURLWithPath: $0, isDirectory: false) }
         let generatedSource = try makeGeneratedSource(
             moduleName: moduleName,
             scriptURLs: scriptURLs,
-            rootURL: rootURL
+            rootURL: rootURL,
+            librariesRoot: librariesRoot
         )
 
         try FileManager.default.createDirectory(
@@ -46,11 +53,17 @@ struct AdaScriptGeneratorTool {
     private static func makeGeneratedSource(
         moduleName: String,
         scriptURLs: [URL],
-        rootURL: URL
+        rootURL: URL,
+        librariesRoot: URL?
     ) throws -> String {
-        let scripts = try scriptURLs.map { scriptURL in
+        var scripts = try scriptURLs.map { scriptURL in
             let source = try String(contentsOf: scriptURL, encoding: .utf8)
             return (path: relativePath(for: scriptURL, rootURL: rootURL), source: source)
+        }
+        if let librariesRoot {
+            scripts += try AdaScriptLibraryLock.load(at: librariesRoot).loadSources(at: librariesRoot).map {
+                (path: $0.path, source: $0.source)
+            }
         }
         let compilerSources = scripts.map {
             AdaScriptCompilerSource(path: $0.path, source: $0.source)

@@ -74,6 +74,7 @@ struct EditorAdaScriptProjectBuilder {
 
         let sourceRoot = project.paths.sources ?? "Sources"
         let sources = try loadSources(at: projectURL.appendingPathComponent(sourceRoot, isDirectory: true))
+            + AdaScriptLibraryLock.load(at: projectURL).loadSources(at: projectURL)
         guard !sources.isEmpty else {
             throw EditorAdaScriptProjectBuildError.noSources(path: sourceRoot)
         }

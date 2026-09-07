@@ -13,6 +13,7 @@ public struct TextField: View, ViewNodeBuilder {
 
     let placeholder: String
     let text: Binding<String>
+    let onSubmit: (() -> Void)?
 
     /// Creates a text field with an optional placeholder.
     ///
@@ -20,8 +21,14 @@ public struct TextField: View, ViewNodeBuilder {
     ///   - placeholder: Text displayed when the field is empty.
     ///   - text: Two-way binding for the field content.
     public init(_ placeholder: String = "", text: Binding<String>) {
+        self.init(placeholder, text: text, onSubmit: nil)
+    }
+
+    /// Creates a text field that submits when Return is pressed while it has focus.
+    public init(_ placeholder: String = "", text: Binding<String>, onSubmit: (() -> Void)?) {
         self.placeholder = placeholder
         self.text = text
+        self.onSubmit = onSubmit
     }
 
     func buildViewNode(in context: BuildContext) -> ViewNode {

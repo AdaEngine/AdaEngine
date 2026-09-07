@@ -439,12 +439,15 @@ class ViewNode: Identifiable {
 
     /// Update current node with a new. This method called after ``invalidationContent()`` method
     /// and if view exists in tree, we should update exsiting view using ``ViewNode/update(_:)`` method.
+    var uiSceneNodeID: String?
+
     func update(from newNode: ViewNode) {
         self.markInspectionRedraw()
         let shouldInvalidateForEnvironmentChange = shouldInvalidateContent(forResolvedEnvironment: newNode.environment)
         self.environmentTransform = newNode.environmentTransform
         self.structuralIdentity = newNode.structuralIdentity
         self.accessibilityIdentifier = newNode.accessibilityIdentifier
+        self.uiSceneNodeID = newNode.uiSceneNodeID
         var resolvedEnvironment = newNode.environment
         if !resolvedEnvironment.animationsDisabled,
            resolvedEnvironment.animationController == nil,

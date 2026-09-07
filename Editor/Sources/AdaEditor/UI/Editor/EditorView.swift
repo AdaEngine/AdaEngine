@@ -94,7 +94,7 @@ enum AdaEngineStyleContent {
     static let aiChips = ["Refactor current scene", "Optimize render batches", "Auto-light"]
     static let inspectorScript = "DynamicBouncer.ada"
     static let inspectorScriptDescription = "Object bounces on contact"
-    static let outputTabs = ["Problems", "Build", "Tests", "References", "Output"]
+    static let outputTabs = ["Problems", "Build", "Tests", "References", "Debug", "Output"]
     static let logLines = [
         "[12:04:11] Ada Engine initialized — render backend ready.",
         "[12:04:12] Loaded Main.ascn with 1 entity.",
@@ -253,6 +253,7 @@ struct EditorView: View {
             )
         }
         .onDisappear {
+            viewModel.debugger.stop()
             EditorMenuCommandRouter.shared.uninstall(owner: viewModel)
             EditorSearchShortcutMonitor.shared.stop()
             EditorNavigationMouseShortcutMonitor.shared.stop()
@@ -394,7 +395,8 @@ private struct EditorWorkspaceRegion: View {
                             },
                             onShowPreviewBuildOutput: {
                                 viewModel.showBuildOutput()
-                            }
+                            },
+                            debugger: viewModel.debugger
                         )
                         .frame(maxHeight: .infinity)
                     },

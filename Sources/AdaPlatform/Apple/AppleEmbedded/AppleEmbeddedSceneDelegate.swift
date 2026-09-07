@@ -14,7 +14,7 @@ final class AppleEmbeddedSceneDelegate: NSObject, UIWindowSceneDelegate {
 
     func scene(
         _ scene: UIScene,
-        willConnectTo session: UISceneSession,
+        willConnectTo session: UIKit.UISceneSession,
         options connectionOptions: UIScene.ConnectionOptions
     ) {
         guard let windowScene = scene as? UIWindowScene,

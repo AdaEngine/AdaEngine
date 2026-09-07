@@ -22,12 +22,19 @@ struct EditorCodeFileView: View {
     let onTextSelection: ((EditorTextDocument, EditorSourceRange?, String?) -> Void)?
     let onChatSelection: ((EditorTextDocument, EditorSourceRange, String) -> Void)?
     let sourceContextMenuItems: ((EditorTextDocument, EditorSourceLocation) -> [TextEditorContextMenuItem])?
+    var debugger: EditorDebugger? = nil
 
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             codeHeader
+            if let path = document.absolutePath, debugger?.modifiedSources.contains(path) == true {
+                Text("Source changed after launch. Restart debugging to use this version.")
+                    .font(.system(size: 11))
+                    .foregroundColor(theme.editorColors.muted)
+                    .padding(.horizontal, 10)
+            }
             if let errorMessage = document.errorMessage {
                 fileError(message: errorMessage)
             } else {
@@ -206,6 +213,12 @@ private extension EditorCodeFileView {
         let supportsLanguageTooling = document.language.supportsLanguageTooling
 
         return TextEditorSourceInteraction(
+            lineMarkers: debugLineMarkers,
+            executionLine: debugExecutionLine,
+            onGutterClick: { line in
+                guard let path = document.absolutePath, document.language == .swift || document.language == .ada else { return }
+                debugger?.toggleBreakpoint(path: path, line: line + 1)
+            },
             highlightedRanges: document.symbolHighlights.map(\.textEditorRange),
             sourceHighlights: document.diagnostics.map { diagnostic in
                 TextEditorSourceHighlight(
@@ -250,6 +263,28 @@ private extension EditorCodeFileView {
                 return sourceContextMenuItems?(document, EditorSourceLocation(textEditorPosition: position)) ?? []
             }
         )
+    }
+
+    var debugLineMarkers: [TextEditorLineMarker] {
+        guard let debugger, let path = document.absolutePath else { return [] }
+        let session = document.language == .swift ? debugger.swift : debugger.adaScript
+        return debugger.breakpoints.filter { $0.path == path }.map { breakpoint in
+            TextEditorLineMarker(
+                line: breakpoint.line - 1,
+                color: breakpoint.enabled ? Color.red : theme.editorColors.muted,
+                isFilled: breakpoint.enabled && (!session.state.isActive || session.verifiedBreakpoints[breakpoint.id] == true)
+            )
+        }
+    }
+
+    var debugExecutionLine: Int? {
+        guard let debugger, let path = document.absolutePath, !debugger.modifiedSources.contains(path) else { return nil }
+        let session = document.language == .swift ? debugger.swift : debugger.adaScript
+        guard session.state == .paused,
+              let frame = session.frames.first(where: { $0.id == session.selectedFrameID }),
+              let framePath = frame.path,
+              URL(fileURLWithPath: framePath).resolvingSymlinksInPath() == URL(fileURLWithPath: path).resolvingSymlinksInPath() else { return nil }
+        return frame.line - 1
     }
 
     var tokenSpans: [TextEditorTokenSpan] {

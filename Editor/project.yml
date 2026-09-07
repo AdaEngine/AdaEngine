@@ -21,7 +21,7 @@ targets:
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine
-        PRODUCT_NAME: AdaEditor
+        PRODUCT_NAME: AdaEngine
         PRODUCT_BUNDLE_IDENTIFIER: org.adaengine.editor
         INFOPLIST_FILE: Sources/AdaEditor/Platforms/macOS/Info.plist
         DEVELOPMENT_TEAM: 8PYCRS3EA3
@@ -66,7 +66,7 @@ targets:
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine
-        PRODUCT_NAME: AdaEditor
+        PRODUCT_NAME: AdaEngine
         PRODUCT_BUNDLE_IDENTIFIER: org.adaengine.editor
         INFOPLIST_FILE: Sources/AdaEditor/Platforms/iOS/Info.plist
         DEVELOPMENT_TEAM: 8PYCRS3EA3
@@ -109,7 +109,7 @@ schemes:
       targets:
         AdaEditor-macOS: all
     run:
-      config: Debug
+      config: Release
       executable: AdaEditor-macOS
   AdaEditor-Distribution:
     build:

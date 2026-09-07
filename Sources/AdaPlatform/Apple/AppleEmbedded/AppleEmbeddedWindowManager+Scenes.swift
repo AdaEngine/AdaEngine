@@ -32,7 +32,7 @@ extension AppleEmbeddedWindowManager {
         }
     }
 
-    func sceneSessionsDidDiscard(_ sceneSessions: Set<UISceneSession>) {
+    func sceneSessionsDidDiscard(_ sceneSessions: Set<UIKit.UISceneSession>) {
         for sceneSession in sceneSessions {
             dedicatedSceneSessionIDs.remove(sceneSession.persistentIdentifier)
             guard let windowID = windowIDsBySceneSession.removeValue(forKey: sceneSession.persistentIdentifier),

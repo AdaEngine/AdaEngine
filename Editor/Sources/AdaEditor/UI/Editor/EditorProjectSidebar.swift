@@ -137,6 +137,7 @@ struct EditorProjectSidebar: View {
         ContextMenuSubmenu("New") {
             // Context menus consume concrete menu entries rather than ForEach view nodes.
             Button(EditorNewFileKind.scene.title) { onNewFile(.scene) }
+            Button(EditorNewFileKind.uiScene.title) { onNewFile(.uiScene) }
             Button(EditorNewFileKind.script.title) { onNewFile(.script) }
             Button(EditorNewFileKind.swift.title) { onNewFile(.swift) }
             Button(EditorNewFileKind.plainText.title) { onNewFile(.plainText) }

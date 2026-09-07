@@ -39,6 +39,7 @@ enum EditorSettingsSection: String, CaseIterable, Hashable, Sendable {
 @MainActor
 final class EditorSettingsWindowViewModel {
     var selectedSection: EditorSettingsSection
+    let libraries = EditorLibrariesViewModel()
     var searchText = ""
     var editorViewModel: EditorViewModel?
     var codeFontSize: Double
@@ -62,6 +63,7 @@ final class EditorSettingsWindowViewModel {
         self.codePalettePreset = EditorCodePalettePreset.matching(editorViewModel?.workbench.codeColorPalette ?? .dark)
         self.runtimeSettings = runtimeSettings
         self.runtimeDraft = EditorRuntimeSettingsDraft(runtime: runtimeSettings)
+        libraries.load(for: editorViewModel)
     }
 
     var searchTextBinding: Binding<String> {
@@ -92,6 +94,7 @@ final class EditorSettingsWindowViewModel {
         }
         runtimeSettings = Self.loadRuntimeSettings(from: editorViewModel)
         runtimeDraft = EditorRuntimeSettingsDraft(runtime: runtimeSettings)
+        libraries.load(for: editorViewModel)
         generalSettingsStatusMessage = ""
         runtimeSettingsStatusMessage = ""
     }
@@ -590,6 +593,7 @@ struct EditorSettingsWindowView: View {
                     viewModel: viewModel
                 )
             }
+            EditorLibrariesSettingsView(viewModel: viewModel.libraries)
             settingsGroup("RESOURCE ROOTS") {
                 settingsField(
                     "Assets, Localization",

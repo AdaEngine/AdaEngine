@@ -68,6 +68,7 @@ final class TextEditorViewNode: ViewNode {
     var isSourceCursorActive = false
     var isSelectingWithMouse = false
     var isSelectingWithTouch = false
+    var gutterTouchLine: Int?
     var mousePressStartPoint: Point?
     var touchPressStartPoint: Point?
     var lastTapTime: AdaUtils.TimeInterval?
@@ -400,6 +401,22 @@ final class TextEditorViewNode: ViewNode {
 
                 if self.isFocused, caretPosition.line == lineIndex {
                     clippedContext.drawRect(rowRect, color: editorColors.currentLineBackground)
+                }
+
+                if self.sourceInteraction?.executionLine == lineIndex {
+                    clippedContext.drawRect(rowRect, color: self.environment.accentColor.opacity(0.20))
+                    clippedContext.drawRect(
+                        Rect(x: textRect.minX - 5, y: rowY, width: 3, height: lineHeight),
+                        color: self.environment.accentColor
+                    )
+                }
+                if self.showsLineNumbers,
+                   let marker = self.sourceInteraction?.lineMarkers.first(where: { $0.line == lineIndex }) {
+                    clippedContext.drawEllipse(
+                        in: Rect(x: contentRect.minX, y: rowY + (lineHeight - 10) * 0.5, width: 10, height: 10),
+                        color: marker.color,
+                        thickness: marker.isFilled ? 1 : 0.22
+                    )
                 }
 
                 self.drawSourceHighlightsIfNeeded(

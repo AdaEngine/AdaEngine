@@ -867,7 +867,7 @@
       },
       {
         "kind": "text",
-        "text": "• Getting Started with AdaScript\n• AdaScript Language",
+        "text": "• Getting Started with AdaScript\n• AdaScript Language\n• AdaScript Libraries",
         "level": 0,
         "links": [
           {
@@ -877,6 +877,10 @@
           {
             "title": "AdaScript Language",
             "destination": "AdaScriptLanguage"
+          },
+          {
+            "title": "AdaScript Libraries",
+            "destination": "AdaScriptLibraries"
           }
         ]
       },
@@ -1851,6 +1855,164 @@
       {
         "kind": "text",
         "text": "Benchmark scripting changes with multiple archetypes and chunks and compare\nthem with a typed Swift query. Validate semantics before drawing performance\nconclusions.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "AdaScriptLibraries",
+    "title": "AdaScript Libraries",
+    "section": "AdaScript",
+    "source": "Sources/AdaScripting/AdaScripting.docc/AdaScriptLibraries.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Share reusable AdaScript functions, systems, scriptable objects, and views through a GitHub repository.\nAdaEditor installs the library and its transitive dependencies into the project. Run, Play Mode,\nPreview, and `AdaScriptBuildPlugin` load the same installed sources without network access.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Create a library",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Place `ada-library.json` in the repository root:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "{\n  \"schemaVersion\": 1,\n  \"id\": \"example.gameplay\",\n  \"version\": \"1.0.0\",\n  \"api\": 1,\n  \"sources\": [\"Sources/Health.ada\"],\n  \"dependencies\": []\n}",
+        "language": "json",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "IDs use lowercase letters, digits, dots, and hyphens. Versions are exact `major.minor.patch`\nvalues; API and schema versions currently equal `1`. List every `.ada` source explicitly,\nincluding helpers imported by other files. Files must be regular UTF-8 files inside the repository.\nA library can contain up to 256 sources, 1 MB per file and 8 MB total.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "For example, `Sources/Health.ada` can contain:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "func remainingHealth(current, damage) {\n    if (damage >= current) { return 0; }\n    return current - damage;\n}",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Publish the repository and optionally tag its commit `v1.0.0`. The repository name and library ID\ncan differ. The manifest's version describes the release; the resolved commit pins its exact content.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Install and use",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Open **Settings → Project → AdaScript Libraries**, enter `owner/repository` or its\n`https://github.com/owner/repository` URL, enter a tag or commit, and select **Install / Update**.\nRebuild or restart Play to activate the installed code.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Import helpers from any game source without depending on its directory depth:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "import { remainingHealth } from \"@example.gameplay/Sources/Health\";",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Imports inside a library can use relative paths such as `./Shared/Math`, or the same `@id/path`\nform for another library. Extensions are optional in imports. Library paths are exposed as\n`Libraries/<id>/<source-path>` in diagnostics.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Library `@system`, `@scriptable`, and `@view` declarations participate in the game's normal\ndiscovery and registration. Systems run automatically with the game's plugin. Enable the native\nengine features they need in Runtime Settings. Libraries share the game's module: use distinct\nclass names, function names, and annotation IDs to avoid collisions. Imports do not create namespaces.\nLibrary authors should not declare `main()`.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Pure AdaScript projects use native types already supported by the host. Their existing restriction\non new `@component` and `@resource` layouts still applies. SwiftPM games can generate those layouts\nthrough `AdaScriptBuildPlugin`. Installing a library does not compile arbitrary Swift or install native binaries.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Dependencies and reproducibility",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Declare transitive dependencies using exact, lowercase 40-character GitHub commit SHAs:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "\"dependencies\": [\n  {\n    \"id\": \"example.math\",\n    \"source\": {\n      \"provider\": \"github\",\n      \"location\": \"owner/math-library\",\n      \"revision\": \"0123456789abcdef0123456789abcdef01234567\"\n    }\n  }\n]",
+        "language": "json",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The SHA above illustrates the format; replace it with a commit from the dependency repository.\nUse lowercase `owner/repository` locations in dependencies. Version ranges are not supported.\nCycles, missing libraries, identity mismatches, and conflicting commits fail the complete operation.\nInstallation downloads code without executing it. It activates a complete graph through one atomic lock write.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Commit `.ada/libraries.lock.json` and `.ada/libraries/` to share a fully offline project.\nAlternatively commit the lock and use **Restore Locked Libraries** on another machine. Restoration\nfetches the pinned commits, even if a tag has moved. Reinstall a root library to explicitly update it.\nBuilds never resolve tags or download packages. Missing files produce an actionable restore error.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "**Remove** removes a direct dependency. Dependencies still needed by another root stay active.\nUnreferenced installation directories remain cached; they are not loaded by the lock.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "For SwiftPM games, apply `AdaScriptBuildPlugin` to the game target and install libraries in that\npackage's root. The generator embeds the locked sources alongside the target's `.ada` files, so the\nbuilt executable does not need the installation directories. Each target using the plugin consumes\nthe package's library set; avoid registering that set again from another target in the same game.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Providers",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The initial provider supports public GitHub repositories through the GitHub REST API, including\non hosts without a Git executable. Private repositories and authentication are not implemented.\nGitHub API rate limits are surfaced as installation errors.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The editor's `AdaScriptLibraryProvider` protocol accepts a provider/location/revision reference and\nreturns a pinned manifest plus source files. An Assets Store adapter can implement this same contract\nwithout changing source imports, runtime loading, or the lock format. The store service, catalog,\nauthentication, and purchasing flows are future work.",
         "level": 0,
         "links": []
       }

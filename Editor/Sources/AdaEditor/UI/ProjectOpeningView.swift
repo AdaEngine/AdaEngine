@@ -879,7 +879,7 @@ private struct LauncherSidebarTooltipButton<Label: View>: View {
                 isTooltipVisible = false
             }
         }
-        .overlay(alignment: .trailing) {
+        .overlay(anchor: .trailing) {
             if isTooltipVisible {
                 Text(tooltip)
                     .font(.system(size: 11))

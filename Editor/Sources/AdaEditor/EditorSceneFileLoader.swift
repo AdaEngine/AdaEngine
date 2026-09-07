@@ -103,6 +103,11 @@ enum EditorSceneFileLoader {
         ancestry: Set<URL>
     ) -> EditorSceneRuntimeLoadResult {
         var warnings: [String] = []
+        if world.getResource(UIComponentRuntimeResource.self) == nil {
+            let runtime = UIComponentRuntime(resourceRoot: resourceRootURL ?? sourceURL?.deletingLastPathComponent() ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
+            runtime.enableAdaScript(sourceRoot: EditorSceneViewportView.uiProjectRoot(from: runtime.resources.rootURL))
+            world.insertResource(UIComponentRuntimeResource(runtime))
+        }
         var entityCount = sceneModel.entities.count
         var entitiesByEditorID: [String: Entity] = [:]
         var runtimeEntityIDsByEditorID: [String: Entity.ID] = [:]
@@ -128,6 +133,9 @@ enum EditorSceneFileLoader {
 
                 do {
                     if let component = try EditorComponentRegistry.decode(typeName: componentName, payload: componentPayload) {
+                        if let ui = component as? UIComponent {
+                            _ = try ui.resolveView(runtime: world.getResource(UIComponentRuntimeResource.self)?.runtime)
+                        }
                         insertComponent(component, into: entity, in: world)
                     } else {
                         warnings.append("Component is not decodable: \(componentName)")

@@ -19,7 +19,8 @@ struct EditorTopToolbarRegion: View {
             onToggleRunDestinationMenu: onToggleRunDestinationMenu,
             onToggleProjectSwitcher: onToggleProjectSwitcher,
             onRun: viewModel.runFromToolbar,
-            onStop: viewModel.stopFromToolbar
+            onStop: viewModel.stopFromToolbar,
+            onDebug: viewModel.debugSelectedTarget
         )
     }
 }

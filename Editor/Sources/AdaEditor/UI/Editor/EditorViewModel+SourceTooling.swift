@@ -396,6 +396,10 @@ extension EditorViewModel {
         }
 
         return [
+            TextEditorContextMenuItem(title: "Toggle Breakpoint") { [weak self] in
+                guard let path = document.absolutePath else { return }
+                self?.debugger.toggleBreakpoint(path: path, line: position.line + 1)
+            },
             TextEditorContextMenuItem(
                 title: "Go To",
                 submenu: [

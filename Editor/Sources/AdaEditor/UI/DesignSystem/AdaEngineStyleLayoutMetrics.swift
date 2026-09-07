@@ -93,7 +93,7 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
     }
 
     var toolbarRunControlsWidth: Float {
-        64
+        98
     }
 
     var workbenchWidth: Float {
@@ -138,10 +138,10 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
 
     var outputTabs: [String] {
         if size.width < 620 {
-            return ["Problems", "Output"]
+            return ["Problems", "Debug", "Output"]
         }
         if size.width < 900 {
-            return ["Problems", "Build", "Output"]
+            return ["Problems", "Build", "Debug", "Output"]
         }
         return AdaEngineStyleContent.outputTabs
     }

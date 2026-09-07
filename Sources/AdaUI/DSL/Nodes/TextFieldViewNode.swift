@@ -42,6 +42,7 @@ final class TextFieldViewNode: ViewNode {
     }
 
     private var placeholder: String
+    private var onSubmit: (() -> Void)?
     private var textBinding: Binding<String>
 
     var text: String
@@ -67,6 +68,7 @@ final class TextFieldViewNode: ViewNode {
 
     init(inputs: _ViewInputs, content: TextField) {
         self.placeholder = content.placeholder
+        self.onSubmit = content.onSubmit
         self.textBinding = content.text
         self.text = Self.normalizeInputText(content.text.wrappedValue)
         super.init(content: content)
@@ -118,6 +120,7 @@ final class TextFieldViewNode: ViewNode {
         }
 
         self.placeholder = node.placeholder
+        self.onSubmit = node.onSubmit
         self.textBinding = node.textBinding
 
         let externalText = Self.normalizeInputText(node.textBinding.wrappedValue)
@@ -295,6 +298,8 @@ final class TextFieldViewNode: ViewNode {
         let extendSelection = event.modifiers.contains(.shift)
         let movesByWordBoundary = event.modifiers.contains(.main)
         switch event.keyCode {
+        case .enter:
+            self.onSubmit?()
         case .arrowLeft:
             if movesByWordBoundary {
                 self.moveCaretByWordBoundary(direction: -1, extendSelection: extendSelection)

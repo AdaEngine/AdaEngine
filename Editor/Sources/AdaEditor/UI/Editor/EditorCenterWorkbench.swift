@@ -26,6 +26,7 @@ struct EditorCenterWorkbench: View {
     let onSelectPreview: ((EditorPreviewDeclaration) -> Void)?
     let onRebuildPreview: (() -> Void)?
     let onShowPreviewBuildOutput: (() -> Void)?
+    var debugger: EditorDebugger? = nil
     
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
@@ -168,6 +169,8 @@ extension EditorCenterWorkbench {
         switch document {
         case .git:
             return "±"
+        case .ui:
+            return "UI"
         case .scene:
             return "#"
         case .text(let document):
@@ -194,6 +197,8 @@ extension EditorCenterWorkbench {
         switch document {
         case .git:
             return theme.editorColors.blue
+        case .ui:
+            return theme.editorColors.blue
         case .scene:
             return theme.editorColors.purple
         case .text:
@@ -219,6 +224,8 @@ extension EditorCenterWorkbench {
             EditorGitDiffView(document: document, workbench: viewModel)
         case .scene(let document):
             sceneDocumentEditor(document: document)
+        case .ui(let document):
+            EditorUISceneEditor(model: viewModel.uiSceneModel(for: document, resourceRoot: sceneResourceRootURL))
         case .text(let document):
             textDocumentEditor(document: document)
         case .asset(let document):
@@ -387,7 +394,8 @@ extension EditorCenterWorkbench {
             onAcceptCompletion: onAcceptCompletion,
             onTextSelection: onTextSelection,
             onChatSelection: onChatSelection,
-            sourceContextMenuItems: sourceContextMenuItems
+            sourceContextMenuItems: sourceContextMenuItems,
+            debugger: debugger
         )
     }
 
@@ -410,6 +418,7 @@ extension EditorCenterWorkbench {
         EditorSceneViewportView(
             document: document,
             resourceRootURL: sceneResourceRootURL,
+            uiCatalog: viewModel.uiCatalog,
             inspectorViewModel: inspectorViewModel,
             playModeState: playModeState,
             playRuntime: scenePlayRuntime,

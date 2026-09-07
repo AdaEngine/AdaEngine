@@ -382,6 +382,7 @@ final class ProjectOpeningViewModel {
     }()
 
     private func initializeGitRepositoryIfNeeded(at path: String) -> String? {
+        #if os(macOS) || os(Linux) || os(Windows)
         let command: [String]
         #if os(Windows)
         command = ["git", "init"]
@@ -412,6 +413,9 @@ final class ProjectOpeningViewModel {
             return "Git initialization failed: \(reason)"
         }
         return nil
+        #else
+        return "Git initialization requires a desktop platform. The project was created without a Git repository."
+        #endif
     }
 }
 

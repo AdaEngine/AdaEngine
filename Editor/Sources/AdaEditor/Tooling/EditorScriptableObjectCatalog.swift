@@ -69,6 +69,7 @@ enum EditorScriptableObjectCatalogLoader {
     ) throws -> Result {
         let sourceRoot = projectURL.appendingPathComponent(project.paths.sources ?? "Sources", isDirectory: true)
         let sources = try loadSources(at: sourceRoot, fileManager: fileManager)
+            + AdaScriptLibraryLock.load(at: projectURL).loadSources(at: projectURL)
         return try makeResult(project: project, sources: sources)
     }
 

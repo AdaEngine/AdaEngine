@@ -1,5 +1,7 @@
+@_spi(Scripting) import AdaECS
 import AdaUI
 import AdaUtils
+import Foundation
 import Gravity
 
 @GSExportable("__AdaUIView")
@@ -17,11 +19,11 @@ final class AdaScriptViewBridge: @unchecked Sendable {
     }
 
     func accessibilityIdentifier(_ value: String) -> AdaScriptViewBridge {
-        replacingStyle { $0.accessibilityIdentifier = value }
+        replacingStyle("accessibilityIdentifier") { $0.accessibilityIdentifier = value }
     }
 
     func background(_ value: String) -> AdaScriptViewBridge {
-        replacingStyle { $0.background = value }
+        replacingStyle("background") { $0.background = value }
     }
 
     func button(_ title: String, _ action: String) -> AdaScriptViewBridge {
@@ -41,15 +43,15 @@ final class AdaScriptViewBridge: @unchecked Sendable {
     }
 
     func fontSize(_ value: GSValue) -> AdaScriptViewBridge {
-        replacingStyle { $0.fontSize = value.finiteNonnegativeFloat }
+        replacingStyle("fontSize") { $0.fontSize = value.finiteNonnegativeFloat }
     }
 
     func foregroundColor(_ value: String) -> AdaScriptViewBridge {
-        replacingStyle { $0.foregroundColor = value }
+        replacingStyle("foregroundColor") { $0.foregroundColor = value }
     }
 
     func frame(_ width: GSValue, _ height: GSValue) -> AdaScriptViewBridge {
-        replacingStyle {
+        replacingStyle("frame") {
             $0.width = width.finiteNonnegativeFloat
             $0.height = height.finiteNonnegativeFloat
         }
@@ -60,11 +62,11 @@ final class AdaScriptViewBridge: @unchecked Sendable {
     }
 
     func opacity(_ value: GSValue) -> AdaScriptViewBridge {
-        replacingStyle { $0.opacity = min(max(value.finiteFloat ?? 1, 0), 1) }
+        replacingStyle("opacity") { $0.opacity = min(max(value.finiteFloat ?? 1, 0), 1) }
     }
 
     func padding(_ value: GSValue) -> AdaScriptViewBridge {
-        replacingStyle { $0.padding = value.finiteNonnegativeFloat }
+        replacingStyle("padding") { $0.padding = value.finiteNonnegativeFloat }
     }
 
     func spacer() -> AdaScriptViewBridge {
@@ -91,15 +93,57 @@ final class AdaScriptViewBridge: @unchecked Sendable {
         AdaScriptViewBridge(model: AdaScriptViewModel(content: .zStack(children: [])))
     }
 
-    private func replacingStyle(_ update: (inout AdaScriptViewStyle) -> Void) -> AdaScriptViewBridge {
+    private func replacingStyle(_ type: String, _ update: (inout AdaScriptViewStyle) -> Void) -> AdaScriptViewBridge {
         var style = model.style
         update(&style)
-        return AdaScriptViewBridge(model: AdaScriptViewModel(content: model.content, style: style))
+        var arguments: [String: UIArgument] = [:]
+        switch type {
+        case "padding": arguments["value"] = style.padding.map { .init(value: .number(Double($0))) }
+        case "fontSize": arguments["value"] = style.fontSize.map { .init(value: .number(Double($0))) }
+        case "opacity": arguments["value"] = style.opacity.map { .init(value: .number(Double($0))) }
+        case "foregroundColor": arguments["color"] = style.foregroundColor.map { .init(value: .string($0)) }
+        case "background": arguments["color"] = style.background.map { .init(value: .string($0)) }
+        case "accessibilityIdentifier": arguments["value"] = style.accessibilityIdentifier.map { .init(value: .string($0)) }
+        case "frame":
+            arguments["width"] = style.width.map { .init(value: .number(Double($0))) }
+            arguments["height"] = style.height.map { .init(value: .number(Double($0))) }
+        default: break
+        }
+        return AdaScriptViewBridge(model: AdaScriptViewModel(content: model.content, style: style,
+            modifiers: model.modifiers + [.init(id: "modifier-\(model.modifiers.count)", type: type, arguments: arguments)]))
+    }
+
+    func nativeView(_ identifier: String) -> AdaScriptViewBridge {
+        AdaScriptViewBridge(model: .init(content: .native(.init(id: "native", type: identifier))))
+    }
+
+    func argument(_ name: String, _ value: GSValue) -> AdaScriptViewBridge {
+        guard case .native(var node) = model.content,
+              let field = AdaScriptUIValueBridge.detached(value) else {
+            return AdaScriptViewBridge(model: .init(content: .native(.init(type: "Invalid UI argument: " + name))))
+        }
+        node.arguments[name] = .init(value: field)
+        return AdaScriptViewBridge(model: .init(content: .native(node), style: model.style, modifiers: model.modifiers))
+    }
+
+    func action(_ event: String, _ method: String) -> AdaScriptViewBridge {
+        guard case .native(var node) = model.content else { return self }
+        node.actions[event] = method
+        return AdaScriptViewBridge(model: .init(content: .native(node), style: model.style, modifiers: model.modifiers))
+    }
+
+    func nativeModifier(_ identifier: String, _ values: GSValue) -> AdaScriptViewBridge {
+        guard let field = AdaScriptUIValueBridge.detached(values), case .object(let object) = field else {
+            return AdaScriptViewBridge(model: .init(content: .native(.init(type: "Invalid modifier arguments: " + identifier))))
+        }
+        let modifier = UIModifierDescription(id: "modifier-\(model.modifiers.count)", type: identifier, arguments: object.mapValues { .init(value: $0) })
+        return AdaScriptViewBridge(model: .init(content: model.content, style: model.style, modifiers: model.modifiers + [modifier]))
     }
 }
 
 struct AdaScriptViewModel: Sendable {
     indirect enum Content: Sendable {
+        case native(UINodeDescription)
         case button(title: String, action: String)
         case divider
         case empty
@@ -112,22 +156,27 @@ struct AdaScriptViewModel: Sendable {
 
     let content: Content
     let style: AdaScriptViewStyle
+    let modifiers: [UIModifierDescription]
 
-    init(content: Content, style: AdaScriptViewStyle = AdaScriptViewStyle()) {
+    init(content: Content, style: AdaScriptViewStyle = AdaScriptViewStyle(), modifiers: [UIModifierDescription] = []) {
         self.content = content
         self.style = style
+        self.modifiers = modifiers
     }
 
     func addingChild(_ child: Self) -> Self {
         switch content {
+        case .native(var node):
+            node.children.append(child.uiNode(id: "child-\(node.children.count)"))
+            return Self(content: .native(node), style: style, modifiers: modifiers)
         case let .hStack(children, spacing):
-            Self(content: .hStack(children: children + [child], spacing: spacing), style: style)
+            return Self(content: .hStack(children: children + [child], spacing: spacing), style: style, modifiers: modifiers)
         case let .vStack(children, spacing):
-            Self(content: .vStack(children: children + [child], spacing: spacing), style: style)
+            return Self(content: .vStack(children: children + [child], spacing: spacing), style: style, modifiers: modifiers)
         case .zStack(let children):
-            Self(content: .zStack(children: children + [child]), style: style)
+            return Self(content: .zStack(children: children + [child]), style: style, modifiers: modifiers)
         default:
-            self
+            return self
         }
     }
 
@@ -135,15 +184,15 @@ struct AdaScriptViewModel: Sendable {
         guard case .spacer = content else {
             return self
         }
-        return Self(content: .spacer(minLength: minLength), style: style)
+        return Self(content: .spacer(minLength: minLength), style: style, modifiers: modifiers)
     }
 
     func replacingSpacing(_ spacing: Float?) -> Self {
         switch content {
         case .hStack(let children, _):
-            Self(content: .hStack(children: children, spacing: spacing), style: style)
+            Self(content: .hStack(children: children, spacing: spacing), style: style, modifiers: modifiers)
         case .vStack(let children, _):
-            Self(content: .vStack(children: children, spacing: spacing), style: style)
+            Self(content: .vStack(children: children, spacing: spacing), style: style, modifiers: modifiers)
         default:
             self
         }
@@ -165,64 +214,40 @@ struct AdaScriptViewStyle: Sendable {
 struct AdaScriptRenderedView: View {
     let model: AdaScriptViewModel
     let performAction: @MainActor (String) -> Void
+    var catalog: UICatalog = .standard
 
     var body: some View {
-        var view = unstyledView
-        if let fontSize = model.style.fontSize {
-            view = AnyView(view.fontSize(Double(fontSize)))
-        }
-        if let color = model.style.foregroundColor.flatMap(AdaScriptColor.init) {
-            view = AnyView(view.foregroundColor(color.value))
-        }
-        if let padding = model.style.padding {
-            view = AnyView(view.padding(padding))
-        }
-        if model.style.width != nil || model.style.height != nil {
-            view = AnyView(view.frame(width: model.style.width, height: model.style.height))
-        }
-        if let color = model.style.background.flatMap(AdaScriptColor.init) {
-            view = AnyView(view.background(color.value))
-        }
-        if let opacity = model.style.opacity {
-            view = AnyView(view.opacity(opacity))
-        }
-        if let identifier = model.style.accessibilityIdentifier {
-            view = AnyView(view.accessibilityIdentifier(identifier))
-        }
-        return view
-    }
-
-    private var unstyledView: AnyView {
-        switch model.content {
-        case let .button(title, action):
-            AnyView(Button(title) { performAction(action) })
-        case .divider:
-            AnyView(Divider())
-        case .empty:
-            AnyView(EmptyView())
-        case let .hStack(children, spacing):
-            AnyView(HStack(spacing: spacing) { AdaScriptViewList(children: children, performAction: performAction) })
-        case .spacer(let minLength):
-            AnyView(Spacer(minLength: minLength))
-        case .text(let value):
-            AnyView(Text(verbatim: value))
-        case let .vStack(children, spacing):
-            AnyView(VStack(spacing: spacing) { AdaScriptViewList(children: children, performAction: performAction) })
-        case .zStack(let children):
-            AnyView(ZStack { AdaScriptViewList(children: children, performAction: performAction) })
-        }
+        do {
+            let document = UISceneDocument(root: model.uiNode(id: "script"))
+            let context = UIBindingContext()
+            document.root.visit { node in
+                for action in node.actions.values { context.on(action) { _ in performAction(action) } }
+            }
+            return AnyView(UISceneView(session: try UISceneSession(document: document, context: context, catalog: catalog)))
+        } catch { return AnyView(Text(error.localizedDescription).foregroundColor(.red)) }
     }
 }
 
-@MainActor
-private struct AdaScriptViewList: View {
-    let children: [AdaScriptViewModel]
-    let performAction: @MainActor (String) -> Void
-
-    var body: some View {
-        ForEach(children.indices) { index in
-            AdaScriptRenderedView(model: children[index], performAction: performAction)
+extension AdaScriptViewModel {
+    func uiNode(id: String) -> UINodeDescription {
+        var node: UINodeDescription
+        var children: [AdaScriptViewModel] = []
+        switch content {
+        case .native(let value): node = value; node.id = id
+        case .button(let title, let action): node = .init(id: id, type: "Button", arguments: ["title": .init(value: .string(title))], actions: ["action": action])
+        case .divider: node = .init(id: id, type: "Divider")
+        case .empty: node = .init(id: id, type: "EmptyView")
+        case .text(let text): node = .init(id: id, type: "Text", arguments: ["text": .init(value: .string(text))])
+        case .spacer(let length): node = .init(id: id, type: "Spacer", arguments: length.map { ["minLength": .init(value: .number(Double($0)))] } ?? [:])
+        case .hStack(let values, let spacing):
+            node = .init(id: id, type: "HStack", arguments: spacing.map { ["spacing": .init(value: .number(Double($0)))] } ?? [:]); children = values
+        case .vStack(let values, let spacing):
+            node = .init(id: id, type: "VStack", arguments: spacing.map { ["spacing": .init(value: .number(Double($0)))] } ?? [:]); children = values
+        case .zStack(let values): node = .init(id: id, type: "ZStack"); children = values
         }
+        if !children.isEmpty { node.children = children.enumerated().map { $0.element.uiNode(id: "\(id)/\($0.offset)") } }
+        node.modifiers += modifiers
+        return node
     }
 }
 

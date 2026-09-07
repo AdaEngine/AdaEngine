@@ -31,6 +31,7 @@ struct EditorPreviewBuildRequest: Equatable, Sendable {
     var document: EditorTextDocument
     var packageModel: SwiftPackageModel
     var declaration: EditorPreviewDeclaration
+    var uiExportProvider: String? = nil
 }
 
 struct EditorPreviewBuildFailure: Error, Equatable, Sendable, CustomStringConvertible {
@@ -418,6 +419,18 @@ actor EditorPreviewBuilder {
                 try fileManager.copyItem(at: sourceURL, to: destinationURL)
             }
             copiedSourceCount += 1
+        }
+
+        if let provider = request.uiExportProvider,
+           target.name == request.packageModel.target(containing: request.document, projectURL: request.projectURL)?.name {
+            let bridge = """
+            import AdaUI
+            @_cdecl("\(request.declaration.symbolName)")
+            @MainActor public func __ada_ui_exports() -> UnsafeMutableRawPointer {
+                Unmanaged.passRetained(UIExportLibrary(\(provider).self)).toOpaque()
+            }
+            """
+            try bridge.write(to: destinationRoot.appendingPathComponent("AdaUIExports.generated.swift"), atomically: true, encoding: .utf8)
         }
 
         guard copiedSourceCount > 0 else {
