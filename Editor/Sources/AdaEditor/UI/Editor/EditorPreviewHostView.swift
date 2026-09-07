@@ -25,14 +25,15 @@ final class EditorPreviewHostView: UIView {
     private(set) var previewView: UIView?
     private(set) var zoom: Float = 1
     private(set) var isInteractive = false
+    private var logicalSize: Size?
     private var activeMouseEvent: MouseEvent?
     private var activeTouches: Set<TouchEvent> = []
 
     override var acceptsKeyboardFocus: Bool { isInteractive }
 
-    func configure(previewView: UIView, zoom: Float, isInteractive: Bool) {
+    func configure(previewView: UIView, zoom: Float, isInteractive: Bool, logicalSize: Size? = nil) {
         let resolvedZoom = zoom.isFinite ? min(max(zoom, 0.25), 3) : 1
-        guard self.previewView !== previewView || self.zoom != resolvedZoom || self.isInteractive != isInteractive else { return }
+        guard self.previewView !== previewView || self.zoom != resolvedZoom || self.isInteractive != isInteractive || self.logicalSize != logicalSize else { return }
         if self.isInteractive && (!isInteractive || self.previewView !== previewView), let activeMouseEvent {
             onMouseEvent(MouseEvent(
                 window: activeMouseEvent.window,
@@ -53,6 +54,7 @@ final class EditorPreviewHostView: UIView {
             self.previewView = previewView
             addSubview(previewView)
         }
+        self.logicalSize = logicalSize
         self.zoom = resolvedZoom
         self.isInteractive = isInteractive
         isInteractionEnabled = isInteractive
@@ -62,12 +64,12 @@ final class EditorPreviewHostView: UIView {
     }
 
     override func layoutSubviews() {
-        previewView?.frame = Rect(origin: .zero, size: bounds.size)
+        previewView?.frame = Rect(origin: .zero, size: logicalSize ?? bounds.size)
         super.layoutSubviews()
     }
 
     private var contentOrigin: Point {
-        Point(x: bounds.width * (1 - zoom) / 2, y: bounds.height * (1 - zoom) / 2)
+        Point(x: (bounds.width - (logicalSize?.width ?? bounds.width) * zoom) / 2, y: (bounds.height - (logicalSize?.height ?? bounds.height) * zoom) / 2)
     }
 
     func previewPoint(from point: Point) -> Point {

@@ -186,6 +186,19 @@ final class EditorUISceneModel {
         } catch { self.error = error.localizedDescription }
     }
 
+    func install(catalog: UICatalog) {
+        guard self.catalog.generation != catalog.generation else { return }
+        let context = session?.context ?? UIBindingContext()
+        self.catalog = catalog
+        do {
+            let candidate = try UISceneSession(document: document, context: context, catalog: catalog, resources: resources, sourceURL: sourceURL)
+            session = candidate
+            preview = UIContainerView(rootView: UISceneView(session: candidate))
+            preview?.backgroundColor = .clear
+            error = nil
+        } catch { self.error = error.localizedDescription }
+    }
+
     func rebuild() {
         let context = session?.context ?? UIBindingContext()
         for input in document.inputs {

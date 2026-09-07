@@ -34,6 +34,25 @@ struct UISceneDocumentTests {
         #expect(throws: UIDiagnostic.self) { try document.validate() }
     }
 
+    @Test func explicitNullAndMinimalYAMLRemainDistinctFromMissingValues() throws {
+        let document = try UISceneDocument.decode("""
+        format: ada.ui
+        schemaVersion: 1
+        inputs:
+          - name: optionalValue
+            type: any
+            defaultValue: null
+        root:
+          id: root
+          type: Text
+          arguments:
+            text: {value: null}
+        """)
+        #expect(document.inputs[0].defaultValue == .null)
+        #expect(document.root.arguments["text"]?.value == .null)
+        #expect(try UISceneDocument.decode(document.encodedYAML()) == document)
+    }
+
     @Test func nestedValuesKeepTypes() throws {
         let document = UISceneDocument(inputs: [.init("items", type: .array, defaultValue: .array([.object(["id": .string("a"), "count": .number(3), "visible": .bool(true)])]))])
         let restored = try UISceneDocument.decode(document.encodedYAML())

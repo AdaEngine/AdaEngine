@@ -106,7 +106,16 @@ public final class UISceneSession {
                     }
                     let itemID = id.string.map { "s:\($0)" } ?? "n:\(id.number ?? 0)"
                     let childContext = instance(identity + "/" + itemID, parent: context)
-                    childContext.set("item", to: item)
+                    if let collection = node.arguments["items"]?.binding {
+                        childContext.bind("item", to: Binding(get: {
+                            context.value(collection)?.array?.first { $0.value(at: key[...]) == id } ?? .null
+                        }, set: { updated in
+                            guard var items = context.value(collection)?.array,
+                                  let index = items.firstIndex(where: { $0.value(at: key[...]) == id }) else { return }
+                            items[index] = updated
+                            context.set(collection, to: .array(items))
+                        }))
+                    } else { childContext.set("item", to: item) }
                     for (name, argument) in node.arguments where name != "items" && name != "idKey" {
                         if let binding = argument.binding { childContext.bind(name, to: context.binding(binding)) }
                         else if let value = argument.value { childContext.set(name, to: value) }
@@ -149,7 +158,7 @@ public final class UISceneSession {
         for input in childDocument.inputs {
             guard let argument = node.arguments[input.name] else { continue }
             if let binding = argument.binding { childContext.bind(input.name, to: context.binding(binding)) }
-            else if let value = argument.value { childContext.set(input.name, to: value) }
+            else if let value = argument.value { childContext.unbind(input.name); childContext.set(input.name, to: value) }
         }
         for action in childDocument.actions {
             if let target = node.actions[action.name] { childContext.on(action.name) { context.perform(target, arguments: $0) } }
@@ -180,7 +189,7 @@ public final class UISceneSession {
                 guard parameter.type.accepts(value), value.number?.isFinite != false else { throw UIDiagnostic("Invalid '\(parameter.name)'.", nodeID: nodeID) }
                 values[parameter.name] = value
             } else if argument != nil { throw UIDiagnostic("Unresolved binding '\(argument?.binding ?? parameter.name)'.", nodeID: nodeID) }
-            if let path = argument?.binding { bindings[parameter.name] = context.binding(path) }
+            if parameter.isBinding, let path = argument?.binding { bindings[parameter.name] = context.binding(path) }
             else if parameter.isBinding {
                 let key = "control/\(nodeID)/\(parameter.name)"
                 if context.value(key) == nil { context.set(key, to: value ?? .null) }

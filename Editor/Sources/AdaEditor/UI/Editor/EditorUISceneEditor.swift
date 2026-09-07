@@ -7,26 +7,45 @@ struct EditorUISceneEditor: View {
     @State private var draggedID: String?
 
     var body: some View {
-        VStack(spacing: 0) {
-            controls
-            if model.showsSource {
-                TextEditor(text: Binding(get: { model.rawSource }, set: { model.editSource($0) }))
-                    .disabled(model.isReadOnly)
-            } else {
-            HStack(alignment: .top, spacing: 1) {
-                palette.frame(width: 170)
-                hierarchy.frame(width: 190)
-                canvas.frame(maxWidth: .infinity, maxHeight: .infinity)
-                inspector.frame(width: 240)
+        GeometryReader { geometry in
+            let footerHeight: Float = (model.error == nil ? 0 : 44) + (model.lastAction == nil ? 0 : 24)
+            let contentHeight = max(0, geometry.size.height - 44 - footerHeight)
+            let paletteWidth: Float = geometry.size.width < 1050 ? 140 : 170
+            let hierarchyWidth: Float = geometry.size.width < 1050 ? 150 : 190
+            let inspectorWidth: Float = geometry.size.width < 1050 ? 210 : 240
+            let canvasWidth = max(0, geometry.size.width - paletteWidth - hierarchyWidth - inspectorWidth - 3)
+            VStack(spacing: 0) {
+                controls.frame(width: geometry.size.width, height: 44, alignment: .topLeading)
+                if model.showsSource {
+                    TextEditor(text: Binding(get: { model.rawSource }, set: { model.editSource($0) }))
+                        .disabled(model.isReadOnly)
+                        .frame(width: geometry.size.width, height: contentHeight)
+                } else {
+                    HStack(alignment: .top, spacing: 1) {
+                        palette.frame(width: paletteWidth, height: contentHeight, alignment: .topLeading)
+                            .accessibilityIdentifier("AdaEditor.UIScene.PalettePanel")
+                        hierarchy.frame(width: hierarchyWidth, height: contentHeight, alignment: .topLeading)
+                            .accessibilityIdentifier("AdaEditor.UIScene.HierarchyPanel")
+                        canvas.frame(width: canvasWidth, height: contentHeight, alignment: .topLeading)
+                            .accessibilityIdentifier("AdaEditor.UIScene.CanvasPanel")
+                        inspector.frame(width: inspectorWidth, height: contentHeight, alignment: .topLeading)
+                            .accessibilityIdentifier("AdaEditor.UIScene.InspectorPanel")
+                    }
+                    .frame(width: geometry.size.width, height: contentHeight, alignment: .topLeading)
+                }
+                if let error = model.error {
+                    Text(error).foregroundColor(.red).font(.system(size: 12)).lineLimit(2)
+                        .padding(8).frame(width: geometry.size.width, height: 44, alignment: .leading)
+                }
+                if let action = model.lastAction {
+                    Text("Action: \(action)").font(.system(size: 11)).padding(4)
+                        .frame(width: geometry.size.width, height: 24, alignment: .leading)
+                }
             }
-            }
-            if let error = model.error {
-                Text(error).foregroundColor(.red).font(.system(size: 12)).padding(8)
-            }
-            if let action = model.lastAction {
-                Text("Action: \(action)").font(.system(size: 11)).padding(4)
-            }
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
         }
+        .foregroundColor(theme.editorColors.text)
+        .textFieldStyle(PlainTextFieldStyle())
         .background(theme.editorColors.surface)
         .accessibilityIdentifier("AdaEditor.UIScene")
     }
@@ -122,8 +141,8 @@ struct EditorUISceneEditor: View {
             VStack(spacing: 8) {
                 if let preview = model.preview {
                     EditorUISceneSurface(preview: preview, model: model)
-                        .frame(width: model.width, height: model.height)
-                        .background(Color.black)
+                        .frame(width: model.width * model.zoom, height: model.height * model.zoom)
+                        .background(Color.white)
                         .border(theme.editorColors.border)
                         .accessibilityIdentifier("AdaEditor.UIScene.Canvas")
                 } else {

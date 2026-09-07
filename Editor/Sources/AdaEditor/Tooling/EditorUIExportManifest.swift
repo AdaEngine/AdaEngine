@@ -20,6 +20,10 @@ struct EditorUIExportManifest: Codable, Sendable {
 
 @MainActor
 final class EditorUIExportLoader {
+    private let hostCatalog: UICatalog
+    init(hostCatalog: UICatalog = .standard) { self.hostCatalog = hostCatalog }
+    private var cachedFingerprint: [String]?
+    private var cachedCatalog: UICatalog?
     private var retainedLibraries: [UIExportLibrary] = []
     // Loaded factories and their mounted Views must outlive all calls into the module.
     // Keep handles until process exit, matching EditorPreviewDynamicLibrary's existing ABI.
@@ -27,15 +31,19 @@ final class EditorUIExportLoader {
 
     func load(projectURL: URL, packageModel: SwiftPackageModel?, builder: EditorPreviewBuilder) async throws -> UICatalog {
         let manifestURL = projectURL.appendingPathComponent(".ada/ui-exports.json")
-        guard FileManager.default.fileExists(atPath: manifestURL.path) else { return .standard }
+        guard FileManager.default.fileExists(atPath: manifestURL.path) else { return hostCatalog }
+        let fingerprint = try sourceFingerprint(projectURL: projectURL, manifestURL: manifestURL)
+        if fingerprint == cachedFingerprint, let cachedCatalog { return cachedCatalog }
         let manifest = try JSONDecoder().decode(EditorUIExportManifest.self, from: Data(contentsOf: manifestURL))
         guard manifest.version == 1 else { throw UIDiagnostic("Unsupported UI export manifest version.") }
-        var catalog = UICatalog.standard
+        var catalog = hostCatalog
         let resources = UISceneResources(rootURL: projectURL)
         for native in manifest.native {
             guard native.provider.range(of: "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$", options: .regularExpression) != nil else {
                 throw UIDiagnostic("Invalid Swift UI export provider name.")
             }
+            if native.views.allSatisfy({ catalog.views[$0.id]?.signature == $0 }),
+               native.modifiers.allSatisfy({ catalog.modifiers[$0.id]?.signature == $0 }) { continue }
             #if os(macOS)
             guard let packageModel else { throw UIDiagnostic("Resolve the SwiftPM project to load '\(native.provider)'.") }
             let source = try resources.resolve(native.source)
@@ -59,7 +67,22 @@ final class EditorUIExportLoader {
             let source = try resources.resolve(script.source)
             catalog = try catalog.adding(script: script, sources: AdaScriptUISource.sources(at: source))
         }
+        try Task.checkCancellation()
+        cachedFingerprint = fingerprint
+        cachedCatalog = catalog
         return catalog
+    }
+
+    private func sourceFingerprint(projectURL: URL, manifestURL: URL) throws -> [String] {
+        let keys: [URLResourceKey] = [.isRegularFileKey, .contentModificationDateKey, .fileSizeKey]
+        var urls = [manifestURL, projectURL.appendingPathComponent("Package.swift")]
+        if let files = FileManager.default.enumerator(at: projectURL.appendingPathComponent("Sources"), includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]) {
+            for case let url as URL in files where ["swift", "ada"].contains(url.pathExtension) { urls.append(url) }
+        }
+        return try urls.filter { FileManager.default.fileExists(atPath: $0.path) }.sorted { $0.path < $1.path }.map { url in
+            let attributes = try url.resourceValues(forKeys: Set(keys))
+            return "\(url.path):\(attributes.contentModificationDate?.timeIntervalSince1970 ?? 0):\(attributes.fileSize ?? 0)"
+        }
     }
 
     #if os(macOS)

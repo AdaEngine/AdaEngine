@@ -54,6 +54,30 @@ struct EditorUISceneTests {
         #expect(model.error == nil)
     }
 
+    @Test(arguments: [Size(width: 1440, height: 900), Size(width: 1100, height: 720)])
+    func designerPanelsFillAvailableHeight(_ size: Size) throws {
+        let model = EditorUISceneModel(content: try UISceneDocument().encodedYAML(), sourceURL: nil, resourceRoot: nil)
+        let container = UIContainerView(rootView: EditorUISceneEditor(model: model))
+        container.frame = Rect(origin: .zero, size: size)
+        container.layoutSubviews()
+        for panel in ["Palette", "Hierarchy", "Canvas", "Inspector"] {
+            let node = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.\(panel)Panel"))
+            #expect(abs(node.absoluteFrame.height - (size.height - 44)) < 1)
+            #expect(abs(node.absoluteFrame.minY - 44) < 1)
+            #expect(node.absoluteFrame.maxY <= size.height + 1)
+        }
+    }
+
+    @Test func zoomPreservesLogicalCanvasDimensions() throws {
+        let preview = UIContainerView(rootView: Text("Canvas"))
+        let host = EditorPreviewHostView()
+        host.frame = Rect(x: 0, y: 0, width: 1600, height: 1200)
+        host.configure(previewView: preview, zoom: 2, isInteractive: false, logicalSize: Size(width: 800, height: 600))
+        host.layoutSubviews()
+        #expect(preview.frame.size == Size(width: 800, height: 600))
+        #expect(host.previewPoint(from: Point(800, 600)) == Point(400, 300))
+    }
+
     @Test func hierarchyEditsUndoAndRejectCyclesAndInvalidContent() throws {
         let model = EditorUISceneModel(content: try UISceneDocument().encodedYAML(), sourceURL: nil, resourceRoot: nil)
         let rootID = model.selectedID

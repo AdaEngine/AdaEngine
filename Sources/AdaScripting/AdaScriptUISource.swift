@@ -13,7 +13,18 @@ extension UIComponentRuntime {
             let url = try resolver.resolve(source.path)
             let sources = try AdaScriptUISource.sources(at: url)
             let identifier = try AdaScriptUISource.identifier(in: sources, requested: source.identifier)
-            return AnyView(try AdaScriptView(sources: sources, identifier: identifier, catalog: catalog))
+            if source.inputs.isEmpty {
+                return AnyView(try AdaScriptView(sources: sources, identifier: identifier, catalog: catalog))
+            }
+            let parameters = source.inputs.keys.sorted().compactMap { name in
+                source.inputs[name].map { UIParameter(name, type: $0.type, defaultValue: $0, isBinding: true) }
+            }
+            let exported = AdaScriptUIExport(source: source.path, identifier: identifier,
+                signature: .init(id: "Source." + identifier, name: identifier, parameters: parameters))
+            let catalog = try catalog.adding(script: exported, sources: sources)
+            let node = UINodeDescription(type: exported.signature.id,
+                arguments: Dictionary(uniqueKeysWithValues: parameters.map { ($0.name, UIArgument(binding: $0.name)) }))
+            return AnyView(UISceneView(session: try UISceneSession(document: .init(root: node), context: context, catalog: catalog)))
         }
     }
 }

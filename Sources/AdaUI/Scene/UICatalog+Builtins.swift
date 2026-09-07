@@ -5,10 +5,7 @@ import AdaUtils
 import Math
 
 extension UICatalog {
-    public static var standard: Self {
-        // Built-in identifiers are unique by construction; custom catalogs use the throwing initializer.
-        Self(builtinViews: builtinViews, builtinModifiers: builtinModifiers)
-    }
+    public static let standard = Self(builtinViews: builtinViews, builtinModifiers: builtinModifiers)
 
     private init(builtinViews: [UINativeViewDescriptor], builtinModifiers: [UINativeModifierDescriptor]) {
         views = Dictionary(uniqueKeysWithValues: builtinViews.map { ($0.signature.id, $0) })

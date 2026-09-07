@@ -382,6 +382,9 @@ final class ProjectOpeningViewModel {
     }()
 
     private func initializeGitRepositoryIfNeeded(at path: String) -> String? {
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        return "Git initialization is available on desktop. The project was created without a repository."
+        #else
         let command: [String]
         #if os(Windows)
         command = ["git", "init"]
@@ -412,6 +415,7 @@ final class ProjectOpeningViewModel {
             return "Git initialization failed: \(reason)"
         }
         return nil
+        #endif
     }
 }
 

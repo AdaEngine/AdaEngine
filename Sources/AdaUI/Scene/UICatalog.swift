@@ -92,6 +92,7 @@ public struct UINativeModifierDescriptor {
 /// Immutable, session-scoped catalog shared by authoring, validation and rendering.
 @MainActor
 public struct UICatalog {
+    public let generation = UUID()
     public let views: [String: UINativeViewDescriptor]
     public let modifiers: [String: UINativeModifierDescriptor]
 

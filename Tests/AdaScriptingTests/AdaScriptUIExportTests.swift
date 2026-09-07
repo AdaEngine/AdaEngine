@@ -38,6 +38,29 @@ struct AdaScriptUIExportTests {
         #expect(context.diagnostics.isEmpty)
     }
 
+    @Test func objectBindingKeepsMapFieldsAfterScriptMutation() throws {
+        let sources = [AdaScriptSource(path: "Object.ada", source: """
+        @view
+        class ObjectView {
+            var item = ["name": "Initial", "count": 0];
+            func body() {
+                Button(item["name"]) { item["count"] = item["count"] + 1; }.accessibilityIdentifier("object.button");
+            }
+        }
+        """)]
+        let export = AdaScriptUIExport(source: "Object.ada", identifier: "ObjectView", signature: .init(id: "Game.Object", name: "Object", parameters: [.init("item", type: .object, isBinding: true)]))
+        let catalog = try UICatalog.standard.adding(script: export, sources: sources)
+        let data = UIBindingContext(values: ["item": .object(["name": .string("Item"), "count": .number(2)])])
+        let session = try UISceneSession(document: .init(root: .init(type: "Game.Object", arguments: ["item": .init(binding: "item")])), context: data, catalog: catalog)
+        let container = UIContainerView(rootView: UISceneView(session: session))
+        container.frame = Rect(x: 0, y: 0, width: 300, height: 100)
+        container.layoutSubviews()
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("object.button"))
+        #expect(data.value("item.count") == .number(3))
+        #expect(data.value("item.name") == .string("Item"))
+        #expect(data.diagnostics.isEmpty)
+    }
+
     @Test func nativeViewUsesHostCatalogAndPreservesModifierOrder() throws {
         var values: [String] = []
         let catalog = try UICatalog.standard.adding(views: [.init(signature: .init(id: "Game.Label", name: "Label", parameters: [.init("text", type: .string)])) { inputs in
