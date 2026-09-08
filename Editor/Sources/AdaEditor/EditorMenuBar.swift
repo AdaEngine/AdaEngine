@@ -132,7 +132,7 @@ enum EditorMenuBar {
     private static func editMenu() -> UIMenu {
         menu("Edit", items: [
             item("Undo", command: .undo, key: .z),
-            item("Redo", command: .redo, key: .z, modifiers: [.main, .shift]),
+            item("Redo", command: .redo, key: .z, modifiers: [.main, .alt]),
             MenuItem.separator,
             item("Cut", command: .cut, key: .x),
             item("Copy", command: .copy, key: .c),

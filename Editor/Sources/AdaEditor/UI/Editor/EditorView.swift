@@ -206,6 +206,12 @@ struct EditorView: View {
         .fullScreenCover(isPresented: viewModel.isNewFileDialogPresentedBinding) {
             EditorNewFileDialog(viewModel: viewModel)
         }
+        .fullScreenCover(item: Binding(
+            get: { viewModel.workbench.modifierPickerRequest },
+            set: { viewModel.workbench.modifierPickerRequest = $0 }
+        )) { request in
+            EditorAddModifierDialog(model: request.model, nodeID: request.nodeID)
+        }
         .fullScreenCover(isPresented: viewModel.inspectorSidebar.componentPickerPresentationBinding) {
             EditorAddComponentDialog(viewModel: viewModel.inspectorSidebar)
         }
@@ -262,7 +268,7 @@ struct EditorView: View {
     }
 
     private var editorKeyboardShortcuts: [KeyboardShortcutAction] {
-        [
+        EditorHistoryShortcuts.actions { EditorMenuCommandRouter.shared.perform($0) } + [
             KeyboardShortcutAction(.r, modifiers: .command) {
                 viewModel.toggleDebugOverlay(.redraw)
             },

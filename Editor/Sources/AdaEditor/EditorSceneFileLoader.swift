@@ -134,7 +134,11 @@ enum EditorSceneFileLoader {
                 do {
                     if let component = try EditorComponentRegistry.decode(typeName: componentName, payload: componentPayload) {
                         if let ui = component as? UIComponent {
-                            _ = try ui.resolveView(runtime: world.getResource(UIComponentRuntimeResource.self)?.runtime)
+                            let runtime = world.getResource(UIComponentRuntimeResource.self)?.runtime
+                            if let source = ui.source { try runtime?.validateScriptBindings(source: source) }
+                            // Script values arrive after ready/update. Keep the component until then,
+                            // including when an input intentionally has no preview default.
+                            if ui.source?.scriptBindings.isEmpty != false { _ = try ui.resolveView(runtime: runtime) }
                         }
                         insertComponent(component, into: entity, in: world)
                     } else {

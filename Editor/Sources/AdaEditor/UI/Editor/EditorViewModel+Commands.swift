@@ -589,7 +589,11 @@ extension EditorViewModel {
             workbench.decreaseCodeFontSize()
         case .resetCodeFontSize:
             workbench.resetCodeFontSize()
-        case .closeEditor, .undo, .redo, .cut, .copy, .paste, .selectAll, .enterFullScreen,
+        case .undo:
+            return workbench.performDocumentHistory(redo: false)
+        case .redo:
+            return workbench.performDocumentHistory(redo: true)
+        case .closeEditor, .cut, .copy, .paste, .selectAll, .enterFullScreen,
              .minimizeWindow, .zoomWindow, .bringAllToFront, .showDocumentation, .showSourceRepository:
             return false
         }

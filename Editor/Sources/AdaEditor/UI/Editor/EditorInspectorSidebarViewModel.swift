@@ -86,6 +86,7 @@ final class EditorInspectorSidebarViewModel {
     var textureAssets: [TextureAsset] = []
     var sceneAssets: [SceneAsset] = []
     var uiSourcePaths: [String] = []
+    var uiSceneFiles: [String: String] = [:]
 
     @ObservationIgnored
     var applyGizmoChange: ((EditorGizmo) -> Void)?

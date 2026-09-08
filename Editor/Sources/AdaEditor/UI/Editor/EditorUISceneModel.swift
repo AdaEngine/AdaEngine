@@ -5,10 +5,12 @@ import Observation
 final class EditorUISceneModel {
     var document: UISceneDocument
     var selectedID: String
+    var collapsedLayerIDs: Set<String> = []
     var search = ""
     var rawSource: String
     var showsSource = false
     var insertionModifierID: String?
+    @ObservationIgnored var onPresentModifierPicker: ((String) -> Void)?
     @ObservationIgnored var onOpenUI: ((URL) -> Void)?
     var isInteractive = false
     var zoom: Float = 1
@@ -68,7 +70,7 @@ final class EditorUISceneModel {
         edit { Self.modify(&$0.root, id: id, change) }
     }
 
-    func add(_ type: String) {
+    func add(_ type: String, selectingNewNode: Bool = true) {
         guard let signature = catalog.views[type]?.signature else { return }
         var node = UINodeDescription(type: type)
         for parameter in signature.parameters {
@@ -83,8 +85,13 @@ final class EditorUISceneModel {
                 } else { parent.children.append(node) }
             }
         }
-        insertionModifierID = nil
-        if contains(node.id) { selectedID = node.id }
+        if contains(node.id) {
+            collapsedLayerIDs.remove(id)
+            if selectingNewNode {
+                insertionModifierID = nil
+                selectedID = node.id
+            }
+        }
     }
 
     func removeSelected() {
@@ -135,10 +142,13 @@ final class EditorUISceneModel {
     func undo() { guard !isReadOnly, let previous = undoStack.popLast() else { return }; redoStack.append(document); document = previous; publish() }
     func redo() { guard !isReadOnly, let next = redoStack.popLast() else { return }; undoStack.append(document); document = next; publish() }
 
-    func addModifier(_ type: String) {
+    func addModifier(_ type: String, to nodeID: String? = nil) {
         guard let descriptor = catalog.modifiers[type] else { return }
         let arguments = Dictionary(uniqueKeysWithValues: descriptor.signature.parameters.compactMap { p in p.defaultValue.map { (p.name, UIArgument(value: $0)) } })
-        updateSelected { $0.modifiers.append(.init(type: type, arguments: arguments)) }
+        let targetID = nodeID ?? selectedID
+        edit { document in
+            Self.modify(&document.root, id: targetID) { $0.modifiers.append(.init(type: type, arguments: arguments)) }
+        }
     }
 
     func editSource(_ source: String) {
@@ -167,6 +177,8 @@ final class EditorUISceneModel {
     }
 
     func reload(content: String) {
+        // The file watcher also reports our own autosaves. Keep their undo history.
+        guard content != rawSource else { return }
         do { rawSource = content; document = try UISceneDocument.decode(content); undoStack.removeAll(); redoStack.removeAll(); rebuild() }
         catch { self.error = error.localizedDescription }
     }
@@ -178,6 +190,7 @@ final class EditorUISceneModel {
     }
 
     private func publish() {
+        if !contains(selectedID) { selectedID = document.root.id }
         do {
             rawSource = try document.encodedYAML()
             onChange?(rawSource)
@@ -283,6 +296,10 @@ extension EditorWorkbenchViewModel {
     func uiSceneModel(for document: EditorTextDocument, resourceRoot: URL?) -> EditorUISceneModel {
         if let model = uiSceneModels[document.id] { return model }
         let model = EditorUISceneModel(content: document.content, sourceURL: document.absolutePath.map { URL(fileURLWithPath: $0) }, resourceRoot: resourceRoot, isReadOnly: document.isReadOnly, catalog: uiCatalog)
+        model.onPresentModifierPicker = { [weak self, weak model] nodeID in
+            guard let self, let model else { return }
+            self.modifierPickerRequest = .init(model: model, nodeID: nodeID)
+        }
         model.onChange = { [weak self] content in
             self?.updateTextDocument(id: document.id) { $0.content = content; $0.isDirty = content != $0.lastSavedContent; $0.errorMessage = nil }
         }

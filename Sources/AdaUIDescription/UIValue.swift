@@ -88,24 +88,33 @@ public struct UIArgument: Codable, Hashable, Sendable {
     }
 }
 
+/// Optional authoring hints; serialized values retain their existing wire types.
+public enum UIParameterEditor: Codable, Hashable, Sendable {
+    case color
+    case enumeration([String])
+}
+
 public struct UIParameter: Codable, Hashable, Sendable {
     public var name: String
     public var type: UIValueType
     public var defaultValue: UIValue?
     public var isBinding: Bool
+    public var editor: UIParameterEditor?
 
-    public init(_ name: String, type: UIValueType, defaultValue: UIValue? = nil, isBinding: Bool = false) {
+    public init(_ name: String, type: UIValueType, defaultValue: UIValue? = nil, isBinding: Bool = false, editor: UIParameterEditor? = nil) {
         self.name = name
         self.type = type
         self.defaultValue = defaultValue
+        self.editor = editor
         self.isBinding = isBinding
     }
-    private enum CodingKeys: String, CodingKey { case name, type, defaultValue, isBinding }
+    private enum CodingKeys: String, CodingKey { case name, type, defaultValue, isBinding, editor }
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         name = try c.decode(String.self, forKey: .name)
         type = try c.decode(UIValueType.self, forKey: .type)
         defaultValue = c.contains(.defaultValue) ? try c.decode(UIValue.self, forKey: .defaultValue) : nil
+        editor = try c.decodeIfPresent(UIParameterEditor.self, forKey: .editor)
         isBinding = try c.decodeIfPresent(Bool.self, forKey: .isBinding) ?? false
     }
 

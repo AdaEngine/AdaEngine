@@ -35,6 +35,67 @@ state. Contexts are main-actor isolated. Factories receive detached values,
 bindings and scoped actions; they must not access a VM or mutate the ECS world
 while constructing a View. Custom control event callbacks use `inputs.perform`.
 
+## Bind a designed Text to a gameplay script
+
+1. In the UI Editor, declare a string input `title` under **Inputs & actions**,
+   with a preview default such as `Hello`.
+2. Select the Text, switch its `text` property to **Binding**, and select/type `title`.
+3. In the entity scene, attach the gameplay script and a **UI Component** to the
+   same entity. Choose the `.ui` file as the component source.
+4. Under **Script field bindings**, press **+ Binding**. Choose the UI input,
+   the attached script's identifier, and its exported field. Leave **Data context** empty.
+5. Save the entity scene and press Play. The UI Editor uses preview defaults;
+   gameplay fields are evaluated in Play mode.
+
+For example, attach this AdaScript:
+
+```adascript
+@scriptable(id: "game.hud")
+class HUD {
+    @export var title = "Hello";
+
+    func ready(context) {
+        title = "Game started";
+    }
+
+    // Assign title from update, event, or other gameplay code as needed.
+}
+```
+
+The mapping is stored in the `.ascn` UI component, so it survives reopening the
+project. Only exported fields of scripts on the same entity are eligible. UI
+input and field types must agree: for a Text's `text`, export a string (format
+numeric scores in game code). Object inputs also support paths such as `player.name`.
+
+The equivalent runtime setup is:
+
+```swift
+let ui = UIComponent(source: .init(
+    path: "@res://HUD.ui",
+    scriptBindings: ["title": .init(script: "game.hud", field: "title")]
+))
+// Attach ui and the registered game.hud script to the same entity.
+// DefaultPlugins includes ScriptableObjectPlugin; custom hosts must add it.
+```
+
+After script updates, `ScriptUIBindingSystem` publishes detached values into the
+component's context. AdaUI refreshes when those values change. TextField/TextEditor
+edits queue a write back to the exported field on the next synchronization pass;
+view construction never calls the script VM. Replacing the script discards pending
+edits for the old instance. Missing scripts, unavailable fields and rejected writes
+are recorded in `ui.scriptBindingContext?.diagnostics`. The inspector also flags
+missing inputs/fields and incompatible scalar types.
+
+Swift game models can continue using `UIBindingContext.bind` directly. Native
+`ScriptableObject` subclasses using the same entity mapping implement
+`readExportedField(_:)` and `writeExportedField(_:value:)`, and register their field
+metadata. AdaScript supplies these accessors automatically for `@export` fields.
+
+See [BoundLabel.ui](../../Documentation/Examples/UIScenes/Assets/BoundLabel.ui)
+and [HUD.ada](../../Documentation/Examples/UIScenes/Scripts/HUD.ada) for a minimal pair.
+
+## Other UI sources
+
 Existing `UIComponent(view: MyView(), behaviour: .overlay)` remains supported.
 AdaScript files use `try UIComponent(script: "Sources/HUD.ada", identifier: "HUD",
 resourceRoot: projectDirectory)`. The identifier is required when the loaded

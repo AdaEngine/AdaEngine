@@ -465,16 +465,18 @@ private extension EditorComponentRegistry {
             .init(key: "identifier", label: "View identifier", kind: .string),
             .init(key: "contextName", label: "Data context", kind: .string),
             .init(key: "inputs", label: "Inputs (JSON)", kind: .string),
+            .init(key: "scriptBindings", label: "Script field bindings", kind: .string),
             .init(key: "behaviour", label: "Behaviour", kind: .enumeration(["overlay", "default"]))
         ],
         makeDefaultPayload: { ["kind": .string("ui"), "path": .string(""), "identifier": .string(""), "contextName": .string(""), "inputs": .string("{}"), "behaviour": .string("overlay")] },
         decode: { payload in
             let inputsText = payload["inputs"]?.stringValue ?? "{}"
             let inputs = try JSONDecoder().decode([String: UIValue].self, from: Data(inputsText.utf8))
+            let bindings = try JSONDecoder().decode([String: UIScriptFieldBinding].self, from: Data((payload["scriptBindings"]?.stringValue ?? "{}").utf8))
             let source = UIComponentSource(
                 kind: UIComponentSource.Kind(rawValue: payload["kind"]?.stringValue ?? "ui") ?? .ui,
                 path: payload["path"]?.stringValue ?? "", identifier: payload["identifier"]?.stringValue ?? "",
-                contextName: payload["contextName"]?.stringValue ?? "", inputs: inputs
+                contextName: payload["contextName"]?.stringValue ?? "", inputs: inputs, scriptBindings: bindings
             )
             return UIComponent(source: source, behaviour: UIComponent.Behaviour(rawValue: payload["behaviour"]?.stringValue ?? "overlay") ?? .overlay)
         }

@@ -3,14 +3,18 @@
 struct EditorUISceneEditor: View {
     let model: EditorUISceneModel
     @Environment(\.theme) var theme
-    @State var modifierSearch = ""
     @State var libraryTab = "Components"
     @State var compactPane: EditorUIDesignerPane = .canvas
-    @State var showsModifierLibrary = false
+    @State var modifierPickerNodeID: String?
     @State var showsInputs = false
     @State var fitsCanvas = true
 
-    var body: some View { designerBody }
+    var body: some View {
+        designerBody
+            .fullScreenCover(item: $modifierPickerNodeID) { nodeID in
+                EditorAddModifierDialog(model: model, nodeID: nodeID)
+            }
+    }
 
     var inputDeclarations: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -59,7 +63,8 @@ struct EditorUISceneEditor: View {
     }
 
     func modifierEditor(_ modifier: UIModifierDescription) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let nodeID = model.selectedID
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Text(modifier.type).font(.system(size: 12, weight: .semibold))
                     .lineLimit(1).frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
@@ -73,8 +78,12 @@ struct EditorUISceneEditor: View {
                 }
                 ForEach(signature.parameters, id: \.name) { parameter in
                     parameterEditor(parameter, argument: modifier.arguments[parameter.name]) { value in
-                        model.updateSelected { node in
-                            if let index = node.modifiers.firstIndex(where: { $0.id == modifier.id }) { node.modifiers[index].arguments[parameter.name] = value }
+                        model.edit { document in
+                            EditorUISceneModel.modify(&document.root, id: nodeID) { node in
+                                if let index = node.modifiers.firstIndex(where: { $0.id == modifier.id }) {
+                                    node.modifiers[index].arguments[parameter.name] = value
+                                }
+                            }
                         }
                     }
                 }
@@ -97,17 +106,34 @@ struct EditorUISceneEditor: View {
             HStack {
                 Text(parameter.name).font(.system(size: 11))
                 Spacer()
-                Button(argument?.binding == nil ? "Value" : "Binding") {
-                    onChange(argument?.binding == nil ? UIArgument(binding: parameter.name) : UIArgument(value: parameter.defaultValue ?? .string("")))
-                }.font(.system(size: 10))
+                EditorUIArgumentModePicker(isBinding: argument?.binding != nil, parameterName: parameter.name) { isBinding in
+                    guard isBinding != (argument?.binding != nil) else { return }
+                    onChange(isBinding ? UIArgument(binding: parameter.name) : UIArgument(value: parameter.defaultValue ?? .string("")))
+                }
             }
-            TextField(parameter.type.rawValue, text: Binding(get: {
-                argument?.binding ?? Self.format(argument?.value ?? parameter.defaultValue ?? .null)
-            }, set: { value in
-                if argument?.binding != nil { if !value.isEmpty { onChange(.init(binding: value)) }; return }
-                if let parsed = Self.parse(value, type: parameter.type) { onChange(.init(value: parsed)) }
-            }))
-            .accessibilityIdentifier("AdaEditor.UIScene.Parameter.\(parameter.name)")
+            if argument?.binding == nil, let editor = parameter.editor {
+                switch editor {
+                case .color:
+                    EditorUIColorField(value: argument?.value?.string ?? parameter.defaultValue?.string ?? "#FFFFFFFF") {
+                        onChange(.init(value: .string($0)))
+                    }
+                    .accessibilityIdentifier("AdaEditor.UIScene.Color.\(parameter.name)")
+                case .enumeration(let cases):
+                    EditorEnumField(cases: cases, selection: Binding(
+                        get: { argument?.value?.string ?? parameter.defaultValue?.string ?? "" },
+                        set: { onChange(.init(value: .string($0))) }
+                    ))
+                    .accessibilityIdentifier("AdaEditor.UIScene.Enum.\(parameter.name)")
+                }
+            } else {
+                TextField(parameter.type.rawValue, text: Binding(get: {
+                    argument?.binding ?? Self.format(argument?.value ?? parameter.defaultValue ?? .null)
+                }, set: { value in
+                    if argument?.binding != nil { if !value.isEmpty { onChange(.init(binding: value)) }; return }
+                    if let parsed = Self.parse(value, type: parameter.type) { onChange(.init(value: parsed)) }
+                }))
+                .accessibilityIdentifier("AdaEditor.UIScene.Parameter.\(parameter.name)")
+            }
         }
     }
 
@@ -122,15 +148,6 @@ struct EditorUISceneEditor: View {
         Binding(get: { String(Int(model[keyPath: key])) }, set: { if let value = Float($0), value.isFinite, value >= 100, value <= 8192 { model[keyPath: key] = value } })
     }
 
-    var rows: [Row] {
-        func flatten(_ node: UINodeDescription, depth: Int, parentID: String?) -> [Row] {
-            [Row(node: node, depth: depth, parentID: parentID)]
-                + node.children.flatMap { flatten($0, depth: depth + 1, parentID: node.id) }
-                + node.modifiers.flatMap { $0.children.flatMap { flatten($0, depth: depth + 1, parentID: nil) } }
-        }
-        return flatten(model.document.root, depth: 0, parentID: nil)
-    }
-    struct Row { let node: UINodeDescription; let depth: Int; let parentID: String? }
 
     static func format(_ value: UIValue) -> String {
         if let string = value.string { return string }

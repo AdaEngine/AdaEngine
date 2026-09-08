@@ -26,6 +26,17 @@ public struct UIComponent: Sendable, Codable {
     private let storage: UIComponentStorage
     public var source: UIComponentSource? { storage.source }
 
+    /// Entity-owned data for source-backed script bindings, including binding diagnostics.
+    @MainActor public var scriptBindingContext: UIBindingContext? { storage.bindingData()?.context }
+
+    @MainActor package func synchronizeScriptBindings(
+        read: (UIScriptFieldBinding) throws -> UIScriptFieldSnapshot,
+        write: (UIScriptFieldBinding, UIValue) throws -> Void
+    ) {
+        guard let source else { return }
+        storage.bindingData()?.synchronize(mappings: source.scriptBindings, read: read, write: write)
+    }
+
     @MainActor public var view: UIView {
         do { return try storage.resolve(runtime: nil) }
         catch { return UIContainerView(rootView: Text(error.localizedDescription).foregroundColor(.red)) }

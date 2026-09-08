@@ -548,6 +548,9 @@ private extension ViewNode {
         if let navigationBar = self as? NavigationBarNode {
             return navigationBar.inspectionChildNodes
         }
+        if let cover = self as? FullScreenCoverNode {
+            return cover.inspectionChildNodes
+        }
         if let container = self as? ViewContainerNode {
             return container.nodes
         }

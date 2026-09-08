@@ -190,6 +190,32 @@ private final class GravityScriptableObject: ScriptableObject, @unchecked Sendab
     private var instanceID: UUID?
     private var payload: [String: EditorFieldValue]
 
+    @MainActor
+    override func readExportedField(_ name: String) -> EditorFieldValue? {
+        guard definition.schema.fields[name] != nil else { return nil }
+        return payload[name]
+    }
+
+    @MainActor
+    override func writeExportedField(_ name: String, value: EditorFieldValue) -> Bool {
+        guard let current = payload[name], definition.schema.fields[name] != nil,
+              let converted = Self.compatible(value, with: current) else { return false }
+        if let instanceID, !definition.runtime.write(instanceID: instanceID, field: name, value: converted) { return false }
+        payload[name] = converted
+        return true
+    }
+
+    private static func compatible(_ value: EditorFieldValue, with current: EditorFieldValue) -> EditorFieldValue? {
+        switch (current, value) {
+        case (.int, .double(let number)):
+            return Int(exactly: number).map(EditorFieldValue.int)
+        case (.double, .int(let number)): return .double(Double(number))
+        case (.string, .string), (.bool, .bool), (.int, .int), (.array, .array), (.object, .object), (.null, _): return value
+        case (.double, .double(let number)): return number.isFinite ? value : nil
+        default: return nil
+        }
+    }
+
     // A module definition is required and cannot be recovered by the base initializer.
     // swiftlint:disable:next unavailable_function
     required init() {
@@ -487,6 +513,16 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
         AdaScriptRuntimeCoordinator.lock.withLock {
             instances[instanceID] = nil
             classNamesByInstance[instanceID] = nil
+        }
+    }
+
+    func write(instanceID: UUID, field: String, value: EditorFieldValue) -> Bool {
+        AdaScriptRuntimeCoordinator.lock.withLock {
+            guard let instance = instances[instanceID] else { return false }
+            return instance.setStoredProperty(
+                named: field,
+                to: AnnotatedGravityValueBridge.makeGravityValue(value, virtualMachine: virtualMachine)
+            )
         }
     }
 

@@ -307,10 +307,21 @@ extension EditorViewModel {
         }.sorted()
     }
 
+    static func uiSceneFiles(from items: [EditorProjectSidebarViewModel.Item]) -> [String: String] {
+        var files: [String: String] = [:]
+        for item in items where URL(fileURLWithPath: item.title).pathExtension.lowercased() == "ui" {
+            guard let absolutePath = absoluteFilePath(from: item.id) else { continue }
+            let reference = item.assetRoot.flatMap { assetReference(for: item.relativePath, assetsRoot: $0) } ?? item.relativePath
+            files[reference] = absolutePath
+        }
+        return files
+    }
+
     func syncInspectorTextureAssets() {
         inspectorSidebar.textureAssets = Self.textureAssets(from: projectSidebar.items)
         inspectorSidebar.sceneAssets = Self.sceneAssets(from: projectSidebar.items)
         inspectorSidebar.uiSourcePaths = Self.uiSourcePaths(from: projectSidebar.items)
+        inspectorSidebar.uiSceneFiles = Self.uiSceneFiles(from: projectSidebar.items)
     }
 
     static func assetsDirectoryURL(for projectURL: URL, fileManager: FileManager) -> URL {

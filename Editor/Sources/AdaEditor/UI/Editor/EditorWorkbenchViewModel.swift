@@ -20,9 +20,12 @@ final class EditorWorkbenchViewModel {
     var previewStatus: EditorPreviewStatus
     var uiCatalog: UICatalog = .standard
     var uiCatalogError: String?
+    var modifierPickerRequest: EditorModifierPickerRequest?
     @ObservationIgnored var uiExportLoader = EditorUIExportLoader()
     @ObservationIgnored var uiExportTask: Task<Void, Never>?
     @ObservationIgnored var uiSceneModels: [String: EditorUISceneModel] = [:]
+    @ObservationIgnored var sceneUndoHistory: [String: [EditorSceneDocument]] = [:]
+    @ObservationIgnored var sceneRedoHistory: [String: [EditorSceneDocument]] = [:]
     var selectedPreviewID: String?
     var loadedPreview: EditorLoadedPreview?
 
@@ -189,6 +192,8 @@ final class EditorWorkbenchViewModel {
         }
         openDocuments.remove(at: closingIndex)
         uiSceneModels.removeValue(forKey: documentID)
+        sceneUndoHistory.removeValue(forKey: documentID)
+        sceneRedoHistory.removeValue(forKey: documentID)
 
         guard wasActiveDocument else {
             return
@@ -217,6 +222,8 @@ final class EditorWorkbenchViewModel {
         let wasActiveDocumentDiscarded = discardedIDSet.contains(activeDocumentID)
         openDocuments.removeAll { discardedIDSet.contains($0.id) }
         uiSceneModels = uiSceneModels.filter { !discardedIDSet.contains($0.key) }
+        sceneUndoHistory = sceneUndoHistory.filter { !discardedIDSet.contains($0.key) }
+        sceneRedoHistory = sceneRedoHistory.filter { !discardedIDSet.contains($0.key) }
         navigationHistory.removeAll { discardedIDSet.contains($0) }
         navigationHistoryIndex = min(navigationHistoryIndex, navigationHistory.count - 1)
 

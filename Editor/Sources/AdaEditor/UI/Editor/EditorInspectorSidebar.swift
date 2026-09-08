@@ -160,14 +160,18 @@ struct EditorInspectorSidebar: View {
                     }.frame(maxHeight: 180)
                 }
             }
-            fieldControl(
-                fieldID: "\(field.typeName).\(field.field.key)",
-                value: field.value,
-                kind: field.field.kind,
-                isEditable: field.field.isEditable,
-                scalarBinding: viewModel.componentFieldBinding(typeName: field.typeName, field: field.field),
-                axisBinding: { viewModel.componentVectorAxisBinding(typeName: field.typeName, field: field.field, axisIndex: $0) }
-            )
+            if field.typeName == EditorBuiltInComponentType.uiComponent, field.field.key == "scriptBindings" {
+                scriptUIBindingsEditor(field)
+            } else {
+                fieldControl(
+                    fieldID: "\(field.typeName).\(field.field.key)",
+                    value: field.value,
+                    kind: field.field.kind,
+                    isEditable: field.field.isEditable,
+                    scalarBinding: viewModel.componentFieldBinding(typeName: field.typeName, field: field.field),
+                    axisBinding: { viewModel.componentVectorAxisBinding(typeName: field.typeName, field: field.field, axisIndex: $0) }
+                )
+            }
         }
     }
 
@@ -306,22 +310,7 @@ struct EditorInspectorSidebar: View {
     }
 
     private func enumField(cases: [String], text: Binding<String>) -> some View {
-        HStack(spacing: 4) {
-            ForEach(cases, id: \.self) { item in
-                Button(action: { text.wrappedValue = item }) {
-                    Text(item)
-                        .font(.system(size: 10))
-                        .foregroundColor(text.wrappedValue == item ? theme.editorColors.text : theme.editorColors.muted)
-                        .padding(.horizontal, 6)
-                        .frame(height: 26)
-                        .frame(maxWidth: .infinity)
-                        .background(RoundedRectangleShape(cornerRadius: 5).fill(text.wrappedValue == item ? theme.editorColors.blue.opacity(0.18) : theme.editorColors.surface))
-                        .overlay { RoundedRectangleShape(cornerRadius: 5).stroke(theme.editorColors.border.opacity(0.92), lineWidth: 1) }
-                }
-                .buttonStyle(DefaultButtonStyle())
-            }
-        }
-        .frame(maxWidth: .infinity)
+        EditorEnumField(cases: cases, selection: text)
     }
 
     private func readonlyField(_ value: String) -> some View {

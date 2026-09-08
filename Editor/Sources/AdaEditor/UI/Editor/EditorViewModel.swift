@@ -201,6 +201,7 @@ final class EditorViewModel {
         self.inspectorSidebar.textureAssets = Self.textureAssets(from: self.projectSidebar.items)
         self.inspectorSidebar.sceneAssets = Self.sceneAssets(from: self.projectSidebar.items)
         self.inspectorSidebar.uiSourcePaths = Self.uiSourcePaths(from: self.projectSidebar.items)
+        self.inspectorSidebar.uiSceneFiles = Self.uiSceneFiles(from: self.projectSidebar.items)
         self.toolbar.searchableItems = self.projectSidebar.items
         self.agent.setProjectFileChangedHandler { [weak self] relativePath in
             self?.handleAgentProjectFileChanged(relativePath: relativePath, fileManager: fileManager)

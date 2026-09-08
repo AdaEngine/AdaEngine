@@ -37,7 +37,7 @@ extension EditorUISceneEditor {
                             VStack(alignment: .leading, spacing: 4) {
                                 sectionTitle(category, detail: String(items.count)).padding(.horizontal, 6)
                                 ForEach(items) { signature in
-                                    Button { model.add(signature.id) } label: {
+                                    Button { model.add(signature.id, selectingNewNode: false) } label: {
                                         HStack(spacing: 10) {
                                             symbol(EditorUIDesignerSymbols.icon(signature.id))
                                                 .foregroundColor(theme.editorColors.muted)
@@ -54,14 +54,14 @@ extension EditorUISceneEditor {
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.frame(maxHeight: .infinity)
-            Text("Click to add to the selected layer")
+            Text("Adding to \(model.selectedNode?.type ?? "selected layer")")
                 .font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
         }.padding(10)
     }
 
     var layerLibrary: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("Document", detail: "\(rows.count) layers").padding(.horizontal, 8)
+            sectionTitle("Document", detail: "\(layerCount) layers").padding(.horizontal, 8)
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(rows, id: \.node.id) { row in
@@ -89,37 +89,6 @@ extension EditorUISceneEditor {
         }.padding(10)
     }
 
-    func layerRow(_ row: Row) -> some View {
-        Button { model.selectedID = row.node.id } label: {
-            HStack(spacing: 7) {
-                symbol(EditorUIDesignerSymbols.icon(row.node.type), size: 14)
-                Text(row.node.type).lineLimit(1)
-                Spacer()
-                if row.parentID == nil, row.depth == 0 {
-                    Text("ROOT").font(.system(size: 9, weight: .semibold)).foregroundColor(theme.editorColors.muted)
-                }
-            }.padding(.leading, Float(min(row.depth, 8) * 12)).frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(EditorUIDesignerButtonStyle(colors: theme.editorColors, selected: model.selectedID == row.node.id))
-        .accessibilityIdentifier("AdaEditor.UIScene.Node.\(row.node.id)")
-        .gesture(DragGesture(minimumDistance: 8).onEnded { value in
-            let current = rows
-            guard let index = current.firstIndex(where: { $0.node.id == row.node.id }) else { return }
-            let destination = min(max(index + Int((value.translation.height / 32).rounded()), 0), current.count - 1)
-            let target = current[destination]
-            if value.translation.width > 20 { model.move(row.node.id, into: target.node.id) }
-            else if let parent = target.parentID, let parentNode = current.first(where: { $0.node.id == parent })?.node,
-                    let childIndex = parentNode.children.firstIndex(where: { $0.id == target.node.id }) {
-                model.move(row.node.id, into: parent, at: childIndex)
-            }
-        })
-        .contextMenu {
-            Button("Move selected here") { model.move(model.selectedID, into: row.node.id) }
-            Button("Duplicate") { model.selectedID = row.node.id; model.duplicateSelected() }
-            Button("Delete") { model.selectedID = row.node.id; model.removeSelected() }
-        }
-    }
-
     var designerInspector: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let node = model.selectedNode, let signature = model.signature(for: node) {
@@ -145,7 +114,9 @@ extension EditorUISceneEditor {
                             }
                             ForEach(signature.parameters, id: \.name) { parameter in
                                 parameterEditor(parameter, argument: node.arguments[parameter.name]) { argument in
-                                    model.updateSelected { $0.arguments[parameter.name] = argument }
+                                    model.edit { document in
+                                        EditorUISceneModel.modify(&document.root, id: node.id) { $0.arguments[parameter.name] = argument }
+                                    }
                                 }
                             }
                             ForEach(signature.actions, id: \.name) { action in
@@ -195,29 +166,22 @@ extension EditorUISceneEditor {
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             }
             ForEach(node.modifiers) { modifier in modifierEditor(modifier) }
-            Button { showsModifierLibrary.toggle() } label: {
+            Button {
+                if let present = model.onPresentModifierPicker {
+                    present(node.id)
+                } else {
+                    modifierPickerNodeID = node.id
+                }
+            } label: {
                 HStack {
-                    symbol(showsModifierLibrary ? "\u{E5CD}" : "\u{E145}", size: 14)
-                    Text(showsModifierLibrary ? "Close library" : "Add modifier")
+                    symbol("\u{E145}", size: 14)
+                    Text("Add modifier")
                     Spacer()
                 }
             }
             .buttonStyle(EditorUIDesignerButtonStyle(colors: theme.editorColors, bordered: true))
             .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Toggle")
-            if showsModifierLibrary {
-                EditorUIDesignerField(placeholder: "Find modifier…", text: $modifierSearch)
-                ScrollView(.vertical) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ForEach(model.catalog.modifierSignatures.filter { modifierSearch.isEmpty || $0.name.localizedCaseInsensitiveContains(modifierSearch) }) { signature in
-                            Button { model.addModifier(signature.id); showsModifierLibrary = false; modifierSearch = "" } label: {
-                                HStack { Text(signature.name).lineLimit(1); Spacer(); symbol("\u{E145}", size: 12) }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }.accessibilityIdentifier("AdaEditor.UIScene.Modifier.Add.\(signature.id)")
-                        }
-                    }.frame(maxWidth: .infinity, alignment: .leading)
-                }.frame(height: 220)
-                .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Library")
-            }
+
         }
     }
 }

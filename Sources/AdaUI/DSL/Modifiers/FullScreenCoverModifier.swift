@@ -89,6 +89,10 @@ final class FullScreenCoverNode: ViewModifierNode {
     private var isPresented: Binding<Bool>
     private let overlayBuilder: (_ViewInputs) -> ViewNode
     private var overlayNode: ViewNode?
+
+    var inspectionChildNodes: [ViewNode] {
+        [contentNode] + (overlayNode.map { [$0] } ?? [])
+    }
     private var viewInputs: _ViewInputs
     private lazy var dismissAction = DismissAction { [weak self] in
         self?.isPresented.wrappedValue = false
@@ -205,6 +209,10 @@ final class FullScreenCoverNode: ViewModifierNode {
 
     override func update(_ deltaTime: TimeInterval) {
         super.update(deltaTime)
+        // Bindings backed by external models can change without rebuilding the host view.
+        if isPresented.wrappedValue != (overlayNode != nil) {
+            rebuildOverlay()
+        }
         overlayNode?.update(deltaTime)
     }
 

@@ -18,5 +18,6 @@ public struct ScriptableObjectPlugin: Plugin {
 
         app
             .addSystem(ScriptComponentUpdateSystem.self, on: .update)
+            .addSystem(ScriptUIBindingSystem.self, on: .update)
     }
 }

@@ -26,17 +26,30 @@ struct EditorUIDesignerLayoutTests {
         container.layoutIfNeeded()
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Add.Text"))
         #expect(model.document.root.children.first?.type == "Text")
+        #expect(model.selectedID == model.document.root.id)
+        let textID = try #require(model.document.root.children.first?.id)
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Library.Layers"))
+        container.layoutIfNeeded()
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Node.\(textID)"))
+        #expect(model.selectedID == textID)
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Pane.Inspector"))
         container.layoutIfNeeded()
         _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Parameter.text"))
     }
 
-    @Test func modifierLibraryIsExplicitAndAddsRealModifier() throws {
+    @Test func modifierLibraryIsExplicitAndAddsRealModifier() async throws {
         let model = EditorUISceneModel(content: try UISceneDocument().encodedYAML(), sourceURL: nil, resourceRoot: nil)
         let container = makeContainer(model, size: Size(width: 1440, height: 900))
         #expect(throws: (any Error).self) { try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Library")) }
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Toggle"))
-        container.layoutIfNeeded()
+        for _ in 0..<10 {
+            await Task.yield()
+            container.update(1.0 / 60.0)
+            container.layoutIfNeeded()
+        }
+        let dialog = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.AddModifier.Dialog"))
+        #expect(dialog.absoluteFrame.width == 680)
+        #expect(dialog.absoluteFrame.height == 680)
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifier.Add.background"))
         #expect(model.document.root.modifiers.first?.type == "background")
     }

@@ -212,6 +212,7 @@ extension EditorWorkbenchViewModel {
             return
         }
 
+        recordSceneEdit(from: previousDocument, to: document)
         openDocuments[index] = .scene(document)
         notifyActiveDocumentChangedIfNeeded(documentID: document.id)
         if document.isDirty,
@@ -407,9 +408,11 @@ extension EditorWorkbenchViewModel {
             return
         }
 
+        let previousDocument = document
         let previousContent = document.content
         let wasDirty = document.isDirty
         update(&document)
+        recordSceneEdit(from: previousDocument, to: document)
         openDocuments[index] = .scene(document)
         notifyActiveDocumentChangedIfNeeded(documentID: documentID)
         if document.isDirty, document.content != previousContent || !wasDirty {

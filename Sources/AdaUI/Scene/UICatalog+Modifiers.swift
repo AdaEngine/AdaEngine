@@ -11,20 +11,20 @@ extension UICatalog {
         }
         return [
             modifier("lineLimit", [number("value", 1)]) { AnyView($0.lineLimit(Int(max(0, min(10000, $1.number("value")))))) },
-            modifier("multilineTextAlignment", [string("value", "leading")]) { AnyView($0.multilineTextAlignment($1.string("value") == "center" ? .center : $1.string("value") == "trailing" ? .trailing : .leading)) },
-            modifier("aspectRatio", [number("value", 1), string("mode", "fit")]) { AnyView($0.aspectRatio($1.float("value"), contentMode: $1.string("mode") == "fill" ? .fill : .fit)) },
+            modifier("multilineTextAlignment", [choice("value", "leading", ["leading", "center", "trailing"])]) { AnyView($0.multilineTextAlignment($1.string("value") == "center" ? .center : $1.string("value") == "trailing" ? .trailing : .leading)) },
+            modifier("aspectRatio", [number("value", 1), choice("mode", "fit", ["fit", "fill"])]) { AnyView($0.aspectRatio($1.float("value"), contentMode: $1.string("mode") == "fill" ? .fill : .fit)) },
             modifier("ignoresSafeArea") { view, _ in AnyView(view.ignoresSafeArea()) },
             modifier("allowsHitTesting", [bool("value", true)]) { AnyView($0.allowsHitTesting($1.bool("value"))) },
             modifier("drawingGroup") { view, _ in AnyView(view.drawingGroup()) },
             modifier("glassEffect", [number("cornerRadius", 8)]) { AnyView($0.glassEffect(in: RoundedRectangleShape(cornerRadius: Float($1.number("cornerRadius"))))) },
-            modifier("colorScheme", [string("value", "dark")]) { AnyView($0.environment(\.colorScheme, $1.string("value") == "light" ? .light : .dark)) },
-            modifier("buttonStyle", [string("value", "default")]) { view, c in
+            modifier("colorScheme", [choice("value", "dark", ["dark", "light"])]) { AnyView($0.environment(\.colorScheme, $1.string("value") == "light" ? .light : .dark)) },
+            modifier("buttonStyle", [choice("value", "default", ["default", "glass"])]) { view, c in
                 switch c.string("value") {
                 case "glass": return AnyView(view.buttonStyle(GlassButtonStyle()))
                 default: return AnyView(view.buttonStyle(DefaultButtonStyle()))
                 }
             },
-            modifier("textFieldStyle", [string("value", "default")]) { view, c in
+            modifier("textFieldStyle", [choice("value", "default", ["default", "plain"])]) { view, c in
                 if c.string("value") == "plain" { return AnyView(view.textFieldStyle(PlainTextFieldStyle())) }
                 return AnyView(view.textFieldStyle(DefaultTextFieldStyle()))
             },
@@ -35,26 +35,26 @@ extension UICatalog {
                 })
             },
             modifier("padding", [number("value", 8)]) { AnyView($0.padding(Float($1.number("value")))) },
-            modifier("frame", [number("width"), number("height"), string("alignment", "center")]) { AnyView($0.frame(width: $1.float("width"), height: $1.float("height"), alignment: $1.alignment)) },
-            modifier("flexibleFrame", [number("minWidth"), number("maxWidth"), number("minHeight"), number("maxHeight"), string("alignment", "center")]) {
+            modifier("frame", [number("width"), number("height"), alignment()]) { AnyView($0.frame(width: $1.float("width"), height: $1.float("height"), alignment: $1.alignment)) },
+            modifier("flexibleFrame", [number("minWidth"), number("maxWidth"), number("minHeight"), number("maxHeight"), alignment()]) {
                 AnyView($0.frame(minWidth: $1.float("minWidth"), maxWidth: $1.float("maxWidth"), minHeight: $1.float("minHeight"), maxHeight: $1.float("maxHeight"), alignment: $1.alignment))
             },
-            modifier("background", [string("color", "#000000ff")], content: .children) { view, c in
+            modifier("background", [color("color", "#000000ff")], content: .children) { view, c in
                 if c.children.isEmpty { return AnyView(view.background(try c.color("color"))) }
                 return AnyView(view.background { c.content })
             },
             modifier("overlay", content: .children) { view, c in AnyView(view.overlay { c.content }) },
-            modifier("mask", [string("shape", "rectangle"), number("cornerRadius", 8)]) { view, c in
+            modifier("mask", [choice("shape", "rectangle", ["rectangle", "circle", "roundedRectangle"]), number("cornerRadius", 8)]) { view, c in
                 switch c.string("shape") {
                 case "circle": return AnyView(view.mask(Circle()))
                 case "roundedRectangle": return AnyView(view.mask(RoundedRectangleShape(cornerRadius: Float(c.number("cornerRadius")))))
                 default: return AnyView(view.mask(RectangleShape()))
                 }
             },
-            modifier("foregroundColor", [string("color", "#ffffffff")]) { AnyView($0.foregroundColor(try $1.color("color"))) },
+            modifier("foregroundColor", [color("color", "#ffffffff")]) { AnyView($0.foregroundColor(try $1.color("color"))) },
             modifier("fontSize", [number("value", 14)]) { AnyView($0.fontSize($1.number("value"))) },
             modifier("opacity", [number("value", 1)]) { AnyView($0.opacity(Float($1.number("value")))) },
-            modifier("border", [string("color", "#ffffffff"), number("width", 1)]) { AnyView($0.border(try $1.color("color"), lineWidth: Float($1.number("width")))) },
+            modifier("border", [color("color", "#ffffffff"), number("width", 1)]) { AnyView($0.border(try $1.color("color"), lineWidth: Float($1.number("width")))) },
             modifier("disabled", [bool("value", true)]) { AnyView($0.disabled($1.bool("value"))) },
             modifier("fixedSize", [bool("horizontal", true), bool("vertical", true)]) { AnyView($0.fixedSize(horizontal: $1.bool("horizontal"), vertical: $1.bool("vertical"))) },
             modifier("layoutPriority", [number("value", 0)]) { AnyView($0.layoutPriority($1.number("value"))) },

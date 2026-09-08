@@ -40,6 +40,11 @@ public struct UIFactoryContext {
 
     public func color(_ name: String, fallback: Color = .white) throws -> Color {
         guard let text = arguments[name]?.string else { return fallback }
+        return try Self.color(from: text)
+    }
+
+    /// Parses a named color or an RGB/RGBA hex literal using UI document semantics.
+    public static func color(from text: String) throws -> Color {
         switch text {
         case "clear": return .clear
         case "white": return .white

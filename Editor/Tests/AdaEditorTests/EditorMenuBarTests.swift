@@ -16,6 +16,9 @@ struct EditorMenuBarTests {
     @Test
     func workflowMenusExposeExpectedActionsAndShortcuts() throws {
         let menus = EditorMenuBar.makeMenus()
+        let edit = try #require(menus.first { $0.title == "Edit" })
+        #expect(edit.items.first { $0.title == "Undo" }?.keyEquivalent == .z)
+        #expect(edit.items.first { $0.title == "Redo" }?.keyEquivalentModifierMask == [.main, .alt])
         let file = try #require(menus.first { $0.title == "File" })
         let build = try #require(menus.first { $0.title == "Build" })
         let code = try #require(menus.first { $0.title == "Code" })

@@ -11,7 +11,9 @@ import Math
 
 public extension View {
     /// Presents a context menu after a secondary click, or a long press on iOS and Android.
+    /// Set `opensOnPrimaryAction` to also open below the view on a click, tap, Enter, or Space.
     func contextMenu<MenuItems: View>(
+        opensOnPrimaryAction: Bool = false,
         onPresent: (() -> Void)? = nil,
         onDismiss: (() -> Void)? = nil,
         @ViewBuilder menuItems: @escaping () -> MenuItems
@@ -20,6 +22,7 @@ public extension View {
             ContextMenuViewModifier(
                 content: self,
                 minimumPressDuration: 0.75,
+                opensOnPrimaryAction: opensOnPrimaryAction,
                 onPresent: onPresent,
                 onDismiss: onDismiss,
                 menuItems: menuItems
@@ -100,6 +103,7 @@ private struct ContextMenuViewModifier<WrappedContent: View, MenuItems: View>: V
 
     let content: WrappedContent
     let minimumPressDuration: TimeInterval
+    let opensOnPrimaryAction: Bool
     let onPresent: (() -> Void)?
     let onDismiss: (() -> Void)?
     let menuItems: () -> MenuItems
@@ -109,6 +113,7 @@ private struct ContextMenuViewModifier<WrappedContent: View, MenuItems: View>: V
             contentNode: context.makeNode(from: content),
             content: content,
             minimumPressDuration: minimumPressDuration,
+            opensOnPrimaryAction: opensOnPrimaryAction,
             onPresent: onPresent,
             onDismiss: onDismiss,
             menuItems: menuItems
@@ -118,6 +123,8 @@ private struct ContextMenuViewModifier<WrappedContent: View, MenuItems: View>: V
 
 private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     private let minimumPressDuration: TimeInterval
+    private var opensOnPrimaryAction: Bool
+    private var primaryPressLocation: Point?
     private var onPresent: (() -> Void)?
     private var onDismiss: (() -> Void)?
     private var menuItems: () -> MenuItems
@@ -133,10 +140,12 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
         contentNode: ViewNode,
         content: Content,
         minimumPressDuration: TimeInterval,
+        opensOnPrimaryAction: Bool,
         onPresent: (() -> Void)?,
         onDismiss: (() -> Void)?,
         menuItems: @escaping () -> MenuItems
     ) {
+        self.opensOnPrimaryAction = opensOnPrimaryAction
         self.minimumPressDuration = minimumPressDuration
         self.onPresent = onPresent
         self.onDismiss = onDismiss
@@ -148,7 +157,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
         guard self.point(inside: point, with: event) else { return nil }
 
         if let mouseEvent = event as? MouseEvent {
-            if mouseEvent.button == .right {
+            if mouseEvent.button == .right || (opensOnPrimaryAction && mouseEvent.button == .left) {
                 return self
             }
 
@@ -162,6 +171,8 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
             return super.hitTest(point, with: event)
         }
 
+        if opensOnPrimaryAction, event is TouchEvent { return self }
+
         #if IOS || ANDROID
         if let touchEvent = event as? TouchEvent, touchEvent.phase == .began {
             activeContentEventNode = super.hitTest(point, with: event)
@@ -171,7 +182,19 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
         return super.hitTest(point, with: event)
     }
 
+    override var canBecomeFocused: Bool { opensOnPrimaryAction && environment.isEnabled }
+
+    override func onKeyEvent(_ event: KeyEvent) {
+        guard opensOnPrimaryAction, environment.isEnabled, event.status == .down, !event.isRepeated,
+              event.keyCode == .enter || event.keyCode == .space else { return }
+        presentBelowField()
+    }
+
     override func onMouseEvent(_ event: MouseEvent) {
+        if opensOnPrimaryAction, event.button == .left {
+            trackPrimaryPress(at: event.mousePosition, phase: event.phase)
+            return
+        }
         switch event.phase {
         case .began:
             if event.button == .right {
@@ -203,6 +226,17 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     }
 
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        if opensOnPrimaryAction, let touch = touches.first {
+            let phase: MouseEvent.Phase
+            switch touch.phase {
+            case .began: phase = .began
+            case .moved: phase = .changed
+            case .ended: phase = .ended
+            case .cancelled: phase = .cancelled
+            }
+            trackPrimaryPress(at: touch.location, phase: phase)
+            return
+        }
         #if IOS || ANDROID
         guard let touch = touches.first else {
             contentNode.onTouchesEvent(touches)
@@ -254,9 +288,37 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     override func update(from newNode: ViewNode) {
         super.update(from: newNode)
         guard let other = newNode as? ContextMenuModifierNode<MenuItems> else { return }
+        self.opensOnPrimaryAction = other.opensOnPrimaryAction
         self.onPresent = other.onPresent
         self.onDismiss = other.onDismiss
         self.menuItems = other.menuItems
+    }
+
+    private func trackPrimaryPress(at location: Point, phase: MouseEvent.Phase) {
+        guard environment.isEnabled else { return }
+        switch phase {
+        case .began:
+            primaryPressLocation = location
+        case .changed:
+            if let start = primaryPressLocation, (location - start).squaredLength > 64 {
+                primaryPressLocation = nil
+            }
+        case .ended:
+            let start = primaryPressLocation
+            primaryPressLocation = nil
+            if let start, (location - start).squaredLength <= 64 {
+                presentBelowField()
+            }
+        case .cancelled:
+            primaryPressLocation = nil
+        }
+    }
+
+    private func presentBelowField() {
+        let rect = visualAbsoluteFrame()
+        let anchor = Point(rect.minX, rect.maxY)
+        let ownerView = owner as? UIView
+        present(at: ownerView?.convert(anchor, to: ownerView?.window) ?? anchor)
     }
 
     private func startPressTracking(at location: Point) {
@@ -267,6 +329,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     }
 
     private func resetPressTracking() {
+        primaryPressLocation = nil
         pressStartLocation = nil
         pressLocation = nil
         lastPressMouseEvent = nil
@@ -307,7 +370,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
 
     private func present(at location: Point) {
         let items = menuItems().contextMenuItems
-        guard !items.isEmpty else { return }
+        guard !items.isEmpty, !opensOnPrimaryAction || environment.isEnabled else { return }
 
         onPresent?()
         ContextMenuPresentationCenter.present?(
@@ -436,6 +499,13 @@ extension _ConditionalContent: ContextMenuItemsConvertible where TrueContent: Vi
         case .falseContent(let content):
             return content.contextMenuItems
         }
+    }
+}
+
+@MainActor
+extension ForEach: ContextMenuItemsConvertible {
+    fileprivate var contextMenuItems: [ContextMenuItemDescription] {
+        data.flatMap { content($0).contextMenuItems }
     }
 }
 
