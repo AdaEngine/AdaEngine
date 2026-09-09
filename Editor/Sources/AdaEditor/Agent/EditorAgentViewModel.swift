@@ -644,6 +644,10 @@ final class EditorAgentViewModel {
     }
 
     private func appendEvent(_ event: EditorAgentEvent) {
+        if let configuration = event.configuration {
+            sessionConfiguration = configuration
+            return
+        }
         guard var session = activeSession else {
             return
         }

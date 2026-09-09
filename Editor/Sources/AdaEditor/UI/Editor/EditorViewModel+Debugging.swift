@@ -3,6 +3,11 @@ import AdaEngine
 import Foundation
 
 extension EditorViewModel {
+    func presentDebugger() {
+        toolStrip.activeLeftBottomTool = "debug"
+        showBottomPanel = true
+    }
+
     func configureDebugger() {
         debugger.configure(projectURL: projectURL)
         for session in [debugger.swift, debugger.adaScript] {
@@ -10,8 +15,7 @@ extension EditorViewModel {
             session.onStopped = { [weak self, weak session] in
                 guard let self, let session else { return }
                 self.debugger.selectedLanguage = session === self.debugger.swift ? .swift : .adaScript
-                self.selectOutputTab("Debug")
-                self.showBottomPanel = true
+                self.presentDebugger()
             }
         }
         rememberDebugSource()
@@ -42,8 +46,7 @@ extension EditorViewModel {
 
     func debugSelectedTarget() {
         guard !debugger.isActive, workspaceTask == nil, let projectURL else { return }
-        selectOutputTab("Debug")
-        showBottomPanel = true
+        presentDebugger()
         guard workbench.saveAllDocuments() else {
             debugger.status = "Debug blocked: unable to save project documents."
             return

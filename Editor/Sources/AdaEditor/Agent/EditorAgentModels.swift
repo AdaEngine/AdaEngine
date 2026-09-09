@@ -244,6 +244,7 @@ struct EditorAgentEvent: Codable, Equatable, Identifiable, Sendable {
     var details: String?
     var isSuccessful: Bool?
     var isDelta: Bool?
+    var configuration: EditorAgentSessionConfiguration?
     var toolCall: EditorAgentToolCall?
     var permission: EditorAgentPermissionRequest?
 
@@ -256,6 +257,7 @@ struct EditorAgentEvent: Codable, Equatable, Identifiable, Sendable {
         details: String? = nil,
         isSuccessful: Bool? = nil,
         isDelta: Bool? = nil,
+        configuration: EditorAgentSessionConfiguration? = nil,
         toolCall: EditorAgentToolCall? = nil,
         permission: EditorAgentPermissionRequest? = nil
     ) {
@@ -267,6 +269,7 @@ struct EditorAgentEvent: Codable, Equatable, Identifiable, Sendable {
         self.details = details
         self.isSuccessful = isSuccessful
         self.isDelta = isDelta
+        self.configuration = configuration
         self.toolCall = toolCall
         self.permission = permission
     }

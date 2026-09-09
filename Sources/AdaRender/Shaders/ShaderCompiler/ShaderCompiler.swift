@@ -136,7 +136,7 @@ public final class ShaderCompiler {
     /// - Returns: Compiled Shader object.
     /// - Throws: Error if something went wrong on compilation to SPIR-V.
     public func compileShader(for stage: ShaderStage) throws -> Shader {
-        let span = AdaTrace.startSpan("ShaderCompiler.compileShader.\(stage.rawValue)")
+        let span = AdaTrace.startSpan(lazyName: "ShaderCompiler.compileShader.\(stage.rawValue)")
         defer {
             span.end()
         }
@@ -261,7 +261,7 @@ public final class ShaderCompiler {
     }
     
     internal func compileCode(_ code: String, entryPoint: String, stage: ShaderStage) throws -> SpirvBinary {
-        let span = AdaTrace.startSpan("ShaderCompiler.compileCode.\(stage.rawValue)")
+        let span = AdaTrace.startSpan(lazyName: "ShaderCompiler.compileCode.\(stage.rawValue)")
         defer {
             span.end()
         }

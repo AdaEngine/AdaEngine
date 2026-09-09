@@ -4,6 +4,8 @@ struct EditorAgentSidebar: View {
     let viewModel: EditorAgentViewModel
     var onOpenCatalog: (() -> Void)?
 
+    @State private var composerHeight: Float = 104
+    @State private var composerDragStart: Float?
     @State private var showsSkillPicker = false
     @State private var skillSearchText = ""
     @State private var showsContextPicker = false
@@ -113,71 +115,73 @@ struct EditorAgentSidebar: View {
         .buttonStyle(DefaultButtonStyle())
     }
 
-    @ViewBuilder
     private var configurationControls: some View {
-        if viewModel.sessionConfiguration.selectors.isEmpty {
-            fallbackModeSelector
-        } else {
-            ScrollView(.horizontal) {
-                HStack(spacing: 4) {
-                    ForEach(
-                        viewModel.sessionConfiguration.selectors.filter { $0.category != .other },
-                        id: \.id
-                    ) { selector in
-                        configurationSelector(selector)
+        HStack(spacing: 4) {
+            if !viewModel.sessionConfiguration.selectors.contains(where: { $0.category == .mode }) {
+                configurationLabel(viewModel.mode.title)
+                    .contextMenu(opensOnPrimaryAction: true) {
+                        ForEach(EditorAgentChatMode.allCases, id: \.self) { mode in
+                            Button(mode.title) { viewModel.mode = mode }
+                        }
                     }
-                }
-                .fixedSize(horizontal: true, vertical: false)
+            }
+            ForEach(viewModel.sessionConfiguration.selectors.filter { $0.category != .other }, id: \.id) { selector in
+                configurationLabel(selectedChoiceName(in: selector))
+                    .contextMenu(opensOnPrimaryAction: true) {
+                        ForEach(selector.choices, id: \.id) { choice in
+                            Button(choice.id == selector.currentValueID ? "✓ \(choice.name)" : choice.name) {
+                                viewModel.selectConfiguration(selectorID: selector.id, valueID: choice.id)
+                            }
+                        }
+                    }
+                    .disabled(viewModel.isSending)
+                    .accessibilityIdentifier("AdaEditor.Agent.Selector.\(selector.category.rawValue)")
+            }
+            if !viewModel.sessionConfiguration.selectors.contains(where: { $0.category == .model }) {
+                fallbackModelSelector
+                    .accessibilityIdentifier("AdaEditor.Agent.Selector.model")
             }
         }
     }
 
-    private var fallbackModeSelector: some View {
-        Button(action: cycleFallbackMode) {
-            HStack(spacing: 3) {
-                Text(viewModel.mode.title)
-                    .font(.system(size: 10))
-                Text("⌃")
-                    .font(.system(size: 9))
+    @ViewBuilder
+    private var fallbackModelSelector: some View {
+        switch viewModel.connectionState {
+        case .ready, .running:
+            Text("Agent default")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(theme.editorColors.muted)
+                .padding(.horizontal, 7)
+                .frame(height: 30)
+        case .connecting:
+            Text("Loading models…")
+                .font(.system(size: 11))
+                .foregroundColor(theme.editorColors.muted)
+        case .disconnected, .failed:
+            Button(action: viewModel.connect) {
+                configurationLabel("Select model")
             }
-            .foregroundColor(theme.editorColors.muted)
-            .padding(.horizontal, 6)
-            .frame(height: 26)
+            .buttonStyle(DefaultButtonStyle())
+            .disabled(viewModel.isSending)
         }
-        .buttonStyle(DefaultButtonStyle())
     }
 
-    private func configurationSelector(_ selector: EditorAgentConfigurationSelector) -> some View {
-        Button(action: { cycleConfiguration(selector) }) {
-            HStack(spacing: 3) {
-                Text(selectedChoiceName(in: selector))
-                    .font(.system(size: 10))
-                    .lineLimit(1)
-                Text("⌃")
-                    .font(.system(size: 9))
-            }
-            .foregroundColor(theme.editorColors.muted)
-            .padding(.horizontal, 6)
-            .frame(height: 26)
+    private func configurationLabel(_ title: String) -> some View {
+        HStack(spacing: 3) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .lineLimit(1)
+            Text("\u{E5CF}")
+                .font(AdaEditorMaterialSymbolFont.font(size: 15))
         }
-        .buttonStyle(DefaultButtonStyle())
+        .foregroundColor(theme.editorColors.text)
+        .padding(.horizontal, 7)
+        .frame(height: 30)
+        .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surface))
     }
 
     private func selectedChoiceName(in selector: EditorAgentConfigurationSelector) -> String {
-        selector.choices.first { $0.id == selector.currentValueID }?.name ?? selector.category.rawValue
-    }
-
-    private func cycleConfiguration(_ selector: EditorAgentConfigurationSelector) {
-        guard !selector.choices.isEmpty else { return }
-        let currentIndex = selector.choices.firstIndex { $0.id == selector.currentValueID } ?? -1
-        let nextChoice = selector.choices[(currentIndex + 1) % selector.choices.count]
-        viewModel.selectConfiguration(selectorID: selector.id, valueID: nextChoice.id)
-    }
-
-    private func cycleFallbackMode() {
-        let modes = EditorAgentChatMode.allCases
-        let currentIndex = modes.firstIndex(of: viewModel.mode) ?? -1
-        viewModel.mode = modes[(currentIndex + 1) % modes.count]
+        selector.choices.first { $0.id == selector.currentValueID }?.name ?? selector.name
     }
 
     private var transcript: some View {
@@ -269,7 +273,7 @@ struct EditorAgentSidebar: View {
     }
 
     private var composer: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             sceneContextIndicator
             codeSelectionIndicator
             contextPicker
@@ -277,11 +281,20 @@ struct EditorAgentSidebar: View {
             skillPicker
             autocompleteList
             VStack(alignment: .leading, spacing: 4) {
-                Text("•••")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(theme.editorColors.muted.opacity(0.75))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 14)
+                ZStack {
+                    RoundedRectangleShape(cornerRadius: 2)
+                        .fill(theme.editorColors.muted.opacity(0.6))
+                        .frame(width: 28, height: 3)
+                    EditorResizeHandle(axis: .vertical) { translation in
+                        let start = composerDragStart ?? composerHeight
+                        composerDragStart = start
+                        composerHeight = min(320, max(64, start - translation.height))
+                    } onResizeEnded: {
+                        composerDragStart = nil
+                    }
+                }
+                .frame(height: 10)
+                .accessibilityIdentifier("AdaEditor.Agent.ResizeComposer")
 
                 TextEditor(
                     "Ask the agent. Use @ to attach files.",
@@ -290,7 +303,8 @@ struct EditorAgentSidebar: View {
                 )
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
-                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 88, maxHeight: 132)
+                .frame(height: composerHeight)
+                .frame(minWidth: 0, maxWidth: .infinity)
                 .textEditorColors(composerTextEditorColors)
                 .accessibilityIdentifier("AdaEditor.Agent.Prompt")
 
@@ -312,16 +326,16 @@ struct EditorAgentSidebar: View {
                     Spacer()
                     if viewModel.isSending {
                         Button(action: { viewModel.interrupt() }) {
-                            Text("■")
-                                .font(.system(size: 10))
+                            Text("\u{E047}")
+                                .font(AdaEditorMaterialSymbolFont.font(size: 20))
                                 .foregroundColor(theme.editorColors.muted)
                                 .frame(width: 30, height: 30)
                         }
                         .buttonStyle(DefaultButtonStyle())
                     }
                     Button(action: { viewModel.sendPrompt() }) {
-                        Text("→")
-                            .font(.system(size: 20, weight: .bold))
+                        Text("\u{E5D8}")
+                            .font(AdaEditorMaterialSymbolFont.font(size: 22))
                             .foregroundColor(theme.editorColors.background)
                             .frame(width: 34, height: 34)
                             .background(CircleShape().fill(theme.editorColors.text.opacity(viewModel.canSend ? 1 : 0.28)))
@@ -358,11 +372,11 @@ struct EditorAgentSidebar: View {
     private func compactComposerButton(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: title == "+" ? 18 : 10))
-                .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
+                .font(.system(size: title == "+" ? 20 : 11, weight: .semibold))
+                .foregroundColor(theme.editorColors.text)
                 .padding(.horizontal, title == "+" ? 5 : 7)
-                .frame(height: 28)
-                .background(RoundedRectangleShape(cornerRadius: 6).fill(active ? theme.editorColors.blue.opacity(0.14) : Color.clear))
+                .frame(height: 30)
+                .background(RoundedRectangleShape(cornerRadius: 6).fill(active ? theme.editorColors.blue.opacity(0.20) : theme.editorColors.surface))
         }
         .buttonStyle(DefaultButtonStyle())
     }

@@ -23,12 +23,14 @@ final class EditorSceneViewportModel {
     private var entitiesByEditorID: [String: Entity.ID] = [:]
     private var editorIDsByEntityID: [Entity.ID: String] = [:]
     private var sceneContent = ""
-    private var sceneModel: EditorSceneModel?
+    private(set) var sceneModel: EditorSceneModel?
     private var sceneSourceURL: URL?
     private var sceneResourceRootURL: URL?
     private var scriptableObjectCatalog: [EditorScriptableObjectDescriptor] = []
-    private var selectedEditorID: String?
-    private var activeTool: EditorSceneViewportTool = .translate
+    private(set) var selectedEditorID: String?
+    private(set) var activeTool: EditorSceneViewportTool = .translate
+    private(set) var hoveredGizmoHandle: EditorTransformGizmo.Handle?
+    var activeGizmoHandle: EditorTransformGizmo.Handle? { transformDrag?.interaction.handle }
 
     var twoDCenter = Vector2.zero
     var twoDZoom: Float = 1
@@ -41,9 +43,11 @@ final class EditorSceneViewportModel {
     private var lastMousePosition: Point?
     private var mouseDownPosition: Point?
     private var transformDrag: TransformDrag?
+    private var suppressSelectionOnPointerEnd = false
     private var isTwoDPanning = false
     private var isThreeDRotating = false
     private var lastTouchPosition: Point?
+    private var touchDownPosition: Point?
 
     var onSelectEntity: ((String?) -> Void)?
     private var onSelectionChanged: ((EditorInspectorSidebarViewModel.SelectedEntity?) -> Void)?
@@ -51,8 +55,9 @@ final class EditorSceneViewportModel {
 
     private struct TransformDrag {
         var editorID: String
-        var startMousePosition: Point
+        var startContent: String
         var startPayload: EditorComponentPayload
+        var interaction: EditorTransformGizmo.Drag
     }
 
     struct CameraState {
@@ -71,7 +76,6 @@ final class EditorSceneViewportModel {
         onDocumentContentChanged: @escaping (String) -> Void
     ) -> EditorSceneRuntimeLoadResult? {
         let contentChanged = self.sceneContent != sceneContent
-        self.sceneContent = sceneContent
         self.sceneSourceURL = sourceURL
         self.sceneResourceRootURL = resourceRootURL
         self.scriptableObjectCatalog = scriptableObjectCatalog
@@ -81,10 +85,13 @@ final class EditorSceneViewportModel {
             self?.selectEntity(editorID)
         }
 
-        guard contentChanged else {
-            return nil
-        }
-
+        // A live drag updates the runtime/Inspector; publish one document edit on release.
+        // Redraws still carry the last published document until then.
+        if let transformDrag, sceneContent == transformDrag.startContent { return nil }
+        guard contentChanged else { return nil }
+        self.sceneContent = sceneContent
+        transformDrag = nil
+        hoveredGizmoHandle = nil
         sceneModel = EditorSceneFileLoader.model(from: sceneContent)
         guard let model = sceneModel else {
             return nil
@@ -107,6 +114,8 @@ final class EditorSceneViewportModel {
         isTwoDPanning = false
         isThreeDRotating = false
         lastTouchPosition = nil
+        touchDownPosition = nil
+        hoveredGizmoHandle = nil
         onSelectEntity = nil
         onSelectionChanged = nil
         onDocumentContentChanged = nil
@@ -158,6 +167,8 @@ final class EditorSceneViewportModel {
             return
         }
 
+        endTransformDrag(cancelled: true)
+        hoveredGizmoHandle = nil
         displayMode = mode
         lastMousePosition = nil
         isTwoDPanning = false
@@ -166,6 +177,9 @@ final class EditorSceneViewportModel {
     }
 
     func setActiveTool(_ tool: EditorSceneViewportTool) {
+        guard tool != activeTool else { return }
+        endTransformDrag(cancelled: true)
+        hoveredGizmoHandle = nil
         activeTool = tool
     }
 
@@ -181,7 +195,7 @@ final class EditorSceneViewportModel {
     func update(deltaTime: Float) -> Bool {
         var didChange = advancePerspectiveTransition(deltaTime: deltaTime)
 
-        if displayMode == .threeD {
+        if displayMode == .threeD, transformDrag == nil {
             let movement = movementVector()
             if movement.squaredLength > 0 {
                 let speedMultiplier: Float = pressedKeys.contains(.shift) ? 4 : 1
@@ -244,13 +258,11 @@ final class EditorSceneViewportModel {
             return
         }
 
+        let selectedPoint = selectedEditorID.flatMap { gizmoWorldMatrix(for: $0) }.flatMap { project($0.origin, size: size) }
         for entity in model.entities {
-            guard let transformPayload = entity.components[EditorBuiltInComponentType.transform],
-                  let point = projectedPoint(from: transformPayload, size: size) else {
-                continue
-            }
-
             let isSelected = entity.id == selectedEditorID
+            guard let payload = entity.components[EditorBuiltInComponentType.transform],
+                  let point = isSelected ? selectedPoint : projectedPoint(from: payload, size: size) else { continue }
             let radius: Float = isSelected ? 6 : 4
             drawViewportMarker(
                 at: point,
@@ -258,6 +270,9 @@ final class EditorSceneViewportModel {
                 color: isSelected ? theme.editorColors.purple : theme.editorColors.blue.opacity(0.72),
                 in: &context
             )
+        }
+        if let gizmo = transformGizmo() {
+            gizmo.draw(in: &context, highlighted: activeGizmoHandle ?? hoveredGizmoHandle)
         }
     }
 
@@ -310,6 +325,10 @@ extension EditorSceneViewportModel {
     func handleKeyEvent(_ event: KeyEvent) -> Bool {
         switch event.status {
         case .down:
+            if event.keyCode == .escape, transformDrag != nil {
+                endTransformDrag(cancelled: true)
+                return true
+            }
             pressedKeys.insert(event.keyCode)
         case .up:
             pressedKeys.remove(event.keyCode)
@@ -325,7 +344,14 @@ extension EditorSceneViewportModel {
 
     func handleMouseEvent(_ event: MouseEvent) -> Bool {
         if event.button == .scrollWheel {
-            return handleScroll(event)
+            return transformDrag != nil || handleScroll(event)
+        }
+        if event.phase == .changed, transformDrag == nil, !isTwoDPanning, !isThreeDRotating {
+            let handle = transformGizmo()?.hitTest(event.mousePosition)
+            if handle != hoveredGizmoHandle {
+                hoveredGizmoHandle = handle
+                return true
+            }
         }
 
         switch displayMode {
@@ -341,8 +367,9 @@ extension EditorSceneViewportModel {
 
         switch event.phase {
         case .began:
+            suppressSelectionOnPointerEnd = false
             mouseDownPosition = event.mousePosition
-            if beginTransformDragIfNeeded(at: event.mousePosition, button: event.button) {
+            if !pressedKeys.contains(.space), beginTransformDragIfNeeded(at: event.mousePosition, button: event.button) {
                 return true
             }
             guard wantsPan else {
@@ -366,12 +393,15 @@ extension EditorSceneViewportModel {
                 isTwoDPanning = false
                 lastMousePosition = nil
                 mouseDownPosition = nil
-                endTransformDrag()
+                endTransformDrag(cancelled: event.phase == .cancelled)
+                suppressSelectionOnPointerEnd = false
             }
+            if suppressSelectionOnPointerEnd { return true }
             if transformDrag != nil {
+                if event.phase == .ended { _ = updateTransformDrag(to: event.mousePosition) }
                 return true
             }
-            guard !isTwoDPanning, event.button == .left, isClickEnd(at: event.mousePosition) else {
+            guard event.phase == .ended, !isTwoDPanning, event.button == .left, isClickEnd(at: event.mousePosition) else {
                 return isTwoDPanning
             }
             onSelectEntity?(pick2D(at: event.mousePosition))
@@ -382,8 +412,9 @@ extension EditorSceneViewportModel {
     func handle3DMouse(_ event: MouseEvent) -> Bool {
         switch event.phase {
         case .began:
+            suppressSelectionOnPointerEnd = false
             mouseDownPosition = event.mousePosition
-            if beginTransformDragIfNeeded(at: event.mousePosition, button: event.button) {
+            if !pressedKeys.contains(.space), beginTransformDragIfNeeded(at: event.mousePosition, button: event.button) {
                 return true
             }
             guard event.button == .right else {
@@ -407,12 +438,15 @@ extension EditorSceneViewportModel {
                 isThreeDRotating = false
                 lastMousePosition = nil
                 mouseDownPosition = nil
-                endTransformDrag()
+                endTransformDrag(cancelled: event.phase == .cancelled)
+                suppressSelectionOnPointerEnd = false
             }
+            if suppressSelectionOnPointerEnd { return true }
             if transformDrag != nil {
+                if event.phase == .ended { _ = updateTransformDrag(to: event.mousePosition) }
                 return true
             }
-            guard !isThreeDRotating, event.button == .left, isClickEnd(at: event.mousePosition) else {
+            guard event.phase == .ended, !isThreeDRotating, event.button == .left, isClickEnd(at: event.mousePosition) else {
                 return isThreeDRotating
             }
             onSelectEntity?(pick3D(at: event.mousePosition))
@@ -429,74 +463,65 @@ extension EditorSceneViewportModel {
 
     func beginTransformDragIfNeeded(at position: Point, button: MouseButton) -> Bool {
         guard button == .left,
-              activeTool != .select,
               let selectedEditorID,
-              let model = sceneModel,
-              let entity = model.entities.first(where: { $0.id == selectedEditorID }),
+              let entity = sceneModel?.entities.first(where: { $0.id == selectedEditorID }),
               let payload = entity.components[EditorBuiltInComponentType.transform],
-              let projected = projectedPoint(from: payload, size: viewportSize),
-              Vector2(position.x - projected.x, position.y - projected.y).squaredLength < 72 * 72 else {
-            return false
-        }
-
-        transformDrag = TransformDrag(editorID: selectedEditorID, startMousePosition: position, startPayload: payload)
+              let transform = try? EditorComponentPayloadDecoder.decode(Transform.self, payload: payload) as? Transform,
+              let gizmo = transformGizmo(), let handle = gizmo.hitTest(position) else { return false }
+        transformDrag = TransformDrag(
+            editorID: selectedEditorID,
+            startContent: sceneContent,
+            startPayload: payload,
+            interaction: EditorTransformGizmo.Drag(gizmo: gizmo, handle: handle, start: position, transform: transform)
+        )
+        hoveredGizmoHandle = handle
         return true
     }
 
     func updateTransformDrag(to position: Point) -> Bool {
-        guard let transformDrag,
-              var model = sceneModel,
-              let entityIndex = model.entities.firstIndex(where: { $0.id == transformDrag.editorID }) else {
-            return false
+        guard var drag = transformDrag else { return false }
+        let transform = drag.interaction.updated(at: position)
+        transformDrag = drag
+        var payload = drag.startPayload
+        if transform != drag.interaction.transform {
+            switch drag.interaction.gizmo.tool {
+            case .translate:
+                payload["position"] = .array([transform.position.x, transform.position.y, transform.position.z].map { .double(Double($0)) })
+            case .scale:
+                payload["scale"] = .array([transform.scale.x, transform.scale.y, transform.scale.z].map { .double(Double($0)) })
+            case .rotate:
+                payload["rotation"] = .array([transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w].map { .double(Double($0)) })
+            case .select: break
+            }
         }
-
-        let delta = position - transformDrag.startMousePosition
-        let payload = transformedPayload(from: transformDrag.startPayload, screenDelta: delta)
-        model.entities[entityIndex].components[EditorBuiltInComponentType.transform] = payload
-        guard let content = try? model.encodedYAML() else {
-            return true
-        }
-
-        sceneContent = content
-        sceneModel = model
-        onDocumentContentChanged?(content)
-        syncRuntimeTransform(editorID: transformDrag.editorID, payload: payload)
-        onSelectionChanged?(selectedEntityViewModel(editorID: transformDrag.editorID, model: model))
+        applyTransformPayload(payload, editorID: drag.editorID, publishDocument: false)
         return true
     }
 
-    func endTransformDrag() {
-        transformDrag = nil
+    private func applyTransformPayload(_ payload: EditorComponentPayload, editorID: String, publishDocument: Bool = true) {
+        guard var model = sceneModel, let index = model.entities.firstIndex(where: { $0.id == editorID }),
+              model.entities[index].components[EditorBuiltInComponentType.transform] != payload else { return }
+        model.entities[index].components[EditorBuiltInComponentType.transform] = payload
+        guard let content = try? model.encodedYAML() else { return }
+        sceneContent = content
+        sceneModel = model
+        syncRuntimeTransform(editorID: editorID, payload: payload)
+        if publishDocument { onDocumentContentChanged?(content) }
+        onSelectionChanged?(selectedEntityViewModel(editorID: editorID, model: model))
     }
 
-    func transformedPayload(from payload: EditorComponentPayload, screenDelta: Vector2) -> EditorComponentPayload {
-        var payload = payload
-        switch activeTool {
-        case .select:
-            break
-        case .translate:
-            var position = vector(payload["position"], count: 3, defaultValues: [0, 0, 0])
-            let divisor: Float = displayMode == .twoD ? max(0.001, twoDZoom) : 18
-            position[0] += Double(screenDelta.x / divisor)
-            position[1] += Double(-screenDelta.y / divisor)
-            payload["position"] = .array(position.map(EditorSceneValue.double))
-        case .scale:
-            let factor = max(0.05, Double(1 + (screenDelta.x - screenDelta.y) / 120))
-            let scale = vector(payload["scale"], count: 3, defaultValues: [1, 1, 1]).map { max(0.01, $0 * factor) }
-            payload["scale"] = .array(scale.map(EditorSceneValue.double))
-        case .rotate:
-            let angle = Double(screenDelta.x - screenDelta.y) * 0.012
-            let z = Double(Math.sin(Float(angle * 0.5)))
-            let w = Double(Math.cos(Float(angle * 0.5)))
-            let rotation: [EditorSceneValue] = [
-                EditorSceneValue.double(0),
-                EditorSceneValue.double(0),
-                EditorSceneValue.double(z),
-                EditorSceneValue.double(w)
-            ]
-            payload["rotation"] = .array(rotation)
+    func endTransformDrag(cancelled: Bool = false) {
+        let drag = transformDrag
+        transformDrag = nil
+        hoveredGizmoHandle = nil
+        guard let drag else { return }
+        if cancelled {
+            suppressSelectionOnPointerEnd = true
+            applyTransformPayload(drag.startPayload, editorID: drag.editorID, publishDocument: false)
+            sceneContent = drag.startContent
+        } else if sceneContent != drag.startContent {
+            onDocumentContentChanged?(sceneContent)
         }
-        return payload
     }
 
     func syncRuntimeTransform(editorID: String, payload: EditorComponentPayload) {
@@ -539,9 +564,13 @@ extension EditorSceneViewportModel {
     func handleTouchEvent(_ event: TouchEvent) -> Bool {
         switch event.phase {
         case .began:
+            suppressSelectionOnPointerEnd = false
+            touchDownPosition = event.location
             lastTouchPosition = event.location
+            _ = beginTransformDragIfNeeded(at: event.location, button: .left)
             return true
         case .moved:
+            if updateTransformDrag(to: event.location) { return true }
             guard let lastTouchPosition else {
                 return false
             }
@@ -556,10 +585,15 @@ extension EditorSceneViewportModel {
             self.lastTouchPosition = event.location
             return true
         case .ended, .cancelled:
-            if let lastTouchPosition, (event.location - lastTouchPosition).squaredLength < 16 {
+            if transformDrag != nil {
+                if event.phase == .ended { _ = updateTransformDrag(to: event.location) }
+                endTransformDrag(cancelled: event.phase == .cancelled)
+            } else if !suppressSelectionOnPointerEnd, event.phase == .ended, let touchDownPosition, (event.location - touchDownPosition).squaredLength < 16 {
                 onSelectEntity?(displayMode == .twoD ? pick2D(at: event.location) : pick3D(at: event.location))
             }
             lastTouchPosition = nil
+            touchDownPosition = nil
+            suppressSelectionOnPointerEnd = false
             return true
         }
     }

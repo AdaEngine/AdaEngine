@@ -175,28 +175,39 @@ final class MetalDrawable: Drawable, @unchecked Sendable {
             value = true
             return false
         }
-        guard !alreadyPresented else { return }
+        guard !alreadyPresented else {
+            return
+        }
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
             return
         }
-        let span = AdaTrace.startSpan("Display.present")
-        span.attributes["ada.profile.category"] = "display"
-        span.attributes["ada.display.submitted_time"] = CACurrentMediaTime()
+        let span = AdaTrace.startSpan(lazyName: "Display.present", attributes: [
+            "ada.profile.category": "display",
+            "ada.display.submitted_time": .double(CACurrentMediaTime())
+        ])
         #if os(macOS)
-        span.attributes["ada.display.drawable_id"] = Int64(mtlDrawable.drawableID)
+        if span.isRecording {
+            span.attributes["ada.display.drawable_id"] = Int64(mtlDrawable.drawableID)
+        }
         mtlDrawable.addPresentedHandler { drawable in
             let presentedTime = drawable.presentedTime
-            span.attributes["ada.display.presented_time"] = presentedTime
-            span.attributes["ada.display.dropped"] = presentedTime == 0
+            var interval: CFTimeInterval?
+            // Keep cadence history current even while detailed tracing is off,
+            // so resuming recording does not report the idle recording gap as a dropped frame.
             if presentedTime > 0 {
-                let interval = Self.previousPresentedTime.withLock { previousTime -> CFTimeInterval? in
+                interval = Self.previousPresentedTime.withLock { previousTime -> CFTimeInterval? in
                     defer { previousTime = presentedTime }
                     return previousTime.map { presentedTime - $0 }
                 }
-                if let interval {
-                    span.attributes["ada.display.interval_ms"] = interval * 1_000
-                }
             }
+            guard span.isRecording else {
+                return
+            }
+            var attributes = span.attributes
+            attributes["ada.display.presented_time"] = presentedTime
+            attributes["ada.display.dropped"] = presentedTime == 0
+            if let interval { attributes["ada.display.interval_ms"] = interval * 1_000 }
+            span.attributes = attributes
             span.end()
         }
         #else

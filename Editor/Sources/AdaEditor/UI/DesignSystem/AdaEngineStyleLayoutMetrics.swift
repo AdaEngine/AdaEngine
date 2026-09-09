@@ -138,10 +138,10 @@ struct AdaEngineStyleLayoutMetrics: Hashable {
 
     var outputTabs: [String] {
         if size.width < 620 {
-            return ["Problems", "Debug", "Output"]
+            return ["Problems", "Output"]
         }
         if size.width < 900 {
-            return ["Problems", "Build", "Debug", "Output"]
+            return ["Problems", "Build", "Output"]
         }
         return AdaEngineStyleContent.outputTabs
     }

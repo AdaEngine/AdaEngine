@@ -7,45 +7,145 @@ struct EditorDebugPanel: View {
     @Environment(\.theme) private var theme
     @State private var selectedTab = "Console"
 
+    @State private var tooltip: String?
+    @State private var tooltipTask: Task<Void, Never>?
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            controls
-            Text(debugger.status.isEmpty ? debugger.session.reason : debugger.status)
-                .font(.system(size: 11))
-                .foregroundColor(theme.editorColors.muted)
-                .lineLimit(2)
-            HStack(spacing: 10) {
-                ForEach(["Breakpoints", "Call Stack", "Variables", "Watches", "Console"], id: \.self) { tab in
-                    Button(tab) { selectedTab = tab }
-                        .foregroundColor(selectedTab == tab ? theme.editorColors.blue : theme.editorColors.text)
-                        .accessibilityIdentifier("AdaEditor.Debug.Tab.\(tab)")
+        GeometryReader { geometry in
+            let commandHeight: Float = selectedTab == "Console" ? 40 : 0
+            VStack(spacing: 0) {
+                header.frame(height: 36)
+                tabs.frame(height: 32)
+                divider
+                HStack(spacing: 0) {
+                    controls.frame(width: 40)
+                    RectangleShape().fill(theme.editorColors.border).frame(width: 1)
+                    content
+                        .padding(12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+                .frame(height: max(0, geometry.size.height - 69 - commandHeight))
+                if selectedTab == "Console" {
+                    commandBar.frame(height: commandHeight)
                 }
             }
-            .font(.system(size: 11))
-            .buttonStyle(DefaultButtonStyle())
-            content.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
         }
-        .padding(10)
+        .background(theme.editorColors.surfaceElevated)
+        .mask(RoundedRectangleShape(cornerRadius: 12))
+        .overlay(anchor: .topLeading) {
+            if let tooltip {
+                Text(tooltip)
+                    .font(.system(size: 11))
+                    .foregroundColor(theme.editorColors.text)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surface))
+                    .overlay { RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.border, lineWidth: 1) }
+                    .fixedSize()
+                    .offset(x: 48, y: 76)
+                    .allowsHitTesting(false)
+                    .accessibilityIdentifier("AdaEditor.Debug.Tooltip")
+            }
+        }
+        .onDisappear { updateTooltip(nil) }
         .accessibilityIdentifier("AdaEditor.Debug.Panel")
     }
 
-    private var controls: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 10) {
+    private var header: some View {
+        HStack(spacing: 10) {
+            Text("Debug")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(theme.editorColors.text)
+            Text(debugger.status.isEmpty ? debugger.session.reason : debugger.status)
+                .font(.system(size: 11))
+                .foregroundColor(theme.editorColors.muted)
+                .lineLimit(1)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 2) {
                 ForEach(EditorDebugLanguage.allCases, id: \.self) { language in
-                    Button(language.rawValue) { debugger.selectedLanguage = language }
-                        .foregroundColor(debugger.selectedLanguage == language ? theme.editorColors.blue : theme.editorColors.muted)
+                    Button { debugger.selectedLanguage = language } label: {
+                        Text(language.rawValue)
+                            .font(.system(size: 11))
+                            .padding(.horizontal, 8)
+                            .frame(height: 24)
+                    }
+                    .buttonStyle(EditorDebugButtonStyle(theme: theme, active: debugger.selectedLanguage == language))
+                    .accessibilityIdentifier("AdaEditor.Debug.Language.\(language.rawValue)")
                 }
-                action("Pause", command: "pause", enabled: debugger.session.state == .running)
-                action("Continue", command: "continue", enabled: debugger.session.state == .paused)
-                action("Step Into", command: "stepIn", enabled: debugger.session.state == .paused)
-                action("Step Over", command: "next", enabled: debugger.session.state == .paused)
-                action("Step Out", command: "stepOut", enabled: debugger.session.state == .paused)
-                Button("Stop") { debugger.stop() }.disabled(!debugger.isActive)
             }
-            .font(.system(size: 11))
-            .buttonStyle(DefaultButtonStyle())
         }
+        .padding(.horizontal, 12)
+        .background(theme.editorColors.surface)
+    }
+
+    private var tabs: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 4) {
+                ForEach(["Breakpoints", "Call Stack", "Variables", "Watches", "Console"], id: \.self) { tab in
+                    Button { selectedTab = tab } label: {
+                        Text(tab)
+                            .font(.system(size: 11))
+                            .padding(.horizontal, 10)
+                            .frame(height: 26)
+                    }
+                    .buttonStyle(EditorDebugButtonStyle(theme: theme, active: selectedTab == tab))
+                    .accessibilityIdentifier("AdaEditor.Debug.Tab.\(tab)")
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+        }
+        .background(theme.editorColors.surface)
+    }
+
+    private var controls: some View {
+        ScrollView(.vertical) {
+            VStack(spacing: 4) {
+                action("Pause", glyph: "\u{E034}", command: "pause", enabled: debugger.session.state == .running)
+                action("Continue", glyph: "\u{E037}", command: "continue", enabled: debugger.session.state == .paused)
+                divider.padding(.horizontal, 6)
+                action("Step Over", glyph: "\u{E5DA}", command: "next", enabled: debugger.session.state == .paused)
+                action("Step Into", glyph: "\u{E258}", command: "stepIn", enabled: debugger.session.state == .paused)
+                action("Step Out", glyph: "\u{E25A}", command: "stepOut", enabled: debugger.session.state == .paused)
+                divider.padding(.horizontal, 6)
+                iconButton("Stop", glyph: "\u{E047}", identifier: "stop", enabled: debugger.isActive) { debugger.stop() }
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 6)
+        }
+        .background(theme.editorColors.surface.opacity(0.5))
+        .accessibilityIdentifier("AdaEditor.Debug.Controls")
+    }
+
+    private var divider: some View {
+        RectangleShape().fill(theme.editorColors.border).frame(height: 1)
+    }
+
+    private var commandBar: some View {
+        VStack(spacing: 0) {
+            divider.accessibilityIdentifier("AdaEditor.Debug.CommandDivider")
+            HStack(spacing: 10) {
+                Text(">")
+                    .foregroundColor(theme.editorColors.muted)
+                TextField(
+                    debugger.selectedLanguage == .swift ? "LLDB command" : "AdaScript command",
+                    text: Binding(get: { debugger.command }, set: { debugger.command = $0 }),
+                    onSubmit: debugger.sendCommand
+                )
+                .textFieldStyle(PlainTextFieldStyle())
+                .foregroundColor(theme.editorColors.text)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 30, maxHeight: 30)
+                .accessibilityIdentifier("AdaEditor.Debug.Command")
+                Text("Enter")
+                    .font(.system(size: 10))
+                    .foregroundColor(theme.editorColors.muted)
+            }
+            .font(AdaEditorCodeFont.font(size: 12))
+            .padding(.horizontal, 12)
+            .frame(height: 39)
+        }
+        .background(theme.editorColors.surfaceElevated)
     }
 
     @ViewBuilder private var content: some View {
@@ -98,6 +198,8 @@ struct EditorDebugPanel: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     TextField("Expression", text: Binding(get: { debugger.watchExpression }, set: { debugger.watchExpression = $0 }), onSubmit: debugger.addWatch)
+                        .textFieldStyle(PlainTextFieldStyle())
+                        .foregroundColor(theme.editorColors.text)
                         .accessibilityIdentifier("AdaEditor.Debug.WatchExpression")
                     Button("Add") { debugger.addWatch() }
                         .accessibilityIdentifier("AdaEditor.Debug.AddWatch")
@@ -114,31 +216,51 @@ struct EditorDebugPanel: View {
                 }
             }
         default:
-            VStack(alignment: .leading, spacing: 6) {
-                ScrollView([.horizontal, .vertical]) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        ForEach(Array(debugger.session.console.enumerated()), id: \.offset) { line in
-                            Text(line.element).font(AdaEditorCodeFont.font(size: 11))
-                        }
+            ScrollView([.horizontal, .vertical]) {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(Array(debugger.session.console.enumerated()), id: \.offset) { line in
+                        Text(line.element).font(AdaEditorCodeFont.font(size: 11))
+                            .foregroundColor(theme.editorColors.text)
                     }
-                }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                HStack(spacing: 8) {
-                    TextField(debugger.selectedLanguage == .swift ? "LLDB command" : "AdaScript command", text: Binding(
-                        get: { debugger.command }, set: { debugger.command = $0 }
-                    ), onSubmit: debugger.sendCommand)
-                    .accessibilityIdentifier("AdaEditor.Debug.Command")
-                    Button("Send") { debugger.sendCommand() }
-                        .accessibilityIdentifier("AdaEditor.Debug.Send")
-                }.font(.system(size: 12))
-            }
+                }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
-    private func action(_ title: String, command: String, enabled: Bool) -> some View {
-        Button(title) { Task { await debugger.session.control(command) } }
-            .disabled(!enabled)
-            .accessibilityIdentifier("AdaEditor.Debug.\(command)")
+    private func action(_ title: String, glyph: String, command: String, enabled: Bool) -> some View {
+        iconButton(title, glyph: glyph, identifier: command, enabled: enabled) {
+            Task { await debugger.session.control(command) }
+        }
     }
+
+    private func iconButton(_ title: String, glyph: String, identifier: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(glyph)
+                .font(AdaEditorMaterialSymbolFont.font(size: 19))
+                .frame(width: 30, height: 30)
+        }
+        .buttonStyle(EditorDebugButtonStyle(theme: theme, active: false))
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.4)
+        .onHover { updateTooltip($0 ? title : nil) }
+        .accessibilityIdentifier("AdaEditor.Debug.\(identifier)")
+    }
+
+    private func updateTooltip(_ title: String?) {
+        tooltipTask?.cancel()
+        tooltip = nil
+        guard let title else {
+            return
+        }
+        tooltipTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else {
+                return
+            }
+            tooltip = title
+        }
+    }
+
 }
 
 private struct EditorDebugVariableRow: View {
@@ -174,5 +296,19 @@ private struct EditorDebugVariableRow: View {
                 }
             }
         }.font(AdaEditorCodeFont.font(size: 11))
+    }
+}
+
+private struct EditorDebugButtonStyle: ButtonStyle {
+    let theme: Theme
+    let active: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        let highlighted = configuration.state.isHighlighted || configuration.state.isSelected
+        return configuration.label
+            .foregroundColor(active ? theme.editorColors.blue : (highlighted ? theme.editorColors.text : theme.editorColors.muted))
+            .background(RoundedRectangleShape(cornerRadius: 5).fill(
+                active ? theme.editorColors.blue.opacity(0.16) : (highlighted ? theme.editorColors.surfaceElevated : Color.clear)
+            ))
     }
 }

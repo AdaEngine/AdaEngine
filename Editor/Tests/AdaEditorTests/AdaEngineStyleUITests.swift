@@ -745,7 +745,7 @@ struct AdaEngineStyleUITests {
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("main_scene"))
         #expect(!AdaEngineStyleContent.topToolbarLabels.contains("Hot Reload"))
         #expect(AdaEngineStyleContent.leftTopSidebarTools.map(\.title) == ["File Tree", "Entity Tree", "Source Control", "Tests"])
-        #expect(AdaEngineStyleContent.leftBottomSidebarTools.map(\.title) == ["Logs", "Build", "Animator"])
+        #expect(AdaEngineStyleContent.leftBottomSidebarTools.map(\.title) == ["Logs", "Build", "Debug", "Animator"])
         #expect(AdaEngineStyleContent.rightSidebarTools.map(\.title) == ["Agent Chat", "Inspector", "Project Dependencies", "Swift Package Tasks", "Plugins", "Project Settings"])
         #expect(AdaEngineStyleContent.projectTreeItems == ["src", "EngineLoop.ada", "Renderer.ada", "Main.ascn"])
         #expect(AdaEngineStyleContent.editorTabs.contains("Main.ascn"))
@@ -1882,8 +1882,8 @@ struct AdaEngineStyleUITests {
             (.swift, "Player", "Player.swift"),
             (.plainText, "Notes", "Notes.txt"),
         ]
-        #expect(EditorNewFileKind.script.title == "AdaScript")
-        #expect(EditorNewFileKind.script.detail == "AdaScript source")
+        #expect(EditorNewFileKind.script.title == "System")
+        #expect(EditorNewFileKind.script.detail == "ECS system in the update scheduler")
 
         for (kind, enteredName, expectedName) in cases {
             viewModel.presentNewFileDialog()

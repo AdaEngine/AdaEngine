@@ -34,8 +34,13 @@ extension View {
             return _ViewOutputs(node: node)
         }
 
-        let body = view[\.body]
-        if let builder = body.value as? ViewNodeBuilder, resolvedInputs.propertyStorages.isEmpty {
+        // Inspect the type before evaluating body. A non-builder body is evaluated
+        // by the observed container below; evaluating it here as well duplicates
+        // work and subscribes an observing ancestor to the child's dependencies.
+        // Class bodies retain the dynamic check for builder-conforming subclasses.
+        if resolvedInputs.propertyStorages.isEmpty,
+           Self.Body.self is any ViewNodeBuilder.Type || Self.Body.self is AnyClass,
+           let builder = view[\.body].value as? ViewNodeBuilder {
             let node = builder.buildViewNode(in: inputs)
             node.updateEnvironment(inputs.environment)
             node.stateContainer = stateContainer
@@ -73,7 +78,6 @@ extension View {
             return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
         }
         
-        let body = view[\.body]
         if stateContainer != nil {
             let node = LayoutViewContainerNode(
                 layout: AnyLayout(inputs.input.layout),
@@ -92,6 +96,7 @@ extension View {
             return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
         }
 
+        let body = view[\.body]
         if let builder = body.value as? ViewNodeBuilder, resolvedInputs.propertyStorages.isEmpty {
             let node = builder.buildViewNode(in: inputs.input)
             node.updateEnvironment(inputs.input.environment)

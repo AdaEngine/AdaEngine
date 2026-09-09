@@ -1,6 +1,8 @@
 @testable import AdaEditor
 @_spi(AdaEngine) import AdaEngine
 import AdaInput
+@_spi(Internal) @testable import AdaRender
+import AdaScriptCompilerCore
 @_spi(Internal) import AdaUI
 import AdaUtils
 import Foundation
@@ -19,7 +21,7 @@ struct EditorFileTemplateMenuTests {
     }
 
     @Test("tree context menu creates every template beside the clicked file")
-    func contextMenuCreatesTemplates() throws {
+    func contextMenuCreatesTemplates() async throws {
         let root = try makeProjectDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         let model = makeViewModel(root: root)
@@ -40,11 +42,14 @@ struct EditorFileTemplateMenuTests {
                 time: 0
             ))
             let menu = try #require(presentation?.items.first)
-            #expect(menu.title == "New")
-            #expect(menu.submenu.map(\.title) == EditorNewFileKind.allCases.map(\.title))
-            let template = try #require(menu.submenu.first { $0.title == kind.title })
-            let createAction = try #require(template.action)
-            createAction()
+            #expect(menu.title == "New…")
+            let openPicker = try #require(menu.action)
+            openPicker()
+            #expect(!model.isNewFileKindPreselected)
+            let picker = makeDialog(model)
+            _ = try picker.uiScrollToNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.\(kind.rawValue)"))
+            picker.layoutIfNeeded()
+            _ = try picker.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.\(kind.rawValue)"))
             #expect(model.isNewFileKindPreselected)
             #expect(model.newFileKind == kind)
             #expect(model.newFileDestinationRelativePath == "Sources/Game")
@@ -66,9 +71,10 @@ struct EditorFileTemplateMenuTests {
             modifierKeys: [],
             time: 1
         ))
-        let action = try #require(presentation?.items.first?.submenu.first?.action)
+        let action = try #require(presentation?.items.first?.action)
         action()
         #expect(model.newFileDestinationRelativePath.isEmpty)
+        model.newFileKind = .scene
         model.newFileName = "RootScene"
         #expect(model.createNewFile())
         #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("RootScene.ascn").path))
@@ -85,23 +91,19 @@ struct EditorFileTemplateMenuTests {
 
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.NewFile"))
         container.layoutIfNeeded()
-        #expect(!model.isNewFileDialogPresented)
-        for kind in EditorNewFileKind.allCases {
-            #expect(!container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.\(kind.rawValue)")).isEmpty)
+        #expect(model.isNewFileDialogPresented)
+        #expect(!model.isNewFileKindPreselected)
+        let dialog = makeDialog(model)
+        for group in EditorNewFileGroup.allCases {
+            _ = try dialog.uiNode(matching: .accessibilityIdentifier("AdaEditor.NewFile.Group.\(group.rawValue)"))
         }
-        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.script"))
-        container.layoutIfNeeded()
+        _ = try dialog.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.script"))
+        for _ in 0..<10 { await Task.yield(); dialog.layoutIfNeeded() }
         #expect(model.newFileKind == .script)
         #expect(model.newFileDestinationRelativePath == "Sources/Game")
         #expect(model.isNewFileKindPreselected)
-        #expect(container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.Menu")).isEmpty)
-
-        let dialog = UIContainerView(rootView: EditorNewFileDialog(viewModel: model))
-        dialog.frame = Rect(x: 0, y: 0, width: 600, height: 700)
-        dialog.bounds.size = dialog.frame.size
-        dialog.layoutIfNeeded()
-        #expect(!dialog.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.NewFile.Name")).isEmpty)
-        #expect(dialog.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.NewFile.Kind.scene")).isEmpty)
+        #expect(dialog.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.Menu")).isEmpty)
+        _ = try dialog.uiNode(matching: .accessibilityIdentifier("AdaEditor.NewFile.Name"))
         model.newFileName = "Movement"
         try await waitForPreview(in: dialog)
         _ = try dialog.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.NewFile.Create"))
@@ -114,15 +116,102 @@ struct EditorFileTemplateMenuTests {
         reopenedDialog.frame = dialog.frame
         reopenedDialog.bounds.size = dialog.bounds.size
         reopenedDialog.layoutIfNeeded()
-        #expect(!reopenedDialog.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.NewFile.Kind.scene")).isEmpty)
-        _ = try reopenedDialog.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.NewFile.Cancel"))
+        #expect(!reopenedDialog.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.scene")).isEmpty)
+        reopenedDialog.onKeyEvent(KeyEvent(window: .empty, keyCode: .escape, modifiers: [], status: .down, time: 0, isRepeated: false))
         #expect(!model.isNewFileDialogPresented)
 
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.NewFile"))
         container.layoutIfNeeded()
-        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.Dismiss"))
+        let dismissDialog = makeDialog(model)
+        _ = try dismissDialog.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.NewFile.Cancel"))
+        #expect(!model.isNewFileDialogPresented)
+    }
+
+    @Test("search filters the grouped catalog through text input")
+    func searchesCatalog() async throws {
+        var selected: EditorNewFileKind?
+        let container = UIContainerView(rootView: EditorNewFileMenu { selected = $0 })
+        container.frame = Rect(x: 0, y: 0, width: 756, height: 380)
+        container.bounds.size = container.frame.size
         container.layoutIfNeeded()
-        #expect(container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.Menu")).isEmpty)
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.NewFile.Search"))
+        container.onTextInputEvent(TextInputEvent(window: .empty, text: "localization", action: .insert, time: 0))
+        for _ in 0..<10 { await Task.yield(); container.layoutIfNeeded() }
+        #expect(container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.script")).isEmpty)
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.localization"))
+        #expect(selected == .localization)
+    }
+
+    @Test("catalog fits narrow and wide windows", arguments: [Float(375), 768, 1440])
+    func adaptivePicker(width: Float) throws {
+        let root = try makeProjectDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = makeViewModel(root: root)
+        model.presentNewFileDialog()
+        let container = makeDialog(model, width: width)
+        let picker = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.NewFile.Picker")).absoluteFrame
+        #expect(picker.minX >= 0 && picker.maxX <= width)
+        for kind in EditorNewFileKind.allCases {
+            let node = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.ProjectTree.New.\(kind.rawValue)"))
+            #expect(node.absoluteFrame.minX >= picker.minX)
+            #expect(node.absoluteFrame.maxX <= picker.maxX)
+        }
+    }
+
+    @Test("AdaScript templates compile and UI Script builds native views")
+    func scriptTemplatesCompile() throws {
+        for kind in EditorNewFileGroup.adaScript.templates {
+            let source = kind.initialContent(fileName: "Template.ada")
+            _ = try AdaScriptSchemaParser.parse(sources: [.init(path: "Template.ada", source: source)])
+
+        }
+        _ = try AdaScriptPlugin(sources: [
+            .init(path: "System.ada", source: EditorNewFileKind.script.initialContent(fileName: "Template.ada")),
+            .init(path: "Empty.ada", source: EditorNewFileKind.emptyScript.initialContent(fileName: "Empty.ada"))
+        ], name: "TemplateModule")
+        let objectSource = AdaScriptSource(path: "TemplateObject.ada", source: EditorNewFileKind.scriptableObject.initialContent(fileName: "TemplateObject.ada"))
+        let schema = try #require(AdaScriptSchemaParser.parseScriptables(sources: [objectSource]).first)
+        try AdaScriptObjectRegistration.register(
+            schemas: [.init(identifier: schema.id, className: schema.name, version: schema.version, aliases: schema.aliases, fields: [:])],
+            sources: [objectSource],
+            moduleName: "TemplateObjects"
+        )
+        _ = try ScriptableObjectRegistry.make(named: schema.id)
+        let view = try AdaScriptView(sources: [.init(path: "Template.ada", source: EditorNewFileKind.uiScript.initialContent(fileName: "Template.ada"))], identifier: "TemplateView")
+        let container = UIContainerView(rootView: view)
+        container.frame = Rect(x: 0, y: 0, width: 300, height: 200)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        #expect(!container.uiTreeRoots().isEmpty)
+    }
+
+    @Test("shader templates compile to SPIR-V")
+    func shaderTemplatesCompile() throws {
+        for (kind, stage) in [(EditorNewFileKind.vertexShader, ShaderStage.vertex), (.fragmentShader, .fragment), (.computeShader, .compute)] {
+            let source = try ShaderSource(source: kind.initialContent(fileName: "Template.glsl"))
+            let result = try ShaderCompiler(shaderSource: source).compileSpirvBin(for: stage, ignoreCache: true)
+            #expect(!result.data.isEmpty)
+        }
+    }
+
+    @Test("localization template resolves from a real language bundle")
+    func localizedTemplateResolves() throws {
+        let root = try makeProjectDirectory().appendingPathComponent("Translations.bundle")
+        defer { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
+        let language = root.appendingPathComponent("en.lproj")
+        try FileManager.default.createDirectory(at: language, withIntermediateDirectories: true)
+        try EditorNewFileKind.localization.initialContent(fileName: "Localizable.strings")
+            .write(to: language.appendingPathComponent("Localizable.strings"), atomically: true, encoding: .utf8)
+        let bundle = try #require(Bundle(path: root.path))
+        #expect(LocalizedStringKey("hello", bundle: bundle).resolve() == "Hello")
+    }
+
+    private func makeDialog(_ model: EditorViewModel, width: Float = 900) -> UIContainerView<EditorNewFileDialog> {
+        let container = UIContainerView(rootView: EditorNewFileDialog(viewModel: model))
+        container.frame = Rect(x: 0, y: 0, width: width, height: 700)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        return container
     }
 
     private func waitForPreview<Content: View>(in dialog: UIContainerView<Content>) async throws {

@@ -29,7 +29,7 @@ class ViewContainerNode: ViewNode {
 
     /// Builder method returns a new children.
     private var body: ((_ViewListInputs) -> _ViewListOutputs)?
-    private var hasScheduledObservedContentInvalidation = false
+    private var contentObservationRevision: UInt64 = 0
     private var hasBuiltContent = false
     private var hasDeferredInitialContentBuild = false
 
@@ -84,12 +84,13 @@ class ViewContainerNode: ViewNode {
         hasBuiltContent = true
         UILayoutDebugCounters.recordContentInvalidation()
         UILayoutDebugCounters.recordRebuild()
+        let observationRevision = beginContentObservation()
         ViewContainerNode.observationTrackingDepth += 1
         let outputs = withObservationTracking {
             body(inputs)
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.scheduleObservedContentInvalidation()
+                self?.scheduleObservedContentInvalidation(revision: observationRevision)
             }
         }
         ViewContainerNode.observationTrackingDepth -= 1
@@ -98,16 +99,27 @@ class ViewContainerNode: ViewNode {
         self.reconcileChildNodes(from: outputNodes, propagateLayout: propagateLayout)
     }
 
-    private func scheduleObservedContentInvalidation() {
-        guard !hasScheduledObservedContentInvalidation else {
+    func beginContentObservation() -> UInt64 {
+        contentObservationRevision &+= 1
+        return contentObservationRevision
+    }
+
+    func scheduleObservedContentInvalidation(revision: UInt64) {
+        guard contentObservationRevision == revision else {
             return
         }
+        ObservedContentInvalidations.shared.enqueue(self, revision: revision)
+    }
 
-        hasScheduledObservedContentInvalidation = true
-        Task { @MainActor in
-            self.hasScheduledObservedContentInvalidation = false
-            self.invalidateContent(propagateLayout: false)
+    func performObservedContentInvalidation(revision: UInt64) {
+        guard contentObservationRevision == revision else {
+            return
         }
+        invalidateObservedContent()
+    }
+
+    func invalidateObservedContent() {
+        invalidateContent(propagateLayout: false)
     }
 
     private func deferInitialContentBuildIfNeeded() -> Bool {

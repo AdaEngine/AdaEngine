@@ -45,12 +45,12 @@ struct EditorWorkspaceView<
 
             ZStack(anchor: .topLeading) {
                 let leftHandleX = layout.leftPanelWidth
-                let mainPanelX = leftHandleX + (viewModel.showLeftPanel ? EditorWorkspaceLayout.resizeHandleSize : 0)
+                let mainPanelX = leftHandleX + (layout.showsLeftPanel ? EditorWorkspaceLayout.resizeHandleSize : 0)
                 let rightHandleX = mainPanelX + layout.mainPanelWidth
                 let rightPanelX = rightHandleX
-                    + (viewModel.showRightPanel ? EditorWorkspaceLayout.resizeHandleSize : 0)
+                    + (layout.showsRightPanel ? EditorWorkspaceLayout.resizeHandleSize : 0)
 
-                if viewModel.showLeftPanel {
+                if layout.showsLeftPanel {
                     leftPanel()
                         .frame(width: layout.leftPanelWidth, height: layout.mainPanelHeight)
 
@@ -59,7 +59,14 @@ struct EditorWorkspaceView<
                         onResize: { translation in
                             let startWidth = projectSidebarWidthAtDragStart ?? layout.leftPanelWidth
                             projectSidebarWidthAtDragStart = startWidth
-                            projectSidebarWidth = startWidth + translation.width
+                            let width = startWidth + translation.width
+                            if width < EditorWorkspaceLayout.minimumLeftPanelWidth {
+                                viewModel.showLeftPanel = false
+                                projectSidebarWidth = max(startWidth, EditorWorkspaceLayout.minimumLeftPanelWidth)
+                                projectSidebarWidthAtDragStart = nil
+                            } else {
+                                projectSidebarWidth = width
+                            }
                         },
                         onResizeEnded: {
                             projectSidebarWidthAtDragStart = nil
@@ -67,19 +74,27 @@ struct EditorWorkspaceView<
                     )
                     .frame(height: layout.mainPanelHeight)
                     .offset(x: leftHandleX)
+                    .accessibilityIdentifier("AdaEditor.Workspace.ResizeLeft")
                 }
 
                 mainPanel()
                     .frame(width: layout.mainPanelWidth, height: layout.mainPanelHeight)
                     .offset(x: mainPanelX)
 
-                if viewModel.showRightPanel {
+                if layout.showsRightPanel {
                     EditorResizeHandle(
                         axis: .horizontal,
                         onResize: { translation in
                             let startWidth = inspectorSidebarWidthAtDragStart ?? layout.rightPanelWidth
                             inspectorSidebarWidthAtDragStart = startWidth
-                            inspectorSidebarWidth = startWidth - translation.width
+                            let width = startWidth - translation.width
+                            if width < EditorWorkspaceLayout.minimumRightPanelWidth {
+                                viewModel.showRightPanel = false
+                                inspectorSidebarWidth = max(startWidth, EditorWorkspaceLayout.minimumRightPanelWidth)
+                                inspectorSidebarWidthAtDragStart = nil
+                            } else {
+                                inspectorSidebarWidth = width
+                            }
                         },
                         onResizeEnded: {
                             inspectorSidebarWidthAtDragStart = nil
@@ -87,13 +102,14 @@ struct EditorWorkspaceView<
                     )
                     .frame(height: layout.mainPanelHeight)
                     .offset(x: rightHandleX)
+                    .accessibilityIdentifier("AdaEditor.Workspace.ResizeRight")
 
                     rightPanel()
                         .frame(width: layout.rightPanelWidth, height: layout.mainPanelHeight)
                         .offset(x: rightPanelX)
                 }
 
-                if viewModel.showBottomPanel {
+                if layout.showsBottomPanel {
                     bottomPanel(geometry, layout: layout)
                         .offset(y: layout.mainPanelHeight)
                 }
@@ -118,6 +134,7 @@ extension EditorWorkspaceView {
                 }
             )
             .frame(width: geometry.size.width)
+            .accessibilityIdentifier("AdaEditor.Workspace.ResizeBottom")
 
             bottomPanel()
                 .frame(width: geometry.size.width, height: layout.bottomPanelHeight)
@@ -134,19 +151,33 @@ extension EditorWorkspaceView {
         let bottomHeight = EditorWorkspaceLayout.clampedBottomPanelHeight(outputPanelHeight, in: geometry.size)
         let startHeight = outputPanelHeightAtDragStart ?? bottomHeight
         outputPanelHeightAtDragStart = startHeight
-        outputPanelHeight = EditorWorkspaceLayout.clampedBottomPanelHeight(startHeight - translation.height, in: geometry.size)
+        let height = startHeight - translation.height
+        if height < EditorWorkspaceLayout.minimumBottomPanelHeight {
+            viewModel.showBottomPanel = false
+            outputPanelHeight = startHeight
+            outputPanelHeightAtDragStart = nil
+        } else {
+            outputPanelHeight = EditorWorkspaceLayout.clampedBottomPanelHeight(height, in: geometry.size)
+        }
     }
 }
 
 struct EditorWorkspaceLayout: Equatable {
     static let resizeHandleSize: Float = 8
     static let minimumMainPanelHeight: Float = 140
+    static let minimumLeftPanelWidth: Float = 180
+    static let minimumRightPanelWidth: Float = 220
+    static let minimumBottomPanelHeight: Float = 72
 
     let leftPanelWidth: Float
     let mainPanelWidth: Float
     let rightPanelWidth: Float
     let mainPanelHeight: Float
     let bottomPanelHeight: Float
+
+    var showsLeftPanel: Bool { leftPanelWidth > 0 }
+    var showsRightPanel: Bool { rightPanelWidth > 0 }
+    var showsBottomPanel: Bool { bottomPanelHeight > 0 }
 
     init(
         size: Size,
@@ -159,10 +190,8 @@ struct EditorWorkspaceLayout: Equatable {
         fallbackLeftPanelWidth: Float,
         fallbackRightPanelWidth: Float
     ) {
-        let horizontalHandleWidth = Float((showsLeftPanel ? 1 : 0) + (showsRightPanel ? 1 : 0)) * Self.resizeHandleSize
-        let availablePanelWidth = max(0, size.width - horizontalHandleWidth)
         let panelWidths = Self.panelWidths(
-            availableWidth: availablePanelWidth,
+            availableWidth: max(0, size.width),
             showsLeftPanel: showsLeftPanel,
             showsRightPanel: showsRightPanel,
             requestedLeftPanelWidth: requestedLeftPanelWidth,
@@ -173,18 +202,22 @@ struct EditorWorkspaceLayout: Equatable {
 
         leftPanelWidth = panelWidths.left
         rightPanelWidth = panelWidths.right
+        let horizontalHandleWidth = Float((leftPanelWidth > 0 ? 1 : 0) + (rightPanelWidth > 0 ? 1 : 0)) * Self.resizeHandleSize
         mainPanelWidth = max(0, size.width - horizontalHandleWidth - leftPanelWidth - rightPanelWidth)
 
         bottomPanelHeight = showsBottomPanel
             ? Self.clampedBottomPanelHeight(requestedBottomPanelHeight, in: size)
             : 0
-        let verticalHandleHeight = showsBottomPanel ? Self.resizeHandleSize : 0
+        let verticalHandleHeight = bottomPanelHeight > 0 ? Self.resizeHandleSize : 0
         mainPanelHeight = max(0, size.height - verticalHandleHeight - bottomPanelHeight)
     }
 
     static func clampedBottomPanelHeight(_ height: Float, in size: Size) -> Float {
-        let maximumHeight = min(520, max(72, size.height - resizeHandleSize - minimumMainPanelHeight))
-        return max(72, min(height, maximumHeight))
+        let maximumHeight = min(520, size.height - resizeHandleSize - minimumMainPanelHeight)
+        guard maximumHeight >= minimumBottomPanelHeight, height >= minimumBottomPanelHeight else {
+            return 0
+        }
+        return min(height, maximumHeight)
     }
 }
 
@@ -198,25 +231,27 @@ private extension EditorWorkspaceLayout {
         fallbackLeftPanelWidth: Float,
         fallbackRightPanelWidth: Float
     ) -> (left: Float, right: Float) {
-        let desiredLeftWidth = showsLeftPanel
-            ? resolvedPanelWidth(requestedLeftPanelWidth, fallback: fallbackLeftPanelWidth)
-            : 0
-        let desiredRightWidth = showsRightPanel
-            ? resolvedPanelWidth(requestedRightPanelWidth, fallback: fallbackRightPanelWidth)
-            : 0
-        let desiredTotal = desiredLeftWidth + desiredRightWidth
+        var left = showsLeftPanel ? resolvedPanelWidth(requestedLeftPanelWidth, fallback: fallbackLeftPanelWidth) : 0
+        var right = showsRightPanel ? resolvedPanelWidth(requestedRightPanelWidth, fallback: fallbackRightPanelWidth) : 0
+        if left < minimumLeftPanelWidth { left = 0 }
+        if right < minimumRightPanelWidth { right = 0 }
 
-        guard desiredTotal > availableWidth else {
-            return (desiredLeftWidth, desiredRightWidth)
+        // Reclaim both the content and divider of a collapsed panel before sizing its siblings.
+        while left > 0 || right > 0 {
+            let handles = Float((left > 0 ? 1 : 0) + (right > 0 ? 1 : 0)) * resizeHandleSize
+            let budget = max(0, availableWidth - handles)
+            let scale = min(1, budget / (left + right))
+            let fittedLeft = left * scale
+            let fittedRight = right * scale
+            if left > 0 && fittedLeft < minimumLeftPanelWidth {
+                left = 0
+            } else if right > 0 && fittedRight < minimumRightPanelWidth {
+                right = 0
+            } else {
+                return (fittedLeft, fittedRight)
+            }
         }
-
-        guard desiredTotal > 0 else {
-            return (0, 0)
-        }
-        return (
-            availableWidth * desiredLeftWidth / desiredTotal,
-            availableWidth * desiredRightWidth / desiredTotal
-        )
+        return (0, 0)
     }
 
     static func resolvedPanelWidth(_ width: Float, fallback: Float) -> Float {

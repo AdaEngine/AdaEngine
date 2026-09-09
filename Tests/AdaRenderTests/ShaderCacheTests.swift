@@ -5,13 +5,12 @@
 //  Created by Vladislav Prusakov on 11.12.2025.
 //
 
-import Testing
 @testable import AdaRender
 import Foundation
+import Testing
 
 @Suite("Shader Cache Tests")
 struct ShaderCacheTests {
-    
     private let shaderSource = """
     #version 450 core
     #pragma stage : vert
@@ -107,6 +106,27 @@ struct ShaderCacheTests {
 
         #expect(encoded.first == UInt8(ascii: "{"))
         #expect(decoded == manifest)
+    }
+
+    @Test func spirvCacheRoundTripsBytesAndSeparatesVersionsAndStages() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let sourceURL = directory.appendingPathComponent("roundtrip.glsl")
+        try writeUTF8(shaderSource, to: sourceURL)
+        let source = try ShaderSource(from: sourceURL)
+        let binary = SpirvBinary(stage: .vertex, data: Data([3, 2, 35, 7]), language: .glsl, entryPoint: "main", version: 71)
+        let cacheDirectory = try ShaderCache.spirvCacheFile(for: sourceURL, stage: .vertex, version: 71).deletingLastPathComponent()
+        defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+        try ShaderCache.save(binary, source: source, stage: .vertex, version: 71)
+        let loaded = try #require(ShaderCache.getCachedShader(for: source, stage: .vertex, version: 71, entryPoint: "main"))
+        #expect(loaded.data == binary.data)
+        #expect(loaded.stage == binary.stage)
+        #expect(loaded.version == binary.version)
+        #expect(loaded.entryPoint == binary.entryPoint)
+        #expect(ShaderCache.getCachedShader(for: source, stage: .fragment, version: 71, entryPoint: "main") == nil)
+        #expect(ShaderCache.getCachedShader(for: source, stage: .vertex, version: 72, entryPoint: "main") == nil)
     }
 
     @Test func `checking one shader stage does not hide changes in another stage`() throws {

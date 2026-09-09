@@ -31,10 +31,6 @@ struct EditorBottomPanel: View {
             .background(theme.editorColors.surface)
             
             GeometryReader { geometry in
-                if viewModel.activeOutputTab == "Debug" {
-                    EditorDebugPanel(debugger: viewModel.debugger)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                } else {
                 ScrollViewReader { proxy in
                     HStack(spacing: 0) {
                         ScrollView([.horizontal, .vertical]) {
@@ -59,7 +55,6 @@ struct EditorBottomPanel: View {
                         }
                     }
                     .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
-                }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -270,13 +265,6 @@ struct EditorBottomPanel: View {
                 .overlay {
                     RoundedRectangleShape(cornerRadius: 5)
                         .stroke(active ? theme.editorColors.blue.opacity(0.68) : theme.editorColors.border.opacity(0.36), lineWidth: 1)
-                }
-                .overlay(anchor: .bottom) {
-                    if active {
-                        RectangleShape()
-                            .fill(theme.editorColors.blue)
-                            .frame(height: 2)
-                    }
                 }
         }
         .buttonStyle(DefaultButtonStyle())

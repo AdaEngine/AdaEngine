@@ -108,13 +108,6 @@ extension EditorCenterWorkbench {
             RoundedRectangleShape(cornerRadius: 5)
                 .stroke(active ? theme.editorColors.blue.opacity(0.72) : theme.editorColors.border.opacity(0.52), lineWidth: 1)
         }
-        .overlay(anchor: .top) {
-            if active {
-                RectangleShape()
-                    .fill(theme.editorColors.blue)
-                    .frame(height: 2)
-            }
-        }
         .onMiddleClick {
             viewModel.closeDocument(id: document.id)
         }

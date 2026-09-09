@@ -746,18 +746,21 @@ public struct UITessellator {
 
             let isCounterClockwise = polygonArea >= 0
             var output = vertices
+            var scratch: [Vertex] = []
 
             for index in clipPolygon.indices {
                 let edgeStart = clipPolygon[index]
                 let edgeEnd = clipPolygon[(index + 1) % clipPolygon.count]
-                output = clipAgainstEdge(
+                clipAgainstEdge(
                     output,
                     edgeStart: edgeStart,
                     edgeEnd: edgeEnd,
                     isCounterClockwise: isCounterClockwise,
                     position: position,
-                    interpolate: interpolate
+                    interpolate: interpolate,
+                    into: &scratch
                 )
+                swap(&output, &scratch)
 
                 if output.isEmpty {
                     break
@@ -883,20 +886,31 @@ public struct UITessellator {
     }
 
     private func clipVectorPolygon(_ polygon: [Vector2], to clipPolygon: [Vector2]) -> [Vector2] {
-        let isCounterClockwise = signedArea(of: clipPolygon) >= 0
+        let polygonArea = signedArea(of: clipPolygon)
+        if let bounds = clipBounds(of: polygon) {
+            switch classifyBounds(bounds, in: clipPolygon, signedArea: polygonArea) {
+            case .inside: return polygon
+            case .outside: return []
+            case .intersecting: break
+            }
+        }
+        let isCounterClockwise = polygonArea >= 0
         var output = polygon
+        var scratch: [Vector2] = []
 
         for index in clipPolygon.indices {
             let edgeStart = clipPolygon[index]
             let edgeEnd = clipPolygon[(index + 1) % clipPolygon.count]
-            output = clipAgainstEdge(
+            clipAgainstEdge(
                 output,
                 edgeStart: edgeStart,
                 edgeEnd: edgeEnd,
                 isCounterClockwise: isCounterClockwise,
                 position: { $0 },
-                interpolate: { start, end, t in start + (end - start) * t }
+                interpolate: { start, end, t in start + (end - start) * t },
+                into: &scratch
             )
+            swap(&output, &scratch)
 
             if output.isEmpty {
                 break
@@ -906,19 +920,60 @@ public struct UITessellator {
         return output
     }
 
+    private enum BoundsClipRelation {
+        case inside
+        case outside
+        case intersecting
+    }
+
+    private func classifyBounds(_ bounds: ClipBounds, in polygon: [Vector2], signedArea: Float) -> BoundsClipRelation {
+        guard signedArea.isFinite, abs(signedArea) > 0.0001,
+              bounds.minX.isFinite, bounds.maxX.isFinite,
+              bounds.minY.isFinite, bounds.maxY.isFinite else {
+            return .intersecting
+        }
+
+        let direction: Float = signedArea > 0 ? 1 : -1
+        var fullyInside = true
+        for index in polygon.indices {
+            let start = polygon[index]
+            let end = polygon[(index + 1) % polygon.count]
+            let normalX = (start.y - end.y) * direction
+            let normalY = (end.x - start.x) * direction
+            let nearX = normalX >= 0 ? bounds.minX : bounds.maxX
+            let nearY = normalY >= 0 ? bounds.minY : bounds.maxY
+            let farX = normalX >= 0 ? bounds.maxX : bounds.minX
+            let farY = normalY >= 0 ? bounds.maxY : bounds.minY
+            let minimum = normalX * (nearX - start.x) + normalY * (nearY - start.y)
+            let maximum = normalX * (farX - start.x) + normalY * (farY - start.y)
+            guard minimum.isFinite, maximum.isFinite else {
+                return .intersecting
+            }
+            // Use the same half-plane tolerance as isInsideClipEdge. A plain
+            // bounding-box rejection would incorrectly drop near-edge geometry.
+            if maximum < -0.0001 {
+                return .outside
+            }
+            if minimum < 0 { fullyInside = false }
+        }
+        return fullyInside ? .inside : .intersecting
+    }
+
     private func clipAgainstEdge<Vertex>(
         _ vertices: [Vertex],
         edgeStart: Vector2,
         edgeEnd: Vector2,
         isCounterClockwise: Bool,
         position: (Vertex) -> Vector2,
-        interpolate: (Vertex, Vertex, Float) -> Vertex
-    ) -> [Vertex] {
+        interpolate: (Vertex, Vertex, Float) -> Vertex,
+        into output: inout [Vertex]
+    ) {
+        output.removeAll(keepingCapacity: true)
         guard let last = vertices.last else {
-            return []
+            return
         }
 
-        var output: [Vertex] = []
+        output.reserveCapacity(vertices.count + 1)
         var previousVertex = last
         var previousPosition = position(previousVertex)
         var previousInside = isInsideClipEdge(
@@ -962,8 +1017,6 @@ public struct UITessellator {
             previousPosition = currentPosition
             previousInside = currentInside
         }
-
-        return output
     }
 
     private func appendFan<Vertex>(

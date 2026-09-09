@@ -188,7 +188,6 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     private var contentProxy: (GeometryProxy) -> Content
     private var lastContentSignature: ContentSignature?
     private var contentNeedsRebuild = true
-    private var hasScheduledObservedContentInvalidation = false
 
     private struct ContentSignature: Equatable {
         let frame: Rect
@@ -292,6 +291,7 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     private func rebuildContent(for signature: ContentSignature) {
         UILayoutDebugCounters.recordContentInvalidation()
         UILayoutDebugCounters.recordRebuild()
+        let observationRevision = beginContentObservation()
         var environment = self.environment
         let disablesAnimation = shouldDisableAnimation(for: signature)
         if disablesAnimation {
@@ -309,7 +309,7 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
             return Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: context)).outputs
         } onChange: { [weak self] in
             Task { @MainActor in
-                self?.scheduleObservedContentInvalidation()
+                self?.scheduleObservedContentInvalidation(revision: observationRevision)
             }
         }
         let nodes = outputs.map { $0.node }
@@ -319,16 +319,9 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
         self.contentNeedsRebuild = false
     }
 
-    private func scheduleObservedContentInvalidation() {
-        guard !hasScheduledObservedContentInvalidation else {
-            return
-        }
-
-        hasScheduledObservedContentInvalidation = true
-        Task { @MainActor in
-            self.hasScheduledObservedContentInvalidation = false
-            self.invalidateContent()
-        }
+    override func invalidateObservedContent() {
+        // Geometry-dependent bodies are rebuilt by the subsequent layout pass.
+        invalidateContent()
     }
 
     private func shouldDisableAnimation(for signature: ContentSignature) -> Bool {

@@ -173,6 +173,9 @@ actor EditorACPAgentService: EditorAgentServicing {
         }
 
         let selector = managed.configuration.selectors[selectorIndex]
+        guard selector.choices.contains(where: { $0.id == valueID }) else {
+            throw EditorAgentServiceError.sessionUnavailable
+        }
         if selector.usesLegacyMethod {
             switch selector.category {
             case .mode:
@@ -189,12 +192,16 @@ actor EditorACPAgentService: EditorAgentServicing {
                 configId: SessionConfigId(selectorID),
                 value: SessionConfigValueId(valueID)
             )
-            managed.configuration = Self.configuration(
+            let updated = Self.configuration(
                 agentName: managed.agentName,
                 modes: nil,
                 models: nil,
                 configOptions: response.configOptions
             )
+            let legacy = managed.configuration.selectors.filter { old in
+                old.usesLegacyMethod && !updated.selectors.contains { $0.category == old.category }
+            }
+            managed.configuration = EditorAgentSessionConfiguration(agentName: managed.agentName, selectors: updated.selectors + legacy)
         }
         sessions[sessionID] = managed
         return managed.configuration
@@ -299,7 +306,7 @@ actor EditorACPAgentService: EditorAgentServicing {
         }
 
         let agentName = initialized.agentInfo?.title ?? initialized.agentInfo?.name
-        return ManagedSession(
+        let managed = ManagedSession(
             client: client,
             upstreamSessionID: upstreamSessionID,
             supportsLoadSession: supportsLoadSession,
@@ -315,6 +322,9 @@ actor EditorACPAgentService: EditorAgentServicing {
                 configOptions: configOptions
             )
         )
+        sessions[localSessionID] = managed
+        await onEvent(EditorAgentEvent(kind: .runStatus, configuration: managed.configuration))
+        return managed
     }
 
     private func mcpServers(for project: AdaProject) -> [MCPServerConfig] {
@@ -422,6 +432,21 @@ actor EditorACPAgentService: EditorAgentServicing {
         }
 
         switch payload.update {
+        case .configOptionUpdate(let options):
+            let updated = Self.configuration(agentName: managed.agentName, modes: nil, models: nil, configOptions: options)
+            // Preserve legacy selectors when the provider only updates modern config options.
+            let legacy = managed.configuration.selectors.filter { old in
+                old.usesLegacyMethod && !updated.selectors.contains { $0.category == old.category }
+            }
+            managed.configuration = EditorAgentSessionConfiguration(agentName: managed.agentName, selectors: updated.selectors + legacy)
+            sessions[localSessionID] = managed
+            await onEvent(EditorAgentEvent(kind: .runStatus, configuration: managed.configuration))
+        case .currentModeUpdate(let modeID):
+            if let index = managed.configuration.selectors.firstIndex(where: { $0.category == .mode }) {
+                managed.configuration.selectors[index].currentValueID = modeID
+                sessions[localSessionID] = managed
+                await onEvent(EditorAgentEvent(kind: .runStatus, configuration: managed.configuration))
+            }
         case .agentMessageChunk(let block):
             let text = flatten(content: block)
             guard !text.isEmpty else { return }

@@ -172,10 +172,11 @@ public extension World {
     /// - Parameter scheduler: Scheduler name.
     /// - Parameter deltaTime: Time interval since last update.
     func runScheduler(_ schedulerName: SchedulerName) async {
-        await AdaTrace.span("World.runScheduler.\(schedulerName.rawValue)") { span in
-            span.attributes["ada.profile.category"] = "scheduler"
-            span.attributes["ada.scheduler.name"] = schedulerName.rawValue
-            span.attributes["ada.world.name"] = self.name ?? "UnknownWorld"
+        await AdaTrace.span(lazyName: "World.runScheduler.\(schedulerName.rawValue)", attributes: [
+            "ada.profile.category": "scheduler",
+            "ada.scheduler.name": .string(schedulerName.rawValue),
+            "ada.world.name": .string(self.name ?? "UnknownWorld")
+        ]) {
             await self.schedulers.getScope(for: schedulerName) {
                 await $0.run(world: self)
             }

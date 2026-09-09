@@ -18,6 +18,7 @@ enum AdaEngineStyleContent {
     static let leftBottomSidebarTools = [
         EditorToolStripItem(identifier: "logs", title: "Logs", icon: "\u{EB8E}"),
         EditorToolStripItem(identifier: "build", title: "Build", icon: "\u{E869}"),
+        EditorToolStripItem(identifier: "debug", title: "Debug", icon: "\u{E868}"),
         EditorToolStripItem(identifier: "animator", title: "Animator", icon: "\u{E71C}"),
     ]
     static let rightSidebarTools = [
@@ -94,7 +95,7 @@ enum AdaEngineStyleContent {
     static let aiChips = ["Refactor current scene", "Optimize render batches", "Auto-light"]
     static let inspectorScript = "DynamicBouncer.ada"
     static let inspectorScriptDescription = "Object bounces on contact"
-    static let outputTabs = ["Problems", "Build", "Tests", "References", "Debug", "Output"]
+    static let outputTabs = ["Problems", "Build", "Tests", "References", "Output"]
     static let logLines = [
         "[12:04:11] Ada Engine initialized — render backend ready.",
         "[12:04:12] Loaded Main.ascn with 1 entity.",
@@ -412,6 +413,8 @@ private struct EditorWorkspaceRegion: View {
                     bottomPanel: {
                         if viewModel.toolStrip.activeLeftBottomTool == "animator" {
                             EditorAnimationPanel(viewModel: viewModel)
+                        } else if viewModel.toolStrip.activeLeftBottomTool == "debug" {
+                            EditorDebugPanel(debugger: viewModel.debugger)
                         } else {
                             EditorBottomPanel(viewModel: viewModel)
                         }

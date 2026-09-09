@@ -340,7 +340,7 @@ extension EditorViewModel {
     static func isTextFile(_ url: URL) -> Bool {
         let textExtensions: Set<String> = [
             "ada", "c", "cc", "cpp", "cxx", "frag", "glsl", "gravity", "h", "hpp", "hxx", "json", "md", "markdown",
-            "ui", "ascn", "metal", "plist", "scn", "scene", "shader", "swift", "toml", "txt", "vert", "xml", "yaml", "yml"
+            "ui", "ascn", "metal", "plist", "scn", "scene", "shader", "strings", "swift", "toml", "txt", "vert", "xml", "yaml", "yml"
         ]
         let lowercasedName = url.lastPathComponent.lowercased()
 

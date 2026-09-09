@@ -319,20 +319,22 @@ private func flushLifecycleActions() async {
 }
 
 private func waitForTaskCancellation(_ recorder: TaskLifecycleRecorder) async {
-    for _ in 0..<10 {
-        await flushLifecycleActions()
+    let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+    while ContinuousClock.now < deadline {
         if await recorder.cancellationCount > 0 {
             return
         }
+        try? await Task.sleep(for: .milliseconds(1))
     }
 }
 
 private func waitForTaskStart(_ recorder: TaskLifecycleRecorder, count: Int = 1) async {
-    for _ in 0..<10 {
-        await flushLifecycleActions()
+    let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+    while ContinuousClock.now < deadline {
         if await recorder.startCount >= count {
             return
         }
+        try? await Task.sleep(for: .milliseconds(1))
     }
 }
 

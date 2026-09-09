@@ -31,7 +31,7 @@ struct EditorProjectSidebar: View {
     let projectRootItem: EditorProjectSidebarViewModel.Item?
     let onOpenItem: (EditorProjectSidebarViewModel.Item) -> Void
     let onOpenRawItem: (EditorProjectSidebarViewModel.Item) -> Void
-    let onNewFile: (EditorNewFileKind) -> Void
+    let onNewFile: (EditorNewFileKind?) -> Void
     let onImportAssets: () -> Void
     let onRevealItem: (EditorProjectSidebarViewModel.Item) -> Void
     let onOpenInDefaultApplication: (EditorProjectSidebarViewModel.Item) -> Void
@@ -42,7 +42,6 @@ struct EditorProjectSidebar: View {
     let onDeleteItem: (EditorProjectSidebarViewModel.Item) -> Void
 
     @State private var hoveredItemID: String?
-    @State private var isNewFileMenuPresented = false
     
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
@@ -52,7 +51,6 @@ struct EditorProjectSidebar: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Button(action: {
-                        isNewFileMenuPresented = false
                         viewModel.toggleDisplayModeMenu()
                     }) {
                         HStack(spacing: 4) {
@@ -69,7 +67,7 @@ struct EditorProjectSidebar: View {
                     Spacer()
                     Button(action: {
                         viewModel.isDisplayModeMenuPresented = false
-                        isNewFileMenuPresented.toggle()
+                        onNewFile(nil)
                     }) {
                         HStack(spacing: 5) {
                             Text("+")
@@ -105,21 +103,6 @@ struct EditorProjectSidebar: View {
                 }
             }
 
-            if isNewFileMenuPresented {
-                Color.clear
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .onTapGesture { isNewFileMenuPresented = false }
-                    .accessibilityIdentifier("AdaEditor.ProjectTree.New.Dismiss")
-
-                EditorNewFileMenu { kind in
-                    isNewFileMenuPresented = false
-                    onNewFile(kind)
-                }
-                    .offset(x: -12, y: 32)
-                    .frame(maxWidth: .infinity, alignment: .topTrailing)
-                    .zIndex(10)
-            }
-
             if viewModel.isDisplayModeMenuPresented {
                 displayModeMenu
                     .offset(x: 12, y: 30)
@@ -133,15 +116,8 @@ struct EditorProjectSidebar: View {
         .mask(RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner))
     }
 
-    private var newFileSubmenu: some View {
-        ContextMenuSubmenu("New") {
-            // Context menus consume concrete menu entries rather than ForEach view nodes.
-            Button(EditorNewFileKind.scene.title) { onNewFile(.scene) }
-            Button(EditorNewFileKind.uiScene.title) { onNewFile(.uiScene) }
-            Button(EditorNewFileKind.script.title) { onNewFile(.script) }
-            Button(EditorNewFileKind.swift.title) { onNewFile(.swift) }
-            Button(EditorNewFileKind.plainText.title) { onNewFile(.plainText) }
-        }
+    private var newFileAction: some View {
+        Button("New…") { onNewFile(nil) }
     }
 
     private var displayModeMenu: some View {
@@ -182,7 +158,7 @@ struct EditorProjectSidebar: View {
             .contextMenu(onPresent: {
                 if let projectRootItem { viewModel.select(projectRootItem) }
             }) {
-                newFileSubmenu
+                newFileAction
                 Button("Import Assets") {
                     onImportAssets()
                 }
@@ -245,7 +221,7 @@ struct EditorProjectSidebar: View {
             }
         }
         .contextMenu(onPresent: { viewModel.select(item) }) {
-            newFileSubmenu
+            newFileAction
             Button(item.isFolder ? (viewModel.isCollapsed(item) ? "Expand" : "Collapse") : "Open") {
                 onOpenItem(item)
             }

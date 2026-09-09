@@ -279,6 +279,7 @@ extension EditorViewModel {
         }
 
         toolStrip.selectLeftBottomTool(item)
+        if item.identifier == "build" { selectOutputTab("Build") }
         showBottomPanel = true
     }
 
@@ -326,6 +327,10 @@ extension EditorViewModel {
     }
 
     func selectOutputTab(_ tab: String) {
+        if tab == "Debug" {
+            presentDebugger()
+            return
+        }
         activeOutputTab = tab
         workbench.activeOutputTab = tab
     }

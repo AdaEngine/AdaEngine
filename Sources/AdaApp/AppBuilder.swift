@@ -125,12 +125,16 @@ public extension AppWorlds {
         try await withExecutionContext {
             let worldName = main.name ?? "UnknownWorld"
             let framePacing = main.getResource(ApplicationFramePacing.self)
-            try await AdaTrace.span("AppWorlds.update") { span in
-                span.attributes["ada.profile.category"] = "frame"
-                span.attributes["ada.world.name"] = worldName
-                if let framePacing {
-                    span.attributes["ada.frame.target_fps"] = framePacing.maximumFramesPerSecond
-                    span.attributes["ada.frame.budget_ms"] = framePacing.minimumFrameDuration * 1_000
+            try await AdaTrace.span(lazyName: "AppWorlds.update") { span in
+                if span.isRecording {
+                    var attributes = span.attributes
+                    attributes["ada.profile.category"] = "frame"
+                    attributes["ada.world.name"] = worldName
+                    if let framePacing {
+                        attributes["ada.frame.target_fps"] = framePacing.maximumFramesPerSecond
+                        attributes["ada.frame.budget_ms"] = framePacing.minimumFrameDuration * 1_000
+                    }
+                    span.attributes = attributes
                 }
                 try await self.updateFrameContents()
             }

@@ -53,10 +53,11 @@ public struct RenderGraphExecutor: Sendable {
         isSubgraph: Bool
     ) async throws {
         let graphLabel = graph.label?.rawValue ?? "Unknown"
-        try await AdaTrace.span("RenderGraph.frame.\(graphLabel)") { span in
-            span.attributes["ada.profile.category"] = "render_graph"
-            span.attributes["ada.render.graph"] = graphLabel
-            span.attributes["ada.render.is_subgraph"] = isSubgraph
+        try await AdaTrace.span(lazyName: "RenderGraph.frame.\(graphLabel)", attributes: [
+            "ada.profile.category": "render_graph",
+            "ada.render.graph": .string(graphLabel),
+            "ada.render.is_subgraph": .bool(isSubgraph)
+        ]) {
             let graphStartedAt = Date()
             var executionOrder: [String] = []
             var nodeRecords: [RenderGraphNodeRecord] = []
@@ -134,11 +135,12 @@ public struct RenderGraphExecutor: Sendable {
                 )
                 let nodeStartedAt = Date()
                 executionOrder.append(currentNode.name.rawValue)
-                let nodeSpan = AdaTrace.startSpan("RenderGraph.node.\(currentNode.name.rawValue)")
-                nodeSpan.attributes["ada.profile.category"] = "render_node"
-                nodeSpan.attributes["ada.render.graph"] = graphLabel
-                nodeSpan.attributes["ada.render.node"] = currentNode.name.rawValue
-                nodeSpan.attributes["ada.render.node_type"] = String(reflecting: Swift.type(of: currentNode.node))
+                let nodeSpan = AdaTrace.startSpan(lazyName: "RenderGraph.node.\(currentNode.name.rawValue)", attributes: [
+                    "ada.profile.category": "render_node",
+                    "ada.render.graph": .string(graphLabel),
+                    "ada.render.node": .string(currentNode.name.rawValue),
+                    "ada.render.node_type": .string(String(reflecting: Swift.type(of: currentNode.node)))
+                ])
                 do {
                     defer {
                         nodeSpan.end()

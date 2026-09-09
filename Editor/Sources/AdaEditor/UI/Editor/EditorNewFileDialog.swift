@@ -8,6 +8,63 @@ struct EditorNewFileDialog: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        Group {
+            if viewModel.isNewFileKindPreselected {
+                namingDialog
+            } else {
+                templatePicker
+            }
+        }
+        .keyboardShortcuts([KeyboardShortcutAction(.escape) {
+            EditorNewFileDialogActions.cancel(viewModel: viewModel, dismiss: dismiss)
+        }])
+    }
+
+    private var templatePicker: some View {
+        GeometryReader { geometry in
+            let width = max(0, min(800, geometry.size.width - 32))
+            let height = max(0, min(520, geometry.size.height - 32))
+            ZStack {
+                Color.black.opacity(0.45)
+                    .onTapGesture { EditorNewFileDialogActions.cancel(viewModel: viewModel, dismiss: dismiss) }
+                    .accessibilityIdentifier("AdaEditor.ProjectTree.New.Dismiss")
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("New File")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(theme.editorColors.text)
+                        Text("Choose a template · \(viewModel.newFileLocationTitle)")
+                            .font(.system(size: 11))
+                            .foregroundColor(theme.editorColors.muted)
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(height: 64, alignment: .leading)
+                    EditorNewFileMenu(width: width, height: max(0, height - 116)) { kind in
+                        viewModel.newFileKind = kind
+                        viewModel.newFileErrorMessage = nil
+                        viewModel.isNewFileKindPreselected = true
+                    }
+                    HStack {
+                        Spacer()
+                        dialogButton(title: "Cancel", isPrimary: false) {
+                            EditorNewFileDialogActions.cancel(viewModel: viewModel, dismiss: dismiss)
+                        }
+                        .accessibilityIdentifier("AdaEditor.NewFile.Cancel")
+                    }
+                    .padding(.horizontal, 16)
+                    .frame(height: 52)
+                }
+                .frame(width: width, height: height)
+                .background(RoundedRectangleShape(cornerRadius: 12).fill(theme.editorColors.surfaceElevated))
+                .overlay { RoundedRectangleShape(cornerRadius: 12).stroke(theme.editorColors.border, lineWidth: 1) }
+                .accessibilityIdentifier("AdaEditor.NewFile.Picker")
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+    }
+
+    private var namingDialog: some View {
         ZStack(anchor: .center) {
             Color.black.opacity(0.54)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -22,21 +79,6 @@ struct EditorNewFileDialog: View {
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(.bottom, 16)
-
-                if !viewModel.isNewFileKindPreselected {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(EditorNewFileKind.allCases, id: \.self) { kind in
-                            fileKindRow(kind)
-                        }
-                    }
-                    .padding(4)
-                    .background(RoundedRectangleShape(cornerRadius: 7).fill(theme.editorColors.background))
-                    .overlay {
-                        RoundedRectangleShape(cornerRadius: 7)
-                            .stroke(theme.editorColors.border, lineWidth: 1)
-                    }
-                    .padding(.bottom, 16)
-                }
 
                 Text("File name")
                     .font(.system(size: 11))
@@ -82,6 +124,10 @@ struct EditorNewFileDialog: View {
                 }
 
                 HStack(spacing: 8) {
+                    dialogButton(title: "Templates", isPrimary: false) {
+                        viewModel.isNewFileKindPreselected = false
+                    }
+                    .accessibilityIdentifier("AdaEditor.NewFile.Back")
                     Spacer()
                     dialogButton(title: "Cancel", isPrimary: false) {
                         EditorNewFileDialogActions.cancel(viewModel: viewModel, dismiss: dismiss)
@@ -98,7 +144,7 @@ struct EditorNewFileDialog: View {
                 .padding(.top, 18)
             }
             .padding(22)
-            .frame(width: 440)
+            .frame(maxWidth: 440)
             .background(
                 RoundedRectangleShape(cornerRadius: 12)
                     .fill(theme.editorColors.surfaceElevated)
@@ -109,41 +155,6 @@ struct EditorNewFileDialog: View {
             }
             .accessibilityIdentifier("AdaEditor.NewFile.Dialog")
         }
-    }
-
-    private func fileKindRow(_ kind: EditorNewFileKind) -> some View {
-        let isSelected = viewModel.newFileKind == kind
-        return Button(action: {
-            viewModel.newFileKind = kind
-            viewModel.newFileErrorMessage = nil
-        }) {
-            HStack(spacing: 10) {
-                Text(fileKindIcon(kind))
-                    .font(.system(size: 12))
-                    .foregroundColor(kind == .scene ? theme.editorColors.purple : theme.editorColors.blue)
-                    .frame(width: 20)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(kind.title)
-                        .font(.system(size: 12))
-                        .foregroundColor(theme.editorColors.text)
-                    Text(kind.detail)
-                        .font(.system(size: 10))
-                        .foregroundColor(theme.editorColors.muted)
-                }
-                Spacer()
-                Text(".\(kind.fileExtension)")
-                    .font(.system(size: 10))
-                    .foregroundColor(theme.editorColors.muted)
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 48)
-            .background(
-                RoundedRectangleShape(cornerRadius: 5)
-                    .fill(isSelected ? theme.editorColors.blue.opacity(0.22) : Color.clear)
-            )
-        }
-        .buttonStyle(DefaultButtonStyle())
-        .accessibilityIdentifier("AdaEditor.NewFile.Kind.\(kind.rawValue)")
     }
 
     private func dialogButton(title: String, isPrimary: Bool, action: @escaping () -> Void) -> some View {
@@ -160,18 +171,6 @@ struct EditorNewFileDialog: View {
                 RoundedRectangleShape(cornerRadius: 6)
                     .stroke(isPrimary ? theme.editorColors.blue.opacity(0.72) : theme.editorColors.border, lineWidth: 1)
             }
-    }
-
-    private func fileKindIcon(_ kind: EditorNewFileKind) -> String {
-        switch kind {
-        case .uiScene: "UI"
-        case .scene:
-            "#"
-        case .script, .swift:
-            "<>"
-        case .plainText:
-            "="
-        }
     }
 }
 

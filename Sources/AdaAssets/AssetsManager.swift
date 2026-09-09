@@ -102,7 +102,7 @@ public struct AssetsManager: Resource {
         at path: String,
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
-        let span = AdaTrace.startSpan("Assets.load.\(String(reflecting: A.self))")
+        let span = AdaTrace.startSpan(lazyName: "Assets.load.\(String(reflecting: A.self))")
         defer {
             span.end()
         }
@@ -198,7 +198,7 @@ public struct AssetsManager: Resource {
         from bundle: Bundle,
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
-        let span = AdaTrace.startSpan("Assets.load.\(String(reflecting: A.self))")
+        let span = AdaTrace.startSpan(lazyName: "Assets.load.\(String(reflecting: A.self))")
         defer {
             span.end()
         }
@@ -293,7 +293,7 @@ public struct AssetsManager: Resource {
         at path: String,
         name: String
     ) async throws {
-        try await AdaTrace.span("Assets.save.\(String(reflecting: R.self))") {
+        try await AdaTrace.span(lazyName: "Assets.save.\(String(reflecting: R.self))") {
             let fileSystem = FileSystem.current
             var processedPath = self.processPath(path)
 

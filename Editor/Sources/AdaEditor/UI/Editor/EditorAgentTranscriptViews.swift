@@ -6,34 +6,69 @@ struct EditorAgentEventCard: View {
 
     @Environment(\.theme) private var theme
 
+    @State private var isExpanded = false
+
+    private var isUser: Bool { event.message?.role == .user }
+    private var isCollapsible: Bool {
+        event.kind == .runStatus || event.toolCall != nil
+            || event.message?.segments.allSatisfy { $0.kind == .thinking } == true
+    }
+
     var body: some View {
+        HStack(spacing: 0) {
+            if isUser { Spacer(minLength: 40) }
+            cardContent
+        }
+        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        .accessibilityIdentifier("AdaEditor.Agent.Event.\(event.id)")
+    }
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: 5) {
-            if let toolCall = event.toolCall {
-                toolCallView(toolCall)
-            } else if let permission = event.permission {
-                permissionView(permission)
-            } else {
-                Text(eventTitle)
-                    .font(.system(size: 10))
+            if isCollapsible {
+                Button(action: { isExpanded.toggle() }) {
+                    HStack(spacing: 5) {
+                        Text(isExpanded ? "\u{E5CF}" : "\u{E5CC}")
+                            .font(AdaEditorMaterialSymbolFont.font(size: 15))
+                        Text(event.message == nil ? eventTitle : "Thinking")
+                            .font(.system(size: 10, weight: .semibold))
+                            .lineLimit(1)
+                        Spacer()
+                    }
                     .foregroundColor(eventColor)
-            }
-            if let message = event.message {
-                ForEach(Array(message.segments.enumerated()), id: \.offset) { _, segment in
-                    segmentView(segment)
+                    .frame(height: 24)
                 }
-            } else if event.toolCall == nil, event.permission == nil, let details = event.details {
-                Text(details)
-                    .font(.system(size: 10))
-                    .foregroundColor(theme.editorColors.muted)
-                    .lineLimit(8)
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.Agent.ToggleEvent.\(event.id)")
+            }
+            if !isCollapsible || isExpanded {
+                eventContent
             }
         }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangleShape(cornerRadius: 6).fill(eventBackground))
-        .overlay {
-            RoundedRectangleShape(cornerRadius: 6)
-                .stroke(theme.editorColors.border.opacity(0.35), lineWidth: 1)
+        .padding(isUser || isCollapsible ? 8 : 0)
+        .background(RoundedRectangleShape(cornerRadius: 8).fill(eventBackground))
+        .accessibilityIdentifier("AdaEditor.Agent.EventContent.\(event.id)")
+    }
+
+    @ViewBuilder
+    private var eventContent: some View {
+        if let toolCall = event.toolCall {
+            toolCallView(toolCall)
+        } else if let permission = event.permission {
+            permissionView(permission)
+        } else if event.message == nil && !isCollapsible {
+            Text(eventTitle)
+                .font(.system(size: 10))
+                .foregroundColor(eventColor)
+        }
+        if let message = event.message {
+            ForEach(Array(message.segments.enumerated()), id: \.offset) { _, segment in
+                segmentView(segment)
+            }
+        } else if event.toolCall == nil, event.permission == nil, let details = event.details {
+            Text(details)
+                .font(.system(size: 10))
+                .foregroundColor(theme.editorColors.muted)
         }
     }
 
@@ -189,7 +224,7 @@ struct EditorAgentEventCard: View {
     }
 
     private var eventBackground: Color {
-        event.message?.role == .user ? theme.editorColors.blue.opacity(0.10) : theme.editorColors.surface
+        isUser ? theme.editorColors.blue.opacity(0.14) : (isCollapsible ? theme.editorColors.surface : .clear)
     }
 
     private func toolStatusTitle(_ status: EditorAgentToolStatus?) -> String {

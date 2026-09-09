@@ -122,12 +122,8 @@ enum ShaderCache {
             return nil
         }
         
-        let path = fileURL.prepareCachePath
-        
         do {
-            let cacheFile = try self.getCacheDirectory()
-                .appending(path: path, directoryHint: .isDirectory)
-                .appendingPathExtension("cache-\(stage.rawValue)-\(version).spv")
+            let cacheFile = try spirvCacheFile(for: fileURL, stage: stage, version: version)
             guard let data = fileSystem.readFile(at: cacheFile) else {
                 return nil
             }
@@ -154,20 +150,20 @@ enum ShaderCache {
             throw CompileError.failed("Source file URL not found")
         }
         
-        let path = fileURL.prepareCachePath
-        
-        let cacheDir = try self.getCacheDirectory()
-        
-        let cacheURL = cacheDir
-            .appending(path: path, directoryHint: .isDirectory)
+        let cacheFile = try spirvCacheFile(for: fileURL, stage: stage, version: version)
+        let cacheURL = cacheFile.deletingLastPathComponent()
 
         if !fileSystem.itemExists(at: cacheURL) {
             try fileSystem.createDirectory(at: cacheURL, withIntermediateDirectories: true)
         }
             
-        let cacheFile = cacheURL
-            .appending(path: "cache-\(stage.rawValue)-\(version).spv", directoryHint: .notDirectory)
         _ = fileSystem.createFile(at: cacheFile, contents: spirvBin.data)
+    }
+
+    static func spirvCacheFile(for fileURL: URL, stage: ShaderStage, version: Int) throws -> URL {
+        try getCacheDirectory()
+            .appending(path: fileURL.prepareCachePath, directoryHint: .isDirectory)
+            .appending(path: "cache-\(stage.rawValue)-\(version).spv", directoryHint: .notDirectory)
     }
     
     // MARK: - Save/Load Reflection

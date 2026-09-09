@@ -280,10 +280,11 @@ public struct Scheduler: Sendable {
         var executor = self.graphExecutor
         let graph = self.systemGraph
 
-        let span = AdaTrace.startSpan("Scheduler.run.\(name.rawValue)")
-        span.attributes["ada.profile.category"] = "scheduler"
-        span.attributes["ada.scheduler.name"] = name.rawValue
-        span.attributes["ada.world.name"] = world.name ?? "UnknownWorld"
+        let span = AdaTrace.startSpan(lazyName: "Scheduler.run.\(name.rawValue)", attributes: [
+            "ada.profile.category": "scheduler",
+            "ada.scheduler.name": .string(name.rawValue),
+            "ada.world.name": .string(world.name ?? "UnknownWorld")
+        ])
         defer {
             span.end()
         }
