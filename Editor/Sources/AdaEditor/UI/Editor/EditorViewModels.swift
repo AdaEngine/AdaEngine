@@ -124,6 +124,7 @@ enum EditorSourceLanguage: String, Sendable {
     case c
     case cpp
     case glsl
+    case wgsl
     case json
     case markdown
     case metal
@@ -147,8 +148,10 @@ enum EditorSourceLanguage: String, Sendable {
             return .c
         case "cc", "cpp", "cxx", "hpp", "hxx":
             return .cpp
-        case "frag", "glsl", "shader", "vert":
+        case "comp", "frag", "geom", "glsl", "shader", "tesc", "tese", "vert":
             return .glsl
+        case "wgsl":
+            return .wgsl
         case "json":
             return .json
         case "md", "markdown":

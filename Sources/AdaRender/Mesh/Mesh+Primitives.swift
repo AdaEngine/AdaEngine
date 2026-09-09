@@ -6,6 +6,75 @@
 import Math
 
 public extension Mesh {
+    /// Generates a cube with separate vertices and outward normals for each face.
+    static func generateCube(size: Vector3 = .one, renderDevice: RenderDevice) -> Mesh {
+        precondition(size.x > 0 && size.y > 0 && size.z > 0)
+        let faces: [(Vector3, Vector3, Vector3)] = [
+            ([1, 0, 0], [0, 0, -1], [0, 1, 0]),
+            ([-1, 0, 0], [0, 0, 1], [0, 1, 0]),
+            ([0, 1, 0], [1, 0, 0], [0, 0, -1]),
+            ([0, -1, 0], [1, 0, 0], [0, 0, 1]),
+            ([0, 0, 1], [1, 0, 0], [0, 1, 0]),
+            ([0, 0, -1], [-1, 0, 0], [0, 1, 0])
+        ]
+        let corners: [Vector2] = [[-1, -1], [1, -1], [1, 1], [-1, 1]]
+        var positions: [Vector3] = []
+        var normals: [Vector3] = []
+        var uvs: [Vector2] = []
+        var indices: [UInt32] = []
+        for (normal, horizontal, vertical) in faces {
+            let start = UInt32(positions.count)
+            for corner in corners {
+                let point = normal + horizontal * corner.x + vertical * corner.y
+                positions.append(Vector3(point.x * size.x / 2, point.y * size.y / 2, point.z * size.z / 2))
+                normals.append(normal)
+                uvs.append(Vector2((corner.x + 1) / 2, (1 - corner.y) / 2))
+            }
+            indices += [start, start + 1, start + 2, start + 2, start + 3, start]
+        }
+        var descriptor = MeshDescriptor(name: "Cube")
+        descriptor.positions = MeshBuffer(positions)
+        descriptor.normals = MeshBuffer(normals)
+        descriptor.textureCoordinates = MeshBuffer(uvs)
+        descriptor.indicies = indices
+        return generate(from: [descriptor], renderDevice: renderDevice)
+    }
+
+    /// Generates a filled circle in the XY plane facing positive Z.
+    static func generateCircle(radius: Float = 0.5, segments: Int = 64, renderDevice: RenderDevice) -> Mesh {
+        precondition(radius > 0 && segments >= 3)
+        var positions: [Vector3] = [.zero]
+        var uvs: [Vector2] = [[0.5, 0.5]]
+        var indices: [UInt32] = []
+        for index in 0...segments {
+            let angle = Float(index) / Float(segments) * 2 * Float.pi
+            let x = Math.cos(angle)
+            let y = Math.sin(angle)
+            positions.append(Vector3(x * radius, y * radius, 0))
+            uvs.append(Vector2((x + 1) / 2, (1 - y) / 2))
+            if index < segments { indices += [0, UInt32(index + 1), UInt32(index + 2)] }
+        }
+        var descriptor = MeshDescriptor(name: "Circle")
+        descriptor.positions = MeshBuffer(positions)
+        descriptor.normals = MeshBuffer(Array(repeating: Vector3(0, 0, 1), count: positions.count))
+        descriptor.textureCoordinates = MeshBuffer(uvs)
+        descriptor.indicies = indices
+        return generate(from: [descriptor], renderDevice: renderDevice)
+    }
+
+    /// Generates a horizontal plane facing positive Y.
+    static func generatePlane(size: Vector2 = .one, renderDevice: RenderDevice) -> Mesh {
+        precondition(size.x > 0 && size.y > 0)
+        let x = size.x / 2
+        let z = size.y / 2
+        var descriptor = MeshDescriptor(name: "Plane")
+        descriptor.positions = [[-x, 0, -z], [-x, 0, z], [x, 0, z], [x, 0, -z]]
+        descriptor.normals = [[0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 1, 0]]
+        descriptor.textureCoordinates = [[0, 1], [1, 1], [1, 0], [0, 0]]
+        descriptor.indicies = [0, 1, 2, 2, 3, 0]
+        return generate(from: [descriptor], renderDevice: renderDevice)
+    }
+
     /// Generates a UV sphere suitable for lit and textured 3D materials.
     static func generateSphere(
         radius: Float = 0.5,

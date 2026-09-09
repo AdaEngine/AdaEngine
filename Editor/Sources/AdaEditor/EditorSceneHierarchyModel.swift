@@ -189,7 +189,7 @@ private extension EditorSceneHierarchyModel {
                     resources: &resources
                 )
             }
-        case .bool, .double, .int, .null:
+        case .bool, .double, .int, .uint, .null:
             break
         }
     }

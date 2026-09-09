@@ -13,7 +13,7 @@ enum ProjectOpeningLayout {
     static let detailUsesSearchable = false
     static let windowWidth: Float = 1024
     static let windowHeight: Float = 700
-    static let sidebarWidth: Float = 68
+    static let sidebarWidth: Float = 80
     static let explorerWidth: Float = 320
     static let detailWidth: Float = windowWidth - sidebarWidth - explorerWidth
     static let detailPadding: Float = 32
@@ -31,7 +31,6 @@ enum ProjectOpeningLayout {
     static let trafficLightOffsetY: Float = 8
     static let logoTopPadding: Float = 58
     static let explorerTopPadding: Float = 56
-    static let landingTopPadding: Float = 62
     static let textFieldBackgroundAlpha: Float = 0.11
     static let textFieldFocusedBorderAlpha: Float = 0.24
 
@@ -58,6 +57,8 @@ enum ProjectOpeningAccessibility {
     static let createHeader = "AdaEditor.Launcher.CreateHeader"
     static let createDescription = "AdaEditor.Launcher.CreateDescription"
     static let projectType = "AdaEditor.Launcher.ProjectType"
+    static let landingContent = "AdaEditor.Launcher.LandingContent"
+    static let gitToggle = "AdaEditor.Launcher.GitToggle"
     static let createActions = "AdaEditor.Launcher.CreateActions"
 }
 
@@ -73,14 +74,19 @@ enum ProjectOpeningLandingSpec {
 struct ProjectOpeningView: View {
     let autoOpenLastProject: Bool
     let initiallyCreatingProject: Bool
-    @State private var viewModel = ProjectOpeningViewModel()
+    @State private var viewModel: ProjectOpeningViewModel
     @State private var didAttemptAutoOpenLastProject = false
     @State private var presentedSettingsSection: EditorSettingsSection?
     private let logoImage = ProjectOpeningAssets.loadAdaEngineLogo()
 
-    init(autoOpenLastProject: Bool = true, initiallyCreatingProject: Bool = false) {
+    init(
+        autoOpenLastProject: Bool = true,
+        initiallyCreatingProject: Bool = false,
+        viewModel: ProjectOpeningViewModel = ProjectOpeningViewModel()
+    ) {
         self.autoOpenLastProject = autoOpenLastProject
         self.initiallyCreatingProject = initiallyCreatingProject
+        self._viewModel = State(wrappedValue: viewModel)
     }
 
     var body: some View {
@@ -106,6 +112,12 @@ struct ProjectOpeningView: View {
             alignment: .topLeading
         )
         .background(LauncherColor.window)
+        .fullScreenCover(isPresented: Binding(
+            get: { viewModel.projectBeingRenamed != nil },
+            set: { if !$0 { viewModel.cancelRenamingProject() } }
+        )) {
+            ProjectOpeningRenameDialog(viewModel: viewModel)
+        }
         #if os(iOS)
         .fullScreenCover(item: $presentedSettingsSection) { section in
             EditorSettingsWindowView(
@@ -153,6 +165,16 @@ struct ProjectOpeningView: View {
                 openLastProjectOnLaunchIfNeeded()
             }
         }
+        .task {
+            while !Task.isCancelled {
+                await viewModel.refreshProjectAvailability()
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    return
+                }
+            }
+        }
         .onDisappear {
             EditorProjectOpenURLRouter.shared.detach(viewModel)
             EditorMenuCommandRouter.shared.uninstall(owner: viewModel)
@@ -175,6 +197,7 @@ struct ProjectOpeningView: View {
             if let logoImage {
                 logoImage
                     .resizable()
+                    .scaledToFit()
                     .frame(width: 38, height: 38)
                     .padding(.top, ProjectOpeningLayout.logoTopPadding)
                     .padding(.bottom, 4)
@@ -195,8 +218,8 @@ struct ProjectOpeningView: View {
             LauncherSidebarTooltipButton("Settings") {
                 presentSettings(.general)
             } label: {
-                Text("⚙")
-                    .font(.system(size: 20))
+                Text("\u{E8B8}")
+                    .font(AdaEditorMaterialSymbolFont.font(size: 20))
                     .foregroundColor(LauncherColor.muted)
                     .frame(width: 54, height: 36)
             }
@@ -250,11 +273,17 @@ struct ProjectOpeningView: View {
                 .padding(.bottom, ProjectOpeningLayout.searchBottomPadding)
 
             launcherListHeader("Recent Projects")
+            if let error = viewModel.recentProjectError, viewModel.projectBeingRenamed == nil {
+                Text(error)
+                    .font(.system(size: 11))
+                    .foregroundColor(LauncherColor.accentOrange)
+                    .padding(.horizontal, 20)
+            }
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(viewModel.filteredRecentProjects) { project in
-                        projectRow(project)
+                        ProjectOpeningRecentProjectRow(project: project, viewModel: viewModel)
                     }
 
                     if viewModel.filteredRecentProjects.isEmpty {
@@ -270,11 +299,12 @@ struct ProjectOpeningView: View {
             .frame(minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
             .layoutPriority(1)
 
+            LauncherColor.glassBorder.frame(height: 1)
             launcherListHeader("Open")
             templateRow(
                 title: "Open Existing Package",
                 subtitle: viewModel.existingProjectPathDisplayText,
-                badge: "SPM",
+                badge: nil,
                 isActive: false,
                 action: openProjectPicker
             )
@@ -329,7 +359,7 @@ struct ProjectOpeningView: View {
     private func templateRow(
         title: String,
         subtitle: String,
-        badge: String,
+        badge: String?,
         isActive: Bool,
         action: @escaping () -> Void
     ) -> some View {
@@ -341,9 +371,11 @@ struct ProjectOpeningView: View {
                         .foregroundColor(.white)
                         .lineLimit(1)
                     Spacer()
-                    Text(badge)
-                        .font(.system(size: 9))
-                        .foregroundColor(LauncherColor.accentOrange)
+                    if let badge {
+                        Text(badge)
+                            .font(.system(size: 9))
+                            .foregroundColor(LauncherColor.accentOrange)
+                    }
                 }
                 Text(subtitle)
                     .font(.system(size: 11))
@@ -359,8 +391,9 @@ struct ProjectOpeningView: View {
 
     private var searchCapsule: some View {
         HStack(alignment: .center, spacing: 10) {
-            Text("⌕")
-                .font(.system(size: 15))
+            Text("\u{E8B6}")
+                .font(AdaEditorMaterialSymbolFont.font(size: 18))
+                .frame(width: 18, height: 18)
                 .foregroundColor(.white.opacity(0.72))
             TextField("Search projects...", text: viewModel.searchQueryBinding)
                 .font(.system(size: 13))
@@ -445,7 +478,7 @@ struct ProjectOpeningView: View {
                     .font(.system(size: 10))
                     .foregroundColor(LauncherColor.accentViolet)
 
-                Text("New Ada Project")
+                Text("New Project")
                     .font(.system(size: 36))
                     .foregroundColor(.white)
                     .lineLimit(1)
@@ -464,10 +497,11 @@ struct ProjectOpeningView: View {
 
             VStack(alignment: .leading, spacing: 18) {
                 createFormField(title: "Project Type") {
-                    HStack(alignment: .center, spacing: 10) {
-                        projectTypeButton(.adaScript)
-                        projectTypeButton(.adaScriptWithSwift)
-                    }
+                    EditorEnumField(
+                        cases: EditorProjectTemplate.allCases.map(\.displayName),
+                        selection: viewModel.projectTemplateBinding
+                    )
+                    .theme(.adaEditor)
                 }
                 .accessibilityIdentifier(ProjectOpeningAccessibility.projectType)
 
@@ -514,17 +548,7 @@ struct ProjectOpeningView: View {
                 }
 
                 createFormField(title: "Version control") {
-                    Button {
-                        viewModel.shouldCreateGitRepositoryBinding.wrappedValue.toggle()
-                    } label: {
-                        HStack(spacing: 8) {
-                            Text(viewModel.shouldCreateGitRepositoryBinding.wrappedValue ? "☑" : "☐")
-                                .foregroundColor(LauncherColor.accentViolet)
-                            Text("Create GIT repository")
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .buttonStyle(LauncherInlineButtonStyle())
+                    gitRepositoryToggle
                 }
             }
             .padding(.top, 28)
@@ -570,6 +594,26 @@ struct ProjectOpeningView: View {
             alignment: .topLeading
         )
         .background(LauncherColor.window)
+    }
+
+    private var gitRepositoryToggle: some View {
+        Button {
+            viewModel.shouldCreateGitRepositoryBinding.wrappedValue.toggle()
+        } label: {
+            HStack(spacing: 8) {
+                CircleShape()
+                    .fill(Color.white)
+                    .frame(width: 16, height: 16)
+                    .frame(width: 32, height: 20, alignment: viewModel.shouldCreateGitRepository ? .trailing : .leading)
+                    .padding(.horizontal, 2)
+                    .background(CapsuleShape().fill(viewModel.shouldCreateGitRepository ? LauncherColor.accentViolet : LauncherColor.muted.opacity(0.35)))
+                Text("Create GIT repository")
+                    .font(.system(size: 13))
+                    .foregroundColor(.white)
+            }
+        }
+        .buttonStyle(LauncherInlineButtonStyle())
+        .accessibilityIdentifier(ProjectOpeningAccessibility.gitToggle)
     }
 
     private var statusAndDiagnostics: some View {
@@ -620,101 +664,82 @@ struct ProjectOpeningView: View {
         }
     }
 
-    private func projectTypeButton(_ template: EditorProjectTemplate) -> some View {
-        let isActive = viewModel.selectedTemplate == template
-        return Button {
-            viewModel.selectedTemplate = template
-        } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(template.displayName)
-                    .font(.system(size: 13))
-                    .foregroundColor(.white)
-                Text(template == .adaScript ? "Script-first" : "Hybrid")
-                    .font(.system(size: 10))
-                    .foregroundColor(LauncherColor.muted)
-            }
-            .padding(.leading, 12)
-            .padding(.trailing, 12)
-            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 52, maxHeight: 52, alignment: .leading)
-            .background(RoundedRectangleShape(cornerRadius: 10).fill(isActive ? LauncherColor.accentViolet.opacity(0.18) : LauncherColor.input))
-            .overlay {
-                RoundedRectangleShape(cornerRadius: 10).stroke(isActive ? LauncherColor.accentViolet : LauncherColor.inputBorder, lineWidth: 1)
-            }
-        }
-        .buttonStyle(LauncherPlainButtonStyle(active: false))
-    }
-
     private var emptyProjectLanding: some View {
-        VStack(alignment: .center, spacing: 0) {
-            if let logoImage {
-                logoImage
-                    .resizable()
-                    .frame(width: ProjectOpeningLandingSpec.logoSize, height: ProjectOpeningLandingSpec.logoSize)
-                    .padding(.bottom, 20)
-            } else {
-                Text("A")
-                    .font(.system(size: 64))
+        ZStack {
+            VStack(alignment: .center, spacing: 0) {
+                if let logoImage {
+                    logoImage
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: ProjectOpeningLandingSpec.logoSize, height: ProjectOpeningLandingSpec.logoSize)
+                        .padding(.bottom, 20)
+                } else {
+                    Text("A")
+                        .font(.system(size: 64))
+                        .foregroundColor(.white)
+                        .frame(width: ProjectOpeningLandingSpec.logoSize, height: ProjectOpeningLandingSpec.logoSize)
+                        .background(RoundedRectangleShape(cornerRadius: 28).fill(LauncherColor.glassSurface))
+                        .overlay {
+                            RoundedRectangleShape(cornerRadius: 28).stroke(LauncherColor.glassBorder, lineWidth: 1)
+                        }
+                        .padding(.bottom, 20)
+                }
+
+                Text("AdaEngine")
+                    .font(.system(size: 26))
                     .foregroundColor(.white)
-                    .frame(width: ProjectOpeningLandingSpec.logoSize, height: ProjectOpeningLandingSpec.logoSize)
-                    .background(RoundedRectangleShape(cornerRadius: 28).fill(LauncherColor.glassSurface))
-                    .overlay {
-                        RoundedRectangleShape(cornerRadius: 28).stroke(LauncherColor.glassBorder, lineWidth: 1)
+
+                Text("Create a new game project or continue with an existing package.")
+                    .font(.system(size: 12))
+                    .foregroundColor(LauncherColor.muted)
+                    .padding(.top, 6)
+                    .padding(.bottom, 26)
+
+                VStack(alignment: .center, spacing: 14) {
+                    Button {
+                        viewModel.beginCreateNewProject()
+                    } label: {
+                        Text(ProjectOpeningLandingSpec.primaryButtonTitles[0])
                     }
-                    .padding(.bottom, 20)
+                    .accessibilityIdentifier(ProjectOpeningAccessibility.createProject)
+
+                    Button {
+                        openProjectPicker()
+                    } label: {
+                        Text(ProjectOpeningLandingSpec.primaryButtonTitles[1])
+                    }
+                }
+                .buttonStyle(LauncherGlassButtonStyle())
             }
+            .accessibilityIdentifier(ProjectOpeningAccessibility.landingContent)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            Text("AdaEngine")
-                .font(.system(size: 26))
-                .foregroundColor(.white)
+            VStack(spacing: 0) {
+                Spacer()
+                HStack(alignment: .center, spacing: 10) {
+                    EditorDocumentationButton()
+                    Button {
+                        viewModel.statusMessage = "Issue reporting will open from AdaEditor soon."
+                    } label: {
+                        Text(ProjectOpeningLandingSpec.footerButtonTitles[0])
+                    }
 
-            Text("Create a new game project or continue with an existing package.")
-                .font(.system(size: 12))
-                .foregroundColor(LauncherColor.muted)
-                .padding(.top, 6)
-                .padding(.bottom, 26)
+                    Button {
+                        viewModel.statusMessage = "Support links will open from AdaEditor soon."
+                    } label: {
+                        Text(ProjectOpeningLandingSpec.footerButtonTitles[1])
+                    }
 
-            VStack(alignment: .center, spacing: 14) {
-                Button {
-                    viewModel.beginCreateNewProject()
-                } label: {
-                    Text(ProjectOpeningLandingSpec.primaryButtonTitles[0])
+                    Button {
+                        viewModel.statusMessage = "GitHub link will open from AdaEditor soon."
+                    } label: {
+                        Text(ProjectOpeningLandingSpec.footerButtonTitles[2])
+                    }
                 }
-                .accessibilityIdentifier(ProjectOpeningAccessibility.createProject)
-
-                Button {
-                    openProjectPicker()
-                } label: {
-                    Text(ProjectOpeningLandingSpec.primaryButtonTitles[1])
-                }
+                .buttonStyle(LauncherGrayButtonStyle())
+                .padding(.bottom, 24)
             }
-            .buttonStyle(LauncherGlassButtonStyle())
-
-            Spacer()
-
-            HStack(alignment: .center, spacing: 10) {
-                EditorDocumentationButton()
-                Button {
-                    viewModel.statusMessage = "Issue reporting will open from AdaEditor soon."
-                } label: {
-                    Text(ProjectOpeningLandingSpec.footerButtonTitles[0])
-                }
-
-                Button {
-                    viewModel.statusMessage = "Support links will open from AdaEditor soon."
-                } label: {
-                    Text(ProjectOpeningLandingSpec.footerButtonTitles[1])
-                }
-
-                Button {
-                    viewModel.statusMessage = "GitHub link will open from AdaEditor soon."
-                } label: {
-                    Text(ProjectOpeningLandingSpec.footerButtonTitles[2])
-                }
-            }
-            .buttonStyle(LauncherGrayButtonStyle())
-            .padding(.bottom, 24)
         }
-        .padding(.top, ProjectOpeningLayout.landingTopPadding)
         .frame(
             minWidth: 0,
             maxWidth: .infinity,
@@ -745,8 +770,8 @@ struct ProjectOpeningView: View {
         return LauncherSidebarTooltipButton(section.title) {
             viewModel.selectSection(section)
         } label: {
-            Text(section.title)
-                .font(.system(size: 9))
+            Text(section.icon)
+                .font(AdaEditorMaterialSymbolFont.font(size: 22))
                 .foregroundColor(isActive ? .white : LauncherColor.muted)
                 .frame(width: 58, height: 34)
                 .background(RoundedRectangleShape(cornerRadius: 9).fill(isActive ? LauncherColor.glassSurface : .clear))
@@ -762,43 +787,6 @@ struct ProjectOpeningView: View {
             .padding(.leading, 20)
             .padding(.top, 10)
             .padding(.bottom, 10)
-    }
-
-    private func projectRow(_ project: EditorProjectReference) -> some View {
-        let isActive = viewModel.detailProject?.path == project.path
-
-        return Button {
-            viewModel.openRecentProject(project)
-        } label: {
-            ZStack(anchor: .leading) {
-                if isActive {
-                    LauncherColor.accentViolet
-                        .frame(width: 2, height: 58)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .center, spacing: 8) {
-                        Text(project.name)
-                            .font(.system(size: 14))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                        Spacer()
-                        Text("SPM")
-                            .font(.system(size: 9))
-                            .foregroundColor(LauncherColor.accentOrange)
-                    }
-
-                    Text(viewModel.abbreviatedPath(for: project))
-                        .font(.system(size: 11))
-                        .foregroundColor(LauncherColor.muted)
-                        .lineLimit(1)
-                }
-                .padding(.leading, 20)
-                .padding(.trailing, 20)
-                .frame(width: ProjectOpeningLayout.explorerWidth, height: 58, alignment: .leading)
-            }
-        }
-        .buttonStyle(LauncherPlainButtonStyle(active: isActive))
     }
 
     private func detailsList(_ project: EditorProjectReference?) -> some View {
@@ -835,7 +823,7 @@ struct ProjectOpeningView: View {
     }
 }
 
-private struct LauncherPlainButtonStyle: ButtonStyle {
+struct LauncherPlainButtonStyle: ButtonStyle {
     let active: Bool
 
     func makeBody(configuration: Configuration) -> some View {

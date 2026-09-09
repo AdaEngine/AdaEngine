@@ -20,7 +20,7 @@ struct EditorSceneViewportControls: View {
                 controlsPill
                 Spacer()
             }
-            .padding(.top, 12)
+            .padding(.top, 24)
             Spacer()
         }
         .frame(width: size.width, height: size.height)

@@ -59,6 +59,7 @@ func adaEditorStripButton(
 
 enum AdaEditorMaterialSymbolFont {
     static let codepoints: [UInt32] = [
+        0xE7F4,
         0xE001,
         0xE034,
         0xE037,
@@ -97,6 +98,7 @@ enum AdaEditorMaterialSymbolFont {
         0xE873,
         0xE87B,
         0xE88E,
+        0xE897,
         0xE89F,
         0xE8B6,
         0xE8B8,
@@ -107,6 +109,7 @@ enum AdaEditorMaterialSymbolFont {
         0xE8FF,
         0xE913,
         0xE97A,
+        0xEA23,
         0xEB82,
         0xEB8E,
         0xEF42,

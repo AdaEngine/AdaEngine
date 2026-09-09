@@ -472,6 +472,8 @@ final class TextEditorViewNode: ViewNode {
                 )
             }
 
+            self.drawSelectionHint(in: &clippedContext)
+
             if self.isFocused, self.caretVisible, !self.hasSelection {
                 let caretLineText = lines.indices.contains(caretPosition.line) ? lines[caretPosition.line].text : ""
                 let caretX = textRect.minX + self.caretXOffset(forColumn: caretPosition.column, in: caretLineText, font: resolvedFont, pointSize: pointSize)

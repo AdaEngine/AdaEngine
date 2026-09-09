@@ -162,6 +162,12 @@ struct EditorInspectorSidebar: View {
             }
             if field.typeName == EditorBuiltInComponentType.uiComponent, field.field.key == "scriptBindings" {
                 scriptUIBindingsEditor(field)
+            } else if [EditorBuiltInComponentType.physicsBody2D, EditorBuiltInComponentType.physicsBody3D].contains(field.typeName), field.field.key == "shapes" {
+                EditorPhysicsShapesField(
+                    text: viewModel.componentFieldBinding(typeName: field.typeName, field: field.field),
+                    is3D: field.typeName == EditorBuiltInComponentType.physicsBody3D
+                )
+                    .id(viewModel.selectedEntity?.editorID)
             } else {
                 fieldControl(
                     fieldID: "\(field.typeName).\(field.field.key)",
@@ -192,11 +198,12 @@ struct EditorInspectorSidebar: View {
         axisBinding: @escaping (Int) -> Binding<String>
     ) -> some View {
         if let axes = axisLabels(for: kind) {
-            vectorField(axes: axes, value: value, isEditable: isEditable, axisBinding: axisBinding)
+            vectorField(fieldID: fieldID, axes: axes, value: value, isEditable: isEditable, axisBinding: axisBinding)
         } else if case .bool = kind, isEditable {
             boolField(text: scalarBinding)
+                .accessibilityIdentifier("AdaEditor.Inspector.Bool.\(fieldID)")
         } else if case .enumeration(let cases) = kind, isEditable {
-            enumField(cases: cases, text: scalarBinding)
+            EditorEnumField(cases: cases, selection: scalarBinding, accessibilityID: "AdaEditor.Inspector.Enum.\(fieldID)")
         } else if case .color = kind, isEditable {
             colorField(fieldID: fieldID, value: value, text: scalarBinding)
         } else if case .assetReference = kind, isEditable {
@@ -211,6 +218,7 @@ struct EditorInspectorSidebar: View {
     }
     
     private func vectorField(
+        fieldID: String,
         axes: [String],
         value: String,
         isEditable: Bool,
@@ -224,6 +232,7 @@ struct EditorInspectorSidebar: View {
                     isEditable: isEditable,
                     text: axisBinding(index)
                 )
+                .accessibilityIdentifier("AdaEditor.Inspector.Axis.\(fieldID).\(axes[index])")
             }
         }
         .frame(height: 32)
@@ -283,7 +292,7 @@ struct EditorInspectorSidebar: View {
     private func boolField(text: Binding<String>) -> some View {
         let isOn = text.wrappedValue == "true"
         return Button(action: {
-            text.wrappedValue = isOn ? "false" : "true"
+            text.wrappedValue = text.wrappedValue == "true" ? "false" : "true"
         }) {
             HStack(spacing: 8) {
                 Text(isOn ? "On" : "Off")
@@ -298,6 +307,7 @@ struct EditorInspectorSidebar: View {
                         .fill(Color.white)
                         .frame(width: 12, height: 12)
                         .padding(.horizontal, 2)
+                        .accessibilityIdentifier("AdaEditor.Inspector.ToggleThumb")
                 }
             }
             .padding(.horizontal, 8)
@@ -307,10 +317,6 @@ struct EditorInspectorSidebar: View {
             .overlay { RoundedRectangleShape(cornerRadius: 5).stroke(theme.editorColors.border.opacity(0.92), lineWidth: 1) }
         }
         .buttonStyle(DefaultButtonStyle())
-    }
-
-    private func enumField(cases: [String], text: Binding<String>) -> some View {
-        EditorEnumField(cases: cases, selection: text)
     }
 
     private func readonlyField(_ value: String) -> some View {
@@ -350,13 +356,23 @@ struct EditorInspectorSidebar: View {
     private func gizmoEditor(_ selectedEntity: EditorInspectorSidebarViewModel.SelectedEntity) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if selectedEntity.hasExplicitGizmo {
-                Button(action: { viewModel.toggleGizmoEnabled() }) {
-                    Text((selectedEntity.gizmo?.isEnabled ?? false) ? "Enabled" : "Disabled")
-                        .font(.system(size: 11))
-                        .foregroundColor(theme.editorColors.text)
-                        .padding(.horizontal, 8)
-                        .frame(height: 24)
-                        .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.blue.opacity(0.16)))
+                HStack {
+                    Button(action: { viewModel.toggleGizmoEnabled() }) {
+                        Text((selectedEntity.gizmo?.isEnabled ?? false) ? "Enabled" : "Disabled")
+                            .font(.system(size: 11))
+                            .foregroundColor(theme.editorColors.text)
+                            .padding(.horizontal, 8)
+                            .frame(height: 24)
+                            .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.blue.opacity(0.16)))
+                    }
+                    Spacer()
+                    Button(action: { viewModel.removeComponentRequested(EditorSceneYAMLDocument.editorGizmoComponentName) }) {
+                        Text("\u{E872}")
+                            .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                            .foregroundColor(.red)
+                            .frame(width: 24, height: 24)
+                    }
+                    .accessibilityIdentifier("AdaEditor.Inspector.RemoveGizmo")
                 }
                 .buttonStyle(DefaultButtonStyle())
 
@@ -384,6 +400,7 @@ struct EditorInspectorSidebar: View {
                         .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.blue.opacity(0.12)))
                 }
                 .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.Inspector.AddGizmo")
             }
         }
     }

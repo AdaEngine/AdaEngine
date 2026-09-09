@@ -180,6 +180,7 @@ struct EditorAddComponentDialog: View {
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
                 .textFieldStyle(PlainTextFieldStyle())
+                .frame(minWidth: 0, maxWidth: .infinity)
                 .accessibilityIdentifier("AdaEditor.Inspector.ComponentSearch")
             if !viewModel.componentSearchText.isEmpty {
                 Button(action: { viewModel.componentSearchText = "" }, label: {
@@ -194,11 +195,13 @@ struct EditorAddComponentDialog: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 42)
+        .frame(maxWidth: .infinity)
         .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.background))
         .overlay {
             RoundedRectangleShape(cornerRadius: 8)
                 .stroke(theme.editorColors.border.opacity(0.95), lineWidth: 1)
         }
+        .accessibilityIdentifier("AdaEditor.AddComponent.SearchBar")
     }
 
     @ViewBuilder

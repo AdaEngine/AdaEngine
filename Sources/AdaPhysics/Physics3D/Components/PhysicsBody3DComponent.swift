@@ -10,7 +10,7 @@ import Math
 
 /// A component that defines an entity's behavior in 3D physics simulations.
 @Component
-public struct PhysicsBody3DComponent {
+public struct PhysicsBody3DComponent: Codable {
 
     /// The physics body's mode, indicating how or if it moves.
     public var mode: PhysicsBodyMode
@@ -32,12 +32,17 @@ public struct PhysicsBody3DComponent {
     /// Is this body a sensor?
     public let isTrigger: Bool
 
+    private var initialGravityScale: Float = 1
+    private var initialLinearVelocity: Vector3 = .zero
+    private var initialAngularVelocity: Vector3 = .zero
+
     public var gravityScale: Float {
         get {
-            runtimeBody?.gravityScale ?? 1.0
+            runtimeBody?.gravityScale ?? initialGravityScale
         }
 
         set {
+            initialGravityScale = newValue
             runtimeBody?.gravityScale = newValue
         }
     }
@@ -45,10 +50,11 @@ public struct PhysicsBody3DComponent {
     /// Linear velocity of the center of mass.
     public var linearVelocity: Vector3 {
         get {
-            self.runtimeBody?.getLinearVelocity() ?? .zero
+            self.runtimeBody?.getLinearVelocity() ?? initialLinearVelocity
         }
 
         set {
+            initialLinearVelocity = newValue
             self.runtimeBody?.setLinearVelocity(newValue)
         }
     }
@@ -56,10 +62,11 @@ public struct PhysicsBody3DComponent {
     /// Angular velocity in radians per second.
     public var angularVelocity: Vector3 {
         get {
-            self.runtimeBody?.getAngularVelocity() ?? .zero
+            self.runtimeBody?.getAngularVelocity() ?? initialAngularVelocity
         }
 
         set {
+            initialAngularVelocity = newValue
             self.runtimeBody?.setAngularVelocity(newValue)
         }
     }
@@ -100,6 +107,9 @@ public struct PhysicsBody3DComponent {
         case material
         case massProperties
         case isTrigger
+        case gravityScale
+        case linearVelocity
+        case angularVelocity
     }
 
     public init(from decoder: Decoder) throws {
@@ -109,6 +119,9 @@ public struct PhysicsBody3DComponent {
         self.material = try container.decode(PhysicsMaterial.self, forKey: .material)
         self.massProperties = try container.decode(PhysicsMassProperties.self, forKey: .massProperties)
         self.isTrigger = try container.decode(Bool.self, forKey: .isTrigger)
+        self.initialGravityScale = try container.decodeIfPresent(Float.self, forKey: .gravityScale) ?? 1
+        self.initialLinearVelocity = try container.decodeIfPresent(Vector3.self, forKey: .linearVelocity) ?? .zero
+        self.initialAngularVelocity = try container.decodeIfPresent(Vector3.self, forKey: .angularVelocity) ?? .zero
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -118,6 +131,9 @@ public struct PhysicsBody3DComponent {
         try container.encode(self.material, forKey: .material)
         try container.encode(self.massProperties, forKey: .massProperties)
         try container.encode(self.isTrigger, forKey: .isTrigger)
+        try container.encode(gravityScale, forKey: .gravityScale)
+        try container.encode(linearVelocity, forKey: .linearVelocity)
+        try container.encode(angularVelocity, forKey: .angularVelocity)
     }
 
     // MARK: - Methods

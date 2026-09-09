@@ -1,6 +1,6 @@
 @testable import AdaEditor
 @_spi(AdaEngine) import AdaEngine
-@_spi(Internal) import AdaUI
+@_spi(Internal) @testable import AdaUI
 import Math
 import Testing
 
@@ -81,6 +81,42 @@ struct EditorUIDesignerLayoutTests {
         #expect(zoom < 0.25)
         #expect(8192 * zoom <= layout.canvasWidth)
         #expect(8192 * zoom <= layout.contentHeight)
+    }
+
+    @Test func yamlSourceUsesPaletteAndRefreshesHighlightingAfterEdits() async throws {
+        let document = UISceneDocument(root: .init(type: "Text", arguments: ["text": .init(value: .string("Hello # YAML"))]))
+        let source = try document.encodedYAML() + "# YAML comment\n"
+        let model = EditorUISceneModel(content: source, sourceURL: nil, resourceRoot: nil)
+        model.showsSource = true
+        var palette = EditorCodeColorPalette.dark
+        palette.type = .orange
+        palette.string = .green
+        palette.comment = .blue
+        let container = UIContainerView(rootView: EditorUISceneEditor(model: model, colorPalette: palette))
+        container.frame = Rect(x: 0, y: 0, width: 900, height: 600)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        let editor = try #require(sourceNode(in: container.viewTree.rootNode))
+        #expect(editor.tokenSpans.contains { $0.color == palette.type })
+        #expect(editor.tokenSpans.contains { $0.color == palette.string })
+        #expect(editor.tokenSpans.contains { $0.color == palette.comment })
+        #expect(editor.tokenSpans.contains { $0.color == palette.number })
+        let updated = source.replacingOccurrences(of: "Hello # YAML", with: "Updated # YAML source")
+        editor.textBinding.wrappedValue = updated
+        for _ in 0..<20 {
+            try await Task.sleep(for: .milliseconds(5))
+            container.update(1.0 / 60.0)
+            container.layoutIfNeeded()
+        }
+        #expect(model.rawSource == updated)
+        #expect(sourceNode(in: container.viewTree.rootNode) === editor)
+        #expect(editor.text == updated)
+        #expect(editor.tokenSpans == EditorSyntaxHighlighter.spans(for: updated, language: .yaml, palette: palette))
+    }
+
+    private func sourceNode(in node: ViewNode) -> TextEditorViewNode? {
+        if let editor = node as? TextEditorViewNode { return editor }
+        return node.transientEnvironmentChildren.lazy.compactMap { sourceNode(in: $0) }.first
     }
 
     private func makeContainer(_ model: EditorUISceneModel, size: Size) -> UIContainerView<EditorUISceneEditor> {

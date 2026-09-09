@@ -33,6 +33,9 @@ struct EditorAnimationPanel: View {
             ) {
                 if let clip = viewModel.selectedAnimationClip {
                     viewModel.animationPanel.togglePlayback(duration: clip.duration)
+                    if viewModel.animationPanel.isPlaying, clip.tracks.contains(where: EditorAchievementRules.hasMotion) {
+                        viewModel.workbench.achievements?.record([.animation: 1])
+                    }
                 }
             }
             transportButton(glyph: "\u{E045}", identifier: "AdaEditor.Animator.AddKeyframe") {

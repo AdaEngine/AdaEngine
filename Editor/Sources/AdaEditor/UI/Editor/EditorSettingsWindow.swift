@@ -9,11 +9,17 @@ import Observation
 
 enum EditorSettingsSection: String, CaseIterable, Hashable, Sendable {
     case general
+    case achievements
+    case notifications
     case project
     case agent
 
     var title: String {
         switch self {
+        case .achievements:
+            "Achievements"
+        case .notifications:
+            "Notifications"
         case .general:
             "General"
         case .project:
@@ -25,6 +31,10 @@ enum EditorSettingsSection: String, CaseIterable, Hashable, Sendable {
 
     var icon: String {
         switch self {
+        case .achievements:
+            "\u{EA23}"
+        case .notifications:
+            "\u{E7F4}"
         case .general:
             "\u{E8B8}"
         case .project:
@@ -441,7 +451,7 @@ struct EditorSettingsWindowView: View {
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
                 }
 
-                if viewModel.editorViewModel != nil {
+                if viewModel.editorViewModel != nil, viewModel.selectedSection != .achievements {
                     settingsFooter
                 }
             }
@@ -460,6 +470,11 @@ struct EditorSettingsWindowView: View {
 
     private var navigationBarTrailingContent: some View {
         HStack(spacing: 8) {
+            #if os(macOS)
+            if viewModel.selectedSection == .agent, let editor = viewModel.editorViewModel {
+                EditorAgentCatalogToolbar(agent: editor.agent)
+            }
+            #endif
             Text(viewModel.projectName)
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.muted)
@@ -482,8 +497,16 @@ struct EditorSettingsWindowView: View {
 
     @ViewBuilder
     private var selectedSectionContent: some View {
-        if let editorViewModel = viewModel.editorViewModel {
+        if viewModel.selectedSection == .achievements {
+            EditorAchievementSettings()
+        } else if viewModel.selectedSection == .notifications {
+            EditorNotificationSettings()
+        } else if let editorViewModel = viewModel.editorViewModel {
             switch viewModel.selectedSection {
+            case .achievements:
+                EditorAchievementSettings()
+            case .notifications:
+                EditorNotificationSettings()
             case .general:
                 generalSettings
             case .project:
@@ -628,7 +651,7 @@ struct EditorSettingsWindowView: View {
 
     private func agentSettings(_ editorViewModel: EditorViewModel) -> some View {
         VStack(alignment: .leading, spacing: 24) {
-            EditorAgentCatalogView(agent: editorViewModel.agent)
+            EditorAgentCatalogView(agent: editorViewModel.agent, showsToolbar: false)
             settingsGroup("ACP CONNECTION") {
                 Text("Configure the stdio ACP agent launched for this project.")
                     .font(.system(size: 11))
@@ -658,7 +681,7 @@ struct EditorSettingsWindowView: View {
                     .lineLimit(2)
             }
             settingsGroup("CONTEXT") {
-                settingsInput("Skill folders, comma separated", text: editorViewModel.agent.agentSkillsDirectoriesBinding)
+                EditorAgentSkillDirectoriesView(agent: editorViewModel.agent)
                 Text("Live scene, entity, asset, render and UI inspection is provided through the embedded AdaEditor Runtime MCP server.")
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
@@ -871,6 +894,8 @@ struct EditorSettingsWindowView: View {
         }
 
         switch viewModel.selectedSection {
+        case .notifications, .achievements:
+            return ("Done", "Settings are saved automatically.", {})
         case .general:
             return ("Apply", viewModel.generalSettingsStatusMessage, viewModel.applyGeneralSettings)
         case .project:

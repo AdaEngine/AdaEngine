@@ -183,6 +183,80 @@ struct EditorTransformGizmoTests {
         #expect(fixture.viewport.twoDCenter.x == -40)
     }
 
+    @Test("Inspector waits one second after the latest transform while runtime and release stay immediate")
+    func inspectorDebouncesLatestTransform() async throws {
+        let fixture = try Fixture()
+        defer { fixture.viewport.disconnect() }
+        let before = fixture.selection
+        let initialUpdates = fixture.selectionUpdates
+        let origin = try #require(fixture.viewport.transformGizmo()).screenOrigin
+        #expect(fixture.viewport.handleInput(mouse(origin, .began)))
+        #expect(fixture.viewport.handleInput(mouse(origin + Vector2(20, 0), .changed)))
+        #expect(abs(try fixture.runtimeTransform().position.x - 20) < 0.02)
+        #expect(fixture.selection == before)
+        try await Task.sleep(for: .milliseconds(600))
+        #expect(fixture.viewport.handleInput(mouse(origin + Vector2(40, 0), .changed)))
+        try await Task.sleep(for: .milliseconds(600))
+        #expect(fixture.selectionUpdates == initialUpdates)
+        #expect(fixture.documentEdits == 0)
+        #expect(abs(try fixture.runtimeTransform().position.x - 40) < 0.02)
+        #expect(fixture.viewport.handleInput(mouse(origin + Vector2(40, 0), .ended)))
+        #expect(fixture.selection == before)
+        #expect(fixture.documentEdits == 1)
+        #expect(abs(try fixture.transform().position.x - 40) < 0.02)
+        let deadline = ContinuousClock.now + .seconds(2)
+        while fixture.selectionUpdates == initialUpdates, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(fixture.selectionUpdates == initialUpdates + 1)
+        #expect(fixture.selection?.transformFields != before?.transformFields)
+        let positionField = try #require(fixture.selection?.transformFields.first { $0.field.key == "position" })
+        let payload = try #require(fixture.viewport.sceneModel?.entities.first { $0.id == "selected" }?.components[EditorBuiltInComponentType.transform])
+        #expect(positionField.value == positionField.field.displayValue(in: payload))
+        try await Task.sleep(for: .milliseconds(1100))
+        #expect(fixture.selectionUpdates == initialUpdates + 1)
+    }
+
+    @Test("cancelled drag restores Inspector and cancels its pending refresh")
+    func cancelledInspectorRefresh() async throws {
+        let fixture = try Fixture()
+        defer { fixture.viewport.disconnect() }
+        let before = fixture.selection
+        let origin = try #require(fixture.viewport.transformGizmo()).screenOrigin
+        #expect(fixture.viewport.handleInput(mouse(origin, .began)))
+        #expect(fixture.viewport.handleInput(mouse(origin + Vector2(20, 0), .changed)))
+        fixture.viewport.endTransformDrag(cancelled: true)
+        let updates = fixture.selectionUpdates
+        try await Task.sleep(for: .milliseconds(1100))
+        #expect(fixture.selectionUpdates == updates)
+        #expect(fixture.selection == before)
+        #expect(try fixture.runtimeTransform().position == .zero)
+        #expect(fixture.documentEdits == 0)
+    }
+
+    @Test("disconnect and external scene replacement cancel pending Inspector refresh", arguments: [false, true])
+    func invalidatedInspectorRefresh(disconnect: Bool) async throws {
+        let fixture = try Fixture()
+        defer { fixture.viewport.disconnect() }
+        let origin = try #require(fixture.viewport.transformGizmo()).screenOrigin
+        try fixture.drag(from: origin, to: origin + Vector2(20, 0))
+        if disconnect {
+            fixture.viewport.disconnect()
+        } else {
+            let replacement = try EditorSceneModel.default(projectName: "Replacement").encodedYAML()
+            fixture.viewport.configure(
+                sceneContent: replacement,
+                onSelectionChanged: { fixture.selection = $0; fixture.selectionUpdates += 1 },
+                onDocumentContentChanged: { fixture.content = $0; fixture.documentEdits += 1 }
+            )
+        }
+        let selection = fixture.selection
+        let updates = fixture.selectionUpdates
+        try await Task.sleep(for: .milliseconds(1100))
+        #expect(fixture.selectionUpdates == updates)
+        #expect(fixture.selection == selection)
+    }
+
     @Test("Select mode hides handles and zoom preserves their screen size")
     func visibleGeometry() throws {
         let fixture = try Fixture()
@@ -209,6 +283,7 @@ private final class Fixture {
     var documentEdits = 0
     var runtimeID: Entity.ID?
     var selection: EditorInspectorSidebarViewModel.SelectedEntity?
+    var selectionUpdates = 0
 
     init(transform: Transform = Transform(), parent: Transform? = nil) throws {
         var model = EditorSceneModel.default(projectName: "Gizmo")
@@ -221,7 +296,7 @@ private final class Fixture {
         content = try model.encodedYAML()
         content = try EditorSceneYAMLDocument.upsertTransform(transform, entityID: "selected", in: content)
         if let parent { content = try EditorSceneYAMLDocument.upsertTransform(parent, entityID: root, in: content) }
-        viewport.configure(sceneContent: content, onSelectionChanged: { [weak self] in self?.selection = $0 }, onDocumentContentChanged: { [weak self] in self?.content = $0; self?.documentEdits += 1 })
+        viewport.configure(sceneContent: content, onSelectionChanged: { [weak self] in self?.selection = $0; self?.selectionUpdates += 1 }, onDocumentContentChanged: { [weak self] in self?.content = $0; self?.documentEdits += 1 })
         let result = EditorSceneFileLoader.load(content: content, into: world)
         runtimeID = result.entitiesByEditorID["selected"]
         viewport.attachSceneWorld(world, loadResult: result)

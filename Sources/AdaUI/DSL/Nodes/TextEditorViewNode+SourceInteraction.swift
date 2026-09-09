@@ -6,6 +6,7 @@
 //
 
 import AdaInput
+import AdaText
 import Math
 
 extension TextEditorViewNode {
@@ -144,5 +145,40 @@ private extension [TextEditorContextMenuItem] {
                 submenu: item.submenu.presentationItems()
             )
         }
+    }
+}
+
+extension TextEditorViewNode {
+    /// Frame in the scrolling text node's coordinates, with horizontal placement fixed to the viewport.
+    func selectionHintFrame() -> Rect? {
+        guard isFocused, hasSelection, sourceInteraction?.selectionHint != nil else { return nil }
+        let viewport = viewportChromeRect()
+        let width: Float = 166
+        let height: Float = 26
+        guard viewport.width >= width + 24, viewport.height >= height + 8 else { return nil }
+        let content = textContentRect()
+        let lineHeight = lineHeight(for: resolvedFontPointSize())
+        let lines = lines()
+        let first = position(forOffset: selectionRange.lowerBound, lines: lines).line
+        let last = position(forOffset: selectionRange.upperBound - 1, lines: lines).line
+        let firstVisible = max(first, Int(((viewport.minY - content.minY) / lineHeight).rounded(.down)))
+        let lastVisible = min(last, Int(((viewport.maxY - content.minY - 1) / lineHeight).rounded(.down)))
+        guard firstVisible <= lastVisible else { return nil }
+        let activeLine = selectionHead < selectionAnchor ? firstVisible : lastVisible
+        let rowCenter = content.minY + (Float(activeLine) + 0.5) * lineHeight
+        return Rect(
+            x: viewport.maxX - width - 12,
+            y: min(max(viewport.minY + 4, rowCenter - height / 2), viewport.maxY - height - 4),
+            width: width,
+            height: height
+        )
+    }
+
+    func drawSelectionHint(in context: inout UIGraphicsContext) {
+        guard let hint = sourceInteraction?.selectionHint, let frame = selectionHintFrame() else { return }
+        let path = RoundedRectangleShape(cornerRadius: 5).path(in: frame)
+        context.fill(path, with: hint.background)
+        context.stroke(path, with: hint.border, style: StrokeStyle(lineWidth: 1))
+        drawString(hint.text, font: .system(size: 10), color: hint.foreground, in: &context, at: Point(frame.minX + 10, frame.minY + 4))
     }
 }

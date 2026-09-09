@@ -2,6 +2,7 @@
 import Foundation
 
 enum EditorActivityKind: Equatable, Sendable {
+    case agent
     case build
     case indexing
     case preview
@@ -49,6 +50,8 @@ struct EditorActivityEvent: Equatable, Sendable, Identifiable {
 
     var compactTitle: String {
         let title: String = switch kind {
+        case .agent:
+            "Agent"
         case .build:
             "Build"
         case .indexing:
@@ -174,6 +177,7 @@ enum EditorActivityPresentation {
 struct EditorFooter: View {
     let viewModel: EditorFooterViewModel
     let activities: [EditorActivityEvent]
+    var onOpenActivity: () -> Void = {}
     
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
@@ -190,11 +194,15 @@ struct EditorFooter: View {
                 }
             }
             if let activity = activities.first {
-                EditorActivityProgressView(
-                    activity: activity,
-                    additionalActivityCount: max(0, activities.count - 1),
-                    width: metrics.size.width < 900 ? 260 : 420
-                )
+                Button(action: onOpenActivity) {
+                    EditorActivityProgressView(
+                        activity: activity,
+                        additionalActivityCount: max(0, activities.count - 1),
+                        width: metrics.size.width < 900 ? 260 : 420
+                    )
+                }
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.Activity.Open")
             }
         }
         .font(.system(size: 12))

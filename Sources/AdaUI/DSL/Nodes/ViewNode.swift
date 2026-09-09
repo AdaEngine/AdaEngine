@@ -809,6 +809,8 @@ class ViewNode: Identifiable {
         return node?.convert(point, to: self) ?? point
     }
 
+    func onPinchEvent(_ event: PinchEvent) { }
+
     func onTouchesEvent(_ touches: Set<TouchEvent>) { }
 
     func onMouseEvent(_ event: MouseEvent) { }

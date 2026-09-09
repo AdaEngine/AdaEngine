@@ -24,6 +24,7 @@ final class EditorUISceneModel {
     var catalog: UICatalog
     let resources: UISceneResources
     let sourceURL: URL?
+    @ObservationIgnored var onHistoryChange: ((Bool) -> Void)?
     @ObservationIgnored var onChange: ((String) -> Void)?
     @ObservationIgnored private var undoStack: [UISceneDocument] = []
     @ObservationIgnored private var redoStack: [UISceneDocument] = []
@@ -139,8 +140,8 @@ final class EditorUISceneModel {
         }
     }
 
-    func undo() { guard !isReadOnly, let previous = undoStack.popLast() else { return }; redoStack.append(document); document = previous; publish() }
-    func redo() { guard !isReadOnly, let next = redoStack.popLast() else { return }; undoStack.append(document); document = next; publish() }
+    func undo() { guard !isReadOnly, let previous = undoStack.popLast() else { return }; redoStack.append(document); document = previous; publish(); onHistoryChange?(false) }
+    func redo() { guard !isReadOnly, let next = redoStack.popLast() else { return }; undoStack.append(document); document = next; publish(); onHistoryChange?(true) }
 
     func addModifier(_ type: String, to nodeID: String? = nil) {
         guard let descriptor = catalog.modifiers[type] else { return }
@@ -299,6 +300,9 @@ extension EditorWorkbenchViewModel {
         model.onPresentModifierPicker = { [weak self, weak model] nodeID in
             guard let self, let model else { return }
             self.modifierPickerRequest = .init(model: model, nodeID: nodeID)
+        }
+        model.onHistoryChange = { [weak self] redo in
+            if redo { self?.achievementRedos.insert(document.id) } else { self?.achievementRedos.remove(document.id) }
         }
         model.onChange = { [weak self] content in
             self?.updateTextDocument(id: document.id) { $0.content = content; $0.isDirty = content != $0.lastSavedContent; $0.errorMessage = nil }

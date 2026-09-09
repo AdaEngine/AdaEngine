@@ -208,7 +208,7 @@ struct EditorAgentCatalogTests {
         container.layoutIfNeeded()
         let search = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agents.Search"))
         #expect(search.absoluteFrame.width > 0)
-        #expect(search.absoluteFrame.height == 34)
+        #expect(search.absoluteFrame.height == 32)
         let refresh = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agents.Refresh"))
         let addLocal = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agents.AddLocal.local"))
         let install = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agents.Install.registry"))

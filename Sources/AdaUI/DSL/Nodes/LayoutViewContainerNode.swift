@@ -11,9 +11,9 @@ import AdaUtils
 /// The container that can layout it childs with specific ``Layout``.
 class LayoutViewContainerNode: ViewContainerNode {
     
-    let layout: AnyLayout
-    private let inherentLayoutProperties: LayoutProperties
-    private let bypassSingleChildLayout: Bool
+    private(set) var layout: AnyLayout
+    private var inherentLayoutProperties: LayoutProperties
+    private var bypassSingleChildLayout: Bool
     private var cache: AnyLayout.Cache?
     private var cacheNeedsUpdate = true
     private var layoutPassMeasurementCache: LayoutMeasurementCache?
@@ -184,6 +184,13 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func update(from newNode: ViewNode) {
+        if let node = newNode as? LayoutViewContainerNode {
+            layout = node.layout
+            inherentLayoutProperties = node.inherentLayoutProperties
+            bypassSingleChildLayout = node.bypassSingleChildLayout
+            cache = nil
+            updateLayoutProperties(node.layoutProperties)
+        }
         layoutPassMeasurementCache = nil
         cacheNeedsUpdate = true
         markNeedsLayout()

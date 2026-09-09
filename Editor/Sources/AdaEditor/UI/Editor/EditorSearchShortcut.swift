@@ -104,16 +104,19 @@ final class EditorSearchShortcutMonitor {
 #endif
 
     @discardableResult
-    func focusSearchField() -> Bool {
+    func focusSearchField(identifier: String = EditorTopToolbar.searchAccessibilityIdentifier) -> Bool {
         guard let window = UIWindowManager.shared?.activeWindow else {
             return false
         }
 
-        return focusSearchField(in: window.uiInspectableContainers())
+        return focusSearchField(in: window.uiInspectableContainers(), identifier: identifier)
     }
 
-    func focusSearchField(in containers: [any UIInspectableViewContainer]) -> Bool {
-        let selector = UINodeSelector.accessibilityIdentifier(EditorTopToolbar.searchAccessibilityIdentifier)
+    func focusSearchField(
+        in containers: [any UIInspectableViewContainer],
+        identifier: String = EditorTopToolbar.searchAccessibilityIdentifier
+    ) -> Bool {
+        let selector = UINodeSelector.accessibilityIdentifier(identifier)
         for container in containers {
             guard let searchNode = try? container.uiNode(matching: selector),
                   let focusableNode = searchNode.firstFocusableDescendant else {

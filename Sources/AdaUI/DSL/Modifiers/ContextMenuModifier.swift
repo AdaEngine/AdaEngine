@@ -44,6 +44,7 @@ public struct ContextMenuPresentation {
         public let action: (() -> Void)?
         public let submenu: [Item]
         public let isSeparator: Bool
+        public let isSelected: Bool
 
         public init(
             id: Int,
@@ -51,7 +52,8 @@ public struct ContextMenuPresentation {
             role: Role? = nil,
             action: (() -> Void)? = nil,
             submenu: [Item] = [],
-            isSeparator: Bool = false
+            isSeparator: Bool = false,
+            isSelected: Bool = false
         ) {
             self.id = id
             self.title = title
@@ -59,6 +61,7 @@ public struct ContextMenuPresentation {
             self.action = action
             self.submenu = submenu
             self.isSeparator = isSeparator
+            self.isSelected = isSelected
         }
     }
 
@@ -95,6 +98,22 @@ public struct ContextMenuSubmenu<MenuItems: View>: View {
     public init(_ title: String, @ViewBuilder menuItems: @escaping () -> MenuItems) {
         self.title = title
         self.menuItems = menuItems
+    }
+}
+
+/// A selectable menu action with a checkmark independent of the label's font.
+public struct ContextMenuOption: View {
+    public typealias Body = Never
+    public var body: Never { fatalError() }
+
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    public init(_ title: String, isSelected: Bool, action: @escaping () -> Void) {
+        self.title = title
+        self.isSelected = isSelected
+        self.action = action
     }
 }
 
@@ -384,7 +403,8 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                         role: item.role,
                         action: item.action,
                         submenu: item.submenu.presentationItems(),
-                        isSeparator: item.isSeparator
+                        isSeparator: item.isSeparator,
+                        isSelected: item.isSelected
                     )
                 },
                 onDismiss: onDismiss
@@ -399,19 +419,22 @@ private struct ContextMenuItemDescription {
     let action: (() -> Void)?
     let submenu: [ContextMenuItemDescription]
     let isSeparator: Bool
+    let isSelected: Bool
 
     init(
         title: String,
         role: ContextMenuPresentation.Item.Role? = nil,
         action: (() -> Void)? = nil,
         submenu: [ContextMenuItemDescription] = [],
-        isSeparator: Bool = false
+        isSeparator: Bool = false,
+        isSelected: Bool = false
     ) {
         self.title = title
         self.role = role
         self.action = action
         self.submenu = submenu
         self.isSeparator = isSeparator
+        self.isSelected = isSelected
     }
 }
 
@@ -440,6 +463,13 @@ extension Button: ContextMenuItemsConvertible {
                 action: action
             )
         ]
+    }
+}
+
+@MainActor
+extension ContextMenuOption: ContextMenuItemsConvertible {
+    fileprivate var contextMenuItems: [ContextMenuItemDescription] {
+        [ContextMenuItemDescription(title: title, action: action, isSelected: isSelected)]
     }
 }
 
@@ -525,7 +555,8 @@ private extension [ContextMenuItemDescription] {
                 role: item.role,
                 action: item.action,
                 submenu: item.submenu.presentationItems(),
-                isSeparator: item.isSeparator
+                isSeparator: item.isSeparator,
+                isSelected: item.isSelected
             )
         }
     }

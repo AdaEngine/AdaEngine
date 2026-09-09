@@ -349,6 +349,25 @@ extension MetalView {
         input?.wrappedValue.receiveEvent(event)
     }
     
+    public override func magnify(with event: NSEvent) {
+        let phase: PinchEvent.Phase
+        if event.phase.contains(.began) {
+            pinchScale = 1
+            phase = .began
+        } else if event.phase.contains(.cancelled) {
+            phase = .cancelled
+        } else if event.phase.contains(.ended) {
+            phase = .ended
+        } else {
+            phase = .changed
+        }
+        pinchScale *= max(0.01, 1 + Float(event.magnification))
+        input?.wrappedValue.receiveEvent(PinchEvent(
+            window: windowID, location: mousePosition(for: event),
+            scale: pinchScale, phase: phase, time: TimeInterval(event.timestamp)
+        ))
+    }
+
     public override func scrollWheel(with event: NSEvent) {
         var deltaX = Float(event.scrollingDeltaX)
         var deltaY = Float(event.scrollingDeltaY)

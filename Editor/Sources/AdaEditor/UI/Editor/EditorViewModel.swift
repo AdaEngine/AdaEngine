@@ -13,6 +13,10 @@ enum EditorAdaScriptProjectBuildOutcome: Sendable {
 @MainActor
 final class EditorViewModel {
     let debugger = EditorDebugger()
+    let textSearch = EditorTextSearchModel()
+    var showsNotifications = false
+    var notificationTab: EditorNotificationTab = .notifications
+    var notificationWorkspaceRunID: String?
     let project: EditorProjectReference?
     var toolbar: EditorToolbarViewModel
     var toolStrip: EditorToolStripViewModel
@@ -25,8 +29,18 @@ final class EditorViewModel {
     var footer: EditorFooterViewModel
     var showsDebugOverlay: UIDebugOverlayMode?
     var activeOutputTab: String
-    var workspaceStatus: EditorWorkspaceStatus
+    var workspaceStatus: EditorWorkspaceStatus {
+        didSet {
+            if case .failed(let message) = workspaceStatus, workspaceStatus != oldValue, notificationWorkspaceRunID == nil {
+                reportProjectError(message)
+            }
+        }
+    }
     var packageModel: SwiftPackageModel?
+    var gameLogLines: [EditorWorkspaceLogLine] = []
+    var activeLogSource = "Game"
+    @ObservationIgnored var runtimeLogCursor = 0
+    var workspaceOutputIsGame = false
     var outputLines: [EditorWorkspaceLogLine]
     var buildActivity: EditorBuildActivity?
     var problems: [EditorDiagnostic]
@@ -217,6 +231,9 @@ final class EditorViewModel {
             self?.updateDebugSource(documentID: documentID)
             self?.scheduleAutosave(documentID: documentID)
         }
+        self.workbench.achievements = EditorAchievementBootstrap.center
+        self.workbench.achievementResourceRoot = projectAssetsURL
+        self.workbench.achievementAdaScriptProject = savedProject?.build.system.isAdaScript == true
         configureDebugger()
         synchronizeAgentSceneContext()
     }

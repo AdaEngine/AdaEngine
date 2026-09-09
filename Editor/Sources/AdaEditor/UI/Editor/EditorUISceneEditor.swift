@@ -2,6 +2,7 @@
 
 struct EditorUISceneEditor: View {
     let model: EditorUISceneModel
+    var colorPalette: EditorCodeColorPalette = .dark
     @Environment(\.theme) var theme
     @State var libraryTab = "Components"
     @State var compactPane: EditorUIDesignerPane = .canvas

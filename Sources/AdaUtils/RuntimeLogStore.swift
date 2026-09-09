@@ -9,6 +9,7 @@ public final class RuntimeLogStore: @unchecked Sendable {
         public let level: String
         public let label: String
         public let message: String
+        public let source: String?
     }
 
     public struct Batch: Codable, Sendable {
@@ -16,6 +17,9 @@ public final class RuntimeLogStore: @unchecked Sendable {
         public let nextCursor: Int
         public let dropped: Int
     }
+
+    /// Source inherited by structured work within a runtime world.
+    @TaskLocal public static var currentSource: String = "Editor"
 
     public static let shared = RuntimeLogStore()
     private let lock = NSLock()
@@ -45,7 +49,8 @@ public final class RuntimeLogStore: @unchecked Sendable {
             timestamp: Date().timeIntervalSince1970,
             level: String(level.prefix(32)),
             label: String(label.prefix(256)),
-            message: String(message.prefix(4096))
+            message: String(message.prefix(4096)),
+            source: Self.currentSource
         )
         nextCursor += 1
         if entries.count == capacity { entries.removeFirst() }

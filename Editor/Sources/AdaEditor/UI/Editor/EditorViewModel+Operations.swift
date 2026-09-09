@@ -252,6 +252,11 @@ extension EditorViewModel {
             await MainActor.run {
                 self.appendOutput(result)
                 self.sourceControl.commandError = result.succeeded ? nil : result.combinedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !result.succeeded {
+                    EditorNotificationCenter.shared.post(.init(source: .sourceControl, importance: .error,
+                        title: "\(statusTitle) failed", detail: String(result.combinedOutput.prefix(600)), projectName: self.project?.name,
+                        actions: [.init(title: "Open Git", destination: .sourceControl, projectID: self.project?.id)]))
+                }
                 self.sourceControl.statusMessage = result.succeeded
                     ? "\(statusTitle) finished."
                     : result.combinedOutput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -324,6 +329,7 @@ extension EditorViewModel {
     }
 
     func executeWorkspaceCommand(_ kind: SwiftPMCommandKind, statusTitle: String) {
+        guard workspaceTask == nil else { return }
         guard let projectURL else {
             workspaceStatus = .failed("No project is open.")
             return
@@ -353,7 +359,10 @@ extension EditorViewModel {
             #endif
         }
 
-        workspaceTask?.cancel()
+        let source: EditorNotificationSource
+        if case .test = kind { source = .test } else { source = .build }
+        let notificationRunID = beginWorkspaceActivity(title: statusTitle, source: source)
+        if case .run = kind { workspaceOutputIsGame = true } else { workspaceOutputIsGame = false }
         workspaceStatus = .running(statusTitle)
         buildActivity = EditorBuildActivity(title: statusTitle)
         pendingWorkspaceStandardOutput = ""
@@ -371,16 +380,34 @@ extension EditorViewModel {
                 return
             }
             await MainActor.run {
+                if EditorNotificationCenter.shared.activities.all.first(where: { $0.id == notificationRunID })?.state == .cancelled {
+                    self.flushPendingWorkspaceOutput()
+                    self.workspaceOutputIsGame = false
+                    self.workspaceStatus = .ready
+                    self.buildActivity = nil
+                    self.notificationWorkspaceRunID = nil
+                    self.workspaceTask = nil
+                    return
+                }
                 if self.didReceiveStreamingWorkspaceOutput {
                     self.flushPendingWorkspaceOutput()
-                    self.appendOutput("Exited with code \(result.exitCode)")
+                    if self.workspaceOutputIsGame {
+                        self.appendGameLog(["Exited with code \(result.exitCode)"])
+                    } else {
+                        self.appendOutput("Exited with code \(result.exitCode)")
+                    }
+                } else if self.workspaceOutputIsGame {
+                    self.appendGameLog(result.combinedOutput.components(separatedBy: .newlines) + ["Exited with code \(result.exitCode)"])
                 } else {
                     self.appendOutput(result)
                 }
+                self.workspaceOutputIsGame = false
                 self.buildActivity?.finish(succeeded: result.succeeded)
                 self.replaceBuildDiagnostics(with: EditorDiagnostic.diagnostics(from: result, projectURL: projectURL))
                 self.showProblemsIfNeeded()
                 self.workspaceStatus = result.succeeded ? .ready : .failed(result.combinedOutput)
+                self.finishWorkspaceActivity(notificationRunID, succeeded: result.succeeded,
+                    detail: result.succeeded ? "" : result.combinedOutput)
                 self.workspaceTask = nil
             }
         }
@@ -404,7 +431,11 @@ extension EditorViewModel {
         for line in lines {
             buildActivity?.consume(line)
         }
-        appendOutput(lines)
+        if let id = notificationWorkspaceRunID, let step = buildActivity?.currentStep {
+            let completed = step.fractionCompleted.map { Int64($0 * 1000) }
+            EditorNotificationCenter.shared.activities.update(id, detail: step.title, completed: completed, total: completed == nil ? nil : 1000)
+        }
+        if workspaceOutputIsGame { appendGameLog(lines) } else { appendOutput(lines) }
     }
 
     static func streamingOutput(_ text: String, pending: String) -> (lines: [String], pending: String) {
@@ -423,7 +454,7 @@ extension EditorViewModel {
         for value in pendingLines {
             buildActivity?.consume(value)
         }
-        appendOutput(pendingLines)
+        if workspaceOutputIsGame { appendGameLog(pendingLines) } else { appendOutput(pendingLines) }
         pendingWorkspaceStandardOutput = ""
         pendingWorkspaceStandardError = ""
     }

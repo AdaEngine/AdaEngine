@@ -119,6 +119,7 @@ extension EditorWorkbenchViewModel {
 
     @discardableResult
     func saveSceneDocument(id documentID: String) -> Bool {
+        let previousContent = sceneDocument(id: documentID)?.lastSavedContent
         var didSave = false
         updateSceneDocument(id: documentID) { document in
             guard !document.isReadOnly else {
@@ -155,11 +156,15 @@ extension EditorWorkbenchViewModel {
                 document.errorMessage = error.localizedDescription
             }
         }
+        if didSave, let saved = sceneDocument(id: documentID) {
+            recordAchievementSave(scene: saved, previousContent: previousContent)
+        }
         return didSave
     }
 
     @discardableResult
     func saveTextDocument(id documentID: String) -> Bool {
+        let previousContent = textDocument(id: documentID)?.lastSavedContent
         var didSave = false
         updateTextDocument(id: documentID) { document in
             guard !document.isReadOnly else {
@@ -193,6 +198,9 @@ extension EditorWorkbenchViewModel {
                 document.errorMessage = error.localizedDescription
             }
         }
+        if didSave, let saved = textDocument(id: documentID) {
+            recordAchievementSave(text: saved, previousContent: previousContent)
+        }
         return didSave
     }
 
@@ -213,6 +221,9 @@ extension EditorWorkbenchViewModel {
         }
 
         recordSceneEdit(from: previousDocument, to: document)
+        if document.statusMessage == "AdaScript field edited", document.content != previousDocument.content {
+            achievementScriptEdits.insert(document.id)
+        }
         openDocuments[index] = .scene(document)
         notifyActiveDocumentChangedIfNeeded(documentID: document.id)
         if document.isDirty,

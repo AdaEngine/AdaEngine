@@ -31,6 +31,7 @@ open class MetalView: MTKView {
     weak var windowManager: UIWindowManager?
 
     #if MACOS
+    var pinchScale: Float = 1
     var currentTrackingArea: NSTrackingArea?
     var passthroughLocalMouseMonitor: Any?
     var passthroughGlobalMouseMonitor: Any?
@@ -51,6 +52,11 @@ open class MetalView: MTKView {
         super.init(frame: frame, device: nil)
         #if canImport(UIKit)
         self.isOpaque = true
+        #endif
+        #if os(iOS) || os(visionOS)
+        isMultipleTouchEnabled = true
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+        addGestureRecognizer(pinch)
         #endif
         self.isPaused = true
         self.enableSetNeedsDisplay = false

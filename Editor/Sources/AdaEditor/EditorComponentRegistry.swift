@@ -14,6 +14,11 @@ enum EditorBuiltInComponentType {
     static let scriptableComponents = String(reflecting: ScriptableComponents.self)
     static let uiComponent = String(reflecting: UIComponent.self)
     static let sceneInstance = String(reflecting: SceneInstance.self)
+    static let physicsBody2D = String(reflecting: PhysicsBody2DComponent.self)
+    static let mesh2D = String(reflecting: Mesh2D.self)
+    static let mesh3D = String(reflecting: Mesh3DComponent.self)
+    static let physicsBody3D = String(reflecting: PhysicsBody3DComponent.self)
+    static let directionalLight3D = String(reflecting: DirectionalLightComponent.self)
 }
 
 enum EditorComponentFieldKind: Equatable, Sendable {
@@ -66,6 +71,10 @@ struct EditorComponentField: Equatable, Identifiable, Sendable {
     var label: String
     var kind: EditorComponentFieldKind
     var isEditable: Bool
+    var valuePath: [String] = []
+    var coding: EditorComponentFieldCoding = .standard
+    var defaultValue: EditorSceneValue?
+    var minimumValue: Double?
 
     init(key: String, label: String, kind: EditorComponentFieldKind, isEditable: Bool = true) {
         self.key = key
@@ -75,18 +84,54 @@ struct EditorComponentField: Equatable, Identifiable, Sendable {
     }
 
     func displayValue(in payload: EditorComponentPayload) -> String {
+        let value = storedValue(in: payload) ?? defaultValue
+        if coding == .enumCase, case .object(let cases) = value { return cases.keys.sorted().first ?? "" }
+        if coding == .json { return value?.jsonString ?? "" }
+        if coding == .vectorObject, case .object(let axes) = value {
+            let count = kind == .vector2 ? 2 : (kind == .vector3 ? 3 : 4)
+            return ["x", "y", "z", "w"].prefix(count)
+                .map { axes[$0]?.stringValue ?? "0" }.joined(separator: ", ")
+        }
         switch kind {
         case .color:
-            guard let color = payload[key]?.colorComponents else {
+            guard let color = value?.colorComponents else {
                 return ""
             }
             return color.map(EditorSceneModelFormatting.format).joined(separator: ", ")
         default:
-            return payload[key]?.stringValue ?? ""
+            return value?.stringValue ?? ""
         }
     }
 
     func write(_ rawValue: String, to payload: inout EditorComponentPayload) {
+        guard isEditable else { return }
+        if let minimumValue {
+            guard let number = Double(rawValue), number.isFinite, number >= minimumValue else { return }
+        }
+        var temporary: EditorComponentPayload = [:]
+        writePlainValue(rawValue, to: &temporary)
+        guard var value = temporary[key] else { return }
+        switch coding {
+        case .standard: break
+        case .enumCase: value = .object([value.stringValue: .object([:])])
+        case .json:
+            guard let decoded = try? JSONDecoder().decode(EditorSceneValue.self, from: Data(rawValue.utf8)) else { return }
+            value = decoded
+        case .unsignedInteger:
+            guard let number = UInt64(rawValue.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+            value = .uint(number)
+        case .vectorObject:
+            guard case .array(let axes) = value else { return }
+            value = .object(Dictionary(uniqueKeysWithValues: zip(["x", "y", "z", "w"], axes)))
+        }
+        if valuePath.isEmpty { payload[key] = value } else {
+            var root = EditorSceneValue.object(payload)
+            root.setValue(value, at: valuePath[...])
+            if case .object(let updated) = root { payload = updated }
+        }
+    }
+
+    private func writePlainValue(_ rawValue: String, to payload: inout EditorComponentPayload) {
         guard isEditable else {
             return
         }
@@ -161,6 +206,11 @@ enum EditorComponentRegistry {
         light2DDescriptor,
         lightOccluder2DDescriptor,
         lightModulate2DDescriptor,
+        physicsBody2DDescriptor,
+        mesh2DDescriptor,
+        mesh3DDescriptor,
+        physicsBody3DDescriptor,
+        directionalLight3DDescriptor,
         sceneInstanceDescriptor,
         uiComponentDescriptor
     ]
@@ -182,6 +232,11 @@ enum EditorComponentRegistry {
         RuntimeTypeRegistry.registerComponent(LightModulate2D.self, names: ["LightModulate2D"])
         RuntimeTypeRegistry.registerComponent(SceneInstance.self, names: ["SceneInstance"])
         RuntimeTypeRegistry.registerComponent(UIComponent.self, names: ["UIComponent"])
+        RuntimeTypeRegistry.registerComponent(PhysicsBody2DComponent.self, names: ["PhysicsBody2DComponent"])
+        RuntimeTypeRegistry.registerComponent(Mesh2D.self, names: ["Mesh2D"])
+        RuntimeTypeRegistry.registerComponent(Mesh3DComponent.self, names: ["Mesh3DComponent"])
+        RuntimeTypeRegistry.registerComponent(PhysicsBody3DComponent.self, names: ["PhysicsBody3DComponent"])
+        RuntimeTypeRegistry.registerComponent(DirectionalLightComponent.self, names: ["DirectionalLightComponent"])
 
         EditorComponentReflectionRegistry.register(Transform.editorComponentDescriptor)
         EditorComponentReflectionRegistry.register(GlobalTransform.editorComponentDescriptor)

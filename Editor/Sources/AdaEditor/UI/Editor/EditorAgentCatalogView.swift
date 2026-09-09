@@ -3,6 +3,7 @@
 struct EditorAgentCatalogView: View {
     let agent: EditorAgentViewModel
     var loadsCatalog = true
+    var showsToolbar = true
     @Environment(\.theme) private var theme
 
     private var catalog: EditorAgentCatalogViewModel { agent.catalog }
@@ -12,23 +13,12 @@ struct EditorAgentCatalogView: View {
             HStack {
                 Text("ACP Registry").font(.system(size: 16, weight: .semibold))
                 Spacer()
-                Button("Refresh") { Task { await catalog.refresh() } }
-                    .buttonStyle(actionButtonStyle)
-                    .disabled(catalog.isBusy || agent.isConnectingCatalogAgent)
-                    .accessibilityIdentifier("AdaEditor.Agents.Refresh")
+                if showsToolbar { EditorAgentCatalogToolbar(agent: agent) }
             }
             #if os(macOS)
             Text("Connect an agent to this project, then open Agent Chat. Sign in through the agent's own account setup.")
                 .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
-            SearchBar(
-                text: Binding(get: { catalog.query }, set: { catalog.query = $0 }),
-                prompt: "Search agents…",
-                height: 34
-            )
-                .foregroundColor(theme.editorColors.text)
-                .searchBarStyle(EditorAgentCatalogSearchBarStyle(theme: theme))
-                .accessibilityIdentifier("AdaEditor.Agents.Search")
-            HStack(spacing: 12) {
+            HStack(spacing: 2) {
                 ForEach(EditorAgentCatalogViewModel.Filter.allCases, id: \.rawValue) { filter in
                     Button(filter.rawValue) { catalog.filter = filter }
                         .buttonStyle(
@@ -37,8 +27,13 @@ struct EditorAgentCatalogView: View {
                                 theme: theme
                             )
                         )
+                        .accessibilityIdentifier("AdaEditor.Agents.Filter.\(filter.rawValue)")
                 }
             }
+            .padding(3)
+            .background(RoundedRectangleShape(cornerRadius: 7).fill(theme.editorColors.surface))
+            .overlay { RoundedRectangleShape(cornerRadius: 7).stroke(theme.editorColors.border, lineWidth: 1) }
+            .accessibilityIdentifier("AdaEditor.Agents.Filter")
             Text(catalog.status).font(.system(size: 11)).foregroundColor(theme.editorColors.muted).lineLimit(4)
             if !agent.settingsStatusMessage.isEmpty {
                 Text(agent.settingsStatusMessage)
@@ -212,7 +207,29 @@ private struct EditorAgentCatalogFilterButtonStyle: ButtonStyle {
             .font(.system(size: 11))
             .foregroundColor(isActive ? theme.editorColors.blue : theme.editorColors.muted)
             .lineLimit(1)
-            .frame(width: 72, height: 24)
+            .frame(width: 88, height: 28)
+            .background(RoundedRectangleShape(cornerRadius: 5).fill(isActive ? theme.editorColors.surfaceElevated : .clear))
+            .overlay { RoundedRectangleShape(cornerRadius: 5).stroke(isActive ? theme.editorColors.border : .clear, lineWidth: 1) }
             .opacity(configuration.state.isHighlighted ? 0.72 : 1)
+    }
+}
+
+struct EditorAgentCatalogToolbar: View {
+    let agent: EditorAgentViewModel
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 8) {
+            SearchBar(text: Binding(get: { agent.catalog.query }, set: { agent.catalog.query = $0 }), prompt: "Search agents…", height: 32)
+                .searchBarStyle(EditorAgentCatalogSearchBarStyle(theme: theme))
+                .frame(width: 220, height: 32)
+                .accessibilityIdentifier("AdaEditor.Agents.Search")
+            Button("Refresh") { Task { await agent.catalog.refresh() } }
+                .buttonStyle(EditorAgentCatalogActionButtonStyle(theme: theme))
+                .disabled(agent.catalog.isBusy || agent.isConnectingCatalogAgent)
+                .accessibilityIdentifier("AdaEditor.Agents.Refresh")
+        }
+        .foregroundColor(theme.editorColors.text)
+        .accessibilityIdentifier("AdaEditor.Agents.Toolbar")
     }
 }

@@ -189,15 +189,18 @@ extension EditorUISceneEditor {
     }
 
     var sourceEditor: some View {
-        TextEditor(text: Binding(get: { model.rawSource }, set: { model.editSource($0) }))
+        TextEditor(
+            text: Binding(get: { model.rawSource }, set: { model.editSource($0) }),
+            tokenSpans: EditorSyntaxHighlighter.spans(for: model.rawSource, language: .yaml, palette: colorPalette)
+        )
             .font(AdaEditorCodeFont.font(size: 12))
-            .foregroundColor(theme.editorColors.text)
+            .foregroundColor(colorPalette.plainText)
             .accentColor(theme.editorColors.blue)
             .textEditorColors(TextEditorColors(
                 background: theme.editorColors.surfaceElevated, border: .clear,
-                focusedBorder: theme.editorColors.blue, gutter: theme.editorColors.muted,
+                focusedBorder: theme.editorColors.blue, gutter: colorPalette.lineNumber,
                 gutterRule: theme.editorColors.border.opacity(0.45),
-                currentLineBackground: theme.editorColors.blue.opacity(0.10), selection: theme.editorColors.blue.opacity(0.26)
+                currentLineBackground: colorPalette.currentLineBackground, selection: colorPalette.selection
             ))
             .disabled(model.isReadOnly)
             .accessibilityIdentifier("AdaEditor.UIScene.Source")

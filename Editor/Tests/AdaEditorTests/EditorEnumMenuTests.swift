@@ -33,7 +33,7 @@ struct EditorEnumMenuTests {
             menu = nil
             container.onKeyEvent(KeyEvent(window: RID(), keyCode: key, modifiers: [], status: .down, time: 0, isRepeated: false))
             #expect(menu?.items.count == 2)
-            #expect(menu?.items.contains { $0.title == "✓ \(selected)" } == true)
+            #expect(menu?.items.filter(\.isSelected).map(\.title) == [selected])
             #expect(try container.uiNode(matching: selector).absoluteFrame == before)
             let target = selected == "one" ? "two" : "one"
             let action = try #require(menu?.items.first { $0.title == target }?.action)

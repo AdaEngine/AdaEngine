@@ -12,6 +12,14 @@ packages:
     path: .
 targets:
   AdaEditor-macOS:
+    attributes:
+      SystemCapabilities:
+        com.apple.GameCenter:
+          enabled: 1
+    entitlements:
+      path: Platforms/AdaEditor.entitlements
+      properties:
+        com.apple.developer.game-center: true
     type: application
     platform: macOS
     sources:
@@ -57,6 +65,16 @@ targets:
           mkdir -p "${destination_resources:h}"
           /usr/bin/ditto "${source_resources}" "${destination_resources}"
   AdaEditor-iPadOS:
+    attributes:
+      SystemCapabilities:
+        com.apple.BackgroundModes:
+          enabled: 1
+        com.apple.GameCenter:
+          enabled: 1
+    entitlements:
+      path: Platforms/AdaEditor.entitlements
+      properties:
+        com.apple.developer.game-center: true
     type: application
     platform: iOS
     sources:

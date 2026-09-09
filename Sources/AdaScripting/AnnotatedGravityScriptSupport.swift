@@ -1,4 +1,5 @@
 @_spi(Scripting) import AdaECS
+import AdaUtils
 import Gravity
 
 @GSExportable("AdaSystemContext")
@@ -27,7 +28,10 @@ final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unc
         self.sourcesByPath = module.sourcesByPath
     }
 
-    func append(_ message: String) { errors.append(message) }
+    func append(_ message: String) {
+        errors.append(message)
+        RuntimeLogStore.shared.append(level: "error", label: "AdaScript", message: message)
+    }
 
     func virtualMachineLoadFile(
         _ virtualMachine: GravityVirtualMachine,
@@ -50,13 +54,15 @@ final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unc
         errorDescription: error_desc_t
     ) {
         if let path = pathsByFileID[errorDescription.fileid] {
-            errors.append("\(path):\(errorDescription.lineno):\(errorDescription.colno): \(message)")
+            append("\(path):\(errorDescription.lineno):\(errorDescription.colno): \(message)")
         } else {
-            errors.append(message)
+            append(message)
         }
     }
 
-    func virtualMachineDidReciveLog(_ virtualMachine: GravityVirtualMachine, message: String) {}
+    func virtualMachineDidReciveLog(_ virtualMachine: GravityVirtualMachine, message: String) {
+        RuntimeLogStore.shared.append(level: "info", label: "AdaScript", message: message)
+    }
     func virtualMachineDidClearLog(_ virtualMachine: GravityVirtualMachine) {}
     func virtualMachineBridgeEquals(_ virtualMachine: GravityVirtualMachine, lhsValue: GSValue, rhsValue: GSValue) -> Bool { false }
     func virtualMachine(_ virtualMachine: GravityVirtualMachine, didExecuteIn ctx: GSValue, arguments: [GSValue], argumentsCount: Int16, vIndex: UInt32) -> Bool { false }

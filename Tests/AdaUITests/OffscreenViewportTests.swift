@@ -60,6 +60,29 @@ struct OffscreenViewportTests {
     }
 
     @Test
+    func pinchRoutesToHitViewportInLocalCoordinates() throws {
+        let delegate = MockViewportDelegate()
+        let tester = ViewTester {
+            OffscreenViewportView(delegate: delegate).padding(20)
+        }
+        .setSize(Size(width: 400, height: 300))
+        .performLayout()
+        let container = tester.containerView
+        let window = RID()
+        container.onReceiveEvent(PinchEvent(window: window, location: Point(100, 80), scale: 1, phase: .began, time: 0))
+        container.onReceiveEvent(PinchEvent(window: window, location: Point(110, 90), scale: 2, phase: .changed, time: 1))
+        container.onReceiveEvent(PinchEvent(window: window, location: Point(410, 310), scale: 2, phase: .ended, time: 2))
+        let events = delegate.receivedInputEvents.compactMap { $0 as? PinchEvent }
+        #expect(events.map(\.phase) == [.began, .changed, .ended])
+        #expect(events.first?.location == Point(80, 60))
+        let changed = try #require(events.first { $0.phase == .changed })
+        #expect(changed.location == Point(90, 70))
+        #expect(changed.scale == 2)
+        container.onReceiveEvent(PinchEvent(window: window, location: Point(5, 5), scale: 1, phase: .began, time: 3))
+        #expect(delegate.receivedInputEvents.count == 3)
+    }
+
+    @Test
     func containerCreatesDelegate_onlyOnce() {
         var factoryCallCount = 0
         let delegate = MockViewportDelegate()

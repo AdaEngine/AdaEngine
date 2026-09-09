@@ -63,9 +63,6 @@ public struct RenderGraphExecutor: Sendable {
             var nodeRecords: [RenderGraphNodeRecord] = []
             var pendingSubgraphLabels: [String] = []
             let tracer = Logger(label: "RenderGraph")
-            tracer.trace("Begin Render Graph Frame", metadata: [
-                "graph": .string(graph.label?.rawValue ?? "Unknown")
-            ])
 
         var writtenResources = [RenderGraph.Node.ID: [RenderSlotValue]]()
         
@@ -220,7 +217,6 @@ public struct RenderGraphExecutor: Sendable {
             throw error
         }
 
-            tracer.trace("End Render Graph Frame")
         }
     }
     // swiftlint:enable cyclomatic_complexity function_body_length closure_body_length

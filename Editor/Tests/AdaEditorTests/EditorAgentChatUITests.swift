@@ -96,7 +96,8 @@ struct EditorAgentChatUITests {
         ContextMenuPresentationCenter.present = { menu = $0 }
         defer { ContextMenuPresentationCenter.present = previous }
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Selector.model"))
-        #expect(menu?.items.map(\.title) == ["✓ Model A", "Model B"])
+        #expect(menu?.items.map(\.title) == ["Model A", "Model B"])
+        #expect(menu?.items.filter(\.isSelected).map(\.title) == ["Model A"])
     }
 
     @Test("short user bubble sits on the right and assistant text sits on the left")

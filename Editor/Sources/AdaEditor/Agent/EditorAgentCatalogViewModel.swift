@@ -12,6 +12,8 @@ final class EditorAgentCatalogViewModel {
     var installed: [EditorInstalledAgent] = []
     var isBusy = false
     var status = ""
+    var notificationAction = EditorNotificationAction(title: "Agent settings", destination: .agentSettings)
+    var notificationProjectName: String?
     private var hasLoaded = false
     private let service: EditorAgentCatalogService
 
@@ -52,7 +54,7 @@ final class EditorAgentCatalogViewModel {
         do {
             installed = try await service.installed()
         } catch {
-            status = error.localizedDescription
+            reportError(error.localizedDescription)
             return
         }
         if agents.isEmpty { agents = await service.cachedRegistry() }
@@ -78,7 +80,7 @@ final class EditorAgentCatalogViewModel {
             filter = .all
             return entry
         } catch {
-            status = error.localizedDescription
+            reportError(error.localizedDescription)
             return nil
         }
     }
@@ -100,9 +102,15 @@ final class EditorAgentCatalogViewModel {
             filter = .all
             return entry
         } catch {
-            status = error.localizedDescription
+            reportError(error.localizedDescription)
             return nil
         }
+    }
+
+    private func reportError(_ message: String) {
+        status = message
+        EditorNotificationCenter.shared.post(.init(source: .catalog, importance: .error, title: "Agent catalog operation failed",
+            detail: message, projectName: notificationProjectName, actions: [notificationAction]))
     }
 
     func remove(_ agent: EditorInstalledAgent) async {
@@ -115,6 +123,6 @@ final class EditorAgentCatalogViewModel {
             try await service.remove(agent)
             installed = try await service.installed()
             status = "\(agent.name) removed from the list. Existing project connections and files are kept."
-        } catch { status = error.localizedDescription }
+        } catch { reportError(error.localizedDescription) }
     }
 }

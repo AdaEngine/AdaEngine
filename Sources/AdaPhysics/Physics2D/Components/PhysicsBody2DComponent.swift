@@ -11,7 +11,7 @@ import Math
 
 /// A component that defines an entity’s behavior in physics body simulations.
 @Component
-public struct PhysicsBody2DComponent {
+public struct PhysicsBody2DComponent: Codable {
     
     /// The physics body’s mode, indicating how or if it moves.
     public var mode: PhysicsBodyMode
@@ -42,25 +42,31 @@ public struct PhysicsBody2DComponent {
     
     /// Is this body a sensor?
     public let isTrigger: Bool
+
+    private var initialGravityScale: Float = 1
+    private var initialLinearVelocity: Vector2 = .zero
+    private var initialAngularVelocity: Float = 0
     
     public var gravityScale: Float {
         get {
-            runtimeBody?.gravityScale ?? 1.0
+            runtimeBody?.gravityScale ?? initialGravityScale
         }
         
         set {
+            initialGravityScale = newValue
             runtimeBody?.gravityScale = newValue
         }
     }
     
     /// Linear velocity of the center of mass.
-    /// - Returns: The linear velocity of the center of mass or zero if entity not connected to physics world.
+    /// Before simulation starts, reads and writes the initial velocity used when the body is created.
     public var linearVelocity: Vector2 {
         get {
-            self.runtimeBody?.getLinearVelocity() ?? .zero
+            self.runtimeBody?.getLinearVelocity() ?? initialLinearVelocity
         }
         
         set {
+            initialLinearVelocity = newValue
             self.runtimeBody?.setLinearVelocity(newValue)
         }
     }
@@ -68,10 +74,11 @@ public struct PhysicsBody2DComponent {
     /// Set the angular velocity of a body in radians per second
     public var angularVelocity: Float {
         get {
-            self.runtimeBody?.getAngularVelocity() ?? 0
+            self.runtimeBody?.getAngularVelocity() ?? initialAngularVelocity
         }
         
         set {
+            initialAngularVelocity = newValue
             self.runtimeBody?.setAngularVelocity(newValue)
         }
     }
@@ -113,6 +120,11 @@ public struct PhysicsBody2DComponent {
         case material
         case massProperties
         case isTrigger
+        case fixedRotation
+        case debugColor
+        case gravityScale
+        case linearVelocity
+        case angularVelocity
     }
     
     public init(from decoder: Decoder) throws {
@@ -123,6 +135,11 @@ public struct PhysicsBody2DComponent {
         self.material = try container.decode(PhysicsMaterial.self, forKey: .material)
         self.massProperties = try container.decode(PhysicsMassProperties.self, forKey: .massProperties)
         self.isTrigger = try container.decode(Bool.self, forKey: .isTrigger)
+        self.fixedRotation = try container.decodeIfPresent(Bool.self, forKey: .fixedRotation) ?? false
+        self.debugColor = try container.decodeIfPresent(Color.self, forKey: .debugColor)
+        self.initialGravityScale = try container.decodeIfPresent(Float.self, forKey: .gravityScale) ?? 1
+        self.initialLinearVelocity = try container.decodeIfPresent(Vector2.self, forKey: .linearVelocity) ?? .zero
+        self.initialAngularVelocity = try container.decodeIfPresent(Float.self, forKey: .angularVelocity) ?? 0
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -133,6 +150,11 @@ public struct PhysicsBody2DComponent {
         try container.encode(self.material, forKey: .material)
         try container.encode(self.massProperties, forKey: .massProperties)
         try container.encode(self.isTrigger, forKey: .isTrigger)
+        try container.encode(self.fixedRotation, forKey: .fixedRotation)
+        try container.encodeIfPresent(self.debugColor, forKey: .debugColor)
+        try container.encode(self.gravityScale, forKey: .gravityScale)
+        try container.encode(self.linearVelocity, forKey: .linearVelocity)
+        try container.encode(self.angularVelocity, forKey: .angularVelocity)
     }
     
     // MARK: - Methods

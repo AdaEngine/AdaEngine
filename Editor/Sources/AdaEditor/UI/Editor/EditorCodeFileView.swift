@@ -49,9 +49,6 @@ struct EditorCodeFileView: View {
                             if !document.completionItems.isEmpty {
                                 completionOverlay
                             }
-                            if document.selectedText?.isEmpty == false {
-                                selectionChatHint
-                            }
                         }
                     }
             }
@@ -97,20 +94,6 @@ private extension EditorCodeFileView {
             .drawingGroup()
             .padding(10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    var selectionChatHint: some View {
-        GeometryReader { geometry in
-            Text("Press CMD + L to chat")
-                .font(.system(size: 10))
-                .foregroundColor(theme.editorColors.text)
-                .padding(.horizontal, 10)
-                .frame(height: 26)
-                .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.purple.opacity(0.82)))
-                .offset(x: max(12, geometry.size.width - 178), y: max(12, geometry.size.height - 42))
-                .allowsHitTesting(false)
-                .accessibilityIdentifier("AdaEditor.SelectionChatHint")
-        }
     }
 
     func completionList(width: Float, height: Float) -> some View {
@@ -261,7 +244,13 @@ private extension EditorCodeFileView {
             contextMenuItems: { position in
                 guard supportsLanguageTooling else { return [] }
                 return sourceContextMenuItems?(document, EditorSourceLocation(textEditorPosition: position)) ?? []
-            }
+            },
+            selectionHint: TextEditorSelectionHint(
+                text: "Press CMD + L to chat",
+                foreground: theme.editorColors.text,
+                background: theme.editorColors.surface,
+                border: theme.editorColors.border.opacity(0.65)
+            )
         )
     }
 
@@ -972,6 +961,20 @@ enum EditorSyntaxHighlighter {
             return treeSitterSpans
         }
 
+        if language == .glsl || language == .wgsl {
+            return EditorShaderSyntaxHighlighter.tokens(for: source, language: language == .glsl ? .glsl : .wgsl).map { token in
+                let color: Color = switch token.kind {
+                case .keyword: palette.keyword
+                case .type: palette.type
+                case .string: palette.string
+                case .number: palette.number
+                case .comment: palette.comment
+                case .punctuation: palette.punctuation
+                }
+                return TextEditorTokenSpan(line: token.line, startColumn: token.column, length: token.length, color: color)
+            }
+        }
+
         let lines = source.components(separatedBy: .newlines)
         var state = ScanState.normal
         var spans: [TextEditorTokenSpan] = []
@@ -1064,7 +1067,7 @@ enum EditorSyntaxHighlighter {
 
     private static func supports(_ language: EditorSourceLanguage) -> Bool {
         switch language {
-        case .ada, .json, .packageManifest, .swift, .yaml:
+        case .ada, .glsl, .wgsl, .json, .packageManifest, .swift, .yaml:
             true
         default:
             false

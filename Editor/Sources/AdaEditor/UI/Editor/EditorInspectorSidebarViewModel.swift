@@ -108,6 +108,9 @@ final class EditorInspectorSidebarViewModel {
     private var sceneViewportActionOwner: ObjectIdentifier?
     @ObservationIgnored
     private var vectorAxisDrafts: [VectorAxisDraftKey: String] = [:]
+    // Read by the existing TextField bindings each frame, without rebuilding the Inspector tree.
+    @ObservationIgnored
+    private var liveTransformAxes: [String: [String]] = [:]
 
     init(
         transformFields: [TransformField] = [
@@ -131,11 +134,26 @@ final class EditorInspectorSidebarViewModel {
     }
 
     func selectEntity(_ entity: SelectedEntity?) {
+        liveTransformAxes.removeAll(keepingCapacity: true)
+        for field in entity?.transformFields ?? [] {
+            liveTransformAxes[field.field.key] = vectorComponents(from: field.value, count: field.field.kind.vectorComponentCount)
+        }
         selectedEntity = entity
         transformFields = entity?.transformFields ?? []
         vectorAxisDrafts.removeAll()
         if entity == nil {
             dismissComponentPicker()
+        }
+    }
+
+    func updateLiveTransform(editorID: String, payload: EditorComponentPayload) {
+        guard selectedEntity?.editorID == editorID,
+              let descriptor = EditorComponentRegistry.descriptor(named: EditorBuiltInComponentType.transform) else { return }
+        for field in descriptor.fields {
+            liveTransformAxes[field.key] = vectorComponents(from: field.displayValue(in: payload), count: field.kind.vectorComponentCount)
+            for axisIndex in 0..<field.kind.vectorComponentCount {
+                vectorAxisDrafts[VectorAxisDraftKey(typeName: EditorBuiltInComponentType.transform, fieldKey: field.key, axisIndex: axisIndex)] = nil
+            }
         }
     }
 
@@ -319,6 +337,11 @@ final class EditorInspectorSidebarViewModel {
                     return draft
                 }
 
+                if typeName == EditorBuiltInComponentType.transform,
+                   let axes = self.liveTransformAxes[field.key], axes.indices.contains(axisIndex) {
+                    return axes[axisIndex]
+                }
+
                 let components = self.vectorComponents(
                     from: self.componentFieldValue(typeName: typeName, field: field),
                     count: field.kind.vectorComponentCount
@@ -339,7 +362,10 @@ final class EditorInspectorSidebarViewModel {
     }
 
     private func componentFieldValue(typeName: String, field: EditorComponentField) -> String {
-        selectedEntity?
+        if typeName == EditorBuiltInComponentType.transform, let axes = liveTransformAxes[field.key] {
+            return axes.joined(separator: ", ")
+        }
+        return selectedEntity?
             .components
             .first { $0.typeName == typeName }?
             .fields
@@ -353,6 +379,9 @@ final class EditorInspectorSidebarViewModel {
             return
         }
         selectedEntity?.components[componentIndex].fields[fieldIndex].value = value
+        if typeName == EditorBuiltInComponentType.transform {
+            liveTransformAxes[field.key] = vectorComponents(from: value, count: field.kind.vectorComponentCount)
+        }
         updateComponentField?(typeName, field, value)
     }
 

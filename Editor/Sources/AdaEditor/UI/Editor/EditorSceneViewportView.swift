@@ -13,6 +13,7 @@ struct EditorSceneViewportView: View {
     let onStop: (() -> Void)?
     let onDocumentChanged: (EditorSceneDocument) -> Void
 
+    @State var viewportRevision: UInt = 0
     @State var runtimeWarnings: [String] = []
     @State private var displayMode: EditorSceneViewportDisplayMode = .twoD
     @State private var activeTool: EditorSceneViewportTool = .translate
@@ -101,10 +102,12 @@ struct EditorSceneViewportView: View {
                 ZStack(anchor: .bottomLeading) {
                     SceneView(make: { app in
                         configureSceneViewApp(&app)
+                        var runtimeInstalled = true
                         do {
                             try playRuntime?.install(in: &app)
                         } catch {
                             runtimeWarnings = [error.localizedDescription]
+                            runtimeInstalled = false
                         }
                         let result = EditorSceneFileLoader.load(
                             content: document.content,
@@ -112,8 +115,10 @@ struct EditorSceneViewportView: View {
                             sourceURL: document.absolutePath.map { URL(fileURLWithPath: $0) },
                             resourceRootURL: resourceRootURL
                         )
-                        if runtimeWarnings != result.warnings {
-                            runtimeWarnings = result.warnings
+                        if runtimeInstalled { runtimeWarnings = result.warnings }
+                        if runtimeInstalled, result.warnings.isEmpty, document.absolutePath != nil,
+                           let model = document.sceneModel {
+                            EditorAchievementBootstrap.center?.record(EditorAchievementRules.playedScene(model, adaScript: playRuntime != nil))
                         }
                     }, updateContent: { _, _ in })
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -140,6 +145,7 @@ struct EditorSceneViewportView: View {
     }
 
     private func configureSceneViewApp(_ app: inout AppWorlds) {
+        app.runtimeLogSource = isPlayingThisDocument ? "Game" : "Editor"
         if let resourceRootURL {
             let runtime = UIComponentRuntime(resourceRoot: resourceRootURL, catalog: uiCatalog)
             runtime.enableAdaScript(sourceRoot: Self.uiProjectRoot(from: resourceRootURL))
@@ -162,6 +168,7 @@ struct EditorSceneViewportView: View {
             app.addPlugin(ScriptableObjectPlugin())
         }
         app.addPlugin(Physics2DPlugin())
+        app.addPlugin(Physics3DPlugin())
         app.addPlugin(TileMapPlugin())
         app.addPlugin(Core2DPlugin())
         app.addPlugin(Core3DPlugin())
@@ -262,7 +269,9 @@ struct EditorSceneViewportView: View {
                 .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surface.opacity(0.88)))
             Spacer()
         }
-        .padding(12)
+        .padding(.leading, 52)
+        .padding(.trailing, 12)
+        .padding(.bottom, 12)
     }
 
     private var playStatusBar: some View {

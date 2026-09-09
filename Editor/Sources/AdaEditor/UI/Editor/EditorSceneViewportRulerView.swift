@@ -2,7 +2,9 @@
 
 extension EditorSceneViewportView {
     var viewportCoordinateRulerLayer: some View {
-        GeometryReader { proxy in
+        let revision = viewportRevision
+        return GeometryReader { proxy in
+            let _ = revision
             let ruler = viewportModel.coordinateRuler(in: proxy.size)
             ZStack(anchor: .topLeading) {
                 RectangleShape()

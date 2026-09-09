@@ -273,12 +273,19 @@ extension EditorViewModel {
     }
 
     func activateLeftBottomTool(_ item: EditorToolStripItem) {
+        if item.identifier == "logs", activeOutputTab != "Output" {
+            toolStrip.selectLeftBottomTool(item)
+            selectOutputTab("Output")
+            showBottomPanel = true
+            return
+        }
         if toolStrip.activeLeftBottomTool == item.identifier && showBottomPanel {
             showBottomPanel = false
             return
         }
 
         toolStrip.selectLeftBottomTool(item)
+        if item.identifier == "logs" { selectOutputTab("Output") }
         if item.identifier == "build" { selectOutputTab("Build") }
         showBottomPanel = true
     }

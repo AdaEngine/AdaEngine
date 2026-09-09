@@ -326,6 +326,21 @@ final class TextFieldViewNode: ViewNode {
     }
 
     override func update(_ deltaTime: AdaUtils.TimeInterval) {
+        // Closure bindings can change without rebuilding the owning view (for example,
+        // live editor values). Refresh only this field and preserve local edits/undo
+        // when the binding already matches the displayed text.
+        let boundText = textBinding.wrappedValue
+        if boundText != text {
+            let externalText = Self.normalizeInputText(boundText)
+            if externalText != text {
+                text = externalText
+                undoStack.removeAll(keepingCapacity: true)
+                redoStack.removeAll(keepingCapacity: true)
+                clampSelectionToBounds()
+                ensureCaretVisibleIfNeeded()
+                requestDisplay()
+            }
+        }
         guard self.isFocused else {
             return
         }

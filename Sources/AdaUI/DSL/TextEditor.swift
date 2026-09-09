@@ -125,6 +125,21 @@ public struct TextEditorLineMarker: Hashable, Sendable {
     }
 }
 
+/// A non-interactive hint aligned with the visible selected text.
+public struct TextEditorSelectionHint: Sendable {
+    public var text: String
+    public var foreground: Color
+    public var background: Color
+    public var border: Color
+
+    public init(text: String, foreground: Color, background: Color, border: Color) {
+        self.text = text
+        self.foreground = foreground
+        self.background = background
+        self.border = border
+    }
+}
+
 /// Optional source-aware interactions for ``TextEditor``.
 public struct TextEditorSourceInteraction {
     public var lineMarkers: [TextEditorLineMarker]
@@ -143,6 +158,7 @@ public struct TextEditorSourceInteraction {
     public var onSelectionChange: ((TextEditorSourceRange?, String?) -> Void)?
     public var onChatSelection: ((TextEditorSourceRange, String) -> Void)?
     public var contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])?
+    public var selectionHint: TextEditorSelectionHint?
 
     public init(
         lineMarkers: [TextEditorLineMarker] = [],
@@ -160,7 +176,8 @@ public struct TextEditorSourceInteraction {
         onAcceptCompletion: (() -> Bool)? = nil,
         onSelectionChange: ((TextEditorSourceRange?, String?) -> Void)? = nil,
         onChatSelection: ((TextEditorSourceRange, String) -> Void)? = nil,
-        contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])? = nil
+        contextMenuItems: ((TextEditorSourcePosition) -> [TextEditorContextMenuItem])? = nil,
+        selectionHint: TextEditorSelectionHint? = nil
     ) {
         self.lineMarkers = lineMarkers
         self.executionLine = executionLine
@@ -178,6 +195,7 @@ public struct TextEditorSourceInteraction {
         self.onSelectionChange = onSelectionChange
         self.onChatSelection = onChatSelection
         self.contextMenuItems = contextMenuItems
+        self.selectionHint = selectionHint
     }
 }
 

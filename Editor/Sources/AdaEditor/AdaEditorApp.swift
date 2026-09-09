@@ -15,6 +15,13 @@ import AdaMCPPlugin
 struct AdaEditorApp: App {
     init() {
         _ = EditorProjectOpenURLRouter.shared
+        EditorAchievementBootstrap.install()
+        let notifications = EditorNotificationCenter.shared
+        notifications.onAction = { EditorNotificationRouter.shared.receive($0) }
+        #if os(macOS) || os(iOS)
+        EditorSystemNotifications.shared.install(on: notifications)
+        #endif
+        Task { await notifications.start() }
     }
 
     var body: some AppScene {

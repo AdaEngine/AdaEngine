@@ -1,9 +1,35 @@
 @testable import AdaEditor
 @_spi(AdaEngine) import AdaEngine
+import Foundation
 import Testing
 
 @Suite("EditorTreeSitterSyntaxHighlighter")
 struct EditorTreeSitterSyntaxHighlighterTests {
+    @Test("shader extensions open as editable source files")
+    @MainActor
+    func shaderFilesOpenInEditor() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("shader-editor-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let files = ["test.glsl", "test.WGSL", "test.comp", "test.geom", "test.tesc", "test.tese"]
+        for name in files {
+            try "// shader".write(to: root.appendingPathComponent(name), atomically: true, encoding: .utf8)
+        }
+        let editor = EditorViewModel(project: EditorProjectReference(name: "Shaders", path: root.path))
+        for name in files {
+            let expected: EditorSourceLanguage = name == "test.WGSL" ? .wgsl : .glsl
+            #expect(EditorSourceLanguage.detect(fileName: name) == expected)
+            let item = try #require(editor.projectSidebar.items.first { $0.title == name })
+            editor.openProjectItem(item)
+            guard case .text(let document)? = editor.workbench.activeDocument else {
+                Issue.record("Shader should open in the code editor: \(name)")
+                continue
+            }
+            #expect(document.language == expected)
+            #expect(document.content == "// shader")
+        }
+    }
+
     @Test("highlights AdaScript syntax without treating it as Swift")
     func highlightsGravitySyntax() {
         var palette = EditorCodeColorPalette.dark

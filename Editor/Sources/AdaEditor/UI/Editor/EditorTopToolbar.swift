@@ -17,10 +17,10 @@ struct EditorTopToolbar: View {
     let onRun: () -> Void
     let onStop: () -> Void
     var onDebug: (() -> Void)? = nil
-    
+
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
-    
+
     var body: some View {
         ZStack {
             SearchBar(
@@ -46,7 +46,6 @@ struct EditorTopToolbar: View {
                         .lineLimit(1)
                 }
 
-                EditorDocumentationButton()
                 runDestinationControls
                 runStopControls
             }
@@ -103,7 +102,7 @@ struct EditorTopToolbar: View {
     private var runStopControls: some View {
         HStack(spacing: 4) {
             if let onDebug {
-                toolbarActionButton(title: "Debug", symbol: "\u{E868}", color: theme.editorColors.blue, action: onDebug)
+                toolbarActionButton(title: "Debug", symbol: "\u{E868}", color: Color(red: 110 / 255, green: 205 / 255, blue: 126 / 255), action: onDebug)
                     .disabled(!isRunEnabled)
             }
             toolbarActionButton(title: "Run", symbol: "\u{E037}", color: Color(red: 110 / 255, green: 205 / 255, blue: 126 / 255), action: onRun)
@@ -263,7 +262,7 @@ private struct EditorToolbarSearchBarStyle: SearchBarStyle {
                 .buttonStyle(EditorToolbarSearchBarClearButtonStyle(theme: theme))
             }
         }
-        .padding(.leading, 4)
+        .padding(.leading, 12)
         .padding(.trailing, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .glassEffect(.editorToolbarSearch(theme: theme), in: CapsuleShape())

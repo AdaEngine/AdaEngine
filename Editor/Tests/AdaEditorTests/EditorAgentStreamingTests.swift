@@ -47,6 +47,47 @@ struct EditorAgentStreamingTests {
         }
     }
 
+    @Test("A completed ACP run notifies its original session after switching chats")
+    @MainActor
+    func notificationSessionIdentity() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("AgentNotifications-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let script = root.appendingPathComponent("agent.py")
+        try Self.agentScript.write(to: script, atomically: true, encoding: .utf8)
+        var project = ProjectSystem.defaultProject(projectName: "Notifications")
+        project.ai.agent.enabled = true
+        project.ai.agent.target = AdaProjectAgentTarget(command: "/usr/bin/python3", arguments: [script.path])
+        try ProjectSystem.saveProject(project, at: root)
+        let service = EditorACPAgentService()
+        let center = EditorNotificationCenter()
+        let model = EditorAgentViewModel(project: .init(name: "Notifications", path: root.path), service: service, notifications: center)
+        await model.loadSessions()
+        let originalID = try #require(model.activeSession?.id)
+        model.prompt = "test"
+        let run = Task { await model.sendPromptAsync() }
+        for _ in 0..<200 {
+            if !center.activities.active.isEmpty { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(!center.activities.active.isEmpty)
+        try await model.createSession()
+        let selectedID = try #require(model.activeSession?.id)
+        #expect(selectedID != originalID)
+        await run.value
+        #expect(model.activeSession?.id == selectedID)
+        #expect(model.activeSession?.events.isEmpty == true)
+        let notification = try #require(center.notifications.first(where: { $0.id.hasSuffix(":result") }))
+        #expect(notification.actions.first?.sessionID == originalID)
+        #expect(center.activities.all.first?.state == .completed)
+        let store = EditorAgentSessionStore(projectURL: root)
+        let saved = try await store.loadSession(id: originalID)
+        #expect(saved.events.compactMap(\.message).contains { message in
+            message.role == .assistant && message.segments.contains { $0.text == "Hello world" }
+        })
+        await service.shutdown()
+    }
+
     private static let agentScript = #"""
     import json, sys, time
     def emit(value):

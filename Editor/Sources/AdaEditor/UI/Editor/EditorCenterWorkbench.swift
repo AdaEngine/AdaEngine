@@ -218,7 +218,10 @@ extension EditorCenterWorkbench {
         case .scene(let document):
             sceneDocumentEditor(document: document)
         case .ui(let document):
-            EditorUISceneEditor(model: viewModel.uiSceneModel(for: document, resourceRoot: sceneResourceRootURL))
+            EditorUISceneEditor(
+                model: viewModel.uiSceneModel(for: document, resourceRoot: sceneResourceRootURL),
+                colorPalette: viewModel.codeColorPalette
+            )
         case .text(let document):
             textDocumentEditor(document: document)
         case .asset(let document):

@@ -312,7 +312,7 @@ struct EditorProjectSidebar: View {
             return EditorProjectTreeIcon.code
         case .markdown, .plainText:
             return EditorProjectTreeIcon.article
-        case .packageManifest, .swift, .ada, .c, .cpp, .glsl, .metal:
+        case .packageManifest, .swift, .ada, .c, .cpp, .glsl, .wgsl, .metal:
             return EditorProjectTreeIcon.code
         }
     }

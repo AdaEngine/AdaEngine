@@ -9,6 +9,7 @@ extension EditorViewModel {
             return
         }
 
+        RuntimeLogStore.shared.setEnabled(true)
         didStartEditorSession = true
         bootstrapWorkspaceIfNeeded()
         refreshSourceControl()
@@ -268,6 +269,7 @@ extension EditorViewModel {
         guard workspaceTask == nil else {
             return
         }
+        let notificationRunID = beginWorkspaceActivity(title: statusTitle, source: .build, supportsCancellation: false)
         workspaceStatus = .running(statusTitle)
         buildActivity = EditorBuildActivity(title: statusTitle)
         footer.setWorkspaceFooterTitle(workspaceStatus.title)
@@ -287,12 +289,15 @@ extension EditorViewModel {
             self.workspaceTask = nil
             switch outcome {
             case .success(let artifact):
+                self.finishWorkspaceActivity(notificationRunID, succeeded: true)
                 self.finishAdaScriptProjectBuild(artifact)
                 onSuccess(artifact)
             case .projectFailure(let error):
                 self.finishAdaScriptProjectBuildFailure(message: error.message)
+                self.finishWorkspaceActivity(notificationRunID, succeeded: false, detail: error.message)
             case .failure(let message):
                 self.finishAdaScriptProjectBuildFailure(message: message)
+                self.finishWorkspaceActivity(notificationRunID, succeeded: false, detail: message)
             }
         }
     }
@@ -411,7 +416,10 @@ extension EditorViewModel {
             previewStatus: workbench.previewStatus,
             sourceControlIsRunning: sourceControl.isRunning,
             sourceControlTitle: sourceControl.statusMessage
-        )
+        ) + EditorNotificationCenter.shared.activities.active.filter { $0.source == .agent }.map {
+            EditorActivityEvent(id: $0.id, kind: .agent, title: $0.title, detail: $0.detail,
+                fractionCompleted: $0.fractionCompleted.map { Float($0) })
+        }
     }
 
     func runActiveSceneInEditor() {
@@ -530,8 +538,7 @@ extension EditorViewModel {
                 reloadScriptableObjectSupport()
             }
         case .findInProject:
-            findInProjectRoot()
-            _ = EditorSearchShortcutMonitor.shared.focusSearchField()
+            presentTextSearch()
         case .navigateBack:
             navigateBack()
         case .navigateForward:

@@ -44,7 +44,9 @@ extension EditorWorkbenchViewModel {
             guard !document.isReadOnly, let model = uiSceneModels[document.id] else {
                 return false
             }
+            guard redo ? model.canRedo : model.canUndo else { return false }
             if redo { model.redo() } else { model.undo() }
+            if redo { achievementRedos.insert(document.id) } else { achievementRedos.remove(document.id) }
             return true
         case .scene(let current):
             guard !current.isReadOnly,
@@ -64,6 +66,7 @@ extension EditorWorkbenchViewModel {
             restored.lastSavedContent = current.lastSavedContent
             restored.isDirty = restored.content != current.lastSavedContent
             restored.statusMessage = redo ? "Redo" : "Undo"
+            if redo { achievementRedos.insert(current.id) } else { achievementRedos.remove(current.id) }
             openDocuments[index] = .scene(restored)
             notifyActiveDocumentChangedIfNeeded(documentID: current.id)
             onDocumentEdited?(current.id)

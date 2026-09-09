@@ -308,9 +308,10 @@ enum ContextMenuMetrics {
         max(minimumWidth, min(maximumWidth, Float(longestTitleCharacterCount * 7 + 44)))
     }
 
-    static func titleWidth(menuWidth: Float, hasSubmenu: Bool) -> Float {
+    static func titleWidth(menuWidth: Float, hasSubmenu: Bool, hasSelection: Bool = false) -> Float {
         let submenuWidth = hasSubmenu ? itemSpacing + submenuIndicatorWidth : 0
-        return max(0, menuWidth - horizontalPadding * 2 - submenuWidth)
+        let selectionWidth: Float = hasSelection ? 12 + itemSpacing : 0
+        return max(0, menuWidth - horizontalPadding * 2 - submenuWidth - selectionWidth)
     }
 
     static func height(for item: ContextMenuPresentation.Item) -> Float {
@@ -362,12 +363,19 @@ private struct ContextMenuWindowContent: View {
                 }
             }) {
                 HStack(spacing: ContextMenuMetrics.itemSpacing) {
+                    if items.contains(where: \.isSelected) {
+                        ContextMenuCheckmark()
+                            .stroke(primaryTextColor, lineWidth: 1.8)
+                            .frame(width: 12, height: 12)
+                            .opacity(item.isSelected ? 1 : 0)
+                            .accessibilityIdentifier("AdaUI.ContextMenu.Checkmark.\(item.id)")
+                    }
                     Text(item.title)
                         .font(.system(size: 12))
                         .foregroundColor(item.role == .destructive ? destructiveTextColor : primaryTextColor)
                         .lineLimit(1)
                         .frame(
-                            width: ContextMenuMetrics.titleWidth(menuWidth: menuWidth, hasSubmenu: !item.submenu.isEmpty),
+                            width: ContextMenuMetrics.titleWidth(menuWidth: menuWidth, hasSubmenu: !item.submenu.isEmpty, hasSelection: items.contains(where: \.isSelected)),
                             height: ContextMenuMetrics.rowHeight,
                             alignment: .leading
                         )
@@ -404,6 +412,18 @@ private struct ContextMenuWindowContent: View {
         ContextMenuMetrics.width(
             longestTitleCharacterCount: items.lazy.filter { !$0.isSeparator }.map(\.title.count).max() ?? 0
         )
+    }
+}
+
+struct ContextMenuCheckmark: Shape {
+    typealias AnimatableData = EmptyAnimatableData
+
+    func path(in rect: Rect) -> Path {
+        Path { path in
+            path.move(to: Point(rect.minX + rect.width * 0.1, rect.minY + rect.height * 0.5))
+            path.addLine(to: Point(rect.minX + rect.width * 0.4, rect.minY + rect.height * 0.8))
+            path.addLine(to: Point(rect.minX + rect.width * 0.9, rect.minY + rect.height * 0.2))
+        }
     }
 }
 

@@ -74,6 +74,9 @@ final class EditorProjectSwitcherViewModel {
             let project = try store.openProject(at: url)
             dismiss()
             return project
+        } catch let error as ProjectSystemError {
+            errorMessage = "Unable to open \(url.lastPathComponent).\n\(error.message)\n\(error.recoverySuggestion)"
+            return nil
         } catch {
             errorMessage = error.localizedDescription
             return nil
@@ -105,22 +108,10 @@ struct EditorProjectSwitcherPanel: View {
 
             Divider()
 
-            if let currentProject = viewModel.currentProject {
-                sectionTitle("This Window")
-                projectRow(currentProject, isCurrent: true)
-                Divider()
-            }
-
-            sectionTitle("Recent Projects")
-            recentProjects
+            projectList
 
             if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-                    .font(.system(size: 10))
-                    .foregroundColor(.red)
-                    .lineLimit(2)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
+                openingError(errorMessage)
             }
 
             Divider()
@@ -152,6 +143,22 @@ struct EditorProjectSwitcherPanel: View {
         .accessibilityIdentifier(Self.accessibilityIdentifier)
     }
 
+    private func openingError(_ message: String) -> some View {
+        ScrollView(.vertical) {
+            Text(message)
+                .font(.system(size: 11))
+                .foregroundColor(.red)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(width: EditorProjectSwitcherLayout.width - 24, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .accessibilityIdentifier("AdaEditor.ProjectSwitcher.ErrorMessage")
+        }
+        .frame(height: EditorProjectSwitcherLayout.errorHeight)
+        .accessibilityIdentifier("AdaEditor.ProjectSwitcher.Error")
+    }
+
     private var searchField: some View {
         HStack(spacing: 8) {
             Text("\u{E8B6}")
@@ -167,9 +174,15 @@ struct EditorProjectSwitcherPanel: View {
         .frame(height: EditorProjectSwitcherLayout.searchHeight)
     }
 
-    private var recentProjects: some View {
+    private var projectList: some View {
         ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 0) {
+                if let currentProject = viewModel.currentProject {
+                    sectionTitle("This Window")
+                    projectRow(currentProject, isCurrent: true)
+                    Divider()
+                }
+                sectionTitle("Recent Projects")
                 ForEach(viewModel.filteredRecentProjects) { project in
                     projectRow(project, isCurrent: false)
                 }
@@ -183,7 +196,9 @@ struct EditorProjectSwitcherPanel: View {
                 }
             }
         }
-        .frame(width: EditorProjectSwitcherLayout.width, height: EditorProjectSwitcherLayout.recentProjectsHeight)
+        .frame(width: EditorProjectSwitcherLayout.width)
+        .frame(minHeight: 0, maxHeight: .infinity)
+        .accessibilityIdentifier("AdaEditor.ProjectSwitcher.List")
     }
 
     private func sectionTitle(_ title: String) -> some View {
@@ -191,8 +206,8 @@ struct EditorProjectSwitcherPanel: View {
             .font(.system(size: 11))
             .foregroundColor(theme.editorColors.muted)
             .padding(.horizontal, 12)
-            .padding(.top, 10)
-            .padding(.bottom, 6)
+            .frame(height: EditorProjectSwitcherLayout.sectionHeaderHeight, alignment: .leading)
+            .accessibilityIdentifier("AdaEditor.ProjectSwitcher.Section.\(title)")
     }
 
     private func projectRow(_ project: EditorProjectReference, isCurrent: Bool) -> some View {
@@ -249,7 +264,8 @@ enum EditorProjectSwitcherLayout {
     static let width: Float = 360
     static let height: Float = 422
     static let searchHeight: Float = 42
-    static let recentProjectsHeight: Float = 238
+    static let sectionHeaderHeight: Float = 30
+    static let errorHeight: Float = 96
     static let rowHeight: Float = 48
     static let rowWidth: Float = width - 12
     static let leadingOffset: Float = 32

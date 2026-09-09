@@ -44,6 +44,23 @@ extension MetalView: UIKeyInput {
 }
 
 extension MetalView {
+    @objc func handlePinch(_ recognizer: UIPinchGestureRecognizer) {
+        let phase: PinchEvent.Phase
+        switch recognizer.state {
+        case .began: phase = .began
+        case .changed: phase = .changed
+        case .ended: phase = .ended
+        case .cancelled, .failed: phase = .cancelled
+        default: return
+        }
+        let location = recognizer.location(in: self)
+        input?.wrappedValue.receiveEvent(PinchEvent(
+            window: windowID,
+            location: Point(x: Float(location.x), y: Float(location.y)),
+            scale: Float(recognizer.scale), phase: phase, time: TimeInterval(CACurrentMediaTime())
+        ))
+    }
+
     // MARK: - Input Access
 
     var input: Ref<Input>? {

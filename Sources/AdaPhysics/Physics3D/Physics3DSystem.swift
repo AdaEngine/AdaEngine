@@ -57,6 +57,9 @@ public struct Physics3DSyncSystem: Sendable {
                 def.position = transform.position.b3Vec
                 def.rotation = transform.rotation.b3Quat
                 def.type = physicsBody.mode.b3Type
+                def.gravityScale = physicsBody.gravityScale
+                def.linearVelocity = physicsBody.linearVelocity.b3Vec
+                def.angularVelocity = physicsBody.angularVelocity.b3Vec
 
                 let body = world.createBody(with: def, for: entity)
                 physicsBody.runtimeBody = body

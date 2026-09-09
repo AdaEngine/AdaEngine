@@ -15,6 +15,14 @@ enum ProjectOpeningSection: String, CaseIterable, Equatable, Sendable {
     var title: String {
         rawValue.capitalized
     }
+
+    var icon: String {
+        switch self {
+        case .projects: "\u{E2C7}"
+        case .templates: "\u{E871}"
+        case .samples: "\u{E034}"
+        }
+    }
 }
 
 struct ProjectOpeningDiagnostic: Equatable, Identifiable, Sendable {
@@ -35,6 +43,7 @@ struct ProjectOpeningDiagnostic: Equatable, Identifiable, Sendable {
 @Observable
 @MainActor
 final class ProjectOpeningViewModel {
+    var projectAvailability: [String: ProjectOpeningAvailability] = [:]
     var recentProjects: [EditorProjectReference] = []
     var projectName: String = "AdaGame"
     var projectLocation: String = ""
@@ -50,6 +59,63 @@ final class ProjectOpeningViewModel {
     var projectToOpenInEditorToken = 0
     var isOpeningLastProject = false
     var shouldCreateGitRepository = true
+    var projectBeingRenamed: EditorProjectReference?
+    var renamedProjectName = ""
+    var recentProjectError: String?
+
+    var renamedProjectNameBinding: Binding<String> {
+        Binding(get: { self.renamedProjectName }, set: { self.renamedProjectName = $0 })
+    }
+
+    func beginRenamingProject(_ project: EditorProjectReference) {
+        selectProject(project)
+        recentProjectError = nil
+        renamedProjectName = project.name
+        projectBeingRenamed = project
+    }
+
+    func cancelRenamingProject() {
+        projectBeingRenamed = nil
+        recentProjectError = nil
+    }
+
+    func renameRecentProject() {
+        guard let reference = projectBeingRenamed else {
+            return
+        }
+        do {
+            _ = try store.renameProject(reference, to: renamedProjectName)
+            reloadRecentProjects()
+            projectBeingRenamed = nil
+            recentProjectError = nil
+        } catch {
+            recentProjectError = "Could not rename project: \(error.localizedDescription)"
+        }
+    }
+
+    func removeRecentProject(_ project: EditorProjectReference) {
+        do {
+            try store.removeRecentProject(project)
+            reloadRecentProjects()
+            projectAvailability.removeValue(forKey: project.path)
+            if existingProjectPath == project.path { existingProjectPath = "" }
+            if projectBeingRenamed?.id == project.id { projectBeingRenamed = nil }
+            recentProjectError = nil
+        } catch {
+            recentProjectError = "Could not remove project: \(error.localizedDescription)"
+        }
+    }
+
+    var projectTemplateBinding: Binding<String> {
+        Binding(
+            get: { self.selectedTemplate.displayName },
+            set: { name in
+                if let template = EditorProjectTemplate.allCases.first(where: { $0.displayName == name }) {
+                    self.selectedTemplate = template
+                }
+            }
+        )
+    }
 
     var projectNameBinding: Binding<String> {
         Binding(get: { self.projectName }, set: { self.projectName = $0 })
@@ -139,6 +205,20 @@ final class ProjectOpeningViewModel {
         } catch {
             setFailureStatus(prefix: "Failed to load recent projects", error: error)
         }
+    }
+
+    func refreshProjectAvailability() async {
+        let locations = recentProjects.map { ($0.path, retainedProjectURL(for: $0)) }
+        // File enumeration can block on external or cloud volumes; only immutable URLs cross actors.
+        let snapshot = await Task.detached(priority: .utility) {
+            Dictionary(locations.map { path, url in
+                (path, ProjectOpeningAvailability.inspect(at: url))
+            }, uniquingKeysWith: { _, latest in latest })
+        }.value
+        guard !Task.isCancelled, projectAvailability != snapshot else {
+            return
+        }
+        projectAvailability = snapshot
     }
 
     /// Opens the most recent project without performing potentially blocking filesystem I/O on the main actor.
@@ -255,6 +335,7 @@ final class ProjectOpeningViewModel {
             } else {
                 statusMessage = "Created project: \(createdProject.path)"
             }
+            EditorAchievementBootstrap.center?.record([.firstProject: 1])
             isCreatingNewProject = false
             selectedProject = createdProject
             clearValidationDiagnostics()
@@ -478,4 +559,49 @@ private enum BackgroundProjectOpenResult: Sendable {
     case unavailable
     case projectFailure(ProjectSystemError)
     case failure(String)
+}
+
+struct ProjectOpeningAvailability: Equatable, Sendable {
+    var isAvailable: Bool
+    var containsSwiftCode: Bool
+
+    static func inspect(at url: URL) -> Self {
+        let fileManager = FileManager()
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue,
+              fileManager.isReadableFile(atPath: url.path),
+              let project = try? ProjectSystem.loadProject(at: url, fileManager: fileManager)
+        else {
+            return Self(isAvailable: false, containsSwiftCode: false)
+        }
+        guard project.build.system == .swiftpm,
+              fileManager.isReadableFile(atPath: url.appendingPathComponent("Package.swift").path)
+        else {
+            return Self(isAvailable: true, containsSwiftCode: false)
+        }
+        let sourceRoots = [project.paths.sources ?? "Sources"] + project.build.includedFiles
+        let containsSwift = sourceRoots.contains { path in
+            let sourceURL = url.appendingPathComponent(path)
+            if isSwiftSource(sourceURL) {
+                return true
+            }
+            guard let files = fileManager.enumerator(
+                at: sourceURL,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) else { return false }
+            for case let file as URL in files where isSwiftSource(file) {
+                return true
+            }
+            return false
+        }
+        return Self(isAvailable: true, containsSwiftCode: containsSwift)
+    }
+
+    private static func isSwiftSource(_ url: URL) -> Bool {
+        url.pathExtension.lowercased() == "swift"
+            && url.lastPathComponent != "Package.swift"
+            && !url.lastPathComponent.hasPrefix("Package@swift-")
+            && (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+    }
 }

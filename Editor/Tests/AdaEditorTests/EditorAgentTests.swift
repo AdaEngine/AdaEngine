@@ -444,7 +444,7 @@ struct EditorAgentTests {
         viewModel.agentArguments = "--stdio, --profile=editor"
         viewModel.agentWorkingDirectory = "Tools"
         viewModel.agentEnvironment = "OPENAI_ORGANIZATION=ada, LOG_LEVEL=info"
-        viewModel.agentSkillsDirectories = ".skills, .codex/skills"
+        viewModel.agentSkillsDirectories = [".skills", ".codex/skills", "Skills, Shared"]
         viewModel.agentPermissionMode = .deny
 
         viewModel.saveAgentSettings()
@@ -455,7 +455,7 @@ struct EditorAgentTests {
         #expect(saved.ai.agent.target.arguments == ["--stdio", "--profile=editor"])
         #expect(saved.ai.agent.target.cwd == "Tools")
         #expect(saved.ai.agent.target.environment == ["OPENAI_ORGANIZATION": "ada", "LOG_LEVEL": "info"])
-        #expect(saved.ai.agent.skillsDirectories == [".skills", ".codex/skills"])
+        #expect(saved.ai.agent.skillsDirectories == [".skills", ".codex/skills", "Skills, Shared"])
         #expect(saved.ai.agent.permissionMode == .deny)
     }
 

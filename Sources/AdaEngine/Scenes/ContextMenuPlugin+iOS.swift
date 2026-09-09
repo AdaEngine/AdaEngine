@@ -140,7 +140,7 @@ final class IOSContextMenuSession: NSObject, @preconcurrency UIEditMenuInteracti
             }
 
             let attributes: UIKit.UIMenuElement.Attributes = item.role == .destructive ? .destructive : []
-            return UIKit.UIAction(title: item.title, attributes: attributes) { [weak self] _ in
+            return UIKit.UIAction(title: item.title, attributes: attributes, state: item.isSelected ? .on : .off) { [weak self] _ in
                 self?.dismiss()
                 item.action?()
             }

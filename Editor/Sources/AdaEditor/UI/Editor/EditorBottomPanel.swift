@@ -30,6 +30,20 @@ struct EditorBottomPanel: View {
             .padding(.vertical, 5)
             .background(theme.editorColors.surface)
             
+            if viewModel.activeOutputTab == "Output" {
+                HStack(spacing: 8) {
+                    ForEach(["Game", "Editor"], id: \.self) { source in
+                        commandButton(source) { viewModel.activeLogSource = source }
+                            .foregroundColor(viewModel.activeLogSource == source ? theme.editorColors.text : theme.editorColors.muted)
+                            .background(RoundedRectangleShape(cornerRadius: 5).fill(viewModel.activeLogSource == source ? theme.editorColors.blue.opacity(0.22) : .clear))
+                            .accessibilityIdentifier("AdaEditor.Logs.Tab.\(source)")
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+            }
+
             GeometryReader { geometry in
                 ScrollViewReader { proxy in
                     HStack(spacing: 0) {
@@ -108,7 +122,7 @@ struct EditorBottomPanel: View {
 
     private var outputLog: some View {
         LazyVStack(
-            viewModel.outputLines,
+            viewModel.activeOutputTab == "Output" && viewModel.activeLogSource == "Game" ? viewModel.gameLogLines : viewModel.outputLines,
             alignment: .leading,
             spacing: 6,
             estimatedRowHeight: 19,
@@ -300,7 +314,7 @@ struct EditorBottomPanel: View {
                 glyph: "\u{E872}",
                 identifier: "AdaEditor.Output.Clear"
             ) {
-                viewModel.clearOutput()
+                viewModel.clearVisibleLog()
             }
             Spacer()
         }

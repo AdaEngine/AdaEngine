@@ -142,6 +142,8 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     private weak var activeMouseEventNode: ViewNode?
     /// Touch-began capture target. Subsequent moved/ended/cancelled events are routed here.
     private weak var activeTouchEventNode: ViewNode?
+    /// Pinch-began capture target, retained through the end of the gesture.
+    private weak var activePinchEventNode: ViewNode?
     /// Manages keyboard-driven focus traversal across focusable nodes.
     let focusManager = UIFocusManager()
     var hasFocusedInputNode: Bool {
@@ -281,6 +283,17 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     }
 
     public override func onReceiveEvent(_ event: any InputEvent) {
+        if let pinch = event as? PinchEvent {
+            if pinch.phase == .began {
+                let point = convert(pinch.location, from: window)
+                activePinchEventNode = viewTree.rootNode.hitTest(point, with: pinch)
+            }
+            activePinchEventNode?.onPinchEvent(pinch)
+            if pinch.phase == .ended || pinch.phase == .cancelled {
+                activePinchEventNode = nil
+            }
+            return
+        }
         self.viewTree.rootNode.onReceiveEvent(event)
     }
 

@@ -26,9 +26,11 @@ struct EditorScenePlayRuntime: Sendable {
 
     @MainActor
     func install(in app: inout AppWorlds) throws {
-        try registerScriptableObjects()
-        if let plugin = try makeScriptPlugin() {
-            app.addPlugin(plugin)
+        try RuntimeLogStore.$currentSource.withValue("Game") {
+            try registerScriptableObjects()
+            if let plugin = try makeScriptPlugin() {
+                app.addPlugin(plugin)
+            }
         }
     }
 

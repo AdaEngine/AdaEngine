@@ -29,6 +29,9 @@ extension EditorSceneViewportView {
                 updatedDocument.errorMessage = nil
                 updatedDocument.loadSummary = EditorSceneFileLoader.summary(from: content)
                 onDocumentChanged(updatedDocument)
+            },
+            onTransformChanged: { [weak inspectorViewModel] editorID, payload in
+                inspectorViewModel?.updateLiveTransform(editorID: editorID, payload: payload)
             }
         )
         if let loadResult, runtimeWarnings != loadResult.warnings {
@@ -90,7 +93,7 @@ extension EditorSceneViewportView {
                 }
             },
             updateScriptableObjectField: { identifier, field, value in
-                Self.mutateSceneDocument(document: document, status: "Edited", onDocumentChanged: onDocumentChanged) { model in
+                Self.mutateSceneDocument(document: document, status: "AdaScript field edited", onDocumentChanged: onDocumentChanged) { model in
                     guard let selectedEntityID = model.editor?.selectedEntity else {
                         return
                     }
@@ -106,6 +109,8 @@ extension EditorSceneViewportView {
     }
 
     func redrawViewport() {
+        // Drawing invalidation alone does not rebuild the ruler labels inside GeometryReader.
+        viewportRevision &+= 1
         viewProxy.redraw()
     }
 

@@ -24,6 +24,7 @@ enum EditorSceneValue: Codable, Equatable, Sendable {
     case null
     case bool(Bool)
     case int(Int)
+    case uint(UInt64)
     case double(Double)
     case string(String)
     case array([EditorSceneValue])
@@ -38,6 +39,8 @@ enum EditorSceneValue: Codable, Equatable, Sendable {
             self = .bool(value)
         } else if let value = try? container.decode(Int.self) {
             self = .int(value)
+        } else if let value = try? container.decode(UInt64.self) {
+            self = .uint(value)
         } else if let value = try? container.decode(Double.self) {
             self = .double(value)
         } else if let value = try? container.decode(String.self) {
@@ -64,6 +67,8 @@ enum EditorSceneValue: Codable, Equatable, Sendable {
             try container.encode(value)
         case .int(let value):
             try container.encode(value)
+        case .uint(let value):
+            try container.encode(value)
         case .double(let value):
             try container.encode(value)
         case .string(let value):
@@ -85,6 +90,8 @@ extension EditorSceneValue {
             value
         case .int(let value):
             value
+        case .uint(let value):
+            value
         case .double(let value):
             value
         case .string(let value):
@@ -104,6 +111,8 @@ extension EditorSceneValue {
             value ? "true" : "false"
         case .int(let value):
             String(value)
+        case .uint(let value):
+            String(value)
         case .double(let value):
             EditorSceneModelFormatting.format(value)
         case .string(let value):
@@ -121,6 +130,8 @@ extension EditorSceneValue {
     var doubleValue: Double? {
         switch self {
         case .int(let value):
+            Double(value)
+        case .uint(let value):
             Double(value)
         case .double(let value):
             value
@@ -290,6 +301,9 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
             return
         }
 
+        if [EditorBuiltInComponentType.physicsBody2D, EditorBuiltInComponentType.physicsBody3D].contains(typeName) {
+            payload = EditorComponentRegistry.resolvedPhysicsPayload(payload, is3D: typeName == EditorBuiltInComponentType.physicsBody3D)
+        }
         field.write(value, to: &payload)
         entities[entityIndex].components[typeName] = payload
     }

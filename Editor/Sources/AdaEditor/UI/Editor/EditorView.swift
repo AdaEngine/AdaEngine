@@ -117,7 +117,7 @@ struct EditorView: View {
         self._projectSwitcher = State(initialValue: EditorProjectSwitcherViewModel(currentProject: project))
     }
 
-    var body: some View {
+    private var editorContent: some View {
         GeometryReader { geometry in
             let metrics = AdaEngineStyleLayoutMetrics(size: geometry.size)
             VStack(spacing: metrics.workspaceSpacer) {
@@ -152,6 +152,9 @@ struct EditorView: View {
             )
             .foregroundColor(theme.editorColors.text)
             .environment(\.metrics, metrics)
+            .overlay(anchor: .bottomTrailing) {
+                EditorNotificationOverlay(model: viewModel, size: geometry.size)
+            }
             .overlay(anchor: .top) {
                 if !viewModel.toolbar.searchResults.isEmpty {
                     EditorProjectSearchResults(
@@ -204,6 +207,12 @@ struct EditorView: View {
             EditorSafeAreaBackground()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    var body: some View {
+        // Keep the window presentation value small as editor overlays grow.
+        AnyView(editorContent)
+        .modifier(EditorTextSearchPresentation(viewModel: viewModel))
         .fullScreenCover(isPresented: viewModel.isNewFileDialogPresentedBinding) {
             EditorNewFileDialog(viewModel: viewModel)
         }
@@ -249,7 +258,22 @@ struct EditorView: View {
             EditorSettingsWindowController.open(editorViewModel: viewModel, selectedSection: section)
         }
         #endif
+        .task {
+            RuntimeLogStore.shared.setEnabled(true)
+            while !Task.isCancelled {
+                await viewModel.collectRuntimeLogs()
+                do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
+                // The branch can also change in a terminal while the editor stays open.
+                await viewModel.refreshSourceControlFooter()
+            }
+        }
         .onAppear {
+            EditorNotificationRouter.shared.attach(viewModel)
             EditorMenuCommandRouter.shared.install(owner: viewModel) { [weak viewModel] command in
                 viewModel?.handleMenuCommand(command) ?? false
             }
@@ -260,6 +284,7 @@ struct EditorView: View {
             )
         }
         .onDisappear {
+            EditorNotificationRouter.shared.detach(viewModel)
             viewModel.debugger.stop()
             EditorMenuCommandRouter.shared.uninstall(owner: viewModel)
             EditorSearchShortcutMonitor.shared.stop()
@@ -586,10 +611,14 @@ private struct EditorFooterRegion: View {
     let viewModel: EditorViewModel
 
     var body: some View {
-        EditorFooter(
-            viewModel: viewModel.footer,
-            activities: viewModel.activeActivities
-        )
+        HStack(spacing: 4) {
+            EditorFooter(viewModel: viewModel.footer, activities: viewModel.activeActivities, onOpenActivity: {
+                viewModel.notificationTab = .activity
+                viewModel.showsNotifications = true
+            })
+                .frame(maxWidth: .infinity)
+            EditorNotificationBell(model: viewModel)
+        }
     }
 }
 

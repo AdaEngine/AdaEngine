@@ -61,12 +61,15 @@ public struct Physics2DSyncSystem: Sendable {
                     )
                 }
                 
-                body.massData.mass = physicsBody.massProperties.mass
+                applyMassProperties(physicsBody.massProperties, fixedRotation: physicsBody.fixedRotation, to: body)
             } else {
                 var def = unsafe b2DefaultBodyDef()
                 unsafe def.fixedRotation = physicsBody.fixedRotation
                 unsafe def.position = transform.position.xy.b2Vec
                 unsafe def.type = physicsBody.mode.b2Type
+                unsafe def.gravityScale = physicsBody.gravityScale
+                unsafe def.linearVelocity = physicsBody.linearVelocity.b2Vec
+                unsafe def.angularVelocity = physicsBody.angularVelocity
 
                 let body = unsafe world.createBody(with: def, for: entity)
                 physicsBody.runtimeBody = body
@@ -93,7 +96,7 @@ public struct Physics2DSyncSystem: Sendable {
                     )
                 }
 
-                body.massData.mass = physicsBody.massProperties.mass
+                applyMassProperties(physicsBody.massProperties, fixedRotation: physicsBody.fixedRotation, to: body)
             }
 
             if let shapes = physicsBody.runtimeBody?.getShapes() {
@@ -109,6 +112,13 @@ public struct Physics2DSyncSystem: Sendable {
                 }
             }
         }
+    }
+
+    private func applyMassProperties(_ properties: PhysicsMassProperties, fixedRotation: Bool, to body: Body2D) {
+        var data = body.massData
+        data.mass = properties.mass
+        if fixedRotation { data.rotationalInertia = 0 } else if properties.inertia.z > 0 { data.rotationalInertia = properties.inertia.z }
+        body.massData = data
     }
 
     private func syncCollisionEntities(in world: PhysicsWorld2D) {

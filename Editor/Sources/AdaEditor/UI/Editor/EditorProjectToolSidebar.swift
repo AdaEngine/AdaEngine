@@ -10,7 +10,7 @@ struct EditorProjectToolSidebar: View {
         VStack(alignment: .leading, spacing: 0) {
             adaEditorPanelTitle(title, trailing: viewModel.workspaceStatus.title, theme: theme)
             content
-            Spacer()
+            if viewModel.toolStrip.activeRightTool != "swiftPackageTasks" { Spacer() }
         }
         .background(
             RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner)
@@ -23,7 +23,7 @@ struct EditorProjectToolSidebar: View {
         case "projectDependencies":
             "DEPENDENCIES"
         case "swiftPackageTasks":
-            "SWIFT PACKAGE"
+            "TASK RUNNER"
         default:
             "PROJECT"
         }
@@ -63,27 +63,31 @@ struct EditorProjectToolSidebar: View {
                 }
             }
         case "swiftPackageTasks":
-            section("COMMANDS") {
-                command("Resolve Dependencies") { viewModel.bootstrapWorkspaceIfNeeded(force: true) }
-                command("Build All") { viewModel.buildAll() }
-                command("Run Selected") { viewModel.runSelectedTarget() }
-                command("Run Tests") { viewModel.runTests() }
-                command("Update Dependencies") { viewModel.updateDependencies() }
-                command("Clean Build Artifacts") { viewModel.cleanPackageCache() }
-                command("Reset Package Cache") { viewModel.resetPackageCache() }
-            }
-            section("RUN PRODUCTS") {
-                ForEach(viewModel.runProducts, id: \.self) { product in
-                    command(product) {
-                        viewModel.selectedRunProduct = product
-                        viewModel.runSelectedTarget()
-                    }
-                }
-            }
+            EditorTaskRunner(
+                groups: EditorTaskRunnerGroup.swiftPackage(products: viewModel.runProducts),
+                isEnabled: viewModel.workspaceTask == nil,
+                onRun: runTask
+            )
         default:
             section("STATUS") {
                 row(viewModel.workspaceStatus.title)
             }
+        }
+    }
+
+    private func runTask(_ id: String) {
+        switch id {
+        case "build": viewModel.buildAll()
+        case "test": viewModel.runTests()
+        case "runSelected": viewModel.runSelectedTarget()
+        case "resolve": viewModel.bootstrapWorkspaceIfNeeded(force: true)
+        case "update": viewModel.updateDependencies()
+        case "clean": viewModel.cleanPackageCache()
+        case "reset": viewModel.resetPackageCache()
+        default:
+            guard id.hasPrefix("product:") else { return }
+            viewModel.selectedRunProduct = String(id.dropFirst("product:".count))
+            viewModel.runSelectedTarget()
         }
     }
 

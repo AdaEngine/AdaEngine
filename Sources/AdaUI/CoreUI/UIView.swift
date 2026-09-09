@@ -571,6 +571,8 @@ open class UIView {
                 convert(event.mousePosition, to: self),
                 with: event
             )
+        case let event as PinchEvent:
+            self.hitTest(convert(event.location, to: self), with: event)
         case let event as TouchEvent:
             self.hitTest(
                 event.location,

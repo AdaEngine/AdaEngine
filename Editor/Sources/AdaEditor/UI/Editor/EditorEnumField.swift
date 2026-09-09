@@ -3,11 +3,14 @@
 struct EditorEnumField: View {
     let cases: [String]
     let selection: Binding<String>
+    var accessibilityID = "AdaEditor.Enum.Toggle"
     @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 6) {
-            Text(selection.wrappedValue).lineLimit(1)
+            Text(selection.wrappedValue)
+                .font(.system(size: 12))
+                .lineLimit(1)
             Spacer()
             Text("\u{E5CF}")
                 .font(AdaEditorMaterialSymbolFont.font(size: 16))
@@ -15,17 +18,16 @@ struct EditorEnumField: View {
         .padding(.horizontal, 8)
         .frame(height: 30)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .font(.system(size: 12))
         .foregroundColor(theme.editorColors.text)
         .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surfaceElevated))
         .overlay { RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.border.opacity(0.6), lineWidth: 1) }
         .contextMenu(opensOnPrimaryAction: true) {
             ForEach(cases, id: \.self) { value in
-                Button(selection.wrappedValue == value ? "✓ \(value)" : value) {
+                ContextMenuOption(value, isSelected: selection.wrappedValue == value) {
                     selection.wrappedValue = value
                 }
             }
         }
-        .accessibilityIdentifier("AdaEditor.Enum.Toggle")
+        .accessibilityIdentifier(accessibilityID)
     }
 }

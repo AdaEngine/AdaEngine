@@ -168,6 +168,14 @@ private final class OffscreenViewportNode: ViewNode {
         return point.x >= 0 && point.y >= 0 && point.x <= size.width && point.y <= size.height
     }
 
+    override func onPinchEvent(_ event: PinchEvent) {
+        if event.phase == .began { activateViewport() }
+        delegate.receiveInputEvent(PinchEvent(
+            window: event.window, location: viewportLocalPosition(event.location),
+            scale: event.scale, phase: event.phase, time: event.time
+        ))
+    }
+
     override func onMouseEvent(_ event: MouseEvent) {
         let localPosition = viewportLocalPosition(event.mousePosition)
         let localEvent = MouseEvent(

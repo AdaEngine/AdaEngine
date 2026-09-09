@@ -128,6 +128,7 @@ extension EditorViewModel {
                 appendOutput("Imported asset \(sourceURL.lastPathComponent) -> \(relativeProjectPath(for: destinationURL.path))")
             }
             try ensureAssetResourcesInManifest(projectURL: projectURL)
+            if !sourceURLs.isEmpty { workbench.achievements?.record([.firstImport: 1]) }
             projectSidebar.items = Self.projectTreeItems(for: project, fileManager: fileManager)
             toolbar.searchableItems = projectSidebar.items
             syncInspectorTextureAssets()

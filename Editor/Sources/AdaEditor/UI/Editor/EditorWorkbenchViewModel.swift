@@ -6,6 +6,11 @@ import Observation
 @Observable
 @MainActor
 final class EditorWorkbenchViewModel {
+    @ObservationIgnored var achievements: EditorAchievementCenter?
+    @ObservationIgnored var achievementResourceRoot: URL?
+    @ObservationIgnored var achievementAdaScriptProject = false
+    @ObservationIgnored var achievementScriptEdits: Set<String> = []
+    @ObservationIgnored var achievementRedos: Set<String> = []
     var aiPrompt: String
     var hoveredChip: String?
     var activeEditorTab: String

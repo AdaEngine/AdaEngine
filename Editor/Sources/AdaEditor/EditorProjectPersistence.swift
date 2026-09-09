@@ -1,6 +1,39 @@
 import Foundation
 
 extension EditorProjectStore {
+    /// Removes only the recent-project reference, preserving all project files.
+    public func removeRecentProject(_ reference: EditorProjectReference) throws {
+        try saveProjects(loadProjects().filter { $0.id != reference.id })
+    }
+
+    /// Updates the display name without changing the folder, build targets, or project identity.
+    @discardableResult
+    public func renameProject(_ reference: EditorProjectReference, to name: String) throws -> EditorProjectReference {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { throw EditorProjectStoreError.emptyProjectName }
+        var references = try loadProjects()
+        guard let index = references.firstIndex(where: { $0.id == reference.id }) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let url = resolveProjectURL(for: references[index])
+        #if os(iOS) || os(tvOS) || os(visionOS)
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        #endif
+        let original = try ProjectSystem.loadProject(at: url, fileManager: fileManager)
+        var project = original
+        project.project.displayName = name
+        try ProjectSystem.saveProject(project, at: url, fileManager: fileManager)
+        references[index].name = name
+        do {
+            try saveProjects(references)
+        } catch {
+            try ProjectSystem.saveProject(original, at: url, fileManager: fileManager)
+            throw error
+        }
+        return references[index]
+    }
+
     public static func defaultStorageURL(fileManager: FileManager = .default) -> URL {
         let applicationSupport: URL
         if let applicationSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {

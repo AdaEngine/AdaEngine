@@ -19,12 +19,17 @@ final class EditorAgentViewModel {
     var selectedSkillIDs: Set<String> = []
     var statusMessage: String?
     var isSending = false
+    @ObservationIgnored private var notificationSessionID: String?
+    @ObservationIgnored private var runningSession: EditorAgentSession?
+    @ObservationIgnored private var runningActivityID: String?
+    @ObservationIgnored private var permissionActivityIDs: [String: String] = [:]
+    @ObservationIgnored let notifications: EditorNotificationCenter
     var agentEnabled = false
     var agentCommand = ""
     var agentArguments = ""
     var agentWorkingDirectory = ""
     var agentEnvironment = ""
-    var agentSkillsDirectories = ""
+    var agentSkillsDirectories: [String] = []
     var agentPermissionMode = AdaProjectAgentPermissionMode.allowOnce
     var settingsStatusMessage = ""
     let catalog: EditorAgentCatalogViewModel
@@ -48,12 +53,16 @@ final class EditorAgentViewModel {
         fileManager: FileManager = .default,
         service: any EditorAgentServicing = EditorACPAgentService(),
         catalog: EditorAgentCatalogViewModel = EditorAgentCatalogViewModel(),
+        notifications: EditorNotificationCenter = .shared,
         onProjectFileChanged: @escaping (String) -> Void = { _ in }
     ) {
+        self.notifications = notifications
         self.project = project
         self.fileManager = fileManager
         self.service = service
         self.catalog = catalog
+        catalog.notificationAction.projectID = project?.id
+        catalog.notificationProjectName = project?.name
         self.onProjectFileChanged = onProjectFileChanged
         configureForProject()
     }
@@ -104,8 +113,13 @@ final class EditorAgentViewModel {
         Binding(get: { self.agentEnvironment }, set: { self.agentEnvironment = $0 })
     }
 
-    var agentSkillsDirectoriesBinding: Binding<String> {
-        Binding(get: { self.agentSkillsDirectories }, set: { self.agentSkillsDirectories = $0 })
+    func skillDirectoryBinding(at index: Int) -> Binding<String> {
+        Binding(get: {
+            self.agentSkillsDirectories.indices.contains(index) ? self.agentSkillsDirectories[index] : ""
+        }, set: { value in
+            guard self.agentSkillsDirectories.indices.contains(index) else { return }
+            self.agentSkillsDirectories[index] = value
+        })
     }
 
     var canSend: Bool {
@@ -160,6 +174,10 @@ final class EditorAgentViewModel {
 
         do {
             sessions = try await store.listSessions()
+            if let notificationSessionID {
+                activeSession = runningSession?.id == notificationSessionID ? runningSession : try await store.loadSession(id: notificationSessionID)
+                return
+            }
             if let activeID = try await store.activeSessionID(), let session = try? await store.loadSession(id: activeID) {
                 activeSession = session
                 selectedSkillIDs = Set(session.selectedSkillIDs)
@@ -176,6 +194,7 @@ final class EditorAgentViewModel {
     }
 
     func createSession() async throws {
+        notificationSessionID = nil
         guard let store else {
             return
         }
@@ -190,12 +209,13 @@ final class EditorAgentViewModel {
     }
 
     func selectSession(_ summary: EditorAgentSessionSummary) {
+        notificationSessionID = nil
         guard let store else {
             return
         }
         Task {
             do {
-                activeSession = try await store.loadSession(id: summary.id)
+                activeSession = runningSession?.id == summary.id ? runningSession : try await store.loadSession(id: summary.id)
                 selectedSkillIDs = Set(activeSession?.selectedSkillIDs ?? [])
                 sessionConfiguration = .empty
                 connectionState = .disconnected
@@ -207,6 +227,10 @@ final class EditorAgentViewModel {
     }
 
     func deleteActiveSession() {
+        guard runningSession?.id != activeSession?.id || runningSession == nil else {
+            statusMessage = "Stop the running agent before deleting its session."
+            return
+        }
         guard let store, let activeSession else {
             return
         }
@@ -343,6 +367,7 @@ final class EditorAgentViewModel {
     }
 
     func saveAgentSettings() {
+        guard !isSending else { settingsStatusMessage = "Stop the running agent before changing its settings."; return }
         guard let projectURL else {
             settingsStatusMessage = "No project is open."
             return
@@ -366,7 +391,7 @@ final class EditorAgentViewModel {
                     cwd: agentWorkingDirectory.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
                 ),
                 permissionMode: agentPermissionMode,
-                skillsDirectories: Self.lineList(from: agentSkillsDirectories)
+                skillsDirectories: agentSkillsDirectories.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
             )
 
             try ProjectSystem.saveProject(projectConfig, at: projectURL, fileManager: fileManager)
@@ -388,15 +413,23 @@ final class EditorAgentViewModel {
     }
 
     func interrupt() {
-        guard let activeSession else {
-            return
-        }
+        if let id = runningActivityID { notifications.activities.cancel(id) }
+    }
+
+    func openNotificationSession(_ id: String) {
+        notificationSessionID = id
         Task {
-            await service.cancel(sessionID: activeSession.id)
-            appendEvent(EditorAgentEvent(kind: .runStatus, title: "Interrupted", details: nil))
-            await saveActiveSession()
-            isSending = false
-            connectionState = .disconnected
+            do {
+                guard let store else { return }
+                activeSession = runningSession?.id == id ? runningSession : try await store.loadSession(id: id)
+                selectedSkillIDs = Set(activeSession?.selectedSkillIDs ?? [])
+                try await store.setActiveSession(id: id)
+            } catch {
+                notificationSessionID = nil
+                statusMessage = "This agent session is no longer available."
+                notifications.post(.init(source: .agent, importance: .warning, title: "Session unavailable",
+                    detail: "The session may have been deleted.", projectName: project?.name, requestsSystemDelivery: false))
+            }
         }
     }
 
@@ -465,6 +498,9 @@ final class EditorAgentViewModel {
     }
 
     func resolvePermission(requestID: String, optionID: String?) {
+        if let id = permissionActivityIDs.removeValue(forKey: requestID), !permissionActivityIDs.values.contains(id) {
+            notifications.activities.resume(id)
+        }
         Task {
             await service.resolvePermission(requestID: requestID, optionID: optionID)
         }
@@ -479,6 +515,7 @@ final class EditorAgentViewModel {
     }
 
     func sendPromptAsync() async {
+        guard !isSending else { return }
         guard var session = activeSession,
               let projectConfig,
               let projectURL else {
@@ -527,6 +564,16 @@ final class EditorAgentViewModel {
         isSending = true
         connectionState = .connecting
         await saveActiveSession()
+        runningSession = session
+        let sessionID = session.id
+        let activityID = notifications.activities.begin(.init(
+            source: .agent, title: sessionConfiguration.agentName ?? "Agent", projectName: project?.name,
+            action: .init(title: "Open chat", destination: .chat, projectID: project?.id, sessionID: sessionID)
+        ), cancel: { [weak self] in
+            guard let self else { return }
+            Task { await self.service.cancel(sessionID: sessionID) }
+        })
+        runningActivityID = activityID
 
         do {
             connectionState = .running
@@ -545,7 +592,7 @@ final class EditorAgentViewModel {
                 ),
                 onEvent: { [weak self] event in
                     await MainActor.run {
-                        self?.appendEvent(event)
+                        self?.receiveRunEvent(event, sessionID: sessionID, activityID: activityID)
                     }
                 },
                 onProjectFileChanged: { [weak self] relativePath in
@@ -554,17 +601,58 @@ final class EditorAgentViewModel {
                     }
                 }
             )
-            activeSession?.upstreamSessionID = result.upstreamSessionID
-            sessionConfiguration = result.configuration
-            appendEvent(EditorAgentEvent(kind: .runStatus, title: "Done", details: result.stopReason))
-            connectionState = .ready(result.configuration.agentName)
+            runningSession?.upstreamSessionID = result.upstreamSessionID
+            if activeSession?.id == sessionID {
+                activeSession?.upstreamSessionID = result.upstreamSessionID
+                sessionConfiguration = result.configuration
+                connectionState = .ready(result.configuration.agentName)
+            }
+            let cancelled = !notifications.activities.active.contains { $0.id == activityID } || result.stopReason == "cancelled"
+            receiveRunEvent(EditorAgentEvent(kind: .runStatus, title: cancelled ? "Interrupted" : "Done", details: result.stopReason),
+                            sessionID: sessionID, activityID: activityID)
+            notifications.activities.finish(activityID, state: cancelled ? .cancelled : .completed)
         } catch {
-            appendEvent(EditorAgentEvent(kind: .error, title: "Agent failed", details: error.localizedDescription, isSuccessful: false))
-            connectionState = .failed(error.localizedDescription)
+            let cancelled = !notifications.activities.active.contains { $0.id == activityID } || error is CancellationError
+            receiveRunEvent(EditorAgentEvent(kind: .error, title: cancelled ? "Interrupted" : "Agent failed",
+                details: error.localizedDescription, isSuccessful: false), sessionID: sessionID, activityID: activityID)
+            notifications.activities.finish(activityID, state: cancelled ? .cancelled : .failed, detail: error.localizedDescription)
+            if activeSession?.id == sessionID { connectionState = cancelled ? .disconnected : .failed(error.localizedDescription) }
         }
-
+        if let store, let runningSession {
+            do {
+                try await store.saveSession(runningSession, makeActive: activeSession?.id == sessionID)
+                sessions = try await store.listSessions()
+            } catch { statusMessage = error.localizedDescription }
+        }
+        runningSession = nil
+        runningActivityID = nil
+        permissionActivityIDs = permissionActivityIDs.filter { $0.value != activityID }
         isSending = false
-        await saveActiveSession()
+    }
+
+    private func receiveRunEvent(_ event: EditorAgentEvent, sessionID: String, activityID: String) {
+        guard runningSession?.id == sessionID, runningActivityID == activityID else { return }
+        if let permission = event.permission {
+            if permission.state == .pending {
+                permissionActivityIDs[permission.id] = activityID
+                notifications.activities.needsAttention(activityID, detail: permission.summary, eventID: "\(activityID):permission:\(permission.id)")
+            } else {
+                permissionActivityIDs.removeValue(forKey: permission.id)
+                if !permissionActivityIDs.values.contains(activityID) { notifications.activities.resume(activityID) }
+            }
+        } else if let tool = event.toolCall {
+            notifications.activities.update(activityID, detail: tool.title)
+        } else if event.kind == .runStatus, let title = event.title {
+            notifications.activities.update(activityID, detail: title)
+        }
+        if activeSession?.id == sessionID {
+            appendEvent(event)
+            runningSession = activeSession
+        } else if event.configuration == nil, var session = runningSession {
+            EditorAgentEventReducer.upsert(event, into: &session.events)
+            session.updatedAt = Date()
+            runningSession = session
+        }
     }
 
     private func connectAsync() async {
@@ -605,6 +693,9 @@ final class EditorAgentViewModel {
         } catch {
             statusMessage = error.localizedDescription
             connectionState = .failed(error.localizedDescription)
+            notifications.post(.init(source: .agent, importance: .error, title: "Agent connection failed",
+                detail: error.localizedDescription, projectName: project?.name,
+                actions: [.init(title: "Agent settings", destination: .agentSettings, projectID: project?.id)]))
         }
     }
 
@@ -617,7 +708,7 @@ final class EditorAgentViewModel {
             .sorted { $0.key < $1.key }
             .map { "\($0.key)=\($0.value)" }
             .joined(separator: "\n")
-        agentSkillsDirectories = configuration.skillsDirectories.joined(separator: "\n")
+        agentSkillsDirectories = configuration.skillsDirectories
         agentPermissionMode = configuration.permissionMode
     }
 

@@ -129,7 +129,7 @@ struct EditorAgentSidebar: View {
                 configurationLabel(selectedChoiceName(in: selector))
                     .contextMenu(opensOnPrimaryAction: true) {
                         ForEach(selector.choices, id: \.id) { choice in
-                            Button(choice.id == selector.currentValueID ? "✓ \(choice.name)" : choice.name) {
+                            ContextMenuOption(choice.name, isSelected: choice.id == selector.currentValueID) {
                                 viewModel.selectConfiguration(selectorID: selector.id, valueID: choice.id)
                             }
                         }

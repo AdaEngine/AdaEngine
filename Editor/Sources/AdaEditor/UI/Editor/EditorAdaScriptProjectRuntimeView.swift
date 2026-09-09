@@ -140,6 +140,9 @@ private struct EditorAdaScriptRuntimeEntryPlugin: Plugin {
     let sceneModel: EditorSceneModel
 
     func setup(in app: borrowing AppWorlds) {
-        _ = EditorSceneFileLoader.load(model: sceneModel, into: app.main)
+        let result = EditorSceneFileLoader.load(model: sceneModel, into: app.main)
+        if result.warnings.isEmpty {
+            EditorAchievementBootstrap.center?.record(EditorAchievementRules.playedScene(sceneModel, adaScript: true))
+        }
     }
 }

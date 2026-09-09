@@ -39,10 +39,12 @@ final class EditorSceneViewportModel {
     var threeDPitch: Float = -0.42
     var perspectiveBlend: Float = 0
 
+    private var lastPinchScale: Float?
     private var pressedKeys: Set<KeyCode> = []
     private var lastMousePosition: Point?
     private var mouseDownPosition: Point?
     private var transformDrag: TransformDrag?
+    private var transformInspectorUpdateTask: Task<Void, Never>?
     private var suppressSelectionOnPointerEnd = false
     private var isTwoDPanning = false
     private var isThreeDRotating = false
@@ -52,6 +54,7 @@ final class EditorSceneViewportModel {
     var onSelectEntity: ((String?) -> Void)?
     private var onSelectionChanged: ((EditorInspectorSidebarViewModel.SelectedEntity?) -> Void)?
     private var onDocumentContentChanged: ((String) -> Void)?
+    private var onTransformChanged: ((String, EditorComponentPayload) -> Void)?
 
     private struct TransformDrag {
         var editorID: String
@@ -73,7 +76,8 @@ final class EditorSceneViewportModel {
         resourceRootURL: URL? = nil,
         scriptableObjectCatalog: [EditorScriptableObjectDescriptor] = [],
         onSelectionChanged: @escaping (EditorInspectorSidebarViewModel.SelectedEntity?) -> Void,
-        onDocumentContentChanged: @escaping (String) -> Void
+        onDocumentContentChanged: @escaping (String) -> Void,
+        onTransformChanged: ((String, EditorComponentPayload) -> Void)? = nil
     ) -> EditorSceneRuntimeLoadResult? {
         let contentChanged = self.sceneContent != sceneContent
         self.sceneSourceURL = sourceURL
@@ -81,6 +85,7 @@ final class EditorSceneViewportModel {
         self.scriptableObjectCatalog = scriptableObjectCatalog
         self.onSelectionChanged = onSelectionChanged
         self.onDocumentContentChanged = onDocumentContentChanged
+        self.onTransformChanged = onTransformChanged
         self.onSelectEntity = { [weak self] editorID in
             self?.selectEntity(editorID)
         }
@@ -89,6 +94,7 @@ final class EditorSceneViewportModel {
         // Redraws still carry the last published document until then.
         if let transformDrag, sceneContent == transformDrag.startContent { return nil }
         guard contentChanged else { return nil }
+        cancelTransformInspectorUpdate()
         self.sceneContent = sceneContent
         transformDrag = nil
         hoveredGizmoHandle = nil
@@ -103,6 +109,8 @@ final class EditorSceneViewportModel {
     }
 
     func disconnect() {
+        lastPinchScale = nil
+        cancelTransformInspectorUpdate()
         world = nil
         cameraEntityID = nil
         entitiesByEditorID.removeAll()
@@ -118,6 +126,7 @@ final class EditorSceneViewportModel {
         hoveredGizmoHandle = nil
         onSelectEntity = nil
         onSelectionChanged = nil
+        onTransformChanged = nil
         onDocumentContentChanged = nil
     }
 
@@ -163,6 +172,7 @@ final class EditorSceneViewportModel {
     }
 
     func setDisplayMode(_ mode: EditorSceneViewportDisplayMode) {
+        lastPinchScale = nil
         guard mode != displayMode else {
             return
         }
@@ -221,6 +231,8 @@ final class EditorSceneViewportModel {
 
     func handleInput(_ event: any InputEvent) -> Bool {
         switch event {
+        case let pinchEvent as PinchEvent:
+            return handlePinchEvent(pinchEvent)
         case let keyEvent as KeyEvent:
             return handleKeyEvent(keyEvent)
         case let mouseEvent as MouseEvent:
@@ -494,20 +506,38 @@ extension EditorSceneViewportModel {
             case .select: break
             }
         }
-        applyTransformPayload(payload, editorID: drag.editorID, publishDocument: false)
+        applyTransformPayload(payload, editorID: drag.editorID)
         return true
     }
 
-    private func applyTransformPayload(_ payload: EditorComponentPayload, editorID: String, publishDocument: Bool = true) {
+    private func applyTransformPayload(_ payload: EditorComponentPayload, editorID: String) {
         guard var model = sceneModel, let index = model.entities.firstIndex(where: { $0.id == editorID }),
               model.entities[index].components[EditorBuiltInComponentType.transform] != payload else { return }
         model.entities[index].components[EditorBuiltInComponentType.transform] = payload
-        guard let content = try? model.encodedYAML() else { return }
-        sceneContent = content
         sceneModel = model
         syncRuntimeTransform(editorID: editorID, payload: payload)
-        if publishDocument { onDocumentContentChanged?(content) }
-        onSelectionChanged?(selectedEntityViewModel(editorID: editorID, model: model))
+        onTransformChanged?(editorID, payload)
+        scheduleTransformInspectorUpdate(editorID: editorID)
+    }
+
+    private func scheduleTransformInspectorUpdate(editorID: String) {
+        cancelTransformInspectorUpdate()
+        transformInspectorUpdateTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, let self, self.selectedEditorID == editorID,
+                  let model = self.sceneModel else { return }
+            self.transformInspectorUpdateTask = nil
+            self.onSelectionChanged?(self.selectedEntityViewModel(editorID: editorID, model: model))
+        }
+    }
+
+    private func cancelTransformInspectorUpdate() {
+        transformInspectorUpdateTask?.cancel()
+        transformInspectorUpdateTask = nil
     }
 
     func endTransformDrag(cancelled: Bool = false) {
@@ -517,10 +547,19 @@ extension EditorSceneViewportModel {
         guard let drag else { return }
         if cancelled {
             suppressSelectionOnPointerEnd = true
-            applyTransformPayload(drag.startPayload, editorID: drag.editorID, publishDocument: false)
+            applyTransformPayload(drag.startPayload, editorID: drag.editorID)
+            cancelTransformInspectorUpdate()
             sceneContent = drag.startContent
-        } else if sceneContent != drag.startContent {
-            onDocumentContentChanged?(sceneContent)
+            if let model = sceneModel {
+                onSelectionChanged?(selectedEntityViewModel(editorID: drag.editorID, model: model))
+            }
+        } else if let model = sceneModel,
+                  let entity = model.entities.first(where: { $0.id == drag.editorID }),
+                  entity.components[EditorBuiltInComponentType.transform] != drag.startPayload,
+                  let content = try? model.encodedYAML() {
+            // Commit once on release so Save and Undo see the latest transform immediately.
+            sceneContent = content
+            onDocumentContentChanged?(content)
         }
     }
 
@@ -562,6 +601,7 @@ extension EditorSceneViewportModel {
     }
 
     func handleTouchEvent(_ event: TouchEvent) -> Bool {
+        guard lastPinchScale == nil else { return true }
         switch event.phase {
         case .began:
             suppressSelectionOnPointerEnd = false
@@ -596,6 +636,37 @@ extension EditorSceneViewportModel {
             suppressSelectionOnPointerEnd = false
             return true
         }
+    }
+
+    func handlePinchEvent(_ event: PinchEvent) -> Bool {
+        guard event.scale.isFinite, event.scale > 0 else {
+            return false
+        }
+        if event.phase == .began {
+            endTransformDrag(cancelled: true)
+            lastTouchPosition = nil
+            touchDownPosition = nil
+            suppressSelectionOnPointerEnd = true
+            lastPinchScale = 1
+        }
+        guard let previousScale = lastPinchScale else {
+            return false
+        }
+        if event.phase != .cancelled {
+            let factor = event.scale / previousScale
+            switch displayMode {
+            case .twoD:
+                let offset = Vector2(event.location.x - viewportSize.width * 0.5, viewportSize.height * 0.5 - event.location.y)
+                let worldAnchor = twoDCenter + offset / twoDZoom
+                twoDZoom = min(24, max(0.08, twoDZoom * factor))
+                twoDCenter = worldAnchor - offset / twoDZoom
+            case .threeD:
+                threeDPosition += front3D * ((factor - 1) * 10)
+            }
+            applyCamera()
+        }
+        lastPinchScale = event.phase == .ended || event.phase == .cancelled ? nil : event.scale
+        return true
     }
 
     func pan2D(byScreenDelta delta: Vector2) {
@@ -869,6 +940,7 @@ extension EditorSceneViewportModel {
 
 private extension EditorSceneViewportModel {
     func selectEntity(_ editorID: String?) {
+        cancelTransformInspectorUpdate()
         selectedEditorID = editorID
         guard var model = sceneModel else {
             onSelectionChanged?(nil)
@@ -965,6 +1037,8 @@ private extension EditorSceneViewportModel {
     }
 
     func componentSection(typeName: String, payload: EditorComponentPayload) -> EditorInspectorSidebarViewModel.ComponentSection {
+        let payload = [EditorBuiltInComponentType.physicsBody2D, EditorBuiltInComponentType.physicsBody3D].contains(typeName)
+            ? EditorComponentRegistry.resolvedPhysicsPayload(payload, is3D: typeName == EditorBuiltInComponentType.physicsBody3D) : payload
         guard let descriptor = EditorComponentRegistry.descriptor(named: typeName) else {
             return EditorInspectorSidebarViewModel.ComponentSection(
                 typeName: typeName,

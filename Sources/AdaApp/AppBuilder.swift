@@ -29,6 +29,9 @@ public final class AppWorlds {
     @_spi(Internal)
     public let executionID = UUID()
 
+    /// Source attached to diagnostic logs emitted by this runtime, including child tasks.
+    public var runtimeLogSource = "Editor"
+
     #if ENABLE_RUN_IN_CONCURRENCY
     public typealias ApplicationRunnerBlock = () async -> Void
     #else
@@ -266,13 +269,17 @@ public extension AppWorlds {
     /// Executes synchronous work in this world's task-local runtime context.
     @_spi(Internal)
     func withExecutionContext<Result>(_ operation: () throws -> Result) rethrows -> Result {
-        try AppWorldsExecutionContext.$currentID.withValue(executionID, operation: operation)
+        try RuntimeLogStore.$currentSource.withValue(runtimeLogSource) {
+            try AppWorldsExecutionContext.$currentID.withValue(executionID, operation: operation)
+        }
     }
 
     /// Executes asynchronous work in this world's task-local runtime context.
     @_spi(Internal)
     func withExecutionContext<Result>(_ operation: () async throws -> Result) async rethrows -> Result {
-        try await AppWorldsExecutionContext.$currentID.withValue(executionID, operation: operation)
+        try await RuntimeLogStore.$currentSource.withValue(runtimeLogSource) {
+            try await AppWorldsExecutionContext.$currentID.withValue(executionID, operation: operation)
+        }
     }
 }
 
