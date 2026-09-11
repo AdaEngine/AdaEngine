@@ -12,7 +12,7 @@ layout (std140, binding = 0) uniform EditorAgentGlowMaterial {
 // Returns PREMULTIPLIED RGBA; blend with ONE, ONE_MINUS_SRC_ALPHA.
 // accent is an RGB color in [0, 1]. No secondary color is hard-coded.
 // time is seconds already multiplied by playback speed. activity is [0, 1].
-// Freeze time for reduced motion. Keep completion visible in green until dismissed.
+// Freeze time for reduced motion; the host controls completion lifetime and fading.
 // Host resolves status to accent; hueSpread = 0.012 keeps semantic colors recognizable.
 
 vec3 agentRGBToHSV(vec3 c) {

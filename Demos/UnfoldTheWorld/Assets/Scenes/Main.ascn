@@ -9,9 +9,12 @@ entities:
   name: Flight deck
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
     AdaTransform.Transform:
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
       position:
       - 0
       - 0
@@ -20,25 +23,26 @@ entities:
       - 1
       - 1
       - 1
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
+    AdaRender.Visibility:
+      value: visible
     AdaSprite.Sprite:
       size:
       - 400
       - 640
       tintColor:
-        green: 7.84313725490196e-2
-        alpha: 1e+0
         red: 3.52941176470588e-2
+        alpha: 1e+0
         blue: 1.25490196078431e-1
+        green: 7.84313725490196e-2
 - id: grid-x-180
   name: Deck seam
   enabled: true
   components:
     AdaTransform.Transform:
+      scale:
+      - 1
+      - 1
+      - 1
       position:
       - -180
       - 0
@@ -48,41 +52,31 @@ entities:
       - 0
       - 0
       - 1
-      scale:
-      - 1
-      - 1
-      - 1
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
       tintColor:
+        alpha: 1e+0
         red: 7.84313725490196e-2
         green: 1.49019607843137e-1
-        alpha: 1e+0
         blue: 2.07843137254902e-1
       size:
       - 1
       - 640
+    AdaRender.Visibility:
+      value: visible
 - id: grid-x-140
   name: Deck seam
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
+      tintColor:
+        alpha: 1e+0
+        green: 1.49019607843137e-1
+        blue: 2.07843137254902e-1
+        red: 7.84313725490196e-2
       size:
       - 1
       - 640
-      tintColor:
-        blue: 2.07843137254902e-1
-        alpha: 1e+0
-        red: 7.84313725490196e-2
-        green: 1.49019607843137e-1
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
       rotation:
       - 0
       - 0
@@ -92,22 +86,32 @@ entities:
       - -140
       - 0
       - 1
+      scale:
+      - 1
+      - 1
+      - 1
+    AdaRender.Visibility:
+      value: visible
 - id: grid-x-100
   name: Deck seam
   enabled: true
   components:
+    AdaRender.Visibility:
+      value: visible
     AdaSprite.Sprite:
       size:
       - 1
       - 640
       tintColor:
-        blue: 2.07843137254902e-1
-        red: 7.84313725490196e-2
         alpha: 1e+0
         green: 1.49019607843137e-1
-    AdaRender.Visibility:
-      value: visible
+        blue: 2.07843137254902e-1
+        red: 7.84313725490196e-2
     AdaTransform.Transform:
+      position:
+      - -100
+      - 0
+      - 1
       scale:
       - 1
       - 1
@@ -115,56 +119,41 @@ entities:
       rotation:
       - 0
       - 0
-      - 0
-      - 1
-      position:
-      - -100
       - 0
       - 1
 - id: grid-x-60
   name: Deck seam
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
       size:
       - 1
       - 640
       tintColor:
-        red: 7.84313725490196e-2
-        alpha: 1e+0
         green: 1.49019607843137e-1
+        red: 7.84313725490196e-2
         blue: 2.07843137254902e-1
+        alpha: 1e+0
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
       rotation:
       - 0
       - 0
       - 0
       - 1
+      scale:
+      - 1
+      - 1
+      - 1
       position:
       - -60
       - 0
       - 1
+    AdaRender.Visibility:
+      value: visible
 - id: grid-x-20
   name: Deck seam
   enabled: true
   components:
-    AdaSprite.Sprite:
-      tintColor:
-        alpha: 1e+0
-        red: 7.84313725490196e-2
-        green: 1.49019607843137e-1
-        blue: 2.07843137254902e-1
-      size:
-      - 1
-      - 640
-    AdaRender.Visibility:
-      value: visible
     AdaTransform.Transform:
       scale:
       - 1
@@ -179,11 +168,37 @@ entities:
       - -20
       - 0
       - 1
+    AdaSprite.Sprite:
+      tintColor:
+        blue: 2.07843137254902e-1
+        red: 7.84313725490196e-2
+        green: 1.49019607843137e-1
+        alpha: 1e+0
+      size:
+      - 1
+      - 640
+    AdaRender.Visibility:
+      value: visible
 - id: grid-x20
   name: Deck seam
   enabled: true
   components:
+    AdaSprite.Sprite:
+      size:
+      - 1
+      - 640
+      tintColor:
+        green: 1.49019607843137e-1
+        red: 7.84313725490196e-2
+        alpha: 1e+0
+        blue: 2.07843137254902e-1
+    AdaRender.Visibility:
+      value: visible
     AdaTransform.Transform:
+      position:
+      - 20
+      - 0
+      - 1
       scale:
       - 1
       - 1
@@ -193,31 +208,18 @@ entities:
       - 0
       - 0
       - 1
-      position:
-      - 20
-      - 0
-      - 1
-    AdaSprite.Sprite:
-      tintColor:
-        blue: 2.07843137254902e-1
-        alpha: 1e+0
-        red: 7.84313725490196e-2
-        green: 1.49019607843137e-1
-      size:
-      - 1
-      - 640
-    AdaRender.Visibility:
-      value: visible
 - id: grid-x60
   name: Deck seam
   enabled: true
   components:
+    AdaRender.Visibility:
+      value: visible
     AdaSprite.Sprite:
       tintColor:
         red: 7.84313725490196e-2
-        green: 1.49019607843137e-1
         blue: 2.07843137254902e-1
         alpha: 1e+0
+        green: 1.49019607843137e-1
       size:
       - 1
       - 640
@@ -235,18 +237,16 @@ entities:
       - 0
       - 0
       - 1
-    AdaRender.Visibility:
-      value: visible
 - id: grid-x100
   name: Deck seam
   enabled: true
   components:
     AdaSprite.Sprite:
       tintColor:
-        green: 1.49019607843137e-1
-        alpha: 1e+0
         red: 7.84313725490196e-2
         blue: 2.07843137254902e-1
+        alpha: 1e+0
+        green: 1.49019607843137e-1
       size:
       - 1
       - 640
@@ -270,17 +270,17 @@ entities:
   name: Deck seam
   enabled: true
   components:
+    AdaRender.Visibility:
+      value: visible
     AdaSprite.Sprite:
-      tintColor:
-        alpha: 1e+0
-        red: 7.84313725490196e-2
-        blue: 2.07843137254902e-1
-        green: 1.49019607843137e-1
       size:
       - 1
       - 640
-    AdaRender.Visibility:
-      value: visible
+      tintColor:
+        red: 7.84313725490196e-2
+        blue: 2.07843137254902e-1
+        green: 1.49019607843137e-1
+        alpha: 1e+0
     AdaTransform.Transform:
       position:
       - 140
@@ -299,22 +299,7 @@ entities:
   name: Deck seam
   enabled: true
   components:
-    AdaSprite.Sprite:
-      size:
-      - 1
-      - 640
-      tintColor:
-        blue: 2.07843137254902e-1
-        alpha: 1e+0
-        green: 1.49019607843137e-1
-        red: 7.84313725490196e-2
-    AdaRender.Visibility:
-      value: visible
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
       rotation:
       - 0
       - 0
@@ -324,18 +309,31 @@ entities:
       - 180
       - 0
       - 1
+      scale:
+      - 1
+      - 1
+      - 1
+    AdaRender.Visibility:
+      value: visible
+    AdaSprite.Sprite:
+      size:
+      - 1
+      - 640
+      tintColor:
+        green: 1.49019607843137e-1
+        blue: 2.07843137254902e-1
+        alpha: 1e+0
+        red: 7.84313725490196e-2
 - id: grid-y-300
   name: Deck seam
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
       tintColor:
-        alpha: 1e+0
-        green: 1.49019607843137e-1
         blue: 2.07843137254902e-1
+        green: 1.49019607843137e-1
         red: 7.84313725490196e-2
+        alpha: 1e+0
       size:
       - 400
       - 1
@@ -353,10 +351,23 @@ entities:
       - 0
       - -300
       - 1
+    AdaRender.Visibility:
+      value: visible
 - id: grid-y-260
   name: Deck seam
   enabled: true
   components:
+    AdaSprite.Sprite:
+      tintColor:
+        alpha: 1e+0
+        blue: 2.07843137254902e-1
+        green: 1.49019607843137e-1
+        red: 7.84313725490196e-2
+      size:
+      - 400
+      - 1
+    AdaRender.Visibility:
+      value: visible
     AdaTransform.Transform:
       rotation:
       - 0
@@ -371,26 +382,22 @@ entities:
       - 1
       - 1
       - 1
-    AdaRender.Visibility:
-      value: visible
-    AdaSprite.Sprite:
-      size:
-      - 400
-      - 1
-      tintColor:
-        red: 7.84313725490196e-2
-        alpha: 1e+0
-        blue: 2.07843137254902e-1
-        green: 1.49019607843137e-1
 - id: grid-y-220
   name: Deck seam
   enabled: true
   components:
+    AdaSprite.Sprite:
+      tintColor:
+        red: 7.84313725490196e-2
+        green: 1.49019607843137e-1
+        alpha: 1e+0
+        blue: 2.07843137254902e-1
+      size:
+      - 400
+      - 1
+    AdaRender.Visibility:
+      value: visible
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
       position:
       - 0
       - -220
@@ -400,59 +407,54 @@ entities:
       - 0
       - 0
       - 1
-    AdaSprite.Sprite:
-      size:
-      - 400
+      scale:
       - 1
-      tintColor:
-        red: 7.84313725490196e-2
-        alpha: 1e+0
-        blue: 2.07843137254902e-1
-        green: 1.49019607843137e-1
-    AdaRender.Visibility:
-      value: visible
+      - 1
+      - 1
 - id: grid-y-180
   name: Deck seam
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
       tintColor:
         green: 1.49019607843137e-1
-        alpha: 1e+0
         blue: 2.07843137254902e-1
+        alpha: 1e+0
         red: 7.84313725490196e-2
       size:
       - 400
       - 1
     AdaTransform.Transform:
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
-      scale:
-      - 1
-      - 1
-      - 1
       position:
       - 0
       - -180
       - 1
-- id: grid-y-140
-  name: Deck seam
-  enabled: true
-  components:
-    AdaTransform.Transform:
+      scale:
+      - 1
+      - 1
+      - 1
       rotation:
       - 0
       - 0
       - 0
       - 1
+    AdaRender.Visibility:
+      value: visible
+- id: grid-y-140
+  name: Deck seam
+  enabled: true
+  components:
+    AdaRender.Visibility:
+      value: visible
+    AdaTransform.Transform:
       scale:
       - 1
       - 1
+      - 1
+      rotation:
+      - 0
+      - 0
+      - 0
       - 1
       position:
       - 0
@@ -460,24 +462,18 @@ entities:
       - 1
     AdaSprite.Sprite:
       tintColor:
-        green: 1.49019607843137e-1
-        red: 7.84313725490196e-2
         alpha: 1e+0
+        red: 7.84313725490196e-2
         blue: 2.07843137254902e-1
+        green: 1.49019607843137e-1
       size:
       - 400
       - 1
-    AdaRender.Visibility:
-      value: visible
 - id: grid-y-100
   name: Deck seam
   enabled: true
   components:
     AdaTransform.Transform:
-      position:
-      - 0
-      - -100
-      - 1
       scale:
       - 1
       - 1
@@ -487,51 +483,71 @@ entities:
       - 0
       - 0
       - 1
+      position:
+      - 0
+      - -100
+      - 1
     AdaSprite.Sprite:
-      tintColor:
-        green: 1.49019607843137e-1
-        blue: 2.07843137254902e-1
-        red: 7.84313725490196e-2
-        alpha: 1e+0
       size:
       - 400
       - 1
+      tintColor:
+        green: 1.49019607843137e-1
+        alpha: 1e+0
+        red: 7.84313725490196e-2
+        blue: 2.07843137254902e-1
     AdaRender.Visibility:
       value: visible
 - id: grid-y-60
   name: Deck seam
   enabled: true
   components:
-    AdaSprite.Sprite:
-      size:
-      - 400
-      - 1
-      tintColor:
-        red: 7.84313725490196e-2
-        alpha: 1e+0
-        green: 1.49019607843137e-1
-        blue: 2.07843137254902e-1
     AdaRender.Visibility:
       value: visible
     AdaTransform.Transform:
-      position:
-      - 0
-      - -60
-      - 1
       scale:
       - 1
       - 1
+      - 1
+      position:
+      - 0
+      - -60
       - 1
       rotation:
       - 0
       - 0
       - 0
       - 1
+    AdaSprite.Sprite:
+      size:
+      - 400
+      - 1
+      tintColor:
+        red: 7.84313725490196e-2
+        green: 1.49019607843137e-1
+        blue: 2.07843137254902e-1
+        alpha: 1e+0
 - id: grid-y-20
   name: Deck seam
   enabled: true
   components:
+    AdaSprite.Sprite:
+      tintColor:
+        alpha: 1e+0
+        blue: 2.07843137254902e-1
+        red: 7.84313725490196e-2
+        green: 1.49019607843137e-1
+      size:
+      - 400
+      - 1
+    AdaRender.Visibility:
+      value: visible
     AdaTransform.Transform:
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
       position:
       - 0
       - -20
@@ -539,22 +555,6 @@ entities:
       scale:
       - 1
       - 1
-      - 1
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
-    AdaRender.Visibility:
-      value: visible
-    AdaSprite.Sprite:
-      tintColor:
-        green: 1.49019607843137e-1
-        alpha: 1e+0
-        blue: 2.07843137254902e-1
-        red: 7.84313725490196e-2
-      size:
-      - 400
       - 1
 - id: grid-y20
   name: Deck seam
@@ -569,34 +569,34 @@ entities:
       tintColor:
         alpha: 1e+0
         green: 1.49019607843137e-1
-        red: 7.84313725490196e-2
         blue: 2.07843137254902e-1
+        red: 7.84313725490196e-2
     AdaTransform.Transform:
       scale:
       - 1
       - 1
+      - 1
+      position:
+      - 0
+      - 20
       - 1
       rotation:
       - 0
       - 0
       - 0
       - 1
-      position:
-      - 0
-      - 20
-      - 1
 - id: grid-y60
   name: Deck seam
   enabled: true
   components:
     AdaTransform.Transform:
-      position:
-      - 0
-      - 60
-      - 1
       scale:
       - 1
       - 1
+      - 1
+      position:
+      - 0
+      - 60
       - 1
       rotation:
       - 0
@@ -625,15 +625,11 @@ entities:
       tintColor:
         alpha: 1e+0
         blue: 2.07843137254902e-1
-        green: 1.49019607843137e-1
         red: 7.84313725490196e-2
+        green: 1.49019607843137e-1
     AdaRender.Visibility:
       value: visible
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
       rotation:
       - 0
       - 0
@@ -643,19 +639,14 @@ entities:
       - 0
       - 100
       - 1
+      scale:
+      - 1
+      - 1
+      - 1
 - id: grid-y140
   name: Deck seam
   enabled: true
   components:
-    AdaSprite.Sprite:
-      tintColor:
-        green: 1.49019607843137e-1
-        blue: 2.07843137254902e-1
-        red: 7.84313725490196e-2
-        alpha: 1e+0
-      size:
-      - 400
-      - 1
     AdaTransform.Transform:
       position:
       - 0
@@ -672,32 +663,41 @@ entities:
       - 1
     AdaRender.Visibility:
       value: visible
+    AdaSprite.Sprite:
+      tintColor:
+        green: 1.49019607843137e-1
+        red: 7.84313725490196e-2
+        alpha: 1e+0
+        blue: 2.07843137254902e-1
+      size:
+      - 400
+      - 1
 - id: grid-y180
   name: Deck seam
   enabled: true
   components:
     AdaSprite.Sprite:
-      tintColor:
-        alpha: 1e+0
-        red: 7.84313725490196e-2
-        blue: 2.07843137254902e-1
-        green: 1.49019607843137e-1
       size:
       - 400
       - 1
+      tintColor:
+        blue: 2.07843137254902e-1
+        alpha: 1e+0
+        green: 1.49019607843137e-1
+        red: 7.84313725490196e-2
     AdaTransform.Transform:
       position:
       - 0
       - 180
       - 1
-      scale:
-      - 1
-      - 1
-      - 1
       rotation:
       - 0
       - 0
       - 0
+      - 1
+      scale:
+      - 1
+      - 1
       - 1
     AdaRender.Visibility:
       value: visible
@@ -705,49 +705,64 @@ entities:
   name: Deck seam
   enabled: true
   components:
+    AdaRender.Visibility:
+      value: visible
+    AdaSprite.Sprite:
+      tintColor:
+        red: 7.84313725490196e-2
+        alpha: 1e+0
+        green: 1.49019607843137e-1
+        blue: 2.07843137254902e-1
+      size:
+      - 400
+      - 1
     AdaTransform.Transform:
       position:
       - 0
       - 220
       - 1
-      scale:
-      - 1
-      - 1
-      - 1
       rotation:
       - 0
       - 0
       - 0
       - 1
-    AdaSprite.Sprite:
-      tintColor:
-        red: 7.84313725490196e-2
-        green: 1.49019607843137e-1
-        alpha: 1e+0
-        blue: 2.07843137254902e-1
-      size:
-      - 400
+      scale:
       - 1
-    AdaRender.Visibility:
-      value: visible
+      - 1
+      - 1
 - id: grid-y260
   name: Deck seam
   enabled: true
   components:
+    AdaRender.Visibility:
+      value: visible
+    AdaSprite.Sprite:
+      size:
+      - 400
+      - 1
+      tintColor:
+        green: 1.49019607843137e-1
+        alpha: 1e+0
+        red: 7.84313725490196e-2
+        blue: 2.07843137254902e-1
     AdaTransform.Transform:
+      scale:
+      - 1
+      - 1
+      - 1
       rotation:
       - 0
       - 0
       - 0
-      - 1
-      scale:
-      - 1
-      - 1
       - 1
       position:
       - 0
       - 260
       - 1
+- id: grid-y300
+  name: Deck seam
+  enabled: true
+  components:
     AdaRender.Visibility:
       value: visible
     AdaSprite.Sprite:
@@ -759,10 +774,6 @@ entities:
       size:
       - 400
       - 1
-- id: grid-y300
-  name: Deck seam
-  enabled: true
-  components:
     AdaTransform.Transform:
       rotation:
       - 0
@@ -777,95 +788,71 @@ entities:
       - 1
       - 1
       - 1
-    AdaSprite.Sprite:
-      size:
-      - 400
-      - 1
-      tintColor:
-        green: 1.49019607843137e-1
-        alpha: 1e+0
-        red: 7.84313725490196e-2
-        blue: 2.07843137254902e-1
-    AdaRender.Visibility:
-      value: visible
 - id: route0
   name: Navigation route
   enabled: true
   components:
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        green: 3.72549019607843e-1
+        red: 1.52941176470588e-1
+        blue: 4.03921568627451e-1
+        alpha: 1e+0
     AdaRender.Visibility:
       value: visible
     AdaTransform.Transform:
       scale:
       - 1
       - 1
+      - 1
+      rotation:
+      - 0
+      - 0
+      - 0
       - 1
       position:
       - 0
       - -270
       - 2
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
-    AdaSprite.Sprite:
-      size:
-      - 3
-      - 12
-      tintColor:
-        alpha: 1e+0
-        green: 3.72549019607843e-1
-        blue: 4.03921568627451e-1
-        red: 1.52941176470588e-1
 - id: route1
   name: Navigation route
   enabled: true
   components:
+    AdaRender.Visibility:
+      value: visible
     AdaSprite.Sprite:
       size:
       - 3e+2
       - 1.2e+1
       tintColor:
-        alpha: 1e+0
-        blue: 4.03921568627451e-1
         green: 3.72549019607843e-1
+        alpha: 1e+0
         red: 1.52941176470588e-1
+        blue: 4.03921568627451e-1
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
       rotation:
       - 0
       - 0
       - 0
       - 1
-      position:
-      - 1.31484222412109e+1
-      - -2.38e+2
-      - 2e+0
-    AdaRender.Visibility:
-      value: visible
-- id: route2
-  name: Navigation route
-  enabled: true
-  components:
-    AdaSprite.Sprite:
-      size:
-      - 3
-      - 12
-      tintColor:
-        green: 3.72549019607843e-1
-        alpha: 1e+0
-        red: 1.52941176470588e-1
-        blue: 4.03921568627451e-1
-    AdaRender.Visibility:
-      value: visible
-    AdaTransform.Transform:
       scale:
       - 1
       - 1
       - 1
+      position:
+      - 1.31484222412109e+1
+      - -2.38e+2
+      - 2e+0
+- id: route2
+  name: Navigation route
+  enabled: true
+  components:
+    AdaRender.Visibility:
+      value: visible
+    AdaTransform.Transform:
       rotation:
       - 0
       - 0
@@ -875,6 +862,19 @@ entities:
       - 0
       - -206
       - 2
+      scale:
+      - 1
+      - 1
+      - 1
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        alpha: 1e+0
+        red: 1.52941176470588e-1
+        green: 3.72549019607843e-1
+        blue: 4.03921568627451e-1
 - id: route3
   name: Navigation route
   enabled: true
@@ -884,13 +884,17 @@ entities:
       - 3
       - 12
       tintColor:
-        green: 3.72549019607843e-1
+        alpha: 1e+0
         blue: 4.03921568627451e-1
         red: 1.52941176470588e-1
-        alpha: 1e+0
+        green: 3.72549019607843e-1
     AdaRender.Visibility:
       value: visible
     AdaTransform.Transform:
+      scale:
+      - 1
+      - 1
+      - 1
       position:
       - 0
       - -174
@@ -900,52 +904,39 @@ entities:
       - 0
       - 0
       - 1
-      scale:
-      - 1
-      - 1
-      - 1
 - id: route4
   name: Navigation route
   enabled: true
   components:
     AdaRender.Visibility:
       value: visible
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        blue: 4.03921568627451e-1
+        green: 3.72549019607843e-1
+        red: 1.52941176470588e-1
+        alpha: 1e+0
     AdaTransform.Transform:
+      position:
+      - 0
+      - -142
+      - 2
+      scale:
+      - 1
+      - 1
+      - 1
       rotation:
       - 0
       - 0
       - 0
       - 1
-      scale:
-      - 1
-      - 1
-      - 1
-      position:
-      - 0
-      - -142
-      - 2
-    AdaSprite.Sprite:
-      size:
-      - 3
-      - 12
-      tintColor:
-        green: 3.72549019607843e-1
-        blue: 4.03921568627451e-1
-        red: 1.52941176470588e-1
-        alpha: 1e+0
 - id: route5
   name: Navigation route
   enabled: true
   components:
-    AdaSprite.Sprite:
-      tintColor:
-        blue: 4.03921568627451e-1
-        green: 3.72549019607843e-1
-        alpha: 1e+0
-        red: 1.52941176470588e-1
-      size:
-      - 3
-      - 12
     AdaRender.Visibility:
       value: visible
     AdaTransform.Transform:
@@ -962,54 +953,60 @@ entities:
       - 0
       - -110
       - 2
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        green: 3.72549019607843e-1
+        blue: 4.03921568627451e-1
+        red: 1.52941176470588e-1
+        alpha: 1e+0
 - id: route6
   name: Navigation route
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
-    AdaSprite.Sprite:
-      tintColor:
-        red: 1.52941176470588e-1
-        alpha: 1e+0
-        green: 3.72549019607843e-1
-        blue: 4.03921568627451e-1
-      size:
-      - 3
-      - 12
     AdaTransform.Transform:
       rotation:
       - 0
       - 0
       - 0
       - 1
-      scale:
-      - 1
-      - 1
-      - 1
       position:
       - 0
       - -78
       - 2
+      scale:
+      - 1
+      - 1
+      - 1
+    AdaRender.Visibility:
+      value: visible
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        alpha: 1e+0
+        red: 1.52941176470588e-1
+        green: 3.72549019607843e-1
+        blue: 4.03921568627451e-1
 - id: route7
   name: Navigation route
   enabled: true
   components:
     AdaSprite.Sprite:
       tintColor:
-        green: 3.72549019607843e-1
-        red: 1.52941176470588e-1
-        alpha: 1e+0
         blue: 4.03921568627451e-1
+        red: 1.52941176470588e-1
+        green: 3.72549019607843e-1
+        alpha: 1e+0
       size:
       - 3
       - 12
+    AdaRender.Visibility:
+      value: visible
     AdaTransform.Transform:
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
       scale:
       - 1
       - 1
@@ -1018,100 +1015,118 @@ entities:
       - 0
       - -46
       - 2
-    AdaRender.Visibility:
-      value: visible
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
 - id: route8
   name: Navigation route
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
-      size:
-      - 3
-      - 12
       tintColor:
-        green: 3.72549019607843e-1
         blue: 4.03921568627451e-1
         alpha: 1e+0
         red: 1.52941176470588e-1
+        green: 3.72549019607843e-1
+      size:
+      - 3
+      - 12
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
       position:
       - 0
       - -14
       - 2
-- id: route9
-  name: Navigation route
-  enabled: true
-  components:
-    AdaTransform.Transform:
+      scale:
+      - 1
+      - 1
+      - 1
       rotation:
       - 0
       - 0
       - 0
       - 1
+    AdaRender.Visibility:
+      value: visible
+- id: route9
+  name: Navigation route
+  enabled: true
+  components:
+    AdaRender.Visibility:
+      value: visible
+    AdaTransform.Transform:
       scale:
       - 1
       - 1
+      - 1
+      rotation:
+      - 0
+      - 0
+      - 0
       - 1
       position:
       - 0
       - 18
       - 2
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
       size:
       - 3
       - 12
       tintColor:
         blue: 4.03921568627451e-1
-        alpha: 1e+0
-        red: 1.52941176470588e-1
         green: 3.72549019607843e-1
+        red: 1.52941176470588e-1
+        alpha: 1e+0
 - id: route10
   name: Navigation route
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
-    AdaSprite.Sprite:
-      size:
-      - 3
-      - 12
-      tintColor:
-        green: 3.72549019607843e-1
-        red: 1.52941176470588e-1
-        blue: 4.03921568627451e-1
-        alpha: 1e+0
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
+      rotation:
+      - 0
+      - 0
+      - 0
       - 1
       position:
       - 0
       - 50
       - 2
-      rotation:
-      - 0
-      - 0
-      - 0
+      scale:
       - 1
+      - 1
+      - 1
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        alpha: 1e+0
+        blue: 4.03921568627451e-1
+        green: 3.72549019607843e-1
+        red: 1.52941176470588e-1
+    AdaRender.Visibility:
+      value: visible
 - id: route11
   name: Navigation route
   enabled: true
   components:
+    AdaRender.Visibility:
+      value: visible
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        alpha: 1e+0
+        red: 1.52941176470588e-1
+        blue: 4.03921568627451e-1
+        green: 3.72549019607843e-1
     AdaTransform.Transform:
+      position:
+      - 0
+      - 82
+      - 2
       scale:
       - 1
       - 1
@@ -1121,21 +1136,6 @@ entities:
       - 0
       - 0
       - 1
-      position:
-      - 0
-      - 82
-      - 2
-    AdaSprite.Sprite:
-      size:
-      - 3
-      - 12
-      tintColor:
-        green: 3.72549019607843e-1
-        alpha: 1e+0
-        red: 1.52941176470588e-1
-        blue: 4.03921568627451e-1
-    AdaRender.Visibility:
-      value: visible
 - id: route12
   name: Navigation route
   enabled: true
@@ -1145,76 +1145,60 @@ entities:
       - 1
       - 1
       - 1
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
       position:
       - 0
       - 114
       - 2
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
     AdaRender.Visibility:
       value: visible
     AdaSprite.Sprite:
+      tintColor:
+        blue: 4.03921568627451e-1
+        alpha: 1e+0
+        green: 3.72549019607843e-1
+        red: 1.52941176470588e-1
       size:
       - 3
       - 12
-      tintColor:
-        green: 3.72549019607843e-1
-        red: 1.52941176470588e-1
-        alpha: 1e+0
-        blue: 4.03921568627451e-1
 - id: route13
   name: Navigation route
   enabled: true
   components:
+    AdaRender.Visibility:
+      value: visible
     AdaTransform.Transform:
-      position:
-      - 0
-      - 146
-      - 2
       scale:
       - 1
       - 1
       - 1
+      position:
+      - 0
+      - 146
+      - 2
       rotation:
       - 0
       - 0
       - 0
       - 1
     AdaSprite.Sprite:
-      size:
-      - 3
-      - 12
       tintColor:
         red: 1.52941176470588e-1
         blue: 4.03921568627451e-1
-        green: 3.72549019607843e-1
         alpha: 1e+0
-    AdaRender.Visibility:
-      value: visible
+        green: 3.72549019607843e-1
+      size:
+      - 3
+      - 12
 - id: route14
   name: Navigation route
   enabled: true
   components:
-    AdaSprite.Sprite:
-      size:
-      - 3
-      - 12
-      tintColor:
-        red: 1.52941176470588e-1
-        green: 3.72549019607843e-1
-        blue: 4.03921568627451e-1
-        alpha: 1e+0
-    AdaRender.Visibility:
-      value: visible
     AdaTransform.Transform:
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
       scale:
       - 1
       - 1
@@ -1223,17 +1207,36 @@ entities:
       - 0
       - 178
       - 2
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
+    AdaRender.Visibility:
+      value: visible
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        green: 3.72549019607843e-1
+        alpha: 1e+0
+        red: 1.52941176470588e-1
+        blue: 4.03921568627451e-1
 - id: route15
   name: Navigation route
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        blue: 4.03921568627451e-1
+        alpha: 1e+0
+        red: 1.52941176470588e-1
+        green: 3.72549019607843e-1
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
       rotation:
       - 0
       - 0
@@ -1243,20 +1246,30 @@ entities:
       - 0
       - 210
       - 2
-    AdaSprite.Sprite:
-      tintColor:
-        green: 3.72549019607843e-1
-        red: 1.52941176470588e-1
-        alpha: 1e+0
-        blue: 4.03921568627451e-1
-      size:
-      - 3
-      - 12
+      scale:
+      - 1
+      - 1
+      - 1
+    AdaRender.Visibility:
+      value: visible
 - id: route16
   name: Navigation route
   enabled: true
   components:
+    AdaSprite.Sprite:
+      size:
+      - 3
+      - 12
+      tintColor:
+        blue: 4.03921568627451e-1
+        alpha: 1e+0
+        red: 1.52941176470588e-1
+        green: 3.72549019607843e-1
     AdaTransform.Transform:
+      position:
+      - 0
+      - 242
+      - 2
       scale:
       - 1
       - 1
@@ -1266,37 +1279,29 @@ entities:
       - 0
       - 0
       - 1
-      position:
-      - 0
-      - 242
-      - 2
     AdaRender.Visibility:
       value: visible
-    AdaSprite.Sprite:
-      size:
-      - 3
-      - 12
-      tintColor:
-        blue: 4.03921568627451e-1
-        alpha: 1e+0
-        red: 1.52941176470588e-1
-        green: 3.72549019607843e-1
 - id: route17
   name: Navigation route
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
+      tintColor:
+        alpha: 1e+0
+        green: 3.72549019607843e-1
+        red: 1.52941176470588e-1
+        blue: 4.03921568627451e-1
       size:
       - 3
       - 12
-      tintColor:
-        red: 1.52941176470588e-1
-        alpha: 1e+0
-        green: 3.72549019607843e-1
-        blue: 4.03921568627451e-1
+    AdaRender.Visibility:
+      value: visible
     AdaTransform.Transform:
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
       scale:
       - 1
       - 1
@@ -1305,85 +1310,74 @@ entities:
       - 0
       - 274
       - 2
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
 - id: rail-125
   name: Airlock rail
   enabled: true
   components:
-    AdaTransform.Transform:
-      position:
-      - -125
-      - 0
-      - 4
-      scale:
-      - 1
-      - 1
-      - 1
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
       size:
       - 15
       - 340
       tintColor:
-        blue: 3.17647058823529e-1
         red: 1.45098039215686e-1
-        alpha: 1e+0
         green: 2.70588235294118e-1
-- id: rail-light-125
-  name: Guide light
-  enabled: true
-  components:
-    AdaRender.Visibility:
-      value: visible
+        alpha: 1e+0
+        blue: 3.17647058823529e-1
     AdaTransform.Transform:
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
       scale:
       - 1
       - 1
       - 1
       position:
-      - -128
+      - -125
       - 0
-      - 5
+      - 4
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
+    AdaRender.Visibility:
+      value: visible
+- id: rail-light-125
+  name: Guide light
+  enabled: true
+  components:
     AdaSprite.Sprite:
       size:
       - 2
       - 320
       tintColor:
-        green: 9.17647058823529e-1
-        red: 3.13725490196078e-1
         alpha: 1e+0
+        red: 3.13725490196078e-1
         blue: 7.96078431372549e-1
+        green: 9.17647058823529e-1
+    AdaTransform.Transform:
+      scale:
+      - 1
+      - 1
+      - 1
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
+      position:
+      - -128
+      - 0
+      - 5
+    AdaRender.Visibility:
+      value: visible
 - id: rail125
   name: Airlock rail
   enabled: true
   components:
-    AdaRender.Visibility:
-      value: visible
-    AdaSprite.Sprite:
-      size:
-      - 15
-      - 340
-      tintColor:
-        green: 2.70588235294118e-1
-        alpha: 1e+0
-        blue: 3.17647058823529e-1
-        red: 1.45098039215686e-1
     AdaTransform.Transform:
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
       position:
       - 125
       - 0
@@ -1392,40 +1386,46 @@ entities:
       - 1
       - 1
       - 1
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
+    AdaRender.Visibility:
+      value: visible
+    AdaSprite.Sprite:
+      size:
+      - 15
+      - 340
+      tintColor:
+        alpha: 1e+0
+        blue: 3.17647058823529e-1
+        green: 2.70588235294118e-1
+        red: 1.45098039215686e-1
 - id: rail-light125
   name: Guide light
   enabled: true
   components:
     AdaSprite.Sprite:
       tintColor:
-        red: 3.13725490196078e-1
         alpha: 1e+0
         blue: 7.96078431372549e-1
+        red: 3.13725490196078e-1
         green: 9.17647058823529e-1
       size:
       - 2
       - 320
+    AdaRender.Visibility:
+      value: visible
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
+      position:
+      - 122
+      - 0
+      - 5
       rotation:
       - 0
       - 0
       - 0
       - 1
-      position:
-      - 122
-      - 0
-      - 5
-    AdaRender.Visibility:
-      value: visible
+      scale:
+      - 1
+      - 1
+      - 1
 - id: dock
   name: Destination
   enabled: true
@@ -1438,63 +1438,58 @@ entities:
       - 0
       - 0
       - 1
-      position:
-      - 0
-      - 240
-      - 6
       scale:
       - 1
       - 1
       - 1
+      position:
+      - 0
+      - 240
+      - 6
     AdaSprite.Sprite:
+      tintColor:
+        green: 3.09803921568627e-1
+        alpha: 1e+0
+        blue: 3.25490196078431e-1
+        red: 9.01960784313726e-2
       size:
       - 100
       - 50
-      tintColor:
-        alpha: 1e+0
-        green: 3.09803921568627e-1
-        blue: 3.25490196078431e-1
-        red: 9.01960784313726e-2
 - id: dock-light
   name: Dock guide
   enabled: true
   components:
     AdaTransform.Transform:
-      position:
-      - 0
-      - 260
-      - 7
-      scale:
-      - 1
-      - 1
-      - 1
       rotation:
       - 0
       - 0
       - 0
       - 1
+      scale:
+      - 1
+      - 1
+      - 1
+      position:
+      - 0
+      - 260
+      - 7
+    AdaRender.Visibility:
+      value: visible
     AdaSprite.Sprite:
-      tintColor:
-        alpha: 1e+0
-        green: 9.17647058823529e-1
-        blue: 7.96078431372549e-1
-        red: 3.13725490196078e-1
       size:
       - 80
       - 3
-    AdaRender.Visibility:
-      value: visible
+      tintColor:
+        red: 3.13725490196078e-1
+        blue: 7.96078431372549e-1
+        alpha: 1e+0
+        green: 9.17647058823529e-1
 - id: gate
   name: Airlock
   enabled: true
   components:
-    AdaUI.CompanionPanel:
-      path: '@res://UI/Map.ui'
-      inputs: '{}'
-      scriptBindings: '{"gateOpen": {"script": "unfold.gate", "field": "gateOpen"},
-        "status": {"script": "unfold.gate", "field": "status"}, "droneOffset": {"script":
-        "unfold.gate", "field": "droneOffset"}, "gateColor": {"script": "unfold.gate",
-        "field": "gateColor"}, "posture": {"script": "unfold.gate", "field": "posture"}}'
+    AdaRender.Visibility:
+      value: visible
     AdaTransform.Transform:
       position:
       - 0
@@ -1509,45 +1504,36 @@ entities:
       - 0
       - 0
       - 1
-    AdaScene.ScriptableComponents:
-      scripts:
-      - version: 1
-        type: unfold.gate
-        payload: {}
-    AdaRender.Visibility:
-      value: visible
+    AdaUI.CompanionPanel:
+      inputs: '{}'
+      path: '@res://UI/Map.ui'
+      scriptBindings: '{"gateOpen": {"script": "unfold.gate", "field": "gateOpen"},
+        "status": {"script": "unfold.gate", "field": "status"}, "droneOffset": {"script":
+        "unfold.gate", "field": "droneOffset"}, "gateColor": {"script": "unfold.gate",
+        "field": "gateColor"}, "posture": {"script": "unfold.gate", "field": "posture"}}'
     AdaSprite.Sprite:
       tintColor:
-        alpha: 1e+0
-        green: 5.88235294117647e-1
         red: 1e+0
+        green: 5.88235294117647e-1
         blue: 3.49019607843137e-1
+        alpha: 1e+0
       size:
       - 230
       - 22
+    AdaScene.ScriptableComponents:
+      scripts:
+      - version: 1
+        payload: {}
+        type: unfold.gate
 - id: drone
   name: Drone
   enabled: true
   components:
-    AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
-      position:
-      - 0
-      - -220
-      - 15
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
     AdaScene.ScriptableComponents:
       scripts:
       - version: 1
-        payload: {}
         type: unfold.drone
+        payload: {}
     AdaSprite.Sprite:
       tintColor:
         red: 7.01960784313725e-1
@@ -1559,20 +1545,25 @@ entities:
       - 30
     AdaRender.Visibility:
       value: visible
+    AdaTransform.Transform:
+      position:
+      - 0
+      - -220
+      - 15
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
+      scale:
+      - 1
+      - 1
+      - 1
 - id: wing-20
   name: Thruster
   enabled: true
   parent: drone
   components:
-    AdaSprite.Sprite:
-      size:
-      - 9
-      - 22
-      tintColor:
-        alpha: 1e+0
-        green: 9.17647058823529e-1
-        red: 3.13725490196078e-1
-        blue: 7.96078431372549e-1
     AdaTransform.Transform:
       rotation:
       - 0
@@ -1589,23 +1580,34 @@ entities:
       - 1
     AdaRender.Visibility:
       value: visible
+    AdaSprite.Sprite:
+      tintColor:
+        green: 9.17647058823529e-1
+        alpha: 1e+0
+        red: 3.13725490196078e-1
+        blue: 7.96078431372549e-1
+      size:
+      - 9
+      - 22
 - id: glow-20
   name: Thruster glow
   enabled: true
   parent: drone
   components:
-    AdaRender.Visibility:
-      value: visible
     AdaSprite.Sprite:
       tintColor:
         blue: 6.03921568627451e-1
-        green: 5.33333333333333e-1
         alpha: 1e+0
+        green: 5.33333333333333e-1
         red: 1.41176470588235e-1
       size:
       - 5
       - 8
     AdaTransform.Transform:
+      position:
+      - -20
+      - -15
+      - 0
       rotation:
       - 0
       - 0
@@ -1615,45 +1617,45 @@ entities:
       - 1
       - 1
       - 1
-      position:
-      - -20
-      - -15
-      - 0
+    AdaRender.Visibility:
+      value: visible
 - id: wing20
   name: Thruster
   enabled: true
   parent: drone
   components:
+    AdaTransform.Transform:
+      scale:
+      - 1
+      - 1
+      - 1
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
+      position:
+      - 20
+      - 0
+      - 0
     AdaSprite.Sprite:
       tintColor:
+        green: 9.17647058823529e-1
         red: 3.13725490196078e-1
         alpha: 1e+0
-        green: 9.17647058823529e-1
         blue: 7.96078431372549e-1
       size:
       - 9
       - 22
     AdaRender.Visibility:
       value: visible
-    AdaTransform.Transform:
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
-      position:
-      - 20
-      - 0
-      - 0
-      scale:
-      - 1
-      - 1
-      - 1
 - id: glow20
   name: Thruster glow
   enabled: true
   parent: drone
   components:
+    AdaRender.Visibility:
+      value: visible
     AdaSprite.Sprite:
       size:
       - 5
@@ -1663,13 +1665,7 @@ entities:
         blue: 6.03921568627451e-1
         green: 5.33333333333333e-1
         red: 1.41176470588235e-1
-    AdaRender.Visibility:
-      value: visible
     AdaTransform.Transform:
-      scale:
-      - 1
-      - 1
-      - 1
       position:
       - 20
       - -15
@@ -1678,6 +1674,10 @@ entities:
       - 0
       - 0
       - 0
+      - 1
+      scale:
+      - 1
+      - 1
       - 1
 - id: eye
   name: Navigation sensor
@@ -1687,6 +1687,11 @@ entities:
     AdaRender.Visibility:
       value: visible
     AdaTransform.Transform:
+      rotation:
+      - 0
+      - 0
+      - 0
+      - 1
       scale:
       - 1
       - 1
@@ -1695,26 +1700,22 @@ entities:
       - 0
       - 9
       - 1
-      rotation:
-      - 0
-      - 0
-      - 0
-      - 1
     AdaSprite.Sprite:
+      tintColor:
+        red: 3.52941176470588e-2
+        green: 7.84313725490196e-2
+        alpha: 1e+0
+        blue: 1.25490196078431e-1
       size:
       - 8
       - 5
-      tintColor:
-        red: 3.52941176470588e-2
-        blue: 1.25490196078431e-1
-        alpha: 1e+0
-        green: 7.84313725490196e-2
 editor:
-  selectedEntity: route1
+  selectedEntity: grid-y60
   expandedEntities:
   - gate
   - drone
   - route1
+  - grid-y60
   viewport:
     position:
     - 0

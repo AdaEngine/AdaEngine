@@ -208,7 +208,7 @@ struct EditorView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay {
-            EditorAgentActivityOverlay(state: viewModel.agent.activityState)
+            EditorAgentActivityOverlay(state: viewModel.agent.activityState, activityID: viewModel.agent.lastActivityID)
         }
     }
 

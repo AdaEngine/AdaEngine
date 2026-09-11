@@ -69,6 +69,67 @@ struct EditorAgentActivityTests {
         #expect(!redrawIdle)
     }
 
+    @Test("Success holds for three seconds then fades, without restarting on settings changes")
+    func successTimeout() {
+        var animation = EditorAgentGlowAnimation()
+        animation.configure(state: .completed, accent: .blue, activityID: "first")
+        animation.advance(0.3, reduceMotion: false)
+        #expect(animation.visibility == 1)
+        animation.advance(2.6, reduceMotion: false)
+        animation.configure(state: .completed, accent: .purple, activityID: "first", opacity: 0.2)
+        animation.advance(0.2, reduceMotion: false)
+        #expect(animation.visibility > 0 && animation.visibility < 1)
+        animation.advance(0.3, reduceMotion: false)
+        #expect(!animation.isVisible)
+        let redraw = animation.advance(10, reduceMotion: false)
+        #expect(!redraw)
+        animation.configure(state: .completed, accent: .blue, activityID: "first", enabled: false)
+        animation.advance(1, reduceMotion: false)
+        animation.configure(state: .completed, accent: .blue, activityID: "first", enabled: true)
+        animation.advance(1, reduceMotion: false)
+        #expect(!animation.isVisible)
+        animation.configure(state: .completed, accent: .blue, activityID: "second")
+        animation.advance(0.3, reduceMotion: false)
+        #expect(animation.visibility == 1)
+    }
+
+    @Test("Toggling off fades the existing surface and toggling on fades it back in")
+    func visibilityTransitions() {
+        var animation = EditorAgentGlowAnimation()
+        animation.configure(state: .working, accent: .blue, opacity: 0.25)
+        animation.advance(0.15, reduceMotion: false)
+        #expect(animation.visibility > 0 && animation.visibility < 1)
+        animation.advance(0.2, reduceMotion: false)
+        #expect(animation.visibility == 1)
+        #expect(animation.opacity == 0.25)
+        animation.configure(state: .working, accent: .blue, enabled: false, opacity: 0.25)
+        animation.advance(0.15, reduceMotion: false)
+        #expect(animation.isVisible)
+        animation.advance(0.2, reduceMotion: false)
+        #expect(!animation.isVisible)
+        let redraw = animation.advance(1, reduceMotion: false)
+        #expect(!redraw)
+        animation.configure(state: .working, accent: .blue, enabled: true, opacity: 0.25)
+        animation.advance(0.15, reduceMotion: false)
+        #expect(animation.visibility > 0 && animation.visibility < 1)
+    }
+
+    @Test("Elapsed background time expires success; reduced motion and paused waves still honor the deadline")
+    func backgroundDeadline() {
+        for reduced in [false, true] {
+            var animation = EditorAgentGlowAnimation()
+            animation.configure(state: .completed, accent: .blue)
+            animation.advance(0.3, reduceMotion: reduced)
+            let phase = animation.time
+            animation.advance(30, reduceMotion: reduced, wavesEnabled: false)
+            #expect(!animation.isVisible)
+            #expect(animation.time == phase)
+            animation.configure(state: .needsInput, accent: .blue)
+            animation.advance(30, reduceMotion: reduced, wavesEnabled: false)
+            #expect(animation.isVisible)
+        }
+    }
+
     @Test("Reduce Motion keeps a static status and invalid deltas cannot poison uniforms")
     func reducedMotion() {
         var animation = EditorAgentGlowAnimation()
@@ -101,7 +162,8 @@ struct EditorAgentActivityTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let appearance = EditorAppearanceSettings(defaults: defaults)
         var tapped = false
-        let container = UIContainerView(rootView: Button("Panel control") { tapped = true }
+        let container = UIContainerView(
+            rootView: Button("Panel control") { tapped = true }
             .accessibilityIdentifier("GlowTest.PanelControl")
             .frame(width: size.width, height: size.height)
             .background(Color.black)

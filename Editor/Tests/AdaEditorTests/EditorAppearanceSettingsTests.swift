@@ -34,9 +34,26 @@ struct EditorAppearanceSettingsTests {
         #expect(!EditorAppearanceSettings(defaults: defaults).agentActivityGlowEnabled)
         settings.agentActivityGlowEnabled = true
         #expect(EditorAppearanceSettings(defaults: defaults).agentActivityGlowEnabled)
+        settings.agentGlowRadius = 12
+        settings.agentGlowOpacity = 0.2
+        settings.setAccentColor(.red)
+        let reloaded = EditorAppearanceSettings(defaults: defaults)
+        #expect(reloaded.agentGlowRadius == 12)
+        #expect(reloaded.agentGlowOpacity == 0.2)
+        #expect(reloaded.accentColor(fallback: .blue) == .red)
+        reloaded.useThemeAccent()
+        #expect(EditorAppearanceSettings(defaults: defaults).accentColor(fallback: .blue) == .blue)
+        settings.agentGlowRadius = -10
+        settings.agentGlowOpacity = 10
+        #expect(settings.agentGlowRadius == 4)
+        #expect(settings.agentGlowOpacity == 1)
+        settings.agentGlowRadius = .nan
+        settings.agentGlowOpacity = .infinity
+        #expect(settings.agentGlowRadius == EditorAppearanceSettings.defaultRadius)
+        #expect(settings.agentGlowOpacity == EditorAppearanceSettings.defaultOpacity)
     }
 
-    @Test("The settings control immediately removes and restores glow in all observing windows")
+    @Test("The settings control fades glow out and back in across observing windows")
     func toggleUpdatesWindows() async throws {
         if unsafe RenderEngine.shared == nil {
             unsafe RenderEngine.configurations.preferredBackend = .headless
@@ -47,7 +64,10 @@ struct EditorAppearanceSettingsTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let settings = EditorAppearanceSettings(defaults: defaults)
         let controls = UIContainerView(rootView: EditorAgentGlowSettings(settings: settings))
-        controls.frame = Rect(x: 0, y: 0, width: 500, height: 100)
+        settings.agentGlowRadius = 12
+        settings.agentGlowOpacity = 0.2
+        settings.setAccentColor(.red)
+        controls.frame = Rect(x: 0, y: 0, width: 500, height: 360)
         controls.bounds.size = controls.frame.size
         controls.layoutIfNeeded()
         let windows = (0..<2).map { _ in
@@ -60,7 +80,7 @@ struct EditorAppearanceSettingsTests {
             if settings.agentActivityGlowEnabled != enabled {
                 _ = try controls.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Settings.AgentActivityGlow"))
             }
-            for _ in 0..<4 {
+            for _ in 0..<30 {
                 await Task.yield()
                 controls.layoutIfNeeded()
                 for window in windows { window.layoutIfNeeded(); window.update(1 / 60) }
@@ -75,6 +95,12 @@ struct EditorAppearanceSettingsTests {
                     return false
                 }
                 #expect(drawsGlow == enabled)
+                if enabled, case let .drawShaderEffect(_, material)? = context.getDrawCommands().last,
+                   let glow = material as? CustomMaterial<EditorAgentGlowMaterial> {
+                    #expect(glow.parameters.geometry.w == 12)
+                    #expect(abs(glow.parameters.style.w - 0.2) < 0.001)
+                    #expect(glow.parameters.color == .red)
+                }
             }
             #expect(EditorAppearanceSettings(defaults: defaults).agentActivityGlowEnabled == enabled)
         }

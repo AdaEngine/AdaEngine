@@ -223,7 +223,6 @@ extension MetalView {
                    modifiers: KeyModifier(modifiers: key.modifierFlags),
                    status: .down,
                    time: TimeInterval(event?.timestamp ?? 0),
-                contactID: contactID,
                    isRepeated: false
                )
 
@@ -256,7 +255,6 @@ extension MetalView {
                    modifiers: KeyModifier(modifiers: key.modifierFlags),
                    status: .down,
                    time: TimeInterval(event?.timestamp ?? 0),
-                contactID: contactID,
                    isRepeated: true
                )
 
@@ -285,7 +283,6 @@ extension MetalView {
                    modifiers: KeyModifier(modifiers: key.modifierFlags),
                    status: .up,
                    time: TimeInterval(event?.timestamp ?? 0),
-                contactID: contactID,
                    isRepeated: false
                )
 
@@ -311,7 +308,6 @@ extension MetalView {
                    modifiers: KeyModifier(modifiers: key.modifierFlags),
                    status: .up,
                    time: TimeInterval(event?.timestamp ?? 0),
-                contactID: contactID,
                    isRepeated: false
                )
 

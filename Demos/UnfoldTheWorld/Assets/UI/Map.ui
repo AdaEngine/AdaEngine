@@ -97,7 +97,7 @@ root:
     - actions: {}
       arguments:
         color:
-          value: '#8aa8b5ff'
+          value: '#A62EB5FF'
       children: []
       id: foregroundColor
       type: foregroundColor

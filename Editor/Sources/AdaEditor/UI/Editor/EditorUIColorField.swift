@@ -2,6 +2,7 @@
 
 struct EditorUIColorField: View {
     let value: String
+    var supportsAlpha = true
     let onChange: (String) -> Void
     @Environment(\.theme) private var theme
 
@@ -15,7 +16,7 @@ struct EditorUIColorField: View {
         HStack(spacing: 6) {
             #if (canImport(AppKit) && os(macOS)) || (canImport(UIKit) && os(iOS))
             Button {
-                EditorPlatformColorPicker.present(value: .init(red: color.red, green: color.green, blue: color.blue, alpha: color.alpha)) {
+                EditorPlatformColorPicker.present(value: .init(red: color.red, green: color.green, blue: color.blue, alpha: color.alpha), supportsAlpha: supportsAlpha) {
                     onChange($0.hexString)
                 }
             } label: {
@@ -27,7 +28,7 @@ struct EditorUIColorField: View {
             .buttonStyle(DefaultButtonStyle())
             .accessibilityIdentifier("AdaEditor.UIScene.ColorPicker")
             #endif
-            TextField("#RRGGBBAA", text: Binding(get: { value }, set: { text in
+            TextField(supportsAlpha ? "#RRGGBBAA" : "#RRGGBB", text: Binding(get: { value }, set: { text in
                 guard Self.color(text) != nil else {
                     return
                 }

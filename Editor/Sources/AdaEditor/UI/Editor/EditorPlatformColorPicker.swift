@@ -9,18 +9,20 @@ final class EditorPlatformColorPicker: NSObject {
 
     static func present(
         value: EditorInspectorColorValue,
+        supportsAlpha: Bool = true,
         onChange: @escaping (EditorInspectorColorValue) -> Void
     ) {
-        shared.present(value: value, onChange: onChange)
+        shared.present(value: value, supportsAlpha: supportsAlpha, onChange: onChange)
     }
 
     private func present(
         value: EditorInspectorColorValue,
+        supportsAlpha: Bool = true,
         onChange: @escaping (EditorInspectorColorValue) -> Void
     ) {
         self.onChange = onChange
         let panel = NSColorPanel.shared
-        panel.showsAlpha = true
+        panel.showsAlpha = supportsAlpha
         panel.color = NSColor(
             srgbRed: CGFloat(value.red),
             green: CGFloat(value.green),
@@ -56,13 +58,15 @@ final class EditorPlatformColorPicker: NSObject, UIColorPickerViewControllerDele
 
     static func present(
         value: EditorInspectorColorValue,
+        supportsAlpha: Bool = true,
         onChange: @escaping (EditorInspectorColorValue) -> Void
     ) {
-        shared.present(value: value, onChange: onChange)
+        shared.present(value: value, supportsAlpha: supportsAlpha, onChange: onChange)
     }
 
     private func present(
         value: EditorInspectorColorValue,
+        supportsAlpha: Bool = true,
         onChange: @escaping (EditorInspectorColorValue) -> Void
     ) {
         guard presentedPicker == nil, let presenter = Self.activeViewController() else {
@@ -71,7 +75,7 @@ final class EditorPlatformColorPicker: NSObject, UIColorPickerViewControllerDele
         self.onChange = onChange
         let picker = UIColorPickerViewController()
         picker.delegate = self
-        picker.supportsAlpha = true
+        picker.supportsAlpha = supportsAlpha
         picker.selectedColor = UIColor(
             red: CGFloat(value.red),
             green: CGFloat(value.green),

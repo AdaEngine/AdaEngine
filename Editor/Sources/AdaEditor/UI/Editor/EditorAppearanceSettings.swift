@@ -7,7 +7,15 @@ import Observation
 final class EditorAppearanceSettings {
     static let shared = EditorAppearanceSettings()
     private static let glowKey = "AdaEditor.appearance.agentActivityGlowEnabled"
+    private static let accentKey = "AdaEditor.appearance.agentGlowAccent"
+    private static let radiusKey = "AdaEditor.appearance.agentGlowRadius"
+    private static let opacityKey = "AdaEditor.appearance.agentGlowOpacity"
+    static let defaultRadius: Double = 24
+    static let defaultOpacity: Double = 0.45
     @ObservationIgnored private let defaults: UserDefaults
+    private(set) var agentGlowAccentHex: String?
+    private var radius: Double
+    private var opacity: Double
 
     var agentActivityGlowEnabled: Bool {
         didSet { defaults.set(agentActivityGlowEnabled, forKey: Self.glowKey) }
@@ -16,6 +24,51 @@ final class EditorAppearanceSettings {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         agentActivityGlowEnabled = defaults.object(forKey: Self.glowKey) as? Bool ?? true
+        let hex = defaults.string(forKey: Self.accentKey)
+        agentGlowAccentHex = hex.flatMap { EditorInspectorColorValue(hexText: $0) == nil ? nil : $0 }
+        radius = Self.clamp(defaults.object(forKey: Self.radiusKey) as? Double ?? Self.defaultRadius, to: 4...100, fallback: Self.defaultRadius)
+        opacity = Self.clamp(defaults.object(forKey: Self.opacityKey) as? Double ?? Self.defaultOpacity, to: 0...1, fallback: Self.defaultOpacity)
+    }
+
+    var agentGlowRadius: Double {
+        get { radius }
+        set {
+            radius = Self.clamp(newValue, to: 4...100, fallback: Self.defaultRadius)
+            defaults.set(radius, forKey: Self.radiusKey)
+        }
+    }
+
+    var agentGlowOpacity: Double {
+        get { opacity }
+        set {
+            opacity = Self.clamp(newValue, to: 0...1, fallback: Self.defaultOpacity)
+            defaults.set(opacity, forKey: Self.opacityKey)
+        }
+    }
+
+    func accentColor(fallback: Color) -> Color {
+        guard let hex = agentGlowAccentHex, let value = EditorInspectorColorValue(hexText: hex) else {
+            return fallback
+        }
+        return Color(red: value.red, green: value.green, blue: value.blue)
+    }
+
+    func setAccentColor(_ color: Color) {
+        guard color.red.isFinite, color.green.isFinite, color.blue.isFinite else {
+            return
+        }
+        let value = EditorInspectorColorValue(red: color.red, green: color.green, blue: color.blue, alpha: 1)
+        agentGlowAccentHex = String(value.hexString.prefix(7))
+        defaults.set(agentGlowAccentHex, forKey: Self.accentKey)
+    }
+
+    func useThemeAccent() {
+        agentGlowAccentHex = nil
+        defaults.removeObject(forKey: Self.accentKey)
+    }
+
+    private static func clamp(_ value: Double, to range: ClosedRange<Double>, fallback: Double) -> Double {
+        value.isFinite ? min(max(value, range.lowerBound), range.upperBound) : fallback
     }
 }
 
@@ -32,6 +85,52 @@ struct EditorAgentGlowSettings: View {
             Text("Show colored window edges while an agent works or needs attention. Applies immediately to all editor windows.")
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Accent color").font(.system(size: 13))
+                EditorUIColorField(value: accentHex, supportsAlpha: false) { value in
+                    if let color = EditorUIColorField.color(value) { settings.setAccentColor(color) }
+                }
+                .accessibilityIdentifier("AdaEditor.Settings.AgentGlow.Accent")
+                Button("Use theme color") { settings.useThemeAccent() }
+                    .font(.system(size: 11))
+                    .accessibilityIdentifier("AdaEditor.Settings.AgentGlow.ThemeAccent")
+            }
+            valueControl("Effect radius", value: settings.agentGlowRadius, unit: "px", step: 2, id: "Radius") {
+                settings.agentGlowRadius = $0
+            }
+            valueControl("Opacity", value: settings.agentGlowOpacity * 100, unit: "%", step: 5, id: "Opacity") {
+                settings.agentGlowOpacity = $0 / 100
+            }
+            Text("Radius controls the inward glow width (4–100 px). Success, attention and error keep their status colors. Success fades out after 3 seconds.")
+                .font(.system(size: 11))
+                .foregroundColor(theme.editorColors.muted)
         }
+    }
+
+    private var accentHex: String {
+        let color = settings.accentColor(fallback: theme.editorColors.blue)
+        return String(EditorInspectorColorValue(red: color.red, green: color.green, blue: color.blue, alpha: 1).hexString.prefix(7))
+    }
+
+    private func valueControl(_ title: String, value: Double, unit: String, step: Double, id: String, onChange: @escaping (Double) -> Void) -> some View {
+        HStack(spacing: 8) {
+            Text(title).font(.system(size: 13))
+            Spacer()
+            Button("−") { onChange(value - step) }
+                .frame(width: 28, height: 28)
+                .accessibilityIdentifier("AdaEditor.Settings.AgentGlow.\(id).Decrease")
+            TextField("0", text: Binding(get: { String(format: "%.0f", value) }, set: { text in
+                if let number = Double(text.replacingOccurrences(of: ",", with: ".")), number.isFinite { onChange(number) }
+            }))
+            .font(.system(size: 12))
+            .frame(width: 52, height: 28)
+            .accessibilityIdentifier("AdaEditor.Settings.AgentGlow.\(id)")
+            Text(unit).font(.system(size: 11))
+            Button("+") { onChange(value + step) }
+                .frame(width: 28, height: 28)
+                .accessibilityIdentifier("AdaEditor.Settings.AgentGlow.\(id).Increase")
+        }
+        .foregroundColor(theme.editorColors.text)
+        .frame(height: 36)
     }
 }
