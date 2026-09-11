@@ -13,7 +13,8 @@ struct EditorScriptUIBindingTests {
         }
     }
 
-    @Test func inspectorAddsBindingAndSceneReloadPreservesIt() throws {
+    @Test(arguments: [EditorBuiltInComponentType.uiComponent, EditorBuiltInComponentType.companionPanel])
+    func inspectorAddsBindingAndSceneReloadPreservesIt(typeName: String) throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -23,7 +24,6 @@ struct EditorScriptUIBindingTests {
         try document.encodedYAML().write(to: url, atomically: true, encoding: .utf8)
         var scene = EditorSceneModel.default(projectName: "Bindings")
         let entityID = scene.addEntity(name: "HUD", parentID: nil).id
-        let typeName = EditorBuiltInComponentType.uiComponent
         scene.addComponent(typeName: typeName, to: entityID)
         let descriptor = try #require(EditorComponentRegistry.descriptor(named: typeName))
         let pathField = try #require(descriptor.fields.first { $0.key == "path" })
@@ -48,16 +48,39 @@ struct EditorScriptUIBindingTests {
         container.layoutSubviews()
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIBinding.Add"))
         let expected = UIScriptFieldBinding(script: "game.hud", field: "title")
-        #expect(viewModel.uiScriptBindings == ["title": expected])
-        #expect(viewModel.uiBindingIssue(input: "title", mapping: expected) == nil)
+        #expect(viewModel.uiScriptBindings(for: typeName) == ["title": expected])
+        #expect(viewModel.uiBindingIssue(input: "title", mapping: expected, typeName: typeName) == nil)
         let world = World(name: "Persisted binding")
         let result = EditorSceneFileLoader.load(content: try scene.encodedYAML(), into: world, loadsScriptableObjects: false, resourceRootURL: root)
         #expect(result.warnings.isEmpty)
-        let ui = try #require(world.getEntities().compactMap { $0.components[UIComponent.self] }.first)
+        let loadedUI = world.getEntities().compactMap { entity in
+            typeName == EditorBuiltInComponentType.uiComponent ? entity.components[UIComponent.self] : entity.components[CompanionPanel.self]?.ui
+        }
+        let ui = try #require(loadedUI.first)
         #expect(ui.source?.scriptBindings == ["title": expected])
-        viewModel.setUIBinding("title", to: .init(script: "missing", field: "title"))
-        #expect(viewModel.uiBindingIssue(input: "title", mapping: .init(script: "missing", field: "title")) != nil)
-        viewModel.setUIBinding("title", to: nil)
-        #expect(viewModel.uiScriptBindings.isEmpty)
+        viewModel.setUIBinding("title", to: .init(script: "missing", field: "title"), typeName: typeName)
+        #expect(viewModel.uiBindingIssue(input: "title", mapping: .init(script: "missing", field: "title"), typeName: typeName) != nil)
+        viewModel.setUIBinding("title", to: nil, typeName: typeName)
+        #expect(viewModel.uiScriptBindings(for: typeName).isEmpty)
+        let otherType = typeName == EditorBuiltInComponentType.uiComponent ? EditorBuiltInComponentType.companionPanel : EditorBuiltInComponentType.uiComponent
+        viewModel.selectedEntity?.components.append(.init(
+            typeName: otherType,
+            displayName: "Other UI",
+            fields: [.init(typeName: otherType, field: bindingField.field, value: "{}")],
+            canRemove: true
+        ))
+        viewModel.setUIBinding("title", to: expected, typeName: typeName)
+        #expect(viewModel.uiScriptBindings(for: otherType).isEmpty)
+        let rawBinding = viewModel.componentFieldBinding(typeName: typeName, field: bindingField.field)
+        rawBinding.wrappedValue = "{ invalid JSON"
+        viewModel.matchUIBindingsByName(typeName: typeName)
+        #expect(rawBinding.wrappedValue == "{ invalid JSON")
+        #expect(viewModel.uiBindingsError(for: typeName) != nil)
+        rawBinding.wrappedValue = "{}"
+        viewModel.selectedEntity?.scriptableObjects.append(.init(identifier: "game.other", displayName: "Other", fields: [
+            .init(typeName: "game.other", field: .init(key: "title", label: "Title", kind: .string), value: "Other")
+        ]))
+        viewModel.matchUIBindingsByName(typeName: typeName)
+        #expect(viewModel.uiScriptBindings(for: typeName).isEmpty)
     }
 }

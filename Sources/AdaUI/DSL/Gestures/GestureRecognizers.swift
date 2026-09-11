@@ -188,7 +188,8 @@ final class DragGestureRecognizer: GestureRecognizer {
         let dy = current.y - start.y
         let distance = (dx * dx + dy * dy).squareRoot()
 
-        guard distance >= minimumDistance else { return }
+        // The threshold only starts a drag; returning near its origin must still update it.
+        guard state == .changed || distance >= minimumDistance else { return }
 
         if state == .began { setState(.changed) }
         let value = DragGesture.Value(startLocation: start, location: current)
@@ -232,7 +233,8 @@ final class DragGestureRecognizer: GestureRecognizer {
         let dx = current.x - start.x
         let dy = current.y - start.y
         let distance = (dx * dx + dy * dy).squareRoot()
-        guard distance >= minimumDistance else { return }
+        // The threshold only starts a drag; returning near its origin must still update it.
+        guard state == .changed || distance >= minimumDistance else { return }
 
         if state == .began { setState(.changed) }
         let value = DragGesture.Value(startLocation: start, location: current)

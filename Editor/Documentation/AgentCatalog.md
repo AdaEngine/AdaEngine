@@ -3,16 +3,18 @@
 Open **Agent Settings** from the application menu. The **ACP Registry** section
 finds local agents and loads the [official ACP Registry](https://agentclientprotocol.com/get-started/registry).
 
-- **Add & Connect** registers an existing ACP executable, selects it for the project,
+- **Add & Connect** registers an existing ACP executable, selects it for all projects,
   and starts the connection without sending a message.
-- **Install & Connect** installs the registry distribution and connects it to the project.
+- **Install & Connect** installs the registry distribution, selects it globally and connects in the current project.
   For discovered Codex and Claude CLIs, this action appears directly beside the found CLI
   and installs the matching ACP adapter.
-- **Connect** selects an already added agent, saves its connection to `.ada/project.json`,
+- **Connect** selects an already added agent, saves its connection globally in `Application Support/AdaEditor/Agents/settings.json`,
   creates a new chat session and starts the ACP connection. The selected agent and any
   connection or authentication error are shown in the catalog. Open **Agent Chat** to chat.
-- **Remove** removes the catalog registration. Executables and existing project
-  connections are retained because other projects may still use them.
+- **Remove** removes the catalog registration. The executable and global connection
+  settings are retained, so existing sessions can continue using the agent.
+- Without an open project, these actions appear as **Add & Use**, **Install & Use**
+  and **Use Agent**. They save the global selection without starting a project session.
 - **Refresh** repeats discovery and reloads the registry. A saved catalog and local
   discovery remain available if the registry cannot be reached.
 
@@ -51,3 +53,9 @@ installer pins that exact version and displays the actual installed version in
 the catalog. Other installation failures do not trigger version substitution.
 For diagnosis only, `ADAEDITOR_ACP_TEST_CODEX_VERSION` can override the registry
 version in the opt-in live test.
+
+Agent connection settings, permissions and skill search directories apply to every project.
+They can be edited without an open project. Relative working and skill directories resolve
+against the current project; chat histories and file access remain project scoped.
+On first use, an existing project agent command is imported if no global settings have been
+saved yet. Subsequent projects cannot override the global selection; project metadata is preserved.

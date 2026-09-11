@@ -47,11 +47,20 @@ struct EditorTextSearchDialog: View {
     private var header: some View {
         HStack(spacing: 12) {
             Text("Find in Files").font(.system(size: 18, weight: .semibold))
-            Text(model.status).font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
+            Text(model.status)
+                .font(.system(size: 12))
+                .foregroundColor(theme.editorColors.muted)
                 .accessibilityIdentifier("AdaEditor.TextSearch.Status")
             Spacer()
-            Button("Close") { close() }
-                .accessibilityIdentifier("AdaEditor.TextSearch.Close")
+            Button { close() } label: {
+                Text("\u{E5CD}")
+                    .font(AdaEditorMaterialSymbolFont.font(size: 18))
+                    .foregroundColor(theme.editorColors.muted)
+                    .frame(width: 30, height: 30)
+                    .background(RoundedRectangleShape(cornerRadius: 7).fill(theme.editorColors.background))
+            }
+            .buttonStyle(DefaultButtonStyle())
+            .accessibilityIdentifier("AdaEditor.TextSearch.Close")
         }
         .foregroundColor(theme.editorColors.text)
         .padding(.horizontal, 18)
@@ -60,10 +69,14 @@ struct EditorTextSearchDialog: View {
 
     private var searchField: some View {
         HStack(spacing: 12) {
-            TextField("Search text in project", text: Binding(
-                get: { model.query },
-                set: { model.query = $0; viewModel.refreshTextSearch() }
-            ), onSubmit: { openSelected() })
+            TextField(
+                "Search text in project",
+                text: Binding(
+                    get: { model.query },
+                    set: { model.query = $0; viewModel.refreshTextSearch() }
+                ),
+                onSubmit: { openSelected() }
+            )
                 .textFieldStyle(PlainTextFieldStyle())
                 .font(.system(size: 15))
                 .foregroundColor(theme.editorColors.text)
@@ -84,45 +97,57 @@ struct EditorTextSearchDialog: View {
         }
         .padding(.horizontal, 16)
         .frame(height: 44)
-        .background(theme.editorColors.background)
+        .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.background))
+        .overlay { RoundedRectangleShape(cornerRadius: 8).stroke(theme.editorColors.border, lineWidth: 1) }
+        .accessibilityIdentifier("AdaEditor.TextSearch.Field")
         .padding(.horizontal, 18)
         .padding(.bottom, 12)
     }
 
     private var results: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(model.results.matches) { match in
-                        Button {
-                            model.selectedID = match.id
-                        } label: {
-                            HStack(spacing: 12) {
-                                Text(match.lineText.trimmingCharacters(in: .whitespaces))
-                                    .font(.system(size: 12))
-                                    .foregroundColor(theme.editorColors.text)
-                                    .lineLimit(1)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Text("\(match.relativePath):\(match.range.start.line + 1)")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(theme.editorColors.muted)
-                                    .lineLimit(1)
-                            }
-                            .padding(.horizontal, 10)
-                            .frame(height: 32)
-                            .background(model.selectedID == match.id ? theme.editorColors.blue.opacity(0.26) : Color.clear)
+        GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(model.results.matches) { match in
+                            resultRow(match, width: max(0, geometry.size.width - 24))
                         }
-                        .buttonStyle(DefaultButtonStyle())
-                        .id(match.id)
-                        .accessibilityIdentifier("AdaEditor.TextSearch.Result.\(match.id)")
                     }
+                    .padding(.horizontal, 12)
                 }
-                .padding(.horizontal, 12)
-            }
-            .onChange(of: model.selectedID) { _, id in
-                if let id { proxy.scrollTo(id) }
+                .onChange(of: model.selectedID) { _, id in
+                    if let id { proxy.scrollTo(id) }
+                }
             }
         }
+    }
+
+    private func resultRow(_ match: EditorTextSearchMatch, width: Float) -> some View {
+        Button {
+            model.selectedID = match.id
+        } label: {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("\(match.relativePath):\(match.range.start.line + 1)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(theme.editorColors.muted)
+                    .lineLimit(1)
+                    .frame(width: max(0, width - 20), alignment: .leading)
+                    .accessibilityIdentifier("AdaEditor.TextSearch.Path.\(match.id)")
+                Text(highlightedText(match, size: 12))
+                    .lineLimit(1)
+                    .frame(width: max(0, width - 20), alignment: .leading)
+                    .accessibilityIdentifier("AdaEditor.TextSearch.Code.\(match.id)")
+            }
+            .padding(.horizontal, 10)
+            .frame(width: width, height: 52, alignment: .leading)
+            .background(RoundedRectangleShape(cornerRadius: 6).fill(
+                model.selectedID == match.id ? theme.editorColors.blue.opacity(0.20) : Color.clear
+            ))
+            .mask(RoundedRectangleShape(cornerRadius: 6))
+        }
+        .buttonStyle(DefaultButtonStyle())
+        .id(match.id)
+        .accessibilityIdentifier("AdaEditor.TextSearch.Result.\(match.id)")
     }
 
     private var preview: some View {
@@ -131,7 +156,7 @@ struct EditorTextSearchDialog: View {
                 Text("\(match.relativePath) · line \(match.range.start.line + 1)")
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                 ScrollView(.horizontal) {
-                    highlightedLine(match)
+                    Text(highlightedText(match, size: 13)).lineLimit(1).fixedSize(horizontal: true, vertical: false)
                 }
                 .frame(height: 42)
             } else {
@@ -145,35 +170,59 @@ struct EditorTextSearchDialog: View {
         .accessibilityIdentifier("AdaEditor.TextSearch.Preview")
     }
 
-    private func highlightedLine(_ match: EditorTextSearchMatch) -> some View {
-        let line = match.lineText as NSString
-        let start = match.range.start.character
-        let end = match.range.end.character
-        return HStack(spacing: 0) {
-            Text(line.substring(to: start))
-            Text(line.substring(with: NSRange(location: start, length: end - start)))
-                .background(theme.editorColors.blue.opacity(0.4))
-            Text(line.substring(from: end))
-        }
-        .font(.system(size: 13))
-        .foregroundColor(theme.editorColors.text)
+    private func highlightedText(_ match: EditorTextSearchMatch, size: Double) -> AttributedText {
+        EditorTextSearchPresentationText.attributedText(
+            match,
+            palette: viewModel.workbench.codeColorPalette,
+            font: AdaEditorCodeFont.font(family: viewModel.workbench.codeFontFamily, weight: viewModel.workbench.codeFontWeight, size: size),
+            keywordFont: AdaEditorCodeFont.font(family: viewModel.workbench.codeFontFamily, weight: viewModel.workbench.keywordFontWeight, size: size)
+        )
     }
 
     private var footer: some View {
-        HStack(spacing: 10) {
-            Text("↑↓ Select · Return Open · Esc Close")
-                .font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
-            if model.results.skippedFiles > 0 {
-                Text("\(model.results.skippedFiles) binary, large or unreadable files skipped")
-                    .font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
+        HStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 16) {
+                    shortcut("Up/Down", label: "Select")
+                    shortcut("Enter", label: "Open")
+                    shortcut("Esc", label: "Close")
+                }
+                .accessibilityIdentifier("AdaEditor.TextSearch.Shortcuts")
+                if model.results.skippedFiles > 0 {
+                    Text("\(model.results.skippedFiles) files skipped · binary, too large or unreadable")
+                        .font(.system(size: 10))
+                        .foregroundColor(theme.editorColors.muted)
+                        .lineLimit(2)
+                        .accessibilityIdentifier("AdaEditor.TextSearch.Skipped")
+                }
             }
-            Spacer()
-            Button("Open in Editor") { openSelected() }
-                .disabled(model.selectedMatch == nil)
-                .accessibilityIdentifier("AdaEditor.TextSearch.Open")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button { openSelected() } label: {
+                Text("Open in Editor")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 32)
+                    .background(RoundedRectangleShape(cornerRadius: 7).fill(theme.editorColors.blue))
+            }
+            .buttonStyle(DefaultButtonStyle())
+            .disabled(model.selectedMatch == nil)
+            .accessibilityIdentifier("AdaEditor.TextSearch.Open")
         }
         .padding(.horizontal, 18)
-        .frame(height: 48)
+        .frame(height: 76)
+    }
+
+    private func shortcut(_ key: String, label: String) -> some View {
+        HStack(spacing: 5) {
+            Text(key)
+                .font(.system(size: 10, weight: .semibold))
+                .padding(.horizontal, 5)
+                .frame(height: 20)
+                .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.background))
+            Text(label).font(.system(size: 10))
+        }
+        .foregroundColor(theme.editorColors.muted)
     }
 
     private func close() {
@@ -182,7 +231,9 @@ struct EditorTextSearchDialog: View {
     }
 
     private func openSelected() {
-        guard let match = model.selectedMatch else { return }
+        guard let match = model.selectedMatch else {
+            return
+        }
         viewModel.openTextSearchMatch(match)
         dismiss()
     }

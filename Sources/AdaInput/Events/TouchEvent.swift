@@ -32,13 +32,17 @@ public struct TouchEvent: InputEvent {
     
     public let id: RID = RID()
 
+    /// Stable identity of a finger from began through ended/cancelled; distinct from the event ID.
+    public let contactID: RID
+
     public let window: RID
 
     public let time: TimeInterval
 
-    public init(window: RID, location: Point, phase: Phase, time: TimeInterval) {
+    public init(window: RID, location: Point, phase: Phase, time: TimeInterval, contactID: RID? = nil) {
         self.location = location
         self.phase = phase
+        self.contactID = contactID ?? window
         self.window = window
         self.time = time
     }

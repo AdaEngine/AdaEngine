@@ -16,7 +16,7 @@ struct EditorAgentCatalogView: View {
                 if showsToolbar { EditorAgentCatalogToolbar(agent: agent) }
             }
             #if os(macOS)
-            Text("Connect an agent to this project, then open Agent Chat. Sign in through the agent's own account setup.")
+            Text("Choose an agent for all projects, then open Agent Chat. Sign in through the agent's own account setup.")
                 .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             HStack(spacing: 2) {
                 ForEach(EditorAgentCatalogViewModel.Filter.allCases, id: \.rawValue) { filter in
@@ -69,11 +69,11 @@ struct EditorAgentCatalogView: View {
                 Text("\(entry.name) · \(entry.version)").font(.system(size: 12))
                 Spacer()
                 if agent.isCatalogAgentSelected(entry) {
-                    Text("Selected for this project")
+                    Text("Selected for all projects")
                         .font(.system(size: 10)).foregroundColor(theme.editorColors.blue)
                         .accessibilityIdentifier("AdaEditor.Agents.Selected.\(entry.id)")
                 }
-                Button("Connect") { Task { await agent.connectCatalogAgent(installed: entry) } }
+                Button(agent.projectURL == nil ? "Use Agent" : "Connect") { Task { await agent.connectCatalogAgent(installed: entry) } }
                     .buttonStyle(actionButtonStyle)
                     .disabled(!agent.canConnectCatalogAgent)
                     .accessibilityIdentifier("AdaEditor.Agents.Use.\(entry.id)")
@@ -95,12 +95,12 @@ struct EditorAgentCatalogView: View {
                     Text("Found \(local.name)").font(.system(size: 12, weight: .semibold))
                     Spacer()
                     if local.target != nil {
-                        Button("Add & Connect") { Task { await agent.connectCatalogAgent(local: local) } }
+                        Button(agent.projectURL == nil ? "Add & Use" : "Add & Connect") { Task { await agent.connectCatalogAgent(local: local) } }
                             .buttonStyle(actionButtonStyle)
                             .disabled(!agent.canConnectCatalogAgent)
                             .accessibilityIdentifier("AdaEditor.Agents.AddLocal.\(local.id)")
                     } else if catalog.adapter(for: local) != nil {
-                        Button("Install & Connect") { Task { await agent.connectCatalogAgent(local: local) } }
+                        Button(agent.projectURL == nil ? "Install & Use" : "Install & Connect") { Task { await agent.connectCatalogAgent(local: local) } }
                             .buttonStyle(actionButtonStyle)
                             .disabled(!agent.canConnectCatalogAgent)
                             .accessibilityIdentifier("AdaEditor.Agents.InstallAdapter.\(local.id)")
@@ -109,7 +109,7 @@ struct EditorAgentCatalogView: View {
                 Text(local.path).font(.system(size: 10)).foregroundColor(theme.editorColors.muted).lineLimit(2)
                 if local.target == nil {
                     Text(catalog.adapter(for: local) != nil
-                        ? "An ACP adapter is required. Install & Connect sets it up for this project."
+                        ? "An ACP adapter is required. Install & Connect sets it up for all projects."
                         : "ACP adapter unavailable. Refresh the registry or configure an ACP command below.")
                         .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                 }
@@ -123,7 +123,7 @@ struct EditorAgentCatalogView: View {
                 Text(item.name).font(.system(size: 13, weight: .semibold))
                 Text(item.version).font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
                 Spacer()
-                Button("Install & Connect") { Task { await agent.connectCatalogAgent(registry: item) } }
+                Button(agent.projectURL == nil ? "Install & Use" : "Install & Connect") { Task { await agent.connectCatalogAgent(registry: item) } }
                     .buttonStyle(actionButtonStyle)
                     .disabled(!agent.canConnectCatalogAgent)
                     .accessibilityIdentifier("AdaEditor.Agents.Install.\(item.id)")

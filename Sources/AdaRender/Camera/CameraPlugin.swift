@@ -17,6 +17,11 @@ public struct CameraPlugin: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
+        DisplayLayout.registerRuntimeType()
+        if app.main.getResource(DisplayLayout.self) == nil {
+            app.main.insertResource(DisplayLayout.standard(size: Size(width: 1, height: 1)))
+        }
+        app.addSystem(WindowDisplayLayoutSystem.self, on: .preUpdate)
         Camera.registerComponent()
         app.addSystem(CameraSystem.self, on: .preUpdate)
 

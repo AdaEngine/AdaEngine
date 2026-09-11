@@ -20,145 +20,51 @@ struct EditorWorkspaceView<
     @ViewBuilder let rightPanel: () -> RightPanel
     @ViewBuilder let bottomPanel: () -> BottomPanel
 
-    @Environment(\.metrics) private var metrics
-
-    @State private var projectSidebarWidth: Float = AdaEngineStyleLayoutSpec.projectSidebarWidth
-    @State private var inspectorSidebarWidth: Float = AdaEngineStyleLayoutSpec.inspectorWidth
-    @State private var outputPanelHeight: Float = 180
-    @State private var projectSidebarWidthAtDragStart: Float?
-    @State private var inspectorSidebarWidthAtDragStart: Float?
-    @State private var outputPanelHeightAtDragStart: Float?
+    @State private var resizeState = EditorWorkspaceResizeState()
 
     var body: some View {
         GeometryReader { geometry in
-            let layout = EditorWorkspaceLayout(
-                size: geometry.size,
-                showsLeftPanel: viewModel.showLeftPanel,
-                showsRightPanel: viewModel.showRightPanel,
-                showsBottomPanel: viewModel.showBottomPanel,
-                requestedLeftPanelWidth: projectSidebarWidth,
-                requestedRightPanelWidth: inspectorSidebarWidth,
-                requestedBottomPanelHeight: outputPanelHeight,
-                fallbackLeftPanelWidth: metrics.projectSidebarWidth,
-                fallbackRightPanelWidth: metrics.inspectorWidth
-            )
-
-            ZStack(anchor: .topLeading) {
-                let leftHandleX = layout.leftPanelWidth
-                let mainPanelX = leftHandleX + (layout.showsLeftPanel ? EditorWorkspaceLayout.resizeHandleSize : 0)
-                let rightHandleX = mainPanelX + layout.mainPanelWidth
-                let rightPanelX = rightHandleX
-                    + (layout.showsRightPanel ? EditorWorkspaceLayout.resizeHandleSize : 0)
-
+            // Width changes are observed by the layout, not the panel builders.
+            let _ = resizeState.topologyRevision
+            let layout = resizeState.layout(in: geometry.size, viewModel: viewModel)
+            // Keep seven slots, including empty placeholders for collapsed panels.
+            EditorWorkspacePanelsLayout(state: resizeState, viewModel: viewModel) {
                 if layout.showsLeftPanel {
                     leftPanel()
-                        .frame(width: layout.leftPanelWidth, height: layout.mainPanelHeight)
-
-                    EditorResizeHandle(
-                        axis: .horizontal,
-                        onResize: { translation in
-                            let startWidth = projectSidebarWidthAtDragStart ?? layout.leftPanelWidth
-                            projectSidebarWidthAtDragStart = startWidth
-                            let width = startWidth + translation.width
-                            if width < EditorWorkspaceLayout.minimumLeftPanelWidth {
-                                viewModel.showLeftPanel = false
-                                projectSidebarWidth = max(startWidth, EditorWorkspaceLayout.minimumLeftPanelWidth)
-                                projectSidebarWidthAtDragStart = nil
-                            } else {
-                                projectSidebarWidth = width
-                            }
-                        },
-                        onResizeEnded: {
-                            projectSidebarWidthAtDragStart = nil
-                        }
-                    )
-                    .frame(height: layout.mainPanelHeight)
-                    .offset(x: leftHandleX)
-                    .accessibilityIdentifier("AdaEditor.Workspace.ResizeLeft")
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 }
-
+                if layout.showsLeftPanel {
+                    resizeHandle(.left, size: geometry.size)
+                }
                 mainPanel()
-                    .frame(width: layout.mainPanelWidth, height: layout.mainPanelHeight)
-                    .offset(x: mainPanelX)
-
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 if layout.showsRightPanel {
-                    EditorResizeHandle(
-                        axis: .horizontal,
-                        onResize: { translation in
-                            let startWidth = inspectorSidebarWidthAtDragStart ?? layout.rightPanelWidth
-                            inspectorSidebarWidthAtDragStart = startWidth
-                            let width = startWidth - translation.width
-                            if width < EditorWorkspaceLayout.minimumRightPanelWidth {
-                                viewModel.showRightPanel = false
-                                inspectorSidebarWidth = max(startWidth, EditorWorkspaceLayout.minimumRightPanelWidth)
-                                inspectorSidebarWidthAtDragStart = nil
-                            } else {
-                                inspectorSidebarWidth = width
-                            }
-                        },
-                        onResizeEnded: {
-                            inspectorSidebarWidthAtDragStart = nil
-                        }
-                    )
-                    .frame(height: layout.mainPanelHeight)
-                    .offset(x: rightHandleX)
-                    .accessibilityIdentifier("AdaEditor.Workspace.ResizeRight")
-
-                    rightPanel()
-                        .frame(width: layout.rightPanelWidth, height: layout.mainPanelHeight)
-                        .offset(x: rightPanelX)
+                    resizeHandle(.right, size: geometry.size)
                 }
-
+                if layout.showsRightPanel {
+                    rightPanel()
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                }
                 if layout.showsBottomPanel {
-                    bottomPanel(geometry, layout: layout)
-                        .offset(y: layout.mainPanelHeight)
+                    resizeHandle(.bottom, size: geometry.size)
+                }
+                if layout.showsBottomPanel {
+                    bottomPanel()
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
     }
-}
 
-extension EditorWorkspaceView {
-
-    private func bottomPanel(_ geometry: GeometryProxy, layout: EditorWorkspaceLayout) -> some View {
-        ZStack(anchor: .topLeading) {
-            EditorResizeHandle(
-                axis: .vertical,
-                onResize: { translation in
-                    resizeOutputPanel(geometry, translation: translation)
-                },
-                onResizeEnded: {
-                    outputPanelHeightAtDragStart = nil
-                }
-            )
-            .frame(width: geometry.size.width)
-            .accessibilityIdentifier("AdaEditor.Workspace.ResizeBottom")
-
-            bottomPanel()
-                .frame(width: geometry.size.width, height: layout.bottomPanelHeight)
-                .offset(y: EditorWorkspaceLayout.resizeHandleSize)
-        }
-        .frame(
-            width: geometry.size.width,
-            height: EditorWorkspaceLayout.resizeHandleSize + layout.bottomPanelHeight,
-            alignment: .topLeading
+    private func resizeHandle(_ panel: EditorWorkspaceResizeState.Panel, size: Size) -> some View {
+        EditorResizeHandle(
+            axis: panel == .bottom ? .vertical : .horizontal,
+            onResize: { resizeState.resize(panel, translation: $0, in: size, viewModel: viewModel) },
+            onResizeEnded: { resizeState.endDrag() }
         )
-    }
-
-    private func resizeOutputPanel(_ geometry: GeometryProxy, translation: Size) {
-        let bottomHeight = EditorWorkspaceLayout.clampedBottomPanelHeight(outputPanelHeight, in: geometry.size)
-        let startHeight = outputPanelHeightAtDragStart ?? bottomHeight
-        outputPanelHeightAtDragStart = startHeight
-        let height = startHeight - translation.height
-        if height < EditorWorkspaceLayout.minimumBottomPanelHeight {
-            viewModel.showBottomPanel = false
-            outputPanelHeight = startHeight
-            outputPanelHeightAtDragStart = nil
-        } else {
-            outputPanelHeight = EditorWorkspaceLayout.clampedBottomPanelHeight(height, in: geometry.size)
-        }
+        .accessibilityIdentifier("AdaEditor.Workspace.Resize\(panel.rawValue)")
     }
 }
 

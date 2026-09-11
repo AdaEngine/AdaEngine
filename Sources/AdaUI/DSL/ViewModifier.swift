@@ -87,18 +87,43 @@ public extension View {
 
 /// A modified content.
 public struct ModifiedContent<Content, Modifier> {
+    // Built-in modifiers also retain their input view. Keeping this pair indirect
+    // prevents each modifier from doubling the inline size of the entire chain
+    // and exhausting the device's stack during view graph construction.
+    @usableFromInline
+    var storage: Storage
+
     /// The content.
-    public var content: Content
+    public var content: Content {
+        get { storage.content }
+        set { storage = Storage(content: newValue, modifier: storage.modifier) }
+    }
     /// The modifier.
-    public var modifier: Modifier
+    public var modifier: Modifier {
+        get { storage.modifier }
+        set { storage = Storage(content: storage.content, modifier: newValue) }
+    }
     
     /// Initialize a new modified content.
     ///
     /// - Parameter content: The content.
     /// - Parameter modifier: The modifier.
     @inlinable public init(content: Content, modifier: Modifier) {
-        self.content = content
-        self.modifier = modifier
+        self.storage = Storage(content: content, modifier: modifier)
+    }
+
+    // Immutable storage preserves value semantics when a copied ModifiedContent
+    // is mutated, including mutations through writable key paths.
+    @usableFromInline
+    final class Storage {
+        let content: Content
+        let modifier: Modifier
+
+        @usableFromInline
+        init(content: Content, modifier: Modifier) {
+            self.content = content
+            self.modifier = modifier
+        }
     }
 }
 

@@ -12,6 +12,7 @@ enum EditorBuiltInComponentType {
     static let globalTransform = String(reflecting: GlobalTransform.self)
     static let bounding = String(reflecting: BoundingComponent.self)
     static let scriptableComponents = String(reflecting: ScriptableComponents.self)
+    static let companionPanel = String(reflecting: CompanionPanel.self)
     static let uiComponent = String(reflecting: UIComponent.self)
     static let sceneInstance = String(reflecting: SceneInstance.self)
     static let physicsBody2D = String(reflecting: PhysicsBody2DComponent.self)
@@ -212,7 +213,8 @@ enum EditorComponentRegistry {
         physicsBody3DDescriptor,
         directionalLight3DDescriptor,
         sceneInstanceDescriptor,
-        uiComponentDescriptor
+        uiComponentDescriptor,
+        companionPanelDescriptor,
     ]
 
     private static let overrideDescriptorsByName: [String: EditorComponentDescriptor] = Dictionary(
@@ -221,6 +223,8 @@ enum EditorComponentRegistry {
 
     @MainActor
     static func registerBuiltIns() {
+        DisplayLayout.registerRuntimeType()
+        RuntimeTypeRegistry.registerComponent(CompanionPanel.self, names: ["CompanionPanel"])
         RuntimeTypeRegistry.registerComponent(Transform.self, names: ["Transform"])
         RuntimeTypeRegistry.registerComponent(GlobalTransform.self, names: ["GlobalTransform"])
         RuntimeTypeRegistry.registerComponent(Camera.self, names: ["Camera"])
@@ -534,6 +538,24 @@ private extension EditorComponentRegistry {
                 contextName: payload["contextName"]?.stringValue ?? "", inputs: inputs, scriptBindings: bindings
             )
             return UIComponent(source: source, behaviour: UIComponent.Behaviour(rawValue: payload["behaviour"]?.stringValue ?? "overlay") ?? .overlay)
+        }
+    )
+
+    static let companionPanelDescriptor = EditorComponentDescriptor(
+        typeName: EditorBuiltInComponentType.companionPanel,
+        displayName: "Companion Panel", category: "UI",
+        description: "Displays a .ui scene in the secondary display region using this entity's script bindings.",
+        requiredComponentTypeNames: [EditorBuiltInComponentType.transform],
+        fields: [
+            .init(key: "path", label: "UI file", kind: .string),
+            .init(key: "inputs", label: "Inputs (JSON)", kind: .string),
+            .init(key: "scriptBindings", label: "Script field bindings", kind: .string)
+        ],
+        makeDefaultPayload: { ["path": .string(""), "inputs": .string("{}"), "scriptBindings": .string("{}")] },
+        decode: { payload in
+            let inputs = try JSONDecoder().decode([String: UIValue].self, from: Data((payload["inputs"]?.stringValue ?? "{}").utf8))
+            let bindings = try JSONDecoder().decode([String: UIScriptFieldBinding].self, from: Data((payload["scriptBindings"]?.stringValue ?? "{}").utf8))
+            return CompanionPanel(source: UIComponentSource(path: payload["path"]?.stringValue ?? "", inputs: inputs, scriptBindings: bindings))
         }
     )
 

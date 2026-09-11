@@ -9,7 +9,6 @@
 private typealias LauncherColor = AdaColorPalette
 enum ProjectOpeningLayout {
     static let usesNavigationSplitView = false
-    static let detailUsesNavigationStack = false
     static let detailUsesSearchable = false
     static let windowWidth: Float = 1024
     static let windowHeight: Float = 700
@@ -57,6 +56,8 @@ enum ProjectOpeningAccessibility {
     static let createHeader = "AdaEditor.Launcher.CreateHeader"
     static let createDescription = "AdaEditor.Launcher.CreateDescription"
     static let projectType = "AdaEditor.Launcher.ProjectType"
+    static let projectName = "AdaEditor.Launcher.ProjectName"
+    static let location = "AdaEditor.Launcher.Location"
     static let landingContent = "AdaEditor.Launcher.LandingContent"
     static let gitToggle = "AdaEditor.Launcher.GitToggle"
     static let createActions = "AdaEditor.Launcher.CreateActions"
@@ -72,6 +73,12 @@ enum ProjectOpeningLandingSpec {
 }
 
 struct ProjectOpeningView: View {
+    @Environment(\.userInterfaceIdiom) private var userInterfaceIdiom
+
+    private var usesCreationNavigation: Bool {
+        userInterfaceIdiom == .pad || userInterfaceIdiom == .phone
+    }
+
     let autoOpenLastProject: Bool
     let initiallyCreatingProject: Bool
     @State private var viewModel: ProjectOpeningViewModel
@@ -105,13 +112,15 @@ struct ProjectOpeningView: View {
                 .accessibilityIdentifier(ProjectOpeningAccessibility.detail)
         }
         .frame(
-            minWidth: ProjectOpeningLayout.windowWidth,
+            minWidth: usesCreationNavigation ? 0 : ProjectOpeningLayout.windowWidth,
             maxWidth: .infinity,
             minHeight: ProjectOpeningLayout.windowHeight,
             maxHeight: .infinity,
             alignment: .topLeading
         )
-        .background(LauncherColor.window)
+        .background {
+            LauncherColor.window.ignoresSafeArea()
+        }
         .fullScreenCover(isPresented: Binding(
             get: { viewModel.projectBeingRenamed != nil },
             set: { if !$0 { viewModel.cancelRenamingProject() } }
@@ -471,40 +480,70 @@ struct ProjectOpeningView: View {
         .background(LauncherColor.window))
     }
 
+    @ViewBuilder
     private var createProjectForm: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("CREATE NEW PROJECT")
-                    .font(.system(size: 10))
-                    .foregroundColor(LauncherColor.accentViolet)
-
-                Text("New Project")
-                    .font(.system(size: 36))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .frame(width: ProjectOpeningLayout.detailContentWidth, alignment: .leading)
+        if usesCreationNavigation {
+            NavigationStack {
+                createProjectFormBody
+                    .navigationTitle("New Project")
+                    .navigationTitlePosition(.leading)
+                    .navigationBarColor(LauncherColor.window)
             }
-            .frame(width: ProjectOpeningLayout.detailContentWidth, height: 59, alignment: .topLeading)
-            .accessibilityIdentifier(ProjectOpeningAccessibility.createHeader)
+        } else {
+            createProjectFormBody
+        }
+    }
+
+    private var createProjectFormBody: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if usesCreationNavigation {
+                ScrollView(.vertical) {
+                    createProjectFormFields
+                        .padding(.horizontal, ProjectOpeningLayout.detailPadding)
+                        .padding(.bottom, 24)
+                }
+            } else {
+                createProjectFormFields
+                    .padding(.horizontal, ProjectOpeningLayout.detailPadding)
+                    .padding(.top, ProjectOpeningLayout.detailPadding)
+                Spacer()
+            }
+
+            createProjectFormFooter
+                .padding(.horizontal, ProjectOpeningLayout.detailPadding)
+                .padding(.bottom, ProjectOpeningLayout.detailPadding)
+        }
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+        .background(LauncherColor.window)
+    }
+
+    private var createProjectFormFields: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if !usesCreationNavigation {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("CREATE NEW PROJECT")
+                        .font(.system(size: 10))
+                        .foregroundColor(LauncherColor.accentViolet)
+
+                    Text("New Project")
+                        .font(.system(size: 36))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .frame(width: ProjectOpeningLayout.detailContentWidth, alignment: .leading)
+                }
+                .frame(width: ProjectOpeningLayout.detailContentWidth, height: 59, alignment: .topLeading)
+                .accessibilityIdentifier(ProjectOpeningAccessibility.createHeader)
+            }
 
             Text("Choose a project name and a destination folder. AdaEditor will create a new folder with the project files inside it.")
                 .font(.system(size: 13))
                 .foregroundColor(LauncherColor.muted)
                 .lineLimit(3)
-                .frame(width: ProjectOpeningLayout.detailContentWidth, alignment: .leading)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 12)
                 .accessibilityIdentifier(ProjectOpeningAccessibility.createDescription)
 
             VStack(alignment: .leading, spacing: 18) {
-                createFormField(title: "Project Type") {
-                    EditorEnumField(
-                        cases: EditorProjectTemplate.allCases.map(\.displayName),
-                        selection: viewModel.projectTemplateBinding
-                    )
-                    .theme(.adaEditor)
-                }
-                .accessibilityIdentifier(ProjectOpeningAccessibility.projectType)
-
                 createFormField(title: "Project Name") {
                     TextField("AdaGame", text: viewModel.projectNameBinding)
                         .font(.system(size: 14))
@@ -519,6 +558,7 @@ struct ProjectOpeningView: View {
                         }
                         .textFieldStyle(PlainTextFieldStyle())
                 }
+                .accessibilityIdentifier(ProjectOpeningAccessibility.projectName)
 
                 createFormField(title: "Location") {
                     HStack(alignment: .center, spacing: 10) {
@@ -546,15 +586,28 @@ struct ProjectOpeningView: View {
                             RoundedRectangleShape(cornerRadius: 10).stroke(LauncherColor.inputBorder, lineWidth: 1)
                         }
                 }
+                .accessibilityIdentifier(ProjectOpeningAccessibility.location)
+
+                createFormField(title: "Project Type") {
+                    EditorEnumField(
+                        cases: EditorProjectTemplate.allCases.map(\.displayName),
+                        selection: viewModel.projectTemplateBinding
+                    )
+                    .theme(.adaEditor)
+                }
+                .accessibilityIdentifier(ProjectOpeningAccessibility.projectType)
 
                 createFormField(title: "Version control") {
                     gitRepositoryToggle
                 }
             }
             .padding(.top, 28)
+        }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
+    }
 
-            Spacer()
-
+    private var createProjectFormFooter: some View {
+        VStack(alignment: .leading, spacing: 0) {
             Text(viewModel.statusMessage)
                 .font(.system(size: 12))
                 .foregroundColor(LauncherColor.muted)
@@ -585,15 +638,6 @@ struct ProjectOpeningView: View {
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier(ProjectOpeningAccessibility.createActions)
         }
-        .padding(ProjectOpeningLayout.detailPadding)
-        .frame(
-            minWidth: 0,
-            maxWidth: .infinity,
-            minHeight: 0,
-            maxHeight: .infinity,
-            alignment: .topLeading
-        )
-        .background(LauncherColor.window)
     }
 
     private var gitRepositoryToggle: some View {

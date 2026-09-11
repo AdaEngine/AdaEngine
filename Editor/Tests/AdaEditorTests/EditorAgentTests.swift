@@ -355,7 +355,7 @@ struct EditorAgentTests {
 
         let service = FakeEditorAgentService()
         let viewModel = EditorAgentViewModel(
-            project: EditorProjectReference(name: "ViewModel", path: rootURL.path, lastOpenedAt: Date()),
+            project: EditorProjectReference(name: "ViewModel", path: rootURL.path, lastOpenedAt: Date()), settings: EditorAgentSettingsStore(),
             service: service
         )
         await viewModel.loadSessions()
@@ -413,7 +413,7 @@ struct EditorAgentTests {
             openDocuments: [.scene(sceneDocument), .text(textDocument)],
             activeDocumentID: sceneDocument.id
         )
-        let agent = EditorAgentViewModel(project: nil)
+        let agent = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore())
         let viewModel = EditorViewModel(workbench: workbench, agent: agent)
 
         #expect(viewModel.agent.sceneContext?.selectedEntityID == rootID)
@@ -427,16 +427,16 @@ struct EditorAgentTests {
         #expect(viewModel.agent.sceneContext == nil)
     }
 
-    @Test("agent settings persist to real project metadata")
+    @Test("agent settings persist globally without changing project metadata")
     @MainActor
-    func agentSettingsPersistToProjectMetadata() throws {
+    func agentSettingsPersistGlobally() throws {
         let rootURL = try makeAgentTemporaryDirectory(named: "AgentSettings")
         defer { removeAgentTemporaryDirectory(rootURL) }
         try "// swift-tools-version: 6.2\n".write(to: rootURL.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
         try writeProjectMetadata(ProjectSystem.defaultProject(projectName: "AgentSettings"), to: rootURL)
 
         let viewModel = EditorAgentViewModel(
-            project: EditorProjectReference(name: "AgentSettings", path: rootURL.path, lastOpenedAt: Date()),
+            project: EditorProjectReference(name: "AgentSettings", path: rootURL.path, lastOpenedAt: Date()), settings: EditorAgentSettingsStore(fileURL: rootURL.appendingPathComponent("global/settings.json")),
             service: FakeEditorAgentService()
         )
         viewModel.agentEnabled = true
@@ -449,14 +449,15 @@ struct EditorAgentTests {
 
         viewModel.saveAgentSettings()
 
-        let saved = try ProjectSystem.loadProject(at: rootURL)
-        #expect(saved.ai.agent.enabled)
-        #expect(saved.ai.agent.target.command == "/usr/local/bin/codex-acp")
-        #expect(saved.ai.agent.target.arguments == ["--stdio", "--profile=editor"])
-        #expect(saved.ai.agent.target.cwd == "Tools")
-        #expect(saved.ai.agent.target.environment == ["OPENAI_ORGANIZATION": "ada", "LOG_LEVEL": "info"])
-        #expect(saved.ai.agent.skillsDirectories == [".skills", ".codex/skills", "Skills, Shared"])
-        #expect(saved.ai.agent.permissionMode == .deny)
+        let saved = EditorAgentSettingsStore(fileURL: rootURL.appendingPathComponent("global/settings.json")).configuration
+        #expect(try ProjectSystem.loadProject(at: rootURL).ai.agent == AdaProjectAgent())
+        #expect(saved.enabled)
+        #expect(saved.target.command == "/usr/local/bin/codex-acp")
+        #expect(saved.target.arguments == ["--stdio", "--profile=editor"])
+        #expect(saved.target.cwd == "Tools")
+        #expect(saved.target.environment == ["OPENAI_ORGANIZATION": "ada", "LOG_LEVEL": "info"])
+        #expect(saved.skillsDirectories == [".skills", ".codex/skills", "Skills, Shared"])
+        #expect(saved.permissionMode == .deny)
     }
 
     @Test("command L selection opens agent chat with a draft")
@@ -471,7 +472,7 @@ struct EditorAgentTests {
             errorMessage: nil
         )
         let workbench = EditorWorkbenchViewModel(openDocuments: [.text(document)], activeDocumentID: document.id)
-        let agent = EditorAgentViewModel(project: nil)
+        let agent = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore())
         let viewModel = EditorViewModel(workbench: workbench, agent: agent)
         let range = EditorSourceRange(
             start: EditorSourceLocation(line: 0, character: 0),

@@ -87,24 +87,26 @@ struct EditorAgentCatalogTests {
         #expect(FileManager.default.isExecutableFile(atPath: binary.path))
     }
 
-    @Test("using an agent saves exact arguments and preserves current project settings")
+    @Test("using an agent saves exact global arguments and preserves current project settings")
     @MainActor
     func useAgent() async throws {
         let root = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         var project = ProjectSystem.defaultProject(projectName: "Catalog")
         project.ai.agent.permissionMode = .deny
+        project.ai.agent.target.command = "/legacy"
         try ProjectSystem.saveProject(project, at: root)
-        let viewModel = EditorAgentViewModel(project: EditorProjectReference(name: "Catalog", path: root.path))
+        let viewModel = EditorAgentViewModel(project: EditorProjectReference(name: "Catalog", path: root.path), settings: EditorAgentSettingsStore())
         project.project.displayName = "Changed after opening"
         try ProjectSystem.saveProject(project, at: root)
         let target = AdaProjectAgentTarget(command: "/agent with spaces", arguments: ["a,b", "two words"], environment: ["VALUE": "one,two"])
         await viewModel.useCatalogAgent(EditorInstalledAgent(id: "sample", name: "Sample", version: "1", target: target))
         viewModel.saveAgentSettings()
         let saved = try ProjectSystem.loadProject(at: root)
-        #expect(saved.ai.agent.target == target)
-        #expect(saved.ai.agent.enabled)
-        #expect(saved.ai.agent.permissionMode == .deny)
+        #expect(viewModel.settings.configuration.target == target)
+        #expect(viewModel.settings.configuration.enabled)
+        #expect(viewModel.settings.configuration.permissionMode == .deny)
+        #expect(saved.ai.agent == project.ai.agent)
         #expect(saved.project.displayName == "Changed after opening")
         #expect(viewModel.activeSession != nil)
     }
@@ -181,7 +183,7 @@ struct EditorAgentCatalogTests {
         let root = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         try ProjectSystem.saveProject(ProjectSystem.defaultProject(projectName: "UI"), at: root)
-        let agent = EditorAgentViewModel(project: EditorProjectReference(name: "UI", path: root.path), service: FakeEditorAgentService())
+        let agent = EditorAgentViewModel(project: EditorProjectReference(name: "UI", path: root.path), settings: EditorAgentSettingsStore(), service: FakeEditorAgentService())
         agent.catalog.installed = [EditorInstalledAgent(id: "sample", name: "Sample", version: "1", target: AdaProjectAgentTarget(command: "/sample"))]
         agent.catalog.discovered = [
             EditorDiscoveredAgent(
@@ -221,7 +223,8 @@ struct EditorAgentCatalogTests {
         for _ in 0..<100 where !agent.settingsStatusMessage.contains("connected.") {
             try await Task.sleep(for: .milliseconds(10))
         }
-        #expect(try ProjectSystem.loadProject(at: root).ai.agent.target.command == "/sample")
+        #expect(agent.settings.configuration.target.command == "/sample")
+        #expect(try ProjectSystem.loadProject(at: root).ai.agent.target.command == nil)
         #expect(agent.settingsStatusMessage.contains("connected."))
     }
 
@@ -232,7 +235,7 @@ struct EditorAgentCatalogTests {
             unsafe RenderEngine.configurations.preferredBackend = .headless
             RenderWorldPlugin().setup(in: AppWorlds(main: World(name: "AgentAdapterUI")))
         }
-        let agent = EditorAgentViewModel(project: nil)
+        let agent = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore())
         agent.catalog.discovered = [EditorDiscoveredAgent(id: "codex-acp", name: "Codex", path: "/bin/codex")]
         let adapter = EditorRegistryAgent(
             id: "codex-acp", name: "Codex", version: "1", description: "Adapter", distribution: .init()
@@ -261,11 +264,12 @@ struct EditorAgentCatalogTests {
         catalog.filter = .available
         let connection = FakeEditorAgentService()
         let agent = EditorAgentViewModel(
-            project: EditorProjectReference(name: "Connect", path: root.path), service: connection, catalog: catalog
+            project: EditorProjectReference(name: "Connect", path: root.path), settings: EditorAgentSettingsStore(), service: connection, catalog: catalog
         )
         await agent.connectCatalogAgent(local: local)
         let entry = try #require(try await service.installed().first)
-        #expect(try ProjectSystem.loadProject(at: root).ai.agent.target == local.target)
+        #expect(agent.settings.configuration.target == local.target)
+        #expect(try ProjectSystem.loadProject(at: root).ai.agent.target.command == nil)
         #expect(agent.isCatalogAgentSelected(entry))
         #expect(catalog.filter == .all)
         #expect(agent.settingsStatusMessage.contains("connected."))
@@ -282,7 +286,7 @@ struct EditorAgentCatalogTests {
         defer { try? FileManager.default.removeItem(at: root) }
         try ProjectSystem.saveProject(ProjectSystem.defaultProject(projectName: "Failure"), at: root)
         let connection = FakeEditorAgentService(connectionError: .sessionUnavailable)
-        let agent = EditorAgentViewModel(project: EditorProjectReference(name: "Failure", path: root.path), service: connection)
+        let agent = EditorAgentViewModel(project: EditorProjectReference(name: "Failure", path: root.path), settings: EditorAgentSettingsStore(), service: connection)
         let entry = EditorInstalledAgent(id: "test", name: "Test", version: "1", target: .init(command: "/test"))
         await agent.connectCatalogAgent(installed: entry)
         #expect(agent.isCatalogAgentSelected(entry))
@@ -302,7 +306,7 @@ struct EditorAgentCatalogTests {
         try ProjectSystem.saveProject(project, at: root)
         let catalog = EditorAgentCatalogViewModel(service: EditorAgentCatalogService(root: root.appendingPathComponent("catalog"), paths: []))
         let agent = EditorAgentViewModel(
-            project: EditorProjectReference(name: "KeepAgent", path: root.path), service: FakeEditorAgentService(), catalog: catalog
+            project: EditorProjectReference(name: "KeepAgent", path: root.path), settings: EditorAgentSettingsStore(), service: FakeEditorAgentService(), catalog: catalog
         )
         let adapter = EditorRegistryAgent(id: "unavailable", name: "Unavailable", version: "1", description: "", distribution: .init())
         await agent.connectCatalogAgent(registry: adapter)

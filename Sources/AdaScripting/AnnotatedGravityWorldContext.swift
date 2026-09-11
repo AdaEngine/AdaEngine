@@ -21,7 +21,7 @@ final class AnnotatedGravityWorldContext: @unchecked Sendable {
 
 @GSExportable("AdaCommands")
 final class AnnotatedGravityCommandsBridge: @unchecked Sendable {
-    private let commands: Commands?
+    private var commands: Commands?
     private let reportDiagnostic: @Sendable (String) -> Void
     private var isActive = true
 
@@ -115,6 +115,7 @@ final class AnnotatedGravityCommandsBridge: @unchecked Sendable {
 
     func invalidate() {
         isActive = false
+        commands = nil
     }
 
     private func validateAccess() -> Bool {

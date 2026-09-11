@@ -379,7 +379,8 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                         window: touch.window,
                         location: pressLocation ?? touch.location,
                         phase: .cancelled,
-                        time: touch.time
+                        time: touch.time,
+                contactID: touch.contactID
                     )
                 }
             )

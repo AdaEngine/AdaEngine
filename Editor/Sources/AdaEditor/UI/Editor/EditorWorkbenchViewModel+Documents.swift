@@ -95,7 +95,15 @@ extension EditorWorkbenchViewModel {
         switch document {
         case .scene(let document):
             return saveSceneDocument(id: document.id)
-        case .text(let document), .ui(let document):
+        case .ui(let document):
+            for sceneID in uiSceneModels[document.id]?.bindingSceneDocumentIDs ?? [] {
+                if let scene = sceneDocument(id: sceneID), scene.isDirty, !saveSceneDocument(id: sceneID) {
+                    updateTextDocument(id: document.id) { $0.statusMessage = "Unable to save the scene containing this UI's script bindings." }
+                    return false
+                }
+            }
+            return saveTextDocument(id: document.id)
+        case .text(let document):
             return saveTextDocument(id: document.id)
         case .asset, .git:
             return false

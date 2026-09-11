@@ -336,6 +336,8 @@ private extension EditorCodeFileView {
             colorPalette.type
         case "function", "method":
             colorPalette.type
+        case "property" where document.language == .ada:
+            colorPalette.type
         case "string":
             colorPalette.string
         case "number":
@@ -1226,7 +1228,9 @@ enum EditorSyntaxHighlighter {
                 let word = String(characters[column..<endColumn])
                 if gravityKeywords.contains(word.lowercased()) {
                     appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.keyword, to: &spans)
-                } else if word.first?.isUppercase == true {
+                } else if word.first?.isUppercase == true
+                    || characters[..<column].last(where: { !$0.isWhitespace }) == "."
+                    || characters[endColumn...].first(where: { !$0.isWhitespace }) == "(" {
                     appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.type, to: &spans)
                 }
                 column = endColumn

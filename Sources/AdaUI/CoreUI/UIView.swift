@@ -71,6 +71,9 @@ open class UIView {
     /// Whether an embedded view can receive keyboard focus from the AdaUI hierarchy.
     open var acceptsKeyboardFocus: Bool { false }
 
+    /// Called when an embedded native view gains or loses keyboard focus.
+    open func onFocusChanged(isFocused: Bool) {}
+
     public var userInterfaceIdiom: UserInterfaceIdiom = .desktop {
         didSet {
             if oldValue != userInterfaceIdiom {

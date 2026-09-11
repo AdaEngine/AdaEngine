@@ -5,10 +5,10 @@
 //  Created by Vladislav Prusakov on 19.12.2025.
 //
 
-import AdaECS
-import AdaRender
-import AdaText
 import AdaCorePipelines
+import AdaECS
+@_spi(Internal) import AdaRender
+import AdaText
 import AdaUtils
 import Math
 
@@ -304,7 +304,8 @@ public struct UIDrawPass: DrawPass {
         switch resolveScissorDecision(
             clipRect: uiDrawData.clipRect,
             renderBounds: renderBounds,
-            viewportOrigin: viewportOrigin
+            viewportOrigin: viewportOrigin,
+            clipScale: world.get(Camera.self, from: view.id).map(Self.clipScale(for:)) ?? .one
         ) {
         case .none:
             break
@@ -688,10 +689,21 @@ public struct UIDrawPass: DrawPass {
         return .zero
     }
 
+    static func clipScale(for camera: Camera) -> Vector2 {
+        // Graphics contexts record clips in native display pixels. The camera's
+        // render viewport may be smaller when spatial upscaling is enabled.
+        let nativeSize = camera.logicalViewport.rect.size.asVector2 * camera.computedData.targetScaleFactor
+        guard nativeSize.x > 0, nativeSize.y > 0 else {
+            return .one
+        }
+        return camera.viewport.rect.size.asVector2 / nativeSize
+    }
+
     func resolveScissorDecision(
         clipRect: Rect?,
         renderBounds: Rect?,
-        viewportOrigin: Point
+        viewportOrigin: Point,
+        clipScale: Vector2 = .one
     ) -> ScissorDecision {
         guard let clipRect else {
             if let renderBounds {
@@ -705,10 +717,10 @@ public struct UIDrawPass: DrawPass {
         }
 
         let adjustedClipRect = Rect(
-            x: clipRect.minX + viewportOrigin.x,
-            y: clipRect.minY + viewportOrigin.y,
-            width: clipRect.width,
-            height: clipRect.height
+            x: clipRect.minX * clipScale.x + viewportOrigin.x,
+            y: clipRect.minY * clipScale.y + viewportOrigin.y,
+            width: clipRect.width * clipScale.x,
+            height: clipRect.height * clipScale.y
         )
 
         guard let scissorRect = clampScissorRect(adjustedClipRect, to: renderBounds) else {

@@ -18,7 +18,7 @@ struct EditorSettingsUXTests {
 
     @Test("Skill folder controls add, edit, and remove independent paths")
     func skillFolders() async throws {
-        let agent = EditorAgentViewModel(project: nil)
+        let agent = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore())
         agent.agentSkillsDirectories = [".skills", "Skills, Shared"]
         let container = UIContainerView(rootView: EditorAgentSkillDirectoriesView(agent: agent).theme(.adaEditor))
         container.frame = Rect(x: 0, y: 0, width: 650, height: 250)
@@ -34,7 +34,7 @@ struct EditorSettingsUXTests {
 
     @Test("Agent search is grouped in a toolbar and filters work as a segment")
     func agentToolbarAndFilter() async throws {
-        let agent = EditorAgentViewModel(project: nil)
+        let agent = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore())
         let container = UIContainerView(rootView: EditorAgentCatalogView(agent: agent, loadsCatalog: false).theme(.adaEditor))
         container.frame = Rect(x: 0, y: 0, width: 700, height: 500)
         container.bounds.size = container.frame.size

@@ -1389,6 +1389,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "TextFieldExample", path: "UI"),
     .exampleTarget(name: "NativeViewExample", path: "UI"),
     .exampleTarget(name: "SceneViewExample", path: "UI"),
+    .exampleTarget(name: "AdaptiveSceneViewExample", path: "UI"),
 
     // MARK: Example
     .exampleTarget(name: "SimpleCollideEventExample", path: "Events"),

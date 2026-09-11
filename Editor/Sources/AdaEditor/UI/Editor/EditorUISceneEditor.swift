@@ -9,6 +9,7 @@ struct EditorUISceneEditor: View {
     @State var modifierPickerNodeID: String?
     @State var showsInputs = false
     @State var fitsCanvas = true
+    @State var scriptBindingParameter: String?
 
     var body: some View {
         designerBody
@@ -78,7 +79,7 @@ struct EditorUISceneEditor: View {
                     Button("Add content from palette") { model.insertionModifierID = modifier.id }
                 }
                 ForEach(signature.parameters, id: \.name) { parameter in
-                    parameterEditor(parameter, argument: modifier.arguments[parameter.name]) { value in
+                    parameterEditor(parameter, argument: modifier.arguments[parameter.name], modifierID: modifier.id) { value in
                         model.edit { document in
                             EditorUISceneModel.modify(&document.root, id: nodeID) { node in
                                 if let index = node.modifiers.firstIndex(where: { $0.id == modifier.id }) {
@@ -102,15 +103,27 @@ struct EditorUISceneEditor: View {
         .overlay { RoundedRectangleShape(cornerRadius: 8).stroke(theme.editorColors.border.opacity(0.6), lineWidth: 1) }
     }
 
-    func parameterEditor(_ parameter: UIParameter, argument: UIArgument?, onChange: @escaping (UIArgument) -> Void) -> some View {
+    func parameterEditor(_ parameter: UIParameter, argument: UIArgument?, modifierID: String? = nil, onChange: @escaping (UIArgument) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(parameter.name).font(.system(size: 11))
                 Spacer()
+                Button {
+                    let key = "\(model.selectedID):\(modifierID ?? "view"):\(parameter.name)"
+                    scriptBindingParameter = scriptBindingParameter == key ? nil : key
+                } label: {
+                    Text("\u{E157}").font(AdaEditorMaterialSymbolFont.font(size: 16))
+                        .foregroundColor(theme.editorColors.blue).frame(width: 26, height: 24)
+                }
+                .buttonStyle(DefaultButtonStyle())
+                .accessibilityIdentifier("AdaEditor.UIScene.ScriptBinding.\(parameter.name)")
                 EditorUIArgumentModePicker(isBinding: argument?.binding != nil, parameterName: parameter.name) { isBinding in
                     guard isBinding != (argument?.binding != nil) else { return }
                     onChange(isBinding ? UIArgument(binding: parameter.name) : UIArgument(value: parameter.defaultValue ?? .string("")))
                 }
+            }
+            if scriptBindingParameter == "\(model.selectedID):\(modifierID ?? "view"):\(parameter.name)" {
+                scriptBindingPicker(parameter, argument: argument, modifierID: modifierID)
             }
             if argument?.binding == nil, let editor = parameter.editor {
                 switch editor {

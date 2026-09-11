@@ -19,6 +19,10 @@ import UIKit
 
 open class MetalView: MTKView {
     
+    #if canImport(UIKit)
+    var activeTouchContacts: [ObjectIdentifier: AdaUI.UIWindow.ID] = [:]
+    #endif
+
     public var windowID: AdaUI.UIWindow.ID
     var allowsTransparency: Bool = false {
         didSet {
@@ -56,6 +60,7 @@ open class MetalView: MTKView {
         #if os(iOS) || os(visionOS)
         isMultipleTouchEnabled = true
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+        pinch.cancelsTouchesInView = false
         addGestureRecognizer(pinch)
         #endif
         self.isPaused = true

@@ -13,6 +13,7 @@ struct EditorSceneViewportView: View {
     let onStop: (() -> Void)?
     let onDocumentChanged: (EditorSceneDocument) -> Void
 
+    @State var displayPreview = EditorDisplayPreviewModel()
     @State var viewportRevision: UInt = 0
     @State var runtimeWarnings: [String] = []
     @State private var displayMode: EditorSceneViewportDisplayMode = .twoD
@@ -35,6 +36,9 @@ struct EditorSceneViewportView: View {
             }
         }
         .accessibilityIdentifier("AdaEditor.SceneViewport.\(document.title)")
+        .onAppear {
+            if let resourceRootURL { displayPreview.load(projectRoot: Self.uiProjectRoot(from: resourceRootURL)) }
+        }
         .onDisappear {
             viewportModel.disconnect()
             inspectorViewModel.clearSceneViewportActions(owner: viewportModel)
@@ -100,29 +104,9 @@ struct EditorSceneViewportView: View {
             playToolbar
             GeometryReader { geometry in
                 ZStack(anchor: .bottomLeading) {
-                    SceneView(make: { app in
-                        configureSceneViewApp(&app)
-                        var runtimeInstalled = true
-                        do {
-                            try playRuntime?.install(in: &app)
-                        } catch {
-                            runtimeWarnings = [error.localizedDescription]
-                            runtimeInstalled = false
-                        }
-                        let result = EditorSceneFileLoader.load(
-                            content: document.content,
-                            into: app.main,
-                            sourceURL: document.absolutePath.map { URL(fileURLWithPath: $0) },
-                            resourceRootURL: resourceRootURL
-                        )
-                        if runtimeInstalled { runtimeWarnings = result.warnings }
-                        if runtimeInstalled, result.warnings.isEmpty, document.absolutePath != nil,
-                           let model = document.sceneModel {
-                            EditorAchievementBootstrap.center?.record(EditorAchievementRules.playedScene(model, adaScript: playRuntime != nil))
-                        }
-                    }, updateContent: { _, _ in })
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-
+                    AdaptiveSceneView(layout: displayPreview.settings.layout, fitsAvailableSpace: displayPreview.fitsAvailableSpace,
+                                      make: configurePlayWorld)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
                     sceneControls(size: geometry.size)
                     playStatusBar
                 }
@@ -130,6 +114,28 @@ struct EditorSceneViewportView: View {
                 .mask(RectangleShape())
             }
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+        }
+    }
+
+    private func configurePlayWorld(_ app: inout AppWorlds) {
+        configureSceneViewApp(&app)
+        var runtimeInstalled = true
+        do {
+            try playRuntime?.install(in: &app)
+        } catch {
+            runtimeWarnings = [error.localizedDescription]
+            runtimeInstalled = false
+        }
+        let result = EditorSceneFileLoader.load(
+            content: document.content,
+            into: app.main,
+            sourceURL: document.absolutePath.map { URL(fileURLWithPath: $0) },
+            resourceRootURL: resourceRootURL
+        )
+        if runtimeInstalled { runtimeWarnings = result.warnings }
+        if runtimeInstalled, result.warnings.isEmpty, document.absolutePath != nil,
+           let model = document.sceneModel {
+            EditorAchievementBootstrap.center?.record(EditorAchievementRules.playedScene(model, adaScript: playRuntime != nil))
         }
     }
 
@@ -208,10 +214,8 @@ struct EditorSceneViewportView: View {
             Text(document.title)
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
-            Text(document.relativePath)
-                .font(.system(size: 11))
-                .foregroundColor(theme.editorColors.muted)
             Spacer()
+            displayPreviewControls
             Text("PLAY MODE")
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.purple)

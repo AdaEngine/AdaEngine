@@ -105,6 +105,58 @@ struct EditorWorkspaceResizeTests {
         #expect(reopened == original)
     }
 
+    @Test("continuous divider drag retains panel bodies and follows every pointer movement", arguments: ["Left", "Right", "Bottom"], [false, true])
+    func continuousDrag(panel: String, touch: Bool) async throws {
+        let model = EditorViewModel(project: nil)
+        model.showLeftPanel = true
+        model.showRightPanel = true
+        model.showBottomPanel = true
+        let counter = ResizeBuildCounter()
+        let container = UIContainerView(rootView: EditorWorkspaceView(
+            viewModel: model,
+            leftPanel: { ResizeBodyProbe(counter: counter).accessibilityIdentifier("probe.left") },
+            mainPanel: { ResizeBodyProbe(counter: counter).accessibilityIdentifier("probe.main") },
+            rightPanel: { ResizeBodyProbe(counter: counter).accessibilityIdentifier("probe.right") },
+            bottomPanel: { ResizeBodyProbe(counter: counter).accessibilityIdentifier("probe.bottom") }
+        ))
+        container.frame = Rect(x: 0, y: 0, width: 1200, height: 700)
+        container.bounds.size = container.frame.size
+        await settle(container)
+        let beforeBuilds = counter.builds
+        let selector = UINodeSelector.accessibilityIdentifier("AdaEditor.Workspace.Resize\(panel)")
+        let original = try container.uiNode(matching: selector)
+        let start = Point(original.absoluteFrame.midX, original.absoluteFrame.midY)
+        let originalMain = try container.uiNode(matching: .accessibilityIdentifier("probe.main"))
+        let clock = ContinuousClock()
+        let started = clock.now
+        for (eventIndex, step) in (Array(0...20) + Array((0..<20).reversed())).enumerated() {
+            let delta = Float(step * 3) * (panel == "Left" ? 1 : -1)
+            let point = start + (panel == "Bottom" ? Point(0, delta) : Point(delta, 0))
+            if touch {
+                container.onTouchesEvent([TouchEvent(window: .empty, location: point, phase: eventIndex == 0 ? .began : .moved, time: 0)])
+            } else {
+                container.onMouseEvent(MouseEvent(window: RID(), button: .left, mousePosition: point,
+                    phase: eventIndex == 0 ? .began : .changed, modifierKeys: [], time: 0))
+            }
+            await settle(container)
+            let handle = try container.uiNode(matching: selector)
+            #expect(handle.runtimeId == original.runtimeId)
+            let actual = panel == "Bottom" ? handle.absoluteFrame.midY : handle.absoluteFrame.midX
+            let expected = panel == "Bottom" ? point.y : point.x
+            #expect(abs(actual - expected) < 0.001)
+        }
+        if touch {
+            container.onTouchesEvent([TouchEvent(window: .empty, location: start, phase: .ended, time: 0)])
+        } else {
+            container.onMouseEvent(MouseEvent(window: RID(), button: .left, mousePosition: start,
+                phase: .ended, modifierKeys: [], time: 0))
+        }
+        await settle(container)
+        #expect(counter.builds == beforeBuilds)
+        #expect(try container.uiNode(matching: .accessibilityIdentifier("probe.main")).runtimeId == originalMain.runtimeId)
+        print("Workspace \(panel) drag: \(started.duration(to: clock.now)), panel builds: \(counter.builds - beforeBuilds)")
+    }
+
     private func layout(size: Size, left: Float = 260, right: Float = 300, bottom: Float = 180) -> EditorWorkspaceLayout {
         EditorWorkspaceLayout(
             size: size,
@@ -139,5 +191,19 @@ struct EditorWorkspaceResizeTests {
             container.update(1.0 / 60.0)
             container.layoutIfNeeded()
         }
+    }
+}
+
+@MainActor
+private final class ResizeBuildCounter {
+    var builds = 0
+}
+
+private struct ResizeBodyProbe: View {
+    let counter: ResizeBuildCounter
+    var body: some View {
+        counter.builds += 1
+        return Color.blue
+            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
     }
 }

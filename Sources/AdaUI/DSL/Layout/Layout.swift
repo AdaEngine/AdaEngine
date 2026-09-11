@@ -102,8 +102,9 @@ struct CustomLayoutContainer<T: Layout, Content: View>: View {
 
         var inputs = inputs
         inputs.layout = layout
-        let node = LayoutViewContainerNode(layout: layout, content: content.value)
+        let node = ObservedLayoutViewContainerNode(layout: layout, content: content.value)
         node.updateEnvironment(inputs.environment)
+        node.invalidateContent()
         return _ViewOutputs(node: node)
     }
 }

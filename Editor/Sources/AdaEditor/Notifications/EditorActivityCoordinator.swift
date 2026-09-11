@@ -113,19 +113,21 @@ final class EditorActivityCoordinator {
         backgrounds.removeValue(forKey: id)?.finish(success: state == .completed)
         resolveAttention(id)
         let item = all[index]
-        center?.post(
-            .init(
-                id: "\(id):result",
-                source: item.source,
-                importance: state == .failed || state == .interrupted ? .error : (state == .cancelled ? .information : .success),
-                title: "\(item.title) — \(state.rawValue)",
-                detail: String(detail.prefix(600)),
-                projectName: item.projectName,
-                operationID: id,
-                actions: item.action.map { [$0] } ?? [],
-                requestsSystemDelivery: state != .cancelled && (item.source == .agent || item.source == .build || item.source == .test || state == .failed)
+        if item.source != .agent || state != .completed {
+            center?.post(
+                .init(
+                    id: "\(id):result",
+                    source: item.source,
+                    importance: state == .failed || state == .interrupted ? .error : (state == .cancelled ? .information : .success),
+                    title: "\(item.title) — \(state.rawValue)",
+                    detail: String(detail.prefix(600)),
+                    projectName: item.projectName,
+                    operationID: id,
+                    actions: item.action.map { [$0] } ?? [],
+                    requestsSystemDelivery: state != .cancelled && (item.source == .agent || item.source == .build || item.source == .test || state == .failed)
+                )
             )
-        )
+        }
         trim()
         center?.persist()
     }

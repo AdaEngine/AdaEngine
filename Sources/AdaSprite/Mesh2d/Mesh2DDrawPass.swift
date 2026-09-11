@@ -93,6 +93,11 @@ public struct Mesh2DDrawPass: DrawPass {
             }
         }
 
+        // Reflected materials can include AE_GlobalView with their own empty buffer.
+        // Restore the actual view after binding material resources, just as we do for the model.
+        if let viewUniform = view.components[GlobalViewUniform.self] {
+            renderEncoder.setVertexBuffer(viewUniform, slot: GlobalBufferIndex.viewUniform)
+        }
         renderEncoder.setVertexBuffer(meshComponent.modelUniform, slot: Self.meshUniformBinding)
 
         part.vertexBuffer.label = "Part Vertex Buffer"

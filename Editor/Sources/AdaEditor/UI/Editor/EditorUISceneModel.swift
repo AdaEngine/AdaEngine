@@ -10,6 +10,10 @@ final class EditorUISceneModel {
     var rawSource: String
     var showsSource = false
     var insertionModifierID: String?
+    var selectedBindingOwnerID: String?
+    @ObservationIgnored var bindingSceneDocumentIDs: Set<String> = []
+    @ObservationIgnored var onBindingOwners: (() -> [EditorUIBindingOwner])?
+    @ObservationIgnored var onBindingChange: ((EditorUIBindingOwner, [String: UIScriptFieldBinding], [String: UIScriptFieldBinding]) -> Bool)?
     @ObservationIgnored var onPresentModifierPicker: ((String) -> Void)?
     @ObservationIgnored var onOpenUI: ((URL) -> Void)?
     var isInteractive = false
@@ -26,8 +30,12 @@ final class EditorUISceneModel {
     let sourceURL: URL?
     @ObservationIgnored var onHistoryChange: ((Bool) -> Void)?
     @ObservationIgnored var onChange: ((String) -> Void)?
-    @ObservationIgnored private var undoStack: [UISceneDocument] = []
-    @ObservationIgnored private var redoStack: [UISceneDocument] = []
+    private struct HistoryEntry {
+        let document: UISceneDocument
+        let externalChange: ((Bool) -> Bool)?
+    }
+    @ObservationIgnored private var undoStack: [HistoryEntry] = []
+    @ObservationIgnored private var redoStack: [HistoryEntry] = []
 
     init(content: String, sourceURL: URL?, resourceRoot: URL?, isReadOnly: Bool = false, catalog: UICatalog = .standard) {
         self.rawSource = content
@@ -52,7 +60,7 @@ final class EditorUISceneModel {
         catalog.viewSignatures.filter { search.isEmpty || $0.name.localizedCaseInsensitiveContains(search) }
     }
 
-    func edit(_ change: (inout UISceneDocument) throws -> Void) {
+    func edit(_ change: (inout UISceneDocument) throws -> Void, externalChange: ((Bool) -> Bool)? = nil) {
         guard !isReadOnly else { return }
         do {
             var candidate = document
@@ -60,7 +68,11 @@ final class EditorUISceneModel {
             try candidate.validate()
             try validateChildren(candidate.root)
             guard candidate != document else { return }
-            undoStack.append(document); redoStack.removeAll()
+            guard externalChange?(true) != false else {
+                error = "The scene binding changed or its owner is no longer available. Reopen the binding picker."
+                return
+            }
+            undoStack.append(.init(document: document, externalChange: externalChange)); redoStack.removeAll()
             document = candidate
             publish()
         } catch { self.error = error.localizedDescription }
@@ -140,8 +152,21 @@ final class EditorUISceneModel {
         }
     }
 
-    func undo() { guard !isReadOnly, let previous = undoStack.popLast() else { return }; redoStack.append(document); document = previous; publish(); onHistoryChange?(false) }
-    func redo() { guard !isReadOnly, let next = redoStack.popLast() else { return }; undoStack.append(document); document = next; publish(); onHistoryChange?(true) }
+    func undo() {
+        guard !isReadOnly, let previous = undoStack.last else { return }
+        guard previous.externalChange?(false) != false else { error = "Cannot undo: the scene binding changed or its owner was closed."; return }
+        undoStack.removeLast()
+        redoStack.append(.init(document: document, externalChange: previous.externalChange))
+        document = previous.document; publish(); onHistoryChange?(false)
+    }
+
+    func redo() {
+        guard !isReadOnly, let next = redoStack.last else { return }
+        guard next.externalChange?(true) != false else { error = "Cannot redo: the scene binding changed or its owner was closed."; return }
+        redoStack.removeLast()
+        undoStack.append(.init(document: document, externalChange: next.externalChange))
+        document = next.document; publish(); onHistoryChange?(true)
+    }
 
     func addModifier(_ type: String, to nodeID: String? = nil) {
         guard let descriptor = catalog.modifiers[type] else { return }
@@ -158,7 +183,7 @@ final class EditorUISceneModel {
         onChange?(source)
         do {
             let candidate = try UISceneDocument.decode(source)
-            if candidate != document { undoStack.append(document); redoStack.removeAll(); document = candidate }
+            if candidate != document { undoStack.append(.init(document: document, externalChange: nil)); redoStack.removeAll(); document = candidate }
             rebuild()
         } catch { self.error = error.localizedDescription }
     }
@@ -294,8 +319,11 @@ final class EditorUISceneModel {
 }
 
 extension EditorWorkbenchViewModel {
-    func uiSceneModel(for document: EditorTextDocument, resourceRoot: URL?) -> EditorUISceneModel {
-        if let model = uiSceneModels[document.id] { return model }
+    func uiSceneModel(for document: EditorTextDocument, resourceRoot: URL?, bindingCatalog: [EditorScriptableObjectDescriptor] = []) -> EditorUISceneModel {
+        if let model = uiSceneModels[document.id] {
+            configureBindings(model, resourceRoot: resourceRoot, catalog: bindingCatalog)
+            return model
+        }
         let model = EditorUISceneModel(content: document.content, sourceURL: document.absolutePath.map { URL(fileURLWithPath: $0) }, resourceRoot: resourceRoot, isReadOnly: document.isReadOnly, catalog: uiCatalog)
         model.onPresentModifierPicker = { [weak self, weak model] nodeID in
             guard let self, let model else { return }
@@ -312,7 +340,18 @@ extension EditorWorkbenchViewModel {
             self.open(.ui(EditorTextDocument(id: "ui:\(url.path)", title: url.lastPathComponent, relativePath: url.lastPathComponent,
                 absolutePath: url.path, language: .plainText, content: content, lastSavedContent: content, errorMessage: nil)))
         }
+        configureBindings(model, resourceRoot: resourceRoot, catalog: bindingCatalog)
         uiSceneModels[document.id] = model
         return model
+    }
+
+    private func configureBindings(_ model: EditorUISceneModel, resourceRoot: URL?, catalog: [EditorScriptableObjectDescriptor]) {
+        let url = model.sourceURL
+        model.onBindingOwners = { [weak self] in self?.uiBindingOwners(sourceURL: url, resourceRoot: resourceRoot, catalog: catalog) ?? [] }
+        model.onBindingChange = { [weak self, weak model] owner, before, after in
+            guard self?.replaceUIBindings(owner: owner, expected: before, replacement: after) == true else { return false }
+            model?.bindingSceneDocumentIDs.insert(owner.documentID)
+            return true
+        }
     }
 }

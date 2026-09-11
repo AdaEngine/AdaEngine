@@ -121,6 +121,88 @@ struct EditorTextSearchDialogTests {
         }
     }
 
+    @Test(arguments: [Float(620), Float(1200)])
+    func longResultsKeepPathsAndFooterVisible(width: Float) async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("search-layout-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = "Controls.ui"
+        try ("\"binding\": \"moveX\", " + String(repeating: "long source ", count: 600))
+            .write(to: root.appendingPathComponent(path), atomically: true, encoding: .utf8)
+        try Data([0, 1, 2]).write(to: root.appendingPathComponent("binary"))
+        let editor = EditorViewModel(project: EditorProjectReference(name: "Search", path: root.path))
+        editor.textSearch.query = "moveX"
+        editor.presentTextSearch()
+        for _ in 0..<100 where editor.textSearch.isSearching { try await Task.sleep(for: .milliseconds(20)) }
+        let match = try #require(editor.textSearch.results.matches.first)
+        let container = UIContainerView(rootView: EditorTextSearchDialog(viewModel: editor).theme(.adaEditor))
+        container.frame = Rect(x: 0, y: 0, width: width, height: 760)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        await refresh(container)
+        func frame(_ suffix: String) throws -> Rect {
+            try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.TextSearch.\(suffix)")).absoluteFrame
+        }
+        let dialog = try frame("Dialog")
+        let pathFrame = try frame("Path.\(match.id)")
+        let codeFrame = try frame("Code.\(match.id)")
+        #expect(pathFrame.width > 100)
+        #expect(pathFrame.minX >= dialog.minX && pathFrame.maxX <= dialog.maxX)
+        #expect(pathFrame.maxY <= codeFrame.minY)
+        #expect(codeFrame.maxX <= dialog.maxX)
+        let shortcuts = try frame("Shortcuts")
+        let skipped = try frame("Skipped")
+        let open = try frame("Open")
+        #expect(shortcuts.maxY < skipped.minY)
+        #expect(skipped.maxX < open.minX)
+        #expect(open.maxX <= dialog.maxX)
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.TextSearch.Close"))
+        #expect(!editor.textSearch.isPresented)
+    }
+
+    @Test func syntaxAndUnicodeMatchHighlight() throws {
+        let source = "var title = \"😀 move\";"
+        let range = NSRange(try #require(source.range(of: "move")), in: source)
+        let match = EditorTextSearchMatch(
+            filePath: "/tmp/Test.ada",
+            relativePath: "Test.ada",
+            lineText: source,
+            range: EditorSourceRange(
+                start: EditorSourceLocation(line: 0, character: range.location),
+                end: EditorSourceLocation(line: 0, character: NSMaxRange(range))
+            )
+        )
+        let palette = EditorCodeColorPalette.dark
+        let text = EditorTextSearchPresentationText.attributedText(
+            match, palette: palette, font: .system(size: 12), keywordFont: .system(size: 12, weight: .bold)
+        )
+        #expect(text.attributes(at: text.startIndex).foregroundColor == palette.keyword)
+        let selected = try #require(text.text.range(of: "move"))
+        #expect(text.attributes(at: selected.lowerBound).foregroundColor == palette.string)
+        #expect(text.attributes(at: selected.lowerBound).backgroundColor == palette.selection)
+        #expect(text.attributes(at: text.startIndex).backgroundColor != palette.selection)
+    }
+
+    @Test func generatedSceneExcerptKeepsDistantMatch() throws {
+        let source = String(repeating: "padding ", count: 1000) + "\"moveX\": 42"
+        let range = NSRange(try #require(source.range(of: "moveX")), in: source)
+        let match = EditorTextSearchMatch(
+            filePath: "/tmp/Main.ascn",
+            relativePath: "Main.ascn",
+            lineText: source,
+            range: EditorSourceRange(
+                start: EditorSourceLocation(line: 0, character: range.location),
+                end: EditorSourceLocation(line: 0, character: NSMaxRange(range))
+            )
+        )
+        let text = EditorTextSearchPresentationText.attributedText(
+            match, palette: .dark, font: .system(size: 12), keywordFont: .system(size: 12)
+        )
+        #expect(text.text.count < 250)
+        #expect(text.text.hasPrefix("… "))
+        #expect(text.text.contains("moveX"))
+    }
+
     @Test func shortcutInputResultsOpenAndEscape() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("search-ui-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

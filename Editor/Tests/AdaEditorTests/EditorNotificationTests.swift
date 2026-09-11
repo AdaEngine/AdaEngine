@@ -6,6 +6,29 @@ import Testing
 @Suite("Editor notifications", .serialized)
 @MainActor
 struct EditorNotificationTests {
+    @Test("Agent success stays in activity history without adding a notification")
+    func agentSuccessIsQuiet() {
+        let center = EditorNotificationCenter()
+        center.preferences.systemEnabled = true
+        center.applicationIsActive = { false }
+        var deliveries = 0
+        center.deliver = { _, _ in deliveries += 1 }
+        let agent = center.activities.begin(.init(source: .agent, title: "Codex"))
+        center.activities.finish(agent, state: .completed)
+        #expect(center.activities.all.first?.state == .completed)
+        #expect(center.notifications.isEmpty)
+        #expect(center.toasts.isEmpty)
+        #expect(center.unreadCount == 0)
+        #expect(deliveries == 0)
+
+        let failed = center.activities.begin(.init(source: .agent, title: "Codex"))
+        center.activities.finish(failed, state: .failed, detail: "Connection failed")
+        #expect(center.notifications.contains { $0.operationID == failed && $0.importance == .error })
+        let build = center.activities.begin(.init(source: .build, title: "Build"))
+        center.activities.finish(build, state: .completed)
+        #expect(center.notifications.contains { $0.operationID == build && $0.importance == .success })
+    }
+
     @Test("Duplicate events deliver once; closing preserves read history")
     func deduplication() {
         let center = EditorNotificationCenter()
@@ -45,6 +68,31 @@ struct EditorNotificationTests {
         center.expireToasts(now: now.addingTimeInterval(29))
         #expect(!center.toastIDs.contains("2"))
         #expect(center.unreadCount == 4)
+    }
+
+    @Test("informational and success toasts expire in four seconds, errors remain in view")
+    func fourSecondExpiry() {
+        let center = EditorNotificationCenter()
+        center.post(.init(id: "info", source: .project, importance: .information, title: "Information"))
+        center.post(.init(id: "success", source: .build, importance: .success, title: "Built"))
+        center.post(.init(id: "error", source: .build, importance: .error, title: "Failed"))
+        let now = Date()
+        center.expireToasts(now: now.addingTimeInterval(3.8))
+        #expect(center.toastIDs.count == 3)
+        center.expireToasts(now: now.addingTimeInterval(4.2))
+        #expect(center.toastIDs == ["error"])
+        #expect(center.notifications.count == 3)
+        #expect(center.unreadCount == 3)
+    }
+
+    @Test("the running timer hides an info toast without user input")
+    func runningExpiryTimer() async throws {
+        let center = EditorNotificationCenter()
+        await center.start()
+        center.post(.init(id: "timer", source: .project, importance: .information, title: "Done"))
+        try await Task.sleep(for: .seconds(4.5))
+        #expect(center.toasts.isEmpty)
+        #expect(center.notifications.count == 1)
     }
 
     @Test("Foreground and category settings suppress system delivery")

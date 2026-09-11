@@ -31,8 +31,7 @@ struct EditorCenterWorkbench: View {
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
 
-    @State private var previewPanelWidth: Float = EditorPreviewSplitLayout.defaultPreviewWidth
-    @State private var previewPanelWidthAtDragStart: Float?
+    @State private var previewResizeState = EditorPreviewResizeState()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -219,7 +218,7 @@ extension EditorCenterWorkbench {
             sceneDocumentEditor(document: document)
         case .ui(let document):
             EditorUISceneEditor(
-                model: viewModel.uiSceneModel(for: document, resourceRoot: sceneResourceRootURL),
+                model: viewModel.uiSceneModel(for: document, resourceRoot: sceneResourceRootURL, bindingCatalog: inspectorViewModel.scriptableObjectCatalog),
                 colorPalette: viewModel.codeColorPalette
             )
         case .text(let document):
@@ -310,21 +309,10 @@ extension EditorCenterWorkbench {
             codeFileView(document: document)
         default:
             GeometryReader { geometry in
-                let previewWidth = EditorPreviewSplitLayout.previewWidth(
-                    requestedWidth: previewPanelWidth,
-                    availableWidth: geometry.size.width
-                )
-                let editorWidth = max(
-                    0,
-                    geometry.size.width - EditorPreviewSplitLayout.resizeHandleWidth - previewWidth
-                )
-
-                HStack(spacing: 0) {
+                EditorPreviewPanelsLayout(state: previewResizeState) {
                     codeFileView(document: document)
-                        .frame(width: editorWidth)
-                        .frame(maxHeight: .infinity)
-
-                    previewResizeHandle(availableWidth: geometry.size.width, currentWidth: previewWidth)
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                    previewResizeHandle(availableWidth: geometry.size.width)
 
                     EditorPreviewPanel(
                         status: viewModel.previewStatus,
@@ -340,15 +328,14 @@ extension EditorCenterWorkbench {
                             onShowPreviewBuildOutput?()
                         }
                     )
-                    .frame(width: previewWidth)
-                    .frame(maxHeight: .infinity)
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
             }
         }
     }
 
-    private func previewResizeHandle(availableWidth: Float, currentWidth: Float) -> some View {
+    private func previewResizeHandle(availableWidth: Float) -> some View {
         ZStack {
             RectangleShape()
                 .fill(theme.editorColors.border)
@@ -356,15 +343,10 @@ extension EditorCenterWorkbench {
             EditorResizeHandle(
                 axis: .horizontal,
                 onResize: { translation in
-                    let startWidth = previewPanelWidthAtDragStart ?? currentWidth
-                    previewPanelWidthAtDragStart = startWidth
-                    previewPanelWidth = EditorPreviewSplitLayout.previewWidth(
-                        requestedWidth: startWidth - translation.width,
-                        availableWidth: availableWidth
-                    )
+                    previewResizeState.resize(translation: translation.width, availableWidth: availableWidth)
                 },
                 onResizeEnded: {
-                    previewPanelWidthAtDragStart = nil
+                    previewResizeState.endDrag()
                 }
             )
         }

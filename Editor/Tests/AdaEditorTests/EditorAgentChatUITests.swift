@@ -9,6 +9,66 @@ import Testing
 @Suite("Editor agent chat UI", .serialized)
 @MainActor
 struct EditorAgentChatUITests {
+    @Test("Enter submits the prompt, while Shift Enter preserves multiline input")
+    func enterSendsPrompt() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("AgentEnter-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try ProjectSystem.saveProject(ProjectSystem.defaultProject(projectName: "Enter"), at: root)
+        let service = FakeEditorAgentService()
+        let model = EditorAgentViewModel(project: .init(name: "Enter", path: root.path), settings: EditorAgentSettingsStore(), service: service)
+        await model.loadSessions()
+        let container = makeContainer(model)
+        let prompt = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Prompt")).absoluteFrame
+        let point = Point(prompt.minX + 15, prompt.minY + 15)
+        for phase in [MouseEvent.Phase.began, .ended] {
+            container.onMouseEvent(MouseEvent(window: .empty, button: .left, mousePosition: point, phase: phase, modifierKeys: [], time: 0))
+        }
+        container.onTextInputEvent(TextInputEvent(window: .empty, text: "Hello", action: .insert, time: 0))
+        container.onKeyEvent(KeyEvent(window: .empty, keyCode: .enter, modifiers: [.shift], status: .down, time: 1, isRepeated: false))
+        #expect(model.prompt == "Hello\n")
+        #expect(await service.recordedRequest() == nil)
+        container.onTextInputEvent(TextInputEvent(window: .empty, text: "world", action: .insert, time: 2))
+        container.onKeyEvent(KeyEvent(window: .empty, keyCode: .enter, modifiers: [], status: .down, time: 3, isRepeated: false))
+        for _ in 0..<100 {
+            if await service.recordedRequest() != nil { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(await service.recordedRequest()?.prompt == "Hello\nworld")
+        #expect(model.prompt.isEmpty)
+    }
+
+    @Test("Conversation settings invokes the settings action and tabs have separate hit areas")
+    func tabsAndSettings() throws {
+        let model = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore(), service: FakeEditorAgentService())
+        _ = makeContainer(model)
+        let first = EditorAgentSession(title: "First chat")
+        let second = EditorAgentSession(title: "Second chat")
+        model.activeSession = first
+        model.sessions = [.init(session: first), .init(session: second)]
+        var opened = false
+        let container = UIContainerView(rootView: EditorAgentSidebar(viewModel: model, onOpenCatalog: { opened = true }))
+        container.frame = Rect(x: 0, y: 0, width: 560, height: 820)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        let a = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Session.\(first.id)"))
+        let b = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Session.\(second.id)"))
+        #expect(a.absoluteFrame.maxX < b.absoluteFrame.minX)
+        #expect(a.absoluteFrame.height == 32)
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Settings"))
+        #expect(opened)
+    }
+
+    @Test("Provider JSON errors remain readable instead of disappearing in Markdown")
+    func providerFailurePresentation() {
+        let failure = #"{"type":"error","status":400,"error":{"message":"Please upgrade Codex."}}"#
+        #expect(EditorAgentProviderFailure.message(in: "Warning: upgrade required\n\n" + failure) == "Please upgrade Codex.")
+        #expect(EditorAgentProviderFailure.message(in: "Normal reply") == nil)
+        #expect(EditorAgentProviderFailure.message(in: "Example error:\n" + failure) == nil)
+        #expect(EditorAgentProviderFailure.message(in: "```json\n" + failure + "\n```") == nil)
+        #expect(EditorAgentProviderFailure.message(in: #"{"type":"error","message":"Example"}"#) == nil)
+    }
+
     private func makeContainer(_ model: EditorAgentViewModel) -> UIContainerView<EditorAgentSidebar> {
         if unsafe RenderEngine.shared == nil {
             unsafe RenderEngine.configurations.preferredBackend = .headless
@@ -21,9 +81,61 @@ struct EditorAgentChatUITests {
         return container
     }
 
+    @Test("narrow composer keeps attachment and send controls visible without a skills button")
+    func narrowComposer() async throws {
+        let model = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore(), service: FakeEditorAgentService())
+        model.availableSkills = [EditorAgentSkill(id: "sample", name: "Sample", description: nil,
+            localPath: "/tmp/sample", userInvocable: true, allowedTools: [], instructions: "Sample")]
+        let container = makeContainer(model)
+        container.frame.size.width = 300
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        let add = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.AddContext"))
+        let send = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Send"))
+        #expect(add.absoluteFrame.width >= 24)
+        #expect(send.absoluteFrame.width == 34)
+        #expect(send.absoluteFrame.maxX <= 300)
+        #expect(add.absoluteFrame.maxY == send.absoluteFrame.maxY - 2)
+        #expect(throws: (any Error).self) {
+            try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Skills"))
+        }
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Agent.AddContext"))
+        for _ in 0..<20 { await Task.yield() }
+        container.layoutIfNeeded()
+        _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.ContextSearch"))
+    }
+
+    @Test("slash suggestions support keyboard selection and insert without submitting a prompt")
+    func completionKeyboard() async throws {
+        let model = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore(), service: FakeEditorAgentService())
+        model.sessionConfiguration.commands = [
+            .init(name: "compact", description: "Compact conversation"),
+            .init(name: "help", description: "Get help")
+        ]
+        let container = makeContainer(model)
+        let prompt = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Prompt")).absoluteFrame
+        let point = Point(prompt.minX + 15, prompt.minY + 15)
+        for phase in [MouseEvent.Phase.began, .ended] {
+            container.onMouseEvent(MouseEvent(window: .empty, button: .left, mousePosition: point, phase: phase, modifierKeys: [], time: 0))
+        }
+        container.onTextInputEvent(TextInputEvent(window: .empty, text: "/", action: .insert, time: 0))
+        for _ in 0..<20 { await Task.yield() }
+        container.layoutIfNeeded()
+        #expect(model.prompt == "/")
+        _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Completion.command:compact"))
+        container.onKeyEvent(KeyEvent(window: .empty, keyCode: .arrowDown, modifiers: [], status: .down, time: 0, isRepeated: false))
+        #expect(model.selectedCompletionIndex == 1)
+        container.onKeyEvent(KeyEvent(window: .empty, keyCode: .enter, modifiers: [], status: .down, time: 0, isRepeated: false))
+        for _ in 0..<20 { await Task.yield() }
+        container.layoutIfNeeded()
+        #expect(model.prompt == "/help ")
+        #expect(model.autocompleteSuggestions.isEmpty)
+        #expect(!model.isSending)
+    }
+
     @Test("streamed text relayouts the existing message before completion")
     func streamingRelayout() async throws {
-        let model = EditorAgentViewModel(project: nil, service: FakeEditorAgentService())
+        let model = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore(), service: FakeEditorAgentService())
         model.activeSession = EditorAgentSession(title: "Streaming")
         model.activeSession?.events = [EditorAgentEvent(
             id: "stream", kind: .message,
@@ -44,11 +156,14 @@ struct EditorAgentChatUITests {
 
     @Test("service details collapse and composer has no empty context gap")
     func disclosureAndComposer() async throws {
-        let model = EditorAgentViewModel(project: nil, service: FakeEditorAgentService())
+        let model = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore(), service: FakeEditorAgentService())
         model.activeSession = EditorAgentSession(title: "Layout")
         model.activeSession?.events = [EditorAgentEvent(id: "status", kind: .runStatus, title: "Session updated", details: String(repeating: "Details\n", count: 12))]
         let container = makeContainer(model)
         let selector = UINodeSelector.accessibilityIdentifier("AdaEditor.Agent.Event.status")
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Agent.ToggleActions.actions:initial"))
+        for _ in 0..<20 { await Task.yield() }
+        container.layoutIfNeeded()
         let before = try container.uiNode(matching: selector)
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Agent.ToggleEvent.status"))
         for _ in 0..<20 { await Task.yield() }
@@ -67,7 +182,7 @@ struct EditorAgentChatUITests {
     }
     @Test("composer drag changes editor height through pointer events")
     func resizeComposer() async throws {
-        let container = makeContainer(EditorAgentViewModel(project: nil, service: FakeEditorAgentService()))
+        let container = makeContainer(EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore(), service: FakeEditorAgentService()))
         let prompt = UINodeSelector.accessibilityIdentifier("AdaEditor.Agent.Prompt")
         let before = try container.uiNode(matching: prompt).absoluteFrame
         let handle = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.ResizeComposer")).absoluteFrame
@@ -83,7 +198,7 @@ struct EditorAgentChatUITests {
 
     @Test("model control opens a menu with all advertised choices")
     func modelMenu() throws {
-        let model = EditorAgentViewModel(project: nil, service: FakeEditorAgentService())
+        let model = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore(), service: FakeEditorAgentService())
         model.sessionConfiguration = EditorAgentSessionConfiguration(agentName: "Test", selectors: [
             EditorAgentConfigurationSelector(id: "model", name: "Model", category: .model, currentValueID: "a", choices: [
                 .init(id: "a", name: "Model A", description: nil),
@@ -102,7 +217,7 @@ struct EditorAgentChatUITests {
 
     @Test("short user bubble sits on the right and assistant text sits on the left")
     func messageAlignment() throws {
-        let model = EditorAgentViewModel(project: nil, service: FakeEditorAgentService())
+        let model = EditorAgentViewModel(project: nil, settings: EditorAgentSettingsStore(), service: FakeEditorAgentService())
         model.activeSession = EditorAgentSession(events: [
             EditorAgentEvent(id: "user", kind: .message, message: EditorAgentMessage(role: .user, segments: [.init(kind: .text, text: "Hello")])),
             EditorAgentEvent(id: "assistant", kind: .message, message: EditorAgentMessage(role: .assistant, segments: [.init(kind: .text, text: "Hello")]))

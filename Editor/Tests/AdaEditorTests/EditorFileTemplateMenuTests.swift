@@ -163,7 +163,11 @@ struct EditorFileTemplateMenuTests {
         for kind in EditorNewFileGroup.adaScript.templates {
             let source = kind.initialContent(fileName: "Template.ada")
             _ = try AdaScriptSchemaParser.parse(sources: [.init(path: "Template.ada", source: source)])
-
+            if kind == .scriptableObject {
+                #expect(source.contains("func update(context: AdaScriptableContext)"))
+            } else if kind == .script {
+                #expect(source.contains("func update(context: AdaSystemContext)"))
+            }
         }
         _ = try AdaScriptPlugin(sources: [
             .init(path: "System.ada", source: EditorNewFileKind.script.initialContent(fileName: "Template.ada")),

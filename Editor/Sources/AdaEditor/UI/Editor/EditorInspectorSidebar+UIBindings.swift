@@ -3,75 +3,69 @@ import Foundation
 
 extension EditorInspectorSidebar {
     func scriptUIBindingsEditor(_ field: EditorInspectorSidebarViewModel.ComponentField) -> some View {
-        let mappings = viewModel.uiScriptBindings
-        let inputs = viewModel.uiBindingInputNames
-        let scripts = viewModel.selectedEntity?.scriptableObjects ?? []
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("Connect UI inputs to exported fields on this entity.")
-                .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
-            ForEach(mappings.keys.sorted(), id: \.self) { input in
-                if let mapping = mappings[input] {
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack {
-                            EditorEnumField(cases: inputs.filter { $0 == input || mappings[$0] == nil }, selection: Binding(
-                                get: { input }, set: { viewModel.renameUIBinding(input, to: $0) }
-                            ))
-                            Button("−") { viewModel.setUIBinding(input, to: nil) }
-                                .accessibilityIdentifier("AdaEditor.UIBinding.Remove.\(input)")
-                        }
-                        EditorEnumField(cases: scripts.map(\.identifier), selection: Binding(
-                            get: { mapping.script }, set: { identifier in
-                                let firstField = scripts.first { $0.identifier == identifier }?.fields.first?.field.key ?? ""
-                                viewModel.setUIBinding(input, to: .init(script: identifier, field: firstField))
-                            }
-                        ))
-                        EditorEnumField(cases: scripts.first { $0.identifier == mapping.script }?.fields.map(\.field.key) ?? [], selection: Binding(
-                            get: { mapping.field }, set: { viewModel.setUIBinding(input, to: .init(script: mapping.script, field: $0)) }
-                        ))
-                        if let issue = viewModel.uiBindingIssue(input: input, mapping: mapping) {
-                            Text(issue).font(.system(size: 11)).foregroundColor(.red)
-                        }
-                    }
-                    .accessibilityIdentifier("AdaEditor.UIBinding.\(input)")
-                }
-            }
-            if let input = inputs.first(where: { mappings[$0] == nil }),
-               let script = scripts.first(where: { !$0.fields.isEmpty }), let exported = script.fields.first {
-                Button("+ Binding") {
-                    viewModel.setUIBinding(input, to: .init(script: script.identifier, field: exported.field.key))
-                }.accessibilityIdentifier("AdaEditor.UIBinding.Add")
-            } else if mappings.isEmpty {
-                Text("Choose a .ui with declared Inputs and attach a script with @export fields.")
-                    .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
-            }
-        }
+        EditorScriptBindingsView(model: viewModel, typeName: field.typeName)
     }
 }
 
 extension EditorInspectorSidebarViewModel {
-    private var uiFields: [ComponentField] {
-        selectedEntity?.components.first { $0.typeName == EditorBuiltInComponentType.uiComponent }?.fields ?? []
+    func uiFields(for typeName: String) -> [ComponentField] {
+        selectedEntity?.components.first { $0.typeName == typeName }?.fields ?? []
     }
 
-    var uiScriptBindings: [String: UIScriptFieldBinding] {
-        let text = uiFields.first { $0.field.key == "scriptBindings" }?.value ?? "{}"
-        return (try? JSONDecoder().decode([String: UIScriptFieldBinding].self, from: Data(text.utf8))) ?? [:]
+    func uiBindingsText(for typeName: String) -> String {
+        uiFields(for: typeName).first { $0.field.key == "scriptBindings" }?.value ?? "{}"
     }
 
-    var uiBindingInputs: [UIParameter] {
-        guard let path = uiFields.first(where: { $0.field.key == "path" })?.value,
+    func uiBindingsError(for typeName: String) -> String? {
+        do {
+            _ = try JSONDecoder().decode([String: UIScriptFieldBinding].self, from: Data(uiBindingsText(for: typeName).utf8))
+            return nil
+        } catch {
+            return "Invalid bindings JSON. Fix it in JSON before editing connections."
+        }
+    }
+
+    func uiBindingSourceIssue(for typeName: String) -> String? {
+        let fields = uiFields(for: typeName)
+        if let context = fields.first(where: { $0.field.key == "contextName" })?.value, !context.isEmpty {
+            return "Clear Data context to connect fields on this entity."
+        }
+        if let kind = fields.first(where: { $0.field.key == "kind" })?.value, !kind.isEmpty, kind != "ui" {
+            return "Choose a .ui source to connect script fields."
+        }
+        return nil
+    }
+
+    func uiScriptBindings(for typeName: String) -> [String: UIScriptFieldBinding] {
+        (try? JSONDecoder().decode([String: UIScriptFieldBinding].self, from: Data(uiBindingsText(for: typeName).utf8))) ?? [:]
+    }
+
+    var uiScriptBindings: [String: UIScriptFieldBinding] { uiScriptBindings(for: EditorBuiltInComponentType.uiComponent) }
+    var uiBindingInputs: [UIParameter] { uiBindingInputs(for: EditorBuiltInComponentType.uiComponent) }
+    var uiBindingInputNames: [String] { uiBindingInputs.map(\.name) }
+
+    func uiBindingInputs(for typeName: String) -> [UIParameter] {
+        guard let path = uiFields(for: typeName).first(where: { $0.field.key == "path" })?.value,
               let file = uiSceneFiles[path],
-              let source = try? String(contentsOfFile: file, encoding: .utf8),
+              let source = uiSourceContent?(file) ?? (try? String(contentsOfFile: file, encoding: .utf8)),
               let document = try? UISceneDocument.decode(source) else { return [] }
         return document.inputs
     }
 
-    var uiBindingInputNames: [String] { uiBindingInputs.map(\.name) }
+    var uiScriptFieldOptions: [EditorScriptFieldOption] {
+        (selectedEntity?.scriptableObjects ?? []).flatMap { script in
+            script.fields.compactMap { field in
+                guard let type = EditorScriptFieldOption.valueType(for: field.field.kind) else { return nil }
+                return EditorScriptFieldOption(script: script.identifier, scriptName: script.displayName, field: field.field.key, type: type)
+            }
+        }
+    }
 
-    func setUIBinding(_ input: String, to mapping: UIScriptFieldBinding?) {
-        var mappings = uiScriptBindings
+    func setUIBinding(_ input: String, to mapping: UIScriptFieldBinding?, typeName: String = EditorBuiltInComponentType.uiComponent) {
+        guard uiBindingsError(for: typeName) == nil else { return }
+        var mappings = uiScriptBindings(for: typeName)
         mappings[input] = mapping
-        saveUIBindings(mappings)
+        saveUIBindings(mappings, typeName: typeName)
     }
 
     func renameUIBinding(_ input: String, to name: String) {
@@ -79,30 +73,35 @@ extension EditorInspectorSidebarViewModel {
         var mappings = uiScriptBindings
         guard mappings[name] == nil, let mapping = mappings.removeValue(forKey: input) else { return }
         mappings[name] = mapping
-        saveUIBindings(mappings)
+        saveUIBindings(mappings, typeName: EditorBuiltInComponentType.uiComponent)
     }
 
-    func uiBindingIssue(input: String, mapping: UIScriptFieldBinding) -> String? {
-        if let name = uiFields.first(where: { $0.field.key == "contextName" })?.value, !name.isEmpty {
+    func matchUIBindingsByName(typeName: String) {
+        guard uiBindingsError(for: typeName) == nil, uiBindingSourceIssue(for: typeName) == nil else { return }
+        var mappings = uiScriptBindings(for: typeName)
+        for input in uiBindingInputs(for: typeName) where mappings[input.name] == nil {
+            let candidates = uiScriptFieldOptions.filter { $0.field == input.name && $0.accepts(input.type) }
+            if candidates.count == 1 { mappings[input.name] = candidates.first?.binding }
+        }
+        saveUIBindings(mappings, typeName: typeName)
+    }
+
+    func uiBindingIssue(input: String, mapping: UIScriptFieldBinding, typeName: String = EditorBuiltInComponentType.uiComponent) -> String? {
+        if let name = uiFields(for: typeName).first(where: { $0.field.key == "contextName" })?.value, !name.isEmpty {
             return "Clear Data context to use this entity's script fields."
         }
-        guard let parameter = uiBindingInputs.first(where: { $0.name == input }) else { return "UI input '\(input)' is missing. Declare it in the UI Editor." }
-        guard let script = selectedEntity?.scriptableObjects.first(where: { $0.identifier == mapping.script }),
-              let field = script.fields.first(where: { $0.field.key == mapping.field }) else { return "Attach the script or select an existing exported field." }
-        let expected: UIValueType?
-        switch field.field.kind {
-        case .string: expected = .string
-        case .bool: expected = .bool
-        case .float, .int: expected = .number
-        default: expected = nil
+        guard let parameter = uiBindingInputs(for: typeName).first(where: { $0.name == input }) else {
+            return "UI input '\(input)' is missing. Declare it in the UI Designer."
         }
-        if let expected, parameter.type != .any, parameter.type != expected { return "Input is \(parameter.type.rawValue); field is \(expected.rawValue)." }
-        return nil
+        guard let field = uiScriptFieldOptions.first(where: { $0.binding == mapping }) else {
+            return "Script or exported field is missing or unsupported. Select another field or unlink it."
+        }
+        return field.accepts(parameter.type) ? nil : "Input is \(parameter.type.rawValue); field is \(field.type.rawValue)."
     }
 
-    private func saveUIBindings(_ mappings: [String: UIScriptFieldBinding]) {
-        guard let field = uiFields.first(where: { $0.field.key == "scriptBindings" }),
-              let data = try? JSONEncoder().encode(mappings), let text = String(data: data, encoding: .utf8) else { return }
-        componentFieldBinding(typeName: field.typeName, field: field.field).wrappedValue = text
+    private func saveUIBindings(_ mappings: [String: UIScriptFieldBinding], typeName: String) {
+        guard let field = uiFields(for: typeName).first(where: { $0.field.key == "scriptBindings" }),
+              let text = EditorScriptFieldOption.encode(mappings) else { return }
+        componentFieldBinding(typeName: typeName, field: field.field).wrappedValue = text
     }
 }

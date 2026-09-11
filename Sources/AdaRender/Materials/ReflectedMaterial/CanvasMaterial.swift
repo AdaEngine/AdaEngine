@@ -98,7 +98,7 @@ public extension CanvasMaterial {
 /// Unlit color material. Material will fill all mesh with color.
 public struct ColorCanvasMaterial: CanvasMaterial {
     
-    @Uniform(binding: 0, propertyName: "u_Color")
+    @Uniform(binding: 0, propertyName: "ColorCanvasMaterial")
     public var color: Color
     
     public init(color: Color) {

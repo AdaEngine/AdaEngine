@@ -38,8 +38,17 @@ struct EditorAgentStreamingTests {
             #expect(Set(chunks.map(\.id)).count == 1)
             #expect(await recorder.receivedBeforeCompletion)
             #expect(result.assistantText == "Hello world")
+            #expect(result.configuration.commands.map(\.name) == ["compact"])
+            #expect(result.configuration.commands.first?.inputHint == "Optional focus")
             #expect(result.configuration.selectors.first?.currentValueID == "c")
             #expect(await recorder.configurations.last?.selectors.first?.currentValueID == "c")
+            let secondRecorder = StreamingRecorder()
+            let secondResult = try await service.send(request, onEvent: { event in
+                await secondRecorder.record(event, beforeCompletion: true)
+            }, onProjectFileChanged: { _ in })
+            #expect(secondResult.assistantText == "Hello world")
+            #expect(await secondRecorder.chunks.count == 2)
+            #expect(await recorder.chunks.count == 2)
             await service.shutdown()
         } catch {
             await service.shutdown()
@@ -47,7 +56,7 @@ struct EditorAgentStreamingTests {
         }
     }
 
-    @Test("A completed ACP run notifies its original session after switching chats")
+    @Test("A completed ACP run saves its original session without a completion notification")
     @MainActor
     func notificationSessionIdentity() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("AgentNotifications-\(UUID())")
@@ -61,7 +70,7 @@ struct EditorAgentStreamingTests {
         try ProjectSystem.saveProject(project, at: root)
         let service = EditorACPAgentService()
         let center = EditorNotificationCenter()
-        let model = EditorAgentViewModel(project: .init(name: "Notifications", path: root.path), service: service, notifications: center)
+        let model = EditorAgentViewModel(project: .init(name: "Notifications", path: root.path), settings: EditorAgentSettingsStore(), service: service, notifications: center)
         await model.loadSessions()
         let originalID = try #require(model.activeSession?.id)
         model.prompt = "test"
@@ -71,20 +80,64 @@ struct EditorAgentStreamingTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(!center.activities.active.isEmpty)
+        #expect(model.activityState == .working)
+        let activityID = try #require(center.activities.active.first?.id)
+        center.activities.needsAttention(activityID, detail: "Approve tool", eventID: "glow-approval")
+        #expect(model.activityState == .needsInput)
+        center.activities.resume(activityID)
+        #expect(model.activityState == .working)
         try await model.createSession()
         let selectedID = try #require(model.activeSession?.id)
         #expect(selectedID != originalID)
         await run.value
         #expect(model.activeSession?.id == selectedID)
         #expect(model.activeSession?.events.isEmpty == true)
-        let notification = try #require(center.notifications.first(where: { $0.id.hasSuffix(":result") }))
-        #expect(notification.actions.first?.sessionID == originalID)
+        #expect(!center.notifications.contains { $0.id.hasSuffix(":result") })
         #expect(center.activities.all.first?.state == .completed)
+        #expect(model.activityState == .completed)
         let store = EditorAgentSessionStore(projectURL: root)
         let saved = try await store.loadSession(id: originalID)
         #expect(saved.events.compactMap(\.message).contains { message in
             message.role == .assistant && message.segments.contains { $0.text == "Hello world" }
         })
+        await service.shutdown()
+    }
+
+    @Test("changing global connection settings replaces cached ACP sessions and rejects old provider IDs")
+    func changedConnection() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("AgentSwitch-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let script = root.appendingPathComponent("agent.py")
+        try Self.agentScript.replacingOccurrences(of: "\"loadSession\":False", with: "\"loadSession\":True")
+            .write(to: script, atomically: true, encoding: .utf8)
+        var project = ProjectSystem.defaultProject(projectName: "Switch")
+        project.ai.agent.enabled = true
+        project.ai.agent.target = .init(command: "/usr/bin/python3", arguments: [script.path], environment: ["AGENT": "first"])
+        var session = EditorAgentSession()
+        let service = EditorACPAgentService()
+        do {
+            let first = EditorAgentRunRequest(project: project, projectURL: root, session: session, mode: .build,
+                prompt: "", attachments: [], sceneContext: nil, codeSelection: nil, skills: [])
+            _ = try await service.connect(first, onEvent: { _ in }, onProjectFileChanged: { _ in })
+            _ = try await service.setConfiguration(sessionID: session.id, selectorID: "model", valueID: "b")
+            session.upstreamSessionID = "belongs-to-first"
+            session.agentTargetIdentity = project.ai.agent.target.sessionIdentity
+            project.ai.agent.target.environment = ["AGENT": "second"]
+            let second = EditorAgentRunRequest(project: project, projectURL: root, session: session, mode: .build,
+                prompt: "", attachments: [], sceneContext: nil, codeSelection: nil, skills: [])
+            let connected = try await service.connect(second, onEvent: { _ in }, onProjectFileChanged: { _ in })
+            #expect(connected.selectors.first?.currentValueID == "a")
+            project.ai.agent.enabled = false
+            let disabled = EditorAgentRunRequest(project: project, projectURL: root, session: session, mode: .build,
+                prompt: "", attachments: [], sceneContext: nil, codeSelection: nil, skills: [])
+            await #expect(throws: EditorAgentServiceError.self) {
+                try await service.connect(disabled, onEvent: { _ in }, onProjectFileChanged: { _ in })
+            }
+        } catch {
+            await service.shutdown()
+            throw error
+        }
         await service.shutdown()
     }
 
@@ -107,6 +160,7 @@ struct EditorAgentStreamingTests {
         elif method == "session/set_config_option":
             result = {"configOptions":options(req["params"]["value"])}
         elif method == "session/prompt":
+            update({"sessionUpdate":"available_commands_update","availableCommands":[{"name":"compact","description":"Compact conversation","input":{"hint":"Optional focus"}}]})
             for text in ["Hello", " world"]:
                 update({"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":text}})
                 time.sleep(0.2)

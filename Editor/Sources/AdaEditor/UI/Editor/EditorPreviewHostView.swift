@@ -47,7 +47,7 @@ final class EditorPreviewHostView: UIView {
         }
         if self.isInteractive && (!isInteractive || self.previewView !== previewView), !activeTouches.isEmpty {
             onTouchesEvent(Set(activeTouches.map { touch in
-                TouchEvent(window: touch.window, location: touch.location, phase: .cancelled, time: touch.time)
+                TouchEvent(window: touch.window, location: touch.location, phase: .cancelled, time: touch.time, contactID: touch.contactID)
             }))
         }
         if self.previewView !== previewView {
@@ -117,7 +117,7 @@ final class EditorPreviewHostView: UIView {
         guard isInteractive else { return }
         activeTouches = Set(touches.filter { $0.phase == .began || $0.phase == .moved })
         previewView?.onTouchesEvent(Set(touches.map { touch in
-            TouchEvent(window: touch.window, location: previewPoint(from: touch.location), phase: touch.phase, time: touch.time)
+            TouchEvent(window: touch.window, location: previewPoint(from: touch.location), phase: touch.phase, time: touch.time, contactID: touch.contactID)
         }))
     }
 

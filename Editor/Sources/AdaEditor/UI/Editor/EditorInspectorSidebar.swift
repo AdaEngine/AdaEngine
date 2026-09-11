@@ -145,7 +145,7 @@ struct EditorInspectorSidebar: View {
     private func componentFieldRow(_ field: EditorInspectorSidebarViewModel.ComponentField) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             fieldLabel(field.field.label)
-            if field.typeName == EditorBuiltInComponentType.uiComponent, field.field.key == "path" {
+            if [EditorBuiltInComponentType.uiComponent, EditorBuiltInComponentType.companionPanel].contains(field.typeName), field.field.key == "path" {
                 Button("Choose UI source…") { activeSceneFieldID = activeSceneFieldID == "ui-source" ? nil : "ui-source" }
                 if activeSceneFieldID == "ui-source" {
                     ScrollView {
@@ -160,7 +160,7 @@ struct EditorInspectorSidebar: View {
                     }.frame(maxHeight: 180)
                 }
             }
-            if field.typeName == EditorBuiltInComponentType.uiComponent, field.field.key == "scriptBindings" {
+            if [EditorBuiltInComponentType.uiComponent, EditorBuiltInComponentType.companionPanel].contains(field.typeName), field.field.key == "scriptBindings" {
                 scriptUIBindingsEditor(field)
             } else if [EditorBuiltInComponentType.physicsBody2D, EditorBuiltInComponentType.physicsBody3D].contains(field.typeName), field.field.key == "shapes" {
                 EditorPhysicsShapesField(

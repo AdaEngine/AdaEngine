@@ -53,6 +53,8 @@ final class EditorNotificationCenter {
 
     init(store: EditorNotificationStore? = nil) { self.store = store }
 
+    static let toastLifetime: TimeInterval = 4
+
     var unreadCount: Int { notifications.filter { !$0.isRead }.count }
     var toasts: [EditorNotification] {
         toastIDs.prefix(3).compactMap { id in notifications.first { $0.id == id } }
@@ -114,7 +116,7 @@ final class EditorNotificationCenter {
         } else {
             notifications.insert(notification, at: 0)
             toastIDs.insert(notification.id, at: 0)
-            // Queued cards get their eight seconds only once they become visible.
+            // Queued cards get their four seconds only once they become visible.
             if preferences.shouldDeliver(notification, applicationIsActive: applicationIsActive()) {
                 deliver?(notification, preferences.soundEnabled)
             }
@@ -127,13 +129,16 @@ final class EditorNotificationCenter {
     }
 
     func expireToasts(now: Date = Date()) {
-        for item in toasts where !item.importance.isPersistent {
+        let visibleToasts = toasts
+        let visibleIDs = Set(visibleToasts.map(\.id))
+        deadlines = deadlines.filter { visibleIDs.contains($0.key) }
+        for item in visibleToasts where !item.importance.isPersistent {
             if paused.contains(item.id) || !panelOwners.isEmpty {
-                deadlines[item.id] = now.addingTimeInterval(8)
+                deadlines[item.id] = now.addingTimeInterval(Self.toastLifetime)
             } else if let deadline = deadlines[item.id] {
                 if deadline <= now { hideToast(item.id) }
             } else {
-                deadlines[item.id] = now.addingTimeInterval(8)
+                deadlines[item.id] = now.addingTimeInterval(Self.toastLifetime)
             }
         }
     }

@@ -77,6 +77,34 @@ extension UICatalog {
                 if c.children.isEmpty { return AnyView(Button(c.string("title")) { c.perform("action") }) }
                 return AnyView(Button(action: { c.perform("action") }) { c.content })
             },
+            view("VirtualJoystick", [.init("x", type: .number, defaultValue: .number(0), isBinding: true),
+                                     .init("y", type: .number, defaultValue: .number(0), isBinding: true),
+                                     number("diameter", 96), number("thumbDiameter", 38), number("movementRadius", 27), number("deadZone", 0.12),
+                                     color("baseColor", "#e0d8c5ff"), color("ringColor", "#293c55ff"), color("thumbColor", "#477c80ff"),
+                                     number("ringWidth", 3), number("idleOpacity", 1), number("activeOpacity", 1),
+                                     number("idleThumbOpacity", 1), number("activeThumbOpacity", 1)]) { c in
+                guard let x = c.bindings["x"], let y = c.bindings["y"] else { throw UIDiagnostic("VirtualJoystick requires x and y bindings.") }
+                return AnyView(VirtualJoystick(
+                    x: Binding(get: { Float(x.wrappedValue.number ?? 0) }, set: { x.wrappedValue = .number(Double($0)) }),
+                    y: Binding(get: { Float(y.wrappedValue.number ?? 0) }, set: { y.wrappedValue = .number(Double($0)) }),
+                    style: VirtualJoystickStyle(
+                        diameter: Float(c.number("diameter")), thumbDiameter: Float(c.number("thumbDiameter")), movementRadius: Float(c.number("movementRadius")), deadZone: Float(c.number("deadZone")),
+                        baseColor: try c.color("baseColor"), ringColor: try c.color("ringColor"), thumbColor: try c.color("thumbColor"),
+                        ringWidth: Float(c.number("ringWidth")), idleOpacity: Float(c.number("idleOpacity")), activeOpacity: Float(c.number("activeOpacity")),
+                        idleThumbOpacity: Float(c.number("idleThumbOpacity")), activeThumbOpacity: Float(c.number("activeThumbOpacity"))
+                    )
+                ))
+            },
+            view("TriggerButton", [string("title", "Action"), .init("sequence", type: .number, defaultValue: .number(0), isBinding: true)]) { c in
+                guard let value = c.bindings["sequence"] else { throw UIDiagnostic("TriggerButton requires a sequence binding.") }
+                return AnyView(Button(c.string("title")) { value.wrappedValue = .number((value.wrappedValue.number ?? 0) + 1) })
+            },
+            view("ToggleButton", [string("title", "Toggle"), .init("isOn", type: .bool, defaultValue: .bool(false), isBinding: true)], content: .children) { c in
+                guard let binding = c.bindings["isOn"] else { throw UIDiagnostic("ToggleButton requires an isOn binding.") }
+                return AnyView(Button(action: { binding.wrappedValue = .bool(!(binding.wrappedValue.bool ?? false)) }) {
+                    if c.children.isEmpty { AnyView(Text(c.string("title"))) } else { AnyView(c.content) }
+                })
+            },
             view("TextField", [string("placeholder"), .init("text", type: .string, defaultValue: .string(""), isBinding: true)]) { c in
                 AnyView(TextField(c.string("placeholder"), text: c.textBinding("text")))
             },

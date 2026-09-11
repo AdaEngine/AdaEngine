@@ -39,6 +39,8 @@ open class UIWindow: UIView {
     @_spi(Internal) public var systemWindow: SystemWindow?
     @_spi(Internal) public var runtimeCameraEntity: Entity?
     internal let eventManager = EventManager()
+    private var capturedMouseResponders: [MouseButton: WeakBox<UIView>] = [:]
+    private var capturedTouchResponders: [RID: WeakBox<UIView>] = [:]
 
     /// Flag indicates that window can draw itself content in method ``UIView/draw(in:with:)``.
     open var canDraw: Bool = true
@@ -154,8 +156,66 @@ open class UIWindow: UIView {
             return
         }
 
+        if let mouse = event as? MouseEvent, routeCapturedMouseEvent(mouse) {
+            return
+        }
+        if let touch = event as? TouchEvent, routeCapturedTouchEvent(touch) {
+            return
+        }
         let responder = self.findFirstResponder(for: event) ?? self.defaultResponder(for: event) ?? self
+        if let mouse = event as? MouseEvent, mouse.phase == .began,
+           mouse.button != .none, mouse.button != .scrollWheel {
+            capturedMouseResponders[mouse.button] = WeakBox(responder)
+        } else if let touch = event as? TouchEvent, touch.phase == .began {
+            capturedTouchResponders[touch.contactID] = WeakBox(responder)
+        }
         responder.onEvent(event)
+    }
+
+    /// Keep a drag with the view that received its press, even across sibling views or window bounds.
+    private func routeCapturedMouseEvent(_ event: MouseEvent) -> Bool {
+        if event.phase == .changed, event.button == .none {
+            let captured = capturedMouseResponders
+            capturedMouseResponders.removeAll(keepingCapacity: true)
+            for (button, reference) in captured {
+                guard let responder = reference.value, ownsResponder(responder) else { continue }
+                responder.onEvent(MouseEvent(window: id, button: button, mousePosition: event.mousePosition,
+                    phase: .ended, modifierKeys: event.modifierKeys, time: event.time))
+            }
+            return false
+        }
+        guard event.phase != .began, event.button != .scrollWheel,
+              let reference = capturedMouseResponders[event.button] else {
+            return false
+        }
+        guard let responder = reference.value, ownsResponder(responder), responder.canRespondToAction(event) else {
+            capturedMouseResponders.removeValue(forKey: event.button)
+            return false
+        }
+        if event.phase == .ended || event.phase == .cancelled {
+            capturedMouseResponders.removeValue(forKey: event.button)
+        }
+        responder.onEvent(event)
+        return true
+    }
+
+    private func routeCapturedTouchEvent(_ event: TouchEvent) -> Bool {
+        guard event.phase != .began, let responder = capturedTouchResponders[event.contactID]?.value else {
+            return false
+        }
+        guard ownsResponder(responder), responder.canRespondToAction(event) else {
+            capturedTouchResponders.removeValue(forKey: event.contactID)
+            return false
+        }
+        if event.phase == .ended || event.phase == .cancelled {
+            capturedTouchResponders.removeValue(forKey: event.contactID)
+        }
+        responder.onEvent(event)
+        return true
+    }
+
+    private func ownsResponder(_ responder: UIView) -> Bool {
+        responder === self || responder.window === self
     }
 
     private func defaultResponder(for event: any InputEvent) -> UIView? {

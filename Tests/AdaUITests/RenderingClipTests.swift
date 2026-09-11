@@ -5,15 +5,45 @@
 //  Created by Codex on 18.02.2026.
 //
 
-import Testing
-@testable import AdaUI
 @testable import AdaPlatform
+@_spi(Internal) import AdaRender
+@testable import AdaUI
 import Math
+import Testing
 
 @MainActor
 struct RenderingClipTests {
     init() async throws {
         try Application.prepareForTest()
+    }
+
+    @Test(arguments: [Float(1), 0.75, 0.5])
+    func displayPixelClipsMatchScaledRenderViewport(_ renderScale: Float) throws {
+        var context = UIGraphicsContext()
+        context.environment.scaleFactor = 2
+        context.pushClipRect(Rect(x: 100, y: 200, width: 240, height: 40))
+        let command = try #require(context.getDrawCommands().first)
+        guard case let .pushClipRect(clip) = command else {
+            Issue.record("Expected a clip recorded by the graphics context")
+            return
+        }
+
+        var camera = Camera()
+        camera.computedData.targetScaleFactor = 2
+        camera.logicalViewport.rect = Rect(x: 0, y: 0, width: 1194, height: 834)
+        camera.viewport.rect = Rect(x: 12, y: 24, width: 2388 * renderScale, height: 1668 * renderScale)
+        let decision = UIDrawPass().resolveScissorDecision(
+            clipRect: clip,
+            renderBounds: Rect(x: 0, y: 0, width: 2388, height: 1668),
+            viewportOrigin: camera.viewport.rect.origin,
+            clipScale: UIDrawPass.clipScale(for: camera)
+        )
+        #expect(decision == .apply(Rect(
+            x: 200 * renderScale + 12,
+            y: 400 * renderScale + 24,
+            width: 480 * renderScale,
+            height: 80 * renderScale
+        )))
     }
 
     /// Verifies clipping rect keeps correct visible width when origin is negative.

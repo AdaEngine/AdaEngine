@@ -87,6 +87,7 @@ enum AdaEditorMaterialSymbolFont {
         0xE5D8,
         0xE5DA,
         0xE5DB,
+        0xE65F,
         0xE71C,
         0xE863,
         0xE868,

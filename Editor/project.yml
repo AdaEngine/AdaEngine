@@ -17,9 +17,12 @@ targets:
         com.apple.GameCenter:
           enabled: 1
     entitlements:
-      path: Platforms/AdaEditor.entitlements
+      path: Platforms/AdaEditor-macOS.entitlements
       properties:
         com.apple.developer.game-center: true
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-write: true
+        com.apple.security.network.client: true
     type: application
     platform: macOS
     sources:
@@ -32,8 +35,12 @@ targets:
         PRODUCT_NAME: AdaEngine
         PRODUCT_BUNDLE_IDENTIFIER: org.adaengine.editor
         INFOPLIST_FILE: Sources/AdaEditor/Platforms/macOS/Info.plist
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ENABLE_APP_SANDBOX: true
         DEVELOPMENT_TEAM: 8PYCRS3EA3
-        "CODE_SIGN_IDENTITY[sdk=macosx*]": "-"
+        CODE_SIGN_STYLE: Automatic
+        "CODE_SIGN_IDENTITY[sdk=macosx*]": Apple Development
     dependencies:
       - package: AdaEditor
         product: AdaEditor
@@ -87,6 +94,8 @@ targets:
         PRODUCT_NAME: AdaEngine
         PRODUCT_BUNDLE_IDENTIFIER: org.adaengine.editor
         INFOPLIST_FILE: Sources/AdaEditor/Platforms/iOS/Info.plist
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
         DEVELOPMENT_TEAM: 8PYCRS3EA3
         CODE_SIGN_STYLE: Automatic
         TARGETED_DEVICE_FAMILY: 2

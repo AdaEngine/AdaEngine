@@ -53,6 +53,10 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
         view?.isInteractionEnabled == true && view?.acceptsKeyboardFocus == true
     }
 
+    override func onFocusChanged(isFocused: Bool) {
+        view?.onFocusChanged(isFocused: isFocused)
+    }
+
     override func update(from newNode: ViewNode) {
         super.update(from: newNode)
         guard let newNode = newNode as? UIViewRepresentableNode<Representable> else { return }
@@ -116,7 +120,7 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
         guard let view, view.isInteractionEnabled else { return }
         let origin = absoluteFrame().origin
         view.onTouchesEvent(Set(touches.map { touch in
-            TouchEvent(window: touch.window, location: touch.location - origin, phase: touch.phase, time: touch.time)
+            TouchEvent(window: touch.window, location: touch.location - origin, phase: touch.phase, time: touch.time, contactID: touch.contactID)
         }))
     }
 

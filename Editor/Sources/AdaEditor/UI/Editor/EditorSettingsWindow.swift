@@ -40,7 +40,7 @@ enum EditorSettingsSection: String, CaseIterable, Hashable, Sendable {
         case .project:
             "\u{E2C7}"
         case .agent:
-            "\u{E0CA}"
+            "\u{E65F}"
         }
     }
 }
@@ -50,6 +50,8 @@ enum EditorSettingsSection: String, CaseIterable, Hashable, Sendable {
 final class EditorSettingsWindowViewModel {
     var selectedSection: EditorSettingsSection
     let libraries = EditorLibrariesViewModel()
+    private let globalAgent = EditorAgentViewModel(project: nil)
+    var agent: EditorAgentViewModel { editorViewModel?.agent ?? globalAgent }
     var searchText = ""
     var editorViewModel: EditorViewModel?
     var codeFontSize: Double
@@ -400,10 +402,10 @@ struct EditorSettingsWindowView: View {
             Spacer()
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("CURRENT PROJECT")
+                Text(viewModel.selectedSection == .agent ? "APPLIES TO" : "CURRENT PROJECT")
                     .font(.system(size: 9))
                     .foregroundColor(theme.editorColors.muted)
-                Text(viewModel.projectName)
+                Text(viewModel.selectedSection == .agent ? "All Projects" : viewModel.projectName)
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.text)
                     .lineLimit(1)
@@ -471,11 +473,11 @@ struct EditorSettingsWindowView: View {
     private var navigationBarTrailingContent: some View {
         HStack(spacing: 8) {
             #if os(macOS)
-            if viewModel.selectedSection == .agent, let editor = viewModel.editorViewModel {
-                EditorAgentCatalogToolbar(agent: editor.agent)
+            if viewModel.selectedSection == .agent {
+                EditorAgentCatalogToolbar(agent: viewModel.agent)
             }
             #endif
-            Text(viewModel.projectName)
+            Text(viewModel.selectedSection == .agent ? "All Projects" : viewModel.projectName)
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(1)
@@ -501,6 +503,12 @@ struct EditorSettingsWindowView: View {
             EditorAchievementSettings()
         } else if viewModel.selectedSection == .notifications {
             EditorNotificationSettings()
+        } else if viewModel.selectedSection == .agent {
+            agentSettings(viewModel.agent)
+        } else if viewModel.selectedSection == .general, viewModel.editorViewModel == nil {
+            settingsGroup("APPEARANCE") {
+                EditorAgentGlowSettings()
+            }
         } else if let editorViewModel = viewModel.editorViewModel {
             switch viewModel.selectedSection {
             case .achievements:
@@ -512,7 +520,7 @@ struct EditorSettingsWindowView: View {
             case .project:
                 projectSettings(editorViewModel)
             case .agent:
-                agentSettings(editorViewModel)
+                agentSettings(viewModel.agent)
             }
         } else {
             emptyProjectSettings
@@ -521,6 +529,9 @@ struct EditorSettingsWindowView: View {
 
     private var generalSettings: some View {
         VStack(alignment: .leading, spacing: 24) {
+            settingsGroup("APPEARANCE") {
+                EditorAgentGlowSettings()
+            }
             settingsGroup("EDITOR FONT") {
                 settingsRow(
                     title: "Font Family",
@@ -649,30 +660,30 @@ struct EditorSettingsWindowView: View {
         }
     }
 
-    private func agentSettings(_ editorViewModel: EditorViewModel) -> some View {
+    private func agentSettings(_ agent: EditorAgentViewModel) -> some View {
         VStack(alignment: .leading, spacing: 24) {
-            EditorAgentCatalogView(agent: editorViewModel.agent, showsToolbar: false)
+            EditorAgentCatalogView(agent: agent, showsToolbar: false)
             settingsGroup("ACP CONNECTION") {
-                Text("Configure the stdio ACP agent launched for this project.")
+                Text("Configure the agent used by all projects in AdaEditor.")
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                 selectionButton(
-                    editorViewModel.agent.agentEnabled ? "Enabled" : "Disabled",
-                    selected: editorViewModel.agent.agentEnabled,
-                    action: editorViewModel.agent.toggleAgentEnabled
+                    agent.agentEnabled ? "Enabled" : "Disabled",
+                    selected: agent.agentEnabled,
+                    action: agent.toggleAgentEnabled
                 )
-                settingsInput("Agent executable, e.g. codex-acp", text: editorViewModel.agent.agentCommandBinding)
-                settingsInput("Arguments, comma separated", text: editorViewModel.agent.agentArgumentsBinding)
-                settingsInput("Working directory (project relative)", text: editorViewModel.agent.agentWorkingDirectoryBinding)
-                settingsInput("Environment KEY=VALUE, comma separated", text: editorViewModel.agent.agentEnvironmentBinding)
+                settingsInput("Agent executable, e.g. codex-acp", text: agent.agentCommandBinding)
+                settingsInput("Arguments, comma separated", text: agent.agentArgumentsBinding)
+                settingsInput("Working directory (relative to each project)", text: agent.agentWorkingDirectoryBinding)
+                settingsInput("Environment KEY=VALUE, comma separated", text: agent.agentEnvironmentBinding)
             }
             settingsGroup("PERMISSIONS") {
                 HStack(spacing: 8) {
-                    selectionButton("Allow once", selected: editorViewModel.agent.agentPermissionMode == .allowOnce) {
-                        editorViewModel.agent.selectPermissionMode(.allowOnce)
+                    selectionButton("Allow once", selected: agent.agentPermissionMode == .allowOnce) {
+                        agent.selectPermissionMode(.allowOnce)
                     }
-                    selectionButton("Deny", selected: editorViewModel.agent.agentPermissionMode == .deny) {
-                        editorViewModel.agent.selectPermissionMode(.deny)
+                    selectionButton("Deny", selected: agent.agentPermissionMode == .deny) {
+                        agent.selectPermissionMode(.deny)
                     }
                 }
                 Text("File access is restricted to the project root. Terminal working directories are validated against it.")
@@ -681,7 +692,7 @@ struct EditorSettingsWindowView: View {
                     .lineLimit(2)
             }
             settingsGroup("CONTEXT") {
-                EditorAgentSkillDirectoriesView(agent: editorViewModel.agent)
+                EditorAgentSkillDirectoriesView(agent: agent)
                 Text("Live scene, entity, asset, render and UI inspection is provided through the embedded AdaEditor Runtime MCP server.")
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
@@ -889,7 +900,13 @@ struct EditorSettingsWindowView: View {
     }
 
     private var footerConfiguration: (title: String, status: String, action: () -> Void) {
+        if viewModel.selectedSection == .agent {
+            return ("Save Agent Settings", viewModel.agent.settingsStatusMessage, viewModel.agent.saveAgentSettings)
+        }
         guard let editorViewModel = viewModel.editorViewModel else {
+            if viewModel.selectedSection == .general {
+                return ("Done", "Appearance settings are saved automatically.", {})
+            }
             return ("Apply", "", {})
         }
 

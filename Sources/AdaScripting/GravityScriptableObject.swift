@@ -3,6 +3,7 @@ import AdaInput
 @_spi(Scripting) import AdaScene
 import Foundation
 import Gravity
+import Logging
 
 public struct AdaScriptObjectSchema: Sendable {
     public let aliases: [String]
@@ -231,6 +232,10 @@ private final class GravityScriptableObject: ScriptableObject, @unchecked Sendab
         super.init()
     }
 
+    deinit {
+        if let instanceID { definition.runtime.remove(instanceID: instanceID) }
+    }
+
     required init(from decoder: Decoder) throws {
         throw ScriptableObjectCodingError.unregisteredRuntimeType("GravityScriptableObject")
     }
@@ -258,7 +263,7 @@ private final class GravityScriptableObject: ScriptableObject, @unchecked Sendab
             )
             refreshPayload()
         } catch {
-            assertionFailure(String(describing: error))
+            definition.runtime.report("Unable to start \(definition.schema.identifier): \(error)")
         }
     }
 
@@ -323,6 +328,8 @@ private final class GravityScriptableObject: ScriptableObject, @unchecked Sendab
 private final class GravityScriptableLifecycleContext: @unchecked Sendable {
     let deltaTime: Double
     let entityID: Int
+    /// Stable world identity for module state scoped to one running scene.
+    let worldID: String
     let world: AnnotatedGravityWorldContext
 
     @GSExportableIgnore
@@ -333,6 +340,7 @@ private final class GravityScriptableLifecycleContext: @unchecked Sendable {
         GravityScriptableLifecycleContext(
             deltaTime: Double(context.deltaTime),
             entityID: context.entityID,
+            worldID: String(describing: context.scriptingWorld.id),
             world: AnnotatedGravityWorldContext.make(
                 commands: AnnotatedGravityCommandsBridge.make(
                     commands: context.scriptingCommands,
@@ -342,9 +350,10 @@ private final class GravityScriptableLifecycleContext: @unchecked Sendable {
         )
     }
 
-    private init(deltaTime: Double, entityID: Int, world: AnnotatedGravityWorldContext) {
+    private init(deltaTime: Double, entityID: Int, worldID: String, world: AnnotatedGravityWorldContext) {
         self.deltaTime = deltaTime
         self.entityID = entityID
+        self.worldID = worldID
         self.world = world
     }
 }
@@ -412,24 +421,35 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
         }
     }
 
+    func report(_ message: String) {
+        delegate.append(message)
+        Logger(label: "org.adaengine.AdaScript").error("\(message)")
+    }
+
     func instantiate(className: String, payload: [String: EditorFieldValue]) throws -> UUID {
         try AdaScriptRuntimeCoordinator.lock.withLock {
             guard let factoryName = factoryNamesByClass[className] else {
                 throw AdaScriptError.invalidManifest("Missing @scriptable factory for '\(className)'")
             }
+            // Each construction starts a fresh synchronous call stack; live instances remain rooted in globals.
+            virtualMachine.reset()
             let factory = virtualMachine.getValue(forKey: factoryName)
             guard factory.isClosure,
                   let instance = factory.callConstructor(with: []),
                   instance.isInstance else {
-                throw AdaScriptError.invalidManifest("Unable to instantiate @scriptable class '\(className)'")
+                throw AdaScriptError.invalidManifest("Unable to instantiate @scriptable class '\(className)': \(delegate.errors.last ?? "no VM diagnostic")")
             }
+            let identifier = UUID()
+            // A Swift GSValue is not a VM GC root. Keep live script instances in the
+            // VM global table until detach; otherwise allocation-heavy UI bindings
+            // can collect an instance while its Swift handle remains alive.
+            virtualMachine.setValue(instance, forKey: "__ada_live_script_" + identifier.uuidString)
             for (name, value) in payload {
                 _ = instance.setStoredProperty(
                     named: name,
                     to: AnnotatedGravityValueBridge.makeGravityValue(value, virtualMachine: virtualMachine)
                 )
             }
-            let identifier = UUID()
             instances[identifier] = instance
             classNamesByInstance[identifier] = className
             return identifier
@@ -511,6 +531,7 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
 
     func remove(instanceID: UUID) {
         AdaScriptRuntimeCoordinator.lock.withLock {
+            virtualMachine.setValue(GSValue(nullIn: virtualMachine), forKey: "__ada_live_script_" + instanceID.uuidString)
             instances[instanceID] = nil
             classNamesByInstance[instanceID] = nil
         }

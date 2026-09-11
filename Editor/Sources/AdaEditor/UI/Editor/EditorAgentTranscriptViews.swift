@@ -1,4 +1,38 @@
 @_spi(AdaEngine) import AdaEngine
+import Math
+
+/// Measure height at the final bubble width; HStack's ideal-width height can clip wrapped replies.
+private struct EditorAgentMessageRowLayout: Layout {
+    let isUser: Bool
+
+    func sizeThatFits(_ proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> Size {
+        guard let card = subviews.first else {
+            return .zero
+        }
+        let width = proposal.width.map { max(0, $0 - (isUser ? 40 : 0)) }
+        var cardProposal = ProposedViewSize.unspecified
+        cardProposal.width = width
+        let size = card.sizeThatFits(cardProposal)
+        return Size(width: proposal.width ?? size.width, height: size.height)
+    }
+
+    func placeSubviews(in bounds: Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        guard let card = subviews.first else {
+            return
+        }
+        let available = max(0, bounds.width - (isUser ? 40 : 0))
+        var cardProposal = ProposedViewSize.unspecified
+        cardProposal.width = available
+        let size = card.sizeThatFits(cardProposal)
+        cardProposal.width = min(size.width, available)
+        cardProposal.height = size.height
+        card.place(
+            at: Point(isUser ? bounds.maxX : bounds.minX, bounds.minY),
+            anchor: isUser ? .topTrailing : .topLeading,
+            proposal: cardProposal
+        )
+    }
+}
 
 struct EditorAgentEventCard: View {
     let event: EditorAgentEvent
@@ -15,8 +49,7 @@ struct EditorAgentEventCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            if isUser { Spacer(minLength: 40) }
+        EditorAgentMessageRowLayout(isUser: isUser) {
             cardContent
         }
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
@@ -58,7 +91,7 @@ struct EditorAgentEventCard: View {
             permissionView(permission)
         } else if event.message == nil && !isCollapsible {
             Text(eventTitle)
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundColor(eventColor)
         }
         if let message = event.message {
@@ -67,7 +100,7 @@ struct EditorAgentEventCard: View {
             }
         } else if event.toolCall == nil, event.permission == nil, let details = event.details {
             Text(details)
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
         }
     }
@@ -76,12 +109,20 @@ struct EditorAgentEventCard: View {
     private func segmentView(_ segment: EditorAgentMessageSegment) -> some View {
         switch segment.kind {
         case .text:
-            Text(markdown: segment.text ?? "")
-                .font(.system(size: 11))
-                .foregroundColor(theme.editorColors.text)
+            if let failure = EditorAgentProviderFailure.message(in: segment.text ?? "") {
+                Text(verbatim: failure)
+                    .font(.system(size: 14))
+                    .foregroundColor(.red)
+            } else {
+                Text(markdown: segment.text ?? "")
+                    .font(.system(size: 14))
+                    .foregroundColor(theme.editorColors.text)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         case .thinking:
             Text(markdown: segment.text ?? "")
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
         case .attachment:
             if let attachment = segment.attachment {
@@ -89,7 +130,7 @@ struct EditorAgentEventCard: View {
             }
         case .skill:
             Text("/\(segment.skill?.name ?? "skill")")
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.purple)
                 .lineLimit(1)
         }
@@ -105,7 +146,7 @@ struct EditorAgentEventCard: View {
                     .frame(height: 20)
                     .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.blue.opacity(0.12)))
                 Text(toolCall.title)
-                    .font(.system(size: 10))
+                    .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.text)
                     .lineLimit(1)
                 Spacer()
@@ -130,13 +171,13 @@ struct EditorAgentEventCard: View {
         switch content.kind {
         case .text:
             Text(markdown: content.text ?? "")
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(10)
         case .diff:
             VStack(alignment: .leading, spacing: 3) {
                 Text(content.path ?? "Modified file")
-                    .font(.system(size: 10))
+                    .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.blue)
                     .lineLimit(1)
                 if let newText = content.newText, !newText.isEmpty {
@@ -151,15 +192,15 @@ struct EditorAgentEventCard: View {
             .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.background))
         case .terminal:
             Text("Terminal · \(content.terminalID ?? "running")")
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
         case .image:
             Text("Image output · \(content.mimeType ?? "image")")
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.blue)
         case .resource:
             Text(content.text ?? content.uri ?? "Resource")
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.blue)
                 .lineLimit(3)
         }
@@ -179,14 +220,14 @@ struct EditorAgentEventCard: View {
                 }
             }
             Text(markdown: permission.summary)
-                .font(.system(size: 10))
+                .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
             if permission.state == .pending {
                 HStack(spacing: 6) {
                     ForEach(permission.options, id: \.id) { option in
                         Button(action: { viewModel.resolvePermission(requestID: permission.id, optionID: option.id) }) {
                             Text(option.name)
-                                .font(.system(size: 10))
+                                .font(.system(size: 12))
                                 .foregroundColor(theme.editorColors.text)
                                 .padding(.horizontal, 9)
                                 .frame(height: 25)
@@ -196,7 +237,7 @@ struct EditorAgentEventCard: View {
                     }
                     Button(action: { viewModel.resolvePermission(requestID: permission.id, optionID: nil) }) {
                         Text("Cancel")
-                            .font(.system(size: 10))
+                            .font(.system(size: 12))
                             .foregroundColor(theme.editorColors.muted)
                             .padding(.horizontal, 9)
                             .frame(height: 25)
@@ -270,7 +311,7 @@ struct EditorAgentAttachmentCard: View {
             preview
             VStack(alignment: .leading, spacing: 2) {
                 Text(attachment.name)
-                    .font(.system(size: 10))
+                    .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.text)
                     .lineLimit(1)
                 Text(description)

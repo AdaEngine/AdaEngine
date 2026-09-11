@@ -10,12 +10,20 @@ public struct ScriptUIBindingSystem {
     @FilterQuery<UIComponent, Without<ScriptableComponents>>
     private var unboundComponents
 
+    @Query<CompanionPanel, ScriptableComponents>
+    private var companionPanels
+
+    @FilterQuery<CompanionPanel, Without<ScriptableComponents>>
+    private var unboundCompanionPanels
+
     public init(world: World) {}
 
     @MainActor
     public func update(context: UpdateContext) {
         components.forEach { ui, scripts in Self.synchronize(ui, scripts: scripts) }
         unboundComponents.forEach { ui in Self.synchronize(ui, scripts: nil) }
+        companionPanels.forEach { panel, scripts in Self.synchronize(panel.ui, scripts: scripts) }
+        unboundCompanionPanels.forEach { panel in Self.synchronize(panel.ui, scripts: nil) }
     }
 
     @MainActor

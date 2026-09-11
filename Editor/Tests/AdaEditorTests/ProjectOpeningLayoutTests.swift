@@ -7,6 +7,46 @@ import Testing
 
 @Suite("Project opening layout")
 struct ProjectOpeningLayoutTests {
+    @Test("iPad creation uses a navigation title and ordered fields", arguments: [
+        Size(width: 1194, height: 834),
+        Size(width: 834, height: 1194)
+    ])
+    @MainActor
+    func iPadCreationLayout(_ size: Size) async throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            let app = AppWorlds(main: World(name: "ProjectOpeningLayoutTests"))
+            RenderWorldPlugin().setup(in: app)
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = ProjectOpeningViewModel(store: EditorProjectStore(storageURL: root.appendingPathComponent("projects.json")))
+        model.beginCreateNewProject()
+        let container = UIContainerView(rootView: ProjectOpeningView(autoOpenLastProject: false, viewModel: model)
+            .environment(\.userInterfaceIdiom, .pad))
+        container.safeAreaInsets = EdgeInsets(top: 32, leading: 0, bottom: 20, trailing: 0)
+        container.frame = Rect(origin: .zero, size: size)
+        container.bounds.size = size
+        container.layoutIfNeeded()
+
+        let title = try container.uiNode(matching: .accessibilityIdentifier("AdaUI.NavigationBar.Title"))
+        let name = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.projectName))
+        let location = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.location))
+        let type = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.projectType))
+        let actions = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.createActions))
+        let detail = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.detail))
+
+        #expect(title.absoluteFrame.minY >= 32)
+        #expect(title.absoluteFrame.height > 0)
+        #expect(title.absoluteFrame.maxY <= name.absoluteFrame.minY)
+        #expect(name.absoluteFrame.maxY <= location.absoluteFrame.minY)
+        #expect(location.absoluteFrame.maxY <= type.absoluteFrame.minY)
+        #expect(detail.absoluteFrame.maxX <= size.width)
+        #expect(actions.absoluteFrame.maxX <= size.width - ProjectOpeningLayout.detailPadding)
+        #expect(actions.absoluteFrame.maxY <= size.height - 20)
+        #expect(container.uiFindNodes(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.createHeader)).isEmpty)
+    }
+
     @Test("columns and creation form stay inside the minimum window")
     @MainActor
     func contentFitsMinimumWindow() async throws {

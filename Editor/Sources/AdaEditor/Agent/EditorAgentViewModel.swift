@@ -10,27 +10,59 @@ final class EditorAgentViewModel {
     var activeSession: EditorAgentSession?
     var prompt: String = ""
     var mode: EditorAgentChatMode = .build
-    var autocompleteSuggestions: [EditorAgentProjectFileSearch.Entry] = []
+    var autocompleteSuggestions: [EditorAgentCompletion] = []
+    var selectedCompletionIndex = 0
+    var promptCompletionFocus: TextEditorSourceRange?
+    @ObservationIgnored private var promptCaretOffset: Int?
     var pendingAttachments: [EditorAgentAttachment] = []
     var sceneContext: EditorAgentSceneContext?
     var codeSelection: EditorAgentCodeSelectionContext?
     var sessionConfiguration = EditorAgentSessionConfiguration.empty
+    private var connectionSettings = AdaProjectAgent()
+    var currentSessionConfiguration: EditorAgentSessionConfiguration {
+        connectionSettings == settings.configuration ? sessionConfiguration : .empty
+    }
+    var currentConnectionState: EditorAgentConnectionState {
+        connectionSettings == settings.configuration ? connectionState : .disconnected
+    }
     var availableSkills: [EditorAgentSkill] = []
     var selectedSkillIDs: Set<String> = []
     var statusMessage: String?
     var isSending = false
+    private(set) var lastActivityID: String?
     @ObservationIgnored private var notificationSessionID: String?
     @ObservationIgnored private var runningSession: EditorAgentSession?
     @ObservationIgnored private var runningActivityID: String?
     @ObservationIgnored private var permissionActivityIDs: [String: String] = [:]
     @ObservationIgnored let notifications: EditorNotificationCenter
-    var agentEnabled = false
-    var agentCommand = ""
-    var agentArguments = ""
-    var agentWorkingDirectory = ""
-    var agentEnvironment = ""
-    var agentSkillsDirectories: [String] = []
-    var agentPermissionMode = AdaProjectAgentPermissionMode.allowOnce
+    var agentEnabled: Bool {
+        get { settings.agentEnabled }
+        set { settings.agentEnabled = newValue }
+    }
+    var agentCommand: String {
+        get { settings.agentCommand }
+        set { settings.agentCommand = newValue }
+    }
+    var agentArguments: String {
+        get { settings.agentArguments }
+        set { settings.agentArguments = newValue }
+    }
+    var agentWorkingDirectory: String {
+        get { settings.agentWorkingDirectory }
+        set { settings.agentWorkingDirectory = newValue }
+    }
+    var agentEnvironment: String {
+        get { settings.agentEnvironment }
+        set { settings.agentEnvironment = newValue }
+    }
+    var agentSkillsDirectories: [String] {
+        get { settings.agentSkillsDirectories }
+        set { settings.agentSkillsDirectories = newValue }
+    }
+    var agentPermissionMode: AdaProjectAgentPermissionMode {
+        get { settings.agentPermissionMode }
+        set { settings.agentPermissionMode = newValue }
+    }
     var settingsStatusMessage = ""
     let catalog: EditorAgentCatalogViewModel
     var isConnectingCatalogAgent = false
@@ -42,7 +74,13 @@ final class EditorAgentViewModel {
     @ObservationIgnored
     private var store: EditorAgentSessionStore?
     @ObservationIgnored
-    private var projectConfig: AdaProject?
+    private var baseProjectConfig: AdaProject?
+    let settings: EditorAgentSettingsStore
+    private var projectConfig: AdaProject? {
+        guard var project = baseProjectConfig else { return nil }
+        project.ai.agent = settings.configuration
+        return project
+    }
     @ObservationIgnored
     private let fileManager: FileManager
     @ObservationIgnored
@@ -50,12 +88,14 @@ final class EditorAgentViewModel {
 
     init(
         project: EditorProjectReference?,
+        settings: EditorAgentSettingsStore = .shared,
         fileManager: FileManager = .default,
         service: any EditorAgentServicing = EditorACPAgentService(),
         catalog: EditorAgentCatalogViewModel = EditorAgentCatalogViewModel(),
         notifications: EditorNotificationCenter = .shared,
         onProjectFileChanged: @escaping (String) -> Void = { _ in }
     ) {
+        self.settings = settings
         self.notifications = notifications
         self.project = project
         self.fileManager = fileManager
@@ -65,6 +105,8 @@ final class EditorAgentViewModel {
         catalog.notificationProjectName = project?.name
         self.onProjectFileChanged = onProjectFileChanged
         configureForProject()
+        connectionSettings = settings.configuration
+        if let error = settings.loadError { settingsStatusMessage = error }
     }
 
     func setProjectFileChangedHandler(_ handler: @escaping (String) -> Void) {
@@ -92,6 +134,8 @@ final class EditorAgentViewModel {
             get: { self.prompt },
             set: { newValue in
                 self.prompt = newValue
+                self.promptCaretOffset = newValue.count
+                self.promptCompletionFocus = nil
                 self.updateAutocomplete()
             }
         )
@@ -146,20 +190,23 @@ final class EditorAgentViewModel {
 
         store = EditorAgentSessionStore(projectURL: projectURL)
         do {
-            projectConfig = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
+            baseProjectConfig = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
         } catch {
-            projectConfig = ProjectSystem.defaultProject(projectName: project?.name ?? "Project")
+            baseProjectConfig = ProjectSystem.defaultProject(projectName: project?.name ?? "Project")
             statusMessage = "Using default agent configuration."
         }
 
+        if let legacy = baseProjectConfig?.ai.agent {
+            do { try settings.migrateIfNeeded(legacy) }
+            catch { settingsStatusMessage = error.localizedDescription }
+        }
         if let projectConfig {
             availableSkills = EditorAgentSkillStore.discoverSkills(
                 projectURL: projectURL,
                 directories: projectConfig.ai.agent.skillsDirectories,
                 fileManager: fileManager
             )
-            connectionState = projectConfig.ai.agent.enabled ? .disconnected : .failed("Agent is disabled in project metadata.")
-            loadSettings(from: projectConfig.ai.agent)
+            connectionState = .disconnected
         }
 
         Task {
@@ -270,6 +317,10 @@ final class EditorAgentViewModel {
     }
 
     func selectConfiguration(selectorID: String, valueID: String) {
+        guard connectionSettings == settings.configuration else {
+            connect()
+            return
+        }
         guard let activeSession else {
             return
         }
@@ -293,22 +344,20 @@ final class EditorAgentViewModel {
 
     @discardableResult
     func useCatalogAgent(_ entry: EditorInstalledAgent) async -> Bool {
-        guard !isSending, let projectURL else {
-            settingsStatusMessage = "Open a project before connecting an agent."
+        guard !isSending else {
+            settingsStatusMessage = "Stop the running agent before changing its settings."
             return false
         }
         do {
-            var configuration = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
-            configuration.ai.agent.enabled = true
-            configuration.ai.agent.target = entry.target
-            try ProjectSystem.saveProject(configuration, at: projectURL, fileManager: fileManager)
+            var configuration = settings.configuration
+            configuration.enabled = true
+            configuration.target = entry.target
+            try settings.save(configuration)
             await service.shutdown()
-            projectConfig = configuration
-            loadSettings(from: configuration.ai.agent)
             // ACP session IDs belong to one provider; never resume them in another agent.
             try await createSession()
             connectionState = .disconnected
-            settingsStatusMessage = "\(entry.name) selected for this project. Connect or send a message in Agent Chat."
+            settingsStatusMessage = "\(entry.name) selected for all projects. Connect or send a message in Agent Chat."
             return true
         } catch {
             settingsStatusMessage = "Unable to use \(entry.name): \(error.localizedDescription)"
@@ -317,11 +366,11 @@ final class EditorAgentViewModel {
     }
 
     var canConnectCatalogAgent: Bool {
-        projectURL != nil && !isSending && !isConnectingCatalogAgent && !catalog.isBusy && connectionState != .connecting
+        !isSending && !isConnectingCatalogAgent && !catalog.isBusy && connectionState != .connecting
     }
 
     func isCatalogAgentSelected(_ entry: EditorInstalledAgent) -> Bool {
-        projectConfig?.ai.agent.enabled == true && projectConfig?.ai.agent.target == entry.target
+        settings.configuration.enabled && settings.configuration.target == entry.target
     }
 
     func connectCatalogAgent(
@@ -346,6 +395,7 @@ final class EditorAgentViewModel {
         }
         guard let entry else { return }
         guard await useCatalogAgent(entry) else { return }
+        guard projectURL != nil else { return }
         settingsStatusMessage = "Connecting to \(entry.name)…"
         await connectAsync()
         switch connectionState {
@@ -368,21 +418,15 @@ final class EditorAgentViewModel {
 
     func saveAgentSettings() {
         guard !isSending else { settingsStatusMessage = "Stop the running agent before changing its settings."; return }
-        guard let projectURL else {
-            settingsStatusMessage = "No project is open."
-            return
-        }
-
         do {
-            var projectConfig = try ProjectSystem.loadProject(at: projectURL, fileManager: fileManager)
-            let oldTarget = self.projectConfig?.ai.agent.target
-            let arguments = agentArguments == oldTarget?.arguments.joined(separator: "\n")
-                ? oldTarget?.arguments ?? [] : Self.lineList(from: agentArguments)
-            let oldEnvironment = oldTarget?.environment.sorted { $0.key < $1.key }
+            let oldTarget = settings.configuration.target
+            let arguments = agentArguments == oldTarget.arguments.joined(separator: "\n")
+                ? oldTarget.arguments : Self.lineList(from: agentArguments)
+            let oldEnvironment = oldTarget.environment.sorted { $0.key < $1.key }
                 .map { "\($0.key)=\($0.value)" }.joined(separator: "\n")
             let environment = agentEnvironment == oldEnvironment
-                ? oldTarget?.environment ?? [:] : Self.environment(from: agentEnvironment)
-            projectConfig.ai.agent = AdaProjectAgent(
+                ? oldTarget.environment : Self.environment(from: agentEnvironment)
+            let configuration = AdaProjectAgent(
                 enabled: agentEnabled,
                 target: AdaProjectAgentTarget(
                     command: agentCommand.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
@@ -394,19 +438,11 @@ final class EditorAgentViewModel {
                 skillsDirectories: agentSkillsDirectories.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
             )
 
-            try ProjectSystem.saveProject(projectConfig, at: projectURL, fileManager: fileManager)
-            self.projectConfig = projectConfig
-            availableSkills = EditorAgentSkillStore.discoverSkills(
-                projectURL: projectURL,
-                directories: projectConfig.ai.agent.skillsDirectories,
-                fileManager: fileManager
-            )
-            settingsStatusMessage = "Agent connection saved to .ada/project.json."
+            try settings.save(configuration)
+            refreshSkills()
+            settingsStatusMessage = "Agent settings saved for all projects."
             sessionConfiguration = .empty
-            Task {
-                await service.shutdown()
-                connectionState = agentEnabled ? .disconnected : .failed("Agent is disabled in project metadata.")
-            }
+            connectionState = .disconnected
         } catch {
             settingsStatusMessage = "Failed to save agent settings: \(error.localizedDescription)"
         }
@@ -506,12 +542,70 @@ final class EditorAgentViewModel {
         }
     }
 
-    func insertAutocomplete(_ entry: EditorAgentProjectFileSearch.Entry) {
-        guard let token = EditorAgentPathTokens.tokenBeforeCursor(in: prompt) else {
-            return
+    func updatePromptCaret(_ position: TextEditorSourcePosition, text: String) {
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        let line = min(max(position.line, 0), max(0, lines.count - 1))
+        promptCaretOffset = lines.prefix(line).reduce(0) { $0 + $1.count + 1 }
+            + min(max(position.column, 0), lines[line].count)
+        updateAutocomplete()
+    }
+
+    func moveCompletionSelection(_ delta: Int) -> Bool {
+        guard !autocompleteSuggestions.isEmpty else { return false }
+        selectedCompletionIndex = (selectedCompletionIndex + delta + autocompleteSuggestions.count) % autocompleteSuggestions.count
+        return true
+    }
+
+    func submitPromptFromKeyboard() -> Bool {
+        if acceptCompletion() { return true }
+        if canSend { sendPrompt() }
+        return true
+    }
+
+    func acceptCompletion() -> Bool {
+        guard autocompleteSuggestions.indices.contains(selectedCompletionIndex) else { return false }
+        insertAutocomplete(autocompleteSuggestions[selectedCompletionIndex])
+        return true
+    }
+
+    func insertAutocomplete(_ entry: EditorAgentCompletion) {
+        guard let token = EditorAgentCompletionToken.current(in: prompt, cursorOffset: promptCaretOffset) else { return }
+        let value: String
+        switch entry {
+        case .file(let file):
+            value = "@" + EditorAgentPathTokens.escapedTokenValue(file.path)
+        case .skill(let skill):
+            let needsQualifier = token.marker == "@" || currentSessionConfiguration.commands.contains { $0.name == skill.id }
+            value = String(token.marker) + (needsQualifier ? "skill:" : "") + EditorAgentPathTokens.escapedTokenValue(skill.id)
+        case .command(let command):
+            value = "/" + command.name
         }
-        prompt.replaceSubrange(token.range, with: "@\(EditorAgentPathTokens.escapedTokenValue(entry.path))")
+        let prefix = String(prompt[..<token.range.lowerBound])
+        prompt.replaceSubrange(token.range, with: value + " ")
+        promptCaretOffset = prefix.count + value.count + 1
+        let beforeCaret = prefix + value + " "
+        let lines = beforeCaret.split(separator: "\n", omittingEmptySubsequences: false)
+        let position = TextEditorSourcePosition(line: lines.count - 1, column: lines.last?.count ?? 0)
+        promptCompletionFocus = TextEditorSourceRange(start: position, end: position)
         autocompleteSuggestions = []
+        Task { @MainActor in
+            focusCompletionPrompt()
+        }
+    }
+
+    func dismissCompletions() {
+        autocompleteSuggestions = []
+        selectedCompletionIndex = 0
+    }
+
+    private func focusCompletionPrompt() {
+        guard let window = UIWindowManager.shared?.activeWindow else { return }
+        for container in window.uiInspectableContainers() {
+            guard let prompt = try? container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agent.Prompt")) else { continue }
+            let point = Point(prompt.absoluteFrame.minX + 12, prompt.absoluteFrame.minY + 12)
+            guard let hit = container.uiHitTest(at: point)?.node else { continue }
+            if (try? container.uiFocusNode(matching: .runtimeID(hit.runtimeId))) != nil { return }
+        }
     }
 
     func sendPromptAsync() async {
@@ -523,6 +617,12 @@ final class EditorAgentViewModel {
             return
         }
 
+        connectionSettings = projectConfig.ai.agent
+        refreshSkills()
+        if session.agentTargetIdentity != settings.configuration.target.sessionIdentity {
+            session.upstreamSessionID = nil
+        }
+        session.agentTargetIdentity = settings.configuration.target.sessionIdentity
         let preparedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         let invokedSkills = skillsInvokedByPrompt(preparedPrompt)
         let visibleRequestSkills = uniqueSkills(selectedSkills + invokedSkills)
@@ -531,6 +631,7 @@ final class EditorAgentViewModel {
         let requestPrompt = promptRemovingSkillSlashCommand(preparedPrompt, invokedSkills: invokedSkills)
 
         let tokenAttachments = EditorAgentPathTokens.attachmentPaths(in: preparedPrompt).compactMap { path -> EditorAgentAttachment? in
+            guard !path.hasPrefix("skill:") else { return nil }
             let url = projectURL.appendingPathComponent(path).standardizedFileURL
             guard fileManager.fileExists(atPath: url.path) else {
                 return nil
@@ -574,6 +675,7 @@ final class EditorAgentViewModel {
             Task { await self.service.cancel(sessionID: sessionID) }
         })
         runningActivityID = activityID
+        lastActivityID = activityID
 
         do {
             connectionState = .running
@@ -663,6 +765,8 @@ final class EditorAgentViewModel {
             return
         }
 
+        connectionSettings = projectConfig.ai.agent
+        refreshSkills()
         connectionState = .connecting
         do {
             sessionConfiguration = try await service.connect(
@@ -699,17 +803,11 @@ final class EditorAgentViewModel {
         }
     }
 
-    private func loadSettings(from configuration: AdaProjectAgent) {
-        agentEnabled = configuration.enabled
-        agentCommand = configuration.target.command ?? ""
-        agentArguments = configuration.target.arguments.joined(separator: "\n")
-        agentWorkingDirectory = configuration.target.cwd ?? ""
-        agentEnvironment = configuration.target.environment
-            .sorted { $0.key < $1.key }
-            .map { "\($0.key)=\($0.value)" }
-            .joined(separator: "\n")
-        agentSkillsDirectories = configuration.skillsDirectories
-        agentPermissionMode = configuration.permissionMode
+    private func refreshSkills() {
+        guard let projectURL else { return }
+        availableSkills = EditorAgentSkillStore.discoverSkills(
+            projectURL: projectURL, directories: settings.configuration.skillsDirectories, fileManager: fileManager
+        )
     }
 
     private static func lineList(from text: String) -> [String] {
@@ -737,6 +835,7 @@ final class EditorAgentViewModel {
     private func appendEvent(_ event: EditorAgentEvent) {
         if let configuration = event.configuration {
             sessionConfiguration = configuration
+            updateAutocomplete()
             return
         }
         guard var session = activeSession else {
@@ -765,31 +864,52 @@ final class EditorAgentViewModel {
     }
 
     private func updateAutocomplete() {
-        guard let projectURL, let token = EditorAgentPathTokens.tokenBeforeCursor(in: prompt) else {
+        guard let token = EditorAgentCompletionToken.current(in: prompt, cursorOffset: promptCaretOffset) else {
             autocompleteSuggestions = []
+            selectedCompletionIndex = 0
             return
         }
-        autocompleteSuggestions = EditorAgentProjectFileSearch.search(
-            projectURL: projectURL,
-            query: token.path,
-            limit: 8,
-            fileManager: fileManager
-        )
+        var results = availableSkills.filter {
+            $0.userInvocable && (token.matches($0.id) || token.matches($0.name) || token.matches($0.description ?? ""))
+        }.map(EditorAgentCompletion.skill)
+        if token.marker == "/", !token.query.hasPrefix("skill:") {
+            results += currentSessionConfiguration.commands.filter {
+                token.matches($0.name) || token.matches($0.description)
+            }.map(EditorAgentCompletion.command)
+        } else if token.marker == "@", !token.query.hasPrefix("skill:"), let projectURL {
+            results += EditorAgentProjectFileSearch.search(projectURL: projectURL, query: token.query, limit: 8, fileManager: fileManager)
+                .map(EditorAgentCompletion.file)
+        }
+        let query = token.query.lowercased()
+        func rank(_ entry: EditorAgentCompletion) -> Int {
+            let title = entry.title.lowercased()
+            return title == query ? 0 : title.hasPrefix(query) ? 1 : 2
+        }
+        let sorted = results.sorted {
+            rank($0) == rank($1) ? $0.id.localizedStandardCompare($1.id) == .orderedAscending : rank($0) < rank($1)
+        }
+        let updated = Array(sorted.prefix(12))
+        if autocompleteSuggestions != updated { selectedCompletionIndex = 0 }
+        autocompleteSuggestions = updated
     }
 
     private func skillsInvokedByPrompt(_ prompt: String) -> [EditorAgentSkill] {
-        guard prompt.hasPrefix("/") else {
-            return []
+        let slashName = prompt.hasPrefix("/") ? String(prompt.dropFirst().prefix { !$0.isWhitespace }) : ""
+        let explicitSlash = slashName.hasPrefix("skill:")
+        let slashID = explicitSlash ? String(slashName.dropFirst(6)) : slashName
+        let isAgentCommand = !explicitSlash && currentSessionConfiguration.commands.contains { $0.name == slashID }
+        let mentions = Set(EditorAgentPathTokens.attachmentPaths(in: prompt).compactMap { token -> String? in
+            token.hasPrefix("skill:") ? String(token.dropFirst(6)) : nil
+        })
+        return availableSkills.filter {
+            $0.userInvocable && (mentions.contains($0.id) || (!isAgentCommand && ($0.id == slashID || $0.name == slashID)))
         }
-        let command = prompt.split(separator: " ", maxSplits: 1).first.map { String($0.dropFirst()) } ?? ""
-        return availableSkills.filter { $0.userInvocable && ($0.id == command || $0.name == command) }
     }
 
     private func promptRemovingSkillSlashCommand(_ prompt: String, invokedSkills: [EditorAgentSkill]) -> String {
-        guard !invokedSkills.isEmpty, let firstSpace = prompt.firstIndex(of: " ") else {
-            return prompt
-        }
-        return String(prompt[prompt.index(after: firstSpace)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard prompt.hasPrefix("/"), let first = prompt.split(whereSeparator: \.isWhitespace).first,
+              invokedSkills.contains(where: { ["/" + $0.id, "/" + $0.name, "/skill:" + $0.id].contains(String(first)) }) else { return prompt }
+        return String(prompt.dropFirst(first.count)).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func uniqueAttachments(_ attachments: [EditorAgentAttachment]) -> [EditorAgentAttachment] {

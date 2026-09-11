@@ -67,6 +67,11 @@ struct GravityLanguageSemanticTests {
         let tokens = service.semanticTokens(text: source)
 
         #expect(tokens.contains {
+            $0.kind == .macro
+                && $0.range.start == GravitySourcePosition(line: 0, utf16Column: 0)
+                && $0.range.end == GravitySourcePosition(line: 0, utf16Column: 1)
+        })
+        #expect(tokens.contains {
             $0.kind == .macro && $0.range.start == GravitySourcePosition(line: 0, utf16Column: 1)
         })
         #expect(tokens.contains {

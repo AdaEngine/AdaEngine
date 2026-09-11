@@ -141,7 +141,7 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     /// Mouse-down capture target. Subsequent changed/ended events are routed here.
     private weak var activeMouseEventNode: ViewNode?
     /// Touch-began capture target. Subsequent moved/ended/cancelled events are routed here.
-    private weak var activeTouchEventNode: ViewNode?
+    private var activeTouchEventNodes: [RID: WeakBox<ViewNode>] = [:]
     /// Pinch-began capture target, retained through the end of the gesture.
     private weak var activePinchEventNode: ViewNode?
     /// Manages keyboard-driven focus traversal across focusable nodes.
@@ -329,37 +329,23 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner, FocusedInp
     ///
     /// - Parameter touches: The touches event to handle.
     public override func onTouchesEvent(_ touches: Set<TouchEvent>) {
-        guard let firstTouch = touches.first else {
-            return
-        }
-
-        let localPoint = self.convert(firstTouch.location, from: self.window)
-
-        switch firstTouch.phase {
-        case .began:
-            let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch)
-            self.inspectionLastHitTestNode = viewNode
-            self.activeTouchEventNode = viewNode
-            self.updateFocusedNode(with: viewNode)
-            viewNode?.onTouchesEvent(touches)
-            self.invalidateInspectionOverlayIfNeeded()
-        case .moved:
-            if let activeTouchEventNode {
-                activeTouchEventNode.onTouchesEvent(touches)
-            } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
-                self.inspectionLastHitTestNode = viewNode
-                viewNode.onTouchesEvent(touches)
-                self.invalidateInspectionOverlayIfNeeded()
+        for touch in touches {
+            let localPoint = convert(touch.location, from: window)
+            let node: ViewNode?
+            if touch.phase == .began {
+                node = viewTree.rootNode.hitTest(localPoint, with: touch)
+                if let node { activeTouchEventNodes[touch.contactID] = WeakBox(node) }
+                updateFocusedNode(with: node)
+            } else {
+                node = activeTouchEventNodes[touch.contactID]?.value
+                    ?? viewTree.rootNode.hitTest(localPoint, with: touch)
             }
-        case .ended, .cancelled:
-            if let activeTouchEventNode {
-                activeTouchEventNode.onTouchesEvent(touches)
-            } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
-                self.inspectionLastHitTestNode = viewNode
-                viewNode.onTouchesEvent(touches)
-                self.invalidateInspectionOverlayIfNeeded()
+            inspectionLastHitTestNode = node
+            node?.onTouchesEvent([touch])
+            if touch.phase == .ended || touch.phase == .cancelled {
+                activeTouchEventNodes.removeValue(forKey: touch.contactID)
             }
-            self.activeTouchEventNode = nil
+            invalidateInspectionOverlayIfNeeded()
         }
     }
 

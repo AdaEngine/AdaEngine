@@ -207,7 +207,8 @@ private final class OffscreenViewportNode: ViewNode {
                 window: touch.window,
                 location: localPosition,
                 phase: touch.phase,
-                time: touch.time
+                time: touch.time,
+                contactID: touch.contactID
             )
             delegate.receiveInputEvent(localTouch)
         }

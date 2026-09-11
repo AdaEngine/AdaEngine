@@ -1,5 +1,6 @@
 @_spi(AdaEngine) import AdaEngine
 @_spi(Internal) import AdaUI
+import AdaInput
 import Foundation
 import Math
 import Testing
@@ -41,6 +42,57 @@ struct EditorNotificationUITests {
         #expect(center.notifications.count == 1)
         #expect(center.unreadCount == 0)
         #expect(center.toasts.isEmpty)
+    }
+
+    @Test("middle click dismisses a card without firing its action or deleting history")
+    func middleClick() throws {
+        prepareRenderer()
+        let center = EditorNotificationCenter()
+        let item = EditorNotification(id: "middle", source: .build, importance: .information, title: "Built",
+            actions: [.init(title: "Open build", destination: .build)])
+        center.post(item)
+        var actionCount = 0
+        center.onAction = { _ in actionCount += 1 }
+        let container = UIContainerView(rootView: EditorNotificationCard(item: item, center: center))
+        container.frame = Rect(x: 0, y: 0, width: 400, height: 220)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        let frame = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Notification.Action.middle.0")).absoluteFrame
+        for phase in [MouseEvent.Phase.began, .ended] {
+            container.onMouseEvent(MouseEvent(window: .empty, button: .middle, mousePosition: Point(frame.midX, frame.midY),
+                phase: phase, modifierKeys: [], time: 0))
+        }
+        #expect(center.toasts.isEmpty)
+        #expect(center.notifications.first?.isRead == true)
+        #expect(center.notifications.count == 1)
+        #expect(actionCount == 0)
+    }
+
+    @Test("notifications begin a separate draw batch after underlying borders")
+    func overlayDrawingOrder() throws {
+        prepareRenderer()
+        let model = EditorViewModel(project: nil)
+        model.showsNotifications = true
+        let container = UIContainerView(rootView:
+            RectangleShape().stroke(Color.red, lineWidth: 1)
+                .overlay {
+                    EditorNotificationOverlay(model: model, size: Size(width: 480, height: 640), center: EditorNotificationCenter())
+                }
+        )
+        container.frame = Rect(x: 0, y: 0, width: 480, height: 640)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        let context = UIGraphicsContext()
+        container.draw(with: context)
+        let commands = context.getDrawCommands()
+        let border = try #require(commands.firstIndex {
+            if case .drawPath(_, _, .stroke) = $0 { return true }
+            return false
+        })
+        #expect(commands.dropFirst(border + 1).contains {
+            if case .beginLayer = $0 { return true }
+            return false
+        })
     }
 
     #if os(macOS)

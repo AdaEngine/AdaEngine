@@ -30,7 +30,7 @@ struct ProjectOpeningTemplateTests {
         #expect(script.contains("@view(id: \"game.main\")"))
         #expect(script.contains("func body()"))
         #expect(script.contains("@system"))
-        #expect(script.contains("func update(context)"))
+        #expect(script.contains("func update(context: AdaSystemContext)"))
         let project = try ProjectSystem.loadProject(at: projectURL)
         #expect(project.build.system == .adaScript)
         #expect(project.runtime.entryView == "game.main")

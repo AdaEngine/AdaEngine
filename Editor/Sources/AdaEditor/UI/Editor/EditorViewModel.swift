@@ -216,6 +216,14 @@ final class EditorViewModel {
         self.inspectorSidebar.sceneAssets = Self.sceneAssets(from: self.projectSidebar.items)
         self.inspectorSidebar.uiSourcePaths = Self.uiSourcePaths(from: self.projectSidebar.items)
         self.inspectorSidebar.uiSceneFiles = Self.uiSceneFiles(from: self.projectSidebar.items)
+        self.inspectorSidebar.uiSourceContent = { [weak workbench = self.workbench] path in
+            let target = URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath()
+            return workbench?.openDocuments.compactMap { document -> String? in
+                guard case .ui(let ui) = document, let sourcePath = ui.absolutePath,
+                      URL(fileURLWithPath: sourcePath).standardizedFileURL.resolvingSymlinksInPath() == target else { return nil }
+                return ui.content
+            }.first
+        }
         self.toolbar.searchableItems = self.projectSidebar.items
         self.agent.setProjectFileChangedHandler { [weak self] relativePath in
             self?.handleAgentProjectFileChanged(relativePath: relativePath, fileManager: fileManager)

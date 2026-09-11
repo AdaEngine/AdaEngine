@@ -56,6 +56,8 @@ struct EditorNotificationOverlay: View {
         }
         .padding(.trailing, 8)
         .padding(.bottom, 32)
+        // Flush earlier panel geometry before drawing the notification surface.
+        .drawingGroup()
         .onAppear { center.setPanelVisible(model.showsNotifications, owner: owner) }
         .onChange(of: model.showsNotifications) { _, visible in center.setPanelVisible(visible, owner: owner) }
         .onDisappear { center.setPanelVisible(false, owner: owner) }
@@ -174,6 +176,7 @@ struct EditorNotificationCard: View {
         .padding(.all, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.surface))
+        .onMiddleClick { center.dismiss(item.id) }
         .onHover { center.setHovered(item.id, $0) }
         .onDisappear { center.setHovered(item.id, false) }
         .accessibilityIdentifier("AdaEditor.Notification.\(item.id)")

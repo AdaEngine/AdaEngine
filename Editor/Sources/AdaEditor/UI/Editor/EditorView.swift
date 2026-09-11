@@ -22,7 +22,7 @@ enum AdaEngineStyleContent {
         EditorToolStripItem(identifier: "animator", title: "Animator", icon: "\u{E71C}"),
     ]
     static let rightSidebarTools = [
-        EditorToolStripItem(identifier: "agentChat", title: "Agent Chat", icon: "\u{E0CA}"),
+        EditorToolStripItem(identifier: "agentChat", title: "Agent Chat", icon: "\u{E65F}"),
         EditorToolStripItem(identifier: "inspector", title: "Inspector", icon: "\u{E88E}"),
         EditorToolStripItem(
             identifier: "projectDependencies", title: "Project Dependencies", icon: "\u{E48F}"),
@@ -111,9 +111,9 @@ struct EditorView: View {
     @State private var isRunDestinationMenuPresented = false
     @Environment(\.theme) private var theme
 
-    init(project: EditorProjectReference?) {
+    init(project: EditorProjectReference?, viewModel: EditorViewModel? = nil) {
         self.project = project
-        self._viewModel = State(initialValue: EditorViewModel(project: project))
+        self._viewModel = State(initialValue: viewModel ?? EditorViewModel(project: project))
         self._projectSwitcher = State(initialValue: EditorProjectSwitcherViewModel(currentProject: project))
     }
 
@@ -207,6 +207,9 @@ struct EditorView: View {
             EditorSafeAreaBackground()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            EditorAgentActivityOverlay(state: viewModel.agent.activityState)
+        }
     }
 
     var body: some View {

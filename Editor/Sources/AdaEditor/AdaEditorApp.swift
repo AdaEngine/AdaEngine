@@ -6,6 +6,7 @@
 //
 
 import AdaEngine
+import Foundation
 import Logging
 #if canImport(AdaMCPPlugin)
 import AdaMCPPlugin
@@ -22,6 +23,12 @@ struct AdaEditorApp: App {
         EditorSystemNotifications.shared.install(on: notifications)
         #endif
         Task { await notifications.start() }
+    }
+
+    private static var mcpPort: Int {
+        let value = CommandLine.arguments.first { $0.hasPrefix("--mcp-port=") }?.split(separator: "=").last
+        guard let value, let port = Int(value), (0...65535).contains(port) else { return 2510 }
+        return port
     }
 
     var body: some AppScene {
@@ -47,7 +54,7 @@ struct AdaEditorApp: App {
                 enableHTTP: true,
                 enableStdio: true,
                 host: "127.0.0.1",
-                port: 2510,
+                port: Self.mcpPort,
                 endpoint: "/mcp",
                 serverName: "AdaEngine Editor",
                 serverVersion: "0.1.0",

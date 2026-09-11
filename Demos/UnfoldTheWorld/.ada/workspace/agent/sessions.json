@@ -1,0 +1,17 @@
+{
+  "activeSessionID" : "5B5EDCEE-6A5F-4AEF-B155-DBF37B665CF6",
+  "sessions" : [
+    {
+      "createdAt" : "2026-09-10T18:46:39Z",
+      "id" : "5B5EDCEE-6A5F-4AEF-B155-DBF37B665CF6",
+      "title" : "Привет",
+      "updatedAt" : "2026-09-11T09:21:15Z"
+    },
+    {
+      "createdAt" : "2026-09-10T09:04:15Z",
+      "id" : "BE42F72E-7F08-4617-850A-1D91FB056BAF",
+      "title" : "Session BE42F7",
+      "updatedAt" : "2026-09-10T09:04:15Z"
+    }
+  ]
+}

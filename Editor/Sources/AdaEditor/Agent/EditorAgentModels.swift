@@ -1,3 +1,6 @@
+#if os(macOS)
+import CryptoKit
+#endif
 import Foundation
 import Yams
 
@@ -278,6 +281,7 @@ struct EditorAgentEvent: Codable, Equatable, Identifiable, Sendable {
 struct EditorAgentSession: Codable, Equatable, Identifiable, Sendable {
     var id: String
     var upstreamSessionID: String?
+    var agentTargetIdentity: String?
     var title: String
     var createdAt: Date
     var updatedAt: Date
@@ -303,6 +307,22 @@ struct EditorAgentSession: Codable, Equatable, Identifiable, Sendable {
         self.events = events
         self.selectedSkillIDs = selectedSkillIDs
         self.attachments = attachments
+    }
+}
+
+extension AdaProjectAgentTarget {
+    /// Persist a fingerprint so session history never copies connection environment secrets.
+    var sessionIdentity: String? {
+        #if os(macOS)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode(self) else {
+            return nil
+        }
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        #else
+        return nil
+        #endif
     }
 }
 
@@ -381,6 +401,22 @@ struct EditorAgentConfigurationSelector: Codable, Equatable, Identifiable, Senda
 struct EditorAgentSessionConfiguration: Codable, Equatable, Sendable {
     var agentName: String?
     var selectors: [EditorAgentConfigurationSelector]
+    var commands: [EditorAgentCommand]
+
+    init(agentName: String?, selectors: [EditorAgentConfigurationSelector], commands: [EditorAgentCommand] = []) {
+        self.agentName = agentName
+        self.selectors = selectors
+        self.commands = commands
+    }
+
+    private enum CodingKeys: String, CodingKey { case agentName, selectors, commands }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        agentName = try values.decodeIfPresent(String.self, forKey: .agentName)
+        selectors = try values.decode([EditorAgentConfigurationSelector].self, forKey: .selectors)
+        commands = try values.decodeIfPresent([EditorAgentCommand].self, forKey: .commands) ?? []
+    }
 
     static let empty = EditorAgentSessionConfiguration(agentName: nil, selectors: [])
 

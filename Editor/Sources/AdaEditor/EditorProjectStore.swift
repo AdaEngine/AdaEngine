@@ -110,7 +110,7 @@ private enum EditorProjectTemplateSourceFactory {
 
     @system(scheduler: "update", id: "game.main")
     class MainSystem {
-        func update(context) {
+        func update(context: AdaSystemContext) {
             // Add gameplay here. This system runs once per frame.
         }
     }

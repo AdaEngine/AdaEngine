@@ -130,13 +130,17 @@ extension MetalView {
         }
 
         for touch in touches {
+            let key = ObjectIdentifier(touch)
+            let contactID = activeTouchContacts[key] ?? RID()
+            activeTouchContacts[key] = contactID
             let point = touch.location(in: self)
 
             let touchEvent = TouchEvent(
                 window: self.windowID,
                 location: Point(Float(point.x), Float(point.y)),
                 phase: .began,
-                time: TimeInterval(event?.timestamp ?? 0)
+                time: TimeInterval(event?.timestamp ?? 0),
+                contactID: contactID
             )
 
             input?.wrappedValue.receiveEvent(touchEvent)
@@ -145,13 +149,17 @@ extension MetalView {
 
     open override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
+            let key = ObjectIdentifier(touch)
+            let contactID = activeTouchContacts[key] ?? RID()
+            activeTouchContacts[key] = contactID
             let point = touch.location(in: self)
 
             let touchEvent = TouchEvent(
                 window: self.windowID,
                 location: Point(Float(point.x), Float(point.y)),
                 phase: .moved,
-                time: TimeInterval(event?.timestamp ?? 0)
+                time: TimeInterval(event?.timestamp ?? 0),
+                contactID: contactID
             )
 
             input?.wrappedValue.receiveEvent(touchEvent)
@@ -160,31 +168,41 @@ extension MetalView {
 
     open override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
+            let key = ObjectIdentifier(touch)
+            let contactID = activeTouchContacts[key] ?? RID()
+            activeTouchContacts[key] = contactID
             let point = touch.location(in: self)
 
             let touchEvent = TouchEvent(
                 window: self.windowID,
                 location: Point(Float(point.x), Float(point.y)),
                 phase: .cancelled,
-                time: TimeInterval(event?.timestamp ?? 0)
+                time: TimeInterval(event?.timestamp ?? 0),
+                contactID: contactID
             )
 
             input?.wrappedValue.receiveEvent(touchEvent)
+            activeTouchContacts.removeValue(forKey: key)
         }
     }
 
     open override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         for touch in touches {
+            let key = ObjectIdentifier(touch)
+            let contactID = activeTouchContacts[key] ?? RID()
+            activeTouchContacts[key] = contactID
             let point = touch.location(in: self)
 
             let touchEvent = TouchEvent(
                 window: self.windowID,
                 location: Point(Float(point.x), Float(point.y)),
                 phase: .ended,
-                time: TimeInterval(event?.timestamp ?? 0)
+                time: TimeInterval(event?.timestamp ?? 0),
+                contactID: contactID
             )
 
             input?.wrappedValue.receiveEvent(touchEvent)
+            activeTouchContacts.removeValue(forKey: key)
         }
     }
 
@@ -205,6 +223,7 @@ extension MetalView {
                    modifiers: KeyModifier(modifiers: key.modifierFlags),
                    status: .down,
                    time: TimeInterval(event?.timestamp ?? 0),
+                contactID: contactID,
                    isRepeated: false
                )
 
@@ -237,6 +256,7 @@ extension MetalView {
                    modifiers: KeyModifier(modifiers: key.modifierFlags),
                    status: .down,
                    time: TimeInterval(event?.timestamp ?? 0),
+                contactID: contactID,
                    isRepeated: true
                )
 
@@ -265,6 +285,7 @@ extension MetalView {
                    modifiers: KeyModifier(modifiers: key.modifierFlags),
                    status: .up,
                    time: TimeInterval(event?.timestamp ?? 0),
+                contactID: contactID,
                    isRepeated: false
                )
 
@@ -290,6 +311,7 @@ extension MetalView {
                    modifiers: KeyModifier(modifiers: key.modifierFlags),
                    status: .up,
                    time: TimeInterval(event?.timestamp ?? 0),
+                contactID: contactID,
                    isRepeated: false
                )
 

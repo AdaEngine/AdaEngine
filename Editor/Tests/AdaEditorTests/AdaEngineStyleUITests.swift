@@ -1906,7 +1906,7 @@ struct AdaEngineStyleUITests {
 
         @system(scheduler: "update")
         class MovementSystem {
-            func update(context) {
+            func update(context: AdaSystemContext) {
             }
         }
         """)

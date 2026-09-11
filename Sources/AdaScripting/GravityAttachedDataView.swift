@@ -8,7 +8,9 @@ final class GravityAttachedComponentView: @unchecked Sendable {
     private let entityID: Entity.ID
     private let reportDiagnostic: @Sendable (String) -> Void
     private let virtualMachine: GravityVirtualMachine
-    private let world: World
+    // The VM may retain this bridge; it must never keep a stopped scene alive.
+    // Access runs under AdaScriptRuntimeCoordinator; each use retains a local world snapshot.
+    private weak var world: World?
 
     @GSExportableIgnore
     static func make(
@@ -46,11 +48,11 @@ final class GravityAttachedComponentView: @unchecked Sendable {
     }
 
     func available() -> Bool {
-        world.has(componentType.identifier, in: entityID)
+        world?.has(componentType.identifier, in: entityID) == true
     }
 
     func get(_ fieldName: String) -> GSValue? {
-        guard let descriptor,
+        guard let world, let descriptor,
               let field = descriptor.fields.first(where: { $0.key == fieldName }),
               let component = world.getComponent(named: descriptor.typeName, from: entityID),
               let value = field.read(component) else {
@@ -62,7 +64,7 @@ final class GravityAttachedComponentView: @unchecked Sendable {
 
     @discardableResult
     func set(_ fieldName: String, _ value: GSValue) -> Bool {
-        guard let descriptor,
+        guard let world, let descriptor,
               let fieldValue = AnnotatedGravityValueBridge.makeEditorFieldValue(value),
               descriptor.write(fieldValue, toField: fieldName, in: world, entity: entityID) else {
             reportDiagnostic("Invalid attached component field '\(fieldName)'")
@@ -79,7 +81,9 @@ final class GravityAttachedResourceView: @unchecked Sendable {
     private let reportDiagnostic: @Sendable (String) -> Void
     private let resourceType: any Resource.Type
     private let virtualMachine: GravityVirtualMachine
-    private let world: World
+    // The VM may retain this bridge; it must never keep a stopped scene alive.
+    // Access runs under AdaScriptRuntimeCoordinator; each use retains a local world snapshot.
+    private weak var world: World?
 
     @GSExportableIgnore
     static func make(
@@ -117,11 +121,11 @@ final class GravityAttachedResourceView: @unchecked Sendable {
     }
 
     func available() -> Bool {
-        world.getResource(named: String(reflecting: resourceType)) != nil
+        world?.getResource(named: String(reflecting: resourceType)) != nil
     }
 
     func get(_ fieldName: String) -> GSValue? {
-        guard let field = fields[fieldName],
+        guard let world, let field = fields[fieldName],
               let value = world.readResourceField(type: resourceType, field: field) else {
             if !optional {
                 reportDiagnostic("Unknown or unavailable attached resource field '\(fieldName)'")
@@ -133,7 +137,7 @@ final class GravityAttachedResourceView: @unchecked Sendable {
 
     @discardableResult
     func set(_ fieldName: String, _ value: GSValue) -> Bool {
-        guard let field = fields[fieldName],
+        guard let world, let field = fields[fieldName],
               let fieldValue = AnnotatedGravityValueBridge.makeEditorFieldValue(value),
               world.writeResourceField(type: resourceType, field: field, value: fieldValue) else {
             reportDiagnostic("Invalid attached resource field '\(fieldName)'")

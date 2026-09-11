@@ -47,17 +47,20 @@ enum EditorAgentServiceError: Error, LocalizedError, Sendable {
     case unsupportedPlatform
     case sessionUnavailable
     case pathOutsideProject(String)
+    case providerFailure(String)
 
     var errorDescription: String? {
         switch self {
         case .disabled:
-            "Agent is disabled for this project."
+            "Enable an agent in global settings."
         case .missingCommand:
             "ACP target command is not configured."
         case .unsupportedPlatform:
             "ACP agent integration is unavailable on this platform."
         case .sessionUnavailable:
             "ACP session is unavailable."
+        case .providerFailure(let message):
+            message
         case .pathOutsideProject(let path):
             "Agent path is outside the project: \(path)"
         }
@@ -101,9 +104,29 @@ private actor EditorAgentPermissionBroker {
     }
 }
 
+private actor EditorACPEventSink {
+    var onEvent: @Sendable (EditorAgentEvent) async -> Void
+    var onFileChanged: @Sendable (String) async -> Void
+
+    init(onEvent: @escaping @Sendable (EditorAgentEvent) async -> Void, onFileChanged: @escaping @Sendable (String) async -> Void) {
+        self.onEvent = onEvent
+        self.onFileChanged = onFileChanged
+    }
+
+    func update(onEvent: @escaping @Sendable (EditorAgentEvent) async -> Void, onFileChanged: @escaping @Sendable (String) async -> Void) {
+        self.onEvent = onEvent
+        self.onFileChanged = onFileChanged
+    }
+
+    func emit(_ event: EditorAgentEvent) async { await onEvent(event) }
+    func fileChanged(_ path: String) async { await onFileChanged(path) }
+}
+
 actor EditorACPAgentService: EditorAgentServicing {
     private struct ManagedSession {
         var client: Client
+        var eventSink: EditorACPEventSink
+        var agentSettings: AdaProjectAgent
         var upstreamSessionID: SessionId
         var supportsLoadSession: Bool
         var agentName: String?
@@ -158,6 +181,12 @@ actor EditorACPAgentService: EditorAgentServicing {
         managed.assistantText = managed.assistantText.trimmingCharacters(in: .whitespacesAndNewlines)
         sessions[request.session.id] = managed
 
+        if let failure = EditorAgentProviderFailure.message(in: managed.assistantText) {
+            throw EditorAgentServiceError.providerFailure(failure)
+        }
+        if managed.assistantText.isEmpty, response.stopReason.rawValue == "end_turn" {
+            await onEvent(EditorAgentEvent(kind: .error, title: "No response received", details: "The agent finished without sending a reply. Check its connection and model settings."))
+        }
         return EditorAgentRunResult(
             upstreamSessionID: managed.upstreamSessionID.value,
             assistantText: managed.assistantText,
@@ -201,7 +230,7 @@ actor EditorACPAgentService: EditorAgentServicing {
             let legacy = managed.configuration.selectors.filter { old in
                 old.usesLegacyMethod && !updated.selectors.contains { $0.category == old.category }
             }
-            managed.configuration = EditorAgentSessionConfiguration(agentName: managed.agentName, selectors: updated.selectors + legacy)
+            managed.configuration = EditorAgentSessionConfiguration(agentName: managed.agentName, selectors: updated.selectors + legacy, commands: managed.configuration.commands)
         }
         sessions[sessionID] = managed
         return managed.configuration
@@ -233,24 +262,31 @@ actor EditorACPAgentService: EditorAgentServicing {
         onEvent: @escaping @Sendable (EditorAgentEvent) async -> Void,
         onProjectFileChanged: @escaping @Sendable (String) async -> Void
     ) async throws -> ManagedSession {
-        if let existing = sessions[request.session.id] {
-            return existing
-        }
-
         let agentConfig = request.project.ai.agent
+        guard agentConfig.enabled else { throw EditorAgentServiceError.disabled }
+        if let existing = sessions[request.session.id] {
+            if existing.agentSettings == agentConfig {
+                await existing.eventSink.update(onEvent: onEvent, onFileChanged: onProjectFileChanged)
+                return existing
+            }
+            existing.notificationTask.cancel()
+            await existing.client.terminate()
+            sessions.removeValue(forKey: request.session.id)
+        }
         guard let command = agentConfig.target.command?.trimmingCharacters(in: .whitespacesAndNewlines), !command.isEmpty else {
             throw EditorAgentServiceError.missingCommand
         }
 
         let client = Client()
+        let eventSink = EditorACPEventSink(onEvent: onEvent, onFileChanged: onProjectFileChanged)
         let projectURL = request.projectURL.standardizedFileURL
         let delegate = EditorACPClientDelegate(
             localSessionID: request.session.id,
             projectURL: projectURL,
             permissionMode: agentConfig.permissionMode,
             permissionBroker: permissionBroker,
-            onEvent: onEvent,
-            onProjectFileChanged: onProjectFileChanged
+            onEvent: { await eventSink.emit($0) },
+            onProjectFileChanged: { await eventSink.fileChanged($0) }
         )
         await client.setDelegate(delegate)
 
@@ -275,7 +311,7 @@ actor EditorACPAgentService: EditorAgentServicing {
         let models: ModelsInfo?
         let configOptions: [SessionConfigOption]?
         let supportsLoadSession = initialized.agentCapabilities.loadSession == true
-        if let upstream = request.session.upstreamSessionID, supportsLoadSession {
+        if let upstream = request.session.upstreamSessionID, supportsLoadSession, request.session.agentTargetIdentity == agentConfig.target.sessionIdentity {
             let response = try await client.loadSession(sessionId: SessionId(upstream), cwd: workingDirectory.path)
             upstreamSessionID = response.sessionId
             modes = response.modes
@@ -300,7 +336,7 @@ actor EditorACPAgentService: EditorAgentServicing {
                     localSessionID: localSessionID,
                     upstreamSessionID: upstreamSessionID,
                     notification: notification,
-                    onEvent: onEvent
+                    onEvent: { await eventSink.emit($0) }
                 )
             }
         }
@@ -308,6 +344,8 @@ actor EditorACPAgentService: EditorAgentServicing {
         let agentName = initialized.agentInfo?.title ?? initialized.agentInfo?.name
         let managed = ManagedSession(
             client: client,
+            eventSink: eventSink,
+            agentSettings: agentConfig,
             upstreamSessionID: upstreamSessionID,
             supportsLoadSession: supportsLoadSession,
             agentName: agentName,
@@ -432,13 +470,19 @@ actor EditorACPAgentService: EditorAgentServicing {
         }
 
         switch payload.update {
+        case .availableCommandsUpdate(let commands):
+            managed.configuration.commands = commands.map {
+                EditorAgentCommand(name: $0.name, description: $0.description, inputHint: $0.input?.hint)
+            }
+            sessions[localSessionID] = managed
+            await onEvent(EditorAgentEvent(kind: .runStatus, configuration: managed.configuration))
         case .configOptionUpdate(let options):
             let updated = Self.configuration(agentName: managed.agentName, modes: nil, models: nil, configOptions: options)
             // Preserve legacy selectors when the provider only updates modern config options.
             let legacy = managed.configuration.selectors.filter { old in
                 old.usesLegacyMethod && !updated.selectors.contains { $0.category == old.category }
             }
-            managed.configuration = EditorAgentSessionConfiguration(agentName: managed.agentName, selectors: updated.selectors + legacy)
+            managed.configuration = EditorAgentSessionConfiguration(agentName: managed.agentName, selectors: updated.selectors + legacy, commands: managed.configuration.commands)
             sessions[localSessionID] = managed
             await onEvent(EditorAgentEvent(kind: .runStatus, configuration: managed.configuration))
         case .currentModeUpdate(let modeID):

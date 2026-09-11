@@ -141,7 +141,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
                 func ready(context) {
                 }
 
-                func update(context) {
+                func update(context: AdaScriptableContext) {
                 }
 
                 func destroy(context) {
@@ -154,7 +154,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
 
             @system(scheduler: "update")
             class \(name.hasSuffix("System") ? name : name + "System") {
-                func update(context) {
+                func update(context: AdaSystemContext) {
                 }
             }
             """

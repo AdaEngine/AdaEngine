@@ -51,7 +51,7 @@ enum GravitySemanticAnalyzer {
         case .string:
             return .string
         case .punctuation:
-            return nil
+            return token.text == "@" && nextSignificantToken(after: index, in: tokens)?.kind == .identifier ? .macro : nil
         case .identifier:
             return identifierKind(at: index, token: token, tokens: tokens, typeRegions: typeRegions)
         }

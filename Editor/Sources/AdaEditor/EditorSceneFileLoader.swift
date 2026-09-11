@@ -133,7 +133,7 @@ enum EditorSceneFileLoader {
 
                 do {
                     if let component = try EditorComponentRegistry.decode(typeName: componentName, payload: componentPayload) {
-                        if let ui = component as? UIComponent {
+                        if let ui = (component as? UIComponent) ?? (component as? CompanionPanel)?.ui {
                             let runtime = world.getResource(UIComponentRuntimeResource.self)?.runtime
                             if let source = ui.source { try runtime?.validateScriptBindings(source: source) }
                             // Script values arrive after ready/update. Keep the component until then,
