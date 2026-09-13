@@ -6,22 +6,27 @@ enum EditorNotificationTab { case notifications, activity }
 struct EditorNotificationBell: View {
     let model: EditorViewModel
     var center = EditorNotificationCenter.shared
-    @Environment(\.theme)
-    private var theme
 
     var body: some View {
         Button {
             model.showsNotifications.toggle()
         } label: {
-            HStack(spacing: 4) {
-                Text("\u{E7F4}").font(AdaEditorMaterialSymbolFont.font(size: 18))
-                if center.unreadCount > 0 { Text("\(min(center.unreadCount, 99))").font(.system(size: 11)) }
-            }
-            .foregroundColor(center.unreadCount > 0 ? theme.editorColors.blue : theme.editorColors.text)
-            .frame(minWidth: 30, minHeight: 24)
+            Text("\u{E7F4}")
+                .font(AdaEditorMaterialSymbolFont.font(size: 18))
+                .foregroundColor(.white)
+                .frame(width: 30, height: 24)
+                .overlay(anchor: .topTrailing) {
+                    if center.unreadCount > 0 {
+                        RoundedRectangleShape(cornerRadius: 3.5).fill(Color(red: 0.95, green: 0.22, blue: 0.25))
+                            .frame(width: 7, height: 7)
+                            .accessibilityIdentifier("AdaEditor.Notifications.UnreadBadge")
+                    }
+                }
         }
         .buttonStyle(DefaultButtonStyle())
         .accessibilityIdentifier("AdaEditor.Notifications.Bell")
+        .padding(.horizontal, 8)
+        .padding(.bottom, 6)
     }
 }
 

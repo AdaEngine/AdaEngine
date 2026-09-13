@@ -76,7 +76,7 @@ final class EditorLibrariesViewModel {
     }
 }
 
-struct EditorLibrariesSettingsView: View {
+struct EditorLibrariesView: View {
     let viewModel: EditorLibrariesViewModel
     @Environment(\.theme) private var theme
 
@@ -109,12 +109,14 @@ struct EditorLibrariesSettingsView: View {
                 get: { viewModel.revision }, set: { viewModel.revision = $0 }
             ))
             .accessibilityIdentifier("AdaEditor.Libraries.Revision")
-            HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 Button("Install / Update") { Task { await viewModel.install() } }
                     .accessibilityIdentifier("AdaEditor.Libraries.Install")
                 Button("Restore Locked Libraries") { Task { await viewModel.restore() } }
                     .accessibilityIdentifier("AdaEditor.Libraries.Restore")
             }
+            .font(.system(size: 12))
+            .buttonStyle(DefaultButtonStyle())
             .disabled(viewModel.isWorking)
         }
     }

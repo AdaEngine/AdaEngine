@@ -16,7 +16,7 @@ struct ProjectOpeningTemplateTests {
             storageURL: rootURL.appendingPathComponent("projects.json"),
             adaEnginePackageURL: EditorProjectStore.defaultAdaEnginePackageURL()
         )
-        let reference = try store.createProject(named: "Script Game", at: rootURL, template: .adaScript)
+        let reference = try store.createProject(named: "Script Game", at: rootURL, template: .adaScript, asPackage: true)
         let projectURL = URL(fileURLWithPath: reference.path, isDirectory: true)
         let sourcesURL = projectURL.appendingPathComponent("Sources", isDirectory: true)
 

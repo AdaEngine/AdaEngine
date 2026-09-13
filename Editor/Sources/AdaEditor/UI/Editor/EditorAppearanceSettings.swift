@@ -122,8 +122,15 @@ struct EditorAgentGlowSettings: View {
             TextField("0", text: Binding(get: { String(format: "%.0f", value) }, set: { text in
                 if let number = Double(text.replacingOccurrences(of: ",", with: ".")), number.isFinite { onChange(number) }
             }))
+            .textFieldStyle(PlainTextFieldStyle())
             .font(.system(size: 12))
+            .foregroundColor(theme.editorColors.text)
+            .padding(.horizontal, 8)
             .frame(width: 52, height: 28)
+            .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surface))
+            .overlay {
+                RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.border, lineWidth: 1)
+            }
             .accessibilityIdentifier("AdaEditor.Settings.AgentGlow.\(id)")
             Text(unit).font(.system(size: 11))
             Button("+") { onChange(value + step) }

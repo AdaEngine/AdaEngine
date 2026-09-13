@@ -5,16 +5,23 @@
 //  Created by Vladislav Prusakov on 29.05.2025.
 //
 
-import AdaECS
 import AdaApp
+import AdaECS
+import Foundation
 import Logging
+import Math
 
 /// The Input plugin handle system input events and ``Input`` resource to the world.
 public struct InputPlugin: Plugin {
 
     @Local private var controllerEngine: GameControllerEngine?
 
-    public init() { }
+    private let actions: [InputAction]?
+
+    /// Uses an explicit map, or loads `.ada/project.json` from the working directory for Swift games.
+    public init(actions: [InputAction]? = nil) {
+        self.actions = actions
+    }
 
     public func setup(in app: AppWorlds) {
         #if canImport(Darwin)
@@ -24,8 +31,24 @@ public struct InputPlugin: Plugin {
         controllerEngine = nil
         #endif
 
+        var input = Input(gameControllerEngine: controllerEngine)
+        do {
+            if let actions {
+                try input.setInputActions(actions)
+            } else {
+                let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                    .appendingPathComponent(".ada/project.json")
+                if FileManager.default.fileExists(atPath: url.path) {
+                    struct ProjectInput: Decodable { var inputActions: [InputAction]? }
+                    let project = try JSONDecoder().decode(ProjectInput.self, from: Data(contentsOf: url))
+                    try input.setInputActions(project.inputActions ?? [])
+                }
+            }
+        } catch {
+            Logger(label: "org.adaengine.AdaInput").error("Unable to load input actions: \(error.localizedDescription)")
+        }
         app
-            .insertResource(Input(gameControllerEngine: controllerEngine))
+            .insertResource(input)
             .addSystem(InputStartupSystem.self, on: .startup)
             .addSystem(InputEventParseSystem.self, on: .preUpdate)
             .addSystem(InputEventsCleanupSystem.self, on: .postUpdate)
@@ -48,6 +71,7 @@ public struct InputEventParseSystem {
 
     @MainActor
     public func update(context: UpdateContext) {
+        input.beginActionFrame()
         input.flushPendingEvents()
         for event in input.eventsPool {
             switch event {
@@ -63,8 +87,26 @@ public struct InputEventParseSystem {
                 }
             case let mouseEvent as MouseEvent:
                 input.mouseEvents[mouseEvent.button] = mouseEvent
+                if mouseEvent.button == .scrollWheel, mouseEvent.scrollDelta.y != 0 {
+                    input.actionScrollDirections.insert(mouseEvent.scrollDelta.y > 0 ? .positive : .negative)
+                }
+                if mouseEvent.button != .scrollWheel, mouseEvent.phase == .changed {
+                    input.actionMouseMoved = true
+                }
             case let touchEvent as TouchEvent:
-                input.touches.insert(touchEvent)
+                input.touches = input.touches.filter {
+                    $0.contactID != touchEvent.contactID || $0.window != touchEvent.window
+                }
+                switch touchEvent.phase {
+                case .began, .moved: input.touches.insert(touchEvent)
+                case .ended, .cancelled: break
+                }
+                switch touchEvent.phase {
+                case .began: input.actionTouchPhases.insert(.began)
+                case .moved: input.actionTouchPhases.insert(.moved)
+                case .ended: input.actionTouchPhases.insert(.ended)
+                case .cancelled: input.actionTouchPhases.insert(.cancelled)
+                }
             case let keyboardEvent as KeyboardEvent:
                 input.keyboardState = Input.KeyboardState(event: keyboardEvent)
             case let gamepadConnectionEvent as GamepadConnectionEvent:
@@ -104,6 +146,7 @@ public struct InputEventParseSystem {
             default:
                 break
             }
+            input.updateActionStates()
         }
     }
 }

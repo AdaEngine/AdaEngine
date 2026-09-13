@@ -1,5 +1,27 @@
 @_spi(AdaEngine) import AdaEngine
 
+enum AdaEditorTitleFont {
+    private static let resource: FontResource? = {
+        guard let fontURL = Foundation.Bundle.editor.url(
+            forResource: "CalSans-Regular",
+            withExtension: "ttf",
+            subdirectory: "Assets/Fonts"
+        ) else {
+            return nil
+        }
+
+        return FontResource.custom(fontPath: fontURL)
+    }()
+
+    static func font(size: Double) -> Font {
+        guard let resource else {
+            return .system(size: size)
+        }
+
+        return Font(fontResource: resource, pointSize: size)
+    }
+}
+
 @MainActor
 func adaEditorPanelTitle(_ title: String, trailing: String, theme: Theme) -> some View {
     let colors = theme.editorColors

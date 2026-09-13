@@ -281,6 +281,8 @@ extension EditorViewModel {
 
     func selectRunDestination(_ destination: EditorRunDestination) {
         selectedRunDestination = destination
+        // A paired device is session state, not a change to project platform settings.
+        guard destination != .player else { return }
         guard let projectURL else {
             return
         }
@@ -341,7 +343,7 @@ extension EditorViewModel {
         }
     }
 
-    func saveProjectSettings(runtime: AdaProjectRuntime? = nil) {
+    func saveProjectSettings(runtime: AdaProjectRuntime? = nil, inputActions: [InputAction]? = nil) {
         guard let projectURL else {
             projectSettingsStatusMessage = "No project is open."
             return
@@ -359,6 +361,7 @@ extension EditorViewModel {
             } else {
                 targetName = ""
             }
+            if let inputActions { settings.inputActions = inputActions }
             settings.project.displayName = Self.optionalText(from: projectDisplayNameText)
             settings.project.bundleIdentifier = Self.optionalText(from: projectBundleIdentifierText)
             settings.editor.startupScene = Self.optionalText(from: projectMainSceneText)

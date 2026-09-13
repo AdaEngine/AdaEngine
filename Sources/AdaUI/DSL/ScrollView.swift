@@ -17,19 +17,24 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
     public var body: Never { fatalError() }
 
     let axis: Axis
+    let showsIndicators: Bool
     let content: () -> Content
 
+    /// Creates a scroll view, optionally showing viewport indicators when content overflows.
     public init(
         _ axis: Axis = .vertical,
+        showsIndicators: Bool = false,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.axis = axis
+        self.showsIndicators = showsIndicators
         self.content = content
     }
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
         let node = ScrollViewNode(layout: ZStackLayout(anchor: .topLeading), content: content)
         node.axis = self.axis
+        node.showsIndicators = self.showsIndicators
         node.updateEnvironment(context.environment)
         context.environment.scrollViewProxy?.subsribe(node)
         node.invalidateContent()
@@ -42,6 +47,14 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
 
 final class ScrollViewNode: LayoutViewContainerNode {
     var axis: Axis = .vertical
+    var showsIndicators = false
+
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+        guard let scroll = newNode as? ScrollViewNode else { return }
+        axis = scroll.axis
+        showsIndicators = scroll.showsIndicators
+    }
 
     override var isClipping: Bool {
         return true
@@ -531,6 +544,33 @@ final class ScrollViewNode: LayoutViewContainerNode {
         context.translateBy(x: -contentOffset.x, y: contentOffset.y)
         super.draw(with: context)
         context.popClipRect()
+        context.translateBy(x: contentOffset.x + frame.origin.x, y: -contentOffset.y - frame.origin.y)
+        for rect in scrollIndicatorRects {
+            context.drawRect(rect, color: .white.opacity(0.45))
+        }
+    }
+
+    /// Indicator bounds remain in viewport coordinates, independent of content translation.
+    var scrollIndicatorRects: [Rect] {
+        guard showsIndicators, frame.width >= 10, frame.height >= 10 else { return [] }
+        let inset: Float = 3
+        let thickness: Float = 4
+        let vertical = axis.contains(.vertical) && contentSize.height > frame.height + 0.5
+        let horizontal = axis.contains(.horizontal) && contentSize.width > frame.width + 0.5
+        var result: [Rect] = []
+        if vertical {
+            let track = max(0, frame.height - inset * 2 - (horizontal ? thickness + inset : 0))
+            let length = min(track, max(24, track * frame.height / contentSize.height))
+            let progress = min(1, max(0, contentOffset.y / (contentSize.height - frame.height)))
+            result.append(Rect(x: max(0, frame.width - inset - thickness), y: inset + (track - length) * progress, width: thickness, height: length))
+        }
+        if horizontal {
+            let track = max(0, frame.width - inset * 2 - (vertical ? thickness + inset : 0))
+            let length = min(track, max(24, track * frame.width / contentSize.width))
+            let progress = min(1, max(0, contentOffset.x / (contentSize.width - frame.width)))
+            result.append(Rect(x: inset + (track - length) * progress, y: max(0, frame.height - inset - thickness), width: length, height: thickness))
+        }
+        return result
     }
 
     override func drawInspectionLayoutBounds(with context: UIGraphicsContext) {

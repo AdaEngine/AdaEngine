@@ -29,6 +29,7 @@ let package = Package(
     dependencies: [
         .package(name: "AdaEngine", path: ".."),
         .package(name: "AdaDebugging", path: "Debugging"),
+        .package(name: "AdaPlayerConnect", path: "PlayerConnect"),
         adaMCPPackage,
         .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
         .package(url: "https://github.com/TeamSloppy/swift-acp", branch: "main"),
@@ -68,10 +69,13 @@ let package = Package(
             name: "AdaEditor",
             dependencies: [
                 .product(name: "AdaDebugging", package: "AdaDebugging"),
+                .product(name: "AdaPlayerConnect", package: "AdaPlayerConnect"),
                 .product(name: "AdaEngine", package: "AdaEngine"),
                 .product(name: "AdaScriptCompilerCore", package: "AdaEngine"),
                 .product(name: "Math", package: "AdaEngine"),
                 .product(name: "AdaMCPPlugin", package: "AdaMCP"),
+                .product(name: "AdaMCPCore", package: "AdaMCP"),
+                .product(name: "MCP", package: "AdaMCP"),
                 .product(name: "ACP", package: "swift-acp", condition: .when(platforms: [.macOS])),
                 .product(name: "ACPModel", package: "swift-acp", condition: .when(platforms: [.macOS])),
                 .product(name: "SwiftParser", package: "swift-syntax"),
@@ -95,7 +99,10 @@ let package = Package(
             name: "AdaEditorTests",
             dependencies: [
                 .product(name: "AdaDebugging", package: "AdaDebugging"),
+                .product(name: "AdaPlayerConnect", package: "AdaPlayerConnect"),
                 "AdaEditor",
+                .product(name: "AdaMCPCore", package: "AdaMCP"),
+                .product(name: "MCP", package: "AdaMCP"),
                 "AdaPackageManifestTool",
                 "GravityLanguageCore",
                 "GravityLanguageServerProtocol",

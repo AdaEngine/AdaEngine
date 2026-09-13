@@ -9,6 +9,11 @@ import Synchronization
 import Tracing
 
 public enum AdaTrace {
+    /// Profiling target inherited by child tasks and nested render worlds.
+    @TaskLocal public static var profileTargetID: String?
+    /// True only while executing the target's own update, not a nested render update.
+    @TaskLocal public static var profileFrameRoot = false
+
     @usableFromInline
     static let recordingEnabled = Atomic(true)
 

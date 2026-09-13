@@ -59,6 +59,7 @@ final class ProjectOpeningViewModel {
     var projectToOpenInEditorToken = 0
     var isOpeningLastProject = false
     var shouldCreateGitRepository = true
+    var shouldCreateProjectPackage = EditorProjectStore.defaultUsesProjectPackage
     var projectBeingRenamed: EditorProjectReference?
     var renamedProjectName = ""
     var recentProjectError: String?
@@ -110,7 +111,7 @@ final class ProjectOpeningViewModel {
         Binding(
             get: { self.selectedTemplate.displayName },
             set: { name in
-                if let template = EditorProjectTemplate.allCases.first(where: { $0.displayName == name }) {
+                if let template = self.availableTemplates.first(where: { $0.displayName == name }) {
                     self.selectedTemplate = template
                 }
             }
@@ -136,7 +137,7 @@ final class ProjectOpeningViewModel {
     var existingProjectPathDisplayText: String {
         let trimmed = existingProjectPath.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            return "Choose an Ada project package"
+            return "Choose an Ada project folder or .adaproject package"
         }
         return Self.abbreviatedPath(trimmed)
     }
@@ -186,10 +187,14 @@ final class ProjectOpeningViewModel {
         return Self.abbreviatedPath(trimmed)
     }
 
+    var availableTemplates: [EditorProjectTemplate] { store.distribution.projectTemplates }
+    var supportsSwiftProjects: Bool { store.distribution.supportsSwiftProjects }
+
     private let store: EditorProjectStore
 
     init(store: EditorProjectStore = EditorProjectStore()) {
         self.store = store
+        self.shouldCreateGitRepository = store.distribution.supportsSwiftProjects
         reloadRecentProjects()
     }
 
@@ -241,6 +246,7 @@ final class ProjectOpeningViewModel {
         let storageURL = store.storageURL
         let adaEnginePackageURL = store.adaEnginePackageURL
         let documentsDirectoryURL = store.documentsDirectoryURL
+        let distribution = store.distribution
         let lastProjectURL = retainedProjectURL(for: lastProject)
 
         // Foundation does not provide asynchronous file reads here. Keep the blocking project validation
@@ -250,7 +256,8 @@ final class ProjectOpeningViewModel {
                 storageURL: storageURL,
                 fileManager: FileManager(),
                 adaEnginePackageURL: adaEnginePackageURL,
-                documentsDirectoryURL: documentsDirectoryURL
+                documentsDirectoryURL: documentsDirectoryURL,
+                distribution: distribution
             )
             guard backgroundStore.fileManager.fileExists(atPath: lastProjectURL.path) else {
                 return BackgroundProjectOpenResult.unavailable
@@ -323,9 +330,10 @@ final class ProjectOpeningViewModel {
             let createdProject = try store.createProject(
                 named: projectName,
                 at: URL(fileURLWithPath: projectLocation, isDirectory: true),
-                template: selectedTemplate
+                template: selectedTemplate,
+                asPackage: shouldCreateProjectPackage
             )
-            if shouldCreateGitRepository {
+            if shouldCreateGitRepository && supportsSwiftProjects {
                 let gitResult = initializeGitRepositoryIfNeeded(at: createdProject.path)
                 if let gitResult {
                     statusMessage = "Created project: \(createdProject.path). \(gitResult)"
@@ -376,8 +384,9 @@ final class ProjectOpeningViewModel {
         suggestedName: String? = nil
     ) {
         selectedProject = nil
-        shouldCreateGitRepository = true
-        if let template {
+        shouldCreateProjectPackage = EditorProjectStore.defaultUsesProjectPackage
+        shouldCreateGitRepository = supportsSwiftProjects
+        if let template, availableTemplates.contains(template) {
             selectedTemplate = template
         }
         if let suggestedName {

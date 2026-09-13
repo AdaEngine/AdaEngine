@@ -305,8 +305,8 @@ private extension EditorCodeFileView {
     var editorColors: TextEditorColors {
         TextEditorColors(
             background: theme.editorColors.surfaceElevated,
-            border: theme.editorColors.border.opacity(0.55),
-            focusedBorder: theme.editorColors.blue,
+            border: .clear,
+            focusedBorder: .clear,
             gutter: colorPalette.lineNumber,
             gutterRule: theme.editorColors.border.opacity(0.45),
             currentLineBackground: colorPalette.currentLineBackground,
@@ -330,14 +330,16 @@ private extension EditorCodeFileView {
 
     func color(for token: EditorSemanticToken) -> Color {
         switch token.type {
-        case "keyword", "macro":
+        case "macro", "decorator":
+            colorPalette.annotationColor
+        case "keyword":
             colorPalette.keyword
         case "class", "enum", "interface", "struct", "type", "typeParameter":
             colorPalette.type
         case "function", "method":
-            colorPalette.type
+            colorPalette.functionColor
         case "property" where document.language == .ada:
-            colorPalette.type
+            colorPalette.memberColor
         case "string":
             colorPalette.string
         case "number":
@@ -870,11 +872,13 @@ private enum EditorTreeSitterSwiftSyntaxHighlighter {
             return palette.number
         }
 
-        if name.hasPrefix("keyword") || name == "attribute" {
+        if name == "attribute" { return palette.annotationColor }
+        if name.hasPrefix("function") { return palette.functionColor }
+        if name.hasPrefix("keyword") {
             return palette.keyword
         }
 
-        if name.hasPrefix("type") || name == "constructor" || name.hasPrefix("function") {
+        if name.hasPrefix("type") || name == "constructor" {
             return palette.type
         }
 
@@ -1212,7 +1216,7 @@ enum EditorSyntaxHighlighter {
             }
             if characters[column] == "@", column + 1 < characters.count, isIdentifierStart(characters[column + 1]) {
                 let endColumn = identifierEnd(in: characters, from: column + 1)
-                appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.keyword, to: &spans)
+                appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.annotationColor, to: &spans)
                 column = endColumn
                 continue
             }
@@ -1228,10 +1232,12 @@ enum EditorSyntaxHighlighter {
                 let word = String(characters[column..<endColumn])
                 if gravityKeywords.contains(word.lowercased()) {
                     appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.keyword, to: &spans)
-                } else if word.first?.isUppercase == true
-                    || characters[..<column].last(where: { !$0.isWhitespace }) == "."
-                    || characters[endColumn...].first(where: { !$0.isWhitespace }) == "(" {
+                } else if word.first?.isUppercase == true {
                     appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.type, to: &spans)
+                } else if characters[endColumn...].first(where: { !$0.isWhitespace }) == "(" {
+                    appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.functionColor, to: &spans)
+                } else if characters[..<column].last(where: { !$0.isWhitespace }) == "." {
+                    appendSpan(line: lineIndex, start: column, end: endColumn, color: palette.memberColor, to: &spans)
                 }
                 column = endColumn
                 continue

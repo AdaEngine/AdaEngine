@@ -68,6 +68,30 @@ struct ClippedLayerCacheTests {
         }
     }
 
+    @Test
+    func disablingLayerCachingRetessellatesNestedContents() async throws {
+        let world = makeWorld()
+        let child = UILayer(frame: Rect(x: 0, y: 0, width: 30, height: 30)) { context, size in
+            context.drawRect(Rect(origin: .zero, size: size), color: .green)
+        }
+        let parent = UILayer(frame: Rect(x: 0, y: 0, width: 100, height: 100)) { context, size in
+            context.drawRect(Rect(origin: .zero, size: size), color: .blue)
+            child.drawLayer(in: context)
+        }
+        func context() -> UIGraphicsContext {
+            var context = UIGraphicsContext()
+            context.allowsLayerCaching = false
+            parent.drawLayer(in: context)
+            return context
+        }
+        let first = try await build(context(), in: world)
+        let second = try await build(context(), in: world)
+        #expect(first.count == second.count)
+        #expect(second.compactMap { $0.drawData.quadVertexBuffer.elements.first?.color } == [.blue, .green])
+        #expect(first.last?.drawData.quadVertexBuffer.buffer !== second.last?.drawData.quadVertexBuffer.buffer)
+        #expect(world.getResource(UILayerDrawCache.self)?.entries.isEmpty == true)
+    }
+
     private func build(_ context: UIGraphicsContext, in world: World) async throws -> [UITransparentRenderItem] {
         var pending = PendingUIGraphicsContext()
         pending.graphicContexts.append(context)

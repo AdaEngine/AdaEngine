@@ -296,6 +296,7 @@ public struct CameraRenderGraph {
 public func ExtractCamera(
     _ world: World,
     _ commands: Commands,
+    _ surfaces: Res<WindowSurfaces>,
     _ cachedViewTargets: ResMut<ExtractedCameraRenderViewTargets>,
     _ query: Extract<
         Query<
@@ -313,6 +314,11 @@ public func ExtractCamera(
     query.wrappedValue.forEach {
         entity, camera, transform,
         visibleEntities, uniform, graph in
+        // Embedded scenes render into textures. Authored window cameras belong
+        // to the game and have no native surface in this render world.
+        if case .window = camera.renderTarget, !surfaces.allowsWindowRendering {
+            return
+        }
         activeCameraIds.insert(entity.id)
 
         let renderViewTarget = cachedViewTargets.targets[entity.id]?.cacheableCopy ?? RenderViewTarget()

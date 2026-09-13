@@ -6,6 +6,7 @@ import Observation
 extension EditorViewModel {
     func openProjectItem(_ item: EditorProjectSidebarViewModel.Item) {
         if item.isFolder {
+            projectSidebar.select(item)
             projectSidebar.toggleFolder(item)
             return
         }
@@ -202,10 +203,12 @@ extension EditorViewModel {
     }
 
     func handleAgentProjectFileChanged(relativePath: String, fileManager: FileManager = .default) {
-        projectSidebar.items = Self.projectTreeItems(for: project, fileManager: fileManager)
-        toolbar.searchableItems = projectSidebar.items
-        syncInspectorTextureAssets()
+        refreshProjectFiles(logsRefresh: false)
         refreshSourceControl()
+        reloadOpenProjectFile(relativePath: relativePath)
+    }
+
+    func reloadOpenProjectFile(relativePath: String) {
         guard let projectURL else {
             return
         }

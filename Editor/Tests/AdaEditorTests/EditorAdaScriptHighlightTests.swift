@@ -54,6 +54,35 @@ struct EditorAdaScriptHighlightTests {
         #expect(color(line: 8, column: 21) == palette.string)
     }
 
+    @Test("Inserting an unfinished annotation invalidates old tokens and keeps subsequent lines colored", arguments: [EditorCodePalettePreset.adaDark, .godot])
+    func editsInvalidateSemanticPositions(preset: EditorCodePalettePreset) throws {
+        let original = "@system(scheduler: \"update\")\nclass MainSystem {\n    func update(context: AdaSystemContext) {\n        // gameplay\n    }\n}"
+        let changed = original.replacingOccurrences(of: "    func", with: "    @export\n    func")
+        let model = EditorWorkbenchViewModel()
+        var document = EditorTextDocument(id: "edit", title: "Main.ada", relativePath: "Main.ada", language: .ada, content: original, errorMessage: nil)
+        let oldTokens = EditorGravityLanguageService.semanticTokens(text: original)
+        #expect(!oldTokens.isEmpty)
+        document.semanticTokens = oldTokens
+        model.open(.text(document))
+        model.textDocumentBinding(documentID: document.id).wrappedValue = changed
+        #expect(try #require(model.textDocument(id: document.id)).semanticTokens.isEmpty)
+        model.applySemanticTokens(oldTokens, documentID: document.id, source: original)
+        let updated = try #require(model.textDocument(id: document.id))
+        #expect(updated.semanticTokens.isEmpty)
+        let palette = preset.palette
+        let container = UIContainerView(rootView: makeView(document: updated, model: model, palette: palette).theme(.adaEditor))
+        container.frame = Rect(x: 0, y: 0, width: 900, height: 600)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        let node = try #require(editorNode(in: container.viewTree.rootNode))
+        #expect(node.tokenSpans.contains { $0.line == 2 && $0.startColumn == 4 && $0.length == 7 && $0.color == palette.annotationColor })
+        #expect(node.tokenSpans.contains { $0.line == 3 && $0.startColumn == 4 && $0.length == 4 && $0.color == palette.keyword })
+        #expect(node.tokenSpans.contains { $0.line == 4 && $0.startColumn == 8 && $0.color == palette.comment })
+        let newTokens = EditorGravityLanguageService.semanticTokens(text: changed)
+        model.applySemanticTokens(newTokens, documentID: document.id, source: changed)
+        #expect(try #require(model.textDocument(id: document.id)).semanticTokens == newTokens)
+    }
+
     private func makeView(
         document: EditorTextDocument,
         model: EditorWorkbenchViewModel,

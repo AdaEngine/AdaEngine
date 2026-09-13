@@ -64,6 +64,16 @@ public class Material: Asset, Hashable, @unchecked Sendable {
     
     /// Updates material values.
     open func update() { }
+
+    /// Supplies shader stages for a material, including materials loaded directly from runtime sources.
+    open func makeShaderModule(defines: [ShaderDefine]) throws -> ShaderModule {
+        let compiler = ShaderCompiler(shaderSource: shaderSource)
+        for define in defines {
+            compiler.setMacro(define.name, value: define.value, for: .vertex)
+            compiler.setMacro(define.name, value: define.value, for: .fragment)
+        }
+        return try compiler.compileShaderModule()
+    }
     
     // MARK: Hashable
     

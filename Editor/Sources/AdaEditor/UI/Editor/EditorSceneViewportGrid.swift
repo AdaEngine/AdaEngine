@@ -240,7 +240,14 @@ extension EditorSceneViewportModel {
             return
         }
 
-        context.drawLine(start: projectedStart, end: projectedEnd, lineWidth: lineWidth, color: color)
+        // Projection returns screen coordinates (Y down). Raw UI lines use Y up,
+        // unlike drawRect, which performs this conversion in Rect.toTransform3D.
+        context.drawLine(
+            start: Vector2(projectedStart.x, -projectedStart.y),
+            end: Vector2(projectedEnd.x, -projectedEnd.y),
+            lineWidth: lineWidth,
+            color: color
+        )
     }
 
     func project(_ worldPoint: Vector3, size: Size) -> Vector2? {

@@ -62,6 +62,8 @@ let miniaudioSources = ["miniaudio.c"]
 #endif
 
 var products: [Product] = [
+    .executable(name: "AdaWebPlayer", targets: ["AdaWebPlayer"]),
+    .executable(name: "AdaWebPlayerPackager", targets: ["AdaWebPlayerPackager"]),
     .library(name: "AdaUIDescription", targets: ["AdaUIDescription"]),
     .library(
         name: "AdaEngine",
@@ -593,6 +595,29 @@ var targets: [Target] = [
     ),
 ]
 
+targets.append(
+    .executableTarget(
+        name: "AdaWebPlayerPackager",
+        dependencies: ["AdaScriptCompilerCore"],
+        path: "Tools/AdaWebPlayerPackager"
+    )
+)
+
+targets.append(
+    .executableTarget(
+        name: "AdaWebPlayer",
+        dependencies: [
+            "AdaEngine", "AdaScriptCompilerCore",
+            .product(name: "JavaScriptKit", package: "JavaScriptKit", condition: .when(platforms: [.wasi])),
+            .product(name: "JavaScriptEventLoop", package: "JavaScriptKit", condition: .when(platforms: [.wasi]))
+        ],
+        path: "Tools/AdaWebPlayer",
+        linkerSettings: wasmExecutableLinkerSettings + [
+            .unsafeFlags(["-Xlinker", "--strip-debug"], .when(platforms: [.wasi], configuration: .release))
+        ]
+    )
+)
+
 if isWebExportEnabled {
     products.append(
         .plugin(name: "AdaWebExportPlugin", targets: [
@@ -716,6 +741,7 @@ if isWGPUEnabled {
 
 #if os(Android) || os(Linux)
 targets += [
+    .testTarget(name: "AdaScriptCompilerCoreTests", dependencies: ["AdaScriptCompilerCore"]),
     .systemLibrary(
         name: "X11",
         pkgConfig: "x11",
@@ -987,6 +1013,8 @@ targets += [
         cxxSettings: [
             .headerSearchPath("."),
             .define("HB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR"),
+            // The browser WASI profile uses a single-threaded event loop.
+            .define("HB_NO_MT", .when(platforms: [.wasi])),
             .unsafeFlags(["-w"])
         ]
     ),
@@ -1382,6 +1410,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "BulletHellGameExample", path: "Games"),
 
     // MARK: UI
+    .exampleTarget(name: "TextureMenuExample", path: "UI"),
     .exampleTarget(name: "UITestSceneExample", path: "UI"),
     .exampleTarget(name: "AnimatedTextRendererExample", path: "UI"),
     .exampleTarget(name: "ButtonExample", path: "UI"),

@@ -48,11 +48,19 @@ enum EditorSettingsSection: String, CaseIterable, Hashable, Sendable {
 @Observable
 @MainActor
 final class EditorSettingsWindowViewModel {
-    var selectedSection: EditorSettingsSection
-    let libraries = EditorLibrariesViewModel()
+    var selectedSection: EditorSettingsSection {
+        didSet { if selectedSection != oldValue { selectedPage = pages(in: selectedSection).first } }
+    }
+    var selectedPage: String?
+    var collapsedSections: Set<EditorSettingsSection> = []
     private let globalAgent = EditorAgentViewModel(project: nil)
     var agent: EditorAgentViewModel { editorViewModel?.agent ?? globalAgent }
-    var searchText = ""
+    var searchText = "" {
+        didSet {
+            guard !searchText.isEmpty else { return }
+            for section in filteredSections { collapsedSections.remove(section) }
+        }
+    }
     var editorViewModel: EditorViewModel?
     var codeFontSize: Double
     var codeFontFamily: EditorCodeFontFamily
@@ -60,6 +68,7 @@ final class EditorSettingsWindowViewModel {
     var keywordFontWeight: EditorCodeFontWeight
     var codePalettePreset: EditorCodePalettePreset
     var generalSettingsStatusMessage = ""
+    var inputBindingsDraft: EditorInputBindingsDraft
     var runtimeDraft: EditorRuntimeSettingsDraft
     var runtimeSettings: AdaProjectRuntime
     var runtimeSettingsStatusMessage = ""
@@ -68,14 +77,15 @@ final class EditorSettingsWindowViewModel {
         let runtimeSettings = Self.loadRuntimeSettings(from: editorViewModel)
         self.editorViewModel = editorViewModel
         self.selectedSection = selectedSection
-        self.codeFontSize = editorViewModel?.workbench.codeFontSize ?? 12
+        self.codeFontSize = editorViewModel?.workbench.codeFontSize ?? 14
         self.codeFontFamily = editorViewModel?.workbench.codeFontFamily ?? .firaCode
         self.codeFontWeight = editorViewModel?.workbench.codeFontWeight ?? .medium
         self.keywordFontWeight = editorViewModel?.workbench.keywordFontWeight ?? .bold
-        self.codePalettePreset = EditorCodePalettePreset.matching(editorViewModel?.workbench.codeColorPalette ?? .dark)
+        self.codePalettePreset = EditorCodePalettePreset.matching(editorViewModel?.workbench.codeColorPalette ?? .godot)
+        self.inputBindingsDraft = Self.loadInputBindings(from: editorViewModel)
         self.runtimeSettings = runtimeSettings
         self.runtimeDraft = EditorRuntimeSettingsDraft(runtime: runtimeSettings)
-        libraries.load(for: editorViewModel)
+        self.selectedPage = pages(in: selectedSection).first
     }
 
     var searchTextBinding: Binding<String> {
@@ -87,7 +97,7 @@ final class EditorSettingsWindowViewModel {
         guard !query.isEmpty else {
             return EditorSettingsSection.allCases
         }
-        return EditorSettingsSection.allCases.filter { $0.title.localizedCaseInsensitiveContains(query) }
+        return EditorSettingsSection.allCases.filter { $0.title.localizedCaseInsensitiveContains(query) || pages(in: $0).contains { $0.localizedCaseInsensitiveContains(query) } }
     }
 
     var projectName: String {
@@ -97,6 +107,7 @@ final class EditorSettingsWindowViewModel {
     func update(editorViewModel: EditorViewModel?, selectedSection: EditorSettingsSection) {
         self.editorViewModel = editorViewModel
         self.selectedSection = selectedSection
+        selectedPage = pages(in: selectedSection).first
         if let workbench = editorViewModel?.workbench {
             codeFontSize = workbench.codeFontSize
             codeFontFamily = workbench.codeFontFamily
@@ -104,9 +115,9 @@ final class EditorSettingsWindowViewModel {
             keywordFontWeight = workbench.keywordFontWeight
             codePalettePreset = EditorCodePalettePreset.matching(workbench.codeColorPalette)
         }
+        inputBindingsDraft = Self.loadInputBindings(from: editorViewModel)
         runtimeSettings = Self.loadRuntimeSettings(from: editorViewModel)
         runtimeDraft = EditorRuntimeSettingsDraft(runtime: runtimeSettings)
-        libraries.load(for: editorViewModel)
         generalSettingsStatusMessage = ""
         runtimeSettingsStatusMessage = ""
     }
@@ -127,7 +138,7 @@ final class EditorSettingsWindowViewModel {
     }
 
     func resetCodeFontSize() {
-        codeFontSize = 12
+        codeFontSize = 14
         generalSettingsStatusMessage = ""
     }
 
@@ -226,18 +237,24 @@ final class EditorSettingsWindowViewModel {
             return
         }
         do {
+            let actions = try inputBindingsDraft.validatedActions()
             if isAdaScriptProject {
                 runtimeDraft.scene = editorViewModel.projectMainSceneText
                 runtimeSettings = try runtimeDraft.applying(to: runtimeSettings)
                 _ = try EditorAdaScriptRuntimePluginResolver.resolve(runtimeSettings.plugins)
-                editorViewModel.saveProjectSettings(runtime: runtimeSettings)
+                editorViewModel.saveProjectSettings(runtime: runtimeSettings, inputActions: actions)
             } else {
-                editorViewModel.saveProjectSettings()
+                editorViewModel.saveProjectSettings(inputActions: actions)
             }
             runtimeSettingsStatusMessage = editorViewModel.projectSettingsStatusMessage
         } catch {
             runtimeSettingsStatusMessage = error.localizedDescription
         }
+    }
+
+    private static func loadInputBindings(from editorViewModel: EditorViewModel?) -> EditorInputBindingsDraft {
+        let actions = editorViewModel?.projectURL.flatMap { try? ProjectSystem.loadProject(at: $0).inputActions } ?? []
+        return EditorInputBindingsDraft(actions: actions)
     }
 
     private static func loadRuntimeSettings(from editorViewModel: EditorViewModel?) -> AdaProjectRuntime {
@@ -385,21 +402,13 @@ struct EditorSettingsWindowView: View {
             .padding(.horizontal, 12)
             .padding(.bottom, 12)
 
-            VStack(alignment: .leading, spacing: 3) {
-                ForEach(viewModel.filteredSections, id: \.self) { section in
-                    sectionButton(section)
+            GeometryReader { geometry in
+                ScrollView(.vertical, showsIndicators: true) {
+                    EditorSettingsTree(viewModel: viewModel)
+                        .frame(width: geometry.size.width, alignment: .topLeading)
                 }
-
-                if viewModel.filteredSections.isEmpty {
-                    Text("No matching settings")
-                        .font(.system(size: 11))
-                        .foregroundColor(theme.editorColors.muted)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
-                }
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
             }
-
-            Spacer()
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(viewModel.selectedSection == .agent ? "APPLIES TO" : "CURRENT PROJECT")
@@ -412,35 +421,9 @@ struct EditorSettingsWindowView: View {
             }
             .padding(16)
         }
-        .frame(width: 236)
+        .frame(width: 216)
         .frame(minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
         .background(theme.editorColors.surface)
-    }
-
-    private func sectionButton(_ section: EditorSettingsSection) -> some View {
-        let isSelected = viewModel.selectedSection == section
-        return Button {
-            viewModel.selectedSection = section
-        } label: {
-            HStack(spacing: 9) {
-                Text(section.icon)
-                    .font(AdaEditorMaterialSymbolFont.font(size: 17))
-                    .foregroundColor(isSelected ? theme.editorColors.blue : theme.editorColors.muted)
-                Text(section.title)
-                    .font(.system(size: 13))
-                    .foregroundColor(isSelected ? theme.editorColors.text : theme.editorColors.muted)
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 36)
-            .background(
-                RoundedRectangleShape(cornerRadius: 6)
-                    .fill(isSelected ? theme.editorColors.blue.opacity(0.18) : Color.clear)
-            )
-        }
-        .buttonStyle(DefaultButtonStyle())
-        .padding(.horizontal, 8)
-        .accessibilityIdentifier("AdaEditor.Settings.Section.\(section.title)")
     }
 
     private var content: some View {
@@ -448,10 +431,11 @@ struct EditorSettingsWindowView: View {
             VStack(alignment: .leading, spacing: 0) {
                 ScrollView(.vertical) {
                     selectedSectionContent
-                        .padding(.horizontal, 34)
+                        .padding(.horizontal, 16)
                         .padding(.bottom, 24)
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .topLeading)
                 }
+                .id("\(viewModel.selectedSection.rawValue).\(viewModel.selectedPage ?? "overview")")
 
                 if viewModel.editorViewModel != nil, viewModel.selectedSection != .achievements {
                     settingsFooter
@@ -459,7 +443,8 @@ struct EditorSettingsWindowView: View {
             }
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             .background(theme.editorColors.background)
-            .navigationTitle(viewModel.selectedSection.title)
+            .navigationTitle(viewModel.selectedPage?.localizedCapitalized ?? viewModel.selectedSection.title)
+            .navigationTitleFont(AdaEditorTitleFont.font(size: 22))
             .navigationTitlePosition(.leading)
             .navigationBarColor(theme.editorColors.background)
             .navigationBarTrailingItems {
@@ -506,8 +491,9 @@ struct EditorSettingsWindowView: View {
         } else if viewModel.selectedSection == .agent {
             agentSettings(viewModel.agent)
         } else if viewModel.selectedSection == .general, viewModel.editorViewModel == nil {
-            settingsGroup("APPEARANCE") {
-                EditorAgentGlowSettings()
+            VStack(alignment: .leading, spacing: 24) {
+                settingsGroup("CLOUD ACCOUNT") { EditorCloudSettingsView() }
+                settingsGroup("APPEARANCE") { EditorAgentGlowSettings() }
             }
         } else if let editorViewModel = viewModel.editorViewModel {
             switch viewModel.selectedSection {
@@ -529,6 +515,7 @@ struct EditorSettingsWindowView: View {
 
     private var generalSettings: some View {
         VStack(alignment: .leading, spacing: 24) {
+            settingsGroup("CLOUD ACCOUNT") { EditorCloudSettingsView() }
             settingsGroup("APPEARANCE") {
                 EditorAgentGlowSettings()
             }
@@ -627,7 +614,9 @@ struct EditorSettingsWindowView: View {
                     viewModel: viewModel
                 )
             }
-            EditorLibrariesSettingsView(viewModel: viewModel.libraries)
+            if viewModel.showsPage("INPUT BINDINGS") {
+                EditorInputBindingsSettings(draft: viewModel.inputBindingsDraft)
+            }
             settingsGroup("RESOURCE ROOTS") {
                 settingsField(
                     "Assets, Localization",
@@ -662,7 +651,9 @@ struct EditorSettingsWindowView: View {
 
     private func agentSettings(_ agent: EditorAgentViewModel) -> some View {
         VStack(alignment: .leading, spacing: 24) {
-            EditorAgentCatalogView(agent: agent, showsToolbar: false)
+            if viewModel.showsPage("AGENTS") {
+                EditorAgentCatalogView(agent: agent, showsToolbar: false)
+            }
             settingsGroup("ACP CONNECTION") {
                 Text("Configure the agent used by all projects in AdaEditor.")
                     .font(.system(size: 11))
@@ -718,16 +709,19 @@ struct EditorSettingsWindowView: View {
         )
     }
 
+    @ViewBuilder
     private func settingsGroup<Content: View>(_ title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.system(size: 11))
-                .foregroundColor(theme.editorColors.blue)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .accessibilityIdentifier("AdaEditor.Settings.Group.\(title)")
-            Divider()
-            content()
+        if viewModel.showsPage(title) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(title)
+                    .font(.system(size: 11))
+                    .foregroundColor(theme.editorColors.blue)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .accessibilityIdentifier("AdaEditor.Settings.Group.\(title)")
+                Divider()
+                content()
+            }
         }
     }
 
@@ -893,7 +887,7 @@ struct EditorSettingsWindowView: View {
                 Spacer()
                 primaryButton(configuration.title, action: configuration.action)
             }
-            .padding(.horizontal, 34)
+            .padding(.horizontal, 16)
             .frame(height: 64)
             .background(theme.editorColors.surface)
         }

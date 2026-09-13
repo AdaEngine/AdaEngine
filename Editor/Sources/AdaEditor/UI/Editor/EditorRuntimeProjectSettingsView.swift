@@ -128,19 +128,22 @@ struct EditorRuntimeProjectSettingsView: View {
         }
     }
 
+    @ViewBuilder
     private func settingsGroup<Content: View>(
         _ title: String,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.system(size: 11))
-                .foregroundColor(theme.editorColors.blue)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .accessibilityIdentifier("AdaEditor.Settings.Group.\(title)")
-            Divider()
-            content()
+        if viewModel.showsPage(title) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(title)
+                    .font(.system(size: 11))
+                    .foregroundColor(theme.editorColors.blue)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .accessibilityIdentifier("AdaEditor.Settings.Group.\(title)")
+                Divider()
+                content()
+            }
         }
     }
 

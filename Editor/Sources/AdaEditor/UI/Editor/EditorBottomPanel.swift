@@ -17,17 +17,18 @@ struct EditorBottomPanel: View {
     let viewModel: EditorViewModel
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                ForEach(metrics.outputTabs, id: \.self) { tab in
-                    outputTab(tab)
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(metrics.outputTabs, id: \.self) { tab in
+                        outputTab(tab)
+                    }
                 }
-                Spacer()
+                .padding(.horizontal, 8)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
+            .frame(height: 34)
             .background(theme.editorColors.surface)
             
             if viewModel.activeOutputTab == "Output" {
@@ -44,34 +45,38 @@ struct EditorBottomPanel: View {
                 .padding(.vertical, 6)
             }
 
-            GeometryReader { geometry in
-                ScrollViewReader { proxy in
-                    HStack(spacing: 0) {
-                        ScrollView([.horizontal, .vertical]) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                RectangleShape()
-                                    .fill(Color.clear)
-                                    .frame(width: 1, height: 1)
-                                    .id(ScrollTarget.top)
-                                panelContent
-                                RectangleShape()
-                                    .fill(Color.clear)
-                                    .frame(width: 1, height: 1)
-                                    .id(ScrollTarget.bottom)
+            if viewModel.activeOutputTab == "Performance" {
+                EditorPerformancePanel(model: viewModel.performance)
+            } else {
+                GeometryReader { geometry in
+                    ScrollViewReader { proxy in
+                        HStack(spacing: 0) {
+                            ScrollView([.horizontal, .vertical]) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    RectangleShape()
+                                        .fill(Color.clear)
+                                        .frame(width: 1, height: 1)
+                                        .id(ScrollTarget.top)
+                                    panelContent
+                                    RectangleShape()
+                                        .fill(Color.clear)
+                                        .frame(width: 1, height: 1)
+                                        .id(ScrollTarget.bottom)
+                                }
+                                .fixedSize(horizontal: true, vertical: false)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
                             }
-                            .fixedSize(horizontal: true, vertical: false)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                        }
 
-                        if showsOutputControls {
-                            outputControlRail(proxy)
+                            if showsOutputControls {
+                                outputControlRail(proxy)
+                            }
                         }
+                        .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
                     }
-                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .background {
             RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner)

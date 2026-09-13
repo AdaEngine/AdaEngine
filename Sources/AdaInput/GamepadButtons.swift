@@ -9,7 +9,7 @@
 ///
 /// These cases cover common buttons found on most modern gamepads.
 /// The specific mapping can vary depending on the controller and platform.
-public enum GamepadButton: Hashable, Sendable {
+public enum GamepadButton: String, Codable, CaseIterable, Hashable, Sendable {
     /// The primary action button, often labeled 'A' on Xbox-style controllers or 'Cross' on PlayStation-style controllers.
     case a
     /// A secondary action button, often labeled 'B' on Xbox-style controllers or 'Circle' on PlayStation-style controllers.

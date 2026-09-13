@@ -10,7 +10,7 @@ struct EditorProjectToolSidebar: View {
         VStack(alignment: .leading, spacing: 0) {
             adaEditorPanelTitle(title, trailing: viewModel.workspaceStatus.title, theme: theme)
             content
-            if viewModel.toolStrip.activeRightTool != "swiftPackageTasks" { Spacer() }
+            if viewModel.toolStrip.activeRightTool != "swiftPackageTasks" && viewModel.toolStrip.activeRightTool != "projectDependencies" { Spacer() }
         }
         .background(
             RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner)
@@ -33,34 +33,42 @@ struct EditorProjectToolSidebar: View {
     private var content: some View {
         switch viewModel.toolStrip.activeRightTool {
         case "projectDependencies":
-            if let packageModel = viewModel.packageModel {
-                section("PRODUCTS") {
-                    ForEach(packageModel.products, id: \.name) { product in
-                        row("\(product.name) · \(product.type)")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    EditorLibrariesView(viewModel: viewModel.libraries)
+                        .padding(12)
+                        .onAppear { viewModel.libraries.load(for: viewModel) }
+                    if let packageModel = viewModel.packageModel {
+                        section("PRODUCTS") {
+                            ForEach(packageModel.products, id: \.name) { product in
+                                row("\(product.name) · \(product.type)")
+                            }
+                        }
+                        section("DEPENDENCIES") {
+                            ForEach(packageModel.dependencies, id: \.identity) { dependency in
+                                dependencyRow(dependency)
+                            }
+                        }
+                        section("ADD PACKAGE") {
+                            input("URL or local path", text: viewModel.dependencyLocationBinding)
+                            input("Requirement, e.g. from: \"1.0.0\"", text: viewModel.dependencyRequirementBinding)
+                            command("Add Dependency") { viewModel.addProjectDependency() }
+                            if !viewModel.dependencyStatusMessage.isEmpty {
+                                row(viewModel.dependencyStatusMessage)
+                            }
+                        }
+                        section("PLUGINS") {
+                            ForEach(packageModel.pluginTargets, id: \.self) { plugin in
+                                row(plugin)
+                            }
+                        }
+                    } else if !isAdaScriptProject {
+                        section("PACKAGE") {
+                            row("Package model is not loaded yet.")
+                        }
                     }
                 }
-                section("DEPENDENCIES") {
-                    ForEach(packageModel.dependencies, id: \.identity) { dependency in
-                        dependencyRow(dependency)
-                    }
-                }
-                section("ADD PACKAGE") {
-                    input("URL or local path", text: viewModel.dependencyLocationBinding)
-                    input("Requirement, e.g. from: \"1.0.0\"", text: viewModel.dependencyRequirementBinding)
-                    command("Add Dependency") { viewModel.addProjectDependency() }
-                    if !viewModel.dependencyStatusMessage.isEmpty {
-                        row(viewModel.dependencyStatusMessage)
-                    }
-                }
-                section("PLUGINS") {
-                    ForEach(packageModel.pluginTargets, id: \.self) { plugin in
-                        row(plugin)
-                    }
-                }
-            } else {
-                section("PACKAGE") {
-                    row("Package model is not loaded yet.")
-                }
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             }
         case "swiftPackageTasks":
             EditorTaskRunner(
@@ -73,6 +81,10 @@ struct EditorProjectToolSidebar: View {
                 row(viewModel.workspaceStatus.title)
             }
         }
+    }
+
+    private var isAdaScriptProject: Bool {
+        viewModel.projectURL.flatMap { try? ProjectSystem.loadProject(at: $0).build.system.isAdaScript } ?? false
     }
 
     private func runTask(_ id: String) {
@@ -130,6 +142,7 @@ struct EditorProjectToolSidebar: View {
 
     private func input(_ placeholder: String, text: Binding<String>) -> some View {
         TextField(placeholder, text: text)
+            .textFieldStyle(PlainTextFieldStyle())
             .font(.system(size: 11))
             .foregroundColor(theme.editorColors.text)
             .padding(.horizontal, 8)

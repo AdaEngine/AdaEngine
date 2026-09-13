@@ -212,9 +212,9 @@ struct AdaScriptLibraryTests {
         #expect(preview.sources.contains { $0.source == previewSource })
     }
 
-    @Test("Settings Install button writes a library that survives reopening")
+    @Test("Library panel Install button writes a library that survives reopening")
     @MainActor
-    func settingsInteraction() async throws {
+    func libraryPanelInteraction() async throws {
         if unsafe RenderEngine.shared == nil {
             unsafe RenderEngine.configurations.preferredBackend = .headless
             RenderWorldPlugin().setup(in: AppWorlds(main: World(name: "LibrarySettingsTests")))
@@ -227,8 +227,8 @@ struct AdaScriptLibraryTests {
         model.load(at: root)
         model.repository = package.source.location
         model.revision = package.source.revision
-        let container = UIContainerView(rootView: EditorLibrariesSettingsView(viewModel: model))
-        container.frame = Rect(x: 0, y: 0, width: 720, height: 500)
+        let container = UIContainerView(rootView: EditorLibrariesView(viewModel: model))
+        container.frame = Rect(x: 0, y: 0, width: 320, height: 500)
         container.bounds.size = container.frame.size
         container.layoutIfNeeded()
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Libraries.Install"))

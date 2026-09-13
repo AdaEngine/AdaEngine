@@ -154,6 +154,16 @@ public struct EditorProjectReference: Codable, Equatable, Identifiable, Sendable
 public struct EditorProjectStore {
     public static let maximumRecentProjectCount = 50
 
+    /// iPad projects are portable packages; desktop projects start as ordinary directories.
+    public static var defaultUsesProjectPackage: Bool {
+        #if os(iOS)
+        true
+        #else
+        false
+        #endif
+    }
+
+    public let distribution: EditorDistribution
     public let storageURL: URL
     public let fileManager: FileManager
     public let adaEnginePackageURL: URL
@@ -163,8 +173,10 @@ public struct EditorProjectStore {
         storageURL: URL? = nil,
         fileManager: FileManager = .default,
         adaEnginePackageURL: URL? = nil,
-        documentsDirectoryURL: URL? = nil
+        documentsDirectoryURL: URL? = nil,
+        distribution: EditorDistribution = .current
     ) {
+        self.distribution = distribution
         self.fileManager = fileManager
         self.storageURL = storageURL ?? Self.defaultStorageURL(fileManager: fileManager)
         self.adaEnginePackageURL = (adaEnginePackageURL ?? Self.defaultAdaEnginePackageURL()).standardizedFileURL
@@ -176,10 +188,12 @@ public struct EditorProjectStore {
         named name: String,
         at parentDirectory: URL,
         template: EditorProjectTemplate = .adaScriptWithSwift,
+        asPackage: Bool = EditorProjectStore.defaultUsesProjectPackage,
         openedAt: Date = Date()
     ) throws -> EditorProjectReference {
+        try distribution.validate(buildSystem: template == .adaScript ? .adaScript : .swiftpm)
         let projectName = try normalizedProjectName(name)
-        let directoryName = template == .adaScript ? "\(projectName).adaproject" : projectName
+        let directoryName = asPackage ? "\(projectName).adaproject" : projectName
         let projectURL = parentDirectory.appendingPathComponent(directoryName, isDirectory: true)
 
         try validateCreationDestination(projectURL)
@@ -197,6 +211,7 @@ public struct EditorProjectStore {
     @discardableResult
     public func openProject(at projectURL: URL, openedAt: Date = Date()) throws -> EditorProjectReference {
         let project = try ProjectSystem.validateProjectLayout(at: projectURL, fileManager: fileManager)
+        try distribution.validate(buildSystem: project.build.system)
         if project.build.system == .swiftpm {
             _ = try ensureAdaEngineDependency(at: projectURL)
         }
@@ -256,6 +271,7 @@ public struct EditorProjectStore {
 
     /// Atomically updates project metadata and synchronizes build file/resource selection into Package.swift.
     public func saveProjectSettings(_ project: AdaProject, at projectURL: URL, targetName: String) throws {
+        try distribution.validate(buildSystem: project.build.system)
         try ProjectSystem.validate(project)
         guard project.build.system == .swiftpm else {
             try ProjectSystem.saveProject(project, at: projectURL, fileManager: fileManager)
@@ -356,6 +372,7 @@ public struct EditorProjectStore {
     }
 
     private func editManifest(at projectURL: URL, command: PackageManifestCommand) throws -> Bool {
+        try distribution.validate(buildSystem: .swiftpm)
         let manifestURL = projectURL.appendingPathComponent("Package.swift", isDirectory: false)
         guard fileManager.fileExists(atPath: manifestURL.path) else {
             throw ProjectSystemError.swiftPackageManifestMissing(path: "Package.swift")

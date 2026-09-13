@@ -9,7 +9,7 @@
 ///
 /// These cases cover common axes found on most modern gamepads.
 /// Values are typically normalized between -1.0 and 1.0 for sticks, and 0.0 to 1.0 for triggers.
-public enum GamepadAxis: Hashable, Sendable {
+public enum GamepadAxis: String, Codable, CaseIterable, Hashable, Sendable {
     /// The horizontal (X) axis of the left analog stick.
     /// Typically, negative values represent left, and positive values represent right.
     case leftStickX

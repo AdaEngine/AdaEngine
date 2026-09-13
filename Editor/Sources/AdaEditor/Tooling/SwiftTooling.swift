@@ -453,6 +453,7 @@ enum SwiftPMCommandKind: Equatable, Sendable {
 }
 
 enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
+    case player = "AdaPlayer"
     case macOS = "macOS"
     case iPadOS = "iPadOS"
     case web = "Web"
@@ -541,6 +542,7 @@ protocol SwiftPMWorkspaceServicing: Sendable {
     func hover(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> EditorSymbolHover?
     func documentHighlights(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorDocumentHighlight]
     func setDiagnosticsHandler(_ handler: @Sendable @escaping (String, [EditorDiagnostic]) async -> Void) async
+    func configureSourceWorkspace(projectURL: URL) async
     func cancel() async
 }
 
@@ -562,6 +564,8 @@ extension SwiftPMWorkspaceServicing {
     }
 
     func setDiagnosticsHandler(_ handler: @Sendable @escaping (String, [EditorDiagnostic]) async -> Void) async {}
+
+    func configureSourceWorkspace(projectURL: URL) async {}
 }
 
 actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
@@ -569,6 +573,7 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
 
     private let processRunner: any EditorProcessRunning
     private let gravityWorkspace = GravityWorkspace()
+    private var sourceWorkspaceURL: URL?
     private var toolchain: SwiftToolchain?
     private var sourceKitClient: SourceKitLSPClient?
     private var diagnosticsHandler: (@Sendable (String, [EditorDiagnostic]) async -> Void)?
@@ -623,7 +628,15 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func bootstrap(projectURL: URL, progress: @Sendable @escaping (SwiftPMWorkspaceProgress) async -> Void) async -> SwiftPMBootstrapResult {
-        gravityWorkspace.configure(rootURIs: [projectURL.standardizedFileURL.absoluteString])
+        guard EditorDistribution.current.supportsSwiftProjects else {
+            let result = unavailableResult(projectURL: projectURL)
+            return SwiftPMBootstrapResult(
+                toolchain: SwiftToolchain(swiftExecutablePath: "", sourceKitLSPExecutablePath: nil),
+                resolveResult: result, packageModel: nil, describeResult: result,
+                diagnostics: []
+            )
+        }
+        await configureSourceWorkspace(projectURL: projectURL)
         await progress(SwiftPMWorkspaceProgress(phase: .loadingProjectMetadata, title: "Loading project metadata", detail: projectURL.path))
         await progress(SwiftPMWorkspaceProgress(phase: .locatingToolchain, title: "Locating Swift toolchain", detail: "Searching swift and sourcekit-lsp"))
         let resolvedToolchain = if let toolchain {
@@ -693,6 +706,13 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         )
     }
 
+    private func unavailableResult(projectURL: URL) -> EditorProcessResult {
+        EditorProcessResult(
+            command: EditorProcessCommand(executablePath: "", arguments: [], workingDirectory: projectURL, displayName: "SwiftPM"),
+            exitCode: 1, standardOutput: "", standardError: EditorDistributionError.swiftProjectsMessage
+        )
+    }
+
     private func buildWorkspaceIndex(
         projectURL: URL,
         packageModel: SwiftPackageModel?,
@@ -743,6 +763,9 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         projectURL: URL,
         output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void
     ) async -> EditorProcessResult {
+        guard EditorDistribution.current.supportsSwiftProjects else {
+            return unavailableResult(projectURL: projectURL)
+        }
         let resolvedToolchain: SwiftToolchain
         if let toolchain {
             resolvedToolchain = toolchain
@@ -765,8 +788,19 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
         diagnosticsHandler = handler
     }
 
+    func configureSourceWorkspace(projectURL: URL) async {
+        let root = projectURL.standardizedFileURL
+        guard root != sourceWorkspaceURL else {
+            return
+        }
+        sourceWorkspaceURL = root
+        gravityWorkspace.configure(rootURIs: [root.absoluteString])
+    }
+
     func semanticTokens(fileURL: URL, language: EditorSourceLanguage, text: String) async -> [EditorSemanticToken] {
         if language == .ada {
+            let diagnostics = EditorGravityLanguageService.diagnostics(workspace: gravityWorkspace, fileURL: fileURL, text: text)
+            await diagnosticsHandler?(fileURL.standardizedFileURL.absoluteString, diagnostics)
             return EditorGravityLanguageService.semanticTokens(text: text)
         }
         guard let sourceKitClient else {
@@ -839,7 +873,12 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
 
     func hover(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> EditorSymbolHover? {
         if language == .ada {
-            return EditorGravityLanguageService.hover(text: text, position: position)
+            return EditorGravityLanguageService.hover(
+                workspace: gravityWorkspace,
+                uri: fileURL.standardizedFileURL.absoluteString,
+                text: text,
+                position: position
+            )
         }
         guard let sourceKitClient else {
             return nil
@@ -854,6 +893,9 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
     }
 
     func documentHighlights(fileURL: URL, language: EditorSourceLanguage, text: String, position: EditorSourceLocation) async -> [EditorDocumentHighlight] {
+        if language == .ada {
+            return []
+        }
         guard let sourceKitClient else {
             return []
         }

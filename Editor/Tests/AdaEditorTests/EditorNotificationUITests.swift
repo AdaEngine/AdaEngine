@@ -137,11 +137,21 @@ struct EditorNotificationUITests {
     func compactPanel() async throws {
         prepareRenderer()
         let center = EditorNotificationCenter()
+        center.post(EditorNotification(id: "badge", source: .agent, importance: .attention, title: "Unread", detail: ""))
         let model = EditorViewModel(project: nil)
         let bell = UIContainerView(rootView: EditorNotificationBell(model: model, center: center).theme(.adaEditor))
         bell.frame = Rect(x: 0, y: 0, width: 90, height: 32)
         bell.bounds.size = bell.frame.size
         bell.layoutIfNeeded()
+        let badge = try bell.uiNode(matching: .accessibilityIdentifier("AdaEditor.Notifications.UnreadBadge"))
+        #expect(badge.absoluteFrame.width == 7 && badge.absoluteFrame.height == 7)
+        center.markAllRead()
+        for _ in 0..<10 {
+            await Task.yield()
+            bell.update(1.0 / 60.0)
+            bell.layoutIfNeeded()
+        }
+        #expect(bell.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.Notifications.UnreadBadge")).isEmpty)
         _ = try bell.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Notifications.Bell"))
         #expect(model.showsNotifications)
         let overlay = UIContainerView(rootView: EditorNotificationOverlay(model: model, size: Size(width: 360, height: 420), center: center).theme(.adaEditor))

@@ -138,6 +138,7 @@ public enum NavigationBarTitleDisplayMode: Hashable, Sendable {
 
 struct NavigationBarConfiguration: Hashable, Sendable {
     var title: String?
+    var titleFont: Font?
     var titlePosition: NavigationTitlePosition = .automatic
     var titleDisplayMode: NavigationBarTitleDisplayMode = .automatic
     var navigationBarColor: Color? = nil
@@ -168,6 +169,14 @@ public extension View {
 
     func navigationTitle(_ title: Text) -> some View {
         self.navigationTitle(title.plainText)
+    }
+
+    /// Sets the navigation title font without changing content or toolbar item fonts.
+    /// Pass `nil` to restore the default font for the title position.
+    func navigationTitleFont(_ font: Font?) -> some View {
+        self.transformEnvironment(\.navigationBarConfiguration) { configuration in
+            configuration.titleFont = font
+        }
     }
 
     func navigationTitlePosition(_ position: NavigationTitlePosition) -> some View {
@@ -909,7 +918,7 @@ final class NavigationBarNode: ViewNode {
         guard let title = configuration.title, !title.isEmpty else { return nil }
         let pointSize: Double = resolvedTitlePosition() == .leading ? 22 : 16
         let view = Text(title)
-            .font(.system(size: pointSize))
+            .font(configuration.titleFont ?? .system(size: pointSize))
             .foregroundColor(.white)
             .lineLimit(1)
         let node = Text._makeView(_ViewGraphNode(value: view), inputs: inputs).node

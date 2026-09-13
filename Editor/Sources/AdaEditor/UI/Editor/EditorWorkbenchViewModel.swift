@@ -18,7 +18,13 @@ final class EditorWorkbenchViewModel {
     var openDocuments: [EditorWorkbenchDocument]
     var activeDocumentID: String
     var codeColorPalette: EditorCodeColorPalette
-    var codeFontSize: Double
+    var codeFontSize: Double {
+        didSet {
+            if codeFontSize.isFinite, (8...48).contains(codeFontSize) {
+                UserDefaults.standard.set(codeFontSize, forKey: "AdaEditor.editor.fontSize")
+            }
+        }
+    }
     var codeFontFamily: EditorCodeFontFamily
     var codeFontWeight: EditorCodeFontWeight
     var keywordFontWeight: EditorCodeFontWeight
@@ -52,8 +58,8 @@ final class EditorWorkbenchViewModel {
         activeOutputTab: String = "Problems",
         openDocuments: [EditorWorkbenchDocument] = AdaEngineStyleContent.defaultEditorDocuments,
         activeDocumentID: String = "scene:Assets/Scenes/Main.ascn",
-        codeColorPalette: EditorCodeColorPalette = .dark,
-        codeFontSize: Double = 12,
+        codeColorPalette: EditorCodeColorPalette = .godot,
+        codeFontSize: Double = 14,
         codeFontFamily: EditorCodeFontFamily = .firaCode,
         codeFontWeight: EditorCodeFontWeight = .medium,
         keywordFontWeight: EditorCodeFontWeight = .bold,
@@ -82,6 +88,8 @@ final class EditorWorkbenchViewModel {
             self.navigationHistory = []
             self.navigationHistoryIndex = -1
         }
+        EditorUpdateCenter.shared.register(self)
+        EditorCloudPreferences.shared.register(self)
     }
 
     var aiPromptBinding: Binding<String> {
@@ -285,6 +293,6 @@ final class EditorWorkbenchViewModel {
     }
 
     func resetCodeFontSize() {
-        codeFontSize = 12
+        codeFontSize = 14
     }
 }

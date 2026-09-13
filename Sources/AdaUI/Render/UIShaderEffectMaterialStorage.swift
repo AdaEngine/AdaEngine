@@ -66,15 +66,8 @@ extension Material {
         for materialKey: UIShaderEffectMaterialKey,
         device: RenderDevice
     ) -> (RenderPipeline, ShaderModule)? {
-        let compiler = ShaderCompiler(shaderSource: self.shaderSource)
-
-        for define in materialKey.defines {
-            compiler.setMacro(define.name, value: define.value, for: .vertex)
-            compiler.setMacro(define.name, value: define.value, for: .fragment)
-        }
-
         do {
-            let shaderModule = try compiler.compileShaderModule()
+            let shaderModule = try self.makeShaderModule(defines: materialKey.defines)
             guard let pipelineDescriptor = self.configureRenderPipeline(
                 for: materialKey.vertexDescriptor,
                 keys: [],

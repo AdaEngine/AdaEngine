@@ -34,6 +34,15 @@ struct EditorUIColorField: View {
                 }
                 onChange(text)
             }))
+            .textFieldStyle(PlainTextFieldStyle())
+            .font(.system(size: 12))
+            .foregroundColor(theme.editorColors.text)
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surface))
+            .overlay {
+                RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.border, lineWidth: 1)
+            }
         }
     }
 }

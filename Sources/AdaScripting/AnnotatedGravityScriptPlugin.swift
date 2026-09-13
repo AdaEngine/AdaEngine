@@ -1,5 +1,6 @@
 import AdaApp
 @_spi(Scripting) import AdaECS
+import AdaInput
 import AdaScriptCompilerCore
 import Foundation
 import Gravity
@@ -143,11 +144,14 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         _ plan: AnnotatedResourcePlan,
         systemIdentifier: String
     ) throws -> PreparedAnnotatedResource {
+        if plan.resourceName == "Input" {
+            return .input(propertyName: plan.propertyName, parameter: Res<Input?>(), optional: plan.isOptional)
+        }
         guard let resourceType = RuntimeTypeRegistry.resourceType(named: plan.resourceName) else {
             throw AdaScriptError.unknownResource(system: systemIdentifier, resource: plan.resourceName)
         }
         let descriptor = RuntimeResourceReflectionRegistry.descriptor(for: resourceType)
-        return PreparedAnnotatedResource(
+        return .reflected(
             fields: Dictionary(uniqueKeysWithValues: descriptor?.fields.map { ($0.key, $0) } ?? []),
             parameter: DynamicResource(resourceType: resourceType, isOptional: plan.isOptional, writable: true),
             propertyName: plan.propertyName,
@@ -265,11 +269,43 @@ private struct PreparedAnnotatedSystem: Sendable {
     let resources: [PreparedAnnotatedResource]
 }
 
-private struct PreparedAnnotatedResource: Sendable {
-    let fields: [String: EditorComponentFieldDescriptor]
-    let parameter: DynamicResource
-    let propertyName: String
-    let resourceName: String
+private enum PreparedAnnotatedResource: Sendable {
+    case reflected(
+        fields: [String: EditorComponentFieldDescriptor],
+        parameter: DynamicResource,
+        propertyName: String,
+        resourceName: String
+    )
+    case input(propertyName: String, parameter: Res<Input?>, optional: Bool)
+
+    var parameter: any SystemParameter {
+        switch self {
+        case .reflected(_, let parameter, _, _): parameter
+        case .input(_, let parameter, _): parameter
+        }
+    }
+
+    var propertyName: String {
+        switch self {
+        case .reflected(_, _, let name, _), .input(let name, _, _): name
+        }
+    }
+}
+
+private enum AnnotatedResourceBridge {
+    case reflected(AnnotatedGravityResourceView)
+    case input(AdaScriptInputBridge)
+
+    var object: AnyObject {
+        switch self {
+        case .reflected(let bridge): bridge
+        case .input(let bridge): bridge
+        }
+    }
+
+    func invalidate() {
+        if case .input(let bridge) = self { bridge.invalidate() }
+    }
 }
 
 private struct PreparedAnnotatedQuery: Sendable {
@@ -344,11 +380,7 @@ private struct AnnotatedGravityScriptSystem: System {
         let resources = preparedSystem.resources.map { resource in
             (
                 propertyName: resource.propertyName,
-                resource: runtime.makeResourceBridge(
-                    parameter: resource.parameter.wrappedValue,
-                    fields: resource.fields,
-                    resourceName: resource.resourceName
-                )
+                resource: runtime.makeResourceBridge(resource)
             )
         }
         let world = runtime.makeWorldBridge(commands: preparedSystem.commands)
@@ -382,6 +414,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let virtualMachine = GravityVirtualMachine(settings: .init(), delegate: delegate)
         self.virtualMachine = virtualMachine
         try virtualMachine.bindClass(with: AnnotatedGravitySystemContext.self)
+        try virtualMachine.bindClass(with: AdaScriptInputBridge.self)
         try virtualMachine.bindClass(with: AnnotatedGravityWorldContext.self)
         try virtualMachine.bindClass(with: AnnotatedGravityCommandsBridge.self)
         try virtualMachine.bindClass(with: AnnotatedGravityQueryBridge.self)
@@ -425,12 +458,15 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         systemIdentifier: String,
         deltaTime: Double,
         queries: [(propertyName: String, query: AnnotatedGravityQueryBridge)],
-        resources: [(propertyName: String, resource: AnnotatedGravityResourceView)],
+        resources: [(propertyName: String, resource: AnnotatedResourceBridge)],
         world: AnnotatedGravityWorldContext
     ) {
         AdaScriptRuntimeCoordinator.lock.lock()
         defer { AdaScriptRuntimeCoordinator.lock.unlock() }
-        defer { world.invalidate() }
+        defer {
+            world.invalidate()
+            for (_, resource) in resources { resource.invalidate() }
+        }
 
         guard let instance = instances[className] else {
             return
@@ -444,7 +480,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             }
         }
         for (propertyName, resource) in resources {
-            let resourceValue = GSValue(object: resource, in: virtualMachine)
+            let resourceValue = GSValue(object: resource.object, in: virtualMachine)
             guard instance.setStoredProperty(named: propertyName, to: resourceValue) else {
                 delegate.append("Unable to bind @res property '\(propertyName)' in system '\(systemIdentifier)'")
                 return
@@ -466,20 +502,25 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         )
     }
 
-    func makeResourceBridge(
-        parameter: DynamicResource,
-        fields: [String: EditorComponentFieldDescriptor],
-        resourceName: String
-    ) -> AnnotatedGravityResourceView {
-        if !parameter.isAvailable && !parameter.isOptional {
-            appendDiagnostic("Required resource '\(resourceName)' is not available")
+    func makeResourceBridge(_ resource: PreparedAnnotatedResource) -> AnnotatedResourceBridge {
+        switch resource {
+        case let .input(_, parameter, optional):
+            let input = parameter.wrappedValue
+            if input == nil && !optional {
+                appendDiagnostic("Required resource 'Input' is not available")
+            }
+            return .input(AdaScriptInputBridge.make(input))
+        case let .reflected(fields, parameter, _, resourceName):
+            if !parameter.isAvailable && !parameter.isOptional {
+                appendDiagnostic("Required resource '\(resourceName)' is not available")
+            }
+            return .reflected(AnnotatedGravityResourceView.make(
+                parameter: parameter,
+                fields: fields,
+                reportDiagnostic: appendDiagnostic,
+                virtualMachine: virtualMachine
+            ))
         }
-        return AnnotatedGravityResourceView.make(
-            parameter: parameter,
-            fields: fields,
-            reportDiagnostic: appendDiagnostic,
-            virtualMachine: virtualMachine
-        )
     }
 
     func makeWorldBridge(commands: Commands?) -> AnnotatedGravityWorldContext {

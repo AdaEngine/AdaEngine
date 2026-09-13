@@ -1,3 +1,4 @@
+import AdaRender
 import AdaText
 import AdaUIDescription
 import AdaUtils
@@ -10,6 +11,19 @@ extension UICatalog {
             .init(signature: .init(id: name, name: name, parameters: parameters, actions: actions, content: content), apply: apply)
         }
         return [
+            modifier("textureButtonStyle", [string("normal"), string("highlighted"), string("pressed"), string("disabled"), bool("selectionEffect"), color("selectionColor", "#ffe08aff")] + imageCapParameters) { view, c in
+                guard let resources = c.resources else { throw UIDiagnostic("Texture button style requires a UI resource context.") }
+                let normal = try resources.image(c.string("normal"), relativeTo: c.sourceURL)
+                @MainActor func optionalImage(_ key: String) throws -> AdaRender.Image? {
+                    let path = c.string(key)
+                    return path.isEmpty ? nil : try resources.image(path, relativeTo: c.sourceURL)
+                }
+                return AnyView(view.buttonStyle(TextureButtonStyle(
+                    normal: normal, highlighted: try optionalImage("highlighted"), pressed: try optionalImage("pressed"),
+                    disabled: try optionalImage("disabled"), capInsets: try c.imageCapInsets(),
+                    selectionEffect: c.bool("selectionEffect"), selectionColor: try c.color("selectionColor")
+                )))
+            },
             modifier("lineLimit", [number("value", 1)]) { AnyView($0.lineLimit(Int(max(0, min(10000, $1.number("value")))))) },
             modifier("multilineTextAlignment", [choice("value", "leading", ["leading", "center", "trailing"])]) { AnyView($0.multilineTextAlignment($1.string("value") == "center" ? .center : $1.string("value") == "trailing" ? .trailing : .leading)) },
             modifier("aspectRatio", [number("value", 1), choice("mode", "fit", ["fit", "fill"])]) { AnyView($0.aspectRatio($1.float("value"), contentMode: $1.string("mode") == "fill" ? .fill : .fit)) },

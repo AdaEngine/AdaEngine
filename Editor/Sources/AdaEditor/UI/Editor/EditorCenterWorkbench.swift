@@ -169,7 +169,7 @@ extension EditorCenterWorkbench {
             return document.language == .swift ? "<>" : "{}"
         case .asset(let document):
             switch document.kind {
-            case .atlas:
+            case .atlas, .tileSource:
                 return "▦"
             case .image:
                 return "□"
@@ -197,7 +197,7 @@ extension EditorCenterWorkbench {
             return theme.editorColors.blue
         case .asset(let document):
             switch document.kind {
-            case .atlas:
+            case .atlas, .tileSource:
                 return theme.editorColors.blue
             case .image:
                 return theme.editorColors.blue
@@ -233,6 +233,9 @@ extension EditorCenterWorkbench {
     @ViewBuilder
     private func assetPreview(document: EditorAssetDocument) -> some View {
         switch document.kind {
+        case .tileSource:
+            EditorTileSourceAssetEditor(document: document)
+                .id(document.id)
         case .atlas:
             EditorTextureAtlasAssetEditor(document: document)
         case .image:

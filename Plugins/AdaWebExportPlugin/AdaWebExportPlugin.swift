@@ -18,11 +18,18 @@ struct AdaWebExportPlugin: CommandPlugin {
             return
         }
         let sdk = try options.swiftSDK ?? detectWasmSDK()
-        let buildDirectory = options.scratchDirectory ?? context.package.directoryURL.appending(
+        // Bundle.module embeds this absolute path. Use the same canonical spelling
+        // as the resource manifest (notably /tmp versus /private/tmp on macOS).
+        let buildDirectory = (options.scratchDirectory ?? context.package.directoryURL.appending(
             component: ".build-web-\(options.product)",
             directoryHint: .isDirectory
-        )
+        )).resolvingSymlinksInPath().standardizedFileURL
+        let sharedBuild = context.package.directoryURL.appending(component: ".build").resolvingSymlinksInPath().standardizedFileURL
+        guard buildDirectory.resolvingSymlinksInPath().standardizedFileURL != sharedBuild else {
+            throw ExportError.unsafeScratchDirectory
+        }
         try prepareBuildDirectory(buildDirectory, packageDirectory: context.package.directoryURL)
+        try prepareDependenciesForWASI(in: buildDirectory)
 
         Diagnostics.remark("Building \(options.product) for WebAssembly with Swift SDK \(sdk)")
         try run(
@@ -44,7 +51,13 @@ struct AdaWebExportPlugin: CommandPlugin {
                 "-c",
                 options.configuration.rawValue,
                 "-Xcc",
-                "-DHAVE_UNISTD_H=1"
+                "-DHAVE_UNISTD_H=1",
+                "-Xcc",
+                "-include",
+                "-Xcc",
+                context.package.directoryURL.appending(
+                    components: "Plugins", "AdaWebExportPlugin", "Compatibility", "AdaScriptWASI.h"
+                ).path()
             ],
             workingDirectory: context.package.directoryURL
         )
@@ -147,6 +160,49 @@ struct AdaWebExportPlugin: CommandPlugin {
         }
     }
 
+    private func prepareDependenciesForWASI(in buildDirectory: URL) throws {
+        let fileManager = FileManager.default
+        let checkouts = buildDirectory.appending(component: "checkouts", directoryHint: .isDirectory)
+        let source = checkouts.appending(components: "Yams", "Sources", "Yams", "Representer.swift")
+        guard fileManager.fileExists(atPath: source.path()) else { return }
+        let original = try String(contentsOf: source, encoding: .utf8)
+        let expression = "String(format: \"%.*g\", DBL_DECIMAL_DIG, value)"
+
+        // The pinned Yams formatter uses a C macro that Foundation does not export on WASI.
+        // Double.significandBitCount is 52; IEEE binary64 round-trips with 17 decimal digits.
+        // Work only on a private copy: prepareBuildDirectory may have linked shared checkouts.
+        let resolvedCheckouts = checkouts.resolvingSymlinksInPath().standardizedFileURL
+        let scratchRoot = buildDirectory.resolvingSymlinksInPath().standardizedFileURL.path
+        if !resolvedCheckouts.path.hasPrefix(scratchRoot.hasSuffix("/") ? scratchRoot : scratchRoot + "/") {
+            let temporary = buildDirectory.appending(component: "web-checkouts-\(UUID().uuidString)", directoryHint: .isDirectory)
+            try fileManager.copyItem(at: resolvedCheckouts, to: temporary)
+            // Remove the symlink itself, not its shared destination.
+            try fileManager.removeItem(at: checkouts)
+            try fileManager.moveItem(at: temporary, to: checkouts)
+        }
+        let replacement = """
+        String(format: "%.*g", Int32(ceil(1 + Double(Double.significandBitCount + 1) * log10(2))), value)
+        """
+        if original.contains(expression) {
+            try original.replacingOccurrences(of: expression, with: replacement).write(to: source, atomically: true, encoding: .utf8)
+            Diagnostics.remark("Applied portable floating-point precision to the isolated Yams web-build checkout")
+        }
+        let vmSource = checkouts.appending(components: "gravity-lang", "binding", "GravitySwift", "GravityVirtualMachine.swift")
+        guard fileManager.fileExists(atPath: vmSource.path()) else { return }
+        let vmOriginal = try String(contentsOf: vmSource, encoding: .utf8)
+        // Corelibs Foundation takes unsigned byte buffers, unlike Darwin's C-imported initializer.
+        let vmUpdated = vmOriginal
+            .replacingOccurrences(
+                of: "OutputStream(toBuffer: buffer, capacity: data.count)",
+                with: "OutputStream(toBuffer: UnsafeMutableRawPointer(buffer).assumingMemoryBound(to: UInt8.self), capacity: data.count)"
+            )
+            .replacingOccurrences(of: "let charPointer = pointer.bindMemory(to: CChar.self)", with: "let charPointer = pointer.bindMemory(to: UInt8.self)")
+        if vmUpdated != vmOriginal {
+            try vmUpdated.write(to: vmSource, atomically: true, encoding: .utf8)
+            Diagnostics.remark("Applied Foundation byte-buffer compatibility to the isolated AdaScript VM checkout")
+        }
+    }
+
     private func exportBundle(
         wasm: URL,
         options: ExportOptions,
@@ -159,6 +215,18 @@ struct AdaWebExportPlugin: CommandPlugin {
 
         let wasmOutput = options.outputDirectory.appending(component: "\(options.product).wasm", directoryHint: .notDirectory)
         try replaceItem(at: wasmOutput, with: wasm)
+
+        if options.product == "AdaWebPlayer" {
+            try "{\"runtimeAPI\":2,\"profile\":\"views\"}".write(
+                to: options.outputDirectory.appending(component: "ada-web-player.json"),
+                atomically: true,
+                encoding: .utf8
+            )
+            try replaceItem(
+                at: options.outputDirectory.appending(component: "player-audio.js"),
+                with: packageDirectory.appending(components: "Plugins", "AdaWebExportPlugin", "Runtime", "player-audio.js")
+            )
+        }
 
         let resourceBundles = try copyResourceBundles(
             near: wasm,
@@ -174,7 +242,8 @@ struct AdaWebExportPlugin: CommandPlugin {
             resourceBundles: resourceBundles,
             outputDirectory: options.outputDirectory,
             packageDirectory: packageDirectory,
-            shaderTranspiler: shaderTranspiler
+            shaderTranspiler: shaderTranspiler,
+            requiresAllShaders: options.product == "AdaWebPlayer"
         )
         resourceManifest.append(contentsOf: generatedShaders)
         resourceManifest.sort { $0.path < $1.path }
@@ -309,7 +378,8 @@ struct AdaWebExportPlugin: CommandPlugin {
         resourceBundles: [ResourceBundleExport],
         outputDirectory: URL,
         packageDirectory: URL,
-        shaderTranspiler: URL
+        shaderTranspiler: URL,
+        requiresAllShaders: Bool
     ) throws -> [ResourceManifestEntry] {
         let shaderURLs = try resourceBundles
             .flatMap { bundle in
@@ -365,11 +435,13 @@ struct AdaWebExportPlugin: CommandPlugin {
                             .appending(component: outputURL.lastPathComponent, directoryHint: .notDirectory)
                         return ResourceManifestEntry(
                             path: absoluteBuildURL.path(),
-                            url: browserRelativeURL(forResourceURL: absoluteBuildURL, in: resourceBundle)
+                            // The WGSL exists in the export, not in the SwiftPM resource bundle.
+                            url: browserRelativeURL(forRelativePath: outputURL.relativePath(from: outputDirectory))
                         )
                     }
                 entries.append(contentsOf: generatedEntries)
             } catch {
+                if requiresAllShaders { throw error }
                 Diagnostics.warning("Skipping WGSL generation for \(shaderURL.lastPathComponent): \(error)")
             }
         }
@@ -944,7 +1016,7 @@ private extension URL {
     }
 
     var normalizedPath: String {
-        var path = standardizedFileURL.path()
+        var path = resolvingSymlinksInPath().standardizedFileURL.path()
         while path.count > 1, path.hasSuffix("/") {
             path.removeLast()
         }
@@ -996,6 +1068,7 @@ private enum ExportError: LocalizedError, CustomStringConvertible {
     case bridgeJSPackageNotFound
     case bridgeJSToolNotFound
     case tintNotFound(String)
+    case unsafeScratchDirectory
 
     var errorDescription: String? {
         description
@@ -1008,6 +1081,8 @@ private enum ExportError: LocalizedError, CustomStringConvertible {
             Usage:
               swift package plugin --allow-writing-to-package-directory --allow-network-connections all export-web --product <ProductName> [--output dist/web] [--scratch-path .build-web-ProductName] [--swift-sdk <sdk-id>] [--debug|--release] [--serve]
             """
+        case .unsafeScratchDirectory:
+            return "Web export requires an isolated --scratch-path; the shared .build directory cannot be used."
         case .missingTarget:
             return "Missing required --product <ProductName> argument."
         case .missingValue(let argument):
@@ -1192,6 +1267,7 @@ private func indexHTML(product: String) -> String {
 
 private func mainJS(product: String) -> String {
     """
+    \(product == "AdaWebPlayer" ? "import './player-audio.js';" : "")
     import { WASI, File, OpenFile, ConsoleStdout, PreopenDirectory, Directory } from "./browser-wasi-shim/dist/index.js";
     import { createInstantiator } from "./bridge-js.js";
     import { SwiftRuntime } from "./runtime.mjs";
@@ -1224,7 +1300,7 @@ private func mainJS(product: String) -> String {
     function failLoader(error) {
       console.error(error);
       loader?.setAttribute("data-state", "error");
-      updateLoader(100, "Failed to start. See console for details.");
+      updateLoader(100, `Unable to start: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     async function fetchArrayBufferWithProgress(url, start, end, status) {
@@ -1305,10 +1381,28 @@ private func mainJS(product: String) -> String {
             directory = child;
           }
 
-          const bytes = new Uint8Array(await (await fetch(new URL(entry.url, import.meta.url))).arrayBuffer());
+          const resourceResponse = await fetch(new URL(entry.url, import.meta.url));
+          if (!resourceResponse.ok) throw new Error(`Missing resource ${entry.url}: HTTP ${resourceResponse.status}`);
+          const bytes = new Uint8Array(await resourceResponse.arrayBuffer());
+          if (entry.path.startsWith("game/") && entry.path.endsWith(".wgsl")) {
+            const shader = device.createShaderModule({label: entry.path, code: new TextDecoder().decode(bytes)});
+            const info = await shader.getCompilationInfo();
+            const errors = info.messages.filter(message => message.type === "error");
+            if (errors.length) throw new Error(errors.map(message => `${entry.path}:${message.lineNum}:${message.linePos}: ${message.message}`).join("\\n"));
+          }
           directory.set(parts[parts.length - 1], new File(bytes, { readonly: true }));
           loadedResources += 1;
           updateLoader(68 + (manifest.length > 0 ? (10 * loadedResources / manifest.length) : 10), "Loading resources…");
+        }
+
+        // SwiftPM incremental resource accessors can retain macOS's /tmp or /var
+        // spelling while enumeration resolves /private/tmp or /private/var.
+        // Mount both spellings onto the same files, without fetching bytes twice.
+        const privateRoot = root.get("private");
+        if (privateRoot instanceof Map) {
+          for (const name of ["tmp", "var"]) {
+            if (!root.has(name) && privateRoot.has(name)) root.set(name, privateRoot.get(name));
+          }
         }
 
         const materialize = (map) => new Directory(
@@ -1334,6 +1428,10 @@ private func mainJS(product: String) -> String {
           resourceURLsByPath.set(relativePath, resourceURL);
           resourceURLsByPath.set(`/${relativePath}`, resourceURL);
           resourceURLsByPath.set(`./${relativePath}`, resourceURL);
+          const macOSAlias = relativePath.replace(/^private\\/(tmp|var)\\//, "$1/");
+          if (macOSAlias !== relativePath) {
+            for (const prefix of ["", "/", "./"]) resourceURLsByPath.set(prefix + macOSAlias, resourceURL);
+          }
         }
 
         const resolveResourceURL = (input) => {

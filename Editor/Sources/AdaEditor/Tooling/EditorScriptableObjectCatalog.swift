@@ -23,9 +23,13 @@ struct EditorScenePlayRuntime: Sendable {
     var sources: [AdaScriptSource]
     var hasSystems: Bool
     var startupSystemIdentifier: String?
+    var inputActions: [InputAction] = []
 
     @MainActor
     func install(in app: inout AppWorlds) throws {
+        if app.main.getResource(Input.self) != nil {
+            try app.main.getRefResource(Input.self).wrappedValue.setInputActions(inputActions)
+        }
         try RuntimeLogStore.$currentSource.withValue("Game") {
             try registerScriptableObjects()
             if let plugin = try makeScriptPlugin() {
@@ -85,7 +89,8 @@ enum EditorScriptableObjectCatalogLoader {
                 schemas: schemas.map(makeRuntimeSchema),
                 sources: sources,
                 hasSystems: hasSystems,
-                startupSystemIdentifier: project.runtime.entry.startupSystem
+                startupSystemIdentifier: project.runtime.entry.startupSystem,
+                inputActions: project.inputActions
             )
         )
     }

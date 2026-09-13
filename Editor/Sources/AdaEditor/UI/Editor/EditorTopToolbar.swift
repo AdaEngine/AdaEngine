@@ -39,7 +39,9 @@ struct EditorTopToolbar: View {
 
                 Spacer()
 
-                if metrics.showsToolbarSceneName {
+                EditorUpdateButton()
+
+                if metrics.showsToolbarSceneName && EditorUpdateCenter.shared.availableVersion == nil {
                     Text(viewModel.sceneName)
                         .font(.system(size: 12))
                         .foregroundColor(theme.editorColors.muted)

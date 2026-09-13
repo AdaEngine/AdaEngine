@@ -55,6 +55,9 @@ public struct UIGraphicsContext: Sendable {
     /// Changing this value has no impact on the content you previously drew into the context.
     public var opacity: Float = 1
 
+    /// Whether descendants may reuse recorded and tessellated layer contents.
+    public var allowsLayerCaching: Bool = true
+
     /// The environment associated with the graphics context.
     public var environment: EnvironmentValues = EnvironmentValues()
 

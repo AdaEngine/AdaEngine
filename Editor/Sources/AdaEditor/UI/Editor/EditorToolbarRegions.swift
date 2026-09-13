@@ -14,14 +14,23 @@ struct EditorTopToolbarRegion: View {
             isRunDestinationMenuPresented: isRunDestinationMenuPresented,
             viewModel: viewModel.toolbar,
             runDestination: viewModel.selectedRunDestination,
-            isRunEnabled: !viewModel.isProjectRunning,
+            isRunEnabled: canRun,
             isStopEnabled: viewModel.isProjectRunning,
             onToggleRunDestinationMenu: onToggleRunDestinationMenu,
             onToggleProjectSwitcher: onToggleProjectSwitcher,
             onRun: viewModel.runFromToolbar,
             onStop: viewModel.stopFromToolbar,
-            onDebug: viewModel.debugSelectedTarget
+            onDebug: debugAction
         )
+    }
+    private var canRun: Bool {
+        if viewModel.selectedRunDestination == .player { return !viewModel.playerSession.isBusy }
+        return !viewModel.isProjectRunning
+    }
+
+    private var debugAction: (() -> Void)? {
+        guard viewModel.selectedRunDestination != .player else { return nil }
+        return { viewModel.debugSelectedTarget() }
     }
 }
 

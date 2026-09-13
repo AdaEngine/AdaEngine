@@ -279,11 +279,11 @@ extension EditorViewModel {
         let affectedPaths = Set(diagnostics.map(\.filePath) + [publishedPath])
 
         let firstAffectedIndex = problems.firstIndex { diagnostic in
-            diagnostic.source == "sourcekit-lsp" && affectedPaths.contains(diagnostic.filePath)
+            diagnostic.isLanguageServiceDiagnostic && affectedPaths.contains(diagnostic.filePath)
         }
         var updatedProblems = problems
         updatedProblems.removeAll { diagnostic in
-            diagnostic.source == "sourcekit-lsp" && affectedPaths.contains(diagnostic.filePath)
+            diagnostic.isLanguageServiceDiagnostic && affectedPaths.contains(diagnostic.filePath)
         }
         let insertionIndex = min(firstAffectedIndex ?? updatedProblems.endIndex, updatedProblems.endIndex)
         updatedProblems.insert(contentsOf: diagnostics, at: insertionIndex)
@@ -317,7 +317,7 @@ extension EditorViewModel {
     }
 
     static func replacingBuildDiagnostics(in existing: [EditorDiagnostic], with diagnostics: [EditorDiagnostic]) -> [EditorDiagnostic] {
-        existing.filter { $0.source == "sourcekit-lsp" } + diagnostics.filter { $0.source != "sourcekit-lsp" }
+        existing.filter(\.isLanguageServiceDiagnostic) + diagnostics.filter { !$0.isLanguageServiceDiagnostic }
     }
 
     func goToDefinition(document: EditorTextDocument, position: EditorSourceLocation) {
@@ -432,19 +432,21 @@ extension EditorViewModel {
 
         Task { [weak self] in
             guard let self else { return }
+            if let projectURL = self.projectURL {
+                await self.workspaceService.configureSourceWorkspace(projectURL: projectURL)
+            }
+            await self.workspaceService.setDiagnosticsHandler { [weak self] uri, diagnostics in
+                await MainActor.run {
+                    self?.receiveSourceDiagnostics(diagnostics, uri: uri)
+                }
+            }
             let tokens = await self.workspaceService.semanticTokens(
                 fileURL: URL(fileURLWithPath: absolutePath, isDirectory: false),
                 language: textDocument.language,
                 text: textDocument.content
             )
-            guard !tokens.isEmpty else {
-                return
-            }
-
             await MainActor.run {
-                self.workbench.updateTextDocument(id: textDocument.id) { document in
-                    document.semanticTokens = tokens
-                }
+                self.workbench.applySemanticTokens(tokens, documentID: textDocument.id, source: textDocument.content)
             }
         }
     }

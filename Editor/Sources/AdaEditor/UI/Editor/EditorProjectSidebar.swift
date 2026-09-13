@@ -1,4 +1,5 @@
 @_spi(AdaEngine) import AdaEngine
+import Foundation
 
 enum EditorProjectTreeIcon {
     static let chevronRight = "\u{E5CC}"
@@ -33,6 +34,7 @@ struct EditorProjectSidebar: View {
     let onOpenRawItem: (EditorProjectSidebarViewModel.Item) -> Void
     let onNewFile: (EditorNewFileKind?) -> Void
     let onImportAssets: () -> Void
+    let onDropFiles: ([URL]) -> Bool
     let onRevealItem: (EditorProjectSidebarViewModel.Item) -> Void
     let onOpenInDefaultApplication: (EditorProjectSidebarViewModel.Item) -> Void
     let onOpenInTerminal: (EditorProjectSidebarViewModel.Item) -> Void
@@ -114,6 +116,13 @@ struct EditorProjectSidebar: View {
                 .fill(theme.editorColors.surfaceElevated)
         )
         .mask(RoundedRectangleShape(cornerRadius: metrics.panelsRoundedCorner))
+        #if canImport(AppKit) && os(macOS)
+        .overlay {
+            EditorProjectFileDropTarget(isEnabled: projectRootItem != nil, onDrop: onDropFiles)
+                .nativeRenderingMode(.overlay)
+                .allowsHitTesting(false)
+        }
+        #endif
     }
 
     private var newFileAction: some View {

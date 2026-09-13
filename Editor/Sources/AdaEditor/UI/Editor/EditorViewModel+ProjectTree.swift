@@ -210,6 +210,10 @@ extension EditorViewModel {
             return .audio
         }
 
+        if url.pathExtension.lowercased() == "tileset" {
+            return .genericAsset
+        }
+
         if isTextFile(url) {
             return .text(EditorSourceLanguage.detect(fileName: url.lastPathComponent))
         }
@@ -241,6 +245,9 @@ extension EditorViewModel {
         for kind: EditorProjectFileKind,
         fileExtension: String
     ) -> EditorAssetPreviewKind {
+        if fileExtension == "tileset" {
+            return .tileSource
+        }
         if fileExtension == "atlas" {
             return .atlas
         }
@@ -340,7 +347,7 @@ extension EditorViewModel {
     static func isTextFile(_ url: URL) -> Bool {
         let textExtensions: Set<String> = [
             "ada", "c", "cc", "comp", "cpp", "cxx", "frag", "geom", "glsl", "gravity", "h", "hpp", "hxx", "json", "md", "markdown",
-            "ui", "ascn", "metal", "plist", "scn", "scene", "shader", "strings", "swift", "tesc", "tese", "toml", "txt", "vert", "wgsl", "xml", "yaml", "yml"
+            "ui", "ascn", "tileset", "metal", "plist", "scn", "scene", "shader", "strings", "swift", "tesc", "tese", "toml", "txt", "vert", "wgsl", "xml", "yaml", "yml"
         ]
         let lowercasedName = url.lastPathComponent.lowercased()
 
@@ -386,7 +393,7 @@ extension EditorRunDestination {
     var adaProjectDestination: AdaProjectRunDestination {
         switch self {
         case .macOS: .macOS
-        case .iPadOS: .iPadOS
+        case .iPadOS, .player: .iPadOS
         case .web: .web
         }
     }

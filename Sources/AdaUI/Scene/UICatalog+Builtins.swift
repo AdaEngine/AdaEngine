@@ -40,10 +40,10 @@ extension UICatalog {
         let verticalStack = [number("spacing", 8), choice("alignment", "center", ["leading", "center", "trailing"])]
         return [
             view("Text", [string("text", "Text")]) { AnyView(Text($0.string("text"))) },
-            view("Image", [string("path"), bool("resizable", true), bool("template")]) { c in
+            view("Image", [string("path"), bool("resizable", true), bool("template")] + imageCapParameters) { c in
                 guard let resources = c.resources else { throw UIDiagnostic("Image requires a UI resource context.") }
                 var image = try resources.image(c.string("path"), relativeTo: c.sourceURL)
-                if c.bool("resizable") { image = image.resizable() }
+                if c.bool("resizable") { image = image.resizable(capInsets: try c.imageCapInsets()) }
                 if c.bool("template") { image = image.renderMode(.template) }
                 return AnyView(image)
             },

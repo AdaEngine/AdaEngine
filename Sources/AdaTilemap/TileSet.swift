@@ -7,8 +7,9 @@
 
 import AdaAssets
 import AdaPhysics
-import OrderedCollections
+import Foundation
 import Math
+import OrderedCollections
 
 public class TileSet: @unsafe Asset, Codable, @unchecked Sendable {
 
@@ -27,11 +28,14 @@ public class TileSet: @unsafe Asset, Codable, @unchecked Sendable {
 
     // MARK: - Resource
 
-    public required init(from assetDecoder: AssetDecoder) throws {
+    public required init(from assetDecoder: AssetDecoder) async throws {
         let file = try assetDecoder.decode(FileContent.self)
         self.tileSize = file.tileSize
         
         for source in file.sources.elements.values {
+            if let textureSource = source as? TextureAtlasTileSource {
+                try await textureSource.loadTextureAtlas(relativeTo: assetDecoder.assetMeta.filePath.deletingLastPathComponent())
+            }
             self.addTileSource(source)
         }
     }

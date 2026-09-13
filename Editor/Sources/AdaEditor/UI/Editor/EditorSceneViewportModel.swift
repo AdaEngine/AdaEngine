@@ -204,6 +204,11 @@ final class EditorSceneViewportModel {
 
     func update(deltaTime: Float) -> Bool {
         var didChange = advancePerspectiveTransition(deltaTime: deltaTime)
+        // SceneView creates its camera after the scene-loading callback. Bind it
+        // on the first update where it exists, even if the user has not moved.
+        if cameraEntityID == nil, cameraEntity() != nil {
+            didChange = true
+        }
 
         if displayMode == .threeD, transformDrag == nil {
             let movement = movementVector()
@@ -683,7 +688,7 @@ extension EditorSceneViewportModel {
 
     func rotate3D(by delta: Vector2) {
         threeDYaw += delta.x * 0.008
-        threeDPitch = min(1.45, max(-1.45, threeDPitch + delta.y * 0.008))
+        threeDPitch = min(1.45, max(-1.45, threeDPitch - delta.y * 0.008))
         applyCamera()
     }
 
@@ -771,6 +776,10 @@ extension EditorSceneViewportModel {
 
         cameraEntity.components += camera
         cameraEntity.components += transform
+        var environment = cameraEntity.components[Environment3D.self] ?? Environment3D()
+        environment.skybox.isEnabled = smoothPerspectiveBlend > 0
+        environment.screenSpaceReflection.isEnabled = smoothPerspectiveBlend > 0
+        cameraEntity.components += environment
     }
 
     func cameraState(for size: Size) -> CameraState {
@@ -822,7 +831,7 @@ extension EditorSceneViewportModel {
         return CameraState(
             projection: projection,
             transform: transform,
-            renderGraphLabel: blend < 0.5 ? .main2D : .main3D
+            renderGraphLabel: .main3D
         )
     }
 
@@ -869,7 +878,10 @@ extension EditorSceneViewportModel {
 
     func findCameraEntity(in world: World) -> Entity? {
         world.getEntities().first { entity in
-            entity.components[Camera.self] != nil && entity.components[Transform.self] != nil
+            entity.name == "SceneView_Camera"
+                && editorIDsByEntityID[entity.id] == nil
+                && entity.components[Camera.self] != nil
+                && entity.components[Transform.self] != nil
         }
     }
 }

@@ -1,3 +1,4 @@
+import AdaEngine
 import Foundation
 
 /// Reads, validates, and creates Ada project metadata stored at `.ada/project.json`.
@@ -83,7 +84,7 @@ public enum ProjectSystem {
             }
         }
 
-        let inferredProjectName = buildSystem.isAdaScript && projectURL.pathExtension.lowercased() == "adaproject"
+        let inferredProjectName = projectURL.pathExtension.lowercased() == "adaproject"
             ? projectURL.deletingPathExtension().lastPathComponent
             : projectURL.lastPathComponent
         let project = defaultProject(projectName: inferredProjectName, buildSystem: buildSystem)
@@ -178,6 +179,11 @@ public enum ProjectSystem {
             project.build.system = .adaScript
         }
 
+        do {
+            try InputAction.validate(project.inputActions)
+        } catch {
+            throw .invalidField(path: "inputActions", message: error.localizedDescription)
+        }
         try validateRelativePath(project.paths.sources, keyPath: "paths.sources")
         try validateRelativePath(project.paths.assets, keyPath: "paths.assets")
         try validateRelativePath(project.paths.build, keyPath: "paths.build")
@@ -343,6 +349,7 @@ public struct AdaProject: Codable, Equatable, Sendable {
     public var paths: AdaProjectPaths
     public var build: AdaProjectBuild
     public var run: AdaProjectRun
+    public var inputActions: [InputAction]
     public var runtime: AdaProjectRuntime
     public var editor: AdaProjectEditor
     public var ai: AdaProjectAI
@@ -354,6 +361,7 @@ public struct AdaProject: Codable, Equatable, Sendable {
         paths: AdaProjectPaths = AdaProjectPaths(),
         build: AdaProjectBuild = AdaProjectBuild(),
         run: AdaProjectRun = AdaProjectRun(),
+        inputActions: [InputAction] = [],
         runtime: AdaProjectRuntime = AdaProjectRuntime(),
         editor: AdaProjectEditor = AdaProjectEditor(),
         ai: AdaProjectAI = AdaProjectAI()
@@ -364,13 +372,14 @@ public struct AdaProject: Codable, Equatable, Sendable {
         self.paths = paths
         self.build = build
         self.run = run
+        self.inputActions = inputActions
         self.runtime = runtime
         self.editor = editor
         self.ai = ai
     }
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, project, engine, paths, build, run, runtime, editor, ai
+        case schemaVersion, project, engine, paths, build, run, runtime, editor, ai, inputActions
         case legacyBuildSystem = "buildSystem"
     }
 
@@ -388,6 +397,7 @@ public struct AdaProject: Codable, Equatable, Sendable {
             self.build = AdaProjectBuild()
         }
         run = try container.decodeIfPresent(AdaProjectRun.self, forKey: .run) ?? AdaProjectRun()
+        inputActions = try container.decodeIfPresent([InputAction].self, forKey: .inputActions) ?? []
         runtime = try container.decodeIfPresent(AdaProjectRuntime.self, forKey: .runtime) ?? AdaProjectRuntime()
         editor = try container.decodeIfPresent(AdaProjectEditor.self, forKey: .editor) ?? AdaProjectEditor()
         ai = try container.decodeIfPresent(AdaProjectAI.self, forKey: .ai) ?? AdaProjectAI()
@@ -401,6 +411,7 @@ public struct AdaProject: Codable, Equatable, Sendable {
         try container.encode(paths, forKey: .paths)
         try container.encode(build, forKey: .build)
         try container.encode(run, forKey: .run)
+        if !inputActions.isEmpty { try container.encode(inputActions, forKey: .inputActions) }
         if runtime != AdaProjectRuntime() {
             try container.encode(runtime, forKey: .runtime)
         }

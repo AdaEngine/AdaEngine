@@ -30,7 +30,9 @@ enum AssetFilePickerResult: Equatable, Sendable {
 enum ProjectOpenPicker {
     static let title = "Open Ada Project"
     static let prompt = "Open Project"
-    static let message = "Choose an Ada project directory or a SwiftPM Package.swift manifest."
+    static let message = EditorDistribution.current.supportsSwiftProjects
+        ? "Choose an Ada project folder, .adaproject package, or SwiftPM Package.swift manifest."
+        : "Choose an AdaScript project folder or .adaproject package."
     static let allowedFileNames = ["Package.swift"]
     static let projectLocationTitle = "Choose Project Location"
     static let projectLocationPrompt = "Choose"
@@ -78,6 +80,7 @@ enum ProjectOpenPicker {
         panel.message = message
         panel.canChooseDirectories = true
         panel.canChooseFiles = true
+        panel.treatsFilePackagesAsDirectories = false
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = false
         panel.resolvesAliases = true

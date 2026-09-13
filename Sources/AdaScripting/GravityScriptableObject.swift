@@ -110,6 +110,8 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
                 }
             case let .resource(_, type, _, _):
                 access.addResourceWrite(ObjectIdentifier(type))
+            case .input:
+                access.addResourceRead(Input.self)
             }
         }
         access.addDeferredWorldAccess()
@@ -139,6 +141,9 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
                 required: required
             )
         case .resource(let optional):
+            if binding.typeName == "Input" {
+                return .input(propertyName: binding.propertyName, optional: optional)
+            }
             guard let type = RuntimeTypeRegistry.resourceType(named: binding.typeName) else {
                 throw AdaScriptError.unknownResource(
                     system: scriptableIdentifier,
@@ -170,6 +175,7 @@ private final class GravityScriptableDefinition: @unchecked Sendable {
 }
 
 private enum ResolvedGravityScriptableBinding: @unchecked Sendable {
+    case input(propertyName: String, optional: Bool)
     case component(
         propertyName: String,
         type: any Component.Type,
@@ -388,6 +394,7 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
 
         try virtualMachine.bindClass(with: GravityScriptableLifecycleContext.self)
         try virtualMachine.bindClass(with: AnnotatedGravitySystemContext.self)
+        try virtualMachine.bindClass(with: AdaScriptInputBridge.self)
         try virtualMachine.bindClass(with: AnnotatedGravityWorldContext.self)
         try virtualMachine.bindClass(with: AnnotatedGravityCommandsBridge.self)
         try virtualMachine.bindClass(with: AnnotatedGravityQueryBridge.self)
@@ -466,7 +473,8 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
             guard let instance = instances[instanceID], instance.hasMethod(named: method) else {
                 return
             }
-            bind(bindings, to: instance, context: context)
+            let inputBindings = bind(bindings, to: instance, context: context)
+            defer { for input in inputBindings { input.invalidate() } }
             let lifecycleContext = GravityScriptableLifecycleContext.make(
                 context,
                 reportDiagnostic: delegate.append
@@ -489,7 +497,8 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
             guard let instance = instances[instanceID], instance.hasMethod(named: "event") else {
                 return
             }
-            bind(bindings, to: instance, context: context)
+            let inputBindings = bind(bindings, to: instance, context: context)
+            defer { for input in inputBindings { input.invalidate() } }
             let lifecycleContext = GravityScriptableLifecycleContext.make(
                 context,
                 reportDiagnostic: delegate.append
@@ -551,11 +560,21 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
         _ bindings: [ResolvedGravityScriptableBinding],
         to instance: GSValue,
         context: ScriptableObjectContext
-    ) {
+    ) -> [AdaScriptInputBridge] {
+        var inputBindings: [AdaScriptInputBridge] = []
         for binding in bindings {
             let propertyName: String
             let bridge: AnyObject
             switch binding {
+            case let .input(name, optional):
+                propertyName = name
+                let input = context.resource(Input.self)
+                if input == nil && !optional {
+                    delegate.append("Required resource 'Input' is not available")
+                }
+                let inputBridge = AdaScriptInputBridge.make(input)
+                inputBindings.append(inputBridge)
+                bridge = inputBridge
             case let .component(name, type, descriptor, _):
                 propertyName = name
                 bridge = GravityAttachedComponentView.make(
@@ -582,5 +601,6 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
                 to: GSValue(object: bridge, in: virtualMachine)
             )
         }
+        return inputBindings
     }
 }

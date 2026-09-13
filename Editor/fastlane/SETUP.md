@@ -103,3 +103,108 @@ review staged files before publishing, and never force-add signing material.
 References: [Fastlane build_app](https://docs.fastlane.tools/actions/build_app/),
 [API key authentication](https://docs.fastlane.tools/actions/app_store_connect_api_key/),
 [TestFlight uploads](https://docs.fastlane.tools/actions/testflight/).
+
+## macOS channels
+
+`AdaEditor-Distribution` / `AdaEditor-macOS` and iPadOS are the App Store / TestFlight
+channel. They expose only AdaScript templates and reject SwiftPM/hybrid projects
+before changing manifests or starting tools. AdaScript compilation and playback
+use the embedded runtime. Existing Swift projects are not converted automatically.
+
+`AdaEditor-Standalone` is the website channel: AdaScript and SwiftPM, App Sandbox
+disabled, Hardened Runtime enabled. Both Mac channels use the same bundle ID and
+app name; install one at a time. The channel is embedded in the host Info.plist
+(`AdaEditorDistribution`), because Xcode target compilation flags do not propagate
+to the SwiftPM executable. Unlabelled app bundles default to AdaScript only.
+
+Run from `Editor/` with an installed **Developer ID Application** certificate and
+its private key. This is a different identity from Apple Distribution. Prepare a
+notarytool Keychain profile locally, then run:
+
+```bash
+BUILD_NUMBER=3 MARKETING_VERSION=1.0 NOTARYTOOL_PROFILE=AdaEngine \
+  bundle exec fastlane mac website
+```
+
+This generates the project, archives and exports the standalone app, checks its
+signature/channel/entitlements, submits it for notarization, staples and validates
+the ticket, assesses it with Gatekeeper, and creates a versioned ZIP plus SHA-256
+under `build/standalone/`. Publish that ZIP on the website only after this lane
+succeeds. The lane does not upload to the website or to TestFlight.
+
+`bundle exec fastlane mac standalone` with the same version/build variables exports
+a signed app without notarization; it is an intermediate artifact, not a completed
+website release. `ADAEDITOR_DERIVED_DATA` selects the build cache. No certificate,
+private key, or notarization credential belongs in the repository.
+
+## Sparkle updates (standalone macOS only)
+
+The standalone target embeds `AdaEditorUpdater.framework` and Sparkle 2.9.6.
+The SwiftPM executable loads this optional framework after launch. Store targets
+neither link nor embed it, and the App Store archive check rejects updater
+frameworks. Use separate DerivedData directories for Store and standalone release
+jobs to avoid stale products with the same app name.
+
+Sparkle checks the HTTPS appcast automatically. Scheduled checks show an **Update**
+button in the editor and project launcher; clicking it opens Sparkle's release
+notes and installation UI. **Check for Updates…** is always available in the
+standalone application menu. Automatic installation is disabled. All open
+workspaces save before the updater starts and again immediately before restart;
+a failed save postpones installation until the user saves and retries Update.
+
+Download the official [Sparkle 2.9.6 tools](https://github.com/sparkle-project/Sparkle/releases/tag/2.9.6).
+Create the signing key once, keep it across all releases, and back it up securely:
+
+```bash
+/path/to/Sparkle/bin/generate_keys --account AdaEngineEditor
+```
+
+Only the public key belongs in build configuration. The private key stays in
+Keychain, or in a CI secret file referenced by `SPARKLE_PRIVATE_KEY_FILE`; its
+contents are never passed on the command line. Do not generate a new production
+key for every release.
+
+The website lane now additionally requires these settings:
+
+```bash
+export SPARKLE_TOOLS_DIR=/path/to/Sparkle/bin
+export SPARKLE_PUBLIC_ED_KEY='<public key from generate_keys>'
+export SPARKLE_FEED_URL=https://adaengine.org/updates/appcast.xml
+export SPARKLE_DOWNLOAD_URL_PREFIX=https://github.com/AdaEngine/AdaEngine/releases/download/editor-v1.0-3/
+BUILD_NUMBER=3 MARKETING_VERSION=1.0 NOTARYTOOL_PROFILE=AdaEngine \
+  bundle exec fastlane mac website
+```
+
+The URLs above describe the proposed hosting layout; this change does not deploy
+that endpoint or create a GitHub release. Any HTTPS archive host is supported.
+`SPARKLE_KEY_ACCOUNT` defaults to `AdaEngineEditor`. Optional
+`SPARKLE_RELEASE_NOTES` points to an HTML fragment, embedded in the appcast.
+`SPARKLE_PREVIOUS_APPCAST` points to the existing feed: provide it on fresh CI
+workers to preserve entries for older supported macOS versions. Local runs reuse
+`build/standalone/updates/appcast.xml`. Delta generation is disabled so each new
+GitHub release only needs its own ZIP.
+
+After notarization and stapling, the lane signs the final ZIP with EdDSA, generates
+and validates `build/standalone/updates/appcast.xml`. Upload the versioned ZIP and
+checksum to the release named by the download prefix **first**, verify the download,
+then atomically publish appcast.xml at `SPARKLE_FEED_URL`. Keep existing release
+assets immutable. Publishing the feed before the archive creates broken updates.
+
+Both `mac standalone` and `mac website` reject missing/invalid feed URLs or public
+keys before building. Local Xcode builds with empty update settings remain usable;
+manual update checks explain that the channel is not configured.
+
+Validation:
+
+```bash
+SPARKLE_TOOLS_DIR=/path/to/Sparkle/bin ruby fastlane/tests/update_feed_test.rb
+```
+
+This creates a disposable app archive and Ed25519 key outside the repository,
+runs the actual Sparkle generator, and independently verifies the resulting ZIP
+signature. It does not sign or publish a production release.
+
+The standalone lane explicitly signs Sparkle's nested Updater, Autoupdate and XPC
+helpers with Developer ID and secure timestamps before signing the enclosing
+framework and application. An outer framework signature alone can pass local
+verification while failing Apple's notarization checks.

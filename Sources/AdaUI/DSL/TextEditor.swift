@@ -208,7 +208,7 @@ public struct TextEditor: View {
     let showsLineNumbers: Bool
 
     public var body: some View {
-        ScrollView([.horizontal, .vertical]) {
+        ScrollView([.horizontal, .vertical], showsIndicators: true) {
             TextEditorPrimitive(
                 placeholder: placeholder,
                 text: text,

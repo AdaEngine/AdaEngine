@@ -15,7 +15,12 @@ import Math
 /// Plugin for RenderWorld added 3D render capatibilites.
 public struct Core3DPlugin: Plugin {
 
-    public init() {}
+    private let includes2D: Bool
+
+    /// Enables depth-tested 2D content in the 3D graph. Requires `Core2DPlugin`.
+    public init(includes2D: Bool = false) {
+        self.includes2D = includes2D
+    }
     
     /// Input slots of render graph.
     public enum InputNode {
@@ -43,7 +48,7 @@ public struct Core3DPlugin: Plugin {
         graph.addNode(EmptyNode(), by: .Main3D.beginPass)
         graph.addNode(DirectionalShadow3DRenderNode())
         graph.addNode(Main3DRenderNode())
-        graph.addNode(ScreenSpaceReflectionRenderNode())
+        graph.addNode(ScreenSpaceReflectionRenderNode(notifiesCompletion: !includes2D))
         graph.addNode(EmptyNode(), by: .Main3D.endPass)
         graph.addNode(UpscaleNode())
 
@@ -57,7 +62,14 @@ public struct Core3DPlugin: Plugin {
         graph.addNodeEdge(from: RenderNodeLabel.Main3D.beginPass, to: DirectionalShadow3DRenderNode.name)
         graph.addNodeEdge(from: DirectionalShadow3DRenderNode.name, to: Main3DRenderNode.name)
         graph.addNodeEdge(from: Main3DRenderNode.name, to: ScreenSpaceReflectionRenderNode.name)
-        graph.addNodeEdge(from: ScreenSpaceReflectionRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
+        if includes2D {
+            app.insertResource(Scene2DPipelines())
+            graph.addNode(Scene2DRenderNode())
+            graph.addNodeEdge(from: ScreenSpaceReflectionRenderNode.name, to: Scene2DRenderNode.name)
+            graph.addNodeEdge(from: Scene2DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
+        } else {
+            graph.addNodeEdge(from: ScreenSpaceReflectionRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
+        }
         graph.addNodeEdge(from: RenderNodeLabel.Main3D.endPass, to: UpscaleNode.name)
 
         app

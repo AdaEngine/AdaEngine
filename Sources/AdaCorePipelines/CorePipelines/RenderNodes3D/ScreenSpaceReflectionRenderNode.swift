@@ -29,7 +29,11 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
     @Res<RenderDeviceHandler>
     private var renderDevice
 
-    public init() {}
+    private let notifiesCompletion: Bool
+
+    public init(notifiesCompletion: Bool = true) {
+        self.notifiesCompletion = notifiesCompletion
+    }
 
     public func update(from world: World) {
         query.update(from: world)
@@ -128,7 +132,7 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
             pass.setRenderPipelineState(pipeline.renderPipeline)
             pass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             pass.endRenderPass()
-            if let outputTexture = target.outputTexture,
+            if notifiesCompletion, let outputTexture = target.outputTexture,
                mainTexture === outputTexture {
                 commandBuffer.addCompletedHandler { [outputTexture] in
                     outputTexture.notifyRenderCompleted()

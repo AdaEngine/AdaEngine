@@ -59,6 +59,7 @@ enum ProjectOpeningAccessibility {
     static let projectName = "AdaEditor.Launcher.ProjectName"
     static let location = "AdaEditor.Launcher.Location"
     static let landingContent = "AdaEditor.Launcher.LandingContent"
+    static let packageToggle = "AdaEditor.Launcher.PackageToggle"
     static let gitToggle = "AdaEditor.Launcher.GitToggle"
     static let createActions = "AdaEditor.Launcher.CreateActions"
 }
@@ -219,6 +220,8 @@ struct ProjectOpeningView: View {
                     .padding(.bottom, 4)
             }
 
+            EditorUpdateButton()
+
             launcherSectionButton(.projects)
             launcherSectionButton(.templates)
             launcherSectionButton(.samples)
@@ -325,7 +328,9 @@ struct ProjectOpeningView: View {
             launcherListHeader("Project Templates")
                 .padding(.top, ProjectOpeningLayout.explorerTopPadding)
             projectTemplateRow(.adaScript)
-            projectTemplateRow(.adaScriptWithSwift)
+            if viewModel.supportsSwiftProjects {
+                projectTemplateRow(.adaScriptWithSwift)
+            }
             Spacer()
         }
     }
@@ -342,13 +347,15 @@ struct ProjectOpeningView: View {
             ) {
                 viewModel.beginCreateNewProject(template: .adaScript, suggestedName: "ScriptSample")
             }
-            templateRow(
-                title: "Hybrid Window",
-                subtitle: "AdaScript system with an editable Swift app",
-                badge: "ADA+SWIFT",
-                isActive: false
-            ) {
-                viewModel.beginCreateNewProject(template: .adaScriptWithSwift, suggestedName: "HybridSample")
+            if viewModel.supportsSwiftProjects {
+                templateRow(
+                    title: "Hybrid Window",
+                    subtitle: "AdaScript system with an editable Swift app",
+                    badge: "ADA+SWIFT",
+                    isActive: false
+                ) {
+                    viewModel.beginCreateNewProject(template: .adaScriptWithSwift, suggestedName: "HybridSample")
+                }
             }
             Spacer()
         }
@@ -486,6 +493,7 @@ struct ProjectOpeningView: View {
             NavigationStack {
                 createProjectFormBody
                     .navigationTitle("New Project")
+                    .navigationTitleFont(AdaEditorTitleFont.font(size: 22))
                     .navigationTitlePosition(.leading)
                     .navigationBarColor(LauncherColor.window)
             }
@@ -590,15 +598,21 @@ struct ProjectOpeningView: View {
 
                 createFormField(title: "Project Type") {
                     EditorEnumField(
-                        cases: EditorProjectTemplate.allCases.map(\.displayName),
+                        cases: viewModel.availableTemplates.map(\.displayName),
                         selection: viewModel.projectTemplateBinding
                     )
                     .theme(.adaEditor)
                 }
                 .accessibilityIdentifier(ProjectOpeningAccessibility.projectType)
 
-                createFormField(title: "Version control") {
-                    gitRepositoryToggle
+                createFormField(title: "Project folder") {
+                    projectPackageToggle
+                }
+
+                if viewModel.supportsSwiftProjects {
+                    createFormField(title: "Version control") {
+                        gitRepositoryToggle
+                    }
                 }
             }
             .padding(.top, 28)
@@ -638,6 +652,26 @@ struct ProjectOpeningView: View {
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier(ProjectOpeningAccessibility.createActions)
         }
+    }
+
+    private var projectPackageToggle: some View {
+        Button {
+            viewModel.shouldCreateProjectPackage.toggle()
+        } label: {
+            HStack(spacing: 8) {
+                CircleShape()
+                    .fill(Color.white)
+                    .frame(width: 16, height: 16)
+                    .frame(width: 32, height: 20, alignment: viewModel.shouldCreateProjectPackage ? .trailing : .leading)
+                    .padding(.horizontal, 2)
+                    .background(CapsuleShape().fill(viewModel.shouldCreateProjectPackage ? LauncherColor.accentViolet : LauncherColor.muted.opacity(0.35)))
+                Text("Create .adaproject package")
+                    .font(.system(size: 13))
+                    .foregroundColor(.white)
+            }
+        }
+        .buttonStyle(LauncherInlineButtonStyle())
+        .accessibilityIdentifier(ProjectOpeningAccessibility.packageToggle)
     }
 
     private var gitRepositoryToggle: some View {
@@ -730,7 +764,7 @@ struct ProjectOpeningView: View {
                 }
 
                 Text("AdaEngine")
-                    .font(.system(size: 26))
+                    .font(AdaEditorTitleFont.font(size: 26))
                     .foregroundColor(.white)
 
                 Text("Create a new game project or continue with an existing package.")
@@ -836,7 +870,7 @@ struct ProjectOpeningView: View {
     private func detailsList(_ project: EditorProjectReference?) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             detailRow(label: "Engine Version", value: viewModel.engineVersion(for: project), highlighted: true)
-            detailRow(label: "Build Core", value: "SwiftPM", highlighted: false)
+            detailRow(label: "Build Core", value: viewModel.supportsSwiftProjects ? "AdaScript / SwiftPM" : "AdaScript", highlighted: false)
             detailRow(label: "Project Path", value: project.map { viewModel.abbreviatedPath(for: $0) } ?? "Not selected", highlighted: false)
             detailRow(label: "Metadata", value: project == nil ? ".ada/project.json" : "Ready", highlighted: false)
             detailRow(label: "Last Opened", value: viewModel.lastOpenedText(for: project), highlighted: false)

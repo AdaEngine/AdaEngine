@@ -30,7 +30,7 @@ struct EditorMenuBarTests {
         #expect(build.items.map(\.title).contains("Build Project"))
         #expect(build.items.map(\.title).contains("Run Tests"))
         #expect(code.items.map(\.title).contains("Rebuild Preview"))
-        #expect(system.items.map(\.title) == ["Settings..."])
+        #expect(system.items.map(\.title) == (EditorDistribution.current == .standalone ? ["Settings...", "Check for Updates…"] : ["Settings..."]))
         #expect(system.items.first?.keyEquivalent == .comma)
         #expect(file.items.first { $0.title == "Save" }?.keyEquivalent == .s)
         #expect(build.items.first { $0.title == "Build Project" }?.keyEquivalent == .b)

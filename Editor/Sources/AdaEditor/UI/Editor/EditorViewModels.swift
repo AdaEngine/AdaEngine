@@ -20,6 +20,13 @@ struct EditorCodeColorPalette: Hashable, Sendable {
     var lineNumber: Color
     var currentLineBackground: Color
     var selection: Color
+    var annotation: Color? = nil
+    var function: Color? = nil
+    var member: Color? = nil
+
+    var annotationColor: Color { annotation ?? keyword }
+    var functionColor: Color { function ?? type }
+    var memberColor: Color { member ?? type }
 
     static let dark = EditorCodeColorPalette(
         plainText: Color(red: 214 / 255, green: 217 / 255, blue: 224 / 255),
@@ -32,6 +39,22 @@ struct EditorCodeColorPalette: Hashable, Sendable {
         lineNumber: Color(red: 101 / 255, green: 108 / 255, blue: 122 / 255),
         currentLineBackground: Color(red: 43 / 255, green: 45 / 255, blue: 52 / 255),
         selection: Color(red: 53 / 255, green: 116 / 255, blue: 240 / 255).opacity(0.24)
+    )
+
+    static let godot = EditorCodeColorPalette(
+        plainText: Color.fromHex(0xB0CCE1),
+        keyword: Color.fromHex(0xFF7085),
+        type: Color.fromHex(0x42E0BB),
+        string: Color.fromHex(0xE1D38C),
+        number: Color.fromHex(0x92D8C8),
+        comment: Color.fromHex(0x808080),
+        punctuation: Color.fromHex(0xABC9FF),
+        lineNumber: Color.fromHex(0xAAAAAA),
+        currentLineBackground: Color.fromHex(0x292929),
+        selection: Color.fromHex(0x405C78).opacity(0.65),
+        annotation: Color.fromHex(0xECA05D),
+        function: Color.fromHex(0x60C7DF),
+        member: Color.fromHex(0xB0CCE1)
     )
 
     static let monokai = EditorCodeColorPalette(
@@ -63,11 +86,14 @@ struct EditorCodeColorPalette: Hashable, Sendable {
 
 enum EditorCodePalettePreset: String, CaseIterable, Hashable, Sendable {
     case adaDark
+    case godot
     case monokai
     case solarized
 
     var title: String {
         switch self {
+        case .godot:
+            "Godot"
         case .adaDark:
             "Ada Dark"
         case .monokai:
@@ -79,6 +105,8 @@ enum EditorCodePalettePreset: String, CaseIterable, Hashable, Sendable {
 
     var palette: EditorCodeColorPalette {
         switch self {
+        case .godot:
+            .godot
         case .adaDark:
             .dark
         case .monokai:
@@ -160,7 +188,7 @@ enum EditorSourceLanguage: String, Sendable {
             return .metal
         case "swift":
             return .swift
-        case "yaml", "yml":
+        case "yaml", "yml", "tileset":
             return .yaml
         default:
             return .plainText
@@ -183,6 +211,7 @@ enum EditorProjectFileKind: Equatable, Sendable {
 }
 
 enum EditorAssetPreviewKind: String, Equatable, Sendable {
+    case tileSource
     case atlas
     case image
     case audio

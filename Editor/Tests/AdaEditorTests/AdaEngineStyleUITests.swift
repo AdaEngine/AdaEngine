@@ -744,7 +744,7 @@ struct AdaEngineStyleUITests {
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("Search Everywhere"))
         #expect(AdaEngineStyleContent.topToolbarLabels.contains("main_scene"))
         #expect(!AdaEngineStyleContent.topToolbarLabels.contains("Hot Reload"))
-        #expect(AdaEngineStyleContent.leftTopSidebarTools.map(\.title) == ["File Tree", "Entity Tree", "Source Control", "Tests"])
+        #expect(AdaEngineStyleContent.leftTopSidebarTools.map(\.title) == ["File Tree", "Entity Tree", "Source Control"])
         #expect(AdaEngineStyleContent.leftBottomSidebarTools.map(\.title) == ["Logs", "Build", "Debug", "Animator"])
         #expect(AdaEngineStyleContent.rightSidebarTools.map(\.title) == ["Agent Chat", "Inspector", "Project Dependencies", "Swift Package Tasks", "Plugins", "Project Settings"])
         #expect(AdaEngineStyleContent.projectTreeItems == ["src", "EngineLoop.ada", "Renderer.ada", "Main.ascn"])

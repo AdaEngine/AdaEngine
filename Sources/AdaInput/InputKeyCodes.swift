@@ -8,7 +8,7 @@
 // swiftlint:disable all
 
 /// A key code set supported by the engine.
-public enum KeyCode: String, Hashable, CaseIterable, Sendable {
+public enum KeyCode: String, Codable, Hashable, CaseIterable, Sendable {
     case none = ""
 
     case enter = "\r"
@@ -433,7 +433,7 @@ public extension KeyModifier {
 //SDLK_AUDIOREWIND = SDL_SCANCODE_TO_KEYCODE(SDL_SCANCODE_AUDIOREWIND),
 //SDLK_AUDIOFASTFORWARD = SDL_SCANCODE_TO_KEYCODE(SDL_SCANCODE_AUDIOFASTFORWARD)
 
-public enum MouseButton: UInt8, Hashable, Sendable {
+public enum MouseButton: UInt8, Codable, CaseIterable, Hashable, Sendable {
     case none
     case left
     case right

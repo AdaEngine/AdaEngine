@@ -13,6 +13,7 @@ enum EditorAdaScriptRuntimeError: Error, LocalizedError {
 
 @MainActor
 struct EditorAdaScriptProjectRuntimeView: View {
+    let performanceSession = EditorGamePerformanceSession()
     private let artifact: EditorAdaScriptProjectBuildArtifact
     private let entryView: AdaScriptView?
     private let scriptPlugin: AdaScriptPlugin?
@@ -46,11 +47,13 @@ struct EditorAdaScriptProjectRuntimeView: View {
             }
         }
         .background(.black)
+        .onDisappear { performanceSession.stop() }
     }
 
     private func configureRuntime(_ app: inout AppWorlds) {
+        performanceSession.attach(app, title: artifact.report.entryDescription)
         app.addPlugin(TransformPlugin())
-        app.addPlugin(InputPlugin())
+        app.addPlugin(InputPlugin(actions: artifact.scenePlayRuntime.inputActions))
         app.addPlugin(RenderWorldPlugin())
         app.addPlugin(EventsPlugin())
         app.addPlugin(CameraPlugin())

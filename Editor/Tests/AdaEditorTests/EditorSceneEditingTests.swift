@@ -1,3 +1,4 @@
+@testable import AdaCorePipelines
 @testable import AdaEditor
 @_spi(AdaEngine) import AdaEngine
 @_spi(Internal) import AdaEngine
@@ -473,6 +474,47 @@ struct EditorSceneEditingTests {
         #expect(projectedLineCount > 10)
     }
 
+    @Test("3D ground grid lines reach the UI renderer at their projected screen positions", arguments: [Float(-0.42), 0, -1.45])
+    @MainActor
+    func groundGridLineScreenCoordinates(pitch: Float) throws {
+        let size = Size(width: 1280, height: 720)
+        let viewportModel = EditorSceneViewportModel()
+        viewportModel.threeDPitch = pitch
+        viewportModel.perspectiveBlend = 1
+        let center = pitch < 0
+            ? viewportModel.threeDPosition + viewportModel.front3D * (-viewportModel.threeDPosition.y / viewportModel.front3D.y)
+            : Vector3(0, 0, 14)
+        let start = center - Vector3(1, 0, 0)
+        let end = center + Vector3(1, 0, 0)
+        let expectedStart = try #require(viewportModel.project(start, size: size))
+        let expectedEnd = try #require(viewportModel.project(end, size: size))
+        #expect(expectedStart.y >= size.height * 0.5 - 0.01)
+        #expect(expectedStart.y < size.height)
+
+        // Canvas translates its origin in Y-up UI space before executing draws.
+        let origin = Vector2(80, 120)
+        var context = UIGraphicsContext()
+        context.translateBy(x: origin.x, y: -origin.y)
+        viewportModel.drawProjectedSegment(
+            from: start, to: end, in: &context, size: size, lineWidth: 1, color: .white
+        )
+        let command = try #require(context.getDrawCommands().first)
+        guard case let .drawLine(lineStart, lineEnd, _, _) = command else {
+            Issue.record("Expected a projected grid line")
+            return
+        }
+        // The line tessellator preserves these positions; the UI camera maps
+        // negative world Y to positive screen Y, as it does for UI rectangles.
+        let uiProjection = Transform3D.orthographic(
+            left: 0, right: 1600, top: 0, bottom: -1000, zNear: -1, zFar: 1
+        )
+        for (vertex, expected) in [(lineStart, expectedStart), (lineEnd, expectedEnd)] {
+            let clip = uiProjection * Vector4(vertex, 1)
+            let screen = Vector2((clip.x + 1) * 800, (1 - clip.y) * 500)
+            #expect((screen - (origin + expected)).squaredLength < 0.001)
+        }
+    }
+
     @Test("viewport reloads edited scene content without recreating camera")
     @MainActor
     func viewportReloadsSceneContentInAttachedWorld() throws {
@@ -557,7 +599,8 @@ struct EditorSceneEditingTests {
         await world.runScheduler(.preUpdate)
 
         let twoDGraph = try #require(cameraEntity.components[CameraRenderGraph.self])
-        #expect(twoDGraph.subgraphLabel.rawValue == "Scene 2D Render Graph")
+        #expect(twoDGraph.subgraphLabel.rawValue == "Scene 3D Render Graph")
+        #expect(cameraEntity.components[Environment3D.self]?.skybox.isEnabled == false)
         #expect(viewportModel.perspectiveTransitionProgress == 0)
         #expect(cameraEntity.components[VisibleEntities.self]?.entityIds.contains(visibleEntity.id) == true)
         #expect(cameraEntity.components[GlobalTransform.self]?.matrix == cameraEntity.components[Transform.self]?.matrix)
@@ -578,7 +621,8 @@ struct EditorSceneEditingTests {
             .addPlugin(RenderWorldPlugin())
             .addPlugin(CameraPlugin())
             .addPlugin(Model3DPlugin())
-            .addPlugin(Core3DPlugin())
+            .addPlugin(Core2DPlugin())
+            .addPlugin(Core3DPlugin(includes2D: true))
             .addPlugin(UpscalePlugin())
         app.insertResource(OffscreenRenderWorld())
         app.insertResource(PrimaryWindowId(windowId: RID()))
@@ -604,6 +648,108 @@ struct EditorSceneEditingTests {
         await Task.yield()
 
         #expect(await completion.isCompleted)
+    }
+
+    @Test("Viewport waits for its own camera without changing an authored game camera")
+    @MainActor
+    func viewportBindsCameraCreatedAfterSceneLoad() {
+        let world = World()
+        let gameCamera = world.spawn("Game Camera") {
+            Camera()
+            Transform(position: Vector3(100, 200, 300))
+        }
+        let viewport = EditorSceneViewportModel()
+        viewport.attachSceneWorld(world, loadResult: .empty)
+        viewport.setViewportSize(Size(width: 640, height: 480))
+        #expect(viewport.cameraEntity() == nil)
+        #expect(gameCamera.components[Transform.self]?.position == Vector3(100, 200, 300))
+
+        let editorCamera = world.spawn("SceneView_Camera") {
+            Camera()
+            Transform()
+        }
+        #expect(viewport.update(deltaTime: 0))
+        #expect(viewport.cameraEntity()?.id == editorCamera.id)
+        #expect(editorCamera.components[CameraRenderGraph.self]?.subgraphLabel == .main3D)
+        viewport.rotate3D(by: Vector2(0, -30))
+        #expect(gameCamera.components[Transform.self]?.position == Vector3(100, 200, 300))
+    }
+
+    @Test("Scene viewport renders meshes and sprites through both camera projections")
+    @MainActor
+    func mixedSceneRendersInBothProjections() async throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+        }
+        let app = AppWorlds(main: World(name: "MixedScene"))
+        app.main.setSchedulers([.preUpdate])
+        app.updateScheduler = .preUpdate
+        app.main.addSystem(TransformSystem.self, on: .preUpdate)
+        app
+            .addPlugin(TransformPlugin())
+            .addPlugin(RenderWorldPlugin())
+            .addPlugin(CameraPlugin())
+            .addPlugin(VisibilityPlugin())
+            .addPlugin(SpritePlugin())
+            .addPlugin(Model3DPlugin())
+            .addPlugin(Core2DPlugin())
+            .addPlugin(Core3DPlugin(includes2D: true))
+            .addPlugin(UpscalePlugin())
+        app.insertResource(OffscreenRenderWorld())
+        app.insertResource(PrimaryWindowId(windowId: RID()))
+        try await app.build()
+        let renderWorld = try #require(app.getSubworldBuilder(by: .renderWorld)?.main)
+        let device = try #require(renderWorld.getResource(RenderDeviceHandler.self)?.renderDevice)
+        let diagnostics = try #require(renderWorld.getResource(RenderGraphDiagnostics.self))
+        diagnostics.configure(isEnabled: true)
+        let target = RenderTexture(size: SizeInt(width: 128, height: 128), scaleFactor: 1, format: .bgra8)
+        let gameCamera = app.main.spawn("Authored Window Camera") {
+            Camera()
+            Transform(position: Vector3(100, 200, 300))
+            VisibleEntities()
+            GlobalViewUniform()
+            CameraRenderGraph(subgraphLabel: .main3D, inputSlot: "view")
+        }
+        app.main.spawn("SceneView_Camera") {
+            Camera(renderTarget: target)
+            Transform()
+            VisibleEntities()
+            Visibility.visible
+        }
+        let cube = app.main.spawn("Cube") {
+            Mesh3DComponent(mesh: EditorMeshPrimitive.cube.makeMesh(renderDevice: device), materials: [PBRMaterial()])
+            Transform()
+            Visibility.visible
+        }
+        let sprite = app.main.spawn("Sprite") {
+            Sprite(size: Size(width: 1, height: 1))
+            Transform(position: Vector3(2, 0, 0))
+            BoundingComponent(bounds: .aabb(AABB(center: .zero, halfExtents: Vector3(0.5, 0.5, 0))))
+            Visibility.visible
+        }
+        let viewport = EditorSceneViewportModel()
+        viewport.attachSceneWorld(app.main, loadResult: .empty)
+        viewport.setViewportSize(Size(width: 128, height: 128))
+        for mode in [EditorSceneViewportDisplayMode.twoD, .threeD, .twoD] {
+            viewport.setDisplayMode(mode)
+            _ = viewport.update(deltaTime: 0.5)
+            diagnostics.clear()
+            try await app.update()
+            try await app.update()
+            #expect(!renderWorld.getEntities().contains { $0.components[ExtractedCameraSource.self]?.entityId == gameCamera.id })
+            #expect(gameCamera.components[Transform.self]?.position == Vector3(100, 200, 300))
+            #expect(renderWorld.getResource(RenderItems<Opaque3DRenderItem>.self)?.items.contains { $0.entity == cube.id } == true)
+            let sprites = try #require(renderWorld.getResource(SortedRenderItems<Transparent2DRenderItem>.self))
+            let item = try #require(sprites.items.items.first { $0.entity == sprite.id })
+            let scenePipeline = renderWorld.getRefResource(Scene2DPipelines.self).wrappedValue.pipeline(for: item.renderPipeline, device: device)
+            #expect(scenePipeline.descriptor.backfaceCulling == false)
+            #expect(scenePipeline.descriptor.depthStencilDescriptor?.isDepthWriteEnabled == false)
+            #expect(scenePipeline.descriptor.depthStencilDescriptor?.depthCompareOperator == .lessOrEqual)
+            let frame = try #require(diagnostics.recentFrames().first { $0.graphLabel == RenderGraph.Label.main3D.rawValue })
+            #expect(frame.executionOrder.contains(Main3DRenderNode.name.rawValue))
+            #expect(frame.executionOrder.contains(Scene2DRenderNode.name.rawValue))
+            #expect(frame.error == nil)
+        }
     }
 
     @Test("2D coordinate ruler follows the visible world range and fades during transition")

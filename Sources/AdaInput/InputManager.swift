@@ -10,8 +10,6 @@ import AdaUtils
 import Foundation
 import Math
 
-// - TODO: (Vlad) Add actions list and method like `isActionPressed`
-
 /// An object that contains inputs from keyboards, mouse, touch screens and etc.
 public struct Input: Resource, Sendable {
 
@@ -36,6 +34,14 @@ public struct Input: Resource, Sendable {
 
     @_spi(Internal)
     public internal(set) var keyboardState: KeyboardState = KeyboardState()
+
+    var actionDefinitions: [InputAction] = []
+    var actionStrengths: [String: Float] = [:]
+    var justPressedActions: Set<String> = []
+    var justReleasedActions: Set<String> = []
+    var actionScrollDirections: Set<InputAxisDirection> = []
+    var actionMouseMoved = false
+    var actionTouchPhases: Set<InputTouchPhase> = []
 
     var gamepads: [Int: Gamepad] = [:]
 
@@ -274,6 +280,12 @@ public extension Input {
 extension Input {
     /// For test
     mutating func _removeAllStates() {
+        self.actionStrengths.removeAll()
+        self.justPressedActions.removeAll()
+        self.justReleasedActions.removeAll()
+        self.actionScrollDirections.removeAll()
+        self.actionTouchPhases.removeAll()
+        self.actionMouseMoved = false
         self.gamepads.removeAll()
         self.cursorStates.removeAll()
         self.eventsPool.removeAll()

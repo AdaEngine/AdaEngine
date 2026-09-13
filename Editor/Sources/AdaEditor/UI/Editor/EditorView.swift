@@ -13,7 +13,6 @@ enum AdaEngineStyleContent {
         EditorToolStripItem(identifier: "fileTree", title: "File Tree", icon: "\u{E2C7}"),
         EditorToolStripItem(identifier: "entityTree", title: "Entity Tree", icon: "\u{E97A}"),
         EditorToolStripItem(identifier: "sourceControl", title: "Source Control", icon: "\u{F1C4}"),
-        EditorToolStripItem(identifier: "tests", title: "Tests", icon: "\u{E86C}"),
     ]
     static let leftBottomSidebarTools = [
         EditorToolStripItem(identifier: "logs", title: "Logs", icon: "\u{EB8E}"),
@@ -95,7 +94,7 @@ enum AdaEngineStyleContent {
     static let aiChips = ["Refactor current scene", "Optimize render batches", "Auto-light"]
     static let inspectorScript = "DynamicBouncer.ada"
     static let inspectorScriptDescription = "Object bounces on contact"
-    static let outputTabs = ["Problems", "Build", "Tests", "References", "Output"]
+    static let outputTabs = ["Problems", "Build", "Tests", "References", "Output", "Performance"]
     static let logLines = [
         "[12:04:11] Ada Engine initialized — render backend ready.",
         "[12:04:12] Loaded Main.ascn with 1 entity.",
@@ -276,6 +275,7 @@ struct EditorView: View {
             }
         }
         .onAppear {
+            viewModel.startProjectFileWatching()
             EditorNotificationRouter.shared.attach(viewModel)
             EditorMenuCommandRouter.shared.install(owner: viewModel) { [weak viewModel] command in
                 viewModel?.handleMenuCommand(command) ?? false
@@ -287,6 +287,10 @@ struct EditorView: View {
             )
         }
         .onDisappear {
+            viewModel.playerSession.disconnect()
+            viewModel.playerPairingWindow?.close()
+            viewModel.playerPairingWindow = nil
+            viewModel.stopProjectFileWatching()
             EditorNotificationRouter.shared.detach(viewModel)
             viewModel.debugger.stop()
             EditorMenuCommandRouter.shared.uninstall(owner: viewModel)
@@ -569,6 +573,9 @@ private struct EditorLeftSidebarContent: View {
                 },
                 onImportAssets: {
                     viewModel.importAssets()
+                },
+                onDropFiles: { urls in
+                    viewModel.importDroppedFiles(from: urls)
                 },
                 onRevealItem: { item in
                     viewModel.revealProjectItem(item)

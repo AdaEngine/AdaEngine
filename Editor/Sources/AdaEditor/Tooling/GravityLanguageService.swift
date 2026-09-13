@@ -72,6 +72,33 @@ struct EditorGravityLanguageService: Sendable {
         )
     }
 
+    static func hover(
+        workspace: GravityWorkspace,
+        uri: String,
+        text: String,
+        position: EditorSourceLocation
+    ) -> EditorSymbolHover? {
+        workspace.change(uri: uri, text: text, version: nil)
+        guard let hover = workspace.hover(uri: uri, position: lspPosition(from: position, in: text)) else {
+            return nil
+        }
+        return EditorSymbolHover(contents: hover.contents, range: editorRange(from: hover.range, in: text))
+    }
+
+    static func diagnostics(workspace: GravityWorkspace, fileURL: URL, text: String) -> [EditorDiagnostic] {
+        let uri = fileURL.standardizedFileURL.absoluteString
+        workspace.change(uri: uri, text: text, version: nil)
+        return (workspace.analysis(for: uri)?.diagnostics ?? []).map { diagnostic in
+            EditorDiagnostic(
+                filePath: fileURL.standardizedFileURL.path,
+                range: editorRange(from: diagnostic.range, in: text),
+                severity: diagnostic.severity == .error ? .error : .warning,
+                message: diagnostic.message,
+                source: "adascript-lsp"
+            )
+        }
+    }
+
     static func completions(
         workspace: GravityWorkspace,
         uri: String,

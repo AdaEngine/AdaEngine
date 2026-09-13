@@ -13,16 +13,30 @@ import AdaMCPPlugin
 #endif
 
 @main
+enum AdaApplicationEntry {
+    @MainActor static func main() async throws {
+        if Bundle.main.bundleIdentifier == "org.adaengine.player" || CommandLine.arguments.contains("--ada-player") {
+            try await AppRuntime.run(AdaPlayerApp())
+        } else {
+            try await AppRuntime.run(AdaEditorApp())
+        }
+    }
+}
+
 struct AdaEditorApp: App {
     init() {
         _ = EditorProjectOpenURLRouter.shared
         EditorAchievementBootstrap.install()
+        EditorCloudSettingsView.installSync()
         let notifications = EditorNotificationCenter.shared
         notifications.onAction = { EditorNotificationRouter.shared.receive($0) }
         #if os(macOS) || os(iOS)
         EditorSystemNotifications.shared.install(on: notifications)
         #endif
-        Task { await notifications.start() }
+        Task {
+            await notifications.start()
+            EditorUpdateCenter.shared.start()
+        }
     }
 
     private static var mcpPort: Int {

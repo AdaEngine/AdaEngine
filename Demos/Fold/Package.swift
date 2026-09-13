@@ -5,7 +5,9 @@ let package = Package(
     name: "Fold",
     platforms: [.macOS(.v15)],
     products: [.executable(name: "Fold", targets: ["Fold"])],
-    dependencies: [.package(path: "../..")],
+    dependencies: [.package(path: "../.."),
+        .package(name: "AdaEngine", path: "/Users/vlad-prusakov/Developer/AdaEngine")
+],
     targets: [
         .target(
             name: "FoldGame",
@@ -13,7 +15,7 @@ let package = Package(
             resources: [.copy("../../Assets")],
             plugins: [.plugin(name: "AdaScriptBuildPlugin", package: "AdaEngine")]
         ),
-        .executableTarget(name: "Fold", dependencies: ["FoldGame"]),
+        .executableTarget(name: "Fold", dependencies: ["FoldGame", .product(name: "AdaEngine", package: "AdaEngine")]),
         .testTarget(name: "FoldGameTests", dependencies: ["FoldGame"])
     ]
 )

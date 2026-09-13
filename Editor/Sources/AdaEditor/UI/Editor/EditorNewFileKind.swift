@@ -15,7 +15,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
     case uiScript, scriptableObject, script, emptyScript
     case scene, uiScene
     case vertexShader, fragmentShader, computeShader
-    case plainText, localization, json, yaml
+    case atlas, tileSource, plainText, localization, json, yaml
     case swift
 
     var group: EditorNewFileGroup {
@@ -23,7 +23,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .uiScript, .scriptableObject, .script, .emptyScript: .adaScript
         case .scene, .uiScene: .scenes
         case .vertexShader, .fragmentShader, .computeShader: .shaders
-        case .plainText, .localization, .json, .yaml: .resources
+        case .atlas, .tileSource, .plainText, .localization, .json, .yaml: .resources
         case .swift: .swift
         }
     }
@@ -39,6 +39,8 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .vertexShader: "Vertex Shader"
         case .fragmentShader: "Fragment Shader"
         case .computeShader: "Compute Shader"
+        case .atlas: "Atlas"
+        case .tileSource: "Tile Source"
         case .plainText: "Plain Text"
         case .localization: "Localization"
         case .json: "JSON"
@@ -58,6 +60,8 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .vertexShader: "GLSL vertex stage"
         case .fragmentShader: "GLSL fragment stage"
         case .computeShader: "GLSL compute kernel"
+        case .atlas: "Packed PNG images with an atlas editor"
+        case .tileSource: "PNG sprite sheets with a visual tile editor"
         case .plainText: "Unformatted text"
         case .localization: "String table; place in a language .lproj folder"
         case .json: "Structured JSON data"
@@ -72,6 +76,8 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scene: SceneDocumentFormat.canonicalExtension
         case .uiScene: "ui"
         case .vertexShader, .fragmentShader, .computeShader: "glsl"
+        case .atlas: "atlas"
+        case .tileSource: "tileset"
         case .plainText: "txt"
         case .localization: "strings"
         case .json: "json"
@@ -90,6 +96,8 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .vertexShader: "\u{E3E7}"
         case .fragmentShader: "\u{E3B7}"
         case .computeShader: "\u{E322}"
+        case .atlas: "\u{E3B6}"
+        case .tileSource: "\u{E8F1}"
         case .plainText: "\u{E873}"
         case .localization: "\u{E8E2}"
         case .json, .yaml: "\u{EF42}"
@@ -160,6 +168,8 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
             """
         case .emptyScript, .plainText: return ""
         case .swift: return "import AdaEngine\n\n"
+        case .atlas: return "images: []\nmargin: 0\npadding: 2\nextrude: 1\nsampler: linear\n"
+        case .tileSource: return "tileSize:\n  x: 16\n  y: 16\nsources: []\n"
         case .json: return "{}\n"
         case .yaml: return "{}\n"
         case .localization:

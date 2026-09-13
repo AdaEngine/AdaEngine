@@ -29,6 +29,7 @@ extension Image: View, ViewNodeBuilder {
             isResizable: self.options[Keys.resizable.rawValue] as? Bool ?? false,
             renderMode: self.options[Keys.renderMode.rawValue] as? ImageRenderMode ?? .original,
             tintColor: context.environment.foregroundColor,
+            capInsets: self.options[Keys.capInsets.rawValue] as? ImageCapInsets,
             content: self
         )
     }
@@ -38,6 +39,7 @@ extension Image: View, ViewNodeBuilder {
 public extension Image {
 
     private enum Keys: String {
+        case capInsets
         case resizable
         case renderMode
     }
@@ -49,6 +51,14 @@ public extension Image {
         var newValue = self
         newValue.options[Keys.resizable.rawValue] = true
         return newValue
+    }
+
+    /// Stretches the center and edges while preserving corners in source-pixel units.
+    /// If the destination is smaller than the corners, opposing corners shrink proportionally.
+    func resizable(capInsets: ImageCapInsets) -> Image {
+        var image = resizable()
+        image.options[Keys.capInsets.rawValue] = capInsets
+        return image
     }
 
     /// Set the render mode.
@@ -67,6 +77,8 @@ final class ImageViewNode: ViewNode {
 
     /// The texture.
     let texture: Texture2D
+    private let slices: [(column: Int, row: Int, texture: Texture2D)]
+    private let sliceGrid: ImageSliceGrid?
     /// A Boolean value indicating whether the image view is resizable.
     let isResizable: Bool
     /// The render mode.
@@ -79,9 +91,24 @@ final class ImageViewNode: ViewNode {
         isResizable: Bool,
         renderMode: ImageRenderMode,
         tintColor: Color?,
+        capInsets: ImageCapInsets? = nil,
         content: Content
     ) {
-        self.texture = Texture2D(image: image)
+        if let capInsets, capInsets != .init(0) {
+            let atlas = TextureAtlas(from: image, size: SizeInt(width: image.width, height: image.height))
+            let grid = ImageSliceGrid(width: image.width, height: image.height, insets: capInsets)
+            self.texture = atlas
+            self.sliceGrid = grid
+            self.slices = (0..<3).flatMap { row in
+                (0..<3).compactMap { column in
+                    atlas.textureSlice(in: grid.sourceRect(column: column, row: row)).map { (column, row, $0 as Texture2D) }
+                }
+            }
+        } else {
+            self.texture = Texture2D(image: image)
+            self.sliceGrid = nil
+            self.slices = []
+        }
         self.tintColor = tintColor
         self.renderMode = renderMode
         self.isResizable = isResizable
@@ -98,7 +125,16 @@ final class ImageViewNode: ViewNode {
 
     override func draw(with context: UIGraphicsContext) {
         let tintColor = renderMode == .original ? .white : tintColor ?? .white
-        context.drawRect(self.frame, texture: self.texture, color: tintColor)
+        if let grid = sliceGrid {
+            for slice in slices {
+                let rect = grid.destinationRect(column: slice.column, row: slice.row, frame: frame)
+                if rect.size.width > 0, rect.size.height > 0 {
+                    context.drawRect(rect, texture: slice.texture, color: tintColor)
+                }
+            }
+        } else {
+            context.drawRect(self.frame, texture: self.texture, color: tintColor)
+        }
         super.draw(with: context)
     }
 }

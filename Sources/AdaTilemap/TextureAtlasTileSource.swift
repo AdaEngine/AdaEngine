@@ -8,8 +8,9 @@
 import AdaAssets
 import AdaRender
 import AdaUtils
-import OrderedCollections
+import struct Foundation.URL
 import Math
+import OrderedCollections
 
 /// A tile source that uses a texture atlas.
 public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
@@ -18,7 +19,9 @@ public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
     private var tiles: OrderedDictionary<PointInt, AtlasTileData> = [:]
 
     /// The texture atlas of the texture atlas tile source.
-    private let textureAtlas: TextureAtlas
+    private var textureAtlas: TextureAtlas?
+    private var imageDescriptor: TileSourceImageDescriptor?
+    private var atlasReference: AssetHandle<TextureAtlas>?
 
     /// Initialize a new texture atlas tile source from an image.
     ///
@@ -42,7 +45,7 @@ public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
     // MARK: - Codable
     
     enum CodingKeys: CodingKey {
-        case id, name, tiles, textureAtlas
+        case id, name, tiles, textureAtlas, image
     }
     
     struct TileCellData: Codable {
@@ -62,7 +65,11 @@ public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
     /// - Throws: An error if the texture atlas tile source cannot be initialized from the decoder.
     public required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.textureAtlas = try container.decode(AssetHandle<TextureAtlas>.self, forKey: .textureAtlas).asset
+        self.imageDescriptor = try container.decodeIfPresent(TileSourceImageDescriptor.self, forKey: .image)
+        try self.imageDescriptor?.validate()
+        if self.imageDescriptor == nil {
+            self.atlasReference = try container.decode(AssetHandle<TextureAtlas>.self, forKey: .textureAtlas)
+        }
         
         super.init()
         
@@ -81,7 +88,13 @@ public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.name, forKey: .name)
         try container.encode(self.id, forKey: .id)
-        try container.encode(AssetHandle(self.textureAtlas), forKey: .textureAtlas)
+        if let imageDescriptor {
+            try container.encode(imageDescriptor, forKey: .image)
+        } else if let textureAtlas {
+            try container.encode(AssetHandle(textureAtlas), forKey: .textureAtlas)
+        } else if let atlasReference {
+            try container.encode(atlasReference, forKey: .textureAtlas)
+        }
         
         let tiles = self.tiles.elements.map { (position, data) in
             TileCellData(position: [position.x, position.y], data: data)
@@ -90,6 +103,29 @@ public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
         try container.encode(tiles, forKey: .tiles)
     }
     
+    /// Resolve referenced images asynchronously before TileSet exposes its sources.
+    func loadTextureAtlas(relativeTo directory: URL) async throws {
+        if let imageDescriptor {
+            let path = imageDescriptor.resolvedPath(relativeTo: directory)
+            let handle = try await AssetsManager.load(Image.self, at: path)
+            guard let image = handle.asset else {
+                throw AssetDecodingError.decodingProblem("Unable to load tile source image: \(path)")
+            }
+            self.textureAtlas = TextureAtlas(
+                from: image,
+                size: imageDescriptor.tileSize,
+                margin: imageDescriptor.spacing,
+                offset: imageDescriptor.margin
+            )
+        } else if let atlasReference {
+            try await atlasReference.load()
+            self.textureAtlas = atlasReference.asset
+        }
+        guard self.textureAtlas != nil else {
+            throw AssetDecodingError.decodingProblem("Tile source has no loaded texture atlas.")
+        }
+    }
+
     // Tiles
 
     /// Get the texture at the given atlas coordinates.
@@ -97,6 +133,9 @@ public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
     /// - Parameter atlasCoordinates: The atlas coordinates to get the texture at.
     /// - Returns: The texture.
     public func getTexture(at atlasCoordinates: PointInt) -> Texture2D {
+        guard let textureAtlas else {
+            fatalError("Load a serialized tile source through TileSet before accessing its textures.")
+        }
         guard let tileData = self.tiles[atlasCoordinates] else {
             fatalError("Tile Not Found for coordinates \(atlasCoordinates)")
         }
@@ -112,14 +151,14 @@ public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
                 let x = atlasCoordinates.x + (alignment == .horizontal ? index : 0)
                 let y = atlasCoordinates.y + (alignment == .vertical ? index : 0)
 
-                let slice = self.textureAtlas.textureSlice(at: [x, y])
+                let slice = textureAtlas.textureSlice(at: [x, y])
                 animatedTexture[index] = slice
             }
 
             return animatedTexture
         }
 
-        return self.textureAtlas.textureSlice(at: [atlasCoordinates.x, atlasCoordinates.y])
+        return textureAtlas.textureSlice(at: [atlasCoordinates.x, atlasCoordinates.y])
     }
 
     /// Create a tile for the texture atlas tile source.

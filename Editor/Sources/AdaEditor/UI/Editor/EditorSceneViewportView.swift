@@ -13,6 +13,7 @@ struct EditorSceneViewportView: View {
     let onStop: (() -> Void)?
     let onDocumentChanged: (EditorSceneDocument) -> Void
 
+    @State private var performanceSession = EditorGamePerformanceSession()
     @State var displayPreview = EditorDisplayPreviewModel()
     @State var viewportRevision: UInt = 0
     @State var runtimeWarnings: [String] = []
@@ -31,6 +32,7 @@ struct EditorSceneViewportView: View {
                 viewportMessage(title: "Unable to open scene", message: errorMessage)
             } else if isPlayingThisDocument {
                 playViewport
+                    .onDisappear { performanceSession.stop() }
             } else {
                 editViewport
             }
@@ -119,9 +121,20 @@ struct EditorSceneViewportView: View {
 
     private func configurePlayWorld(_ app: inout AppWorlds) {
         configureSceneViewApp(&app)
+        performanceSession.attach(app, title: document.title)
         var runtimeInstalled = true
         do {
             try playRuntime?.install(in: &app)
+            if let resourceRootURL {
+                let projectRoot = Self.uiProjectRoot(from: resourceRootURL)
+                if FileManager.default.fileExists(atPath: ProjectSystem.metadataURL(forProjectAt: projectRoot).path) {
+                    let project = try ProjectSystem.loadProject(at: projectRoot)
+                    if var input = app.main.getResource(Input.self) {
+                        try input.setInputActions(project.inputActions)
+                        app.main.insertResource(input)
+                    }
+                }
+            }
         } catch {
             runtimeWarnings = [error.localizedDescription]
             runtimeInstalled = false
@@ -160,7 +173,7 @@ struct EditorSceneViewportView: View {
 
         EditorComponentRegistry.registerBuiltIns()
         app.addPlugin(TransformPlugin())
-        app.addPlugin(InputPlugin())
+        app.addPlugin(InputPlugin(actions: []))
         app.addPlugin(RenderWorldPlugin())
         app.addPlugin(EventsPlugin())
         app.addPlugin(CameraPlugin())
@@ -170,16 +183,21 @@ struct EditorSceneViewportView: View {
         app.addPlugin(Mesh2DPlugin())
         app.addPlugin(TextPlugin())
         app.addPlugin(ScenePlugin())
-        if isPlayingThisDocument {
-            app.addPlugin(ScriptableObjectPlugin())
-        }
-        app.addPlugin(Physics2DPlugin())
-        app.addPlugin(Physics3DPlugin())
+        Self.configureSimulation(in: app, isPlaying: isPlayingThisDocument)
         app.addPlugin(TileMapPlugin())
         app.addPlugin(Core2DPlugin())
-        app.addPlugin(Core3DPlugin())
+        app.addPlugin(Core3DPlugin(includes2D: true))
         app.addPlugin(Light2DPlugin())
         app.addPlugin(UpscalePlugin())
+    }
+
+    @MainActor
+    static func configureSimulation(in app: AppWorlds, isPlaying: Bool) {
+        // Edit worlds render authored transforms without creating simulation bodies.
+        guard isPlaying else { return }
+        app.addPlugin(ScriptableObjectPlugin())
+        app.addPlugin(Physics2DPlugin())
+        app.addPlugin(Physics3DPlugin())
     }
 
     private var viewportSceneOverlay: some View {

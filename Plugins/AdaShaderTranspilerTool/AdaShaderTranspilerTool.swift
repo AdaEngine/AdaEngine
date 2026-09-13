@@ -93,7 +93,10 @@ struct AdaShaderTranspilerTool {
         let standardOutput = Pipe()
         let standardError = Pipe()
         process.executableURL = tintExecutable
-        process.arguments = ["--format", "wgsl", temporaryFile.path()]
+        // GLSL materials may compute derivatives under data-dependent control flow.
+        // Preserve that source behavior when translating SPIR-V; Tint emits the
+        // corresponding WGSL derivative_uniformity diagnostic directive.
+        process.arguments = ["--format", "wgsl", "--allow-non-uniform-derivatives", "true", temporaryFile.path()]
         process.standardOutput = standardOutput
         process.standardError = standardError
         try process.run()

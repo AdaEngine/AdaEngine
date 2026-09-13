@@ -451,11 +451,20 @@ extension EditorWorkbenchViewModel {
         let previousContent = document.content
         let wasDirty = document.isDirty
         update(&document)
+        if document.content != previousContent {
+            document.semanticTokens = []
+        }
         openDocuments[index] = isUI ? .ui(document) : .text(document)
         notifyActiveDocumentChangedIfNeeded(documentID: documentID)
         if document.isDirty, document.content != previousContent || !wasDirty {
             onDocumentEdited?(documentID)
         }
+    }
+
+    /// Only accept token coordinates for the exact text used by the language service.
+    func applySemanticTokens(_ tokens: [EditorSemanticToken], documentID: String, source: String) {
+        guard textDocument(id: documentID)?.content == source else { return }
+        updateTextDocument(id: documentID) { $0.semanticTokens = tokens }
     }
 
     func notifyActiveDocumentChangedIfNeeded(documentID: String) {

@@ -63,6 +63,10 @@ extension EditorViewModel {
             debugger.status = "AdaScript debug runtime is not available in this build."
             return
         }
+        guard EditorDistribution.current.supportsSwiftProjects else {
+            debugger.status = EditorDistributionError.swiftProjectsMessage
+            return
+        }
         #if os(macOS)
         guard selectedRunDestination == .macOS, let product = selectedRunProduct ?? runProducts.first else {
             debugger.status = "Select a macOS executable product to debug."

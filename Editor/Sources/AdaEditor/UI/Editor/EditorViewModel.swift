@@ -12,12 +12,16 @@ enum EditorAdaScriptProjectBuildOutcome: Sendable {
 @Observable
 @MainActor
 final class EditorViewModel {
+    let performance = EditorPerformanceModel()
+    let playerSession = EditorPlayerSession()
+    var playerPairingWindow: UIWindow?
     let debugger = EditorDebugger()
     let textSearch = EditorTextSearchModel()
     var showsNotifications = false
     var notificationTab: EditorNotificationTab = .notifications
     var notificationWorkspaceRunID: String?
     let project: EditorProjectReference?
+    let libraries = EditorLibrariesViewModel()
     var toolbar: EditorToolbarViewModel
     var toolStrip: EditorToolStripViewModel
     var projectSidebar: EditorProjectSidebarViewModel
@@ -105,6 +109,10 @@ final class EditorViewModel {
     let autosaveDelay: Duration
     @ObservationIgnored
     var didStartEditorSession = false
+    @ObservationIgnored
+    var projectFileWatcher: EditorProjectFileWatcher?
+    @ObservationIgnored
+    var lastRememberedProjectFile: String?
     @ObservationIgnored
     var latestSourceHoverKey: String?
     @ObservationIgnored
@@ -234,6 +242,7 @@ final class EditorViewModel {
         self.workbench.setActiveDocumentChangedHandler { [weak self] in
             self?.synchronizeAgentSceneContext()
             self?.rememberDebugSource()
+            self?.rememberActiveProjectDocument()
         }
         self.workbench.setDocumentEditedHandler { [weak self] documentID in
             self?.updateDebugSource(documentID: documentID)
@@ -242,7 +251,9 @@ final class EditorViewModel {
         self.workbench.achievements = EditorAchievementBootstrap.center
         self.workbench.achievementResourceRoot = projectAssetsURL
         self.workbench.achievementAdaScriptProject = savedProject?.build.system.isAdaScript == true
+        libraries.load(for: self)
         configureDebugger()
+        if workbench == nil { restoreProjectDocument() }
         synchronizeAgentSceneContext()
     }
 }

@@ -119,3 +119,46 @@ class TargetingSystem {
 ```
 
 Queries are refreshed by the scheduler before each system execution.
+
+## Project input actions
+
+In **Project Settings → Input Bindings**, add an action such as `Jump`, then add
+keyboard, mouse, gamepad or touch bindings. Click **Save Project Settings**.
+Actions are stored in `.ada/project.json` and loaded by both Play Mode and the
+AdaScript project runtime. Multiple bindings act as alternatives: releasing one
+input does not release the action while another binding is held.
+
+Systems and scriptable components declare input as a read-only resource dependency
+with `@res var input: Input;`. Only declarations that request Input receive it.
+Use `@res(optional: true) var input: Input;` and `input.available()` when the
+resource may be absent; a missing required resource produces a diagnostic.
+
+```adascript
+@res var input: Input;
+
+func update(context) {
+    if (input.isActionJustPressed("Jump")) {
+        // Start a jump once per press.
+    }
+    var movement = input.getActionStrength("MoveRight");
+}
+```
+
+- `isActionPressed(name)` remains true while an input is held.
+- `isActionJustPressed(name)` and `isActionJustReleased(name)` describe transitions
+  during the current frame. Both can be true for a tap completed within one frame.
+- `getActionStrength(name)` returns 0...1. Gamepad axes use a direction and the
+  action's dead zone; buttons and touch return either zero or one.
+- Gamepad bindings match any connected controller. `Any Finger Held` stays active
+  until every contact ends or is cancelled. Touch lifecycle events, mouse motion,
+  and wheel bindings produce frame pulses.
+
+Input snapshots are scoped to a callback; query input again on the next update.
+Unknown action names return false or zero. Names are case-sensitive.
+
+Swift systems use the same methods on their `Input` resource. `InputPlugin()`
+loads the `inputActions` section from `.ada/project.json` in the current working
+directory, including games launched from the editor. Packaged Swift applications
+can decode `[InputAction]` from an included resource and pass it to
+`InputPlugin(actions:)`, or call `try input.setInputActions(actions)` on an existing
+resource. Explicit `InputPlugin(actions: [])` disables automatic project loading.

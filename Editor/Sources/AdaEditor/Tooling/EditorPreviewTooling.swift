@@ -187,6 +187,7 @@ actor EditorPreviewBuilder {
     }
 
     func build(_ request: EditorPreviewBuildRequest, toolchain: SwiftToolchain? = nil) async throws -> EditorPreviewBuildArtifact {
+        try EditorDistribution.current.validate(buildSystem: .swiftpm)
         guard let target = request.packageModel.target(containing: request.document, projectURL: request.projectURL) else {
             throw EditorPreviewBuildFailure(message: "Could not resolve the SwiftPM target for \(request.document.relativePath).")
         }

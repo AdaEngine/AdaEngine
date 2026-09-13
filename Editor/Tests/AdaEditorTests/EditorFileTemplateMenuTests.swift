@@ -3,6 +3,7 @@
 import AdaInput
 @_spi(Internal) @testable import AdaRender
 import AdaScriptCompilerCore
+import AdaTilemap
 @_spi(Internal) import AdaUI
 import AdaUtils
 import Foundation
@@ -158,6 +159,42 @@ struct EditorFileTemplateMenuTests {
         }
     }
 
+    @Test("Resource templates open in the atlas editor and load as a runtime tile set")
+    func resourceTemplatesLoad() async throws {
+        let root = try makeProjectDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = makeViewModel(root: root)
+        for kind in [EditorNewFileKind.atlas, .tileSource] {
+            #expect(kind.group == .resources)
+            model.presentNewFileDialog(kind: kind)
+            model.newFileName = "Resource-\(kind.rawValue)"
+            #expect(model.createNewFile())
+            let document = try #require(model.workbench.activeDocument)
+            let path = try #require(document.absolutePath)
+            if kind == .atlas {
+                guard case .asset(let asset) = document else {
+                    Issue.record("Atlas should open as an editable asset")
+                    continue
+                }
+                #expect(asset.kind == .atlas)
+                let editor = EditorTextureAtlasEditorModel(document: asset)
+                #expect(editor.isEditable)
+                #expect(editor.descriptor.images.isEmpty)
+            } else {
+                guard case .asset(let asset) = document else {
+                    Issue.record("Tile set should open in its visual editor")
+                    continue
+                }
+                #expect(asset.kind == .tileSource)
+                #expect(EditorTileSourceEditorModel(document: asset).isEditable)
+                let handle = try await AssetsManager.load(TileSet.self, at: path)
+                let tiles = try #require(handle.asset)
+                #expect(tiles.tileSize == PointInt(x: 16, y: 16))
+                #expect(tiles.sources.isEmpty)
+            }
+        }
+    }
+
     @Test("AdaScript templates compile and UI Script builds native views")
     func scriptTemplatesCompile() throws {
         for kind in EditorNewFileGroup.adaScript.templates {
@@ -247,6 +284,7 @@ struct EditorFileTemplateMenuTests {
             onOpenRawItem: { model.openProjectItemAsRaw($0) },
             onNewFile: { model.presentNewFileDialog(kind: $0) },
             onImportAssets: {},
+            onDropFiles: { model.importDroppedFiles(from: $0) },
             onRevealItem: { _ in },
             onOpenInDefaultApplication: { _ in },
             onOpenInTerminal: { _ in },

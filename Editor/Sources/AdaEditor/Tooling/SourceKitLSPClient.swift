@@ -24,6 +24,10 @@ struct EditorDiagnostic: Equatable, Hashable, Sendable {
     var message: String
     var source: String
 
+    var isLanguageServiceDiagnostic: Bool {
+        source == "sourcekit-lsp" || source == "adascript-lsp"
+    }
+
     static func diagnostics(from result: EditorProcessResult, projectURL: URL) -> [EditorDiagnostic] {
         parseBuildOutput(result.standardOutput, projectURL: projectURL)
             + parseStandardError(result.standardError, command: result.command, projectURL: projectURL, failed: !result.succeeded)

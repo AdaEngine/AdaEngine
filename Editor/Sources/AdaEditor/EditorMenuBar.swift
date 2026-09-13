@@ -10,6 +10,7 @@ import AppKit
 
 @MainActor
 enum EditorMenuCommand: CaseIterable {
+    case checkForUpdates
     case showSettings
     case newFile, newProject, openProject, importAssets, save, saveAll, closeEditor
     case undo, redo, cut, copy, paste, selectAll, findInProject
@@ -42,6 +43,10 @@ final class EditorMenuCommandRouter {
 
     @discardableResult
     func perform(_ command: EditorMenuCommand) -> Bool {
+        if command == .checkForUpdates {
+            EditorUpdateCenter.shared.checkForUpdates()
+            return true
+        }
         if command == .showDocumentation {
             return EditorDocumentationWindowController.open()
         }
@@ -111,6 +116,9 @@ enum EditorMenuBar {
     private static func systemMenu() -> UIMenu {
         let menu = UIMenu(title: "System", placement: .application)
         menu.add(item("Settings...", command: .showSettings, key: .comma))
+        if EditorDistribution.current == .standalone {
+            menu.add(item("Check for Updates…", command: .checkForUpdates))
+        }
         return menu
     }
 

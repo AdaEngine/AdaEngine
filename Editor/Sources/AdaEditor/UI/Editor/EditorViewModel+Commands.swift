@@ -45,6 +45,13 @@ extension EditorViewModel {
             #endif
         }
 
+        guard EditorDistribution.current.supportsSwiftProjects else {
+            workspaceStatus = .failed(EditorDistributionError.swiftProjectsMessage)
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            appendOutput(EditorDistributionError.swiftProjectsMessage)
+            return
+        }
+
         workspaceStatus = .resolving
         buildActivity = EditorBuildActivity(title: "Prepare Workspace")
         footer.setWorkspaceFooterTitle("Workspace: Preparing")
@@ -90,6 +97,7 @@ extension EditorViewModel {
     }
 
     func refreshSourceControl() {
+        guard EditorDistribution.current.supportsSwiftProjects else { return }
         guard !sourceControl.isRunning else { return }
         sourceControl.refreshTask?.cancel()
         let generation = UUID()
@@ -213,6 +221,10 @@ extension EditorViewModel {
                 return
             }
         }
+        if selectedRunDestination == .player {
+            runOnAdaPlayer()
+            return
+        }
         let projectSettings = projectURL.flatMap {
             try? ProjectSystem.loadProject(at: $0, fileManager: fileManager)
         }
@@ -230,6 +242,8 @@ extension EditorViewModel {
             return
         }
         switch selectedRunDestination {
+        case .player:
+            runOnAdaPlayer()
         case .macOS:
             executeWorkspaceCommand(
                 .run(target: product, arguments: projectSettings?.run.arguments ?? []),
@@ -373,7 +387,8 @@ extension EditorViewModel {
             let window = windowManager.spawnWindow(configuration: configuration) {
                 runtimeView
             }
-            window.onDidDisappear = { [weak self, weak window] in
+            window.onDidDisappear = { [weak self, weak window, performanceSession = runtimeView.performanceSession] in
+                performanceSession.stop()
                 guard let self, self.adaScriptRuntimeWindow === window else {
                     return
                 }
@@ -402,6 +417,7 @@ extension EditorViewModel {
     }
 
     var isProjectRunning: Bool {
+        if playerSession.isRunning || playerSession.isBusy { return true }
         if debugger.isActive { return true }
         if case .running = workspaceStatus {
             return true
@@ -446,6 +462,10 @@ extension EditorViewModel {
     }
 
     func runFromToolbar() {
+        if selectedRunDestination == .player {
+            runSelectedTarget()
+            return
+        }
         if workbench.activeSceneDocument != nil {
             runActiveSceneInEditor()
         } else {
@@ -454,6 +474,10 @@ extension EditorViewModel {
     }
 
     func stopFromToolbar() {
+        if selectedRunDestination == .player, playerSession.isRunning || playerSession.isBusy {
+            playerSession.stop()
+            return
+        }
         if playModeState.isPlaying {
             stopPlayMode()
         } else {
@@ -493,6 +517,10 @@ extension EditorViewModel {
     }
 
     func cancelWorkspaceCommand() {
+        if playerSession.isRunning || playerSession.isBusy {
+            playerSession.stop()
+            return
+        }
         if debugger.isActive {
             debugger.stop()
             return
@@ -520,6 +548,8 @@ extension EditorViewModel {
     @discardableResult
     func handleMenuCommand(_ command: EditorMenuCommand) -> Bool {
         switch command {
+        case .checkForUpdates:
+            EditorUpdateCenter.shared.checkForUpdates()
         case .showSettings:
             presentSettings(.general)
         case .newFile:

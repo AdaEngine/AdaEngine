@@ -32,6 +32,9 @@ public final class AppWorlds {
     /// Source attached to diagnostic logs emitted by this runtime, including child tasks.
     public var runtimeLogSource = "Editor"
 
+    /// Assign on the root of an embedded game. Nested worlds inherit its profiling context.
+    public var profilingTargetID: String?
+
     #if ENABLE_RUN_IN_CONCURRENCY
     public typealias ApplicationRunnerBlock = () async -> Void
     #else
@@ -128,11 +131,15 @@ public extension AppWorlds {
         try await withExecutionContext {
             let worldName = main.name ?? "UnknownWorld"
             let framePacing = main.getResource(ApplicationFramePacing.self)
+            let profileEntityCount = profilingTargetID != nil && AdaTrace.isEnabled ? main.entities.entities.count : nil
             try await AdaTrace.span(lazyName: "AppWorlds.update") { span in
                 if span.isRecording {
                     var attributes = span.attributes
                     attributes["ada.profile.category"] = "frame"
                     attributes["ada.world.name"] = worldName
+                    if let profileEntityCount {
+                        attributes["ada.profile.entities"] = profileEntityCount
+                    }
                     if let framePacing {
                         attributes["ada.frame.target_fps"] = framePacing.maximumFramesPerSecond
                         attributes["ada.frame.budget_ms"] = framePacing.minimumFrameDuration * 1_000
@@ -270,7 +277,11 @@ public extension AppWorlds {
     @_spi(Internal)
     func withExecutionContext<Result>(_ operation: () throws -> Result) rethrows -> Result {
         try RuntimeLogStore.$currentSource.withValue(runtimeLogSource) {
-            try AppWorldsExecutionContext.$currentID.withValue(executionID, operation: operation)
+            try AppWorldsExecutionContext.$currentID.withValue(executionID) {
+                try AdaTrace.$profileTargetID.withValue(profilingTargetID ?? AdaTrace.profileTargetID) {
+                    try AdaTrace.$profileFrameRoot.withValue(profilingTargetID != nil, operation: operation)
+                }
+            }
         }
     }
 
@@ -278,7 +289,11 @@ public extension AppWorlds {
     @_spi(Internal)
     func withExecutionContext<Result>(_ operation: () async throws -> Result) async rethrows -> Result {
         try await RuntimeLogStore.$currentSource.withValue(runtimeLogSource) {
-            try await AppWorldsExecutionContext.$currentID.withValue(executionID, operation: operation)
+            try await AppWorldsExecutionContext.$currentID.withValue(executionID) {
+                try await AdaTrace.$profileTargetID.withValue(profilingTargetID ?? AdaTrace.profileTargetID) {
+                    try await AdaTrace.$profileFrameRoot.withValue(profilingTargetID != nil, operation: operation)
+                }
+            }
         }
     }
 }

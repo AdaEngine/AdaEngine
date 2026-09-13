@@ -25,7 +25,7 @@ struct GravityDocumentAnalyzer {
         let parsedImports = GravityImportParser.parse(tokens)
         return GravityParsedDocument(
             analysis: GravityDocumentAnalysis(
-                diagnostics: lexResult.diagnostics + parsedImports.diagnostics,
+                diagnostics: lexResult.diagnostics + parsedImports.diagnostics + duplicatePropertyDiagnostics(typeRegions, tokens: tokens),
                 imports: parsedImports.imports,
                 symbols: symbols
             ),
@@ -39,6 +39,35 @@ struct GravityDocumentAnalyzer {
         regions.first { region in
             region.symbol.range.start <= position && position <= region.symbol.range.end
         }?.symbol
+    }
+
+    private static func duplicatePropertyDiagnostics(_ regions: [GravityTypeRegion], tokens: [GravityToken]) -> [GravityDiagnostic] {
+        let staticProperties = Set(tokens.indices.compactMap { index -> GravitySourceRange? in
+            guard tokens[index].text == "var" || tokens[index].text == "const", index + 1 < tokens.count else {
+                return nil
+            }
+            var cursor = index - 1
+            while cursor >= 0, ["static", "private", "public", "extern"].contains(tokens[cursor].text) {
+                if tokens[cursor].text == "static" {
+                    return tokens[index + 1].range
+                }
+                cursor -= 1
+            }
+            return nil
+        })
+        return regions.flatMap { region in
+            var names: Set<String> = []
+            return region.symbol.members.compactMap { member -> GravityDiagnostic? in
+                let key = staticProperties.contains(member.selectionRange) ? "$\(member.name)" : member.name
+                guard member.kind == .property, !names.insert(key).inserted else {
+                    return nil
+                }
+                return GravityDiagnostic(
+                    message: "Duplicate property '\(member.name)' in '\(region.symbol.name)'",
+                    range: member.selectionRange
+                )
+            }
+        }
     }
 
     private static func parseTypeRegions(_ tokens: [GravityToken]) -> [GravityTypeRegion] {

@@ -89,7 +89,20 @@ public final class GravityWorkspace {
         guard let text = text(for: uri) else {
             return nil
         }
-        return languageService.hover(text: text, position: position)
+        if let hover = languageService.hover(text: text, position: position) {
+            return hover
+        }
+        guard let target = definition(uri: uri, position: position),
+              let analysis = analysis(for: target.uri),
+              let symbol = (analysis.symbols + analysis.symbols.flatMap(\.members)).first(where: {
+                  $0.selectionRange == target.selectionRange
+              }),
+              let token = GravityDocumentAnalyzer.parse(text).tokens.first(where: {
+                  $0.kind == .identifier && $0.range.contains(position)
+              }) else {
+            return nil
+        }
+        return GravityHover(contents: "\(symbol.detail) \(symbol.name)", range: token.range)
     }
 
     public func signatureHelp(uri: String, position: GravitySourcePosition) -> GravitySignatureHelp? {

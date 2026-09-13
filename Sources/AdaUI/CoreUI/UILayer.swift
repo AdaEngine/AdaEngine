@@ -57,7 +57,8 @@ open class UILayer {
         let snapshot = commandSnapshot(
             environment: context.environment,
             transform: context.transform,
-            opacity: context.opacity
+            opacity: context.opacity,
+            allowsLayerCaching: context.allowsLayerCaching
         )
         context.commandQueue.pushLayer(
             id: self.id,
@@ -70,9 +71,10 @@ open class UILayer {
     private func commandSnapshot(
         environment: EnvironmentValues,
         transform: Transform3D,
-        opacity: Float
+        opacity: Float,
+        allowsLayerCaching: Bool
     ) -> (commands: [UIGraphicsContext.DrawCommand], version: UInt64, cacheable: Bool) {
-        if let cachedCommands,
+        if allowsLayerCaching, let cachedCommands,
            cachedCommandsVersion == commandVersion,
            cachedCommandsTransform == transform,
            cachedCommandsOpacity == opacity,
@@ -89,11 +91,12 @@ open class UILayer {
         var layerContext = UIGraphicsContext()
         layerContext.setTransform(transform)
         layerContext.opacity = opacity
+        layerContext.allowsLayerCaching = allowsLayerCaching
         layerContext.environment = environment
         self.drawBlock(&layerContext, self.frame.size)
         layerContext.commitDraw()
         let recordedCommands = layerContext.getDrawCommands()
-        let cacheable = allowsCaching && !containsNestedLayers(in: recordedCommands)
+        let cacheable = allowsLayerCaching && allowsCaching && !containsNestedLayers(in: recordedCommands)
         if cacheable {
             self.cachedCommands = recordedCommands
             self.cachedCommandsVersion = commandVersion

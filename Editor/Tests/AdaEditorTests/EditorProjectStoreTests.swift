@@ -255,7 +255,7 @@ struct EditorProjectStoreTests {
 
         viewModel.createBlankTemplateProject()
 
-        let projectURL = rootURL.appendingPathComponent("Editor-Flow.adaproject", isDirectory: true)
+        let projectURL = rootURL.appendingPathComponent(EditorProjectStore.defaultUsesProjectPackage ? "Editor-Flow.adaproject" : "Editor-Flow", isDirectory: true)
         #expect(viewModel.detailProject?.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditor?.path == projectURL.standardizedFileURL.path)
         #expect(viewModel.projectToOpenInEditorToken == 1)
