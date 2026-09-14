@@ -43,5 +43,5 @@ enum EditorDistributionError: LocalizedError {
 
     var errorDescription: String? { Self.swiftProjectsMessage }
 
-    static let swiftProjectsMessage = "This version supports AdaScript projects only. Open Swift and hybrid projects in the standalone macOS version from the AdaEngine website."
+    static let swiftProjectsMessage = "This version supports AdaScript projects only. Open Swift and hybrid projects in the standalone macOS version from the Ada website."
 }

@@ -1,10 +1,10 @@
 # visionOS Windowed Mode
 
-Run AdaEngine apps in visionOS Shared Space using the existing `WindowGroup` scene model.
+Run Ada apps in visionOS Shared Space using the existing `WindowGroup` scene model.
 
 ## Overview
 
-AdaEngine's first visionOS milestone is windowed rendering. Apps launch as normal visionOS windows backed by UIKit scenes, `MTKView`, and the Metal render backend. Existing apps that use `WindowGroup` do not need a new public API for this mode.
+Ada's first visionOS milestone is windowed rendering. Apps launch as normal visionOS windows backed by UIKit scenes, `MTKView`, and the Metal render backend. Existing apps that use `WindowGroup` do not need a new public API for this mode.
 
 ```swift
 import AdaEngine
@@ -13,7 +13,7 @@ import AdaEngine
 struct VisionOSWindowedApp: App {
     var body: some AppScene {
         WindowGroup {
-            Text("AdaEngine on visionOS")
+            Text("Ada on visionOS")
                 .padding()
         }
     }

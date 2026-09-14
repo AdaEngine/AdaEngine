@@ -394,7 +394,7 @@ struct EditorAgentSidebar: View {
             Text("What should we build?")
                 .font(.system(size: 17))
                 .foregroundColor(theme.editorColors.text)
-            Text(viewModel.statusMessage ?? "The agent can work with code, scenes, assets, project documentation, and the live AdaEngine runtime.")
+            Text(viewModel.statusMessage ?? "The agent can work with code, scenes, assets, project documentation, and the live Ada runtime.")
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(4)

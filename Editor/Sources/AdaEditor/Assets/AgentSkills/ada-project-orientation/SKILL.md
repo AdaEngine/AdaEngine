@@ -1,6 +1,6 @@
 ---
 name: ada-project-orientation
-description: Inspect an AdaEngine project before coding, scene, asset, build, or debugging work.
+description: Inspect an Ada project before coding, scene, asset, build, or debugging work.
 allowed-tools: files.read, files.write, terminal, world.list_worlds, ui.list_windows
 ---
 

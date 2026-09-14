@@ -57,7 +57,7 @@ struct EditorDocumentationView: View {
             ForEach(["Editor", "AdaEngine", "AdaScript"], id: \.self) { section in
                 let articles = viewModel.filteredArticles.filter { $0.section == section }
                 if !articles.isEmpty {
-                    Section(section) {
+                    Section(section == "AdaEngine" ? "Ada" : section) {
                         ForEach(articles) { article in
                             NavigationLink(value: article.id) {
                                 Text(article.title)

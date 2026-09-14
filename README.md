@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://adaengine.github.io">
-    <img src="Assets/ae_github_logo.png" alt="Ada Engine logo">
+    <img src="Assets/ae_github_logo.png" alt="Ada logo">
   </a>
 </p>
 
@@ -10,9 +10,9 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/AdaEngine/AdaEngine)
 
 
-## What is AdaEngine?
+## What is Ada?
 
-AdaEngine is a game engine fully written on Swift. The main idea is to encourage Swift developers to use this game engine to create fast and impressive games and user interfaces using Swift as their main language. We hope that AdaEngine can become as popular in the GameDev community as Rust and C# are.
+Ada is a game engine fully written in Swift. The main idea is to encourage Swift developers to use this game engine to create fast and impressive games and user interfaces using Swift as their main language. We hope that Ada can become as popular in the GameDev community as Rust and C# are.
 
 <p align="center">
   <a href="https://adaengine.github.io">
@@ -23,21 +23,21 @@ AdaEngine is a game engine fully written on Swift. The main idea is to encourage
 ## Design Goals
 
 * **Capable:** Offer a complete 2D feature set.
-* **ECS:** AdaEngine is based on the data-oriented paradigm using a self-written ECS. The AdaEngine has been inspired by Apple's RealityKit framework.
-* **Simple:** AdaEngine is easy to use, and our main goal is to enable a quick start and deliver quick results.
+* **ECS:** Ada is based on the data-oriented paradigm using a self-written ECS. Ada has been inspired by Apple's RealityKit framework.
+* **Simple:** Ada is easy to use, and our main goal is to enable a quick start and deliver quick results.
 
 ## 📕 Docs
 
-* **[API Docs](https://docs.adaengine.org/documentation/adaengine/):** AdaEngine's API docs, which are automatically generated from the doc comments in this repo.
-* **[Tutorials](https://docs.adaengine.org/tutorials/adaengine/)**: AdaEngine's official tutorials with how to start your first project.
+* **[API Docs](https://docs.adaengine.org/documentation/adaengine/):** Ada's API docs, which are automatically generated from the doc comments in this repo.
+* **[Tutorials](https://docs.adaengine.org/tutorials/adaengine/)**: Ada's official tutorials with how to start your first project.
 * **Building & Contributing Guides:** [Building](Sources/AdaEngine/AdaEngine.docc/Building.md), [Contributing](Sources/AdaEngine/AdaEngine.docc/Contributing.md)
 * **[Architecture Decision Records](Documentation/ArchitectureDecisions/README.md):** Accepted architectural decisions and their implementation status.
 
 ## ⭐️ Examples
 
-* **[AdaEngine Awesome Projects](https://github.com/AdaEngine/AdaEngineAwesome)**: AdaEngine's official Awesome Projects page. Feel free to explore.
+* **[Ada Awesome Projects](https://github.com/AdaEngine/AdaEngineAwesome)**: Ada's official Awesome Projects page. Feel free to explore.
 
-* **[AdaEngine Examples](https://adaengine.org/demos/)**: AdaEngine's internal examples.
+* **[Ada Examples](https://adaengine.org/demos/)**: Ada's internal examples.
 
 ## Getting started
 
@@ -53,7 +53,7 @@ struct AdaEditorApp: App {
     var body: some AppScene {
         DefaultAppWindow()
             .windowMode(.windowed)
-            .windowTitle("AdaEngine")
+            .windowTitle("Ada")
     }
 }
 ```
@@ -67,9 +67,9 @@ problem, there are a number of places you can discuss with fellow
     [discussions](http://github.com/AdaEngine/AdaEngine/discussions) tab of this
     repo.
 
-## 👨‍💻 Contributing to AdaEngine
+## 👨‍💻 Contributing to Ada
 
-You are welcome to contribute to AdaEngine. Currently, it is under development, and we are working towards our roadmap goals. If you find a bug or have some improvements, we would be glad to see your pull request!
+You are welcome to contribute to Ada. Currently, it is under development, and we are working towards our roadmap goals. If you find a bug or have some improvements, we would be glad to see your pull request!
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## 🛠️ How to build

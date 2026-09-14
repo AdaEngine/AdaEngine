@@ -763,7 +763,7 @@ struct ProjectOpeningView: View {
                         .padding(.bottom, 20)
                 }
 
-                Text("AdaEngine")
+                Text("Ada")
                     .font(AdaEditorTitleFont.font(size: 26))
                     .foregroundColor(.white)
 

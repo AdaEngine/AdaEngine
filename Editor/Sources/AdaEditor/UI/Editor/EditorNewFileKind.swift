@@ -55,7 +55,7 @@ enum EditorNewFileKind: String, CaseIterable, Hashable, Sendable {
         case .scriptableObject: "Attachable behavior with lifecycle hooks"
         case .script: "ECS system in the update scheduler"
         case .emptyScript: "Blank AdaScript source"
-        case .scene: "AdaEngine scene"
+        case .scene: "Ada scene"
         case .uiScene: "Declarative AdaUI scene"
         case .vertexShader: "GLSL vertex stage"
         case .fragmentShader: "GLSL fragment stage"

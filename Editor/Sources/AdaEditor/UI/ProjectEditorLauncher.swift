@@ -24,7 +24,7 @@ enum ProjectEditorLauncher {
         closing pickerWindow: UIWindow? = UIWindowManager.shared?.activeWindow
     ) {
         let configuration = UIWindow.Configuration(
-            title: "AdaEngine - \(project.name)",
+            title: "Ada - \(project.name)",
             frame: Rect(x: 0, y: 0, width: ProjectOpeningLayout.windowWidth, height: ProjectOpeningLayout.windowHeight),
             minimumSize: Size(width: ProjectOpeningLayout.windowWidth, height: ProjectOpeningLayout.windowHeight),
             mode: .fullScreenWindowed,

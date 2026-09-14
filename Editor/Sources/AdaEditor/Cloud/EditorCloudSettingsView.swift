@@ -15,11 +15,11 @@ struct EditorCloudSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(account.accountID == nil ? "Sign in to AdaEngine" : "AdaEngine account")
+                Text(account.accountID == nil ? "Sign in to Ada" : "Ada account")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
                 Text(account.accountID == nil
-                     ? "Sync your editor settings and share web builds. Continue securely on the AdaEngine website."
+                     ? "Sync your editor settings and share web builds. Continue securely on the Ada website."
                      : (!account.cloudServicesAvailable ? "Cloud Services will open soon." : account.pro ? "Pro · Web publishing enabled" : "Free · Editor settings sync"))
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.muted)

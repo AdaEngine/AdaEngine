@@ -50,7 +50,7 @@ struct AdaEditorApp: App {
             ProjectOpeningView()
         }
         .windowMode(.windowed)
-        .windowTitle("AdaEngine Editor")
+        .windowTitle("Ada Editor")
         .windowTitleBar(
             WindowTitleBar(
                 background: .transparent,
@@ -70,10 +70,10 @@ struct AdaEditorApp: App {
                 host: "127.0.0.1",
                 port: Self.mcpPort,
                 endpoint: "/mcp",
-                serverName: "AdaEngine Editor",
+                serverName: "Ada Editor",
                 serverVersion: "0.1.0",
                 instructions: """
-                    Inspect and automate the live AdaEngine Editor. Use world.list_worlds to select Main or a SceneView subworld,
+                    Inspect and automate the live Ada Editor. Use world.list_worlds to select Main or a SceneView subworld,
                     automation.capabilities for writable types, automation.run for YAML/JSON steps, logs.read for cursor-based logs,
                     and profiler.live_snapshot for metrics. Runtime ECS changes are not saved to scene files.
                     """

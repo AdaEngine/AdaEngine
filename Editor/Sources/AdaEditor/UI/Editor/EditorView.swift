@@ -96,7 +96,7 @@ enum AdaEngineStyleContent {
     static let inspectorScriptDescription = "Object bounces on contact"
     static let outputTabs = ["Problems", "Build", "Tests", "References", "Output", "Performance"]
     static let logLines = [
-        "[12:04:11] Ada Engine initialized — render backend ready.",
+        "[12:04:11] Ada initialized — render backend ready.",
         "[12:04:12] Loaded Main.ascn with 1 entity.",
         "[12:04:14] AI optimization note: draw calls can be batched by material.",
         "[12:04:16] Build completed with 0 problems.",

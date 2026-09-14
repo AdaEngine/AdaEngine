@@ -1,6 +1,6 @@
 ---
 name: ada-build-run
-description: Build, test, run, stop, and diagnose AdaEngine projects on their supported destination.
+description: Build, test, run, stop, and diagnose Ada projects on their supported destination.
 allowed-tools: terminal, runtime.pause, runtime.resume, runtime.step_frame, trace.status, profiler.live_snapshot
 ---
 

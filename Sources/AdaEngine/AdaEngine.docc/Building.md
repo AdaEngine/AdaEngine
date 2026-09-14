@@ -1,8 +1,8 @@
-# Building AdaEngine
+# Building Ada
 
 This guide covers two scenarios:
-- Development build for working on AdaEngine itself.
-- Using AdaEngine as a dependency in your own app.
+- Development build for working on Ada itself.
+- Using Ada as a dependency in your own app.
 
 ## Requirements
 
@@ -45,7 +45,7 @@ swift test --parallel
 swiftlint --config .swiftlint.yml
 ```
 
-## Using AdaEngine in your app
+## Using Ada in your app
 
 ### Xcode
 
@@ -61,7 +61,7 @@ import AdaEngine
 
 ### Swift Package Manager
 
-Add AdaEngine to your `Package.swift`:
+Add Ada to your `Package.swift`:
 
 ```swift
 // Package.swift
@@ -81,7 +81,7 @@ let package = Package(
 
 Replace `X.Y.Z` with the latest release tag.
 
-If your app enables WebGPU, run the tint build plugin once in the AdaEngine package directory before the first build:
+If your app enables WebGPU, run the tint build plugin once in the Ada package directory before the first build:
 
 ```bash
 swift package plugin build-tint
@@ -91,7 +91,7 @@ SwiftPM will ask to allow network access for the plugin. Confirm the prompt to l
 
 ## Exporting a Web app
 
-AdaEngine includes an experimental WebAssembly export command for browser-hosted games.
+Ada includes an experimental WebAssembly export command for browser-hosted games.
 
 Requirements:
 

@@ -1,6 +1,6 @@
 ---
 name: ada-coding
-description: Implement and validate Swift, AdaScript, shader, and project-file changes in AdaEngine projects.
+description: Implement and validate Swift, AdaScript, shader, and project-file changes in Ada projects.
 allowed-tools: files.read, files.write, terminal
 ---
 

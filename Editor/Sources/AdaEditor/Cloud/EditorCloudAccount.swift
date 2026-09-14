@@ -80,7 +80,7 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
               authorizeURL.port == endpoint.port, authorizeURL.scheme == endpoint.scheme else {
             throw CloudError.message("Unexpected sign-in website")
         }
-        status = "Complete sign-in on the AdaEngine website."
+        status = "Complete sign-in on the Ada website."
         defer { authentication = nil }
         let callback = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
             let session = ASWebAuthenticationSession(url: authorizeURL, callbackURLScheme: "adaeditor") { url, error in

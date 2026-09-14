@@ -102,7 +102,7 @@ private enum EditorProjectTemplateSourceFactory {
     class MainView {
         func body() {
             VStack(spacing: 12) {
-                Text("Hello, AdaEngine!").fontSize(28);
+                Text("Hello, Ada!").fontSize(28);
                 Text("Edit Main.ada to build your interface.");
             }.padding(24);
         }

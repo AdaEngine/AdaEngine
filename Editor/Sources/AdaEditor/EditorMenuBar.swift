@@ -214,8 +214,8 @@ enum EditorMenuBar {
 
     private static func helpMenu() -> UIMenu {
         menu("Help", items: [
-            item("AdaEngine Documentation", command: .showDocumentation),
-            item("AdaEngine on GitHub", command: .showSourceRepository)
+            item("Ada Documentation", command: .showDocumentation),
+            item("Ada on GitHub", command: .showSourceRepository)
         ])
     }
 

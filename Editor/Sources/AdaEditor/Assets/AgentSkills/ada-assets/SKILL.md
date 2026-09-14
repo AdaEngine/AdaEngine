@@ -1,6 +1,6 @@
 ---
 name: ada-assets
-description: Import, generate, configure, and connect image assets inside an AdaEngine project.
+description: Import, generate, configure, and connect image assets inside an Ada project.
 allowed-tools: files.read, files.write, asset.find, asset.get, render.capture_screenshot
 ---
 
