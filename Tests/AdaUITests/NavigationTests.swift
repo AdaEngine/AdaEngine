@@ -62,6 +62,31 @@ struct NavigationStackTests {
     }
 
     @Test
+    func animatedPushAfterPlainPreparationInterpolatesAndCompletes() throws {
+        var path = NavigationPath()
+        let tester = ViewTester {
+            NavigationStack(path: Binding(get: { path }, set: { path = $0 })) {
+                Color.red.navigate(for: String.self) { _ in Color.blue }
+            }
+        }.setSize(Size(width: 400, height: 800)).performLayout()
+        let stack = try #require(navigationStackNodes(in: tester.containerView.viewTree.rootNode).first)
+        withTransaction(Transaction()) { tester.invalidateContent().performLayout() }
+        withAnimation(.easeInOut(duration: 0.28)) {
+            path.append("chat")
+            tester.invalidateContent().performLayout()
+        }
+        #expect(stack.presentation.isAnimating)
+        #expect(stack.presentation.entries.count == 2)
+        let destination = try #require(stack.presentation.entries.last)
+        tester.advanceFrame(deltaTime: 0.1)
+        #expect(destination.pose.x > 0 && destination.pose.x < 1)
+        tester.advanceFrame(deltaTime: 0.3)
+        #expect(!stack.presentation.isAnimating)
+        #expect(stack.presentation.entries.count == 1)
+        #expect(destination.pose.x == 0)
+    }
+
+    @Test
     func navigationStack_showsRootContent_whenPathEmpty() async {
         var rootAppeared = false
 

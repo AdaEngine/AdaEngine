@@ -9,6 +9,8 @@ enum EditorSceneHierarchyPresentation {
 struct EditorSceneHierarchySidebar: View {
     let document: EditorSceneDocument?
     let presentation: EditorSceneHierarchyPresentation
+    let showsHeader: Bool
+    let touchSelection: Bool
     let onSelectEntity: (String) -> Void
     let onToggleEntityExpanded: (String) -> Void
     let onAddEntity: (String?) -> Void
@@ -31,6 +33,8 @@ struct EditorSceneHierarchySidebar: View {
     init(
         document: EditorSceneDocument?,
         presentation: EditorSceneHierarchyPresentation = .workspacePanel,
+        showsHeader: Bool = true,
+        touchSelection: Bool = false,
         onSelectEntity: @escaping (String) -> Void,
         onToggleEntityExpanded: @escaping (String) -> Void,
         onAddEntity: @escaping (String?) -> Void = { _ in },
@@ -44,6 +48,8 @@ struct EditorSceneHierarchySidebar: View {
     ) {
         self.document = document
         self.presentation = presentation
+        self.showsHeader = showsHeader
+        self.touchSelection = touchSelection
         self.onSelectEntity = onSelectEntity
         self.onToggleEntityExpanded = onToggleEntityExpanded
         self.onAddEntity = onAddEntity
@@ -58,7 +64,7 @@ struct EditorSceneHierarchySidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            hierarchyHeader
+            if showsHeader { hierarchyHeader }
 
             if let document, let sceneModel = document.sceneModel {
                 let items = EditorSceneHierarchyModel.visibleItems(for: sceneModel)
@@ -109,11 +115,11 @@ struct EditorSceneHierarchySidebar: View {
                 Button(action: { onAddEntity(defaultParentID) }) {
                     HStack(spacing: 0) {
                         #if os(iOS)
-                        Text("\u{E145}")
-                            .font(AdaEditorMaterialSymbolFont.font(size: 18))
+                            Text("\u{E145}")
+                                .font(AdaEditorMaterialSymbolFont.font(size: 18))
                         #else
-                        Text("\u{E145}")
-                            .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                            Text("\u{E145}")
+                                .font(AdaEditorMaterialSymbolFont.font(size: 16))
                         #endif
                     }
                     .foregroundColor(theme.editorColors.blue)
@@ -146,6 +152,14 @@ struct EditorSceneHierarchySidebar: View {
         }
 
         return "\(sceneModel.entities.count) entities"
+    }
+
+    private var usesTouchSelection: Bool {
+        #if os(visionOS)
+            true
+        #else
+            touchSelection
+        #endif
     }
 
     private var defaultParentID: String? {
@@ -231,28 +245,51 @@ struct EditorSceneHierarchySidebar: View {
                 .onHover { updateHover($0, entityID: item.id) }
             } else {
                 HStack(spacing: 0) {
-                    HStack(spacing: 8) {
-                        Text(EditorSceneHierarchyIcon.symbol(for: item))
-                            .font(AdaEditorMaterialSymbolFont.font(size: 16))
-                            .foregroundColor(item.isSelected ? theme.editorColors.blue : theme.editorColors.muted)
-                            .frame(width: 18, height: 18)
-                            .accessibilityIdentifier("AdaEditor.SceneHierarchy.Icon.\(item.id)")
-                        Text(item.name)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(item.isEnabled ? theme.editorColors.text : theme.editorColors.muted)
-                            .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .layoutPriority(1)
+                    if usesTouchSelection {
+                        Button(action: { onSelectEntity(item.id) }) {
+                            HStack(spacing: 8) {
+                                Text(EditorSceneHierarchyIcon.symbol(for: item))
+                                    .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                                    .foregroundColor(item.isSelected ? theme.editorColors.blue : theme.editorColors.muted)
+                                    .frame(width: 18, height: 18)
+                                    .accessibilityIdentifier("AdaEditor.SceneHierarchy.Icon.\(item.id)")
+                                Text(item.name)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(item.isEnabled ? theme.editorColors.text : theme.editorColors.muted)
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
+                                    .layoutPriority(1)
+                            }
+                            .frame(height: 34)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .mask(RectangleShape())
+                        }.buttonStyle(DefaultButtonStyle())
+                            .onPrimaryInteraction { onSelectEntity(item.id) }
+                            .accessibilityIdentifier("AdaEditor.SceneHierarchy.Select.\(item.id)")
+                    } else {
+                        HStack(spacing: 8) {
+                            Text(EditorSceneHierarchyIcon.symbol(for: item))
+                                .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                                .foregroundColor(item.isSelected ? theme.editorColors.blue : theme.editorColors.muted)
+                                .frame(width: 18, height: 18)
+                                .accessibilityIdentifier("AdaEditor.SceneHierarchy.Icon.\(item.id)")
+                            Text(item.name)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(item.isEnabled ? theme.editorColors.text : theme.editorColors.muted)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                                .layoutPriority(1)
+                        }
+                        .frame(height: 34)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .mask(RectangleShape())
+                        .gesture(
+                            TapGesture()
+                                .onEnded { onSelectEntity(item.id) }
+                                .simultaneously(with: hierarchyDragGesture(for: item, items: items, sceneModel: sceneModel))
+                        )
+                        .accessibilityIdentifier("AdaEditor.SceneHierarchy.Select.\(item.id)")
                     }
-                    .frame(height: 34)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .mask(RectangleShape())
-                    .gesture(
-                        TapGesture()
-                            .onEnded { onSelectEntity(item.id) }
-                            .simultaneously(with: hierarchyDragGesture(for: item, items: items, sceneModel: sceneModel))
-                    )
-                    .accessibilityIdentifier("AdaEditor.SceneHierarchy.Select.\(item.id)")
 
                     Button(action: { onSetEntityEnabled(item.id, !item.isEnabled) }) {
                         Text(item.isEnabled ? "\u{E8F4}" : "\u{E8F5}")

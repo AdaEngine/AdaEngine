@@ -33,7 +33,7 @@ struct EditorTopToolbarRegion: View {
     }
 
     private var debugAction: (() -> Void)? {
-        guard viewModel.selectedRunDestination != .player, viewModel.selectedRunDestination != .android else {
+        guard viewModel.selectedRunDestination != .player, viewModel.selectedRunDestination != .android, viewModel.selectedRunDestination != .visionOS else {
             return nil
         }
         return { viewModel.debugSelectedTarget() }

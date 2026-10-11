@@ -30,6 +30,31 @@
         public let appWorlds: AppWorlds
         public var world: World { appWorlds.main }
         public var onFrame: (@MainActor (World) -> Void)?
+        /// Runs before spatial picking. A host can consume input for its own shared editor overlays.
+        public var onInput: (@MainActor (World, Entity, Size) -> Void)?
+        /// Supplies existing AdaUI vector feedback for the current eye. Called at a frame boundary.
+        public var onDrawOverlay: (@MainActor (World, Entity, Size) -> [ImmersiveOverlayDrawing])?
+        /// Rigid placement of the tracked space in scene coordinates. Configure between frames.
+        /// The default preserves native tracking coordinates; editor hosts can choose an entry viewpoint.
+        public var sceneFromTracking: Transform3D = .identity
+
+        /// Latest tracked head position in scene coordinates, available after the first frame.
+        public private(set) var viewerPosition: Vector3?
+        private var requestedViewerPosition: Vector3?
+        private var requestedViewerTranslation = Vector3.zero
+
+        /// Places the tracked viewer at a scene position without modifying authored entity transforms.
+        /// Before tracking is ready, the request is applied to the first device anchor.
+        public func placeViewer(at position: Vector3) {
+            requestedViewerPosition = position
+        }
+
+        /// Translates the virtual viewpoint relative to tracking. Physical head movement is preserved.
+        /// Changes are applied before sampling poses on the next frame.
+        public func translateViewer(by offset: Vector3) {
+            guard (0..<3).allSatisfy({ offset[$0].isFinite }) else { return }
+            requestedViewerTranslation += offset
+        }
 
         private let layer: LayerRenderer
         private let tracking = ImmersiveTracking()
@@ -97,6 +122,10 @@
             let presentation = try ImmersivePresentation(
                 queue: queue, colorFormat: layer.configuration.colorFormat, depthFormat: layer.configuration.depthFormat
             )
+            let hover = layer.configuration.trackingAreasFormat == .r16Uint
+                ? try ImmersiveHoverPass(device: queue.device, format: .r16Uint, depthFormat: layer.configuration.depthFormat) : nil
+            let overlay = try ImmersiveOverlayPass(device: queue.device, colorFormat: layer.configuration.colorFormat,
+                depthFormat: layer.configuration.depthFormat, tracking: hover != nil)
             layer.onSpatialEvent = { [weak self] events in
                 self?.receive(events)
             }
@@ -114,6 +143,7 @@
                 frame.endUpdate()
                 guard let timing = frame.predictTiming() else { continue }
                 try await clock.sleep(until: timing.optimalInputTime, tolerance: nil)
+                guard layer.state != .invalidated else { break }
                 frame.startSubmission()
                 var submissionEnded = false
                 do {
@@ -128,17 +158,34 @@
                         drawable.deviceAnchor = anchor
                         let accesses = pendingAccess
                         pendingAccess.removeAll(keepingCapacity: true)
-                        for access in accesses { access(world) }
+                        for access in accesses { appWorlds.withExecutionContext { access(world) } }
                         try prepareEyes(drawable, anchor: anchor)
+                        let handPoses = tracking.handPoses(at: timestamp).map { hand in
+                            SpatialHandPose(interactor: hand.interactor, pose: sceneFromTracking * hand.pose,
+                                palmNormal: (sceneFromTracking * Vector4(hand.palmNormal, 0)).xyz.normalized, isOpen: hand.isOpen)
+                        }
+                        world.insertResource(SpatialTrackingFrame(
+                            head: sceneFromTracking * SpatialCoordinates.fromApple(Transform3D(anchor.originFromAnchorTransform)),
+                            hands: handPoses
+                        ))
                         let delta = Float(min(max(timestamp - (lastTimestamp ?? timestamp - 1 / 90), 0), 0.05))
                         lastTimestamp = timestamp
-                        var grips = tracking.grips(at: timestamp)
+                        var grips = tracking.grips(at: timestamp).map { grip in
+                            SpatialGrip(interactor: grip.interactor, pose: sceneFromTracking * grip.pose, ray: grip.ray)
+                        }
                         // Direct ARKit pinches own hands; system events handle only indirect input.
-                        let indirect = Array(pointers.values)
+                        let indirect = pointers.values.map { grip in
+                            SpatialGrip(interactor: grip.interactor, pose: sceneFromTracking * grip.pose,
+                                ray: grip.ray.map { Ray(origin: (sceneFromTracking * Vector4($0.origin, 1)).xyz,
+                                    direction: (sceneFromTracking * Vector4($0.direction, 0)).xyz.normalized) })
+                        }
                         grips.removeAll { hand in indirect.contains { $0.interactor == hand.interactor } }
                         grips.append(contentsOf: indirect)
                         world.insertResource(SpatialInput(grips: grips))
                         world.insertResource(DeltaTime(deltaTime: delta))
+                        if let eye = eyes.first, let target = targets.first {
+                            appWorlds.withExecutionContext { onInput?(world, eye, Size(width: Float(target.size.width), height: Float(target.size.height))) }
+                        }
                         await world.runScheduler(.immersiveInput)
                         var renderedEyes: [(RenderTexture, RenderTexture)] = []
                         for index in drawable.views.indices {
@@ -164,15 +211,29 @@
                             renderedEyes.append((targets[index], depth))
                             try await presentation.finishEye()
                         }
-                        onFrame?(world)
-                        try await presentation.present(drawable, eyes: renderedEyes) {
-                            frame.endSubmission()
-                            submissionEnded = true
+                        appWorlds.withExecutionContext { onFrame?(world) }
+                        // Dismissal can invalidate this frame while the async eye passes finish.
+                        // The compositor has already retired it; do not submit/end that old frame.
+                        guard layer.state != .invalidated else { break }
+                        try await presentation.present(drawable, eyes: renderedEyes, overlays: { commands in
+                            hover?.encode(commands: commands, drawable: drawable, world: self.world, eyes: self.eyes)
+                            for (index, eye) in self.eyes.enumerated() where index < drawable.views.count {
+                                let size = self.targets[index].size
+                                let drawings = self.appWorlds.withExecutionContext {
+                                    self.onDrawOverlay?(self.world, eye, Size(width: Float(size.width), height: Float(size.height))) ?? []
+                                }
+                                overlay.encode(commands: commands, drawable: drawable, eye: index, drawings: drawings)
+                            }
+                        }) {
+                            if !submissionEnded, self.layer.state != .invalidated {
+                                frame.endSubmission()
+                                submissionEnded = true
+                            }
                         }
                     }
-                    if !submissionEnded { frame.endSubmission() }
+                    if !submissionEnded, layer.state != .invalidated { frame.endSubmission() }
                 } catch {
-                    if !submissionEnded { frame.endSubmission() }
+                    if !submissionEnded, layer.state != .invalidated { frame.endSubmission() }
                     throw error
                 }
             }
@@ -180,11 +241,23 @@
 
         private func releaseGrips() async {
             world.insertResource(SpatialInput())
+            world.removeResource(SpatialTrackingFrame.self)
+            if let eye = eyes.first, let target = targets.first {
+                appWorlds.withExecutionContext { onInput?(world, eye, Size(width: Float(target.size.width), height: Float(target.size.height))) }
+            }
             await world.runScheduler(.immersiveInput)
-            onFrame?(world)
+            appWorlds.withExecutionContext { onFrame?(world) }
         }
 
         private func prepareEyes(_ drawable: LayerRenderer.Drawable, anchor: DeviceAnchor) throws {
+            sceneFromTracking.origin += requestedViewerTranslation
+            requestedViewerTranslation = .zero
+            let head = SpatialCoordinates.fromApple(Transform3D(anchor.originFromAnchorTransform)).origin
+            if let position = requestedViewerPosition {
+                sceneFromTracking.origin += position - (sceneFromTracking * Vector4(head, 1)).xyz
+                requestedViewerPosition = nil
+            }
+            viewerPosition = (sceneFromTracking * Vector4(head, 1)).xyz
             while eyes.count < drawable.views.count {
                 let target = RenderTexture(size: SizeInt(width: 1, height: 1), scaleFactor: 1, format: .bgra8)
                 var environment = Environment3D()
@@ -223,7 +296,7 @@
                     )
                 )
                 eyes[index].components[Camera.self] = camera
-                eyes[index].components[Transform.self] = Transform(matrix: SpatialCoordinates.fromApple(Transform3D(anchor.originFromAnchorTransform * view.transform)))
+                eyes[index].components[Transform.self] = Transform(matrix: sceneFromTracking * SpatialCoordinates.fromApple(Transform3D(anchor.originFromAnchorTransform * view.transform)))
             }
         }
 
@@ -254,7 +327,7 @@
                     pose: SpatialCoordinates.fromApple(applePose),
                     ray: Ray(
                         origin: SpatialCoordinates.fromApple(Vector3(Float(ray.origin.x), Float(ray.origin.y), Float(ray.origin.z))),
-                        direction: SpatialCoordinates.fromApple(Vector3(Float(ray.direction.x), Float(ray.direction.y), Float(ray.direction.z)))
+                        direction: SpatialCoordinates.fromApple(Vector3(Float(ray.direction.x), Float(ray.direction.y), Float(ray.direction.z))).normalized
                     )
                 )
             }

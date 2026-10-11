@@ -78,7 +78,7 @@ struct EditorAnimationGraphTests {
         let modelURL = directory.appendingPathComponent("TwoBoneRibbon.glb")
         let engine = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
-        try FileManager.default.copyItem(at: engine.appendingPathComponent("Demos/SkeletalGarden/Assets/TwoBoneRibbon.glb"), to: modelURL)
+        try FileManager.default.copyItem(at: engine.appendingPathComponent("Tests/AdaEngineTests/Fixtures/SkeletalGardenAssets/TwoBoneRibbon.glb"), to: modelURL)
         let sceneURL = directory.appendingPathComponent("Main.ascn")
         var scene = EditorSceneModel.default(projectName: "Graph")
         let entity = scene.addEntity(template: .importedModel3D, parentID: scene.rootEntityID)

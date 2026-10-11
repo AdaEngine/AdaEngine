@@ -50,6 +50,11 @@ open class UIWindow: UIView {
 
     private var dirtyRect: Rect?
 
+    /// Input and layout activity keep interactive transitions at the requested display rate.
+    @_spi(Internal) public private(set) var lastUIActivityTime: LongTimeInterval = Time.absolute
+
+    func recordUIActivity() { lastUIActivityTime = Time.absolute }
+
     private var _minSize: Size = .zero
     public var minSize: Size {
         get {
@@ -164,6 +169,7 @@ open class UIWindow: UIView {
         guard self.canRespondToAction(event) else {
             return
         }
+        recordUIActivity()
 
         if let mouse = event as? MouseEvent, routeCapturedMouseEvent(mouse) {
             return

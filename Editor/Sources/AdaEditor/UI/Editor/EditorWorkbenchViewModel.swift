@@ -22,6 +22,7 @@ final class EditorWorkbenchViewModel {
     var primarySelectedDocumentID: String?
     var secondarySelectedDocumentID: String?
     var focusedPane: EditorWorkbenchPane = .primary
+    var filesBrowserPanes: Set<EditorWorkbenchPane> = []
     var codeColorPalette: EditorCodeColorPalette
     var codeFontSize: Double {
         didSet {

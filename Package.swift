@@ -559,7 +559,7 @@ var targets: [Target] = [
     .target(
         name: "AdaA2UI",
         dependencies: ["AdaUI", "AdaUIDescription"],
-        resources: [.copy("Resources")],
+        resources: [.process("Resources")],
         swiftSettings: swiftSettings
     ),
     .executableTarget(
@@ -1255,6 +1255,7 @@ targets += [
     .testTarget(
         name: "AdaEngineTests",
         dependencies: ["AdaEngine"],
+        exclude: ["Fixtures"],
     ),
     .testTarget(
         name: "MathTests",
@@ -1379,33 +1380,6 @@ targets += [
 #if os(macOS)
 //targets.append(contentsOf: swiftLintTargets)
 #endif
-
-// Native skeletal animation development demo.
-products.append(isAndroidBuildEnabled
-    ? .library(name: "SkeletalGarden", type: .dynamic, targets: ["SkeletalGarden"])
-    : .executable(name: "SkeletalGarden", targets: ["SkeletalGarden"]))
-if isAndroidBuildEnabled {
-    targets.append(.target(
-        name: "SkeletalGarden",
-        dependencies: ["AdaEngine"],
-        path: "Demos/SkeletalGarden",
-        exclude: ["script", "README.md", "RenderQualityValidation.md", "VisibilityValidation.md", "MetalFXValidation.md", "LocalLightingValidation.md", "WebGPUValidation.md", "PerformanceValidation.md", "dist", "SourceAssets", "Tests"],
-        resources: [.copy("Assets")],
-        swiftSettings: swiftSettings
-    ))
-} else {
-    targets.append(.executableTarget(
-        name: "SkeletalGarden",
-        dependencies: ["AdaEngine"],
-        path: "Demos/SkeletalGarden",
-        exclude: ["script", "README.md", "RenderQualityValidation.md", "VisibilityValidation.md", "MetalFXValidation.md", "LocalLightingValidation.md", "WebGPUValidation.md", "PerformanceValidation.md", "dist", "SourceAssets", "Tests"],
-        resources: [.copy("Assets")],
-        swiftSettings: swiftSettings,
-        linkerSettings: wasmExecutableLinkerSettings
-    ))
-}
-
-targets.append(.testTarget(name: "SkeletalGardenTests", dependencies: ["SkeletalGarden", "AdaEngine"], path: "Demos/SkeletalGarden/Tests"))
 
 // Portable GPU readback QA app; kept outside the engine and Studio runtime.
 products.append(.executable(name: "SpriteInstancingValidation", targets: ["SpriteInstancingValidation"]))

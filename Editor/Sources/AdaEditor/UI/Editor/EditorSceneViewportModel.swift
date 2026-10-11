@@ -20,6 +20,13 @@ final class EditorSceneViewportModel {
     private static let maximumTwoDZoom: Float = 150
 
     private weak var world: World?
+    private var isImmersive = false
+    private var spatialEdit: SpatialEdit?
+    private struct SpatialEdit {
+        let editorID: String
+        let startContent: String
+        let startPayload: EditorComponentPayload
+    }
     private var cameraEntityID: Entity.ID?
     var displayMode: EditorSceneViewportDisplayMode = .twoD
     var viewportSize: Size = .zero
@@ -117,6 +124,8 @@ final class EditorSceneViewportModel {
     }
 
     func disconnect() {
+        endSpatialTransform(cancelled: true)
+        isImmersive = false
         lastPinchScale = nil
         cancelTransformInspectorUpdate()
         for entityID in depthGridEntityIDs {
@@ -146,8 +155,8 @@ final class EditorSceneViewportModel {
         self.world = world
         self.entitiesByEditorID = loadResult.entitiesByEditorID
         self.editorIDsByEntityID = loadResult.editorIDsByEntityID
-        cameraEntityID = findCameraEntity(in: world)?.id
-        applyCamera()
+        cameraEntityID = isImmersive ? nil : findCameraEntity(in: world)?.id
+        if !isImmersive { applyCamera() }
     }
 
     @discardableResult
@@ -178,8 +187,8 @@ final class EditorSceneViewportModel {
         )
         entitiesByEditorID = result.entitiesByEditorID
         editorIDsByEntityID = result.editorIDsByEntityID
-        cameraEntityID = findCameraEntity(in: world)?.id
-        applyCamera()
+        cameraEntityID = isImmersive ? nil : findCameraEntity(in: world)?.id
+        if !isImmersive { applyCamera() }
         return result
     }
 
@@ -851,6 +860,7 @@ extension EditorSceneViewportModel {
     }
 
     func applyCamera() {
+        guard !isImmersive else { return }
         guard let cameraEntity = cameraEntity() else {
             return
         }
@@ -1253,5 +1263,75 @@ extension EditorSceneViewportModel {
 
     private func shortComponentName(_ componentName: String) -> String {
         componentName.components(separatedBy: ".").last ?? componentName
+    }
+}
+
+// Spatial editor integration keeps document serialization and Inspector semantics shared.
+extension EditorSceneViewportModel {
+    func attachImmersiveWorld(_ world: World, loadResult: EditorSceneRuntimeLoadResult) {
+        isImmersive = true
+        self.world = world
+        entitiesByEditorID = loadResult.entitiesByEditorID
+        editorIDsByEntityID = loadResult.editorIDsByEntityID
+        cameraEntityID = nil
+    }
+
+    func setSpatialTool(_ mode: SpatialManipulationMode) {
+        guard let world else { return }
+        world.insertResource(SpatialInteractionSettings(mode: mode))
+        if world.getResource(SpatialSelection.self)?.entityID == nil, let selectedEditorID,
+            let entity = runtimeEntity(for: selectedEditorID) {
+            world.insertResource(SpatialSelection(entityID: entity.id))
+        }
+    }
+
+    func authoredEditorID(for runtimeID: Entity.ID) -> String? {
+        var entity = world?.getEntityByID(runtimeID)
+        while let current = entity {
+            if let id = editorIDsByEntityID[current.id] { return id }
+            entity = current.parent
+        }
+        return nil
+    }
+
+    func runtimeEntity(for editorID: String) -> Entity? {
+        entitiesByEditorID[editorID].flatMap { world?.getEntityByID($0) }
+    }
+
+    func selectSpatialEntity(_ editorID: String?) {
+        guard selectedEditorID != editorID else { return }
+        endSpatialTransform()
+        selectEntity(editorID)
+    }
+
+    func beginSpatialTransform(editorID: String) {
+        guard spatialEdit == nil, let entity = sceneModel?.entities.first(where: { $0.id == editorID }) else { return }
+        spatialEdit = SpatialEdit(editorID: editorID, startContent: sceneContent, startPayload: entity.components[EditorBuiltInComponentType.transform] ?? [:])
+    }
+
+    func updateSpatialTransform(_ transform: Transform, editorID: String) {
+        guard spatialEdit?.editorID == editorID else { return }
+        var payload = sceneModel?.entities.first(where: { $0.id == editorID })?.components[EditorBuiltInComponentType.transform] ?? [:]
+        payload["position"] = .array([transform.position.x, transform.position.y, transform.position.z].map { .double(Double($0)) })
+        payload["rotation"] = .array([transform.rotation.x, transform.rotation.y, transform.rotation.z, transform.rotation.w].map { .double(Double($0)) })
+        payload["scale"] = .array([transform.scale.x, transform.scale.y, transform.scale.z].map { .double(Double($0)) })
+        applyTransformPayload(payload, editorID: editorID)
+    }
+
+    func endSpatialTransform(cancelled: Bool = false) {
+        guard let edit = spatialEdit else { return }
+        spatialEdit = nil
+        cancelTransformInspectorUpdate()
+        if cancelled {
+            applyTransformPayload(edit.startPayload, editorID: edit.editorID)
+            cancelTransformInspectorUpdate()
+            sceneContent = edit.startContent
+        } else if let model = sceneModel,
+            model.entities.first(where: { $0.id == edit.editorID })?.components[EditorBuiltInComponentType.transform] != edit.startPayload,
+            let content = try? model.encodedYAML() {
+            sceneContent = content
+            onDocumentContentChanged?(content)
+        }
+        if let model = sceneModel { onSelectionChanged?(selectedEntityViewModel(editorID: selectedEditorID, model: model)) }
     }
 }

@@ -166,31 +166,33 @@ struct EditorGameWindowToolbar: View {
                 .accessibilityIdentifier("AdaEditor.GameWindow.InputMode")
             entityPicker
             Spacer()
-            Text("\(Int(controls.windowSize.width)) × \(Int(controls.windowSize.height))")
-                .font(.system(size: 11))
-                .foregroundColor(theme.editorColors.muted)
-                .accessibilityIdentifier("AdaEditor.GameWindow.Dimensions")
-            EditorEnumField(
-                cases: EditorGameWindowSize.allCases.map(\.rawValue),
-                selection: Binding(
-                    get: { controls.selectedSize.rawValue },
-                    set: {
-                        controls.selectSize(EditorGameWindowSize(rawValue: $0) ?? .project)
-                        viewProxy.redraw()
-                    }
-                ),
-                accessibilityID: "AdaEditor.GameWindow.Size"
-            )
-            .frame(width: 128)
-            if controls.selectedSize == .custom {
-                TextField("Width", text: Binding(get: { controls.customWidth }, set: { controls.customWidth = $0; controls.applySize(); viewProxy.redraw() }))
-                    .frame(width: 58)
-                    .accessibilityIdentifier("AdaEditor.GameWindow.Width")
-                Text("×").foregroundColor(theme.editorColors.muted)
-                TextField("Height", text: Binding(get: { controls.customHeight }, set: { controls.customHeight = $0; controls.applySize(); viewProxy.redraw() }))
-                    .frame(width: 58)
-                    .accessibilityIdentifier("AdaEditor.GameWindow.Height")
-            }
+            #if !os(visionOS)
+                Text("\(Int(controls.windowSize.width)) × \(Int(controls.windowSize.height))")
+                    .font(.system(size: 11))
+                    .foregroundColor(theme.editorColors.muted)
+                    .accessibilityIdentifier("AdaEditor.GameWindow.Dimensions")
+                EditorEnumField(
+                    cases: EditorGameWindowSize.allCases.map(\.rawValue),
+                    selection: Binding(
+                        get: { controls.selectedSize.rawValue },
+                        set: {
+                            controls.selectSize(EditorGameWindowSize(rawValue: $0) ?? .project)
+                            viewProxy.redraw()
+                        }
+                    ),
+                    accessibilityID: "AdaEditor.GameWindow.Size"
+                )
+                .frame(width: 128)
+                if controls.selectedSize == .custom {
+                    TextField("Width", text: Binding(get: { controls.customWidth }, set: { controls.customWidth = $0; controls.applySize(); viewProxy.redraw() }))
+                        .frame(width: 58)
+                        .accessibilityIdentifier("AdaEditor.GameWindow.Width")
+                    Text("×").foregroundColor(theme.editorColors.muted)
+                    TextField("Height", text: Binding(get: { controls.customHeight }, set: { controls.customHeight = $0; controls.applySize(); viewProxy.redraw() }))
+                        .frame(width: 58)
+                        .accessibilityIdentifier("AdaEditor.GameWindow.Height")
+                }
+            #endif
         }
         .padding(.horizontal, 12)
         .frame(height: Self.height)

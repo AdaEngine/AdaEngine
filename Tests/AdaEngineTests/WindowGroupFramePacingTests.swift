@@ -6,6 +6,21 @@ import Testing
 @MainActor
 struct WindowGroupFramePacingTests {
     @Test
+    func adaptiveUIRestoresInteractionRateAndCapsThermalPressure() throws {
+        let pacing = ApplicationFramePacing.adaptiveUI()
+        #expect(pacing.resolvedFrameRateRange(forDisplayMaximumFramesPerSecond: 120) == 30...120)
+        #expect(pacing.resolvedFrameRateRange(forDisplayMaximumFramesPerSecond: 120, isIdle: true) == 30...60)
+        #expect(pacing.resolvedFrameRateRange(forDisplayMaximumFramesPerSecond: 120, thermalState: .fair) == 30...60)
+        #expect(pacing.resolvedFrameRateRange(forDisplayMaximumFramesPerSecond: 120, thermalState: .serious) == 30...30)
+        #expect(pacing.resolvedFrameRateRange(forDisplayMaximumFramesPerSecond: 120, thermalState: .critical) == 15...15)
+        let decoded = try JSONDecoder().decode(ApplicationFramePacing.self, from: JSONEncoder().encode(pacing))
+        #expect(decoded.idleMaximumFramesPerSecond == 60)
+        #expect(decoded.adaptsToThermalState)
+        #expect(ApplicationFramePacing(maximumFramesPerSecond: 60)
+            .resolvedFrameRateRange(forDisplayMaximumFramesPerSecond: 120, isIdle: true, thermalState: .critical) == 30...60)
+    }
+
+    @Test
     func windowGroupInstallsFramePacing() {
         let appWorlds = AppWorlds(main: World())
 

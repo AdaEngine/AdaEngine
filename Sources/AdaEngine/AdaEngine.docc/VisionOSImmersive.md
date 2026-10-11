@@ -1,7 +1,7 @@
 # visionOS Immersive Rendering
 
 Use `AdaEngineEmbeddable` from a SwiftUI visionOS application to display an AdaEngine
-world in a full immersive space. `Demos/ImmersiveGarden` contains a runnable host.
+world in a full immersive space. [AdaExamples/ImmersiveGarden](https://github.com/AdaEngine/AdaExamples/tree/main/Examples/ImmersiveGarden) contains a runnable host.
 
 Create an `ImmersiveSpace` containing a `CompositorLayer` configured with
 `ImmersiveLayerConfiguration`. In the layer's callback, start a main-actor task,

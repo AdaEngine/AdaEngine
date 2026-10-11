@@ -130,6 +130,27 @@ struct EditorTransformGizmoTests {
         #expect(fixture.content == before)
     }
 
+    @Test("stereo packets draw and highlight only their own handle")
+    func perHandleDrawing() throws {
+        let fixture = try Fixture()
+        for tool in [EditorSceneViewportTool.translate, .rotate, .scale] {
+            fixture.viewport.setActiveTool(tool)
+            let gizmo = try #require(fixture.viewport.transformGizmo())
+            let handle: EditorTransformGizmo.Handle = tool == .rotate ? .z : .x
+            var x = UIGraphicsContext()
+            gizmo.draw(in: &x, highlighted: handle, only: handle)
+            let highlighted = x.getDrawCommands().compactMap { command -> Color? in
+                if case let .drawPath(_, _, .stroke(color, _)) = command { return color }
+                return nil
+            }
+            #expect(highlighted.contains(.yellow))
+            #expect(!highlighted.contains(EditorTransformGizmo.Handle.y.color))
+            var center = UIGraphicsContext()
+            gizmo.draw(in: &center, highlighted: nil, only: .center)
+            #expect(center.getDrawCommands().isEmpty == (tool == .rotate))
+        }
+    }
+
     @Test("escape and cancelled pointer input restore the original transform")
     func cancelDrag() throws {
         let fixture = try Fixture()
@@ -325,6 +346,9 @@ private final class Fixture {
         let result = EditorSceneFileLoader.load(content: content, into: world)
         runtimeID = result.entitiesByEditorID["selected"]
         viewport.attachSceneWorld(world, loadResult: result)
+        // These fixtures express drag distances at one world unit per pixel,
+        // independently of the editor's startup framing/zoom default.
+        viewport.twoDZoom = 1
         viewport.setViewportSize(Size(width: 800, height: 600))
     }
 

@@ -48,7 +48,7 @@ This avoids stale-depth disocclusion errors and keeps shadow lists independent.
 Metal executes this path; other backends retain CPU visibility. Character mesh
 LODs preserve the ordered palette and material contracts. Projected-size
 animation cadence interpolates visible poses while playback/gameplay clocks
-remain independent. See [PerformanceValidation.md](../../Demos/SkeletalGarden/PerformanceValidation.md)
+remain independent. See [PerformanceValidation.md](https://github.com/AdaEngine/AdaExamples/blob/main/Samples/SkeletalGarden/PerformanceValidation.md)
 for concrete tests, measurements, opt-in controls and platform limits.
 
 ## Consequences

@@ -117,7 +117,7 @@ final class EditorAgentActivityBackgroundView: AdaUI.UIView {
 
     override func draw(in rect: Rect, with context: UIGraphicsContext) {
         if let id = context.windowId {
-            renderWindow = UIWindowManager.shared.windows[id]
+            renderWindow = window ?? UIWindowManager.shared?.windows[id]
         }
         guard animation.isVisible, rect.width > 2, rect.height > 2 else {
             return

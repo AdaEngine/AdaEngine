@@ -52,7 +52,8 @@ layout (location = 7) in vec4 v_GlassInfo1;
 layout (binding = 0) uniform texture2D u_BackgroundTexture;
 layout (binding = 1) uniform sampler u_BackgroundSampler;
 
-const int kBlurGridRadius = 10;
+// A 9x9 bilinear kernel keeps the same blur footprint with 81 taps.
+const int kBlurGridRadius = 4;
 
 float saturate(float v) { return clamp(v, 0.0, 1.0); }
 
@@ -66,6 +67,7 @@ vec4 sampleBg(vec2 uv) {
 }
 
 float sampleBlurredChannel(vec2 uv, vec2 texelSize, float radius, int channel) {
+    if (radius < 0.5) { return sampleBg(uv)[channel]; }
     float value = 0.0;
     float totalWeight = 0.0;
     float sigma = max(radius * 0.42, 1.0);
@@ -85,6 +87,7 @@ float sampleBlurredChannel(vec2 uv, vec2 texelSize, float radius, int channel) {
 }
 
 vec3 sampleBlurredAll(vec2 uv, vec2 texelSize, float radius) {
+    if (radius < 0.5) { return sampleBg(uv).rgb; }
     vec3 value = vec3(0.0);
     float totalWeight = 0.0;
     float sigma = max(radius * 0.42, 1.0);
@@ -130,6 +133,7 @@ void glass_fragment() {
     // --- SDF (simple rounded box, like OpenGlass) ---
     float sdf = sdRoundedBox(localPos, halfSize, cornerRadius);
     float edgeAA = max(length(vec2(dFdx(sdf), dFdy(sdf))), 0.5);
+    if (sdf > edgeAA) { discard; }
 
     float distFromEdge = -sdf;
     float effectiveSize = min(halfW * 2.0, halfH * 2.0);
@@ -177,10 +181,17 @@ void glass_fragment() {
     vec2 greenUV = clamp((fragPx + greenOff  * scaleFactor) / bgTexSize, vec2(0.001), vec2(0.999));
     vec2 blueUV  = clamp((fragPx + blueOff  * scaleFactor) / bgTexSize, vec2(0.001), vec2(0.999));
 
-    float r = sampleBlurredChannel(redUV,   texelSize, blurPhysical, 0);
-    float g = sampleBlurredChannel(greenUV, texelSize, blurPhysical, 1);
-    float b = sampleBlurredChannel(blueUV,  texelSize, blurPhysical, 2);
-    vec3 color = vec3(r, g, b);
+    vec3 color;
+    // Regular/clear glass has no dispersion: all channels share one blur.
+    if (chrome == 0.0) {
+        color = sampleBlurredAll(greenUV, texelSize, blurPhysical);
+    } else {
+        color = vec3(
+            sampleBlurredChannel(redUV, texelSize, blurPhysical, 0),
+            sampleBlurredChannel(greenUV, texelSize, blurPhysical, 1),
+            sampleBlurredChannel(blueUV, texelSize, blurPhysical, 2)
+        );
+    }
 
     // --- Luminance-adaptive tinting (OpenGlass light-mode path) ---
     float lum = dot(color, vec3(0.299, 0.587, 0.114));

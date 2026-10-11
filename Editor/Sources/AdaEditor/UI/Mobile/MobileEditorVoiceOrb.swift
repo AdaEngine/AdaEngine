@@ -3,7 +3,7 @@ import AdaUI
 import Foundation
 import Math
 
-#if os(iOS)
+#if os(iOS) || os(visionOS)
 import UIKit
 
 /// The Companion Bubble drawn in AdaUI, so it participates in clipping and covers.
@@ -42,7 +42,7 @@ final class MobileEditorVoiceOrbView: AdaUI.UIView {
     }
 
     override func draw(in rect: Rect, with context: UIGraphicsContext) {
-        if let id = context.windowId { renderWindow = UIWindowManager.shared.windows[id] }
+        renderWindow = window
         guard rect.width > 0, rect.height > 0 else {
             return
         }

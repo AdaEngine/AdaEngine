@@ -234,12 +234,14 @@ open class UIView {
     /// Set the needs layout flag.
     public func setNeedsLayout() {
         self.needsLayout = true
+        (self as? UIWindow ?? window)?.recordUIActivity()
         setNeedsDisplay()
     }
 
     /// Set the needs layout flag while limiting the scheduled redraw to a known dirty rect.
     func setNeedsLayout(in rect: Rect) {
         self.needsLayout = true
+        (self as? UIWindow ?? window)?.recordUIActivity()
         setNeedsDisplay(in: rect)
     }
 

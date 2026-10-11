@@ -123,8 +123,8 @@ struct EditorTransformGizmo {
     }
 
     @MainActor
-    func draw(in context: inout UIGraphicsContext, highlighted: Handle?) {
-        for shape in shapes {
+    func draw(in context: inout UIGraphicsContext, highlighted: Handle?, only handle: Handle? = nil) {
+        for shape in shapes where handle == nil || shape.handle == handle {
             let color = shape.handle == highlighted ? Color.yellow : shape.handle.color
             var path = Path()
             if let first = shape.points.first {
@@ -149,7 +149,7 @@ struct EditorTransformGizmo {
                 context.drawRect(Rect(x: end.x - 5, y: end.y - 5, width: 10, height: 10), color: color)
             }
         }
-        if tool != .rotate {
+        if tool != .rotate, handle == nil || handle == .center {
             let rect = Rect(x: screenOrigin.x - 6, y: screenOrigin.y - 6, width: 12, height: 12)
             context.fill(RectangleShape().path(in: rect), with: highlighted == .center ? .yellow : .white.opacity(0.9))
         }

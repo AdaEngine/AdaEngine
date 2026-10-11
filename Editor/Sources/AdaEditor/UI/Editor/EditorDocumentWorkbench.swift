@@ -3,6 +3,7 @@
 /// Both interfaces use the same document model, renderer, and editing callbacks.
 struct EditorDocumentWorkbench: View {
     let viewModel: EditorViewModel
+    var showsDocumentTabs = true
 
     var body: some View {
         ZStack {
@@ -70,6 +71,7 @@ struct EditorDocumentWorkbench: View {
                     viewModel.showBuildOutput()
                 },
                 debugger: viewModel.debugger,
+                showsDocumentTabs: showsDocumentTabs,
                 projectItems: viewModel.projectSidebar.items,
                 onOpenProjectItem: { item in
                     viewModel.openProjectItem(item)

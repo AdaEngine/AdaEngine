@@ -11,6 +11,59 @@ struct TextEditorTouchTests {
         try Application.prepareForTest()
     }
 
+    @Test("Long press on existing selection presents editing/source actions once and preserves its range")
+    func selectedLongPressMenu() throws {
+        var presentations: [ContextMenuPresentation] = []
+        var chatText: String?
+        var sourceAction = false
+        let previous = ContextMenuPresentationCenter.present
+        ContextMenuPresentationCenter.present = { presentations.append($0) }
+        defer { ContextMenuPresentationCenter.present = previous }
+        let tester = ViewTester {
+            TextEditor(text: .constant("alpha beta gamma"), sourceInteraction: .init(
+                onChatSelection: { _, text in chatText = text },
+                contextMenuItems: { _ in [TextEditorContextMenuItem(title: "Source Action") { sourceAction = true }] }
+            )).font(.system(size: 12)).frame(width: 360, height: 160)
+        }.setSize(Size(width: 380, height: 180)).performLayout()
+        let node = try #require(tester.hitTest(Point(40, 16), event: TouchEvent(window: .empty, location: Point(40, 16), phase: .began, time: 0)) as? TextEditorViewNode)
+        node.selectionAnchor = 0
+        node.selectionHead = 10
+        let caret = node.selectionCaretRect(at: 3)
+        let frame = node.visualAbsoluteFrame()
+        let point = Point(frame.minX + caret.minX + 1, frame.minY + caret.midY)
+        tester.containerView.onTouchesEvent([TouchEvent(window: .empty, location: point, phase: .began, time: 1)])
+        for _ in 0..<10 { node.update(0.1) }
+        #expect(presentations.count == 1)
+        #expect(node.selectionRange == 0..<10)
+        tester.containerView.onTouchesEvent([TouchEvent(window: .empty, location: point, phase: .ended, time: 2)])
+        #expect(node.selectionRange == 0..<10)
+        let menu = try #require(presentations.first)
+        #expect(menu.items.map(\.title) == ["Copy", "Cut", "Paste", "Select All", "Chat About Selection", "Source Action"])
+        menu.items.first { $0.title == "Chat About Selection" }?.action?()
+        #expect(chatText == "alpha beta")
+        menu.items.first { $0.title == "Source Action" }?.action?()
+        #expect(sourceAction)
+    }
+
+    @Test("Cancelled hold and swipe on existing selection do not open a menu")
+    func selectedCancelledHold() throws {
+        var menus = 0
+        let previous = ContextMenuPresentationCenter.present
+        ContextMenuPresentationCenter.present = { _ in menus += 1 }
+        defer { ContextMenuPresentationCenter.present = previous }
+        let (tester, node) = try makeScrollableEditor()
+        node.selectionAnchor = 0
+        node.selectionHead = 10
+        let caret = node.selectionCaretRect(at: 3)
+        let frame = node.visualAbsoluteFrame()
+        let point = Point(frame.minX + caret.minX + 1, frame.minY + caret.midY)
+        tester.containerView.onTouchesEvent([TouchEvent(window: .empty, location: point, phase: .began, time: 1)])
+        tester.containerView.onTouchesEvent([TouchEvent(window: .empty, location: point, phase: .cancelled, time: 1.1)])
+        for _ in 0..<10 { node.update(0.1) }
+        #expect(menus == 0)
+        #expect(node.selectionRange == 0..<10)
+    }
+
     @Test("A swipe scrolls code without focus, caret movement or selection")
     func swipeScrolls() throws {
         let (tester, node) = try makeScrollableEditor()

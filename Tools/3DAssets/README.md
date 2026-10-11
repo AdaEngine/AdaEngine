@@ -1,6 +1,6 @@
 # AdaEngine skeletal asset tools
 
-The initial skeletal importer lives in `Sources/AdaAssets/GLTF`. It retains node rest TRS, ordered skin joints, inverse bind matrices, typed vertex influences, and named TRS animation clips. The initial runtime now preserves these data in `ModelAsset3D`, creates instance-owned players, and renders GPU skinning in the PBR and directional-shadow passes. `Demos/SkeletalGarden` is the native development scene.
+The initial skeletal importer lives in `Sources/AdaAssets/GLTF`. It retains node rest TRS, ordered skin joints, inverse bind matrices, typed vertex influences, and named TRS animation clips. The initial runtime now preserves these data in `ModelAsset3D`, creates instance-owned players, and renders GPU skinning in the PBR and directional-shadow passes. `../AdaExamples/Samples/SkeletalGarden` is the native development scene.
 
 ## Reference assets
 
@@ -48,7 +48,7 @@ Draco, Meshopt, and KTX2 outputs need decoder support before use. AI-generated a
 
 ## PBR and IBL garden pipeline
 
-`prepare_robot.py` creates the runtime CC0 RobotExpressive profile while retaining original geometry, nodes and inverse bind matrices. It selects three skeletal clips and normalizes source weights. Provenance and source SHA256 are in `Demos/SkeletalGarden/SourceAssets/ASSETS.md`.
+`prepare_robot.py` creates the runtime CC0 RobotExpressive profile while retaining original geometry, nodes and inverse bind matrices. It selects three skeletal clips and normalizes source weights. Provenance and source SHA256 are in `../AdaExamples/Samples/SkeletalGarden/SourceAssets/ASSETS.md`.
 
 `generate_garden_assets.py` authors six original PBR props through Blender and runs `bake_ibl.py`. The IBL bake produces linear RGBA16F radiance/irradiance, a six-level GGX specular atlas and split-sum BRDF LUT. Its constant-radiance energy self-test runs before output generation. The runtime `.ibl` loader validates dimensions, byte counts and finite nonnegative half-float data before GPU upload.
 
@@ -63,4 +63,4 @@ Useful suites: `GLTFMaterialImportTests`, `ImageMipmapsTests`, `PBR3DSceneTests`
 
 Landscape props: run Blender with `--background --factory-startup --python Tools/3DAssets/generate_landscape_assets.py` to reproduce Tree/Rock/Grass. `prepare_robot.py` also derives rotation-only Jump/Fall/Land clips from the retained CC0 source. The terrain itself is deterministic demo code, shared with its static triangle collider.
 
-The landscape generator also exports TreeLOD1/2 and RockLOD1/2 with preserved pivot/material slots. Tree LODs simplify only foliage and preserve the trunk's closed surface; whole-tree decimation can erase narrow structural parts. Do not overwrite character skeletons with static mesh decimation. All generated LODs should pass validate_glb.cjs and preserve the base level's local coordinate frame. `GardenLandscapeLODTests` checks the actual indexed trunk silhouette; `Demos/SkeletalGarden/script/build_and_run.sh --capture-tree-lods` provides a rendered comparison of all three levels.
+The landscape generator also exports TreeLOD1/2 and RockLOD1/2 with preserved pivot/material slots. Tree LODs simplify only foliage and preserve the trunk's closed surface; whole-tree decimation can erase narrow structural parts. Do not overwrite character skeletons with static mesh decimation. All generated LODs should pass validate_glb.cjs and preserve the base level's local coordinate frame. `GardenLandscapeLODTests` checks the actual indexed trunk silhouette; `../AdaExamples/Samples/SkeletalGarden/script/build_and_run.sh --capture-tree-lods` provides a rendered comparison of all three levels.

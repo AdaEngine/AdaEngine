@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 const { MeshoptSimplifier } = await import(process.env.MESHOPTIMIZER_MODULE || 'meshoptimizer');
 await MeshoptSimplifier.ready;
-const root = fileURLToPath(new URL('../../Demos/SkeletalGarden/', import.meta.url));
+const root = fileURLToPath(new URL('../../../AdaExamples/Samples/SkeletalGarden/', import.meta.url));
 const input = await readFile(root + 'Assets/GardenRobot.glb');
 if (input.readUInt32LE(0) !== 0x46546c67 || input.readUInt32LE(4) !== 2) throw new Error('Expected GLB 2');
 const jsonSize = input.readUInt32LE(12);

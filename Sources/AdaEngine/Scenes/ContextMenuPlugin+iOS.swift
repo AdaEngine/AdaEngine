@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(visionOS)
     @_spi(Internal) import AdaUI
     import UIKit
 
@@ -62,8 +62,8 @@
         init?(presentation: ContextMenuPresentation) {
             guard
                 let sourceWindow = presentation.sourceWindow,
-                let systemWindow = sourceWindow.systemWindow as? UIKit.UIWindow,
-                let hostView = systemWindow.rootViewController?.view
+                let hostView = (sourceWindow.nativeHostingView as? UIKit.UIView)
+                    ?? (sourceWindow.systemWindow as? UIKit.UIWindow)?.rootViewController?.view
             else {
                 return nil
             }
@@ -103,7 +103,12 @@
             menuFor _: UIEditMenuConfiguration,
             suggestedActions _: [UIKit.UIMenuElement]
         ) -> UIKit.UIMenu? {
-            UIKit.UIMenu(children: menuElements(for: presentation.items))
+            #if DEBUG
+                if CommandLine.arguments.contains("--adaui-selection-menu-preview") || CommandLine.arguments.contains(where: { $0.hasPrefix("--adaui-test-tap=") }) {
+                    print("[AdaUI] Native menu: \(presentation.items.map(\.title).joined(separator: ", "))")
+                }
+            #endif
+            return UIKit.UIMenu(children: menuElements(for: presentation.items))
         }
 
         func editMenuInteraction(

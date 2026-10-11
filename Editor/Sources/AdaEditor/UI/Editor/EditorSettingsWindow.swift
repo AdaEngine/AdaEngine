@@ -708,7 +708,7 @@ struct EditorSettingsWindowView: View {
             }
             settingsGroup("RUN DESTINATION") {
                 HStack(spacing: 8) {
-                    ForEach(EditorRunDestination.allCases, id: \.self) { destination in
+                    ForEach(EditorRunDestination.toolbarDestinations, id: \.self) { destination in
                         selectionButton(destination.rawValue, selected: editorViewModel.selectedRunDestination == destination) {
                             editorViewModel.selectRunDestination(destination)
                         }

@@ -2361,7 +2361,7 @@
     "blocks": [
       {
         "kind": "text",
-        "text": "Use `AdaEngineEmbeddable` from a SwiftUI visionOS application to display an AdaEngine\nworld in a full immersive space. `Demos/ImmersiveGarden` contains a runnable host.",
+        "text": "Use `AdaEngineEmbeddable` from a SwiftUI visionOS application to display an AdaEngine\nworld in a full immersive space. `AdaExamples/Examples/ImmersiveGarden` contains a runnable host.",
         "level": 0,
         "links": []
       },

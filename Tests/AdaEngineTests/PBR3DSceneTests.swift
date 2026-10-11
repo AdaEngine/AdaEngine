@@ -115,7 +115,7 @@ struct PBR3DSceneTests {
 
     private func assets() -> URL {
         URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Demos/SkeletalGarden/Assets")
+            .appendingPathComponent("Tests/AdaEngineTests/Fixtures/SkeletalGardenAssets")
     }
 
     private func loadModel(_ name: String) throws -> ModelAsset3D {

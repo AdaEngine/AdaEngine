@@ -156,6 +156,32 @@ extension TextEditorViewNode {
         self.ensureCaretVisibleIfNeeded()
     }
 
+    /// Touch menus preserve the current selection and reuse the same editing/source actions as keyboard and mouse.
+    func presentTouchSelectionMenu(at location: Point) {
+        guard hasSelection else {
+            return
+        }
+        var items = [TextEditorContextMenuItem(title: "Copy") { [weak self] in self?.copySelection() }]
+        if environment.isEnabled {
+            items.append(TextEditorContextMenuItem(title: "Cut") { [weak self] in self?.cutSelection() })
+            items.append(TextEditorContextMenuItem(title: "Paste") { [weak self] in self?.pasteText() })
+        }
+        items.append(TextEditorContextMenuItem(title: "Select All") { [weak self] in self?.selectAll() })
+        if sourceInteraction?.onChatSelection != nil {
+            items.append(TextEditorContextMenuItem(title: "Chat About Selection") { [weak self] in
+                guard let self, self.hasSelection else {
+                    return
+                }
+                self.sourceInteraction?.onChatSelection?(self.selectedSourceRange(), self.selectedText())
+            })
+        }
+        let position = sourcePosition(at: convertPointFromRoot(location))
+        items.append(contentsOf: sourceInteraction?.contextMenuItems?(position) ?? [])
+        ContextMenuPresentationCenter.present?(ContextMenuPresentation(
+            sourceWindow: owner?.window, location: location, items: items.presentationItems()
+        ))
+    }
+
     private func presentSourceContextMenu(
         at location: Point,
         sourcePosition: TextEditorSourcePosition,

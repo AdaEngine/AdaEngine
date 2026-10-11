@@ -149,21 +149,28 @@ public struct UIRenderNode: RenderNode {
                 height: Float(texture.height)
             )
 
-            func blitMainTargetToGlassBackground() {
+            func blitMainTargetToGlassBackground(drawData: UIDrawData) {
                 guard let glassTex = glassBackground.texture else {
                     return
                 }
+                let region = GlassBackgroundCapture.region(
+                    vertices: drawData.glassVertexBuffer.elements,
+                    viewport: camera.viewport.rect,
+                    scaleFactor: effectiveScaleFactor,
+                    textureSize: SizeInt(width: texWidth, height: texHeight)
+                )
+                let origin = Origin3D(x: Int(region.minX), y: Int(region.minY), z: 0)
                 let blitEncoder = commandBuffer.beginBlitPass(
                     BlitPassDescriptor(label: "Glass Background Blit")
                 )
                 blitEncoder.copyTextureToTexture(
                     source: texture,
-                    sourceOrigin: Origin3D(),
-                    sourceSize: Size3D(width: texWidth, height: texHeight),
+                    sourceOrigin: origin,
+                    sourceSize: Size3D(width: Int(region.width), height: Int(region.height)),
                     sourceMipLevel: 0,
                     sourceSlice: 0,
                     destination: glassTex,
-                    destinationOrigin: Origin3D(),
+                    destinationOrigin: origin,
                     destinationMipLevel: 0,
                     destinationSlice: 0
                 )
@@ -180,7 +187,7 @@ public struct UIRenderNode: RenderNode {
                         activePass.endRenderPass()
                         renderPass = nil
                     }
-                    blitMainTargetToGlassBackground()
+                    blitMainTargetToGlassBackground(drawData: item.drawData)
                 }
 
                 if renderPass == nil {

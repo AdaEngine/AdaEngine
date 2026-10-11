@@ -41,7 +41,7 @@ private enum ContextMenuPresenter {
             return
         }
 
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
             IOSContextMenuPresentationCenter.present(presentation)
         #else
             activeSession?.closeAll()
@@ -65,7 +65,7 @@ private enum ContextMenuPresenter {
 
     @discardableResult
     static func dismissAll() -> Bool {
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
             return IOSContextMenuPresentationCenter.dismissAll()
         #else
             guard let session = activeSession else {
@@ -79,7 +79,7 @@ private enum ContextMenuPresenter {
     }
 
     static func dismissForInteraction(in window: UIWindow?) {
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
             IOSContextMenuPresentationCenter.dismissForInteraction(in: window)
         #else
             guard let activeSession, let window, !activeSession.contains(window) else {
@@ -92,7 +92,7 @@ private enum ContextMenuPresenter {
     }
 
     static func dismissForDeactivation(of window: UIWindow?) {
-        #if os(iOS)
+        #if os(iOS) || os(visionOS)
             IOSContextMenuPresentationCenter.dismissForDeactivation(of: window)
         #else
             guard let activeSession, let window, activeSession.sourceWindow === window else {

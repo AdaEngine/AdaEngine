@@ -75,3 +75,6 @@ see [Android export and run](Documentation/Android.md).
 
 Build & Export also groups iOS, Web, Windows, Linux, macOS and VR / XR tool paths.
 See [build tool settings and platform availability](Documentation/BuildExport.md).
+
+Official games and feature examples are available from the HUB Samples section.
+See [Examples.md](Documentation/Examples.md) for downloading editable projects and local catalog development.

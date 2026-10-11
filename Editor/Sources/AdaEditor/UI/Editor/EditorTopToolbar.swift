@@ -139,7 +139,7 @@ struct EditorRunDestinationMenu: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            ForEach(EditorRunDestination.availableCases, id: \.self) { destination in
+            ForEach(EditorRunDestination.toolbarDestinations, id: \.self) { destination in
                 Button(
                     action: { onSelect(destination) },
                     label: {

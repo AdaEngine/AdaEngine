@@ -254,7 +254,7 @@ public enum ProjectSystem {
         destination: AdaProjectRunDestination,
         fileManager: FileManager = .default
     ) throws(ProjectSystemError) {
-        if destination == .iPadOS, !project.build.system.isAdaScript {
+        if [.iPadOS, .visionOS].contains(destination), !project.build.system.isAdaScript {
             throw .unsupportedBuildSystemForPlatform(
                 platform: destination.rawValue,
                 buildSystem: project.build.system.rawValue
@@ -634,6 +634,7 @@ public struct AdaProjectRun: Codable, Equatable, Sendable {
 public enum AdaProjectRunDestination: String, Codable, CaseIterable, Equatable, Sendable {
     case macOS = "macos"
     case iPadOS = "ipados"
+    case visionOS = "visionos"
     case web
     case android
 }

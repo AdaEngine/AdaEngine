@@ -29,6 +29,7 @@ struct EditorCenterWorkbench: View {
     let onHidePreview: (() -> Void)?
     let onShowPreviewBuildOutput: (() -> Void)?
     var debugger: EditorDebugger?
+    var showsDocumentTabs = true
     var projectItems: [EditorProjectSidebarViewModel.Item] = []
     var onOpenProjectItem: ((EditorProjectSidebarViewModel.Item) -> Void)?
 
@@ -38,7 +39,10 @@ struct EditorCenterWorkbench: View {
     @State private var previewResizeState = EditorPreviewResizeState()
     @State private var draggedTabID: String?
     @State private var dropTargetTabID: String?
-    @State private var filesBrowserPanes: Set<EditorWorkbenchPane> = []
+    private var filesBrowserPanes: Set<EditorWorkbenchPane> {
+        get { viewModel.filesBrowserPanes }
+        nonmutating set { viewModel.filesBrowserPanes = newValue }
+    }
     @State private var splitResizeState = EditorWorkbenchResizeState()
 
     var body: some View {
@@ -78,14 +82,16 @@ extension EditorCenterWorkbench {
 
     private func documentPane(_ pane: EditorWorkbenchPane) -> some View {
         VStack(spacing: 0) {
-            editorTabs(in: pane)
-                .frame(height: AdaEngineStyleLayoutSpec.editorTabHeight)
-                .overlay(anchor: .bottomLeading) {
-                    RectangleShape()
-                        .fill(viewModel.focusedPane == pane ? theme.editorColors.blue : theme.editorColors.border)
-                        .frame(height: viewModel.isSplit ? 2 : 0)
-                        .allowsHitTesting(false)
-                }
+            if showsDocumentTabs {
+                editorTabs(in: pane)
+                    .frame(height: AdaEngineStyleLayoutSpec.editorTabHeight)
+                    .overlay(anchor: .bottomLeading) {
+                        RectangleShape()
+                            .fill(viewModel.focusedPane == pane ? theme.editorColors.blue : theme.editorColors.border)
+                            .frame(height: viewModel.isSplit ? 2 : 0)
+                            .allowsHitTesting(false)
+                    }
+            }
             activeDocumentView(in: pane)
                 .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 .layoutPriority(100)
@@ -259,8 +265,7 @@ extension EditorCenterWorkbench {
         .overlay {
             RoundedRectangleShape(cornerRadius: 5)
                 .stroke(
-                    dropTargetTabID == document.id ? theme.editorColors.blue :
-                        active ? theme.editorColors.blue.opacity(0.72) : theme.editorColors.border.opacity(0.52),
+                    dropTargetTabID == document.id ? theme.editorColors.blue : active ? theme.editorColors.blue.opacity(0.72) : theme.editorColors.border.opacity(0.52),
                     lineWidth: dropTargetTabID == document.id ? 2 : 1
                 )
         }
@@ -295,7 +300,8 @@ extension EditorCenterWorkbench {
                 }
             }
             if let index = viewModel.documents(in: viewModel.pane(for: document.id)).firstIndex(where: { $0.id == document.id }),
-                index < viewModel.documents(in: viewModel.pane(for: document.id)).count - 1 {
+                index < viewModel.documents(in: viewModel.pane(for: document.id)).count - 1
+            {
                 Button("Close Right") {
                     viewModel.closeDocumentsToRight(of: document.id)
                 }
@@ -355,9 +361,9 @@ extension EditorCenterWorkbench {
             return "\u{E871}"
         case .scene:
             return "\u{E8F1}"
-        case let .text(document):
+        case .text(let document):
             return document.language == .swift ? "\u{E86F}" : "\u{E873}"
-        case let .asset(document):
+        case .asset(let document):
             switch document.kind {
             case .atlas,
                 .tileSource,
@@ -376,7 +382,7 @@ extension EditorCenterWorkbench {
     }
 
     private func textLanguage(for document: EditorWorkbenchDocument) -> EditorSourceLanguage? {
-        guard case let .text(document) = document else {
+        guard case .text(let document) = document else {
             return nil
         }
         return document.language
@@ -396,7 +402,7 @@ extension EditorCenterWorkbench {
             return theme.editorColors.purple
         case .text:
             return theme.editorColors.blue
-        case let .asset(document):
+        case .asset(let document):
             switch document.kind {
             case .atlas,
                 .tileSource,
@@ -423,18 +429,18 @@ extension EditorCenterWorkbench {
             }
         } else {
             switch viewModel.selectedDocument(in: pane) {
-            case let .git(document):
+            case .git(let document):
                 EditorGitDiffView(document: document, workbench: viewModel)
-            case let .scene(document):
+            case .scene(let document):
                 sceneDocumentEditor(document: document)
-            case let .ui(document):
+            case .ui(let document):
                 EditorUISceneEditor(
                     model: viewModel.uiSceneModel(for: document, resourceRoot: sceneResourceRootURL, bindingCatalog: inspectorViewModel.scriptableObjectCatalog),
                     colorPalette: viewModel.codeColorPalette
                 )
-            case let .text(document):
+            case .text(let document):
                 textDocumentEditor(document: document)
-            case let .asset(document):
+            case .asset(let document):
                 assetPreview(document: document)
             case nil:
                 emptyWorkbench
@@ -931,12 +937,12 @@ private struct EditorPreviewPanel: View {
         switch status {
         case .hidden:
             EmptyView()
-        case let .unavailable(message):
+        case .unavailable(let message):
             messageView(title: "Preview unavailable", message: message)
-        case let .available(declarations):
+        case .available(let declarations):
             let selected = declarations.first { $0.id == selectedPreviewID } ?? declarations.first
             messageView(title: selected?.title ?? "Preview", message: "Build the preview to render it.")
-        case let .building(declaration, message):
+        case .building(let declaration, let message):
             if let retainedPreviewView {
                 retainedPreviewContent(retainedPreviewView) {
                     statusBanner(title: declaration.title, message: message, showsBuildOutputButton: false, isBuilding: true)
@@ -944,10 +950,10 @@ private struct EditorPreviewPanel: View {
             } else {
                 progressView(title: declaration.title, message: message)
             }
-        case let .loaded(_, view):
+        case .loaded(_, let view):
             EditorPreviewViewport(previewView: view, settings: previewControls)
                 .padding(12)
-        case let .failed(declaration, message, hasBuildOutput):
+        case .failed(let declaration, let message, let hasBuildOutput):
             if let retainedPreviewView {
                 retainedPreviewContent(retainedPreviewView) {
                     statusBanner(
@@ -964,12 +970,12 @@ private struct EditorPreviewPanel: View {
 
     private var declarations: [EditorPreviewDeclaration] {
         switch status {
-        case let .available(declarations):
+        case .available(let declarations):
             return declarations
-        case let .building(declaration, _),
-            let .loaded(declaration, _):
+        case .building(let declaration, _),
+            .loaded(let declaration, _):
             return [declaration]
-        case let .failed(declaration, _, _):
+        case .failed(let declaration, _, _):
             return declaration.map { [$0] } ?? []
         case .hidden,
             .unavailable:

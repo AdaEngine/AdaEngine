@@ -43,6 +43,7 @@ struct ProjectOpeningDiagnostic: Equatable, Identifiable, Sendable {
 @Observable
 @MainActor
 final class ProjectOpeningViewModel {
+    let examples = EditorExamplesViewModel()
     var projectAvailability: [String: ProjectOpeningAvailability] = [:]
     var recentProjects: [EditorProjectReference] = []
     var projectName: String = "My_Game"

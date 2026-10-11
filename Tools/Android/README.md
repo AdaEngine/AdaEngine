@@ -89,10 +89,10 @@ APK signature and 16 KiB native-library zip alignment. APK copies have debug
 sections stripped; the original Swift build/SDK files retain their DWARF. The NDK and matching
 Swift SDK supply the required C++/Swift runtimes.
 
-The existing 3D animation scene also has an Android entry point:
+The 3D animation sample now lives in AdaExamples and also has an Android entry point:
 
 ```sh
-Tools/Android/run_demo.sh --product SkeletalGarden \
+Tools/Android/run_demo.sh --package ../AdaExamples/Samples/SkeletalGarden --product SkeletalGarden \
   --application-id org.adaengine.android.garden --label "Skeletal Garden" \
   --serial emulator-5554
 ```

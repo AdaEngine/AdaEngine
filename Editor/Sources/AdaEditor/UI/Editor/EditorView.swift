@@ -98,13 +98,15 @@ enum AdaEngineStyleContent {
 
 struct EditorView: View {
     let project: EditorProjectReference?
+    let usesNativeOrnaments: Bool
     @State private var viewModel: EditorViewModel
     @State private var projectSwitcher: EditorProjectSwitcherViewModel
     @State private var isRunDestinationMenuPresented = false
     @Environment(\.theme) private var theme
 
-    init(project: EditorProjectReference?, viewModel: EditorViewModel? = nil) {
+    init(project: EditorProjectReference?, viewModel: EditorViewModel? = nil, usesNativeOrnaments: Bool = false) {
         self.project = project
+        self.usesNativeOrnaments = usesNativeOrnaments
         self._viewModel = State(initialValue: viewModel ?? EditorViewModel(project: project))
         self._projectSwitcher = State(initialValue: EditorProjectSwitcherViewModel(currentProject: project))
     }
@@ -137,11 +139,11 @@ struct EditorView: View {
                     EditorAgentWorkspace(viewModel: viewModel)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    EditorWorkspaceRegion(viewModel: viewModel)
+                    EditorWorkspaceRegion(viewModel: viewModel, usesNativeOrnaments: usesNativeOrnaments)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 #else
-                EditorWorkspaceRegion(viewModel: viewModel)
+                EditorWorkspaceRegion(viewModel: viewModel, usesNativeOrnaments: usesNativeOrnaments)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 #endif
 
@@ -379,11 +381,12 @@ struct EditorView: View {
 
 private struct EditorWorkspaceRegion: View {
     let viewModel: EditorViewModel
+    let usesNativeOrnaments: Bool
     @Environment(\.metrics) private var metrics
 
     var body: some View {
         GeometryReader { geometry in
-            let stripWidth = metrics.toolStripWidth
+            let stripWidth: Float = usesNativeOrnaments ? 0 : metrics.toolStripWidth
             let workspaceWidth = max(0, geometry.size.width - stripWidth * 2)
 
             ZStack(anchor: .topLeading) {
@@ -393,7 +396,7 @@ private struct EditorWorkspaceRegion: View {
                         EditorLeftSidebarContent(viewModel: viewModel)
                     },
                     mainPanel: {
-                        EditorDocumentWorkbench(viewModel: viewModel)
+                        EditorDocumentWorkbench(viewModel: viewModel, showsDocumentTabs: !usesNativeOrnaments)
                     },
                     rightPanel: {
                         EditorRightSidebarContent(viewModel: viewModel)
@@ -411,25 +414,27 @@ private struct EditorWorkspaceRegion: View {
                 .frame(width: workspaceWidth, height: geometry.size.height)
                 .offset(x: stripWidth)
 
-                EditorLeftToolStrip(
-                    viewModel: viewModel,
-                    onSelectTopTool: { item in
-                        viewModel.activateLeftTopTool(item)
-                    },
-                    onSelectBottomTool: { item in
-                        viewModel.activateLeftBottomTool(item)
-                    }
-                )
-                .frame(width: stripWidth, height: geometry.size.height)
+                if !usesNativeOrnaments {
+                    EditorLeftToolStrip(
+                        viewModel: viewModel,
+                        onSelectTopTool: { item in
+                            viewModel.activateLeftTopTool(item)
+                        },
+                        onSelectBottomTool: { item in
+                            viewModel.activateLeftBottomTool(item)
+                        }
+                    )
+                    .frame(width: stripWidth, height: geometry.size.height)
 
-                EditorRightToolStrip(
-                    viewModel: viewModel,
-                    onSelectTool: { item in
-                        viewModel.activateRightTool(item)
-                    }
-                )
-                .frame(width: stripWidth, height: geometry.size.height)
-                .offset(x: stripWidth + workspaceWidth)
+                    EditorRightToolStrip(
+                        viewModel: viewModel,
+                        onSelectTool: { item in
+                            viewModel.activateRightTool(item)
+                        }
+                    )
+                    .frame(width: stripWidth, height: geometry.size.height)
+                    .offset(x: stripWidth + workspaceWidth)
+                }
             }
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
         }

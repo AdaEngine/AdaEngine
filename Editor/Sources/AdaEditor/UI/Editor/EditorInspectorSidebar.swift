@@ -2,6 +2,7 @@
 
 struct EditorInspectorSidebar: View {
     let viewModel: EditorInspectorSidebarViewModel
+    var showsTitle = true
 
     @State var activeAssetFieldID: String?
     @State var assetSearchText = ""
@@ -17,7 +18,7 @@ struct EditorInspectorSidebar: View {
     var body: some View {
         ZStack(anchor: .topTrailing) {
             VStack(alignment: .leading, spacing: 0) {
-                adaEditorInspectorTitle(theme: theme)
+                if showsTitle { adaEditorInspectorTitle(theme: theme) }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         if let runtimeSelection = viewModel.runtimeSelection {

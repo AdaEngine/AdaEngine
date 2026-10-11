@@ -10,6 +10,10 @@ if [[ "${ADA_EDITOR_STANDALONE_SWIFTPM:-0}" == "1" ]]; then
     editor_app_name="${ADA_EDITOR_APP_NAME:-Ada Studio Dev}"
     editor_app="$editor_package_root/dist/$editor_app_name.app"
     editor_binary="$editor_app/Contents/MacOS/$editor_app_name"
+    editor_example_environment=()
+    if [[ -n "${ADAEXAMPLES_PATH:-}" ]]; then
+        editor_example_environment+=(--env "ADAEXAMPLES_PATH=$ADAEXAMPLES_PATH")
+    fi
     for editor_pid in $(pgrep -f "$editor_binary" || true); do
         editor_command="$(ps -p "$editor_pid" -o command= || true)"
         if [[ "$editor_command" == "$editor_binary" || "$editor_command" == "$editor_binary "* ]]; then kill "$editor_pid"; fi
@@ -50,13 +54,13 @@ PY_PLIST
     case "$MODE" in
         run|--verify|verify)
             if [[ -n "${ADA_EDITOR_LOG_PATH:-}" ]]; then
-                /usr/bin/open -n "$editor_app" --stdout "$ADA_EDITOR_LOG_PATH" --stderr "$ADA_EDITOR_LOG_PATH" --args "${@:2}"
+                /usr/bin/open -n "$editor_app" ${editor_example_environment[@]+"${editor_example_environment[@]}"} --stdout "$ADA_EDITOR_LOG_PATH" --stderr "$ADA_EDITOR_LOG_PATH" --args "${@:2}"
             else
-                /usr/bin/open -n "$editor_app" --args "${@:2}"
+                /usr/bin/open -n "$editor_app" ${editor_example_environment[@]+"${editor_example_environment[@]}"} --args "${@:2}"
             fi
             ;;
         --debug|debug) lldb -- "$editor_binary" "${@:2}" ;;
-        --logs|logs) /usr/bin/open -n "$editor_app" --args "${@:2}"; /usr/bin/log stream --info --predicate "process == \"$editor_app_name\"" ;;
+        --logs|logs) /usr/bin/open -n "$editor_app" ${editor_example_environment[@]+"${editor_example_environment[@]}"} --args "${@:2}"; /usr/bin/log stream --info --predicate "process == \"$editor_app_name\"" ;;
         *) echo "usage: $0 [run|--verify|--debug|--logs] [Studio arguments]" >&2; exit 2 ;;
     esac
     exit 0

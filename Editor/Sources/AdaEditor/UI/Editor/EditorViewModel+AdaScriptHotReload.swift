@@ -3,7 +3,7 @@ import Foundation
 
 extension EditorViewModel {
     func scheduleAdaScriptHotReload() {
-        guard adaScriptRuntimeWindow != nil, adaScriptRuntimeControls != nil else {
+        guard adaScriptRuntimeControls != nil else {
             return
         }
         adaScriptHotReloadRevision += 1

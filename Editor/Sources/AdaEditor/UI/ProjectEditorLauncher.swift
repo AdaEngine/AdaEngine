@@ -15,6 +15,9 @@ enum EditorWindowSafeAreaPolicy {
 
 @MainActor
 enum ProjectEditorLauncher {
+    /// Native scene wrappers provide these routes instead of spawning a second application.
+    static var nativeProjectOpener: ((EditorProjectReference) -> Void)?
+    static var nativeWelcomeOpener: ((Bool) -> Void)?
     static let windowTitlePrefix = "AdaEditor"
     static let windowWidth: Float = 1280
     static let windowHeight: Float = 800
@@ -23,6 +26,8 @@ enum ProjectEditorLauncher {
         for project: EditorProjectReference,
         closing pickerWindow: UIWindow? = UIWindowManager.shared?.activeWindow
     ) {
+        if let nativeProjectOpener { nativeProjectOpener(project); return }
+        guard let manager = UIWindowManager.shared else { return }
         let configuration = UIWindow.Configuration(
             title: "Ada - \(project.name)",
             frame: Rect(x: 0, y: 0, width: ProjectOpeningLayout.windowWidth, height: ProjectOpeningLayout.windowHeight),
@@ -38,7 +43,7 @@ enum ProjectEditorLauncher {
             makeKey: true
         )
 
-        let editorWindow = UIWindowManager.shared.spawnWindow(configuration: configuration) {
+        let editorWindow = manager.spawnWindow(configuration: configuration) {
             EditorView(project: project)
         }
         promoteToPrimaryWindow(editorWindow)
@@ -47,6 +52,8 @@ enum ProjectEditorLauncher {
     }
 
     static func openWelcome(makeFocused: Bool = true, beginCreatingProject: Bool = false) {
+        if let nativeWelcomeOpener { nativeWelcomeOpener(beginCreatingProject); return }
+        guard let manager = UIWindowManager.shared else { return }
         let configuration = UIWindow.Configuration(
             title: windowTitlePrefix,
             frame: Rect(x: 0, y: 0, width: ProjectOpeningLayout.windowWidth, height: ProjectOpeningLayout.windowHeight),
@@ -63,7 +70,7 @@ enum ProjectEditorLauncher {
             hasShadow: ProjectOpeningWindowConfiguration.hasShadow,
             isResizable: ProjectOpeningWindowConfiguration.isResizable
         )
-        let window = UIWindowManager.shared.spawnWindow(configuration: configuration) {
+        let window = manager.spawnWindow(configuration: configuration) {
             ProjectOpeningView(autoOpenLastProject: false, initiallyCreatingProject: beginCreatingProject)
         }
         promoteToPrimaryWindow(window)

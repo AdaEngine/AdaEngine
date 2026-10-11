@@ -4,7 +4,7 @@ import sys, json, struct, math
 import bpy
 import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / 'Demos/SkeletalGarden/Assets'
+OUT = ROOT / '../AdaExamples/Samples/SkeletalGarden/Assets'
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bake_ibl
 bake_ibl.self_test()

@@ -217,11 +217,12 @@ final class HoverViewModifierNode: ViewModifierNode {
         guard self.point(inside: point, with: event) else {
             return nil
         }
-        // Observe pointer movement without becoming the target of clicks on nested controls.
-        if let mouseEvent = event as? MouseEvent, mouseEvent.button != .none {
-            return super.hitTest(point, with: event)
+        // Only pointer hover targets this observer. Clicks and touches (including visionOS
+        // pinches) must hit the nested control, through any decorative layout/overlay nodes.
+        if let mouseEvent = event as? MouseEvent, mouseEvent.button == .none {
+            return self
         }
-        return self
+        return super.hitTest(point, with: event)
     }
 
     override func onMouseEvent(_ event: MouseEvent) {

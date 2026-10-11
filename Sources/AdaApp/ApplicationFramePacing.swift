@@ -24,6 +24,15 @@ public struct ApplicationFramePacing: Resource, Codable, Sendable {
     /// When omitted, the system may adapt between 30 Hz and the resolved maximum.
     public var minimumFramesPerSecond: Int?
 
+    /// Optional idle cap for display-linked UI apps; games can leave this unset.
+    public var idleMaximumFramesPerSecond: Int?
+
+    /// Whether Apple display-linked platforms reduce the cap as thermal pressure rises.
+    public var adaptsToThermalState: Bool
+
+    /// Platform-neutral thermal pressure used when resolving a display-linked rate.
+    public enum ThermalState: Sendable { case nominal, fair, serious, critical }
+
     /// Minimum time between app-world updates for fixed-rate and fallback loops.
     public var minimumFrameDuration: LongTimeInterval {
         1 / LongTimeInterval(maximumFramesPerSecond)
@@ -38,11 +47,15 @@ public struct ApplicationFramePacing: Resource, Codable, Sendable {
     public init(
         maximumFramesPerSecond: Int,
         synchronizesWithDisplayRefreshRate: Bool = false,
-        minimumFramesPerSecond: Int? = nil
+        minimumFramesPerSecond: Int? = nil,
+        idleMaximumFramesPerSecond: Int? = nil,
+        adaptsToThermalState: Bool = false
     ) {
         self.maximumFramesPerSecond = max(1, maximumFramesPerSecond)
         self.synchronizesWithDisplayRefreshRate = synchronizesWithDisplayRefreshRate
         self.minimumFramesPerSecond = minimumFramesPerSecond.map { max(1, $0) }
+        self.idleMaximumFramesPerSecond = idleMaximumFramesPerSecond.map { max(1, $0) }
+        self.adaptsToThermalState = adaptsToThermalState
     }
 
     /// Creates frame pacing that follows the active display refresh rate where supported.
@@ -60,6 +73,13 @@ public struct ApplicationFramePacing: Resource, Codable, Sendable {
         )
     }
 
+    /// Uses the display maximum during interaction, 60 Hz at idle, and thermal caps
+    /// of 60/30/15 Hz for fair/serious/critical pressure. Fixed-rate games are unchanged.
+    public static func adaptiveUI() -> Self {
+        Self(maximumFramesPerSecond: 60, synchronizesWithDisplayRefreshRate: true,
+             idleMaximumFramesPerSecond: 60, adaptsToThermalState: true)
+    }
+
     /// Resolves the maximum update rate for a display.
     /// - Parameter displayMaximumFramesPerSecond: Maximum refresh rate reported by the display.
     public func resolvedMaximumFramesPerSecond(
@@ -74,11 +94,22 @@ public struct ApplicationFramePacing: Resource, Codable, Sendable {
 
     /// Resolves an adaptive frame-rate range for a display-linked update loop.
     public func resolvedFrameRateRange(
-        forDisplayMaximumFramesPerSecond displayMaximumFramesPerSecond: Int
+        forDisplayMaximumFramesPerSecond displayMaximumFramesPerSecond: Int,
+        isIdle: Bool = false,
+        thermalState: ThermalState = .nominal
     ) -> ClosedRange<Int> {
-        let maximum = resolvedMaximumFramesPerSecond(
+        var maximum = resolvedMaximumFramesPerSecond(
             forDisplayMaximumFramesPerSecond: displayMaximumFramesPerSecond
         )
+        if isIdle, let idleMaximumFramesPerSecond { maximum = min(maximum, max(1, idleMaximumFramesPerSecond)) }
+        if adaptsToThermalState {
+            switch thermalState {
+            case .nominal: break
+            case .fair: maximum = min(maximum, 60)
+            case .serious: maximum = min(maximum, 30)
+            case .critical: maximum = min(maximum, 15)
+            }
+        }
         return min(max(1, minimumFramesPerSecond ?? 30), maximum)...maximum
     }
 
@@ -86,6 +117,8 @@ public struct ApplicationFramePacing: Resource, Codable, Sendable {
         case maximumFramesPerSecond
         case synchronizesWithDisplayRefreshRate
         case minimumFramesPerSecond
+        case idleMaximumFramesPerSecond
+        case adaptsToThermalState
     }
 
     public init(from decoder: any Decoder) throws {
@@ -96,7 +129,9 @@ public struct ApplicationFramePacing: Resource, Codable, Sendable {
                 Bool.self,
                 forKey: .synchronizesWithDisplayRefreshRate
             ) ?? false,
-            minimumFramesPerSecond: try container.decodeIfPresent(Int.self, forKey: .minimumFramesPerSecond)
+            minimumFramesPerSecond: try container.decodeIfPresent(Int.self, forKey: .minimumFramesPerSecond),
+            idleMaximumFramesPerSecond: try container.decodeIfPresent(Int.self, forKey: .idleMaximumFramesPerSecond),
+            adaptsToThermalState: try container.decodeIfPresent(Bool.self, forKey: .adaptsToThermalState) ?? false
         )
     }
 
@@ -105,5 +140,7 @@ public struct ApplicationFramePacing: Resource, Codable, Sendable {
         try container.encode(maximumFramesPerSecond, forKey: .maximumFramesPerSecond)
         try container.encode(synchronizesWithDisplayRefreshRate, forKey: .synchronizesWithDisplayRefreshRate)
         try container.encodeIfPresent(minimumFramesPerSecond, forKey: .minimumFramesPerSecond)
+        try container.encodeIfPresent(idleMaximumFramesPerSecond, forKey: .idleMaximumFramesPerSecond)
+        try container.encode(adaptsToThermalState, forKey: .adaptsToThermalState)
     }
 }

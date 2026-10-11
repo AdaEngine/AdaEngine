@@ -19,11 +19,14 @@ struct ProjectOpeningAvailabilityTests {
 
         let original = URL(fileURLWithPath: reference.path)
         let moved = root.appendingPathComponent("Moved.adaproject")
-        try FileManager.default.moveItem(at: original, to: moved)
+        // A move remains available through security-scoped bookmarks. Delete the original
+        // after copying a backup to exercise actual disappearance/restoration instead.
+        try FileManager.default.copyItem(at: original, to: moved)
+        try FileManager.default.removeItem(at: original)
         await model.refreshProjectAvailability()
         #expect(model.projectAvailability[reference.path]?.isAvailable == false)
         #expect(model.recentProjects.count == 1)
-        try FileManager.default.moveItem(at: moved, to: original)
+        try FileManager.default.copyItem(at: moved, to: original)
         await model.refreshProjectAvailability()
         #expect(model.projectAvailability[reference.path]?.isAvailable == true)
     }

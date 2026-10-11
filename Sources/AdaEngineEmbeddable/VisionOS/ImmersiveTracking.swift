@@ -45,6 +45,32 @@
             return grips
         }
 
+        func handPoses(at timestamp: Double) -> [SpatialHandPose] {
+            guard tracksHands, hands.state == .running else { return [] }
+            let anchors = hands.handAnchors(at: timestamp)
+            return [(anchors.leftHand, SpatialInteractor.leftHand), (anchors.rightHand, SpatialInteractor.rightHand)].compactMap { anchor, identity in
+                guard let anchor, anchor.isTracked, let skeleton = anchor.handSkeleton else { return nil }
+                let wrist = skeleton.joint(.wrist)
+                let index = skeleton.joint(.indexFingerKnuckle)
+                let little = skeleton.joint(.littleFingerKnuckle)
+                let tip = skeleton.joint(.indexFingerTip)
+                let middle = skeleton.joint(.middleFingerTip)
+                guard wrist.isTracked, index.isTracked, little.isTracked, tip.isTracked, middle.isTracked else { return nil }
+                func point(_ joint: HandSkeleton.Joint) -> Vector3 {
+                    let matrix = anchor.originFromAnchorTransform * joint.anchorFromJointTransform
+                    return SpatialCoordinates.fromApple(Vector3(matrix.columns.3.x, matrix.columns.3.y, matrix.columns.3.z))
+                }
+                let w = point(wrist)
+                let i = point(index)
+                let l = point(little)
+                var pose = SpatialCoordinates.fromApple(Transform3D(anchor.originFromAnchorTransform))
+                pose.origin = (w + i + l) / 3
+                let normal = (i - w).cross(l - w).normalized
+                return SpatialHandPose(interactor: identity, pose: pose, palmNormal: normal,
+                    isOpen: (point(tip) - w).length > 0.12 && (point(middle) - w).length > 0.13)
+            }
+        }
+
         private func grip(_ anchor: HandAnchor?, interactor: SpatialInteractor, state: inout SpatialPinchState) -> SpatialGrip? {
             guard let anchor, anchor.isTracked, let skeleton = anchor.handSkeleton else {
                 state.update(distance: nil, isTracked: false)

@@ -13,6 +13,7 @@
             }
             .windowMode(.windowed)
             .windowTitle("Ada Studio")
+            .addPlugins(MobileEditorFramePacingPlugin())
             #if DEBUG && canImport(AdaMCPPlugin)
                 .addPlugins(MCPPlugin(configuration: .init(
                     enableHTTP: CommandLine.arguments.contains { $0.hasPrefix("--mcp-port=") },
@@ -23,6 +24,12 @@
                     serverName: "Ada Studio Mobile"
                 )))
             #endif
+        }
+    }
+
+    private struct MobileEditorFramePacingPlugin: Plugin {
+        func setup(in app: borrowing AppWorlds) {
+            app.insertResource(ApplicationFramePacing.adaptiveUI())
         }
     }
 #endif

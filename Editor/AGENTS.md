@@ -47,6 +47,14 @@ Entry points: [ProjectSystem.swift](Sources/AdaEditor/ProjectSystem.swift),
 Coverage: [ProjectSystemTests.swift](Tests/AdaEditorTests/ProjectSystemTests.swift),
 [EditorFileDropTests.swift](Tests/AdaEditorTests/EditorFileDropTests.swift).
 
+The HUB Samples section loads the official AdaExamples catalog, supports search
+by name/tags, downloads a separate editable project into a selected folder, and
+opens it through the ordinary project loader. Swift projects require standalone.
+`ADAEXAMPLES_PATH` selects a local catalog for development; otherwise catalog and
+files use one pinned GitHub commit. Games live in AdaExamples, with independent
+engine regression fixtures. Guide: [Examples.md](Documentation/Examples.md).
+Coverage: [EditorExampleCatalogTests.swift](Tests/AdaEditorTests/EditorExampleCatalogTests.swift).
+
 ### Workbench and code
 
 Document tabs, tab reordering, Back/Forward navigation, restoration, resizable

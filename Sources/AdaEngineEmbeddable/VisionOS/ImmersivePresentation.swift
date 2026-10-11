@@ -30,7 +30,7 @@
             self.depthState = depthState
         }
 
-        func present(_ drawable: LayerRenderer.Drawable, eyes: [(RenderTexture, RenderTexture)], onSubmitted: () -> Void) async throws {
+        func present(_ drawable: LayerRenderer.Drawable, eyes: [(RenderTexture, RenderTexture)], overlays: ((any MTLCommandBuffer) -> Void)? = nil, onSubmitted: () -> Void) async throws {
             guard let commands = queue.makeCommandBuffer() else { throw ImmersiveRendererError.metalResourceUnavailable }
             for (index, view) in drawable.views.enumerated() {
                 guard index < eyes.count,
@@ -70,6 +70,7 @@
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
                 encoder.endEncoding()
             }
+            overlays?(commands)
             drawable.encodePresent(commandBuffer: commands)
             try await complete(commands, retaining: eyes, onSubmitted: onSubmitted)
         }

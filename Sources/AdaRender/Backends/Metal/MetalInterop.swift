@@ -9,6 +9,15 @@
             (device as? MetalRenderDevice)?.commandQueue
         }
 
+        public static func vertexBuffer(_ buffer: VertexBuffer) -> (buffer: any MTLBuffer, offset: Int)? {
+            guard let native = buffer as? MetalVertexBuffer else { return nil }
+            return (native.buffer, native.offset)
+        }
+
+        public static func indexBuffer(_ buffer: IndexBuffer) -> (any MTLBuffer)? {
+            (buffer as? MetalIndexBuffer)?.buffer
+        }
+
         public static func texture(_ texture: Texture) -> (any MTLTexture)? {
             (texture.gpuTexture as? MetalGPUTexture)?.texture
         }

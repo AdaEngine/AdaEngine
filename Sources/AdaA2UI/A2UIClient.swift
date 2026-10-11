@@ -31,7 +31,7 @@ public final class A2UIClient {
     /// The catalog schema to provide to the agent alongside `commonTypesSchema()`.
     /// Its identifier does not trigger a network fetch.
     public static func catalogSchema() throws -> Data {
-        guard let url = Bundle.module.url(forResource: "catalog", withExtension: "json", subdirectory: "Resources") else {
+        guard let url = Bundle.module.url(forResource: "catalog", withExtension: "json") else {
             throw A2UIValidationError(message: "Bundled Ada catalog is missing.")
         }
         return try Data(contentsOf: url)
@@ -39,7 +39,7 @@ public final class A2UIClient {
 
     /// Structural type definitions referenced by the catalog schema as `common_types.json`.
     public static func commonTypesSchema() throws -> Data {
-        guard let url = Bundle.module.url(forResource: "common_types", withExtension: "json", subdirectory: "Resources") else {
+        guard let url = Bundle.module.url(forResource: "common_types", withExtension: "json") else {
             throw A2UIValidationError(message: "Bundled structural types are missing.")
         }
         return try Data(contentsOf: url)

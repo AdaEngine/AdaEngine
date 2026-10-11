@@ -9,13 +9,14 @@ import Math
 
 extension TextEditorViewNode {
     struct TouchSession {
-        enum Mode { case pending, scrolling, selecting }
+        enum Mode { case pending, scrolling, selecting, contextMenu }
         var mode: Mode = .pending
         let start: TouchEvent
         let caretOffset: Int
         var latest: TouchEvent
         var heldFor: AdaUtils.TimeInterval = 0
         var handleDrag: TextSelectionHandleDrag?
+        var pressedSelection: Range<Int>?
     }
 
     static var touchSelectionDelay: AdaUtils.TimeInterval { 0.45 }
@@ -63,10 +64,13 @@ extension TextEditorViewNode {
             foldTouchLine = foldLine(at: local)
             gutterTouchLine = gutterLine(at: local)
             touchSession = TouchSession(start: touch, caretOffset: closestOffset(to: local), latest: touch)
+            if foldTouchLine == nil, gutterTouchLine == nil, selectionContainsTouch(local) {
+                touchSession?.pressedSelection = selectionRange
+            }
             nearestScrollView()?.onTouchesEvent([touch])
             if foldTouchLine == nil, gutterTouchLine == nil,
                touch.tapCount == 2 || isDoubleTap(at: touch.location, time: touch.time) {
-                beginLongPressSelection()
+                beginLongPressSelection(allowsSelectionMenu: false)
             }
             return
         }
@@ -109,6 +113,9 @@ extension TextEditorViewNode {
             } else if touch.phase == .cancelled {
                 cancelScrollForTouch(touch)
             }
+        case .contextMenu:
+            // Menu presentation owns the hold; releasing or moving must not collapse the selection.
+            break
         case nil: break
         }
         if touch.phase == .ended || touch.phase == .cancelled {
@@ -128,11 +135,22 @@ extension TextEditorViewNode {
         }
     }
 
-    private func beginLongPressSelection() {
+    private func beginLongPressSelection(allowsSelectionMenu: Bool = true) {
         guard let session = touchSession, session.mode == .pending else {
             return
         }
         cancelScrollForTouch(session.latest)
+        if allowsSelectionMenu, session.pressedSelection == selectionRange,
+            hasSelection, ContextMenuPresentationCenter.present != nil {
+            touchSession?.mode = .contextMenu
+            clearTapCandidate()
+            foldTouchLine = nil
+            gutterTouchLine = nil
+            owner?.requestFocus(for: self)
+            showsTouchSelectionHandles = true
+            presentTouchSelectionMenu(at: session.latest.location)
+            return
+        }
         touchSession?.mode = .selecting
         isSelectingWithTouch = true
         showsTouchSelectionHandles = true
@@ -142,6 +160,25 @@ extension TextEditorViewNode {
         owner?.requestFocus(for: self)
         selectWord(at: session.caretOffset)
         refreshTouchSelection()
+    }
+
+    private func selectionContainsTouch(_ point: Point) -> Bool {
+        guard hasSelection, textRect().contains(point: point) else {
+            return false
+        }
+        let start = selectionCaretRect(at: selectionRange.lowerBound)
+        let end = selectionCaretRect(at: selectionRange.upperBound)
+        guard point.y >= start.minY, point.y <= end.maxY else {
+            return false
+        }
+        if point.y < start.maxY, point.x < start.minX {
+            return false
+        }
+        if point.y >= end.minY, point.x > end.minX {
+            return false
+        }
+        let offset = closestOffset(to: point)
+        return offset >= selectionRange.lowerBound && offset <= selectionRange.upperBound
     }
 
     private func finishTouchTap(_ touch: TouchEvent) {

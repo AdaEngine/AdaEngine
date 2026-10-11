@@ -3,7 +3,7 @@ from pathlib import Path
 import math, random, json, struct
 import bpy
 import bmesh
-OUT = Path(__file__).resolve().parents[2] / 'Demos/SkeletalGarden/Assets'
+OUT = Path(__file__).resolve().parents[2] / '../AdaExamples/Samples/SkeletalGarden/Assets'
 rng = random.Random(314159)
 
 def material(name, color, roughness=0.9, double=False):

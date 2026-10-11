@@ -21,6 +21,8 @@
     @MainActor
     public final class AdaUIHostingView<Content: AdaUI.View>: MetalView {
         public var onError: (@MainActor (Error) -> Void)?
+        /// Reports editor/text-field focus so a host can suspend global navigation shortcuts.
+        public var onTextInputFocusChanged: (@MainActor (Bool) -> Void)?
         public let appWorlds: AppWorlds
         public let engineWindow: AdaUI.UIWindow
 
@@ -34,8 +36,12 @@
         private var pendingContent: Content?
         private var pendingColorScheme: AdaUI.ColorScheme = .light
         private var needsResize = true
+        private var renderedScale: Float?
         private var didCreateRenderWindow = false
         private var isStopped = false
+        #if os(visionOS)
+            private var hoverLayers: [UInt: (effect: UIHoverEffectLayer, content: CALayer)] = [:]
+        #endif
 
         public init(content: Content, assetBundle: Bundle? = nil) {
             self.content = content
@@ -124,6 +130,7 @@
                 return
             }
             isStopped = true
+            onTextInputFocusChanged?(false)
             displayLink?.invalidate()
             displayLink = nil
             displayTarget = nil
@@ -167,6 +174,12 @@
             }
             needsResize = false
             let frame = Rect(x: 0, y: 0, width: Float(bounds.width), height: Float(bounds.height))
+            // UIKit may repeat layout for unchanged geometry during spatial window placement.
+            // Avoid rebuilding the complete AdaUI tree and resizing Metal targets in that case.
+            guard container?.frame != frame || renderedScale != panelManager.scale else {
+                return
+            }
+            renderedScale = panelManager.scale
             engineWindow.frame = frame
             container?.frame = frame
             do {
@@ -199,9 +212,52 @@
                 appWorlds.main.insertResource(DeltaTime(deltaTime: delta))
                 do {
                     try await appWorlds.update()
+                    #if os(visionOS)
+                        updateHoverLayers()
+                    #endif
                 } catch { report(error) }
             }
         }
+
+        #if os(visionOS)
+
+            private func updateHoverLayers() {
+                guard let container else {
+                    return
+                }
+                let regions = container.uiHoverRegions()
+                let live = Set(regions.map(\.id))
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                defer { CATransaction.commit() }
+                for id in Array(hoverLayers.keys) where !live.contains(id) {
+                    hoverLayers.removeValue(forKey: id)?.effect.removeFromSuperlayer()
+                }
+                for region in regions {
+                    let effect: UIHoverEffectLayer
+                    let content: CALayer
+                    if let existing = hoverLayers[region.id] {
+                        effect = existing.effect
+                        content = existing.content
+                    } else {
+                        effect = UIHoverEffectLayer(containerView: self, style: UIHoverStyle(effect: .highlight, shape: .rect(cornerRadius: 6)))
+                        // System hover supplies its own background/overlay, without reading eye direction.
+                        content = CALayer()
+                        content.backgroundColor = UIColor.white.withAlphaComponent(0.001).cgColor
+                        effect.addSublayer(content)
+                        layer.addSublayer(effect)
+                        hoverLayers[region.id] = (effect, content)
+                    }
+                    effect.frame = CGRect(
+                        x: CGFloat(region.frame.minX),
+                        y: CGFloat(region.frame.minY),
+                        width: CGFloat(region.frame.width),
+                        height: CGFloat(region.frame.height)
+                    )
+                    content.frame = effect.bounds
+                }
+            }
+        #endif
 
         private var renderSize: SizeInt {
             // RenderWindow stores logical points; its scale factor supplies physical pixels.
@@ -209,6 +265,10 @@
         }
 
         private func report(_ error: Error) {
+            // Closing an embedded panel cancels its startup/frame task by design.
+            if isStopped, error is CancellationError {
+                return
+            }
             onError?(error)
             print("[AdaUIHost] \(error)")
         }
@@ -235,6 +295,7 @@
                 .addPlugin(Core2DPlugin())
                 .addPlugin(TextPlugin())
                 .addPlugin(UIPlugin())
+                .addPlugin(ContextMenuPlugin())
                 .addPlugin(UpscalePlugin())
         }
     }
@@ -248,6 +309,7 @@
 
     @MainActor
     private protocol EmbeddedPanelFocusHost: AnyObject {
+        var onTextInputFocusChanged: (@MainActor (Bool) -> Void)? { get }
         func becomeFirstResponder() -> Bool
         func resignFirstResponder() -> Bool
         func stop()
@@ -274,6 +336,7 @@
         override func getMouseMode() -> Input.MouseMode { .visible }
         override func updateCursor() {}
         override func textInputFocusDidChange(_ isFocused: Bool) {
+            host?.onTextInputFocusChanged?(isFocused)
             if isFocused { _ = host?.becomeFirstResponder() } else { _ = host?.resignFirstResponder() }
         }
         nonisolated func getMainScreen() -> Screen? { MainActor.assumeIsolated { panelScreen } }

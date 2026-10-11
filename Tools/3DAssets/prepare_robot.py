@@ -5,8 +5,8 @@ selects skeletal clips, disables unsupported morph data, and sets PBR factors.
 from pathlib import Path
 import json, struct, hashlib, copy
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / 'Demos/SkeletalGarden/SourceAssets/RobotExpressive.glb'
-OUTPUT = ROOT / 'Demos/SkeletalGarden/Assets/GardenRobot.glb'
+SOURCE = ROOT / '../AdaExamples/Samples/SkeletalGarden/SourceAssets/RobotExpressive.glb'
+OUTPUT = ROOT / '../AdaExamples/Samples/SkeletalGarden/Assets/GardenRobot.glb'
 raw = SOURCE.read_bytes()
 length, kind = struct.unpack_from('<II', raw, 12)
 assert kind == 0x4E4F534A

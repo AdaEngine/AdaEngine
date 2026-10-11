@@ -118,6 +118,10 @@ final class EditorViewModel {
     @ObservationIgnored
     var adaScriptRuntimeWindow: UIWindow?
     @ObservationIgnored
+    var nativeAdaScriptLauncher: (@MainActor (EditorAdaScriptProjectBuildArtifact, String) throws -> Void)?
+    @ObservationIgnored
+    var nativeAdaScriptStopper: (@MainActor () -> Void)?
+    @ObservationIgnored
     var adaScriptRuntimeControls: EditorGameWindowControls?
     @ObservationIgnored
     var adaScriptHotReloadTask: Task<Void, Never>?
@@ -245,7 +249,9 @@ final class EditorViewModel {
         self.problems = problems
         self.symbolReferences = symbolReferences
         self.selectedRunProduct = selectedRunProduct
-        #if os(iOS)
+        #if os(visionOS)
+            self.selectedRunDestination = selectedRunDestination ?? .visionOS
+        #elseif os(iOS)
             self.selectedRunDestination = selectedRunDestination ?? .iPadOS
         #else
             self.selectedRunDestination = selectedRunDestination ?? Self.editorRunDestination(from: savedProject?.run.destination ?? .macOS)

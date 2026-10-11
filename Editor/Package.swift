@@ -14,8 +14,8 @@ let sloppyRuntimePackage: [Package.Dependency] = hasSloppyRuntime
     : []
 let sloppyRuntimeTarget: [Target.Dependency] = hasSloppyRuntime
     ? [
-        .product(name: "SloppyRuntime", package: "SloppyRuntimePortable", condition: .when(platforms: [.iOS])),
-        .product(name: "Protocols", package: "SloppyRuntimePortable", condition: .when(platforms: [.iOS])),
+        .product(name: "SloppyRuntime", package: "SloppyRuntimePortable", condition: .when(platforms: [.iOS, .visionOS])),
+        .product(name: "Protocols", package: "SloppyRuntimePortable", condition: .when(platforms: [.iOS, .visionOS])),
     ]
     : []
 let adaMCPPackage: Package.Dependency = hasAdaMCP
@@ -33,7 +33,7 @@ let package = Package(
     platforms: [
         .iOS(.v18),
         .tvOS(.v18),
-        .visionOS(.v2),
+        .visionOS(.v26),
         .macOS(.v15),
     ],
     products: [
@@ -96,6 +96,7 @@ let package = Package(
                 .product(name: "AdaPlayerConnect", package: "AdaPlayerConnect"),
                 .product(name: "AdaEngine", package: "AdaEngine"),
                 .product(name: "AdaA2UI", package: "AdaEngine"),
+                .product(name: "AdaEngineEmbeddable", package: "AdaEngine"),
                 .product(name: "AdaMultiplayer", package: "AdaEngine"),
                 .product(name: "AdaScriptCompilerCore", package: "AdaEngine"),
                 .product(name: "Math", package: "AdaEngine"),

@@ -10,6 +10,7 @@
     import AdaECS
     @_spi(Internal) import AdaInput
     @_spi(Internal) import AdaUI
+    import AdaUtils
     import UIKit
 
     @safe @MainActor
@@ -159,8 +160,21 @@
             #else
                 let displayMaximumFramesPerSecond = UIScreen.main.maximumFramesPerSecond
             #endif
+            let thermalState: ApplicationFramePacing.ThermalState
+            switch ProcessInfo.processInfo.thermalState {
+            case .nominal: thermalState = .nominal
+            case .fair: thermalState = .fair
+            case .serious: thermalState = .serious
+            case .critical: thermalState = .critical
+            @unknown default: thermalState = .serious
+            }
+            let isIdle = !windowManager.windows.values.contains {
+                $0.canDraw && Time.absolute - $0.lastUIActivityTime < 1
+            }
             let range = framePacing.resolvedFrameRateRange(
-                forDisplayMaximumFramesPerSecond: displayMaximumFramesPerSecond
+                forDisplayMaximumFramesPerSecond: displayMaximumFramesPerSecond,
+                isIdle: isIdle,
+                thermalState: thermalState
             )
             guard configuredFrameRateRange != range else {
                 return

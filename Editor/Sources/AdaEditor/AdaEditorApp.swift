@@ -17,7 +17,9 @@ import Logging
     import AdaMCPPlugin
 #endif
 
+#if !os(visionOS)
 @main
+#endif
 enum AdaApplicationEntry {
     @MainActor static func main() async throws {
         #if os(macOS)

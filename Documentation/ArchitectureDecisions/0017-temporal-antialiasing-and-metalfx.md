@@ -12,7 +12,7 @@ camera/rigid/skeletal motion, reactive transparency, per-camera history and
 spatial fallback are implemented. A separate mesh-motion pass favors initial
 correctness and validation over minimizing GPU work. UI uses output-resolution
 viewport/projection/clipping after resolve. Validation and measured limitations
-are recorded in [MetalFXValidation.md](../../Demos/SkeletalGarden/MetalFXValidation.md).
+are recorded in [MetalFXValidation.md](https://github.com/AdaEngine/AdaExamples/blob/main/Samples/SkeletalGarden/MetalFXValidation.md).
 
 Apple mobile, native UI overlay coverage and actual non-Metal GPU execution remain unverified. Dynamic
 resolution, frame interpolation and portable temporal reconstruction remain

@@ -47,3 +47,29 @@ public struct SpatialPinchState: Sendable {
         return isPinching
     }
 }
+
+/// Hand pose sampled from authorized hand tracking, independently from pinch state.
+public struct SpatialHandPose: Sendable {
+    public var interactor: SpatialInteractor
+    public var pose: Transform3D
+    public var palmNormal: Vector3
+    public var isOpen: Bool
+
+    public init(interactor: SpatialInteractor, pose: Transform3D, palmNormal: Vector3, isOpen: Bool) {
+        self.interactor = interactor
+        self.pose = pose
+        self.palmNormal = palmNormal
+        self.isOpen = isOpen
+    }
+}
+
+/// Head and hand tracking in authored scene coordinates. Contains no raw eye-gaze data.
+public struct SpatialTrackingFrame: Resource {
+    public var head: Transform3D
+    public var hands: [SpatialHandPose]
+
+    public init(head: Transform3D = .identity, hands: [SpatialHandPose] = []) {
+        self.head = head
+        self.hands = hands
+    }
+}

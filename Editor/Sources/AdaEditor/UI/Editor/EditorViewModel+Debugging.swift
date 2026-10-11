@@ -59,6 +59,10 @@ extension EditorViewModel {
             return
         }
         presentDebugger()
+        if selectedRunDestination == .visionOS {
+            debugger.status = "Use Run to play the project on visionOS. AdaScript VM pause, stepping and breakpoint suspension are not available yet."
+            return
+        }
         guard workbench.saveAllDocuments() else {
             debugger.status = "Debug blocked: unable to save project documents."
             return

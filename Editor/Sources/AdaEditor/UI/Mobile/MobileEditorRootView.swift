@@ -419,9 +419,11 @@ struct MobileEditorRootView: View {
             chatState.open(project.id)
             playSession?.capture.stop()
             playSession = nil
-            navigationPath.append(MobileEditorDestination.workspace(project.id))
             prepareMobileA2UI(for: project.id)
             Task { @MainActor in await findPreviousSession(for: project.id) }
+        }
+        withAnimation(.easeInOut(duration: 0.28)) {
+            navigationPath.append(MobileEditorDestination.workspace(project.id))
         }
     }
 

@@ -19,6 +19,10 @@
         ) {
             configuration.colorFormat = .bgra8Unorm_srgb
             configuration.depthFormat = .depth32Float
+            if capabilities.supportedTrackingAreasFormats.contains(.r16Uint) {
+                configuration.trackingAreasFormat = .r16Uint
+                configuration.trackingAreasUsage = [.renderTarget, .shaderRead]
+            }
             configuration.isFoveationEnabled = enablesFoveation && capabilities.supportsFoveation
             let layouts = capabilities.supportedLayouts(options: configuration.isFoveationEnabled ? [.foveationEnabled] : [])
             configuration.layout = layouts.contains(.dedicated) ? .dedicated : .layered

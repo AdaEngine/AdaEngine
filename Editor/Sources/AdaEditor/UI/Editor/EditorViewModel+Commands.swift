@@ -204,6 +204,7 @@ extension EditorViewModel {
     }
 
     func buildAll() {
+        guard saveDocumentsForNativeRun() else { return }
         if let projectURL,
             let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
             settings.build.system == .adaScript {
@@ -214,6 +215,7 @@ extension EditorViewModel {
     }
 
     func buildTarget(_ target: String) {
+        guard saveDocumentsForNativeRun() else { return }
         if let projectURL,
             let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
             settings.build.system == .adaScript {
@@ -223,7 +225,20 @@ extension EditorViewModel {
         executeWorkspaceCommand(.build(target: target, buildTests: false), statusTitle: "Build \(target)")
     }
 
+    private func saveDocumentsForNativeRun() -> Bool {
+        guard nativeAdaScriptLauncher != nil else { return true }
+        guard workbench.saveAllDocuments() else {
+            let message = "Build/Run blocked: unable to save project documents."
+            workspaceStatus = .failed(message)
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            appendOutput(message)
+            return false
+        }
+        return true
+    }
+
     func runSelectedTarget() {
+        guard saveDocumentsForNativeRun() else { return }
         guard !debugger.isActive else {
             return
         }
@@ -247,7 +262,7 @@ extension EditorViewModel {
         if let projectURL,
             let settings = projectSettings,
             settings.build.system == .adaScript,
-            selectedRunDestination == .macOS {
+            (selectedRunDestination == .macOS || selectedRunDestination == .visionOS) {
             let projectName = settings.project.displayName ?? settings.project.name ?? project?.name ?? "AdaScript Project"
             buildAdaScriptProject(
                 settings,
@@ -293,6 +308,11 @@ extension EditorViewModel {
                 .runWeb(target: product, outputPath: "dist/web", serve: true),
                 statusTitle: "Run \(product) on Web · http://127.0.0.1:8080"
             )
+        case .visionOS:
+            let message = "Local visionOS Run requires an AdaScript project."
+            workspaceStatus = .failed(message)
+            footer.setWorkspaceFooterTitle(workspaceStatus.title)
+            appendOutput(message)
         case .iPadOS:
             guard
                 let projectURL,
@@ -436,6 +456,13 @@ extension EditorViewModel {
         projectName: String
     ) -> Bool {
         do {
+            if let nativeAdaScriptLauncher {
+                try nativeAdaScriptLauncher(artifact, projectName)
+                workspaceStatus = .running("Run \(projectName)")
+                footer.setWorkspaceFooterTitle(workspaceStatus.title)
+                appendOutput("Running AdaScript project \(projectName) in a native visionOS Play window.")
+                return true
+            }
             let windowSettings = artifact.window
             let width = Float(windowSettings.size.width)
             let height = Float(windowSettings.size.height)
@@ -627,6 +654,10 @@ extension EditorViewModel {
         }
         if playModeState.isPlaying {
             stopPlayMode()
+            return
+        }
+        if nativeAdaScriptStopper != nil, adaScriptRuntimeControls != nil {
+            nativeAdaScriptStopper?()
             return
         }
         if let adaScriptRuntimeWindow {

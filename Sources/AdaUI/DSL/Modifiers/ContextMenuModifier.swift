@@ -182,7 +182,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                 return self
             }
 
-            #if IOS || ANDROID
+            #if IOS || VISIONOS || ANDROID
                 if mouseEvent.button == .left, mouseEvent.phase == .began {
                     activeContentEventNode = super.hitTest(point, with: event)
                     return self
@@ -196,7 +196,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
             return self
         }
 
-        #if IOS || ANDROID
+        #if IOS || VISIONOS || ANDROID
             if let touchEvent = event as? TouchEvent, touchEvent.phase == .began {
                 activeContentEventNode = super.hitTest(point, with: event)
                 return self
@@ -230,7 +230,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
                 return
             }
 
-            #if IOS || ANDROID
+            #if IOS || VISIONOS || ANDROID
                 if event.button == .left {
                     lastPressMouseEvent = event
                     lastPressTouches = nil
@@ -265,7 +265,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
             trackPrimaryPress(at: touch.location, phase: phase)
             return
         }
-        #if IOS || ANDROID
+        #if IOS || VISIONOS || ANDROID
             guard let touch = touches.first else {
                 contentNode.onTouchesEvent(touches)
                 return
@@ -295,7 +295,7 @@ private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
     }
 
     override func update(_ deltaTime: TimeInterval) {
-        #if IOS || ANDROID
+        #if IOS || VISIONOS || ANDROID
             if pressStartLocation != nil, !didPresentForCurrentPress {
                 elapsedPressDuration += deltaTime
                 if elapsedPressDuration >= minimumPressDuration {

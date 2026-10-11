@@ -14,9 +14,9 @@ To refresh the garden captures from the repository root:
 
 ```sh
 ADAENGINE_SKELETAL_BUILD_PATH=/tmp/adaengine-readme-garden-build \
-  Demos/SkeletalGarden/script/build_and_run.sh --capture-quality
+  ../AdaExamples/Samples/SkeletalGarden/script/build_and_run.sh --capture-quality
 ADAENGINE_SKIP_BUILD=1 ADAENGINE_SKELETAL_BUILD_PATH=/tmp/adaengine-readme-garden-build \
-  Demos/SkeletalGarden/script/build_and_run.sh --capture-overview
+  ../AdaExamples/Samples/SkeletalGarden/script/build_and_run.sh --capture-overview
 ```
 
 The original screenshot contents are composited into the existing frames without stretching, changing UI text, or inventing game artwork. Only the hardware frames were generated with the built-in image tool.

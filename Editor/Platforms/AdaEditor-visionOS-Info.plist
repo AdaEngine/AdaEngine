@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSHandsTrackingUsageDescription</key>
+	<string>Move, rotate and scale scene objects while editing in VR.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Use the microphone to dictate a game prompt.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

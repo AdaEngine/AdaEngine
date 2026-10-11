@@ -79,6 +79,7 @@ struct ProjectOpeningView: View {
 
     let autoOpenLastProject: Bool
     let initiallyCreatingProject: Bool
+    private let viewportHeight: Float?
     @State private var viewModel: ProjectOpeningViewModel
     @State private var didAttemptAutoOpenLastProject = false
     @State private var presentedSettingsSection: EditorSettingsSection?
@@ -87,18 +88,21 @@ struct ProjectOpeningView: View {
     init(
         autoOpenLastProject: Bool = true,
         initiallyCreatingProject: Bool = false,
-        viewModel: ProjectOpeningViewModel = ProjectOpeningViewModel()
+        viewModel: ProjectOpeningViewModel = ProjectOpeningViewModel(),
+        viewportHeight: Float? = nil
     ) {
         self.autoOpenLastProject = autoOpenLastProject
         self.initiallyCreatingProject = initiallyCreatingProject
+        self.viewportHeight = viewportHeight
         self._viewModel = State(wrappedValue: viewModel)
     }
 
     var body: some View {
         HStack(spacing: 0) {
-            sidebar
-            projectExplorer
+            sidebar.frame(height: viewportHeight)
+            projectExplorer.frame(height: viewportHeight)
             projectDetail
+                .frame(height: viewportHeight)
                 .frame(
                     minWidth: 0,
                     maxWidth: .infinity,
@@ -268,7 +272,7 @@ struct ProjectOpeningView: View {
     private func presentSettings(_ section: EditorSettingsSection) {
         #if os(iOS) || os(visionOS)
             presentedSettingsSection = section
-        #else
+        #elseif os(macOS)
             EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: section)
         #endif
     }
@@ -358,28 +362,41 @@ struct ProjectOpeningView: View {
 
     private var samplesExplorer: some View {
         VStack(alignment: .leading, spacing: 0) {
-            launcherListHeader("Starter Samples")
+            launcherListHeader("Examples & Sample Games")
                 .padding(.top, ProjectOpeningLayout.explorerTopPadding)
-            templateRow(
-                title: "AdaScript System",
-                subtitle: "Per-frame system ready for gameplay code",
-                badge: "ADA",
-                isActive: false
-            ) {
-                viewModel.beginCreateNewProject(template: .adaScript, suggestedName: "ScriptSample")
-            }
-            if viewModel.supportsSwiftProjects {
-                templateRow(
-                    title: "Hybrid Window",
-                    subtitle: "AdaScript system with an editable Swift app",
-                    badge: "ADA+SWIFT",
-                    isActive: false
-                ) {
-                    viewModel.beginCreateNewProject(template: .adaScriptWithSwift, suggestedName: "HybridSample")
+            TextField("Search examples and tags", text: Binding(
+                get: { viewModel.examples.query }, set: { viewModel.examples.query = $0 }
+            ))
+            .font(.system(size: 13))
+            .foregroundColor(.white)
+            .textFieldStyle(PlainTextFieldStyle())
+            .padding(.horizontal, 14)
+            .frame(height: ProjectOpeningLayout.searchCapsuleHeight)
+            .background(CapsuleShape().fill(LauncherColor.searchCapsuleSurface))
+            .padding(16)
+            .accessibilityIdentifier("AdaEditor.Launcher.ExampleSearch")
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(viewModel.examples.results) { item in
+                        templateRow(
+                            title: item.title,
+                            subtitle: item.tags.joined(separator: " · "),
+                            badge: item.kind == "sample" ? "GAME" : "EXAMPLE",
+                            isActive: viewModel.examples.selected?.id == item.id
+                        ) { viewModel.examples.selected = item }
+                        .accessibilityIdentifier("AdaEditor.Launcher.Example.\(item.id)")
+                    }
+                    if !viewModel.examples.loading && viewModel.examples.results.isEmpty {
+                        Text("No examples found")
+                            .font(.system(size: 13))
+                            .foregroundColor(LauncherColor.muted)
+                            .padding(20)
+                    }
                 }
             }
-            Spacer()
+            .frame(maxHeight: .infinity)
         }
+        .task { if await viewModel.examples.items.isEmpty { await viewModel.examples.refresh() } }
     }
 
     private func projectTemplateRow(_ template: EditorProjectTemplate) -> some View {
@@ -455,6 +472,17 @@ struct ProjectOpeningView: View {
 
         if viewModel.isCreatingNewProject {
             return AnyView(createProjectForm)
+        }
+
+        if viewModel.selectedSection == .samples {
+            return AnyView(EditorExamplesDetail(
+                model: viewModel.examples,
+                supportsSwiftProjects: viewModel.supportsSwiftProjects,
+                openProject: {
+                    viewModel.openProject(at: $0)
+                    if let error = viewModel.operationErrorMessage { viewModel.examples.message = error }
+                }
+            ))
         }
 
         if project == nil {

@@ -1099,3 +1099,14 @@ enum EditorAgentPromptContext {
         }
     }
 #endif
+
+/// Native mobile hosts use the existing portable agent runtime rather than spawning ACP processes.
+enum EditorAgentDefaultService {
+    static func make() -> any EditorAgentServicing {
+        #if os(visionOS) && canImport(SloppyRuntime)
+            EditorVRRuntimeAgentService()
+        #else
+            EditorACPAgentService()
+        #endif
+    }
+}

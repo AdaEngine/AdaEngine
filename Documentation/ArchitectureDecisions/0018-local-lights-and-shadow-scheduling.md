@@ -20,7 +20,7 @@ shadow matrices and IBL inverse-view constants use independent per-camera rings.
 
 Native Metal controls cover no-local-light, point-only, spot-only, unshadowed,
 budget, many-light, moving and multi-camera scenes. Results and limits are in
-[LocalLightingValidation.md](../../Demos/SkeletalGarden/LocalLightingValidation.md).
+[LocalLightingValidation.md](https://github.com/AdaEngine/AdaExamples/blob/main/Samples/SkeletalGarden/LocalLightingValidation.md).
 Apple mobile/WebGPU execution and visual Inspector interaction remain unverified.
 Clustered light assignment, contact-quality refinement and adaptive atlas tile
 sizes remain future work. Transparent BLEND materials do not cast shadows.
@@ -67,7 +67,7 @@ SkeletalGarden now enables local lights in ordinary launches; `--daylight`
 restores the original sunlight scene. macOS Metal and native WebGPU captures,
 plus a Swift 6.3.2 WASM debug export running in the Codex in-app browser, exercise
 colored point/spot illumination and atlas shadows. Browser controls verify light
-and shadow toggles. See [WebGPUValidation.md](../../Demos/SkeletalGarden/WebGPUValidation.md)
+and shadow toggles. See [WebGPUValidation.md](https://github.com/AdaEngine/AdaExamples/blob/main/Samples/SkeletalGarden/WebGPUValidation.md)
 for the build commands, proof boundaries and backend compatibility fixes.
 
 ## Consequences

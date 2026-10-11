@@ -348,7 +348,9 @@ extension EditorViewModel {
         requestedSettingsSection = section
         requestedSettingsPage = page
         settingsPresentationToken += 1
-        showRightPanel = false
+        #if !os(visionOS)
+            showRightPanel = false
+        #endif
     }
 
     var settingsPresentationBinding: Binding<EditorSettingsSection?> {

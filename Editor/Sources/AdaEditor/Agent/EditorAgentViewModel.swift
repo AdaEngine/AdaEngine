@@ -102,7 +102,7 @@ final class EditorAgentViewModel {
         project: EditorProjectReference?,
         settings: EditorAgentSettingsStore = .shared,
         fileManager: FileManager = .default,
-        service: any EditorAgentServicing = EditorACPAgentService(),
+        service: any EditorAgentServicing = EditorAgentDefaultService.make(),
         catalog: EditorAgentCatalogViewModel = EditorAgentCatalogViewModel(),
         notifications: EditorNotificationCenter = .shared,
         onProjectFileChanged: @escaping (String) -> Void = { _ in }

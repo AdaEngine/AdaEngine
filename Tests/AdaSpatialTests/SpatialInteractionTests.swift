@@ -37,6 +37,23 @@ struct SpatialInteractionTests {
         #expect(abs((fixture.object.components[Transform.self]?.position.x ?? 0) - 0.2) < 0.0001)
     }
 
+    @Test("Editor tools constrain the same two-hand input to the selected operation",
+          arguments: [SpatialManipulationMode.select, .translate, .rotate, .scale])
+    func editorTools(mode: SpatialManipulationMode) async throws {
+        let fixture = Fixture()
+        fixture.world.insertResource(SpatialInteractionSettings(mode: mode))
+        await fixture.frame([grip(.leftHand, [-0.1, 0, 0])])
+        await fixture.frame([grip(.leftHand, [-0.1, 0, 0]), grip(.rightHand, [0.1, 0, 0])])
+        await fixture.frame([grip(.leftHand, [1, -0.2, 0]), grip(.rightHand, [1, 0.2, 0])])
+        let transform = try #require(fixture.object.components[Transform.self])
+        let axis = (Transform3D(quat: transform.rotation) * Vector4(1, 0, 0, 0)).xyz
+        #expect((transform.position - (mode == .translate ? Vector3(1, 0, 0) : .zero)).length < 0.0001)
+        #expect((transform.scale - (mode == .scale ? Vector3(2, 2, 2) : .one)).length < 0.0001)
+        #expect((axis - (mode == .rotate ? Vector3(0, 1, 0) : Vector3(1, 0, 0))).length < 0.0001)
+        #expect(fixture.selection.entityID == fixture.object.id)
+        #expect(fixture.selection.isGrabbed == (mode != .select))
+    }
+
     @Test("An indirect selection ray picks the nearest object and preserves hand offset")
     func distantRay() async throws {
         let fixture = Fixture()
@@ -51,6 +68,56 @@ struct SpatialInteractionTests {
         await fixture.frame([SpatialGrip(interactor: .pointer(1), pose: Transform3D(translation: [1, 0, 0]), ray: ray)])
         #expect(fixture.object.components[Transform.self]?.position == Vector3(1, 0, 2))
         #expect(other.components[Transform.self]?.position == Vector3(0, 0, 4))
+    }
+
+    @Test("Offset mesh bounds pick their visible center with both direct and indirect input", arguments: [false, true])
+    func offsetBounds(indirect: Bool) async {
+        let fixture = Fixture()
+        fixture.object.components[SpatialGrabbable.self] = SpatialGrabbable(halfExtents: [0.2, 0.2, 0.2], center: [2, 0, 0])
+        let input = indirect
+            ? SpatialGrip(interactor: .pointer(3), pose: .identity, ray: Ray(origin: [2, 0, -1], direction: [0, 0, 1]))
+            : grip(.leftHand, [2, 0, 0])
+        await fixture.frame([input])
+        #expect(fixture.selection.entityID == fixture.object.id)
+        #expect(fixture.selection.isGrabbed)
+    }
+
+    @Test("A nested object is grabbed in world space and stored in its parent coordinate system")
+    func nestedObject() async throws {
+        let fixture = Fixture()
+        let parent = fixture.world.spawn("Parent") {
+            Transform(rotation: Quat(axis: [0, 1, 0], angle: .pi / 2), scale: [2, 2, 2], position: [3, 1, 0])
+        }
+        parent.addChild(fixture.object)
+        let before = try #require(parent.components[Transform.self]).matrix
+        await fixture.frame([grip(.leftHand, before.origin)])
+        #expect(fixture.selection.isGrabbed)
+        await fixture.frame([grip(.leftHand, before.origin + Vector3(1, 0, 0))])
+        let moved = try #require(fixture.object.components[Transform.self])
+        #expect(((before * moved.matrix).origin - Vector3(4, 1, 0)).length < 0.0001)
+        #expect((moved.position - Vector3(0, 0, 0.5)).length < 0.0001)
+        #expect(parent.components[Transform.self]?.matrix == before)
+    }
+
+    @Test("Ring picking rejects its center hole and select-only targets never move")
+    func ringAndLauncher() async {
+        let fixture = Fixture()
+        fixture.world.insertResource(SpatialInteractionSettings(mode: .select))
+        fixture.object.components[SpatialGrabbable.self] = SpatialGrabbable(
+            halfExtents: [0.5, 0.5, 0.01], shape: .ring(axis: 2, innerRadius: 0.2, outerRadius: 0.4), allowsManipulation: false)
+        await fixture.frame([SpatialGrip(interactor: .pointer(1), pose: .identity, ray: Ray(origin: [0.3, 0, -1], direction: [0, 0, 1]))])
+        #expect(fixture.selection.entityID == fixture.object.id)
+        #expect(!fixture.selection.isGrabbed)
+        await fixture.frame([])
+        await fixture.frame([SpatialGrip(interactor: .pointer(1), pose: .identity, ray: Ray(origin: [0, 0, -1], direction: [0, 0, 1]))])
+        #expect(fixture.selection.entityID == nil)
+        fixture.world.insertResource(SpatialInteractionSettings(mode: .translate))
+        fixture.object.components[SpatialGrabbable.self] = SpatialGrabbable(halfExtents: [0.2, 0.2, 0.2], allowsManipulation: false)
+        await fixture.frame([])
+        await fixture.frame([grip(.leftHand, .zero)])
+        await fixture.frame([grip(.leftHand, [1, 0, 0])])
+        #expect(fixture.object.components[Transform.self]?.position == .zero)
+        #expect(!fixture.selection.isGrabbed)
     }
 
     @Test("An existing pinch in empty space does not acquire an object until released")

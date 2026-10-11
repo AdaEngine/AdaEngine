@@ -18,10 +18,10 @@ AdaEngine is a game engine written in Swift for building 2D and 3D games and use
 
 ### Skeletal Garden
 
-[Skeletal Garden](Demos/SkeletalGarden/README.md) is a playable 3D demo with animated characters, textured props, lighting, shadows, and a landscape to explore.
+[Skeletal Garden](https://github.com/AdaEngine/AdaExamples/tree/main/Samples/SkeletalGarden) is a playable 3D demo with animated characters, textured props, lighting, shadows, and a landscape to explore.
 
 <p align="center">
-  <a href="Demos/SkeletalGarden/README.md">
+  <a href="https://github.com/AdaEngine/AdaExamples/tree/main/Samples/SkeletalGarden">
     <img src="Assets/Screenshots/garden.png" width="800" alt="Garden: animated yellow robots in a courtyard with trees, textured props, and shadows">
   </a>
 </p>
@@ -35,10 +35,10 @@ AdaEngine is a game engine written in Swift for building 2D and 3D games and use
 
 ### 2D Demo
 
-[Medieval Arena](https://github.com/AdaEngine/AdaExamples/tree/main/Examples/EngineDemos/Demos/MedievalArena) is a pixel-art arena game with tile maps, movement, sword combat, and multiplayer gameplay written in AdaScript.
+[Medieval Arena](https://github.com/AdaEngine/AdaExamples/tree/main/Samples/MedievalArena) is a pixel-art arena game with tile maps, movement, sword combat, and multiplayer gameplay written in AdaScript.
 
 <p align="center">
-  <a href="https://github.com/AdaEngine/AdaExamples/tree/main/Examples/EngineDemos/Demos/MedievalArena">
+  <a href="https://github.com/AdaEngine/AdaExamples/tree/main/Samples/MedievalArena">
     <img src="Assets/Screenshots/2d-demo.png" width="800" alt="2D Demo — Medieval Arena: a knight with three hearts inside a pixel-art arena">
   </a>
 </p>

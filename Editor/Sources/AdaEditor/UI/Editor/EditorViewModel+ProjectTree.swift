@@ -443,6 +443,7 @@ extension EditorRunDestination {
     var adaProjectDestination: AdaProjectRunDestination {
         switch self {
         case .macOS: .macOS
+        case .visionOS: .visionOS
         case .iPadOS,
             .player:
             .iPadOS

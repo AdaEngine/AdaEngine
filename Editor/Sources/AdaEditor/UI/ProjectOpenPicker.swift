@@ -440,7 +440,7 @@ enum ProjectOpenPicker {
             func documentPicker(_: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
                 finish(
                     with: urls.first.map {
-                        retainSecurityScopedAccess(to: projectDirectoryURL(fromPickerSelection: $0))
+                        projectDirectoryURL(fromPickerSelection: retainSecurityScopedAccess(to: $0))
                     }
                 )
             }
@@ -468,7 +468,7 @@ enum ProjectOpenPicker {
                     finish(with: .unavailable("Files did not return a selected folder."))
                     return
                 }
-                let locationURL = projectLocationURL(fromPickerSelection: selectedURL)
+                let locationURL = projectLocationURL(fromPickerSelection: retainSecurityScopedAccess(to: selectedURL))
                 finish(with: .selected(retainSecurityScopedAccess(to: locationURL)))
             }
 
