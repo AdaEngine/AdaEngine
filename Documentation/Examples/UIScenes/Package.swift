@@ -5,6 +5,6 @@ let package = Package(
     name: "UIInventoryExample",
     platforms: [.macOS(.v15), .iOS(.v18)],
     products: [.library(name: "GameUI", targets: ["GameUI"])],
-    dependencies: [.package(name: "AdaEngine", path: "../../..")],
+    dependencies: [.package(name: "AdaEngine", url: "https://github.com/AdaEngine/Ada.git", branch: "main")],
     targets: [.target(name: "GameUI", dependencies: [.product(name: "AdaEngine", package: "AdaEngine")])]
 )

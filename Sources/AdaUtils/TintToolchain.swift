@@ -42,9 +42,15 @@ public enum TintToolchain {
         if let cache = environment["ADAENGINE_TINT_CACHE"], !cache.isEmpty {
             candidates.append(URL(fileURLWithPath: cache).appendingPathComponent("bin/\(platform)/\(name)"))
         }
-        let sourceRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let root = packageRoot ?? sourceRoot
-        candidates.append(root.appendingPathComponent(".build-tools/tint/bin/\(platform)/\(name)"))
+        var root = packageRoot
+        #if DEBUG
+        if root == nil {
+            root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        }
+        #endif
+        if let root {
+            candidates.append(root.appendingPathComponent(".build-tools/tint/bin/\(platform)/\(name)"))
+        }
         candidates += (environment["PATH"] ?? "").split(separator: separator).map {
             URL(fileURLWithPath: String($0)).appendingPathComponent(name)
         }

@@ -11,7 +11,7 @@ The pinned Gravity revision includes `GravityAOT` for ordinary engine and Editor
 builds. To develop the compiler or run export tests against a local checkout:
 
 ```sh
-export ADAENGINE_GRAVITY_PACKAGE_PATH=/Users/vlad-prusakov/Developer/gravity-lang-aot
+export ADAENGINE_GRAVITY_PACKAGE_PATH=/path/to/gravity-lang
 ```
 
 The Editor package explicitly depends on `GravityAOT` and `CGravity`. A packaged
@@ -34,7 +34,9 @@ Outputs go to `Exports/macOS` or `Exports/Web`. Compilation and packaging happen
 in an unpublished directory. Failed exports preserve previous output. An
 existing directory is replaced only if it has the native-export marker. The
 archive and generated SwiftPM package remain available alongside the player.
-Rebuild that package with `ADAENGINE_GRAVITY_PACKAGE_PATH` set to the same checkout.
+Generated packages use public GitHub dependencies by default. For an installed
+SDK or compiler checkout, set `ADAENGINE_PACKAGE_PATH` and
+`ADAENGINE_GRAVITY_PACKAGE_PATH` explicitly when rebuilding.
 The `.a` in the package is a host-platform archive; Web builds compile its C
 source for the WASI target rather than linking the host archive.
 

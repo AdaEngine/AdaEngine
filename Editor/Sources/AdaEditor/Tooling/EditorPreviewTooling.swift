@@ -1,4 +1,5 @@
 @_spi(AdaEngine) import AdaEngine
+import AdaPackageManifestTool
 import Foundation
 import SwiftParser
 import SwiftSyntax
@@ -570,8 +571,8 @@ actor EditorPreviewBuilder {
     private func packageDependencyEntry(_ dependency: SwiftPackageDependency, projectURL: URL) -> String? {
         if let path = dependency.path {
             let absolutePath = URL(fileURLWithPath: path, relativeTo: projectURL).standardizedFileURL.path
-            if dependency.identity == "adaengine" && !fileManager.fileExists(atPath: absolutePath) {
-                return #".package(name: "AdaEngine", path: "\#(escaped(Self.adaEnginePackageURL().path))")"#
+            if isAdaEngineDependency(dependency) && !fileManager.fileExists(atPath: absolutePath) {
+                return PackageManifestEditor.adaEngineDependency
             }
 
             return #".package(name: "\#(packageName(for: dependency))", path: "\#(escaped(absolutePath))")"#
@@ -603,11 +604,16 @@ actor EditorPreviewBuilder {
     }
 
     private func packageName(for dependency: SwiftPackageDependency) -> String {
-        if dependency.identity == "adaengine" {
+        if isAdaEngineDependency(dependency) {
             return "AdaEngine"
         }
 
         return dependency.identity
+    }
+
+    private func isAdaEngineDependency(_ dependency: SwiftPackageDependency) -> Bool {
+        dependency.identity.lowercased() == "adaengine"
+            || dependency.url.map(PackageManifestEditor.isAdaEngineRepository) == true
     }
 
     private func normalizedPackageIdentity(_ value: String) -> String {
@@ -714,15 +720,6 @@ actor EditorPreviewBuilder {
         return requirement
     }
 
-    private static func adaEnginePackageURL() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .standardizedFileURL
-    }
 }
 
 @MainActor

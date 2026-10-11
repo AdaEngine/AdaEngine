@@ -42,13 +42,27 @@ public enum PackageManifestCommand: Equatable, Sendable {
     case addDependency(url: String, requirement: String)
     case addLocalDependency(name: String?, path: String)
     case removeDependency(identity: String)
-    case ensureAdaEngineDependency(path: String, targetName: String?)
+    case ensureAdaEngineDependency(path: String? = nil, targetName: String?)
     case configureTarget(name: String, sources: [String], exclude: [String], resources: [String])
     case addPlugin(name: String, capability: String)
     case ensureAssetResources(targetName: String?, assetsPath: String)
 }
 
 public enum PackageManifestEditor {
+    /// Portable dependency used by new projects and exported packages.
+    public static let adaEngineDependency = #".package(name: "AdaEngine", url: "https://github.com/AdaEngine/Ada.git", branch: "main")"#
+
+    /// Recognizes both the canonical repository and its pre-rename URL.
+    public static func isAdaEngineRepository(_ value: String) -> Bool {
+        let normalized = value.lowercased().replacingOccurrences(of: "git@github.com:", with: "https://github.com/")
+        guard let url = URL(string: normalized), url.host == "github.com" else {
+            return false
+        }
+        let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .replacingOccurrences(of: #"\.git$"#, with: "", options: .regularExpression)
+        return path == "adaengine/ada" || path == "adaengine/adaengine"
+    }
+
     public static func edit(_ manifest: String, command: PackageManifestCommand) throws -> PackageManifestEditResult {
         try validateManifestSyntax(manifest)
 
@@ -155,8 +169,28 @@ public enum PackageManifestEditor {
         return PackageManifestEditResult(manifest: editedManifest, changed: changed)
     }
 
-    private static func ensureAdaEngineDependency(_ manifest: String, path: String, targetName: String?) throws -> PackageManifestEditResult {
-        let withPackage = try addLocalDependency(manifest, name: "AdaEngine", path: path)
+    private static func ensureAdaEngineDependency(_ manifest: String, path: String?, targetName: String?) throws -> PackageManifestEditResult {
+        if let path, path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw PackageManifestEditError.invalidArgument("Dependency path must not be empty.")
+        }
+        var withPackage = PackageManifestEditResult(manifest: manifest, changed: false)
+        let existing = packageDependencyCalls(in: manifest).first {
+            normalizedPackageIdentity(dependencyIdentity(in: $0.body) ?? "") == "adaengine"
+                || stringArgument(named: "url", in: $0.body).map(isAdaEngineRepository) == true
+        }
+        var packageName = "AdaEngine"
+        if let existing {
+            packageName = dependencyIdentity(in: existing.body) ?? packageName
+            // Preserve remote version/revision choices. Default project opening repairs local dependencies.
+            if path == nil, stringArgument(named: "path", in: existing.body) != nil {
+                withPackage.manifest.replaceSubrange(existing.range, with: adaEngineDependency)
+                packageName = "AdaEngine"
+                withPackage.changed = true
+            }
+        } else {
+            let entry = path.map { localDependencyEntry(name: "AdaEngine", path: $0) } ?? adaEngineDependency
+            withPackage = try insertDependency(manifest, entry: entry)
+        }
         let executableTargets = targetCalls(in: withPackage.manifest, executableOnly: true)
         let targets = targetName.map { name in executableTargets.filter { $0.name == name } } ?? executableTargets
         guard !targets.isEmpty, targetName == nil || targets.count == 1 else {
@@ -166,7 +200,7 @@ public enum PackageManifestEditor {
                 suggestedPatch: #"dependencies: [.product(name: "AdaEngine", package: "AdaEngine")]"#
             )
         }
-        let dependency = #".product(name: "AdaEngine", package: "AdaEngine")"#
+        let dependency = #".product(name: "AdaEngine", package: "\#(escaped(packageName))")"#
         var editedManifest = withPackage.manifest
         var changed = withPackage.changed
         for target in targets.sorted(by: { $0.range.lowerBound > $1.range.lowerBound }) {

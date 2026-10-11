@@ -3175,7 +3175,7 @@
       },
       {
         "kind": "code",
-        "text": "export ADAENGINE_GRAVITY_PACKAGE_PATH=/Users/vlad-prusakov/Developer/gravity-lang-aot",
+        "text": "export ADAENGINE_GRAVITY_PACKAGE_PATH=/path/to/gravity-lang",
         "language": "sh",
         "links": []
       },
@@ -3205,7 +3205,7 @@
       },
       {
         "kind": "text",
-        "text": "Outputs go to `Exports/macOS` or `Exports/Web`. Compilation and packaging happen\nin an unpublished directory. Failed exports preserve previous output. An\nexisting directory is replaced only if it has the native-export marker. The\narchive and generated SwiftPM package remain available alongside the player.\nRebuild that package with `ADAENGINE_GRAVITY_PACKAGE_PATH` set to the same checkout.\nThe `.a` in the package is a host-platform archive; Web builds compile its C\nsource for the WASI target rather than linking the host archive.",
+        "text": "Outputs go to `Exports/macOS` or `Exports/Web`. Compilation and packaging happen\nin an unpublished directory. Failed exports preserve previous output. An\nexisting directory is replaced only if it has the native-export marker. The\narchive and generated SwiftPM package remain available alongside the player.\nGenerated packages use public GitHub dependencies by default. For an installed\nSDK or compiler checkout, set `ADAENGINE_PACKAGE_PATH` and\n`ADAENGINE_GRAVITY_PACKAGE_PATH` explicitly when rebuilding.\nThe `.a` in the package is a host-platform archive; Web builds compile its C\nsource for the WASI target rather than linking the host archive.",
         "level": 0,
         "links": []
       },

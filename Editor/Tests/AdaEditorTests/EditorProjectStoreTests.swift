@@ -30,7 +30,8 @@ struct EditorProjectStoreTests {
         #expect(reference.path == projectURL.standardizedFileURL.path)
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Package.swift").path))
         let manifest = try String(contentsOf: projectURL.appendingPathComponent("Package.swift"), encoding: .utf8)
-        #expect(manifest.contains(#".package(name: "AdaEngine", path: "\#(adaEnginePackageURL().path)")"#))
+        #expect(manifest.contains(#".package(name: "AdaEngine", url: "https://github.com/AdaEngine/Ada.git", branch: "main")"#))
+        #expect(!manifest.contains(".package(name: \"AdaEngine\", path:"))
         #expect(!manifest.contains(#".package(path: "../../AdaEngine")"#))
         #expect(!manifest.contains(#"path: ".""#))
         #expect(manifest.contains(#".executable(name: "My-Game", targets: ["My_Game"])"#))
@@ -46,7 +47,7 @@ struct EditorProjectStoreTests {
         #expect(main.contains("try await Game.main()"))
         #expect(main.contains("assetBundle: .module"))
         #expect(main.contains(".addPlugins(AdaScriptPluginsGenerated())"))
-        #expect(main.contains("AdaScriptViewsGenerated.mainView"))
+        #expect(main.contains("EmptyView()"))
         #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent("Sources/My_Game/Main.ada").path))
         let sceneURL = projectURL.appendingPathComponent("Assets/Scenes/Main.ascn", isDirectory: false)
         #expect(FileManager.default.fileExists(atPath: sceneURL.path))
@@ -661,15 +662,6 @@ private func makeEditorStoreTemporaryDirectory(named name: String? = nil) throws
 
 private func removeEditorStoreTemporaryDirectory(_ url: URL) {
     try? FileManager.default.removeItem(at: url)
-}
-
-private func adaEnginePackageURL() -> URL {
-    URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .standardizedFileURL
 }
 
 private func createSwiftPMManifest(at projectURL: URL) throws {

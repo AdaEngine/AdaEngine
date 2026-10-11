@@ -65,7 +65,7 @@ private struct Invocation {
             command = .removeDependency(identity: try Self.required("identity", in: options))
         case "ensure-adaengine":
             command = .ensureAdaEngineDependency(
-                path: try Self.required("path", in: options),
+                path: options["path"],
                 targetName: options["target"]
             )
         case "configure-target":

@@ -565,21 +565,23 @@ public struct AssetsManager: Resource {
                 scopeID: scopeID
             )
         #else
-            let projectDirectories = try resolveProjectDirectories(filePath: filePath)
-
             #if DEBUG
+                let projectDirectories = try resolveProjectDirectories(filePath: filePath)
                 setProjectDirectories(projectDirectories, scopeID: scopeID)
             #else
-                let fileSystem = FileSystem.current
-                let resources = projectDirectories.assetsDirectory
-
-                if !fileSystem.itemExists(at: resources) {
-                    try fileSystem.createDirectory(at: resources, withIntermediateDirectories: true)
-                }
-
-                setProjectDirectories(projectDirectories, scopeID: scopeID)
+                setProjectDirectories(runtimeProjectDirectories(), scopeID: scopeID)
             #endif
         #endif
+    }
+
+    /// Release builds resolve assets from the running bundle, never the compiler's source path.
+    static func runtimeProjectDirectories(resourceURL: URL? = Bundle.main.resourceURL) -> ProjectDirectories {
+        let root = resourceURL ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+        let assets = root.appendingPathComponent("Assets", isDirectory: true)
+        return ProjectDirectories(
+            source: root,
+            assetsDirectory: FileManager.default.fileExists(atPath: assets.path) ? assets : root
+        )
     }
 
     @_spi(AdaEngine)

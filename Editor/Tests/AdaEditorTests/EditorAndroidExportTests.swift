@@ -48,7 +48,7 @@
     }
 
     @Test(arguments: [false, true])
-    func stagedSwiftAppPreservesSourcesAndPreparesResources(manualEntry: Bool) throws {
+    func stagedSwiftAppPreservesSourcesAndPreparesResources(manualEntry: Bool) async throws {
       let root = FileManager.default.temporaryDirectory.appendingPathComponent(
         "Android Rewrite \(UUID().uuidString)")
       let stage = root.appendingPathComponent("Stage")
@@ -118,6 +118,11 @@
       #expect(package.contains("type: .dynamic"))
       #expect(package.contains(".target(name:"))
       #expect(package.contains("sources: [\"Game.swift\"]"))
+      #expect(package.contains("https://github.com/AdaEngine/Ada.git"))
+      #expect(!package.contains(root.appendingPathComponent("Engine").path))
+      let dump = await EditorProcessRunner().run(EditorProcessCommand(
+        executablePath: "/usr/bin/env", arguments: ["swift", "package", "dump-package"], workingDirectory: stage))
+      #expect(dump.succeeded, Comment(rawValue: dump.combinedOutput))
     }
   }
 

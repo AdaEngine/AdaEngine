@@ -28,9 +28,9 @@ struct EditorBuildSDK: Sendable {
         if let bundle = appBundle(containing: executable) {
             return try load(at: bundle.appendingPathComponent("Contents/Resources/BuildSDK"))
         }
-        // Only source development builds use a checkout. Installed apps never fall back to #filePath.
-        let engine = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        guard let engine = EditorEngineSource.locate(executable: executable, environment: environment) else {
+            throw EditorCLIError.environment("AdaScript build SDK not found. Use --sdk or ADA_STUDIO_SDK.")
+        }
         let candidates = environment["ADAENGINE_GRAVITY_PACKAGE_PATH"].map { [URL(fileURLWithPath: $0)] } ?? [
             engine.appendingPathComponent("Editor/.build/checkouts/gravity-lang"),
             engine.appendingPathComponent(".build/checkouts/gravity-lang"),

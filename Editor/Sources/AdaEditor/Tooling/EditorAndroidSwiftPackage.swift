@@ -1,4 +1,5 @@
 #if os(macOS)
+  import AdaPackageManifestTool
   import Foundation
   import SwiftParser
   import SwiftSyntax
@@ -41,9 +42,10 @@
       let manifestURL = stage.appendingPathComponent("Package.swift")
       let manifest = try String(contentsOf: manifestURL, encoding: .utf8)
       let rewriter = AndroidManifestRewriter(
-        product: product, target: targetName, originalRoot: originalRoot, engineRoot: engineRoot,
+        product: product, target: targetName, originalRoot: originalRoot,
         compilerRoot: compilerRoot)
       let transformed = rewriter.rewrite(Parser.parse(source: manifest)).description
+        .replacingOccurrences(of: "import PackageDescription", with: "import Foundation\nimport PackageDescription")
       guard rewriter.convertedTarget, rewriter.convertedProduct else {
         throw EditorPreviewBuildFailure(
           message:
@@ -94,15 +96,13 @@
     let product: String
     let target: String
     let originalRoot: URL
-    let engineRoot: URL
     let compilerRoot: URL?
     var convertedProduct = false
     var convertedTarget = false
-    init(product: String, target: String, originalRoot: URL, engineRoot: URL, compilerRoot: URL?) {
+    init(product: String, target: String, originalRoot: URL, compilerRoot: URL?) {
       self.product = product
       self.target = target
       self.originalRoot = originalRoot
-      self.engineRoot = engineRoot
       self.compilerRoot = compilerRoot
       super.init(viewMode: .sourceAccurate)
     }
@@ -131,16 +131,24 @@
       }
       if kind == "package" {
         if literal("name")?.lowercased() == "adaengine"
-          || literal("url")?.lowercased().contains("adaengine/adaengine") == true
+          || literal("url").map(PackageManifestEditor.isAdaEngineRepository) == true
         {
-          return expression(".package(name: \"AdaEngine\", path: \(swiftString(engineRoot.path)))")
+          return expression("""
+            ProcessInfo.processInfo.environment["ADAENGINE_PACKAGE_PATH"]
+              .map { Package.Dependency.package(name: "AdaEngine", path: $0) }
+              ?? .package(name: "AdaEngine", url: "https://github.com/AdaEngine/Ada.git", branch: "main")
+            """)
         }
-        if let compilerRoot,
+        if compilerRoot != nil,
           literal("name") == "gravity-lang"
             || literal("url")?.lowercased().contains("adaengine/gravity-lang") == true
         {
           return expression(
-            ".package(name: \"gravity-lang\", path: \(swiftString(compilerRoot.path)))")
+            """
+            ProcessInfo.processInfo.environment["ADAENGINE_GRAVITY_PACKAGE_PATH"]
+              .map { Package.Dependency.package(name: "gravity-lang", path: $0) }
+              ?? .package(url: "https://github.com/AdaEngine/gravity-lang.git", branch: "master")
+            """)
         }
         if let path = literal("path"), !path.hasPrefix("/") {
           var changed = node

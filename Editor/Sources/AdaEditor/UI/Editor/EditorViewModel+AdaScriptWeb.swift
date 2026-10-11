@@ -111,8 +111,7 @@
                 return template
             }
             try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
-            let engineRoot = Self.adaEngineRootForWebPlayer
-            guard FileManager.default.fileExists(atPath: engineRoot.appendingPathComponent("Package.swift").path) else {
+            guard let engineRoot = EditorEngineSource.locate() else {
                 throw AdaScriptWebRunError.webPlayerSourceUnavailable
             }
             let swiftExecutable = ProcessInfo.processInfo.environment["ADA_WEB_SWIFT_EXECUTABLE"]
@@ -150,17 +149,6 @@
                 throw AdaScriptWebRunError.exportFailed(String(result.combinedOutput.suffix(2_000)))
             }
             return template
-        }
-
-        private static var adaEngineRootForWebPlayer: URL {
-            URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent() // Editor UI
-                .deletingLastPathComponent() // UI
-                .deletingLastPathComponent() // AdaEditor
-                .deletingLastPathComponent() // Sources
-                .deletingLastPathComponent() // Editor
-                .deletingLastPathComponent() // AdaEngine
-                .standardizedFileURL
         }
 
         private static func hasCurrentWebPlayerTemplate(at url: URL) -> Bool {

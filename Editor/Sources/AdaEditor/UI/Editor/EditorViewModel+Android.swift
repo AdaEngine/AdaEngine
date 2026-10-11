@@ -8,17 +8,8 @@ struct EditorAndroidRunSession: Sendable {
 }
 
 extension EditorAndroidConfiguration {
-  static var studioEngineRoot: URL {
-    #if os(macOS)
-      if let executable = Bundle.main.executableURL,
-        let bundle = EditorBuildSDK.appBundle(containing: executable)
-      {
-        return bundle.appendingPathComponent("Contents/Resources/BuildSDK/AdaEngine")
-      }
-    #endif
-    return URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-      .deletingLastPathComponent()
+  static var studioEngineRoot: URL? {
+    EditorEngineSource.locate()
   }
 }
 

@@ -16,7 +16,9 @@ def compiler_root(engine, explicit):
     else:
         candidates = [engine / "Editor/.build/checkouts/gravity-lang", engine / ".build/checkouts/gravity-lang"]
         if os.environ.get("BUILD_DIR"):
-            candidates.append(Path(os.environ["BUILD_DIR"]).parents[1] / "SourcePackages/checkouts/gravity-lang")
+            # Archive build products are nested deeper than ordinary Build/Products.
+            candidates.extend(parent / "SourcePackages/checkouts/gravity-lang"
+                              for parent in Path(os.environ["BUILD_DIR"]).parents)
     for candidate in candidates:
         if (candidate / "tools/aot_build.py").is_file():
             return candidate.resolve()
@@ -43,7 +45,7 @@ def stage(engine, compiler, destination, swan=None):
         staged = Path(temporary) / "BuildSDK"
         staged.mkdir()
         copy_inputs(engine, staged / "AdaEngine", ["Package.swift", "Package.resolved", ".swiftlint.yml", "LICENSE", "NOTICE",
-                                                   "Sources", "Plugins", "Tools", "Tests", "Demos", "Assets"])
+                                                   "Sources", "Plugins", "Tools", "Tests", "Demos", "Assets", "script"])
         copy_inputs(compiler, staged / "AdaScript", ["Package.swift", "Package.resolved", "LICENSE", "Makefile", "src", "binding",
                                                     "tools", "Tests", "examples", "gravity"])
         host = staged / "AdaScript/gravity"

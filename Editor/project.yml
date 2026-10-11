@@ -67,7 +67,7 @@ targets:
         ADA_CLOUD_PRO_PRODUCT_ID: ""
         INFOPLIST_FILE: Sources/AdaEditor/Platforms/macOS/Info.plist
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "20261010"
+        CURRENT_PROJECT_VERSION: "20261013"
         ENABLE_APP_SANDBOX: true
         ADAEDITOR_DISTRIBUTION: appStore
         DEVELOPMENT_TEAM: 8PYCRS3EA3
@@ -140,7 +140,7 @@ targets:
         ADAEDITOR_UPDATE_FEED_URL: "https://adaengine.org/updates/appcast.xml"
         ADAEDITOR_UPDATE_PUBLIC_KEY: "781F/fu+H9L/exraMYgHhHh2/+tm1NfJLXMG+JQWOcc="
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "20261010"
+        CURRENT_PROJECT_VERSION: "20261013"
         ENABLE_APP_SANDBOX: false
         ENABLE_HARDENED_RUNTIME: true
         ADAEDITOR_DISTRIBUTION: standalone
@@ -243,7 +243,7 @@ targets:
         ADA_CLOUD_PRO_PRODUCT_ID: ""
         INFOPLIST_FILE: Sources/AdaEditor/Platforms/iOS/Info.plist
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "20261010"
+        CURRENT_PROJECT_VERSION: "20261013"
         DEVELOPMENT_TEAM: 8PYCRS3EA3
         CODE_SIGN_STYLE: Automatic
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -321,7 +321,7 @@ targets:
         ADA_CLOUD_PRO_PRODUCT_ID: ""
         INFOPLIST_FILE: Platforms/AdaEditor-visionOS-Info.plist
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "20261010"
+        CURRENT_PROJECT_VERSION: "20261013"
         DEVELOPMENT_TEAM: 8PYCRS3EA3
         CODE_SIGN_STYLE: Automatic
         TARGETED_DEVICE_FAMILY: "7"
@@ -390,7 +390,7 @@ targets:
         ADA_CLOUD_PRO_PRODUCT_ID: ""
         INFOPLIST_FILE: Platforms/AdaPlayer-Info.plist
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "20261011"
+        CURRENT_PROJECT_VERSION: "20261013"
         DEVELOPMENT_TEAM: 8PYCRS3EA3
         CODE_SIGN_STYLE: Automatic
         TARGETED_DEVICE_FAMILY: "1,2"

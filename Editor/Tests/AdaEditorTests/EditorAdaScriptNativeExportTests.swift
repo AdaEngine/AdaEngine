@@ -59,6 +59,13 @@ struct EditorAdaScriptNativeExportTests {
         let output = ProcessInfo.processInfo.environment["ADA_AOT_EXPORT_PROOF_DIR"].map { URL(fileURLWithPath: $0) } ?? root.appendingPathComponent("Export")
         let exporter = EditorAdaScriptNativeExporter()
         let result = try await exporter.export(project: project, at: root, to: output, options: options)
+        let manifest = try String(contentsOf: result.appendingPathComponent("Package.swift"), encoding: .utf8)
+        #expect(manifest.contains("https://github.com/AdaEngine/Ada.git"))
+        #expect(!manifest.contains(engine.path))
+        #expect(!manifest.contains(gravity.path))
+        let rebuildScript = try String(contentsOf: result.appendingPathComponent("script/build_and_run.sh"), encoding: .utf8)
+        #expect(!rebuildScript.contains(engine.path))
+        #expect(!rebuildScript.contains(gravity.path))
         let library = result.appendingPathComponent("Sources/GameplayNative/libada_game.a")
         let before = try Data(contentsOf: library)
         #expect(before.count > 100)
@@ -91,6 +98,10 @@ struct EditorAdaScriptNativeExportTests {
         }
         """.write(to: host, atomically: true, encoding: .utf8)
         let runner = EditorProcessRunner()
+        let dump = await runner.run(EditorProcessCommand(
+            executablePath: "/usr/bin/env", arguments: ["swift", "package", "dump-package"], workingDirectory: result
+        ))
+        #expect(dump.succeeded, Comment(rawValue: dump.combinedOutput))
         let binary = root.appendingPathComponent("host")
         let compile = await runner.run(
             EditorProcessCommand(

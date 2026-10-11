@@ -866,8 +866,8 @@ struct SwiftToolingTests {
         )
     }
 
-    @Test("preview builder mirrors executable preview from entrypoint file")
-    func previewBuilderMirrorsExecutableTarget() async throws {
+    @Test("preview builder mirrors executable preview from entrypoint file", arguments: [false, true])
+    func previewBuilderMirrorsExecutableTarget(remoteEngine: Bool) async throws {
         let fileManager = FileManager.default
         let projectURL = fileManager.temporaryDirectory
             .appendingPathComponent("AdaEditorPreviewBuilder-\(UUID().uuidString)", isDirectory: true)
@@ -919,7 +919,9 @@ struct SwiftToolingTests {
                 ),
             ],
             dependencies: [
-                SwiftPackageDependency(identity: "adaengine", type: "fileSystem", url: nil, path: "../AdaEngine", requirement: nil),
+                remoteEngine
+                    ? SwiftPackageDependency(identity: "ada", type: "sourceControl", url: "https://github.com/AdaEngine/Ada.git", path: nil, requirement: "branch: main")
+                    : SwiftPackageDependency(identity: "adaengine", type: "fileSystem", url: nil, path: "../AdaEngine", requirement: nil),
                 SwiftPackageDependency(
                     identity: "swift-collections",
                     type: "sourceControl",
@@ -992,7 +994,7 @@ struct SwiftToolingTests {
         #expect(artifact.libraryURL.path.contains("/.build/build-"))
         #expect(commands.first?.arguments.contains("--scratch-path") == true)
         #expect(manifest.contains(#".library(name: "AdaEditorPreviewBundle", type: .dynamic, targets: ["Game"])"#))
-        #expect(manifest.contains(#".package(name: "AdaEngine", path: "\#(adaEnginePackageURL().path)")"#))
+        #expect(manifest.contains(#".package(name: "AdaEngine", url: "https://github.com/AdaEngine/Ada.git", \#(remoteEngine ? #".branch("main")"# : #"branch: "main""#))"#))
         #expect(manifest.contains(#".package(name: "swift-collections", url: "https://github.com/apple/swift-collections.git", from: "1.2.0")"#))
         #expect(manifest.contains(#"name: "Game""#))
         #expect(manifest.contains(#"dependencies: ["Shared", .product(name: "AdaEngine", package: "AdaEngine")]"#))
@@ -1004,6 +1006,10 @@ struct SwiftToolingTests {
         #expect(!copiedMain.contains("@main"))
         #expect(copiedMain.contains("@Previewable"))
         #expect(fileManager.fileExists(atPath: scratchRoot.appendingPathComponent("Sources/Shared/SharedHelper.swift").path))
+        let dump = await EditorProcessRunner().run(EditorProcessCommand(
+            executablePath: "/usr/bin/env", arguments: ["swift", "package", "dump-package"], workingDirectory: scratchRoot
+        ))
+        #expect(dump.succeeded, Comment(rawValue: dump.combinedOutput))
     }
 
     @Test("source scanner prefers package model sources and falls back to Sources and Tests")
@@ -2008,15 +2014,6 @@ private func findFirstFile(named fileName: String, under root: URL, fileManager:
     }
 
     return nil
-}
-
-private func adaEnginePackageURL() -> URL {
-    URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .standardizedFileURL
 }
 
 private func previewDirectoryName(relativePath: String, declarationID: String) -> String {

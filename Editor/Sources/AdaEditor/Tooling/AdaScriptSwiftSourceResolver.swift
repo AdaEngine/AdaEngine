@@ -131,8 +131,7 @@ enum AdaScriptSwiftSourceResolver {
     }
 
     private static func indexSwiftTypes() -> SourceIndex {
-        let editorSource = URL(fileURLWithPath: #filePath)
-        let engineRoot = (0..<5).reduce(editorSource) { url, _ in url.deletingLastPathComponent() }
+        guard let engineRoot = EditorEngineSource.locate() else { return SourceIndex() }
         let sources = engineRoot.appendingPathComponent("Sources", isDirectory: true)
         guard let enumerator = FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil) else {
             return SourceIndex()

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("stage_build_sdk", Path(__file__).with_name("stage-build-sdk.py"))
 sdk = importlib.util.module_from_spec(spec)
@@ -12,12 +13,29 @@ spec.loader.exec_module(sdk)
 
 
 class StageSDKTests(unittest.TestCase):
+    def test_compiler_discovery_supports_xcode_build_and_archive_directories(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            engine = root / "engine"
+            engine.mkdir()
+            derived_data = root / "DerivedData"
+            compiler = derived_data / "SourcePackages/checkouts/gravity-lang"
+            marker = compiler / "tools/aot_build.py"
+            marker.parent.mkdir(parents=True)
+            marker.touch()
+            for layout in ["Build/Products", "Build/Intermediates.noindex/ArchiveIntermediates/AdaEditor-Standalone/BuildProductsPath"]:
+                with self.subTest(layout=layout):
+                    build_directory = derived_data / layout
+                    build_directory.mkdir(parents=True)
+                    with patch.dict("os.environ", {"BUILD_DIR": str(build_directory)}, clear=True):
+                        self.assertEqual(sdk.compiler_root(engine, None), compiler.resolve())
+
     def test_source_sdk_is_self_contained_and_omits_private_build_state(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             engine = root / "engine"
             compiler = root / "compiler"
-            for base, files in [(engine, ["Package.swift", "LICENSE", "Sources/Runtime.swift", "Sources/.build/private", ".git/config"]),
+            for base, files in [(engine, ["Package.swift", "LICENSE", "Sources/Runtime.swift", "Sources/.build/private", ".git/config", "script/ensure_tint.py"]),
                                 (compiler, ["Package.swift", "LICENSE", "src/shared/header.h", "tools/aot_build.py", "binding/Runtime.swift"])]:
                 for name in files:
                     path = base / name
@@ -30,6 +48,7 @@ class StageSDKTests(unittest.TestCase):
             sdk.stage(engine, compiler, destination)
             self.assertEqual(json.loads((destination / "sdk.json").read_text())["schemaVersion"], 1)
             self.assertTrue((destination / "AdaEngine/Sources/Runtime.swift").is_file())
+            self.assertTrue((destination / "AdaEngine/script/ensure_tint.py").is_file())
             self.assertTrue((destination / "AdaScript/gravity").is_file())
             self.assertTrue((destination / "AdaScript/LICENSE").is_file())
             self.assertFalse((destination / "AdaEngine/.git").exists())

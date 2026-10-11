@@ -129,7 +129,11 @@ actor EditorAdaScriptNativeExporter {
         icon = "run"
         command = "./script/build_and_run.sh"
         """.write(to: codexDirectory.appendingPathComponent("environment.toml"), atomically: true, encoding: .utf8)
-        let env = options.buildEnvironment.merging(["ADAENGINE_GRAVITY_PACKAGE_PATH": options.gravityRoot.path, "ADAENGINE_DISABLE_SWAN": "1"]) { _, value in value }
+        let env = options.buildEnvironment.merging([
+            "ADAENGINE_PACKAGE_PATH": options.engineRoot.path,
+            "ADAENGINE_GRAVITY_PACKAGE_PATH": options.gravityRoot.path,
+            "ADAENGINE_DISABLE_SWAN": "1"
+        ]) { _, value in value }
         if !options.buildsPlayer {
             // Package-only mode is used for reusable library exports and compiler QA.
         } else if options.destination == .android {
@@ -322,10 +326,15 @@ actor EditorAdaScriptNativeExporter {
         let targetKind = options.destination == .android ? "target" : "executableTarget"
         return """
         // swift-tools-version: 6.2
+        import Foundation
         import PackageDescription
         let package = Package(name: "AdaNativeGame", platforms: [.macOS(.v15)], products: [\(product)], dependencies: [
-            .package(name: "AdaEngine", path: \(quote(options.engineRoot.path))),
-            .package(name: "gravity-lang", path: \(quote(options.gravityRoot.path))),
+            ProcessInfo.processInfo.environment["ADAENGINE_PACKAGE_PATH"]
+                .map { Package.Dependency.package(name: "AdaEngine", path: $0) }
+                ?? .package(name: "AdaEngine", url: "https://github.com/AdaEngine/Ada.git", branch: "main"),
+            ProcessInfo.processInfo.environment["ADAENGINE_GRAVITY_PACKAGE_PATH"]
+                .map { Package.Dependency.package(name: "gravity-lang", path: $0) }
+                ?? .package(url: "https://github.com/AdaEngine/gravity-lang.git", branch: "master"),
             .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", exact: "0.53.0")
         ], targets: [
             .target(name: "GameplayNative", dependencies: [.product(name: "CGravity", package: "gravity-lang")], exclude: ["libada_game.a", "ada_game.h", "ada_game.sources.json"], publicHeadersPath: "include"),
@@ -488,7 +497,9 @@ actor EditorAdaScriptNativeExporter {
             #!/usr/bin/env bash
             set -euo pipefail
             ANDROID_EXPORT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-            exec /usr/bin/python3 \(shellQuote(options.engineRoot.appendingPathComponent("Tools/Android/android.py").path)) run \
+            ENGINE_ROOT="${ADAENGINE_PACKAGE_PATH:-${ADA_STUDIO_SDK:+$ADA_STUDIO_SDK/AdaEngine}}"
+            : "${ENGINE_ROOT:?Set ADAENGINE_PACKAGE_PATH or ADA_STUDIO_SDK to an installed build SDK.}"
+            exec /usr/bin/python3 "$ENGINE_ROOT/Tools/Android/android.py" run \
               --package "$ANDROID_EXPORT_ROOT" --product AdaNativeGame --application-id \(shellQuote(options.androidApplicationID)) "$@"
             """
         }
@@ -498,8 +509,7 @@ actor EditorAdaScriptNativeExporter {
         MODE="${1:-run}"
         ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
         cd "$ROOT_DIR"
-        SWIFT=\(shellQuote(options.swiftExecutable))
-        export ADAENGINE_GRAVITY_PACKAGE_PATH=\(shellQuote(options.gravityRoot.path))
+        SWIFT="${SWIFT_EXECUTABLE:-swift}"
         export ADAENGINE_DISABLE_SWAN=1
         BUILD_DIR="${ADA_NATIVE_SCRATCH_PATH:-$ROOT_DIR/build-native}"
         APP_BUNDLE="$ROOT_DIR/AdaNativeGame.app"

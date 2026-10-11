@@ -16,6 +16,7 @@
           message: "Android export requires standalone macOS Ada Studio.")
       }
       var configuration = configuration
+      configuration.environment["ADAENGINE_PACKAGE_PATH"] = sdk.engineRoot.path
       configuration.environment["ADAENGINE_GRAVITY_PACKAGE_PATH"] = sdk.compilerRoot.path
       try configuration.validateBuildTools(engineRoot: sdk.engineRoot)
       let applicationID = EditorAndroidConfiguration.applicationID(

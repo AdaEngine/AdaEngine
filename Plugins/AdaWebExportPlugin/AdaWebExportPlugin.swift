@@ -323,13 +323,9 @@ struct AdaWebExportPlugin: CommandPlugin {
         let loaderAssetsDirectory = outputDirectory.appending(component: "loader-assets", directoryHint: .isDirectory)
         try fileManager.createDirectory(at: loaderAssetsDirectory, withIntermediateDirectories: true)
 
-        let logoSourceDirectory = URL(fileURLWithPath: "/Users/vlad-prusakov/Developer/adawebsite/public/images", isDirectory: true)
+        let logoSourceDirectory = Self.assetsDirectory.appendingPathComponent("LoaderAssets", isDirectory: true)
         for logoName in ["ae_logo.svg", "ae_logo~dark.svg"] {
             let source = logoSourceDirectory.appending(component: logoName, directoryHint: .notDirectory)
-            guard fileManager.fileExists(atPath: source.path()) else {
-                continue
-            }
-
             try replaceItem(
                 at: loaderAssetsDirectory.appending(component: logoName, directoryHint: .notDirectory),
                 with: source

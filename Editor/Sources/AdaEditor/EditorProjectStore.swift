@@ -28,8 +28,11 @@ public enum EditorProjectTemplate: String, CaseIterable, Equatable, Sendable {
 }
 
 private enum EditorProjectTemplateSourceFactory {
-    static func manifest(projectName: String, targetName: String, adaEnginePackageURL: URL) -> String {
-        """
+    static func manifest(projectName: String, targetName: String, adaEnginePackageURL: URL?) -> String {
+        let dependency = adaEnginePackageURL.map {
+            #".package(name: "AdaEngine", path: "\#(escapedManifestString($0.path))")"#
+        } ?? PackageManifestEditor.adaEngineDependency
+        return """
         // swift-tools-version: 6.2
         import PackageDescription
 
@@ -45,7 +48,7 @@ private enum EditorProjectTemplateSourceFactory {
                 .executable(name: "\(projectName)", targets: ["\(targetName)"])
             ],
             dependencies: [
-                .package(name: "AdaEngine", path: "\(escapedManifestString(adaEnginePackageURL.path))")
+                \(dependency)
             ],
             targets: [
                 .executableTarget(
@@ -153,7 +156,8 @@ public struct EditorProjectStore {
     public let distribution: EditorDistribution
     public let storageURL: URL
     public let fileManager: FileManager
-    public let adaEnginePackageURL: URL
+    /// Explicit development override. New projects use the public repository by default.
+    public let adaEnginePackageURL: URL?
     public let documentsDirectoryURL: URL?
 
     public init(
@@ -166,7 +170,7 @@ public struct EditorProjectStore {
         self.distribution = distribution
         self.fileManager = fileManager
         self.storageURL = storageURL ?? Self.defaultStorageURL(fileManager: fileManager)
-        self.adaEnginePackageURL = (adaEnginePackageURL ?? Self.defaultAdaEnginePackageURL()).standardizedFileURL
+        self.adaEnginePackageURL = adaEnginePackageURL?.standardizedFileURL
         self.documentsDirectoryURL = (documentsDirectoryURL ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask).first)?.standardizedFileURL
     }
 
@@ -255,12 +259,12 @@ public struct EditorProjectStore {
         try editManifest(at: projectURL, command: .removeDependency(identity: identity))
     }
 
-    /// Ensures every executable target links the local AdaEngine package.
+    /// Ensures executable targets link AdaEngine, replacing local paths with a portable dependency by default.
     @discardableResult
     public func ensureAdaEngineDependency(at projectURL: URL, targetName: String? = nil) throws -> Bool {
         try editManifest(
             at: projectURL,
-            command: .ensureAdaEngineDependency(path: adaEnginePackageURL.path, targetName: targetName)
+            command: .ensureAdaEngineDependency(path: adaEnginePackageURL?.path, targetName: targetName)
         )
     }
 
@@ -357,15 +361,6 @@ public struct EditorProjectStore {
             atomically: true,
             encoding: .utf8
         )
-    }
-
-    public static func defaultAdaEnginePackageURL() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .standardizedFileURL
     }
 
     private func editManifest(at projectURL: URL, command: PackageManifestCommand) throws -> Bool {
