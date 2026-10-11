@@ -21,7 +21,11 @@ extension EditorComponentRegistry {
                 animation: payload["animation"]?.stringValue ?? "",
                 autoplay: payload["autoplay"]?.boolValue ?? false,
                 repeats: payload["repeats"]?.boolValue ?? true,
-                animationGraph: try EditorAnimationGraphPayload.decode(payload["animationGraph"])
+                animationGraph: try EditorAnimationGraphPayload.decode(payload["animationGraph"]),
+                lod: try payload["lod"].flatMap { value in
+                    if case .null = value { return nil }
+                    return try JSONDecoder().decode(Model3DSourceLOD.self, from: Data(value.jsonString.utf8))
+                }
             )
         }
     )

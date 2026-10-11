@@ -10,10 +10,12 @@
         let queue: any MTLCommandQueue
         private let pipeline: any MTLRenderPipelineState
         private let depthState: any MTLDepthStencilState
+        private let preservesPassthrough: Bool
 
-        init(queue: any MTLCommandQueue, colorFormat: MTLPixelFormat, depthFormat: MTLPixelFormat) throws {
+        init(queue: any MTLCommandQueue, colorFormat: MTLPixelFormat, depthFormat: MTLPixelFormat, preservesPassthrough: Bool) throws {
             self.queue = queue
-            let library = try queue.device.makeLibrary(source: Self.shader, options: nil)
+            self.preservesPassthrough = preservesPassthrough
+            let library = try queue.device.makeLibrary(source: ImmersiveCompositionShader.source, options: nil)
             let descriptor = MTLRenderPipelineDescriptor()
             descriptor.vertexFunction = library.makeFunction(name: "immersiveVertex")
             descriptor.fragmentFunction = library.makeFunction(name: "immersiveFragment")
@@ -52,6 +54,7 @@
                 let preserveOtherEye = layeredFoveation && drawable.views.prefix(index).contains { $0.textureMap.textureIndex == textureIndex }
                 pass.colorAttachments[0].loadAction = preserveOtherEye ? .load : .clear
                 pass.colorAttachments[0].storeAction = .store
+                pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: preservesPassthrough ? 0 : 1)
                 pass.depthAttachment.texture = drawable.depthTextures[textureIndex]
                 pass.depthAttachment.slice = layeredFoveation ? 0 : map.sliceIndex
                 pass.depthAttachment.clearDepth = 0
@@ -67,6 +70,8 @@
                 encoder.setDepthStencilState(depthState)
                 encoder.setFragmentTexture(color, index: 0)
                 encoder.setFragmentTexture(depth, index: 1)
+                var passthrough: UInt32 = preservesPassthrough ? 1 : 0
+                unsafe encoder.setFragmentBytes(&passthrough, length: MemoryLayout<UInt32>.stride, index: 0)
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
                 encoder.endEncoding()
             }
@@ -94,26 +99,5 @@
             guard succeeded else { throw ImmersiveRendererError.gpuSubmissionFailed }
         }
 
-        private static let shader = """
-            #include <metal_stdlib>
-            using namespace metal;
-            struct VertexOut { float4 position [[position]]; float2 uv; uint layer [[render_target_array_index]]; };
-            vertex VertexOut immersiveVertex(uint id [[vertex_id]], constant uint &layer [[buffer(0)]]) {
-                float2 uv = float2((id << 1) & 2, id & 2);
-                return { float4(uv * float2(2, -2) + float2(-1, 1), 0, 1), uv, layer };
-            }
-            struct FragmentOut { float4 color [[color(0)]]; float depth [[depth(any)]]; };
-            fragment FragmentOut immersiveFragment(VertexOut in [[stage_in]],
-                texture2d<float> color [[texture(0)]], depth2d<float> depth [[texture(1)]]) {
-                constexpr sampler linearSampler(coord::normalized, address::clamp_to_edge, filter::linear);
-                constexpr sampler nearestSampler(coord::normalized, address::clamp_to_edge, filter::nearest);
-                // The existing 3D composite writes display-encoded sRGB into BGRA8.
-            // Decode before writing to the compositor's sRGB attachment, which encodes once.
-            float4 displayColor = color.sample(linearSampler, in.uv);
-            float3 linearColor = select(displayColor.rgb / 12.92,
-                pow((displayColor.rgb + 0.055) / 1.055, float3(2.4)), displayColor.rgb > 0.04045);
-            return { float4(linearColor, displayColor.a), 1.0 - depth.sample(nearestSampler, in.uv) };
-            }
-            """
     }
 #endif

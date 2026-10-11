@@ -42,17 +42,21 @@ struct EditorTransformGizmo {
     let basis: Transform3D
     let viewProjection: Transform3D
     let size: Size
+    let screenScale: Float
+    var screenLength: Float { 80 * screenScale }
+    var worldUnitsPerPixel: Float { worldLength / screenLength }
     let worldLength: Float
     let depth: Float
     let shapes: [Shape]
 
-    init?(tool: EditorSceneViewportTool, transform: Transform, parent: Transform3D, camera: EditorSceneViewportModel.CameraState, size: Size, is2D: Bool) {
-        guard tool != .select, size.width > 0, size.height > 0, abs(parent.determinant) > 0.000001 else {
+    init?(tool: EditorSceneViewportTool, transform: Transform, parent: Transform3D, camera: EditorSceneViewportModel.CameraState, size: Size, is2D: Bool, screenScale: Float = 1) {
+        guard tool != .select, size.width > 0, size.height > 0, screenScale.isFinite, screenScale > 0, abs(parent.determinant) > 0.000001 else {
             return nil
         }
         self.tool = tool
         self.parentMatrix = parent
         self.size = size
+        self.screenScale = screenScale
         origin = (parent * Vector4(transform.position, 1)).xyz
         viewProjection = camera.projection.makeClipView() * camera.transform.matrix.inverse
         let clip = viewProjection * Vector4(origin, 1)
@@ -67,7 +71,7 @@ struct EditorTransformGizmo {
         guard let neighbor = Self.unproject(projected + Vector2(1, 0), depth: depth, inverse: viewProjection.inverse, size: size) else {
             return nil
         }
-        worldLength = (neighbor - origin).length * 80
+        worldLength = (neighbor - origin).length * 80 * screenScale
         guard worldLength.isFinite, worldLength > 0.000001 else {
             return nil
         }
@@ -95,8 +99,8 @@ struct EditorTransformGizmo {
                 }
             } else {
                 let direction = (basis * Vector4(handle.axis, 0)).xyz
-                if let end = Self.project(origin + direction * worldLength, matrix: viewProjection, size: size), (end - projected).squaredLength > 256 {
-                    let start = projected + (end - projected).normalized * 12
+                if let end = Self.project(origin + direction * worldLength, matrix: viewProjection, size: size), (end - projected).squaredLength > 256 * screenScale * screenScale {
+                    let start = projected + (end - projected).normalized * (12 * screenScale)
                     shapes.append(Shape(handle: handle, points: [start, end]))
                 }
             }
@@ -105,7 +109,7 @@ struct EditorTransformGizmo {
     }
 
     func hitTest(_ point: Vector2) -> Handle? {
-        if tool != .rotate, abs(point.x - screenOrigin.x) <= 8, abs(point.y - screenOrigin.y) <= 8 {
+        if tool != .rotate, abs(point.x - screenOrigin.x) <= 8 * screenScale, abs(point.y - screenOrigin.y) <= 8 * screenScale {
             return .center
         }
         var closest: (Handle, Float)?
@@ -114,7 +118,7 @@ struct EditorTransformGizmo {
                 let segment = b - a
                 let t = max(0, min(1, (point - a).dot(segment) / max(0.0001, segment.squaredLength)))
                 let distance = (point - (a + segment * t)).squaredLength
-                if distance <= 64, distance < (closest?.1 ?? .infinity) {
+                if distance <= 64 * screenScale * screenScale, distance < (closest?.1 ?? .infinity) {
                     closest = (shape.handle, distance)
                 }
             }
@@ -131,8 +135,8 @@ struct EditorTransformGizmo {
                 path.move(to: first)
             }
             for point in shape.points.dropFirst() { path.addLine(to: point) }
-            context.stroke(path, with: .black.opacity(0.75), style: StrokeStyle(lineWidth: 5))
-            context.stroke(path, with: color, style: StrokeStyle(lineWidth: 2.5))
+            context.stroke(path, with: .black.opacity(0.75), style: StrokeStyle(lineWidth: 5 * screenScale))
+            context.stroke(path, with: color, style: StrokeStyle(lineWidth: 2.5 * screenScale))
             guard tool != .rotate, let end = shape.points.last, let start = shape.points.first else {
                 continue
             }
@@ -140,17 +144,17 @@ struct EditorTransformGizmo {
                 let direction = (end - start).normalized
                 let normal = Vector2(-direction.y, direction.x)
                 var arrow = Path()
-                arrow.move(to: end + direction * 4)
-                arrow.addLine(to: end - direction * 9 + normal * 5)
-                arrow.addLine(to: end - direction * 9 - normal * 5)
+                arrow.move(to: end + direction * (4 * screenScale))
+                arrow.addLine(to: end - direction * (9 * screenScale) + normal * (5 * screenScale))
+                arrow.addLine(to: end - direction * (9 * screenScale) - normal * (5 * screenScale))
                 arrow.closeSubpath()
                 context.fill(arrow, with: color)
             } else {
-                context.drawRect(Rect(x: end.x - 5, y: end.y - 5, width: 10, height: 10), color: color)
+                context.drawRect(Rect(x: end.x - 5 * screenScale, y: end.y - 5 * screenScale, width: 10 * screenScale, height: 10 * screenScale), color: color)
             }
         }
         if tool != .rotate, handle == nil || handle == .center {
-            let rect = Rect(x: screenOrigin.x - 6, y: screenOrigin.y - 6, width: 12, height: 12)
+            let rect = Rect(x: screenOrigin.x - 6 * screenScale, y: screenOrigin.y - 6 * screenScale, width: 12 * screenScale, height: 12 * screenScale)
             context.fill(RectangleShape().path(in: rect), with: highlighted == .center ? .yellow : .white.opacity(0.9))
         }
     }
@@ -266,7 +270,7 @@ extension EditorTransformGizmo {
             case .scale:
                 let factor: Float
                 if handle == .center {
-                    factor = max(0.01, 1 + (delta.x - delta.y) / 120)
+                    factor = max(0.01, 1 + (delta.x - delta.y) / (120 * gizmo.screenScale))
                     result.scale = transform.scale * factor
                 } else {
                     guard let a = gizmo.axisParameter(at: start, handle: handle), let b = gizmo.axisParameter(at: point, handle: handle) else {
@@ -281,7 +285,7 @@ extension EditorTransformGizmo {
                     accumulatedAngle += Math.atan2(Math.sin(difference), Math.cos(difference))
                     self.lastAngle = angle
                 } else {
-                    accumulatedAngle = (delta.x - delta.y) / 80
+                    accumulatedAngle = (delta.x - delta.y) / gizmo.screenLength
                 }
                 let rotation = Quat(axis: handle.axis, angle: accumulatedAngle)
                 result.rotation = Self.compose(transform.rotation, rotation).normalized

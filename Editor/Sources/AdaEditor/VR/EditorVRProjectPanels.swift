@@ -7,6 +7,7 @@ struct EditorVRProjectPanel: View {
     let createProject: () -> Void
     let enter: () -> Void
     let leave: () -> Void
+    var enterMixed: (() -> Void)?
     var openPanel: ((EditorVRPanel) -> Void)?
     @Environment(\.theme) private var theme
 
@@ -16,6 +17,12 @@ struct EditorVRProjectPanel: View {
             Text((workspace.document?.title ?? "No scene") + " · " + workspace.saveStatus).font(.system(size: 14)).foregroundColor(theme.editorColors.muted)
             Button(workspace.isImmersed ? "Leave Immersion" : "Enter Immersive Editor", action: workspace.isImmersed ? leave : enter)
                 .disabled(workspace.isOpening || workspace.document == nil)
+                .accessibilityIdentifier("AdaEditor.VR.Project.Enter")
+            if !workspace.isImmersed, let enterMixed {
+                Button("Mixed", action: enterMixed)
+                    .disabled(workspace.isOpening || workspace.document == nil)
+                    .accessibilityIdentifier("AdaEditor.VR.Project.EnterMixed")
+            }
             HStack(spacing: 18) {
                 Button("Open Project", action: openProject)
                 Button("New Project", action: createProject)

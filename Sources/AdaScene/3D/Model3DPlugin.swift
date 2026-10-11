@@ -25,6 +25,8 @@ public struct Model3DPlugin: Plugin {
         }
         Model3DSource.registerComponent()
         Model3DSourceState.registerComponent()
+        ModelAnimationPlayback3DComponent.registerComponent()
+        app.addSystem(ModelAnimationPlayback3DSystem.self, on: .postUpdate)
         app.addSystem(Model3DSourceSystem.self, on: .preUpdate)
         Mesh3DComponent.registerComponent()
         MeshLOD3DComponent.registerComponent()

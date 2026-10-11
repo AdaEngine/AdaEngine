@@ -256,7 +256,7 @@ registrations remain unavailable in this initial host.
 Guide: [StudioTools.md](Documentation/StudioTools.md).
 Coverage: [EditorStudioToolsTests.swift](Tests/AdaEditorTests/EditorStudioToolsTests.swift).
 
-Desktop Studio also offers an **Editor / Agent** interface switch in the top
+Desktop and visionOS Studio offer an **Editor / Agent** interface switch in the top
 bar. Agent Interface uses a project session tree, conversation tabs, the existing
 agent transcript/composer and a document workspace opened on demand. Conversation
 content uses a centered column up to 800 points wide; Retry/New Session stay at
@@ -266,7 +266,8 @@ loader. Both interfaces share document state, panel preferences and agent servic
 mode selection restores per project. Switching sessions retains in-memory drafts,
 attachments, selected-code context and chat mode. Running turns stay attached to
 their originating session; one turn runs at a time per project window.
-This interface switch is desktop-only; the dedicated iPhone flow is unchanged.
+The dedicated iPhone flow is unchanged. visionOS hides editor panel/tab ornaments
+in Agent mode and restores the last normal window size after leaving immersion.
 Guide: [AgentInterface.md](Documentation/AgentInterface.md).
 Coverage: [EditorAgentWorkspaceTests.swift](Tests/AdaEditorTests/EditorAgentWorkspaceTests.swift).
 

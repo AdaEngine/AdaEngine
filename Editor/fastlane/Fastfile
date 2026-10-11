@@ -53,7 +53,7 @@ lane :upload_xcode do |options|
   targets = {
     "ios" => ["AdaEditor-iPadOS", "iOS", APP_IDENTIFIER, "Ada Studio"],
     "macos" => ["AdaEditor-Distribution", "macOS", APP_IDENTIFIER, "Ada Studio"],
-    "visionos" => ["AdaEditor-visionOS", "visionOS", APP_IDENTIFIER, "Ada Studio"],
+    "visionos" => ["AdaStudio-VR", "visionOS", APP_IDENTIFIER, "Ada Studio VR"],
     "player" => ["AdaPlayer-iOS", "iOS", "org.adaengine.player", "Ada Remote Player"]
   }
   UI.user_error!("Use target:ios, target:macos, target:visionos or target:player") unless targets.key?(target)

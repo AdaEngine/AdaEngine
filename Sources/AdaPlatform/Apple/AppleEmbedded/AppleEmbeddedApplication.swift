@@ -11,6 +11,7 @@
     @_spi(Internal) import AdaInput
     @_spi(Internal) import AdaUI
     import AdaUtils
+    import Foundation
     import UIKit
 
     @safe @MainActor
@@ -169,7 +170,7 @@
             @unknown default: thermalState = .serious
             }
             let isIdle = !windowManager.windows.values.contains {
-                $0.canDraw && Time.absolute - $0.lastUIActivityTime < 1
+                $0.value.canDraw && Time.absolute - $0.value.lastUIActivityTime < 1
             }
             let range = framePacing.resolvedFrameRateRange(
                 forDisplayMaximumFramesPerSecond: displayMaximumFramesPerSecond,

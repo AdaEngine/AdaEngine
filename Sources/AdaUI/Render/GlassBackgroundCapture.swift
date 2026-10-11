@@ -31,7 +31,9 @@ enum GlassBackgroundCapture {
         vertices: [GlassVertexData], viewport: Rect, scaleFactor: Float, textureSize: SizeInt
     ) -> Rect {
         let full = Rect(x: 0, y: 0, width: Float(textureSize.width), height: Float(textureSize.height))
-        guard !vertices.isEmpty, scaleFactor.isFinite, scaleFactor > 0 else { return full }
+        guard !vertices.isEmpty, scaleFactor.isFinite, scaleFactor > 0 else {
+            return full
+        }
         var minX = Float.infinity
         var minY = Float.infinity
         var maxX = -Float.infinity
@@ -51,7 +53,9 @@ enum GlassBackgroundCapture {
             let padding = blur + (refraction + dispersion + magnification) * sampleScale + 2
             let x = viewport.minX + position.x * scaleFactor
             let y = viewport.minY - position.y * scaleFactor
-            guard position.w == 1, x.isFinite, y.isFinite, padding.isFinite else { return full }
+            guard position.w == 1, x.isFinite, y.isFinite, padding.isFinite else {
+                return full
+            }
             minX = min(minX, x - padding)
             minY = min(minY, y - padding)
             maxX = max(maxX, x + padding)
@@ -61,7 +65,9 @@ enum GlassBackgroundCapture {
         let lowerY = max(minY.rounded(.down), 0)
         let upperX = min(maxX.rounded(.up), full.width)
         let upperY = min(maxY.rounded(.up), full.height)
-        guard upperX > lowerX, upperY > lowerY else { return full }
+        guard upperX > lowerX, upperY > lowerY else {
+            return full
+        }
         return Rect(x: lowerX, y: lowerY, width: max(upperX - lowerX, 0), height: max(upperY - lowerY, 0))
     }
 }

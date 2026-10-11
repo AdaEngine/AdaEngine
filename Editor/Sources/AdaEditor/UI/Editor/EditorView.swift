@@ -134,7 +134,7 @@ struct EditorView: View {
                 .frame(height: metrics.topToolbarHeight)
                 .zIndex(10)
 
-                #if os(macOS) || os(Windows) || os(Linux)
+                #if os(macOS) || os(Windows) || os(Linux) || os(visionOS)
                 if viewModel.interface.mode == .agent {
                     EditorAgentWorkspace(viewModel: viewModel)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)

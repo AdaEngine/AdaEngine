@@ -43,6 +43,7 @@ final class EditorVRWorkspace {
     @ObservationIgnored private var scopedURL: URL?
     @ObservationIgnored private let palmWheel = EditorVRPalmWheel()
     var activatedPalmPanel: EditorVRPanel?
+    private(set) var isPalmMenuVisible = false
     @ObservationIgnored private let gizmo = EditorVRGizmoController()
     @ObservationIgnored private var boundsRefreshes = 0
     @ObservationIgnored private var store: EditorProjectStore
@@ -303,9 +304,10 @@ final class EditorVRWorkspace {
     }
 
     func frame(_ world: World) {
-        if let tracking = world.getResource(SpatialTrackingFrame.self) {
-            palmWheel.update(in: world, tracking: tracking) { self.activatedPalmPanel = $0 }
+        palmWheel.update(in: world, tracking: world.getResource(SpatialTrackingFrame.self) ?? SpatialTrackingFrame()) {
+            self.activatedPalmPanel = $0
         }
+        if isPalmMenuVisible != palmWheel.isVisible { isPalmMenuVisible = palmWheel.isVisible }
         gizmo.consume(in: world, viewport: viewport, activeTool: activeTool)
         if boundsRefreshes < 20 {
             refreshGrabBounds(in: world)
@@ -334,6 +336,7 @@ final class EditorVRWorkspace {
         navigation.reset()
         isNavigating = false
         palmWheel.reset()
+        isPalmMenuVisible = false
         gizmo.reset(in: nil)
         viewport.endSpatialTransform()
         viewport.disconnect()

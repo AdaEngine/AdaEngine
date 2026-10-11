@@ -1,6 +1,6 @@
 # Agent Interface
 
-Desktop Ada Studio has two presentation modes, selected with **Editor / Agent**
+Desktop and visionOS Ada Studio have two presentation modes, selected with **Editor / Agent**
 in the top toolbar. Editor is the default. The choice is remembered for each
 project on this computer.
 
@@ -51,5 +51,5 @@ running session; other chats show that another session is running and cannot sen
 until it finishes. Stop interrupts the running turn even while viewing another
 chat. Provider/model controls still come from the existing agent configuration.
 
-The mode switch is available in the shared desktop workspace. The dedicated
+The mode switch is available in the shared desktop and visionOS workspace. The dedicated
 iPhone UI and iOS agent implementation are outside this feature's scope.

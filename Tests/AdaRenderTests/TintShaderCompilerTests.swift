@@ -8,6 +8,23 @@ import Testing
 @Suite("Real Tint SPIR-V to WGSL")
 struct TintShaderCompilerTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_VALIDATE_TINT"] == "1"))
+    func compilesFreshGlassBlur() async throws {
+        unsafe RenderEngine.configurations.preferredBackend = .webgpu
+        try RenderEngine.setupRenderEngine()
+        let root = ProcessInfo.processInfo.environment["ADAENGINE_SHADER_SOURCE_ROOT"].map { URL(fileURLWithPath: $0) }
+            ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let compiler = try ShaderCompiler(from: root.appendingPathComponent("Sources/AdaCorePipelines/Assets/Shaders/glass.glsl"))
+        for stage in [ShaderStage.vertex, .fragment] {
+            let spirv = try compiler.compileSpirvBin(for: stage, ignoreCache: true)
+            let result = try await WGSLShaderCompiler().compile(
+                spirvData: spirv.data, entryPoint: "glass_validation", stage: stage, defines: []
+            )
+            #expect(result.source.contains("fn glass_validation("))
+            #expect(result.language == .wgsl)
+        }
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_VALIDATE_TINT"] == "1"))
     func compilesFreshShader() async throws {
         unsafe RenderEngine.configurations.preferredBackend = .webgpu
         try RenderEngine.setupRenderEngine()

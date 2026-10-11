@@ -7,6 +7,37 @@ import Testing
 @MainActor
 @Suite("AdaScript Input resource", .serialized)
 struct InputResourceBindingTests {
+    @Test func pointerCoordinatesRefreshAndExpireWithTheCallback() async throws {
+        InputResourceProbe.registerComponent()
+        let plugin = try AdaScriptPlugin(source: """
+        @system(id: "pointer-reader")
+        class PointerReader {
+            @res var input: Input;
+            @query(InputResourceProbe) var probes;
+            var previous;
+            func update(context) {
+                for (var row in probes) {
+                    row.inputResourceProbe.value = input.mouseX + input.mouseY;
+                    if (previous != null) { row.inputResourceProbe.value += previous.mouseX + previous.mouseY; }
+                }
+                previous = input;
+            }
+        }
+        """, name: "PointerReader")
+        let world = World()
+        let app = AppWorlds(main: world)
+        InputPlugin(actions: []).setup(in: app)
+        plugin.setup(in: app)
+        let entity = world.spawn { InputResourceProbe(value: 0) }
+        world.getRefResource(Input.self).wrappedValue.mousePosition = [24, 35]
+        await world.runScheduler(.update)
+        #expect(world.get(InputResourceProbe.self, from: entity.id)?.value == 59)
+        world.getRefResource(Input.self).wrappedValue.mousePosition = [31, 40]
+        await world.runScheduler(.update)
+        #expect(world.get(InputResourceProbe.self, from: entity.id)?.value == 71)
+        #expect(plugin.diagnostics.isEmpty)
+    }
+
     @Test func declaresOnlyRequestedReadAccess() throws {
         let plugin = try AdaScriptPlugin(source: """
         @system(id: "with-input")

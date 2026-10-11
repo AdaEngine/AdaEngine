@@ -87,8 +87,23 @@ enum EditorSceneFileLoader {
         typeName: String, payload: EditorComponentPayload, sourceURL: URL?, resourceRootURL: URL?
     ) throws -> EditorComponentPayload {
         var resolvedPayload = payload
+        if typeName == EditorBuiltInComponentType.environment3D,
+            let reference = payload["imageBasedLightingSource"]?.stringValue, reference.hasPrefix("@res://"), let resourceRootURL {
+            let url = resourceRootURL.appendingPathComponent(String(reference.dropFirst(7))).resolvingSymlinksInPath().standardizedFileURL
+            let root = resourceRootURL.resolvingSymlinksInPath().standardizedFileURL
+            guard url.path.hasPrefix(root.path + "/"), url.pathExtension == "ibl" else {
+                throw AssetError.message("Environment must be an IBL asset inside project assets.")
+            }
+            resolvedPayload["imageBasedLightingSource"] = .string(url.path)
+        }
         if typeName == EditorBuiltInComponentType.model3DSource, let reference = payload["source"]?.stringValue, !reference.isEmpty {
             resolvedPayload["source"] = .string(try EditorModelResource.resolve(reference, sourceURL: sourceURL, resourceRootURL: resourceRootURL).path)
+            if case var .object(lod) = payload["lod"], case let .array(sources) = lod["sources"] {
+                lod["sources"] = .array(try sources.map {
+                    .string(try EditorModelResource.resolve($0.stringValue, sourceURL: sourceURL, resourceRootURL: resourceRootURL).path)
+                })
+                resolvedPayload["lod"] = .object(lod)
+            }
         }
         if typeName == EditorBuiltInComponentType.tileMap,
             let reference = payload["map"]?.stringValue,
@@ -208,7 +223,13 @@ enum EditorSceneFileLoader {
                 do {
                     let model = try AssetsManager.loadSync(ModelAsset3D.self, at: reference.source)
                     guard let asset = model.asset else { throw AssetError.message("Model has not loaded.") }
-                    let root = try reference.instantiate(asset, in: world, under: entity)
+                    let alternatives = try (reference.lod?.sources ?? []).map { source in
+                        guard let level = try AssetsManager.loadSync(ModelAsset3D.self, at: source).asset else {
+                            throw AssetError.message("Model LOD has not loaded.")
+                        }
+                        return level
+                    }
+                    let root = try reference.instantiate(asset, alternatives: alternatives, in: world, under: entity)
                     func registerNodes(_ node: Entity) {
                         entityCount += 1
                         editorIDsByRuntimeEntityID[node.id] = runtimeEditorID

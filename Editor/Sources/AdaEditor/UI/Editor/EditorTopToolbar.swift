@@ -29,7 +29,7 @@ struct EditorTopToolbar: View {
                 Color.clear
                     .frame(width: metrics.toolbarWindowControlClearance, height: 1)
                 projectSwitcherButton
-                #if os(macOS) || os(Windows) || os(Linux)
+                #if os(macOS) || os(Windows) || os(Linux) || os(visionOS)
                 if let interface {
                     EditorInterfaceModePicker(state: interface)
                 }

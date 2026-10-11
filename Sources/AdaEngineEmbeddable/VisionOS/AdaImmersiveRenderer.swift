@@ -27,6 +27,9 @@
     @available(visionOS 26.0, *)
     @MainActor
     public final class AdaImmersiveRenderer {
+        /// In mixed immersion, suppress the offscreen background where no scene geometry wrote depth.
+        public var preservesPassthrough = false
+
         public let appWorlds: AppWorlds
         public var world: World { appWorlds.main }
         public var onFrame: (@MainActor (World) -> Void)?
@@ -120,7 +123,8 @@
             }
             guard queue.device.registryID == layer.device.registryID else { throw ImmersiveRendererError.incompatibleMetalDevice }
             let presentation = try ImmersivePresentation(
-                queue: queue, colorFormat: layer.configuration.colorFormat, depthFormat: layer.configuration.depthFormat
+                queue: queue, colorFormat: layer.configuration.colorFormat, depthFormat: layer.configuration.depthFormat,
+                preservesPassthrough: preservesPassthrough
             )
             let hover = layer.configuration.trackingAreasFormat == .r16Uint
                 ? try ImmersiveHoverPass(device: queue.device, format: .r16Uint, depthFormat: layer.configuration.depthFormat) : nil

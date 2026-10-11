@@ -841,6 +841,7 @@ if isWGPUEnabled {
 
 #if os(Android) || os(Linux)
 targets += [
+    .testTarget(name: "AdaEngineEmbeddableTests", dependencies: ["AdaEngineEmbeddable"]),
     .testTarget(name: "AdaScriptCompilerCoreTests", dependencies: ["AdaScriptCompilerCore"]),
     .systemLibrary(
         name: "X11",

@@ -6,7 +6,7 @@ import Math
 /// The controller collides with physics bodies, ignores sensors, and does not push dynamic bodies
 /// or register a body that other character controllers can collide with.
 @Component
-public struct CharacterController3DComponent: Sendable {
+public struct CharacterController3DComponent: Codable, Sendable {
     public let radius: Float
     public let height: Float
 
@@ -17,14 +17,16 @@ public struct CharacterController3DComponent: Sendable {
     public var deceleration: Float = 20
     public var jumpSpeed: Float = 5
     /// Set on a press edge. Consumed by the next fixed tick, including while airborne.
-    public var jumpRequested = false
+    public var jumpRequested: Bool = false
+    /// Clears accumulated motion on the next fixed tick after a scripted teleport.
+    public var resetMotion: Bool = false
     public var maximumFallSpeed: Float = 50
     /// Minimum upward surface normal for grounded contacts; defaults to a 45 degree slope.
     public var minimumGroundNormalY: Float = 0.707107
     /// Follows descending terrain while grounded; disabled automatically during a jump.
     public var groundSnapDistance: Float = 0.16
 
-    public internal(set) var isGrounded = false
+    public internal(set) var isGrounded: Bool = false
     /// Actual displacement per second after collision resolution.
     public internal(set) var velocity: Vector3 = .zero
     internal var horizontalVelocity: Vector3 = .zero
@@ -34,5 +36,21 @@ public struct CharacterController3DComponent: Sendable {
     public init(radius: Float = 0.4, height: Float = 1.8) {
         self.radius = radius.isFinite && radius > 0 ? radius : 0.4
         self.height = height.isFinite ? max(height, self.radius * 2) : max(1.8, self.radius * 2)
+    }
+
+    private enum CodingKeys: CodingKey {
+        case radius, height, acceleration, deceleration, jumpSpeed, maximumFallSpeed, minimumGroundNormalY, groundSnapDistance
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(radius: try values.decodeIfPresent(Float.self, forKey: .radius) ?? 0.4,
+                  height: try values.decodeIfPresent(Float.self, forKey: .height) ?? 1.8)
+        acceleration = try values.decodeIfPresent(Float.self, forKey: .acceleration) ?? 14
+        deceleration = try values.decodeIfPresent(Float.self, forKey: .deceleration) ?? 20
+        jumpSpeed = try values.decodeIfPresent(Float.self, forKey: .jumpSpeed) ?? 5
+        maximumFallSpeed = try values.decodeIfPresent(Float.self, forKey: .maximumFallSpeed) ?? 50
+        minimumGroundNormalY = try values.decodeIfPresent(Float.self, forKey: .minimumGroundNormalY) ?? 0.707107
+        groundSnapDistance = try values.decodeIfPresent(Float.self, forKey: .groundSnapDistance) ?? 0.16
     }
 }

@@ -28,6 +28,9 @@
         var requestedSize = CGSize.zero
         var onError: (@MainActor (Error) -> Void)?
         private var appliedRequest = 0
+        private var geometryTask: Task<Void, Never>?
+
+        isolated deinit { geometryTask?.cancel() }
 
         override func didMoveToWindow() {
             super.didMoveToWindow()
@@ -39,8 +42,16 @@
                 return
             }
             appliedRequest = request
-            scene.requestGeometryUpdate(UIWindowScene.GeometryPreferences.Vision(size: requestedSize, resizingRestrictions: .freeform)) { [weak self] error in
-                self?.onError?(error)
+            geometryTask?.cancel()
+            let currentRequest = request
+            geometryTask = Task { @MainActor [weak self, weak scene] in
+                // Let SwiftUI replace the compact dock's fixed bounds before restoring a normal size.
+                await Task.yield()
+                guard let self, let scene, !Task.isCancelled, request == currentRequest else { return }
+                window?.layoutIfNeeded()
+                scene.requestGeometryUpdate(UIWindowScene.GeometryPreferences.Vision(size: requestedSize, resizingRestrictions: .freeform)) { [weak self] error in
+                    self?.onError?(error)
+                }
             }
         }
     }

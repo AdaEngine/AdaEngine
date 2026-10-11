@@ -96,6 +96,9 @@
         @available(*, unavailable)
         public required init(coder _: NSCoder) { fatalError("Use init(content:assetBundle:)") }
 
+        // Swift 6.2.4 crashes optimizing a generic isolated deinit on back-deployed runtimes.
+        // Keep actor-safe cleanup; only this cold path bypasses the optimizer (swiftlang/swift#90625).
+        @_optimize(none)
         isolated deinit {
             displayLink?.invalidate()
             startupTask?.cancel()

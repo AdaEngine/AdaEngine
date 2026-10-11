@@ -169,13 +169,8 @@ struct EditorVRInteractionTests {
         projection.updateView(width: size.width, height: size.height)
         let camera = EditorSceneViewportModel.CameraState(projection: .perspective(projection), transform: Transform(position: [0, 1.6, -1.5]), renderGraphLabel: .main3D)
         let gizmo = try #require(
-            EditorTransformGizmo(
-                tool: .translate,
-                transform: workspace.viewport.runtimeEntity(for: box.id)?.components[Transform.self] ?? Transform(),
-                parent: .identity,
-                camera: camera,
-                size: size,
-                is2D: false
+            EditorVRGizmoController().definition(
+                in: world, viewport: workspace.viewport, tool: .translate, camera: camera, size: size
             )
         )
         let screen = try #require(gizmo.shapes.first { $0.handle == .x }?.points.last)
@@ -227,6 +222,29 @@ struct EditorVRInteractionTests {
         #expect(try String(contentsOfFile: path, encoding: .utf8) == updated)
         #expect(workspace.document?.id == scene.id)
         #expect(workspace.document?.sceneModel?.entities == scene.sceneModel?.entities)
+    }
+
+    @Test("Project panel routes ordinary Enter to Full and its separate Mixed button to passthrough")
+    func projectImmersionButtons() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let workspace = EditorVRWorkspace(store: EditorProjectStore(storageURL: root.appendingPathComponent("recents.json")))
+        try workspace.createStarter(at: root)
+        var state = EditorVRImmersionState()
+        let container = UIContainerView(rootView: EditorVRProjectPanel(
+            workspace: workspace, openProject: {}, createProject: {},
+            enter: { state.request(allowed: true) }, leave: {},
+            enterMixed: { state.request(.mixed, allowed: true) }
+        ).environment(\.theme, .adaEditor))
+        container.frame = Rect(x: 0, y: 0, width: 420, height: 500)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.VR.Project.EnterMixed"))
+        #expect(state.mode == .mixed)
+        state.finishEntryAttempt()
+        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.VR.Project.Enter"))
+        #expect(state.mode == .full)
     }
 
     @Test("Palm sector selection opens a panel once and restores scene selection")
@@ -311,6 +329,28 @@ struct EditorVRInteractionTests {
         try workspace.openProject(at: root)
         #expect(workspace.studio != nil && workspace.document == nil)
         #expect(workspace.scenes.isEmpty && !workspace.isImmersed)
+    }
+
+    @Test("Palm occlusion state follows real tracking and resets when immersion ends")
+    func palmOcclusionState() {
+        let workspace = EditorVRWorkspace()
+        let world = World()
+        let tracking = SpatialTrackingFrame(hands: [
+            SpatialHandPose(interactor: .leftHand, pose: Transform3D(translation: [0, 0, 0.5]), palmNormal: [0, 0, -1], isOpen: true)
+        ])
+        world.insertResource(tracking)
+        workspace.frame(world)
+        #expect(workspace.isPalmMenuVisible)
+        let sector = world.getEntities().first { $0.name == "Palm Code" }
+        #expect(abs((sector?.components[Transform.self]?.position.z ?? 0) - 0.44) < 0.0001)
+        world.removeResource(SpatialTrackingFrame.self)
+        workspace.frame(world)
+        #expect(!workspace.isPalmMenuVisible)
+        world.insertResource(tracking)
+        workspace.frame(world)
+        #expect(workspace.isPalmMenuVisible)
+        workspace.finishImmersion()
+        #expect(!workspace.isPalmMenuVisible)
     }
 
     @Test("Palm activation requires an open hand facing the head in front of the viewer")

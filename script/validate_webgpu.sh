@@ -6,6 +6,7 @@ cd "$ada_validation_root"
 export TINT_EXECUTABLE
 TINT_EXECUTABLE="$(python3 script/ensure_tint.py)"
 export ADAENGINE_WEB_EXPORT=1 ADAENGINE_VALIDATE_TINT=1 ADAENGINE_SPRITE_WGPU_SMOKE=1
+export ADAENGINE_SHADER_SOURCE_ROOT="$ada_validation_root"
 ada_validation_scratch="${ADAENGINE_WEBGPU_SCRATCH:-/tmp/adaengine-webgpu-dev-validation}"
 ada_validation_package="$(python3 script/webgpu_validation_package.py "$ada_validation_scratch/validation-package")"
 swift test --package-path "$ada_validation_package" --disable-sandbox --scratch-path "$ada_validation_scratch" \

@@ -76,8 +76,12 @@ public struct ApplicationFramePacing: Resource, Codable, Sendable {
     /// Uses the display maximum during interaction, 60 Hz at idle, and thermal caps
     /// of 60/30/15 Hz for fair/serious/critical pressure. Fixed-rate games are unchanged.
     public static func adaptiveUI() -> Self {
-        Self(maximumFramesPerSecond: 60, synchronizesWithDisplayRefreshRate: true,
-             idleMaximumFramesPerSecond: 60, adaptsToThermalState: true)
+        Self(
+            maximumFramesPerSecond: 60,
+            synchronizesWithDisplayRefreshRate: true,
+            idleMaximumFramesPerSecond: 60,
+            adaptsToThermalState: true
+        )
     }
 
     /// Resolves the maximum update rate for a display.

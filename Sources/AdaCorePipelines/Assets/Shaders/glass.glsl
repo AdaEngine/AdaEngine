@@ -63,7 +63,9 @@ float sdRoundedBox(vec2 p, vec2 b, float r) {
 }
 
 vec4 sampleBg(vec2 uv) {
-    return texture(sampler2D(u_BackgroundTexture, u_BackgroundSampler), uv);
+    // Captures have one mip. Explicit LOD also keeps optical branches valid
+    // under WebGPU derivative-uniformity validation.
+    return textureLod(sampler2D(u_BackgroundTexture, u_BackgroundSampler), uv, 0.0);
 }
 
 float sampleBlurredChannel(vec2 uv, vec2 texelSize, float radius, int channel) {

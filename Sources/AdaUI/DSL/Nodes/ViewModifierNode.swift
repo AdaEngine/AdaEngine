@@ -30,7 +30,9 @@ class ViewModifierNode: ViewNode {
     override func didMove(to parent: ViewNode?) {
         super.didMove(to: parent)
         if parent == nil {
-            contentNode.parent = nil
+            if contentNode.parent === self {
+                contentNode.parent = nil
+            }
         } else {
             contentNode.parent = self
         }

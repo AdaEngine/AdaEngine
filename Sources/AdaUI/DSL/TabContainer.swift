@@ -849,7 +849,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
             } else {
                 // A style can change its root when hiding its controls. Reconcile
                 // that root instead of updating an incompatible node in place.
-                tabBarNode.parent = nil
+                if tabBarNode.parent === self { tabBarNode.parent = nil }
                 tabBarNode = newTabBarNode
                 tabBarNode.parent = self
                 if let owner {
@@ -881,7 +881,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
     }
 
     private func rebuildTabBar(selected: AnyHashable, onSelect: @escaping (AnyHashable) -> Void) {
-        tabBarNode.parent = nil
+        if tabBarNode.parent === self { tabBarNode.parent = nil }
         tabBarNode = Self.buildStyledTabBar(
             elements: elements,
             selected: selected,

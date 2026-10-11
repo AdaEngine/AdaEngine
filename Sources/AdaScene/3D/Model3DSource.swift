@@ -1,7 +1,28 @@
 import AdaAnimation
 import AdaAssets
 import AdaECS
+import AdaRender
 import Foundation
+
+/// Portable mesh alternatives, retaining the base model's node and material ordering.
+public struct Model3DSourceLOD: Codable, Equatable, Sendable {
+    public var sources: [String]
+    public var screenThresholds: [Float]
+    public var maximumDistance: Float?
+    public var fadeDistance: Float
+    public var skeletonCompatible: Bool
+    public var animationLOD: Bool
+
+    public init(sources: [String] = [], screenThresholds: [Float] = [], maximumDistance: Float? = nil,
+                fadeDistance: Float = 5, skeletonCompatible: Bool = false, animationLOD: Bool = false) {
+        self.sources = sources
+        self.screenThresholds = screenThresholds
+        self.maximumDistance = maximumDistance
+        self.fadeDistance = fadeDistance
+        self.skeletonCompatible = skeletonCompatible
+        self.animationLOD = animationLOD
+    }
+}
 
 /// A portable model reference that preserves imported hierarchy, materials and animation.
 /// ``Model3DPlugin`` loads the asset and creates an instance beneath the owning entity.
@@ -13,19 +34,25 @@ public struct Model3DSource: Codable, Equatable, Sendable {
     public var repeats: Bool
     /// Optional authored pose graph. When present it takes precedence over the single clip.
     public var animationGraph: AnimationGraph?
+    public var lod: Model3DSourceLOD?
 
-    public init(source: String = "", animation: String = "", autoplay: Bool = false, repeats: Bool = true, animationGraph: AnimationGraph? = nil) {
+    public init(source: String = "", animation: String = "", autoplay: Bool = false, repeats: Bool = true,
+                animationGraph: AnimationGraph? = nil, lod: Model3DSourceLOD? = nil) {
         self.source = source
         self.animation = animation
         self.autoplay = autoplay
         self.repeats = repeats
         self.animationGraph = animationGraph
+        self.lod = lod
     }
 
     /// Installs an already loaded asset. Used by hosts that prepare models before their first frame.
     /// An invalid clip fails before creating entities. Each call creates an independent animation player.
     @discardableResult
-    public func instantiate(_ model: ModelAsset3D, in world: World, under owner: Entity) throws -> Entity {
+    public func instantiate(_ model: ModelAsset3D, alternatives: [ModelAsset3D] = [], in world: World, under owner: Entity) throws -> Entity {
+        if let lod, alternatives.count != lod.sources.count {
+            throw AssetError.message("Model LOD alternatives have not been loaded.")
+        }
         guard animationGraph != nil || animation.isEmpty || model.animationClips.contains(where: { $0.name == animation }) else {
             throw AssetError.message("Model has no animation named '\(animation)'.")
         }
@@ -42,9 +69,25 @@ public struct Model3DSource: Codable, Equatable, Sendable {
             }
             animationComponent.player.isPlaying = autoplay
             animationComponent.player.repeats = repeats
+            if lod?.animationLOD == true { animationComponent.evaluationLOD = AnimationLOD3DSettings() }
             root.components[ModelAnimation3DComponent.self] = animationComponent
         }
         owner.addChild(root)
+        if let lod {
+            var pending = root.children
+            while let node = pending.popLast() {
+                if let binding = node.components[ModelNode3DComponent.self], model.nodes.indices.contains(binding.nodeIndex),
+                    let meshIndex = model.nodes[binding.nodeIndex].meshIndex,
+                    alternatives.allSatisfy({ $0.meshes.indices.contains(meshIndex) }) {
+                    var value = MeshLOD3DComponent(alternatives: alternatives.map { $0.meshes[meshIndex] },
+                                                   screenThresholds: lod.screenThresholds, maximumDistance: lod.maximumDistance,
+                                                   fadeDistance: lod.fadeDistance)
+                    value.skeletonCompatible = lod.skeletonCompatible
+                    node.components[MeshLOD3DComponent.self] = value
+                }
+                pending.append(contentsOf: node.children)
+            }
+        }
         owner.components[Model3DSourceState.self] = .init(reference: self, rootEntityID: root.id)
         return root
     }
@@ -92,10 +135,17 @@ public struct Model3DSourceSystem {
             }
         }
         for (id, reference) in pending {
-            let result: Result<ModelAsset3D?, AssetError>
+            let result: Result<(ModelAsset3D?, [ModelAsset3D]), AssetError>
             do {
                 let model = reference.source.isEmpty ? nil : try await AssetsManager.load(ModelAsset3D.self, at: reference.source).asset
-                result = .success(model)
+                var alternatives: [ModelAsset3D] = []
+                for source in reference.lod?.sources ?? [] {
+                    guard let level = try await AssetsManager.load(ModelAsset3D.self, at: source).asset else {
+                        throw AssetError.message("Model LOD has not loaded: \(source)")
+                    }
+                    alternatives.append(level)
+                }
+                result = .success((model, alternatives))
             } catch {
                 result = .failure(.message(error.localizedDescription))
             }
@@ -106,8 +156,9 @@ public struct Model3DSourceSystem {
                     world.removeEntity(rootID, recursively: true)
                 }
                 do {
-                    if let model = try result.get() {
-                        try reference.instantiate(model, in: world, under: owner)
+                    let (model, alternatives) = try result.get()
+                    if let model {
+                        try reference.instantiate(model, alternatives: alternatives, in: world, under: owner)
                     } else {
                         owner.components[Model3DSourceState.self] = .init(reference: reference)
                     }

@@ -40,6 +40,8 @@ public struct Physics3DPlugin: Plugin {
         PhysicsBody3DComponent.registerComponent()
         PhysicsBody3DInitialized.registerComponent()
         CharacterController3DComponent.registerComponent()
+        CameraCollision3DComponent.registerComponent()
+        app.addSystem(CameraCollision3DSystem.self, on: .postUpdate)
 
         if app.getResource(PhysicsDebugOptions.self) == nil {
             app.insertResource(PhysicsDebugOptions())

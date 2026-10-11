@@ -40,8 +40,8 @@ struct EditorAgentWorkspaceTests {
         #expect(EditorAgentSessionChanges.files(in: events).map(\.path) == ["Assets/Main.ascn", "Sources/Main.ada"])
     }
 
-    @Test("Real toolbar switches the workspace without replacing dirty documents or agent state", arguments: [Float(1024), 1280, 1400])
-    func switchInterface(width: Float) async throws {
+    @Test("Real toolbar switches the workspace without replacing dirty documents or agent state", arguments: [Float(1024), 1280, 1400], [false, true])
+    func switchInterface(width: Float, nativeOrnaments: Bool) async throws {
         let root = try makeProject()
         defer { try? FileManager.default.removeItem(at: root) }
         let model = try makeModel(root)
@@ -56,7 +56,7 @@ struct EditorAgentWorkspaceTests {
         model.agent.prompt = "Keep this draft"
         let agent = model.agent
         let sessionID = model.agent.activeSession?.id
-        let container = UIContainerView(rootView: EditorView(project: model.project, viewModel: model).theme(.adaEditor))
+        let container = UIContainerView(rootView: EditorView(project: model.project, viewModel: model, usesNativeOrnaments: nativeOrnaments).theme(.adaEditor))
         container.frame = Rect(x: 0, y: 0, width: width, height: 900)
         container.bounds.size = container.frame.size
         await settle(container)

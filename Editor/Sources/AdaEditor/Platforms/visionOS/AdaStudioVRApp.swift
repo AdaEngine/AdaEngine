@@ -14,7 +14,7 @@
         @SwiftUI.State private var immersion: ImmersionStyle = .full
         var body: some SwiftUI.Scene {
             SwiftUI.WindowGroup("Ada Studio VR", id: "studio-toolbar") {
-                EditorVRWorkspaceShell(session: session)
+                EditorVRWorkspaceShell(session: session, immersion: $immersion)
             }
             .defaultSize(width: 1024, height: 700)
             .windowStyle(.plain)
@@ -56,7 +56,7 @@
                 CompositorLayer(configuration: ImmersiveLayerConfiguration()) { layer in
                     Task { @MainActor in await session.run(layer: layer) }
                 }
-            }.immersionStyle(selection: $immersion, in: .full).upperLimbVisibility(.visible)
+            }.immersionStyle(selection: $immersion, in: .full, .mixed).upperLimbVisibility(session.workspace.isPalmMenuVisible ? .hidden : .automatic)
         }
 
         private func studioWindow(_ panel: EditorVRPanel, title: String, width: Double, height: Double) -> some SwiftUI.Scene {
@@ -103,8 +103,9 @@
                         workspace: session.workspace,
                         openProject: { session.importsProject = true },
                         createProject: session.createProject,
-                        enter: { session.requestsEntry = true },
+                        enter: { session.requestImmersion() },
                         leave: { session.requestsLeave = true },
+                        enterMixed: { session.requestImmersion(.mixed) },
                         openPanel: { session.requestedPanel = $0 }
                     )
                 }
@@ -140,7 +141,8 @@
         var requestedPanel: EditorVRPanel?
         var requestedProject: EditorProjectReference?
         var importsProject = false
-        var requestsEntry = false
+        private(set) var immersionState = EditorVRImmersionState()
+        var requestsEntry: Bool { immersionState.requestsEntry }
         var requestsLeave = false
         @ObservationIgnored private var renderer: AdaImmersiveRenderer?
         @ObservationIgnored private let desktopInput = EditorVRDesktopInput()
@@ -152,6 +154,12 @@
             ProjectEditorLauncher.nativeWelcomeOpener = { [weak self] create in self?.requestedWelcome = create }
         }
 
+        func requestImmersion(_ mode: EditorVRImmersionMode = .full) {
+            immersionState.request(mode, allowed: workspace.document != nil && !workspace.isOpening && !workspace.isImmersed)
+        }
+
+        func finishEntryAttempt() { immersionState.finishEntryAttempt() }
+
         func run(layer: LayerRenderer) async {
             guard renderer == nil, workspace.document != nil else {
                 needsDismissal = true
@@ -159,6 +167,7 @@
             }
             workspace.isOpening = true
             let host = AdaImmersiveRenderer(layerRenderer: layer, assetBundle: .editor)
+            host.preservesPassthrough = immersionState.mode.preservesPassthrough
             renderer = host
             host.placeViewer(at: [0, 1.6, -1.5])
             workspace.runtimeAccess = { [weak host] action in host?.performWorldAccess(action) }

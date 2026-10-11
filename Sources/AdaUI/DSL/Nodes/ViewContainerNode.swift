@@ -410,7 +410,9 @@ class ViewContainerNode: ViewNode {
     override func didMove(to parent: ViewNode?) {
         super.didMove(to: parent)
         if parent == nil {
-            for node in nodes {
+            // A retained content proxy may already belong to the replacement
+            // hierarchy. Retiring this container must not detach its new owner.
+            for node in nodes where node.parent === self {
                 node.parent = nil
             }
         } else {

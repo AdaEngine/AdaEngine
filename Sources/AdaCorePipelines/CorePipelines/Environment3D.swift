@@ -121,6 +121,40 @@ public struct Environment3D: Codable, Sendable {
     public var meshVisibility: MeshVisibilitySettings3D
     public var localShadows: LocalShadowSettings3D = LocalShadowSettings3D()
 
+    /// Flat reflected controls for script and inspector access to render quality settings.
+    public var shadowsEnabled: Bool {
+        get { shadows.isEnabled }
+        set { shadows.isEnabled = newValue }
+    }
+    public var shadowCascadeCount: Int {
+        get { shadows.cascadeCount }
+        set { shadows.cascadeCount = min(max(newValue, 1), 3) }
+    }
+    public var ambientOcclusionEnabled: Bool {
+        get { ambientOcclusion.isEnabled }
+        set { ambientOcclusion.isEnabled = newValue }
+    }
+    public var fxaaEnabled: Bool {
+        get { antiAliasing == .fxaa }
+        set { antiAliasing = newValue ? .fxaa : .none }
+    }
+    public var frustumCullingEnabled: Bool {
+        get { meshVisibility.frustumCulling }
+        set { meshVisibility.frustumCulling = newValue }
+    }
+    public var meshLODEnabled: Bool {
+        get { meshVisibility.lod }
+        set { meshVisibility.lod = newValue }
+    }
+    public var gpuOcclusionEnabled: Bool {
+        get { meshVisibility.gpuOcclusion }
+        set { meshVisibility.gpuOcclusion = newValue }
+    }
+    public var localShadowsEnabled: Bool {
+        get { localShadows.isEnabled }
+        set { localShadows.isEnabled = newValue }
+    }
+
     public init(
         skybox: Skybox3D = Skybox3D(),
         screenSpaceReflection: ScreenSpaceReflection = ScreenSpaceReflection(),

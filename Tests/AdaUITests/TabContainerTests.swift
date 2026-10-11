@@ -74,6 +74,44 @@ private struct CollapsibleTabContainerRoot: View {
     }
 }
 
+private struct NavigatingHomeTabRoot: View {
+    @State var path = NavigationPath()
+    @State var selected = 0
+
+    var body: some View {
+        TabView(selection: $selected) {
+            Tab("Studio", value: 0) {
+                NavigationStack(path: $path) {
+                    Button("Projects") {}
+                        .frame(width: 220, height: 48)
+                        .accessibilityIdentifier("home-projects")
+                        .navigationTitle("Studio")
+                        .navigate(for: String.self) { _ in
+                            Button("Chat") {}
+                                .frame(width: 220, height: 48)
+                                .accessibilityIdentifier("project-chat")
+                                .navigationTitle("Project")
+                        }
+                }
+            }
+            Tab("Community", value: 1) { Text("Community") }
+        }
+        .tabViewStyle(NavigatingGlassTabStyle(showsTabBar: path.isEmpty))
+    }
+}
+
+private struct NavigatingGlassTabStyle: TabViewStyle {
+    let showsTabBar: Bool
+    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
+        if showsTabBar {
+            LiquidGlassTabBarStyle().makeBody(configuration: configuration)
+                .accessibilityIdentifier("home-tab-bar")
+        } else {
+            configuration.content
+        }
+    }
+}
+
 private struct StatefulTabContainerTestStyle: TabViewStyle {
     func makeBody(configuration: Configuration) -> some View {
         StatefulTabContainerTestBody(configuration: configuration)
@@ -144,6 +182,26 @@ struct TabContainerTests {
     }
 
     // MARK: - TabView switching
+
+    @Test
+    func navigationPopRestoresDrawnHomeContentAfterTabStyleChanges() async {
+        let root = NavigatingHomeTabRoot()
+        let size = Size(width: 390, height: 844)
+        let tester = ViewTester(rootView: root).setSize(size).performLayout()
+        let bounds = Rect(origin: .zero, size: size)
+        #expect(tester.collectHitAccessibilityIdentifiers(in: bounds).contains("home-projects"))
+        for _ in 0..<3 {
+            withAnimation(.easeInOut(duration: 0.28)) { root.path.append("project") }
+            await Task.yield()
+            tester.advanceFrame(deltaTime: 0.4).performLayout()
+            #expect(tester.collectHitAccessibilityIdentifiers(in: bounds).contains("project-chat"))
+            root.path.removeLast()
+            await Task.yield()
+            tester.advanceFrame(deltaTime: 0.4).performLayout()
+            #expect(tester.collectHitAccessibilityIdentifiers(in: bounds).contains("home-projects"))
+            #expect(tester.findNodeByAccessibilityIdentifier("home-tab-bar") != nil)
+        }
+    }
 
     @Test
     func customStyleCanHideAndRestoreTabBarWithoutLosingContent() async throws {

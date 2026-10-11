@@ -48,7 +48,7 @@ final class EditorVRGizmoController {
         if var grab {
             if let grip = input.grips.first(where: { $0.interactor == grab.interactor }) {
                 let delta = (grab.camera.inverse * Vector4(grip.pose.origin - grab.startPose, 0)).xyz
-                let pixels = Vector2(delta.x, -delta.y) / (grab.drag.gizmo.worldLength / 80)
+                let pixels = Vector2(delta.x, -delta.y) / grab.drag.gizmo.worldUnitsPerPixel
                 grab.result = grab.drag.updated(at: grab.drag.start + pixels)
                 self.grab = grab
                 input.grips.removeAll { $0.interactor == grab.interactor }
@@ -123,7 +123,13 @@ final class EditorVRGizmoController {
         else {
             return nil
         }
-        return EditorTransformGizmo(tool: tool, transform: transform, parent: Self.parentMatrix(owner), camera: camera, size: size, is2D: false)
+        return EditorTransformGizmo(tool: tool, transform: transform, parent: Self.parentMatrix(owner), camera: camera, size: size, is2D: false, screenScale: Self.screenScale(for: size))
+    }
+
+    /// Immersive eye targets use display pixels, so a desktop-sized handle is too small.
+    /// Keep the axes near ten percent of the smaller eye dimension, with a 200-pixel minimum.
+    static func screenScale(for size: Size) -> Float {
+        max(2.5, min(size.width, size.height) / 800)
     }
 
     private func selectionPoint(_ grip: SpatialGrip, gizmo: EditorTransformGizmo, camera: Transform) -> Vector2? {

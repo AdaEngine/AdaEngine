@@ -1,5 +1,6 @@
 import AdaInput
 import Gravity
+import Math
 
 /// A callback-scoped input snapshot. Access and invalidation are serialized by AdaScriptRuntimeCoordinator.
 @GSExportable("AdaInputActions")
@@ -19,6 +20,9 @@ final class AdaScriptInputBridge: @unchecked Sendable, AdaScriptNonSendableBridg
     func isActionJustPressed(_ name: String) -> Bool { snapshot?.isActionJustPressed(name) ?? false }
     func isActionJustReleased(_ name: String) -> Bool { snapshot?.isActionJustReleased(name) ?? false }
     func getActionStrength(_ name: String) -> Double { Double(snapshot?.getActionStrength(name) ?? 0) }
+    /// Pointer coordinates in the active window; zero after this callback's lease expires.
+    var mouseX: Double { Double(snapshot?.getMousePosition().x ?? 0) }
+    var mouseY: Double { Double(snapshot?.getMousePosition().y ?? 0) }
 
     @GSExportableIgnore
     func invalidate() { snapshot = nil }

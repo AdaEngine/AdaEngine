@@ -59,6 +59,7 @@ struct EditorAdaScriptProjectRuntimeView: View {
             ZStack {
                 SceneView(
                     isInteractive: controls?.inputEnabled ?? true,
+                    useSceneCameras: artifact.plugins.contains(.core3D),
                     make: { app in
                         configureRuntime(&app)
                     },

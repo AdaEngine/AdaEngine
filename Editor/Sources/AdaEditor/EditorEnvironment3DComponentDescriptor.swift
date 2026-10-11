@@ -110,7 +110,17 @@ extension EditorComponentRegistry {
             intensity: Float(root.value(at: ["screenSpaceReflection", "intensity"][...])?.doubleValue ?? Double(defaults.screenSpaceReflection.intensity)),
             edgeFade: Float(root.value(at: ["screenSpaceReflection", "edgeFade"][...])?.doubleValue ?? Double(defaults.screenSpaceReflection.edgeFade))
         )
-        var result = Environment3D(skybox: skybox, screenSpaceReflection: reflection)
+        var serialized = payload
+        serialized.removeValue(forKey: "skybox")
+        serialized.removeValue(forKey: "screenSpaceReflection")
+        // Decode the remaining portable quality and IBL settings rather than silently dropping them.
+        var result = try EditorComponentPayloadDecoder.decode(Environment3D.self, payload: serialized) as! Environment3D
+        result.skybox = skybox
+        result.screenSpaceReflection = reflection
+        if let reference = payload["imageBasedLightingSource"]?.stringValue, !reference.isEmpty {
+            let asset = try AssetsManager.loadSync(ImageBasedLighting3D.self, at: reference)
+            result.imageBasedLighting = ImageBasedLightingSettings(asset: asset, intensity: Float(payload["imageBasedLightingIntensity"]?.doubleValue ?? 1))
+        }
         result.localShadows = LocalShadowSettings3D(
             isEnabled: root.value(at: ["localShadows", "isEnabled"][...])?.boolValue ?? defaults.localShadows.isEnabled,
             maximumLights: Int(root.value(at: ["localShadows", "maximumLights"][...])?.doubleValue ?? Double(defaults.localShadows.maximumLights))

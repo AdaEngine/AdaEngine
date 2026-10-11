@@ -9,7 +9,8 @@
     @available(visionOS 26.0, *)
     struct EditorVRWorkspaceShell: SwiftUI.View {
         let session: EditorVRSession
-        @SwiftUI.State private var wideResizeRequest = 0
+        @SwiftUI.Binding var immersion: ImmersionStyle
+        @SwiftUI.State private var windowGeometry = EditorVRWindowGeometry()
         @SwiftUI.Environment(\.openImmersiveSpace) private var openSpace
         @SwiftUI.Environment(\.dismissImmersiveSpace) private var dismissSpace
         @SwiftUI.Environment(\.openWindow) private var openWindow
@@ -44,13 +45,23 @@
                 minHeight: minimumWindowHeight, idealHeight: windowHeight, maxHeight: maximumWindowHeight
             )
             .background {
-                EditorVRWindowResize(request: wideResizeRequest, size: CGSize(width: 2200, height: 900),
-                    onError: { session.workspace.message = $0.localizedDescription })
+                EditorVRWindowResize(request: windowGeometry.request,
+                    size: CGSize(width: Double(windowGeometry.requestedSize.width), height: Double(windowGeometry.requestedSize.height)),
+                    onError: {
+                        windowGeometry.rejectRequest()
+                        session.workspace.message = $0.localizedDescription
+                    })
                     .frame(width: 0, height: 0)
+            }
+            .onGeometryChange(for: CGSize.self) { $0.size } action: {
+                windowGeometry.observe(Size(width: Float($0.width), height: Float($0.height)))
+            }
+            .onChange(of: windowPresentation) { _, presentation in
+                windowGeometry.transition(to: presentation)
             }
             .glassBackgroundEffect(in: SwiftUI.RoundedRectangle(cornerRadius: 28))
             .modifier(EditorVRStudioOrnaments(workspace: session.workspace, visible: !session.workspace.isImmersed,
-                resize: { wideResizeRequest += 1 }, enter: { session.requestsEntry = true }))
+                resize: { windowGeometry.wide() }, enter: { session.requestImmersion($0) }))
             .ornament(visibility: session.workspace.isImmersed ? .visible : .hidden,
                 attachmentAnchor: .scene(.bottom), contentAlignment: .top) {
                 SwiftUI.Button {
@@ -148,7 +159,7 @@
                 if requested {
                     Task { @MainActor in
                         await enter()
-                        session.requestsEntry = false
+                        session.finishEntryAttempt()
                     }
                 }
             }
@@ -177,12 +188,11 @@
             .onChange(of: scenePhase) { _, phase in if phase == .background { session.stop() } }
         }
 
-        private var windowWidth: Double {
-            session.workspace.isImmersed ? 824 : session.workspace.project == nil ? 1024 : 1600
+        private var windowPresentation: EditorVRWindowGeometry.Presentation {
+            session.workspace.isImmersed ? .dock : session.workspace.project == nil ? .chooser : .studio
         }
-        private var windowHeight: Double {
-            session.workspace.isImmersed ? 132 : session.workspace.project == nil ? 700 : 900
-        }
+        private var windowWidth: Double { Double(windowGeometry.size(for: windowPresentation).width) }
+        private var windowHeight: Double { Double(windowGeometry.size(for: windowPresentation).height) }
 
         private var minimumWindowWidth: Double { session.workspace.isImmersed ? 824 : session.workspace.project == nil ? 900 : 1000 }
         private var maximumWindowWidth: Double { session.workspace.isImmersed ? 824 : session.workspace.project == nil ? 1600 : 2800 }
@@ -223,7 +233,10 @@
             guard session.workspace.document != nil, !session.workspace.isOpening, !session.workspace.isImmersed else {
                 return
             }
+            immersion = session.immersionState.mode == .full ? .full : .mixed
             session.workspace.isOpening = true
+            // Apply the selected style to the native scene before asking it to open.
+            await Task.yield()
             switch await openSpace(id: "studio-scene") {
             case .opened: break
             case .userCancelled: session.workspace.isOpening = false

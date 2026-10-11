@@ -7,25 +7,29 @@
         let workspace: EditorVRWorkspace
         let visible: Bool
         let resize: () -> Void
-        let enter: (() -> Void)?
+        let enter: ((EditorVRImmersionMode) -> Void)?
         private var visibility: SwiftUI.Visibility { visible && workspace.studio != nil ? .visible : .hidden }
+
+        private var editorVisibility: SwiftUI.Visibility {
+            visible && workspace.studio?.interface.mode == .editor ? .visible : .hidden
+        }
 
         func body(content: Content) -> some SwiftUI.View {
             content
                 .ornament(visibility: visibility, attachmentAnchor: .scene(.bottom), contentAlignment: .top) {
                     EditorVRWindowActions(workspace: workspace, resize: resize, enter: enter).padding(.top, 16)
                 }
-                .ornament(visibility: visibility, attachmentAnchor: .scene(.leading), contentAlignment: .trailing) {
+                .ornament(visibility: editorVisibility, attachmentAnchor: .scene(.leading), contentAlignment: .trailing) {
                     if let editor = workspace.studio {
                         EditorVRPanelTabs(editor: editor, workspace: workspace, side: .leading).padding(.trailing, 14)
                     }
                 }
-                .ornament(visibility: visibility, attachmentAnchor: .scene(.trailing), contentAlignment: .leading) {
+                .ornament(visibility: editorVisibility, attachmentAnchor: .scene(.trailing), contentAlignment: .leading) {
                     if let editor = workspace.studio {
                         EditorVRPanelTabs(editor: editor, workspace: workspace, side: .trailing).padding(.leading, 14)
                     }
                 }
-                .ornament(visibility: visibility, attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
+                .ornament(visibility: editorVisibility, attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
                     if let editor = workspace.studio {
                         EditorVRDocumentTabs(editor: editor).padding(.bottom, 16)
                     }
@@ -37,7 +41,7 @@
         @SwiftUI.Environment(\.openWindow) private var openWindow
         let workspace: EditorVRWorkspace
         let resize: () -> Void
-        let enter: (() -> Void)?
+        let enter: ((EditorVRImmersionMode) -> Void)?
 
         var body: some SwiftUI.View {
             SwiftUI.HStack(spacing: 12) {
@@ -50,11 +54,16 @@
                 }.accessibilityLabel("Open Ada bubble").accessibilityIdentifier("AdaEditor.VR.OpenVoiceBubble")
                 if let enter {
                     SwiftUI.Divider().frame(height: 24)
-                    SwiftUI.Button(action: enter) {
+                    SwiftUI.Button { enter(.full) } label: {
                         SwiftUI.Label(workspace.isOpening ? "Entering…" : "Enter Immersive", systemImage: "visionpro")
                     }
                     .disabled(workspace.document == nil || workspace.isOpening)
                     .accessibilityIdentifier("AdaEditor.VR.Enter")
+                    SwiftUI.Button { enter(.mixed) } label: {
+                        SwiftUI.Label("Mixed", systemImage: "person.crop.rectangle")
+                    }
+                    .disabled(workspace.document == nil || workspace.isOpening)
+                    .accessibilityIdentifier("AdaEditor.VR.EnterMixed")
                 }
             }.buttonStyle(.borderless).controlSize(.large).padding(12)
                 .glassBackgroundEffect(in: SwiftUI.Capsule())
