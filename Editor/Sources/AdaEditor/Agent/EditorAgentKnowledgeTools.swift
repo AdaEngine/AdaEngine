@@ -13,10 +13,10 @@ enum EditorAgentKnowledgeTools {
                 "Read registered component names, required components, fields, and complete default YAML payloads.",
                 ["query": query]
             ),
-            EditorMobileAgentTools.tool("editor.skills.list", "List bundled Ada Studio workflow skill descriptions. Load a matching skill with editor.skills.read.", ["query": query]),
+            EditorMobileAgentTools.tool("editor.skills.list", "Find available workflow skills by description. Load matching instructions with editor.skills.read.", ["query": query]),
             EditorMobileAgentTools.tool(
                 "editor.skills.read",
-                "Read a bundled workflow skill by ID, including 3D import, PBR lighting and animation guidance.",
+                "Read an available workflow skill by its catalog ID.",
                 ["id": .object(["type": "string"])],
                 ["id"]
             ),

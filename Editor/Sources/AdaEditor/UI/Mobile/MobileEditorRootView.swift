@@ -571,7 +571,8 @@ struct MobileEditorRootView: View {
                         }
                         let image = try await capture.nextFrame()
                         return try EditorImageAttachment.encodePNG(image)
-                    }
+                    },
+                    harnessSettings: runSettings
                 )
                 defer { toolService.finish() }
                 sloppyRuntime = SloppyRuntimeHost(additionalTools: try MobileEditorAgentToolBridge.definitions())

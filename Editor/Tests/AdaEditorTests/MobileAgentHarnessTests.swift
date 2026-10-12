@@ -18,15 +18,44 @@ struct MobileAgentHarnessTests {
         let reloaded = MobileAgentHarnessStore(directoryURL: directory.appendingPathComponent("store"))
         #expect(reloaded.errorMessage == nil)
         #expect(reloaded.settings.installedSkills.first?.summary == "Design compact levels")
-        #expect(reloaded.settings.prompt("Create a maze").contains(content))
+        #expect(!reloaded.settings.prompt("Create a maze").contains(content))
+        #expect(reloaded.settings.prompt("Create a maze").contains(skill.toolID))
         try reloaded.setEnabled(false, skillID: skill.id)
         let disabled = MobileAgentHarnessStore(directoryURL: directory.appendingPathComponent("store"))
         #expect(!disabled.settings.prompt("Create a maze").contains(content))
+        #expect(!disabled.settings.prompt("Create a maze").contains(skill.toolID))
         try disabled.setEnabled(true, skillID: skill.id)
-        #expect(disabled.settings.prompt("Create a maze").contains(content))
+        #expect(disabled.settings.prompt("Create a maze").contains(skill.toolID))
         try disabled.remove(skillID: skill.id)
         #expect(disabled.settings.installedSkills.isEmpty)
         #expect(MobileAgentHarnessStore(directoryURL: directory.appendingPathComponent("store")).settings.installedSkills.isEmpty)
+    }
+
+    @Test("A maximum-size installed skill library does not inflate ordinary or repair requests")
+    func largeSkillCatalog() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = MobileAgentHarnessStore(directoryURL: directory)
+        var settings = store.settings
+        settings.installedSkills = (0..<4).map { index in
+            .init(
+                id: "large-\(index)",
+                name: String(repeating: "Name ", count: 1000),
+                summary: String(repeating: "Description\n", count: 1000),
+                content: String(repeating: "x", count: 64 * 1024)
+            )
+        }
+        try store.save(settings)
+        let reloaded = MobileAgentHarnessStore(directoryURL: directory).settings
+        for request in ["привет", "[Automatic validation feedback]\nFix build errors."] {
+            let prompt = MobileEditorAgentContext.prompt(reloaded.prompt(request), visiblePrompt: request)
+            #expect(prompt.utf8.count < 4_000)
+            for skill in reloaded.installedSkills {
+                #expect(prompt.contains(skill.toolID))
+                #expect(!prompt.contains(skill.content))
+            }
+            #expect(MobileEditorAgentContext.visibleText(prompt) == request)
+        }
     }
 
     @Test("Loop settings and instructions survive relaunch and stay present on repair turns")

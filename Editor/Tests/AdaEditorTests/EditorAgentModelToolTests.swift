@@ -28,7 +28,10 @@ struct EditorAgentModelToolTests {
         #expect((content["content"] as? String)?.contains("editor.model.inspect") == true)
         let mobileResult = await EditorMobileAgentToolService(projectURL: root).handle(name: "editor.skills.read", arguments: ["id": "ada-3d-assets"])
         #expect(mobileResult.ok, "\(mobileResult.payload)")
-        #expect(MobileAgentHarnessSettings().prompt("Import a robot").contains("ada-3d-assets"))
+        #expect(MobileAgentHarnessSettings().prompt("Import a robot").contains("editor.skills.list"))
+        let mobileSkills = await EditorMobileAgentToolService(projectURL: root).handle(name: "editor.skills.list", arguments: ["query": "3D"])
+        #expect(mobileSkills.ok)
+        #expect(mobileSkills.payload.contains("ada-3d-assets"))
         #expect(!MobileAgentHarnessSettings().prompt("Import a robot").contains("# Ada Studio 3D Assets"))
     }
 

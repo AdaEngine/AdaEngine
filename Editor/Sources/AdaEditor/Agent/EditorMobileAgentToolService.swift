@@ -14,6 +14,7 @@ final class EditorMobileAgentToolService {
     private let capturePlay: (@MainActor () async throws -> Data)?
     private let assetTools: EditorAgentAssetToolService
     private let webTools: EditorAgentWebToolService
+    private let harnessSettings: MobileAgentHarnessSettings
     private var runtime: EditorAgentSimulation?
     private var entries: [[String: Any]] = []
     private var cursor = 0
@@ -26,7 +27,8 @@ final class EditorMobileAgentToolService {
         imageClient: any EditorImageGenerationHTTPClient = EditorImageHTTPClient(),
         imageAnalyzer: (@MainActor ([URL], String) async throws -> String)? = nil,
         capturePlay: (@MainActor () async throws -> Data)? = nil,
-        webClient: any EditorWebHTTPClient = EditorWebURLSessionClient()
+        webClient: any EditorWebHTTPClient = EditorWebURLSessionClient(),
+        harnessSettings: MobileAgentHarnessSettings = .init()
     ) {
         self.projectURL = projectURL.resolvingSymlinksInPath().standardizedFileURL
         self.liveDiagnostics = liveDiagnostics
@@ -34,6 +36,7 @@ final class EditorMobileAgentToolService {
         self.capturePlay = capturePlay
         self.assetTools = EditorAgentAssetToolService(projectURL: projectURL, credentials: imageCredentials, imageClient: imageClient, analyzeImage: imageAnalyzer)
         self.webTools = EditorAgentWebToolService(projectURL: projectURL, client: webClient)
+        self.harnessSettings = harnessSettings
         EditorComponentRegistry.registerBuiltIns()
     }
 
@@ -128,8 +131,24 @@ final class EditorMobileAgentToolService {
             return try diagnostics(path: arguments["path"]?.stringValue)
         case "editor.gravity.completion", "editor.gravity.hover", "editor.gravity.definition":
             return try languageQuery(name: name, arguments: arguments)
+        case "editor.skills.list":
+            var result = try EditorAgentKnowledge.query(name: name, arguments: arguments)
+            let query = arguments["query"]?.stringValue ?? ""
+            let mobileSkills = availableMobileSkills.filter { entry in
+                query.split(whereSeparator: \.isWhitespace).allSatisfy { word in
+                    (entry.id + " " + entry.skill.name + " " + entry.skill.summary).localizedCaseInsensitiveContains(String(word))
+                }
+            }.map { ["id": $0.id, "name": $0.skill.catalogName, "description": $0.skill.catalogSummary] }
+            result["skills"] = (result["skills"] as? [[String: String]] ?? []) + mobileSkills
+            return result
+        case "editor.skills.read":
+            let id = try requiredString("id", arguments)
+            if let entry = availableMobileSkills.first(where: { $0.id == id }) {
+                return ["id": id, "content": entry.skill.content]
+            }
+            return try EditorAgentKnowledge.query(name: name, arguments: arguments)
         case "editor.docs.search", "editor.docs.read", "editor.api.describe", "editor.components.describe",
-             "editor.examples.list", "editor.examples.read", "editor.skills.list", "editor.skills.read":
+             "editor.examples.list", "editor.examples.read":
             return try EditorAgentKnowledge.query(name: name, arguments: arguments)
         case "editor.community.submit":
             return try await EditorAgentPublicationTools.submit(projectURL: projectURL, arguments: arguments)
@@ -195,6 +214,11 @@ final class EditorMobileAgentToolService {
             guard EditorAgentAssetTools.tools().contains(where: { $0.name == name }) else { throw ToolError("Unknown mobile editor tool: \(name)") }
             return try await assetTools.execute(name: name, arguments: arguments)
         }
+    }
+
+    private var availableMobileSkills: [(id: String, skill: MobileAgentHarnessSkill)] {
+        MobileEditorAgentContext.workflowSkills.map { (id: $0.id, skill: $0) }
+            + harnessSettings.enabledSkills.map { (id: $0.toolID, skill: $0) }
     }
 
     private func refreshWorkspace() {

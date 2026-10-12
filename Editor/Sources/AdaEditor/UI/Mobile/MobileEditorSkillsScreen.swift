@@ -11,7 +11,9 @@ struct MobileEditorSkillsScreen: View {
     var body: some View {
         MobileEditorPageScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                detail("Enabled skills are included in every agent run. Import a standalone SKILL.md or Markdown file from Files. Supporting scripts and folders are not imported.")
+                detail("""
+                The agent reads enabled skills when needed. Import SKILL.md or a Markdown file from Files. Supporting scripts and folders are not imported.
+                """)
                 MobileEditorPrimaryButton(title: "Install skill from Files", action: install)
                     .disabled(isBusy)
                     .accessibilityIdentifier("AdaEditor.Mobile.InstallSkill")

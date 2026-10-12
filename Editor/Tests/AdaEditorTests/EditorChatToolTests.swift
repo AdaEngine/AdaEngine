@@ -219,7 +219,7 @@ struct EditorChatToolTests {
     }
 
     @Test func mobileContextAdvertisesCardsAndSceneSnapshotTools() async throws {
-        #expect(MobileEditorAgentContext.prompt("Make a color tool").contains("editor.scene.setColor"))
+        #expect(MobileEditorAgentContext.prompt("Make a color tool").contains("mobile-chat-ui"))
         let action = A2UIClientEvent(envelope: .object(["action": .object(["name": .string("generate_preview")])]))
         let prompt = MobileEditorAgentContext.prompt("Submitted color tool", visiblePrompt: "Submitted color tool", a2uiAction: action)
         #expect(prompt.contains("[A2UI user action]"))
@@ -227,7 +227,12 @@ struct EditorChatToolTests {
         #expect(EditorMobileAgentTools.tools().contains { $0.name == "editor.scene.get" })
         let fixture = try fixture()
         defer { try? FileManager.default.removeItem(at: fixture.root) }
-        let result = await EditorMobileAgentToolService(projectURL: fixture.root).handle(name: "editor.scene.get", arguments: ["path": .string(Self.path)])
+        let service = EditorMobileAgentToolService(projectURL: fixture.root)
+        let protocolResult = await service.handle(name: "editor.skills.read", arguments: ["id": "mobile-chat-ui"])
+        #expect(protocolResult.ok)
+        #expect(protocolResult.payload.contains("editor.scene.setColor"))
+        #expect(protocolResult.payload.contains("createSurface"))
+        let result = await service.handle(name: "editor.scene.get", arguments: ["path": .string(Self.path)])
         #expect(result.ok)
         #expect(result.payload.contains(fixture.revision))
     }

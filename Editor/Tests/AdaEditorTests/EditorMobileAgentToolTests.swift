@@ -9,6 +9,39 @@ import AdaEngine
 @MainActor
 @Suite("Mobile agent tools", .serialized)
 struct EditorMobileAgentToolTests {
+    @Test("Enabled mobile skills are readable on demand from the run snapshot without shadowing bundled skills")
+    func mobileSkills() async throws {
+        let root = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = MobileAgentHarnessStore(directoryURL: root.appendingPathComponent("Harness"))
+        let file = root.appendingPathComponent("SKILL.md")
+        let content = "---\nname: maze-layout\ndescription: Design compact maze levels\n---\nUse three rooms and one goal."
+        try content.write(to: file, atomically: true, encoding: .utf8)
+        let imported = try store.install(from: file)
+        try FileManager.default.removeItem(at: file)
+        var settings = store.settings
+        settings.installedSkills.append(.init(id: "ada-game-builder", name: "Custom builder", summary: "Custom workflow", content: "Custom instructions"))
+        let service = EditorMobileAgentToolService(projectURL: root, harnessSettings: settings)
+        let list = try await call(service, "editor.skills.list", ["query": "MAZE levels"])
+        #expect((list["skills"] as? [[String: String]])?.map { $0["id"] } == [imported.toolID])
+        let read = try await call(service, "editor.skills.read", ["id": .string(imported.toolID)])
+        #expect(read["content"] as? String == content)
+        let bundled = try await call(service, "editor.skills.read", ["id": "ada-game-builder"])
+        #expect(bundled["content"] as? String != "Custom instructions")
+        let custom = try await call(service, "editor.skills.read", ["id": "mobile:ada-game-builder"])
+        #expect(custom["content"] as? String == "Custom instructions")
+        settings.disabledSkillIDs.insert(imported.id)
+        let disabled = EditorMobileAgentToolService(projectURL: root, harnessSettings: settings)
+        #expect(!(await disabled.handle(name: "editor.skills.read", arguments: ["id": .string(imported.toolID)])).ok)
+        #expect((try await call(service, "editor.skills.read", ["id": .string(imported.toolID)]))["content"] as? String == content)
+        let nextList = try await call(disabled, "editor.skills.list", ["query": "maze"])
+        #expect((nextList["skills"] as? [[String: String]])?.isEmpty == true)
+        for workflow in MobileEditorAgentContext.workflowSkills {
+            let result = try await call(service, "editor.skills.read", ["id": .string(workflow.id)])
+            #expect(result["content"] as? String == workflow.content)
+        }
+    }
+
     @Test("Embedded LSP reports current files, repairs and cross-file definitions")
     func languageFeedback() async throws {
         let root = try fixture()

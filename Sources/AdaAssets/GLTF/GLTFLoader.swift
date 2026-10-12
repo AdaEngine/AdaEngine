@@ -185,20 +185,20 @@ public struct GLTFImportResult: Sendable {
     }
 }
 
-/// A resolver for the GLTFLoader.
+/// Supplies the native glTF loader before rendering plugins start, with support for custom loaders.
+/// Loader selection is synchronized; a returned loader remains valid while a new one is installed.
 public final class GLTFLoaderResolver: @unchecked Sendable {
     public static let shared = GLTFLoaderResolver()
 
-    private var loader: (any GLTFLoader)?
+    // The lock protects loader selection. Loading runs outside it through a Sendable snapshot.
+    private let lock = NSLock()
+    private var loader: any GLTFLoader = NativeGLTFLoader()
 
     public func setLoader(_ loader: any GLTFLoader) {
-        self.loader = loader
+        lock.withLock { self.loader = loader }
     }
 
     public func getLoader() -> any GLTFLoader {
-        guard let loader else {
-            fatalError("GLTFLoader is not set. Please set a loader using GLTFLoaderResolver.shared.setLoader(_:)")
-        }
-        return loader
+        lock.withLock { loader }
     }
 }

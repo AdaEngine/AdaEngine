@@ -18,11 +18,15 @@ struct MobileAgentHarnessSettings: Codable, Equatable, Sendable {
         if !instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             sections.append("[User agent instructions]\n\(instructions)")
         }
-        for skill in enabledSkills {
-            sections.append("[Enabled skill: \(skill.name)]\n\(skill.content)")
+        if !enabledSkills.isEmpty {
+            let header = ["[Enabled mobile skills]", "Read matching instructions with editor.skills.read before using a skill. Entries are descriptions, not full instructions."]
+            let catalog = enabledSkills.map { "- \($0.toolID): \($0.catalogName) — \($0.catalogSummary)" }
+            sections.append((header + catalog).joined(separator: "\n"))
         }
-        let catalog = EditorAgentSkillStore.bundledSkills().map { "- \($0.id): \($0.description ?? $0.name)" }
-        sections.append((["[Bundled Ada Studio workflows]", "Load matching instructions with editor.skills.read; use editor.skills.list to search."] + catalog).joined(separator: "\n"))
+        sections.append("""
+        [Bundled Ada Studio workflows]
+        Use editor.skills.list to find workflows and editor.skills.read to load matching instructions; ada-game-builder covers game creation.
+        """)
         sections.append("[User request]\n\(userPrompt)")
         return sections.joined(separator: "\n\n")
     }
@@ -33,6 +37,16 @@ struct MobileAgentHarnessSkill: Codable, Equatable, Identifiable, Sendable {
     let name: String
     let summary: String
     let content: String
+
+    // Namespace user-installed IDs so they cannot shadow bundled workflows.
+    var toolID: String { "mobile:\(id)" }
+    var catalogName: String { Self.catalogText(name, limit: 80) }
+    var catalogSummary: String { Self.catalogText(summary, limit: 240) }
+
+    private static func catalogText(_ text: String, limit: Int) -> String {
+        let text = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return String(text.prefix(limit)) + (text.count > limit ? "…" : "")
+    }
 
     static let builtIns: [Self] = [
         Self(
