@@ -146,7 +146,7 @@
             workspace.setTextInputFocus(capturing || editingTranscript || showsSettings, host: EditorVRPanel.voice.windowID)
         }
         private func toggleListening() {
-            if capturing || voice.isSpeaking { voice.stop() } else if !working { voice.listen(initialText: draft.agent.prompt, onTranscript: { draft.receiveTranscript($0) }) }
+            if voice.isSpeaking { voice.stop() } else if capturing { voice.finishListening() } else if !working { voice.listen(initialText: draft.agent.prompt, onTranscript: { draft.receiveTranscript($0) }) }
         }
         private func send() {
             voice.stop()

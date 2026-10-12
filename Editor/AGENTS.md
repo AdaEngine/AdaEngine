@@ -338,7 +338,9 @@ Coverage: [EditorPublicationTests.swift](Tests/AdaEditorTests/EditorPublicationT
 Guide: [CommunityPublishing.md](Documentation/CommunityPublishing.md).
 
 iPhone has dedicated project/files/code/scene/Play/chat/activity/settings screens,
-image attachments, screenshot markup and voice input. The shared workspace and
+image attachments, screenshot markup and voice input. Dictation uses on-device
+`SpeechAnalyzer`/`SpeechTranscriber` on iOS/visionOS 26+ (language model downloads on
+first use) and falls back to `SFSpeechRecognizer` on older systems or unsupported locales. The shared workspace and
 mobile flow have separate implementations and tests.
 The iPhone project home and iPad launcher use Studio/Community tabs. Catalog,
 search, sorting, details, screenshots and navigation are shared AdaUI views under

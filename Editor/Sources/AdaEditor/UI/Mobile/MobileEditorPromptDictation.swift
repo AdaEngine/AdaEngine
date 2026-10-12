@@ -10,6 +10,8 @@ import UIKit
 final class MobileEditorPromptDictation {
     private(set) var isStarting = false
     private(set) var isRecording = false
+    /// True while the on-device language model is being fetched for the first dictation.
+    private(set) var isPreparingModel = false
     private(set) var audioLevel: Float = 0
     private(set) var errorMessage: String?
 
@@ -21,6 +23,7 @@ final class MobileEditorPromptDictation {
     private var sessionID = UUID()
     private var hasAudioTap = false
     private var hasAudioSession = false
+    private var analyzer: MobileEditorAnalyzerHandle?
     private var interruptionObserver: NSObjectProtocol?
     private var backgroundObserver: NSObjectProtocol?
 
@@ -50,13 +53,48 @@ final class MobileEditorPromptDictation {
                 self.fail("Allow Microphone access in Settings to dictate a prompt.")
                 return
             }
+            let deliver: @MainActor (String) -> Void = { transcript in
+                onTranscript(initialText.isEmpty ? transcript : initialText + " " + transcript)
+            }
             do {
-                try self.beginRecognition(id: id) { transcript in
-                    onTranscript(initialText.isEmpty ? transcript : initialText + " " + transcript)
+                if #available(iOS 26.0, visionOS 26.0, *), try await self.beginAnalyzerRecognition(id: id, onTranscript: deliver) {
+                    return
                 }
+                guard !Task.isCancelled, self.sessionID == id else {
+                    return
+                }
+                try self.beginRecognition(id: id, onTranscript: deliver)
             } catch {
                 self.fail(error.localizedDescription)
             }
+        }
+    }
+
+    /// Ends capture but lets the recognizer flush buffered audio, so the last words still arrive.
+    func finish() {
+        guard let analyzer, isRecording else {
+            stop()
+            return
+        }
+        let id = sessionID
+        audioEngine.stop()
+        if hasAudioTap {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasAudioTap = false
+        }
+        isRecording = false
+        audioLevel = 0
+        startTask = Task { @MainActor [weak self] in
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await analyzer.finish() }
+                group.addTask { try? await Task.sleep(for: .seconds(4)) }
+                await group.next()
+                group.cancelAll()
+            }
+            guard let self, self.sessionID == id else {
+                return
+            }
+            self.stop()
         }
     }
 
@@ -64,6 +102,8 @@ final class MobileEditorPromptDictation {
         sessionID = UUID()
         startTask?.cancel()
         startTask = nil
+        analyzer?.cancel()
+        analyzer = nil
         audioEngine.stop()
         if hasAudioTap {
             audioEngine.inputNode.removeTap(onBus: 0)
@@ -84,7 +124,74 @@ final class MobileEditorPromptDictation {
         backgroundObserver = nil
         isStarting = false
         isRecording = false
+        isPreparingModel = false
         audioLevel = 0
+    }
+
+    /// Returns false when the device has no on-device model for the locale (or it cannot be
+    /// installed), so the caller falls back to `SFSpeechRecognizer`.
+    @available(iOS 26.0, visionOS 26.0, *)
+    private func beginAnalyzerRecognition(id: UUID, onTranscript: @escaping @MainActor (String) -> Void) async throws -> Bool {
+        let session: MobileEditorSpeechAnalyzerSession?
+        do {
+            session = try await MobileEditorSpeechAnalyzerSession.prepare(locale: .autoupdatingCurrent) {
+                self.isPreparingModel = true
+            }
+        } catch {
+            isPreparingModel = false
+            return false
+        }
+        isPreparingModel = false
+        guard let session else {
+            return false
+        }
+        guard !Task.isCancelled, sessionID == id else {
+            return true
+        }
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try audioSession.setActive(true)
+        hasAudioSession = true
+
+        let input = audioEngine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            fail("The microphone is unavailable on this device.")
+            return true
+        }
+        let handle = session.start(
+            onText: { [weak self] text in
+                guard let self, self.sessionID == id else {
+                    return
+                }
+                onTranscript(text)
+            },
+            onFailure: { [weak self] message in
+                guard let self, self.sessionID == id else {
+                    return
+                }
+                self.fail(message)
+            }
+        )
+        analyzer = handle
+        let append = handle.append
+        input.installTap(onBus: 0, bufferSize: 2048, format: format) { @Sendable buffer, _ in
+            let level = append(buffer)
+            Task { @MainActor [weak self] in
+                guard let self, self.sessionID == id else {
+                    return
+                }
+                self.audioLevel = level
+            }
+        }
+        hasAudioTap = true
+        audioEngine.prepare()
+        try audioEngine.start()
+        isStarting = false
+        isRecording = true
+        interruptionObserver = stopOnNotification(AVAudioSession.interruptionNotification)
+        backgroundObserver = stopOnNotification(UIApplication.willResignActiveNotification)
+        return true
     }
 
     private func beginRecognition(id: UUID, onTranscript: @escaping @MainActor (String) -> Void) throws {

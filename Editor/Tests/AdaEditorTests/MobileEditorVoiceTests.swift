@@ -50,3 +50,23 @@ struct MobileEditorVoiceTests {
         EditorAgentEvent(kind: .message, message: EditorAgentMessage(role: role, segments: [.init(kind: .text, text: text)]))
     }
 }
+
+@Suite("Mobile editor transcript accumulator")
+struct MobileEditorTranscriptAccumulatorTests {
+    @Test("Volatile hypotheses are replaced and finals accumulate")
+    func accumulation() {
+        var accumulator = MobileEditorTranscriptAccumulator()
+        #expect(accumulator.apply("hel", isFinal: false) == "hel")
+        #expect(accumulator.apply("hello wor", isFinal: false) == "hello wor")
+        #expect(accumulator.apply("hello world", isFinal: true) == "hello world")
+        #expect(accumulator.apply("how are", isFinal: false) == "hello world how are")
+        #expect(accumulator.apply("how are you", isFinal: true) == "hello world how are you")
+    }
+
+    @Test("Existing whitespace is not doubled")
+    func whitespace() {
+        var accumulator = MobileEditorTranscriptAccumulator()
+        _ = accumulator.apply("Привет. ", isFinal: true)
+        #expect(accumulator.apply("Как дела", isFinal: false) == "Привет. Как дела")
+    }
+}

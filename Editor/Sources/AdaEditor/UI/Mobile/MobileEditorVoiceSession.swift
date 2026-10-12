@@ -50,6 +50,11 @@ final class MobileEditorVoiceSession: NSObject, AVSpeechSynthesizerDelegate {
         }
     }
 
+    /// User-initiated end of dictation: keeps the words still being recognized.
+    func finishListening() {
+        dictation.finish()
+    }
+
     func stop() {
         dictation.stop()
         stopSpeaking()

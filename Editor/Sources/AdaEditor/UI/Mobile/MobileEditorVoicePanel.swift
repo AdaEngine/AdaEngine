@@ -33,6 +33,9 @@ struct MobileEditorVoicePanel: View {
         if voice.isSpeaking {
             return "Ada is speaking…"
         }
+        if voice.dictation.isPreparingModel {
+            return "Downloading the speech model…"
+        }
         if voice.dictation.isStarting {
             return "Starting microphone…"
         }
@@ -166,8 +169,10 @@ struct MobileEditorVoicePanel: View {
     }
 
     private func toggleListening() {
-        if isCapturing || voice.isSpeaking {
+        if voice.isSpeaking {
             voice.stop()
+        } else if isCapturing {
+            voice.finishListening()
         } else if !isAgentRunning {
             listen()
         }
