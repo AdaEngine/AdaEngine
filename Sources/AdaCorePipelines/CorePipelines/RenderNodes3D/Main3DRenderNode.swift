@@ -267,22 +267,24 @@ public struct Main3DRenderNode: RenderNode {
             renderPass.setViewport(camera.viewport.rect)
 
             if !visibleItems.isEmpty {
-                if visibleItems.contains(where: { ($0.material as? PBRMaterial)?.alphaMode == .blend }) {
-                    let sorted = visibleItems.enumerated().sorted { left, right in
-                        let lhs = left.element
-                        let rhs = right.element
-                        let leftBlend = (lhs.material as? PBRMaterial)?.alphaMode == .blend
-                        let rightBlend = (rhs.material as? PBRMaterial)?.alphaMode == .blend
-                        if leftBlend != rightBlend {
-                            return !leftBlend
+                // Resolve blend state and view depth once per item instead of inside the comparator.
+                let blendFlags = visibleItems.map { ($0.material as? PBRMaterial)?.alphaMode == .blend }
+                if blendFlags.contains(true) {
+                    let viewMatrix = uniform.viewMatrix
+                    let keys: [(isBlend: Bool, depth: Float)] = visibleItems.indices.map { index in
+                        blendFlags[index] ? (true, (viewMatrix * visibleItems[index].worldTransform.w).z) : (false, 0)
+                    }
+                    let sorted = visibleItems.indices.sorted { left, right in
+                        let leftKey = keys[left]
+                        let rightKey = keys[right]
+                        if leftKey.isBlend != rightKey.isBlend {
+                            return !leftKey.isBlend
                         }
-                        if !leftBlend {
-                            return left.offset < right.offset
+                        if !leftKey.isBlend {
+                            return left < right
                         }
-                        let leftDepth = (uniform.viewMatrix * lhs.worldTransform.w).z
-                        let rightDepth = (uniform.viewMatrix * rhs.worldTransform.w).z
-                        return leftDepth == rightDepth ? left.offset < right.offset : leftDepth > rightDepth
-                    }.map(\.element)
+                        return leftKey.depth == rightKey.depth ? left < right : leftKey.depth > rightKey.depth
+                    }.map { visibleItems[$0] }
                     var ordered = renderItems
                     ordered.items = sorted
                     try ordered.render(with: renderPass, world: context.world, view: view)

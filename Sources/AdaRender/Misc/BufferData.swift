@@ -107,10 +107,13 @@ extension BufferData {
     /// - Parameter count: The count of elements to reserve capacity for.
     /// - Parameter renderDevice: The render device to reserve capacity for.
     public mutating func reserveCapacity(_ count: Int, for renderDevice: RenderDevice) {
-        let newCapacity = MemoryLayout<T>.stride * count
-        if bufferLength >= newCapacity {
+        let requiredLength = MemoryLayout<T>.stride * count
+        let currentLength = bufferLength
+        if currentLength >= requiredLength {
             return
         }
+        // Grow geometrically so a slowly growing batch doesn't reallocate the GPU buffer every frame.
+        let newCapacity = Swift.max(requiredLength, currentLength + currentLength / 2)
         self.buffer = renderDevice.createBuffer(label: label, length: newCapacity, options: .storageShared)
         self.isChanged = false
     }

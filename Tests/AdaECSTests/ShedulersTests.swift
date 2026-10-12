@@ -30,6 +30,16 @@ struct SchedulersTests {
     }
 
     @Test
+    func `scheduler inserted before or after another is registered`() {
+        let world = World()
+        world.addScheduler(.init(name: .test))
+        world.insertScheduler(.init(name: "afterTest"), after: .test)
+        world.insertScheduler(.init(name: "beforeTest"), before: .test)
+        #expect(world.containsScheduler("afterTest"))
+        #expect(world.containsScheduler("beforeTest"))
+    }
+
+    @Test
     func `scheduler keeps explicitly provided executor`() {
         let scheduler = Scheduler(name: .test, graphExecutor: SingleThreadedSystemsGraphExecutor())
         #expect(scheduler.graphExecutor is SingleThreadedSystemsGraphExecutor)

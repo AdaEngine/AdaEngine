@@ -13,31 +13,64 @@ import Tracing
 /// when their declared accesses are compatible. Any system that records
 /// deferred commands causes a world flush after its current batch completes.
 public struct MultiThreadedSystemsGraphExecutor: SystemsGraphExecutor {
-    private struct NodeMetadata: Sendable {
-        var dependencies: Set<String>
-        var access: SystemAccessSet
+    /// Systems that may run together, resolved once per graph change.
+    private struct Batch: Sendable {
+        var nodeNames: [String]
+        /// True when any system in the batch records deferred world access.
+        var flushesDeferredCommands: Bool
     }
 
-    private var nodeOrder: [String] = []
-    private var metadataByNode: [String: NodeMetadata] = [:]
+    private var plan: [Batch] = []
+    /// True when no further system was ready although some were left (dependency cycle).
+    private var isStalled = false
+    private var isPlanned = false
 
     /// Initialize a new multi-threaded systems graph executor.
     public init() {}
 
     public mutating func initialize(_ graph: borrowing SystemsGraph) {
-        nodeOrder = makeSingleThreadedNodeOrder(from: graph)
-        metadataByNode = Dictionary(
-            uniqueKeysWithValues: graph.nodes.map { node in
-                let dependencies = Set(graph.getInputNodes(for: node.name).map(\.name))
-                return (
-                    node.name,
-                    NodeMetadata(
-                        dependencies: dependencies,
-                        access: node.queries.access
-                    )
-                )
+        let nodeOrder = makeSingleThreadedNodeOrder(from: graph)
+        var dependencies: [String: Set<String>] = [:]
+        var accesses: [String: SystemAccessSet] = [:]
+        for node in graph.nodes {
+            dependencies[node.name] = Set(graph.getInputNodes(for: node.name).map(\.name))
+            accesses[node.name] = node.queries.access
+        }
+
+        // Same greedy batching the executor used to redo every frame: it depends only on the graph.
+        var completedSystems: Set<String> = []
+        var batches: [Batch] = []
+        var stalled = false
+        while completedSystems.count < nodeOrder.count {
+            var names: [String] = []
+            var batchAccess: [SystemAccessSet] = []
+            var flushes = false
+
+            for nodeName in nodeOrder where !completedSystems.contains(nodeName) {
+                guard
+                    let nodeDependencies = dependencies[nodeName],
+                    let access = accesses[nodeName],
+                    nodeDependencies.isSubset(of: completedSystems),
+                    batchAccess.allSatisfy({ $0.isCompatible(with: access) })
+                else {
+                    continue
+                }
+                names.append(nodeName)
+                batchAccess.append(access)
+                flushes = flushes || access.hasDeferredWorldAccess
             }
-        )
+
+            if names.isEmpty {
+                stalled = true
+                break
+            }
+            completedSystems.formUnion(names)
+            batches.append(Batch(nodeNames: names, flushesDeferredCommands: flushes))
+        }
+
+        plan = batches
+        isStalled = stalled
+        isPlanned = true
     }
 
     public mutating func execute(
@@ -45,29 +78,25 @@ public struct MultiThreadedSystemsGraphExecutor: SystemsGraphExecutor {
         world: World,
         scheduler: SchedulerName
     ) async {
-        if nodeOrder.isEmpty && !graph.nodes.isEmpty {
+        if !isPlanned && !graph.nodes.isEmpty {
             initialize(graph)
         }
 
-        var completedSystems: Set<String> = []
-
-        while completedSystems.count < nodeOrder.count {
-            let batch = makeReadyBatch(
-                from: graph,
-                completedSystems: completedSystems
-            )
-
-            if batch.isEmpty {
-                assertionFailure("[SystemsGraph] Unable to find ready systems. Check dependency cycles.")
-                return
+        for batch in plan {
+            var nodes: [SystemsGraph.Node] = []
+            nodes.reserveCapacity(batch.nodeNames.count)
+            for name in batch.nodeNames {
+                if let node = graph.nodes[name] {
+                    nodes.append(node)
+                }
             }
 
-            for node in batch {
+            for node in nodes {
                 node.queries.update(from: world)
             }
 
             await withTaskGroup(of: Void.self) { group in
-                for node in batch {
+                for node in nodes {
                     group.addTask {
                         await executeSystem(
                             system: node,
@@ -78,45 +107,21 @@ public struct MultiThreadedSystemsGraphExecutor: SystemsGraphExecutor {
                 }
             }
 
-            var shouldFlushDeferredCommands = false
-            for node in batch {
+            for node in nodes {
                 await node.queries.finish(world)
-                completedSystems.insert(node.name)
-                shouldFlushDeferredCommands =
-                    shouldFlushDeferredCommands
-                    || (metadataByNode[node.name]?.access.hasDeferredWorldAccess == true)
             }
 
-            if shouldFlushDeferredCommands {
+            if batch.flushesDeferredCommands {
                 world.flush()
             }
         }
 
-        world.flush()
-    }
-
-    private func makeReadyBatch(
-        from graph: borrowing SystemsGraph,
-        completedSystems: Set<String>
-    ) -> [SystemsGraph.Node] {
-        var batch: [SystemsGraph.Node] = []
-        var batchAccess: [SystemAccessSet] = []
-
-        for nodeName in nodeOrder where !completedSystems.contains(nodeName) {
-            guard
-                let metadata = metadataByNode[nodeName],
-                metadata.dependencies.isSubset(of: completedSystems),
-                batchAccess.allSatisfy({ $0.isCompatible(with: metadata.access) }),
-                let node = graph.nodes[nodeName]
-            else {
-                continue
-            }
-
-            batch.append(node)
-            batchAccess.append(metadata.access)
+        if isStalled {
+            assertionFailure("[SystemsGraph] Unable to find ready systems. Check dependency cycles.")
+            return
         }
 
-        return batch
+        world.flush()
     }
 
     private func makeSingleThreadedNodeOrder(from graph: borrowing SystemsGraph) -> [String] {

@@ -56,6 +56,9 @@ public protocol QuertyTargetBuilder: QueryBuilder {
     /// - Parameter archetype: The archetype to check.
     /// - Returns: True if the archetype satisfies the predicate, otherwise false.
     static func predicate(in archetype: borrowing Archetype) -> Bool
+
+    /// True when any target reads the `Entity` object; otherwise `getQueryTargets` may receive a placeholder.
+    static var requiresEntity: Bool { get }
 }
 
 /// A protocol for building filter queries.
@@ -134,6 +137,16 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Wor
 }
 
 extension QueryBuilderTargets: QuertyTargetBuilder where repeat each T: QueryTarget {
+    @inlinable
+    public static var requiresEntity: Bool {
+        for element in repeat (each T).self {
+            if element._requiresEntity { // swiftlint:disable:this for_where
+                return true
+            }
+        }
+        return false
+    }
+
     @inlinable
     @inline(__always)
     public static func predicate(in archetype: Archetype) -> Bool {

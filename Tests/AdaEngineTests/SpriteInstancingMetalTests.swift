@@ -79,7 +79,7 @@ struct SpriteInstancingMetalTests {
                 let encoder = command.beginRenderPass(RenderPassDescriptor(colorAttachments: [
                     .init(texture: target, operation: OperationDescriptor(loadAction: .clear, storeAction: .store), clearColor: .black)
                 ]))
-                let projection = Transform3D(scale: [2 / 640, 2 / 360, 0.001])
+                let projection = Transform3D(scale: [Float(2) / 640, Float(2) / 360, 0.001])
                 encoder.setVertexBuffer(GlobalViewUniform(projectionMatrix: projection, viewProjectionMatrix: projection), slot: GlobalBufferIndex.viewUniform)
                 encoder.setViewport(Rect(x: 0, y: 0, width: 640, height: 360))
                 try sorted.items.render(with: encoder, world: world, view: view)

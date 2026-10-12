@@ -25,8 +25,7 @@ public struct TextLayoutSystem {
         Visibility,
         Or<
             Changed<TextComponent>,
-            Added<Transform>,
-            Changed<Transform>
+            Added<TextLayoutComponent>
         >
     >
     private var textComponents

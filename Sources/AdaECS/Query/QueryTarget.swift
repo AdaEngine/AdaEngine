@@ -65,9 +65,21 @@ public protocol QueryTarget: WorldQueryTarget, ~Copyable {
     /// - Returns: True if the archetype contains the target, otherwise false.
     @inlinable
     static func _queryContains(in archetype: borrowing Archetype) -> Bool
+
+    /// True when fetching this target reads the `Entity` object itself.
+    ///
+    /// Iteration skips resolving the entity (a location lookup plus a retain) when no target needs it.
+    /// Defaults to `true` so custom targets keep receiving the real entity.
+    static var _requiresEntity: Bool { get }
+}
+
+extension QueryTarget where Self: ~Copyable {
+    public static var _requiresEntity: Bool { true }
 }
 
 extension Component {
+    public static var _requiresEntity: Bool { false }
+
     public static var access: SystemAccessSet {
         var access = SystemAccessSet()
         access.addComponentRead(Self.self)
@@ -165,6 +177,8 @@ public struct ReadFetch<T> {
 
 extension Ref: WorldQueryTarget where T: Component {}
 extension Ref: QueryTarget where T: Component {
+    public static var _requiresEntity: Bool { false }
+
     public static var access: SystemAccessSet {
         var access = SystemAccessSet()
         access.addComponentWrite(T.self)
@@ -250,6 +264,8 @@ extension Entity: QueryTarget {
     public static var access: SystemAccessSet {
         SystemAccessSet()
     }
+
+    public static var _requiresEntity: Bool { true }
 
     public static func _setData(
         state _: Void,
@@ -338,4 +354,6 @@ extension Optional: QueryTarget where Wrapped: QueryTarget {
     public static func _queryContains(in archetype: borrowing Archetype) -> Bool {
         return Wrapped._queryContains(in: archetype)
     }
+
+    public static var _requiresEntity: Bool { Wrapped._requiresEntity }
 }

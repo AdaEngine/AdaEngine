@@ -35,8 +35,11 @@ public struct VisibilitySystem {
             }
 
             let frustum = camera.computedData.frustum
-            var entityIds = Set<Entity.ID>()
+            // Previous frame's count is a good estimate; avoids repeated rehash/regrow.
+            let expectedCount = visibleEntities.entities.count
+            var entityIds = Set<Entity.ID>(minimumCapacity: expectedCount)
             var entities: [Entity] = []
+            entities.reserveCapacity(expectedCount)
             self.entities.forEach { entity, visibility, bounding, globalTransform in
                 if visibility == .hidden {
                     return
@@ -63,33 +66,16 @@ public struct VisibilitySystem {
 
 extension AABB {
     func transformed(by transform: Transform3D) -> AABB {
-        let min = self.min
-        let max = self.max
-        var transformedMin = (transform * Vector4(min, 1)).xyz
-        var transformedMax = transformedMin
-
-        for corner in [
-            Vector3(min.x, min.y, max.z),
-            Vector3(min.x, max.y, min.z),
-            Vector3(min.x, max.y, max.z),
-            Vector3(max.x, min.y, min.z),
-            Vector3(max.x, min.y, max.z),
-            Vector3(max.x, max.y, min.z),
-            max,
-        ] {
-            let transformedCorner = (transform * Vector4(corner, 1)).xyz
-            transformedMin = Vector3(
-                Swift.min(transformedMin.x, transformedCorner.x),
-                Swift.min(transformedMin.y, transformedCorner.y),
-                Swift.min(transformedMin.z, transformedCorner.z)
-            )
-            transformedMax = Vector3(
-                Swift.max(transformedMax.x, transformedCorner.x),
-                Swift.max(transformedMax.y, transformedCorner.y),
-                Swift.max(transformedMax.z, transformedCorner.z)
-            )
-        }
-
-        return AABB(min: transformedMin, max: transformedMax)
+        // Arvo's method: transform the center and project the half extents through the absolute matrix.
+        let newCenter = (transform * Vector4(center, 1)).xyz
+        let c0 = transform[0]
+        let c1 = transform[1]
+        let c2 = transform[2]
+        let newHalfExtents = Vector3(
+            abs(c0.x) * halfExtents.x + abs(c1.x) * halfExtents.y + abs(c2.x) * halfExtents.z,
+            abs(c0.y) * halfExtents.x + abs(c1.y) * halfExtents.y + abs(c2.y) * halfExtents.z,
+            abs(c0.z) * halfExtents.x + abs(c1.z) * halfExtents.y + abs(c2.z) * halfExtents.z
+        )
+        return AABB(center: newCenter, halfExtents: newHalfExtents)
     }
 }

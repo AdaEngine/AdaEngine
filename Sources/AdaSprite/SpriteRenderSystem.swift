@@ -214,17 +214,18 @@ func PrepareSprites(
     _ additionalSprites: Res<AdditionalExtractedSprites>,
     _ spriteDrawPass: Res<SpriteDrawPass>
 ) {
+    let pipeline = spriteRenderPipeline.wrappedValue.pipeline(device: renderDevice.renderDevice)
+    let drawPass = spriteDrawPass.wrappedValue
     camera.forEach { _, entities in
         for sprite in extractedSprites.sprites {
             if !entities.entityIds.contains(sprite.entityId) {
                 continue
             }
 
-            let pipeline = spriteRenderPipeline.wrappedValue.pipeline(device: renderDevice.renderDevice)
             renderItems.items.append(
                 Transparent2DRenderItem(
                     entity: sprite.entityId,
-                    drawPass: spriteDrawPass.wrappedValue,
+                    drawPass: drawPass,
                     renderPipeline: pipeline,
                     sortKey: sprite.worldTransform.w.z,
                     batchRange: 0..<0
@@ -237,11 +238,10 @@ func PrepareSprites(
                 !entities.entityIds.contains(visibilityEntityId) {
                 continue
             }
-            let pipeline = spriteRenderPipeline.wrappedValue.pipeline(device: renderDevice.renderDevice)
             renderItems.items.append(
                 Transparent2DRenderItem(
                     entity: sprite.entityId,
-                    drawPass: spriteDrawPass.wrappedValue,
+                    drawPass: drawPass,
                     renderPipeline: pipeline,
                     sortKey: sprite.worldTransform.w.z,
                     batchRange: 0..<0

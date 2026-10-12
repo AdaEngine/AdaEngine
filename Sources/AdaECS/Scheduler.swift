@@ -92,6 +92,7 @@ public final class Schedulers: @unchecked Sendable {
         } else {
             schedulerLabels.append(scheduler.name)
         }
+        schedulers[scheduler.name] = scheduler
     }
 
     /// Check if the schedulers contains a specific scheduler.
@@ -115,6 +116,7 @@ public final class Schedulers: @unchecked Sendable {
         } else {
             schedulerLabels.append(scheduler.name)
         }
+        schedulers[scheduler.name] = scheduler
     }
 
     /// Get a scheduler by its name.

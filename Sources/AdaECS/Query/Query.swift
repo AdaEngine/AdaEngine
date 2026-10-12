@@ -232,6 +232,9 @@ public struct FilterQueryIterator<
     let requiresRowEvaluation: Bool
 
     @usableFromInline
+    let requiresEntity: Bool
+
+    @usableFromInline
     var needsUpdateData = true
 
     @usableFromInline
@@ -255,6 +258,7 @@ public struct FilterQueryIterator<
             currentTick: state.world.currentTick
         )
         self.requiresRowEvaluation = F.requiresRowEvaluation
+        self.requiresEntity = B.requiresEntity
     }
 
     @inlinable
@@ -305,21 +309,28 @@ public struct FilterQueryIterator<
                 )
             }
 
-            let entityId = chunks[chunkIndex].entities[cursor.currentRow]
+            let row = cursor.currentRow
             defer {
                 cursor.currentRow += 1
             }
 
             if requiresRowEvaluation {
-                guard F.condition(state: filterState, fetch: filterFetch, at: cursor.currentRow) else {
+                guard F.condition(state: filterState, fetch: filterFetch, at: row) else {
                     continue
                 }
             }
 
-            guard let location = state.entities.entities[entityId] else {
-                continue
+            // Resolving the entity costs a location lookup and a retain; only do it when a target reads it.
+            let entity: Entity
+            if requiresEntity {
+                let entityId = chunks[chunkIndex].entities[row]
+                guard let location = state.entities.entities[entityId] else {
+                    continue
+                }
+                entity = archetypes.archetypes[archetypeIndex].entities[location.archetypeRow]
+            } else {
+                entity = Entity.queryPlaceholder
             }
-            let entity = archetypes.archetypes[archetypeIndex].entities[location.archetypeRow]
             if let value = B.getQueryTargets(
                 for: entity,
                 states: states,

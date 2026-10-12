@@ -171,12 +171,16 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
                     }
                 }
 
-                let entityId = chunk.entities[row]
-                guard let location = state.entities.entities[entityId] else {
-                    continue
+                let entity: Entity
+                if B.requiresEntity {
+                    let entityId = chunk.entities[row]
+                    guard let location = state.entities.entities[entityId] else {
+                        continue
+                    }
+                    entity = archetype.entities[location.archetypeRow]
+                } else {
+                    entity = Entity.queryPlaceholder
                 }
-
-                let entity = archetype.entities[location.archetypeRow]
                 if let element = B.getQueryTargets(
                     for: entity,
                     states: states,
@@ -240,13 +244,6 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
 
             // Iterate over all entities in this chunk
             for row in 0..<chunk.count {
-                let entityId = chunk.entities[row]
-                guard let location = state.entities.entities[entityId] else {
-                    continue
-                }
-
-                let entity = archetype.entities[location.archetypeRow]
-
                 if requiresRowEvaluation {
                     guard
                         F.condition(
@@ -257,6 +254,17 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
                     else {
                         continue
                     }
+                }
+
+                let entity: Entity
+                if B.requiresEntity {
+                    let entityId = chunk.entities[row]
+                    guard let location = state.entities.entities[entityId] else {
+                        continue
+                    }
+                    entity = archetype.entities[location.archetypeRow]
+                } else {
+                    entity = Entity.queryPlaceholder
                 }
 
                 if let element = B.getQueryTargets(

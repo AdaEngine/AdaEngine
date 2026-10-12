@@ -16,6 +16,10 @@ import OrderedCollections
 open class Entity: Identifiable, @unchecked Sendable {
     static let notAllocatedId = -25_102_018
 
+    /// Stand-in passed to query fetches when no query target reads the entity.
+    @usableFromInline
+    static let queryPlaceholder = Entity(name: "QueryPlaceholder")
+
     /// Contains entity name.
     public let name: String
 
@@ -117,13 +121,12 @@ extension Entity: Hashable {
     /// - Parameter rhs: The right entity.
     /// - Returns: True if the two entities are equal, otherwise false.
     public static func == (lhs: Entity, rhs: Entity) -> Bool {
-        return lhs.id == rhs.id && lhs.name == rhs.name
+        return lhs === rhs || (lhs.id == rhs.id && lhs.name == rhs.name)
     }
 
     /// Hash the entity.
     /// - Parameter hasher: The hasher to hash the entity.
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(self.name)
         hasher.combine(self.id)
     }
 }
