@@ -87,23 +87,22 @@ extension EditorUISceneEditor {
         }
         .buttonStyle(EditorUIDesignerButtonStyle(colors: theme.editorColors, selected: model.selectedID == row.node.id))
         .accessibilityIdentifier("AdaEditor.UIScene.Node.\(row.node.id)")
-        .gesture(
-            DragGesture(minimumDistance: 8)
-                .onEnded { value in
-                    let current = rows
-                    guard let index = current.firstIndex(where: { $0.node.id == row.node.id }) else {
-                        return
-                    }
-                    let destination = min(max(index + Int((value.translation.height / 32).rounded()), 0), current.count - 1)
-                    let target = current[destination]
-                    if value.translation.width > 20 {
-                        model.move(row.node.id, into: target.node.id)
-                    } else if let parent = target.parentID, let parentNode = current.first(where: { $0.node.id == parent })?.node,
-                        let childIndex = parentNode.children.firstIndex(where: { $0.id == target.node.id }) {
-                        model.move(row.node.id, into: parent, at: childIndex)
-                    }
-                }
-        )
+        .gesture(designerDragGesture(.node(row.node.id)))
+        .background(model.designerDrag.targetLayerID == row.node.id ? (model.designerDrag.layerDropIsValid ? theme.editorColors.blue : .red).opacity(0.2) : .clear)
+        .overlay {
+            if model.designerDrag.targetLayerID == row.node.id, let after = model.designerDrag.layerInsertionAfter {
+                RectangleShape().fill(model.designerDrag.layerDropIsValid ? theme.editorColors.blue : .red)
+                    .frame(height: 2)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: after ? .bottom : .top)
+                    .allowsHitTesting(false)
+            }
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { model.designerDrag.layerFrames[row.node.id] = { geometry.frame(in: .global) } }
+                    .onDisappear { model.designerDrag.layerFrames.removeValue(forKey: row.node.id) }
+            }
+            .allowsHitTesting(false)
+        }
         .contextMenu {
             Button("Move selected here") { model.move(model.selectedID, into: row.node.id) }
             if row.hasChildren {

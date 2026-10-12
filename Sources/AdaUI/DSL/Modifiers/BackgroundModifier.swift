@@ -62,11 +62,13 @@ private struct BackgroundViewModifier<Content: View, BackgroundContent: View>: V
         let backgroundNode = context.makeNode(from: backgroundContent)
         let contentNode = context.makeNode(from: content)
 
-        return LayoutViewContainerNode(
+        let node = LayoutViewContainerNode(
             layout: BackgroundLayout(anchor: anchor),
             content: content,
             nodes: [backgroundNode, contentNode]
         )
+        node.relativePositionContentIndex = 1
+        return node
     }
 }
 

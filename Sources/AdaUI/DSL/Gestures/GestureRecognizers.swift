@@ -154,6 +154,17 @@ final class LongPressGestureRecognizer: GestureRecognizer {
 @MainActor
 final class DragGestureRecognizer: GestureRecognizer {
     private let minimumDistance: Float
+    private let minimumPressDuration: TimeInterval
+    private var touchStart: TouchEvent?
+    private var touchElapsed: TimeInterval = 0
+
+    var isHeldTouchDrag: Bool { minimumPressDuration > 0 && touchStart != nil && state == .changed }
+
+    func shouldYieldToScroll(_ touch: TouchEvent) -> Bool {
+        guard minimumPressDuration > 0, state == .began, let touchStart else { return false }
+        let dx = touch.location.x - touchStart.location.x, dy = touch.location.y - touchStart.location.y
+        return touch.time - touchStart.time < minimumPressDuration && dx * dx + dy * dy >= minimumDistance * minimumDistance
+    }
     private let onChanged: ((DragGesture.Value) -> Void)?
     private let onEnded: ((DragGesture.Value) -> Void)?
 
@@ -162,10 +173,12 @@ final class DragGestureRecognizer: GestureRecognizer {
 
     init(
         minimumDistance: Float,
+        minimumPressDuration: TimeInterval = 0,
         onChanged: ((DragGesture.Value) -> Void)?,
         onEnded: ((DragGesture.Value) -> Void)?
     ) {
         self.minimumDistance = minimumDistance
+        self.minimumPressDuration = minimumPressDuration
         self.onChanged = onChanged
         self.onEnded = onEnded
     }
@@ -234,6 +247,7 @@ final class DragGestureRecognizer: GestureRecognizer {
     }
 
     override func mouseEventCancelled(_: MouseEvent) {
+        cancellationAction?()
         startLocation = nil
         lastLocation = nil
         reset()
@@ -245,6 +259,8 @@ final class DragGestureRecognizer: GestureRecognizer {
         }
         startLocation = first.location
         lastLocation = first.location
+        touchStart = first
+        touchElapsed = 0
         setState(.began)
     }
 
@@ -254,6 +270,8 @@ final class DragGestureRecognizer: GestureRecognizer {
         }
         let current = first.location
         lastLocation = current
+        touchElapsed = max(touchElapsed, first.time - (touchStart?.time ?? first.time))
+        if minimumPressDuration > 0, touchElapsed < minimumPressDuration { return }
 
         let dx = current.x - start.x
         let dy = current.y - start.y
@@ -272,6 +290,7 @@ final class DragGestureRecognizer: GestureRecognizer {
 
     override func touchesEnded(_: Set<TouchEvent>) {
         defer {
+            touchStart = nil
             startLocation = nil
             lastLocation = nil
             reset()
@@ -279,18 +298,31 @@ final class DragGestureRecognizer: GestureRecognizer {
         guard let start = startLocation, let current = lastLocation else {
             return
         }
+        if minimumPressDuration > 0, state != .changed { return }
         let value = DragGesture.Value(startLocation: start, location: current)
         onEnded?(value)
     }
 
     override func touchesCancelled(_: Set<TouchEvent>) {
+        cancellationAction?()
+        touchStart = nil
         startLocation = nil
         lastLocation = nil
         reset()
     }
 
     override func onCancelled() {
+        touchStart = nil
         startLocation = nil
         lastLocation = nil
+    }
+
+    override func update(_ deltaTime: TimeInterval) {
+        guard minimumPressDuration > 0, touchStart != nil, state == .began, let start = startLocation, let current = lastLocation else { return }
+        touchElapsed += deltaTime
+        if touchElapsed >= minimumPressDuration {
+            setState(.changed)
+            onChanged?(DragGesture.Value(startLocation: start, location: current))
+        }
     }
 }

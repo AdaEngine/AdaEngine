@@ -7,9 +7,15 @@ struct EditorUISceneSurface: UIViewRepresentable {
     let preview: UIView
     let model: EditorUISceneModel
     var zoom: Float?
+    var windowFrame: (() -> Rect)?
+    var isCompact = false
     func makeUIView(in _: Context) -> EditorUISceneHost { EditorUISceneHost(frame: .zero) }
     func updateUIView(_ view: EditorUISceneHost, in _: Context) {
         view.model = model
+        model.designerDrag.canvasFrame = windowFrame
+        model.designerDrag.canvasZoom = zoom ?? model.zoom
+        model.designerDrag.isCompact = isCompact
+        model.designerDrag.onFeedbackChange = { [weak view] in view?.setNeedsDisplay() }
         view.host.configure(
             previewView: preview,
             zoom: zoom ?? model.zoom,
@@ -40,12 +46,18 @@ final class EditorUISceneHost: UIView {
         return model?.isInteractive == true ? host.hitTest(point, with: event) : self
     }
     override func onMouseEvent(_ event: MouseEvent) {
+        if model?.isInteractive == true { host.onMouseEvent(event); return }
+        if event.phase == .began { model?.designerDrag.suppressesCanvasSelection = false }
+        guard model?.designerDrag.suppressesCanvasSelection != true else { return }
         guard model?.isInteractive == false, event.phase == .ended else {
             return
         }
         select(at: host.previewPoint(from: event.mousePosition))
     }
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        if model?.isInteractive == true { host.onTouchesEvent(touches); return }
+        if touches.contains(where: { $0.phase == .began }) { model?.designerDrag.suppressesCanvasSelection = false }
+        guard model?.designerDrag.suppressesCanvasSelection != true else { return }
         if let touch = touches.first(where: { $0.phase == .ended }), model?.isInteractive == false {
             select(at: host.previewPoint(from: touch.location))
         }
@@ -60,6 +72,23 @@ final class EditorUISceneHost: UIView {
         }
         let zoom = host.zoom
         let origin = Point(x: frame.minX + (bounds.width - model.width * zoom) / 2, y: frame.minY + (bounds.height - model.height * zoom) / 2)
+        if let feedback = model.designerDrag.feedback {
+            let color: Color = feedback.valid ? .blue : .red
+            func scaled(_ rect: Rect) -> Rect {
+                Rect(x: origin.x + rect.minX * zoom, y: origin.y + rect.minY * zoom, width: rect.width * zoom, height: rect.height * zoom)
+            }
+            func outline(_ rect: Rect) {
+                let rect = scaled(rect)
+                context.drawRect(Rect(x: rect.minX, y: rect.minY, width: rect.width, height: 2), color: color)
+                context.drawRect(Rect(x: rect.minX, y: rect.maxY - 2, width: rect.width, height: 2), color: color)
+                context.drawRect(Rect(x: rect.minX, y: rect.minY, width: 2, height: rect.height), color: color)
+                context.drawRect(Rect(x: rect.maxX - 2, y: rect.minY, width: 2, height: rect.height), color: color)
+            }
+            context.drawRect(scaled(feedback.target), color: color.opacity(0.08))
+            outline(feedback.target)
+            outline(feedback.ghost)
+            if let insertion = feedback.insertion { context.drawRect(scaled(insertion), color: color) }
+        }
         for source in preview.uiTreeRoots().flatMap(selectedFrames) {
             let rect = Rect(
                 x: origin.x + source.minX * zoom,

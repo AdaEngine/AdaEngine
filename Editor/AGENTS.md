@@ -125,6 +125,11 @@ conditional/repeated content and nested UI resources. Entity UI components can
 bind designed controls to exported gameplay-script fields. Designer undo/redo
 and Swift UI export integration are present.
 
+Design supports palette/hierarchy/canvas drag and drop, stack insertion, and
+responsive free placement through AdaUI FreeLayout/relativePosition. Drops use
+one history transaction; compact iPad layouts retain pointer capture while
+revealing the canvas, with held touches for drag and quick swipes for scrolling.
+
 Guide: [UIScenes.md](Documentation/UIScenes.md).
 Entry points: [EditorUISceneEditor.swift](Sources/AdaEditor/UI/Editor/EditorUISceneEditor.swift),
 [EditorViewModel+UIExports.swift](Sources/AdaEditor/UI/Editor/EditorViewModel+UIExports.swift).

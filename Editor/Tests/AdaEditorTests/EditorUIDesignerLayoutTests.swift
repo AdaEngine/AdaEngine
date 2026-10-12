@@ -80,7 +80,10 @@ struct EditorUIDesignerLayoutTests {
 
     @Test func modifierLibraryIsExplicitAndAddsRealModifier() async throws {
         let model = EditorUISceneModel(content: try UISceneDocument().encodedYAML(), sourceURL: nil, resourceRoot: nil)
-        let container = makeContainer(model, size: Size(width: 1440, height: 900))
+        let container = UIContainerView(rootView: EditorUISceneEditor(model: model, presentation: .inspector))
+        container.frame = Rect(x: 0, y: 0, width: 1440, height: 900)
+        container.bounds.size = container.frame.size
+        container.layoutIfNeeded()
         #expect(throws: (any Error).self) { try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Library")) }
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Toggle"))
         for _ in 0..<10 {
@@ -91,7 +94,14 @@ struct EditorUIDesignerLayoutTests {
         let dialog = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.AddModifier.Dialog"))
         #expect(dialog.absoluteFrame.width == 680)
         #expect(dialog.absoluteFrame.height == 680)
+        _ = try container.uiScrollToNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifier.Add.background"))
+        container.layoutIfNeeded()
         _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifier.Add.background"))
+        for _ in 0..<10 {
+            await Task.yield()
+            container.update(1.0 / 60.0)
+            container.layoutIfNeeded()
+        }
         #expect(model.document.root.modifiers.first?.type == "background")
     }
 

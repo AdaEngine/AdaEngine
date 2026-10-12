@@ -21,6 +21,11 @@ extension Gesture {
         _OnEndedGesture(action: action, gesture: self)
     }
 
+    /// Runs when the captured gesture is cancelled rather than released.
+    public func onCancelled(_ action: @escaping () -> Void) -> _OnCancelledGesture<Self> {
+        _OnCancelledGesture(action: action, gesture: self)
+    }
+
     public func map<T>(_ block: @escaping (Value) -> T) -> _MapGesture<Self, T> {
         _MapGesture(gesture: self, map: block)
     }
@@ -83,6 +88,22 @@ extension _OnEndedGesture: _GestureRecognizerConvertible where G: _RecognizableG
 }
 
 // MARK: - _MapGesture
+
+public struct _OnCancelledGesture<G: Gesture>: Gesture {
+    public typealias Value = G.Value
+    public typealias Body = Never
+    let action: () -> Void
+    let gesture: G
+}
+
+extension _OnCancelledGesture: _GestureRecognizerConvertible where G: _GestureRecognizerConvertible {
+    func _buildRecognizers() -> [GestureRecognizer] {
+        gesture._buildRecognizers().map { recognizer in
+            recognizer.cancellationAction = action
+            return recognizer
+        }
+    }
+}
 
 public struct _MapGesture<G: Gesture, T>: Gesture {
     public typealias Value = T

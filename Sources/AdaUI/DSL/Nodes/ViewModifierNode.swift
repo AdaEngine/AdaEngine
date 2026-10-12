@@ -13,6 +13,8 @@ import Math
 class ViewModifierNode: ViewNode {
     var contentNode: ViewNode
 
+    override var relativeLayoutPosition: Point? { contentNode.relativeLayoutPosition }
+
     override var layoutPriority: Double {
         contentNode.layoutPriority
     }

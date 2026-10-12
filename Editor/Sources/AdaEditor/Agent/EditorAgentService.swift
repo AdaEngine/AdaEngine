@@ -836,7 +836,7 @@ enum EditorAgentPromptContext {
             text += "\n\n\(skillCatalogBlock(request.availableSkills))"
         }
 
-        if request.a2uiEnabled { text += "\n\n\(EditorAgentA2UIProtocol.promptContext())" }
+        if request.a2uiEnabled { text += "\n\n\(EditorAgentA2UIProtocol.capabilityContext())" }
         text += "\n\n\(request.prompt)"
         if !request.a2uiFeedback.isEmpty {
             text += "\n\n[A2UI validation feedback]\n" + request.a2uiFeedback.joined(separator: "\n")
@@ -907,9 +907,13 @@ enum EditorAgentPromptContext {
     }
 
     private static func skillCatalogBlock(_ skills: [EditorAgentSkill]) -> String {
+        let bundledPaths = Set(EditorAgentSkillStore.bundledSkills().map(\.localPath))
         let entries = skills.map { skill in
             let description = skill.description?.trimmingCharacters(in: .whitespacesAndNewlines)
-            return "- /\(skill.id): \(description?.isEmpty == false ? description ?? skill.name : skill.name) (\(skill.localPath))"
+            let summary = description?.isEmpty == false ? description ?? skill.name : skill.name
+            let boundedSummary = String(summary.split(whereSeparator: \.isWhitespace).joined(separator: " ").prefix(240))
+            let location = bundledPaths.contains(skill.localPath) ? "" : " (\(skill.localPath))"
+            return "- /\(skill.id): \(boundedSummary)\(location)"
         }
         return
             ([

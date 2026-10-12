@@ -76,7 +76,7 @@ struct EditorUISceneTests {
         container.frame = Rect(origin: .zero, size: size)
         container.layoutSubviews()
         let layout = EditorUIDesignerLayout(size: size)
-        for panel in ["Library", "CanvasPanel", "Inspector"] {
+        for panel in ["Library", "CanvasPanel"] {
             let node = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.\(panel)"))
             #expect(abs(node.absoluteFrame.height - layout.contentHeight) < 1)
             #expect(abs(node.absoluteFrame.minY - (layout.toolbarHeight + 1)) < 1)

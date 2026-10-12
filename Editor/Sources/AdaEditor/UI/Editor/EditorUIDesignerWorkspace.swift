@@ -31,11 +31,15 @@ extension EditorUISceneEditor {
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        switch compactPane {
-                        case .library: AnyView(designerLibrary).frame(width: layout.size.width, height: layout.contentHeight)
-                        case .canvas:
+                        // Retain the source subtree and its pointer capture while revealing the canvas.
+                        ZStack {
                             AnyView(designerCanvas(layout: layout)).frame(width: layout.canvasWidth, height: layout.contentHeight)
                                 .accessibilityIdentifier("AdaEditor.UIScene.CanvasPanel")
+                                .opacity(compactPane == .canvas ? 1 : 0)
+                                .allowsHitTesting(compactPane == .canvas)
+                            AnyView(designerLibrary).frame(width: layout.size.width, height: layout.contentHeight)
+                                .opacity(compactPane == .library ? 1 : 0)
+                                .allowsHitTesting(compactPane == .library)
                         }
                     }
                     AnyView(designerStatus)
@@ -165,11 +169,21 @@ extension EditorUISceneEditor {
                 .frame(width: model.width * zoom, height: 22)
                 ZStack {
                     if let preview = model.preview {
-                        EditorUISceneSurface(preview: preview, model: model, zoom: zoom)
+                        GeometryReader { canvasGeometry in
+                            let surface = EditorUISceneSurface(
+                                preview: preview, model: model, zoom: zoom,
+                                windowFrame: { canvasGeometry.frame(in: .global) }, isCompact: !layout.showsSidebars
+                            )
+                            if model.isInteractive {
+                                surface
+                            } else {
+                                surface.gesture(designerDragGesture(.canvas))
+                            }
+                        }
                             .frame(width: model.width * zoom, height: model.height * zoom)
                             .accessibilityIdentifier("AdaEditor.UIScene.Canvas")
                     }
-                    if isEmptyCanvas, !model.isInteractive {
+                    if isEmptyCanvas, !model.isInteractive, !model.designerDrag.isDragging {
                         emptyCanvas
                             .frame(width: min(320, model.width * zoom - 24))
                     } else if model.preview == nil {
@@ -180,7 +194,7 @@ extension EditorUISceneEditor {
                 .background(theme.editorColors.surfaceElevated)
                 .border(theme.editorColors.border.opacity(0.85))
                 .accessibilityIdentifier("AdaEditor.UIScene.Artboard")
-                Text(model.isInteractive ? "Interact with the live interface" : "Select a layer on the canvas to edit its properties")
+                Text(model.isInteractive ? "Interact with the live interface" : "Drag layers between containers or onto free canvas space")
                     .font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
                     .frame(width: model.width * zoom)
             }
@@ -200,7 +214,7 @@ extension EditorUISceneEditor {
     }
 
     var isEmptyCanvas: Bool {
-        ["ZStack", "VStack", "HStack", "Group"].contains(model.document.root.type)
+        ["ZStack", "VStack", "HStack", "FreeLayout", "Group"].contains(model.document.root.type)
             && model.document.root.children.isEmpty && model.document.root.modifiers.isEmpty
     }
 

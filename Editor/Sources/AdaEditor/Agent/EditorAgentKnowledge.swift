@@ -59,8 +59,15 @@ enum EditorAgentKnowledge {
             ]
         case "editor.skills.list":
             let skills = EditorAgentSkillStore.bundledSkills().filter { matches($0.name + " " + ($0.description ?? ""), query) }
-            return ["skills": skills.map { ["id": $0.id, "name": $0.name, "description": $0.description ?? ""] }]
+            var entries = skills.map { ["id": $0.id, "name": $0.name, "description": $0.description ?? ""] }
+            if matches("Interactive chat UI A2UI forms scene tools revisions submissions", query) {
+                entries.append(["id": "ada-chat-ui", "name": "Interactive chat UI", "description": "A2UI forms, scene tools, revisions and submissions."])
+            }
+            return ["skills": entries]
         case "editor.skills.read":
+            if arguments["id"]?.stringValue == "ada-chat-ui" {
+                return ["id": "ada-chat-ui", "content": EditorAgentA2UIProtocol.promptContext()]
+            }
             guard let skill = EditorAgentSkillStore.bundledSkills().first(where: { $0.id == arguments["id"]?.stringValue }) else {
                 throw KnowledgeError("Unknown bundled skill. Call editor.skills.list for IDs.")
             }

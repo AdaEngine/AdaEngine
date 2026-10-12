@@ -146,3 +146,7 @@ attachments. **Open UI Source** exports an editable `.ui` snapshot and opens its
 YAML source in the mobile file editor; the desktop **Open in UI Designer** handoff
 continues to use the visual designer. Applying a scene tool affects authored scene
 content, not an already running Play world's entities; restart Play to see it.
+
+## Desktop context budgeting
+
+Desktop prompts advertise A2UI with a short capability notice. The complete contract, including component schemas, scene actions and examples, is available through `editor.skills.read` with ID `ada-chat-ui`; `editor.skills.list` discovers it. Bundled skill catalogs retain IDs and bounded descriptions without repeating installed bundle paths. Explicitly selected skill instructions and user action envelopes remain in the request.

@@ -107,6 +107,12 @@ extension UICatalog {
             modifier("disabled", [bool("value", true)]) { AnyView($0.disabled($1.bool("value"))) },
             modifier("fixedSize", [bool("horizontal", true), bool("vertical", true)]) { AnyView($0.fixedSize(horizontal: $1.bool("horizontal"), vertical: $1.bool("vertical"))) },
             modifier("layoutPriority", [number("value", 0)]) { AnyView($0.layoutPriority($1.number("value"))) },
+            modifier("relativePosition", [number("x", 0.5), number("y", 0.5)]) { view, c in
+                guard (0...1).contains(c.number("x")), (0...1).contains(c.number("y")) else {
+                    throw UIDiagnostic("Relative position must be between zero and one.")
+                }
+                return AnyView(view.relativePosition(x: Float(c.number("x")), y: Float(c.number("y"))))
+            },
             modifier("zIndex", [number("value", 0)]) { AnyView($0.zIndex(Int(max(-2_147_483_648, min(2_147_483_647, $1.number("value")))))) },
             modifier("offset", [number("x", 0), number("y", 0)]) { AnyView($0.offset(x: Float($1.number("x")), y: Float($1.number("y")))) },
             modifier("accessibilityIdentifier", [string("value")]) { AnyView($0.accessibilityIdentifier($1.string("value"))) },

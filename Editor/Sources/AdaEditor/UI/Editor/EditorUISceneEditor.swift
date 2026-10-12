@@ -26,6 +26,8 @@ struct EditorUISceneEditor: View {
                 designerInspector
             }
         }
+        .keyboardShortcuts(model.designerDrag.isDragging ? [KeyboardShortcutAction(.escape) { model.designerDrag.cancel() }] : [])
+        .onDisappear { if presentation == .workspace { model.designerDrag.cancel() } }
         .fullScreenCover(item: $modifierPickerNodeID) { nodeID in
             EditorAddModifierDialog(model: model, nodeID: nodeID)
         }

@@ -10,6 +10,12 @@ import Math
 
 /// The container that can layout it childs with specific ``Layout``.
 class LayoutViewContainerNode: ViewContainerNode {
+    /// Background/overlay layouts forward metadata from their content, not decoration children.
+    var relativePositionContentIndex: Int?
+    override var relativeLayoutPosition: Point? {
+        guard let index = relativePositionContentIndex, nodes.indices.contains(index) else { return nil }
+        return nodes[index].relativeLayoutPosition
+    }
     private(set) var layout: AnyLayout
     private var inherentLayoutProperties: LayoutProperties
     private var bypassSingleChildLayout: Bool
@@ -187,6 +193,7 @@ class LayoutViewContainerNode: ViewContainerNode {
             layout = node.layout
             inherentLayoutProperties = node.inherentLayoutProperties
             bypassSingleChildLayout = node.bypassSingleChildLayout
+            relativePositionContentIndex = node.relativePositionContentIndex
             cache = nil
             updateLayoutProperties(node.layoutProperties)
         }

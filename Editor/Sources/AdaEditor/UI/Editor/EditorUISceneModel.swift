@@ -3,12 +3,13 @@ import Observation
 
 @MainActor @Observable
 final class EditorUISceneModel {
+    @ObservationIgnored lazy var designerDrag = EditorUIDesignerDrag(model: self)
     var document: UISceneDocument
     var selectedID: String
     var collapsedLayerIDs: Set<String> = []
     var search = ""
     var rawSource: String
-    var showsSource = false
+    var showsSource = false { didSet { if showsSource { designerDrag.cancel() } } }
     var insertionModifierID: String?
     var selectedBindingOwnerID: String?
     @ObservationIgnored var bindingSceneDocumentIDs: Set<String> = []
@@ -16,7 +17,7 @@ final class EditorUISceneModel {
     @ObservationIgnored var onBindingChange: ((EditorUIBindingOwner, [String: UIScriptFieldBinding], [String: UIScriptFieldBinding]) -> Bool)?
     @ObservationIgnored var onPresentModifierPicker: ((String) -> Void)?
     @ObservationIgnored var onOpenUI: ((URL) -> Void)?
-    var isInteractive = false
+    var isInteractive = false { didSet { if isInteractive { designerDrag.cancel() } } }
     var zoom: Float = 1
     var width: Float = 800
     var height: Float = 600
@@ -24,7 +25,7 @@ final class EditorUISceneModel {
     var lastAction: String?
     var session: UISceneInstance?
     var preview: UIView?
-    var isReadOnly: Bool
+    var isReadOnly: Bool { didSet { if isReadOnly { designerDrag.cancel() } } }
     var catalog: UICatalog
     let resources: UISceneResources
     let sourceURL: URL?
@@ -71,6 +72,7 @@ final class EditorUISceneModel {
     }
 
     func edit(_ change: (inout UISceneDocument) throws -> Void, externalChange: ((Bool) -> Bool)? = nil) {
+        designerDrag.cancel()
         guard !isReadOnly else {
             return
         }
@@ -197,6 +199,7 @@ final class EditorUISceneModel {
     }
 
     func undo() {
+        designerDrag.cancel()
         guard !isReadOnly, let previous = undoStack.last else {
             return
         }
@@ -212,6 +215,7 @@ final class EditorUISceneModel {
     }
 
     func redo() {
+        designerDrag.cancel()
         guard !isReadOnly, let next = redoStack.last else {
             return
         }
@@ -276,6 +280,7 @@ final class EditorUISceneModel {
         guard content != rawSource else {
             return
         }
+        designerDrag.cancel()
         do {
             rawSource = content
             document = try UISceneDocument.decode(content)

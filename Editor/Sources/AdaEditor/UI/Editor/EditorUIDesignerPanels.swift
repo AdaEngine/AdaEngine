@@ -50,7 +50,8 @@ extension EditorUISceneEditor {
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     }
-                                    .disabled(model.isReadOnly)
+                                    .gesture(designerDragGesture(.component(signature.id)))
+                                    .disabled(model.isReadOnly || model.isInteractive)
                                     .accessibilityIdentifier("AdaEditor.UIScene.Add.\(signature.id)")
                                 }
                             }

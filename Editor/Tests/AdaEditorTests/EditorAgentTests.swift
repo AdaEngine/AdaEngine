@@ -271,9 +271,41 @@ struct EditorAgentTests {
         #expect(!desktopPrompt.contains(skill.instructions))
 
         let mobilePrompt = MobileAgentHarnessSettings().prompt("Create a platformer")
-        #expect(mobilePrompt.contains("- ada-game-builder:"))
+        #expect(mobilePrompt.contains("ada-game-builder"))
         #expect(mobilePrompt.contains("editor.skills.read"))
         #expect(!mobilePrompt.contains(skill.instructions))
+    }
+
+    @Test("Desktop greetings use a bounded catalog and lazily readable A2UI instructions")
+    @MainActor
+    func leanDesktopPrompt() throws {
+        let projectURL = try makeAgentTemporaryDirectory(named: "LeanDesktopContext")
+        defer { removeAgentTemporaryDirectory(projectURL) }
+        let skills = EditorAgentSkillStore.discoverSkills(projectURL: projectURL, directories: [])
+        let request = EditorAgentRunRequest(
+            project: ProjectSystem.defaultProject(projectName: "Context"),
+            projectURL: projectURL,
+            session: EditorAgentSession(),
+            mode: .ask,
+            prompt: "привет",
+            attachments: [],
+            skills: [],
+            availableSkills: skills,
+            a2uiEnabled: true
+        )
+        let prompt = EditorAgentPromptContext.text(for: request)
+        #expect(prompt.utf8.count < 6_000)
+        #expect(prompt.contains("ada-chat-ui"))
+        #expect(!prompt.contains("createSurface"))
+        #expect(!prompt.contains("updateComponents"))
+        for skill in skills {
+            #expect(prompt.contains("/\(skill.id):"))
+            #expect(!prompt.contains(skill.localPath))
+        }
+        let catalog = try EditorAgentKnowledge.query(name: "editor.skills.list", arguments: ["query": "A2UI"])
+        #expect((catalog["skills"] as? [[String: String]])?.contains { $0["id"] == "ada-chat-ui" } == true)
+        let full = try EditorAgentKnowledge.query(name: "editor.skills.read", arguments: ["id": "ada-chat-ui"])
+        #expect(full["content"] as? String == EditorAgentA2UIProtocol.promptContext())
     }
 
     @Test("session store persists index and active session")

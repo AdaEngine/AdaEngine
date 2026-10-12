@@ -38,11 +38,13 @@ private struct OverlayViewModifier<Content: View, OverlayContent: View>: ViewMod
         let contentNode = context.makeNode(from: content)
         let overlayNode = context.makeNode(from: overlayContent)
 
-        return LayoutViewContainerNode(
+        let node = LayoutViewContainerNode(
             layout: OverlayLayout(anchor: anchor),
             content: content,
             nodes: [contentNode, overlayNode]
         )
+        node.relativePositionContentIndex = 0
+        return node
     }
 }
 

@@ -105,6 +105,8 @@ enum UILayoutDebugCounters {
 /// Node represents a view that can be render, layout and interact.
 @MainActor
 class ViewNode: Identifiable {
+    /// Placement metadata applies to this layout child, never to descendants of containers.
+    var relativeLayoutPosition: Point? { nil }
     private static var inspectionRedrawRevisionCounter: UInt64 = 0
     private static var suppressedLayoutPropagationDepth = 0
     private static var layoutMutationRevision: UInt64 = 0

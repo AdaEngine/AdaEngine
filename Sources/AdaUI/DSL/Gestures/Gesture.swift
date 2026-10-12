@@ -91,6 +91,7 @@ public class _Gesture {
 
 @MainActor
 class GestureRecognizer {
+    var cancellationAction: (() -> Void)?
     enum State {
         case possible
         case began
@@ -128,6 +129,7 @@ class GestureRecognizer {
         }
         setState(.cancelled)
         onCancelled()
+        cancellationAction?()
         reset()
     }
 
@@ -137,6 +139,8 @@ class GestureRecognizer {
 // MARK: - GestureAreaViewNode
 
 class GestureAreaViewNode: ViewModifierNode {
+    private var initialTouch: TouchEvent?
+    private weak var scrollingTouchTarget: ScrollViewNode?
     override var allowsNestedFrameAnimation: Bool {
         true
     }
@@ -168,6 +172,29 @@ class GestureAreaViewNode: ViewModifierNode {
     }
 
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        guard let touch = touches.first else { return }
+        if touch.phase == .began { initialTouch = touch; scrollingTouchTarget = nil }
+        if let scrollingTouchTarget {
+            scrollingTouchTarget.onTouchesEvent(touches)
+            if touch.phase == .ended || touch.phase == .cancelled { self.scrollingTouchTarget = nil; initialTouch = nil }
+            return
+        }
+        if touch.phase == .moved, let initialTouch,
+            gestures.contains(where: { ($0 as? DragGestureRecognizer)?.shouldYieldToScroll(touch) == true }) {
+            var ancestor = parent
+            while let node = ancestor {
+                if let scroll = node as? ScrollViewNode {
+                    for recognizer in gestures { recognizer.cancel() }
+                    contentNode.onTouchesEvent([TouchEvent(window: touch.window, location: touch.location, phase: .cancelled, time: touch.time, contactID: touch.contactID)])
+                    scrollingTouchTarget = scroll
+                    scroll.onTouchesEvent([initialTouch])
+                    scroll.onTouchesEvent(touches)
+                    return
+                }
+                ancestor = node.parent
+            }
+        }
+        let heldDrag = gestures.contains { ($0 as? DragGestureRecognizer)?.isHeldTouchDrag == true }
         for recognizer in gestures {
             let phases = touches.map(\.phase)
             if phases.contains(.began) {
@@ -183,7 +210,12 @@ class GestureAreaViewNode: ViewModifierNode {
                 recognizer.touchesCancelled(touches)
             }
         }
-        contentNode.onTouchesEvent(touches)
+        if heldDrag {
+            contentNode.onTouchesEvent([TouchEvent(window: touch.window, location: touch.location, phase: .cancelled, time: touch.time, contactID: touch.contactID)])
+        } else {
+            contentNode.onTouchesEvent(touches)
+        }
+        if touch.phase == .ended || touch.phase == .cancelled { initialTouch = nil }
     }
 
     override func update(_ deltaTime: TimeInterval) {
@@ -256,9 +288,12 @@ public struct DragGesture: Gesture {
     }
 
     public var minimumDistance: Float
+    /// Touches must remain pressed for this duration before dragging. Quick swipes can scroll an enclosing ScrollView.
+    public var minimumPressDuration: TimeInterval
 
-    public init(minimumDistance: Float = 10) {
+    public init(minimumDistance: Float = 10, minimumPressDuration: TimeInterval = 0) {
         self.minimumDistance = minimumDistance
+        self.minimumPressDuration = max(0, minimumPressDuration)
     }
 }
 
@@ -267,7 +302,7 @@ extension DragGesture: _RecognizableGesture {
         onChanged: ((DragGesture.Value) -> Void)?,
         onEnded: ((DragGesture.Value) -> Void)?
     ) -> GestureRecognizer {
-        DragGestureRecognizer(minimumDistance: minimumDistance, onChanged: onChanged, onEnded: onEnded)
+        DragGestureRecognizer(minimumDistance: minimumDistance, minimumPressDuration: minimumPressDuration, onChanged: onChanged, onEnded: onEnded)
     }
 }
 

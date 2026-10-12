@@ -85,6 +85,7 @@ extension UICatalog {
             view("HStack", horizontalStack, content: .children) { c in AnyView(HStack(alignment: c.verticalAlignment, spacing: c.float("spacing")) { c.content }) },
             view("VStack", verticalStack, content: .children) { c in AnyView(VStack(alignment: c.horizontalAlignment, spacing: c.float("spacing")) { c.content }) },
             view("ZStack", [alignment()], content: .children) { c in AnyView(ZStack(anchor: c.anchor) { c.content }) },
+            view("FreeLayout", content: .children) { c in AnyView(FreeLayout { c.content }) },
             view("Group", content: .children) { AnyView($0.content) },
             view("Grid", [number("columns", 2), number("horizontalSpacing", 8), number("verticalSpacing", 8), alignment("topLeading")], content: .children) { c in
                 guard c.number("columns") >= 1, c.number("columns") <= 1024, c.number("columns").rounded() == c.number("columns") else {

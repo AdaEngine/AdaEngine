@@ -10,6 +10,7 @@ struct EditorModifierCatalogEntry: Identifiable {
             "frame",
             "flexibleFrame",
             "offset",
+            "relativePosition",
             "fixedSize",
             "layoutPriority",
             "aspectRatio",
@@ -54,6 +55,7 @@ struct EditorModifierCatalogEntry: Identifiable {
         case "frame": "Set width, height, and alignment."
         case "flexibleFrame": "Set minimum and maximum dimensions."
         case "offset": "Move the layer horizontally or vertically."
+        case "relativePosition": "Place a child within FreeLayout using relative X/Y coordinates from zero to one."
         case "fixedSize": "Keep the layer at its ideal size."
         case "layoutPriority": "Choose which layer gets space first."
         case "aspectRatio": "Fit or fill content at a fixed aspect ratio."

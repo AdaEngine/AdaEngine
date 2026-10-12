@@ -5,11 +5,21 @@ versioned YAML and open in a dedicated designer. They are reusable AdaUI resourc
 not entity scenes.
 
 The palette inserts into the selected container. Compose with HStack, VStack,
-ZStack, Grid and lazy stacks; use ScrollView around overflowing content. Drag a
-hierarchy row vertically to reorder it, or drag right onto another row to nest it.
+ZStack, Grid and lazy stacks; use ScrollView around overflowing content. Drag
+components from the palette, existing hierarchy rows, or elements on the canvas.
+The highlighted container accepts the drop; VStack/HStack show an insertion line.
+Hierarchy rows accept nesting in the middle and sibling insertion at their edges.
+Empty canvas space creates a `FreeLayout` around the existing root, preserving its
+layout. Free children use the `relativePosition` modifier: X/Y run from 0 to 1 over
+the space remaining after measuring the child, so resizing needs no manual anchors.
+Moving back into a stack removes free positioning. Each drop is one Undo step;
+Escape, cancelled touches and dropping outside the designer cancel the operation.
+On iPad, hold for 300 ms to drag; a quick swipe scrolls. Compact layouts reveal the
+canvas while retaining the active drag. New FreeLayout assets require a runtime
+that includes these descriptors; existing assets keep their layout.
 The inspector edits properties, bindings, actions and ordered modifiers. Select
 **Add content from palette** on a background/overlay modifier to fill its content
-slot. **Design** selects nodes; **Interact** runs the controls against preview data.
+slot. **Design** selects and arranges nodes; **Interact** runs the controls against preview data.
 **YAML** exposes the source, including diagnostics for unresolved exports.
 
 The root inspector declares inputs with types and preview defaults, and named
