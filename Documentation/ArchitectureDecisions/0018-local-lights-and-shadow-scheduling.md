@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-05
-- Implementation: Partial (local foundation; not released)
+- Implementation: Implemented (Metal and native WebGPU; Apple mobile unverified)
 
 ## Implementation status
 
