@@ -227,7 +227,7 @@ extension Chunks {
             return nil
         }
 
-        let swappedEntityId = self.chunks[location.chunkIndex].swapRemoveEntity(at: entity, deinitialize: deinitialize)
+        let swappedEntityId = self.chunks[location.chunkIndex].swapRemoveEntity(atRow: location.entityRow, deinitialize: deinitialize)
         self.entities.remove(for: entity)
 
         if let swappedEntityId {
@@ -324,9 +324,6 @@ public struct Chunk: Sendable {
     /// Entity IDs stored in this chunk
     public private(set) var entities: ContiguousArray<Entity.ID>
 
-    /// Map from entity ID to its index in the chunk
-    public private(set) var entityIndices: [Entity.ID: RowIndex]
-
     /// Raw component data storage (organized by component type)
     public internal(set) var componentsData: SparseSet<ComponentId, ComponentsData>
 
@@ -346,8 +343,6 @@ public struct Chunk: Sendable {
     public init(entitiesPerChunk: Int, layout: ComponentLayout) {
         self.entitiesPerChunk = entitiesPerChunk
         self.entities = []
-        self.entityIndices = [:]
-        self.entityIndices.reserveCapacity(entitiesPerChunk)
         self.componentsData = [:]
         for component in layout.components {
             self.componentsData[component.identifier] = ComponentsData(
@@ -355,6 +350,13 @@ public struct Chunk: Sendable {
                 component: component.componentType
             )
         }
+    }
+
+    /// Row of an entity in this chunk. Linear in the chunk size (at most `entitiesPerChunk`),
+    /// which is cheaper overall than keeping a per-chunk hash table in sync on every spawn, move and removal.
+    @inline(__always)
+    func row(of entity: Entity.ID) -> RowIndex? {
+        entities.firstIndex(of: entity)
     }
 
     /// Add an entity to this chunk
@@ -373,7 +375,6 @@ public struct Chunk: Sendable {
         }
 
         let index = currentIndex
-        entityIndices[entityId] = index
         count += 1
 
         return index
@@ -442,7 +443,6 @@ public struct Chunk: Sendable {
             data.changeTicks.clear(entities.count)
         }
         self.entities.removeAll(keepingCapacity: true)
-        self.entityIndices.removeAll(keepingCapacity: true)
         self.count = 0
     }
 
@@ -462,10 +462,15 @@ public struct Chunk: Sendable {
     /// - Returns: The ID of the entity that was swapped into the removed entity's place, if any.
     @discardableResult
     mutating func swapRemoveEntity(at entityId: Entity.ID, deinitialize: Bool) -> Entity.ID? {
-        guard let removedIndex = self.entityIndices.removeValue(forKey: entityId) else {
+        guard let removedIndex = self.row(of: entityId) else {
             return nil
         }
+        return swapRemoveEntity(atRow: removedIndex, deinitialize: deinitialize)
+    }
 
+    /// Row-based removal for callers that already know the row (``Chunks`` tracks it per entity).
+    @discardableResult
+    mutating func swapRemoveEntity(atRow removedIndex: RowIndex, deinitialize: Bool) -> Entity.ID? {
         count -= 1
         let lastIndex = count
 
@@ -491,7 +496,6 @@ public struct Chunk: Sendable {
             // Update the entity that was in the last slot
             let swappedEntityId = self.entities[lastIndex]
             self.entities[removedIndex] = swappedEntityId
-            self.entityIndices[swappedEntityId] = removedIndex
             self.entities.removeLast()
 
             return swappedEntityId
@@ -533,7 +537,7 @@ public struct Chunk: Sendable {
         for entity: Entity.ID,
         lastTick: Tick
     ) -> Bool {
-        guard let entityIndex = self.entityIndices[entity] else {
+        guard let entityIndex = self.row(of: entity) else {
             return false
         }
         guard
@@ -549,7 +553,7 @@ public struct Chunk: Sendable {
 
     @inline(__always)
     public func get<T: Component>(_: T.Type, for entity: Entity.ID) -> T? {
-        guard let index = self.entityIndices[entity] else {
+        guard let index = self.row(of: entity) else {
             return nil
         }
         return self.componentsData[T.identifier]?
@@ -564,7 +568,7 @@ public struct Chunk: Sendable {
         _: T.Type,
         for entity: Entity.ID
     ) -> UnsafeMutablePointer<T>? {
-        guard let index = self.entityIndices[entity] else {
+        guard let index = self.row(of: entity) else {
             return nil
         }
         return unsafe self.componentsData[T.identifier]?
@@ -578,7 +582,7 @@ public struct Chunk: Sendable {
         _: T.Type,
         for entity: Entity.ID
     ) -> UnsafeMutablePointer<Tick>? {
-        guard let index = self.entityIndices[entity] else {
+        guard let index = self.row(of: entity) else {
             return nil
         }
         return unsafe self.componentsData[T.identifier]?
@@ -620,7 +624,7 @@ public struct Chunk: Sendable {
     }
 
     public func getComponents(for entity: Entity.ID) -> [(ComponentId, any Component)] {
-        guard let index = self.entityIndices[entity] else {
+        guard let index = self.row(of: entity) else {
             return []
         }
         return componentsData.values.map { key, data in
@@ -717,7 +721,6 @@ extension Chunk: CustomStringConvertible {
                 entitiesPerChunk: \(entitiesPerChunk),
                 count: \(count),
                 entities: \(entities.map(\.description)),
-                entityIndices: \(entityIndices),
                 componentsData:
                     \(componentsData.map(\.description).joined(separator: "\n"))
             )

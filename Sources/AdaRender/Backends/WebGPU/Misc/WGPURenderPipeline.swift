@@ -13,6 +13,8 @@
 
     final class WGPURenderPipeline: RenderPipeline, @unchecked Sendable {
         let bindingKinds: [[Int: WGPUBindingKind]]
+        /// Binding slots of each descriptor set in ascending order; computed once instead of sorting per draw.
+        let sortedBindingSlots: [[Int]]
         // Cache ownership is protected by this lock. NSLock avoids transferring
         // the non-Sendable vendor handles across a Mutex sending boundary.
         private let bindingLock = NSLock()
@@ -35,13 +37,15 @@
             var reflection = ShaderReflectionData()
             reflection.merge(descriptor.vertex.reflectionData)
             if let fragment = descriptor.fragment { reflection.merge(fragment.reflectionData) }
-            self.bindingKinds = reflection.descriptorSets.map { set in
+            let bindingKinds: [[Int: WGPUBindingKind]] = reflection.descriptorSets.map { set in
                 var kinds: [Int: WGPUBindingKind] = [:]
                 for binding in set.uniformsBuffers.keys { kinds[binding] = .uniformBuffer }
                 for binding in set.sampledImages.keys { kinds[binding] = .texture }
                 for binding in set.samplers.keys { kinds[binding] = .sampler }
                 return kinds
             }
+            self.bindingKinds = bindingKinds
+            self.sortedBindingSlots = bindingKinds.map { $0.keys.sorted() }
             self.descriptor = descriptor
             let topology = descriptor.primitive.toWebGPU
             let stripIndexFormat: WebGPU.GPUIndexFormat = (topology == .triangleStrip || topology == .lineStrip) ? .uint32 : .undefined

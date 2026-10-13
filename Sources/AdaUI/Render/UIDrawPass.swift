@@ -44,8 +44,18 @@ struct LinearGradientUniform: Sendable {
 
     init(startPoint: Vector2, endPoint: Vector2, stops: [Gradient.Stop]) {
         let normalizedStops = Gradient.normalizeStops(stops)
-        let colors = Self.makeColors(from: normalizedStops)
-        let locations = Self.makeLocations(from: normalizedStops)
+        // Read stops directly instead of building temporary color/location arrays per gradient.
+        let clear = Color.clear.asVector
+        let usedCount = min(normalizedStops.count, Gradient.maximumStops)
+        func color(_ index: Int) -> Vector4 {
+            index < usedCount ? normalizedStops[index].color.asVector : clear
+        }
+        func location(_ index: Int) -> Float {
+            index < usedCount ? normalizedStops[index].location : 1
+        }
+        func locations(_ first: Int) -> Vector4 {
+            Vector4(location(first), location(first + 1), location(first + 2), location(first + 3))
+        }
 
         self.startPoint = startPoint
         self.endPoint = endPoint
@@ -53,53 +63,26 @@ struct LinearGradientUniform: Sendable {
         self._padding = 0
         self._padding1 = 0
         self._padding2 = 0
-        self.stopColor0 = colors[0]
-        self.stopColor1 = colors[1]
-        self.stopColor2 = colors[2]
-        self.stopColor3 = colors[3]
-        self.stopColor4 = colors[4]
-        self.stopColor5 = colors[5]
-        self.stopColor6 = colors[6]
-        self.stopColor7 = colors[7]
-        self.stopColor8 = colors[8]
-        self.stopColor9 = colors[9]
-        self.stopColor10 = colors[10]
-        self.stopColor11 = colors[11]
-        self.stopColor12 = colors[12]
-        self.stopColor13 = colors[13]
-        self.stopColor14 = colors[14]
-        self.stopColor15 = colors[15]
-        self.stopLocations0 = locations[0]
-        self.stopLocations1 = locations[1]
-        self.stopLocations2 = locations[2]
-        self.stopLocations3 = locations[3]
-    }
-}
-
-extension LinearGradientUniform {
-    private static func makeColors(from stops: [Gradient.Stop]) -> [Vector4] {
-        var colors = Array(repeating: Color.clear.asVector, count: Gradient.maximumStops)
-        for (index, stop) in stops.enumerated() where index < Gradient.maximumStops {
-            colors[index] = stop.color.asVector
-        }
-        return colors
-    }
-
-    private static func makeLocations(from stops: [Gradient.Stop]) -> [Vector4] {
-        var flatLocations = Array(repeating: Float(1), count: Gradient.maximumStops)
-        for (index, stop) in stops.enumerated() where index < Gradient.maximumStops {
-            flatLocations[index] = stop.location
-        }
-
-        return stride(from: 0, to: Gradient.maximumStops, by: 4)
-            .map { index in
-                Vector4(
-                    flatLocations[index],
-                    flatLocations[index + 1],
-                    flatLocations[index + 2],
-                    flatLocations[index + 3]
-                )
-            }
+        self.stopColor0 = color(0)
+        self.stopColor1 = color(1)
+        self.stopColor2 = color(2)
+        self.stopColor3 = color(3)
+        self.stopColor4 = color(4)
+        self.stopColor5 = color(5)
+        self.stopColor6 = color(6)
+        self.stopColor7 = color(7)
+        self.stopColor8 = color(8)
+        self.stopColor9 = color(9)
+        self.stopColor10 = color(10)
+        self.stopColor11 = color(11)
+        self.stopColor12 = color(12)
+        self.stopColor13 = color(13)
+        self.stopColor14 = color(14)
+        self.stopColor15 = color(15)
+        self.stopLocations0 = locations(0)
+        self.stopLocations1 = locations(4)
+        self.stopLocations2 = locations(8)
+        self.stopLocations3 = locations(12)
     }
 }
 

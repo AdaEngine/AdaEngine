@@ -30,24 +30,23 @@ public struct BatchAndSortItemsSystem<T: RenderItem> {
 
     public func update(context _: UpdateContext) async {
         sortedRenderItems.items.items.removeAll(keepingCapacity: true)
-        let items = renderItems.sorted().items
-        var batchedItems: [T] = []
-        batchedItems.reserveCapacity(items.count)
+        // The extracted items are rebuilt every frame, so sorting them in place avoids copying every item.
+        renderItems.items.sort(by: { $0.sortKey < $1.sortKey })
+        let items = renderItems.items
+        sortedRenderItems.items.items.reserveCapacity(items.count)
 
         if var currentItem = items.first {
             for nextItemIndex in 1..<items.count {
                 let nextItem = items[nextItemIndex]
 
                 if tryToAddBatch(to: &currentItem, from: nextItem) == false {
-                    batchedItems.append(currentItem)
+                    sortedRenderItems.items.items.append(currentItem)
                     currentItem = nextItem
                 }
             }
 
-            batchedItems.append(currentItem)
+            sortedRenderItems.items.items.append(currentItem)
         }
-
-        sortedRenderItems.items.items.append(contentsOf: batchedItems)
     }
 
     private func tryToAddBatch(to currentItem: inout T, from otherItem: T) -> Bool {

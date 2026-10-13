@@ -575,9 +575,8 @@ public struct UIRenderTesselationSystem {
                 )
                 let vertexOffset = UInt32(state.renderData.gradientVertexBuffer.count)
                 state.renderData.gradientVertexBuffer.elements.append(contentsOf: result.vertices)
-                let indices = result.indices.map { $0 + vertexOffset }
-                state.renderData.gradientIndexBuffer.elements.append(contentsOf: indices)
-                indexCount = indices.count
+                state.renderData.gradientIndexBuffer.elements.append(contentsOf: result.indices.lazy.map { $0 + vertexOffset })
+                indexCount = result.indices.count
             } else {
                 tessellator.appendLinearGradient(
                     transform: transform,

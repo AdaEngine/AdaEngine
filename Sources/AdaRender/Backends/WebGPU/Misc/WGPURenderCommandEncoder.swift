@@ -25,6 +25,8 @@
 
         // Track if bind group needs update
         private var bindGroupDirty: Bool = false
+        // One bit per descriptor set whose bind group must be re-bound before the next draw.
+        private var dirtyBindGroupSets: UInt64 = 0
         private var triangleFillMode: TriangleFillMode = .fill
 
         struct BindGroupResources {
@@ -88,6 +90,7 @@
             // Always mark dirty when pipeline changes so bind group uses correct layout
             if pipelineChanged {
                 bindGroupDirty = true
+                dirtyBindGroupSets = .max
             }
 
             // NOTE: Do NOT call commitBindGroup() here!
@@ -259,6 +262,8 @@
         private func updateBindGroupResources(setIndex: Int, update: (inout BindGroupResources) -> Void) {
             update(&bindGroupResources[setIndex, default: BindGroupResources()])
             bindGroupDirty = true
+            assert(setIndex < UInt64.bitWidth, "Descriptor set index exceeds the dirty-set mask")
+            dirtyBindGroupSets |= 1 << UInt64(setIndex & (UInt64.bitWidth - 1))
         }
 
         func setViewport(_ viewport: Rect) {
@@ -364,7 +369,13 @@
 
             bindGroupDirty = false
 
-            for setIndex in bindGroupResources.keys.sorted() {
+            // Only sets changed since the last draw (or all of them after a pipeline switch) are re-bound;
+            // untouched sets keep their bind group in the pass encoder.
+            var remainingSets = dirtyBindGroupSets
+            dirtyBindGroupSets = 0
+            while remainingSets != 0 {
+                let setIndex = remainingSets.trailingZeroBitCount
+                remainingSets &= remainingSets - 1
                 guard let resources = bindGroupResources[setIndex] else {
                     continue
                 }
@@ -374,7 +385,8 @@
                 var owners: [AnyObject] = []
                 keys.reserveCapacity(expectedResources.count)
                 owners.reserveCapacity(expectedResources.count)
-                for slot in expectedResources.keys.sorted() {
+                let sortedSlots = pipeline.sortedBindingSlots.indices.contains(setIndex) ? pipeline.sortedBindingSlots[setIndex] : []
+                for slot in sortedSlots {
                     switch expectedResources[slot] {
                     case .uniformBuffer:
                         if let uniform = resources.uniformBuffers[slot] {

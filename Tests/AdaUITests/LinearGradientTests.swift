@@ -179,6 +179,35 @@ struct LinearGradientTests {
     }
 
     @Test
+    func linearGradientUniform_padsUnusedStopsAndCapsAtMaximum() {
+        let three = LinearGradientUniform(
+            startPoint: UnitPoint.top.asVector2,
+            endPoint: UnitPoint.bottom.asVector2,
+            stops: [
+                .init(color: .red, location: 0),
+                .init(color: .green, location: 0.5),
+                .init(color: .blue, location: 1),
+            ]
+        )
+        #expect(three.stopCount == 3)
+        #expect(three.stopColor0 == Color.red.asVector)
+        #expect(three.stopColor1 == Color.green.asVector)
+        #expect(three.stopColor2 == Color.blue.asVector)
+        #expect(three.stopColor3 == Color.clear.asVector)
+        #expect(three.stopColor15 == Color.clear.asVector)
+        #expect(three.stopLocations0 == Vector4(0, 0.5, 1, 1))
+        #expect(three.stopLocations3 == Vector4(1, 1, 1, 1))
+
+        let many = LinearGradientUniform(
+            startPoint: UnitPoint.top.asVector2,
+            endPoint: UnitPoint.bottom.asVector2,
+            stops: (0..<20).map { .init(color: .red, location: Float($0) / 19) }
+        )
+        #expect(many.stopCount == Int32(Gradient.maximumStops))
+        #expect(many.stopLocations3.w == 1)
+    }
+
+    @Test
     func linearGradientUniform_matchesShaderUniformLayout() {
         #expect(MemoryLayout<LinearGradientUniform>.stride == 352)
         #expect(MemoryLayout<LinearGradientUniform>.offset(of: \.stopColor0) == 32)
