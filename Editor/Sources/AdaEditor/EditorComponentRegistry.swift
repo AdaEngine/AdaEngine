@@ -5,6 +5,7 @@ enum EditorBuiltInComponentType {
     static let transform = String(reflecting: Transform.self)
     static let camera = String(reflecting: Camera.self)
     static let sprite = String(reflecting: Sprite.self)
+    static let particleEmitter = String(reflecting: ParticleEmitter.self)
     static let visibility = String(reflecting: Visibility.self)
     static let light2D = String(reflecting: Light2D.self)
     static let lightOccluder2D = String(reflecting: LightOccluder2D.self)
@@ -255,6 +256,7 @@ enum EditorComponentRegistry {
         transformDescriptor,
         cameraDescriptor,
         spriteDescriptor,
+        particleEmitterDescriptor,
         visibilityDescriptor,
         light2DDescriptor,
         lightOccluder2DDescriptor,
@@ -282,6 +284,8 @@ enum EditorComponentRegistry {
     static func registerBuiltIns() {
         guard !hasRegisteredBuiltIns else { return }
         DisplayLayout.registerRuntimeType()
+        RuntimeTypeRegistry.registerComponent(ParticleEmitter.self, names: ["ParticleEmitter"])
+        AssetsManager.registerAssetType(ParticleEffect.self)
         RuntimeTypeRegistry.registerComponent(CompanionPanel.self, names: ["CompanionPanel"])
         RuntimeTypeRegistry.registerComponent(
             Transform.self,

@@ -45,6 +45,7 @@ final class EditorWorkbenchViewModel {
     @ObservationIgnored var uiSceneModels: [String: EditorUISceneModel] = [:]
     @ObservationIgnored var tileSourceModels: [String: EditorTileSourceEditorModel] = [:]
     @ObservationIgnored var tileMapModels: [String: EditorTileMapEditorModel] = [:]
+    @ObservationIgnored var particleEffectModels: [String: EditorParticleEffectEditorModel] = [:]
     @ObservationIgnored var textureSettingsModels: [String: EditorTextureSettingsModel] = [:]
     @ObservationIgnored var sceneUndoHistory: [String: [EditorSceneDocument]] = [:]
     @ObservationIgnored var sceneRedoHistory: [String: [EditorSceneDocument]] = [:]
@@ -245,6 +246,7 @@ final class EditorWorkbenchViewModel {
         uiSceneModels.removeValue(forKey: documentID)
         tileSourceModels.removeValue(forKey: documentID)
         tileMapModels.removeValue(forKey: documentID)
+        particleEffectModels.removeValue(forKey: documentID)?.cancelPreview()
         textureSettingsModels.removeValue(forKey: documentID)
         sceneUndoHistory.removeValue(forKey: documentID)
         sceneRedoHistory.removeValue(forKey: documentID)
@@ -279,6 +281,7 @@ final class EditorWorkbenchViewModel {
         uiSceneModels = uiSceneModels.filter { !discardedIDSet.contains($0.key) }
         tileSourceModels = tileSourceModels.filter { !discardedIDSet.contains($0.key) }
         tileMapModels = tileMapModels.filter { !discardedIDSet.contains($0.key) }
+        for id in discardedIDSet { particleEffectModels.removeValue(forKey: id)?.cancelPreview() }
         textureSettingsModels = textureSettingsModels.filter { !discardedIDSet.contains($0.key) }
         sceneUndoHistory = sceneUndoHistory.filter { !discardedIDSet.contains($0.key) }
         sceneRedoHistory = sceneRedoHistory.filter { !discardedIDSet.contains($0.key) }

@@ -87,6 +87,7 @@ final class EditorInspectorSidebarViewModel {
     var scriptableObjectCatalog: [EditorScriptableObjectDescriptor] = []
     var textureAssets: [TextureAsset] = []
     var tileMapAssets: [TextureAsset] = []
+    var particleEffectAssets: [TextureAsset] = []
     var modelAssets: [TextureAsset] = []
     var sceneAssets: [SceneAsset] = []
     var uiSourcePaths: [String] = []
@@ -279,6 +280,11 @@ final class EditorInspectorSidebarViewModel {
         return tileMapAssets.filter {
             $0.name.lowercased().contains(normalizedQuery) || $0.reference.lowercased().contains(normalizedQuery)
         }
+    }
+
+    func particleEffectAssets(matching query: String) -> [TextureAsset] {
+        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return particleEffectAssets.filter { normalized.isEmpty || $0.name.lowercased().contains(normalized) || $0.reference.lowercased().contains(normalized) }
     }
 
     func modelAssets(matching query: String) -> [TextureAsset] {

@@ -217,6 +217,7 @@ package func PrepareSprites(
     _ renderDevice: Res<RenderDeviceHandler>,
     _ extractedSprites: Res<ExtractedSprites>,
     _ additionalSprites: Res<AdditionalExtractedSprites>,
+    _ particleSprites: Res<ExtractedParticleSprites?>,
     _ spriteDrawPass: Res<SpriteDrawPass>
 ) {
     let pipeline = spriteRenderPipeline.wrappedValue.pipeline(device: renderDevice.renderDevice)
@@ -242,10 +243,10 @@ package func PrepareSprites(
             )
         }
 
-        for sprite in additionalSprites.wrappedValue.sprites.values {
+        func prepareAdditionalSprite(_ sprite: ExtractedSprite) {
             if let visibilityEntityId = sprite.visibilityEntityId,
                 !entities.entityIds.contains(visibilityEntityId) {
-                continue
+                return
             }
             items.append(
                 Transparent2DRenderItem(
@@ -257,6 +258,8 @@ package func PrepareSprites(
                 )
             )
         }
+        additionalSprites.wrappedValue.sprites.values.forEach(prepareAdditionalSprite)
+        particleSprites.wrappedValue?.sprites.values.forEach(prepareAdditionalSprite)
     }
     swap(&items, &renderItems.wrappedValue.items)
 }
@@ -274,6 +277,9 @@ public struct SpriteRenderSystem {
 
     @Res<AdditionalExtractedSprites>
     private var additionalSprites
+
+    @Res<ExtractedParticleSprites?>
+    private var particleSprites
 
     @ResMut
     private var spriteRenderPipeline: RenderPipelines<SpriteRenderPipeline>
@@ -337,7 +343,7 @@ public struct SpriteRenderSystem {
         for index in renderItems.items.items.indices {
             let renderEntityID = renderItems.items.items[index].entity
             guard renderItems.items.items[index].drawPass is SpriteDrawPass,
-                let sprite = extractedSprites.sprites[renderEntityID] ?? additionalSprites.sprites[renderEntityID] else {
+                let sprite = extractedSprites.sprites[renderEntityID] ?? additionalSprites.sprites[renderEntityID] ?? particleSprites?.sprites[renderEntityID] else {
                 finishCurrentBatch()
                 currentTexture = nil
                 batchEntityId = nil

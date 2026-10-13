@@ -6,6 +6,7 @@
 //
 
 import AdaApp
+import AdaAssets
 import AdaCorePipelines
 import AdaECS
 import AdaRender
@@ -17,9 +18,12 @@ public struct SpritePlugin: Plugin {
 
     public func setup(in app: AppWorlds) {
         Sprite.registerComponent()
+        RuntimeTypeRegistry.registerComponent(ParticleEmitter.self, names: ["ParticleEmitter"])
+        AssetsManager.registerAssetType(ParticleEffect.self)
 
         app
             .addSystem(UpdateBoundingsSystem.self, on: .postUpdate)
+            .addSystem(ParticleSimulationSystem.self, on: .postUpdate)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -29,12 +33,14 @@ public struct SpritePlugin: Plugin {
             // Sprite resources
             .insertResource(ExtractedSprites())
             .insertResource(AdditionalExtractedSprites())
+            .insertResource(ExtractedParticleSprites())
             .insertResource(SpriteDrawPass())
             .insertResource(SpriteBatches())
             .initResource(SpriteDrawData.self)
             .initResource(RenderPipelines<SpriteRenderPipeline>.self)
             // Sprite systems
             .addSystem(ExtractSpriteSystem.self, on: .extract)
+            .addSystem(ExtractParticleSpritesSystem.self, on: .extract)
             .addSystem(PrepareSpritesSystem.self, on: .preUpdate)
             .addSystem(SpriteRenderSystem.self, on: .update)
             // Text resources
