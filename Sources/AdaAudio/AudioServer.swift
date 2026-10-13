@@ -36,6 +36,12 @@ public final class AudioServer: Resource {
         self.engine.update(deltaTime)
     }
 
+    /// Linear master gain applied to all audio. Negative values are clamped to zero.
+    public var masterVolume: Float {
+        get { engine.masterVolume }
+        set { engine.masterVolume = max(0, newValue) }
+    }
+
     public func start() throws {
         try self.engine.start()
     }

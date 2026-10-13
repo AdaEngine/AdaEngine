@@ -10,6 +10,25 @@ public enum ProjectSystem {
     public static let supportedSchemaVersions: Set<Int> = [1, 2, currentSchemaVersion]
     public static let knownBuildSystems: Set<String> = ["adascript", "swiftpm"]
 
+    static func runtimeManifestURL(forProjectAt projectURL: URL) -> URL {
+        projectURL
+            .appendingPathComponent(metadataDirectoryName, isDirectory: true)
+            .appendingPathComponent("runtime-manifest.json", isDirectory: false)
+    }
+
+    /// Resolves the project's runtime composition for `platform` without installing anything.
+    static func resolvedRuntimeManifest(
+        for project: AdaProject,
+        platform: AdaProjectRuntimePlatform = .current
+    ) throws(ProjectSystemError) -> EditorAdaScriptResolvedRuntimeManifest {
+        do {
+            let resolved = try EditorAdaScriptRuntimePluginResolver.resolve(project.runtime.plugins, platform: platform)
+            return EditorAdaScriptResolvedRuntimeManifest(project: project.runtime, resolved: resolved)
+        } catch {
+            throw .invalidField(path: "runtime.plugins", message: error.localizedDescription)
+        }
+    }
+
     public static func metadataURL(forProjectAt projectURL: URL) -> URL {
         projectURL
             .appendingPathComponent(metadataDirectoryName, isDirectory: true)
@@ -134,6 +153,10 @@ public enum ProjectSystem {
         do {
             try fileManager.createDirectory(at: metadataDirectory, withIntermediateDirectories: true)
             try encode(project).write(to: metadataURL, options: [.atomic])
+            if project.build.system.isAdaScript {
+                try resolvedRuntimeManifest(for: project).encoded()
+                    .write(to: runtimeManifestURL(forProjectAt: projectURL), options: [.atomic])
+            }
         } catch let error as EncodingError {
             throw .encodingFailed(message: error.localizedDescription)
         } catch {
@@ -319,7 +342,7 @@ public enum ProjectSystem {
         }
     }
 
-    private static func validateRelativePath(_ path: String?, keyPath: String) throws(ProjectSystemError) {
+    static func validateRelativePath(_ path: String?, keyPath: String) throws(ProjectSystemError) {
         guard let path else {
             return
         }
@@ -368,6 +391,8 @@ public enum ProjectSystem {
 
 public enum ProjectSystemPath {
     public static let metadataFile = ".ada/project.json"
+    /// Derived, read-only snapshot of the resolved runtime composition for the saving host platform.
+    public static let runtimeManifestFile = ".ada/runtime-manifest.json"
 }
 
 public struct AdaProject: Codable, Equatable, Sendable {

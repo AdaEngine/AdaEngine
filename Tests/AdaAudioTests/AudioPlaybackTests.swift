@@ -39,6 +39,26 @@ struct AudioPlaybackTests {
         sound.start(); sound.stop()
         #expect(sound.state == .stopped)
     }
+    @Test("Master volume scales rendered PCM and clamps negative values")
+    func masterVolumeScalesOutput() throws {
+        let engine = try MiniAudioEngine(headless: true)
+        let sound = try engine.makeSound(from: Self.wav())
+        sound.start()
+        let full = unsafe try render(engine.engine, frames: 2400)
+        sound.stop()
+        engine.masterVolume = 0.5
+        #expect(engine.masterVolume == 0.5)
+        let restarted = try engine.makeSound(from: Self.wav())
+        restarted.start()
+        let half = unsafe try render(engine.engine, frames: 2400)
+        restarted.stop()
+        let fullPeak = full.map(abs).max() ?? 0
+        let halfPeak = half.map(abs).max() ?? 0
+        #expect(fullPeak > 0.05)
+        #expect(abs(halfPeak - fullPeak * 0.5) < 0.01)
+        engine.masterVolume = -3
+        #expect(engine.masterVolume == 0)
+    }
     private func render(_ engine: MiniAudioStorage, frames: Int) throws -> [Float] {
         var pcm = [Float](repeating: 0, count: frames * 2)
         var read: ma_uint64 = 0

@@ -168,7 +168,7 @@ final class EditorCommunityPlayerSession {
             switch plugin {
             case .core2D: app.addPlugin(Core2DPlugin())
             case .core3D: app.addPlugin(Core3DPlugin())
-            case .physics3D: app.addPlugin(Physics3DPlugin())
+            case .physics3D: app.addPlugin(artifact.plugins.physics3DPlugin())
             case .sprite: app.addPlugin(SpritePlugin())
             case .light2D: app.addPlugin(Light2DPlugin())
             case .mesh2D: app.addPlugin(Mesh2DPlugin())
@@ -176,7 +176,7 @@ final class EditorCommunityPlayerSession {
             case .physics2D:
                 let gravity = artifact.plugins.physics2DGravity
                 app.addPlugin(Physics2DPlugin(gravity: [Float(gravity[0]), Float(gravity[1])]))
-            case .audio: app.addPlugin(AudioPlugin())
+            case .audio: app.addPlugin(artifact.plugins.audioPlugin())
             case .upscale: app.addPlugin(UpscalePlugin())
             default: break
             }

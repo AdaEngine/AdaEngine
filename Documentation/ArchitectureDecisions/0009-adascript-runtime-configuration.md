@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-05
-- Implementation: Partial (foundation shipped)
+- Implementation: Partial (all but device validation shipped)
 
 ## Context
 
@@ -99,10 +99,27 @@ Runtime execution consumes one normalized representation.
 - [x] Scene-only runtime builds and startup-scene loading.
 - [x] Optional root view and prioritized startup system.
 - [x] Project Settings controls for entry, presets, plugins, Physics2D, and window.
-- [ ] Per-platform plugin availability and runtime overrides.
-- [ ] Settings schemas for rendering, audio, 3D physics, and asset preloading.
-- [ ] Persist and display the fully resolved runtime manifest for diagnostics.
+- [x] Per-platform plugin availability and runtime overrides. Descriptors carry
+  `unavailablePlatforms`; `runtime.plugins.platformOverrides.<platform>` applies
+  `enable`/`disable` on top of the shared lists for that platform only, and a
+  resolved plugin that is unavailable on the running platform fails validation.
+  No catalog plugin is marked unavailable anywhere yet, because no platform
+  restriction has been verified; add entries as they are verified.
+- [x] Settings schemas for rendering, audio, 3D physics, and asset preloading:
+  `physics3d` (gravity, sub-steps), `audio` (master volume), `rendering`
+  (upscaling mode and render scale), and `assets.preload`. They are decoded into
+  typed values, validated with field paths, written only when customized, and
+  reach `Physics3DPlugin`, `AudioPlugin(masterVolume:)`, and the exported
+  player. Rendering applies to exported players because upscaling is
+  window-global; Ada Studio play keeps the editor's render configuration.
+  `assets.preload` replaces the default preload-everything behavior of native
+  exports; the interpreted runtime loads assets on demand.
+- [x] Persist and display the fully resolved runtime manifest for diagnostics:
+  saving an AdaScript project writes a deterministic
+  `.ada/runtime-manifest.json` for the saving platform, and Project Settings
+  shows the same document under Resolved Runtime.
 - [ ] Device validation of scene plus HUD startup from a cloud-backed project.
+  This needs a physical device with an iCloud project and has not been done.
 
 ## Consequences
 

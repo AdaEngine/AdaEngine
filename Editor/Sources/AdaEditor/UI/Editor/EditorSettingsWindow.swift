@@ -265,6 +265,23 @@ final class EditorSettingsWindowViewModel {
         }
     }
 
+    func selectUpscaling(_ upscaling: AdaProjectRenderingSettings.Upscaling?) {
+        runtimeDraft.upscaling = upscaling
+        runtimeSettingsStatusMessage = ""
+    }
+
+    /// The runtime composition that would be saved for this host platform, as persisted in `.ada/runtime-manifest.json`.
+    var resolvedRuntimeManifestText: String {
+        do {
+            let runtime = try runtimeDraft.applying(to: runtimeSettings)
+            let resolved = try EditorAdaScriptRuntimePluginResolver.resolve(runtime.plugins)
+            let data = try EditorAdaScriptResolvedRuntimeManifest(project: runtime, resolved: resolved).encoded()
+            return String(decoding: data, as: UTF8.self)
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
     func toggleRuntimeWindowResizable() {
         runtimeDraft.windowIsResizable.toggle()
         runtimeSettingsStatusMessage = ""

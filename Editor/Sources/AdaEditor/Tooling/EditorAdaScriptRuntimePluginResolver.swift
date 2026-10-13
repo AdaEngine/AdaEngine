@@ -4,6 +4,20 @@ struct EditorAdaScriptRuntimePluginDescriptor: Equatable, Identifiable, Sendable
     let dependencies: [AdaProjectRuntimePluginID]
     let displayName: String
     let id: AdaProjectRuntimePluginID
+    /// Platforms where the host cannot run this capability. Empty means every platform.
+    let unavailablePlatforms: Set<AdaProjectRuntimePlatform>
+
+    init(
+        dependencies: [AdaProjectRuntimePluginID],
+        displayName: String,
+        id: AdaProjectRuntimePluginID,
+        unavailablePlatforms: Set<AdaProjectRuntimePlatform> = []
+    ) {
+        self.dependencies = dependencies
+        self.displayName = displayName
+        self.id = id
+        self.unavailablePlatforms = unavailablePlatforms
+    }
 }
 
 struct EditorAdaScriptRuntimePluginSection: Equatable, Identifiable, Sendable {
@@ -79,9 +93,15 @@ enum EditorAdaScriptRuntimePluginCatalog {
 }
 
 struct EditorAdaScriptResolvedRuntimePlugins: Equatable, Sendable {
+    let assets: AdaProjectAssetSettings
+    let audio: AdaProjectAudioSettings
     let multiplayer: AdaProjectMultiplayerSettings
+    let platform: AdaProjectRuntimePlatform
     let pluginIDs: [AdaProjectRuntimePluginID]
     let physics2DGravity: [Double]
+    let physics3D: AdaProjectPhysics3DSettings
+    let preset: AdaProjectRuntimePluginPreset
+    let rendering: AdaProjectRenderingSettings
 
     func contains(_ pluginID: AdaProjectRuntimePluginID) -> Bool {
         pluginIDs.contains(pluginID)
@@ -90,6 +110,8 @@ struct EditorAdaScriptResolvedRuntimePlugins: Equatable, Sendable {
 
 enum EditorRuntimePluginResolutionError: Error, Equatable, LocalizedError, Sendable {
     case disabledDependency(plugin: String, requiredBy: String)
+    case unavailableOnPlatform(plugin: String, platform: String)
+    case unknownPlatform(String)
     case unsupportedPresetVersion(Int)
     case unknownPlugin(String)
 
@@ -97,6 +119,10 @@ enum EditorRuntimePluginResolutionError: Error, Equatable, LocalizedError, Senda
         switch self {
         case let .disabledDependency(plugin, requiredBy):
             "Runtime plugin '\(plugin)' is disabled but required by '\(requiredBy)'."
+        case let .unavailableOnPlatform(plugin, platform):
+            "Runtime plugin '\(plugin)' is not available on \(platform). Disable it for this platform with a platform override."
+        case let .unknownPlatform(platform):
+            "Runtime platform '\(platform)' is not supported."
         case let .unsupportedPresetVersion(version):
             "Runtime plugin preset version \(version) is not supported."
         case let .unknownPlugin(plugin):
@@ -106,17 +132,32 @@ enum EditorRuntimePluginResolutionError: Error, Equatable, LocalizedError, Senda
 }
 
 enum EditorAdaScriptRuntimePluginResolver {
+    /// Resolves the plugin graph and typed settings for one platform.
+    ///
+    /// Shared `enable`/`disable` lists apply first, then the platform's override. A plugin that
+    /// the catalog marks unavailable on `platform` is an error unless the project disables it there.
     static func resolve(
-        _ configuration: AdaProjectRuntimePlugins
+        _ configuration: AdaProjectRuntimePlugins,
+        platform: AdaProjectRuntimePlatform = .current,
+        catalog: [EditorAdaScriptRuntimePluginDescriptor] = EditorAdaScriptRuntimePluginCatalog.descriptors
     ) throws -> EditorAdaScriptResolvedRuntimePlugins {
         guard configuration.presetVersion == AdaProjectRuntimePlugins.currentPresetVersion else {
             throw EditorRuntimePluginResolutionError.unsupportedPresetVersion(configuration.presetVersion)
         }
+        let descriptorByID = Dictionary(uniqueKeysWithValues: catalog.map { ($0.id, $0) })
 
-        let enabled = Set(configuration.enable)
-        let disabled = Set(configuration.disable)
-        for pluginID in enabled.union(disabled).sorted(by: { $0.rawValue < $1.rawValue }) {
-            guard EditorAdaScriptRuntimePluginCatalog.descriptorByID[pluginID] != nil else {
+        for key in configuration.platformOverrides.keys.sorted() where AdaProjectRuntimePlatform(rawValue: key) == nil {
+            throw EditorRuntimePluginResolutionError.unknownPlatform(key)
+        }
+        let platformOverride = configuration.platformOverrides[platform.rawValue] ?? AdaProjectRuntimePluginOverride()
+
+        // A platform override wins over the shared lists for the same plugin.
+        let enabled = Set(configuration.enable).union(platformOverride.enable).subtracting(platformOverride.disable)
+        let disabled = Set(configuration.disable).union(platformOverride.disable).subtracting(platformOverride.enable)
+        let referenced = enabled.union(disabled)
+            .union(configuration.platformOverrides.values.flatMap { $0.enable + $0.disable })
+        for pluginID in referenced.sorted(by: { $0.rawValue < $1.rawValue }) {
+            guard descriptorByID[pluginID] != nil else {
                 throw EditorRuntimePluginResolutionError.unknownPlugin(pluginID.rawValue)
             }
         }
@@ -125,9 +166,10 @@ enum EditorAdaScriptRuntimePluginResolver {
         resolved.formUnion(enabled)
         resolved.subtract(disabled)
 
-        var pending = Array(resolved)
+        // Sorted so dependency errors name the same plugin on every run.
+        var pending = resolved.sorted { $0.rawValue < $1.rawValue }
         while let pluginID = pending.popLast() {
-            guard let descriptor = EditorAdaScriptRuntimePluginCatalog.descriptorByID[pluginID] else {
+            guard let descriptor = descriptorByID[pluginID] else {
                 throw EditorRuntimePluginResolutionError.unknownPlugin(pluginID.rawValue)
             }
             for dependency in descriptor.dependencies {
@@ -143,13 +185,67 @@ enum EditorAdaScriptRuntimePluginResolver {
             }
         }
 
-        let orderedPluginIDs = EditorAdaScriptRuntimePluginCatalog.descriptors
-            .map(\.id)
-            .filter(resolved.contains)
+        for descriptor in catalog where resolved.contains(descriptor.id) && descriptor.unavailablePlatforms.contains(platform) {
+            throw EditorRuntimePluginResolutionError.unavailableOnPlatform(
+                plugin: descriptor.id.rawValue,
+                platform: platform.rawValue
+            )
+        }
+
+        let settings = configuration.settings
         return EditorAdaScriptResolvedRuntimePlugins(
-            multiplayer: configuration.settings.multiplayer,
-            pluginIDs: orderedPluginIDs,
-            physics2DGravity: configuration.settings.physics2D.gravity
+            assets: settings.assets,
+            audio: settings.audio,
+            multiplayer: settings.multiplayer,
+            platform: platform,
+            pluginIDs: catalog.map(\.id).filter(resolved.contains),
+            physics2DGravity: settings.physics2D.gravity,
+            physics3D: settings.physics3D,
+            preset: configuration.preset,
+            rendering: settings.rendering
         )
+    }
+}
+
+/// The fully resolved runtime composition for one platform, persisted for diagnostics.
+struct EditorAdaScriptResolvedRuntimeManifest: Codable, Equatable, Sendable {
+    static let currentVersion = 1
+
+    var assets: AdaProjectAssetSettings
+    var audio: AdaProjectAudioSettings
+    var entry: AdaProjectRuntimeEntry
+    var manifestVersion: Int
+    var multiplayer: AdaProjectMultiplayerSettings?
+    var physics2D: AdaProjectPhysics2DSettings?
+    var physics3D: AdaProjectPhysics3DSettings?
+    var platform: AdaProjectRuntimePlatform
+    var plugins: [String]
+    var preset: AdaProjectRuntimePluginPreset
+    var presetVersion: Int
+    var rendering: AdaProjectRenderingSettings
+    var window: AdaProjectRuntimeWindow
+
+    init(project runtime: AdaProjectRuntime, resolved: EditorAdaScriptResolvedRuntimePlugins) {
+        assets = resolved.assets
+        audio = resolved.audio
+        entry = runtime.entry
+        manifestVersion = Self.currentVersion
+        // Only settings of plugins that are actually installed apply to the runtime.
+        multiplayer = resolved.contains(.multiplayer) ? resolved.multiplayer : nil
+        physics2D = resolved.contains(.physics2D) ? AdaProjectPhysics2DSettings(gravity: resolved.physics2DGravity) : nil
+        physics3D = resolved.contains(.physics3D) ? resolved.physics3D : nil
+        platform = resolved.platform
+        plugins = resolved.pluginIDs.map(\.rawValue)
+        preset = resolved.preset
+        presetVersion = runtime.plugins.presetVersion
+        rendering = resolved.rendering
+        window = runtime.window
+    }
+
+    /// Stable, human-readable JSON; the same input always produces the same bytes.
+    func encoded() throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        return try encoder.encode(self)
     }
 }

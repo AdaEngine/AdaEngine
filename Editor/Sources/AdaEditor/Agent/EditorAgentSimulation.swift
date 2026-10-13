@@ -45,7 +45,7 @@ final class EditorAgentSimulation {
             let gravity = artifact.plugins.physics2DGravity
             app.addPlugin(Physics2DPlugin(gravity: [Float(gravity[0]), Float(gravity[1])]))
         }
-        if artifact.plugins.contains(.physics3D) { app.addPlugin(Physics3DPlugin()) }
+        if artifact.plugins.contains(.physics3D) { app.addPlugin(artifact.plugins.physics3DPlugin()) }
         if let script { app.addPlugin(script) }
         if let model = artifact.sceneModel {
             app.addPlugin(EditorAdaScriptRuntimeEntryPlugin(sceneModel: model, assetsDirectory: artifact.assetsDirectory))
