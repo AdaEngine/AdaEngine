@@ -32,3 +32,49 @@ Run `swift test --parallel` (use `--scratch-path` if toolchain cache mismatches)
 | FragmentedIter | 17 ms | 13 ms | 407K -> 207K |
 | HeavyCompute | 504 us | 460 us | 4085 -> 2085 |
 | Spawn / SpawnBatch / AddRemove / InsertCoW | unchanged (within noise) | | |
+
+## ExtractSprite benchmark (AdaSpriteBenchmarks, release, p50, Swift 6.3.2)
+| Scenario | 50k before -> after | 100k before -> after | mallocs (50k) | retains (50k) |
+| --- | --- | --- | --- | --- |
+| ExtractSprite (full extract stage) | 26 -> 21 ms | 55 -> 45 ms | 100K -> 46 | 754K -> 454K |
+| ExtractQueryOnly (query iteration alone) | 15 ms | 31 ms | 0 | 304K |
+
+Cause of the extra mallocs/retains: `ExtractSprite` wrote each sprite through `ResMut.subscript(dynamicMember:)`
+(`extractedSprites.sprites[id] = ...`), i.e. a runtime `WritableKeyPath` access plus `Ref` change-tick bookkeeping
+for every row (about 2 mallocs and 6 retains per sprite). Diagnostic variants showed the rest is cheap: building
+`ExtractedSprite` and appending to an array allocated nothing, a local `SparseSet` insert added about 2 retains per
+sprite. Fix: take the set out of the resource once (`swap`), fill it locally, swap back. What remains is query
+iteration (the `Entity` target) and the per-sprite hash insert.
+
+The same `ResMut` dynamic-member pattern in other per-element loops (for example `renderItems.items.append` in
+`PrepareSprites`) is likely to pay the same cost and has not been measured.
+
+## PrepareSprites benchmark (AdaSpriteBenchmarks, headless backend, release, p50)
+| Scenario | current | experiment: local array + swap | mallocs | retains |
+| --- | --- | --- | --- | --- |
+| 1 camera x 50k sprites | 6.3 ms | 1.75 ms | 100K -> 55 | 400K -> 100K |
+| 2 cameras x 50k sprites | 13 ms | 3.6 ms | 200K -> 61 | 800K -> 200K |
+| 1 camera x 100k sprites | 13 ms | 3.5 ms | 200K -> 55 | 800K -> 200K |
+
+The current system pays about 2 mallocs and 8 retains per emitted render item, the same `ResMut` dynamic-member
+pattern seen in `ExtractSprite` (`renderItems.items.append(...)` per item). Appending to a local array and swapping it
+into the resource once removed almost all of it in an experiment. The fix is applied in `PrepareSprites`
+(`AdaSprite/SpriteRenderSystem.swift`); confirmed numbers after applying: 1 camera x 50k 6.3 -> 1.78 ms,
+2 cameras x 50k 13 -> 3.5 ms, 1 camera x 100k 13 -> 3.65 ms.
+
+## Audit: per-element writes through `ResMut` dynamic member
+Pattern: a function-style system takes `ResMut<T>` and writes `param.collection.append(...)` / `param.set[id] = ...`
+inside a per-entity loop (keypath access, about 90 ns and 2 mallocs per operation in the sprite benchmarks).
+`@ResMut` property wrappers in `@PlainSystem` types are not affected: they use `wrappedValue` directly and
+`Ref.wrappedValue._modify` only yields the pointer and sets the change tick.
+
+| Place | Per-element write | Expected size |
+| --- | --- | --- |
+| `AdaSprite/SpriteRenderSystem.swift` `ExtractSprite`, `PrepareSprites` | fixed | 10k-100k items |
+| `AdaSprite/Text2DRenderSystem.swift` `ExtractText` (`extractedTexts.texts[id] =`) | open | texts, usually hundreds |
+| `AdaSprite/Text2DRenderSystem.swift` `PrepareTexts` (`renderItems.items.append`, per text per camera) | open | texts x cameras; also looks up pipeline/draw pass per item |
+| `AdaScene/3D/Model3DPlugin.swift` `sources.meshes.append` | open | meshes, up to thousands (other buffers there already use locals) |
+| `AdaSprite/Lighting2D/ExtractLighting2DSystem.swift`, `AdaScene/3D/ExtractLighting3DSystem.swift`, `AdaCorePipelines/.../Environment3D.swift` | open | tens of lights/occluders |
+| UI/camera/window/input extract systems | open | a handful per frame |
+
+Only the sprite systems have enough elements for this to matter; the others are estimated under about 0.5 ms per frame.

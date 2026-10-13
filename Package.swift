@@ -1248,6 +1248,23 @@ if isECSBenchmarkEnabled {
         swiftSettings: swiftSettings,
         plugins: [.plugin(name: "BenchmarkPlugin", package: "package-benchmark")]
     ))
+    products.append(.executable(name: "AdaSpriteBenchmarks", targets: ["AdaSpriteBenchmarks"]))
+    targets.append(.executableTarget(
+        name: "AdaSpriteBenchmarks",
+        dependencies: [
+            "AdaCorePipelines",
+            "AdaECS",
+            "AdaRender",
+            "AdaSprite",
+            "AdaTransform",
+            "AdaUtils",
+            "Math",
+            .product(name: "Benchmark", package: "package-benchmark")
+        ],
+        path: "Benchmarks/AdaSpriteBenchmarks",
+        swiftSettings: swiftSettings,
+        plugins: [.plugin(name: "BenchmarkPlugin", package: "package-benchmark")]
+    ))
 }
 
 // MARK: - Tests

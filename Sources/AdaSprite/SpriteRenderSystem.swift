@@ -139,12 +139,16 @@ public func ExtractSprite(
     >,
     _ extractedSprites: ResMut<ExtractedSprites>
 ) {
-    extractedSprites.sprites.removeAll(keepingCapacity: true)
+    // Fill a local set and swap it in once: writing through `ResMut`'s keypath-based dynamic member
+    // per sprite costs runtime keypath access, allocations and change-tick bookkeeping for every row.
+    var extracted = SparseSet<Entity.ID, ExtractedSprite>()
+    swap(&extracted, &extractedSprites.wrappedValue.sprites)
+    extracted.removeAll(keepingCapacity: true)
     sprites.wrappedValue.forEach { entity, sprite, globalTransform, transform, visible in
         if visible == .hidden {
             return
         }
-        extractedSprites.sprites[entity.id] = ExtractedSprite(
+        extracted[entity.id] = ExtractedSprite(
             entityId: entity.id,
             texture: sprite.texture?.asset,
             size: sprite.size,
@@ -158,6 +162,7 @@ public func ExtractSprite(
             imageMode: sprite.imageMode
         )
     }
+    swap(&extracted, &extractedSprites.wrappedValue.sprites)
 }
 
 @System
@@ -202,7 +207,7 @@ func UpdateBoundings(
 }
 
 @System
-func PrepareSprites(
+package func PrepareSprites(
     _ camera: Query<
         Camera,
         VisibleEntities
@@ -216,13 +221,17 @@ func PrepareSprites(
 ) {
     let pipeline = spriteRenderPipeline.wrappedValue.pipeline(device: renderDevice.renderDevice)
     let drawPass = spriteDrawPass.wrappedValue
+    // Append to a local array and swap it back once: per-item writes through `ResMut`'s keypath-based
+    // dynamic member cost allocations and retains for every render item.
+    var items: [Transparent2DRenderItem] = []
+    swap(&items, &renderItems.wrappedValue.items)
     camera.forEach { _, entities in
-        for sprite in extractedSprites.sprites {
+        for sprite in extractedSprites.wrappedValue.sprites {
             if !entities.entityIds.contains(sprite.entityId) {
                 continue
             }
 
-            renderItems.items.append(
+            items.append(
                 Transparent2DRenderItem(
                     entity: sprite.entityId,
                     drawPass: drawPass,
@@ -233,12 +242,12 @@ func PrepareSprites(
             )
         }
 
-        for sprite in additionalSprites.sprites.values {
+        for sprite in additionalSprites.wrappedValue.sprites.values {
             if let visibilityEntityId = sprite.visibilityEntityId,
                 !entities.entityIds.contains(visibilityEntityId) {
                 continue
             }
-            renderItems.items.append(
+            items.append(
                 Transparent2DRenderItem(
                     entity: sprite.entityId,
                     drawPass: drawPass,
@@ -249,6 +258,7 @@ func PrepareSprites(
             )
         }
     }
+    swap(&items, &renderItems.wrappedValue.items)
 }
 
 @PlainSystem
