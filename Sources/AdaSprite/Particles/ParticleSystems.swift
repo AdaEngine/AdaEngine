@@ -33,8 +33,12 @@ struct ParticleSimulationSystem {
 }
 
 /// Kept separate from tilemap contributions, whose extraction clears its own sprite buffer.
-struct ExtractedParticleSprites: Resource {
-    var sprites: [Entity.ID: ExtractedSprite] = [:]
+package struct ExtractedParticleSprites: Resource {
+    package var sprites: [Entity.ID: ExtractedSprite]
+
+    package init(sprites: [Entity.ID: ExtractedSprite] = [:]) {
+        self.sprites = sprites
+    }
 }
 
 @PlainSystem
