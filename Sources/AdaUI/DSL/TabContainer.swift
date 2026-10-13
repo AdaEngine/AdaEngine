@@ -16,6 +16,8 @@ import Math
 
 /// The position of the tab bar relative to the content.
 public enum TabViewPosition: Sendable {
+    /// Uses a side control strip when supplied by the phone display, otherwise the bottom edge.
+    case automatic
     case top
     case bottom
     case left
@@ -286,6 +288,12 @@ extension EnvironmentValues {
         set { self[TabViewPositionKey.self] = newValue }
     }
 
+    var resolvedTabViewPosition: TabViewPosition {
+        guard tabViewPosition == .automatic else { return tabViewPosition }
+        guard userInterfaceIdiom == .phone, max(displaySafeAreaInsets.leading, displaySafeAreaInsets.trailing) >= 60 else { return .bottom }
+        return displaySafeAreaInsets.leading > displaySafeAreaInsets.trailing ? .left : .right
+    }
+
     var tabLabelStyle: TabLabelStyle {
         get { self[TabLabelStyleKey.self] }
         set { self[TabLabelStyleKey.self] = newValue }
@@ -468,7 +476,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
     init(inputs: _ViewInputs, tabView: TabView<Selection, Content>, elements: [TabBarElement]) {
         self.elements = elements
         self.selectionBinding = tabView.selection
-        self.position = inputs.environment.tabViewPosition
+        self.position = inputs.environment.resolvedTabViewPosition
         self.viewInputs = inputs
 
         let selected = AnyHashable(tabView.selection.wrappedValue)
@@ -478,7 +486,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
         self.tabBarNode = Self.buildStyledTabBar(
             elements: elements,
             selected: selected,
-            position: inputs.environment.tabViewPosition,
+            position: inputs.environment.resolvedTabViewPosition,
             inputs: inputs,
             contentProxy: contentProxy,
             onSelect: { _ in }
@@ -500,7 +508,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
         self.tabBarNode = Self.buildStyledTabBar(
             elements: elements,
             selected: selected,
-            position: inputs.environment.tabViewPosition,
+            position: inputs.environment.resolvedTabViewPosition,
             inputs: inputs,
             contentProxy: contentProxy,
             onSelect: { value in
@@ -571,7 +579,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
                 proposal: ProposedViewSize(width: frame.width, height: contentHeight)
             )
 
-        case .bottom:
+        case .automatic, .bottom:
             let contentHeight = max(0, frame.height - tabBarHeight)
             contentProxy.place(
                 in: Point(x: frame.width * 0.5, y: contentHeight * 0.5),
@@ -672,6 +680,14 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
         }
         viewInputs.environment = self.environment
 
+        let newPosition = self.environment.resolvedTabViewPosition
+        if position != newPosition {
+            position = newPosition
+            rebuildAll()
+            markNeedsLayout()
+            owner?.containerView?.setNeedsLayout()
+        }
+
         tabBarNode.updateEnvironment(self.environment)
 
         // Zero the safe area edge the tab bar occupies so content children
@@ -679,7 +695,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
         var contentEnv = self.environment
         switch position {
         case .top: contentEnv.safeAreaInsets.top = 0
-        case .bottom: contentEnv.safeAreaInsets.bottom = 0
+        case .automatic, .bottom: contentEnv.safeAreaInsets.bottom = 0
         case .left: contentEnv.safeAreaInsets.leading = 0
         case .right: contentEnv.safeAreaInsets.trailing = 0
         }
@@ -766,7 +782,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
                 lineWidth: TabViewConstants.tabBarBorderWidth,
                 color: TabViewConstants.borderColor
             )
-        case .bottom:
+        case .automatic, .bottom:
             let contentHeight = max(0, frame.height - tabBarHeight)
             context.drawLine(
                 start: Point(0, -contentHeight),
@@ -814,7 +830,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
         var contentEnv = environment
         switch position {
         case .top: contentEnv.safeAreaInsets.top = 0
-        case .bottom: contentEnv.safeAreaInsets.bottom = 0
+        case .automatic, .bottom: contentEnv.safeAreaInsets.bottom = 0
         case .left: contentEnv.safeAreaInsets.leading = 0
         case .right: contentEnv.safeAreaInsets.trailing = 0
         }
@@ -912,7 +928,7 @@ final class TabViewNode<Selection: Hashable, Content: View>: ViewNode, Presentat
         var contentEnv = environment
         switch position {
         case .top: contentEnv.safeAreaInsets.top = 0
-        case .bottom: contentEnv.safeAreaInsets.bottom = 0
+        case .automatic, .bottom: contentEnv.safeAreaInsets.bottom = 0
         case .left: contentEnv.safeAreaInsets.leading = 0
         case .right: contentEnv.safeAreaInsets.trailing = 0
         }

@@ -105,4 +105,8 @@ struct CustomLayoutContainer<T: Layout, Content: View>: View {
         node.invalidateContent()
         return _ViewOutputs(node: node)
     }
+
+    public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
+        _ViewListOutputs(outputs: [_makeView(view, inputs: inputs.input)])
+    }
 }

@@ -11,13 +11,22 @@ struct MobileEditorProjectSettingsScreen: View {
     let rename: (String) throws -> Void
     let delete: () throws -> Void
     let showSessions: () -> Void
+    let showPublication: () -> Void
 
-    init(project: MobileEditorProject, isBusy: Bool, rename: @escaping (String) throws -> Void, delete: @escaping () throws -> Void, showSessions: @escaping () -> Void) {
+    init(
+        project: MobileEditorProject,
+        isBusy: Bool,
+        rename: @escaping (String) throws -> Void,
+        delete: @escaping () throws -> Void,
+        showSessions: @escaping () -> Void,
+        showPublication: @escaping () -> Void
+    ) {
         _title = State(initialValue: project.title)
         self.isBusy = isBusy
         self.rename = rename
         self.delete = delete
         self.showSessions = showSessions
+        self.showPublication = showPublication
     }
 
     var body: some View {
@@ -47,6 +56,9 @@ struct MobileEditorProjectSettingsScreen: View {
                     .foregroundColor(theme.editorColors.text)
                     .padding(16)
                 }
+                settingsButton("Publish", color: theme.editorColors.blue, showsChevron: true, action: showPublication)
+                    .disabled(isBusy)
+                    .accessibilityIdentifier("AdaEditor.Mobile.Publish")
                 settingsButton("Previous sessions", color: theme.editorColors.surface, showsChevron: true, action: showSessions)
                     .accessibilityIdentifier("AdaEditor.Mobile.ProjectSessions")
                 MobileEditorCard {

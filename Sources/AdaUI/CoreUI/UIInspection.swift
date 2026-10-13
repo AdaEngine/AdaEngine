@@ -115,6 +115,7 @@ public struct UIWindowSummary: Codable, Hashable, Sendable {
     public let isActive: Bool
     public let overlayMode: UIDebugOverlayMode
     public let rootCount: Int
+    public let layoutTraits: UIWindowLayoutTraits?
 
     public init(
         windowId: Int,
@@ -122,7 +123,8 @@ public struct UIWindowSummary: Codable, Hashable, Sendable {
         frame: Rect,
         isActive: Bool,
         overlayMode: UIDebugOverlayMode,
-        rootCount: Int
+        rootCount: Int,
+        layoutTraits: UIWindowLayoutTraits? = nil
     ) {
         self.windowId = windowId
         self.title = title
@@ -130,6 +132,7 @@ public struct UIWindowSummary: Codable, Hashable, Sendable {
         self.isActive = isActive
         self.overlayMode = overlayMode
         self.rootCount = rootCount
+        self.layoutTraits = layoutTraits
     }
 }
 
@@ -296,7 +299,10 @@ extension UIContainerView: UIInspectableViewContainer {
             frame: self.window?.frame ?? .zero,
             isActive: self.window?.isActive ?? false,
             overlayMode: self.inspectionDebugOverlayMode,
-            rootCount: 1
+            rootCount: 1,
+            layoutTraits: UIWindowLayoutTraits(horizontalSizeClass: horizontalSizeClass, verticalSizeClass: verticalSizeClass,
+                safeAreaInsets: safeAreaInsets, navigationControlsTopInset: navigationBarControlsTopInset,
+                hinge: deviceHinge, reservedRegions: reservedRegions)
         )
     }
 

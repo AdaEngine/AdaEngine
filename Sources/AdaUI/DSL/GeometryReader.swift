@@ -118,6 +118,21 @@ public struct GeometryProxy {
         return localFrame.size
     }
 
+    /// Safe area insets inherited by this geometry reader.
+    public var safeAreaInsets: EdgeInsets { node?.environment.safeAreaInsets ?? EdgeInsets() }
+
+    /// Platform-reserved regions translated into this view's local coordinates.
+    public func reservedRegions(kind: ViewReservedRegion.Kind, includeInactive: Bool = false) -> [ViewReservedRegion] {
+        let origin = resolvedGlobalFrame.origin
+        return (node?.environment.reservedRegions ?? []).filter {
+            $0.kind == kind && (includeInactive || $0.isActive)
+        }.map { region in
+            ViewReservedRegion(id: region.id, kind: region.kind,
+                frame: Rect(origin: region.frame.origin - origin, size: region.frame.size),
+                margins: region.margins, isActive: region.isActive)
+        }
+    }
+
     /// Get the frame of the geometry proxy in a given coordinate space.
     ///
     /// - Parameter coordinateSpace: The coordinate space.

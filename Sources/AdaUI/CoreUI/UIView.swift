@@ -45,6 +45,23 @@ open class UIView {
     /// Set this from the platform layer; it is injected into the view environment on every layout pass.
     public var safeAreaInsets: EdgeInsets = EdgeInsets()
 
+    /// Layout traits supplied by the containing platform window.
+    public var horizontalSizeClass: UserInterfaceSizeClass? {
+        didSet { if oldValue != horizontalSizeClass { setNeedsLayout() } }
+    }
+    public var verticalSizeClass: UserInterfaceSizeClass? {
+        didSet { if oldValue != verticalSizeClass { setNeedsLayout() } }
+    }
+    public var deviceHinge: DeviceHinge? {
+        didSet { if oldValue != deviceHinge { setNeedsLayout() } }
+    }
+    public var reservedRegions: [ViewReservedRegion] = [] {
+        didSet { if oldValue != reservedRegions { setNeedsLayout() } }
+    }
+    public var navigationBarControlsTopInset: Float = 0 {
+        didSet { if oldValue != navigationBarControlsTopInset { setNeedsLayout() } }
+    }
+
     /// The vertical window area currently covered by the software keyboard.
     /// Set this from the platform layer; AdaUI merges it into the bottom safe area inset.
     public var keyboardOccludedHeight: Float = 0 {
@@ -326,6 +343,11 @@ open class UIView {
         for subview in subviews {
             subview.userInterfaceIdiom = userInterfaceIdiom
             subview.colorScheme = colorScheme
+            subview.horizontalSizeClass = horizontalSizeClass
+            subview.verticalSizeClass = verticalSizeClass
+            subview.deviceHinge = deviceHinge
+            subview.reservedRegions = reservedRegions
+            subview.navigationBarControlsTopInset = navigationBarControlsTopInset
             subview.layoutSubviews()
         }
     }
@@ -405,6 +427,11 @@ open class UIView {
         if let window {
             safeAreaInsets = window.safeAreaInsets
             keyboardOccludedHeight = window.keyboardOccludedHeight
+            horizontalSizeClass = window.horizontalSizeClass
+            verticalSizeClass = window.verticalSizeClass
+            deviceHinge = window.deviceHinge
+            reservedRegions = window.reservedRegions
+            navigationBarControlsTopInset = window.navigationBarControlsTopInset
             setNeedsLayout()
         }
 

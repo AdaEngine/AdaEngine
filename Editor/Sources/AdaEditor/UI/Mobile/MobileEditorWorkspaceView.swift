@@ -6,6 +6,8 @@ import Foundation
 struct MobileEditorWorkspaceView: View {
     @Environment(\.theme) private var theme
     @Environment(\.navigationBarContentInset) private var navigationBarContentInset
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.navigationContentSideInsets) private var navigationSideInsets
     let project: MobileEditorProject
     @Binding var selection: MobileEditorWorkspaceTab
     @Binding var promptDraft: String
@@ -23,10 +25,46 @@ struct MobileEditorWorkspaceView: View {
     let onOpenFile: (String) -> Void
     let openPrompt: () -> Void
     let openVoice: () -> Void
+    let embeddedRuntime: EditorAdaScriptProjectRuntimeSession?
+    let prepareEmbeddedPlay: () -> Void
+    let topAccessory: AnyView
+    let inlineComposer: AnyView
 
     var body: some View {
-        ZStack(anchor: .bottom) {
-            activeContent
+        GeometryReader { geometry in
+            let contentSize = Size(width: max(0, geometry.size.width - navigationSideInsets.leading - navigationSideInsets.trailing), height: geometry.size.height)
+            let division = geometry.reservedRegions(kind: .division).first.map { region in
+                ViewReservedRegion(id: region.id, kind: region.kind,
+                    frame: Rect(x: region.frame.minX - navigationSideInsets.leading, y: region.frame.minY,
+                        width: region.frame.width, height: region.frame.height),
+                    margins: region.margins, isActive: region.isActive)
+            }
+            let layout = AdaptiveSplitFrames(size: contentSize, horizontalSizeClass: horizontalSizeClass,
+                division: division)
+            ZStack(anchor: .topLeading) {
+                // Offsets do not contribute to stack measurement; include both panes in the host bounds.
+                Color.clear.frame(width: geometry.size.width, height: geometry.size.height)
+                    .allowsHitTesting(false)
+                if layout.isExpanded {
+                    MobileEditorDuoGamePane(project: project, runtime: embeddedRuntime, message: agentStatus,
+                        selection: _selection, openFile: onOpenFile, fullscreen: preparePlay)
+                        .padding(.top, max(0, navigationBarContentInset - layout.primary.minY))
+                        .frame(width: layout.primary.width, height: layout.primary.height)
+                        .offset(x: navigationSideInsets.leading + layout.primary.minX, y: layout.primary.minY)
+                }
+                activeContent(expanded: layout.isExpanded)
+                    .id("workspace-content")
+                    .padding(.top, layout.isExpanded ? max(0, navigationBarContentInset - layout.secondary.minY) : 0)
+                    .frame(width: layout.isExpanded ? layout.secondary.width : geometry.size.width, height: layout.secondary.height)
+                    .offset(x: layout.isExpanded ? navigationSideInsets.leading + layout.secondary.minX : 0, y: layout.secondary.minY)
+                if !layout.isExpanded {
+                    topAccessory.padding(.trailing, 16).padding(.top, navigationBarContentInset + 8)
+                        .frame(width: contentSize.width, height: geometry.size.height, alignment: .topTrailing)
+                        .offset(x: navigationSideInsets.leading)
+                }
+            }
+            .onAppear { if layout.isExpanded { prepareEmbeddedPlay() } }
+            .onChange(of: layout.isExpanded) { _, expanded in if expanded { prepareEmbeddedPlay() } }
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
         .mask(RectangleShape())
@@ -58,9 +96,9 @@ struct MobileEditorWorkspaceView: View {
     }
 
     @ViewBuilder
-    private var activeContent: some View {
+    private func activeContent(expanded: Bool) -> some View {
         TabView(selection: Binding(
-            get: { selection },
+            get: { expanded ? .build : selection },
             set: { tab in
                 if tab == .play { preparePlay() } else { selection = tab }
             }
@@ -78,7 +116,9 @@ struct MobileEditorWorkspaceView: View {
                     agentStatus: agentStatus,
                     isWorking: agentActivityState == .working,
                     openPrompt: openPrompt,
-                    openVoice: openVoice
+                    openVoice: openVoice,
+                    inlineComposer: expanded ? inlineComposer : nil,
+                    topAccessory: expanded ? topAccessory : nil
                 )
             }
             Tab("Files", value: MobileEditorWorkspaceTab.files) {
@@ -88,8 +128,8 @@ struct MobileEditorWorkspaceView: View {
                 EmptyView()
             }
         }
-        .tabViewPosition(.bottom)
-        .tabViewStyle(LiquidGlassTabBarStyle(
+        .tabViewPosition(.automatic)
+        .tabViewStyle(MobileEditorWorkspaceTabStyle(expanded: expanded, compact: LiquidGlassTabBarStyle(
             backgroundColor: theme.editorColors.surface.opacity(0.12),
             borderColor: theme.editorColors.border,
             selectedColor: theme.editorColors.text,
@@ -102,7 +142,7 @@ struct MobileEditorWorkspaceView: View {
             symbolFont: AdaEditorMaterialSymbolFont.font(size: 22),
             labelFont: MobileEditorFont.font(size: 11),
             bottomPadding: 6
-        ))
+        )))
     }
 }
 struct MobileEditorBuildScreen: View {
@@ -120,6 +160,8 @@ struct MobileEditorBuildScreen: View {
     let isWorking: Bool
     let openPrompt: () -> Void
     let openVoice: () -> Void
+    var inlineComposer: AnyView? = nil
+    var topAccessory: AnyView? = nil
 
     var body: some View {
         GeometryReader { geometry in
@@ -130,12 +172,20 @@ struct MobileEditorBuildScreen: View {
                             .font(MobileEditorFont.font(size: 25))
                             .foregroundColor(theme.editorColors.text)
                             .multilineTextAlignment(.center)
-                        promptLauncher
-                            .frame(width: max(0, min(620, geometry.size.width - 32)))
-                            .padding(.horizontal, 16)
+                        if inlineComposer == nil {
+                            composer
+                                .frame(width: max(0, min(620, geometry.size.width - 32)))
+                                .padding(.horizontal, 16)
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.bottom, 100)
+                    .padding(.bottom, inlineComposer == nil ? 100 : 0)
+                    if let inlineComposer {
+                        inlineComposer
+                            .frame(width: max(0, geometry.size.width - 32))
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                    }
                 } else {
                     transcript
                     LinearGradient(
@@ -164,23 +214,42 @@ struct MobileEditorBuildScreen: View {
                                 .foregroundColor(theme.editorColors.muted)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        promptLauncher
+                        composer
                             .frame(width: max(0, min(620, geometry.size.width - 32)))
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 100)
+                    .padding(.bottom, inlineComposer == nil ? 100 : 12)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .overlay(anchor: .topLeading) {
+            if inlineComposer != nil {
+                HStack(spacing: 8) {
+                    Text("\u{E65F}").font(AdaEditorMaterialSymbolFont.font(size: 20)).foregroundColor(theme.editorColors.blue)
+                    Text("Agent").font(MobileEditorFont.font(size: 16)).foregroundColor(theme.editorColors.text)
+                    Spacer(minLength: 8)
+                    if let topAccessory { topAccessory }
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 44)
+                .accessibilityIdentifier("AdaEditor.Duo.AgentHeader")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var composer: some View {
+        if let inlineComposer { inlineComposer } else { promptLauncher }
     }
 
     private var transcript: some View {
         var transcript = EditorAgentTranscript(events: chatEvents, sessionID: sessionID)
         transcript.a2uiPresentation = a2uiPresentation
-        transcript.contentInsets = EdgeInsets(top: previousSession == nil ? 0 : 54, leading: 16, bottom: agentStatus == nil ? 220 : 260, trailing: 16)
+        transcript.contentInsets = EdgeInsets(top: inlineComposer != nil ? 52 : (previousSession == nil ? 0 : 54), leading: 16,
+            bottom: inlineComposer != nil ? 180 : (agentStatus == nil ? 220 : 260), trailing: 16)
         transcript.scrollRespectsSafeArea = false
-        transcript.scrollExtendsUnderNavigationBar = true
+        transcript.scrollExtendsUnderNavigationBar = inlineComposer == nil
         return transcript
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
     }

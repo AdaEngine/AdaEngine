@@ -26,6 +26,13 @@ open class UIWindow: UIView {
 
     public var configuration: Configuration
 
+    override public var deviceHinge: DeviceHinge? {
+        didSet {
+            guard oldValue != deviceHinge else { return }
+            EventManager.default.send(WindowHingeChanged(windowID: id, previousHinge: oldValue, hinge: deviceHinge))
+        }
+    }
+
     public var title: String {
         get { self.systemWindow?.title ?? "" }
         set { self.systemWindow?.title = newValue }

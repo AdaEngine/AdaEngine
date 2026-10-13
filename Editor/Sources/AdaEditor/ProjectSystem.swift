@@ -640,7 +640,6 @@ public enum AdaProjectRunDestination: String, Codable, CaseIterable, Equatable, 
 }
 
 public struct AdaProjectEditor: Codable, Equatable, Sendable {
-    public var displayPreview: EditorDisplayPreviewSettings?
     public var startupScene: String?
 
     public init(startupScene: String? = nil) {

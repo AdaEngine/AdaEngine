@@ -19,6 +19,9 @@ public struct LiquidGlassTabBarStyle: TabViewStyle {
     public var labelFont: Font
     /// Space below bottom-aligned controls, in addition to the container's safe area.
     public var bottomPadding: Float
+    /// Reserve horizontal space for side tabs. Disable when the content's
+    /// navigation stack already reserves the same display strip.
+    public var reservesSideSpaceForContent: Bool
 
     public init(
         backgroundColor: Color = Color(red: 0.12, green: 0.12, blue: 0.12),
@@ -28,7 +31,8 @@ public struct LiquidGlassTabBarStyle: TabViewStyle {
         symbols: [String: String] = [:],
         symbolFont: Font = .system(size: 22),
         labelFont: Font = .system(size: 11),
-        bottomPadding: Float = 20
+        bottomPadding: Float = 20,
+        reservesSideSpaceForContent: Bool = true
     ) {
         self.backgroundColor = backgroundColor
         self.borderColor = borderColor
@@ -38,6 +42,7 @@ public struct LiquidGlassTabBarStyle: TabViewStyle {
         self.symbolFont = symbolFont
         self.labelFont = labelFont
         self.bottomPadding = bottomPadding
+        self.reservesSideSpaceForContent = reservesSideSpaceForContent
     }
 
     public func makeBody(configuration: Configuration) -> some View {
@@ -48,6 +53,9 @@ public struct LiquidGlassTabBarStyle: TabViewStyle {
 @MainActor
 private struct LiquidGlassTabBar: View {
     @Environment(\.keyboardSafeAreaInset) private var keyboardSafeAreaInset
+    @Environment(\.safeAreaInsets) private var safeAreaInsets
+    @Environment(\.displaySafeAreaInsets) private var displaySafeAreaInsets
+    @Environment(\.navigationBarControlsTopInset) private var controlsTopInset
     let configuration: TabViewStyleConfiguration
     let style: LiquidGlassTabBarStyle
 
@@ -56,16 +64,44 @@ private struct LiquidGlassTabBar: View {
         switch configuration.position {
         case .top:
             ZStack(anchor: .top) {
-                configuration.content
-                LiquidGlassTabBarControls(configuration: configuration, style: style).padding(.top, 20)
+                configuration.content.frame(maxWidth: .infinity, maxHeight: .infinity)
+                insetControls.padding(.top, 20)
             }
-        case .bottom, .left, .right:
+        case .automatic, .bottom:
             ZStack(anchor: .bottom) {
-                configuration.content
-                LiquidGlassTabBarControls(configuration: configuration, style: style).padding(.bottom, style.bottomPadding)
+                configuration.content.frame(maxWidth: .infinity, maxHeight: .infinity)
+                insetControls.padding(.bottom, style.bottomPadding)
                     .offset(y: keyboardSafeAreaInset)
             }
+        case .left, .right:
+            ZStack {
+                configuration.content
+                    .padding(EdgeInsets(top: 0,
+                        leading: style.reservesSideSpaceForContent && configuration.position == .left ? max(56, displaySafeAreaInsets.leading) : 0,
+                        bottom: 0,
+                        trailing: style.reservesSideSpaceForContent && configuration.position == .right ? max(56, displaySafeAreaInsets.trailing) : 0))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                GeometryReader { geometry in
+                    let leading = configuration.position == .left
+                    let sideInset = max(56, leading ? displaySafeAreaInsets.leading : displaySafeAreaInsets.trailing)
+                    let bar = LiquidGlassVerticalTabBar(configuration: configuration, style: style)
+                    let originY = geometry.frame(in: .global).minY
+                    let physicalHeight = originY + geometry.size.height + keyboardSafeAreaInset
+                    let minimumTop = max(16, controlsTopInset) + 144
+                    let centerY = max(minimumTop + bar.preferredHeight * 0.5,
+                        min(physicalHeight - bar.preferredHeight * 0.5 - 12, physicalHeight * 0.5))
+                    bar.frame(width: 56, height: bar.preferredHeight)
+                        .offset(x: leading ? (sideInset - 56) * 0.5 : geometry.size.width - (sideInset + 56) * 0.5,
+                            y: centerY - bar.preferredHeight * 0.5 - originY)
+                }
+            }
         }
+    }
+
+    private var insetControls: some View {
+        LiquidGlassTabBarControls(configuration: configuration, style: style)
+            .padding(.leading, max(0, displaySafeAreaInsets.leading - safeAreaInsets.leading))
+            .padding(.trailing, max(0, displaySafeAreaInsets.trailing - safeAreaInsets.trailing))
     }
 }
 
@@ -124,9 +160,9 @@ private struct LiquidGlassTabBarControls: View {
         return (edgePull < 0 ? -1 : 1) * extraWidth * 0.5 + edgePull * 0.10
     }
 
-    #if WASM
-    // Limit opaque substitutions in Swift 6.3.2's WASM SIL generator. The
-    // controls, glass effects and gestures are shared with the native style.
+    #if WASM || compiler(>=6.4)
+    // Swift 6.3.2 WASM and Swift 6.4 native SIL generators hit the opaque substitution limit.
+    // Erase the control branches while keeping the same glass effects and gestures.
     var body: AnyView {
         AnyView(HStack(spacing: 12) {
             if !tabs.isEmpty { AnyView(mainTabBar) }

@@ -1,16 +1,10 @@
 # Unfold the world
 
-An experimental Foldable Preview demo for AdaEditor. One scene keeps running as a second display region reveals an interactive mission map.
+An adaptive-layout regression fixture. One scene keeps running as a second display region reveals an interactive mission map.
 
-## Play in AdaEditor
+## Validation
 
-1. Open this folder as a project. Open `Assets/Scenes/Main.ascn`.
-2. Click the scene's **Play** control.
-3. Choose **Display → Foldable Preview**, then **Expanded**.
-4. Tap the orange airlock on the map. The gate slides away and the drone continues to the dock.
-5. Switch to **Compact**, then **Expanded**. The gate and drone retain their state. Stop/Play starts a new run.
-
-**Fit** fits the neutral profile to the editor viewport; **1:1** displays its logical point dimensions. The example profile is 400 × 640 compact or 820 × 640 expanded, with a 20-point excluded gap. It is not a specification of an Apple device.
+`EditorFoldableTests` supplies compact and expanded display regions directly to the runtime and checks UI bindings, retained scene state and viewport sizing. Studio's old Foldable Preview selector has been removed. The test profile is 400 × 640 compact or 820 × 640 expanded, with a 20-point excluded gap.
 
 ## Scene and UI
 
@@ -53,6 +47,6 @@ When preparing AdaScript before installing CameraPlugin, call `DisplayLayout.reg
 
 ## Boundaries
 
-This release simulates layout regions; it does not read a hardware hinge sensor or render two independent cameras. Region coordinates are local to the application surface. A single scene runtime owns simulation; the additional panel is AdaUI. Play changes do not modify the saved scene. Preview configuration is saved in `.ada/project.json`.
+This fixture supplies simulated layout regions and does not render two independent cameras. Region coordinates are local to the application surface. A single scene runtime owns simulation; the additional panel is AdaUI. Play changes do not modify the saved scene. Native hinge updates are exposed separately through AdaUI's `deviceHinge` environment and `WindowHingeChanged` event.
 
 Promo drafts and capture storyboard are in `Promo/`. Public posting and an App Store release are separate steps.

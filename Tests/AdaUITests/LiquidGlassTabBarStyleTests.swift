@@ -44,9 +44,122 @@ private struct LiquidGlassNavigationTabRoot: View {
 }
 
 @MainActor
+private final class SideTabActions {
+    var selection = 0
+    var composerTaps = 0
+}
+
+@MainActor
 struct LiquidGlassTabBarStyleTests {
     init() async throws {
         try Application.prepareForTest()
+    }
+
+    @Test
+    func outerSideTabsDoNotInsetNavigationControlsTwice() throws {
+        let tester = ViewTester {
+            TabView(selection: .constant(0)) {
+                Tab("Studio", value: 0) {
+                    NavigationStack {
+                        Color.clear.navigationTitle("Studio")
+                            .navigationBarTrailingItems {
+                                Button("Settings") {}.frame(width: 44, height: 44).accessibilityIdentifier("outer-settings")
+                            }
+                    }
+                }
+                Tab("Community", value: 1) { Color.clear }
+            }
+            .tabViewPosition(.automatic)
+            .tabViewStyle(LiquidGlassTabBarStyle(reservesSideSpaceForContent: false))
+            .environment(\.displaySafeAreaInsets, EdgeInsets(top: 0, leading: 0, bottom: 34, trailing: 84))
+        }.setSize(Size(width: 466, height: 678))
+        tester.containerView.userInterfaceIdiom = .phone
+        tester.performLayout()
+        let settings = try #require(tester.findNodeByAccessibilityIdentifier("outer-settings")).visualAbsoluteFrame()
+        let tab = try #require(tester.findNodeByAccessibilityIdentifier("AdaUI.TabView.Tab.0")).visualAbsoluteFrame()
+        #expect(abs(tab.midX - settings.midX) < 0.5)
+        #expect(tab.midX == 424)
+    }
+
+    @Test(arguments: [false, true])
+    func nestedSideTabsShareNavigationStripWithoutCoveringTheComposer(leading: Bool) throws {
+        let actions = SideTabActions()
+        let tester = ViewTester {
+            NavigationStack {
+                TabView(selection: Binding(get: { actions.selection }, set: { actions.selection = $0 })) {
+                    Tab("Build", value: 0) {
+                        Button("Composer") { actions.composerTaps += 1 }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(.horizontal, 16)
+                            .accessibilityIdentifier("nested-composer")
+                    }
+                    Tab("Files", value: 1) { Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity) }
+                    Tab("Play", value: 2, placement: .floating) { Color.clear }
+                }
+                .tabViewPosition(.automatic)
+                .tabViewStyle(LiquidGlassTabBarStyle())
+                .mask(RectangleShape())
+                .navigationTitle("Project")
+                .navigationBarContentExtendsIntoSideControls()
+                .navigationBarTrailingItems {
+                    Button("Settings") {}.frame(width: 44, height: 44).accessibilityIdentifier("nested-settings")
+                }
+            }
+            .environment(\.displaySafeAreaInsets, EdgeInsets(top: 0, leading: leading ? 84 : 0, bottom: 34, trailing: leading ? 0 : 84))
+        }.setSize(Size(width: 466, height: 678))
+        tester.containerView.userInterfaceIdiom = .phone
+        tester.containerView.navigationBarControlsTopInset = 173
+        tester.performLayout()
+        let settings = try #require(tester.findNodeByAccessibilityIdentifier("nested-settings")).visualAbsoluteFrame()
+        let build = try #require(tester.findNodeByAccessibilityIdentifier("AdaUI.TabView.Tab.0")).visualAbsoluteFrame()
+        let files = try #require(tester.findNodeByAccessibilityIdentifier("AdaUI.TabView.Tab.1")).visualAbsoluteFrame()
+        let composer = try #require(tester.findNodeByAccessibilityIdentifier("nested-composer")).visualAbsoluteFrame()
+        #expect(abs(build.midX - settings.midX) < 0.5)
+        #expect(build.minY - settings.maxY >= 32)
+        #expect(leading ? composer.minX >= 84 : composer.maxX <= 382)
+        #expect(!composer.intersects(build))
+        tester.sendMouseEvent(at: Point(composer.midX, composer.midY), phase: .began)
+        tester.sendMouseEvent(at: Point(composer.midX, composer.midY), phase: .ended)
+        #expect(actions.composerTaps == 1)
+        tester.sendMouseEvent(at: Point(files.midX, files.midY), phase: .began)
+        tester.sendMouseEvent(at: Point(files.midX, files.midY), phase: .ended)
+        #expect(actions.selection == 1)
+    }
+
+    @Test(arguments: [false, true])
+    func automaticSideTabsStayInteractiveAndReturnToTheBottom(leading: Bool) throws {
+        var selection = 0
+        let tester = ViewTester {
+            TabView(selection: Binding(get: { selection }, set: { selection = $0 })) {
+                Tab("First", value: 0) { Text("First").accessibilityIdentifier("side-content-0") }
+                Tab("Second", value: 1) { Text("Second").accessibilityIdentifier("side-content-1") }
+                Tab("Third", value: 2, placement: .floating) { Text("Third").accessibilityIdentifier("side-content-2") }
+            }
+            .tabViewPosition(.automatic)
+            .tabViewStyle(LiquidGlassTabBarStyle())
+        }.setSize(Size(width: 951, height: 669))
+        tester.containerView.userInterfaceIdiom = .phone
+        tester.containerView.safeAreaInsets = EdgeInsets(top: 0, leading: leading ? 84 : 0, bottom: 34, trailing: leading ? 0 : 84)
+        tester.containerView.navigationBarControlsTopInset = 105
+        tester.performLayout()
+        let first = try #require(tester.findNodeByAccessibilityIdentifier("AdaUI.TabView.Tab.0")).visualAbsoluteFrame()
+        let second = try #require(tester.findNodeByAccessibilityIdentifier("AdaUI.TabView.Tab.1")).visualAbsoluteFrame()
+        #expect(abs(first.midX - second.midX) < 0.5)
+        #expect(second.minY > first.maxY)
+        #expect(first.minY >= 105 + 16 + 108)
+        tester.sendMouseEvent(at: Point(second.midX, second.midY), phase: .began)
+        tester.sendMouseEvent(at: Point(second.midX, second.midY), phase: .ended)
+        #expect(selection == 1)
+        #expect(tester.findNodeByAccessibilityIdentifier("side-content-1") != nil)
+        tester.containerView.safeAreaInsets = EdgeInsets(top: 59, leading: 0, bottom: 34, trailing: 0)
+        tester.setSize(Size(width: 390, height: 844)).performLayout()
+        let bottom = try #require(tester.findNodeByAccessibilityIdentifier("AdaUI.TabView.Floating.2")).visualAbsoluteFrame()
+        #expect(bottom.minY > 650)
+        #expect(selection == 1)
+        tester.sendMouseEvent(at: Point(bottom.midX, bottom.midY), phase: .began)
+        tester.sendMouseEvent(at: Point(bottom.midX, bottom.midY), phase: .ended)
+        #expect(selection == 2)
+        #expect(tester.findNodeByAccessibilityIdentifier("side-content-2") != nil)
     }
 
     @Test(arguments: [Float(20), Float(6)])

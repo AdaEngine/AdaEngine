@@ -41,6 +41,7 @@ private struct MobileEditorPlaySession {
 
 struct MobileEditorRootView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.navigationBarControlsAxis) private var navigationBarControlsAxis
     @State private var navigationPath: NavigationPath = NavigationPath()
     @State private var projects: [MobileEditorProject] = MobileAdaScriptProjectService.loadProjects()
     @State private var workspaceTab: MobileEditorWorkspaceTab = .build
@@ -80,12 +81,19 @@ struct MobileEditorRootView: View {
 
     private let logo = ProjectOpeningAssets.loadAdaEngineLogo()
 
+    private var navigationControlsLayout: AnyLayout {
+        navigationBarControlsAxis == .vertical
+            ? AnyLayout(VStackLayout(spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 8))
+    }
+
     var body: some View {
         MobileEditorHomeTabs(
             studio: studioNavigation,
             showsTabBar: navigationPath.isEmpty,
             server: URL(string: EditorCloudAccount.shared.server)
         )
+        .mobileEditorSafeAreaContent(.bottom)
         .background(theme.editorColors.background.ignoresSafeArea())
         .onAppear {
             installMobileNotifications()
@@ -139,6 +147,7 @@ struct MobileEditorRootView: View {
                     }
                 }
             )
+            .mobileEditorSafeAreaContent()
         }
         .fullScreenCover(isPresented: $isVoicePresented, transition: .opacity) {
             MobileEditorVoicePanel(
@@ -160,6 +169,7 @@ struct MobileEditorRootView: View {
                     }
                 }
             )
+            .mobileEditorSafeAreaContent()
         }
         .fullScreenCover(item: $presentedPlayProject) { project in
             MobileEditorPlayScreen(
@@ -175,20 +185,24 @@ struct MobileEditorRootView: View {
         }
         .fullScreenCover(isPresented: $isModelPickerPresented) {
             MobileEditorModelPickerScreen(modelStore: providerModels)
+                .mobileEditorSafeAreaContent()
         }
         .fullScreenCover(item: $publicationProject) { project in
             if let root = try? MobileAdaScriptProjectService.projectURL(for: project.id) {
                 MobileEditorPublishScreen(projectURL: root, title: project.title, close: { publicationProject = nil })
+                    .mobileEditorSafeAreaContent()
             }
         }
         .fullScreenCover(item: $presentedFile) { request in
             MobileEditorFileCover(project: request.project, relativePath: request.relativePath)
+                .mobileEditorSafeAreaContent()
         }
     }
 
     private var studioNavigation: some View {
         NavigationStack(path: $navigationPath) {
             MobileEditorProjectsScreen(projects: projects, create: createProject, open: openProject)
+                .overlay(anchor: .topTrailing) { creditsBadge.padding(.trailing, 16).padding(.top, 24) }
                 .navigationTitle("Ada Studio")
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 24))
                 .navigationTitlePosition(.leading)
@@ -203,10 +217,7 @@ struct MobileEditorRootView: View {
                     }
                 }
                 .navigationBarTrailingItems {
-                    HStack(spacing: 8) {
-                        EditorAICreditsBadge(compact: true, onOpen: {
-                            navigationPath.append(MobileEditorDestination.settings)
-                        })
+                    navigationControlsLayout {
                         Button { navigationPath.append(MobileEditorDestination.activity) } label: {
                             Text("\u{E7F4}")
                                 .foregroundColor(theme.editorColors.text)
@@ -253,24 +264,25 @@ struct MobileEditorRootView: View {
                         presentedFile = MobileEditorFilePresentation(project: project, relativePath: relativePath)
                     },
                     openPrompt: { isPromptPresented = true },
-                    openVoice: { isVoicePresented = true }
+                    openVoice: { isVoicePresented = true },
+                    embeddedRuntime: playSession?.projectID == id ? playSession?.runtime : nil,
+                    prepareEmbeddedPlay: { preparePlay(for: id, presentsFullscreen: false) },
+                    topAccessory: AnyView(creditsBadge),
+                    inlineComposer: AnyView(MobileEditorInlineComposer(
+                        text: promptDraft.binding, attachmentURLs: pendingPromptAttachments, isWorking: isAgentRunning,
+                        removeAttachment: { url in pendingPromptAttachments.removeAll { $0 == url } },
+                        pasteImages: pasteAgentImages, pickFiles: pickAgentFiles, pickPhotos: pickAgentPhotos,
+                        submit: { submitPrompt(for: id) }, voice: { isVoicePresented = true }
+                    ))
                 )
+                .navigationBarContentExtendsIntoSideControls()
                 .navigationTitle(project.title)
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                 .navigationTitlePosition(.center)
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationBarColor(theme.editorColors.background)
                 .navigationBarTrailingItems {
-                    HStack(spacing: 8) {
-                        Button("Publish") { publicationProject = project }
-                            .font(MobileEditorFont.font(size: 13))
-                            .foregroundColor(theme.editorColors.blue)
-                            .frame(minHeight: 40)
-                            .disabled(isAgentRunning)
-                            .accessibilityIdentifier("AdaEditor.Mobile.Publish")
-                        EditorAICreditsBadge(compact: true, onOpen: {
-                            navigationPath.append(MobileEditorDestination.settings)
-                        })
+                    navigationControlsLayout {
                         if runningProjectID == id, !isVoicePresented {
                             Button { agentOperation?.cancel() } label: {
                                 Text("\u{E047}")
@@ -366,7 +378,8 @@ struct MobileEditorRootView: View {
                         playSession = nil
                         navigationPath = NavigationPath()
                     },
-                    showSessions: { navigationPath.append(MobileEditorDestination.sessions(id)) }
+                    showSessions: { navigationPath.append(MobileEditorDestination.sessions(id)) },
+                    showPublication: { publicationProject = project }
                 )
                 .navigationTitle("Project settings")
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
@@ -392,6 +405,12 @@ struct MobileEditorRootView: View {
                     .navigationBarColor(theme.editorColors.background)
             }
         }
+    }
+
+    private var creditsBadge: some View {
+        EditorAICreditsBadge(compact: true, onOpen: {
+            navigationPath.append(MobileEditorDestination.settings)
+        })
     }
 
     private func createProject() {
@@ -427,7 +446,8 @@ struct MobileEditorRootView: View {
         }
     }
 
-    private func preparePlay(for id: UUID) {
+    private func preparePlay(for id: UUID, presentsFullscreen: Bool = true) {
+        if !presentsFullscreen, playSession?.projectID == id { return }
         guard let project = projects.first(where: { $0.id == id }) else { return }
         do {
             let directory = try MobileAdaScriptProjectService.prepare(project)
@@ -437,7 +457,7 @@ struct MobileEditorRootView: View {
             playSession?.capture.stop()
             withTransaction(Transaction()) {
                 playSession = MobileEditorPlaySession(projectID: id, runtime: runtime, capture: capture)
-                presentedPlayProject = project
+                if presentsFullscreen { presentedPlayProject = project }
             }
         } catch {
             playSession?.capture.stop()

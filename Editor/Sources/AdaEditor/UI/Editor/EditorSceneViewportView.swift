@@ -17,7 +17,6 @@ struct EditorSceneViewportView: View {
     var onEditWorldReady: ((World) -> Void)?
 
     @State private var performanceSession = EditorGamePerformanceSession()
-    @State var displayPreview = EditorDisplayPreviewModel()
     @State var viewportRevision: UInt = 0
     @State var runtimeWarnings: [String] = []
     @State private var displayMode: EditorSceneViewportDisplayMode = .twoD
@@ -46,9 +45,6 @@ struct EditorSceneViewportView: View {
         .onAppear {
             selectViewportMode(hasImportedModels ? .threeD : initialDisplayMode)
             if isAssetPreview { selectTool(.select) }
-            if let resourceRootURL {
-                displayPreview.load(projectRoot: Self.uiProjectRoot(from: resourceRootURL))
-            }
         }
         .onChange(of: hasImportedModels) { _, hasModels in
             if hasModels { selectViewportMode(.threeD) }
@@ -134,8 +130,7 @@ struct EditorSceneViewportView: View {
             GeometryReader { geometry in
                 ZStack(anchor: .bottomLeading) {
                     AdaptiveSceneView(
-                        layout: displayPreview.settings.layout,
-                        fitsAvailableSpace: displayPreview.fitsAvailableSpace,
+                        layout: nil,
                         make: configurePlayWorld,
                         updateContent: { world, _ in
                             Self.synchronizePlayCamera(in: world)
@@ -285,7 +280,6 @@ struct EditorSceneViewportView: View {
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
             Spacer()
-            displayPreviewControls
             Text("PLAY MODE")
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.purple)

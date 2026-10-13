@@ -10,6 +10,7 @@
             WindowGroup {
                 MobileEditorRootView()
                     .theme(.adaEditor)
+                    .ignoresSafeArea([.horizontal, .bottom])
             }
             .windowMode(.windowed)
             .windowTitle("Ada Studio")

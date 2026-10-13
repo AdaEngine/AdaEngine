@@ -5,6 +5,8 @@ import Foundation
 struct MobileEditorPlayScreen: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.displaySafeAreaInsets) private var displaySafeAreaInsets
+    @Environment(\.safeAreaInsets) private var safeAreaInsets
     @State private var runtimeID = UUID()
     @State private var screenshot: Image?
     @State private var isCapturing = false
@@ -39,6 +41,7 @@ struct MobileEditorPlayScreen: View {
                     cancel: { self.screenshot = nil },
                     submit: { markup, text in try await submitFeedback(screenshot, markup, text) }
                 )
+                .mobileEditorSafeAreaContent()
             }
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
@@ -88,6 +91,12 @@ struct MobileEditorPlayScreen: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        .padding(EdgeInsets(
+            top: 0,
+            leading: max(0, displaySafeAreaInsets.leading - safeAreaInsets.leading),
+            bottom: 0,
+            trailing: max(0, displaySafeAreaInsets.trailing - safeAreaInsets.trailing)
+        ))
     }
 
     @ViewBuilder
