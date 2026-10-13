@@ -365,7 +365,7 @@ extension EditorCenterWorkbench {
             return document.language == .swift ? "\u{E86F}" : "\u{E873}"
         case .asset(let document):
             switch document.kind {
-            case .atlas,
+            case .particleEffect, .atlas,
                 .tileSource,
                 .tileMap:
                 return "\u{E8F1}"
@@ -404,7 +404,7 @@ extension EditorCenterWorkbench {
             return theme.editorColors.blue
         case .asset(let document):
             switch document.kind {
-            case .atlas,
+            case .particleEffect, .atlas,
                 .tileSource,
                 .tileMap:
                 return theme.editorColors.blue
@@ -451,6 +451,9 @@ extension EditorCenterWorkbench {
     @ViewBuilder
     private func assetPreview(document: EditorAssetDocument) -> some View {
         switch document.kind {
+        case .particleEffect:
+            EditorParticleEffectAssetEditor(document: document, model: viewModel.particleEffectModel(for: document), workbench: viewModel)
+                .id(document.id)
         case .model3D:
             EditorModelAssetPreview(document: document, workbench: viewModel, resourceRootURL: sceneResourceRootURL)
                 .id(document.id)

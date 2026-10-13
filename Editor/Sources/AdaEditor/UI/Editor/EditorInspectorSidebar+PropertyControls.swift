@@ -169,7 +169,7 @@ extension EditorInspectorSidebar {
                     Text("\u{E3F4}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 17))
                         .foregroundColor(theme.editorColors.purple)
-                    Text(value.isEmpty ? (isModelField(fieldID) ? "Choose model…" : fieldID.hasSuffix(".map") ? "Choose tile map…" : "Choose texture…") : value)
+                    Text(value.isEmpty ? (isParticleField(fieldID) ? "Choose particle effect…" : isModelField(fieldID) ? "Choose model…" : fieldID.hasSuffix(".map") ? "Choose tile map…" : "Choose texture…") : value)
                         .font(.system(size: 10))
                         .foregroundColor(value.isEmpty ? theme.editorColors.muted : theme.editorColors.text)
                         .lineLimit(1)
@@ -195,7 +195,7 @@ extension EditorInspectorSidebar {
                                 assetSearchText = ""
                             },
                             onDrop: { url in
-                                let asset = fieldID.hasSuffix(".map")
+                                let asset = isParticleField(fieldID) ? viewModel.particleEffectAssets.first(where: { $0.absolutePath == url.path }) : fieldID.hasSuffix(".map")
                                     ? viewModel.tileMapAssets.first(where: { $0.absolutePath == url.path })
                                     : viewModel.textureAsset(droppedFileURL: url)
                                 guard let asset else {
@@ -210,7 +210,7 @@ extension EditorInspectorSidebar {
             }
 
             if activeAssetFieldID == fieldID {
-                assetPicker(text: text, tileMaps: fieldID.hasSuffix(".map"), models: isModelField(fieldID))
+                assetPicker(text: text, tileMaps: fieldID.hasSuffix(".map"), models: isModelField(fieldID), particles: isParticleField(fieldID))
             }
         }
     }
@@ -326,12 +326,16 @@ extension EditorInspectorSidebar {
         fieldID == "\(EditorBuiltInComponentType.model3DSource).source"
     }
 
-    func assetPicker(text: Binding<String>, tileMaps: Bool = false, models: Bool = false) -> some View {
-        let assets = models ? viewModel.modelAssets(matching: assetSearchText)
+    private func isParticleField(_ fieldID: String) -> Bool {
+        fieldID == "\(EditorBuiltInComponentType.particleEmitter).effect"
+    }
+
+    func assetPicker(text: Binding<String>, tileMaps: Bool = false, models: Bool = false, particles: Bool = false) -> some View {
+        let assets = particles ? viewModel.particleEffectAssets(matching: assetSearchText) : models ? viewModel.modelAssets(matching: assetSearchText)
             : tileMaps ? viewModel.tileMapAssets(matching: assetSearchText) : viewModel.textureAssets(matching: assetSearchText)
         return VStack(alignment: .leading, spacing: 5) {
             TextField(
-                models ? "Search project models" : tileMaps ? "Search project tile maps" : "Search project textures",
+                particles ? "Search particle effects" : models ? "Search project models" : tileMaps ? "Search project tile maps" : "Search project textures",
                 text: Binding(get: { assetSearchText }, set: { assetSearchText = $0 })
             )
                 .font(.system(size: 10, weight: .bold))

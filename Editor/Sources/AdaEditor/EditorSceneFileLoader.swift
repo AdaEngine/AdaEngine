@@ -87,6 +87,14 @@ enum EditorSceneFileLoader {
         typeName: String, payload: EditorComponentPayload, sourceURL: URL?, resourceRootURL: URL?
     ) throws -> EditorComponentPayload {
         var resolvedPayload = payload
+        if typeName == EditorBuiltInComponentType.particleEmitter,
+            let reference = payload["effect"]?.stringValue, !reference.isEmpty {
+            guard let url = resolveTileMapReference(reference, relativeTo: sourceURL, resourceRootURL: resourceRootURL, fileExtension: "particles"),
+                url.pathExtension.lowercased() == "particles" else {
+                throw AssetError.message("Particle effect must be a .particles resource inside project assets.")
+            }
+            resolvedPayload["effect"] = .string(url.path)
+        }
         if typeName == EditorBuiltInComponentType.environment3D,
             let reference = payload["imageBasedLightingSource"]?.stringValue, reference.hasPrefix("@res://"), let resourceRootURL {
             let url = resourceRootURL.appendingPathComponent(String(reference.dropFirst(7))).resolvingSymlinksInPath().standardizedFileURL
@@ -380,7 +388,8 @@ enum EditorSceneFileLoader {
     private static func resolveTileMapReference(
         _ reference: String,
         relativeTo sourceURL: URL?,
-        resourceRootURL: URL?
+        resourceRootURL: URL?,
+        fileExtension: String = "tilemap"
     ) -> URL? {
         let root = resourceRootURL ?? sourceURL?.deletingLastPathComponent().deletingLastPathComponent()
         let url: URL
@@ -392,8 +401,8 @@ enum EditorSceneFileLoader {
             url = sourceURL.deletingLastPathComponent().appendingPathComponent(reference)
         }
         let resolved = url.resolvingSymlinksInPath().standardizedFileURL
-        guard resolved.pathExtension == "tilemap" else { return nil }
-        if reference.hasPrefix("@res://"), let root {
+        guard resolved.pathExtension == fileExtension else { return nil }
+        if reference.hasPrefix("@res://") || fileExtension == "particles", let root {
             let rootPath = root.resolvingSymlinksInPath().standardizedFileURL.path
             guard resolved.path.hasPrefix(rootPath + "/") else { return nil }
         }

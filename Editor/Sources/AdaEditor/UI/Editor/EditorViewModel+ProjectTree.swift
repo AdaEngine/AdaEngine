@@ -269,6 +269,9 @@ extension EditorViewModel {
         if fileExtension == "atlas" {
             return .atlas
         }
+        if fileExtension == "particles" {
+            return .particleEffect
+        }
         switch kind {
         case .image:
             return .image
@@ -314,6 +317,15 @@ extension EditorViewModel {
                 let reference = assetReference(for: item.relativePath, assetsRoot: assetsRoot),
                 let absolutePath = absoluteFilePath(from: item.id) else { return nil }
             return .init(name: item.title, reference: reference, absolutePath: absolutePath)
+        }
+    }
+
+    static func particleEffectAssets(from items: [EditorProjectSidebarViewModel.Item]) -> [EditorInspectorSidebarViewModel.TextureAsset] {
+        items.compactMap { item in
+            guard URL(fileURLWithPath: item.title).pathExtension.lowercased() == "particles",
+                let root = item.assetRoot, let reference = assetReference(for: item.relativePath, assetsRoot: root),
+                let absolute = absoluteFilePath(from: item.id) else { return nil }
+            return .init(name: item.title, reference: reference, absolutePath: absolute)
         }
     }
 
@@ -374,6 +386,7 @@ extension EditorViewModel {
     func syncInspectorTextureAssets() {
         inspectorSidebar.textureAssets = Self.textureAssets(from: projectSidebar.items)
         inspectorSidebar.tileMapAssets = Self.tileMapAssets(from: projectSidebar.items)
+        inspectorSidebar.particleEffectAssets = Self.particleEffectAssets(from: projectSidebar.items)
         inspectorSidebar.modelAssets = Self.modelAssets(from: projectSidebar.items)
         inspectorSidebar.sceneAssets = Self.sceneAssets(from: projectSidebar.items)
         inspectorSidebar.uiSourcePaths = Self.uiSourcePaths(from: projectSidebar.items)

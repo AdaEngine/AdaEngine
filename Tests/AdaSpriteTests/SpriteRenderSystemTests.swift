@@ -62,6 +62,29 @@ struct SpriteRenderSystemTests {
         #expect(items.items.map(\.entity) == [renderID])
     }
 
+    @Test("Particles share sprite batches without backing ECS entities")
+    func particleSpritesShareSpriteBatches() async throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+        Camera.registerComponent()
+        VisibleEntities.registerComponent()
+        let world = try Self.makeRenderWorld(extractedSprites: [:], items: [])
+        world.insertResource(ExtractedParticleSprites(sprites: [
+            -1: Self.extractedSprite(id: -1, texture: .whiteTexture),
+            -2: Self.extractedSprite(id: -2, texture: .whiteTexture),
+        ]))
+        world.insertResource(RenderItems<Transparent2DRenderItem>())
+        world.addSystem(PrepareSpritesSystem.self, on: .preUpdate)
+        world.spawn { Camera(); VisibleEntities() }
+        await world.runScheduler(.preUpdate)
+        let items = try #require(world.getResource(RenderItems<Transparent2DRenderItem>.self))
+        #expect(Set(items.items.map(\.entity)) == Set([-1, -2]))
+        world.insertResource(SortedRenderItems(items: items))
+        await world.runScheduler(.update)
+        let batches = try #require(world.getResource(SpriteBatches.self))
+        #expect(batches.batches.count == 1)
+        #expect(batches.batches.values.first?.range.count == 2)
+    }
+
     @Test("A non-sprite item separates sprite batches")
     func nonSpriteItemsSeparateSpriteBatches() async throws {
         try Self.setupHeadlessRenderEngineIfNeeded()
