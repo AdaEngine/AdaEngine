@@ -72,3 +72,28 @@ end-to-end insertion workload rather than an isolated parameter-passing cost.
 
 If jemalloc is unavailable, `BENCHMARK_DISABLE_JEMALLOC=1` runs without allocator
 metrics. Keep that setting identical on both sides of a comparison.
+
+## AdaSprite extraction benchmarks
+
+`AdaSpriteBenchmarks` measures the render-world extract stage for sprites on 50,000 and
+100,000 untextured visible sprites (500 and 1,000 in smoke mode):
+
+| Scenario | Measured operation |
+| --- | --- |
+| `AdaSprite.ExtractSprite.50k` / `.100k` | `runScheduler(.extract)` with `ExtractSpriteSystem`: executor, `Extract<Query>` over the main world and the `ExtractedSprites` rebuild. The first extraction runs in setup so measured runs reuse `SparseSet` capacity. |
+| `AdaSprite.ExtractQueryOnly.50k` / `.100k` | The same `Query<Entity, Sprite, GlobalTransform, Transform, Visibility>` iterated without building `ExtractedSprite` values; the difference to the scenario above is the extraction/rebuild cost. |
+
+`PrepareSprites` is measured on top of the extraction: `AdaSprite.PrepareSprites.1cam.50k`, `.2cam.50k` and
+`.1cam.100k` run `PrepareSpritesSystem` (`runScheduler(.preUpdate)`) over pre-extracted sprites that are all
+visible to every camera, so the system emits one `Transparent2DRenderItem` per sprite per camera. The render
+items are reset outside the measurement. The benchmark uses the headless render backend, so no GPU is needed
+and only CPU-side preparation is measured.
+
+Run it like the ECS suite, selecting the target:
+
+```sh
+ADAENGINE_BENCHMARKS=1 swift package --allow-writing-to-package-directory benchmark run --target AdaSpriteBenchmarks --no-progress
+```
+
+Sprites have no texture, so `sprite.texture?.asset` resolution is not covered. The
+benchmark uses the package-visible `MainWorld` resource to stand in for the main world.

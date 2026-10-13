@@ -162,8 +162,12 @@ struct RenderWorldExctractor: WorldExctractor {
 }
 
 /// The resource that contains the main world.
-struct MainWorld: Resource {
-    var world: World
+package struct MainWorld: Resource {
+    package var world: World
+
+    package init(world: World) {
+        self.world = world
+    }
 }
 
 public struct WindowSurface: Sendable {
