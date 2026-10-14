@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-14
-- Implementation: Partial (`.vox` parser, CPU mesher and model-asset import; not released)
+- Implementation: Partial (import, animation, dynamic world and physics; editor integration pending; not released)
 
 ## Context
 
@@ -60,24 +60,51 @@ mesh per subtree, trading structure for fewer draw calls. The parser exposes
 
 Three levels, delivered in this order:
 
-1. Rigid part animation: animate entity `Transform`s from `nTRN` frame keys and
-   from `AdaAnimation` clips.
-2. Frame-by-frame: swap cached meshes by time for models with multiple frames.
+1. Rigid part animation: `nTRN` frame keys become per-node `VoxelNodeAnimation`
+   keys (position lerp, rotation slerp, hold after the last key) applied to entity
+   `Transform`s. A `VoxelAnimationPlayback3DComponent` on the model root owns the
+   shared clock (30 fps by default, loop or stop, speed, pause) and
+   `Model3DSource.autoplay`/`repeats` control it.
+2. Frame-by-frame: an `nSHP` with several models swaps meshes (without
+   interpolation) and the matching pivot offset by frame.
 3. Skinned deformation: only if needed, reusing existing skinning if available.
+   Not implemented.
+
+Timeline length is the highest keyed frame plus one; MagicaVoxel's own project
+length is not parsed. Clips from `AdaAnimation` are not integrated yet.
 
 ### 5. Dynamic voxel world
 
-World storage is split into fixed-size chunks (initially 32³). Each chunk is a
-separate mesh entity, so frustum culling, GPU visibility and LOD apply per chunk.
-Edits mark chunks dirty. Remeshing runs on background tasks with a per-frame
-budget. Chunk state lives in a dedicated component and is mutated through an
-actor-isolated API.
+World storage (`VoxelWorldStorage`) is split into 32³ chunks behind a lock
+(`Mutex`), so it can be edited from any thread. Each chunk is a separate mesh
+entity, so frustum culling, GPU visibility and LOD apply per chunk. Edits mark
+the chunk dirty, and also every neighbour the voxel touches (face, edge and corner
+neighbours) because culling and ambient occlusion read adjacent voxels.
+`VoxelWorldMeshing3DSystem` takes up to `meshingBudget` dirty chunks per update,
+meshes them in parallel from a snapshot padded by one voxel of neighbours
+(`VoxelMesher` region mode), and applies entity changes as world commands. Edits
+made while a chunk is being meshed re-dirty it. The voxel world uses engine axes
+directly (X right, Y up, Z forward); only `.vox` import swaps axes.
 
 ### 6. Physics
 
-Static voxel geometry uses a triangle mesh of exposed faces. A compound-shape
-fixture made of merged boxes is added to `Shape3DResource` for dynamic bodies.
-Disconnected islands (flood fill) can detach into dynamic bodies.
+Colliders are merged boxes rather than triangle meshes: `VoxelColliderBuilder`
+greedily merges solid voxels into a minimal set of boxes that cover the solid
+volume exactly once, and `Shape3DResource` boxes gained a `center` offset
+(backwards compatible decoding) so one body can carry many boxes. A voxel world with
+`generatesColliders` keeps one static body entity per chunk; it is replaced when
+the chunk's boxes change and removed when the chunk empties. Physics reads local
+`Transform`s, so collider entities are placed in world space (composed from the
+owner's hierarchy) and follow the world when it moves; scale is not supported.
+
+`VoxelWorldStorage.detachFloatingIslands` flood-fills (6-connectivity) from the
+neighbours of removed voxels. A component that reaches no anchored voxel and holds
+at most `maxVoxels` voxels is removed from the world and returned as a
+`VoxelIsland`; `spawnBody` turns it into a dynamic body with a mesh and box
+colliders. The body's material density is chosen so the mass computed from its
+shapes equals the requested mass: the engine overrides only the mass of a body, so
+a mismatch leaves a much lighter body's inertia and heavy blocks tunnel through
+thin colliders.
 
 ### 7. Deferred
 
@@ -96,7 +123,7 @@ deferred until the corresponding backend capabilities are verified.
 1. ADR and `.vox` parser with tests (done).
 2. Mesher: culled faces, then greedy, with baked AO (done).
 3. Scene import (done: `.vox` loads as `ModelAsset3D`, hybrid `mergeStatic`); editor integration pending.
-4. Animation.
-5. Chunked dynamic world.
-6. Physics.
+4. Animation (done: rigid parts and frame-by-frame).
+5. Chunked dynamic world (done).
+6. Physics (done: compound boxes, chunk colliders, floating islands).
 7. Optional: instancing, skinning, GPU paths.

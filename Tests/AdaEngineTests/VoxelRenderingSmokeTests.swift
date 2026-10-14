@@ -58,6 +58,7 @@ struct VoxelRenderingSmokeTests {
             .addPlugin(VisibilityPlugin())
             .addPlugin(ScenePlugin())
             .addPlugin(Core3DPlugin())
+            .addPlugin(Physics3DPlugin())
         try await app.build()
 
         let target = RenderTexture(size: SizeInt(width: 640, height: 480), scaleFactor: 1, format: .bgra8)
@@ -200,6 +201,62 @@ struct VoxelRenderingSmokeTests {
         try after.writePNG(to: URL(fileURLWithPath: "\(Self.outputDirectory)/adaengine-voxel-world-after.png"))
         #expect(before.data != after.data)
         #expect(Self.nonBackgroundPixels(in: before) > 3000)
+    }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_VOXEL_METAL_SMOKE"] == "1"))
+    func rendersDetachedIslandFalling() async throws {
+        let scene = try await Self.makeScene()
+        let voxelSize: Float = 0.1
+        let palette = VOXPalette(
+            colors: [
+                VOXColor(red: 120, green: 170, blue: 90),
+                VOXColor(red: 210, green: 70, blue: 60),
+                VOXColor(red: 140, green: 140, blue: 150)
+            ] + [VOXColor](repeating: VOXColor(red: 0, green: 0, blue: 0), count: 253)
+        )
+        let component = VoxelWorld3DComponent(palette: palette, voxelSize: voxelSize, meshingBudget: 32, generatesColliders: true)
+        scene.app.main.spawn("World") {
+            component
+            Transform(position: [-1.2, 0, 0.4])
+        }
+        let storage = component.storage
+        storage.fill(from: SIMD3(0, 0, 0), to: SIMD3(23, 3, 23), color: 1)
+        storage.fill(from: SIMD3(11, 4, 11), to: SIMD3(12, 15, 12), color: 3)
+        storage.fill(from: SIMD3(8, 16, 8), to: SIMD3(15, 23, 15), color: 2)
+
+        let before = try await scene.render(frames: 8)
+        try before.writePNG(to: URL(fileURLWithPath: "\(Self.outputDirectory)/adaengine-voxel-island-before.png"))
+
+        // Remove the whole pillar so the red block is cut off and falls flat onto the platform.
+        let cut = (4...15).flatMap { y in (11...12).flatMap { z in (11...12).map { x in SIMD3(x, y, z) } } }
+        for point in cut {
+            storage.setVoxel(x: point.x, y: point.y, z: point.z, color: 0)
+        }
+        let islands = storage.detachFloatingIslands(around: cut, isAnchored: { $0.y <= 3 })
+        let island = try #require(islands.first)
+        let body = try #require(
+            island.spawnBody(
+                in: scene.app.main,
+                palette: palette,
+                voxelSize: voxelSize,
+                worldTransform: Transform(position: [-1.2, 0, 0.4]).matrix
+            )
+        )
+        _ = body
+
+        _ = try await scene.render(frames: 6)
+        await scene.app.main.runScheduler(.physicsSync)
+        scene.app.main.insertResource(FixedTime(deltaTime: 1 / 60))
+        for _ in 0..<150 {
+            await scene.app.main.runScheduler(.physicsStep)
+            await scene.app.main.runScheduler(.physicsWriteback)
+        }
+        let after = try await scene.render(frames: 6)
+        try after.writePNG(to: URL(fileURLWithPath: "\(Self.outputDirectory)/adaengine-voxel-island-after.png"))
+        #expect(before.data != after.data)
+        // The block fell flat onto the platform (top at 0.4) and rests on it: center = 0.4 + half of 0.8.
+        let endHeight = try #require(body.components[Transform.self]).position.y
+        #expect(abs(endHeight - 0.8) < 0.15)
     }
 }
 #endif

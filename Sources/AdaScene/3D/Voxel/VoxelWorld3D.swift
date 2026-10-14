@@ -5,6 +5,7 @@
 
 import AdaAssets
 import AdaECS
+import AdaPhysics
 @_spi(Internal) import AdaRender
 import AdaTransform
 import Math
@@ -25,6 +26,9 @@ public struct VoxelWorld3DComponent: Component {
     public var receiveShadows: Bool
     /// Maximum number of chunks remeshed per update.
     public var meshingBudget: Int
+    /// Builds a static physics collider (merged boxes) for every chunk. Requires ``Physics3DPlugin``.
+    public var generatesColliders: Bool
+    public var colliderMaterial: PhysicsMaterial?
 
     public init(
         storage: VoxelWorldStorage = VoxelWorldStorage(),
@@ -34,8 +38,12 @@ public struct VoxelWorld3DComponent: Component {
         bakesAmbientOcclusion: Bool = true,
         castShadows: Bool = true,
         receiveShadows: Bool = true,
-        meshingBudget: Int = 4
+        meshingBudget: Int = 4,
+        generatesColliders: Bool = false,
+        colliderMaterial: PhysicsMaterial? = nil
     ) {
+        self.generatesColliders = generatesColliders
+        self.colliderMaterial = colliderMaterial
         self.storage = storage
         self.palette = palette
         self.voxelSize = voxelSize
@@ -81,6 +89,8 @@ public struct VoxelWorldMeshing3DSystem {
     private struct MeshedChunk: Sendable {
         let coordinate: VoxelChunkCoordinate
         let descriptor: MeshDescriptor?
+        /// Collider boxes in chunk cells, or `nil` when colliders are disabled.
+        let boxes: [VoxelBox]?
     }
 
     private struct MeshingJob: Sendable {
@@ -89,6 +99,7 @@ public struct VoxelWorldMeshing3DSystem {
         let region: VoxelMeshingRegion
         let palette: VOXPalette
         let options: VoxelMeshingOptions
+        let buildsColliders: Bool
     }
 
     private static func mesh(_ job: MeshingJob) -> MeshedChunk {
@@ -101,7 +112,8 @@ public struct VoxelWorldMeshing3DSystem {
                 options: job.options,
                 region: job.region,
                 name: "VoxelChunk \(coordinate.x),\(coordinate.y),\(coordinate.z)"
-            )
+            ),
+            boxes: job.buildsColliders ? VoxelColliderBuilder.boxes(in: job.grid, region: job.region) : nil
         )
     }
 
@@ -122,9 +134,26 @@ public struct VoxelWorldMeshing3DSystem {
 
     public func update(context _: UpdateContext) async {
         var pending: [(owner: Entity.ID, component: VoxelWorld3DComponent)] = []
+        var moved: [(owner: Entity.ID, matrix: Transform3D)] = []
         worlds.forEach { entity, component in
             if component.storage.hasDirtyChunks {
                 pending.append((entity.id, component))
+            }
+            // Physics reads local transforms, so colliders are placed in world space and follow the world when it moves.
+            if component.generatesColliders, let built = component.storage.colliderOwnerMatrix {
+                let current = Self.worldMatrix(of: entity)
+                if current != built {
+                    moved.append((entity.id, current))
+                }
+            }
+        }
+
+        for (ownerID, matrix) in moved {
+            commands.queue.push { world in
+                guard let owner = world.getEntityByID(ownerID), let component = owner.components[VoxelWorld3DComponent.self] else {
+                    return
+                }
+                Self.moveColliders(of: component, to: matrix, in: world)
             }
         }
 
@@ -141,7 +170,8 @@ public struct VoxelWorldMeshing3DSystem {
                     grid: snapshot.grid,
                     region: snapshot.region,
                     palette: component.palette,
-                    options: component.meshingOptions
+                    options: component.meshingOptions,
+                    buildsColliders: component.generatesColliders
                 )
             }
             let meshed = await Self.mesh(jobs)
@@ -156,6 +186,43 @@ public struct VoxelWorldMeshing3DSystem {
         }
     }
 
+    /// The world matrix of a voxel world, composed from local transforms up the hierarchy.
+    ///
+    /// ``GlobalTransform`` is not used because it is stale until the first transform propagation after the world spawned.
+    private static func worldMatrix(of entity: Entity) -> Transform3D {
+        var matrix = entity.components[Transform.self]?.matrix ?? .identity
+        var parentID = entity.components[RelationshipComponent.self]?.parent
+        var visited: Set<Entity.ID> = [entity.id]
+        while let id = parentID, visited.insert(id).inserted, let parent = entity.world?.getEntityByID(id) {
+            matrix = (parent.components[Transform.self]?.matrix ?? .identity) * matrix
+            parentID = parent.components[RelationshipComponent.self]?.parent
+        }
+        return matrix
+    }
+
+    private static func colliderTransform(chunkPosition: Vector3, ownerMatrix: Transform3D) -> Transform {
+        let world = (ownerMatrix * Vector4(chunkPosition, 1)).xyz
+        return Transform(rotation: Transform(matrix: ownerMatrix).rotation, scale: .one, position: world)
+    }
+
+    private static func chunkPosition(_ coordinate: VoxelChunkCoordinate, component: VoxelWorld3DComponent) -> Vector3 {
+        let extent = Float(VoxelWorldStorage.chunkSize) * component.voxelSize
+        return Vector3(Float(coordinate.x) * extent, Float(coordinate.y) * extent, Float(coordinate.z) * extent)
+    }
+
+    private static func moveColliders(of component: VoxelWorld3DComponent, to ownerMatrix: Transform3D, in world: World) {
+        let storage = component.storage
+        for (coordinate, id) in storage.colliderEntities {
+            guard let entity = world.getEntityByID(id) else {
+                continue
+            }
+            let transform = colliderTransform(chunkPosition: chunkPosition(coordinate, component: component), ownerMatrix: ownerMatrix)
+            entity.components[Transform.self] = transform
+            entity.components[PhysicsBody3DComponent.self]?.setTransform(position: transform.position, rotation: transform.rotation)
+        }
+        storage.colliderOwnerMatrix = ownerMatrix
+    }
+
     private static func apply(_ chunks: [MeshedChunk], to owner: Entity, component: VoxelWorld3DComponent, in world: World) {
         let storage = component.storage
         let device = unsafe RenderEngine.shared.renderDevice
@@ -163,6 +230,15 @@ public struct VoxelWorldMeshing3DSystem {
         let chunkExtent = Float(VoxelWorldStorage.chunkSize) * component.voxelSize
 
         for chunk in chunks {
+            let position = Vector3(
+                Float(chunk.coordinate.x) * chunkExtent,
+                Float(chunk.coordinate.y) * chunkExtent,
+                Float(chunk.coordinate.z) * chunkExtent
+            )
+            if let boxes = chunk.boxes {
+                applyCollider(boxes, chunk: chunk.coordinate, ownerMatrix: Self.worldMatrix(of: owner), to: owner, component: component, in: world)
+            }
+
             let existing = storage.chunkEntity(for: chunk.coordinate).flatMap { world.getEntityByID($0) }
             guard let descriptor = chunk.descriptor else {
                 if let existing {
@@ -179,12 +255,6 @@ public struct VoxelWorldMeshing3DSystem {
                 castShadows: component.castShadows,
                 receiveShadows: component.receiveShadows
             )
-            let position = Vector3(
-                Float(chunk.coordinate.x) * chunkExtent,
-                Float(chunk.coordinate.y) * chunkExtent,
-                Float(chunk.coordinate.z) * chunkExtent
-            )
-
             if let existing {
                 existing.components[Mesh3DComponent.self] = meshComponent
                 existing.components[Transform.self] = Transform(position: position)
@@ -197,6 +267,44 @@ public struct VoxelWorldMeshing3DSystem {
                 storage.setChunkEntity(entity.id, for: chunk.coordinate)
             }
         }
+    }
+
+    /// Replaces the chunk's collider entity when its boxes changed, and removes it when the chunk has no solid voxels.
+    ///
+    /// Physics bodies are created once per entity, so a changed collider is a new entity; the old body is destroyed
+    /// with its entity.
+    private static func applyCollider(
+        _ boxes: [VoxelBox],
+        chunk: VoxelChunkCoordinate,
+        ownerMatrix: Transform3D,
+        to owner: Entity,
+        component: VoxelWorld3DComponent,
+        in world: World
+    ) {
+        let storage = component.storage
+        if storage.colliderBoxes(for: chunk) == boxes, storage.colliderEntity(for: chunk) != nil || boxes.isEmpty {
+            return
+        }
+
+        if let old = storage.colliderEntity(for: chunk) {
+            world.removeEntity(old, recursively: true)
+            storage.setColliderEntity(nil, for: chunk)
+        }
+        storage.setColliderBoxes(boxes, for: chunk)
+        guard !boxes.isEmpty else {
+            return
+        }
+
+        let entity = world.spawn("VoxelCollider \(chunk.x),\(chunk.y),\(chunk.z)")
+        entity.components[Transform.self] = colliderTransform(chunkPosition: chunkPosition(chunk, component: component), ownerMatrix: ownerMatrix)
+        storage.colliderOwnerMatrix = ownerMatrix
+        entity.components[PhysicsBody3DComponent.self] = PhysicsBody3DComponent(
+            shapes: VoxelColliderBuilder.shapes(for: boxes, voxelSize: component.voxelSize),
+            material: component.colliderMaterial,
+            mode: .static
+        )
+        owner.addChild(entity)
+        storage.setColliderEntity(entity.id, for: chunk)
     }
 
     /// One diffuse material shared by all chunks; palette colors live in vertex colors.
