@@ -96,8 +96,8 @@ final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unc
         forKey key: String
     ) throws -> GSValue? {
         if let row = target.toObjectOf(AnnotatedGravityQueryRow.self),
-            let component = row.component(named: key) {
-            return GSValue(object: component, in: virtualMachine)
+            let component = row.componentValue(named: key) {
+            return component
         }
         if let component = target.toObjectOf(AnnotatedGravityComponentView.self) {
             return component.get(key)

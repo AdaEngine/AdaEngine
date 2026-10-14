@@ -14,13 +14,18 @@ import Logging
 /// A plugin that adds audio capabilities to the world.
 public struct AudioPlugin: Plugin {
     private let logger = Logger(label: "org.adaengine.audioplugin")
+    private let masterVolume: Float
 
-    public init() {}
+    /// - Parameter masterVolume: Linear master gain applied once the audio server starts.
+    public init(masterVolume: Float = 1) {
+        self.masterVolume = masterVolume
+    }
 
     public func setup(in app: borrowing AppWorlds) {
         do {
             try AudioServer.initialize()
             unsafe try AudioServer.shared.engine.start()
+            unsafe AudioServer.shared.masterVolume = masterVolume
             AudioComponent.registerComponent()
             AudioReceiver.registerComponent()
             AudioPlaybacksControllers.registerComponent()

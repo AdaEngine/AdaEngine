@@ -19,6 +19,9 @@ protocol AudioEngine: Resource {
 
     func update(_ deltaTime: AdaUtils.TimeInterval)
 
+    /// Linear master gain applied to every sound. `1` is unattenuated.
+    var masterVolume: Float { get nonmutating set }
+
     /// Create a new sound instance from file url.
     func makeSound(from url: URL) throws -> Sound
 

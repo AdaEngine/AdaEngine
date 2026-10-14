@@ -60,6 +60,7 @@ struct EditorScenePlayRuntime: Sendable {
 
 enum EditorScriptableObjectCatalogLoader {
     struct Result: Sendable {
+        var dataComponents: [EditorScriptDataComponent] = []
         var descriptors: [EditorScriptableObjectDescriptor]
         var playRuntime: EditorScenePlayRuntime
     }
@@ -79,6 +80,7 @@ enum EditorScriptableObjectCatalogLoader {
     static func makeResult(project: AdaProject, sources: [AdaScriptSource]) throws -> Result {
         let schemas = try AdaScriptSchemaParser.parseScriptables(sources: sources)
         return Result(
+            dataComponents: EditorScriptComponentCatalog.makeComponents(from: try AdaScriptSchemaParser.parse(sources: sources)),
             descriptors: schemas.map(makeEditorDescriptor).sorted { $0.name < $1.name },
             playRuntime: EditorScenePlayRuntime(
                 moduleName: project.runtime.moduleName,
@@ -126,8 +128,8 @@ enum EditorScriptableObjectCatalogLoader {
             fields: schema.fields.map {
                 EditorScriptableObjectDescriptor.Field(
                     name: $0.name,
-                    defaultValue: editorSceneValue($0.defaultValue),
-                    kind: editorFieldKind($0.defaultValue)
+                    defaultValue: $0.defaultValue.editorSceneValue,
+                    kind: $0.defaultValue.editorFieldKind
                 )
             },
             identifier: schema.id,
@@ -168,36 +170,9 @@ enum EditorScriptableObjectCatalogLoader {
             },
             fields: Dictionary(
                 uniqueKeysWithValues: schema.fields.map {
-                    ($0.name, editorFieldValue($0.defaultValue))
+                    ($0.name, $0.defaultValue.reflectedValue)
                 }
             )
         )
-    }
-
-    private static func editorFieldKind(_ value: AdaScriptSchemaField.Value) -> EditorComponentFieldKind {
-        switch value {
-        case .bool: .bool
-        case .double: .float
-        case .int: .int
-        case .string: .string
-        }
-    }
-
-    private static func editorSceneValue(_ value: AdaScriptSchemaField.Value) -> EditorSceneValue {
-        switch value {
-        case let .bool(value): .bool(value)
-        case let .double(value): .double(value)
-        case let .int(value): .int(Int(value))
-        case let .string(value): .string(value)
-        }
-    }
-
-    private static func editorFieldValue(_ value: AdaScriptSchemaField.Value) -> ReflectedFieldValue {
-        switch value {
-        case let .bool(value): .bool(value)
-        case let .double(value): .double(value)
-        case let .int(value): .int(Int(value))
-        case let .string(value): .string(value)
-        }
     }
 }

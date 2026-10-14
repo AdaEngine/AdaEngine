@@ -452,13 +452,7 @@ final class NativeNetworkFactory: NativeHostObject {
             let schema = schemas.first(where: { $0.name == name }), args.count == schema.fields.count
         else { return nil }
         let values = try zip(args, schema.fields).map { value, field -> ReflectedFieldValue in
-            let fallback: ReflectedFieldValue =
-                switch field.defaultValue {
-                case .bool(let v): .bool(v)
-                case .double(let v): .double(v)
-                case .int(let v): .int(Int(v))
-                case .string(let v): .string(v)
-                }
+            let fallback = field.defaultValue.reflectedDefault
             if case .null = value {
                 return fallback
             }

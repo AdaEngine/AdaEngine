@@ -28,7 +28,7 @@ struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
         world.getResource(Self.self)
     }
 
-    private let engine: MiniAudioStorage
+    let engine: MiniAudioStorage
 
     init(headless: Bool = false) throws {
         unsafe engine = try MiniAudioStorage(headless: headless)
@@ -39,6 +39,11 @@ struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
     func start() throws { unsafe try engine.start() }
     func stop() throws { unsafe try engine.stop() }
     func update(_: AdaUtils.TimeInterval) { unsafe engine.update() }
+
+    var masterVolume: Float {
+        get { unsafe ma_engine_get_volume(engine.enginePtr) }
+        nonmutating set { unsafe _ = ma_engine_set_volume(engine.enginePtr, max(0, newValue)) }
+    }
 
     func makeSound(from url: URL) throws -> Sound { unsafe try MiniSound(from: url, engine: engine) }
     func makeSound(from data: Data) throws -> Sound { unsafe try MiniSound(from: data, engine: engine) }

@@ -32,7 +32,13 @@ extension EditorSettingsWindowViewModel {
                 if isRuntimePluginEnabled(.physics2D) {
                     pages.append("PHYSICS 2D")
                 }
-                pages.append("DISPLAY")
+                if isRuntimePluginEnabled(.physics3D) {
+                    pages.append("PHYSICS 3D")
+                }
+                if isRuntimePluginEnabled(.audio) {
+                    pages.append("AUDIO")
+                }
+                pages += ["RENDERING", "ASSETS", "DISPLAY", "RESOLVED RUNTIME"]
             }
             pages += ["INPUT BINDINGS", "RESOURCE ROOTS", "BUILD FILE SELECTION", "RUN DESTINATION"]
             if !isAdaScriptProject {

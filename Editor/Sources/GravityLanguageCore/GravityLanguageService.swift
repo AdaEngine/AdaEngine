@@ -212,6 +212,9 @@ public struct GravityLanguageService: Sendable {
             return []
         }
 
+        if let rowCandidates = queryRowCandidates(receiverPath: receiverPath, parsed: parsed, symbols: symbols) {
+            return rowCandidates
+        }
         guard let inferredType = resolvedType(receiverPath: receiverPath, position: position, parsed: parsed) else {
             return []
         }
@@ -220,6 +223,33 @@ public struct GravityLanguageService: Sendable {
             return builtins
         }
         return symbols.first(where: { $0.name == inferredType && !$0.members.isEmpty })?.members.map(GravityCompletionCandidate.init(symbol:)) ?? []
+    }
+
+    /// Members of a `@query` row: the aliased components and `id`, and a component's own fields below that.
+    private func queryRowCandidates(
+        receiverPath: [String],
+        parsed: GravityParsedDocument,
+        symbols: [GravitySymbol]
+    ) -> [GravityCompletionCandidate]? {
+        guard let receiver = receiverPath.first, case let .queryRow(entries)? = parsed.structuredTypes[receiver], receiverPath.count <= 2 else {
+            return nil
+        }
+        // Entries are `Type` or `Type as alias`; the property is the alias, else the lower-camel type name.
+        let columns = entries.map { entry -> (type: String, alias: String) in
+            let pieces = entry.components(separatedBy: " as ")
+            let type = pieces[0]
+            return (type, pieces.count > 1 ? pieces[1] : type.prefix(1).lowercased() + type.dropFirst())
+        }
+        if receiverPath.count == 1 {
+            let components = columns.map {
+                GravityCompletionCandidate(detail: "Component \($0.type)", insertText: $0.alias, kind: .property, label: $0.alias, sortText: "00")
+            }
+            return components + (GravityBuiltins.members["$AdaEntity"] ?? [])
+        }
+        guard let column = columns.first(where: { $0.alias == receiverPath[1] }) else {
+            return []
+        }
+        return symbols.first { $0.name == column.type && !$0.members.isEmpty }?.members.map(GravityCompletionCandidate.init(symbol:)) ?? []
     }
 
     private func resolvedType(

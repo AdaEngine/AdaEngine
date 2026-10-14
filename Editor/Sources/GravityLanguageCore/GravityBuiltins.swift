@@ -60,7 +60,7 @@ enum GravityBuiltins {
             sortText: "01"
         ),
         GravityCompletionCandidate(
-            detail: "Declare explicit scheduler access",
+            detail: "Declare the components the dynamic world API may read or write",
             insertText: "access(read: [], write: [])",
             kind: .keyword,
             label: "access",
@@ -128,6 +128,27 @@ enum GravityBuiltins {
             kind: .keyword,
             label: "tool",
             sortText: "11"
+        ),
+        GravityCompletionCandidate(
+            detail: "Bind the events of one name received since the previous frame",
+            insertText: "events()",
+            kind: .keyword,
+            label: "events",
+            sortText: "13"
+        ),
+        GravityCompletionCandidate(
+            detail: "Bind a writer for one event name",
+            insertText: "eventWriter()",
+            kind: .keyword,
+            label: "eventWriter",
+            sortText: "14"
+        ),
+        GravityCompletionCandidate(
+            detail: "Allow immediate structural world changes; the system runs alone",
+            insertText: "exclusiveWorld",
+            kind: .keyword,
+            label: "exclusiveWorld",
+            sortText: "15"
         ),
         GravityCompletionCandidate(
             detail: "Enable strict type checking for this AdaScript file",

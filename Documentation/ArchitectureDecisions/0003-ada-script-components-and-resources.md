@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Partial (foundation shipped)
+- Implementation: Partial (all but the single shared schema AST)
 
 ## Implementation status
 
-Last verified: 2026-08-31.
+Last verified: 2026-10-14.
 
 Shipped:
 
@@ -29,21 +29,44 @@ Shipped:
 - [x] Required missing resources produce runtime diagnostics; optional bindings
   expose `available()` and remain valid when the resource is absent.
 - [x] Resource writes update the ECS change tick and participate in scheduler
-  conflict detection. The current implementation conservatively requests write
-  access for every `@res` binding.
+  conflict detection.
+- [x] `@res` access is inferred from use: read-only when every use is a field
+  read or `available()`, write when a field is assigned or the binding could
+  alias. `@res(access: "read" | "write")` overrides inference, and `"read"` on a
+  binding the body writes is a compile error. A read-only binding rejects writes
+  at runtime and lets readers run concurrently.
+- [x] Component and resource fields may be `Vector2/3/4`, `Color`, script
+  `enum`s, `Entity`, and `Asset`. The declared type selects the kind and the
+  default is validated against it. Runtime component descriptors carry the
+  field kinds, validate and normalize every write (length, finiteness, enum
+  membership), and the generator emits `Vector`/`Color`/`ReflectedEnum` Swift
+  types. Entity references are plain integer ids (`-1` is none) and asset
+  references are path strings in generated Swift types; the inspector has no
+  entity picker yet. These kinds are rejected in network fields and are
+  scalar-only for `@scriptable` and `@tool` fields.
+- [x] `World` resolves a component by name, stable ID, or alias for removal,
+  field mutation, JSON/payload coding, and insertion with validated field
+  overrides (`removeDynamicComponent`, `setDynamicComponentField`,
+  `dynamicComponentPayload`, `encodeDynamicComponent`, `insertDynamicComponent`),
+  for generated native types and runtime payloads alike, without partial writes.
+- [x] `@component(id:, aliases: [...])` / `@resource` aliases. Aliases may not
+  collide with another schema's name, ID, or alias. The Editor stores script
+  components under their stable ID, exports scenes under it, and still loads a
+  scene saved under a former name or alias.
+  `AdaScriptSceneSchemaResolver` reports the migration: references by a former
+  name, removed or added fields, and values of the wrong type (an error in the
+  exporter, a load warning in the Editor).
+- [x] Script `@component` schemas are exposed to the Editor inspector with typed
+  controls and defaults (`EditorScriptComponentStore`), registered into the
+  play-mode world, and offered by import and member completion.
 
 Remaining before this ADR is implemented:
 
-- [ ] Add vector, color, enum, entity-reference, and asset-reference schemas.
-- [ ] Infer resource read/write access from property use and support an explicit
-  access override instead of conservatively requesting write access.
-- [ ] Add dynamic world APIs for removing, coding, and mutating a
-  generated component without naming its private Swift backing type.
-- [ ] Encode stable component/resource IDs in scenes and implement aliases and
-  schema migration diagnostics.
-- [ ] Move import parsing and complete schema analysis into one authoritative
-  compiler AST shared by runtime, generator, and LSP.
-- [ ] Expose generated schemas and fields to Editor inspection and completion.
+- [ ] One compiler AST for every consumer. Imports, annotation uses with their
+  targets, declaration visibility, and name references now come from the shared
+  `AdaScriptSyntax` tree used by the runtime resolver and the Editor. The
+  schema parser (fields and defaults, system-body capability inference) and the
+  Editor's symbol and type-region scanner still walk tokens separately.
 
 ## Context
 

@@ -35,6 +35,8 @@ public final class DynamicResource: @unchecked Sendable {
 
     public let access: SystemAccessSet
     public let isOptional: Bool
+    /// Whether the scheduler reserved write access for this parameter.
+    public let isWritable: Bool
 
     private let resourceType: any Resource.Type
     private var changedTick: UnsafeBox<Tick>?
@@ -44,6 +46,7 @@ public final class DynamicResource: @unchecked Sendable {
     public init(resourceType: any Resource.Type, isOptional: Bool, writable: Bool) {
         self.resourceType = resourceType
         self.isOptional = isOptional
+        self.isWritable = writable
         var access = SystemAccessSet()
         if writable {
             access.addResourceWrite(ObjectIdentifier(resourceType))
@@ -73,6 +76,7 @@ public final class DynamicResource: @unchecked Sendable {
     @discardableResult
     public func write(field: ReflectedComponentField, value: ReflectedFieldValue) -> Bool {
         guard
+            isWritable,
             field.accepts(value), let pointer = unsafe pointer, let writePointer = unsafe field.writePointer
         else {
             return false

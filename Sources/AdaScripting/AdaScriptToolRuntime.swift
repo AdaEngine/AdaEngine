@@ -211,6 +211,8 @@ public final class AdaScriptToolRuntime {
         case .int(let value): GSValue(integer: Int(value), in: virtualMachine)
         case .double(let value): GSValue(double: value, in: virtualMachine)
         case .string(let value): GSValue(string: value, in: virtualMachine)
+        case .vector, .color, .enumeration, .entity, .asset:
+            AnnotatedGravityValueBridge.makeGravityValue(value.reflectedDefault, virtualMachine: virtualMachine)
         }
     }
 

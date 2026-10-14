@@ -38,6 +38,20 @@ struct MultiThreadedSystemsGraphExecutorTests {
         #expect(!writer.isCompatible(with: secondWriter))
     }
 
+    @Test("exclusive world access is incompatible with every other access, including another exclusive system")
+    func exclusiveWorldAccessIsIncompatibleWithEverything() {
+        let exclusive = ExclusiveWorldAccess.access
+        var reader = SystemAccessSet()
+        reader.addResourceRead(MultiThreadedReadResource.self)
+
+        #expect(exclusive.hasExclusiveWorldAccess)
+        #expect(!exclusive.isCompatible(with: SystemAccessSet()))
+        #expect(!SystemAccessSet().isCompatible(with: exclusive))
+        #expect(!exclusive.isCompatible(with: reader))
+        #expect(!exclusive.isCompatible(with: exclusive))
+        #expect(exclusive.union(reader).hasExclusiveWorldAccess)
+    }
+
     @Test("component Ref access conflicts with component read access")
     func mutableComponentAccessConflictsWithComponentReadAccess() {
         let readAccess = Query<MultiThreadedPosition>.access

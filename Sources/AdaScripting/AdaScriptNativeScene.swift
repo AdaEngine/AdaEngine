@@ -4,6 +4,7 @@ import AdaAssets
 @_spi(Scripting) import AdaECS
 import AdaRender
 import AdaScene
+import AdaScriptCompilerCore
 import AdaTilemap
 import AdaTransform
 import AdaUtils
@@ -35,6 +36,29 @@ public struct AdaScriptNativeSceneDocument: Codable, Sendable {
         self.entities = entities
     }
 
+    /// Reports how this scene's script component data differs from the current schemas: references
+    /// by a former name or alias, fields that were removed or added, and values of the wrong type.
+    /// Keys that are not script components (engine components, tile maps) are not reported.
+    public func migrationDiagnostics(schemas: [AdaScriptDataSchema]) -> [AdaScriptSceneDataDiagnostic] {
+        var diagnostics: [AdaScriptSceneDataDiagnostic] = []
+        for item in entities {
+            for key in item.components.keys.sorted() {
+                guard let data = item.components[key] else { continue }
+                let known = AdaScriptSceneSchemaResolver.resolve(key: key, in: schemas) != nil
+                let engineOwned = RuntimeTypeRegistry.componentType(named: key) != nil
+                guard known || !engineOwned else { continue }
+                guard let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+                    if known {
+                        diagnostics.append(AdaScriptSceneDataDiagnostic(component: key, message: "saved data is not an object on '\(item.id)'", severity: .error))
+                    }
+                    continue
+                }
+                diagnostics += AdaScriptSceneSchemaResolver.diagnose(key: key, fields: object, schemas: schemas)
+            }
+        }
+        return diagnostics
+    }
+
     @MainActor
     public func makeScene(components native: [RuntimeComponentDescriptor], resourceRoot: URL? = nil, sourceURL: URL? = nil, tileMaps: [String: TileMap] = [:]) throws -> Scene {
         let items = try expandedEntities(resourceRoot: resourceRoot, sourceURL: sourceURL, ancestors: sourceURL.map { Set([$0.standardizedFileURL]) } ?? [])
@@ -63,31 +87,11 @@ public struct AdaScriptNativeSceneDocument: Codable, Sendable {
                     }
                     guard let map = tileMaps[path] else { throw AdaScriptError.invalidManifest("Tile map '\(path)' was not preloaded") }
                     entity.components += TileMapComponent(tileMap: map, tileDisplaySize: Size(width: reference.width, height: reference.height))
-                } else if let descriptor = native.first(where: { $0.name == name || $0.stableID == name }) {
+                } else if let descriptor = native.first(where: { $0.name == name || $0.stableID == name || $0.aliases.contains(name) }) {
                     guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                         throw AdaScriptError.invalidManifest("Invalid native scene component '\(name)'")
                     }
-                    let values = try descriptor.fields.enumerated().map { index, field in
-                        guard let value = object[field.key] else {
-                            return descriptor.defaultValues[index]
-                        }
-                        switch descriptor.defaultValues[index] {
-                        case .bool:
-                            guard let v = value as? Bool else { throw AdaScriptError.invalidManifest("Invalid Bool '\(field.key)'") }
-                            return ReflectedFieldValue.bool(v)
-                        case .int:
-                            guard let v = value as? Int else { throw AdaScriptError.invalidManifest("Invalid Int '\(field.key)'") }
-                            return ReflectedFieldValue.int(v)
-                        case .double:
-                            guard let v = value as? Double else { throw AdaScriptError.invalidManifest("Invalid Float '\(field.key)'") }
-                            return ReflectedFieldValue.double(v)
-                        case .string:
-                            guard let v = value as? String else { throw AdaScriptError.invalidManifest("Invalid String '\(field.key)'") }
-                            return ReflectedFieldValue.string(v)
-                        default: throw AdaScriptError.invalidManifest("Unsupported native scene field '\(field.key)'")
-                        }
-                    }
-                    entity.components += RuntimeComponentPayload(componentID: descriptor.componentID, stableID: descriptor.stableID, values: values)
+                    entity.components += try AdaScriptSceneComponentDecoder.decode(object, as: descriptor)
                 } else {
                     guard let type = RuntimeTypeRegistry.componentType(named: name) as? any Decodable.Type else {
                         if let object = try JSONSerialization.jsonObject(with: data) as? [String: Any], object.isEmpty,

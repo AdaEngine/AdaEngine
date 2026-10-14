@@ -165,7 +165,7 @@ struct EditorAdaScriptProjectRuntimeView: View {
             let gravity = artifact.plugins.physics2DGravity
             app.addPlugin(Physics2DPlugin(gravity: [Float(gravity[0]), Float(gravity[1])]))
         case .physics3D:
-            app.addPlugin(Physics3DPlugin())
+            app.addPlugin(artifact.plugins.physics3DPlugin())
         default:
             return false
         }
@@ -178,7 +178,7 @@ struct EditorAdaScriptProjectRuntimeView: View {
     ) {
         switch pluginID {
         case .audio:
-            app.addPlugin(AudioPlugin())
+            app.addPlugin(artifact.plugins.audioPlugin())
         case .multiplayer:
             app.addPlugin(EditorAdaScriptMultiplayerPlugin(settings: artifact.plugins.multiplayer))
         case .tilemap:

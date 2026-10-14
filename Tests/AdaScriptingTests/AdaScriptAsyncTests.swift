@@ -493,7 +493,7 @@ struct AdaScriptAsyncTests {
             await Tasks.nextFrame();
             retained.asyncPosition.value = 9;
         }
-        @system class BorrowSystem {
+        @system @access(write: [AsyncPosition]) class BorrowSystem {
             @query(AsyncPosition) var positions;
             func update(context) {
                 if (!started) {

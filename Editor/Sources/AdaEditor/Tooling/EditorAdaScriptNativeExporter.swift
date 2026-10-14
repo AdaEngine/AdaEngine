@@ -226,7 +226,7 @@ actor EditorAdaScriptNativeExporter {
     private static func convertScenes(at assets: URL, originalRoot: URL, sources: [AdaScriptSource]) throws {
         EditorComponentRegistry.registerBuiltIns()
         let schemas = try AdaScriptSchemaParser.parse(sources: sources).filter { $0.kind == .component }
-        let nativeNames = Set(schemas.flatMap { [$0.name, $0.id] })
+        let nativeNames = Set(schemas.flatMap { [$0.name, $0.id] + $0.aliases })
         guard let files = FileManager.default.enumerator(at: assets, includingPropertiesForKeys: [.isRegularFileKey]) else { return }
         for case let url as URL in files where url.pathExtension == "ascn" {
             let model = try EditorSceneModel.decode(from: String(contentsOf: url, encoding: .utf8))
@@ -240,7 +240,15 @@ actor EditorAdaScriptNativeExporter {
                 for (name, originalPayload) in item.components {
                     let payload = try EditorSceneFileLoader.resolvedComponentPayload(typeName: name, payload: originalPayload, sourceURL: originalSceneURL, resourceRootURL: originalRoot)
                     if nativeNames.contains(name) || name == String(reflecting: ScriptableComponents.self) {
-                        values[name] = try JSONSerialization.data(withJSONObject: payload.mapValues(\.jsonCompatibleValue))
+                        let fields = payload.mapValues(\.jsonCompatibleValue)
+                        let resolution = AdaScriptSceneSchemaResolver.resolve(key: name, in: schemas)
+                        let errors = resolution == nil ? [] : AdaScriptSceneSchemaResolver.diagnose(key: name, fields: fields, schemas: schemas).filter { $0.severity == .error }
+                        guard errors.isEmpty else {
+                            throw EditorPreviewBuildFailure(message: "Scene \(url.lastPathComponent) does not match the script schema: " + errors.map(\.description).joined(separator: "; "))
+                        }
+                        // Scenes are exported under the stable ID so a later rename or alias cannot orphan the data.
+                        let key = resolution?.canonicalKey ?? name
+                        values[key] = try JSONSerialization.data(withJSONObject: fields)
                     } else if name == String(reflecting: Camera.self), let camera = try EditorComponentRegistry.decode(typeName: name, payload: payload) as? Camera {
                         values[name] = try JSONEncoder().encode(SceneCameraSettings(camera: camera))
                     } else if name == String(reflecting: TileMapComponent.self) {
@@ -356,6 +364,17 @@ actor EditorAdaScriptNativeExporter {
         let scene = entryScene.hasPrefix(assetsPrefix) ? String(entryScene.dropFirst(assetsPrefix.count)) : entryScene
         let title = project.runtime.window.title ?? project.project.displayName ?? project.project.name ?? "AdaScript Game"
         let metadata = sources.map { "AdaScriptSource(path: \(quote($0.path)), source: \(quote($0.source)))" }.joined(separator: ",\n")
+        let upscalingModifier: String = switch plugins.rendering.upscaling {
+        case .none: ""
+        case .disabled?: "\n                    .renderUpscaling(.disabled)"
+        case .spatial?: "\n                    .renderUpscaling(.spatial(renderScale: \(plugins.rendering.renderScale)))"
+        }
+        let preloadPaths = plugins.assets.preload.map { path in
+            "@res://" + (path.hasPrefix(assetsPrefix) ? String(path.dropFirst(assetsPrefix.count)) : path)
+        }
+        let preloadExpression = preloadPaths.isEmpty
+            ? "Self.preloadedAssetPaths(assets)"
+            : "[" + preloadPaths.map(quote).joined(separator: ", ") + "]"
         let pluginCode = plugins.pluginIDs.compactMap { id -> String? in
             switch id {
             case .core2D: "app.addPlugin(Core2DPlugin())"
@@ -364,10 +383,10 @@ actor EditorAdaScriptNativeExporter {
             case .mesh2D: "app.addPlugin(Mesh2DPlugin())"
             case .sprite: "app.addPlugin(SpritePlugin())"
             case .upscale: "app.addPlugin(UpscalePlugin())"
-            case .audio: "app.addPlugin(AudioPlugin())"
+            case .audio: "app.addPlugin(AudioPlugin(masterVolume: \(plugins.audio.masterVolume)))"
             case .tilemap: "app.addPlugin(TileMapPlugin())"
             case .physics2D: "app.addPlugin(Physics2DPlugin(gravity: [\(plugins.physics2DGravity[0]), \(plugins.physics2DGravity[1])]))"
-            case .physics3D: "app.addPlugin(Physics3DPlugin())"
+            case .physics3D: "app.addPlugin(Physics3DPlugin(gravity: Vector3(\(plugins.physics3D.gravity[0]), \(plugins.physics3D.gravity[1]), \(plugins.physics3D.gravity[2])), subStepCount: \(plugins.physics3D.subStepCount)))"
             case .model3D: nil
             case .multiplayer: "app.addPlugin(NativeGameNetwork())"
             default: nil
@@ -396,7 +415,7 @@ actor EditorAdaScriptNativeExporter {
                     .windowTitle(\(quote(title)))
                     .windowMode(.windowed)
                     .minimumSize(width: \(project.runtime.window.size.width), height: \(project.runtime.window.size.height))
-                    .windowResizable(\(project.runtime.window.isResizable))
+                    .windowResizable(\(project.runtime.window.isResizable))\(upscalingModifier)
             }
             }
             @MainActor private struct GameView: View {
@@ -414,7 +433,7 @@ actor EditorAdaScriptNativeExporter {
                         \(pluginCode)
                         guard let pointer = ada_game_get_module() else { throw NativeRuntimeError.malformedMetadata("Missing native gameplay module") }
                         let module = unsafe try NativeModule(module: pointer)
-                        let plugin = try AdaScriptNativePlugin(module: module, name: \(quote(project.runtime.moduleName)), sources: [\(metadata)], startupSystemIdentifier: \(project.runtime.entry.startupSystem.map(quote) ?? "nil"), preloadedAssets: Self.preloadedAssetPaths(assets))
+                        let plugin = try AdaScriptNativePlugin(module: module, name: \(quote(project.runtime.moduleName)), sources: [\(metadata)], startupSystemIdentifier: \(project.runtime.entry.startupSystem.map(quote) ?? "nil"), preloadedAssets: \(preloadExpression))
                         app.addPlugin(plugin)
                         app.addPlugin(NativeGameEntry(plugin: plugin, assets: assets))
                         NativeGameLog.write("[AdaScript AOT] Native module linked")

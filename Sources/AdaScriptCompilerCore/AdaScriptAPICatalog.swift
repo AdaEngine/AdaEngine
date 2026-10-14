@@ -47,10 +47,10 @@ public extension AdaScriptTypeEnvironment {
             ),
             method(
                 "insert",
-                parameters: [.int, .string],
+                parameters: [.int, .any],
                 returning: .bool,
-                detail: "insert(entityID, componentName) -> Bool — insert a default component",
-                insertText: "insert(entityID, componentName)"
+                detail: "insert(entityID, component) -> Bool — insert a component name or a constructed component",
+                insertText: "insert(entityID, component)"
             ),
             method(
                 "remove",
@@ -136,6 +136,55 @@ public extension AdaScriptTypeEnvironment {
                 detail: "setTileOrientation(entityID, layer, coordinates, orientation) — enqueue a tile orientation edit"
             ),
             property("commands", type: .named("$AdaCommands"), detail: "Scoped deferred world commands"),
+            method(
+                "has",
+                parameters: [.int, .string],
+                returning: .bool,
+                detail: "has(entityID, component) -> Bool — requires an @access declaration naming the component",
+                insertText: "has(entityID, \"Component\")"
+            ),
+            method(
+                "read",
+                parameters: [.int, .string, .string],
+                returning: .any,
+                detail: "read(entityID, component, field) — read a field of an @access-declared component",
+                insertText: "read(entityID, \"Component\", \"field\")"
+            ),
+            method(
+                "write",
+                parameters: [.int, .string, .string, .any],
+                returning: .bool,
+                detail: "write(entityID, component, field, value) -> Bool — requires @access(write:)",
+                insertText: "write(entityID, \"Component\", \"field\", value)"
+            ),
+            method(
+                "spawnImmediate",
+                parameters: [.list(.any)],
+                returning: .int,
+                detail: "spawnImmediate(components) -> Int — spawn now; requires @exclusiveWorld",
+                insertText: "spawnImmediate(components)"
+            ),
+            method(
+                "insertImmediate",
+                parameters: [.int, .any],
+                returning: .bool,
+                detail: "insertImmediate(entityID, component) -> Bool — insert now; requires @exclusiveWorld",
+                insertText: "insertImmediate(entityID, component)"
+            ),
+            method(
+                "removeImmediate",
+                parameters: [.int, .string],
+                returning: .bool,
+                detail: "removeImmediate(entityID, componentName) -> Bool — remove now; requires @exclusiveWorld",
+                insertText: "removeImmediate(entityID, \"Component\")"
+            ),
+            method(
+                "despawnImmediate",
+                parameters: [.int],
+                returning: .bool,
+                detail: "despawnImmediate(entityID) -> Bool — despawn now; requires @exclusiveWorld",
+                insertText: "despawnImmediate(entityID)"
+            ),
             method(
                 "changeScene",
                 parameters: [.string],

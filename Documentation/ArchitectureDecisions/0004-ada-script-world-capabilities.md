@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Partial (deferred commands foundation shipped)
+- Implementation: Partial (commands, events, `@access`, `@exclusiveWorld`, LSP shipped; asset and UI capabilities open)
 
 ## Implementation status
 
-Last verified: 2026-08-31.
+Last verified: 2026-10-14.
 
 Shipped:
 
@@ -23,15 +23,40 @@ Shipped:
 - [x] Runtime validation rejects command access that was not granted by static
   capability inference.
 
+- [x] Component constructor expressions and field overrides become detached
+  native payloads for `spawn` and `insert`, through one shared decoder
+  (`AnnotatedGravityComponentPayloads`) used by deferred and immediate paths.
+  `remove` accepts a stable component name.
+- [x] `@access(read: [...], write: [...])` on an `@system` class resolves each
+  component, adds it to the system's scheduler access, and gates the dynamic
+  `context.world.read`, `write` and `has` calls. Calls outside the declared set,
+  writes to a read-only component, and any call without `@access` are rejected
+  with a diagnostic.
+- [x] `@eventWriter(Name)` and `@events(Name)` bind a writer and the previous
+  frame's events of one name to a system property. Events are native
+  `AdaScriptRuntimeEvent` values with detached primitive fields in
+  `EventsStorage`; a system declaring them without `EventsPlugin` fails to
+  install instead of crashing.
+- [x] `@exclusiveWorld` adds `ExclusiveWorldAccess` to the system, which
+  `SystemAccessSet.isCompatible` treats as incompatible with every other system.
+  `spawnImmediate`, `insertImmediate`, `removeImmediate` and `despawnImmediate`
+  apply at once and are rejected for non-exclusive systems and while one of the
+  system's query iterators is active.
+- [x] The Editor language service offers `events`, `eventWriter`, `exclusiveWorld`
+  and the new `context.world` members, and reports: capability annotations on a
+  non-system target, malformed event names, immediate operations without
+  `@exclusiveWorld`, dynamic access without or outside `@access`, and storing
+  `context.world` in a property or global (lifetime).
+
 Remaining before this ADR is implemented:
 
-- [ ] Convert component constructor expressions and field overrides into
-  detached native command payloads.
-- [ ] Implement explicit `@access` declarations for dynamic component access
-  and non-direct capability flow.
-- [ ] Add `@events`, `@eventWriter`, asset, and UI capabilities.
-- [ ] Add `@exclusiveWorld` startup/tooling access and immediate operations.
-- [ ] Add LSP completion and diagnostics for capability lifetime and access.
+- [ ] Asset capability. `Assets` is still a VM-wide service available to every
+  system; making it an explicit per-system capability would break existing
+  scripts and needs a migration decision.
+- [ ] UI capability (`mountUI`). Blocked: AdaUI views in AdaScript are disabled
+  ("temporarily unavailable"), so there is nothing to mount.
+- [ ] `insertResourceImmediate`. Blocked on ADR-0003: resources have no
+  type-erased constructor, so a script cannot yet create one by name.
 
 ## Context
 
@@ -116,8 +141,10 @@ context.world.commands.remove(projectile, "game.damage");
 context.world.commands.despawn(projectile);
 ```
 
-Capability inference currently recognizes direct `context.world.commands`
-access. An indirect alias that bypasses inference is rejected by the runtime
+Component arguments may also be constructor expressions with field overrides,
+for example `commands.insert(entity, Poison(duration: 5.0))`; both forms produce
+detached native values. Capability inference currently recognizes direct
+`context.world.commands` access. An indirect alias that bypasses inference is rejected by the runtime
 instead of receiving undeclared world access.
 
 Commands are applied after the active system scope, when no script query row or

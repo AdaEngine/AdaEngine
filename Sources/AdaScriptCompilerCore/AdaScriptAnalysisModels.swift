@@ -116,19 +116,22 @@ public struct AdaScriptBindingSyntax: Equatable, Hashable, Sendable {
     public var isConstant: Bool
     public var name: String
     public var range: AdaScriptSourceRange
+    public var visibility: AdaScriptDeclarationVisibility
 
     public init(
         annotations: [AdaScriptAnnotationSyntax] = [],
         declaredType: AdaScriptType? = nil,
         isConstant: Bool,
         name: String,
-        range: AdaScriptSourceRange
+        range: AdaScriptSourceRange,
+        visibility: AdaScriptDeclarationVisibility = .public
     ) {
         self.annotations = annotations
         self.declaredType = declaredType
         self.isConstant = isConstant
         self.name = name
         self.range = range
+        self.visibility = visibility
     }
 }
 
@@ -153,6 +156,7 @@ public struct AdaScriptFunctionSyntax: Equatable, Hashable, Sendable {
     public var parameters: [AdaScriptParameterSyntax]
     public var range: AdaScriptSourceRange
     public var returnType: AdaScriptType?
+    public var visibility: AdaScriptDeclarationVisibility
 
     public init(
         annotations: [AdaScriptAnnotationSyntax] = [],
@@ -160,7 +164,8 @@ public struct AdaScriptFunctionSyntax: Equatable, Hashable, Sendable {
         name: String,
         parameters: [AdaScriptParameterSyntax],
         range: AdaScriptSourceRange,
-        returnType: AdaScriptType? = nil
+        returnType: AdaScriptType? = nil,
+        visibility: AdaScriptDeclarationVisibility = .public
     ) {
         self.annotations = annotations
         self.isAsync = isAsync
@@ -168,6 +173,7 @@ public struct AdaScriptFunctionSyntax: Equatable, Hashable, Sendable {
         self.parameters = parameters
         self.range = range
         self.returnType = returnType
+        self.visibility = visibility
     }
 }
 
@@ -184,6 +190,7 @@ public struct AdaScriptTypeSyntax: Equatable, Hashable, Sendable {
     public var kind: Kind
     public var name: String
     public var range: AdaScriptSourceRange
+    public var visibility: AdaScriptDeclarationVisibility
 
     public init(
         annotations: [AdaScriptAnnotationSyntax] = [],
@@ -191,7 +198,8 @@ public struct AdaScriptTypeSyntax: Equatable, Hashable, Sendable {
         functions: [AdaScriptFunctionSyntax] = [],
         kind: Kind,
         name: String,
-        range: AdaScriptSourceRange
+        range: AdaScriptSourceRange,
+        visibility: AdaScriptDeclarationVisibility = .public
     ) {
         self.annotations = annotations
         self.bindings = bindings
@@ -199,28 +207,55 @@ public struct AdaScriptTypeSyntax: Equatable, Hashable, Sendable {
         self.kind = kind
         self.name = name
         self.range = range
+        self.visibility = visibility
     }
 }
 
 public struct AdaScriptSyntaxTree: Equatable, Sendable {
+    /// Every `@name` that appears in code, with its position and what it is attached to.
+    public var annotationUses: [AdaScriptAnnotationUse]
     public var bindings: [AdaScriptBindingSyntax]
+    /// Every name declared anywhere in the file: variables, constants, functions, types, parameters, and loop variables.
+    public var declaredNames: Set<String>
     public var functions: [AdaScriptFunctionSyntax]
+    public var importDiagnostics: [AdaScriptImportDiagnostic]
+    public var importUses: [AdaScriptImportUse]
+    public var imports: [AdaScriptImportSyntax]
     public var isStrict: Bool
     public var path: String
+    /// Bare identifiers that are not member accesses or argument labels.
+    public var references: [AdaScriptNameReference]
     public var types: [AdaScriptTypeSyntax]
+    /// Character offsets of top-level `private`/`public` keywords. Gravity only accepts access specifiers
+    /// on members, so lowering removes these after visibility has been read.
+    public var visibilityModifierOffsets: [Range<Int>]
 
     public init(
+        annotationUses: [AdaScriptAnnotationUse] = [],
         bindings: [AdaScriptBindingSyntax] = [],
+        declaredNames: Set<String> = [],
         functions: [AdaScriptFunctionSyntax] = [],
+        importDiagnostics: [AdaScriptImportDiagnostic] = [],
+        importUses: [AdaScriptImportUse] = [],
+        imports: [AdaScriptImportSyntax] = [],
         isStrict: Bool = false,
         path: String,
-        types: [AdaScriptTypeSyntax] = []
+        references: [AdaScriptNameReference] = [],
+        types: [AdaScriptTypeSyntax] = [],
+        visibilityModifierOffsets: [Range<Int>] = []
     ) {
+        self.annotationUses = annotationUses
         self.bindings = bindings
+        self.declaredNames = declaredNames
         self.functions = functions
+        self.importDiagnostics = importDiagnostics
+        self.importUses = importUses
+        self.imports = imports
         self.isStrict = isStrict
         self.path = path
+        self.references = references
         self.types = types
+        self.visibilityModifierOffsets = visibilityModifierOffsets
     }
 }
 
@@ -386,6 +421,10 @@ private extension AdaScriptSchemaField.Value {
         case .double: .float
         case .int: .int
         case .string: .string
+        case .vector, .color: .list(.float)
+        case .enumeration: .string
+        case .entity: .int
+        case .asset: .string
         }
     }
 }

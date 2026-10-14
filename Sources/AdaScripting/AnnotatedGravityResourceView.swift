@@ -66,6 +66,10 @@ final class AnnotatedGravityResourceView: @unchecked Sendable, AdaScriptNonSenda
             reportDiagnostic("Unknown resource field '\(fieldName)'")
             return false
         }
+        guard parameter.isWritable else {
+            reportDiagnostic("Resource field '\(fieldName)' cannot be written: the system accesses this resource read-only")
+            return false
+        }
         guard
             let fieldValue = AnnotatedGravityValueBridge.makeReflectedFieldValue(value),
             parameter.write(field: field, value: fieldValue)

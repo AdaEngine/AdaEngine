@@ -249,7 +249,7 @@ enum EditorComponentRegistry {
             .allDescriptors()
             .filter { !overrideNames.contains($0.typeName) }
             .map(editorDescriptor(from:))
-        return overrideDescriptors + reflectedDescriptors
+        return overrideDescriptors + reflectedDescriptors + EditorScriptComponentStore.shared.components.map(\.descriptor)
     }
 
     private static let overrideDescriptors: [EditorComponentDescriptor] = [
@@ -339,7 +339,9 @@ enum EditorComponentRegistry {
     }
 
     static func descriptor(named typeName: String) -> EditorComponentDescriptor? {
-        overrideDescriptorsByName[typeName] ?? ComponentReflectionRegistry.descriptor(named: typeName).map(editorDescriptor(from:))
+        overrideDescriptorsByName[typeName]
+            ?? EditorScriptComponentStore.shared.component(forKey: typeName)?.descriptor
+            ?? ComponentReflectionRegistry.descriptor(named: typeName).map(editorDescriptor(from:))
     }
 
     static func addableDescriptors(for entity: EditorSceneEntity?) -> [EditorComponentDescriptor] {
@@ -352,7 +354,9 @@ enum EditorComponentRegistry {
     }
 
     static func defaultPayload(for typeName: String) -> EditorComponentPayload {
-        overrideDescriptorsByName[typeName]?.makeDefaultPayload() ?? [:]
+        overrideDescriptorsByName[typeName]?.makeDefaultPayload()
+            ?? EditorScriptComponentStore.shared.component(forKey: typeName)?.descriptor.makeDefaultPayload()
+            ?? [:]
     }
 
     static func decode(typeName: String, payload: EditorComponentPayload) throws -> (any Component)? {
@@ -361,6 +365,9 @@ enum EditorComponentRegistry {
         }
         if typeName == String(reflecting: NoFrustumCulling.self) {
             return NoFrustumCulling()
+        }
+        if let script = EditorScriptComponentStore.shared.component(forKey: typeName) {
+            return try script.descriptor.decode(payload)
         }
 
         guard

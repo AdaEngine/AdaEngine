@@ -18,7 +18,7 @@ struct GravityLanguageSemanticTests {
         #expect(completions.contains { $0.label == "async func" })
     }
 
-    @Test("Diagnostics reject invalid annotation targets and accept struct views")
+    @Test("Diagnostics reject invalid annotation targets and report AdaUI views as unavailable")
     func declarationAnnotationDiagnostics() {
         let source = """
             @component class Health {}
@@ -27,10 +27,12 @@ struct GravityLanguageSemanticTests {
             @previewable struct MissingView {}
             """
         let diagnostics = GravityLanguageService().analyze(text: source).diagnostics
-        #expect(diagnostics.count == 3)
+        // AdaUI views in AdaScript are temporarily unavailable, so @view and @previewable are always reported.
+        #expect(diagnostics.count == 5)
         #expect(diagnostics.contains { $0.message.contains("@component requires a struct") && $0.range.start.line == 0 })
         #expect(diagnostics.contains { $0.message.contains("@system requires a class") && $0.range.start.line == 1 })
-        #expect(diagnostics.contains { $0.message == "@previewable requires @view" && $0.range.start.line == 3 })
+        #expect(diagnostics.filter { $0.message == "AdaUI views in AdaScript are temporarily unavailable." }.map(\.range.start.line) == [2])
+        #expect(diagnostics.filter { $0.message == "AdaUI previews in AdaScript are temporarily unavailable." }.map(\.range.start.line) == [2, 3])
     }
 
     @Test("LSP offers a class-to-struct quick fix for component annotations")

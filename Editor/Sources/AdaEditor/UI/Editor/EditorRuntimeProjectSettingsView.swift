@@ -16,7 +16,73 @@ struct EditorRuntimeProjectSettingsView: View {
             if viewModel.isRuntimePluginEnabled(.physics2D) {
                 physicsSettings
             }
+            if viewModel.isRuntimePluginEnabled(.physics3D) {
+                physics3DSettings
+            }
+            if viewModel.isRuntimePluginEnabled(.audio) {
+                audioSettings
+            }
+            renderingSettings
+            assetSettings
             windowSettings
+            resolvedRuntimeSettings
+        }
+    }
+
+    private var physics3DSettings: some View {
+        settingsGroup("PHYSICS 3D") {
+            HStack(spacing: 10) {
+                settingsField("0", detail: "Gravity X", text: viewModel.runtimeTextBinding(\.physics3DGravityX))
+                settingsField("-9.81", detail: "Gravity Y", text: viewModel.runtimeTextBinding(\.physics3DGravityY))
+                settingsField("0", detail: "Gravity Z", text: viewModel.runtimeTextBinding(\.physics3DGravityZ))
+            }
+            settingsField("2", detail: "Sub-steps per fixed update (1-16).", text: viewModel.runtimeTextBinding(\.physics3DSubStepCount))
+        }
+    }
+
+    private var audioSettings: some View {
+        settingsGroup("AUDIO") {
+            settingsField("1", detail: "Master volume, 0 to 1.", text: viewModel.runtimeTextBinding(\.audioMasterVolume))
+        }
+    }
+
+    private var renderingSettings: some View {
+        settingsGroup("RENDERING") {
+            HStack(spacing: 8) {
+                selectionButton("Platform Default", selected: viewModel.runtimeDraft.upscaling == nil) {
+                    viewModel.selectUpscaling(nil)
+                }
+                selectionButton("Native Resolution", selected: viewModel.runtimeDraft.upscaling == .disabled) {
+                    viewModel.selectUpscaling(.disabled)
+                }
+                selectionButton("Spatial Upscaling", selected: viewModel.runtimeDraft.upscaling == .spatial) {
+                    viewModel.selectUpscaling(.spatial)
+                }
+            }
+            settingsField("0.75", detail: "Render scale for spatial upscaling, 0.5 to 1.", text: viewModel.runtimeTextBinding(\.renderScale))
+            Text("Applies to exported players. Play inside Ada Studio keeps the editor's own render settings.")
+                .font(.system(size: 11))
+                .foregroundColor(theme.editorColors.muted)
+                .lineLimit(2)
+        }
+    }
+
+    private var assetSettings: some View {
+        settingsGroup("ASSETS") {
+            settingsField(
+                "Assets/Textures/hero.png",
+                detail: "Assets loaded before the first frame, comma-separated project-relative paths. Empty preloads everything in exported native players.",
+                text: viewModel.runtimeTextBinding(\.preloadPaths)
+            )
+        }
+    }
+
+    private var resolvedRuntimeSettings: some View {
+        settingsGroup("RESOLVED RUNTIME") {
+            Text(viewModel.resolvedRuntimeManifestText)
+                .font(.system(size: 11))
+                .foregroundColor(theme.editorColors.muted)
+                .accessibilityIdentifier("AdaEditor.Settings.ResolvedRuntime")
         }
     }
 

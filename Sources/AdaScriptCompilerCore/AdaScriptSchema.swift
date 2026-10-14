@@ -288,6 +288,8 @@ extension Parser {
         var rpcMethodBindings: [AdaScriptRPCMethodBinding] = []
         var depth = 1
         var usesDeferredCommands = false
+        let bodyStart = index
+        var queryProperties: [String] = []
         while !isAtEnd, depth > 0 {
             usesDeferredCommands =
                 usesDeferredCommands
@@ -296,6 +298,10 @@ extension Parser {
                 || checkSequence(["context", ".", "world", ".", "setTileOrientation"])
             if depth == 1 {
                 let annotations = try parseAnnotations()
+                if annotations.contains(where: { $0.name == "query" }), check("var"), tokens.indices.contains(index + 1),
+                    tokens[index + 1].kind == .identifier {
+                    queryProperties.append(tokens[index + 1].text)
+                }
                 if let rpc = annotations.first(where: { $0.name == "rpc" }) {
                     _ = match("async")
                     guard annotations.count == 1, match("func") else {
@@ -327,6 +333,7 @@ extension Parser {
         guard depth == 0 else {
             throw error("unterminated system declaration '\(systemName)'")
         }
+        bindings = try bindings.map { try resolvingAccess(of: $0, bodyRange: bodyStart..<max(bodyStart, index - 1)) }
         return (
             bindings,
             remoteCommandBindings,
@@ -334,7 +341,8 @@ extension Parser {
             rpcMethodBindings,
             AdaScriptSystemCapabilities(
                 systemName: systemName,
-                usesDeferredCommands: usesDeferredCommands
+                usesDeferredCommands: usesDeferredCommands,
+                queryUsage: queryProperties.map { queryUsage(of: $0, in: bodyStart..<max(bodyStart, index - 1)) }
             )
         )
     }
@@ -377,6 +385,13 @@ extension Parser {
         } else {
             isOptional = false
         }
+        // `.write` is a placeholder until the body is scanned; an explicit value is kept in `explicitResourceAccess`.
+        if let explicit = resourceAnnotation.arguments["access"] {
+            guard case let .string(value) = explicit, value == "read" || value == "write" else {
+                throw error("@res access must be \"read\" or \"write\"")
+            }
+            explicitResourceAccess["\(systemName).\(propertyName)"] = AdaScriptResourceBinding.Access(rawValue: value)
+        }
         return (
             AdaScriptResourceBinding(
                 isOptional: isOptional,
@@ -386,6 +401,69 @@ extension Parser {
             ),
             nil
         )
+    }
+
+    /// Chooses the scheduler access for a `@res` binding.
+    ///
+    /// Access is `read` only when every use of the property in the system body is a field read
+    /// (`name.field`, `name.available()`). Assigning a field, or any use that could alias the view
+    /// (passing it, storing it, calling it), reserves write access. An explicit `access:` wins, but
+    /// `"read"` is rejected when the body writes through the binding.
+    private func resolvingAccess(of binding: AdaScriptResourceBinding, bodyRange: Range<Int>) throws -> AdaScriptResourceBinding {
+        let inferred = inferredAccess(of: binding.propertyName, in: bodyRange)
+        var access = inferred
+        if let explicit = explicitResourceAccess["\(binding.systemName).\(binding.propertyName)"] {
+            if explicit == .read, inferred == .write {
+                throw error("@res '\(binding.propertyName)' in \(binding.systemName) is declared access: \"read\" but is written or aliased in the system body")
+            }
+            access = explicit
+        }
+        return AdaScriptResourceBinding(
+            access: access,
+            isOptional: binding.isOptional,
+            propertyName: binding.propertyName,
+            resourceName: binding.resourceName,
+            systemName: binding.systemName
+        )
+    }
+
+    private func inferredAccess(of property: String, in range: Range<Int>) -> AdaScriptResourceBinding.Access {
+        var cursor = range.lowerBound
+        let compoundOperators: Set<String> = ["+", "-", "*", "/", "%", "&", "|", "^"]
+        while cursor < range.upperBound {
+            defer { cursor += 1 }
+            let token = tokens[cursor]
+            guard token.kind == .identifier, token.text == property else {
+                continue
+            }
+            // Skip the declaration `var name: Type;`.
+            if cursor > 0, tokens[cursor - 1].text == "var" {
+                continue
+            }
+            // A member of some other object (`other.name`) is not the binding, except `self.name`.
+            if cursor > 1, tokens[cursor - 1].text == ".", tokens[cursor - 2].text != "self" {
+                continue
+            }
+            guard cursor + 2 < tokens.count, tokens[cursor + 1].text == ".", tokens[cursor + 2].kind == .identifier else {
+                return .write
+            }
+            let after = cursor + 3
+            guard after < tokens.count else {
+                return .read
+            }
+            let next = tokens[after].text
+            if next == "(" {
+                if tokens[cursor + 2].text == "available" { continue }
+                return .write
+            }
+            let isEqualsNotComparison = next == "=" && !(after + 1 < tokens.count && tokens[after + 1].text == "=")
+            let isCompound = compoundOperators.contains(next) && after + 1 < tokens.count && tokens[after + 1].text == "="
+                && tokens[after].endOffset == tokens[after + 1].startOffset
+            if isEqualsNotComparison || isCompound {
+                return .write
+            }
+        }
+        return .read
     }
 
     private mutating func advanceSystemBody(depth: inout Int) {
@@ -413,6 +491,7 @@ extension Parser {
             throw error("@\(annotation.name) \(name) requires at least one @export field")
         }
         return AdaScriptDataSchema(
+            aliases: try schemaAliases(name: name, annotation: annotation),
             fields: fields,
             id: try schemaID(name: name, annotation: annotation),
             kind: schemaKind(annotation),
@@ -438,19 +517,27 @@ extension Parser {
             guard let fieldName = consumeIdentifier() else {
                 throw error("expected field name in \(declarationName)")
             }
+            var declaredType: String?
             if match(":") {
-                guard consumeIdentifier() != nil else {
+                guard let typeName = consumeIdentifier() else {
                     throw error("expected field type for \(fieldName)")
                 }
+                declaredType = typeName
             }
             guard match("=") else {
                 throw error("field '\(fieldName)' requires a constant default")
             }
-            let defaultValue = try parseFieldValue(fieldName: fieldName)
+            let defaultValue = try parseFieldValue(fieldName: fieldName, declaredType: declaredType)
+            if networkDeclaration, !defaultValue.isScalar {
+                throw error("network field '\(fieldName)' in \(declarationName) supports only Bool, Int, Float and String values")
+            }
             guard match(";") else {
                 throw error("expected ';' after field '\(fieldName)'")
             }
             let networkAnnotation = annotations.first(where: { $0.name == "network_field" })
+            if networkAnnotation != nil, !defaultValue.isScalar {
+                throw error("@network_field '\(fieldName)' in \(declarationName) supports only Bool, Int, Float and String values")
+            }
             let isLocal = annotations.contains(where: { $0.name == "local" })
             if networkAnnotation != nil && isLocal {
                 throw error("field '\(fieldName)' cannot be both @network_field and @local")
@@ -475,6 +562,26 @@ extension Parser {
             return explicitID
         }
         throw error("@\(annotation.name) on \(name) requires id: \"...\"")
+    }
+
+    private func schemaAliases(name: String, annotation: Annotation) throws -> [String] {
+        guard let value = annotation.arguments["aliases"] else {
+            return []
+        }
+        guard case let .list(values) = value else {
+            throw error("@\(annotation.name) aliases on \(name) must be a list of strings")
+        }
+        var aliases: [String] = []
+        for value in values {
+            guard case let .string(alias) = value, !alias.isEmpty else {
+                throw error("@\(annotation.name) aliases on \(name) must be non-empty strings")
+            }
+            guard !aliases.contains(alias) else {
+                throw error("@\(annotation.name) alias '\(alias)' is repeated on \(name)")
+            }
+            aliases.append(alias)
+        }
+        return aliases
     }
 
     private func schemaKind(_ annotation: Annotation) -> AdaScriptDataSchema.Kind {
@@ -660,7 +767,103 @@ extension Parser {
         return parsed
     }
 
-    private mutating func parseFieldValue(fieldName: String) throws -> AdaScriptSchemaField.Value {
+    /// Parses defaults for the structured field types. Returns `nil` for a scalar or unknown type,
+    /// which falls back to the literal-driven scalar parse.
+    private mutating func parseStructuredFieldValue(fieldName: String, type: String) throws -> AdaScriptSchemaField.Value? {
+        switch type {
+        case "Vector2", "Vector3", "Vector4":
+            let count = Int(type.dropFirst("Vector".count)) ?? 0
+            if match("Vector\(count)") == false, check("[") == false {
+                throw error("field '\(fieldName)' of type \(type) needs a \(type)(...) or [...] default")
+            }
+            return .vector(try parseComponents(fieldName: fieldName, type: type, expected: [count], zeroConstant: "ZERO"))
+        case "Color":
+            if match("Color") == false, check("[") == false {
+                throw error("field '\(fieldName)' of type Color needs a Color(...) or [...] default")
+            }
+            let named: [String: [Double]] = ["white": [1, 1, 1, 1], "black": [0, 0, 0, 1], "clear": [0, 0, 0, 0]]
+            if match("."), let constant = consumeIdentifier() {
+                guard let components = named[constant] else {
+                    throw error("unknown Color constant '\(constant)' for '\(fieldName)'; use white, black, clear or Color(r, g, b, a)")
+                }
+                return .color(components)
+            }
+            let components = try parseComponents(fieldName: fieldName, type: type, expected: [3, 4], zeroConstant: nil)
+            return .color(components.count == 3 ? components + [1] : components)
+        case "Entity":
+            if match("null") || (match("Entity") && match(".") && consumeIdentifier() == "none") {
+                return .entity
+            }
+            throw error("field '\(fieldName)' of type Entity must default to null")
+        case "Asset":
+            if match("null") {
+                return .asset(path: nil)
+            }
+            if let token = current, token.kind == .string {
+                advance()
+                return .asset(path: token.text)
+            }
+            throw error("field '\(fieldName)' of type Asset must default to null or an asset path string")
+        default:
+            guard let cases = enums[type] else {
+                return nil
+            }
+            guard match(type), match("."), let selected = consumeIdentifier() else {
+                throw error("field '\(fieldName)' of enum \(type) must default to \(type).<case>")
+            }
+            guard cases.contains(selected) else {
+                throw error("enum \(type) has no case '\(selected)' (cases: \(cases.joined(separator: ", ")))")
+            }
+            return .enumeration(type: type, cases: cases, selected: selected)
+        }
+    }
+
+    /// Parses `(a, b, c)`, `[a, b, c]` or `.ZERO` after the type name has been consumed.
+    private mutating func parseComponents(
+        fieldName: String,
+        type: String,
+        expected: [Int],
+        zeroConstant: String?
+    ) throws -> [Double] {
+        if let zeroConstant, match(".") {
+            guard consumeIdentifier() == zeroConstant, let count = expected.first else {
+                throw error("unknown \(type) constant for '\(fieldName)'; only \(type).\(zeroConstant) is supported")
+            }
+            return Array(repeating: 0, count: count)
+        }
+        let closing: String
+        if match("(") {
+            closing = ")"
+        } else if match("[") {
+            closing = "]"
+        } else {
+            throw error("field '\(fieldName)' of type \(type) needs component values")
+        }
+        var values: [Double] = []
+        while !isAtEnd, !check(closing) {
+            var sign = 1.0
+            if match("-") { sign = -1 }
+            guard let token = current, token.kind == .number, let number = Double(token.text), number.isFinite else {
+                throw error("\(type) component of '\(fieldName)' must be a finite number")
+            }
+            advance()
+            values.append(sign * number)
+            if !match(",") { break }
+        }
+        guard match(closing) else {
+            throw error("expected '\(closing)' in the default of '\(fieldName)'")
+        }
+        guard expected.contains(values.count) else {
+            let list = expected.map(String.init).joined(separator: " or ")
+            throw error("\(type) default of '\(fieldName)' needs \(list) components, found \(values.count)")
+        }
+        return values
+    }
+
+    private mutating func parseFieldValue(fieldName: String, declaredType: String? = nil) throws -> AdaScriptSchemaField.Value {
+        if let declaredType, let structured = try parseStructuredFieldValue(fieldName: fieldName, type: declaredType) {
+            return structured
+        }
         var sign = ""
         if match("-") {
             sign = "-"
@@ -707,6 +910,10 @@ extension Parser {
                         guard let label = consumeIdentifier(), match(":") else {
                             throw error("invalid named argument in @\(name)")
                         }
+                        if name == "query", !["optional", "with", "without", "changed", "added"].contains(label) {
+                            let hint = label == "where" ? "; boolean predicates are not supported yet" : ""
+                            throw error("@query does not support '\(label):'\(hint). Supported clauses: optional, with, without, changed, added")
+                        }
                         arguments[label] = try parseLiteral(annotation: name, label: label)
                     } else {
                         positionalArguments.append(try parseLiteral(annotation: name, label: "value"))
@@ -742,7 +949,19 @@ extension Parser {
         case .identifier where token.text == "false":
             return .bool(false)
         case .identifier:
-            return .identifier(token.text)
+            // `Game.Health` and `Game.Health as health` are query component references.
+            var text = token.text
+            while check("."), checkNext(".") == false, let next = tokens.indices.contains(index + 1) ? tokens[index + 1] : nil, next.kind == .identifier {
+                advance()
+                advance()
+                text += "." + next.text
+            }
+            if current?.kind == .identifier, current?.text == "as", let alias = tokens.indices.contains(index + 1) ? tokens[index + 1] : nil, alias.kind == .identifier {
+                advance()
+                advance()
+                text += " as " + alias.text
+            }
+            return .identifier(text)
         default:
             throw error("unsupported value for @\(annotation) \(label)")
         }
@@ -827,5 +1046,109 @@ extension Parser {
 
     private func error(_ message: String) -> AdaScriptSchemaError {
         .invalid(path: path, message: message)
+    }
+}
+
+
+extension Parser {
+    private static let assignmentOperators: Set<String> = ["+", "-", "*", "/", "%", "&", "|", "^"]
+
+    /// Reads how `property` is used inside a system body. See ``AdaScriptQueryUsage`` for the rules.
+    fileprivate func queryUsage(of property: String, in range: Range<Int>) -> AdaScriptQueryUsage {
+        var reads = Set<String>()
+        var writes = Set<String>()
+        var isOpaque = false
+
+        func isSelfOrBare(_ cursor: Int) -> Bool {
+            // `x.property` is another object's member, `self.property` is ours.
+            cursor == 0 || tokens[cursor - 1].text != "." || (cursor > 1 && tokens[cursor - 2].text == "self")
+        }
+        // The loop headers that iterate this query, and the variable each binds.
+        var loops: [(row: String, header: Range<Int>, body: Range<Int>)] = []
+        var cursor = range.lowerBound
+        while cursor < range.upperBound {
+            defer { cursor += 1 }
+            guard tokens[cursor].text == "for", cursor + 1 < range.upperBound, tokens[cursor + 1].text == "(" else { continue }
+            var variable = cursor + 2
+            if variable < range.upperBound, ["var", "const"].contains(tokens[variable].text) { variable += 1 }
+            guard variable + 2 < range.upperBound, tokens[variable].kind == .identifier, tokens[variable + 1].text == "in" else { continue }
+            var collection = variable + 2
+            if tokens[collection].text == "self", collection + 2 < range.upperBound, tokens[collection + 1].text == "." { collection += 2 }
+            guard tokens[collection].text == property, collection + 1 < range.upperBound, tokens[collection + 1].text == ")" else { continue }
+            let headerEnd = collection + 1
+            var bodyRange = (headerEnd + 1)..<(headerEnd + 1)
+            if headerEnd + 1 < range.upperBound, tokens[headerEnd + 1].text == "{" {
+                var depth = 0
+                var end = headerEnd + 1
+                while end < range.upperBound {
+                    if tokens[end].text == "{" { depth += 1 }
+                    if tokens[end].text == "}" {
+                        depth -= 1
+                        if depth == 0 { break }
+                    }
+                    end += 1
+                }
+                bodyRange = (headerEnd + 2)..<min(end, range.upperBound)
+            } else {
+                var end = headerEnd + 1
+                while end < range.upperBound, tokens[end].text != ";" { end += 1 }
+                bodyRange = (headerEnd + 1)..<min(end, range.upperBound)
+            }
+            loops.append((tokens[variable].text, (cursor)..<(headerEnd + 1), bodyRange))
+        }
+
+        // Any use of the query outside its own loop headers hides what is touched.
+        for index in range where tokens[index].kind == .identifier && tokens[index].text == property && isSelfOrBare(index) {
+            if index > 0, tokens[index - 1].text == "var" { continue }
+            if loops.contains(where: { $0.header.contains(index) }) { continue }
+            isOpaque = true
+        }
+
+        for loop in loops {
+            for index in loop.body where tokens[index].kind == .identifier && tokens[index].text == loop.row {
+                if index > 0, tokens[index - 1].text == "." { continue }
+                guard index + 2 < range.upperBound, tokens[index + 1].text == ".", tokens[index + 2].kind == .identifier else {
+                    isOpaque = true
+                    continue
+                }
+                let alias = tokens[index + 2].text
+                if alias == "id" { continue }
+                guard index + 4 < range.upperBound, tokens[index + 3].text == ".", tokens[index + 4].kind == .identifier else {
+                    // `row.alias == null` / `!= null` asks whether an optional component is present; that reads nothing.
+                    let comparison = index + 5 < range.upperBound
+                        && ["=", "!"].contains(tokens[index + 3].text) && tokens[index + 4].text == "="
+                        && tokens[index + 5].text == "null"
+                    if comparison {
+                        reads.insert(alias)
+                    } else {
+                        // `row.alias` alone: the component view is passed around.
+                        isOpaque = true
+                    }
+                    continue
+                }
+                let after = index + 5
+                let next = after < range.upperBound ? tokens[after].text : ""
+                let followedByEquals = after + 1 < range.upperBound && tokens[after + 1].text == "="
+                let isPlainAssignment = next == "=" && !followedByEquals
+                let isCompound = Self.assignmentOperators.contains(next) && followedByEquals
+                    && tokens[after].endOffset == tokens[after + 1].startOffset
+                if next == "(", tokens[index + 4].text == "set" {
+                    // The component view's explicit setter: `row.alias.set("field", value)`.
+                    writes.insert(alias)
+                    reads.insert(alias)
+                } else if next == "(", tokens[index + 4].text == "get" {
+                    reads.insert(alias)
+                } else if next == "(" {
+                    // Any other call on the component view cannot be classified.
+                    isOpaque = true
+                } else if isPlainAssignment || isCompound {
+                    writes.insert(alias)
+                    reads.insert(alias)
+                } else {
+                    reads.insert(alias)
+                }
+            }
+        }
+        return AdaScriptQueryUsage(propertyName: property, reads: reads, writes: writes, isOpaque: isOpaque)
     }
 }

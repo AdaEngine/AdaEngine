@@ -111,6 +111,7 @@ public final class GravityWorkspace {
         }
         var analysis = languageService.analyze(text: document.text, workspaceSymbols: workspaceSymbols(for: key))
         analysis.diagnostics += importDiagnostics(uri: key, imports: analysis.imports)
+        analysis.diagnostics += moduleGraphDiagnostics(for: key, imports: analysis.imports)
         analysis.diagnostics += moduleTypeDiagnostics(for: key)
         var seenDiagnostics = Set<GravityDiagnostic>()
         analysis.diagnostics = analysis.diagnostics.filter { seenDiagnostics.insert($0).inserted }
@@ -160,11 +161,75 @@ public final class GravityWorkspace {
         if let resource = resourceCompletionContext(text: text, position: position) {
             return resourceCompletions(context: resource)
         }
+        if let imported = importNameCompletions(uri: uri, text: text, position: position) {
+            return imported
+        }
         return languageService.completions(
             text: text,
             position: position,
             workspaceSymbols: workspaceSymbols(for: uri)
         )
+    }
+
+    /// Names offered inside `import { | } from "module"`: a built-in module's contents, or the public
+    /// declarations of the module being imported.
+    private func importNameCompletions(uri: String, text: String, position: GravitySourcePosition) -> [GravityCompletion]? {
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard lines.indices.contains(position.line), let caret = lines[position.line].stringIndex(atUTF16Offset: position.utf16Column) else {
+            return nil
+        }
+        let before = (lines[..<position.line].map { $0 + "\n" }.joined()) + lines[position.line][..<caret]
+        let after = String(text.dropFirst(before.count))
+        guard
+            let importRange = before.range(of: "import", options: .backwards),
+            before[importRange.upperBound...].contains("{"),
+            !before[importRange.upperBound...].contains("}"),
+            !before[importRange.upperBound...].contains(";")
+        else {
+            return nil
+        }
+        // The module path follows the closing brace, possibly after the caret.
+        let statementTail = after.prefix { $0 != ";" }
+        guard
+            let fromRange = statementTail.range(of: "from"),
+            let openQuote = statementTail[fromRange.upperBound...].firstIndex(of: "\""),
+            let closeQuote = statementTail[statementTail.index(after: openQuote)...].firstIndex(of: "\"")
+        else {
+            return nil
+        }
+        let modulePath = String(statementTail[statementTail.index(after: openQuote)..<closeQuote])
+        var prefixStart = caret
+        let line = lines[position.line]
+        while prefixStart > line.startIndex, line[line.index(before: prefixStart)].isLetter || line[line.index(before: prefixStart)].isNumber || line[line.index(before: prefixStart)] == "_" {
+            prefixStart = line.index(before: prefixStart)
+        }
+        let prefix = String(line[prefixStart..<caret])
+        let range = GravitySourceRange(
+            start: GravitySourcePosition(line: position.line, utf16Column: line[..<prefixStart].utf16.count),
+            end: position
+        )
+        let names: [(name: String, detail: String, kind: GravityCompletionKind)]
+        if AdaScriptModulePaths.virtualModules.contains(modulePath) {
+            names = AdaScriptVirtualModules.knownNames(of: modulePath).map { ($0, "Provided by \(modulePath)", .class) }
+        } else {
+            let declaration = GravityImport(names: [], path: modulePath, range: range)
+            guard case let .source(_, document) = resolve(declaration, from: Self.documentKey(uri)) else {
+                return []
+            }
+            let tree = AdaScriptSyntax.parse(source: document.text, path: "")
+            let hidden = Set(tree.types.filter { $0.visibility == .private }.map(\.name)
+                + tree.functions.filter { $0.visibility == .private }.map(\.name)
+                + tree.bindings.filter { $0.visibility == .private }.map(\.name))
+            names = document.analysis.symbols
+                .filter { !hidden.contains($0.name) }
+                .map { ($0.name, $0.detail, GravityCompletionCandidate(symbol: $0).kind) }
+        }
+        return names
+            .filter { prefix.isEmpty || $0.name.localizedCaseInsensitiveContains(prefix) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            .map {
+                GravityCompletion(label: $0.name, detail: $0.detail, insertText: $0.name, kind: $0.kind, replacementRange: range, sortText: "00")
+            }
     }
 
     private struct ResourceCompletionContext {
@@ -443,31 +508,152 @@ public final class GravityWorkspace {
     }
 
     private func resolve(_ scriptImport: GravityImport, from importerURI: String) -> ImportResolution {
-        if Self.virtualModuleNames.contains(scriptImport.path) {
+        if AdaScriptModulePaths.virtualModules.contains(scriptImport.path) {
             return .virtual
-        }
-        guard scriptImport.path.hasPrefix("./") || scriptImport.path.hasPrefix("../") else {
-            return .invalid("Imports must be relative or name a supported virtual module")
         }
         guard let importerURL = Self.fileURL(from: importerURI) else {
             return .invalid("Unable to resolve import from a non-file document")
         }
-
-        var importedURL = importerURL.deletingLastPathComponent()
-            .appendingPathComponent(scriptImport.path)
-            .standardizedFileURL
-        if importedURL.pathExtension.isEmpty {
-            importedURL.appendPathExtension("ada")
-        }
-        guard rootURLs.contains(where: { Self.contains(importedURL, in: $0) }) else {
+        guard let root = moduleRoot(containing: importerURL) else {
             return .invalid("Import escapes the configured AdaScript workspace")
         }
-
-        let importedURI = importedURL.absoluteString
-        guard let document = openDocuments[importedURI] ?? diskDocuments[importedURI] else {
-            return .invalid("Unable to resolve import '\(scriptImport.path)'")
+        let importerPath = String(importerURL.path.dropFirst(root.path.count).drop(while: { $0 == "/" }))
+        let resolved: AdaScriptModulePaths.ResolvedImport
+        do {
+            resolved = try AdaScriptModulePaths.resolveImport(scriptImport.path, from: importerPath)
+        } catch {
+            switch error {
+            case .invalidSourcePath:
+                return .invalid("Import escapes the configured AdaScript workspace")
+            case let .invalidImport(_, message):
+                return .invalid(message.prefix(1).uppercased() + message.dropFirst())
+            default:
+                return .invalid("Unable to resolve import '\(scriptImport.path)'")
+            }
         }
-        return .source(importedURI, document)
+        switch resolved {
+        case .virtual:
+            return .virtual
+        case let .source(path):
+            let importedURL = path.hasPrefix("Libraries/") ? libraryURL(for: path) : root.appendingPathComponent(path).standardizedFileURL
+            guard let importedURL else {
+                return .invalid("Unable to resolve import '\(scriptImport.path)'")
+            }
+            let importedURI = importedURL.absoluteString
+            guard let document = openDocuments[importedURI] ?? diskDocuments[importedURI] else {
+                return .invalid("Unable to resolve import '\(scriptImport.path)'")
+            }
+            return .source(importedURI, document)
+        }
+    }
+
+    /// The directory imports resolve against: the project's configured source root when the importer
+    /// is inside it (the runtime's rule), otherwise the workspace root containing the importer.
+    private func moduleRoot(containing url: URL) -> URL? {
+        for root in rootURLs where Self.contains(url, in: root) {
+            if let sources = Self.sourceRoot(at: root), Self.contains(url, in: sources) {
+                return sources
+            }
+            return root.standardizedFileURL
+        }
+        return nil
+    }
+
+    /// Locates a `Libraries/<id>/<path>` import among the restored library sources.
+    private func libraryURL(for path: String) -> URL? {
+        let components = path.split(separator: "/")
+        guard components.count >= 3 else { return nil }
+        let identifier = String(components[1])
+        let relative = components.dropFirst(2).joined(separator: "/")
+        let documents = diskDocuments.keys.sorted()
+        return documents.compactMap { key -> URL? in
+            guard key.contains("/.ada/libraries/"), key.hasSuffix("/" + relative),
+                key.components(separatedBy: "/.ada/libraries/").last?.hasPrefix(identifier) == true
+            else { return nil }
+            return URL(string: key)
+        }.first
+    }
+
+    private static func sourceRoot(at rootURL: URL) -> URL? {
+        guard
+            let data = try? Data(contentsOf: rootURL.appendingPathComponent(".ada/project.json")),
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let paths = object["paths"] as? [String: Any],
+            let sources = paths["sources"] as? String,
+            !sources.isEmpty
+        else {
+            return nil
+        }
+        return rootURL.appendingPathComponent(sources, isDirectory: true).standardizedFileURL
+    }
+
+    /// Cycle and visibility findings for one document, computed from the whole workspace with the same
+    /// rules the runtime applies.
+    private func moduleGraphDiagnostics(for uri: String, imports: [GravityImport]) -> [GravityDiagnostic] {
+        var diagnostics = cycleDiagnostics(for: uri, imports: imports)
+        diagnostics += visibilityDiagnostics(for: uri)
+        return diagnostics
+    }
+
+    private func cycleDiagnostics(for uri: String, imports: [GravityImport]) -> [GravityDiagnostic] {
+        var documents = diskDocuments
+        documents.merge(openDocuments) { _, open in open }
+        var edges: [String: [String]] = [:]
+        for (key, document) in documents {
+            edges[key] = document.analysis.imports.compactMap { scriptImport in
+                guard case let .source(importedURI, _) = resolve(scriptImport, from: key) else { return nil }
+                return importedURI
+            }
+        }
+        var diagnostics: [GravityDiagnostic] = []
+        for cycle in AdaScriptModuleOrdering.cycles(edges: edges) {
+            let members = cycle.dropLast()
+            guard let position = members.firstIndex(of: uri) else { continue }
+            let next = cycle[position + 1]
+            let display = cycle.map { Self.displayName($0) }.joined(separator: " -> ")
+            for scriptImport in imports {
+                guard case let .source(importedURI, _) = resolve(scriptImport, from: uri), importedURI == next else { continue }
+                diagnostics.append(GravityDiagnostic(message: "Import cycle: \(display)", range: scriptImport.range))
+            }
+        }
+        return diagnostics
+    }
+
+    private func visibilityDiagnostics(for uri: String) -> [GravityDiagnostic] {
+        var documents = diskDocuments
+        documents.merge(openDocuments) { _, open in open }
+        guard
+            let importerURL = Self.fileURL(from: uri), let root = moduleRoot(containing: importerURL),
+            documents[uri] != nil
+        else {
+            return []
+        }
+        func modulePath(_ key: String) -> String? {
+            guard let url = Self.fileURL(from: key), Self.contains(url, in: root) else { return nil }
+            return String(url.path.dropFirst(root.path.count).drop(while: { $0 == "/" }))
+        }
+        var sources: [AdaScriptCompilerSource] = []
+        for (key, document) in documents.sorted(by: { $0.key < $1.key }) {
+            guard let path = modulePath(key), let canonical = try? AdaScriptModulePaths.canonicalSourcePath(path) else { continue }
+            sources.append(AdaScriptCompilerSource(path: canonical, source: document.text))
+        }
+        guard let ownPath = modulePath(uri), let graph = try? AdaScriptModuleGraph(sources: sources) else { return [] }
+        // Only the importer's own dependency closure counts for duplicate names: unrelated files in the
+        // workspace never share a Gravity scope.
+        var scope: Set<String> = [ownPath]
+        var pending = [ownPath]
+        while let current = pending.popLast() {
+            for dependency in (try? graph.dependencies(of: current)) ?? [] where scope.insert(dependency).inserted {
+                pending.append(dependency)
+            }
+        }
+        return graph.semanticDiagnostics(scope: scope)
+            .filter { $0.path == ownPath }
+            .map { GravityDiagnostic(message: $0.message, range: $0.range.gravityRange) }
+    }
+
+    private static func displayName(_ uri: String) -> String {
+        fileURL(from: uri)?.lastPathComponent ?? uri
     }
 
     private func document(text: String, version: Int?) -> Document {
@@ -507,7 +693,6 @@ public final class GravityWorkspace {
     }
 
     private static let skippedDirectoryNames: Set<String> = [".build", ".codex", ".git", ".swiftpm", "DerivedData"]
-    private static let virtualModuleNames: Set<String> = ["AdaEngine", "AdaUI"]
 
     private static func contains(_ fileURL: URL, in rootURL: URL) -> Bool {
         let rootPath = rootURL.standardizedFileURL.path

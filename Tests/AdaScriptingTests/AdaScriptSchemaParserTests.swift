@@ -127,12 +127,14 @@ struct AdaScriptSchemaParserTests {
 
         #expect(bindings == [
             AdaScriptResourceBinding(
+                access: .read,
                 isOptional: false,
                 propertyName: "balance",
                 resourceName: "GameBalance",
                 systemName: "BalanceSystem"
             ),
             AdaScriptResourceBinding(
+                access: .read,
                 isOptional: true,
                 propertyName: "debug",
                 resourceName: "DebugSettings",

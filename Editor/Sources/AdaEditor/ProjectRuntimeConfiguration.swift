@@ -62,6 +62,132 @@ public struct AdaProjectPhysics2DSettings: Codable, Equatable, Sendable {
     }
 }
 
+/// A host platform that can run an AdaScript project.
+public enum AdaProjectRuntimePlatform: String, Codable, CaseIterable, Equatable, Hashable, Sendable {
+    case android
+    case iOS = "ios"
+    case linux
+    case macOS = "macos"
+    case visionOS = "visionos"
+    case web
+    case windows
+
+    /// The platform this build of AdaEditor is running on.
+    public static var current: Self {
+        #if os(macOS)
+        .macOS
+        #elseif os(visionOS)
+        .visionOS
+        #elseif os(iOS) || os(tvOS) || os(watchOS)
+        .iOS
+        #elseif os(Android)
+        .android
+        #elseif os(WASI)
+        .web
+        #elseif os(Windows)
+        .windows
+        #else
+        .linux
+        #endif
+    }
+}
+
+/// Plugin changes applied on top of the shared configuration for one platform.
+public struct AdaProjectRuntimePluginOverride: Codable, Equatable, Sendable {
+    public var disable: [AdaProjectRuntimePluginID]
+    public var enable: [AdaProjectRuntimePluginID]
+
+    public init(enable: [AdaProjectRuntimePluginID] = [], disable: [AdaProjectRuntimePluginID] = []) {
+        self.enable = enable
+        self.disable = disable
+    }
+
+    private enum CodingKeys: String, CodingKey { case disable, enable }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        disable = try container.decodeIfPresent([AdaProjectRuntimePluginID].self, forKey: .disable) ?? []
+        enable = try container.decodeIfPresent([AdaProjectRuntimePluginID].self, forKey: .enable) ?? []
+    }
+}
+
+public struct AdaProjectPhysics3DSettings: Codable, Equatable, Sendable {
+    public var gravity: [Double]
+    public var subStepCount: Int
+
+    public init(gravity: [Double] = [0, -9.81, 0], subStepCount: Int = 2) {
+        self.gravity = gravity
+        self.subStepCount = subStepCount
+    }
+
+    private enum CodingKeys: String, CodingKey { case gravity, subStepCount }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        gravity = try container.decodeIfPresent([Double].self, forKey: .gravity) ?? [0, -9.81, 0]
+        subStepCount = try container.decodeIfPresent(Int.self, forKey: .subStepCount) ?? 2
+    }
+}
+
+public struct AdaProjectAudioSettings: Codable, Equatable, Sendable {
+    /// Linear master gain in `0...1`.
+    public var masterVolume: Double
+
+    public init(masterVolume: Double = 1) {
+        self.masterVolume = masterVolume
+    }
+
+    private enum CodingKeys: String, CodingKey { case masterVolume }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        masterVolume = try container.decodeIfPresent(Double.self, forKey: .masterVolume) ?? 1
+    }
+}
+
+public struct AdaProjectRenderingSettings: Codable, Equatable, Sendable {
+    public enum Upscaling: String, Codable, Equatable, Sendable {
+        /// Render at the output resolution.
+        case disabled
+        /// Use the backend's spatial upscaler at `renderScale`.
+        case spatial
+    }
+
+    /// `nil` keeps the platform default (spatial 75% on iOS, native elsewhere).
+    public var upscaling: Upscaling?
+    /// Linear render scale in `0.5...1`; used only by `spatial` upscaling.
+    public var renderScale: Double
+
+    public init(upscaling: Upscaling? = nil, renderScale: Double = 0.75) {
+        self.upscaling = upscaling
+        self.renderScale = renderScale
+    }
+
+    private enum CodingKeys: String, CodingKey { case renderScale, upscaling }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        upscaling = try container.decodeIfPresent(Upscaling.self, forKey: .upscaling)
+        renderScale = try container.decodeIfPresent(Double.self, forKey: .renderScale) ?? 0.75
+    }
+}
+
+public struct AdaProjectAssetSettings: Codable, Equatable, Sendable {
+    /// Project-relative asset paths loaded before the first frame.
+    public var preload: [String]
+
+    public init(preload: [String] = []) {
+        self.preload = preload
+    }
+
+    private enum CodingKeys: String, CodingKey { case preload }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        preload = try container.decodeIfPresent([String].self, forKey: .preload) ?? []
+    }
+}
+
 public struct AdaProjectMultiplayerSettings: Codable, Equatable, Sendable {
     public var buildIdentifier: String
     public var gameIdentifier: String
@@ -102,32 +228,62 @@ public struct AdaProjectMultiplayerSettings: Codable, Equatable, Sendable {
 }
 
 public struct AdaProjectRuntimePluginSettings: Codable, Equatable, Sendable {
+    public var assets: AdaProjectAssetSettings
+    public var audio: AdaProjectAudioSettings
     public var multiplayer: AdaProjectMultiplayerSettings
     public var physics2D: AdaProjectPhysics2DSettings
+    public var physics3D: AdaProjectPhysics3DSettings
+    public var rendering: AdaProjectRenderingSettings
 
     public init(
         physics2D: AdaProjectPhysics2DSettings = AdaProjectPhysics2DSettings(),
-        multiplayer: AdaProjectMultiplayerSettings = AdaProjectMultiplayerSettings()
+        multiplayer: AdaProjectMultiplayerSettings = AdaProjectMultiplayerSettings(),
+        physics3D: AdaProjectPhysics3DSettings = AdaProjectPhysics3DSettings(),
+        audio: AdaProjectAudioSettings = AdaProjectAudioSettings(),
+        rendering: AdaProjectRenderingSettings = AdaProjectRenderingSettings(),
+        assets: AdaProjectAssetSettings = AdaProjectAssetSettings()
     ) {
         self.physics2D = physics2D
         self.multiplayer = multiplayer
+        self.physics3D = physics3D
+        self.audio = audio
+        self.rendering = rendering
+        self.assets = assets
     }
 
     private enum CodingKeys: String, CodingKey {
-        case multiplayer
+        case assets, audio, multiplayer, rendering
         case physics2D = "physics2d"
+        case physics3D = "physics3d"
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         physics2D = try container.decodeIfPresent(AdaProjectPhysics2DSettings.self, forKey: .physics2D) ?? AdaProjectPhysics2DSettings()
         multiplayer = try container.decodeIfPresent(AdaProjectMultiplayerSettings.self, forKey: .multiplayer) ?? AdaProjectMultiplayerSettings()
+        physics3D = try container.decodeIfPresent(AdaProjectPhysics3DSettings.self, forKey: .physics3D) ?? AdaProjectPhysics3DSettings()
+        audio = try container.decodeIfPresent(AdaProjectAudioSettings.self, forKey: .audio) ?? AdaProjectAudioSettings()
+        rendering = try container.decodeIfPresent(AdaProjectRenderingSettings.self, forKey: .rendering) ?? AdaProjectRenderingSettings()
+        assets = try container.decodeIfPresent(AdaProjectAssetSettings.self, forKey: .assets) ?? AdaProjectAssetSettings()
     }
 
+    /// Newer groups are written only when customized so existing project files stay byte-stable.
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(physics2D, forKey: .physics2D)
         try container.encode(multiplayer, forKey: .multiplayer)
+        if physics3D != AdaProjectPhysics3DSettings() {
+            try container.encode(physics3D, forKey: .physics3D)
+        }
+        if audio != AdaProjectAudioSettings() {
+            try container.encode(audio, forKey: .audio)
+        }
+        if rendering != AdaProjectRenderingSettings() {
+            try container.encode(rendering, forKey: .rendering)
+        }
+        if assets != AdaProjectAssetSettings() {
+            try container.encode(assets, forKey: .assets)
+        }
     }
 }
 
@@ -136,6 +292,8 @@ public struct AdaProjectRuntimePlugins: Codable, Equatable, Sendable {
 
     public var disable: [AdaProjectRuntimePluginID]
     public var enable: [AdaProjectRuntimePluginID]
+    /// Per-platform plugin changes, keyed by ``AdaProjectRuntimePlatform`` raw value.
+    public var platformOverrides: [String: AdaProjectRuntimePluginOverride]
     public var preset: AdaProjectRuntimePluginPreset
     public var presetVersion: Int
     public var settings: AdaProjectRuntimePluginSettings
@@ -145,8 +303,10 @@ public struct AdaProjectRuntimePlugins: Codable, Equatable, Sendable {
         presetVersion: Int = currentPresetVersion,
         enable: [AdaProjectRuntimePluginID] = [],
         disable: [AdaProjectRuntimePluginID] = [],
+        platformOverrides: [String: AdaProjectRuntimePluginOverride] = [:],
         settings: AdaProjectRuntimePluginSettings = AdaProjectRuntimePluginSettings()
     ) {
+        self.platformOverrides = platformOverrides
         self.preset = preset
         self.presetVersion = presetVersion
         self.enable = enable
@@ -155,16 +315,29 @@ public struct AdaProjectRuntimePlugins: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case disable, enable, preset, presetVersion, settings
+        case disable, enable, platformOverrides, preset, presetVersion, settings
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         disable = try container.decodeIfPresent([AdaProjectRuntimePluginID].self, forKey: .disable) ?? []
         enable = try container.decodeIfPresent([AdaProjectRuntimePluginID].self, forKey: .enable) ?? []
+        platformOverrides = try container.decodeIfPresent([String: AdaProjectRuntimePluginOverride].self, forKey: .platformOverrides) ?? [:]
         preset = try container.decodeIfPresent(AdaProjectRuntimePluginPreset.self, forKey: .preset) ?? .game2D
         presetVersion = try container.decodeIfPresent(Int.self, forKey: .presetVersion) ?? Self.currentPresetVersion
         settings = try container.decodeIfPresent(AdaProjectRuntimePluginSettings.self, forKey: .settings) ?? AdaProjectRuntimePluginSettings()
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(disable, forKey: .disable)
+        try container.encode(enable, forKey: .enable)
+        if !platformOverrides.isEmpty {
+            try container.encode(platformOverrides, forKey: .platformOverrides)
+        }
+        try container.encode(preset, forKey: .preset)
+        try container.encode(presetVersion, forKey: .presetVersion)
+        try container.encode(settings, forKey: .settings)
     }
 }
 

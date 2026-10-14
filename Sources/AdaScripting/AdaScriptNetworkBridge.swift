@@ -24,7 +24,7 @@ enum AdaScriptNetworkBridge {
                 }
                 return NetworkFieldDescriptor(
                     tag: network.tag,
-                    wireType: wireType(for: field.defaultValue),
+                    wireType: try wireType(for: field.defaultValue),
                     replication: try replicationMode(network.mode),
                     interpolation: try interpolationMode(network.interpolation)
                 )
@@ -67,7 +67,7 @@ enum AdaScriptNetworkBridge {
                 }
                 return NetworkFieldDescriptor(
                     tag: network.tag,
-                    wireType: wireType(for: field.defaultValue),
+                    wireType: try wireType(for: field.defaultValue),
                     replication: try replicationMode(network.mode),
                     interpolation: try interpolationMode(network.interpolation)
                 )
@@ -82,12 +82,15 @@ enum AdaScriptNetworkBridge {
         return "extern var __adaNetworkFactory;\n"
     }
 
-    private static func wireType(for value: AdaScriptSchemaField.Value) -> NetworkWireType {
+    private static func wireType(for value: AdaScriptSchemaField.Value) throws -> NetworkWireType {
         switch value {
         case .bool: .bool
         case .double: .floatingPoint
         case .int: .signedInteger
         case .string: .string
+        case .vector, .color, .enumeration, .entity, .asset:
+            // The schema parser rejects structured network fields; this guards hand-built schemas.
+            throw AdaScriptError.invalidManifest("Network fields support only Bool, Int, Float and String values")
         }
     }
 

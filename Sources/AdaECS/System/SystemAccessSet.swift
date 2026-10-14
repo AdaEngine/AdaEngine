@@ -17,6 +17,10 @@ public struct SystemAccessSet: Sendable, Equatable {
     /// applied after the system has finished running.
     public private(set) var hasDeferredWorldAccess: Bool = false
 
+    /// True when the system mutates the world immediately and therefore must not
+    /// run alongside any other system.
+    public private(set) var hasExclusiveWorldAccess: Bool = false
+
     /// Creates an empty access set.
     public init() {}
 
@@ -64,6 +68,11 @@ public struct SystemAccessSet: Sendable, Equatable {
         resourceWrites.insert(resource)
     }
 
+    /// Marks this access as requiring the whole world exclusively.
+    public mutating func addExclusiveWorldAccess() {
+        hasExclusiveWorldAccess = true
+    }
+
     /// Marks this access as producing deferred world commands.
     public mutating func addDeferredWorldAccess() {
         hasDeferredWorldAccess = true
@@ -76,6 +85,7 @@ public struct SystemAccessSet: Sendable, Equatable {
         resourceReads.formUnion(other.resourceReads)
         resourceWrites.formUnion(other.resourceWrites)
         hasDeferredWorldAccess = hasDeferredWorldAccess || other.hasDeferredWorldAccess
+        hasExclusiveWorldAccess = hasExclusiveWorldAccess || other.hasExclusiveWorldAccess
     }
 
     /// Returns a new access set containing accesses from both inputs.
@@ -88,6 +98,9 @@ public struct SystemAccessSet: Sendable, Equatable {
     /// Returns true when both access sets can run at the same time.
     public func isCompatible(with other: Self) -> Bool {
         if hasDeferredWorldAccess || other.hasDeferredWorldAccess {
+            return false
+        }
+        if hasExclusiveWorldAccess || other.hasExclusiveWorldAccess {
             return false
         }
         if !componentWrites.isDisjoint(with: other.componentReads) {
@@ -104,4 +117,24 @@ public struct SystemAccessSet: Sendable, Equatable {
         }
         return true
     }
+}
+
+/// A system parameter that reserves the whole world for immediate structural mutation.
+///
+/// A system holding this parameter is scheduled alone, so it may spawn, insert, and
+/// remove without invalidating another system's component pointers.
+public struct ExclusiveWorldAccess: SystemParameter {
+    public static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addExclusiveWorldAccess()
+        return access
+    }
+
+    public init() {}
+
+    public init(from _: World) {}
+
+    public func update(from _: World) {}
+
+    public func finish(_: World) {}
 }

@@ -148,6 +148,23 @@ extension World {
         }
     }
 
+    /// Spawns an entity immediately from component values detached from a scripting VM.
+    ///
+    /// Callers must hold exclusive world access: this is a structural mutation.
+    @_spi(Scripting)
+    @discardableResult
+    public func spawn(detachedComponents components: [any Component]) -> Entity {
+        spawn(bundle: ChainedComponentsBundle(components))
+    }
+
+    /// Inserts a type-erased component immediately.
+    ///
+    /// Callers must hold exclusive world access: this is a structural mutation.
+    @_spi(Scripting)
+    public func insert(detachedComponent component: any Component, for entity: Entity.ID) {
+        insertTypeErasedComponent(component, into: entity)
+    }
+
     private func insertTypeErasedComponent(_ component: any Component, into entity: Entity.ID) {
         func insert<T: Component>(_ component: T) {
             self.insert(component, for: entity)

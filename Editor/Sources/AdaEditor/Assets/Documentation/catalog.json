@@ -1269,7 +1269,25 @@
       },
       {
         "kind": "text",
-        "text": "The current implementation supports selected relative imports. Namespace\nimports, public/private visibility enforcement, and the `AdaEngine` / `AdaUI`\nvirtual-module declarations remain part of the next module-language slice.",
+        "text": "Three import forms exist:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "import { clampSpeed, MovementSettings as Settings } from \"../Shared/Movement\";\nimport * as Combat from \"./Combat\";\nimport { Text, VStack } from \"AdaUI\";",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• `{ name }` imports a public declaration, and `name as Local` renames it for\n  the importing file.\n• `* as Alias` makes `Alias.name` refer to a public declaration of that file.\n• `\"AdaEngine\"` and `\"AdaUI\"` are built-in modules. `AdaUI` has a closed list\n  of views and rejects any other name. `AdaEngine` provides the script-facing\n  services (`Input`, `Assets`, `Math`, `Vector3`, ...) and also accepts the\n  components and resources the host registers at runtime, so those names are\n  not checked statically.\n• `\"@library.id/path\"` imports from a restored library.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A declaration is public unless written `private`. A private declaration is\nmodule-local: importing it, or reaching it through a namespace, is an error, and\nso is importing a name the file does not declare. Gravity compiles a module as\none global scope, so a name declared by two reachable files cannot coexist; the\nduplicate is reported with both file names instead of being shadowed. Qualifying\na name with a namespace checks that it is exported but does not create a separate\nscope. Imports are resolved by one parser and one set of path rules shared by the\nruntime, the build generator, and the Editor, which also reports each import\ncycle in full on every import that closes it and completes names inside\n`import { | } from \"module\"`.",
         "level": 0,
         "links": []
       },
@@ -1299,7 +1317,7 @@
       },
       {
         "kind": "text",
-        "text": "See AdaScript Annotation Reference for supported annotations, declaration targets,\narguments, defaults, and lifetimes. A one-time world initializer is a\n`@system(scheduler: \"startup\")` class with `update(context)`; there is no\nfunction-level `@init` annotation yet.",
+        "text": "See AdaScript Annotation Reference for supported annotations, declaration targets,\narguments, defaults, and lifetimes. An annotation the engine does not define, or\none placed on a target it does not support, is a compile error carrying the\nfile, line and column of the annotation. A one-time world initializer is a\n`@system(scheduler: \"startup\")` class with `update(context)`; there is no\nfunction-level `@init` annotation yet.",
         "level": 0,
         "links": [
           {
@@ -1324,6 +1342,24 @@
         "kind": "code",
         "text": "@component(id: \"game.health\")\nstruct Health {\n    @export var current = 100.0;\n    @export var maximum = 120;\n}\n\n@resource(id: \"game.balance\", autoInsert: true)\nstruct GameBalance {\n    @export var acceleration = 9.8;\n}",
         "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Component and resource fields may also be vectors, colors, enumerations, entity\nreferences, and asset paths. The declared type selects the kind and the default\nmust match it:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "enum Mode { idle, moving }\n\n@component(id: \"game.body\", aliases: [\"OldBody\"])\nstruct Body {\n    @export var position: Vector3 = Vector3(0, 1, 0);   // Vector2, Vector3, Vector4, or [x, y, z]\n    @export var tint: Color = Color(1, 0.5, 0);          // Color(r, g, b[, a]), Color.white / black / clear\n    @export var mode: Mode = Mode.idle;                  // stored as the case name, \"idle\"\n    @export var target: Entity = null;                   // an entity id, -1 when unassigned\n    @export var icon: Asset = \"@res://Icons/body.png\";   // a project asset path, or null\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Scripts read and write these as lists (`row.body.position[0]`,\n`row.body.position = [1.0, 2.0, 3.0]`) and strings; a write with the wrong length,\na non-finite number, or an unknown enum case is rejected and leaves the field\nunchanged. These field kinds are not allowed in network fields. `aliases` keeps\nscenes saved under a former name loadable: scenes are stored under the stable ID,\nand `AdaScriptSceneSchemaResolver` reports a scene that still uses an alias,\nfields that were removed, and values of the wrong type.",
+        "level": 0,
         "links": []
       },
       {
@@ -1358,7 +1394,7 @@
       },
       {
         "kind": "text",
-        "text": "Resource access is currently conservative: each `@res` requests scheduler write\naccess. Static read/write inference and explicit access overrides are planned.",
+        "text": "A `@res` binding requests the scheduler access its use needs. It is read-only\nwhen every use is a field read (`balance.acceleration`, `balance.available()`);\nassigning a field, or any use that could alias the binding such as passing it or\nstoring it in another variable, requests write access. State the access\nexplicitly with `@res(access: \"read\")` or `@res(access: \"write\")`; declaring\n`\"read\"` for a binding the system writes is a compile error. Two systems that only\nread a resource may run at the same time.",
         "level": 0,
         "links": []
       },
@@ -1394,7 +1430,79 @@
       },
       {
         "kind": "text",
-        "text": "Direct command use is inferred per system and declares deferred-world access to\nthe scheduler. Command facades expire when `update(context)` returns; using a\nretained or undeclared facade reports a plugin diagnostic and performs no\nmutation. Typed component constructors can be passed to\n`context.world.spawn([...])`; the legacy string-based command form remains\navailable. Explicit dynamic `@access` and exclusive immediate world access\nare not implemented.",
+        "text": "Direct command use is inferred per system and declares deferred-world access to\nthe scheduler. Command facades expire when `update(context)` returns; using a\nretained or undeclared facade reports a plugin diagnostic and performs no\nmutation. Typed component constructors, including field overrides, can be passed\nto `context.world.spawn([...])`, `commands.spawn([...])`, and\n`commands.insert(entity, Component(...))`; the string-based form remains\navailable.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Dynamic access with `@access`",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A system that needs to read or write a component by name, without declaring a\nquery, lists the components up front:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"poison.tick\")\n@access(read: [Health], write: [Poison])\nclass PoisonTick {\n    func update(context) {\n        var duration = context.world.read(entityID, \"Poison\", \"duration\");\n        context.world.write(entityID, \"Poison\", \"duration\", duration - 1);\n        context.world.has(entityID, \"Health\");\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The declaration is added to the system's scheduler access, so the system never\nruns concurrently with a conflicting one. Reading or writing a component outside\nthe set, or writing a read-only component, reports a diagnostic and does nothing.\nWithout `@access`, `read`, `write` and `has` are rejected.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Events",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`@eventWriter(Name)` and `@events(Name)` bind an event writer and the received\nevents of one name to a system property:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"trap\")\nclass Trap {\n    @eventWriter(Damage)\n    var damage;\n\n    func update(context) {\n        damage.send([\"amount\", 5, \"source\", \"trap\"]);\n    }\n}\n\n@system(id: \"health\")\nclass Health {\n    @events(Damage)\n    var hits;\n\n    func update(context) {\n        for (var hit in hits) {\n            var amount = hit.value.amount;\n        }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The payload is a flat list of alternating field names and primitive values, which\nkeeps every queued value detached from the VM. A reader sees the events written\nduring the previous frame. Events require `EventsPlugin` (installed by the default\nplugins); a system that declares them without it fails to install.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Exclusive world access",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`@exclusiveWorld` marks a system that may change world structure immediately,\nintended for startup, loading and tooling:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"bootstrap\", scheduler: \"startup\")\n@exclusiveWorld\nclass Bootstrap {\n    func update(context) {\n        var entity = context.world.spawnImmediate([Transform()]);\n        context.world.insertImmediate(entity, \"game.player\");\n        context.world.removeImmediate(entity, \"game.player\");\n        context.world.despawnImmediate(entity);\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "An exclusive system never runs alongside another system. An immediate operation\nis rejected while one of the system's query iterators is still active.\nImmediate resource insertion is not available yet.",
         "level": 0,
         "links": []
       },
@@ -1781,20 +1889,44 @@
       },
       {
         "kind": "text",
-        "text": "Positional components are fetched and available on each row. `with` and\n`without` only filter matching archetypes.",
+        "text": "Positional components are fetched and available on each row. Four more clauses\ntake one component or a list:",
         "level": 0,
         "links": []
       },
       {
         "kind": "text",
-        "text": "Aliases use lower-camel-case component names:",
+        "text": "| Clause | Meaning |\n| --- | --- |\n| `optional: Target` | Fetched like a positional component, but rows may lack it. `entity.target` is `null` when absent. |\n| `with: Movable` | The entity must have it; it is not fetched. |\n| `without: Frozen` | The entity must not have it. |\n| `changed: Health` | Rows where any listed component changed since the system last ran. |\n| `added: Marker` | Rows where any listed component was added since the system last ran. |",
         "level": 0,
         "links": []
       },
       {
         "kind": "code",
-        "text": "for (var entity in entities) {\n    var position = entity.movement.position;\n    entity.health.current -= 1.0;\n}",
+        "text": "@query(Health, Movement, optional: Target, with: Movable, without: Frozen, changed: Health)\nvar entities;\n\nfor (var entity in entities) {\n    if (entity.target != null) { entity.health.current -= entity.target.damage; }\n}",
         "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`changed` and `added` need the component to exist in the archetype; the change tick\nof a component is updated by every successful field write. A boolean `where:` clause\nand any other label are rejected with a message naming the supported clauses.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Row properties are the lower-camel-case component names, or an explicit alias\nwritten with `as`. A component may be named by its qualified path:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@query(Game.Health as hp, Physics.Movement as motion)\nvar entities;\n\nfor (var entity in entities) {\n    var position = entity.motion.position;\n    entity.hp.current -= 1.0;\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Two fetched components with the same short name (`Game.Health` and `Physics.Health`)\nare an error until one is given an alias, and no component may be aliased `id`.",
+        "level": 0,
         "links": []
       },
       {
@@ -1853,13 +1985,37 @@
       },
       {
         "kind": "text",
-        "text": "The current implementation conservatively declares write access for fetched\ncomponents. This keeps scheduling correct while compiler-level read/write\ninference is completed. Filter-only components do not receive write access.",
+        "text": "The compiler reads how a system uses its rows and requests exactly that access\nfrom the scheduler:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "var current = entity.health.current;   // read Health\nentity.health.current = current - 1;   // write Health\nentity.health.current -= 1;            // read and write Health",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A component that is only read can be shared with other readers; a write reserves\nit exclusively. `changed:` and `added:` read a component's ticks, so they request\nread access even for a component that is not fetched. Filter-only components\n(`with`, `without`) request none.",
         "level": 0,
         "links": []
       },
       {
         "kind": "text",
-        "text": "The intended final behavior derives read and write sets from row field usage,\nwith explicit `@access` metadata as the escape hatch for dynamic code.",
+        "text": "Analysis follows `for (var row in query)` loops. If a row, a component view, or the\nquery itself escapes into code the compiler cannot follow (passed to a function,\nstored, called with an unknown method), the system must declare what it touches:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"game.inspect\")\n@access(read: [Health], write: [Transform])\nclass InspectSystem {\n    @query(Health, Transform)\n    var entities;\n\n    func update(context) {\n        for (var entity in entities) { inspect(entity); }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Without `@access` this fails to compile, naming the query and component. A\ndeclaration may be broader than the code but not narrower: declaring a component\nread-only while the script writes it is an error. The same `@access` declaration\ngoverns the dynamic `context.world.read/write` calls. A precompiled module has no\nscript text to analyse and keeps write access to every fetched component.",
         "level": 0,
         "links": []
       },
@@ -2141,7 +2297,7 @@
     "blocks": [
       {
         "kind": "text",
-        "text": "Studio's macOS ACP chat can display native AdaUI forms and previews using the\nA2UI v0.9.1 Ada forms catalog. Use **Run Studio A2UI** in this worktree or\n`./script/run_studio_a2ui.sh`, open a project, and connect an ACP agent normally.",
+        "text": "Studio's macOS ACP and iPhone SloppyRuntime chats display native AdaUI forms and previews using the\nA2UI v0.9.1 Ada forms catalog. Use **Run Studio A2UI** in this worktree or\n`./script/run_studio_a2ui.sh`, open a project, and connect an ACP agent normally.",
         "level": 0,
         "links": []
       },
@@ -2219,7 +2375,7 @@
       },
       {
         "kind": "text",
-        "text": "This integration uses the shared `EditorAgentViewModel`/macOS ACP sidebar.\nThe iPhone's separate SloppyRuntime chat path is not wired to these cards.\nA designer snapshot is a one-way handoff; subsequent designer edits are not sent\nback to the agent automatically. The host owns gameplay effects of exported actions.",
+        "text": "Desktop uses `EditorAgentViewModel`/ACP; iPhone uses its project-scoped SloppyRuntime chat.\nBoth render the same cards; see the local scene-tool contract below.\nA designer snapshot is a one-way handoff; subsequent designer edits are not sent\nback to the agent automatically. The host owns gameplay effects of exported actions.",
         "level": 0,
         "links": []
       },
@@ -2274,6 +2430,60 @@
       {
         "kind": "text",
         "text": "A Sloppy `protectedContextExceedsBudget` failure can happen before UI generation\nwhen the selected model has no context-window metadata and the runtime falls back\nto its smaller generic budget. Resolve the selected model against the active\nprovider catalog and configure its reported `contextWindowTokens`; use the same\nsupported model for the agent and planner. Do not raise limits based on an\nunverified model name. The task's configured-provider workflow was verified with\n`openai-oauth:gpt-5.5` and the provider-reported 272,000-token window. This is\nprovider/session evidence, not a guarantee for every agent or model.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Tools inside chat (desktop and iPhone)",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Ask the agent to **create an NPC spawner tool in chat** or **create a color tool for\nthis entity**. It reads the scene and presents a configurable card. Reserved\n`editor.*` button events run in the host immediately; they do not start another\nmodel turn. Other button events still submit data to the owning agent session.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Supported local actions:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "| Event | Context | Effect |\n| --- | --- | --- |\n| `editor.scene.spawn` | `path`, `expectedRevision`, `revisionBinding`, `entityID`, `count`, `spacing` | Duplicate a non-root NPC subtree; count 1–100, X spacing per copy, at most 100 created entities including children. |\n| `editor.scene.setColor` | scene/revision fields, `entityID`, `typeName`, `field`, `color` | Set a registered color field from HEX/named color, preserving other component fields. |\n| `editor.scene.apply` | scene/revision fields, `operations` | Apply the existing structured scene-operation vocabulary as one transaction. |\n| `editor.color.pick` | `binding` (absolute data path), `value` | Open the system color palette; update the card's HEX value without changing the scene. |",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Initialize `/scene/revision` from `editor.scene.get`. Scene action contexts must\nuse `expectedRevision:{\"path\":\"/scene/revision\"}` and\n`revisionBinding:\"/scene/revision\"`. The host updates that binding after Apply or\nUndo, allowing repeat use. A change outside the card rejects its stale revision;\nask the agent to refresh the card. Unknown reserved actions produce an inline\nerror. Cards are disabled while an agent turn is running or their original\nprovider is unavailable.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Desktop actions operate on the open scene document and its normal Undo/Redo\nhistory. On iPhone they operate on the saved project scene through the existing\natomic scene service and durable change records. **Undo** on the card reverts its\nlatest application only if the scene still matches that result. Card input,\ncurrent revision and latest Undo record persist in `.ada/chat-ui`; restoring\nprovider history rebinds card message IDs without replaying old form defaults.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The iPhone SloppyRuntime chat streams these same native cards and advertises the\nsame action contract. Ordinary submissions preserve the composer draft and\nattachments. **Open UI Source** exports an editable `.ui` snapshot and opens its\nYAML source in the mobile file editor; the desktop **Open in UI Designer** handoff\ncontinues to use the visual designer. Applying a scene tool affects authored scene\ncontent, not an already running Play world's entities; restart Play to see it.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Desktop context budgeting",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Desktop prompts advertise A2UI with a short capability notice. The complete contract, including component schemas, scene actions and examples, is available through `editor.skills.read` with ID `ada-chat-ui`; `editor.skills.list` discovers it. Bundled skill catalogs retain IDs and bounded descriptions without repeating installed bundle paths. Explicitly selected skill instructions and user action envelopes remain in the request.",
         "level": 0,
         "links": []
       }
@@ -2361,9 +2571,14 @@
     "blocks": [
       {
         "kind": "text",
-        "text": "Use `AdaEngineEmbeddable` from a SwiftUI visionOS application to display an AdaEngine\nworld in a full immersive space. `AdaExamples/Examples/ImmersiveGarden` contains a runnable host.",
+        "text": "Use `AdaEngineEmbeddable` from a SwiftUI visionOS application to display an AdaEngine\nworld in a full immersive space. AdaExamples/ImmersiveGarden contains a runnable host.",
         "level": 0,
-        "links": []
+        "links": [
+          {
+            "title": "AdaExamples/ImmersiveGarden",
+            "destination": "https://github.com/AdaEngine/AdaExamples/tree/main/Examples/ImmersiveGarden"
+          }
+        ]
       },
       {
         "kind": "text",
@@ -2519,9 +2734,13 @@
       },
       {
         "kind": "text",
-        "text": "An unknown dependency ID, self-dependency, cross-scheduler dependency, or\ncycle is rejected during module validation. Fetched query components reserve\nwrite access conservatively; filter-only components do not. `@access` is\nreserved for future explicit access declarations and is not a supported\nscheduling override yet. See AdaScript ECS for row lifetime and deferred\nstructural changes.",
+        "text": "An unknown dependency ID, self-dependency, cross-scheduler dependency, or\ncycle is rejected during module validation. Fetched query components reserve\nwrite access conservatively; filter-only components do not. `@access(read: [...],\nwrite: [...])` declares the components the dynamic `context.world.read`, `write`\nand `has` calls may touch and adds them to the system's scheduler access;\n`@exclusiveWorld` enables the immediate structural operations;\n`@events(Name)` and `@eventWriter(Name)` bind event readers and writers. See\nAdaScript Language for each form and AdaScript ECS for row lifetime\nand deferred structural changes.",
         "level": 0,
         "links": [
+          {
+            "title": "AdaScript Language",
+            "destination": "AdaScriptLanguage"
+          },
           {
             "title": "AdaScript ECS",
             "destination": "AdaScriptECS"

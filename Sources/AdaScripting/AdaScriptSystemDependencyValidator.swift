@@ -1,10 +1,20 @@
+import Foundation
 @_spi(Scripting) import AdaECS
 import AdaScriptCompilerCore
 import Gravity
 
 enum AdaScriptSystemPlanBuilder {
+    /// `path:line:column: ` for an annotation whose file is known, else an empty prefix.
+    static func locationPrefix(of annotation: GravityAnnotation, pathsByFileID: [UInt32: String]) -> String {
+        guard let path = pathsByFileID[annotation.source.fileID] else {
+            return ""
+        }
+        return "\(path):\(annotation.source.line):\(annotation.source.column): "
+    }
+
     static func makePlans(
         from annotations: [GravityAnnotation],
+        pathsByFileID: [UInt32: String] = [:],
         remoteCommandBindings: [AdaScriptRemoteCommandBinding],
         rpcMethodBindings: [AdaScriptRPCMethodBinding],
         resourceBindings: [AdaScriptResourceBinding],
@@ -12,10 +22,11 @@ enum AdaScriptSystemPlanBuilder {
     ) throws -> [AnnotatedSystemPlan] {
         let systemAnnotations = annotations.filter { $0.name == "system" }
         let systemClassNames = Set(systemAnnotations.map(\.target.identifier))
-        try validateAnnotationTargets(annotations, systemClassNames: systemClassNames)
-        let plans = try systemAnnotations.map {
+        try validateAnnotationTargets(annotations, systemClassNames: systemClassNames, pathsByFileID: pathsByFileID)
+        let plans = try systemAnnotations.map { annotation in
             try makeSystemPlan(
-                $0,
+                annotation,
+                pathsByFileID: pathsByFileID,
                 annotations: annotations,
                 remoteCommandBindings: remoteCommandBindings,
                 rpcMethodBindings: rpcMethodBindings,
@@ -41,11 +52,32 @@ enum AdaScriptSystemPlanBuilder {
 
     private static func validateAnnotationTargets(
         _ annotations: [GravityAnnotation],
-        systemClassNames: Set<String>
+        systemClassNames: Set<String>,
+        pathsByFileID: [UInt32: String]
     ) throws {
+        func fail(_ annotation: GravityAnnotation, _ message: String) -> AdaScriptError {
+            .invalidManifest(locationPrefix(of: annotation, pathsByFileID: pathsByFileID) + message)
+        }
         for query in annotations where query.name == "query" {
             guard let parent = query.target.parentIdentifier, systemClassNames.contains(parent) else {
-                throw AdaScriptError.invalidManifest("@query must be declared inside an @system class")
+                throw fail(query, "@query must be declared inside an @system class")
+            }
+        }
+        for capability in annotations where capability.name == "exclusiveWorld" || capability.name == "access" {
+            guard
+                capability.target.kind == .class,
+                systemClassNames.contains(capability.target.identifier)
+            else {
+                throw fail(capability, "@\(capability.name) can only annotate an @system class")
+            }
+        }
+        for event in annotations where event.name == "events" || event.name == "eventWriter" {
+            guard
+                event.target.kind == .variableDeclaration,
+                let parent = event.target.parentIdentifier,
+                systemClassNames.contains(parent)
+            else {
+                throw fail(event, "@\(event.name) must annotate a stored property inside an @system class")
             }
         }
         for dependency in annotations where dependency.name == "after" || dependency.name == "before" {
@@ -53,13 +85,14 @@ enum AdaScriptSystemPlanBuilder {
                 dependency.target.kind == .class,
                 systemClassNames.contains(dependency.target.identifier)
             else {
-                throw AdaScriptError.invalidManifest("@\(dependency.name) can only annotate an @system class")
+                throw fail(dependency, "@\(dependency.name) can only annotate an @system class")
             }
         }
     }
 
     private static func makeSystemPlan(
         _ annotation: GravityAnnotation,
+        pathsByFileID: [UInt32: String],
         annotations: [GravityAnnotation],
         remoteCommandBindings: [AdaScriptRemoteCommandBinding],
         rpcMethodBindings: [AdaScriptRPCMethodBinding],
@@ -67,10 +100,15 @@ enum AdaScriptSystemPlanBuilder {
         systemCapabilities: [AdaScriptSystemCapabilities]
     ) throws -> AnnotatedSystemPlan {
         guard annotation.target.kind == .class else {
-            throw AdaScriptError.invalidManifest("@system can only annotate a class")
+            throw AdaScriptError.invalidManifest(locationPrefix(of: annotation, pathsByFileID: pathsByFileID) + "@system can only annotate a class")
         }
         let className = annotation.target.identifier
         return try AnnotatedSystemPlan(
+            source: AnnotatedSourceLocation(
+                column: Int(annotation.source.column),
+                line: Int(annotation.source.line),
+                path: pathsByFileID[annotation.source.fileID]
+            ),
             className: className,
             dependencies:
                 annotations
@@ -81,7 +119,14 @@ enum AdaScriptSystemPlanBuilder {
             queries:
                 annotations
                 .filter { $0.name == "query" && $0.target.parentIdentifier == className }
-                .map(makeQueryPlan),
+                .map { query in
+                    try makeQueryPlan(
+                        query,
+                        usage: systemCapabilities.first { $0.systemName == className }?.queryUsage
+                            .first { $0.propertyName == query.target.identifier },
+                        pathsByFileID: pathsByFileID
+                    )
+                },
             remoteCommands:
                 remoteCommandBindings
                 .filter { $0.systemName == className }
@@ -99,6 +144,7 @@ enum AdaScriptSystemPlanBuilder {
                 .filter { $0.systemName == className }
                 .map {
                     AnnotatedResourcePlan(
+                        access: $0.access,
                         isOptional: $0.isOptional,
                         propertyName: $0.propertyName,
                         resourceName: $0.resourceName
@@ -107,8 +153,49 @@ enum AdaScriptSystemPlanBuilder {
             usesDeferredCommands:
                 systemCapabilities
                 .first { $0.systemName == className }?
-                .usesDeferredCommands == true
+                .usesDeferredCommands == true,
+            isExclusiveWorld: annotations.contains { $0.name == "exclusiveWorld" && $0.target.identifier == className },
+            access: try makeAccessPlan(annotations.filter { $0.name == "access" && $0.target.identifier == className }),
+            eventReaders: try makeEventBindings(annotations, named: "events", className: className),
+            eventWriters: try makeEventBindings(annotations, named: "eventWriter", className: className)
         )
+    }
+
+    private static func makeAccessPlan(_ annotations: [GravityAnnotation]) throws -> AnnotatedAccessPlan? {
+        guard let annotation = annotations.first else {
+            return nil
+        }
+        guard annotations.count == 1 else {
+            throw AdaScriptError.invalidManifest("@access can only be declared once per system")
+        }
+        for argument in annotation.arguments where argument.label != "read" && argument.label != "write" {
+            throw AdaScriptError.invalidManifest("@access only accepts read: and write: component lists")
+        }
+        let read = annotation.identifierListArgument(label: "read")
+        let write = annotation.identifierListArgument(label: "write")
+        guard !read.isEmpty || !write.isEmpty else {
+            throw AdaScriptError.invalidManifest("@access requires at least one read: or write: component")
+        }
+        return AnnotatedAccessPlan(read: read, write: write)
+    }
+
+    private static func makeEventBindings(
+        _ annotations: [GravityAnnotation],
+        named name: String,
+        className: String
+    ) throws -> [AnnotatedEventPlan] {
+        try annotations
+            .filter { $0.name == name && $0.target.parentIdentifier == className }
+            .map { annotation in
+                guard
+                    annotation.arguments.count == 1,
+                    annotation.arguments[0].label == nil,
+                    let eventName = annotation.arguments[0].value.identifierValue ?? annotation.arguments[0].value.stringValue
+                else {
+                    throw AdaScriptError.invalidManifest("@\(name) requires exactly one event name")
+                }
+                return AnnotatedEventPlan(eventName: eventName, propertyName: annotation.target.identifier)
+            }
     }
 
     private static func makeSystemDependency(_ annotation: GravityAnnotation) throws -> SystemDependency {
@@ -121,24 +208,62 @@ enum AdaScriptSystemPlanBuilder {
         return annotation.name == "before" ? .before(identifier) : .after(identifier)
     }
 
-    private static func makeQueryPlan(_ annotation: GravityAnnotation) throws -> AnnotatedQueryPlan {
+    private static let queryLabels: Set<String> = ["optional", "with", "without", "changed", "added"]
+
+    private static func makeQueryPlan(
+        _ annotation: GravityAnnotation,
+        usage: AdaScriptQueryUsage?,
+        pathsByFileID: [UInt32: String]
+    ) throws -> AnnotatedQueryPlan {
+        func fail(_ message: String) -> AdaScriptError {
+            .invalidManifest(locationPrefix(of: annotation, pathsByFileID: pathsByFileID) + message)
+        }
         guard annotation.target.kind == .variableDeclaration else {
-            throw AdaScriptError.invalidManifest("@query can only annotate a stored property")
+            throw fail("@query can only annotate a stored property")
         }
-        let components = annotation.arguments.compactMap { argument -> String? in
-            guard argument.label == nil else {
-                return nil
+        for argument in annotation.arguments {
+            guard let label = argument.label else { continue }
+            guard queryLabels.contains(label) else {
+                let hint = label == "where" ? "; boolean predicates are not supported yet" : ""
+                throw fail("@query does not support '\(label):'\(hint). Supported clauses: optional, with, without, changed, added")
             }
-            return argument.value.identifierValue
         }
-        guard !components.isEmpty else {
-            throw AdaScriptError.invalidManifest("@query requires at least one fetched component")
+        func references(_ values: [GravityAnnotation.Value]) throws -> [(name: String, alias: String?)] {
+            try values.map { value in
+                guard let text = value.identifierValue ?? value.stringValue else {
+                    throw fail("@query component references must be names")
+                }
+                let pieces = text.components(separatedBy: " as ")
+                return (pieces[0], pieces.count > 1 ? pieces[1] : nil)
+            }
         }
+        func labelled(_ label: String) throws -> [(name: String, alias: String?)] {
+            var values: [GravityAnnotation.Value] = []
+            for argument in annotation.arguments where argument.label == label {
+                if case let .list(items) = argument.value { values += items } else { values.append(argument.value) }
+            }
+            return try references(values)
+        }
+        let required = try references(annotation.arguments.filter { $0.label == nil }.map(\.value))
+        guard !required.isEmpty else {
+            throw fail("@query requires at least one fetched component")
+        }
+        let optional = try labelled("optional")
+        let fetched = required.map { AnnotatedQueryComponent(name: $0.name, alias: $0.alias, isOptional: false) }
+            + optional.map { AnnotatedQueryComponent(name: $0.name, alias: $0.alias, isOptional: true) }
         return AnnotatedQueryPlan(
             propertyName: annotation.target.identifier,
-            components: components,
-            withComponents: annotation.identifierListArgument(label: "with"),
-            withoutComponents: annotation.identifierListArgument(label: "without")
+            components: fetched,
+            withComponents: try labelled("with").map(\.name),
+            withoutComponents: try labelled("without").map(\.name),
+            changedComponents: try labelled("changed").map(\.name),
+            addedComponents: try labelled("added").map(\.name),
+            usage: usage,
+            source: AnnotatedSourceLocation(
+                column: Int(annotation.source.column),
+                line: Int(annotation.source.line),
+                path: pathsByFileID[annotation.source.fileID]
+            )
         )
     }
 }

@@ -236,6 +236,7 @@ final class EditorViewModel {
             )
         self.workbench = workbench ?? Self.defaultWorkbench(for: project)
         inspectorSidebar.scriptableObjectCatalog = scriptableObjectSupport?.descriptors ?? []
+        EditorScriptComponentStore.shared.replace(with: scriptableObjectSupport?.dataComponents ?? [])
         self.inspectorSidebar = inspectorSidebar
         self.animationPanel = animationPanel
         self.agent = agent ?? EditorAgentViewModel(project: project, fileManager: fileManager)

@@ -12,6 +12,8 @@ final class AnnotatedGravityQueryBridge: @unchecked Sendable, AdaScriptNonSendab
     private let row: AnnotatedGravityQueryRow
     private let virtualMachine: GravityVirtualMachine
     private var iterationIndex = 0
+    @GSExportableIgnore
+    private(set) var isIterating = false
     private let lease: AnnotatedGravityQueryLease
     private let reportDiagnostic: @Sendable (String) -> Void
 
@@ -59,8 +61,10 @@ final class AnnotatedGravityQueryBridge: @unchecked Sendable, AdaScriptNonSendab
             iterationIndex = 0
         }
         guard cursor.advance() else {
+            isIterating = false
             return GSValue(boolean: false, in: virtualMachine)
         }
+        isIterating = true
         defer { iterationIndex += 1 }
         return GSValue(integer: iterationIndex, in: virtualMachine)
     }
@@ -70,7 +74,10 @@ final class AnnotatedGravityQueryBridge: @unchecked Sendable, AdaScriptNonSendab
     }
 
     @GSExportableIgnore
-    func invalidate() { lease.isActive = false }
+    func invalidate() {
+        lease.isActive = false
+        isIterating = false
+    }
 }
 
 @GSExportable("AdaQueryRow")
@@ -165,6 +172,15 @@ final class AnnotatedGravityQueryRow: @unchecked Sendable, AdaScriptNonSendableB
         }
         return componentViews[alias]
     }
+
+    /// The row's component for `alias` as a script value: the component view, or `null` for an optional
+    /// component this row does not have. `nil` when the row has no such property.
+    func componentValue(named alias: String) -> GSValue? {
+        guard let view = component(named: alias) else {
+            return nil
+        }
+        return view.isPresent ? GSValue(object: view, in: virtualMachine) : GSValue(nullIn: virtualMachine)
+    }
 }
 
 @GSExportable("AdaComponent")
@@ -206,6 +222,9 @@ final class AnnotatedGravityComponentView: @unchecked Sendable, AdaScriptNonSend
         self.lease = lease
     }
 
+    @GSExportableIgnore
+    var isPresent: Bool { cursor.isPresent(componentAt: access.componentIndex) }
+
     func get(_ fieldName: String) -> GSValue {
         guard lease.isActive else {
             reportDiagnostic("Component view is no longer valid")
@@ -232,6 +251,10 @@ final class AnnotatedGravityComponentView: @unchecked Sendable, AdaScriptNonSend
         }
         guard let field = access.fields[fieldName] else {
             reportDiagnostic("Unknown field '\(access.alias).\(fieldName)'")
+            return false
+        }
+        guard access.isWritable else {
+            reportDiagnostic("Component '\(access.alias)' is read-only in this system; the script's access analysis found no write to it")
             return false
         }
         guard

@@ -27,7 +27,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         AdaScriptRuntimeCoordinator.lock.withLock { runtime.activeAsyncTaskCount }
     }
 
-    private var plans: [AnnotatedSystemPlan]
+    private(set) var plans: [AnnotatedSystemPlan]
     private var dataSchemas: [AdaScriptDataSchema]
     private var networkCommands: [AdaScriptNetworkCommandSchema]
     private var runtimeComponents: [RuntimeComponentDescriptor]
@@ -67,13 +67,19 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         let runtimeComponents = AdaScriptComponentRuntime.runtimeDescriptors(schemas: dataSchemas)
         let networkCommands = try AdaScriptSchemaParser.parseNetworkCommands(sources: sources)
         let module = try GravityScriptModuleResolver.resolve(sources)
-        let runtime = try AnnotatedGravityRuntime(
-            module: module,
-            componentConstructors: componentConstructors,
-            runtimeComponents: runtimeComponents,
-            networkCommands: networkCommands,
-            communityPolicy: communityPolicy
-        )
+        let runtime: AnnotatedGravityRuntime
+        do {
+            runtime = try AnnotatedGravityRuntime(
+                module: module,
+                componentConstructors: componentConstructors,
+                runtimeComponents: runtimeComponents,
+                networkCommands: networkCommands,
+                communityPolicy: communityPolicy
+            )
+        } catch AdaScriptError.compilation(let diagnostics) where !module.importDiagnostics.isEmpty {
+            // The compiler's own errors come first; import findings explain a missing name they report.
+            throw AdaScriptError.compilation(diagnostics + module.importDiagnostics)
+        }
         let resourceBindings = try AdaScriptSchemaParser.parseResourceBindings(sources: sources)
         let remoteCommandBindings = try AdaScriptSchemaParser.parseRemoteCommandBindings(sources: sources)
         let rpcMethodBindings = try AdaScriptSchemaParser.parseRPCMethodBindings(sources: sources)
@@ -83,9 +89,13 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
                 "@remote_commands references unknown command '\(unknownBinding.commandName)'"
             )
         }
+        if !module.importDiagnostics.isEmpty {
+            throw AdaScriptError.compilation(module.importDiagnostics)
+        }
         let capabilities = try AdaScriptSchemaParser.parseSystemCapabilities(sources: sources)
         var plans = try AdaScriptSystemPlanBuilder.makePlans(
             from: runtime.annotations,
+            pathsByFileID: module.pathsByFileID,
             remoteCommandBindings: remoteCommandBindings,
             rpcMethodBindings: rpcMethodBindings,
             resourceBindings: resourceBindings,
@@ -280,12 +290,26 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         pluginIdentifier: String,
         world: World
     ) throws -> PreparedAnnotatedSystem {
+        let dynamicComponents = try prepareDynamicAccess(plan.access, systemIdentifier: plan.identifier, world: world)
+        var declaredLevels: [ComponentId: QueryAccessLevel] = [:]
+        for component in dynamicComponents.values {
+            declaredLevels[component.identifier] = max(declaredLevels[component.identifier] ?? .read, component.isWritable ? .write : .read)
+        }
         let queries = try plan.queries.enumerated()
             .map { queryIndex, query in
-                try prepareQuery(query, systemIdentifier: plan.identifier, queryIndex: queryIndex, world: world)
+                try prepareQuery(
+                    query,
+                    systemIdentifier: plan.identifier,
+                    queryIndex: queryIndex,
+                    world: world,
+                    declaredAccess: declaredLevels
+                )
             }
         let resources = try plan.resources.map { resource in
             try prepareResource(resource, systemIdentifier: plan.identifier)
+        }
+        if !(plan.eventReaders + plan.eventWriters).isEmpty, !world.supportsEventDelivery {
+            throw AdaScriptError.invalidManifest("System '\(plan.identifier)' uses @events or @eventWriter, which requires EventsPlugin")
         }
         let remoteCommands = plan.remoteCommands.map {
             PreparedAnnotatedRemoteCommands(
@@ -313,8 +337,40 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
             queries: queries,
             remoteCommands: remoteCommands,
             rpcMethods: rpcMethods,
-            resources: resources
+            resources: resources,
+            eventReader: plan.eventReaders.isEmpty ? nil : Events<AdaScriptRuntimeEvent>(),
+            eventReaders: plan.eventReaders,
+            eventSender: plan.eventWriters.isEmpty ? nil : EventsSender<AdaScriptRuntimeEvent>(),
+            eventWriters: plan.eventWriters,
+            declaredAccess: dynamicComponents.isEmpty ? nil : AnnotatedDeclaredAccess(
+                reads: Set(dynamicComponents.values.map(\.identifier)),
+                writes: Set(dynamicComponents.values.filter(\.isWritable).map(\.identifier))
+            ),
+            dynamicComponents: dynamicComponents,
+            isExclusiveWorld: plan.isExclusiveWorld
         )
+    }
+
+    private static func prepareDynamicAccess(
+        _ plan: AnnotatedAccessPlan?,
+        systemIdentifier: String,
+        world: World
+    ) throws -> [String: PreparedDynamicComponent] {
+        guard let plan else {
+            return [:]
+        }
+        var result: [String: PreparedDynamicComponent] = [:]
+        for name in plan.read + plan.write where result[name] == nil {
+            guard let component = resolveComponent(named: name, world: world) else {
+                throw AdaScriptError.unknownComponent(system: systemIdentifier, queryIndex: -1, component: name)
+            }
+            result[name] = PreparedDynamicComponent(
+                identifier: component.identifier,
+                fields: Dictionary(uniqueKeysWithValues: component.fields.map { ($0.key, $0) }),
+                isWritable: plan.write.contains(name)
+            )
+        }
+        return result
     }
 
     private static func prepareResource(
@@ -336,20 +392,33 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         let descriptor = RuntimeResourceReflectionRegistry.descriptor(for: resourceType)
         return .reflected(
             fields: Dictionary(uniqueKeysWithValues: descriptor?.fields.map { ($0.key, $0) } ?? []),
-            parameter: DynamicResource(resourceType: resourceType, isOptional: plan.isOptional, writable: true),
+            parameter: DynamicResource(resourceType: resourceType, isOptional: plan.isOptional, writable: plan.access == .write),
             propertyName: plan.propertyName,
             resourceName: plan.resourceName
         )
     }
 
+    enum QueryAccessLevel: Int, Comparable {
+        case read = 0
+        case write = 1
+
+        static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+    }
+
+    /// - Parameter declaredAccess: Levels the system's `@access` declares, by resolved component.
     static func prepareQuery(
         _ plan: AnnotatedQueryPlan,
         systemIdentifier: String,
         queryIndex: Int,
-        world: World
+        world: World,
+        declaredAccess: [ComponentId: QueryAccessLevel] = [:]
     ) throws -> PreparedAnnotatedQuery {
+        func fail(_ message: String) -> AdaScriptError {
+            let prefix = plan.source.flatMap { source in source.path.map { "\($0):\(source.line):\(source.column): " } } ?? ""
+            return .invalidManifest(prefix + message)
+        }
         var resolved: [String: ResolvedAnnotatedComponent] = [:]
-        let allNames = plan.components + plan.withComponents + plan.withoutComponents
+        let allNames = plan.components.map(\.name) + plan.withComponents + plan.withoutComponents + plan.changedComponents + plan.addedComponents
         for name in allNames where resolved[name] == nil {
             guard let component = resolveComponent(named: name, world: world) else {
                 throw AdaScriptError.unknownComponent(
@@ -361,8 +430,29 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
             resolved[name] = component
         }
 
+        // Row properties: the alias, else the lower-camel short name. They must be distinct and not shadow `id`.
+        var aliases: [String: String] = [:]
+        for component in plan.components {
+            let alias = component.alias ?? defaultAlias(for: component.name)
+            guard alias != "id" else {
+                throw fail("query '\(plan.propertyName)' in system '\(systemIdentifier)' cannot name a component 'id'; row.id is the entity")
+            }
+            if let existing = aliases[alias] {
+                throw fail(
+                    "query '\(plan.propertyName)' in system '\(systemIdentifier)' fetches '\(existing)' and '\(component.name)' as '\(alias)'; "
+                        + "give one an alias, for example \(component.name) as other\(alias.prefix(1).uppercased())\(alias.dropFirst())"
+                )
+            }
+            aliases[alias] = component.name
+        }
+
         var predicate = QueryPredicate.all
-        for name in plan.components + plan.withComponents {
+        for component in plan.components where !component.isOptional {
+            if let resolvedComponent = resolved[component.name] {
+                predicate = predicate && .has(resolvedComponent.identifier)
+            }
+        }
+        for name in plan.withComponents {
             if let component = resolved[name] {
                 predicate = predicate && .has(component.identifier)
             }
@@ -374,27 +464,87 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         }
 
         var access = SystemAccessSet()
-        let componentAccesses = plan.components.enumerated()
-            .compactMap { index, name -> AnnotatedComponentAccess? in
-                guard let component = resolved[name] else {
-                    return nil
-                }
-                // The first vertical slice conservatively grants write access to
-                // fetched components. Static access inference will narrow this set.
-                access.addComponentWrite(component.identifier)
-                return AnnotatedComponentAccess(
-                    alias: defaultAlias(for: name),
-                    componentIndex: index,
-                    fields: Dictionary(uniqueKeysWithValues: component.fields.map { ($0.key, $0) })
-                )
+        var componentAccesses: [AnnotatedComponentAccess] = []
+        for (index, component) in plan.components.enumerated() {
+            guard let resolvedComponent = resolved[component.name] else { continue }
+            let alias = component.alias ?? defaultAlias(for: component.name)
+            let level = try accessLevel(
+                of: alias,
+                componentName: component.name,
+                identifier: resolvedComponent.identifier,
+                plan: plan,
+                systemIdentifier: systemIdentifier,
+                declaredAccess: declaredAccess,
+                fail: fail
+            )
+            if level == .write {
+                access.addComponentWrite(resolvedComponent.identifier)
+            } else {
+                access.addComponentRead(resolvedComponent.identifier)
             }
+            componentAccesses.append(
+                AnnotatedComponentAccess(
+                    alias: alias,
+                    componentIndex: index,
+                    fields: Dictionary(uniqueKeysWithValues: resolvedComponent.fields.map { ($0.key, $0) }),
+                    isWritable: level == .write
+                )
+            )
+        }
+        // Tick filters read component metadata, so the scheduler must see a read even when the component is not fetched.
+        for name in plan.changedComponents + plan.addedComponents {
+            if let component = resolved[name] { access.addComponentRead(component.identifier) }
+        }
 
-        let componentIDs = plan.components.compactMap { resolved[$0]?.identifier }
+        let componentIDs = plan.components.compactMap { resolved[$0.name]?.identifier }
+        let optionalIDs = Set(plan.components.filter(\.isOptional).compactMap { resolved[$0.name]?.identifier })
         return PreparedAnnotatedQuery(
             propertyName: plan.propertyName,
-            query: DynamicQuery(where: predicate, components: componentIDs, access: access),
+            query: DynamicQuery(
+                where: predicate,
+                components: componentIDs,
+                optionalComponents: optionalIDs,
+                changedComponents: plan.changedComponents.compactMap { resolved[$0]?.identifier },
+                addedComponents: plan.addedComponents.compactMap { resolved[$0]?.identifier },
+                access: access
+            ),
             componentAccesses: componentAccesses
         )
+    }
+
+    /// Chooses the scheduler access a fetched component needs from how the script uses its row and from
+    /// the system's `@access`. Analysed code gets exactly what it touches; code the analysis cannot follow
+    /// must declare access, and a declaration may not claim less than the code does.
+    private static func accessLevel(
+        of alias: String,
+        componentName: String,
+        identifier: ComponentId,
+        plan: AnnotatedQueryPlan,
+        systemIdentifier: String,
+        declaredAccess: [ComponentId: QueryAccessLevel],
+        fail: (String) -> AdaScriptError
+    ) throws -> QueryAccessLevel {
+        let declared = declaredAccess[identifier]
+        guard let usage = plan.usage else {
+            // No source to analyse (precompiled module): keep the conservative write access.
+            return declared ?? .write
+        }
+        if usage.isOpaque {
+            guard let declared else {
+                throw fail(
+                    "query '\(plan.propertyName)' in system '\(systemIdentifier)' passes its rows or the query to code the compiler cannot analyse, "
+                        + "so access to '\(componentName)' is unknown; declare @access(read: [...], write: [...]) on the system"
+                )
+            }
+            return declared
+        }
+        let inferred: QueryAccessLevel = usage.writes.contains(alias) ? .write : .read
+        if let declared, declared < inferred {
+            throw fail(
+                "system '\(systemIdentifier)' writes '\(componentName)' through query '\(plan.propertyName)' but @access declares it read-only"
+            )
+        }
+        return max(declared ?? inferred, inferred)
     }
 
     static func resolveComponent(named name: String, world: World) -> ResolvedAnnotatedComponent? {
@@ -436,8 +586,21 @@ struct ResolvedAnnotatedComponent: Sendable {
     let fields: [ReflectedComponentField]
 }
 
+/// Where an annotation was written, in target-relative coordinates.
+struct AnnotatedSourceLocation: Sendable, Equatable {
+    let column: Int
+    let line: Int
+    let path: String?
+}
+
 struct AnnotatedSystemPlan: Sendable {
+    let source: AnnotatedSourceLocation
     let className: String
+
+    /// The declaration's identity across the module: its file and class, e.g. `Systems/Move.ada#MoveSystem`.
+    var qualifiedIdentity: String {
+        (source.path.map { "\($0)#" } ?? "") + className
+    }
     let dependencies: [SystemDependency]
     let identifier: String
     let scheduler: SchedulerName
@@ -446,6 +609,21 @@ struct AnnotatedSystemPlan: Sendable {
     let rpcMethods: [AnnotatedRPCMethodPlan]
     let resources: [AnnotatedResourcePlan]
     let usesDeferredCommands: Bool
+    let isExclusiveWorld: Bool
+    let access: AnnotatedAccessPlan?
+    let eventReaders: [AnnotatedEventPlan]
+    let eventWriters: [AnnotatedEventPlan]
+}
+
+/// Component names an `@access` system may read or write through the dynamic world API.
+struct AnnotatedAccessPlan: Sendable, Equatable {
+    let read: [String]
+    let write: [String]
+}
+
+struct AnnotatedEventPlan: Sendable, Equatable {
+    let eventName: String
+    let propertyName: String
 }
 
 struct AnnotatedRemoteCommandPlan: Sendable {
@@ -459,16 +637,51 @@ struct AnnotatedRPCMethodPlan: Sendable {
 }
 
 struct AnnotatedResourcePlan: Sendable {
+    let access: AdaScriptResourceBinding.Access
     let isOptional: Bool
     let propertyName: String
     let resourceName: String
 }
 
+/// A component a query fetches, optionally renamed and optionally absent from some rows.
+struct AnnotatedQueryComponent: Sendable, Equatable {
+    let name: String
+    let alias: String?
+    let isOptional: Bool
+}
+
 struct AnnotatedQueryPlan: Sendable {
     let propertyName: String
-    let components: [String]
+    /// Required components first, then optional ones: the slot order scripts address rows by.
+    let components: [AnnotatedQueryComponent]
     let withComponents: [String]
     let withoutComponents: [String]
+    let changedComponents: [String]
+    let addedComponents: [String]
+    /// What the system's code does with the rows; `nil` when the source is not available to analyse
+    /// (precompiled modules), which keeps the conservative write access.
+    let usage: AdaScriptQueryUsage?
+    let source: AnnotatedSourceLocation?
+
+    init(
+        propertyName: String,
+        components: [AnnotatedQueryComponent],
+        withComponents: [String] = [],
+        withoutComponents: [String] = [],
+        changedComponents: [String] = [],
+        addedComponents: [String] = [],
+        usage: AdaScriptQueryUsage? = nil,
+        source: AnnotatedSourceLocation? = nil
+    ) {
+        self.propertyName = propertyName
+        self.components = components
+        self.withComponents = withComponents
+        self.withoutComponents = withoutComponents
+        self.changedComponents = changedComponents
+        self.addedComponents = addedComponents
+        self.usage = usage
+        self.source = source
+    }
 }
 
 private struct PreparedAnnotatedSystem: Sendable {
@@ -481,6 +694,18 @@ private struct PreparedAnnotatedSystem: Sendable {
     let remoteCommands: [PreparedAnnotatedRemoteCommands]
     let rpcMethods: [PreparedAnnotatedRPCMethod]
     let resources: [PreparedAnnotatedResource]
+    let eventReader: Events<AdaScriptRuntimeEvent>?
+    let eventReaders: [AnnotatedEventPlan]
+    let eventSender: EventsSender<AdaScriptRuntimeEvent>?
+    let eventWriters: [AnnotatedEventPlan]
+    let declaredAccess: AnnotatedDeclaredAccess?
+    let dynamicComponents: [String: PreparedDynamicComponent]
+    let isExclusiveWorld: Bool
+}
+
+private struct AnnotatedEventBindings {
+    let readers: [(propertyName: String, value: GSValue)]
+    let writers: [(propertyName: String, writer: AnnotatedGravityEventWriter)]
 }
 
 private struct PreparedAnnotatedRemoteCommands: Sendable {
@@ -557,6 +782,8 @@ struct AnnotatedComponentAccess: Sendable {
     let alias: String
     let componentIndex: Int
     let fields: [String: ReflectedComponentField]
+    /// Whether the scheduler reserved write access; a read-only slot rejects field assignment.
+    var isWritable = true
 }
 
 private struct AdaScriptTaskPumpSystem: System {
@@ -618,6 +845,18 @@ private struct AnnotatedGravityScriptSystem: System {
         if let commands = preparedSystem?.commands {
             parameters.append(commands)
         }
+        if let eventReader = preparedSystem?.eventReader {
+            parameters.append(eventReader)
+        }
+        if let eventSender = preparedSystem?.eventSender {
+            parameters.append(eventSender)
+        }
+        if let declaredAccess = preparedSystem?.declaredAccess {
+            parameters.append(declaredAccess)
+        }
+        if preparedSystem?.isExclusiveWorld == true {
+            parameters.append(ExclusiveWorldAccess())
+        }
         parameters.append(deltaTime)
         return SystemQueries(queries: parameters)
     }
@@ -674,7 +913,14 @@ private struct AnnotatedGravityScriptSystem: System {
                 payloads: method.parameter.wrappedValue.commands(named: method.commandName)
             )
         }
-        let world = runtime.makeWorldBridge(commands: preparedSystem.commands, world: context.world)
+        let events = runtime.makeEventBindings(for: preparedSystem)
+        let world = runtime.makeWorldBridge(
+            commands: preparedSystem.commands,
+            world: context.world,
+            dynamicComponents: preparedSystem.dynamicComponents,
+            isExclusiveWorld: preparedSystem.isExclusiveWorld,
+            iterators: queries
+        )
         runtime.update(
             className: preparedSystem.className,
             systemIdentifier: preparedSystem.identifier,
@@ -683,6 +929,7 @@ private struct AnnotatedGravityScriptSystem: System {
             remoteCommands: remoteCommands,
             rpcCalls: rpcCalls,
             resources: resources,
+            events: events,
             world: world,
             ownerID: "world:\(ObjectIdentifier(context.world).hashValue):system:\(preparedSystem.identifier)"
         )
@@ -751,6 +998,8 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         try suspensionPolicy.bindBorrowed(AnnotatedGravitySystemContext.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AdaScriptInputBridge.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityWorldContext.self, to: virtualMachine)
+        try virtualMachine.bindClass(with: AnnotatedGravityEventBridge.self)
+        try suspensionPolicy.bindBorrowed(AnnotatedGravityEventWriter.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityCommandsBridge.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityQueryBridge.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityQueryRow.self, to: virtualMachine)
@@ -786,7 +1035,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let standardLibrary = communityPolicy == nil ? AdaScriptStandardLibrary.source : AdaScriptStandardLibrary.communitySource
         let runtimeSource = (communityPolicy == nil ? "" : "extern var __adaUGCBudget;\n") + standardLibrary + "\n"
                 + AdaScriptTaskPrelude.source + "\n"
-                + AdaScriptComponentRuntime.prelude(constructors: componentConstructors)
+                + AdaScriptComponentRuntime.prelude(constructors: componentConstructors, authoredSource: module.combinedSource)
                 + AdaScriptNetworkBridge.prelude(commands: networkCommands)
                 + authoredSource
         let binary = virtualMachine.loadGravityFile(from: communityPolicy == nil ? runtimeSource : try AdaScriptCommunityLowerer.instrument(source: runtimeSource))
@@ -835,6 +1084,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         remoteCommands: [(propertyName: String, value: GSValue)],
         rpcCalls: [(commandName: String, fieldNames: [String], payloads: [AdaScriptRemoteCommandPayload])],
         resources: [(propertyName: String, resource: AnnotatedResourceBridge)],
+        events: AnnotatedEventBindings,
         world: AnnotatedGravityWorldContext,
         ownerID: String
     ) {
@@ -851,6 +1101,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             world.invalidate()
             for (_, query) in queries { query.invalidate() }
             for (_, resource) in resources { resource.invalidate() }
+            for (_, writer) in events.writers { writer.invalidate() }
         }
         guard !taskRuntime.isVMAborted else {
             return
@@ -871,6 +1122,18 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             let resourceValue = GSValue(object: resource.object, in: virtualMachine)
             guard instance.setStoredProperty(named: propertyName, to: resourceValue) else {
                 delegate.append("Unable to bind @res property '\(propertyName)' in system '\(systemIdentifier)'")
+                return
+            }
+        }
+        for (propertyName, value) in events.readers {
+            guard instance.setStoredProperty(named: propertyName, to: value) else {
+                delegate.append("Unable to bind @events property '\(propertyName)' in system '\(systemIdentifier)'")
+                return
+            }
+        }
+        for (propertyName, writer) in events.writers {
+            guard instance.setStoredProperty(named: propertyName, to: GSValue(object: writer, in: virtualMachine)) else {
+                delegate.append("Unable to bind @eventWriter property '\(propertyName)' in system '\(systemIdentifier)'")
                 return
             }
         }
@@ -975,7 +1238,13 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         return GSValue(newArrayIn: virtualMachine, items: values)
     }
 
-    func makeWorldBridge(commands: Commands?, world: World) -> AnnotatedGravityWorldContext {
+    func makeWorldBridge(
+        commands: Commands?,
+        world: World,
+        dynamicComponents: [String: PreparedDynamicComponent] = [:],
+        isExclusiveWorld: Bool = false,
+        iterators: [AnnotatedGravityQueryBridge] = []
+    ) -> AnnotatedGravityWorldContext {
         AnnotatedGravityWorldContext.make(
             world: world,
             commands: AnnotatedGravityCommandsBridge.make(
@@ -984,8 +1253,45 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
                 runtimeComponents: runtimeComponents,
                 reportDiagnostic: appendDiagnostic
             ),
+            dynamicAccess: dynamicComponents.isEmpty ? nil : AnnotatedGravityDynamicAccess(
+                world: world,
+                components: dynamicComponents,
+                virtualMachine: virtualMachine,
+                reportDiagnostic: appendDiagnostic
+            ),
+            exclusiveAccess: isExclusiveWorld ? AnnotatedGravityExclusiveAccess(
+                world: world,
+                payloads: AnnotatedGravityComponentPayloads(
+                    runtimeComponents: runtimeComponents.reduce(into: [:]) { result, descriptor in
+                        result[descriptor.name] = descriptor
+                        result[descriptor.stableID] = descriptor
+                    },
+                    reportDiagnostic: appendDiagnostic
+                ),
+                iterators: iterators,
+                reportDiagnostic: appendDiagnostic
+            ) : nil,
             reportDiagnostic: appendDiagnostic
         )
+    }
+
+    func makeEventBindings(for system: PreparedAnnotatedSystem) -> AnnotatedEventBindings {
+        let readers = system.eventReaders.map { plan in
+            let events = (system.eventReader?.wrappedValue ?? [])
+                .filter { $0.name == plan.eventName }
+                .map { GSValue(object: AnnotatedGravityEventBridge(event: $0, virtualMachine: virtualMachine), in: virtualMachine) as Any }
+            return (propertyName: plan.propertyName, value: GSValue(newArrayIn: virtualMachine, items: events))
+        }
+        let writers = system.eventWriters.compactMap { plan -> (propertyName: String, writer: AnnotatedGravityEventWriter)? in
+            guard let sender = system.eventSender else {
+                return nil
+            }
+            return (
+                propertyName: plan.propertyName,
+                writer: AnnotatedGravityEventWriter(eventName: plan.eventName, sender: sender, reportDiagnostic: appendDiagnostic)
+            )
+        }
+        return AnnotatedEventBindings(readers: readers, writers: writers)
     }
 
     var diagnostics: [String] {

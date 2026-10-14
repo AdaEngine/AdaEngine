@@ -17,8 +17,10 @@ enum AdaScriptComponentRuntime {
             return RuntimeComponentDescriptor(
                 stableID: schema.id,
                 name: schema.name,
+                aliases: schema.aliases,
                 fieldNames: schema.fields.map(\.name),
-                defaultValues: schema.fields.map { reflectedValue($0.defaultValue) }
+                fieldKinds: schema.fields.map { $0.defaultValue.reflectedKind },
+                defaultValues: schema.fields.map { $0.defaultValue.reflectedDefault }
             )
         }
     }
@@ -30,7 +32,8 @@ enum AdaScriptComponentRuntime {
     }
 
     static func prelude(
-        constructors: [AdaScriptLinkedComponentConstructor]
+        constructors: [AdaScriptLinkedComponentConstructor],
+        authoredSource: String = ""
     ) -> String {
         let constructorDeclarations = constructors.compactMap { linkedConstructor -> String? in
             let constructor = linkedConstructor.constructor
@@ -67,7 +70,42 @@ enum AdaScriptComponentRuntime {
             }
             var Vector3 = __AdaVector3Factory();
             """,
-        ] + constructorDeclarations).joined(separator: "\n") + "\n"
+        ] + structuredFactories(authoredSource: authoredSource) + constructorDeclarations).joined(separator: "\n") + "\n"
+    }
+
+    /// Constructors for the structured schema field types. Each is emitted only when the module
+    /// uses it and does not declare a symbol of the same name, so existing scripts keep working.
+    private static func structuredFactories(authoredSource: String) -> [String] {
+        let factories: [(name: String, source: String)] = [
+            ("Vector2", """
+            class __AdaVector2Factory {
+                var ZERO { get { return [0.0, 0.0]; } };
+                func exec(x, y) { return [x, y]; }
+            }
+            var Vector2 = __AdaVector2Factory();
+            """),
+            ("Vector4", """
+            class __AdaVector4Factory {
+                var ZERO { get { return [0.0, 0.0, 0.0, 0.0]; } };
+                func exec(x, y, z, w) { return [x, y, z, w]; }
+            }
+            var Vector4 = __AdaVector4Factory();
+            """),
+            ("Color", """
+            class __AdaColorFactory {
+                var white { get { return [1.0, 1.0, 1.0, 1.0]; } };
+                var black { get { return [0.0, 0.0, 0.0, 1.0]; } };
+                var clear { get { return [0.0, 0.0, 0.0, 0.0]; } };
+                func exec(r, g, b, a = 1.0) { return [r, g, b, a]; }
+            }
+            var Color = __AdaColorFactory();
+            """),
+        ]
+        return factories.compactMap { factory in
+            let usesFactory = authoredSource.contains("\(factory.name)(") || authoredSource.contains("\(factory.name).")
+            let declaresName = ["class", "struct", "enum", "var", "func"].contains { authoredSource.contains("\($0) \(factory.name)") }
+            return usesFactory && !declaresName ? factory.source : nil
+        }
     }
 
     static func bind(
@@ -93,15 +131,6 @@ enum AdaScriptComponentRuntime {
             return false
         }
         return value.dropFirst().allSatisfy { $0 == "_" || $0.isLetter || $0.isNumber }
-    }
-
-    private static func reflectedValue(_ value: AdaScriptSchemaField.Value) -> ReflectedFieldValue {
-        switch value {
-        case let .bool(value): .bool(value)
-        case let .double(value): .double(value)
-        case let .int(value): .int(Int(value))
-        case let .string(value): .string(value)
-        }
     }
 }
 
@@ -242,5 +271,38 @@ final class AnnotatedGravityComponentFactory: @unchecked Sendable {
             }
         }
         return arguments
+    }
+}
+
+extension AdaScriptSchemaField.Value {
+    /// The editor and validation shape of a field with this default.
+    var reflectedKind: ReflectedFieldKind {
+        switch self {
+        case .bool: .bool
+        case .double: .float
+        case .int: .int
+        case .string: .string
+        case let .vector(components): components.count == 2 ? .vector2 : components.count == 3 ? .vector3 : .vector4
+        case .color: .color
+        case let .enumeration(_, cases, _): .enumeration(cases)
+        // Entity references are plain integer ids (-1 is "none") until the inspector gains an entity picker.
+        case .entity: .int
+        case .asset: .assetReference
+        }
+    }
+
+    var reflectedDefault: ReflectedFieldValue {
+        switch self {
+        case let .bool(value): .bool(value)
+        case let .double(value): .double(value)
+        case let .int(value): .int(Int(value))
+        case let .string(value): .string(value)
+        case let .vector(components): .array(components.map(ReflectedFieldValue.double))
+        case let .color(components):
+            .object(Dictionary(uniqueKeysWithValues: zip(["red", "green", "blue", "alpha"], components.map(ReflectedFieldValue.double))))
+        case let .enumeration(_, _, selected): .string(selected)
+        case .entity: .int(-1)
+        case let .asset(path): path.map(ReflectedFieldValue.string) ?? .null
+        }
     }
 }

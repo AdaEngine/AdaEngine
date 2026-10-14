@@ -97,3 +97,25 @@ ADAENGINE_BENCHMARKS=1 swift package --allow-writing-to-package-directory benchm
 
 Sprites have no texture, so `sprite.texture?.asset` resolution is not covered. The
 benchmark uses the package-visible `MainWorld` resource to stand in for the main world.
+
+## AdaScript query benchmarks
+
+`AdaScriptingBenchmarks` runs the same `position += velocity` update over 100,000 entities (1,000 in smoke
+mode) through the layers of the scripting stack, so the cost of the bridge is visible:
+
+| Scenario | Measured operation |
+| --- | --- |
+| `AdaScripting.SimpleIter.Typed` | A typed `Query<Ref<Position>, Velocity>`, AdaECS's own fast path. |
+| `AdaScripting.SimpleIter.NativeCursor` | The `DynamicQueryCursor` the bridge drives, reading and writing through reflected field thunks, without the VM. |
+| `AdaScripting.SimpleIter.Gravity` | One `update` of a script system looping `for (var row in rows)` and updating two fields per row. |
+| `AdaScripting.QueryOnly.Gravity` | The same loop reading only `row.id`, isolating iteration from field access. |
+
+```sh
+ADAENGINE_BENCHMARKS=1 swift package --allow-writing-to-package-directory benchmark run --target AdaScriptingBenchmarks --no-progress
+```
+
+A reference run (Apple M-series, 12 cores, release, 100,000 entities, jemalloc disabled, wall clock per
+frame): typed query 14 ms, native cursor 30 ms, Gravity iteration only 0.40 s, Gravity update 1.6 s. The
+typed Swift query is therefore about 115 times faster than the equivalent script, and about
+three quarters of the script's time is bridge and VM work per field access rather than iteration. Treat these as
+a baseline for comparing changes on the same machine, not as a portable figure.

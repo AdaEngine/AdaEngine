@@ -1265,6 +1265,19 @@ if isECSBenchmarkEnabled {
         swiftSettings: swiftSettings,
         plugins: [.plugin(name: "BenchmarkPlugin", package: "package-benchmark")]
     ))
+    products.append(.executable(name: "AdaScriptingBenchmarks", targets: ["AdaScriptingBenchmarks"]))
+    targets.append(.executableTarget(
+        name: "AdaScriptingBenchmarks",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "AdaScripting",
+            .product(name: "Benchmark", package: "package-benchmark")
+        ],
+        path: "Benchmarks/AdaScriptingBenchmarks",
+        swiftSettings: swiftSettings,
+        plugins: [.plugin(name: "BenchmarkPlugin", package: "package-benchmark")]
+    ))
 }
 
 // MARK: - Tests
