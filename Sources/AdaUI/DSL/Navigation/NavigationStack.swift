@@ -131,6 +131,8 @@ extension EnvironmentValues {
     @Entry public var navigationBarContentInset: Float = 0
     /// Allows content to arrange its own controls in the navigation bar's side strip.
     @Entry public var navigationBarContentExtendsIntoSideControls: Bool = false
+    /// Keeps a composite workspace under the bar regardless of its active scroll content.
+    @Entry public var navigationBarContentExtendsUnderNavigationBar: Bool = false
     @Entry var navigationContext: NavigationContext?
     @Entry internal var navigationSplitCompactBackAction: NavigationSplitCompactBackAction?
     @Entry internal var navigationSplitColumnContext: NavigationSplitColumnContext?
@@ -182,6 +184,12 @@ extension View {
     /// The content is responsible for reserving that strip for its controls.
     public func navigationBarContentExtendsIntoSideControls(_ extends: Bool = true) -> some View {
         environment(\.navigationBarContentExtendsIntoSideControls, extends)
+    }
+
+    /// Keeps content at a stable origin beneath navigation chrome. Use
+    /// `navigationBarContentInset` to clear the bar within the content layout.
+    public func navigationBarContentExtendsUnderNavigationBar(_ extends: Bool = true) -> some View {
+        environment(\.navigationBarContentExtendsUnderNavigationBar, extends)
     }
 
     public func navigationTitle(_ title: String) -> some View {
@@ -511,7 +519,8 @@ final class NavigationStackNode: ViewNode, PresentationInputProviding {
             : viewInputs.environment.navigationSplitCompactBackAction
         let showsNavigationBar = !configuration.isHidden
 
-        let contentReceivesTopSafeArea = showsNavigationBar && Self.nodeConsumesTopSafeArea(currentContentNode)
+        let contentReceivesTopSafeArea = showsNavigationBar && (Self.nodeExtendsUnderNavigationBar(currentContentNode)
+            || Self.nodeConsumesTopSafeArea(currentContentNode))
         let reservedHeight = showsNavigationBar ? totalNavigationBarReservedHeight : 0
         let contentSafeAreaHeight = contentReceivesTopSafeArea ? reservedHeight : 0
         reservedNavigationBarHeight = reservedHeight
@@ -572,6 +581,15 @@ final class NavigationStackNode: ViewNode, PresentationInputProviding {
     override func performLayout() {
         contentBounds = contentLayoutBounds(for: currentContentNode)
         presentation.layout(in: contentBounds, boundsForNode: contentLayoutBounds(for:))
+        // Deferred composite bodies can reveal their navigation policy only after
+        // the first layout. Apply that policy before drawing their chrome/content.
+        let receivesInset = Self.nodeExtendsUnderNavigationBar(currentContentNode) || Self.nodeConsumesTopSafeArea(currentContentNode)
+        let expectedInset = receivesInset ? reservedNavigationBarHeight : 0
+        if currentContentNode.environment.navigationBarContentInset != expectedInset {
+            syncNavigationBar()
+            contentBounds = contentLayoutBounds(for: currentContentNode)
+            presentation.layout(in: contentBounds, boundsForNode: contentLayoutBounds(for:))
+        }
         navigationBarNode?
             .place(
                 in: .zero,
@@ -583,7 +601,7 @@ final class NavigationStackNode: ViewNode, PresentationInputProviding {
 
     private func contentLayoutBounds(for node: ViewNode) -> Rect {
         let configuration = Self.navigationBarState(in: node).configuration
-        let placesBelowBar = !configuration.isHidden && !Self.nodeConsumesTopSafeArea(node)
+        let placesBelowBar = !configuration.isHidden && !Self.nodeExtendsUnderNavigationBar(node) && !Self.nodeConsumesTopSafeArea(node)
         let originY: Float = placesBelowBar ? totalNavigationBarReservedHeight : 0
         let sides = node.environment.navigationBarContentExtendsIntoSideControls ? EdgeInsets() : environment.navigationContentSideInsets
         return Rect(origin: Point(sides.leading, originY),
@@ -639,6 +657,20 @@ final class NavigationStackNode: ViewNode, PresentationInputProviding {
             leadingItems: node.environment.navigationBarLeadingItems,
             trailingItems: node.environment.navigationBarTrailingItems
         )
+    }
+
+    private static func nodeExtendsUnderNavigationBar(_ node: ViewNode) -> Bool {
+        if node.environment.navigationBarContentExtendsUnderNavigationBar { return true }
+        if let modifier = node as? ViewModifierNode {
+            return nodeExtendsUnderNavigationBar(modifier.contentNode)
+        }
+        if let container = node as? ViewContainerNode {
+            return container.nodes.contains(where: nodeExtendsUnderNavigationBar)
+        }
+        if !(node is NavigationStackNode), let presentation = node as? any PresentationInputProviding {
+            return presentation.inputContentNodes.contains(where: nodeExtendsUnderNavigationBar)
+        }
+        return false
     }
 
     private static func nodeConsumesTopSafeArea(_ node: ViewNode) -> Bool {

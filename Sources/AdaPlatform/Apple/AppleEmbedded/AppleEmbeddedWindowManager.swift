@@ -727,7 +727,7 @@
             #if IOS
                 if let statusBarFrame = view.window?.windowScene?.statusBarManager?.statusBarFrame {
                     let frame = view.convert(statusBarFrame, from: nil)
-                    let statusInset = max(0, frame.maxY - uiInsets.top)
+                    let statusInset = frame.minY < view.bounds.midY ? max(0, frame.maxY - uiInsets.top) : 0
                     let sideInset = max(uiInsets.left, uiInsets.right)
                     // The vertical status area includes the camera/activity capsule; the
                     // legacy statusBarFrame may only describe its thin clock baseline.
@@ -739,7 +739,11 @@
                         }
                         .map { CGFloat($0.frame.maxY + $0.margins.bottom) }
                         .max()
-                    let verticalStatusInset = sideInset >= 60 ? sideOcclusionBottom ?? sideInset * 1.25 : 0
+                    let hasSideOcclusion = adaWindow.reservedRegions.contains { region in
+                        region.isActive && region.kind == .occlusion
+                            && (region.frame.minX < Float(uiInsets.left) || region.frame.maxX > Float(view.bounds.width - uiInsets.right))
+                    }
+                    let verticalStatusInset = sideInset >= 60 ? sideOcclusionBottom ?? (hasSideOcclusion ? 0 : sideInset * 1.25) : 0
                     adaWindow.navigationBarControlsTopInset = Float(max(statusInset, verticalStatusInset))
                 } else {
                     adaWindow.navigationBarControlsTopInset = 0

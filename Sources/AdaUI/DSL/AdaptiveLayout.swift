@@ -107,6 +107,27 @@ extension EnvironmentValues {
         }
         return insets
     }
+
+    /// Available vertical interval in local coordinates, excluding physical side occlusions.
+    func sideControlVerticalRange(in frame: Rect, leading: Bool) -> ClosedRange<Float> {
+        let sideWidth = max(64, leading ? displaySafeAreaInsets.leading : displaySafeAreaInsets.trailing)
+        let strip = Rect(x: leading ? frame.minX : frame.maxX - sideWidth, y: frame.minY, width: sideWidth, height: frame.height)
+        var top = max(0, displaySafeAreaInsets.top - safeAreaInsets.top)
+        var bottom = frame.height - max(0, displaySafeAreaInsets.bottom - safeAreaInsets.bottom)
+        for region in reservedRegions where region.isActive && region.kind == .occlusion {
+            let rect = Rect(x: region.frame.minX - region.margins.leading, y: region.frame.minY - region.margins.top,
+                width: region.frame.width + region.margins.leading + region.margins.trailing,
+                height: region.frame.height + region.margins.top + region.margins.bottom)
+            guard rect.maxX > strip.minX, rect.minX < strip.maxX, rect.maxY > strip.minY, rect.minY < strip.maxY else { continue }
+            if rect.midY < strip.midY {
+                top = max(top, rect.maxY - frame.minY)
+            } else {
+                bottom = min(bottom, rect.minY - frame.minY)
+            }
+        }
+        top = min(frame.height, max(0, top))
+        return top...max(top, bottom)
+    }
 }
 
 public enum NavigationBarControlsPlacement: Hashable, Sendable {
@@ -129,17 +150,28 @@ public struct AdaptiveSplitFrames: Equatable, Sendable {
     public let primary: Rect
     public let secondary: Rect
 
-    public init(size: Size, horizontalSizeClass: UserInterfaceSizeClass?, division: ViewReservedRegion?, minimumPaneWidth: Float = 292) {
-        isExpanded = horizontalSizeClass == .regular && size.width >= max(0, minimumPaneWidth) * 2 + 16
+    public init(
+        size: Size,
+        horizontalSizeClass: UserInterfaceSizeClass?,
+        division: ViewReservedRegion?,
+        hinge: DeviceHinge? = nil,
+        minimumPaneWidth: Float = 292
+    ) {
+        let tabletop = hinge?.status == .partiallyOpen && size.height > size.width
+        let division = division.flatMap { $0.isActive ? $0 : nil }
+        let horizontalDivision = division.map { $0.frame.width > $0.frame.height } ?? tabletop
+        let availableSplitLength = horizontalDivision ? size.height : size.width
+        isExpanded = (horizontalSizeClass == .regular || tabletop) && availableSplitLength >= max(0, minimumPaneWidth) * 2 + 16
         guard isExpanded else {
             primary = .zero
             secondary = Rect(origin: .zero, size: size)
             return
         }
-        let division = division.flatMap { $0.isActive ? $0 : nil }
-        if let division, division.frame.width > division.frame.height {
-            let top = min(size.height, max(0, division.frame.minY - division.margins.top))
-            let bottom = min(size.height, max(top, division.frame.maxY + division.margins.bottom))
+        if horizontalDivision {
+            let start = division.map { $0.frame.minY - $0.margins.top } ?? (size.height * 0.5 - 8)
+            let end = division.map { $0.frame.maxY + $0.margins.bottom } ?? (size.height * 0.5 + 8)
+            let top = min(size.height, max(0, start))
+            let bottom = min(size.height, max(top, end))
             primary = Rect(x: 0, y: 0, width: size.width, height: top)
             secondary = Rect(x: 0, y: bottom, width: size.width, height: max(0, size.height - bottom))
         } else {

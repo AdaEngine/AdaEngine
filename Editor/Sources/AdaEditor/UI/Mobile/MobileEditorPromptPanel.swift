@@ -69,33 +69,22 @@ struct MobileEditorPromptPanel: View {
                     iconButton("\u{E5CD}", identifier: "AdaEditor.Mobile.ClosePrompt", action: close)
                 }
 
-                ZStack(anchor: .topLeading) {
-                    TextEditor(text: _text, showsLineNumbers: false, showsScrollIndicators: true, wrapsLines: true)
-                        .textEditorAutofocus(requestID: focusRequestID)
-                        .onTextEditorPaste(pasteImages)
-                        .font(MobileEditorFont.font(size: 16))
-                        .foregroundColor(theme.editorColors.text)
-                        .textEditorColors(TextEditorColors(
-                            background: .clear,
-                            border: .clear,
-                            focusedBorder: .clear,
-                            gutter: .clear,
-                            gutterRule: .clear,
-                            currentLineBackground: .clear,
-                            selection: theme.editorColors.blue.opacity(0.24)
-                        ))
-                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 40, maxHeight: .infinity)
-                        .accessibilityIdentifier(Self.promptIdentifier)
-                    if text.isEmpty {
-                        Text("Plan, ask, build…")
-                            .font(MobileEditorFont.font(size: 16))
-                            .foregroundColor(theme.editorColors.muted)
-                            .padding(.horizontal, 10)
-                            .padding(.top, 8)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 40, maxHeight: .infinity)
+                TextEditor("Plan, ask, build…", text: _text, showsLineNumbers: false, showsScrollIndicators: true, wrapsLines: true)
+                    .textEditorAutofocus(requestID: focusRequestID)
+                    .onTextEditorPaste(pasteImages)
+                    .font(MobileEditorFont.font(size: 16))
+                    .foregroundColor(theme.editorColors.text)
+                    .textEditorColors(TextEditorColors(
+                        background: .clear,
+                        border: .clear,
+                        focusedBorder: .clear,
+                        gutter: .clear,
+                        gutterRule: .clear,
+                        currentLineBackground: .clear,
+                        selection: theme.editorColors.blue.opacity(0.24)
+                    ))
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 40, maxHeight: .infinity)
+                    .accessibilityIdentifier(Self.promptIdentifier)
 
                 if !attachmentURLs.isEmpty {
                     MobileEditorAttachmentPreviews(urls: attachmentURLs, remove: removeAttachment)

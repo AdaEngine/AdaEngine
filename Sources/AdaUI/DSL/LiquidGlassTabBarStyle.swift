@@ -22,6 +22,8 @@ public struct LiquidGlassTabBarStyle: TabViewStyle {
     /// Reserve horizontal space for side tabs. Disable when the content's
     /// navigation stack already reserves the same display strip.
     public var reservesSideSpaceForContent: Bool
+    /// Clearance for navigation controls above a vertical tab bar.
+    public var sideControlsClearance: Float
 
     public init(
         backgroundColor: Color = Color(red: 0.12, green: 0.12, blue: 0.12),
@@ -32,7 +34,8 @@ public struct LiquidGlassTabBarStyle: TabViewStyle {
         symbolFont: Font = .system(size: 22),
         labelFont: Font = .system(size: 11),
         bottomPadding: Float = 20,
-        reservesSideSpaceForContent: Bool = true
+        reservesSideSpaceForContent: Bool = true,
+        sideControlsClearance: Float = 144
     ) {
         self.backgroundColor = backgroundColor
         self.borderColor = borderColor
@@ -43,6 +46,7 @@ public struct LiquidGlassTabBarStyle: TabViewStyle {
         self.labelFont = labelFont
         self.bottomPadding = bottomPadding
         self.reservesSideSpaceForContent = reservesSideSpaceForContent
+        self.sideControlsClearance = sideControlsClearance
     }
 
     public func makeBody(configuration: Configuration) -> some View {
@@ -56,6 +60,7 @@ private struct LiquidGlassTabBar: View {
     @Environment(\.safeAreaInsets) private var safeAreaInsets
     @Environment(\.displaySafeAreaInsets) private var displaySafeAreaInsets
     @Environment(\.navigationBarControlsTopInset) private var controlsTopInset
+    @Environment(\.self) private var environmentForSideControls
     let configuration: TabViewStyleConfiguration
     let style: LiquidGlassTabBarStyle
 
@@ -86,13 +91,15 @@ private struct LiquidGlassTabBar: View {
                     let sideInset = max(56, leading ? displaySafeAreaInsets.leading : displaySafeAreaInsets.trailing)
                     let bar = LiquidGlassVerticalTabBar(configuration: configuration, style: style)
                     let originY = geometry.frame(in: .global).minY
-                    let physicalHeight = originY + geometry.size.height + keyboardSafeAreaInset
-                    let minimumTop = max(16, controlsTopInset) + 144
-                    let centerY = max(minimumTop + bar.preferredHeight * 0.5,
-                        min(physicalHeight - bar.preferredHeight * 0.5 - 12, physicalHeight * 0.5))
+                    let controlFrame = Rect(origin: geometry.frame(in: .global).origin,
+                        size: Size(width: geometry.size.width, height: geometry.size.height + keyboardSafeAreaInset))
+                    let range = environmentForSideControls.sideControlVerticalRange(in: controlFrame, leading: leading)
+                    let minimumTop = max(range.lowerBound + 16, controlsTopInset - originY) + style.sideControlsClearance
+                    let top = max(range.lowerBound, min(range.upperBound - bar.preferredHeight - 12,
+                        max(minimumTop, (range.lowerBound + range.upperBound - bar.preferredHeight) * 0.5)))
                     bar.frame(width: 56, height: bar.preferredHeight)
                         .offset(x: leading ? (sideInset - 56) * 0.5 : geometry.size.width - (sideInset + 56) * 0.5,
-                            y: centerY - bar.preferredHeight * 0.5 - originY)
+                            y: top)
                 }
             }
         }

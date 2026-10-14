@@ -8,6 +8,10 @@ struct MobileEditorWorkspaceView: View {
     @Environment(\.navigationBarContentInset) private var navigationBarContentInset
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.navigationContentSideInsets) private var navigationSideInsets
+    @Environment(\.navigationBarControlsAxis) private var navigationControlsAxis
+    @Environment(\.deviceHinge) private var deviceHinge
+    @Environment(\.displaySafeAreaInsets) private var displaySafeAreaInsets
+    @Environment(\.keyboardSafeAreaInset) private var keyboardSafeAreaInset
     let project: MobileEditorProject
     @Binding var selection: MobileEditorWorkspaceTab
     @Binding var promptDraft: String
@@ -32,32 +36,60 @@ struct MobileEditorWorkspaceView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let contentSize = Size(width: max(0, geometry.size.width - navigationSideInsets.leading - navigationSideInsets.trailing), height: geometry.size.height)
-            let division = geometry.reservedRegions(kind: .division).first.map { region in
+            let contentWidth = max(0, geometry.size.width - navigationSideInsets.leading - navigationSideInsets.trailing)
+            let physicalContentHeight = geometry.size.height + keyboardSafeAreaInset
+            let tabletop = deviceHinge?.status == .partiallyOpen && physicalContentHeight > contentWidth
+            // The keyboard covers the game pane; it must not change the device's posture layout.
+            let contentSize = Size(width: contentWidth, height: tabletop ? physicalContentHeight : geometry.size.height)
+            let nativeDivision = geometry.reservedRegions(kind: .division).first.map { region in
                 ViewReservedRegion(id: region.id, kind: region.kind,
                     frame: Rect(x: region.frame.minX - navigationSideInsets.leading, y: region.frame.minY,
                         width: region.frame.width, height: region.frame.height),
                     margins: region.margins, isActive: region.isActive)
             }
+            // UIKit can omit division regions during a partial fold. Preserve the
+            // physical display midpoint even when the host consumes its top safe area.
+            let fallbackDivision: ViewReservedRegion? = if tabletop {
+                ViewReservedRegion(
+                    id: "workspace-hinge",
+                    kind: .division,
+                    frame: Rect(
+                        x: 0,
+                        y: (geometry.frame(in: .global).minY + physicalContentHeight + displaySafeAreaInsets.bottom) * 0.5 - geometry.frame(in: .global).minY,
+                        width: contentSize.width,
+                        height: 0
+                    ),
+                    margins: EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0)
+                )
+            } else { nil }
+            let division = nativeDivision ?? fallbackDivision
             let layout = AdaptiveSplitFrames(size: contentSize, horizontalSizeClass: horizontalSizeClass,
-                division: division)
+                division: division, hinge: deviceHinge)
+            let stacked = layout.isExpanded && layout.primary.maxY <= layout.secondary.minY
+            let gameFrame = stacked ? layout.secondary : layout.primary
+            let chatFrame = stacked ? layout.primary : layout.secondary
             ZStack(anchor: .topLeading) {
                 // Offsets do not contribute to stack measurement; include both panes in the host bounds.
                 Color.clear.frame(width: geometry.size.width, height: geometry.size.height)
                     .allowsHitTesting(false)
                 if layout.isExpanded {
                     MobileEditorDuoGamePane(project: project, runtime: embeddedRuntime, message: agentStatus,
-                        selection: _selection, openFile: onOpenFile, fullscreen: preparePlay)
-                        .padding(.top, max(0, navigationBarContentInset - layout.primary.minY))
-                        .frame(width: layout.primary.width, height: layout.primary.height)
-                        .offset(x: navigationSideInsets.leading + layout.primary.minX, y: layout.primary.minY)
+                        selection: _selection, openFile: onOpenFile, fullscreen: preparePlay, showsControls: !stacked)
+                        .padding(.top, max(0, navigationBarContentInset - gameFrame.minY))
+                        .frame(width: gameFrame.width, height: gameFrame.height)
+                        .offset(x: navigationSideInsets.leading + gameFrame.minX, y: gameFrame.minY)
                 }
-                activeContent(expanded: layout.isExpanded)
+                VStack(spacing: 0) {
+                    if stacked {
+                        MobileEditorDuoTopControls(runtime: embeddedRuntime, selection: _selection, fullscreen: preparePlay)
+                    }
+                    activeContent(expanded: layout.isExpanded)
+                }
                     .id("workspace-content")
-                    .padding(.top, layout.isExpanded ? max(0, navigationBarContentInset - layout.secondary.minY) : 0)
-                    .frame(width: layout.isExpanded ? layout.secondary.width : geometry.size.width, height: layout.secondary.height)
-                    .offset(x: layout.isExpanded ? navigationSideInsets.leading + layout.secondary.minX : 0, y: layout.secondary.minY)
-                if !layout.isExpanded {
+                    .padding(.top, layout.isExpanded ? max(0, navigationBarContentInset - chatFrame.minY) : 0)
+                    .frame(width: layout.isExpanded ? chatFrame.width : geometry.size.width, height: chatFrame.height)
+                    .offset(x: layout.isExpanded ? navigationSideInsets.leading + chatFrame.minX : 0, y: chatFrame.minY)
+                if !layout.isExpanded, navigationControlsAxis != .vertical {
                     topAccessory.padding(.trailing, 16).padding(.top, navigationBarContentInset + 8)
                         .frame(width: contentSize.width, height: geometry.size.height, alignment: .topTrailing)
                         .offset(x: navigationSideInsets.leading)
@@ -124,8 +156,10 @@ struct MobileEditorWorkspaceView: View {
             Tab("Files", value: MobileEditorWorkspaceTab.files) {
                 MobileEditorFilesScreen(project: project, onOpenFile: onOpenFile)
             }
-            Tab("Play", value: MobileEditorWorkspaceTab.play, placement: .floating) {
-                EmptyView()
+            if navigationControlsAxis != .vertical {
+                Tab("Play", value: MobileEditorWorkspaceTab.play, placement: .floating) {
+                    EmptyView()
+                }
             }
         }
         .tabViewPosition(.automatic)
@@ -141,7 +175,8 @@ struct MobileEditorWorkspaceView: View {
             ],
             symbolFont: AdaEditorMaterialSymbolFont.font(size: 22),
             labelFont: MobileEditorFont.font(size: 11),
-            bottomPadding: 6
+            bottomPadding: 6,
+            sideControlsClearance: 248
         )))
     }
 }
@@ -168,10 +203,12 @@ struct MobileEditorBuildScreen: View {
             ZStack(anchor: .bottom) {
                 if chatEvents.isEmpty {
                     VStack(spacing: 24) {
-                        Text("What would you like\nto create today?")
-                            .font(MobileEditorFont.font(size: 25))
-                            .foregroundColor(theme.editorColors.text)
-                            .multilineTextAlignment(.center)
+                        if inlineComposer == nil || geometry.size.height >= 340 {
+                            Text("What would you like\nto create today?")
+                                .font(MobileEditorFont.font(size: 25))
+                                .foregroundColor(theme.editorColors.text)
+                                .multilineTextAlignment(.center)
+                        }
                         if inlineComposer == nil {
                             composer
                                 .frame(width: max(0, min(620, geometry.size.width - 32)))

@@ -10,31 +10,13 @@ struct MobileEditorDuoGamePane: View {
     @Binding var selection: MobileEditorWorkspaceTab
     let openFile: (String) -> Void
     let fullscreen: () -> Void
-    @State private var restartError: String?
+    var showsControls = true
 
     var body: some View {
         VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Text(selection == .files ? "Files" : "Play")
-                    .font(MobileEditorFont.font(size: 14))
-                    .foregroundColor(theme.editorColors.muted)
-                Spacer()
-                Button {
-                    do { try runtime?.restart(); restartError = nil }
-                    catch { restartError = error.localizedDescription }
-                } label: {
-                    Text("\u{E5D5}").font(AdaEditorMaterialSymbolFont.font(size: 22))
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityIdentifier("AdaEditor.Duo.Restart")
-                Button(action: fullscreen) {
-                    Text("\u{E5D0}").font(AdaEditorMaterialSymbolFont.font(size: 22))
-                        .frame(width: 44, height: 44)
-                }
-                .accessibilityIdentifier("AdaEditor.Duo.Fullscreen")
+            if showsControls {
+                MobileEditorDuoPlaybackControls(runtime: runtime, selection: selection, fullscreen: fullscreen)
             }
-            .foregroundColor(theme.editorColors.text)
-            .buttonStyle(DefaultButtonStyle())
             if selection == .files {
                 MobileEditorFilesScreen(project: project, onOpenFile: openFile)
             } else if let runtime {
@@ -49,24 +31,91 @@ struct MobileEditorDuoGamePane: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            HStack {
-                HStack(spacing: 4) {
-                    paneButton("Scene", selected: selection != .files) { selection = .build }
-                    paneButton("Files", selected: selection == .files) { selection = .files }
-                }
-                .padding(4)
-                .background(CapsuleShape().fill(theme.editorColors.surface))
-                Spacer()
-            }
-            .font(MobileEditorFont.font(size: 13))
-            .foregroundColor(theme.editorColors.text)
-            .buttonStyle(DefaultButtonStyle())
-            if let restartError {
-                Text(restartError).font(MobileEditorFont.font(size: 12)).foregroundColor(theme.editorColors.muted)
+            if showsControls {
+                MobileEditorDuoPanePicker(selection: _selection)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(12)
         .accessibilityIdentifier("AdaEditor.Duo.GamePane")
+    }
+
+}
+
+struct MobileEditorDuoTopControls: View {
+    let runtime: EditorAdaScriptProjectRuntimeSession?
+    @Binding var selection: MobileEditorWorkspaceTab
+    let fullscreen: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            MobileEditorDuoPanePicker(selection: _selection)
+            Spacer(minLength: 8)
+            MobileEditorDuoPlaybackControls(runtime: runtime, selection: selection, fullscreen: fullscreen, showsTitle: false)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .accessibilityIdentifier("AdaEditor.Duo.TopControls")
+    }
+}
+
+private struct MobileEditorDuoPlaybackControls: View {
+    @Environment(\.theme) private var theme
+    @State private var restartError: String?
+    let runtime: EditorAdaScriptProjectRuntimeSession?
+    let selection: MobileEditorWorkspaceTab
+    let fullscreen: () -> Void
+    var showsTitle = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                if showsTitle {
+                    Text(selection == .files ? "Files" : "Play")
+                        .font(MobileEditorFont.font(size: 14))
+                        .foregroundColor(theme.editorColors.muted)
+                    Spacer()
+                }
+                Button {
+                    do {
+                        try runtime?.restart()
+                        restartError = nil
+                    } catch {
+                        restartError = error.localizedDescription
+                    }
+                } label: {
+                    Text("\u{E5D5}").font(AdaEditorMaterialSymbolFont.font(size: 22))
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityIdentifier("AdaEditor.Duo.Restart")
+                Button(action: fullscreen) {
+                    Text("\u{E5D0}").font(AdaEditorMaterialSymbolFont.font(size: 22))
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityIdentifier("AdaEditor.Duo.Fullscreen")
+            }
+            if let restartError {
+                Text(restartError).font(MobileEditorFont.font(size: 12)).foregroundColor(theme.editorColors.muted)
+            }
+        }
+        .foregroundColor(theme.editorColors.text)
+        .buttonStyle(DefaultButtonStyle())
+    }
+}
+
+private struct MobileEditorDuoPanePicker: View {
+    @Environment(\.theme) private var theme
+    @Binding var selection: MobileEditorWorkspaceTab
+
+    var body: some View {
+        HStack(spacing: 4) {
+            paneButton("Scene", selected: selection != .files) { selection = .build }
+            paneButton("Files", selected: selection == .files) { selection = .files }
+        }
+        .padding(4)
+        .background(CapsuleShape().fill(theme.editorColors.surface))
+        .font(MobileEditorFont.font(size: 13))
+        .buttonStyle(DefaultButtonStyle())
     }
 
     private func paneButton(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -93,20 +142,14 @@ struct MobileEditorInlineComposer: View {
     var body: some View {
         EditorAgentComposerSurface(cornerRadius: 24, horizontalInset: 12, topInset: 12, bottomInset: 12, usesGlass: true) {
             VStack(spacing: 8) {
-                ZStack(anchor: .topLeading) {
-                    TextEditor(text: _text, showsLineNumbers: false, showsScrollIndicators: true, wrapsLines: true)
-                        .onTextEditorPaste(pasteImages)
-                        .font(MobileEditorFont.font(size: 16))
-                        .foregroundColor(theme.editorColors.text)
-                        .textEditorColors(TextEditorColors(background: .clear, border: .clear, focusedBorder: .clear,
-                            gutter: .clear, gutterRule: .clear, currentLineBackground: .clear, selection: theme.editorColors.blue.opacity(0.24)))
-                        .accessibilityIdentifier("AdaEditor.Duo.Prompt")
-                    if text.isEmpty {
-                        Text("Plan, ask, build…").font(MobileEditorFont.font(size: 16))
-                            .foregroundColor(theme.editorColors.muted).padding(8).allowsHitTesting(false)
-                    }
-                }
-                .frame(height: 64)
+                TextEditor("Plan, ask, build…", text: _text, showsLineNumbers: false, showsScrollIndicators: true, wrapsLines: true)
+                    .onTextEditorPaste(pasteImages)
+                    .font(MobileEditorFont.font(size: 16))
+                    .foregroundColor(theme.editorColors.text)
+                    .textEditorColors(TextEditorColors(background: .clear, border: .clear, focusedBorder: .clear,
+                        gutter: .clear, gutterRule: .clear, currentLineBackground: .clear, selection: theme.editorColors.blue.opacity(0.24)))
+                    .accessibilityIdentifier("AdaEditor.Duo.Prompt")
+                    .frame(height: 64)
                 if !attachmentURLs.isEmpty {
                     MobileEditorAttachmentPreviews(urls: attachmentURLs, remove: removeAttachment)
                 }

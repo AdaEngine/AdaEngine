@@ -80,6 +80,37 @@ struct AdaptiveLayoutTests {
     }
 
     @Test
+    func partiallyOpenPortraitUsesTwoRowsWithoutNativeDivisionRegions() {
+        let hinge = DeviceHinge(status: .partiallyOpen, angle: .pi * 0.7)
+        let frames = AdaptiveSplitFrames(size: Size(width: 669, height: 835), horizontalSizeClass: .regular, division: nil, hinge: hinge)
+        #expect(frames.isExpanded)
+        #expect(frames.primary.width == 669)
+        #expect(frames.secondary.width == 669)
+        #expect(frames.primary.maxY == 409.5)
+        #expect(frames.secondary.minY == 425.5)
+        #expect(frames.secondary.maxY == 835)
+        let narrow = AdaptiveSplitFrames(size: Size(width: 390, height: 835), horizontalSizeClass: .compact, division: nil, hinge: hinge)
+        #expect(narrow.isExpanded)
+        #expect(narrow.primary.maxY < narrow.secondary.minY)
+        let open = AdaptiveSplitFrames(size: Size(width: 669, height: 835), horizontalSizeClass: .regular, division: nil,
+            hinge: DeviceHinge(status: .fullyOpen, angle: .pi))
+        #expect(open.primary.maxX < open.secondary.minX)
+        let landscape = AdaptiveSplitFrames(size: Size(width: 835, height: 669), horizontalSizeClass: .regular, division: nil, hinge: hinge)
+        #expect(landscape.primary.maxX < landscape.secondary.minX)
+    }
+
+    @Test
+    func horizontalHingeUsesAvailableHeightAndPreservesPhysicalMargins() {
+        let fold = ViewReservedRegion(id: "fold", kind: .division, frame: Rect(x: 0, y: 393.5, width: 550, height: 0),
+            margins: EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+        let frames = AdaptiveSplitFrames(size: Size(width: 550, height: 835), horizontalSizeClass: .regular, division: fold)
+        #expect(frames.isExpanded)
+        #expect(frames.primary.maxY == 385.5)
+        #expect(frames.secondary.minY == 401.5)
+        #expect(frames.secondary.maxY == 835)
+    }
+
+    @Test
     func nativeTraitsPropagateToTheExistingViewTree() throws {
         let tester = ViewTester {
             AdaptiveTraitProbe()
@@ -148,6 +179,71 @@ struct AdaptiveLayoutTests {
     }
 
     @Test
+    func deferredWorkspacePolicyReservesNavigationClearanceOnFirstLayout() throws {
+        let tester = ViewTester {
+            NavigationStack {
+                GeometryReader { _ in
+                    AdaptiveWorkspaceOriginProbe(showsFiles: false)
+                        .navigationBarContentExtendsUnderNavigationBar()
+                }
+                .navigationTitle("Project")
+            }
+        }.setSize(Size(width: 669, height: 835)).performLayout()
+        #expect(try #require(tester.findNodeByAccessibilityIdentifier("workspace-accessory")).absoluteFrame().minY == 92)
+    }
+
+    @Test
+    func compositeWorkspaceKeepsItsOriginWhenScrollContentChanges() throws {
+        var showsFiles = false
+        let tester = ViewTester {
+            NavigationStack {
+                AdaptiveWorkspaceOriginProbe(showsFiles: showsFiles)
+                    .navigationBarContentExtendsUnderNavigationBar()
+                    .navigationTitle("Project")
+            }
+        }.setSize(Size(width: 600, height: 700)).performLayout()
+        let before = try #require(tester.findNodeByAccessibilityIdentifier("workspace-accessory")).absoluteFrame()
+        #expect(before.minY == 92)
+        showsFiles = true
+        tester.invalidateContent().performLayout()
+        let files = try #require(tester.findNodeByAccessibilityIdentifier("workspace-accessory")).absoluteFrame()
+        #expect(files == before)
+        showsFiles = false
+        tester.invalidateContent().performLayout()
+        #expect(try #require(tester.findNodeByAccessibilityIdentifier("workspace-accessory")).absoluteFrame() == before)
+    }
+
+    @Test
+    func sideControlsAvoidTopAndBottomOcclusionsAfterRotation() throws {
+        let actions = AdaptiveActionCounter()
+        let tester = ViewTester {
+            NavigationStack {
+                Color.clear.navigationTitle("Project")
+                    .navigationBarTrailingItems { AdaptiveNavigationControls(actions: actions) }
+            }
+            .environment(\.displaySafeAreaInsets, EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 80))
+        }.setSize(Size(width: 600, height: 700))
+        tester.containerView.userInterfaceIdiom = .phone
+        tester.containerView.reservedRegions = [
+            ViewReservedRegion(id: "camera", kind: .occlusion, frame: Rect(x: 520, y: 0, width: 80, height: 160),
+                margins: EdgeInsets(top: 0, leading: 0, bottom: 12, trailing: 0)),
+            ViewReservedRegion(id: "bottom", kind: .occlusion, frame: Rect(x: 520, y: 520, width: 80, height: 180))
+        ]
+        tester.performLayout()
+        let first = try #require(tester.findNodeByAccessibilityIdentifier("adaptive-first")).absoluteFrame()
+        let second = try #require(tester.findNodeByAccessibilityIdentifier("adaptive-second")).absoluteFrame()
+        #expect(first.minY >= 172)
+        #expect(second.maxY < 520)
+        tester.containerView.reservedRegions.removeFirst()
+        tester.performLayout()
+        let rotated = try #require(tester.findNodeByAccessibilityIdentifier("adaptive-first")).absoluteFrame()
+        #expect(rotated.minY == 16)
+        tester.sendMouseEvent(at: Point(rotated.midX, rotated.midY), phase: .began)
+        tester.sendMouseEvent(at: Point(rotated.midX, rotated.midY), phase: .ended)
+        #expect(actions.count == 1)
+    }
+
+    @Test
     func sideNavigationControlsReflowAndStayInteractive() throws {
         let actions = AdaptiveActionCounter()
         let tester = ViewTester {
@@ -174,6 +270,28 @@ struct AdaptiveLayoutTests {
         let flatSecond = try #require(tester.findNodeByAccessibilityIdentifier("adaptive-second")).visualAbsoluteFrame()
         #expect(abs(flatFirst.midY - flatSecond.midY) < 0.5)
         #expect(flatSecond.minX >= flatFirst.maxX)
+    }
+}
+
+private struct AdaptiveWorkspaceOriginProbe: View {
+    @Environment(\.navigationBarContentInset) private var topInset
+    let showsFiles: Bool
+
+    var body: some View {
+        GeometryReader { _ in
+            ZStack(anchor: .topLeading) {
+                if showsFiles {
+                    ScrollView(.vertical, respectsSafeArea: false, extendsUnderNavigationBar: true) {
+                        Color.clear.frame(height: 1000)
+                    }
+                } else {
+                    Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                Color.red.frame(width: 40, height: 40)
+                    .accessibilityIdentifier("workspace-accessory")
+                    .padding(.top, topInset)
+            }
+        }
     }
 }
 

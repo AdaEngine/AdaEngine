@@ -163,6 +163,26 @@ struct LiquidGlassTabBarStyleTests {
     }
 
     @Test(arguments: [Float(20), Float(6)])
+    func verticalTabsStayAboveBottomCamera(occlusionMargin: Float) throws {
+        let tester = ViewTester {
+            TabView(selection: .constant(0)) {
+                Tab("Build", value: 0) { Color.clear }
+                Tab("Files", value: 1) { Color.clear }
+            }
+            .tabViewPosition(.automatic)
+            .tabViewStyle(LiquidGlassTabBarStyle())
+            .environment(\.displaySafeAreaInsets, EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 80))
+        }.setSize(Size(width: 600, height: 700))
+        tester.containerView.userInterfaceIdiom = .phone
+        tester.containerView.reservedRegions = [ViewReservedRegion(id: "camera", kind: .occlusion,
+            frame: Rect(x: 520, y: 350, width: 80, height: 350),
+            margins: EdgeInsets(top: occlusionMargin, leading: 0, bottom: 0, trailing: 0))]
+        tester.performLayout()
+        let files = try #require(tester.findNodeByAccessibilityIdentifier("AdaUI.TabView.Tab.1")).visualAbsoluteFrame()
+        #expect(files.maxY <= 350 - occlusionMargin)
+    }
+
+    @Test(arguments: [Float(20), Float(6)])
     func bottomTabBarStaysAtScreenBottomWhenKeyboardAppears(bottomPadding: Float) throws {
         let tester = ViewTester {
             TabView(selection: Binding<Int>(get: { 0 }, set: { _ in })) {

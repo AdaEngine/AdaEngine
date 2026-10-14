@@ -276,6 +276,7 @@ struct MobileEditorRootView: View {
                     ))
                 )
                 .navigationBarContentExtendsIntoSideControls()
+                .navigationBarContentExtendsUnderNavigationBar()
                 .navigationTitle(project.title)
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                 .navigationTitlePosition(.center)
@@ -283,6 +284,9 @@ struct MobileEditorRootView: View {
                 .navigationBarColor(theme.editorColors.background)
                 .navigationBarTrailingItems {
                     navigationControlsLayout {
+                        if navigationBarControlsAxis == .vertical {
+                            creditsBadge
+                        }
                         if runningProjectID == id, !isVoicePresented {
                             Button { agentOperation?.cancel() } label: {
                                 Text("\u{E047}")
@@ -302,6 +306,15 @@ struct MobileEditorRootView: View {
                                     .environment(\.font, AdaEditorMaterialSymbolFont.font(size: 25))
                             }
                             .accessibilityIdentifier("AdaEditor.Mobile.WorkspaceSettings")
+                        }
+                        if navigationBarControlsAxis == .vertical, !isPromptPresented, !isVoicePresented {
+                            Button { preparePlay(for: id) } label: {
+                                Text("\u{E037}")
+                                    .foregroundColor(theme.editorColors.text)
+                                    .font(AdaEditorMaterialSymbolFont.font(size: 24))
+                                    .frame(width: 40, height: 40)
+                            }
+                            .accessibilityIdentifier("AdaEditor.Mobile.WorkspacePlay")
                         }
                     }
                 }
