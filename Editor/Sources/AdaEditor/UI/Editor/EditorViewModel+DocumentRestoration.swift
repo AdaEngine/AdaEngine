@@ -26,7 +26,7 @@ extension EditorViewModel {
         do {
             let data = try JSONEncoder().encode(EditorDocumentSession(relativePath: path))
             try fileManager.createDirectory(at: sessionURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try data.write(to: sessionURL, options: .atomic)
+            try EditorAtomicFileWriter.write(data, to: sessionURL)
             lastRememberedProjectFile = path
         } catch {
             appendOutput("Unable to remember the active file: \(error.localizedDescription)")

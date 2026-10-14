@@ -347,7 +347,7 @@ extension EditorTileSourceEditorModel {
             candidate["tileSize"] = tileSize
         }
         let data = Data(try Yams.dump(object: candidate).utf8)
-        try data.write(to: url, options: .atomic)
+        try EditorAtomicFileWriter.write(data, to: url)
         root = candidate
         sources = updated
         savedData = data

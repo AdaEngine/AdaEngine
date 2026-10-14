@@ -16,6 +16,7 @@ struct TextLayoutCachingTests {
         layoutManager.fitToSize(.infinity)
 
         #expect(layoutManager.layoutRevision == 1)
+        #expect(layoutManager.boundingSize() == .zero)
     }
 
     @Test

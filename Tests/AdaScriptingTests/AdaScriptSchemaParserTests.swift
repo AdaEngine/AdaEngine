@@ -184,6 +184,23 @@ struct AdaScriptSchemaParserTests {
             )
         ])
     }
+
+    @Test("Finds scriptables after a CRLF line comment and helper class")
+    func parsesScriptablesAfterCRLFCommentAndHelperClass() throws {
+        let schemas = try AdaScriptSchemaParser.parseScriptables(sources: [
+            AdaScriptCompilerSource(
+                path: "Flight.ada",
+                source: [
+                    "// A helper shared by the runtime objects.",
+                    "class FlightState { static var worlds = [:]; }",
+                    "@scriptable(id: \"unfold.gate\")",
+                    "class Gate { @export var gateOpen = false; }",
+                ].joined(separator: "\r\n")
+            )
+        ])
+
+        #expect(schemas.map(\.id) == ["unfold.gate"])
+    }
 }
 
 extension AdaScriptSchemaParserTests {

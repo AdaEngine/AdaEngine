@@ -177,7 +177,7 @@ extension EditorViewModel {
             return
         }
 
-        try result.manifest.write(to: manifestURL, atomically: true, encoding: .utf8)
+        try EditorAtomicFileWriter.write(result.manifest, to: manifestURL)
         appendOutput("Updated Package.swift to copy Assets into the executable bundle.")
     }
 

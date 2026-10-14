@@ -17,7 +17,7 @@ struct Lexer {
             if source[index].isWhitespace {
                 advance()
             } else if hasPrefix("//") {
-                while index < source.endIndex, source[index] != "\n" { advance() }
+                while index < source.endIndex, !source[index].isNewline { advance() }
             } else if hasPrefix("/*") {
                 advance(2)
                 while index < source.endIndex, !hasPrefix("*/") { advance() }
@@ -81,7 +81,7 @@ struct Lexer {
 
     private mutating func advance(_ distance: Int = 1) {
         for _ in 0..<distance where index < source.endIndex {
-            if source[index] == "\n" {
+            if source[index].isNewline {
                 line += 1
             }
             index = source.index(after: index)

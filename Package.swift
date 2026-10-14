@@ -1272,7 +1272,7 @@ package.dependencies += [
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
     .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "0.2.1"),
     .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.7.3"),
-    .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", from: "0.36.0"),
+    .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", .upToNextMinor(from: "0.53.0")),
     // TODO: SpectralDragon packages should move to AdaEngine
     .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     // Plugins
@@ -1283,7 +1283,10 @@ package.dependencies += [
 
 if !isHeadlessCIEnabled {
     package.dependencies.append(
-        .package(url: "https://github.com/adobe/swan", .upToNextMinor(from: "0.0.8"))
+        .package(
+            url: "https://github.com/AdaEngine/swan.git",
+            revision: "1eb45a22c79439b50e9cde774454450e50147149"
+        )
     )
 }
 

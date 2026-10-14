@@ -81,10 +81,26 @@ struct EditorSelectionHintTests {
     }
 
     private func editorNode(in node: ViewNode) -> TextEditorViewNode? {
+        var visitedNodes = Set<ObjectIdentifier>()
+        return editorNode(in: node, visitedNodes: &visitedNodes)
+    }
+
+    private func editorNode(
+        in node: ViewNode,
+        visitedNodes: inout Set<ObjectIdentifier>
+    ) -> TextEditorViewNode? {
+        guard visitedNodes.insert(node.id).inserted else {
+            return nil
+        }
         if let editor = node as? TextEditorViewNode {
             return editor
         }
-        return node.transientEnvironmentChildren.lazy.compactMap { editorNode(in: $0) }.first
+        for child in node.transientEnvironmentChildren {
+            if let editor = editorNode(in: child, visitedNodes: &visitedNodes) {
+                return editor
+            }
+        }
+        return nil
     }
 
     private func prepareRenderer() {
@@ -93,6 +109,7 @@ struct EditorSelectionHintTests {
             RenderWorldPlugin().setup(in: AppWorlds(main: World(name: "SelectionHint")))
         }
     }
+
 }
 
 private struct SelectionHintCodeView: View {

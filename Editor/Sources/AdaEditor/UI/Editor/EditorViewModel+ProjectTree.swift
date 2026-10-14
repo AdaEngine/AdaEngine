@@ -110,7 +110,31 @@ extension EditorViewModel {
     }
 
     static func absoluteFilePath(from path: String) -> String? {
-        path.hasPrefix("/") ? path : nil
+        #if os(Windows)
+            let normalizedPath = normalizedFileSystemPath(path)
+            let hasDrivePrefix = normalizedPath.count >= 3
+                && normalizedPath[normalizedPath.index(after: normalizedPath.startIndex)] == ":"
+                && normalizedPath[normalizedPath.index(normalizedPath.startIndex, offsetBy: 2)] == "/"
+            return hasDrivePrefix || normalizedPath.hasPrefix("//") ? normalizedPath : nil
+        #else
+            return path.hasPrefix("/") ? path : nil
+        #endif
+    }
+
+    static func normalizedFileSystemPath(_ path: String) -> String {
+        var normalizedPath = path.replacingOccurrences(of: "\\", with: "/")
+        #if os(Windows)
+            if normalizedPath.count >= 3,
+                normalizedPath.first == "/",
+                normalizedPath[normalizedPath.index(normalizedPath.startIndex, offsetBy: 2)] == ":"
+            {
+                normalizedPath.removeFirst()
+            }
+        #endif
+        while normalizedPath.count > 3, normalizedPath.hasSuffix("/") {
+            normalizedPath.removeLast()
+        }
+        return normalizedPath
     }
 
     static func buildProjectTreeItems(at projectURL: URL, fileManager: FileManager) -> [EditorProjectSidebarViewModel.Item] {
@@ -378,15 +402,23 @@ extension EditorViewModel {
     }
 
     static func relativePath(for url: URL, projectURL: URL) -> String {
-        let projectPath = projectURL.standardizedFileURL.path
-        let path = url.standardizedFileURL.path
+        let projectPath = normalizedFileSystemPath(projectURL.standardizedFileURL.path)
+        let path = normalizedFileSystemPath(url.standardizedFileURL.path)
 
-        guard path.hasPrefix(projectPath) else {
+        #if os(Windows)
+            let pathMatchesProject = path.lowercased() == projectPath.lowercased()
+                || path.lowercased().hasPrefix("\(projectPath.lowercased())/")
+        #else
+            let pathMatchesProject = path == projectPath || path.hasPrefix("\(projectPath)/")
+        #endif
+        guard pathMatchesProject else {
             return url.lastPathComponent
         }
 
         let startIndex = path.index(path.startIndex, offsetBy: projectPath.count)
-        return String(path[startIndex...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return String(path[startIndex...])
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
+            .replacingOccurrences(of: "\\", with: "/")
     }
 
     static func projectTreeSort(lhs: URL, rhs: URL) -> Bool {

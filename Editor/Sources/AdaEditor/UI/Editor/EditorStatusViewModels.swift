@@ -119,8 +119,8 @@ extension GitRepositoryService {
         let runner = EditorProcessRunner()
         let branch = await runner.run(
             EditorProcessCommand(
-                executablePath: "/usr/bin/git",
-                arguments: ["symbolic-ref", "--quiet", "--short", "HEAD"],
+                executablePath: EditorGitCommand.executablePath,
+                arguments: EditorGitCommand.arguments(["symbolic-ref", "--quiet", "--short", "HEAD"]),
                 workingDirectory: projectURL
             )
         )
@@ -130,8 +130,8 @@ extension GitRepositoryService {
         }
         let head = await runner.run(
             EditorProcessCommand(
-                executablePath: "/usr/bin/git",
-                arguments: ["rev-parse", "--verify", "HEAD"],
+                executablePath: EditorGitCommand.executablePath,
+                arguments: EditorGitCommand.arguments(["rev-parse", "--verify", "HEAD"]),
                 workingDirectory: projectURL
             )
         )

@@ -164,11 +164,11 @@ final class EditorAgentSceneToolService {
             createdAt: Date()
         )
 
-        try afterContent.write(to: sceneURL, atomically: true, encoding: .utf8)
+        try EditorAtomicFileWriter.write(afterContent, to: sceneURL)
         do {
             try save(record)
         } catch {
-            try beforeContent.write(to: sceneURL, atomically: true, encoding: .utf8)
+            try EditorAtomicFileWriter.write(beforeContent, to: sceneURL)
             throw error
         }
 
@@ -196,7 +196,7 @@ final class EditorAgentSceneToolService {
             throw EditorAgentSceneToolError.undoConflict(expected: record.afterRevision, actual: currentRevision)
         }
 
-        try record.beforeContent.write(to: sceneURL, atomically: true, encoding: .utf8)
+        try EditorAtomicFileWriter.write(record.beforeContent, to: sceneURL)
         try fileManager.removeItem(at: recordURL)
         return try snapshot(relativePath: record.relativePath)
     }
@@ -365,11 +365,10 @@ final class EditorAgentSceneToolService {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(record)
-            .write(
-                to: changesDirectoryURL.appendingPathComponent("\(record.id).json"),
-                options: [.atomic]
-            )
+        try EditorAtomicFileWriter.write(
+            encoder.encode(record),
+            to: changesDirectoryURL.appendingPathComponent("\(record.id).json")
+        )
     }
 
     private var changesDirectoryURL: URL {

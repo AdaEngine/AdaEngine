@@ -23,7 +23,9 @@ final class EditorProjectOpenURLRouter {
         self.observer = notificationCenter.addObserver(
             forName: notificationName,
             object: nil,
-            queue: .main
+            // Application URL notifications are posted on the main actor. Delivering
+            // synchronously also avoids OperationQueue.main deadlocks on Windows.
+            queue: nil
         ) { [weak self] notification in
             guard let url = notification.object as? URL else {
                 return

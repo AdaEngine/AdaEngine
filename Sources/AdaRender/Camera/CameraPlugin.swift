@@ -191,7 +191,9 @@ func ConfigurateRenderViewTarget(
                 return
             }
             guard let drawable = surface.currentDrawable else {
-                logger.error("Failed to configurate render view target for window \(ref). Drawable not exists.")
+                // A drawable may be temporarily unavailable while a window is being
+                // created, resized, minimized, or restored. Skip this frame quietly.
+                logger.debug("Render view target for window \(ref) has no drawable yet.")
                 return
             }
             renderViewTarget.outputTexture = RenderTexture(

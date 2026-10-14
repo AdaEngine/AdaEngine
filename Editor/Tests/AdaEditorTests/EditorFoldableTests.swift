@@ -51,6 +51,7 @@ struct EditorFoldableTests {
         let root = demoRoot
         let project = try ProjectSystem.loadProject(at: root)
         let catalog = try EditorScriptableObjectCatalogLoader.load(project: project, at: root)
+        #expect(Set(catalog.descriptors.map(\.identifier)) == ["unfold.drone", "unfold.gate"])
         let world = World(name: "Unfold demo")
         var app = AppWorlds(main: world)
         InputPlugin().setup(in: app)
@@ -59,6 +60,8 @@ struct EditorFoldableTests {
         world.insertResource(DeltaTime(deltaTime: 0.05))
         world.insertResource(DisplayLayout.foldable(expanded: false))
         try catalog.playRuntime.install(in: &app)
+        #expect(ScriptableObjectRegistry.descriptor(named: "unfold.drone") != nil)
+        #expect(ScriptableObjectRegistry.descriptor(named: "unfold.gate") != nil)
         let source = try String(contentsOf: root.appendingPathComponent("Assets/Scenes/Main.ascn"), encoding: .utf8)
         let loaded = EditorSceneFileLoader.load(content: source, into: world, resourceRootURL: root.appendingPathComponent("Assets"))
         #expect(loaded.warnings.isEmpty, "\(loaded.warnings)")
@@ -101,7 +104,7 @@ struct EditorFoldableTests {
         scene.addComponent(typeName: type, to: entityID)
         scene.updateField(typeName: type, field: .init(key: "path", label: "UI", kind: .string), value: "@res://Missing.ui", in: entityID)
         let result = EditorSceneFileLoader.load(content: try scene.encodedYAML(), into: World(), resourceRootURL: demoRoot.appendingPathComponent("Assets"))
-        #expect(result.warnings.contains { $0.contains("Missing.ui") })
+        #expect(result.warnings.contains { $0.contains("Missing.ui") }, "\(result.warnings)")
     }
 
     @Test func adaptiveContainerKeepsOneRuntimeAcrossLayoutChanges() async throws {

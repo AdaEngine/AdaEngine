@@ -2,7 +2,15 @@ import Testing
 @testable import AdaEngine
 
 @MainActor
+@Suite(.serialized)
 struct AdaUIDebug3DTests {
+    init() {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            RenderWorldPlugin().setup(in: AppWorlds(main: World(name: "Ada UI Debug 3D Tests")))
+        }
+    }
+
     @Test
     func projectionPreservesDepthAndScaledFrames() {
         let root = makeNode(

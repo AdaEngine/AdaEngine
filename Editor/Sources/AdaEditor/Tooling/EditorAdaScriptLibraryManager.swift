@@ -89,7 +89,7 @@ actor EditorAdaScriptLibraryManager {
             for (path, data) in download.files {
                 let file = try AdaScriptLibraryLock.containedURL(path, in: root)
                 try fileManager.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try data.write(to: file, options: .atomic)
+                try EditorAtomicFileWriter.write(data, to: file)
             }
         }
         _ = try lock.loadSources(at: projectURL)
@@ -97,7 +97,7 @@ actor EditorAdaScriptLibraryManager {
         try fileManager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        try encoder.encode(lock).write(to: destination, options: .atomic)
+        try EditorAtomicFileWriter.write(encoder.encode(lock), to: destination)
         committed = true
         return lock
     }

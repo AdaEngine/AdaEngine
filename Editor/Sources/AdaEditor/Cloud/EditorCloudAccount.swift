@@ -1,3 +1,4 @@
+#if canImport(AuthenticationServices) && canImport(CryptoKit) && canImport(Security) && canImport(StoreKit)
 import AuthenticationServices
 import CryptoKit
 import Foundation
@@ -489,3 +490,128 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
         }
     }
 }
+#else
+import Foundation
+import Observation
+
+@MainActor
+@Observable
+final class EditorCloudAccount {
+    static let shared = EditorCloudAccount()
+    static let settingKeys = [
+        "appearance.agentActivityGlowEnabled",
+        "appearance.agentGlowAccent",
+        "appearance.agentGlowRadius",
+        "appearance.agentGlowOpacity",
+        "editor.fontSize",
+    ]
+
+    var server = ProcessInfo.processInfo.environment["ADA_CLOUD_API_URL"]
+        ?? UserDefaults.standard.string(forKey: "AdaEditor.cloud.server")
+        ?? (Bundle.main.object(forInfoDictionaryKey: "AdaCloudAPIURL") as? String ?? "")
+    var status = "Cloud account features are unavailable on this platform."
+    var busy = false
+    var accountID: String?
+    var pro = false
+    var cloudServicesAvailable = false
+    var billingAvailable = false
+    var publicationURL: String?
+    var expiresAt: Date?
+    var applySettings: ((EditorCloudValue) -> Void)?
+
+    func start() {}
+
+    func perform(_ work: @escaping @MainActor () async throws -> Void) {
+        guard !busy else {
+            return
+        }
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                try await work()
+            } catch {
+                status = error.localizedDescription
+            }
+        }
+    }
+
+    func signInOnWebsite() async throws {
+        throw CloudError.message("Cloud sign-in is unavailable on this platform.")
+    }
+
+    func refreshPlan() async throws {
+        throw CloudError.message("Cloud billing is unavailable on this platform.")
+    }
+
+    func signOut() async throws {
+        accountID = nil
+        pro = false
+        cloudServicesAvailable = false
+        billingAvailable = false
+    }
+
+    func sync() async throws {
+        throw CloudError.message("Cloud settings sync is unavailable on this platform.")
+    }
+
+    func buyPro() async throws {
+        throw CloudError.message("Cloud billing is unavailable on this platform.")
+    }
+
+    func restorePurchases() async throws {
+        throw CloudError.message("App Store purchases are unavailable on this platform.")
+    }
+
+    func publish(zip _: URL, mode _: String = "invite", pageID _: String? = nil) async throws {
+        throw CloudError.message("Cloud publishing is unavailable on this platform.")
+    }
+
+    static func isAllowedCloudURL(_ url: URL) -> Bool {
+        guard url.host != nil, url.user == nil, url.password == nil else {
+            return false
+        }
+        if url.scheme == "https" {
+            return true
+        }
+        #if DEBUG
+            return url.scheme == "http" && ["localhost", "127.0.0.1", "::1"].contains(url.host ?? "")
+        #else
+            return false
+        #endif
+    }
+
+    static func exchangeCode(from url: URL, expectedState: String) throws -> String {
+        guard
+            url.scheme == "adaeditor", url.host == "cloud", url.path == "/callback", url.fragment == nil,
+            let parts = URLComponents(url: url, resolvingAgainstBaseURL: false), let items = parts.queryItems,
+            items.filter({ $0.name == "state" }).count == 1,
+            items.first(where: { $0.name == "state" })?.value == expectedState,
+            items.filter({ $0.name == "code" }).count == 1,
+            let code = items.first(where: { $0.name == "code" })?.value,
+            code.count == 43, code.range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil
+        else {
+            throw CloudError.message("Invalid sign-in callback. Please start sign-in again.")
+        }
+        return code
+    }
+
+    static func base64URL(_ data: Data) -> String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    enum CloudError: LocalizedError {
+        case message(String)
+
+        var errorDescription: String? {
+            switch self {
+            case let .message(message):
+                message
+            }
+        }
+    }
+}
+#endif

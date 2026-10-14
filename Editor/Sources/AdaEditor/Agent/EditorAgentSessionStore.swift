@@ -60,7 +60,7 @@ actor EditorAgentSessionStore {
 
     func saveSession(_ session: EditorAgentSession, makeActive: Bool) throws {
         try ensureDirectories()
-        try encoder.encode(session).write(to: sessionURL(id: session.id), options: [.atomic])
+        try EditorAtomicFileWriter.write(encoder.encode(session), to: sessionURL(id: session.id))
 
         var index = try loadIndex()
         let summary = EditorAgentSessionSummary(session: session)
@@ -96,7 +96,7 @@ actor EditorAgentSessionStore {
 
     private func saveIndex(_ index: EditorAgentSessionIndex) throws {
         try ensureDirectories()
-        try encoder.encode(index).write(to: indexURL, options: [.atomic])
+        try EditorAtomicFileWriter.write(encoder.encode(index), to: indexURL)
     }
 
     private func ensureDirectories() throws {

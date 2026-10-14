@@ -854,7 +854,7 @@ enum EditorAgentPromptContext {
         func handleFileWriteRequest(_ path: String, content: String, sessionId _: String) async throws -> WriteTextFileResponse {
             let url = try resolvedProjectURL(path)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try content.write(to: url, atomically: true, encoding: .utf8)
+            try EditorAtomicFileWriter.write(content, to: url)
             await onProjectFileChanged(relativePath(for: url))
             return WriteTextFileResponse()
         }

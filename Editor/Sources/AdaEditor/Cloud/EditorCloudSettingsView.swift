@@ -1,6 +1,9 @@
 @_spi(AdaEngine) import AdaEngine
 import Foundation
-import UniformTypeIdentifiers
+
+#if canImport(UniformTypeIdentifiers)
+    import UniformTypeIdentifiers
+#endif
 
 #if os(macOS)
     import AppKit

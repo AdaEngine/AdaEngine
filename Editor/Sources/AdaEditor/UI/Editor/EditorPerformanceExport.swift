@@ -19,7 +19,7 @@ enum EditorPerformanceExport {
                     return
                 }
                 do {
-                    try data.write(to: url, options: .atomic)
+                    try EditorAtomicFileWriter.write(data, to: url)
                     completion(nil)
                 } catch { completion(error.localizedDescription) }
             }
@@ -37,7 +37,7 @@ enum EditorPerformanceExport {
                 let directory = FileManager.default.temporaryDirectory.appendingPathComponent("AdaEditorPerformanceExport", isDirectory: true)
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 let url = directory.appendingPathComponent(name)
-                try data.write(to: url, options: .atomic)
+                try EditorAtomicFileWriter.write(data, to: url)
                 let picker = UIDocumentPickerViewController(forExporting: [url], asCopy: true)
                 presenter.present(picker, animated: true)
                 completion(nil)

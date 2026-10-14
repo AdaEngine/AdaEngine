@@ -431,7 +431,10 @@ final class FontAtlasGenerator: Sendable {
                 return
             }
 
-            #if WASM
+            #if WASM || os(Windows)
+                // Foundation's atomic replacement currently calls the unimplemented
+                // FileManager.replaceItemAt on Windows. A corrupt cache is harmless:
+                // it is rejected and regenerated on the next load.
                 try self.encodeCachedAtlas(atlas).write(to: file)
             #else
                 try self.encodeCachedAtlas(atlas).write(to: file, options: .atomic)

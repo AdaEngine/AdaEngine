@@ -871,6 +871,39 @@
             }
             return 0
 
+        case UInt32(WM_UNICHAR):
+            if wParam == WPARAM(UNICODE_NOCHAR) {
+                return 1
+            }
+
+            Task { @MainActor in
+                guard
+                    let scalar = UnicodeScalar(UInt32(truncatingIfNeeded: wParam)),
+                    let windowManager = window.windowManager as? WindowsWindowManager,
+                    let inputRef = windowManager.inputRef
+                else {
+                    return
+                }
+
+                let text = String(scalar)
+                let hasPrintableScalar = text.unicodeScalars.contains { value in
+                    value.value >= 0x20 && value.value != 0x7F
+                }
+                guard hasPrintableScalar else {
+                    return
+                }
+
+                inputRef.wrappedValue.receiveEvent(
+                    TextInputEvent(
+                        window: window.id,
+                        text: text,
+                        action: .insert,
+                        time: getCurrentTime()
+                    )
+                )
+            }
+            return 0
+
         case UInt32(WM_CHAR),
             UInt32(WM_SYSCHAR):
             Task { @MainActor in

@@ -3,6 +3,7 @@ import Foundation
 
 extension EditorViewModel {
     func runOnAdaPlayer() {
+        #if canImport(Network)
         guard let projectURL else {
             return
         }
@@ -51,5 +52,8 @@ extension EditorViewModel {
             playerPairingWindow = window
             window.showWindow(makeFocused: true)
         } catch { appendOutput("AdaPlayer: \(error.localizedDescription)") }
+        #else
+        appendOutput("AdaPlayer discovery is unavailable on this platform.")
+        #endif
     }
 }

@@ -136,7 +136,6 @@
                 return WebGPU.GPUFragmentState(
                     module: wgpuShader.shader,
                     entryPoint: wgpuShader.entryPoint,
-                    constants: [:],
                     targets: descriptor.colorAttachments.map(makeColorTargetState)
                 )
             }
@@ -165,14 +164,21 @@
         private static func makeDepthStencilState(from descriptor: RenderPipelineDescriptor) -> WebGPU.GPUDepthStencilState? {
             descriptor.depthStencilDescriptor.map { depthDesc in
                 let stencilOp = depthDesc.stencilOperationDescriptor
+                #if WASM
+                    let depthWriteEnabled = depthDesc.isDepthWriteEnabled
+                    let stencilMask = -1
+                #else
+                    let depthWriteEnabled: WebGPU.GPUOptionalBool = depthDesc.isDepthWriteEnabled ? .true : .false
+                    let stencilMask = UInt32.max
+                #endif
                 return WebGPU.GPUDepthStencilState(
                     format: descriptor.depthPixelFormat.toWebGPU,
-                    depthWriteEnabled: depthDesc.isDepthWriteEnabled,
+                    depthWriteEnabled: depthWriteEnabled,
                     depthCompare: depthDesc.depthCompareOperator.toWebGPU,
                     stencilFront: Self.makeStencilFaceState(from: stencilOp),
                     stencilBack: Self.makeStencilFaceState(from: stencilOp),
-                    stencilReadMask: -1,
-                    stencilWriteMask: -1,
+                    stencilReadMask: stencilMask,
+                    stencilWriteMask: stencilMask,
                     depthBias: 0,
                     depthBiasSlopeScale: 0,
                     depthBiasClamp: 0

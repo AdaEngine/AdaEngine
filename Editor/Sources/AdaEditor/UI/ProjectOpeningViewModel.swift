@@ -452,7 +452,20 @@ final class ProjectOpeningViewModel {
         guard let project else {
             return "Never"
         }
-        return Self.relativeDateFormatter.localizedString(for: project.lastOpenedAt, relativeTo: Date())
+        let seconds = Int(Date().timeIntervalSince(project.lastOpenedAt))
+        if seconds < 60 {
+            return "Just now"
+        }
+        let minutes = seconds / 60
+        if minutes < 60 {
+            return "\(minutes) min ago"
+        }
+        let hours = minutes / 60
+        if hours < 24 {
+            return "\(hours) hr ago"
+        }
+        let days = hours / 24
+        return "\(days) day\(days == 1 ? "" : "s") ago"
     }
 
     func consumeProjectToOpenInEditor() -> EditorProjectReference? {
@@ -479,26 +492,13 @@ final class ProjectOpeningViewModel {
         EditorProjectPathDisplayFormatter.string(for: path)
     }
 
-    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter
-    }()
-
     private func initializeGitRepositoryIfNeeded(at path: String) -> String? {
         #if os(macOS) || os(Linux) || os(Windows)
-            let command: [String]
-            #if os(Windows)
-                command = ["git", "init"]
-            #else
-                command = ["/usr/bin/env", "git", "init"]
-            #endif
-
             let process = Process()
             let output = Pipe()
             let error = Pipe()
-            process.executableURL = URL(fileURLWithPath: command[0])
-            process.arguments = Array(command.dropFirst())
+            process.executableURL = URL(fileURLWithPath: EditorGitCommand.executablePath)
+            process.arguments = EditorGitCommand.arguments(["init"])
             process.currentDirectoryURL = URL(fileURLWithPath: path, isDirectory: true)
             process.standardOutput = output
             process.standardError = error

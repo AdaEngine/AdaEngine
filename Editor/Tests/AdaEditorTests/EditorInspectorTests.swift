@@ -55,6 +55,10 @@ struct EditorInspectorTests {
     @Test("Add Component uses a full modal and adds the selected component")
     @MainActor
     func addComponentUsesFullModal() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            RenderWorldPlugin().setup(in: AppWorlds(main: World(name: "EditorInspectorTests")))
+        }
         let viewModel = EditorInspectorSidebarViewModel()
         viewModel.selectEntity(
             EditorInspectorSidebarViewModel.SelectedEntity(

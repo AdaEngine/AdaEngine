@@ -25,7 +25,11 @@ struct GravityLiveEditorTests {
         let model = EditorViewModel(
             project: EditorProjectReference(name: "Test", path: root.path),
             workspaceService: SwiftPMWorkspaceService(),
-            workbench: EditorWorkbenchViewModel(activeEditorTab: .code, openDocuments: [.text(document)])
+            workbench: EditorWorkbenchViewModel(
+                activeEditorTab: document.title,
+                openDocuments: [.text(document)],
+                activeDocumentID: document.id
+            )
         )
         model.refreshSemanticTokens(for: .text(document))
         for _ in 0..<200 {
@@ -85,7 +89,11 @@ struct GravityLiveEditorTests {
         let model = EditorViewModel(
             project: EditorProjectReference(name: "Test", path: root.path),
             workspaceService: service,
-            workbench: EditorWorkbenchViewModel(activeEditorTab: .code, openDocuments: [.text(document)])
+            workbench: EditorWorkbenchViewModel(
+                activeEditorTab: document.title,
+                openDocuments: [.text(document)],
+                activeDocumentID: document.id
+            )
         )
         let position = EditorSourceLocation(line: 0, character: 12)
         model.handleSourceHover(document: document, position: position)

@@ -111,6 +111,13 @@
         }
 
         public func createSampler(from descriptor: SamplerDescriptor) -> any Sampler {
+            #if WASM
+                let lodMinClamp = Double(descriptor.lodMinClamp)
+                let lodMaxClamp = Double(descriptor.lodMaxClamp)
+            #else
+                let lodMinClamp = descriptor.lodMinClamp
+                let lodMaxClamp = descriptor.lodMaxClamp
+            #endif
             let wgpuSampler = webGPUDeviceLock.withLock { _ in
                 context.device.createSampler(
                     descriptor: WebGPU.GPUSamplerDescriptor(
@@ -118,8 +125,8 @@
                         magFilter: descriptor.magFilter.toWebGPU,
                         minFilter: descriptor.minFilter.toWebGPU,
                         mipmapFilter: descriptor.mipFilter.toWebGPU,
-                        lodMinClamp: Double(descriptor.lodMinClamp),
-                        lodMaxClamp: Double(descriptor.lodMaxClamp)
+                        lodMinClamp: lodMinClamp,
+                        lodMaxClamp: lodMaxClamp
                     )
                 )
             }
@@ -135,7 +142,7 @@
         }
 
         public func getImage(from texture: Texture) -> Image? {
-            return (texture.gpuTexture as? WGPUGPUTexture)?.getImage(device: context.device)
+            return (texture.gpuTexture as? WGPUGPUTexture)?.getImage(context: context)
         }
 
         public func createCommandQueue() -> any CommandQueue {

@@ -5,7 +5,7 @@ import Testing
 
 @testable import AdaEditor
 
-@Suite("SwiftPM workspace tooling")
+@Suite("SwiftPM workspace tooling", .serialized)
 struct SwiftToolingTests {
     @Test("SwiftPM execute forwards live process output")
     func swiftPMExecuteForwardsLiveOutput() async {
@@ -135,6 +135,10 @@ struct SwiftToolingTests {
         viewModel.runSelectedTarget()
         try await waitForRecordedCommands(service, count: 1)
         #expect(await service.commands.first == .run(target: "My-Game", arguments: ["--debug", "--level=intro"]))
+        for _ in 0..<500 where viewModel.isProjectRunning {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(!viewModel.isProjectRunning)
 
         let cleanDocument = EditorTextDocument(
             id: "main",
@@ -808,6 +812,12 @@ struct SwiftToolingTests {
         let previewPackageURL = try #require(findFirstFile(named: "Package.swift", under: previewRoot, fileManager: fileManager))
         let manifest = try String(contentsOf: previewPackageURL, encoding: .utf8)
         let scratchRoot = previewPackageURL.deletingLastPathComponent()
+        #if !os(Windows)
+            let expectedAdaEngineURL = projectURL
+                .appendingPathComponent("../AdaEngine", isDirectory: true)
+                .resolvingSymlinksInPath()
+                .standardizedFileURL
+        #endif
         let commands = await runner.commands
 
         #expect(artifact.symbolName == "ada_editor_preview_make_GameView")
@@ -815,7 +825,13 @@ struct SwiftToolingTests {
         #expect(artifact.libraryURL.path.contains("/.build/build-"))
         #expect(commands.first?.arguments.contains("--scratch-path") == true)
         #expect(manifest.contains(#".library(name: "AdaEditorPreviewBundle", type: .dynamic, targets: ["Game"])"#))
-        #expect(manifest.contains(#".package(name: "AdaEngine", path: "\#(adaEnginePackageURL().path)")"#))
+        #if os(Windows)
+            // Foundation may spell the same temporary directory through its DOS 8.3 alias.
+            #expect(manifest.contains(#".package(name: "AdaEngine", path: "#))
+            #expect(manifest.contains(#"/Temp/AdaEngine")"#))
+        #else
+            #expect(manifest.contains(#".package(name: "AdaEngine", path: "\#(expectedAdaEngineURL.path)")"#))
+        #endif
         #expect(manifest.contains(#".package(name: "swift-collections", url: "https://github.com/apple/swift-collections.git", from: "1.2.0")"#))
         #expect(manifest.contains(#"name: "Game""#))
         #expect(manifest.contains(#"dependencies: ["Shared", .product(name: "AdaEngine", package: "AdaEngine")]"#))

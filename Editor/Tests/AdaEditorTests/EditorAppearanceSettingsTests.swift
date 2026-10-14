@@ -16,6 +16,7 @@ struct EditorAppearanceSettingsTests {
             RenderWorldPlugin().setup(in: AppWorlds(main: World(name: "AppearanceSettingsUI")))
         }
         let model = EditorSettingsWindowViewModel(editorViewModel: nil, selectedSection: .general)
+        model.selectedPage = "APPEARANCE"
         let container = UIContainerView(rootView: EditorSettingsWindowView(viewModel: model).theme(.adaEditor))
         container.frame = Rect(x: 0, y: 0, width: 1000, height: 760)
         container.bounds.size = container.frame.size

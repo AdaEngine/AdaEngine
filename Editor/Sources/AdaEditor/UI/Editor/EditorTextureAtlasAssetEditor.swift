@@ -218,7 +218,7 @@ final class EditorTextureAtlasEditorModel {
             yaml.append("\n")
         }
         let data = Data(yaml.utf8)
-        try data.write(to: url, options: .atomic)
+        try EditorAtomicFileWriter.write(data, to: url)
         lastSavedData = data
     }
 

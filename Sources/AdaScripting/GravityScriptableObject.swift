@@ -392,6 +392,17 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
     private var classNamesByInstance: [Foundation.UUID: String] = [:]
     private var instances: [Foundation.UUID: GSValue] = [:]
 
+    deinit {
+        #if os(Windows)
+            _ = Unmanaged.passRetained(
+                WindowsRetainedGravityRuntime(
+                    delegate: delegate,
+                    virtualMachine: virtualMachine
+                )
+            )
+        #endif
+    }
+
     init(sources: [AdaScriptSource], schemas: [AdaScriptObjectSchema]) throws {
         let module = try GravityScriptModuleResolver.resolve(sources)
         let factoryNamesByClass = Dictionary(
@@ -414,24 +425,6 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
                 }
         )
         self.getterNamesByClass = getterNamesByClass
-        let delegate = AnnotatedGravityRuntimeDelegate(module: module)
-        self.delegate = delegate
-        let virtualMachine = GravityVirtualMachine(settings: .init(), delegate: delegate)
-        self.virtualMachine = virtualMachine
-
-        try virtualMachine.bindClass(with: GravityScriptableLifecycleContext.self)
-        try virtualMachine.bindClass(with: AnnotatedGravitySystemContext.self)
-        try virtualMachine.bindClass(with: AdaScriptInputBridge.self)
-        try virtualMachine.bindClass(with: AnnotatedGravityWorldContext.self)
-        try virtualMachine.bindClass(with: AnnotatedGravityCommandsBridge.self)
-        try virtualMachine.bindClass(with: AnnotatedGravityQueryBridge.self)
-        try virtualMachine.bindClass(with: AnnotatedGravityQueryRow.self)
-        try virtualMachine.bindClass(with: AnnotatedGravityComponentView.self)
-        try virtualMachine.bindClass(with: AnnotatedGravityResourceView.self)
-        try virtualMachine.bindClass(with: GravityAttachedComponentView.self)
-        try virtualMachine.bindClass(with: GravityAttachedResourceView.self)
-        try virtualMachine.bindClass(with: AdaScriptViewBridge.self)
-        virtualMachine.setValue(AdaScriptViewBridge(), forKey: "adaUIBuilder")
         let factories =
             factoryNamesByClass
             .map { className, factoryName in
@@ -448,14 +441,35 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
             }
             .sorted()
         let generatedSource = (factories + getters).joined(separator: "\n")
-        let binary = virtualMachine.loadGravityFile(from: module.entrySource + "\n" + generatedSource)
-        guard delegate.errors.isEmpty else {
-            throw AdaScriptError.compilation(delegate.errors)
+        let runtime = try AdaScriptRuntimeCoordinator.lock.withLock {
+            let delegate = AnnotatedGravityRuntimeDelegate(module: module)
+            let virtualMachine = GravityVirtualMachine(settings: .init(), delegate: delegate)
+
+            try virtualMachine.bindClass(with: GravityScriptableLifecycleContext.self)
+            try virtualMachine.bindClass(with: AnnotatedGravitySystemContext.self)
+            try virtualMachine.bindClass(with: AdaScriptInputBridge.self)
+            try virtualMachine.bindClass(with: AnnotatedGravityWorldContext.self)
+            try virtualMachine.bindClass(with: AnnotatedGravityCommandsBridge.self)
+            try virtualMachine.bindClass(with: AnnotatedGravityQueryBridge.self)
+            try virtualMachine.bindClass(with: AnnotatedGravityQueryRow.self)
+            try virtualMachine.bindClass(with: AnnotatedGravityComponentView.self)
+            try virtualMachine.bindClass(with: AnnotatedGravityResourceView.self)
+            try virtualMachine.bindClass(with: GravityAttachedComponentView.self)
+            try virtualMachine.bindClass(with: GravityAttachedResourceView.self)
+            try virtualMachine.bindClass(with: AdaScriptViewBridge.self)
+            virtualMachine.setValue(AdaScriptViewBridge(), forKey: "adaUIBuilder")
+            let binary = virtualMachine.loadGravityFile(from: module.entrySource + "\n" + generatedSource)
+            guard delegate.errors.isEmpty else {
+                throw AdaScriptError.compilation(delegate.errors)
+            }
+            virtualMachine.load(binary)
+            guard delegate.errors.isEmpty else {
+                throw AdaScriptError.compilation(delegate.errors)
+            }
+            return (delegate, virtualMachine)
         }
-        virtualMachine.load(binary)
-        guard delegate.errors.isEmpty else {
-            throw AdaScriptError.compilation(delegate.errors)
-        }
+        self.delegate = runtime.0
+        self.virtualMachine = runtime.1
     }
 
     func report(_ message: String) {

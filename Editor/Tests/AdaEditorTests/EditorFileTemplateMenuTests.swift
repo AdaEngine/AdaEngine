@@ -217,7 +217,7 @@ struct EditorFileTemplateMenuTests {
                 #expect(source.contains("func update(context: AdaSystemContext)"))
             }
         }
-        _ = try AdaScriptPlugin(
+        let plugin = try AdaScriptPlugin(
             sources: [
                 .init(path: "System.ada", source: EditorNewFileKind.script.initialContent(fileName: "Template.ada")),
                 .init(path: "Empty.ada", source: EditorNewFileKind.emptyScript.initialContent(fileName: "Empty.ada")),
@@ -238,6 +238,7 @@ struct EditorFileTemplateMenuTests {
         container.bounds.size = container.frame.size
         container.layoutIfNeeded()
         #expect(!container.uiTreeRoots().isEmpty)
+        withExtendedLifetime(plugin) {}
     }
 
     @Test("shader templates compile to SPIR-V")

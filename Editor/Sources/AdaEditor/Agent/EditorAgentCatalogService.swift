@@ -1,5 +1,9 @@
 import Foundation
 
+#if canImport(FoundationNetworking)
+    import FoundationNetworking
+#endif
+
 #if os(macOS)
     import CryptoKit
 #endif
@@ -34,11 +38,7 @@ actor EditorAgentCatalogService {
     }
 
     func discover() -> [EditorDiscoveredAgent] {
-        #if os(macOS)
-            EditorAgentDiscovery.discover(paths: paths)
-        #else
-            []
-        #endif
+        EditorAgentDiscovery.discover(paths: paths)
     }
 
     func installed() throws -> [EditorInstalledAgent] {
@@ -74,7 +74,7 @@ actor EditorAgentCatalogService {
         let data = try await download(Self.registryAddress, timeout: 20)
         let registry = try Self.decodeRegistry(data)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        try data.write(to: root.appendingPathComponent("registry.json"), options: .atomic)
+        try EditorAtomicFileWriter.write(data, to: root.appendingPathComponent("registry.json"))
         return registry.agents
     }
 
@@ -138,7 +138,7 @@ actor EditorAgentCatalogService {
 
     private func writeInstalled(_ entries: [EditorInstalledAgent]) throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        try JSONEncoder().encode(entries).write(to: root.appendingPathComponent("installed.json"), options: .atomic)
+        try EditorAtomicFileWriter.write(JSONEncoder().encode(entries), to: root.appendingPathComponent("installed.json"))
     }
 
     private func download(_ address: String, timeout: TimeInterval = 120) async throws -> Data {

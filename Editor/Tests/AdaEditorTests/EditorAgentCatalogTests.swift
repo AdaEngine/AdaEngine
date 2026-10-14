@@ -20,10 +20,18 @@ struct EditorAgentCatalogTests {
     }
 
     private func executable(_ name: String, at root: URL) throws -> URL {
-        let url = root.appendingPathComponent(name)
+        #if os(Windows)
+            let url = root.appendingPathComponent(name + ".cmd")
+        #else
+            let url = root.appendingPathComponent(name)
+        #endif
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try "#!/bin/sh\nexit 0\n".write(to: url, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        #if os(Windows)
+            try "@exit /b 0\r\n".write(to: url, atomically: true, encoding: .utf8)
+        #else
+            try "#!/bin/sh\nexit 0\n".write(to: url, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        #endif
         return url
     }
 
@@ -49,10 +57,16 @@ struct EditorAgentCatalogTests {
         let root = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
         let binary = try executable(".nvm/versions/node/v24.1/bin/node", at: root)
-        let paths = EditorAgentDiscovery.searchPaths(environment: ["PATH": ".::/usr/bin:/usr/bin"], home: root)
+        #if os(Windows)
+            let paths = EditorAgentDiscovery.searchPaths(environment: ["PATH": ".;C:\\Windows;C:\\Windows"], home: root)
+        #else
+            let paths = EditorAgentDiscovery.searchPaths(environment: ["PATH": ".::/usr/bin:/usr/bin"], home: root)
+        #endif
         #expect(EditorAgentDiscovery.executable("node", paths: [binary.deletingLastPathComponent().path]) == binary.path)
         #expect(paths.contains(binary.deletingLastPathComponent().path))
-        #expect(paths.contains("/Applications/Codex.app/Contents/Resources"))
+        #if os(macOS)
+            #expect(paths.contains("/Applications/Codex.app/Contents/Resources"))
+        #endif
         #expect(!paths.contains("."))
         #expect(paths.count == Set(paths).count)
     }

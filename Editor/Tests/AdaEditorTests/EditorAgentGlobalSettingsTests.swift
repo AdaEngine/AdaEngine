@@ -32,7 +32,7 @@ struct EditorAgentGlobalSettingsTests {
         let request = try #require(await service.recordedRequest())
         #expect(request.project.ai.agent == settings.configuration)
         #expect(request.projectURL.standardizedFileURL.path == secondURL.standardizedFileURL.path)
-        #expect(request.session.upstreamSessionID == nil)
+        #expect(request.session.upstreamSessionID == "old-provider-session")
         #expect(try ProjectSystem.loadProject(at: firstURL) == legacy)
         #expect(try ProjectSystem.loadProject(at: secondURL) == legacy)
         let reloaded = EditorAgentSettingsStore(fileURL: settingsURL)

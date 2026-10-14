@@ -1,7 +1,10 @@
 import Foundation
-import Network
 import Testing
 @testable import AdaPlayerConnect
+
+#if canImport(Network)
+import Network
+#endif
 
 @Suite("AdaPlayer protocol and deployment", .serialized)
 struct PlayerConnectTests {
@@ -39,6 +42,7 @@ struct PlayerConnectTests {
         #expect(throws: PlayerConnectError.self) { try large.validate() }
     }
 
+    #if canImport(Network)
     @Test @MainActor func realConnectionPairsDeploysRestartsStopsAndDisconnects() async throws {
         let host = PlayerHost()
         var deployments: [PlayerProjectSnapshot] = []
@@ -120,4 +124,5 @@ struct PlayerConnectTests {
         }
         throw PlayerConnectError.invalid("Listener failed to start: \(host.status)")
     }
+    #endif
 }

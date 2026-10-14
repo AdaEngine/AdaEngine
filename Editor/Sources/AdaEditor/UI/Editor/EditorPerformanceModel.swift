@@ -7,15 +7,15 @@ import Observation
 @MainActor
 final class EditorGamePerformanceSession {
     private(set) var targetID: String?
-    private weak var profiler: AdaMCPProfiler?
+    private weak var performance: EditorPerformanceStore?
 
     func attach(_ app: AppWorlds, title: String) {
         stop()
-        guard let resource = AppWorldsSession.current?.main.getResource(AdaMCPProfilerResource.self) else {
+        guard let resource = AppWorldsSession.current?.main.getResource(EditorProfilerResource.self) else {
             return
         }
-        profiler = resource.profiler
-        targetID = resource.profiler.performance.register(title: title)
+        performance = resource.performance
+        targetID = resource.performance.register(title: title)
         app.main.insertResource(PhysicsPerformanceMetrics())
         app.profilingTargetID = targetID
         if let targetID {
@@ -28,7 +28,7 @@ final class EditorGamePerformanceSession {
             return
         }
         EditorPhysicsPerformanceRegistry.shared.stop(targetID: targetID)
-        do { try profiler?.stopTarget(targetID) } catch {
+        do { try performance?.stopTarget(targetID) } catch {
             RuntimeLogStore.shared.append(level: "error", label: "Performance", message: "Performance capture failed: \(error.localizedDescription)")
         }
         self.targetID = nil
@@ -86,8 +86,8 @@ private final class EditorPhysicsPerformanceRegistry {
 @Observable
 @MainActor
 final class EditorPerformanceModel {
-    var targets: [AdaMCPPerformanceTarget] = []
-    var target: AdaMCPPerformanceTarget?
+    var targets: [EditorPerformanceTarget] = []
+    var target: EditorPerformanceTarget?
     var selectedTargetID: String?
     var selectedCaptureID: String?
     var captures: [Value] = []
@@ -97,12 +97,13 @@ final class EditorPerformanceModel {
     var errorMessage: String?
     var isVisible = false
     @ObservationIgnored private var profiler: AdaMCPProfiler?
-    @ObservationIgnored private var lease: AdaMCPTraceLease?
+    @ObservationIgnored private var performance: EditorPerformanceStore?
+    @ObservationIgnored private var lease: EditorPerformanceSubscription?
     @ObservationIgnored private var leasedTargetID: String?
     @ObservationIgnored private var task: Task<Void, Never>?
 
-    var samples: [AdaMCPPerformanceSample] { target?.samples ?? [] }
-    var latest: AdaMCPPerformanceSample? { samples.last }
+    var samples: [EditorPerformanceSample] { target?.samples ?? [] }
+    var latest: EditorPerformanceSample? { samples.last }
     var status: String {
         if profiler == nil {
             return "Profiler unavailable"
@@ -115,8 +116,8 @@ final class EditorPerformanceModel {
         }
         return lease == nil ? "No data" : "Live · 4 Hz"
     }
-    var systems: [AdaMCPPerformanceHotspot] { latest?.systems ?? [] }
-    var renderNodes: [AdaMCPPerformanceHotspot] { latest?.renderNodes ?? [] }
+    var systems: [EditorPerformanceHotspot] { latest?.systems ?? [] }
+    var renderNodes: [EditorPerformanceHotspot] { latest?.renderNodes ?? [] }
 
     func appear() {
         guard !isVisible else {
@@ -145,18 +146,24 @@ final class EditorPerformanceModel {
         refresh()
     }
     func refresh() {
-        profiler = AppWorldsSession.current?.main.getResource(AdaMCPProfilerResource.self)?.profiler
-        guard let profiler else {
+        let resource = AppWorldsSession.current?.main.getResource(EditorProfilerResource.self)
+        profiler = resource?.profiler
+        performance = resource?.performance
+        guard let profiler, let performance else {
             return
         }
-        targets = profiler.performance.sessions
+        targets = performance.sessions
         // Follow new runs automatically until the user explicitly chooses a session.
         let id = selectedTargetID ?? targets.last?.id
         if target?.id != id {
             selectedCaptureID = nil
             capture = nil
         }
-        target = id.flatMap { profiler.performance.target($0) }
+        if let id, performance.target(id)?.isRunning == true {
+            do { try performance.refresh(targetID: id) } catch { errorMessage = error.localizedDescription }
+        }
+        targets = performance.sessions
+        target = id.flatMap { performance.target($0) }
         physicsSnapshots = EditorPhysicsPerformanceRegistry.shared.snapshots(targetID: id)
         if leasedTargetID != id || target?.isRunning != true || !isVisible {
             lease = nil
@@ -164,7 +171,7 @@ final class EditorPerformanceModel {
         }
         do {
             if isVisible, lease == nil, let target, target.isRunning {
-                lease = try profiler.performance.subscribe(targetID: target.id)
+                lease = try performance.subscribe(targetID: target.id)
                 leasedTargetID = target.id
             }
             let list = try profiler.captureListPayload().objectValue
@@ -172,7 +179,7 @@ final class EditorPerformanceModel {
             let updated = list?["captures"]?.arrayValue ?? []
             if updated.last?.objectValue?["id"] != captures.last?.objectValue?["id"],
                 let last = updated.last?.objectValue,
-                last["targetId"]?.stringValue == target?.id {
+                (last["targetId"]?.stringValue == nil || last["targetId"]?.stringValue == target?.id) {
                 selectedCaptureID = last["id"]?.stringValue
             }
             captures = updated

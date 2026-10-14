@@ -38,6 +38,7 @@ struct EditorPackageConfigurationTests {
     func xcodegenConfigurationUsesLocalPackage() throws {
         let editorRoot = try editorPackageRoot()
         let project = try String(contentsOf: editorRoot.appendingPathComponent("project.yml"), encoding: .utf8)
+            .replacingOccurrences(of: "\r\n", with: "\n")
 
         #expect(project.contains("name: AdaEditor"))
         #expect(project.contains("AdaEditor:"))
@@ -50,6 +51,7 @@ struct EditorPackageConfigurationTests {
     func xcodegenPackagesAppIcon() throws {
         let editorRoot = try editorPackageRoot()
         let project = try String(contentsOf: editorRoot.appendingPathComponent("project.yml"), encoding: .utf8)
+            .replacingOccurrences(of: "\r\n", with: "\n")
         let iconURL =
             editorRoot
             .deletingLastPathComponent()
@@ -57,7 +59,7 @@ struct EditorPackageConfigurationTests {
 
         #expect(project.contains("\"icon\":\n      file: true"))
         #expect(project.contains("path: ../Assets/AdaEngine.icon"))
-        #expect(project.components(separatedBy: "ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine").count == 3)
+        #expect(project.components(separatedBy: "ASSETCATALOG_COMPILER_APPICON_NAME: AdaEngine").count == 5)
         #expect(FileManager.default.fileExists(atPath: iconURL.appendingPathComponent("icon.json").path))
     }
 

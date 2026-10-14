@@ -153,7 +153,7 @@ extension EditorWorkbenchViewModel {
                     }
                 }
 
-                try document.content.write(to: URL(fileURLWithPath: absolutePath), atomically: true, encoding: .utf8)
+                try EditorAtomicFileWriter.write(document.content, to: URL(fileURLWithPath: absolutePath))
                 document.sceneModel = sceneModel
                 document.loadSummary = EditorSceneFileLoader.summary(from: document.content)
                 document.lastSavedContent = document.content
@@ -197,7 +197,7 @@ extension EditorWorkbenchViewModel {
                     }
                 }
 
-                try document.content.write(to: URL(fileURLWithPath: absolutePath, isDirectory: false), atomically: true, encoding: .utf8)
+                try EditorAtomicFileWriter.write(document.content, to: URL(fileURLWithPath: absolutePath, isDirectory: false))
                 document.lastSavedContent = document.content
                 document.isDirty = false
                 document.errorMessage = nil

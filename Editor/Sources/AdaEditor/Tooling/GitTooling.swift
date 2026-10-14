@@ -1,5 +1,32 @@
 @preconcurrency import Foundation
 
+enum EditorGitCommand {
+    static let executablePath: String = {
+        #if os(Windows)
+            let environment = ProcessInfo.processInfo.environment
+            var candidates = (environment["PATH"] ?? "").components(separatedBy: ";").map {
+                URL(fileURLWithPath: $0, isDirectory: true).appendingPathComponent("git.exe").path
+            }
+            for variable in ["ProgramFiles", "ProgramFiles(x86)"] {
+                if let root = environment[variable] {
+                    candidates.append(URL(fileURLWithPath: root, isDirectory: true).appendingPathComponent("Git/cmd/git.exe").path)
+                }
+            }
+            return candidates.first(where: FileManager.default.fileExists(atPath:)) ?? "git.exe"
+        #else
+            return "/usr/bin/env"
+        #endif
+    }()
+
+    static func arguments(_ arguments: [String]) -> [String] {
+        #if os(Windows)
+            arguments
+        #else
+            ["git"] + arguments
+        #endif
+    }
+}
+
 enum GitFileStatus: String, Equatable, Sendable {
     case added = "A"
     case copied = "C"
@@ -221,8 +248,8 @@ actor GitRepositoryService: GitRepositoryServicing {
             }
 
         return EditorProcessCommand(
-            executablePath: "/usr/bin/env",
-            arguments: arguments,
+            executablePath: EditorGitCommand.executablePath,
+            arguments: EditorGitCommand.arguments(Array(arguments.dropFirst())),
             workingDirectory: projectURL,
             displayName: arguments.joined(separator: " ")
         )
@@ -299,7 +326,11 @@ actor GitRepositoryService: GitRepositoryServicing {
             }
         }
         var command = makeCommand(kind, projectURL: root)
-        command.arguments.insert("--literal-pathspecs", at: 1)
+        #if os(Windows)
+            command.arguments.insert("--literal-pathspecs", at: 0)
+        #else
+            command.arguments.insert("--literal-pathspecs", at: 1)
+        #endif
         return await processRunner.run(command)
     }
 }

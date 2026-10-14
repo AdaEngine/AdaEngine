@@ -493,7 +493,7 @@ public final class TextLayoutManager: @unchecked Sendable {
             return
         }
 
-        guard hasAvailableSpace else {
+        guard hasAvailableSpace, !attributedText.text.isEmpty else {
             self.isLayoutValid = true
             return
         }

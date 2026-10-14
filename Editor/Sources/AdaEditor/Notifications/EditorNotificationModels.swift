@@ -95,7 +95,7 @@ actor EditorNotificationStore {
             return
         }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try JSONEncoder().encode(snapshot).write(to: url, options: .atomic)
+        try EditorAtomicFileWriter.write(JSONEncoder().encode(snapshot), to: url)
         self.revision = revision
     }
 }

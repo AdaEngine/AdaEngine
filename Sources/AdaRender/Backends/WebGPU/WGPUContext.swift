@@ -133,9 +133,6 @@
                     if let scaleFactor {
                         window.scaleFactor = scaleFactor
                     }
-                    #if !WASM
-                        window.pendingDrawableSkips = 2
-                    #endif
                 }
                 windows[windowId] = window
             }
@@ -222,7 +219,6 @@
             let surface: WGPUSurfaceHandle
             public let pixelFormat: PixelFormat
             let surfaceLock = Mutex(())
-            var pendingDrawableSkips: Int = 0
             public var size: Math.SizeInt
             public var scaleFactor: Float
 

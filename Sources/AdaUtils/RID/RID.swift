@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Synchronization
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
     import Darwin
@@ -20,6 +21,8 @@ import Foundation
 /// Currently, RID system help us to manage platform specific data without overcoding.
 /// - NOTE: Please, don't use RID for saving/restoring data.
 public struct RID: Identifiable, Equatable, Hashable, Codable, Sendable {
+    private static let generatorState = Mutex(Int.min)
+
     public let id: Int
 }
 
@@ -27,9 +30,14 @@ extension RID {
 
     public static let empty = RID(id: -1)
 
-    /// Generate random unique rid
+    /// Generates an identifier that is unique within the current process.
     public init() {
-        self.id = Self.readTime()
+        let timestamp = Self.readTime()
+        self.id = Self.generatorState.withLock { previous in
+            let identifier = max(timestamp, previous &+ 1)
+            previous = identifier
+            return identifier
+        }
     }
 
     private static func readTime() -> Int {

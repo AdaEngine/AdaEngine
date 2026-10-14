@@ -60,7 +60,10 @@ enum GravityScriptModuleResolver {
             }
             let loweredSource: String
             do {
-                loweredSource = try AdaScriptViewBuilderLowerer.lower(source: source.source, path: path)
+                let normalizedSource = source.source
+                    .replacingOccurrences(of: "\r\n", with: "\n")
+                    .replacingOccurrences(of: "\r", with: "\n")
+                loweredSource = try AdaScriptViewBuilderLowerer.lower(source: normalizedSource, path: path)
             } catch let error as AdaScriptViewBuilderError {
                 throw AdaScriptError.invalidManifest(error.description)
             }
@@ -376,7 +379,7 @@ private struct AdaScriptSourceScanner {
             }
             if hasPrefix("//") {
                 skipped = true
-                while index < source.endIndex, source[index] != "\n" { advance() }
+                while index < source.endIndex, !source[index].isNewline { advance() }
                 continue
             }
             if hasPrefix("/*") {

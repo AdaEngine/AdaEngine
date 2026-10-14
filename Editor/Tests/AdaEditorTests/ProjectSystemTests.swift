@@ -87,25 +87,21 @@ struct ProjectSystemTests {
         let projectURL = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(projectURL) }
 
-        do {
+        let error = try #require(captureProjectSystemError {
             _ = try ProjectSystem.loadProject(at: projectURL)
-            Issue.record("Expected loadProject to throw")
-        } catch let error as ProjectSystemError {
-            #expect(error == .metadataFileMissing(path: ".ada/project.json"))
-            #expect(error.code == "project.metadataFileMissing")
-            #expect(error.fieldPath == ".ada/project.json")
-        }
+        })
+        #expect(error == .metadataFileMissing(path: ".ada/project.json"))
+        #expect(error.code == "project.metadataFileMissing")
+        #expect(error.fieldPath == ".ada/project.json")
     }
 
     @Test("invalid JSON returns structured error")
     func invalidJSON() throws {
-        do {
+        let error = try #require(captureProjectSystemError {
             _ = try ProjectSystem.loadProject(from: Data("{".utf8))
-            Issue.record("Expected loadProject to throw")
-        } catch let error as ProjectSystemError {
-            #expect(error.code == "project.invalidJSON")
-            #expect(error.fieldPath == ".ada/project.json")
-        }
+        })
+        #expect(error.code == "project.invalidJSON")
+        #expect(error.fieldPath == ".ada/project.json")
     }
 
     @Test(
@@ -120,25 +116,21 @@ struct ProjectSystemTests {
         ]
     )
     func committedNegativeFixturesAreRejected(fixture: String, code: String, fieldPath: String) throws {
-        do {
+        let error = try #require(captureProjectSystemError {
             _ = try loadFixture(fixture)
-            Issue.record("Expected fixture \(fixture) to throw")
-        } catch let error as ProjectSystemError {
-            #expect(error.code == code)
-            #expect(error.fieldPath == fieldPath)
-        }
+        })
+        #expect(error.code == code)
+        #expect(error.fieldPath == fieldPath)
     }
 
     @Test("unsupported build system returns structured error")
     func unsupportedBuildSystem() throws {
-        do {
+        let error = try #require(captureProjectSystemError {
             _ = try ProjectSystem.loadProject(from: Data(#"{"schemaVersion":1,"build":{"system":"xcode"}}"#.utf8))
-            Issue.record("Expected loadProject to throw")
-        } catch let error as ProjectSystemError {
-            #expect(error == .unknownBuildSystem(path: "build.system", value: "xcode", supportedValues: ["adascript", "swiftpm"]))
-            #expect(error.code == "project.unknownBuildSystem")
-            #expect(error.fieldPath == "build.system")
-        }
+        })
+        #expect(error == .unknownBuildSystem(path: "build.system", value: "xcode", supportedValues: ["adascript", "swiftpm"]))
+        #expect(error.code == "project.unknownBuildSystem")
+        #expect(error.fieldPath == "build.system")
     }
 
     @Test(
@@ -154,13 +146,11 @@ struct ProjectSystemTests {
         ]
     )
     func invalidPathsAreRejected(json: String, code: String, fieldPath: String) throws {
-        do {
+        let error = try #require(captureProjectSystemError {
             _ = try ProjectSystem.loadProject(from: Data(json.utf8))
-            Issue.record("Expected loadProject to throw")
-        } catch let error as ProjectSystemError {
-            #expect(error.code == code)
-            #expect(error.fieldPath == fieldPath)
-        }
+        })
+        #expect(error.code == code)
+        #expect(error.fieldPath == fieldPath)
     }
 
     @Test("creates default project.json for existing SwiftPM project")
@@ -190,13 +180,11 @@ struct ProjectSystemTests {
         let projectURL = try makeTemporaryDirectory()
         defer { removeTemporaryDirectory(projectURL) }
 
-        do {
+        let error = try #require(captureProjectSystemError {
             _ = try ProjectSystem.createDefaultProject(at: projectURL)
-            Issue.record("Expected createDefaultProject to throw")
-        } catch let error as ProjectSystemError {
-            #expect(error == .swiftPackageManifestMissing(path: "Package.swift"))
-            #expect(error.code == "project.swiftPackageManifestMissing")
-        }
+        })
+        #expect(error == .swiftPackageManifestMissing(path: "Package.swift"))
+        #expect(error.code == "project.swiftPackageManifestMissing")
     }
 
     @Test("creates an AdaScript project without Package.swift")
@@ -368,4 +356,13 @@ private func makeTemporaryDirectory(named name: String? = nil) throws -> URL {
 
 private func removeTemporaryDirectory(_ url: URL) {
     try? FileManager.default.removeItem(at: url)
+}
+
+private func captureProjectSystemError(_ operation: () throws -> Void) -> ProjectSystemError? {
+    do {
+        try operation()
+        return nil
+    } catch {
+        return error as? ProjectSystemError
+    }
 }

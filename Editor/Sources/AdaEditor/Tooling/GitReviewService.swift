@@ -18,8 +18,8 @@ extension GitRepositoryService {
     func readGit(_ arguments: [String], at url: URL) async -> EditorProcessResult {
         await processRunner.run(
             EditorProcessCommand(
-                executablePath: "/usr/bin/env",
-                arguments: ["git", "--no-pager", "--literal-pathspecs"] + arguments,
+                executablePath: EditorGitCommand.executablePath,
+                arguments: EditorGitCommand.arguments(["--no-pager", "--literal-pathspecs"] + arguments),
                 workingDirectory: url,
                 environment: ["GIT_OPTIONAL_LOCKS": "0", "LC_ALL": "C"]
             )
@@ -36,7 +36,7 @@ extension GitRepositoryService {
         guard !path.isEmpty else {
             return .failure(GitReadError(message: "Repository root is unavailable."))
         }
-        return .success(URL(fileURLWithPath: path, isDirectory: true))
+        return .success(URL(fileURLWithPath: path, isDirectory: false).standardizedFileURL)
     }
 
     func history(projectURL: URL, head: String?, offset: Int) async -> Result<GitHistoryPage, GitReadError> {

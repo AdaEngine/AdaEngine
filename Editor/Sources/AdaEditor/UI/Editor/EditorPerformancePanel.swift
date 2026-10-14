@@ -219,8 +219,8 @@ struct EditorPerformancePanel: View {
     private func chart(
         _ title: String,
         value: String,
-        key: @escaping (AdaMCPPerformanceSample) -> Double?,
-        secondary: ((AdaMCPPerformanceSample) -> Double?)? = nil
+        key: @escaping (EditorPerformanceSample) -> Double?,
+        secondary: ((EditorPerformanceSample) -> Double?)? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title).foregroundColor(theme.editorColors.muted)
@@ -263,7 +263,7 @@ struct EditorPerformancePanel: View {
         let total: Double
         var sampled = false
     }
-    private func liveRows(_ values: [AdaMCPPerformanceHotspot]) -> [Row] {
+    private func liveRows(_ values: [EditorPerformanceHotspot]) -> [Row] {
         values.map {
             .init(
                 name: $0.name,
@@ -342,9 +342,9 @@ struct EditorPerformancePanel: View {
 }
 
 private struct EditorPerformanceChart: View {
-    let samples: [AdaMCPPerformanceSample]
-    let value: (AdaMCPPerformanceSample) -> Double?
-    let secondary: ((AdaMCPPerformanceSample) -> Double?)?
+    let samples: [EditorPerformanceSample]
+    let value: (EditorPerformanceSample) -> Double?
+    let secondary: ((EditorPerformanceSample) -> Double?)?
     let color: Color
     let secondaryColor: Color
 
@@ -352,7 +352,7 @@ private struct EditorPerformanceChart: View {
         Canvas { context, size in
             let end = samples.last?.timestamp ?? 0
             let maximum = max(1, samples.compactMap(value).max() ?? 0, samples.compactMap { secondary?($0) }.max() ?? 0)
-            func path(_ read: (AdaMCPPerformanceSample) -> Double?) -> Path {
+            func path(_ read: (EditorPerformanceSample) -> Double?) -> Path {
                 var path = Path()
                 var previous: Double?
                 for sample in samples {

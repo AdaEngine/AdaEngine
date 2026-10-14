@@ -43,7 +43,7 @@ struct EditorAgentCompletionTests {
         model.availableSkills = [skill]
         model.promptBinding.wrappedValue = "Use @ada then continue"
         model.updatePromptCaret(.init(line: 0, column: 8), text: model.prompt)
-        #expect(Set(model.autocompleteSuggestions.map(\.kind)) == ["File", "Skill"])
+        #expect(Set(model.autocompleteSuggestions.map(\.kind)) == ["File", "Folder", "Skill"])
         model.insertAutocomplete(.skill(skill))
         #expect(model.prompt == "Use @skill:ada-coding  then continue")
         #expect(model.promptCompletionFocus?.start.column == "Use @skill:ada-coding ".count)

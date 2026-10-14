@@ -52,7 +52,7 @@ enum EditorAchievementRules {
             where Set(clip.tracks.filter(hasMotion).map(\.property)).count >= 3 {
             result[.choreography] = 1
         }
-        let depth = nestedDepth(scene, source: source, root: resourceRoot, visited: [source.standardizedFileURL.path], remaining: 2)
+        let depth = nestedDepth(scene, source: source, root: resourceRoot, visited: [pathIdentity(source)], remaining: 2)
         if depth >= 1 {
             result[.sceneInstance] = 1
         }
@@ -147,18 +147,43 @@ enum EditorAchievementRules {
         for entity in scene.entities {
             guard
                 let reference = entity.components[EditorBuiltInComponentType.sceneInstance]?["scene"]?.stringValue,
-                let url = localAsset(reference, source: source, root: root), !visited.contains(url.path),
-                let content = try? String(contentsOf: url, encoding: .utf8),
+                let url = localAsset(reference, source: source, root: root)
+            else {
+                continue
+            }
+            let standardizedURL = url.standardizedFileURL
+            let identity = pathIdentity(standardizedURL)
+            guard
+                !visited.contains(identity),
+                let content = try? String(contentsOf: standardizedURL, encoding: .utf8),
                 let child = try? EditorSceneModel.decode(from: content)
             else {
                 continue
             }
-            maximum = max(maximum, 1 + nestedDepth(child, source: url, root: root, visited: visited.union([url.path]), remaining: remaining - 1))
+            maximum = max(
+                maximum,
+                1 + nestedDepth(
+                    child,
+                    source: standardizedURL,
+                    root: root,
+                    visited: visited.union([identity]),
+                    remaining: remaining - 1
+                )
+            )
             if maximum == remaining {
                 return maximum
             }
         }
         return maximum
+    }
+
+    private static func pathIdentity(_ url: URL) -> String {
+        let path = url.resolvingSymlinksInPath().standardizedFileURL.path
+        #if os(Windows)
+            return path.lowercased()
+        #else
+            return path
+        #endif
     }
 
     private static func localAsset(_ reference: String, source: URL, root: URL?) -> URL? {

@@ -117,6 +117,23 @@ final class AnnotatedGravityRuntimeDelegate: GravityVirtualMachineDelegate, @unc
     func virtualMachine(_: GravityVirtualMachine, didRequestStringWith _: UInt32) -> String { "" }
 }
 
+#if os(Windows)
+    /// Keeps a Gravity VM and its unowned delegate alive until process termination.
+    ///
+    /// Gravity's native VM teardown currently corrupts the Windows process heap after
+    /// bridged objects have been instantiated. Retaining this pair avoids invoking that
+    /// faulty teardown path; the operating system reclaims the memory at process exit.
+    final class WindowsRetainedGravityRuntime: @unchecked Sendable {
+        let delegate: AnnotatedGravityRuntimeDelegate
+        let virtualMachine: GravityVirtualMachine
+
+        init(delegate: AnnotatedGravityRuntimeDelegate, virtualMachine: GravityVirtualMachine) {
+            self.delegate = delegate
+            self.virtualMachine = virtualMachine
+        }
+    }
+#endif
+
 enum AnnotatedGravityValueBridge {
     static func makeGravityValue(_ value: EditorFieldValue, virtualMachine: GravityVirtualMachine) -> GSValue {
         switch value {

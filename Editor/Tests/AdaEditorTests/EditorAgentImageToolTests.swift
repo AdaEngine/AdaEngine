@@ -96,7 +96,8 @@ struct EditorAgentImageToolTests {
         #expect(result.assetReference == "@res://Textures/outlined.png")
         let request = try #require(await client.recordedRequests().first)
         #expect(request.url?.path == "/v1/images/edits")
-        let body = try #require(String(bytes: try #require(request.httpBody), encoding: .utf8))
+        let requestBody = try #require(request.httpBody)
+        let body = String(decoding: requestBody, as: UTF8.self)
         #expect(body.contains("name=\"image\"; filename=\"source.png\""))
         #expect(body.contains("Add a gold outline"))
 

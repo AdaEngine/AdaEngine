@@ -309,12 +309,12 @@ actor EditorPreviewBuilder {
             into: directory
         )
 
-        try packageManifest(
+        let manifest = packageManifest(
             request: request,
             rootTarget: target,
             mirroredTargets: mirroredTargets
         )
-        .write(to: directory.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
+        try EditorAtomicFileWriter.write(manifest, to: directory.appendingPathComponent("Package.swift"))
     }
 
     private func removeGeneratedPreviewPackageContent(at directory: URL) throws {
@@ -478,7 +478,7 @@ actor EditorPreviewBuilder {
             try fileManager.createDirectory(at: destinationURL.deletingLastPathComponent(), withIntermediateDirectories: true)
 
             if containsEntrypoint {
-                try sourceWithoutMainAttribute(sourceURL).write(to: destinationURL, atomically: true, encoding: .utf8)
+                try EditorAtomicFileWriter.write(sourceWithoutMainAttribute(sourceURL), to: destinationURL)
             } else {
                 try fileManager.copyItem(at: sourceURL, to: destinationURL)
             }
@@ -494,7 +494,7 @@ actor EditorPreviewBuilder {
                     Unmanaged.passRetained(UIExportLibrary(\(provider).self)).toOpaque()
                 }
                 """
-            try bridge.write(to: destinationRoot.appendingPathComponent("AdaUIExports.generated.swift"), atomically: true, encoding: .utf8)
+            try EditorAtomicFileWriter.write(bridge, to: destinationRoot.appendingPathComponent("AdaUIExports.generated.swift"))
         }
 
         guard copiedSourceCount > 0 else {

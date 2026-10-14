@@ -9,6 +9,7 @@
         let renderWindow: WGPUContext.WGPURenderWindow
         var previousDrawable: (any Drawable)?
         var currentDrawable: (any Drawable)?
+        private var didLogDrawableFailure = false
 
         init(renderWindow: WGPUContext.WGPURenderWindow) {
             self.renderWindow = renderWindow
@@ -20,11 +21,6 @@
 
         func getNextDrawable(_: RenderDevice) -> (any Drawable)? {
             renderWindow.surfaceLock.withLock { _ in
-                if renderWindow.pendingDrawableSkips > 0 {
-                    renderWindow.pendingDrawableSkips -= 1
-                    return nil
-                }
-
                 #if WASM
                     let texture = webGPUDeviceLock.withLock { _ in
                         renderWindow.surface.getCurrentTexture()
@@ -37,8 +33,14 @@
                     }
                     let textureStatus = surfaceTexture.status
                     guard textureStatus == .successOptimal || textureStatus == .successSuboptimal else {
+                        if !didLogDrawableFailure {
+                            Logger(label: "org.adaengine.AdaRender.WGPUSwapchain")
+                                .error("Failed to acquire a surface texture for window \(renderWindow.windowId): status=\(textureStatus.rawValue)")
+                            didLogDrawableFailure = true
+                        }
                         return nil
                     }
+                    didLogDrawableFailure = false
                     return WGPUSwapchainDrawable(
                         surface: renderWindow.surface,
                         surfaceTexture: WebGPU.GPUSurfaceTexture(wgpuStruct: surfaceTexture)

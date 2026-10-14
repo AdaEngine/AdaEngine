@@ -229,6 +229,17 @@ final class AdaScriptViewModuleRuntime: @unchecked Sendable {
     private let virtualMachine: GravityVirtualMachine
     private let exportedParameters: [String]
 
+    deinit {
+        #if os(Windows)
+            _ = Unmanaged.passRetained(
+                WindowsRetainedGravityRuntime(
+                    delegate: delegate,
+                    virtualMachine: virtualMachine
+                )
+            )
+        #endif
+    }
+
     init(sources: [AdaScriptSource], views: [AdaScriptViewMetadata], exportedParameters: [String] = []) throws {
         guard exportedParameters.allSatisfy({ $0.range(of: "^[A-Za-z_][A-Za-z0-9_]*$", options: .regularExpression) != nil }) else {
             throw UIDiagnostic("Exported UI parameter names must be stored-property identifiers.")

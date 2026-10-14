@@ -296,7 +296,7 @@ public struct EditorProjectStore {
             try ProjectSystem.saveProject(project, at: projectURL, fileManager: fileManager)
         } catch {
             if result.changed {
-                try? originalManifest.write(to: manifestURL, atomically: true, encoding: .utf8)
+                try? EditorAtomicFileWriter.write(originalManifest, to: manifestURL)
             }
             throw error
         }
@@ -323,10 +323,9 @@ public struct EditorProjectStore {
     private func createAdaScriptSources(at projectURL: URL) throws {
         let sourcesURL = projectURL.appendingPathComponent("Sources", isDirectory: true)
         try fileManager.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
-        try EditorProjectTemplateSourceFactory.adaScript.write(
-            to: sourcesURL.appendingPathComponent("Main.ada", isDirectory: false),
-            atomically: true,
-            encoding: .utf8
+        try EditorAtomicFileWriter.write(
+            EditorProjectTemplateSourceFactory.adaScript,
+            to: sourcesURL.appendingPathComponent("Main.ada", isDirectory: false)
         )
     }
 
@@ -343,24 +342,21 @@ public struct EditorProjectStore {
             adaEnginePackageURL: adaEnginePackageURL
         )
 
-        try manifest.write(to: manifestURL, atomically: true, encoding: .utf8)
+        try EditorAtomicFileWriter.write(manifest, to: manifestURL)
         let sourcesURL =
             projectURL
             .appendingPathComponent("Sources", isDirectory: true)
             .appendingPathComponent(safeTargetName, isDirectory: true)
         try fileManager.createDirectory(at: sourcesURL, withIntermediateDirectories: true)
         let swiftFileName = template == .adaScript ? "AdaRuntimeBootstrap.swift" : "main.swift"
-        try EditorProjectTemplateSourceFactory.swiftBootstrap(for: template)
-            .write(
-                to: sourcesURL.appendingPathComponent(swiftFileName, isDirectory: false),
-                atomically: true,
-                encoding: .utf8
-            )
+        try EditorAtomicFileWriter.write(
+            EditorProjectTemplateSourceFactory.swiftBootstrap(for: template),
+            to: sourcesURL.appendingPathComponent(swiftFileName, isDirectory: false)
+        )
 
-        try EditorProjectTemplateSourceFactory.adaScript.write(
-            to: sourcesURL.appendingPathComponent("Main.ada", isDirectory: false),
-            atomically: true,
-            encoding: .utf8
+        try EditorAtomicFileWriter.write(
+            EditorProjectTemplateSourceFactory.adaScript,
+            to: sourcesURL.appendingPathComponent("Main.ada", isDirectory: false)
         )
     }
 
@@ -391,7 +387,7 @@ public struct EditorProjectStore {
     private func writeManifest(_ candidate: String, replacing original: String, at manifestURL: URL) throws {
         try PackageManifestEditor.validateManifestSyntax(candidate)
         do {
-            try candidate.write(to: manifestURL, atomically: true, encoding: .utf8)
+            try EditorAtomicFileWriter.write(candidate, to: manifestURL)
             let persisted = try String(contentsOf: manifestURL, encoding: .utf8)
             guard persisted == candidate else {
                 throw EditorProjectStoreError.manifestVerificationFailed(path: manifestURL.path)
@@ -399,7 +395,7 @@ public struct EditorProjectStore {
             try PackageManifestEditor.validateManifestSyntax(persisted)
         } catch {
             if (try? String(contentsOf: manifestURL, encoding: .utf8)) != original {
-                try? original.write(to: manifestURL, atomically: true, encoding: .utf8)
+                try? EditorAtomicFileWriter.write(original, to: manifestURL)
             }
             throw error
         }
@@ -425,7 +421,7 @@ public struct EditorProjectStore {
 
         let keepURL = assetsURL.appendingPathComponent(".gitkeep", isDirectory: false)
         if !fileManager.fileExists(atPath: keepURL.path) {
-            try Data().write(to: keepURL, options: [.atomic])
+            try EditorAtomicFileWriter.write(Data(), to: keepURL)
         }
     }
 
@@ -438,12 +434,10 @@ public struct EditorProjectStore {
             return
         }
 
-        try SceneDocumentFormat.defaultSceneYAML(projectName: projectName)
-            .write(
-                to: sceneURL,
-                atomically: true,
-                encoding: .utf8
-            )
+        try EditorAtomicFileWriter.write(
+            SceneDocumentFormat.defaultSceneYAML(projectName: projectName),
+            to: sceneURL
+        )
     }
 
     private func createReadme(named projectName: String, at projectURL: URL, template: EditorProjectTemplate) throws {
@@ -473,7 +467,7 @@ public struct EditorProjectStore {
             - `Sources/` — game source files.
             - `Assets/` — game assets and scene documents.
             """
-        try readme.write(to: readmeURL, atomically: true, encoding: .utf8)
+        try EditorAtomicFileWriter.write(readme, to: readmeURL)
     }
 
     private func normalizedProjectName(_ name: String) throws -> String {

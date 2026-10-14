@@ -1,7 +1,11 @@
 import AdaDebugging
-import CryptoKit
+import AdaEngine
 import Foundation
 import Observation
+
+#if canImport(CryptoKit)
+    import CryptoKit
+#endif
 
 enum EditorDebugLanguage: String, CaseIterable {
     case swift = "Swift / LLDB"
@@ -39,7 +43,14 @@ final class EditorDebugger {
         guard let projectURL else {
             return
         }
-        let digest = SHA256.hash(data: Data(projectURL.standardizedFileURL.path.utf8)).map { String(format: "%02x", $0) }.joined()
+        let projectPath = projectURL.standardizedFileURL.path
+        #if canImport(CryptoKit)
+            let digest = SHA256.hash(data: Data(projectPath.utf8)).map { String(format: "%02x", $0) }.joined()
+        #else
+            var hasher = FNVHasher()
+            projectPath.hash(into: &hasher)
+            let digest = String(UInt(bitPattern: hasher.finalize()), radix: 16)
+        #endif
         self.storageURL =
             storageURL
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
@@ -155,7 +166,7 @@ final class EditorDebugger {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try encoder.encode(SavedState(breakpoints: relative, watches: watches))
             try FileManager.default.createDirectory(at: storageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try data.write(to: storageURL, options: .atomic)
+            try EditorAtomicFileWriter.write(data, to: storageURL)
         } catch { status = "Cannot save debugger state: \(error.localizedDescription)" }
     }
 

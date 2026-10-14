@@ -48,7 +48,7 @@ final class EditorAgentSettingsStore {
     func save(_ configuration: AdaProjectAgent) throws {
         if let fileURL {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(configuration).write(to: fileURL, options: .atomic)
+            try EditorAtomicFileWriter.write(JSONEncoder().encode(configuration), to: fileURL)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
         }
         self.configuration = configuration

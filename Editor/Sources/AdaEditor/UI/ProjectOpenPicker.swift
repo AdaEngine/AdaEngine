@@ -14,6 +14,9 @@ import Foundation
 #if canImport(UIKit)
     import UIKit
 #endif
+#if os(Windows)
+    @unsafe import WinSDK
+#endif
 
 enum ProjectLocationPickerResult: Equatable, Sendable {
     case selected(URL)
@@ -52,6 +55,8 @@ enum ProjectOpenPicker {
     static func presentProjectPicker(completion: @escaping @MainActor (URL?) -> Void) {
         #if canImport(AppKit)
             completion(pickProjectURL())
+        #elseif os(Windows)
+            completion(pickWindowsFolder(title: message))
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(nil)
@@ -97,6 +102,8 @@ enum ProjectOpenPicker {
             }
 
             return projectDirectoryURL(fromPickerSelection: selectedURL)
+        #elseif os(Windows)
+            return pickWindowsFolder(title: message)
         #else
             return nil
         #endif
@@ -126,6 +133,12 @@ enum ProjectOpenPicker {
                 return
             }
             completion(.selected(projectLocationURL(fromPickerSelection: selectedURL)))
+        #elseif os(Windows)
+            if let selectedURL = pickWindowsFolder(title: projectLocationMessage) {
+                completion(.selected(projectLocationURL(fromPickerSelection: selectedURL)))
+            } else {
+                completion(.cancelled)
+            }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))
@@ -310,6 +323,51 @@ enum ProjectOpenPicker {
 
         return selectedURL.deletingLastPathComponent().standardizedFileURL
     }
+
+    #if os(Windows)
+        @MainActor
+        private static func pickWindowsFolder(title: String) -> URL? {
+            let oleResult = OleInitialize(nil)
+            let shouldUninitialize = oleResult >= 0
+            defer {
+                if shouldUninitialize {
+                    OleUninitialize()
+                }
+            }
+
+            var displayName = [WCHAR](repeating: 0, count: Int(MAX_PATH))
+            let selectedItem = title.withCString(encodedAs: UTF16.self) { titlePointer in
+                displayName.withUnsafeMutableBufferPointer { displayNameBuffer in
+                    var browseInfo = BROWSEINFOW(
+                        hwndOwner: nil,
+                        pidlRoot: nil,
+                        pszDisplayName: displayNameBuffer.baseAddress,
+                        lpszTitle: titlePointer,
+                        ulFlags: UINT(BIF_RETURNONLYFSDIRS | BIF_USENEWUI),
+                        lpfn: nil,
+                        lParam: 0,
+                        iImage: 0
+                    )
+                    return SHBrowseForFolderW(&browseInfo)
+                }
+            }
+
+            guard let selectedItem else {
+                return nil
+            }
+            defer { CoTaskMemFree(selectedItem) }
+
+            var path = [WCHAR](repeating: 0, count: Int(MAX_PATH))
+            guard SHGetPathFromIDListW(selectedItem, &path) != false else {
+                return nil
+            }
+
+            let selectedPath = path.withUnsafeBufferPointer { pathBuffer in
+                String(decodingCString: pathBuffer.baseAddress!, as: UTF16.self)
+            }
+            return URL(fileURLWithPath: selectedPath, isDirectory: true).standardizedFileURL
+        }
+    #endif
 
     #if canImport(UIKit)
         @MainActor

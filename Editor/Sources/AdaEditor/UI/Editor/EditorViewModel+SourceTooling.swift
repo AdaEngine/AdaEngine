@@ -535,13 +535,27 @@ extension EditorViewModel {
             return filePath
         }
 
-        let projectPath = projectURL.path
-        guard filePath.hasPrefix(projectPath) else {
+        let projectPath = Self.normalizedFileSystemPath(projectURL.standardizedFileURL.path)
+        let normalizedFilePath = Self.normalizedFileSystemPath(filePath)
+        #if os(Windows)
+            let comparisonProjectPath = projectPath.lowercased()
+            let comparisonFilePath = normalizedFilePath.lowercased()
+        #else
+            let comparisonProjectPath = projectPath
+            let comparisonFilePath = normalizedFilePath
+        #endif
+        let projectPrefix = projectPath.hasSuffix("/") ? projectPath : "\(projectPath)/"
+        let comparisonProjectPrefix = comparisonProjectPath.hasSuffix("/") ? comparisonProjectPath : "\(comparisonProjectPath)/"
+
+        guard comparisonFilePath == comparisonProjectPath || comparisonFilePath.hasPrefix(comparisonProjectPrefix) else {
             return filePath
         }
 
-        let start = filePath.index(filePath.startIndex, offsetBy: projectPath.count)
-        return String(filePath[start...]).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard comparisonFilePath != comparisonProjectPath else {
+            return ""
+        }
+        let start = normalizedFilePath.index(normalizedFilePath.startIndex, offsetBy: projectPrefix.count)
+        return String(normalizedFilePath[start...])
     }
 }
 

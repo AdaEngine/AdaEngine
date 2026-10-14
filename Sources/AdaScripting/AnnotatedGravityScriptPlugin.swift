@@ -411,6 +411,21 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
     private let virtualMachine: GravityVirtualMachine
     private var instances: [String: GSValue] = [:]
 
+    deinit {
+        #if os(Windows)
+            // `gravity_vm_free` corrupts the Windows process heap after an annotation-driven VM
+            // has instantiated a system. Keep the VM and its unowned delegate alive until process
+            // termination; the operating system then reclaims both without invoking the faulty
+            // native teardown path. Other platforms continue to release the VM normally.
+            _ = Unmanaged.passRetained(
+                WindowsRetainedGravityRuntime(
+                    delegate: delegate,
+                    virtualMachine: virtualMachine
+                )
+            )
+        #endif
+    }
+
     init(module: ResolvedGravityScriptModule) throws {
         let delegate = AnnotatedGravityRuntimeDelegate(module: module)
         self.delegate = delegate

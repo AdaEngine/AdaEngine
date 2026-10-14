@@ -95,7 +95,7 @@ public enum ProjectSystem {
         do {
             try fileManager.createDirectory(at: metadataDirectory, withIntermediateDirectories: true)
             let data = try encode(project)
-            try data.write(to: metadataURL, options: [.atomic])
+            try EditorAtomicFileWriter.write(data, to: metadataURL)
         } catch let error as EncodingError {
             throw .encodingFailed(message: error.localizedDescription)
         } catch {
@@ -115,7 +115,7 @@ public enum ProjectSystem {
         let metadataURL = metadataURL(forProjectAt: projectURL)
         do {
             try fileManager.createDirectory(at: metadataDirectory, withIntermediateDirectories: true)
-            try encode(project).write(to: metadataURL, options: [.atomic])
+            try EditorAtomicFileWriter.write(encode(project), to: metadataURL)
         } catch let error as EncodingError {
             throw .encodingFailed(message: error.localizedDescription)
         } catch {

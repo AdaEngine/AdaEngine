@@ -38,16 +38,26 @@
                 fatalError("Cannot replace a region on a WebGPU texture without a device")
             }
 
+            #if WASM
+                let origin = WebGPU.GPUOrigin3D(
+                    x: region.origin.x,
+                    y: region.origin.y,
+                    z: 0
+                )
+            #else
+                let origin = WebGPU.GPUOrigin3D(
+                    x: UInt32(region.origin.x),
+                    y: UInt32(region.origin.y),
+                    z: 0
+                )
+            #endif
+
             webGPUDeviceLock.withLock { _ in
                 device.queue.writeTexture(
                     destination: WebGPU.GPUTexelCopyTextureInfo(
                         texture: texture,
                         mipLevel: UInt32(mipmapLevel),
-                        origin: WebGPU.GPUOrigin3D(
-                            x: region.origin.x,
-                            y: region.origin.y,
-                            z: 0
-                        ),
+                        origin: origin,
                         aspect: WebGPU.GPUTextureAspect.all
                     ),
                     data: UnsafeRawBufferPointer(
@@ -166,10 +176,11 @@
         }
 
         // TODO: (Vlad) think about it later
-        func getImage(device: WebGPU.GPUDevice) -> Image? {
+        func getImage(context: WGPUContext) -> Image? {
             #if WASM
                 return nil
             #else
+                let device = context.device
                 let imageFormat: Image.Format
                 let bytesInPixel: UInt32
 
@@ -182,12 +193,17 @@
                     bytesInPixel = 4
                 }
 
-                let bytesPerRow = self.texture.width * bytesInPixel
-                let pixelCount = UInt32(self.texture.width * self.texture.height)
-                let count = Int(pixelCount * bytesInPixel)
+                let unpaddedBytesPerRow = self.texture.width * bytesInPixel
+                let bytesPerRow = (unpaddedBytesPerRow + 255) & ~255
+                let bufferSize = Int(bytesPerRow * self.texture.height)
                 nonisolated(unsafe) var readbackBuffer: WebGPU.GPUBuffer?
                 webGPUDeviceLock.withLock { _ in
-                    readbackBuffer = device.createBuffer(descriptor: WebGPU.GPUBufferDescriptor(usage: .copyDst, size: UInt64(count)))
+                    readbackBuffer = device.createBuffer(
+                        descriptor: WebGPU.GPUBufferDescriptor(
+                            usage: [.copyDst, .mapRead],
+                            size: UInt64(bufferSize)
+                        )
+                    )
                 }
                 guard let buffer = readbackBuffer else {
                     return nil
@@ -203,7 +219,7 @@
                         aspect: WebGPU.GPUTextureAspect.all
                     ),
                     destination: WebGPU.GPUTexelCopyBufferInfo(
-                        layout: WebGPU.GPUTexelCopyBufferLayout(offset: UInt64(0), bytesPerRow: UInt32(bytesPerRow), rowsPerImage: texture.height),
+                        layout: WebGPU.GPUTexelCopyBufferLayout(offset: UInt64(0), bytesPerRow: bytesPerRow, rowsPerImage: texture.height),
                         buffer: buffer
                     ),
                     copySize: WebGPU.GPUExtent3D(
@@ -217,16 +233,41 @@
                     device.queue.submit(commands: [commandBuffer])
                 }
 
-                return unsafe Image(
+                nonisolated(unsafe) var mapStatus: WebGPU.GPUMapAsyncStatus?
+                _ = buffer.mapAsync(
+                    mode: .read,
+                    offset: 0,
+                    size: bufferSize,
+                    callbackInfo: WebGPU.GPUBufferMapCallbackInfo(mode: .allowProcessEvents) { status, _ in
+                        mapStatus = status
+                    }
+                )
+                while mapStatus == nil {
+                    context.instance.processEvents()
+                }
+                guard mapStatus == .success,
+                    let mappedRange = unsafe buffer.getConstMappedRange(offset: 0, size: bufferSize)
+                else {
+                    return nil
+                }
+                defer { buffer.unmap() }
+
+                let outputBytesPerRow = Int(unpaddedBytesPerRow)
+                let mappedBytesPerRow = Int(bytesPerRow)
+                var imageData = Data(count: outputBytesPerRow * Int(self.texture.height))
+                imageData.withUnsafeMutableBytes { destination in
+                    for row in 0..<Int(self.texture.height) {
+                        let source = mappedRange.advanced(by: row * mappedBytesPerRow)
+                        destination.baseAddress?
+                            .advanced(by: row * outputBytesPerRow)
+                            .copyMemory(from: source, byteCount: outputBytesPerRow)
+                    }
+                }
+
+                return Image(
                     width: Int(self.texture.width),
                     height: Int(self.texture.height),
-                    data: Data(
-                        bytesNoCopy: buffer.getMappedRange(offset: 0, size: count),
-                        count: count,
-                        deallocator: .custom { [buffer] _, _ in
-                            buffer.unmap()
-                        }
-                    ),
+                    data: imageData,
                     format: imageFormat
                 )
             #endif

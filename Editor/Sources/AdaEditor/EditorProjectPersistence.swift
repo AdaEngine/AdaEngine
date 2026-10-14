@@ -80,7 +80,7 @@ extension EditorProjectStore {
         encoder.dateEncodingStrategy = .iso8601
         let recentProjects = Array(projects.sorted { $0.lastOpenedAt > $1.lastOpenedAt }.prefix(Self.maximumRecentProjectCount))
         let data = try encoder.encode(recentProjects)
-        try data.write(to: storageURL, options: [.atomic])
+        try EditorAtomicFileWriter.write(data, to: storageURL)
     }
 
     /// Resolves a persisted project location against the current application container.

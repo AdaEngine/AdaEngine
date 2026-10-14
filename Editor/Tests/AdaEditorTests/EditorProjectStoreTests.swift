@@ -600,7 +600,7 @@ struct EditorProjectStoreTests {
     }
 
     @Test("standard implicit target keeps its source root and uses a relative project resource")
-    func standardTargetSettingsRemainValidSwiftPM() throws {
+    func standardTargetSettingsRemainValidSwiftPM() async throws {
         let rootURL = try makeEditorStoreTemporaryDirectory(named: "EditorProjectStoreStandardTarget")
         defer { removeEditorStoreTemporaryDirectory(rootURL) }
         let projectURL = rootURL.appendingPathComponent("StandardGame", isDirectory: true)
@@ -632,7 +632,7 @@ struct EditorProjectStoreTests {
         #expect(!manifest.contains(#"path: ".""#))
         #expect(!manifest.contains("\n            sources:"))
         #expect(manifest.contains(#"resources: [.copy("../../Assets")]"#))
-        let dumpResult = try runSwiftPackageDump(at: projectURL)
+        let dumpResult = try await runSwiftPackageDump(at: projectURL)
         #expect(dumpResult.status == 0, Comment(rawValue: dumpResult.error))
     }
 
@@ -696,12 +696,13 @@ private func createSwiftPMManifest(at projectURL: URL) throws {
     )
 }
 
-private func runSwiftPackageDump(at projectURL: URL) throws -> (status: Int32, error: String) {
+private func runSwiftPackageDump(at projectURL: URL) async throws -> (status: Int32, error: String) {
     let process = Process()
     let standardOutput = Pipe()
     let standardError = Pipe()
-    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.arguments = ["swift", "package", "--disable-sandbox", "dump-package"]
+    let toolchain = await SwiftToolchainLocator.locate()
+    process.executableURL = URL(fileURLWithPath: toolchain.swiftExecutablePath)
+    process.arguments = ["package", "--disable-sandbox", "dump-package"]
     process.currentDirectoryURL = projectURL
     process.standardOutput = standardOutput
     process.standardError = standardError

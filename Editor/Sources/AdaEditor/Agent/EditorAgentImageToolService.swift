@@ -190,7 +190,7 @@ actor EditorAgentImageToolService {
         }
         try Self.validate(imageData, outputFormat: configuration.outputFormat)
         try fileManager.createDirectory(at: destination.url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try imageData.write(to: destination.url, options: [.atomic])
+        try EditorAtomicFileWriter.write(imageData, to: destination.url)
 
         return EditorGeneratedImageAsset(
             relativePath: destination.relativePath,

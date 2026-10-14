@@ -1,3 +1,4 @@
+#if canImport(Network)
 import AdaEngine
 import AdaPlayerConnect
 import Foundation
@@ -237,3 +238,25 @@ struct EditorPlayerPairingView: View {
         .accessibilityIdentifier("AdaPlayer.Editor.Actions")
     }
 }
+#else
+import Observation
+
+@Observable @MainActor
+final class EditorPlayerSession {
+    private(set) var connected = false
+    private(set) var isBusy = false
+    private(set) var isRunning = false
+    var onOutput: ((String) -> Void)?
+    var onState: ((Bool) -> Void)?
+    var onConnected: (() -> Void)?
+
+    func stop() {}
+
+    func disconnect() {
+        connected = false
+        isBusy = false
+        isRunning = false
+        onState?(false)
+    }
+}
+#endif

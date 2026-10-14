@@ -83,9 +83,16 @@ struct EditorModifierDialogTests {
         await refresh(container)
         try await open(container)
         let before = model.document
-        _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.UIScene.Modifiers.Toggle"))
+        let backdropPoint = Point(8, 8)
+        container.onMouseEvent(
+            MouseEvent(window: RID(), button: .left, mousePosition: backdropPoint, phase: .began, modifierKeys: [], time: 0)
+        )
+        container.onMouseEvent(
+            MouseEvent(window: RID(), button: .left, mousePosition: backdropPoint, phase: .ended, modifierKeys: [], time: 0)
+        )
+        await refresh(container)
         #expect(model.document == before)
-        #expect(!container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.AddModifier.Dialog")).isEmpty)
+        #expect(container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.AddModifier.Dialog")).isEmpty)
     }
 
     @Test func workbenchPresentsOverEntireWindowAndUpdatesItsDocument() async throws {

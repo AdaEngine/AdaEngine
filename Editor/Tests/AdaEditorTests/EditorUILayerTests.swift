@@ -48,7 +48,8 @@ struct EditorUILayerTests {
             await refresh(container)
             #expect(model.selectedID == stackID)
             #expect(model.document.root.children.first?.children.count == expectedCount)
-            #expect(model.document.root.children.first?.children.allSatisfy(\.children.isEmpty) == true)
+            let firstLayerChildrenAreLeaves = model.document.root.children.first?.children.allSatisfy { $0.children.isEmpty }
+            #expect(firstLayerChildrenAreLeaves == true)
             #expect(model.error == nil)
         }
     }

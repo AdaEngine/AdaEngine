@@ -28,15 +28,21 @@ class Gate {
         var flight = FlightState.get(context.worldID);
         flight["open"] = gateOpen;
         var dt = context.deltaTime;
-        if (dt > 0.05) dt = 0.05;
+        if (dt > 0.05) {
+            dt = 0.05;
+        }
         var p = transform.position;
         var target = 0.0;
-        if (gateOpen) target = 190.0;
+        if (gateOpen) {
+            target = 190.0;
+        }
         p[0] = p[0] + (target - p[0]) * dt * 6.0;
         transform.position = p;
         droneOffset = -flight["y"] * 0.5;
         posture = "COMPACT";
-        if (display.isExpanded) posture = "EXPANDED / CONNECTED";
+        if (display.isExpanded) {
+            posture = "EXPANDED / CONNECTED";
+        }
         status = "AIRLOCK / LOCKED";
         gateColor = "#ff9659ff";
         if (gateOpen) {
@@ -53,12 +59,22 @@ class Drone {
     func update(context) {
         var flight = FlightState.get(context.worldID);
         var dt = context.deltaTime;
-        if (dt > 0.05) dt = 0.05;
+        if (dt > 0.05) {
+            dt = 0.05;
+        }
         var p = transform.position;
         var limit = -48.0;
-        if (flight["open"]) limit = 225.0;
-        if (p[1] < limit) p[1] = p[1] + dt * 65.0;
-        if (p[1] > limit && !flight["open"]) p[1] = limit;
+        if (flight["open"]) {
+            limit = 225.0;
+        }
+        if (p[1] < limit) {
+            p[1] = p[1] + dt * 65.0;
+        }
+        if (p[1] > limit) {
+            if (flight["open"] == false) {
+                p[1] = limit;
+            }
+        }
         transform.position = p;
         flight["y"] = p[1];
     }

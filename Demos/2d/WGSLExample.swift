@@ -122,7 +122,6 @@ func WGPURenderSystem(
                 fragment: GPUFragmentState(
                     module: fragmentShaderModule,
                     entryPoint: "fs_main",
-                    constants: [:],
                     targets: [
                         GPUColorTargetState(
                             format: textureFormat,
@@ -146,7 +145,7 @@ func WGPURenderSystem(
         )
 
         // Create command encoder and render pass
-        let commandEncoder = device.createCommandEncoder()
+        let commandEncoder = device.createCommandEncoder(descriptor: nil as WebGPU.GPUCommandEncoderDescriptor?)
         let renderPass = commandEncoder.beginRenderPass(
             descriptor: WebGPU.GPURenderPassDescriptor(
                 colorAttachments: [
@@ -166,7 +165,7 @@ func WGPURenderSystem(
         renderPass.end()
 
         // Submit commands
-        let commandBuffer = commandEncoder.finish()
+        let commandBuffer = commandEncoder.finish(descriptor: nil as WebGPU.GPUCommandBufferDescriptor?)
         device.queue.submit(commands: [commandBuffer])
     }
 

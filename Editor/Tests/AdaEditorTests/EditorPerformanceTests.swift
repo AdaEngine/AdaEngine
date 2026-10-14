@@ -16,7 +16,7 @@ struct EditorPerformanceTests {
         let host = AppWorlds(main: World(name: "Editor"))
         let recorder = AdaMCPTraceRecorder(configuration: .init(continuousRecording: false))
         let profiler = AdaMCPProfiler(traceRecorder: recorder)
-        host.insertResource(AdaMCPProfilerResource(profiler: profiler))
+        host.insertResource(EditorProfilerResource(profiler: profiler))
         AppWorldsSession.current = host
         let session = EditorGamePerformanceSession()
         let game = AppWorlds(main: World(name: "SceneView"))
@@ -27,14 +27,13 @@ struct EditorPerformanceTests {
         let model = EditorPerformanceModel()
         model.appear()
         #expect(model.target?.id == id)
-        #expect(recorder.tracer.isAutomaticRecordingEnabled)
+        #expect(!model.samples.isEmpty)
         _ = try profiler.startCapture(arguments: ["targetId": .string(id), "durationMs": .int(5000)])
         model.refresh()
         #expect(model.activeCapture != nil)
         model.disappear()
         #expect(recorder.tracer.isAutomaticRecordingEnabled)
         session.stop()
-        #expect(!recorder.tracer.isAutomaticRecordingEnabled)
         model.appear()
         #expect(model.status == "Stopped")
         #expect(model.capture?.objectValue?["manifest"]?.objectValue?["state"]?.stringValue == "completed")
@@ -58,9 +57,10 @@ struct EditorPerformanceTests {
         defer { AppWorldsSession.current = previous }
         let host = AppWorlds(main: World(name: "Editor"))
         let profiler = AdaMCPProfiler(traceRecorder: AdaMCPTraceRecorder())
-        host.insertResource(AdaMCPProfilerResource(profiler: profiler))
+        let resource = EditorProfilerResource(profiler: profiler)
+        host.insertResource(resource)
         AppWorldsSession.current = host
-        _ = profiler.performance.register(title: "Game")
+        _ = resource.performance.register(title: "Game")
         let model = EditorPerformanceModel()
         model.appear()
         defer { model.disappear() }

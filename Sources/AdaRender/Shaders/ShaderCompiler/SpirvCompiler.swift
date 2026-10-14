@@ -80,6 +80,13 @@ final class SpirvCompiler {
 
     /// Compile shader to device specific language
     func compile() throws -> DeviceCompiledShader {
+        if deviceLang == .glsl {
+            let combinedSamplerResult = unsafe spvc_compiler_build_combined_image_samplers(spvcCompiler)
+            if combinedSamplerResult != SPVC_SUCCESS {
+                throw unsafe Error(String(cString: spvc_context_get_last_error_string(context)))
+            }
+        }
+
         var spvcCompilerOptions: spvc_compiler_options?
         if unsafe spvc_compiler_create_compiler_options(spvcCompiler, &spvcCompilerOptions) != SPVC_SUCCESS {
             let errorMessage = unsafe String(cString: spvc_context_get_last_error_string(context))

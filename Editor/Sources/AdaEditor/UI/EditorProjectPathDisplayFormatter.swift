@@ -18,7 +18,7 @@ enum EditorProjectPathDisplayFormatter {
             return labeledPath(root: "On My iPad", relativePath: documentsRelativePath)
         }
 
-        let homePath = NSHomeDirectory()
+        let homePath = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
         if standardizedPath == homePath {
             return "~"
         }

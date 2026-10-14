@@ -45,14 +45,18 @@ struct EditorSettingsUXTests {
         container.layoutIfNeeded()
         let toolbar = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agents.Toolbar"))
         let search = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agents.Search"))
-        let filter = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agents.Filter"))
         #expect(search.absoluteFrame.minY >= toolbar.absoluteFrame.minY)
         #expect(search.absoluteFrame.maxY <= toolbar.absoluteFrame.maxY)
-        #expect(filter.absoluteFrame.minY > toolbar.absoluteFrame.maxY)
-        for value in EditorAgentCatalogViewModel.Filter.allCases {
-            _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Agents.Filter.\(value.rawValue)"))
-            #expect(agent.catalog.filter == value)
-        }
+        #if os(macOS)
+            let filter = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.Agents.Filter"))
+            #expect(filter.absoluteFrame.minY > toolbar.absoluteFrame.maxY)
+            for value in EditorAgentCatalogViewModel.Filter.allCases {
+                _ = try container.uiTapNode(matching: .accessibilityIdentifier("AdaEditor.Agents.Filter.\(value.rawValue)"))
+                #expect(agent.catalog.filter == value)
+            }
+        #else
+            #expect(container.uiFindNodes(matching: .accessibilityIdentifier("AdaEditor.Agents.Filter")).isEmpty)
+        #endif
     }
 
     @Test("Notification switches change preferences and persist after reload")

@@ -103,7 +103,24 @@ struct EditorKeyframeAnimationTests {
             let app = AppWorlds(main: World(name: "EditorAnimationPanelTests"))
             RenderWorldPlugin().setup(in: app)
         }
-        let viewModel = EditorViewModel()
+        let sceneModel = EditorSceneModel.default(projectName: "AnimationPanel")
+        let content = try sceneModel.encodedYAML()
+        let document = EditorSceneDocument(
+            id: "animation-panel-scene",
+            title: "Main.ascn",
+            relativePath: "Main.ascn",
+            absolutePath: "Main.ascn",
+            content: content,
+            lastSavedContent: content,
+            sceneModel: sceneModel,
+            isDirty: false,
+            loadSummary: .empty
+        )
+        let workbench = EditorWorkbenchViewModel(
+            openDocuments: [.scene(document)],
+            activeDocumentID: document.id
+        )
+        let viewModel = EditorViewModel(workbench: workbench)
         viewModel.addAnimationClip()
         viewModel.animationPanel.playhead = 0.5
         let container = UIContainerView(rootView: EditorAnimationPanel(viewModel: viewModel))

@@ -241,15 +241,33 @@ extension EditorViewModel {
         }
 
         do {
-            try newFileKind.initialContent(fileName: fileName).write(to: destinationURL, atomically: true, encoding: .utf8)
+            try EditorAtomicFileWriter.write(newFileKind.initialContent(fileName: fileName), to: destinationURL)
             projectSidebar.items = Self.projectTreeItems(for: project, fileManager: fileManager)
             toolbar.searchableItems = projectSidebar.items
             syncInspectorTextureAssets()
             refreshSourceControl()
 
-            let relativePath = relativeProjectPath(for: destinationURL.path)
+            let relativePath = newFileDestinationRelativePath.isEmpty
+                ? fileName
+                : "\(newFileDestinationRelativePath)/\(fileName)"
             if let item = projectSidebar.items.first(where: { $0.relativePath == relativePath }) {
                 openProjectItem(item)
+            } else {
+                openProjectItem(
+                    EditorProjectSidebarViewModel.Item(
+                        id: destinationURL.path,
+                        disclosure: "",
+                        icon: "▱",
+                        title: fileName,
+                        relativePath: relativePath,
+                        level: 0,
+                        isActive: false,
+                        isFolder: false,
+                        isSymbolicLink: false,
+                        kind: Self.fileKind(for: destinationURL, isDirectory: false),
+                        assetRoot: nil
+                    )
+                )
             }
             appendOutput("Created \(relativePath)")
             dismissNewFileDialog()

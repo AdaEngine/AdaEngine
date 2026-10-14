@@ -71,6 +71,7 @@ struct EditorTreeSitterSyntaxHighlighterTests {
         palette.comment = .yellow
         palette.number = .red
         palette.punctuation = .purple
+        palette.annotation = .orange
 
         let tokens = EditorSyntaxHighlighter.tokens(
             for: """
@@ -82,12 +83,12 @@ struct EditorTreeSitterSyntaxHighlighterTests {
             palette: palette
         )
 
-        #expect(tokens.contains(EditorCodeToken(text: "@", color: .green)))
-        #expect(tokens.contains(EditorCodeToken(text: "MainActor", color: .green)))
+        #expect(tokens.contains(EditorCodeToken(text: "@", color: .purple)))
+        #expect(tokens.contains(EditorCodeToken(text: "MainActor", color: .orange)))
         #expect(tokens.contains(EditorCodeToken(text: "let", color: .green)))
         #expect(tokens.contains(EditorCodeToken(text: "Package", color: .orange)))
-        #expect(tokens.contains(EditorCodeToken(text: "Ada", color: .blue)))
-        #expect(tokens.contains(EditorCodeToken(text: "true", color: .red)))
+        #expect(tokens.contains(EditorCodeToken(text: "\"Ada\"", color: .blue)))
+        #expect(tokens.contains(EditorCodeToken(text: "true", color: .green)))
         #expect(tokens.contains(EditorCodeToken(text: "// manifest", color: .yellow)))
     }
 

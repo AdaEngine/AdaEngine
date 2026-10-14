@@ -2,10 +2,19 @@
 import Foundation
 import PackageDescription
 
-let adaMCPLocalPath = ProcessInfo.processInfo.environment["ADA_MCP_LOCAL_PATH"] ?? "../../AdaMCP"
+let environment = ProcessInfo.processInfo.environment
+let editorPackageDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+let adaMCPConfiguredPath = environment["ADA_MCP_LOCAL_PATH"]
+let adaMCPLocalURL = URL(
+    fileURLWithPath: adaMCPConfiguredPath ?? "../../AdaMCP",
+    relativeTo: editorPackageDirectory
+).standardizedFileURL
+let shouldUseLocalAdaMCP = environment["ADA_MCP_LOCAL"] == "1"
+    || adaMCPConfiguredPath != nil
+    || FileManager.default.fileExists(atPath: adaMCPLocalURL.path)
 let adaMCPPackage: Package.Dependency =
-    true /*ProcessInfo.processInfo.environment["ADA_MCP_LOCAL"] == "1"*/
-    ? .package(name: "AdaMCP", path: adaMCPLocalPath)
+    shouldUseLocalAdaMCP
+    ? .package(name: "AdaMCP", path: adaMCPLocalURL.path)
     : .package(url: "https://github.com/AdaEngine/AdaMCP.git", branch: "main")
 
 let package = Package(

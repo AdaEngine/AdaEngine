@@ -33,7 +33,7 @@
                     for unit in 1...120 {
                         try Task.checkCancellation()
                         let record = Data(repeating: UInt8(unit), count: 64 * 1024)
-                        try record.write(to: url, options: .atomic)
+                        try EditorAtomicFileWriter.write(record, to: url)
                         guard try Data(contentsOf: url) == record else {
                             throw CocoaError(.fileReadCorruptFile)
                         }

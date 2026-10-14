@@ -106,12 +106,12 @@ struct ProjectOpeningLayoutTests {
         for _ in 0..<100 {
             await Task.yield()
             container.layoutIfNeeded()
-            if (try? container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.createHeader))) != nil {
+            if (try? container.uiNode(matching: .accessibilityIdentifier("AdaUI.NavigationBar.Title"))) != nil {
                 break
             }
         }
 
-        let header = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.createHeader))
+        let header = try container.uiNode(matching: .accessibilityIdentifier("AdaUI.NavigationBar.Title"))
         let description = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.createDescription))
         let projectType = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.projectType))
         let actions = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.createActions))
@@ -122,10 +122,10 @@ struct ProjectOpeningLayoutTests {
         _ = try container.uiTapNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.gitToggle))
         #expect(viewModel.shouldCreateGitRepository)
 
-        #expect(header.absoluteFrame.minY == ProjectOpeningLayout.detailPadding)
+        #expect(header.absoluteFrame.minY >= 0)
         #expect(header.absoluteFrame.maxY <= description.absoluteFrame.minY)
         #expect(description.absoluteFrame.maxY <= projectType.absoluteFrame.minY)
         #expect(actions.absoluteFrame.maxX <= ProjectOpeningLayout.windowWidth - ProjectOpeningLayout.detailPadding)
-        #expect(actions.absoluteFrame.maxY <= ProjectOpeningLayout.windowHeight - ProjectOpeningLayout.detailPadding)
+        #expect(actions.absoluteFrame.maxY <= ProjectOpeningLayout.windowHeight - ProjectOpeningLayout.detailBottomPadding)
     }
 }

@@ -151,7 +151,7 @@ enum EditorSceneFileLoader {
                         warnings.append("Component is not decodable: \(componentName)")
                     }
                 } catch {
-                    warnings.append("Failed to decode \(componentName): \(error.localizedDescription)")
+                    warnings.append("Failed to decode \(componentName): \(String(describing: error))")
                 }
             }
             completeRuntimeBundle(for: entity, in: world)

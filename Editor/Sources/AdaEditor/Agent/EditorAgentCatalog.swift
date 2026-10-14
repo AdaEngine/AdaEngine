@@ -60,8 +60,12 @@ struct EditorDiscoveredAgent: Identifiable, Equatable, Sendable {
 
 enum EditorAgentDiscovery {
     static func searchPaths(environment: [String: String], home: URL, fileManager: FileManager = .default) -> [String] {
-        var paths = (environment["PATH"] ?? "").components(separatedBy: ":").filter { $0.hasPrefix("/") }
-        paths += ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+        #if os(Windows)
+            var paths = (environment["PATH"] ?? "").components(separatedBy: ";").filter(isAbsoluteWindowsPath)
+        #else
+            var paths = (environment["PATH"] ?? "").components(separatedBy: ":").filter { $0.hasPrefix("/") }
+            paths += ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+        #endif
         paths += [".local/bin", ".npm-global/bin", ".bun/bin", ".volta/bin", ".cargo/bin", ".opencode/bin"]
             .map {
                 home.appendingPathComponent($0).path
@@ -70,18 +74,35 @@ enum EditorAgentDiscovery {
         let versions = (try? fileManager.contentsOfDirectory(atPath: nvm.path)) ?? []
         paths += versions.sorted { $0.compare($1, options: .numeric) == .orderedDescending }
             .map { nvm.appendingPathComponent($0).appendingPathComponent("bin").path }
-        paths += ["/Applications/Codex.app/Contents/Resources", home.appendingPathComponent("Applications/Codex.app/Contents/Resources").path]
+        #if os(macOS)
+            paths += ["/Applications/Codex.app/Contents/Resources", home.appendingPathComponent("Applications/Codex.app/Contents/Resources").path]
+        #endif
         var seen = Set<String>()
         return paths.filter { seen.insert($0).inserted }
     }
 
     static func executable(_ name: String, paths: [String], fileManager: FileManager = .default) -> String? {
         for directory in paths {
-            let path = URL(fileURLWithPath: directory).appendingPathComponent(name).path
-            var isDirectory: ObjCBool = false
-            if fileManager.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue,
-                fileManager.isExecutableFile(atPath: path) {
-                return path
+            #if os(Windows)
+                let names = URL(fileURLWithPath: name).pathExtension.isEmpty
+                    ? [name] + [".exe", ".cmd", ".bat"].map { name + $0 }
+                    : [name]
+            #else
+                let names = [name]
+            #endif
+            for candidate in names {
+                let path = URL(fileURLWithPath: directory).appendingPathComponent(candidate).path
+                var isDirectory: ObjCBool = false
+                #if os(Windows)
+                    let isExecutable = fileManager.fileExists(atPath: path, isDirectory: &isDirectory) && !isDirectory.boolValue
+                #else
+                    let isExecutable = fileManager.fileExists(atPath: path, isDirectory: &isDirectory)
+                        && !isDirectory.boolValue
+                        && fileManager.isExecutableFile(atPath: path)
+                #endif
+                if isExecutable {
+                    return path
+                }
             }
         }
         return nil
@@ -104,7 +125,11 @@ enum EditorAgentDiscovery {
                         name: name,
                         path: path,
                         target: arguments.map {
-                            AdaProjectAgentTarget(command: path, arguments: $0, environment: ["PATH": paths.joined(separator: ":")])
+                            AdaProjectAgentTarget(
+                                command: path,
+                                arguments: $0,
+                                environment: ["PATH": paths.joined(separator: Self.pathSeparator)]
+                            )
                         }
                     )
                 }
@@ -112,4 +137,18 @@ enum EditorAgentDiscovery {
             return nil
         }
     }
+
+    private static var pathSeparator: String {
+        #if os(Windows)
+            ";"
+        #else
+            ":"
+        #endif
+    }
+
+    #if os(Windows)
+        private static func isAbsoluteWindowsPath(_ path: String) -> Bool {
+            (path.count >= 3 && path[path.index(after: path.startIndex)] == ":") || path.hasPrefix("\\\\")
+        }
+    #endif
 }

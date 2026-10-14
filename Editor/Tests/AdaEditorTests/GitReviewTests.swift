@@ -23,7 +23,11 @@ struct GitReviewTests {
         try repo.write("working\n", to: "file.swift")
         try FileManager.default.removeItem(at: repo.url.appendingPathComponent("deleted.txt"))
         try await repo.git(["mv", "old name.txt", "новое → имя.txt"])
-        let unusual = "tab\tline\n\"юникод.txt"
+        #if os(Windows)
+            let unusual = "spaces → юникод.txt"
+        #else
+            let unusual = "tab\tline\n\"юникод.txt"
+        #endif
         try repo.write("new\n", to: unusual)
         try Data([0, 255, 0, 12]).write(to: repo.url.appendingPathComponent("binary.bin"))
         try FileManager.default.createDirectory(at: repo.url.appendingPathComponent("nested"), withIntermediateDirectories: true)
@@ -103,7 +107,7 @@ struct GitReviewTests {
         let result = await service.snapshot(projectURL: worktree)
         #expect(result.succeeded)
         #expect(result.snapshot.isDetached)
-        #expect(result.snapshot.rootURL?.resolvingSymlinksInPath() == worktree.resolvingSymlinksInPath())
+        #expect(result.snapshot.rootURL?.resolvingSymlinksInPath().standardizedFileURL.path == worktree.resolvingSymlinksInPath().standardizedFileURL.path)
     }
 
     @Test("Stage and unstage operate from repository root, including unborn HEAD")
@@ -297,15 +301,18 @@ private struct GitReviewFixture {
     }
     func remove() { try? FileManager.default.removeItem(at: url) }
     func initialize() async throws { try await git(["init", "-b", "main"]) }
-    func write(_ text: String, to path: String) throws { try text.write(to: url.appendingPathComponent(path), atomically: true, encoding: .utf8) }
+    func write(_ text: String, to path: String) throws { try text.write(to: url.appendingPathComponent(path), atomically: false, encoding: .utf8) }
     func commit(_ message: String) async throws { try await git(["commit", "--allow-empty", "-m", message]) }
     @discardableResult
     func git(_ arguments: [String]) async throws -> String {
         let result = await EditorProcessRunner()
             .run(
                 EditorProcessCommand(
-                    executablePath: "/usr/bin/env",
-                    arguments: ["git", "-c", "user.name=Git Test", "-c", "user.email=git-test@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"] + arguments,
+                    executablePath: EditorGitCommand.executablePath,
+                    arguments: EditorGitCommand.arguments(
+                        ["-c", "user.name=Git Test", "-c", "user.email=git-test@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null"]
+                            + arguments
+                    ),
                     workingDirectory: url,
                     environment: ["GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null"]
                 )
