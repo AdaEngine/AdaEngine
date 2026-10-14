@@ -1394,7 +1394,79 @@
       },
       {
         "kind": "text",
-        "text": "Direct command use is inferred per system and declares deferred-world access to\nthe scheduler. Command facades expire when `update(context)` returns; using a\nretained or undeclared facade reports a plugin diagnostic and performs no\nmutation. Typed component constructors can be passed to\n`context.world.spawn([...])`; the legacy string-based command form remains\navailable. Explicit dynamic `@access` and exclusive immediate world access\nare not implemented.",
+        "text": "Direct command use is inferred per system and declares deferred-world access to\nthe scheduler. Command facades expire when `update(context)` returns; using a\nretained or undeclared facade reports a plugin diagnostic and performs no\nmutation. Typed component constructors, including field overrides, can be passed\nto `context.world.spawn([...])`, `commands.spawn([...])`, and\n`commands.insert(entity, Component(...))`; the string-based form remains\navailable.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Dynamic access with `@access`",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A system that needs to read or write a component by name, without declaring a\nquery, lists the components up front:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"poison.tick\")\n@access(read: [Health], write: [Poison])\nclass PoisonTick {\n    func update(context) {\n        var duration = context.world.read(entityID, \"Poison\", \"duration\");\n        context.world.write(entityID, \"Poison\", \"duration\", duration - 1);\n        context.world.has(entityID, \"Health\");\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The declaration is added to the system's scheduler access, so the system never\nruns concurrently with a conflicting one. Reading or writing a component outside\nthe set, or writing a read-only component, reports a diagnostic and does nothing.\nWithout `@access`, `read`, `write` and `has` are rejected.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Events",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`@eventWriter(Name)` and `@events(Name)` bind an event writer and the received\nevents of one name to a system property:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"trap\")\nclass Trap {\n    @eventWriter(Damage)\n    var damage;\n\n    func update(context) {\n        damage.send([\"amount\", 5, \"source\", \"trap\"]);\n    }\n}\n\n@system(id: \"health\")\nclass Health {\n    @events(Damage)\n    var hits;\n\n    func update(context) {\n        for (var hit in hits) {\n            var amount = hit.value.amount;\n        }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The payload is a flat list of alternating field names and primitive values, which\nkeeps every queued value detached from the VM. A reader sees the events written\nduring the previous frame. Events require `EventsPlugin` (installed by the default\nplugins); a system that declares them without it fails to install.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Exclusive world access",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`@exclusiveWorld` marks a system that may change world structure immediately,\nintended for startup, loading and tooling:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"bootstrap\", scheduler: \"startup\")\n@exclusiveWorld\nclass Bootstrap {\n    func update(context) {\n        var entity = context.world.spawnImmediate([Transform()]);\n        context.world.insertImmediate(entity, \"game.player\");\n        context.world.removeImmediate(entity, \"game.player\");\n        context.world.despawnImmediate(entity);\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "An exclusive system never runs alongside another system. An immediate operation\nis rejected while one of the system's query iterators is still active.\nImmediate resource insertion is not available yet.",
         "level": 0,
         "links": []
       },
@@ -1859,7 +1931,7 @@
       },
       {
         "kind": "text",
-        "text": "The intended final behavior derives read and write sets from row field usage,\nwith explicit `@access` metadata as the escape hatch for dynamic code.",
+        "text": "The intended final behavior derives read and write sets from row field usage.\nDynamic code declares its access explicitly with `@access`, which is enforced\nat runtime and reserved in the scheduler.",
         "level": 0,
         "links": []
       },
@@ -2141,7 +2213,7 @@
     "blocks": [
       {
         "kind": "text",
-        "text": "Studio's macOS ACP chat can display native AdaUI forms and previews using the\nA2UI v0.9.1 Ada forms catalog. Use **Run Studio A2UI** in this worktree or\n`./script/run_studio_a2ui.sh`, open a project, and connect an ACP agent normally.",
+        "text": "Studio's macOS ACP and iPhone SloppyRuntime chats display native AdaUI forms and previews using the\nA2UI v0.9.1 Ada forms catalog. Use **Run Studio A2UI** in this worktree or\n`./script/run_studio_a2ui.sh`, open a project, and connect an ACP agent normally.",
         "level": 0,
         "links": []
       },
@@ -2219,7 +2291,7 @@
       },
       {
         "kind": "text",
-        "text": "This integration uses the shared `EditorAgentViewModel`/macOS ACP sidebar.\nThe iPhone's separate SloppyRuntime chat path is not wired to these cards.\nA designer snapshot is a one-way handoff; subsequent designer edits are not sent\nback to the agent automatically. The host owns gameplay effects of exported actions.",
+        "text": "Desktop uses `EditorAgentViewModel`/ACP; iPhone uses its project-scoped SloppyRuntime chat.\nBoth render the same cards; see the local scene-tool contract below.\nA designer snapshot is a one-way handoff; subsequent designer edits are not sent\nback to the agent automatically. The host owns gameplay effects of exported actions.",
         "level": 0,
         "links": []
       },
@@ -2274,6 +2346,60 @@
       {
         "kind": "text",
         "text": "A Sloppy `protectedContextExceedsBudget` failure can happen before UI generation\nwhen the selected model has no context-window metadata and the runtime falls back\nto its smaller generic budget. Resolve the selected model against the active\nprovider catalog and configure its reported `contextWindowTokens`; use the same\nsupported model for the agent and planner. Do not raise limits based on an\nunverified model name. The task's configured-provider workflow was verified with\n`openai-oauth:gpt-5.5` and the provider-reported 272,000-token window. This is\nprovider/session evidence, not a guarantee for every agent or model.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Tools inside chat (desktop and iPhone)",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Ask the agent to **create an NPC spawner tool in chat** or **create a color tool for\nthis entity**. It reads the scene and presents a configurable card. Reserved\n`editor.*` button events run in the host immediately; they do not start another\nmodel turn. Other button events still submit data to the owning agent session.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Supported local actions:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "| Event | Context | Effect |\n| --- | --- | --- |\n| `editor.scene.spawn` | `path`, `expectedRevision`, `revisionBinding`, `entityID`, `count`, `spacing` | Duplicate a non-root NPC subtree; count 1–100, X spacing per copy, at most 100 created entities including children. |\n| `editor.scene.setColor` | scene/revision fields, `entityID`, `typeName`, `field`, `color` | Set a registered color field from HEX/named color, preserving other component fields. |\n| `editor.scene.apply` | scene/revision fields, `operations` | Apply the existing structured scene-operation vocabulary as one transaction. |\n| `editor.color.pick` | `binding` (absolute data path), `value` | Open the system color palette; update the card's HEX value without changing the scene. |",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Initialize `/scene/revision` from `editor.scene.get`. Scene action contexts must\nuse `expectedRevision:{\"path\":\"/scene/revision\"}` and\n`revisionBinding:\"/scene/revision\"`. The host updates that binding after Apply or\nUndo, allowing repeat use. A change outside the card rejects its stale revision;\nask the agent to refresh the card. Unknown reserved actions produce an inline\nerror. Cards are disabled while an agent turn is running or their original\nprovider is unavailable.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Desktop actions operate on the open scene document and its normal Undo/Redo\nhistory. On iPhone they operate on the saved project scene through the existing\natomic scene service and durable change records. **Undo** on the card reverts its\nlatest application only if the scene still matches that result. Card input,\ncurrent revision and latest Undo record persist in `.ada/chat-ui`; restoring\nprovider history rebinds card message IDs without replaying old form defaults.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The iPhone SloppyRuntime chat streams these same native cards and advertises the\nsame action contract. Ordinary submissions preserve the composer draft and\nattachments. **Open UI Source** exports an editable `.ui` snapshot and opens its\nYAML source in the mobile file editor; the desktop **Open in UI Designer** handoff\ncontinues to use the visual designer. Applying a scene tool affects authored scene\ncontent, not an already running Play world's entities; restart Play to see it.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Desktop context budgeting",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Desktop prompts advertise A2UI with a short capability notice. The complete contract, including component schemas, scene actions and examples, is available through `editor.skills.read` with ID `ada-chat-ui`; `editor.skills.list` discovers it. Bundled skill catalogs retain IDs and bounded descriptions without repeating installed bundle paths. Explicitly selected skill instructions and user action envelopes remain in the request.",
         "level": 0,
         "links": []
       }
@@ -2361,9 +2487,14 @@
     "blocks": [
       {
         "kind": "text",
-        "text": "Use `AdaEngineEmbeddable` from a SwiftUI visionOS application to display an AdaEngine\nworld in a full immersive space. `AdaExamples/Examples/ImmersiveGarden` contains a runnable host.",
+        "text": "Use `AdaEngineEmbeddable` from a SwiftUI visionOS application to display an AdaEngine\nworld in a full immersive space. AdaExamples/ImmersiveGarden contains a runnable host.",
         "level": 0,
-        "links": []
+        "links": [
+          {
+            "title": "AdaExamples/ImmersiveGarden",
+            "destination": "https://github.com/AdaEngine/AdaExamples/tree/main/Examples/ImmersiveGarden"
+          }
+        ]
       },
       {
         "kind": "text",
@@ -2519,9 +2650,13 @@
       },
       {
         "kind": "text",
-        "text": "An unknown dependency ID, self-dependency, cross-scheduler dependency, or\ncycle is rejected during module validation. Fetched query components reserve\nwrite access conservatively; filter-only components do not. `@access` is\nreserved for future explicit access declarations and is not a supported\nscheduling override yet. See AdaScript ECS for row lifetime and deferred\nstructural changes.",
+        "text": "An unknown dependency ID, self-dependency, cross-scheduler dependency, or\ncycle is rejected during module validation. Fetched query components reserve\nwrite access conservatively; filter-only components do not. `@access(read: [...],\nwrite: [...])` declares the components the dynamic `context.world.read`, `write`\nand `has` calls may touch and adds them to the system's scheduler access;\n`@exclusiveWorld` enables the immediate structural operations;\n`@events(Name)` and `@eventWriter(Name)` bind event readers and writers. See\nAdaScript Language for each form and AdaScript ECS for row lifetime\nand deferred structural changes.",
         "level": 0,
         "links": [
+          {
+            "title": "AdaScript Language",
+            "destination": "AdaScriptLanguage"
+          },
           {
             "title": "AdaScript ECS",
             "destination": "AdaScriptECS"

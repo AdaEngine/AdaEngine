@@ -48,6 +48,23 @@ enum AdaScriptSystemPlanBuilder {
                 throw AdaScriptError.invalidManifest("@query must be declared inside an @system class")
             }
         }
+        for capability in annotations where capability.name == "exclusiveWorld" || capability.name == "access" {
+            guard
+                capability.target.kind == .class,
+                systemClassNames.contains(capability.target.identifier)
+            else {
+                throw AdaScriptError.invalidManifest("@\(capability.name) can only annotate an @system class")
+            }
+        }
+        for event in annotations where event.name == "events" || event.name == "eventWriter" {
+            guard
+                event.target.kind == .variableDeclaration,
+                let parent = event.target.parentIdentifier,
+                systemClassNames.contains(parent)
+            else {
+                throw AdaScriptError.invalidManifest("@\(event.name) must annotate a stored property inside an @system class")
+            }
+        }
         for dependency in annotations where dependency.name == "after" || dependency.name == "before" {
             guard
                 dependency.target.kind == .class,
@@ -107,8 +124,49 @@ enum AdaScriptSystemPlanBuilder {
             usesDeferredCommands:
                 systemCapabilities
                 .first { $0.systemName == className }?
-                .usesDeferredCommands == true
+                .usesDeferredCommands == true,
+            isExclusiveWorld: annotations.contains { $0.name == "exclusiveWorld" && $0.target.identifier == className },
+            access: try makeAccessPlan(annotations.filter { $0.name == "access" && $0.target.identifier == className }),
+            eventReaders: try makeEventBindings(annotations, named: "events", className: className),
+            eventWriters: try makeEventBindings(annotations, named: "eventWriter", className: className)
         )
+    }
+
+    private static func makeAccessPlan(_ annotations: [GravityAnnotation]) throws -> AnnotatedAccessPlan? {
+        guard let annotation = annotations.first else {
+            return nil
+        }
+        guard annotations.count == 1 else {
+            throw AdaScriptError.invalidManifest("@access can only be declared once per system")
+        }
+        for argument in annotation.arguments where argument.label != "read" && argument.label != "write" {
+            throw AdaScriptError.invalidManifest("@access only accepts read: and write: component lists")
+        }
+        let read = annotation.identifierListArgument(label: "read")
+        let write = annotation.identifierListArgument(label: "write")
+        guard !read.isEmpty || !write.isEmpty else {
+            throw AdaScriptError.invalidManifest("@access requires at least one read: or write: component")
+        }
+        return AnnotatedAccessPlan(read: read, write: write)
+    }
+
+    private static func makeEventBindings(
+        _ annotations: [GravityAnnotation],
+        named name: String,
+        className: String
+    ) throws -> [AnnotatedEventPlan] {
+        try annotations
+            .filter { $0.name == name && $0.target.parentIdentifier == className }
+            .map { annotation in
+                guard
+                    annotation.arguments.count == 1,
+                    annotation.arguments[0].label == nil,
+                    let eventName = annotation.arguments[0].value.identifierValue ?? annotation.arguments[0].value.stringValue
+                else {
+                    throw AdaScriptError.invalidManifest("@\(name) requires exactly one event name")
+                }
+                return AnnotatedEventPlan(eventName: eventName, propertyName: annotation.target.identifier)
+            }
     }
 
     private static func makeSystemDependency(_ annotation: GravityAnnotation) throws -> SystemDependency {

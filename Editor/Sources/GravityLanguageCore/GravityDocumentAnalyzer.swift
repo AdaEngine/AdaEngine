@@ -34,6 +34,11 @@ struct GravityDocumentAnalyzer {
                 diagnostics: lexResult.diagnostics + parsedImports.diagnostics
                     + duplicatePropertyDiagnostics(typeRegions, tokens: tokens)
                     + declarationAnnotationDiagnostics(typeRegions, tokens: tokens)
+                    + GravityCapabilityAnalyzer.diagnostics(
+                        regions: typeRegions,
+                        tokens: tokens,
+                        globals: Set(symbols.filter { [.variable, .constant].contains($0.kind) }.map(\.name))
+                    )
                     + typeDiagnostics,
                 imports: parsedImports.imports,
                 symbols: symbols

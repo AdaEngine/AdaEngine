@@ -96,8 +96,9 @@ The current implementation conservatively declares write access for fetched
 components. This keeps scheduling correct while compiler-level read/write
 inference is completed. Filter-only components do not receive write access.
 
-The intended final behavior derives read and write sets from row field usage,
-with explicit `@access` metadata as the escape hatch for dynamic code.
+The intended final behavior derives read and write sets from row field usage.
+Dynamic code declares its access explicitly with `@access`, which is enforced
+at runtime and reserved in the scheduler.
 
 ## Multiple queries
 

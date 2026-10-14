@@ -12,6 +12,8 @@ final class AnnotatedGravityQueryBridge: @unchecked Sendable, AdaScriptNonSendab
     private let row: AnnotatedGravityQueryRow
     private let virtualMachine: GravityVirtualMachine
     private var iterationIndex = 0
+    @GSExportableIgnore
+    private(set) var isIterating = false
     private let lease: AnnotatedGravityQueryLease
     private let reportDiagnostic: @Sendable (String) -> Void
 
@@ -59,8 +61,10 @@ final class AnnotatedGravityQueryBridge: @unchecked Sendable, AdaScriptNonSendab
             iterationIndex = 0
         }
         guard cursor.advance() else {
+            isIterating = false
             return GSValue(boolean: false, in: virtualMachine)
         }
+        isIterating = true
         defer { iterationIndex += 1 }
         return GSValue(integer: iterationIndex, in: virtualMachine)
     }
@@ -70,7 +74,10 @@ final class AnnotatedGravityQueryBridge: @unchecked Sendable, AdaScriptNonSendab
     }
 
     @GSExportableIgnore
-    func invalidate() { lease.isActive = false }
+    func invalidate() {
+        lease.isActive = false
+        isIterating = false
+    }
 }
 
 @GSExportable("AdaQueryRow")

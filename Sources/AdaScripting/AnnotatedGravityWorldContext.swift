@@ -7,17 +7,23 @@ final class AnnotatedGravityWorldContext: @unchecked Sendable, AdaScriptNonSenda
     let commands: AnnotatedGravityCommandsBridge
     private let navigator: SceneNavigator?
     private let reportDiagnostic: @Sendable (String) -> Void
+    private let dynamicAccess: AnnotatedGravityDynamicAccess?
+    private let exclusiveAccess: AnnotatedGravityExclusiveAccess?
     private var isActive = true
 
     @GSExportableIgnore
     static func make(
         world: World,
         commands: AnnotatedGravityCommandsBridge,
+        dynamicAccess: AnnotatedGravityDynamicAccess? = nil,
+        exclusiveAccess: AnnotatedGravityExclusiveAccess? = nil,
         reportDiagnostic: @escaping @Sendable (String) -> Void
     ) -> AnnotatedGravityWorldContext {
         AnnotatedGravityWorldContext(
             commands: commands,
             navigator: world.getResource(SceneNavigator.self),
+            dynamicAccess: dynamicAccess,
+            exclusiveAccess: exclusiveAccess,
             reportDiagnostic: reportDiagnostic
         )
     }
@@ -25,11 +31,78 @@ final class AnnotatedGravityWorldContext: @unchecked Sendable, AdaScriptNonSenda
     private init(
         commands: AnnotatedGravityCommandsBridge,
         navigator: SceneNavigator?,
+        dynamicAccess: AnnotatedGravityDynamicAccess?,
+        exclusiveAccess: AnnotatedGravityExclusiveAccess?,
         reportDiagnostic: @escaping @Sendable (String) -> Void
     ) {
         self.commands = commands
         self.navigator = navigator
+        self.dynamicAccess = dynamicAccess
+        self.exclusiveAccess = exclusiveAccess
         self.reportDiagnostic = reportDiagnostic
+    }
+
+    // MARK: @access
+
+    func has(_ entity: Int, _ component: String) -> Bool {
+        guard let dynamicAccess = checkedDynamicAccess("has") else { return false }
+        return dynamicAccess.has(entity, component)
+    }
+
+    func read(_ entity: Int, _ component: String, _ field: String) -> GSValue? {
+        guard let dynamicAccess = checkedDynamicAccess("read") else { return nil }
+        return dynamicAccess.read(entity, component, field)
+    }
+
+    func write(_ entity: Int, _ component: String, _ field: String, _ value: GSValue) -> Bool {
+        guard let dynamicAccess = checkedDynamicAccess("write") else { return false }
+        return dynamicAccess.write(entity, component, field, value)
+    }
+
+    // MARK: @exclusiveWorld
+
+    func spawnImmediate(_ components: GSValue) -> Int {
+        guard let exclusiveAccess = checkedExclusiveAccess("spawnImmediate") else { return -1 }
+        return exclusiveAccess.spawn(components)
+    }
+
+    func insertImmediate(_ entity: Int, _ component: GSValue) -> Bool {
+        guard let exclusiveAccess = checkedExclusiveAccess("insertImmediate") else { return false }
+        return exclusiveAccess.insert(entity, component)
+    }
+
+    func removeImmediate(_ entity: Int, _ component: String) -> Bool {
+        guard let exclusiveAccess = checkedExclusiveAccess("removeImmediate") else { return false }
+        return exclusiveAccess.remove(entity, component)
+    }
+
+    func despawnImmediate(_ entity: Int) -> Bool {
+        guard let exclusiveAccess = checkedExclusiveAccess("despawnImmediate") else { return false }
+        return exclusiveAccess.despawn(entity)
+    }
+
+    private func checkedDynamicAccess(_ operation: String) -> AnnotatedGravityDynamicAccess? {
+        guard isActive else {
+            reportDiagnostic("World capability is no longer valid")
+            return nil
+        }
+        guard let dynamicAccess else {
+            reportDiagnostic("world.\(operation) requires an explicit @access declaration on the system")
+            return nil
+        }
+        return dynamicAccess
+    }
+
+    private func checkedExclusiveAccess(_ operation: String) -> AnnotatedGravityExclusiveAccess? {
+        guard isActive else {
+            reportDiagnostic("World capability is no longer valid")
+            return nil
+        }
+        guard let exclusiveAccess else {
+            reportDiagnostic("world.\(operation) requires an @exclusiveWorld system")
+            return nil
+        }
+        return exclusiveAccess
     }
 
     func spawn(_ components: GSValue) -> Int {
@@ -104,6 +177,7 @@ final class AnnotatedGravityCommandsBridge: @unchecked Sendable, AdaScriptNonSen
     private var commands: Commands?
     private let navigator: SceneNavigator?
     private let reportDiagnostic: @Sendable (String) -> Void
+    private let payloads: AnnotatedGravityComponentPayloads
     private let runtimeComponents: [String: RuntimeComponentDescriptor]
     private var isActive = true
 
@@ -135,6 +209,7 @@ final class AnnotatedGravityCommandsBridge: @unchecked Sendable, AdaScriptNonSen
             result[descriptor.stableID] = descriptor
         }
         self.reportDiagnostic = reportDiagnostic
+        self.payloads = AnnotatedGravityComponentPayloads(runtimeComponents: self.runtimeComponents, reportDiagnostic: reportDiagnostic)
     }
 
     func spawn(_ componentValues: GSValue) -> Int {
@@ -145,41 +220,8 @@ final class AnnotatedGravityCommandsBridge: @unchecked Sendable, AdaScriptNonSen
             reportDiagnostic("Community entity creation limit exceeded")
             return -1
         }
-        guard componentValues.isList else {
-            reportDiagnostic("world.spawn expects a list of components")
+        guard let components = payloads.decodeList(componentValues, operation: "world.spawn") else {
             return -1
-        }
-
-        var componentIDs = Set<ComponentId>()
-        var components: [any Component] = []
-        for componentValue in componentValues.toList {
-            let component: any Component
-            let diagnosticName: String
-            if componentValue.isString {
-                let name = componentValue.toString
-                guard let defaultComponent = makeDefaultComponent(named: name) else {
-                    reportDiagnostic("Component '\(name)' does not have a registered default")
-                    return -1
-                }
-                component = defaultComponent
-                diagnosticName = name
-            } else if let componentValue = componentValue.toObjectOf(AnnotatedGravityComponentValue.self) {
-                guard let draftedComponent = componentValue.takeComponent() else {
-                    reportDiagnostic("world.spawn received an invalid or already consumed component")
-                    return -1
-                }
-                component = draftedComponent
-                diagnosticName = String(describing: type(of: draftedComponent))
-            } else {
-                reportDiagnostic("world.spawn values must be component constructors")
-                return -1
-            }
-            let componentID = (component as? RuntimeComponentPayload)?.componentID ?? type(of: component).identifier
-            guard componentIDs.insert(componentID).inserted else {
-                reportDiagnostic("world.spawn contains duplicate component '\(diagnosticName)'")
-                return -1
-            }
-            components.append(component)
         }
 
         guard let commands else {
@@ -191,15 +233,14 @@ final class AnnotatedGravityCommandsBridge: @unchecked Sendable, AdaScriptNonSen
     }
 
     @discardableResult
-    func insert(_ entityID: Int, _ componentName: String) -> Bool {
+    func insert(_ entityID: Int, _ componentValue: GSValue) -> Bool {
         guard validateAccess(), let commands else {
             return false
         }
-        guard let component = makeDefaultComponent(named: componentName) else {
-            reportDiagnostic("Component '\(componentName)' does not have a registered default")
+        guard let component = payloads.decodeComponent(componentValue, operation: "world.insert") else {
             return false
         }
-        commands.insert(component, into: entityID)
+        commands.insert(component.value, into: entityID)
         return true
     }
 
@@ -208,12 +249,7 @@ final class AnnotatedGravityCommandsBridge: @unchecked Sendable, AdaScriptNonSen
         guard validateAccess(), let commands else {
             return false
         }
-        let componentID: ComponentId
-        if let componentType = RuntimeTypeRegistry.componentType(named: componentName) {
-            componentID = componentType.identifier
-        } else if let descriptor = runtimeComponents[componentName] {
-            componentID = descriptor.componentID
-        } else {
+        guard let componentID = payloads.componentID(named: componentName) else {
             reportDiagnostic("Unknown component '\(componentName)'")
             return false
         }
@@ -245,9 +281,5 @@ final class AnnotatedGravityCommandsBridge: @unchecked Sendable, AdaScriptNonSen
             return false
         }
         return true
-    }
-
-    private func makeDefaultComponent(named name: String) -> (any Component)? {
-        RuntimeTypeRegistry.makeDefaultComponent(named: name) ?? runtimeComponents[name]?.makeDefault()
     }
 }

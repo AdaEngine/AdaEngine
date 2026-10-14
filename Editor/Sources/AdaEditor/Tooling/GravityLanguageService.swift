@@ -12,7 +12,7 @@ struct EditorSourceQuickFix: Equatable, Sendable {
 
 struct EditorGravityLanguageService: Sendable {
     private static let annotationLabels: Set<String> = [
-        "access", "component", "environment", "export", "previewable", "query", "res",
+        "access", "component", "environment", "eventWriter", "events", "exclusiveWorld", "export", "previewable", "query", "res",
         "resource", "scriptable", "state", "strict", "system", "tool", "view",
     ]
 

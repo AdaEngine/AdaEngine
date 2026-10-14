@@ -65,10 +65,13 @@ world context. Use a startup system for one-time world setup.
 
 An unknown dependency ID, self-dependency, cross-scheduler dependency, or
 cycle is rejected during module validation. Fetched query components reserve
-write access conservatively; filter-only components do not. `@access` is
-reserved for future explicit access declarations and is not a supported
-scheduling override yet. See <doc:AdaScriptECS> for row lifetime and deferred
-structural changes.
+write access conservatively; filter-only components do not. `@access(read: [...],
+write: [...])` declares the components the dynamic `context.world.read`, `write`
+and `has` calls may touch and adds them to the system's scheduler access;
+`@exclusiveWorld` enables the immediate structural operations;
+`@events(Name)` and `@eventWriter(Name)` bind event readers and writers. See
+<doc:AdaScriptLanguage> for each form and <doc:AdaScriptECS> for row lifetime
+and deferred structural changes.
 
 ## Data and attached behavior
 

@@ -181,10 +181,88 @@ context.world.commands.despawn(entity);
 Direct command use is inferred per system and declares deferred-world access to
 the scheduler. Command facades expire when `update(context)` returns; using a
 retained or undeclared facade reports a plugin diagnostic and performs no
-mutation. Typed component constructors can be passed to
-`context.world.spawn([...])`; the legacy string-based command form remains
-available. Explicit dynamic `@access` and exclusive immediate world access
-are not implemented.
+mutation. Typed component constructors, including field overrides, can be passed
+to `context.world.spawn([...])`, `commands.spawn([...])`, and
+`commands.insert(entity, Component(...))`; the string-based form remains
+available.
+
+### Dynamic access with `@access`
+
+A system that needs to read or write a component by name, without declaring a
+query, lists the components up front:
+
+```ada
+@system(id: "poison.tick")
+@access(read: [Health], write: [Poison])
+class PoisonTick {
+    func update(context) {
+        var duration = context.world.read(entityID, "Poison", "duration");
+        context.world.write(entityID, "Poison", "duration", duration - 1);
+        context.world.has(entityID, "Health");
+    }
+}
+```
+
+The declaration is added to the system's scheduler access, so the system never
+runs concurrently with a conflicting one. Reading or writing a component outside
+the set, or writing a read-only component, reports a diagnostic and does nothing.
+Without `@access`, `read`, `write` and `has` are rejected.
+
+### Events
+
+`@eventWriter(Name)` and `@events(Name)` bind an event writer and the received
+events of one name to a system property:
+
+```ada
+@system(id: "trap")
+class Trap {
+    @eventWriter(Damage)
+    var damage;
+
+    func update(context) {
+        damage.send(["amount", 5, "source", "trap"]);
+    }
+}
+
+@system(id: "health")
+class Health {
+    @events(Damage)
+    var hits;
+
+    func update(context) {
+        for (var hit in hits) {
+            var amount = hit.value.amount;
+        }
+    }
+}
+```
+
+The payload is a flat list of alternating field names and primitive values, which
+keeps every queued value detached from the VM. A reader sees the events written
+during the previous frame. Events require `EventsPlugin` (installed by the default
+plugins); a system that declares them without it fails to install.
+
+### Exclusive world access
+
+`@exclusiveWorld` marks a system that may change world structure immediately,
+intended for startup, loading and tooling:
+
+```ada
+@system(id: "bootstrap", scheduler: "startup")
+@exclusiveWorld
+class Bootstrap {
+    func update(context) {
+        var entity = context.world.spawnImmediate([Transform()]);
+        context.world.insertImmediate(entity, "game.player");
+        context.world.removeImmediate(entity, "game.player");
+        context.world.despawnImmediate(entity);
+    }
+}
+```
+
+An exclusive system never runs alongside another system. An immediate operation
+is rejected while one of the system's query iterators is still active.
+Immediate resource insertion is not available yet.
 
 SwiftPM generation of native backing types requires `AdaScriptBuildPlugin`;
 supported pure AdaScript layouts can be registered by the runtime.
