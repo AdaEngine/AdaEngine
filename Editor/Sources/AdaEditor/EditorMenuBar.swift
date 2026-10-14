@@ -302,8 +302,10 @@ enum EditorMenuBar {
         key: KeyCode? = nil,
         modifiers: KeyModifier? = .main
     ) -> MenuItem {
+        var key = key
         var modifiers = modifiers
         #if os(Windows)
+        if key == .plus { key = .equals }
         if modifiers?.contains(.main) == true {
             modifiers?.remove(.main)
             modifiers?.insert(.control)

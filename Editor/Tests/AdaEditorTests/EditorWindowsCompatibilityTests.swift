@@ -1,3 +1,4 @@
+import AdaInput
 import AdaScriptCompilerCore
 @_spi(Internal) @testable import AdaPlatform
 import Foundation
@@ -37,6 +38,20 @@ struct EditorWindowsCompatibilityTests {
     }
 
     #if os(Windows)
+    @Test("Windows punctuation keys reach desktop shortcuts, including Ctrl-comma Settings")
+    @MainActor
+    func translatesNativePunctuation() {
+        let mappings: [(UInt16, KeyCode)] = [
+            (0xBA, .semicolon), (0xBB, .equals), (0xBC, .comma), (0xBD, .minus), (0xBE, .period),
+            (0xBF, .slash), (0xC0, .backquote), (0xDB, .leftBracket), (0xDC, .backslash),
+            (0xDD, .rightBracket), (0xDE, .quote), (0x2D, .insert),
+        ]
+        for (native, key) in mappings {
+            #expect(WindowsKeyboard.shared.translateKey(from: native) == key)
+            #expect(WindowsKeyboard.shared.osKeyCode(from: key) == native)
+        }
+    }
+
     @Test("Browser launches forward only matching, live Cloud callbacks")
     @MainActor
     func forwardsCloudCallback() throws {

@@ -30,6 +30,7 @@
             keycodes[0x09] = KeyCode.tab  // VK_TAB
             keycodes[0x2E] = KeyCode.delete  // VK_DELETE
             keycodes[0x24] = KeyCode.home  // VK_HOME
+            keycodes[0x2D] = KeyCode.insert  // VK_INSERT
             keycodes[0x21] = KeyCode.pageUp  // VK_PRIOR
             keycodes[0x22] = KeyCode.pageDown  // VK_NEXT
             keycodes[0x25] = KeyCode.arrowLeft  // VK_LEFT
@@ -42,6 +43,17 @@
             keycodes[0x5B] = KeyCode.meta  // VK_LWIN
             keycodes[0x5C] = KeyCode.meta  // VK_RWIN
             keycodes[0x14] = KeyCode.capslock  // VK_CAPITAL
+            keycodes[0xBA] = KeyCode.semicolon  // VK_OEM_1
+            keycodes[0xBB] = KeyCode.equals  // VK_OEM_PLUS
+            keycodes[0xBC] = KeyCode.comma  // VK_OEM_COMMA
+            keycodes[0xBD] = KeyCode.minus  // VK_OEM_MINUS
+            keycodes[0xBE] = KeyCode.period  // VK_OEM_PERIOD
+            keycodes[0xBF] = KeyCode.slash  // VK_OEM_2
+            keycodes[0xC0] = KeyCode.backquote  // VK_OEM_3
+            keycodes[0xDB] = KeyCode.leftBracket  // VK_OEM_4
+            keycodes[0xDC] = KeyCode.backslash  // VK_OEM_5
+            keycodes[0xDD] = KeyCode.rightBracket  // VK_OEM_6
+            keycodes[0xDE] = KeyCode.quote  // VK_OEM_7
             keycodes[0x70] = KeyCode.f1  // VK_F1
             keycodes[0x71] = KeyCode.f2  // VK_F2
             keycodes[0x72] = KeyCode.f3  // VK_F3

@@ -55,6 +55,9 @@ struct EditorMenuBarTests {
         #expect(file.items.first { $0.title == "Close Editor Tab" }?.keyEquivalentModifierMask == .command)
         #expect(file.items.first { $0.title == "Close Window" }?.keyEquivalentModifierMask == [.command, .shift])
         #expect(code.items.first { $0.title == "Close Editor Tab" } == nil)
+        #if os(Windows)
+        #expect(code.items.first { $0.title == "Increase Font Size" }?.keyEquivalent == .equals)
+        #endif
         #expect(build.items.first { $0.title == "Build Project" }?.keyEquivalent == .b)
     }
 }
