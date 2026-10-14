@@ -743,7 +743,12 @@
                         region.isActive && region.kind == .occlusion
                             && (region.frame.minX < Float(uiInsets.left) || region.frame.maxX > Float(view.bounds.width - uiInsets.right))
                     }
-                    let verticalStatusInset = sideInset >= 60 ? sideOcclusionBottom ?? (hasSideOcclusion ? 0 : sideInset * 1.25) : 0
+                    // Closed Duo displays can omit reserved regions. statusBarFrame
+                    // covers the clock, while the network/activity control extends
+                    // below it. Reserve the complete two-side-width system strip.
+                    // A bottom-facing/hidden status area must not reserve top space.
+                    let fallbackStatusInset = !hasSideOcclusion && statusInset > 0 ? sideInset * 2 : 0
+                    let verticalStatusInset = sideInset >= 60 ? sideOcclusionBottom ?? fallbackStatusInset : 0
                     adaWindow.navigationBarControlsTopInset = Float(max(statusInset, verticalStatusInset))
                 } else {
                     adaWindow.navigationBarControlsTopInset = 0

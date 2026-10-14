@@ -9,58 +9,66 @@ struct MobileEditorProjectsScreen: View {
     let open: (MobileEditorProject) -> Void
 
     var body: some View {
-        MobileEditorPageScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 9) {
-                    Text("Your Worlds")
-                        .font(MobileEditorFont.font(size: 34))
-                        .foregroundColor(theme.editorColors.text)
-                    Text("Choose a project or start a new game.")
-                        .font(MobileEditorFont.font(size: 15))
-                        .foregroundColor(theme.editorColors.muted)
-                }
-
-                Button(action: create) {
-                    HStack(spacing: 14) {
-                        Text("\u{E145}")
-                            .font(AdaEditorMaterialSymbolFont.font(size: 24))
-                            .foregroundColor(theme.editorColors.blue)
-                            .frame(width: 48, height: 48)
-                            .background(RoundedRectangleShape(cornerRadius: 14).fill(theme.editorColors.blue.opacity(0.15)))
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("Create Game")
-                                .font(MobileEditorFont.font(size: 17))
-                                .foregroundColor(theme.editorColors.text)
-                            Text("Open your workspace")
-                                .font(MobileEditorFont.font(size: 12))
-                                .foregroundColor(theme.editorColors.muted)
-                        }
-                        Spacer()
-                        Text("\u{E5CC}")
-                            .font(AdaEditorMaterialSymbolFont.font(size: 16))
+        GeometryReader { geometry in
+            // Keep cards readable and let the viewport, including side chrome,
+            // determine how many equal-width columns fit.
+            let columns = max(1, Int((max(0, geometry.size.width - 44) + 20) / 300))
+            MobileEditorPageScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 9) {
+                        Text("Your Worlds")
+                            .font(MobileEditorFont.font(size: 34))
+                            .foregroundColor(theme.editorColors.text)
+                        Text("Choose a project or start a new game.")
+                            .font(MobileEditorFont.font(size: 15))
                             .foregroundColor(theme.editorColors.muted)
                     }
-                    .padding(16)
-                    .background(RoundedRectangleShape(cornerRadius: 18).fill(theme.editorColors.surface))
-                    .overlay { RoundedRectangleShape(cornerRadius: 18).stroke(theme.editorColors.blue.opacity(0.4), lineWidth: 1) }
-                }
-                .buttonStyle(DefaultButtonStyle())
-                .accessibilityIdentifier("AdaEditor.Mobile.CreateGame")
 
-                Text("PROJECTS")
-                    .font(MobileEditorFont.font(size: 11))
-                    .foregroundColor(theme.editorColors.muted)
-                    .padding(.top, 8)
+                    Button(action: create) {
+                        HStack(spacing: 14) {
+                            Text("\u{E145}")
+                                .font(AdaEditorMaterialSymbolFont.font(size: 24))
+                                .foregroundColor(theme.editorColors.blue)
+                                .frame(width: 48, height: 48)
+                                .background(RoundedRectangleShape(cornerRadius: 14).fill(theme.editorColors.blue.opacity(0.15)))
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("Create Game")
+                                    .font(MobileEditorFont.font(size: 17))
+                                    .foregroundColor(theme.editorColors.text)
+                                Text("Open your workspace")
+                                    .font(MobileEditorFont.font(size: 12))
+                                    .foregroundColor(theme.editorColors.muted)
+                            }
+                            Spacer()
+                            Text("\u{E5CC}")
+                                .font(AdaEditorMaterialSymbolFont.font(size: 16))
+                                .foregroundColor(theme.editorColors.muted)
+                        }
+                        .padding(16)
+                        .background(RoundedRectangleShape(cornerRadius: 18).fill(theme.editorColors.surface))
+                        .overlay { RoundedRectangleShape(cornerRadius: 18).stroke(theme.editorColors.blue.opacity(0.4), lineWidth: 1) }
+                    }
+                    .buttonStyle(DefaultButtonStyle())
+                    .accessibilityIdentifier("AdaEditor.Mobile.CreateGame")
 
-                ForEach(projects) { project in
-                    projectCard(project)
+                    Text("PROJECTS")
+                        .font(MobileEditorFont.font(size: 11))
+                        .foregroundColor(theme.editorColors.muted)
+                        .padding(.top, 8)
+
+                    Grid(columns: columns, horizontalSpacing: 20, verticalSpacing: 22) {
+                        ForEach(projects) { project in
+                            projectCard(project)
+                        }
+                    }
+                    .accessibilityIdentifier("AdaEditor.Mobile.ProjectGrid")
                 }
+                .padding(.horizontal, 22)
+                .padding(.top, 24)
+                .padding(.bottom, 28)
             }
-            .padding(.horizontal, 22)
-            .padding(.top, 24)
-            .padding(.bottom, 28)
+            .background(theme.editorColors.background)
         }
-        .background(theme.editorColors.background)
     }
 
     private func projectCard(_ project: MobileEditorProject) -> some View {
@@ -73,6 +81,7 @@ struct MobileEditorProjectsScreen: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(project.title)
                             .font(MobileEditorFont.font(size: 18))
+                            .lineLimit(1)
                             .foregroundColor(theme.editorColors.text)
                         Text("Open Build")
                             .font(MobileEditorFont.font(size: 13))
