@@ -236,13 +236,37 @@ public struct AdaScriptResourceBinding: Equatable, Sendable {
     }
 }
 
+/// How a system's code uses one `@query`, derived from the script text.
+///
+/// Rows are analysed through `for (var row in query)` loops: `row.alias.field` is a read, an assignment to it a
+/// write. A row or query that escapes the loop (passed to a function, stored, indexed) cannot be analysed and
+/// makes the use opaque, so access must be declared with `@access`.
+public struct AdaScriptQueryUsage: Equatable, Sendable {
+    public let propertyName: String
+    /// Row aliases whose fields are read.
+    public let reads: Set<String>
+    /// Row aliases whose fields are assigned.
+    public let writes: Set<String>
+    /// True when the row or the query itself is used in a way that hides which components are touched.
+    public let isOpaque: Bool
+
+    public init(propertyName: String, reads: Set<String>, writes: Set<String>, isOpaque: Bool) {
+        self.propertyName = propertyName
+        self.reads = reads
+        self.writes = writes
+        self.isOpaque = isOpaque
+    }
+}
+
 public struct AdaScriptSystemCapabilities: Equatable, Sendable {
     public let systemName: String
     public let usesDeferredCommands: Bool
+    public let queryUsage: [AdaScriptQueryUsage]
 
-    public init(systemName: String, usesDeferredCommands: Bool) {
+    public init(systemName: String, usesDeferredCommands: Bool, queryUsage: [AdaScriptQueryUsage] = []) {
         self.systemName = systemName
         self.usesDeferredCommands = usesDeferredCommands
+        self.queryUsage = queryUsage
     }
 }
 

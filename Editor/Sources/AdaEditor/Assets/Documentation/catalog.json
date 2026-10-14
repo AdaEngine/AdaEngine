@@ -1889,20 +1889,44 @@
       },
       {
         "kind": "text",
-        "text": "Positional components are fetched and available on each row. `with` and\n`without` only filter matching archetypes.",
+        "text": "Positional components are fetched and available on each row. Four more clauses\ntake one component or a list:",
         "level": 0,
         "links": []
       },
       {
         "kind": "text",
-        "text": "Aliases use lower-camel-case component names:",
+        "text": "| Clause | Meaning |\n| --- | --- |\n| `optional: Target` | Fetched like a positional component, but rows may lack it. `entity.target` is `null` when absent. |\n| `with: Movable` | The entity must have it; it is not fetched. |\n| `without: Frozen` | The entity must not have it. |\n| `changed: Health` | Rows where any listed component changed since the system last ran. |\n| `added: Marker` | Rows where any listed component was added since the system last ran. |",
         "level": 0,
         "links": []
       },
       {
         "kind": "code",
-        "text": "for (var entity in entities) {\n    var position = entity.movement.position;\n    entity.health.current -= 1.0;\n}",
+        "text": "@query(Health, Movement, optional: Target, with: Movable, without: Frozen, changed: Health)\nvar entities;\n\nfor (var entity in entities) {\n    if (entity.target != null) { entity.health.current -= entity.target.damage; }\n}",
         "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`changed` and `added` need the component to exist in the archetype; the change tick\nof a component is updated by every successful field write. A boolean `where:` clause\nand any other label are rejected with a message naming the supported clauses.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Row properties are the lower-camel-case component names, or an explicit alias\nwritten with `as`. A component may be named by its qualified path:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@query(Game.Health as hp, Physics.Movement as motion)\nvar entities;\n\nfor (var entity in entities) {\n    var position = entity.motion.position;\n    entity.hp.current -= 1.0;\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Two fetched components with the same short name (`Game.Health` and `Physics.Health`)\nare an error until one is given an alias, and no component may be aliased `id`.",
+        "level": 0,
         "links": []
       },
       {
@@ -1961,13 +1985,37 @@
       },
       {
         "kind": "text",
-        "text": "The current implementation conservatively declares write access for fetched\ncomponents. This keeps scheduling correct while compiler-level read/write\ninference is completed. Filter-only components do not receive write access.",
+        "text": "The compiler reads how a system uses its rows and requests exactly that access\nfrom the scheduler:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "var current = entity.health.current;   // read Health\nentity.health.current = current - 1;   // write Health\nentity.health.current -= 1;            // read and write Health",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A component that is only read can be shared with other readers; a write reserves\nit exclusively. `changed:` and `added:` read a component's ticks, so they request\nread access even for a component that is not fetched. Filter-only components\n(`with`, `without`) request none.",
         "level": 0,
         "links": []
       },
       {
         "kind": "text",
-        "text": "The intended final behavior derives read and write sets from row field usage.\nDynamic code declares its access explicitly with `@access`, which is enforced\nat runtime and reserved in the scheduler.",
+        "text": "Analysis follows `for (var row in query)` loops. If a row, a component view, or the\nquery itself escapes into code the compiler cannot follow (passed to a function,\nstored, called with an unknown method), the system must declare what it touches:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"game.inspect\")\n@access(read: [Health], write: [Transform])\nclass InspectSystem {\n    @query(Health, Transform)\n    var entities;\n\n    func update(context) {\n        for (var entity in entities) { inspect(entity); }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Without `@access` this fails to compile, naming the query and component. A\ndeclaration may be broader than the code but not narrower: declaring a component\nread-only while the script writes it is an error. The same `@access` declaration\ngoverns the dynamic `context.world.read/write` calls. A precompiled module has no\nscript text to analyse and keeps write access to every fetched component.",
         "level": 0,
         "links": []
       },

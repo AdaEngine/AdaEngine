@@ -9,21 +9,42 @@ import AdaUtils
 @propertyWrapper
 public struct DynamicQuery: Sendable {
     public var wrappedValue: DynamicQueryResult {
-        DynamicQueryResult(state: state, componentIDs: componentIDs)
+        DynamicQueryResult(state: state, componentIDs: componentIDs, options: options)
     }
 
     let state: QueryState
     let componentIDs: [ComponentId]
     let declaredAccess: SystemAccessSet
+    let options: DynamicQueryOptions
 
+    /// - Parameters:
+    ///   - components: Components the cursor fetches, in the order scripts address them by slot.
+    ///   - optionalComponents: Fetched components that rows may lack. Their archetypes still match.
+    ///   - changedComponents: Rows match only when at least one of these changed since the system last ran.
+    ///   - addedComponents: Rows match only when at least one of these was added since the system last ran.
     public init(
         where predicate: QueryPredicate,
         components: [ComponentId],
+        optionalComponents: Set<ComponentId> = [],
+        changedComponents: [ComponentId] = [],
+        addedComponents: [ComponentId] = [],
         access: SystemAccessSet
     ) {
-        self.state = QueryState(predicate: predicate, filter: .all)
+        // A tick filter can only match an archetype that stores at least one of its components.
+        func containingAny(_ ids: [ComponentId]) -> QueryPredicate {
+            QueryPredicate { archetype in ids.contains { archetype.componentLayout.maskSet.contains($0) } }
+        }
+        var combined = predicate
+        if !changedComponents.isEmpty { combined = combined && containingAny(changedComponents) }
+        if !addedComponents.isEmpty { combined = combined && containingAny(addedComponents) }
+        self.state = QueryState(predicate: combined, filter: .all)
         self.componentIDs = components
         self.declaredAccess = access
+        self.options = DynamicQueryOptions(
+            optional: optionalComponents,
+            changed: changedComponents,
+            added: addedComponents
+        )
     }
 
     // SystemParameter requires this initializer, while DynamicQuery requires an explicit plan.
@@ -45,13 +66,20 @@ extension DynamicQuery: SystemParameter {
     }
 }
 
+struct DynamicQueryOptions: Sendable {
+    var optional: Set<ComponentId>
+    var changed: [ComponentId]
+    var added: [ComponentId]
+}
+
 @_spi(Scripting)
 public struct DynamicQueryResult: Sendable {
     let state: QueryState
     let componentIDs: [ComponentId]
+    let options: DynamicQueryOptions
 
     public func makeCursor() -> DynamicQueryCursor {
-        DynamicQueryCursor(state: state, componentIDs: componentIDs)
+        DynamicQueryCursor(state: state, componentIDs: componentIDs, options: options)
     }
 }
 
@@ -65,18 +93,23 @@ public final class DynamicQueryCursor: @unchecked Sendable {
     }
 
     private let componentIDs: [ComponentId]
+    private let options: DynamicQueryOptions
     private let state: QueryState
     private var archetypePosition = 0
     private var chunkPosition = 0
     private var rowPosition = -1
-    private var columns: [Column] = []
+    /// One entry per fetched component; `nil` where an optional component is absent from the chunk.
+    private var columns: [Column?] = []
+    private var changedTicks: [UnsafeMutablePointer<Tick>] = []
+    private var addedTicks: [UnsafeMutablePointer<Tick>] = []
     private var columnsAreBound = false
 
     public private(set) var entityID: Entity.ID = -1
 
-    init(state: QueryState, componentIDs: [ComponentId]) {
+    init(state: QueryState, componentIDs: [ComponentId], options: DynamicQueryOptions) {
         self.state = state
         self.componentIDs = componentIDs
+        self.options = options
         self.columns.reserveCapacity(componentIDs.count)
     }
 
@@ -85,6 +118,8 @@ public final class DynamicQueryCursor: @unchecked Sendable {
         chunkPosition = 0
         rowPosition = -1
         columns.removeAll(keepingCapacity: true)
+        changedTicks.removeAll(keepingCapacity: true)
+        addedTicks.removeAll(keepingCapacity: true)
         columnsAreBound = false
         entityID = -1
     }
@@ -127,11 +162,34 @@ public final class DynamicQueryCursor: @unchecked Sendable {
             else {
                 continue
             }
+            guard passesTickFilters() else {
+                continue
+            }
             entityID = candidateID
             return true
         }
         entityID = -1
         return false
+    }
+
+    /// Whether the current row has the component at `componentIndex`. Always true for a required component.
+    public func isPresent(componentAt componentIndex: Int) -> Bool {
+        columns.indices.contains(componentIndex) && columns[componentIndex] != nil && rowPosition >= 0
+    }
+
+    private func passesTickFilters() -> Bool {
+        guard !changedTicks.isEmpty || !addedTicks.isEmpty || !options.changed.isEmpty || !options.added.isEmpty else {
+            return true
+        }
+        let world = state.world!
+        let lastTick = state.lastTick
+        let currentTick = world.currentTick
+        func anyNewer(_ ticks: [UnsafeMutablePointer<Tick>], required: Bool) -> Bool {
+            guard required else { return true }
+            return ticks.contains { unsafe $0.advanced(by: rowPosition).pointee.isNewerThan(lastTick: lastTick, currentTick: currentTick) }
+        }
+        return anyNewer(changedTicks, required: !options.changed.isEmpty)
+            && anyNewer(addedTicks, required: !options.added.isEmpty)
     }
 
     public func read(
@@ -140,11 +198,11 @@ public final class DynamicQueryCursor: @unchecked Sendable {
     ) -> ReflectedFieldValue? {
         guard
             columns.indices.contains(componentIndex), rowPosition >= 0,
+            let column = columns[componentIndex],
             let readPointer = unsafe field.readPointer
         else {
             return nil
         }
-        let column = columns[componentIndex]
         let pointer = unsafe UnsafeRawPointer(column.data.advanced(by: rowPosition * column.stride))
         return unsafe readPointer(pointer)
     }
@@ -157,11 +215,11 @@ public final class DynamicQueryCursor: @unchecked Sendable {
     ) -> Bool {
         guard
             columns.indices.contains(componentIndex), rowPosition >= 0,
+            let column = columns[componentIndex],
             field.accepts(value), let writePointer = unsafe field.writePointer
         else {
             return false
         }
-        let column = columns[componentIndex]
         let pointer = unsafe column.data.advanced(by: rowPosition * column.stride)
         guard unsafe writePointer(pointer, value) else {
             return false
@@ -179,22 +237,44 @@ public final class DynamicQueryCursor: @unchecked Sendable {
 
     private func bindColumns(in chunk: Chunk) -> Bool {
         columns.removeAll(keepingCapacity: true)
+        changedTicks.removeAll(keepingCapacity: true)
+        addedTicks.removeAll(keepingCapacity: true)
+        guard !chunk.isEmpty else {
+            return false
+        }
         for componentID in componentIDs {
             guard
-                let componentData = chunk.componentsData[componentID], !chunk.isEmpty,
+                let componentData = chunk.componentsData[componentID],
                 let data = unsafe componentData.data.buffer.pointer.baseAddress,
-                let changedTicks = unsafe componentData.changeTicks.buffer.pointer.baseAddress?
+                let changed = unsafe componentData.changeTicks.buffer.pointer.baseAddress?
                     .assumingMemoryBound(to: Tick.self)
             else {
-                return false
+                // An absent optional component leaves a hole; an absent required one ends the query.
+                guard options.optional.contains(componentID) else {
+                    return false
+                }
+                columns.append(nil)
+                continue
             }
             unsafe columns.append(
                 Column(
                     data: data,
                     stride: componentData.data.layout.size,
-                    changedTicks: changedTicks
+                    changedTicks: changed
                 )
             )
+        }
+        for componentID in options.changed {
+            if let ticks = unsafe chunk.componentsData[componentID]?.changeTicks.buffer.pointer.baseAddress?
+                .assumingMemoryBound(to: Tick.self) {
+                unsafe changedTicks.append(ticks)
+            }
+        }
+        for componentID in options.added {
+            if let ticks = unsafe chunk.componentsData[componentID]?.addedTicks.buffer.pointer.baseAddress?
+                .assumingMemoryBound(to: Tick.self) {
+                unsafe addedTicks.append(ticks)
+            }
         }
         columnsAreBound = true
         return true

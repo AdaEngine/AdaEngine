@@ -1,3 +1,4 @@
+import Foundation
 @_spi(Scripting) import AdaECS
 import AdaScriptCompilerCore
 import Gravity
@@ -118,7 +119,14 @@ enum AdaScriptSystemPlanBuilder {
             queries:
                 annotations
                 .filter { $0.name == "query" && $0.target.parentIdentifier == className }
-                .map(makeQueryPlan),
+                .map { query in
+                    try makeQueryPlan(
+                        query,
+                        usage: systemCapabilities.first { $0.systemName == className }?.queryUsage
+                            .first { $0.propertyName == query.target.identifier },
+                        pathsByFileID: pathsByFileID
+                    )
+                },
             remoteCommands:
                 remoteCommandBindings
                 .filter { $0.systemName == className }
@@ -200,24 +208,62 @@ enum AdaScriptSystemPlanBuilder {
         return annotation.name == "before" ? .before(identifier) : .after(identifier)
     }
 
-    private static func makeQueryPlan(_ annotation: GravityAnnotation) throws -> AnnotatedQueryPlan {
+    private static let queryLabels: Set<String> = ["optional", "with", "without", "changed", "added"]
+
+    private static func makeQueryPlan(
+        _ annotation: GravityAnnotation,
+        usage: AdaScriptQueryUsage?,
+        pathsByFileID: [UInt32: String]
+    ) throws -> AnnotatedQueryPlan {
+        func fail(_ message: String) -> AdaScriptError {
+            .invalidManifest(locationPrefix(of: annotation, pathsByFileID: pathsByFileID) + message)
+        }
         guard annotation.target.kind == .variableDeclaration else {
-            throw AdaScriptError.invalidManifest("@query can only annotate a stored property")
+            throw fail("@query can only annotate a stored property")
         }
-        let components = annotation.arguments.compactMap { argument -> String? in
-            guard argument.label == nil else {
-                return nil
+        for argument in annotation.arguments {
+            guard let label = argument.label else { continue }
+            guard queryLabels.contains(label) else {
+                let hint = label == "where" ? "; boolean predicates are not supported yet" : ""
+                throw fail("@query does not support '\(label):'\(hint). Supported clauses: optional, with, without, changed, added")
             }
-            return argument.value.identifierValue
         }
-        guard !components.isEmpty else {
-            throw AdaScriptError.invalidManifest("@query requires at least one fetched component")
+        func references(_ values: [GravityAnnotation.Value]) throws -> [(name: String, alias: String?)] {
+            try values.map { value in
+                guard let text = value.identifierValue ?? value.stringValue else {
+                    throw fail("@query component references must be names")
+                }
+                let pieces = text.components(separatedBy: " as ")
+                return (pieces[0], pieces.count > 1 ? pieces[1] : nil)
+            }
         }
+        func labelled(_ label: String) throws -> [(name: String, alias: String?)] {
+            var values: [GravityAnnotation.Value] = []
+            for argument in annotation.arguments where argument.label == label {
+                if case let .list(items) = argument.value { values += items } else { values.append(argument.value) }
+            }
+            return try references(values)
+        }
+        let required = try references(annotation.arguments.filter { $0.label == nil }.map(\.value))
+        guard !required.isEmpty else {
+            throw fail("@query requires at least one fetched component")
+        }
+        let optional = try labelled("optional")
+        let fetched = required.map { AnnotatedQueryComponent(name: $0.name, alias: $0.alias, isOptional: false) }
+            + optional.map { AnnotatedQueryComponent(name: $0.name, alias: $0.alias, isOptional: true) }
         return AnnotatedQueryPlan(
             propertyName: annotation.target.identifier,
-            components: components,
-            withComponents: annotation.identifierListArgument(label: "with"),
-            withoutComponents: annotation.identifierListArgument(label: "without")
+            components: fetched,
+            withComponents: try labelled("with").map(\.name),
+            withoutComponents: try labelled("without").map(\.name),
+            changedComponents: try labelled("changed").map(\.name),
+            addedComponents: try labelled("added").map(\.name),
+            usage: usage,
+            source: AnnotatedSourceLocation(
+                column: Int(annotation.source.column),
+                line: Int(annotation.source.line),
+                path: pathsByFileID[annotation.source.fileID]
+            )
         )
     }
 }

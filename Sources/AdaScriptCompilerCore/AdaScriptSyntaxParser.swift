@@ -1,3 +1,4 @@
+import Foundation
 struct AdaScriptParsedBinding: Sendable {
     var initializerRange: Range<Int>?
     var syntax: AdaScriptBindingSyntax
@@ -205,7 +206,9 @@ struct AdaScriptSyntaxParser {
         var endIndex = index + 1
         if index + 2 < upperBound, tokens[index + 2].text == "(",
             let closeIndex = matchingIndex(openingAt: index + 2, opening: "(", closing: ")", upperBound: upperBound) {
-            arguments = annotationArguments(in: (index + 3)..<closeIndex)
+            arguments = nameToken.text == "query"
+                ? queryArguments(in: (index + 3)..<closeIndex)
+                : annotationArguments(in: (index + 3)..<closeIndex)
             endIndex = closeIndex
         }
         return (
@@ -216,6 +219,40 @@ struct AdaScriptSyntaxParser {
             ),
             endIndex + 1
         )
+    }
+
+    /// Fetched components of a `@query`, in declaration order, as `Short` or `Short as alias`. Qualified
+    /// names keep their last segment; `optional:` components are fetched too, so they are included.
+    private func queryArguments(in range: Range<Int>) -> [String] {
+        func entry(from parts: Range<Int>) -> String? {
+            guard !parts.isEmpty else { return nil }
+            if tokens[parts.lowerBound].kind == .string {
+                let text = tokens[parts.lowerBound].text.dropFirst().dropLast()
+                let pieces = text.components(separatedBy: " as ")
+                guard let path = pieces.first, let short = path.split(separator: ".").last else { return nil }
+                return pieces.count > 1 ? "\(short) as \(pieces[1])" : String(short)
+            }
+            let identifiers = parts.filter { tokens[$0].kind == .identifier }.map { tokens[$0].text }
+            guard !identifiers.isEmpty else { return nil }
+            if let asIndex = identifiers.firstIndex(of: "as"), asIndex > 0, asIndex + 1 < identifiers.count {
+                return "\(identifiers[asIndex - 1]) as \(identifiers[asIndex + 1])"
+            }
+            return identifiers.last
+        }
+        var result: [String] = []
+        for argument in splitTopLevel(range, separator: ",") {
+            if let colon = firstTopLevelToken(":", in: argument) {
+                guard tokens[argument.lowerBound].text == "optional" else { continue }
+                var values = (colon + 1)..<argument.upperBound
+                if values.first.map({ tokens[$0].text == "[" }) == true, values.count >= 2 {
+                    values = (values.lowerBound + 1)..<(values.upperBound - 1)
+                }
+                result += splitTopLevel(values, separator: ",").compactMap(entry)
+            } else if let value = entry(from: argument) {
+                result.append(value)
+            }
+        }
+        return result
     }
 
     private func annotationArguments(in range: Range<Int>) -> [String] {

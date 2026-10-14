@@ -4,6 +4,8 @@ import Foundation
 struct GravityParsedDocument: Sendable {
     var analysis: GravityDocumentAnalysis
     var inferredTypes: [String: String]
+    /// The analyzer's structured types, for the cases a display name loses information (query rows).
+    var structuredTypes: [String: AdaScriptType]
     var tokens: [GravityToken]
     var typeRegions: [GravityTypeRegion]
 }
@@ -46,6 +48,7 @@ struct GravityDocumentAnalyzer {
                 symbols: symbols
             ),
             inferredTypes: sharedInferredTypes,
+            structuredTypes: sharedAnalysis.inferredTypes,
             tokens: lexResult.tokens,
             typeRegions: typeRegions
         )

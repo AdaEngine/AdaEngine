@@ -194,6 +194,7 @@ enum GravityScriptModuleResolver {
                     declared: declaredNames.subtracting(testNames)
                 )
             }
+            importFreeSource = AdaScriptQueryLowerer.lower(source: importFreeSource)
             let loweredViewSource: String
             do {
                 loweredViewSource = try AdaScriptViewBuilderLowerer.lower(
