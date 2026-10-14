@@ -8,7 +8,7 @@
 
 Last verified: 2026-10-14.
 
-Only the first three slices have landed on `feat/ada-script-tests` (not released); the rest is open. Gravity (the VM under Ada Script) has a
+Only the first four slices have landed on `feat/ada-script-tests` (not released); the rest is open. Gravity (the VM under Ada Script) has a
 `#unittest { name; error; result }` directive and a `unittest_callback` in its
 delegate, but they only check the return value of `main()` or an expected
 compile error. Ada Script forbids `main()` (ADR-0001), so neither is usable for
@@ -26,8 +26,9 @@ Planned:
   count and runs every installed system, not one named system (open); there is no `get`, so a test reads a field
   with `read(entity, "Component", "field")`; `flush` is not needed because spawn and despawn here are immediate.
 - [x] `AdaScriptPlugin(includeTests: true).runTests(matching:)` returns structured `AdaScriptTestResult`s; each test runs in its own fiber, so a runtime error fails only that test. Still open: per-test timeout and the module-globals check.
-- [ ] `Tests/` source root for integration tests.
-- [ ] Bridge into `swift test` and a CLI entry point with JUnit/JSON output.
+- [x] `Tests/` source root for integration tests: left out of production modules, loaded with `includeTests`, and gameplay code importing from it is diagnosed.
+- [x] `AdaScriptTestProject.run(directory:)` loads a project from disk and runs its tests; `AdaScriptTestReport` renders a summary, JUnit and JSON. A Swift Testing `@Test(arguments:)` runs every fixture project, so `swift test` covers Ada Script tests.
+- [ ] A command-line entry point (`swift run … test-scripts`) with exit codes. The library API above is what it will call.
 - [ ] Editor language-service support and a results panel (depends on ADR-0023).
 
 ## Context

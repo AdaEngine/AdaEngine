@@ -5,6 +5,25 @@ public enum AdaScriptTestSupport {
         "TestWorld", "expect", "expectEqual", "expectNear", "expectNil", "fail", "require",
     ]
 
+    /// Whether a canonical source path belongs to the project's `Tests/` root: integration tests that exist
+    /// only in the test configuration and see public declarations only.
+    public static func isTestSource(_ path: String) -> Bool {
+        path == "Tests" || path.hasPrefix("Tests/")
+    }
+
+    /// Imports that gameplay code writes into the `Tests/` root, formatted `path:line:column: message`.
+    public static func testImportProblems(in tree: AdaScriptSyntaxTree) -> [String] {
+        guard !isTestSource(tree.path) else {
+            return []
+        }
+        return tree.imports.compactMap { declaration in
+            guard case let .source(target)? = try? AdaScriptModulePaths.resolveImport(declaration.path, from: tree.path), isTestSource(target) else {
+                return nil
+            }
+            return location(of: declaration.pathRange, in: tree.path) + "gameplay code cannot import from the Tests/ root"
+        }
+    }
+
     /// Problems with the shape of each `@test` function, formatted `path:line:column: message`.
     public static func problems(in tree: AdaScriptSyntaxTree) -> [String] {
         tree.tests.compactMap { test in

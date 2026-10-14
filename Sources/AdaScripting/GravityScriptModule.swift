@@ -78,7 +78,11 @@ struct ResolvedGravityScriptModule: Sendable {
 enum GravityScriptModuleResolver {
     /// - Parameter includeTests: Keep `@test` functions. Production modules leave this off, which removes every test
     ///   and rejects production code that references a test-only name (ADR-0024).
-    static func resolve(_ sources: [AdaScriptSource], includeTests: Bool = false) throws -> ResolvedGravityScriptModule {
+    static func resolve(_ allSources: [AdaScriptSource], includeTests: Bool = false) throws -> ResolvedGravityScriptModule {
+        // The Tests/ root exists only in the test configuration (ADR-0024).
+        let sources = try includeTests ? allSources : allSources.filter { source in
+            !AdaScriptTestSupport.isTestSource(try canonicalSourcePath(source.path))
+        }
         let graph: AdaScriptModuleGraph
         do {
             graph = try AdaScriptModuleGraph(sources: sources)
@@ -129,6 +133,7 @@ enum GravityScriptModuleResolver {
         for path in orderedPaths {
             if let tree = graph.modules[path]?.tree {
                 annotationProblems += AdaScriptTestSupport.problems(in: tree)
+                annotationProblems += AdaScriptTestSupport.testImportProblems(in: tree)
             }
         }
         if !annotationProblems.isEmpty {
