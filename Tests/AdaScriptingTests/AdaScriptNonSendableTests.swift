@@ -39,7 +39,7 @@ struct AdaScriptNonSendableTests {
         let plugin = try AdaScriptPlugin(source: """
         var attempted = false;
         async func waitFor(value) { await Tasks.nextFrame(); }
-        @system class BorrowSystem {
+        @system @access(read: [AsyncPosition]) class BorrowSystem {
             @query(AsyncPosition) var positions;
             func update(anyName) {
                 if (!attempted) {

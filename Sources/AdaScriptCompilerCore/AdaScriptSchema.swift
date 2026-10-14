@@ -289,6 +289,7 @@ extension Parser {
         var depth = 1
         var usesDeferredCommands = false
         let bodyStart = index
+        var queryProperties: [String] = []
         while !isAtEnd, depth > 0 {
             usesDeferredCommands =
                 usesDeferredCommands
@@ -297,6 +298,10 @@ extension Parser {
                 || checkSequence(["context", ".", "world", ".", "setTileOrientation"])
             if depth == 1 {
                 let annotations = try parseAnnotations()
+                if annotations.contains(where: { $0.name == "query" }), check("var"), tokens.indices.contains(index + 1),
+                    tokens[index + 1].kind == .identifier {
+                    queryProperties.append(tokens[index + 1].text)
+                }
                 if let rpc = annotations.first(where: { $0.name == "rpc" }) {
                     _ = match("async")
                     guard annotations.count == 1, match("func") else {
@@ -336,7 +341,8 @@ extension Parser {
             rpcMethodBindings,
             AdaScriptSystemCapabilities(
                 systemName: systemName,
-                usesDeferredCommands: usesDeferredCommands
+                usesDeferredCommands: usesDeferredCommands,
+                queryUsage: queryProperties.map { queryUsage(of: $0, in: bodyStart..<max(bodyStart, index - 1)) }
             )
         )
     }
@@ -904,6 +910,10 @@ extension Parser {
                         guard let label = consumeIdentifier(), match(":") else {
                             throw error("invalid named argument in @\(name)")
                         }
+                        if name == "query", !["optional", "with", "without", "changed", "added"].contains(label) {
+                            let hint = label == "where" ? "; boolean predicates are not supported yet" : ""
+                            throw error("@query does not support '\(label):'\(hint). Supported clauses: optional, with, without, changed, added")
+                        }
                         arguments[label] = try parseLiteral(annotation: name, label: label)
                     } else {
                         positionalArguments.append(try parseLiteral(annotation: name, label: "value"))
@@ -939,7 +949,19 @@ extension Parser {
         case .identifier where token.text == "false":
             return .bool(false)
         case .identifier:
-            return .identifier(token.text)
+            // `Game.Health` and `Game.Health as health` are query component references.
+            var text = token.text
+            while check("."), checkNext(".") == false, let next = tokens.indices.contains(index + 1) ? tokens[index + 1] : nil, next.kind == .identifier {
+                advance()
+                advance()
+                text += "." + next.text
+            }
+            if current?.kind == .identifier, current?.text == "as", let alias = tokens.indices.contains(index + 1) ? tokens[index + 1] : nil, alias.kind == .identifier {
+                advance()
+                advance()
+                text += " as " + alias.text
+            }
+            return .identifier(text)
         default:
             throw error("unsupported value for @\(annotation) \(label)")
         }
@@ -1024,5 +1046,109 @@ extension Parser {
 
     private func error(_ message: String) -> AdaScriptSchemaError {
         .invalid(path: path, message: message)
+    }
+}
+
+
+extension Parser {
+    private static let assignmentOperators: Set<String> = ["+", "-", "*", "/", "%", "&", "|", "^"]
+
+    /// Reads how `property` is used inside a system body. See ``AdaScriptQueryUsage`` for the rules.
+    fileprivate func queryUsage(of property: String, in range: Range<Int>) -> AdaScriptQueryUsage {
+        var reads = Set<String>()
+        var writes = Set<String>()
+        var isOpaque = false
+
+        func isSelfOrBare(_ cursor: Int) -> Bool {
+            // `x.property` is another object's member, `self.property` is ours.
+            cursor == 0 || tokens[cursor - 1].text != "." || (cursor > 1 && tokens[cursor - 2].text == "self")
+        }
+        // The loop headers that iterate this query, and the variable each binds.
+        var loops: [(row: String, header: Range<Int>, body: Range<Int>)] = []
+        var cursor = range.lowerBound
+        while cursor < range.upperBound {
+            defer { cursor += 1 }
+            guard tokens[cursor].text == "for", cursor + 1 < range.upperBound, tokens[cursor + 1].text == "(" else { continue }
+            var variable = cursor + 2
+            if variable < range.upperBound, ["var", "const"].contains(tokens[variable].text) { variable += 1 }
+            guard variable + 2 < range.upperBound, tokens[variable].kind == .identifier, tokens[variable + 1].text == "in" else { continue }
+            var collection = variable + 2
+            if tokens[collection].text == "self", collection + 2 < range.upperBound, tokens[collection + 1].text == "." { collection += 2 }
+            guard tokens[collection].text == property, collection + 1 < range.upperBound, tokens[collection + 1].text == ")" else { continue }
+            let headerEnd = collection + 1
+            var bodyRange = (headerEnd + 1)..<(headerEnd + 1)
+            if headerEnd + 1 < range.upperBound, tokens[headerEnd + 1].text == "{" {
+                var depth = 0
+                var end = headerEnd + 1
+                while end < range.upperBound {
+                    if tokens[end].text == "{" { depth += 1 }
+                    if tokens[end].text == "}" {
+                        depth -= 1
+                        if depth == 0 { break }
+                    }
+                    end += 1
+                }
+                bodyRange = (headerEnd + 2)..<min(end, range.upperBound)
+            } else {
+                var end = headerEnd + 1
+                while end < range.upperBound, tokens[end].text != ";" { end += 1 }
+                bodyRange = (headerEnd + 1)..<min(end, range.upperBound)
+            }
+            loops.append((tokens[variable].text, (cursor)..<(headerEnd + 1), bodyRange))
+        }
+
+        // Any use of the query outside its own loop headers hides what is touched.
+        for index in range where tokens[index].kind == .identifier && tokens[index].text == property && isSelfOrBare(index) {
+            if index > 0, tokens[index - 1].text == "var" { continue }
+            if loops.contains(where: { $0.header.contains(index) }) { continue }
+            isOpaque = true
+        }
+
+        for loop in loops {
+            for index in loop.body where tokens[index].kind == .identifier && tokens[index].text == loop.row {
+                if index > 0, tokens[index - 1].text == "." { continue }
+                guard index + 2 < range.upperBound, tokens[index + 1].text == ".", tokens[index + 2].kind == .identifier else {
+                    isOpaque = true
+                    continue
+                }
+                let alias = tokens[index + 2].text
+                if alias == "id" { continue }
+                guard index + 4 < range.upperBound, tokens[index + 3].text == ".", tokens[index + 4].kind == .identifier else {
+                    // `row.alias == null` / `!= null` asks whether an optional component is present; that reads nothing.
+                    let comparison = index + 5 < range.upperBound
+                        && ["=", "!"].contains(tokens[index + 3].text) && tokens[index + 4].text == "="
+                        && tokens[index + 5].text == "null"
+                    if comparison {
+                        reads.insert(alias)
+                    } else {
+                        // `row.alias` alone: the component view is passed around.
+                        isOpaque = true
+                    }
+                    continue
+                }
+                let after = index + 5
+                let next = after < range.upperBound ? tokens[after].text : ""
+                let followedByEquals = after + 1 < range.upperBound && tokens[after + 1].text == "="
+                let isPlainAssignment = next == "=" && !followedByEquals
+                let isCompound = Self.assignmentOperators.contains(next) && followedByEquals
+                    && tokens[after].endOffset == tokens[after + 1].startOffset
+                if next == "(", tokens[index + 4].text == "set" {
+                    // The component view's explicit setter: `row.alias.set("field", value)`.
+                    writes.insert(alias)
+                    reads.insert(alias)
+                } else if next == "(", tokens[index + 4].text == "get" {
+                    reads.insert(alias)
+                } else if next == "(" {
+                    // Any other call on the component view cannot be classified.
+                    isOpaque = true
+                } else if isPlainAssignment || isCompound {
+                    writes.insert(alias)
+                    reads.insert(alias)
+                } else {
+                    reads.insert(alias)
+                }
+            }
+        }
+        return AdaScriptQueryUsage(propertyName: property, reads: reads, writes: writes, isOpaque: isOpaque)
     }
 }

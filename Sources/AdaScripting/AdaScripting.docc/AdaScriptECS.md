@@ -55,17 +55,45 @@ Apply `@query` to a stored system property:
 var entities;
 ```
 
-Positional components are fetched and available on each row. `with` and
-`without` only filter matching archetypes.
+Positional components are fetched and available on each row. Four more clauses
+take one component or a list:
 
-Aliases use lower-camel-case component names:
+| Clause | Meaning |
+| --- | --- |
+| `optional: Target` | Fetched like a positional component, but rows may lack it. `entity.target` is `null` when absent. |
+| `with: Movable` | The entity must have it; it is not fetched. |
+| `without: Frozen` | The entity must not have it. |
+| `changed: Health` | Rows where any listed component changed since the system last ran. |
+| `added: Marker` | Rows where any listed component was added since the system last ran. |
 
 ```ada
+@query(Health, Movement, optional: Target, with: Movable, without: Frozen, changed: Health)
+var entities;
+
 for (var entity in entities) {
-    var position = entity.movement.position;
-    entity.health.current -= 1.0;
+    if (entity.target != null) { entity.health.current -= entity.target.damage; }
 }
 ```
+
+`changed` and `added` need the component to exist in the archetype; the change tick
+of a component is updated by every successful field write. A boolean `where:` clause
+and any other label are rejected with a message naming the supported clauses.
+
+Row properties are the lower-camel-case component names, or an explicit alias
+written with `as`. A component may be named by its qualified path:
+
+```ada
+@query(Game.Health as hp, Physics.Movement as motion)
+var entities;
+
+for (var entity in entities) {
+    var position = entity.motion.position;
+    entity.hp.current -= 1.0;
+}
+```
+
+Two fetched components with the same short name (`Game.Health` and `Physics.Health`)
+are an error until one is given an alias, and no component may be aliased `id`.
 
 `entity.id` exposes the native entity identifier.
 
@@ -92,13 +120,42 @@ write leaves the component unchanged and appends a development diagnostic.
 
 ## Access planning
 
-The current implementation conservatively declares write access for fetched
-components. This keeps scheduling correct while compiler-level read/write
-inference is completed. Filter-only components do not receive write access.
+The compiler reads how a system uses its rows and requests exactly that access
+from the scheduler:
 
-The intended final behavior derives read and write sets from row field usage.
-Dynamic code declares its access explicitly with `@access`, which is enforced
-at runtime and reserved in the scheduler.
+```ada
+var current = entity.health.current;   // read Health
+entity.health.current = current - 1;   // write Health
+entity.health.current -= 1;            // read and write Health
+```
+
+A component that is only read can be shared with other readers; a write reserves
+it exclusively. `changed:` and `added:` read a component's ticks, so they request
+read access even for a component that is not fetched. Filter-only components
+(`with`, `without`) request none.
+
+Analysis follows `for (var row in query)` loops. If a row, a component view, or the
+query itself escapes into code the compiler cannot follow (passed to a function,
+stored, called with an unknown method), the system must declare what it touches:
+
+```ada
+@system(id: "game.inspect")
+@access(read: [Health], write: [Transform])
+class InspectSystem {
+    @query(Health, Transform)
+    var entities;
+
+    func update(context) {
+        for (var entity in entities) { inspect(entity); }
+    }
+}
+```
+
+Without `@access` this fails to compile, naming the query and component. A
+declaration may be broader than the code but not narrower: declaring a component
+read-only while the script writes it is an error. The same `@access` declaration
+governs the dynamic `context.world.read/write` calls. A precompiled module has no
+script text to analyse and keeps write access to every fetched component.
 
 ## Multiple queries
 

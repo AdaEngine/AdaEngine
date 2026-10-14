@@ -103,3 +103,54 @@ struct GravityCapabilityDiagnosticsTests {
         #expect(found.contains("@eventWriter requires exactly one event name"))
     }
 }
+
+@Suite("AdaScript query syntax in the language service")
+struct GravityQuerySyntaxTests {
+    private static let source = """
+        @component(id: "game.health") struct Health { @export var current = 10; }
+        @component(id: "game.target") struct Target { @export var id = 0; }
+        @system(id: "combat")
+        class Combat {
+            @query(Game.Health as hp, optional: Target, with: [Marker], without: Frozen, changed: Health, added: Target)
+            var rows;
+
+            func update(context) {
+                for (var row in rows) {
+                    row.hp.current -= 1;
+                }
+            }
+        }
+        """
+
+    @Test("Qualified names, aliases, and every query clause raise no diagnostics")
+    func acceptsQueryClauses() {
+        let diagnostics = GravityLanguageService().analyze(text: Self.source).diagnostics.map(\.message)
+        #expect(diagnostics.isEmpty)
+    }
+
+    @Test("A row offers its aliased and optional components as members")
+    func rowMembers() {
+        let source = Self.source.replacingOccurrences(of: "row.hp.current -= 1;", with: "row.")
+        let line = source.split(separator: "\n", omittingEmptySubsequences: false).firstIndex { $0.contains("row.") && !$0.contains("for") } ?? 0
+        let column = source.split(separator: "\n", omittingEmptySubsequences: false)[line].utf16.count
+        let labels = GravityLanguageService().completions(text: source, position: GravitySourcePosition(line: line, utf16Column: column)).map(\.label)
+
+        #expect(labels.contains("hp"))
+        #expect(labels.contains("target"))
+        #expect(labels.contains("id"))
+        #expect(!labels.contains("health"))
+    }
+
+    @Test("An aliased component offers its declared fields")
+    func componentFields() {
+        let source = Self.source.replacingOccurrences(of: "row.hp.current -= 1;", with: "row.hp.")
+        let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
+        let line = lines.firstIndex { $0.contains("row.hp.") } ?? 0
+        let labels = GravityLanguageService().completions(
+            text: source,
+            position: GravitySourcePosition(line: line, utf16Column: lines[line].utf16.count)
+        ).map(\.label)
+
+        #expect(labels.contains("current"))
+    }
+}

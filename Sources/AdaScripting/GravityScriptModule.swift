@@ -162,7 +162,9 @@ enum GravityScriptModuleResolver {
                 continue
             }
             // Imports are resolved above; Gravity sees one flat, include-ordered module.
-            let importFreeSource = AdaScriptImportLowering.lower(source: source.source, tree: tree)
+            let importFreeSource = AdaScriptQueryLowerer.lower(
+                source: AdaScriptImportLowering.lower(source: source.source, tree: tree)
+            )
             let loweredViewSource: String
             do {
                 loweredViewSource = try AdaScriptViewBuilderLowerer.lower(

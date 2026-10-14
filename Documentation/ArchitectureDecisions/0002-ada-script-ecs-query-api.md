@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Partial (foundation shipped)
+- Implementation: Implemented
 
 ## Implementation status
 
-Last verified: 2026-08-31.
+Last verified: 2026-10-14.
 
 Shipped:
 
@@ -21,19 +21,34 @@ Shipped:
 - [x] Pointer lifetimes remain inside the system update and raw pointers are not
   exposed to Gravity.
 
-Remaining before this ADR is implemented:
-
-- [ ] Implement `optional`, `changed`, and `added` query clauses.
-- [ ] Implement explicit component aliases and duplicate-short-name
-  diagnostics.
-- [ ] Infer read and write access from the compiled script. The current runtime
-  conservatively declares every fetched component writable.
-- [ ] Implement and validate the explicit `@access` escape hatch for dynamic
-  access.
-- [x] Remove the temporary `lastResult` testing hook. A system `update(context)`
-  callback is command-style and its return value is not part of the ECS API.
-- [ ] Add the realistic typed-Swift versus Gravity iterator benchmark required
-  by this decision.
+- [x] `optional`, `changed`, and `added` clauses. An optional component is
+  fetched when the row has it and reads as `null` otherwise; `changed` and `added`
+  match rows where any listed component changed or was added since the system last
+  ran (AdaECS tick semantics), and request read access to those ticks. A `where:`
+  clause or any other label is rejected naming the supported clauses.
+- [x] Explicit aliases and qualified component names (`Game.Health as hp`), and
+  diagnostics for duplicate short names and for an alias of `id`. Gravity's
+  annotation grammar does not parse `as` or dotted names, so
+  `AdaScriptQueryLowerer` rewrites each such reference to a string before
+  compilation; the type analyzer and the Editor read both forms.
+- [x] Read/write access is inferred from the script: `row.alias.field` reads,
+  an assignment or compound assignment writes, and `get`/`set` on a component view
+  are classified. Read-only components share, so two systems that only read a
+  component no longer conflict, and a read-only slot rejects writes at runtime.
+- [x] `@access(read: [...], write: [...])` is the escape hatch. A row or query
+  that escapes analysis without it is rejected naming the query and component
+  (when the plugin is set up, because component names resolve against the world;
+  the system is not installed), and a declaration narrower than the code is an
+  error. Precompiled
+  modules, which have no source to analyse, keep write access to every fetched
+  component.
+- [x] The `lastResult` testing hook was removed earlier.
+- [x] `AdaScriptingBenchmarks` compares the typed Swift query, the native cursor,
+  and the Gravity iterator on the same update (see `Benchmarks/README.md`). On a
+  reference run with 100,000 entities the typed query takes 14 ms, the native
+  cursor 30 ms, and a Gravity system 1.6 s (0.4 s for iteration alone), so the
+  script is about 115 times slower than the typed query and most of that is
+  per-field bridge cost.
 
 ## Context
 

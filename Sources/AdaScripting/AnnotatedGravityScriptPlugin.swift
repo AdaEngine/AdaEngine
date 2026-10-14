@@ -290,9 +290,20 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         pluginIdentifier: String,
         world: World
     ) throws -> PreparedAnnotatedSystem {
+        let dynamicComponents = try prepareDynamicAccess(plan.access, systemIdentifier: plan.identifier, world: world)
+        var declaredLevels: [ComponentId: QueryAccessLevel] = [:]
+        for component in dynamicComponents.values {
+            declaredLevels[component.identifier] = max(declaredLevels[component.identifier] ?? .read, component.isWritable ? .write : .read)
+        }
         let queries = try plan.queries.enumerated()
             .map { queryIndex, query in
-                try prepareQuery(query, systemIdentifier: plan.identifier, queryIndex: queryIndex, world: world)
+                try prepareQuery(
+                    query,
+                    systemIdentifier: plan.identifier,
+                    queryIndex: queryIndex,
+                    world: world,
+                    declaredAccess: declaredLevels
+                )
             }
         let resources = try plan.resources.map { resource in
             try prepareResource(resource, systemIdentifier: plan.identifier)
@@ -300,7 +311,6 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         if !(plan.eventReaders + plan.eventWriters).isEmpty, !world.supportsEventDelivery {
             throw AdaScriptError.invalidManifest("System '\(plan.identifier)' uses @events or @eventWriter, which requires EventsPlugin")
         }
-        let dynamicComponents = try prepareDynamicAccess(plan.access, systemIdentifier: plan.identifier, world: world)
         let remoteCommands = plan.remoteCommands.map {
             PreparedAnnotatedRemoteCommands(
                 commandName: $0.commandName,
@@ -388,14 +398,27 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         )
     }
 
+    enum QueryAccessLevel: Int, Comparable {
+        case read = 0
+        case write = 1
+
+        static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
+    }
+
+    /// - Parameter declaredAccess: Levels the system's `@access` declares, by resolved component.
     static func prepareQuery(
         _ plan: AnnotatedQueryPlan,
         systemIdentifier: String,
         queryIndex: Int,
-        world: World
+        world: World,
+        declaredAccess: [ComponentId: QueryAccessLevel] = [:]
     ) throws -> PreparedAnnotatedQuery {
+        func fail(_ message: String) -> AdaScriptError {
+            let prefix = plan.source.flatMap { source in source.path.map { "\($0):\(source.line):\(source.column): " } } ?? ""
+            return .invalidManifest(prefix + message)
+        }
         var resolved: [String: ResolvedAnnotatedComponent] = [:]
-        let allNames = plan.components + plan.withComponents + plan.withoutComponents
+        let allNames = plan.components.map(\.name) + plan.withComponents + plan.withoutComponents + plan.changedComponents + plan.addedComponents
         for name in allNames where resolved[name] == nil {
             guard let component = resolveComponent(named: name, world: world) else {
                 throw AdaScriptError.unknownComponent(
@@ -407,8 +430,29 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
             resolved[name] = component
         }
 
+        // Row properties: the alias, else the lower-camel short name. They must be distinct and not shadow `id`.
+        var aliases: [String: String] = [:]
+        for component in plan.components {
+            let alias = component.alias ?? defaultAlias(for: component.name)
+            guard alias != "id" else {
+                throw fail("query '\(plan.propertyName)' in system '\(systemIdentifier)' cannot name a component 'id'; row.id is the entity")
+            }
+            if let existing = aliases[alias] {
+                throw fail(
+                    "query '\(plan.propertyName)' in system '\(systemIdentifier)' fetches '\(existing)' and '\(component.name)' as '\(alias)'; "
+                        + "give one an alias, for example \(component.name) as other\(alias.prefix(1).uppercased())\(alias.dropFirst())"
+                )
+            }
+            aliases[alias] = component.name
+        }
+
         var predicate = QueryPredicate.all
-        for name in plan.components + plan.withComponents {
+        for component in plan.components where !component.isOptional {
+            if let resolvedComponent = resolved[component.name] {
+                predicate = predicate && .has(resolvedComponent.identifier)
+            }
+        }
+        for name in plan.withComponents {
             if let component = resolved[name] {
                 predicate = predicate && .has(component.identifier)
             }
@@ -420,27 +464,87 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         }
 
         var access = SystemAccessSet()
-        let componentAccesses = plan.components.enumerated()
-            .compactMap { index, name -> AnnotatedComponentAccess? in
-                guard let component = resolved[name] else {
-                    return nil
-                }
-                // The first vertical slice conservatively grants write access to
-                // fetched components. Static access inference will narrow this set.
-                access.addComponentWrite(component.identifier)
-                return AnnotatedComponentAccess(
-                    alias: defaultAlias(for: name),
-                    componentIndex: index,
-                    fields: Dictionary(uniqueKeysWithValues: component.fields.map { ($0.key, $0) })
-                )
+        var componentAccesses: [AnnotatedComponentAccess] = []
+        for (index, component) in plan.components.enumerated() {
+            guard let resolvedComponent = resolved[component.name] else { continue }
+            let alias = component.alias ?? defaultAlias(for: component.name)
+            let level = try accessLevel(
+                of: alias,
+                componentName: component.name,
+                identifier: resolvedComponent.identifier,
+                plan: plan,
+                systemIdentifier: systemIdentifier,
+                declaredAccess: declaredAccess,
+                fail: fail
+            )
+            if level == .write {
+                access.addComponentWrite(resolvedComponent.identifier)
+            } else {
+                access.addComponentRead(resolvedComponent.identifier)
             }
+            componentAccesses.append(
+                AnnotatedComponentAccess(
+                    alias: alias,
+                    componentIndex: index,
+                    fields: Dictionary(uniqueKeysWithValues: resolvedComponent.fields.map { ($0.key, $0) }),
+                    isWritable: level == .write
+                )
+            )
+        }
+        // Tick filters read component metadata, so the scheduler must see a read even when the component is not fetched.
+        for name in plan.changedComponents + plan.addedComponents {
+            if let component = resolved[name] { access.addComponentRead(component.identifier) }
+        }
 
-        let componentIDs = plan.components.compactMap { resolved[$0]?.identifier }
+        let componentIDs = plan.components.compactMap { resolved[$0.name]?.identifier }
+        let optionalIDs = Set(plan.components.filter(\.isOptional).compactMap { resolved[$0.name]?.identifier })
         return PreparedAnnotatedQuery(
             propertyName: plan.propertyName,
-            query: DynamicQuery(where: predicate, components: componentIDs, access: access),
+            query: DynamicQuery(
+                where: predicate,
+                components: componentIDs,
+                optionalComponents: optionalIDs,
+                changedComponents: plan.changedComponents.compactMap { resolved[$0]?.identifier },
+                addedComponents: plan.addedComponents.compactMap { resolved[$0]?.identifier },
+                access: access
+            ),
             componentAccesses: componentAccesses
         )
+    }
+
+    /// Chooses the scheduler access a fetched component needs from how the script uses its row and from
+    /// the system's `@access`. Analysed code gets exactly what it touches; code the analysis cannot follow
+    /// must declare access, and a declaration may not claim less than the code does.
+    private static func accessLevel(
+        of alias: String,
+        componentName: String,
+        identifier: ComponentId,
+        plan: AnnotatedQueryPlan,
+        systemIdentifier: String,
+        declaredAccess: [ComponentId: QueryAccessLevel],
+        fail: (String) -> AdaScriptError
+    ) throws -> QueryAccessLevel {
+        let declared = declaredAccess[identifier]
+        guard let usage = plan.usage else {
+            // No source to analyse (precompiled module): keep the conservative write access.
+            return declared ?? .write
+        }
+        if usage.isOpaque {
+            guard let declared else {
+                throw fail(
+                    "query '\(plan.propertyName)' in system '\(systemIdentifier)' passes its rows or the query to code the compiler cannot analyse, "
+                        + "so access to '\(componentName)' is unknown; declare @access(read: [...], write: [...]) on the system"
+                )
+            }
+            return declared
+        }
+        let inferred: QueryAccessLevel = usage.writes.contains(alias) ? .write : .read
+        if let declared, declared < inferred {
+            throw fail(
+                "system '\(systemIdentifier)' writes '\(componentName)' through query '\(plan.propertyName)' but @access declares it read-only"
+            )
+        }
+        return max(declared ?? inferred, inferred)
     }
 
     static func resolveComponent(named name: String, world: World) -> ResolvedAnnotatedComponent? {
@@ -539,11 +643,45 @@ struct AnnotatedResourcePlan: Sendable {
     let resourceName: String
 }
 
+/// A component a query fetches, optionally renamed and optionally absent from some rows.
+struct AnnotatedQueryComponent: Sendable, Equatable {
+    let name: String
+    let alias: String?
+    let isOptional: Bool
+}
+
 struct AnnotatedQueryPlan: Sendable {
     let propertyName: String
-    let components: [String]
+    /// Required components first, then optional ones: the slot order scripts address rows by.
+    let components: [AnnotatedQueryComponent]
     let withComponents: [String]
     let withoutComponents: [String]
+    let changedComponents: [String]
+    let addedComponents: [String]
+    /// What the system's code does with the rows; `nil` when the source is not available to analyse
+    /// (precompiled modules), which keeps the conservative write access.
+    let usage: AdaScriptQueryUsage?
+    let source: AnnotatedSourceLocation?
+
+    init(
+        propertyName: String,
+        components: [AnnotatedQueryComponent],
+        withComponents: [String] = [],
+        withoutComponents: [String] = [],
+        changedComponents: [String] = [],
+        addedComponents: [String] = [],
+        usage: AdaScriptQueryUsage? = nil,
+        source: AnnotatedSourceLocation? = nil
+    ) {
+        self.propertyName = propertyName
+        self.components = components
+        self.withComponents = withComponents
+        self.withoutComponents = withoutComponents
+        self.changedComponents = changedComponents
+        self.addedComponents = addedComponents
+        self.usage = usage
+        self.source = source
+    }
 }
 
 private struct PreparedAnnotatedSystem: Sendable {
@@ -644,6 +782,8 @@ struct AnnotatedComponentAccess: Sendable {
     let alias: String
     let componentIndex: Int
     let fields: [String: ReflectedComponentField]
+    /// Whether the scheduler reserved write access; a read-only slot rejects field assignment.
+    var isWritable = true
 }
 
 private struct AdaScriptTaskPumpSystem: System {

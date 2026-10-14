@@ -1,3 +1,4 @@
+import Foundation
 /// Builds a declaration tree and performs best-effort type analysis without
 /// changing AdaScript's dynamic runtime semantics. Consumers decide whether
 /// reported type issues are ignored, displayed, or enforced.
@@ -582,10 +583,15 @@ private extension ModuleAnalyzer {
         case let .named(typeName):
             return environment.members[typeName]?[name]
         case let .queryRow(components):
-            guard let component = components.first(where: { lowerCamelCase($0) == name }) else {
-                return name == "id" ? AdaScriptMemberType(type: .int) : nil
+            // Entries are `Type` or `Type as alias`; the row property is the alias, else the lower-camel type name.
+            for entry in components {
+                let pieces = entry.components(separatedBy: " as ")
+                let property = pieces.count > 1 ? pieces[1] : lowerCamelCase(entry)
+                if property == name {
+                    return AdaScriptMemberType(type: .named(pieces[0]))
+                }
             }
-            return AdaScriptMemberType(type: .named(component))
+            return name == "id" ? AdaScriptMemberType(type: .int) : nil
         case let .list(element):
             if name == "count" {
                 return AdaScriptMemberType(type: .int)
