@@ -173,8 +173,8 @@ final class NavigationBarNode: ViewNode {
         let centerX = isLeading ? inset * 0.5 : frame.width - inset * 0.5
         let range = environment.sideControlVerticalRange(in: absoluteFrame(), leading: isLeading)
         let nodes = [splitBackButtonNode, backButtonNode, trailingItemsNode].compactMap { $0 }
-        let heights = nodes.map { max(Constants.controlHeight, $0.sizeThatFits(ProposedViewSize(width: max(44, inset - 12), height: nil)).height) }
-        let totalHeight = heights.reduce(0, +) + Float(max(0, nodes.count - 1)) * Constants.itemSpacing
+        let heights: [Float] = nodes.map { max(Constants.controlHeight, $0.sizeThatFits(ProposedViewSize(width: max(44, inset - 12), height: nil)).height) }
+        let totalHeight: Float = heights.reduce(0 as Float, +) + Float(max(0, nodes.count - 1)) * Constants.itemSpacing
         let preferredTop = max(range.lowerBound + 16, environment.navigationBarControlsTopInset)
         var y = max(range.lowerBound, min(preferredTop, range.upperBound - totalHeight - 12))
         for (node, height) in zip(nodes, heights) {
