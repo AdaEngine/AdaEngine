@@ -55,6 +55,10 @@ struct ResolvedGravityScriptModule: Sendable {
     /// Import-visibility problems, formatted `path:line:column: message`. Reported after Gravity compiles
     /// the module so a syntax error in an imported file is never masked by a missing export.
     let importDiagnostics: [String]
+    /// Whether `@test` functions and the assertion prelude are part of this module.
+    var includesTests = false
+    /// Every `@test` function of the module, in path then source order.
+    var tests: [AdaScriptTestCase] = []
 
     /// Every source in the module, for scans that must see imported files as well as the entry.
     var combinedSource: String {
@@ -172,8 +176,10 @@ enum GravityScriptModuleResolver {
                 continue
             }
             // Imports are resolved above; Gravity sees one flat, include-ordered module.
-            let importFreeSource = AdaScriptImportLowering.lower(source: source.source, tree: tree, stripTests: !includeTests)
-            if !includeTests {
+            var importFreeSource = AdaScriptImportLowering.lower(source: source.source, tree: tree, stripTests: !includeTests)
+            if includeTests {
+                importFreeSource = AdaScriptTestLowerer.lower(source: importFreeSource, path: path, declared: declaredNames.subtracting(testNames))
+            } else {
                 testLeaks += AdaScriptTestSupport.leaks(
                     inStripped: importFreeSource,
                     path: path,
@@ -225,7 +231,7 @@ enum GravityScriptModuleResolver {
         \(includes)
         """
 
-        return ResolvedGravityScriptModule(
+        var module = ResolvedGravityScriptModule(
             entrySource: entrySource,
             sourcesByPath: sourcesByPath,
             pathsByFileID: pathsByFileID,
@@ -233,6 +239,20 @@ enum GravityScriptModuleResolver {
             asyncDeclarations: asyncDeclarations,
             importDiagnostics: importDiagnostics
         )
+        module.includesTests = includeTests
+        if includeTests {
+            module.tests = sortedPaths.flatMap { path in
+                (graph.modules[path]?.tree.tests ?? []).map { test in
+                    AdaScriptTestCase(
+                        displayName: test.displayName,
+                        line: test.range.start.line + 1,
+                        name: test.name,
+                        path: path
+                    )
+                }
+            }
+        }
+        return module
     }
 
     private static let rootAnnotations: Set<String> = [

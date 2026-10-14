@@ -27,6 +27,9 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         AdaScriptRuntimeCoordinator.lock.withLock { runtime.activeAsyncTaskCount }
     }
 
+    /// The `@test` functions loaded with `includeTests: true`; empty otherwise.
+    public let tests: [AdaScriptTestCase]
+
     private(set) var plans: [AnnotatedSystemPlan]
     private var dataSchemas: [AdaScriptDataSchema]
     private var networkCommands: [AdaScriptNetworkCommandSchema]
@@ -57,7 +60,8 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         sources: [AdaScriptSource],
         name: String,
         startupSystemIdentifier: String? = nil,
-        communityPolicy: AdaScriptCommunityPolicy? = nil
+        communityPolicy: AdaScriptCommunityPolicy? = nil,
+        includeTests: Bool = false
     ) throws {
         if communityPolicy != nil {
             for source in sources { try AdaScriptCommunityLowerer.validate(source: source.source) }
@@ -66,7 +70,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         let dataSchemas = try AdaScriptSchemaParser.parse(sources: sources)
         let runtimeComponents = AdaScriptComponentRuntime.runtimeDescriptors(schemas: dataSchemas)
         let networkCommands = try AdaScriptSchemaParser.parseNetworkCommands(sources: sources)
-        let module = try GravityScriptModuleResolver.resolve(sources)
+        let module = try GravityScriptModuleResolver.resolve(sources, includeTests: includeTests)
         let runtime: AnnotatedGravityRuntime
         do {
             runtime = try AnnotatedGravityRuntime(
@@ -122,12 +126,29 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
             plans.insert(startupPlan, at: 0)
         }
         self.name = name
+        self.tests = module.tests
         self.dataSchemas = dataSchemas
         self.networkCommands = networkCommands
         self.runtimeComponents = runtimeComponents
         self.runtime = runtime
         self.plans = plans
         try runtime.instantiateSystems(plans)
+    }
+
+    /// Runs the loaded `@test` functions, optionally only those whose name or display name contains `filter`.
+    public func runTests(matching filter: String? = nil) -> [AdaScriptTestResult] {
+        let selected = tests.filter { test in
+            guard let filter, !filter.isEmpty else {
+                return true
+            }
+            return test.name.contains(filter) || test.displayName.contains(filter)
+        }
+        let clock = ContinuousClock()
+        return selected.map { test in
+            let start = clock.now
+            let execution = AdaScriptRuntimeCoordinator.lock.withLock { runtime }.runTest(named: test.name)
+            return AdaScriptTestResult(test: test, execution: execution, duration: start.duration(to: clock.now))
+        }
     }
 
     /// Compiles and validates a plugin while keeping its complete VM lifetime serialized.
@@ -895,6 +916,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let standardLibrary = communityPolicy == nil ? AdaScriptStandardLibrary.source : AdaScriptStandardLibrary.communitySource
         let runtimeSource = (communityPolicy == nil ? "" : "extern var __adaUGCBudget;\n") + standardLibrary + "\n"
                 + AdaScriptTaskPrelude.source + "\n"
+                + (module.includesTests ? AdaScriptTestPrelude.source + "\n" : "")
                 + AdaScriptComponentRuntime.prelude(constructors: componentConstructors, authoredSource: module.combinedSource)
                 + AdaScriptNetworkBridge.prelude(commands: networkCommands)
                 + authoredSource
@@ -1017,6 +1039,27 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             }
         }
         _ = instance.callMethod(named: "update", with: [context])
+    }
+
+    /// Runs one `@test` function in its own fiber so a failed `require` or a runtime error ends only that test.
+    func runTest(named name: String) -> AdaScriptTestExecution {
+        AdaScriptRuntimeCoordinator.lock.lock()
+        defer { AdaScriptRuntimeCoordinator.lock.unlock() }
+        communityBudget?.reset()
+        let body = virtualMachine.getValue(forKey: name)
+        let runner = virtualMachine.getValue(forKey: "__adaTestRun")
+        guard body.isClosure, runner.isClosure else {
+            return AdaScriptTestExecution(failures: [], runtimeErrors: ["Test '\(name)' is not loaded"], didAbort: true)
+        }
+        let errorsBefore = delegate.errors.count
+        let raw = virtualMachine.execute(closure: runner.toGravityClosure, params: [body])
+        let reply = raw?.toList ?? []
+        let failures = reply.count > 1 ? reply[1].toList.map(\.toString) : []
+        return AdaScriptTestExecution(
+            failures: failures,
+            runtimeErrors: Array(delegate.errors.dropFirst(errorsBefore)),
+            didAbort: reply.first?.toInteger == 1
+        )
     }
 
     func pumpTasks(deltaTime: Double, worldID: String) {
