@@ -18,7 +18,7 @@ enum EditorProjectFileAppearance: Equatable {
         case "particles": return .particleEffect
         case "ttf", "otf", "woff", "woff2": return .font
         case "mat": return .material
-        case "mesh", "obj", "gltf", "glb", "fbx", "usdz": return .mesh
+        case "mesh", "obj", "gltf", "glb", "fbx", "usdz", "vox": return .mesh
         case "ui": return .ui
         default: break
         }

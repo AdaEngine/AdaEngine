@@ -30,7 +30,11 @@ extension ModelAsset3D {
         let nodes = result.nodes.map {
             Node(name: $0.name, transform: $0.transform, meshIndex: $0.meshIndex, children: $0.children)
         }
-        return Contents(nodes: nodes, meshes: meshes, materials: [PBRMaterial()], scenes: [[result.rootNodeIndex]])
+        // Palette colors live in vertex colors. PBRMaterial defaults to fully metallic, which makes voxels mirror-like.
+        let material = PBRMaterial()
+        material.metallicFactor = 0
+        material.roughnessFactor = 0.85
+        return Contents(nodes: nodes, meshes: meshes, materials: [material], scenes: [[result.rootNodeIndex]])
     }
 
     /// Creates a model from a parsed MagicaVoxel file.
