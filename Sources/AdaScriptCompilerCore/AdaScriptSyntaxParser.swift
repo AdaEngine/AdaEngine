@@ -36,12 +36,20 @@ struct AdaScriptSyntaxParser {
 
     func parse() -> AdaScriptParsedDocument {
         let parsed = parseDeclarations(in: tokens.indices)
+        let imports = parseImports()
         let syntax = AdaScriptSyntaxTree(
+            annotationUses: parseAnnotationUses(),
             bindings: parsed.bindings.map(\.syntax),
+            declaredNames: declaredNames(),
             functions: parsed.functions.map(\.syntax),
+            importDiagnostics: imports.diagnostics,
+            importUses: parseImportUses(imports.declarations),
+            imports: imports.declarations,
             isStrict: hasFileStrictAnnotation,
             path: path,
-            types: parsed.types.map(\.syntax)
+            references: nameReferences(excluding: imports.declarations.map(\.offsets)),
+            types: parsed.types.map(\.syntax),
+            visibilityModifierOffsets: topLevelVisibilityModifiers()
         )
         return AdaScriptParsedDocument(
             bindings: parsed.bindings,
@@ -82,6 +90,7 @@ struct AdaScriptSyntaxParser {
                 guard let parsed = parseType(
                     at: declarationIndex,
                     annotations: prefix.annotations,
+                    visibility: prefix.isPrivate ? .private : .public,
                     upperBound: range.upperBound
                 ) else {
                     index += 1
@@ -94,6 +103,7 @@ struct AdaScriptSyntaxParser {
                     at: declarationIndex,
                     annotations: prefix.annotations,
                     isAsync: prefix.isAsync,
+                    visibility: prefix.isPrivate ? .private : .public,
                     upperBound: range.upperBound
                 ) else {
                     index += 1
@@ -105,6 +115,7 @@ struct AdaScriptSyntaxParser {
                 guard let parsed = parseBinding(
                     at: declarationIndex,
                     annotations: prefix.annotations,
+                    visibility: prefix.isPrivate ? .private : .public,
                     upperBound: range.upperBound
                 ) else {
                     index += 1
@@ -123,6 +134,7 @@ struct AdaScriptSyntaxParser {
         var annotations: [AdaScriptAnnotationSyntax] = []
         var cursor = index
         var isAsync = false
+        var isPrivate = false
         while cursor < upperBound {
             if tokens[cursor].text == "@", let parsed = parseAnnotation(at: cursor, upperBound: upperBound) {
                 annotations.append(parsed.value)
@@ -131,12 +143,13 @@ struct AdaScriptSyntaxParser {
             }
             if Self.declarationModifiers.contains(tokens[cursor].text) {
                 isAsync = isAsync || tokens[cursor].text == "async"
+                isPrivate = isPrivate || tokens[cursor].text == "private"
                 cursor += 1
                 continue
             }
             break
         }
-        return DeclarationPrefix(annotations: annotations, isAsync: isAsync, nextIndex: cursor)
+        return DeclarationPrefix(annotations: annotations, isAsync: isAsync, isPrivate: isPrivate, nextIndex: cursor)
     }
 
     private func parseAnnotation(
@@ -178,6 +191,7 @@ struct AdaScriptSyntaxParser {
     private func parseType(
         at index: Int,
         annotations: [AdaScriptAnnotationSyntax],
+        visibility: AdaScriptDeclarationVisibility,
         upperBound: Int
     ) -> (value: AdaScriptParsedType, nextIndex: Int)? {
         guard
@@ -202,7 +216,8 @@ struct AdaScriptSyntaxParser {
             functions: members.functions.map(\.syntax),
             kind: kind,
             name: name,
-            range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[closeIndex].range.end)
+            range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[closeIndex].range.end),
+            visibility: visibility
         )
         return (
             AdaScriptParsedType(
@@ -218,6 +233,7 @@ struct AdaScriptSyntaxParser {
         at index: Int,
         annotations: [AdaScriptAnnotationSyntax],
         isAsync: Bool,
+        visibility: AdaScriptDeclarationVisibility,
         upperBound: Int
     ) -> (value: AdaScriptParsedFunction, nextIndex: Int)? {
         guard
@@ -266,7 +282,8 @@ struct AdaScriptSyntaxParser {
             name: nameToken.text,
             parameters: parameters,
             range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[endIndex].range.end),
-            returnType: returnType
+            returnType: returnType,
+            visibility: visibility
         )
         return (AdaScriptParsedFunction(bodyRange: bodyRange, syntax: syntax), endIndex + 1)
     }
@@ -306,6 +323,7 @@ struct AdaScriptSyntaxParser {
     private func parseBinding(
         at index: Int,
         annotations: [AdaScriptAnnotationSyntax],
+        visibility: AdaScriptDeclarationVisibility,
         upperBound: Int
     ) -> (value: AdaScriptParsedBinding, nextIndex: Int)? {
         guard index + 1 < upperBound, tokens[index + 1].kind == .identifier else {
@@ -332,7 +350,8 @@ struct AdaScriptSyntaxParser {
             declaredType: declaredType,
             isConstant: tokens[index].text == "const",
             name: nameToken.text,
-            range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[max(index + 1, endIndex - 1)].range.end)
+            range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[max(index + 1, endIndex - 1)].range.end),
+            visibility: visibility
         )
         return (AdaScriptParsedBinding(initializerRange: initializerRange, syntax: syntax), max(index + 2, endIndex + 1))
     }
@@ -487,6 +506,7 @@ private struct ParsedDeclarations {
 private struct DeclarationPrefix {
     var annotations: [AdaScriptAnnotationSyntax]
     var isAsync: Bool
+    var isPrivate: Bool
     var nextIndex: Int
 }
 
@@ -509,5 +529,307 @@ private struct DelimiterDepth {
         case "}": braces = max(0, braces - 1)
         default: break
         }
+    }
+}
+
+// MARK: Imports and annotation uses
+
+extension AdaScriptSyntaxParser {
+    func parseImports() -> (declarations: [AdaScriptImportSyntax], diagnostics: [AdaScriptImportDiagnostic]) {
+        var declarations: [AdaScriptImportSyntax] = []
+        var diagnostics: [AdaScriptImportDiagnostic] = []
+        var depth = DelimiterDepth()
+        var index = 0
+        while index < tokens.count {
+            let token = tokens[index]
+            if depth.isTopLevel, token.kind == .identifier, token.text == "import", !(index > 0 && tokens[index - 1].text == ".") {
+                switch parseImport(at: index) {
+                case let .success(declaration, next):
+                    declarations.append(declaration)
+                    index = next
+                case let .failure(diagnostic, next):
+                    diagnostics.append(diagnostic)
+                    index = next
+                }
+                continue
+            }
+            depth.consume(token.text)
+            index += 1
+        }
+        return (declarations, diagnostics)
+    }
+
+    private enum ImportParse {
+        case success(AdaScriptImportSyntax, Int)
+        case failure(AdaScriptImportDiagnostic, Int)
+    }
+
+    private func parseImport(at start: Int) -> ImportParse {
+        func fail(_ message: String, at index: Int) -> ImportParse {
+            let token = tokens[min(index, tokens.count - 1)]
+            // Resume after the declaration's terminating `;` so one mistake reports once.
+            var resume = index
+            while resume < tokens.count, tokens[resume].text != ";" { resume += 1 }
+            return .failure(AdaScriptImportDiagnostic(message: message, range: token.range), min(resume + 1, tokens.count))
+        }
+        var cursor = start + 1
+        guard cursor < tokens.count else {
+            return fail("expected '{ ... }' or '* as Alias' after import", at: start)
+        }
+        let kind: AdaScriptImportSyntax.Kind
+        if tokens[cursor].text == "*" {
+            guard cursor + 2 < tokens.count, tokens[cursor + 1].text == "as", tokens[cursor + 2].kind == .identifier else {
+                return fail("expected 'as Alias' after '*' in a namespace import", at: cursor)
+            }
+            kind = .namespace(alias: tokens[cursor + 2].text)
+            cursor += 3
+        } else if tokens[cursor].text == "{" {
+            var bindings: [AdaScriptImportSyntax.Binding] = []
+            cursor += 1
+            var expectsName = true
+            while cursor < tokens.count, tokens[cursor].text != "}" {
+                if expectsName, tokens[cursor].kind == .identifier {
+                    let nameToken = tokens[cursor]
+                    var binding = AdaScriptImportSyntax.Binding(name: nameToken.text, range: nameToken.range)
+                    if cursor + 2 < tokens.count, tokens[cursor + 1].text == "as", tokens[cursor + 2].kind == .identifier {
+                        binding.alias = tokens[cursor + 2].text
+                        binding.range = AdaScriptSourceRange(start: nameToken.range.start, end: tokens[cursor + 2].range.end)
+                        cursor += 2
+                    }
+                    bindings.append(binding)
+                    expectsName = false
+                } else if !expectsName, tokens[cursor].text == "," {
+                    expectsName = true
+                } else {
+                    return fail(expectsName ? "expected imported identifier" : "expected ',' or '}'", at: cursor)
+                }
+                cursor += 1
+            }
+            guard cursor < tokens.count else {
+                return fail("unterminated import list", at: start)
+            }
+            guard !bindings.isEmpty else {
+                return fail("expected imported identifier before '}'", at: cursor)
+            }
+            kind = .selected(bindings)
+            cursor += 1
+        } else {
+            return fail("expected '{ ... }' or '* as Alias' after import", at: cursor)
+        }
+        guard cursor < tokens.count, tokens[cursor].text == "from" else {
+            return fail("expected 'from'", at: min(cursor, tokens.count - 1))
+        }
+        cursor += 1
+        guard cursor < tokens.count, tokens[cursor].kind == .string, let path = unquotedPath(tokens[cursor].text) else {
+            return fail("expected quoted module path", at: min(cursor, tokens.count - 1))
+        }
+        let pathToken = tokens[cursor]
+        cursor += 1
+        guard cursor < tokens.count, tokens[cursor].text == ";" else {
+            return fail("expected ';' after import", at: min(cursor, tokens.count - 1))
+        }
+        let end = tokens[cursor]
+        return .success(
+            AdaScriptImportSyntax(
+                kind: kind,
+                offsets: tokens[start].startOffset..<end.endOffset,
+                path: path,
+                pathRange: pathToken.range,
+                range: AdaScriptSourceRange(start: tokens[start].range.start, end: end.range.end)
+            ),
+            cursor + 1
+        )
+    }
+
+    /// The string literal's value with simple backslash escapes resolved.
+    private func unquotedPath(_ literal: String) -> String? {
+        guard literal.count >= 2, let quote = literal.first, quote == "\"" || quote == "'", literal.last == quote else {
+            return nil
+        }
+        var result = ""
+        var escaped = false
+        for character in literal.dropFirst().dropLast() {
+            if escaped {
+                result.append(character)
+                escaped = false
+            } else if character == "\\" {
+                escaped = true
+            } else {
+                result.append(character)
+            }
+        }
+        return result
+    }
+
+    func parseAnnotationUses() -> [AdaScriptAnnotationUse] {
+        // Type bodies, innermost last, so a member knows its owner.
+        var typeBodies: [(name: String, open: Int, close: Int)] = []
+        for index in tokens.indices where ["class", "struct", "enum"].contains(tokens[index].text) {
+            guard index + 1 < tokens.count, tokens[index + 1].kind == .identifier,
+                let open = nextToken("{", after: index + 1, upperBound: tokens.count),
+                let close = matchingIndex(openingAt: open, opening: "{", closing: "}", upperBound: tokens.count)
+            else { continue }
+            typeBodies.append((tokens[index + 1].text, open, close))
+        }
+        var uses: [AdaScriptAnnotationUse] = []
+        var parentheses = 0
+        for index in tokens.indices {
+            let token = tokens[index]
+            if token.text == "(" { parentheses += 1 } else if token.text == ")" { parentheses = max(0, parentheses - 1) }
+            guard token.text == "@", index + 1 < tokens.count, tokens[index + 1].kind == .identifier else {
+                continue
+            }
+            let name = tokens[index + 1].text
+            let range = AdaScriptSourceRange(start: token.range.start, end: tokens[index + 1].range.end)
+            let owner = typeBodies.last { $0.open < index && index < $0.close }
+            // Skip this annotation's arguments, any further annotations, and modifiers to reach the declaration.
+            var cursor = index + 2
+            if cursor < tokens.count, tokens[cursor].text == "(",
+                let close = matchingIndex(openingAt: cursor, opening: "(", closing: ")", upperBound: tokens.count) {
+                cursor = close + 1
+            }
+            while cursor < tokens.count {
+                if tokens[cursor].text == "@", cursor + 1 < tokens.count, tokens[cursor + 1].kind == .identifier {
+                    cursor += 2
+                    if cursor < tokens.count, tokens[cursor].text == "(",
+                        let close = matchingIndex(openingAt: cursor, opening: "(", closing: ")", upperBound: tokens.count) {
+                        cursor = close + 1
+                    }
+                } else if Self.declarationModifiers.contains(tokens[cursor].text) {
+                    cursor += 1
+                } else {
+                    break
+                }
+            }
+            let keyword = cursor < tokens.count ? tokens[cursor].text : ""
+            let declaredName = cursor + 1 < tokens.count && tokens[cursor + 1].kind == .identifier ? tokens[cursor + 1].text : nil
+            let target: AdaScriptAnnotationUse.Target
+            if parentheses > 0 {
+                target = .parameter
+            } else if name == "strict", owner == nil, !(keyword == "func" || keyword == "var" || keyword == "const") {
+                target = .module
+            } else {
+                switch keyword {
+                case "class": target = .class
+                case "struct": target = .struct
+                case "enum": target = .enum
+                case "func": target = owner == nil ? .function : .method
+                case "var", "const": target = owner == nil ? .variable : .property
+                default: target = .module
+                }
+            }
+            uses.append(AdaScriptAnnotationUse(
+                name: name,
+                range: range,
+                target: target,
+                targetName: target == .module ? nil : declaredName,
+                parentName: owner?.name
+            ))
+        }
+        return uses
+    }
+}
+
+extension AdaScriptSyntaxParser {
+    /// Finds `Alias.member` for namespace imports and bare uses of `as`-renamed names.
+    func parseImportUses(_ imports: [AdaScriptImportSyntax]) -> [AdaScriptImportUse] {
+        var namespaces = Set<String>()
+        var renamed: [String: String] = [:]
+        for declaration in imports {
+            switch declaration.kind {
+            case let .namespace(alias):
+                namespaces.insert(alias)
+            case let .selected(bindings):
+                for binding in bindings {
+                    if let alias = binding.alias { renamed[alias] = binding.name }
+                }
+            }
+        }
+        guard !namespaces.isEmpty || !renamed.isEmpty else { return [] }
+        let importRanges = imports.map(\.offsets)
+        var uses: [AdaScriptImportUse] = []
+        for index in tokens.indices where tokens[index].kind == .identifier {
+            let token = tokens[index]
+            // Names inside the import declarations themselves are not uses.
+            if importRanges.contains(where: { $0.contains(token.startOffset) }) { continue }
+            // `x.Alias` is a member of something else, and `Alias:` before a value is a label, not a reference.
+            if index > 0, tokens[index - 1].text == "." { continue }
+            if namespaces.contains(token.text), index + 2 < tokens.count, tokens[index + 1].text == ".", tokens[index + 2].kind == .identifier {
+                uses.append(AdaScriptImportUse(
+                    kind: .namespaceMember(alias: token.text, member: tokens[index + 2].text),
+                    offsets: token.startOffset..<tokens[index + 2].startOffset,
+                    range: AdaScriptSourceRange(start: token.range.start, end: tokens[index + 2].range.end)
+                ))
+            } else if let original = renamed[token.text] {
+                uses.append(AdaScriptImportUse(
+                    kind: .renamed(local: token.text, original: original),
+                    offsets: token.startOffset..<token.endOffset,
+                    range: token.range
+                ))
+            }
+        }
+        return uses
+    }
+}
+
+extension AdaScriptSyntaxParser {
+    /// `private` / `public` written before a top-level declaration.
+    func topLevelVisibilityModifiers() -> [Range<Int>] {
+        var depth = DelimiterDepth()
+        var result: [Range<Int>] = []
+        for index in tokens.indices {
+            let token = tokens[index]
+            if depth.isTopLevel, token.kind == .identifier, token.text == "private" || token.text == "public",
+                !(index > 0 && tokens[index - 1].text == "."),
+                index + 1 < tokens.count, Self.startsDeclaration.contains(tokens[index + 1].text) {
+                result.append(token.startOffset..<token.endOffset)
+            }
+            depth.consume(token.text)
+        }
+        return result
+    }
+}
+
+extension AdaScriptSyntaxParser {
+    private static let referenceKeywords: Set<String> = [
+        "as", "async", "await", "break", "case", "class", "const", "continue", "else", "enum", "extern", "false", "for", "from", "func",
+        "if", "import", "in", "is", "not", "null", "private", "public", "return", "self", "static", "struct", "super", "switch", "true",
+        "undefined", "var", "while",
+    ]
+
+    /// Names declared anywhere in the file, including parameters and loop variables.
+    func declaredNames() -> Set<String> {
+        var names = Set<String>()
+        for index in tokens.indices {
+            let token = tokens[index].text
+            if ["var", "const", "func", "class", "struct", "enum"].contains(token),
+                index + 1 < tokens.count, tokens[index + 1].kind == .identifier {
+                names.insert(tokens[index + 1].text)
+            }
+            if token == "func", index + 2 < tokens.count, let open = nextToken("(", after: index + 1, upperBound: tokens.count),
+                let close = matchingIndex(openingAt: open, opening: "(", closing: ")", upperBound: tokens.count) {
+                for parameter in parseParameters(in: (open + 1)..<close) { names.insert(parameter.name) }
+            }
+            if token == "for", index + 2 < tokens.count, tokens[index + 1].text == "(" {
+                var cursor = index + 2
+                if cursor < tokens.count, tokens[cursor].text == "var" || tokens[cursor].text == "const" { cursor += 1 }
+                if cursor < tokens.count, tokens[cursor].kind == .identifier { names.insert(tokens[cursor].text) }
+            }
+        }
+        return names
+    }
+
+    /// Bare identifiers: not `x.member`, not `@annotation`, not `label:` in an argument list, not inside an import.
+    func nameReferences(excluding excluded: [Range<Int>]) -> [AdaScriptNameReference] {
+        var result: [AdaScriptNameReference] = []
+        for index in tokens.indices {
+            let token = tokens[index]
+            guard token.kind == .identifier, !Self.referenceKeywords.contains(token.text) else { continue }
+            if excluded.contains(where: { $0.contains(token.startOffset) }) { continue }
+            if index > 0, [".", "@"].contains(tokens[index - 1].text) { continue }
+            if index + 1 < tokens.count, tokens[index + 1].text == ":", index > 0, ["(", ","].contains(tokens[index - 1].text) { continue }
+            result.append(AdaScriptNameReference(name: token.text, range: token.range))
+        }
+        return result
     }
 }

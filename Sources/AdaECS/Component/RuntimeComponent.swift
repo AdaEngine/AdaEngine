@@ -20,6 +20,8 @@ public struct RuntimeComponentPayload: Component, Sendable {
 
 /// Metadata for one logical runtime component type.
 public struct RuntimeComponentDescriptor: Sendable {
+    /// Former names that still resolve to this component.
+    public let aliases: [String]
     public let componentID: ComponentId
     public let defaultValues: [ReflectedFieldValue]
     public let fields: [ReflectedComponentField]
@@ -29,11 +31,13 @@ public struct RuntimeComponentDescriptor: Sendable {
     public init(
         stableID: String,
         name: String,
+        aliases: [String] = [],
         fields: [ReflectedComponentField],
         defaultValues: [ReflectedFieldValue]
     ) {
         precondition(!stableID.isEmpty, "Runtime component identifiers must not be empty")
         precondition(fields.count == defaultValues.count, "Runtime component fields and defaults must match")
+        self.aliases = aliases
         self.componentID = ComponentId.runtime(stableID: stableID)
         self.defaultValues = defaultValues
         self.fields = fields
@@ -65,6 +69,37 @@ public struct RuntimeComponentDescriptor: Sendable {
         )
     }
 
+    /// Creates reflection metadata for a runtime-defined layout with explicit field kinds.
+    ///
+    /// Structured kinds (`vector2/3/4`, `color`, `enumeration`, `assetReference`) validate and
+    /// normalize written values; scalar kinds keep their exact-type check.
+    public init(
+        stableID: String,
+        name: String,
+        aliases: [String] = [],
+        fieldNames: [String],
+        fieldKinds: [ReflectedFieldKind],
+        defaultValues: [ReflectedFieldValue]
+    ) {
+        precondition(fieldNames.count == defaultValues.count && fieldNames.count == fieldKinds.count, "Runtime component fields, kinds and defaults must match")
+        let componentID = ComponentId.runtime(stableID: stableID)
+        self.init(
+            stableID: stableID,
+            name: name,
+            aliases: aliases,
+            fields: (0..<fieldNames.count).map { index in
+                Self.makeField(
+                    componentID: componentID,
+                    index: index,
+                    name: fieldNames[index],
+                    defaultValue: defaultValues[index],
+                    kind: fieldKinds[index]
+                )
+            },
+            defaultValues: defaultValues
+        )
+    }
+
     public func makeDefault() -> RuntimeComponentPayload {
         RuntimeComponentPayload(
             componentID: componentID,
@@ -77,18 +112,20 @@ public struct RuntimeComponentDescriptor: Sendable {
         componentID: ComponentId,
         index: Int,
         name: String,
-        defaultValue: ReflectedFieldValue
+        defaultValue: ReflectedFieldValue,
+        kind explicitKind: ReflectedFieldKind? = nil
     ) -> ReflectedComponentField {
+        let kind = explicitKind ?? fieldKind(for: defaultValue)
+        let normalize: @Sendable (ReflectedFieldValue) -> ReflectedFieldValue? = { value in
+            Self.normalized(value, as: kind, defaultValue: defaultValue)
+        }
         let accepts: @Sendable (ReflectedFieldValue) -> Bool = { value in
-            switch (defaultValue, value) {
-            case (.bool, .bool), (.int, .int), (.double, .double), (.string, .string): true
-            default: false
-            }
+            normalize(value) != nil
         }
         return unsafe ReflectedComponentField(
             key: name,
             label: name,
-            kind: fieldKind(for: defaultValue),
+            kind: kind,
             isWritable: true,
             accepts: accepts,
             read: { component in
@@ -106,11 +143,11 @@ public struct RuntimeComponentDescriptor: Sendable {
                     var payload = component as? RuntimeComponentPayload,
                     payload.componentID == componentID,
                     payload.values.indices.contains(index),
-                    accepts(value)
+                    let stored = normalize(value)
                 else {
                     return nil
                 }
-                payload.values[index] = value
+                payload.values[index] = stored
                 return payload
             },
             readPointer: { pointer in
@@ -125,14 +162,85 @@ public struct RuntimeComponentDescriptor: Sendable {
                 guard
                     unsafe payload.pointee.componentID == componentID,
                     unsafe payload.pointee.values.indices.contains(index),
-                    accepts(value)
+                    let stored = normalize(value)
                 else {
                     return false
                 }
-                unsafe payload.pointee.values[index] = value
+                unsafe payload.pointee.values[index] = stored
                 return true
             }
         )
+    }
+
+    /// Returns the value to store for `value` under `kind`, or `nil` when it is not valid for the field.
+    static func normalized(_ value: ReflectedFieldValue, as kind: ReflectedFieldKind, defaultValue: ReflectedFieldValue) -> ReflectedFieldValue? {
+        func components(_ allowed: ClosedRange<Int>, pad: Double?) -> ReflectedFieldValue? {
+            guard case let .array(items) = value, allowed.contains(items.count) else {
+                return nil
+            }
+            var numbers: [Double] = []
+            for item in items {
+                switch item {
+                case let .double(number) where number.isFinite: numbers.append(number)
+                case let .int(number): numbers.append(Double(number))
+                default: return nil
+                }
+            }
+            if let pad, numbers.count < allowed.upperBound {
+                numbers.append(pad)
+            }
+            return .array(numbers.map(ReflectedFieldValue.double))
+        }
+        switch kind {
+        case .bool:
+            if case .bool = value { return value }
+        case .int:
+            if case .int = value { return value }
+        case .float:
+            if case let .double(number) = value, number.isFinite { return value }
+        case .string:
+            if case .string = value { return value }
+        case .vector2: return components(2...2, pad: nil)
+        case .vector3: return components(3...3, pad: nil)
+        case .vector4: return components(4...4, pad: nil)
+        case .color:
+            // Stored in the same shape native `Color` fields read, so editors and scripts see one representation.
+            let channels = ["red", "green", "blue", "alpha"]
+            let numbers: [Double]
+            if case let .object(object) = value {
+                var found: [Double] = []
+                for (index, channel) in channels.enumerated() {
+                    switch object[channel] {
+                    case let .double(number)? where number.isFinite: found.append(number)
+                    case let .int(number)?: found.append(Double(number))
+                    case nil where index == 3: found.append(1)
+                    default: return nil
+                    }
+                }
+                numbers = found
+            } else if case let .array(items)? = components(3...4, pad: 1), items.count == 4 {
+                numbers = items.compactMap { item in
+                    if case let .double(number) = item { number } else { nil }
+                }
+            } else {
+                return nil
+            }
+            return .object(Dictionary(uniqueKeysWithValues: zip(channels, numbers.map(ReflectedFieldValue.double))))
+        case let .enumeration(cases):
+            if case let .string(name) = value, cases.contains(name) { return value }
+        case .assetReference:
+            switch value {
+            case .string, .null: return value
+            default: break
+            }
+        case .readOnly:
+            // Legacy shape-driven check: the written value must match the default's case.
+            switch (defaultValue, value) {
+            case (.bool, .bool), (.int, .int), (.double, .double), (.string, .string): return value
+            default: break
+            }
+        }
+        return nil
     }
 
     private static func fieldKind(for value: ReflectedFieldValue) -> ReflectedFieldKind {
@@ -179,6 +287,9 @@ struct RuntimeComponentsStorage: Sendable {
         descriptorsByID[descriptor.componentID] = descriptor
         idsByName[descriptor.name] = descriptor.componentID
         idsByName[descriptor.stableID] = descriptor.componentID
+        for alias in descriptor.aliases where idsByName[alias] == nil {
+            idsByName[alias] = descriptor.componentID
+        }
     }
 
     func descriptor(id: ComponentId) -> RuntimeComponentDescriptor? {

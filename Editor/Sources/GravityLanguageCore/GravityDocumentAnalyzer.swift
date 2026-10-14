@@ -25,7 +25,8 @@ struct GravityDocumentAnalyzer {
         let sharedInferredTypes = sharedAnalysis.inferredTypes.mapValues(\.displayName)
         let typeRegions = parseTypeRegions(tokens, inferredTypes: sharedInferredTypes)
         let symbols = parseGlobalSymbols(tokens, typeRegions: typeRegions)
-        let parsedImports = GravityImportParser.parse(tokens)
+        let syntax = AdaScriptSyntax.parse(source: text, path: "")
+        let parsedImports = (diagnostics: syntax.importDiagnostics.map { GravityDiagnostic(message: $0.message, range: $0.range.gravityRange) }, imports: syntax.imports.map(\.gravityImport))
         let typeDiagnostics = sharedAnalysis.typeIssues
             .filter { _ in projectTypeChecking == .strict || sharedAnalysis.syntax.isStrict }
             .map(gravityDiagnostic)
@@ -34,6 +35,7 @@ struct GravityDocumentAnalyzer {
                 diagnostics: lexResult.diagnostics + parsedImports.diagnostics
                     + duplicatePropertyDiagnostics(typeRegions, tokens: tokens)
                     + declarationAnnotationDiagnostics(typeRegions, tokens: tokens)
+                    + catalogAnnotationDiagnostics(syntax.annotationUses)
                     + GravityCapabilityAnalyzer.diagnostics(
                         regions: typeRegions,
                         tokens: tokens,
@@ -84,6 +86,21 @@ struct GravityDocumentAnalyzer {
                     range: member.selectionRange
                 )
             }
+        }
+    }
+
+    /// Annotations the shared catalog rejects that `declarationAnnotationDiagnostics` does not already explain
+    /// with a quick-fixable message: unknown names, and misplaced annotations outside the type-kind checks.
+    private static func catalogAnnotationDiagnostics(_ uses: [AdaScriptAnnotationUse]) -> [GravityDiagnostic] {
+        let explainedElsewhere: Set<String> = [
+            "component", "replicated_component", "resource", "network_command", "system", "scriptable", "tool", "view", "previewable",
+        ]
+        return AdaScriptAnnotationCatalog.problems(in: uses).compactMap { problem in
+            if problem.kind == .unsupportedTarget, explainedElsewhere.contains(problem.use.name),
+                [.class, .struct, .enum].contains(problem.use.target) {
+                return nil
+            }
+            return GravityDiagnostic(message: problem.message, range: problem.use.range.gravityRange)
         }
     }
 

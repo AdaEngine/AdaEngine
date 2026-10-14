@@ -22,10 +22,7 @@ enum GravityUnresolvedValueAnalyzer {
         declared.formUnion(GravityBuiltins.globalCandidates.map(\.label))
         declared.formUnion(["self", "super", "true", "false", "null", "undefined"])
         for scriptImport in imports {
-            declared.formUnion(scriptImport.names)
-            if let namespace = scriptImport.namespace {
-                declared.insert(namespace)
-            }
+            declared.formUnion(scriptImport.localNames)
         }
 
         var scoped: [ScopedName] = []
@@ -49,6 +46,10 @@ enum GravityUnresolvedValueAnalyzer {
         let valuePrefixes: Set<String> = ["(", "[", ",", "=", "return", "in", "await", "not", "+", "-", "*", "/", "!", "&&", "||"]
         return tokens.indices.compactMap { index in
             let token = tokens[index]
+            // The import declarations themselves are not value references.
+            guard !imports.contains(where: { $0.range.contains(token.range.start) }) else {
+                return nil
+            }
             let isMember = symbols.contains { symbol in
                 symbol.range.contains(token.range.start) && symbol.members.contains { $0.name == token.text }
             }

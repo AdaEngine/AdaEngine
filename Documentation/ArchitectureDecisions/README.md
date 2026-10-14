@@ -26,9 +26,9 @@ describes the intended design even when its implementation is still planned.
 
 | ADR | Status | Implementation | Decision |
 | --- | --- | --- | --- |
-| [ADR-0001](0001-ada-script-annotation-modules.md) | Accepted | Partial (foundation shipped) | Annotation-driven modules, imports, and discovery without `main()` |
+| [ADR-0001](0001-ada-script-annotation-modules.md) | Accepted | Implemented | Annotation-driven modules, imports, and discovery without `main()` |
 | [ADR-0002](0002-ada-script-ecs-query-api.md) | Accepted | Partial (foundation shipped) | Iterator-based ECS queries, canonical filter syntax, and inferred access |
-| [ADR-0003](0003-ada-script-components-and-resources.md) | Accepted | Partial (foundation shipped) | Ada Script-defined components and resources backed by generated Swift types |
+| [ADR-0003](0003-ada-script-components-and-resources.md) | Accepted | Partial (all but the single shared schema AST) | Ada Script-defined components and resources backed by generated Swift types |
 | [ADR-0004](0004-ada-script-world-capabilities.md) | Accepted | Partial (all but asset/UI capabilities shipped) | Capability-scoped world access and deferred structural changes |
 | [ADR-0005](0005-scriptable-objects-and-coding.md) | Accepted | Implemented | Scriptable object lifecycle, registration, and scene coding |
 | [ADR-0006](0006-ada-script-adaui-integration.md) | Superseded | Partial (foundation shipped) | Previous AdaScript and AdaUI integration design |

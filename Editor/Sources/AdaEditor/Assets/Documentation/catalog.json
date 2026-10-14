@@ -1269,7 +1269,25 @@
       },
       {
         "kind": "text",
-        "text": "The current implementation supports selected relative imports. Namespace\nimports, public/private visibility enforcement, and the `AdaEngine` / `AdaUI`\nvirtual-module declarations remain part of the next module-language slice.",
+        "text": "Three import forms exist:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "import { clampSpeed, MovementSettings as Settings } from \"../Shared/Movement\";\nimport * as Combat from \"./Combat\";\nimport { Text, VStack } from \"AdaUI\";",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• `{ name }` imports a public declaration, and `name as Local` renames it for\n  the importing file.\n• `* as Alias` makes `Alias.name` refer to a public declaration of that file.\n• `\"AdaEngine\"` and `\"AdaUI\"` are built-in modules. `AdaUI` has a closed list\n  of views and rejects any other name. `AdaEngine` provides the script-facing\n  services (`Input`, `Assets`, `Math`, `Vector3`, ...) and also accepts the\n  components and resources the host registers at runtime, so those names are\n  not checked statically.\n• `\"@library.id/path\"` imports from a restored library.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A declaration is public unless written `private`. A private declaration is\nmodule-local: importing it, or reaching it through a namespace, is an error, and\nso is importing a name the file does not declare. Gravity compiles a module as\none global scope, so a name declared by two reachable files cannot coexist; the\nduplicate is reported with both file names instead of being shadowed. Qualifying\na name with a namespace checks that it is exported but does not create a separate\nscope. Imports are resolved by one parser and one set of path rules shared by the\nruntime, the build generator, and the Editor, which also reports each import\ncycle in full on every import that closes it and completes names inside\n`import { | } from \"module\"`.",
         "level": 0,
         "links": []
       },
@@ -1299,7 +1317,7 @@
       },
       {
         "kind": "text",
-        "text": "See AdaScript Annotation Reference for supported annotations, declaration targets,\narguments, defaults, and lifetimes. A one-time world initializer is a\n`@system(scheduler: \"startup\")` class with `update(context)`; there is no\nfunction-level `@init` annotation yet.",
+        "text": "See AdaScript Annotation Reference for supported annotations, declaration targets,\narguments, defaults, and lifetimes. An annotation the engine does not define, or\none placed on a target it does not support, is a compile error carrying the\nfile, line and column of the annotation. A one-time world initializer is a\n`@system(scheduler: \"startup\")` class with `update(context)`; there is no\nfunction-level `@init` annotation yet.",
         "level": 0,
         "links": [
           {
@@ -1324,6 +1342,24 @@
         "kind": "code",
         "text": "@component(id: \"game.health\")\nstruct Health {\n    @export var current = 100.0;\n    @export var maximum = 120;\n}\n\n@resource(id: \"game.balance\", autoInsert: true)\nstruct GameBalance {\n    @export var acceleration = 9.8;\n}",
         "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Component and resource fields may also be vectors, colors, enumerations, entity\nreferences, and asset paths. The declared type selects the kind and the default\nmust match it:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "enum Mode { idle, moving }\n\n@component(id: \"game.body\", aliases: [\"OldBody\"])\nstruct Body {\n    @export var position: Vector3 = Vector3(0, 1, 0);   // Vector2, Vector3, Vector4, or [x, y, z]\n    @export var tint: Color = Color(1, 0.5, 0);          // Color(r, g, b[, a]), Color.white / black / clear\n    @export var mode: Mode = Mode.idle;                  // stored as the case name, \"idle\"\n    @export var target: Entity = null;                   // an entity id, -1 when unassigned\n    @export var icon: Asset = \"@res://Icons/body.png\";   // a project asset path, or null\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Scripts read and write these as lists (`row.body.position[0]`,\n`row.body.position = [1.0, 2.0, 3.0]`) and strings; a write with the wrong length,\na non-finite number, or an unknown enum case is rejected and leaves the field\nunchanged. These field kinds are not allowed in network fields. `aliases` keeps\nscenes saved under a former name loadable: scenes are stored under the stable ID,\nand `AdaScriptSceneSchemaResolver` reports a scene that still uses an alias,\nfields that were removed, and values of the wrong type.",
+        "level": 0,
         "links": []
       },
       {
@@ -1358,7 +1394,7 @@
       },
       {
         "kind": "text",
-        "text": "Resource access is currently conservative: each `@res` requests scheduler write\naccess. Static read/write inference and explicit access overrides are planned.",
+        "text": "A `@res` binding requests the scheduler access its use needs. It is read-only\nwhen every use is a field read (`balance.acceleration`, `balance.available()`);\nassigning a field, or any use that could alias the binding such as passing it or\nstoring it in another variable, requests write access. State the access\nexplicitly with `@res(access: \"read\")` or `@res(access: \"write\")`; declaring\n`\"read\"` for a binding the system writes is a compile error. Two systems that only\nread a resource may run at the same time.",
         "level": 0,
         "links": []
       },

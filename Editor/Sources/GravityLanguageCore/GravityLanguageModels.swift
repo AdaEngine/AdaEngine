@@ -1,3 +1,4 @@
+import AdaScriptCompilerCore
 import Foundation
 
 public struct GravitySourcePosition: Equatable, Hashable, Sendable {
@@ -216,21 +217,31 @@ public struct GravityQuickFix: Equatable, Sendable {
 }
 
 public struct GravityImport: Equatable, Hashable, Sendable {
+    /// Local name to declared name, for `import { Declared as Local }`.
+    public var aliases: [String: String]
     public var names: [String]
     public var namespace: String?
     public var path: String
     public var range: GravitySourceRange
 
     public init(
+        aliases: [String: String] = [:],
         names: [String],
         namespace: String? = nil,
         path: String,
         range: GravitySourceRange
     ) {
+        self.aliases = aliases
         self.names = names
         self.namespace = namespace
         self.path = path
         self.range = range
+    }
+
+    /// The names this import introduces in the importing file.
+    public var localNames: [String] {
+        let renamed = Dictionary(uniqueKeysWithValues: aliases.map { ($0.value, $0.key) })
+        return names.map { renamed[$0] ?? $0 } + (namespace.map { [$0] } ?? [])
     }
 }
 
@@ -247,5 +258,30 @@ public struct GravityDocumentAnalysis: Equatable, Sendable {
         self.diagnostics = diagnostics
         self.imports = imports
         self.symbols = symbols
+    }
+}
+
+extension AdaScriptSourceRange {
+    var gravityRange: GravitySourceRange {
+        GravitySourceRange(
+            start: GravitySourcePosition(line: start.line, utf16Column: start.utf16Column),
+            end: GravitySourcePosition(line: end.line, utf16Column: end.utf16Column)
+        )
+    }
+}
+
+extension AdaScriptImportSyntax {
+    var gravityImport: GravityImport {
+        switch kind {
+        case let .selected(bindings):
+            GravityImport(
+                aliases: Dictionary(bindings.compactMap { binding in binding.alias.map { ($0, binding.name) } }, uniquingKeysWith: { first, _ in first }),
+                names: bindings.map(\.name),
+                path: path,
+                range: range.gravityRange
+            )
+        case let .namespace(alias):
+            GravityImport(names: [], namespace: alias, path: path, range: range.gravityRange)
+        }
     }
 }

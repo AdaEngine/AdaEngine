@@ -1,4 +1,5 @@
 @_spi(AdaEngine) import AdaEngine
+import AdaScriptCompilerCore
 import Foundation
 
 struct EditorSceneLoadSummary: Equatable, Sendable {
@@ -176,6 +177,9 @@ enum EditorSceneFileLoader {
             runtime.enableAdaScript(sourceRoot: EditorSceneViewportView.uiProjectRoot(from: runtime.resources.rootURL))
             world.insertResource(UIComponentRuntimeResource(runtime))
         }
+        for script in EditorScriptComponentStore.shared.components {
+            world.registerRuntimeComponent(script.runtime)
+        }
         var entityCount = sceneModel.entities.count
         var entitiesByEditorID: [String: Entity] = [:]
         var runtimeEntityIDsByEditorID: [String: Entity.ID] = [:]
@@ -205,6 +209,14 @@ enum EditorSceneFileLoader {
                     let resolvedPayload = try resolvedComponentPayload(
                         typeName: componentName, payload: componentPayload, sourceURL: sourceURL, resourceRootURL: resourceRootURL
                     )
+                    if EditorScriptComponentStore.shared.component(forKey: componentName) != nil {
+                        warnings += AdaScriptSceneSchemaResolver.diagnose(
+                            key: componentName,
+                            fields: resolvedPayload.mapValues(\.jsonCompatibleValue),
+                            schemas: EditorScriptComponentStore.shared.schemas,
+                            reportsMissingFields: false
+                        ).map { "\(sceneEntity.name): \($0.description)" }
+                    }
                     if let component = try EditorComponentRegistry.decode(typeName: componentName, payload: resolvedPayload) {
                         if let ui = (component as? UIComponent) ?? (component as? CompanionPanel)?.ui {
                             let runtime = world.getResource(UIComponentRuntimeResource.self)?.runtime

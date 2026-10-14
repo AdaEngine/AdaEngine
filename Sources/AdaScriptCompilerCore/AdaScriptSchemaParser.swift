@@ -1,8 +1,51 @@
 public enum AdaScriptSchemaParser {
+    /// Collects every script `enum` (`enum Name { a, b = 2, c }`) so schema fields can name them.
+    /// Only the case names matter to schemas; explicit raw values are accepted and ignored.
+    static func collectEnums(_ sources: [AdaScriptCompilerSource]) throws -> [String: [String]] {
+        var result: [String: [String]] = [:]
+        for source in sources.sorted(by: { $0.path < $1.path }) {
+            var lexer = Lexer(source: source.source)
+            let tokens = lexer.lex()
+            var index = 0
+            while index < tokens.count {
+                guard tokens[index].text == "enum", index + 2 < tokens.count, tokens[index + 1].kind == .identifier, tokens[index + 2].text == "{" else {
+                    index += 1
+                    continue
+                }
+                let name = tokens[index + 1].text
+                var cases: [String] = []
+                var cursor = index + 3
+                var expectsCase = true
+                while cursor < tokens.count, tokens[cursor].text != "}" {
+                    let token = tokens[cursor]
+                    if expectsCase, token.kind == .identifier {
+                        guard !cases.contains(token.text) else {
+                            throw AdaScriptSchemaError.invalidEnum(name: name, message: "duplicate case '\(token.text)'")
+                        }
+                        cases.append(token.text)
+                        expectsCase = false
+                    } else if token.text == "," {
+                        expectsCase = true
+                    }
+                    cursor += 1
+                }
+                guard !cases.isEmpty else {
+                    throw AdaScriptSchemaError.invalidEnum(name: name, message: "an enum used by data needs at least one case")
+                }
+                guard result.updateValue(cases, forKey: name) == nil else {
+                    throw AdaScriptSchemaError.invalidEnum(name: name, message: "declared more than once")
+                }
+                index = cursor
+            }
+        }
+        return result
+    }
+
     public static func parse(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptDataSchema] {
         var schemas: [AdaScriptDataSchema] = []
+        let enums = try collectEnums(sources)
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
+            var parser = Parser(source: source.source, path: source.path, enums: enums)
             schemas += try parser.parse().schemas
         }
 
@@ -16,13 +59,23 @@ public enum AdaScriptSchemaParser {
                 throw AdaScriptSchemaError.duplicateName(schema.name)
             }
         }
+        // An alias is a key a scene may use, so it must not shadow another schema's name, id, or alias.
+        var claimed = ids.union(names)
+        for schema in schemas {
+            for alias in schema.aliases {
+                guard claimed.insert(alias).inserted else {
+                    throw AdaScriptSchemaError.duplicateName(alias)
+                }
+            }
+        }
         return schemas
     }
 
     public static func parseResourceBindings(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptResourceBinding] {
         var bindings: [AdaScriptResourceBinding] = []
+        let enums = try collectEnums(sources)
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
+            var parser = Parser(source: source.source, path: source.path, enums: enums)
             bindings += try parser.parse().resourceBindings
         }
         return bindings
@@ -30,8 +83,9 @@ public enum AdaScriptSchemaParser {
 
     public static func parseNetworkCommands(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptNetworkCommandSchema] {
         var schemas: [AdaScriptNetworkCommandSchema] = []
+        let enums = try collectEnums(sources)
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
+            var parser = Parser(source: source.source, path: source.path, enums: enums)
             schemas += try parser.parse().networkCommands
         }
         var ids = Set<String>()
@@ -49,8 +103,9 @@ public enum AdaScriptSchemaParser {
 
     public static func parseRemoteCommandBindings(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptRemoteCommandBinding] {
         var bindings: [AdaScriptRemoteCommandBinding] = []
+        let enums = try collectEnums(sources)
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
+            var parser = Parser(source: source.source, path: source.path, enums: enums)
             bindings += try parser.parse().remoteCommandBindings
         }
         return bindings
@@ -58,8 +113,9 @@ public enum AdaScriptSchemaParser {
 
     public static func parseRPCMethodBindings(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptRPCMethodBinding] {
         var bindings: [AdaScriptRPCMethodBinding] = []
+        let enums = try collectEnums(sources)
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
+            var parser = Parser(source: source.source, path: source.path, enums: enums)
             bindings += try parser.parse().rpcMethodBindings
         }
         return bindings
@@ -67,8 +123,9 @@ public enum AdaScriptSchemaParser {
 
     public static func parseScriptables(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptableSchema] {
         var schemas: [AdaScriptableSchema] = []
+        let enums = try collectEnums(sources)
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
+            var parser = Parser(source: source.source, path: source.path, enums: enums)
             schemas += try parser.parse().scriptables
         }
 
@@ -87,8 +144,9 @@ public enum AdaScriptSchemaParser {
 
     public static func parseSystemCapabilities(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptSystemCapabilities] {
         var capabilities: [AdaScriptSystemCapabilities] = []
+        let enums = try collectEnums(sources)
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
+            var parser = Parser(source: source.source, path: source.path, enums: enums)
             capabilities += try parser.parse().systemCapabilities
         }
         return capabilities
@@ -96,8 +154,9 @@ public enum AdaScriptSchemaParser {
 
     public static func parseTools(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptToolSchema] {
         var schemas: [AdaScriptToolSchema] = []
+        let enums = try collectEnums(sources)
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
+            var parser = Parser(source: source.source, path: source.path, enums: enums)
             schemas += try parser.parse().tools
         }
 
@@ -112,8 +171,9 @@ public enum AdaScriptSchemaParser {
 
     public static func parseViews(sources: [AdaScriptCompilerSource]) throws -> [AdaScriptViewSchema] {
         var schemas: [AdaScriptViewSchema] = []
+        let enums = try collectEnums(sources)
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var parser = Parser(source: source.source, path: source.path)
+            var parser = Parser(source: source.source, path: source.path, enums: enums)
             schemas += try parser.parse().views
         }
 
@@ -176,11 +236,15 @@ struct Parser {
 
     let path: String
     let tokens: [Token]
+    /// Script enums visible to field declarations, collected across the whole source set.
+    let enums: [String: [String]]
     var index = 0
+    var explicitResourceAccess: [String: AdaScriptResourceBinding.Access] = [:]
 
-    init(source: String, path: String) {
+    init(source: String, path: String, enums: [String: [String]] = [:]) {
         var lexer = Lexer(source: source)
         self.tokens = lexer.lex()
+        self.enums = enums
         self.path = path
     }
 }

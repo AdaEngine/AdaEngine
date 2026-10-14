@@ -3,8 +3,17 @@ import AdaScriptCompilerCore
 import Gravity
 
 enum AdaScriptSystemPlanBuilder {
+    /// `path:line:column: ` for an annotation whose file is known, else an empty prefix.
+    static func locationPrefix(of annotation: GravityAnnotation, pathsByFileID: [UInt32: String]) -> String {
+        guard let path = pathsByFileID[annotation.source.fileID] else {
+            return ""
+        }
+        return "\(path):\(annotation.source.line):\(annotation.source.column): "
+    }
+
     static func makePlans(
         from annotations: [GravityAnnotation],
+        pathsByFileID: [UInt32: String] = [:],
         remoteCommandBindings: [AdaScriptRemoteCommandBinding],
         rpcMethodBindings: [AdaScriptRPCMethodBinding],
         resourceBindings: [AdaScriptResourceBinding],
@@ -12,10 +21,11 @@ enum AdaScriptSystemPlanBuilder {
     ) throws -> [AnnotatedSystemPlan] {
         let systemAnnotations = annotations.filter { $0.name == "system" }
         let systemClassNames = Set(systemAnnotations.map(\.target.identifier))
-        try validateAnnotationTargets(annotations, systemClassNames: systemClassNames)
-        let plans = try systemAnnotations.map {
+        try validateAnnotationTargets(annotations, systemClassNames: systemClassNames, pathsByFileID: pathsByFileID)
+        let plans = try systemAnnotations.map { annotation in
             try makeSystemPlan(
-                $0,
+                annotation,
+                pathsByFileID: pathsByFileID,
                 annotations: annotations,
                 remoteCommandBindings: remoteCommandBindings,
                 rpcMethodBindings: rpcMethodBindings,
@@ -41,11 +51,15 @@ enum AdaScriptSystemPlanBuilder {
 
     private static func validateAnnotationTargets(
         _ annotations: [GravityAnnotation],
-        systemClassNames: Set<String>
+        systemClassNames: Set<String>,
+        pathsByFileID: [UInt32: String]
     ) throws {
+        func fail(_ annotation: GravityAnnotation, _ message: String) -> AdaScriptError {
+            .invalidManifest(locationPrefix(of: annotation, pathsByFileID: pathsByFileID) + message)
+        }
         for query in annotations where query.name == "query" {
             guard let parent = query.target.parentIdentifier, systemClassNames.contains(parent) else {
-                throw AdaScriptError.invalidManifest("@query must be declared inside an @system class")
+                throw fail(query, "@query must be declared inside an @system class")
             }
         }
         for capability in annotations where capability.name == "exclusiveWorld" || capability.name == "access" {
@@ -53,7 +67,7 @@ enum AdaScriptSystemPlanBuilder {
                 capability.target.kind == .class,
                 systemClassNames.contains(capability.target.identifier)
             else {
-                throw AdaScriptError.invalidManifest("@\(capability.name) can only annotate an @system class")
+                throw fail(capability, "@\(capability.name) can only annotate an @system class")
             }
         }
         for event in annotations where event.name == "events" || event.name == "eventWriter" {
@@ -62,7 +76,7 @@ enum AdaScriptSystemPlanBuilder {
                 let parent = event.target.parentIdentifier,
                 systemClassNames.contains(parent)
             else {
-                throw AdaScriptError.invalidManifest("@\(event.name) must annotate a stored property inside an @system class")
+                throw fail(event, "@\(event.name) must annotate a stored property inside an @system class")
             }
         }
         for dependency in annotations where dependency.name == "after" || dependency.name == "before" {
@@ -70,13 +84,14 @@ enum AdaScriptSystemPlanBuilder {
                 dependency.target.kind == .class,
                 systemClassNames.contains(dependency.target.identifier)
             else {
-                throw AdaScriptError.invalidManifest("@\(dependency.name) can only annotate an @system class")
+                throw fail(dependency, "@\(dependency.name) can only annotate an @system class")
             }
         }
     }
 
     private static func makeSystemPlan(
         _ annotation: GravityAnnotation,
+        pathsByFileID: [UInt32: String],
         annotations: [GravityAnnotation],
         remoteCommandBindings: [AdaScriptRemoteCommandBinding],
         rpcMethodBindings: [AdaScriptRPCMethodBinding],
@@ -84,10 +99,15 @@ enum AdaScriptSystemPlanBuilder {
         systemCapabilities: [AdaScriptSystemCapabilities]
     ) throws -> AnnotatedSystemPlan {
         guard annotation.target.kind == .class else {
-            throw AdaScriptError.invalidManifest("@system can only annotate a class")
+            throw AdaScriptError.invalidManifest(locationPrefix(of: annotation, pathsByFileID: pathsByFileID) + "@system can only annotate a class")
         }
         let className = annotation.target.identifier
         return try AnnotatedSystemPlan(
+            source: AnnotatedSourceLocation(
+                column: Int(annotation.source.column),
+                line: Int(annotation.source.line),
+                path: pathsByFileID[annotation.source.fileID]
+            ),
             className: className,
             dependencies:
                 annotations
@@ -116,6 +136,7 @@ enum AdaScriptSystemPlanBuilder {
                 .filter { $0.systemName == className }
                 .map {
                     AnnotatedResourcePlan(
+                        access: $0.access,
                         isOptional: $0.isOptional,
                         propertyName: $0.propertyName,
                         resourceName: $0.resourceName

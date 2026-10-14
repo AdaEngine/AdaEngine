@@ -226,7 +226,7 @@ actor EditorAdaScriptNativeExporter {
     private static func convertScenes(at assets: URL, originalRoot: URL, sources: [AdaScriptSource]) throws {
         EditorComponentRegistry.registerBuiltIns()
         let schemas = try AdaScriptSchemaParser.parse(sources: sources).filter { $0.kind == .component }
-        let nativeNames = Set(schemas.flatMap { [$0.name, $0.id] })
+        let nativeNames = Set(schemas.flatMap { [$0.name, $0.id] + $0.aliases })
         guard let files = FileManager.default.enumerator(at: assets, includingPropertiesForKeys: [.isRegularFileKey]) else { return }
         for case let url as URL in files where url.pathExtension == "ascn" {
             let model = try EditorSceneModel.decode(from: String(contentsOf: url, encoding: .utf8))
@@ -240,7 +240,15 @@ actor EditorAdaScriptNativeExporter {
                 for (name, originalPayload) in item.components {
                     let payload = try EditorSceneFileLoader.resolvedComponentPayload(typeName: name, payload: originalPayload, sourceURL: originalSceneURL, resourceRootURL: originalRoot)
                     if nativeNames.contains(name) || name == String(reflecting: ScriptableComponents.self) {
-                        values[name] = try JSONSerialization.data(withJSONObject: payload.mapValues(\.jsonCompatibleValue))
+                        let fields = payload.mapValues(\.jsonCompatibleValue)
+                        let resolution = AdaScriptSceneSchemaResolver.resolve(key: name, in: schemas)
+                        let errors = resolution == nil ? [] : AdaScriptSceneSchemaResolver.diagnose(key: name, fields: fields, schemas: schemas).filter { $0.severity == .error }
+                        guard errors.isEmpty else {
+                            throw EditorPreviewBuildFailure(message: "Scene \(url.lastPathComponent) does not match the script schema: " + errors.map(\.description).joined(separator: "; "))
+                        }
+                        // Scenes are exported under the stable ID so a later rename or alias cannot orphan the data.
+                        let key = resolution?.canonicalKey ?? name
+                        values[key] = try JSONSerialization.data(withJSONObject: fields)
                     } else if name == String(reflecting: Camera.self), let camera = try EditorComponentRegistry.decode(typeName: name, payload: payload) as? Camera {
                         values[name] = try JSONEncoder().encode(SceneCameraSettings(camera: camera))
                     } else if name == String(reflecting: TileMapComponent.self) {

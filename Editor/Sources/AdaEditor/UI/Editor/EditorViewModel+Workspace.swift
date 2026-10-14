@@ -121,6 +121,7 @@ extension EditorViewModel {
             return
         }
         inspectorSidebar.scriptableObjectCatalog = support.descriptors
+        EditorScriptComponentStore.shared.replace(with: support.dataComponents)
         scenePlayRuntime = support.playRuntime
     }
 

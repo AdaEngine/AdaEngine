@@ -596,7 +596,7 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
             .sorted()
         let generatedSource = (factories + getters).joined(separator: "\n")
         let runtimeSource = (communityPolicy == nil ? "" : "extern var __adaUGCBudget;\n") + (communityPolicy == nil ? AdaScriptStandardLibrary.source : AdaScriptStandardLibrary.communitySource) + "\n"
-                + AdaScriptComponentRuntime.prelude(constructors: componentConstructors)
+                + AdaScriptComponentRuntime.prelude(constructors: componentConstructors, authoredSource: module.combinedSource)
                 + AdaScriptNetworkBridge.prelude(commands: networkCommands)
                 + module.entrySource
                 + "\n"

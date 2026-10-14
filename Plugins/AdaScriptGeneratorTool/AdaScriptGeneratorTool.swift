@@ -86,8 +86,7 @@ struct AdaScriptGeneratorTool {
         let hasSystems = try !AdaScriptSchemaParser.parseSystemCapabilities(sources: compilerSources).isEmpty
 
         let scriptsDeclaration = embeddedSourcesDeclaration(scripts)
-        let dataDeclarations = schemas
-            .map { schemaDeclaration($0, moduleName: moduleName) }
+        let dataDeclarations = (enumDeclarations(schemas, moduleName: moduleName) + schemas.map { schemaDeclaration($0, moduleName: moduleName) })
             .joined(separator: "\n\n")
         let registrations = schemas
             .map { schemaRegistration($0, moduleName: moduleName) }
@@ -214,6 +213,12 @@ struct AdaScriptGeneratorTool {
         case .double(let value): ".double(\(value))"
         case .int(let value): ".int(\(value))"
         case .string(let value): ".string(\(swiftStringLiteral(value)))"
+        // Scriptable fields are scalar-only; structured values never reach this switch from the schema parser.
+        case .vector(let components): ".array([\(components.map { ".double(\($0))" }.joined(separator: ", "))])"
+        case .color(let components): ".array([\(components.map { ".double(\($0))" }.joined(separator: ", "))])"
+        case .enumeration(_, _, let selected): ".string(\(swiftStringLiteral(selected)))"
+        case .entity: ".int(-1)"
+        case .asset(let path): path.map { ".string(\(swiftStringLiteral($0)))" } ?? ".null"
         }
     }
 
@@ -221,7 +226,7 @@ struct AdaScriptGeneratorTool {
         let typeName = generatedTypeName(schema, moduleName: moduleName)
         let fields = schema.fields
             .map { field in
-                "    var \(field.name): \(swiftType(field.defaultValue)) = \(swiftDefault(field.defaultValue))"
+                "    var \(field.name): \(swiftType(field.defaultValue, moduleName: moduleName)) = \(swiftDefault(field.defaultValue, moduleName: moduleName))"
             }
             .joined(separator: "\n")
         switch schema.kind {
@@ -276,7 +281,7 @@ struct AdaScriptGeneratorTool {
 
     private static func schemaRegistration(_ schema: AdaScriptDataSchema, moduleName: String) -> String {
         let typeName = generatedTypeName(schema, moduleName: moduleName)
-        let names = "[\(swiftStringLiteral(schema.name)), \(swiftStringLiteral(schema.id))]"
+        let names = "[\(([schema.name, schema.id] + schema.aliases).map(swiftStringLiteral).joined(separator: ", "))]"
         switch schema.kind {
         case .component:
             let typeRegistration = "RuntimeTypeRegistry.registerComponent(\(typeName).self, names: \(names), makeDefault: { \(typeName)() })"
@@ -285,7 +290,7 @@ struct AdaScriptGeneratorTool {
             }
             return typeRegistration
         case .resource(let autoInsert):
-            let fieldDescriptors = resourceFieldDescriptors(schema, typeName: typeName)
+            let fieldDescriptors = resourceFieldDescriptors(schema, typeName: typeName, moduleName: moduleName)
             let registration = """
             RuntimeTypeRegistry.registerResource(\(typeName).self, names: \(names))
                     RuntimeResourceReflectionRegistry.register(\(typeName).self, fields: [
@@ -296,10 +301,10 @@ struct AdaScriptGeneratorTool {
         }
     }
 
-    private static func resourceFieldDescriptors(_ schema: AdaScriptDataSchema, typeName: String) -> String {
+    private static func resourceFieldDescriptors(_ schema: AdaScriptDataSchema, typeName: String, moduleName: String) -> String {
         schema.fields
             .map { field in
-                let fieldType = swiftType(field.defaultValue)
+                let fieldType = swiftType(field.defaultValue, moduleName: moduleName)
                 return """
                     unsafe ReflectedComponentField(
                         key: \(swiftStringLiteral(field.name)),
@@ -369,6 +374,8 @@ struct AdaScriptGeneratorTool {
         case .double: ".floatingPoint"
         case .int: ".signedInteger"
         case .string: ".string"
+        // Unreachable: the schema parser rejects structured values in network fields.
+        case .vector, .color, .enumeration, .entity, .asset: ".string"
         }
     }
 
@@ -384,22 +391,64 @@ struct AdaScriptGeneratorTool {
         return result.first?.isNumber == true ? "_\(result)" : result
     }
 
-    private static func swiftType(_ value: AdaScriptSchemaField.Value) -> String {
+    private static func swiftType(_ value: AdaScriptSchemaField.Value, moduleName: String) -> String {
         switch value {
         case .bool: "Bool"
         case .double: "Double"
         case .int: "Int64"
         case .string: "String"
+        case .vector(let components): "Vector\(components.count)"
+        case .color: "Color"
+        case .enumeration(let type, _, _): generatedEnumName(type, moduleName: moduleName)
+        // Entity references are integer ids (-1 is "none"); asset references are project paths.
+        case .entity: "Int"
+        case .asset: "String"
         }
     }
 
-    private static func swiftDefault(_ value: AdaScriptSchemaField.Value) -> String {
+    private static func swiftDefault(_ value: AdaScriptSchemaField.Value, moduleName: String) -> String {
         switch value {
         case .bool(let value): String(value)
         case .double(let value): String(value)
         case .int(let value): String(value)
         case .string(let value): swiftStringLiteral(value)
+        case .vector(let components): "Vector\(components.count)(\(components.map { String($0) }.joined(separator: ", ")))"
+        case .color(let components):
+            "Color(red: \(components[0]), green: \(components[1]), blue: \(components[2]), alpha: \(components[3]))"
+        case .enumeration(let type, _, let selected): "\(generatedEnumName(type, moduleName: moduleName)).\(swiftCaseName(selected))"
+        case .entity: "-1"
+        case .asset(let path): swiftStringLiteral(path ?? "")
         }
+    }
+
+    private static func generatedEnumName(_ type: String, moduleName: String) -> String {
+        "__AdaScriptEnum_\(swiftIdentifier(moduleName))_\(swiftIdentifier(type))"
+    }
+
+    private static func swiftCaseName(_ name: String) -> String {
+        "`\(name)`"
+    }
+
+    /// Emits one `ReflectedEnum` per distinct script enum used by a component or resource field.
+    private static func enumDeclarations(_ schemas: [AdaScriptDataSchema], moduleName: String) -> [String] {
+        var seen = Set<String>()
+        var declarations: [String] = []
+        for schema in schemas {
+            for field in schema.fields {
+                guard case .enumeration(let type, let cases, _) = field.defaultValue, seen.insert(type).inserted else {
+                    continue
+                }
+                let body = cases.map { "    case \(swiftCaseName($0))" }.joined(separator: "\n")
+                declarations.append(
+                    """
+                    enum \(generatedEnumName(type, moduleName: moduleName)): String, Codable, Sendable, ReflectedEnum {
+                    \(body)
+                    }
+                    """
+                )
+            }
+        }
+        return declarations
     }
 
     private static func relativePath(for fileURL: URL, rootURL: URL) -> String {

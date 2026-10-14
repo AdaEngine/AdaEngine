@@ -157,29 +157,6 @@ struct GravityScriptModuleTests {
         }
     }
 
-    @Test("Rejects namespace imports until namespace isolation is implemented")
-    func rejectsNamespaceImports() {
-        #expect(throws: AdaScriptError.self) {
-            try AdaScriptPlugin(
-                sources: [
-                    AdaScriptSource(
-                        path: "Main.ada",
-                        source: """
-                        import * as Shared from "./Shared";
-
-                        @system
-                        class NamespaceSystem {
-                            func update(context) {}
-                        }
-                        """
-                    ),
-                    AdaScriptSource(path: "Shared.ada", source: "func helper() {}")
-                ],
-                name: "Namespace"
-            )
-        }
-    }
-
     private static let multiFileSources = [
         AdaScriptSource(
             path: "Shared/Steps.ada",

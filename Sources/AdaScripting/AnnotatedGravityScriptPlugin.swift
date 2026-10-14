@@ -27,7 +27,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         AdaScriptRuntimeCoordinator.lock.withLock { runtime.activeAsyncTaskCount }
     }
 
-    private var plans: [AnnotatedSystemPlan]
+    private(set) var plans: [AnnotatedSystemPlan]
     private var dataSchemas: [AdaScriptDataSchema]
     private var networkCommands: [AdaScriptNetworkCommandSchema]
     private var runtimeComponents: [RuntimeComponentDescriptor]
@@ -67,13 +67,19 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         let runtimeComponents = AdaScriptComponentRuntime.runtimeDescriptors(schemas: dataSchemas)
         let networkCommands = try AdaScriptSchemaParser.parseNetworkCommands(sources: sources)
         let module = try GravityScriptModuleResolver.resolve(sources)
-        let runtime = try AnnotatedGravityRuntime(
-            module: module,
-            componentConstructors: componentConstructors,
-            runtimeComponents: runtimeComponents,
-            networkCommands: networkCommands,
-            communityPolicy: communityPolicy
-        )
+        let runtime: AnnotatedGravityRuntime
+        do {
+            runtime = try AnnotatedGravityRuntime(
+                module: module,
+                componentConstructors: componentConstructors,
+                runtimeComponents: runtimeComponents,
+                networkCommands: networkCommands,
+                communityPolicy: communityPolicy
+            )
+        } catch AdaScriptError.compilation(let diagnostics) where !module.importDiagnostics.isEmpty {
+            // The compiler's own errors come first; import findings explain a missing name they report.
+            throw AdaScriptError.compilation(diagnostics + module.importDiagnostics)
+        }
         let resourceBindings = try AdaScriptSchemaParser.parseResourceBindings(sources: sources)
         let remoteCommandBindings = try AdaScriptSchemaParser.parseRemoteCommandBindings(sources: sources)
         let rpcMethodBindings = try AdaScriptSchemaParser.parseRPCMethodBindings(sources: sources)
@@ -83,9 +89,13 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
                 "@remote_commands references unknown command '\(unknownBinding.commandName)'"
             )
         }
+        if !module.importDiagnostics.isEmpty {
+            throw AdaScriptError.compilation(module.importDiagnostics)
+        }
         let capabilities = try AdaScriptSchemaParser.parseSystemCapabilities(sources: sources)
         var plans = try AdaScriptSystemPlanBuilder.makePlans(
             from: runtime.annotations,
+            pathsByFileID: module.pathsByFileID,
             remoteCommandBindings: remoteCommandBindings,
             rpcMethodBindings: rpcMethodBindings,
             resourceBindings: resourceBindings,
@@ -372,7 +382,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         let descriptor = RuntimeResourceReflectionRegistry.descriptor(for: resourceType)
         return .reflected(
             fields: Dictionary(uniqueKeysWithValues: descriptor?.fields.map { ($0.key, $0) } ?? []),
-            parameter: DynamicResource(resourceType: resourceType, isOptional: plan.isOptional, writable: true),
+            parameter: DynamicResource(resourceType: resourceType, isOptional: plan.isOptional, writable: plan.access == .write),
             propertyName: plan.propertyName,
             resourceName: plan.resourceName
         )
@@ -472,8 +482,21 @@ struct ResolvedAnnotatedComponent: Sendable {
     let fields: [ReflectedComponentField]
 }
 
+/// Where an annotation was written, in target-relative coordinates.
+struct AnnotatedSourceLocation: Sendable, Equatable {
+    let column: Int
+    let line: Int
+    let path: String?
+}
+
 struct AnnotatedSystemPlan: Sendable {
+    let source: AnnotatedSourceLocation
     let className: String
+
+    /// The declaration's identity across the module: its file and class, e.g. `Systems/Move.ada#MoveSystem`.
+    var qualifiedIdentity: String {
+        (source.path.map { "\($0)#" } ?? "") + className
+    }
     let dependencies: [SystemDependency]
     let identifier: String
     let scheduler: SchedulerName
@@ -510,6 +533,7 @@ struct AnnotatedRPCMethodPlan: Sendable {
 }
 
 struct AnnotatedResourcePlan: Sendable {
+    let access: AdaScriptResourceBinding.Access
     let isOptional: Bool
     let propertyName: String
     let resourceName: String
@@ -871,7 +895,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let standardLibrary = communityPolicy == nil ? AdaScriptStandardLibrary.source : AdaScriptStandardLibrary.communitySource
         let runtimeSource = (communityPolicy == nil ? "" : "extern var __adaUGCBudget;\n") + standardLibrary + "\n"
                 + AdaScriptTaskPrelude.source + "\n"
-                + AdaScriptComponentRuntime.prelude(constructors: componentConstructors)
+                + AdaScriptComponentRuntime.prelude(constructors: componentConstructors, authoredSource: module.combinedSource)
                 + AdaScriptNetworkBridge.prelude(commands: networkCommands)
                 + authoredSource
         let binary = virtualMachine.loadGravityFile(from: communityPolicy == nil ? runtimeSource : try AdaScriptCommunityLowerer.instrument(source: runtimeSource))
@@ -1111,7 +1135,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         )
     }
 
-    fileprivate func makeEventBindings(for system: PreparedAnnotatedSystem) -> AnnotatedEventBindings {
+    func makeEventBindings(for system: PreparedAnnotatedSystem) -> AnnotatedEventBindings {
         let readers = system.eventReaders.map { plan in
             let events = (system.eventReader?.wrappedValue ?? [])
                 .filter { $0.name == plan.eventName }

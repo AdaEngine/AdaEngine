@@ -16,6 +16,8 @@ public struct AdaScriptDataSchema: Equatable, Sendable {
         case resource(autoInsert: Bool)
     }
 
+    /// Former names scenes and saved data may still use; resolved to this schema's stable `id`.
+    public let aliases: [String]
     public let fields: [AdaScriptSchemaField]
     public let id: String
     public let kind: Kind
@@ -24,6 +26,7 @@ public struct AdaScriptDataSchema: Equatable, Sendable {
     public let sourcePath: String
 
     public init(
+        aliases: [String] = [],
         fields: [AdaScriptSchemaField],
         id: String,
         kind: Kind,
@@ -31,6 +34,7 @@ public struct AdaScriptDataSchema: Equatable, Sendable {
         replication: AdaScriptReplicatedComponentSchema? = nil,
         sourcePath: String
     ) {
+        self.aliases = aliases
         self.fields = fields
         self.id = id
         self.kind = kind
@@ -70,6 +74,24 @@ public struct AdaScriptSchemaField: Equatable, Sendable {
         case double(Double)
         case int(Int64)
         case string(String)
+        /// A 2, 3 or 4 component vector (`Vector2`, `Vector3`, `Vector4`).
+        case vector([Double])
+        /// Linear RGBA color components.
+        case color([Double])
+        /// A closed set of named cases declared with a script `enum`. Stored as the case name.
+        case enumeration(type: String, cases: [String], selected: String)
+        /// A reference to another entity, `nil` until assigned.
+        case entity
+        /// A project asset path, or `nil` when unassigned.
+        case asset(path: String?)
+
+        /// True for the four scalar kinds that every consumer (network wire formats included) understands.
+        public var isScalar: Bool {
+            switch self {
+            case .bool, .double, .int, .string: true
+            case .vector, .color, .enumeration, .entity, .asset: false
+            }
+        }
     }
 
     public let defaultValue: Value
@@ -192,12 +214,21 @@ public struct AdaScriptableBinding: Equatable, Sendable {
 }
 
 public struct AdaScriptResourceBinding: Equatable, Sendable {
+    /// Scheduler access a system needs for a `@res` binding.
+    public enum Access: String, Equatable, Sendable {
+        case read
+        case write
+    }
+
+    public let access: Access
     public let isOptional: Bool
     public let propertyName: String
     public let resourceName: String
     public let systemName: String
 
-    public init(isOptional: Bool, propertyName: String, resourceName: String, systemName: String) {
+    /// - Parameter access: Defaults to `.write`, the conservative choice for bindings whose use is not analyzed.
+    public init(access: Access = .write, isOptional: Bool, propertyName: String, resourceName: String, systemName: String) {
+        self.access = access
         self.isOptional = isOptional
         self.propertyName = propertyName
         self.resourceName = resourceName
@@ -349,6 +380,7 @@ public enum AdaScriptSchemaError: Error, Equatable, CustomStringConvertible, Loc
     case duplicateName(String)
     case duplicateToolID(String)
     case invalid(path: String, message: String)
+    case invalidEnum(name: String, message: String)
 
     public var description: String {
         switch self {
@@ -360,6 +392,8 @@ public enum AdaScriptSchemaError: Error, Equatable, CustomStringConvertible, Loc
             "Duplicate AdaEditor tool id '\(id)'"
         case let .invalid(path, message):
             "Invalid Ada Script schema in '\(path)': \(message)"
+        case let .invalidEnum(name, message):
+            "Invalid Ada Script enum '\(name)': \(message)"
         }
     }
 

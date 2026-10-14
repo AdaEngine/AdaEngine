@@ -108,11 +108,6 @@ final class EditorStudioToolPanel {
     }
 
     static func uiValue(_ value: AdaScriptSchemaField.Value) -> UIValue {
-        switch value {
-        case .bool(let value): .bool(value)
-        case .int(let value): .number(Double(value))
-        case .double(let value): .number(value)
-        case .string(let value): .string(value)
-        }
+        value.uiValue
     }
 }

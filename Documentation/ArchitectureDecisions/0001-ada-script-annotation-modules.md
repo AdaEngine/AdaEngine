@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Partial (foundation shipped)
+- Implementation: Implemented
 
 ## Implementation status
 
-Last verified: 2026-08-31.
+Last verified: 2026-10-14.
 
 Shipped:
 
@@ -20,9 +20,6 @@ Shipped:
   `AdaQuery` registration path has been removed.
 - [x] The build generator, Editor template, completion, diagnostics, demo, and
   documentation use the annotation-driven entry model.
-
-Remaining before this ADR is implemented:
-
 - [x] Embed the complete target-relative source map and install one VM/plugin
   for the Swift target rather than one plugin per source file.
 - [x] Resolve selected relative imports, extension omission, reachable shared
@@ -30,15 +27,34 @@ Remaining before this ADR is implemented:
   complete import cycles before entering Gravity.
 - [x] Scope Editor completion to selected imports and diagnose unresolved or
   workspace-escaping paths.
-- [ ] Implement namespace imports and enforce public/private selected-import
-  visibility instead of exposing every declaration in a reachable file.
-- [ ] Populate the `AdaEngine` and `AdaUI` virtual modules.
-- [ ] Share one import parser/resolution model between runtime code generation
-  and the Editor, including cycle diagnostics in the LSP.
-- [ ] Retain complete target-relative source ranges and qualified declaration
-  identities in annotation metadata and diagnostics.
-- [ ] Diagnose unknown AdaEngine annotations and every unsupported annotation
-  target in the semantic layer.
+- [x] Namespace imports (`import * as Alias from "path"`), renamed imports
+  (`name as Local`), and public/private visibility. A declaration is public
+  unless written `private`; importing a private or missing name, or reaching
+  one through a namespace, is an error. Gravity compiles a module as one global
+  scope, so a namespace qualifier is checked and then lowered to the plain
+  declaration rather than creating a separate scope, and a name declared by two
+  reachable files is reported with both file names instead of "requiring
+  qualification". A reachable file may use another module's helper only after
+  importing it; annotated discovery roots (components, resources, systems,
+  scriptables, tools, views) are found by name and need no import. Gravity
+  rejects access specifiers on top-level declarations, so they are read and then
+  removed during lowering.
+- [x] The `AdaEngine` and `AdaUI` virtual modules have contents. `AdaUI` is a
+  closed list of views and rejects any other name. `AdaEngine` lists the
+  script-facing services and value types and also accepts the components and
+  resources the host registers at runtime, which cannot be checked statically.
+  Import-name completion offers both.
+- [x] One import parser and one resolution model (`AdaScriptSyntax`,
+  `AdaScriptModulePaths`, `AdaScriptModuleGraph`, `AdaScriptModuleOrdering`) serve
+  the runtime resolver and the Editor; the build generator embeds the sources
+  and the runtime resolves them at startup. The Editor resolves
+  library imports and the project's source root with the runtime's rules and
+  reports every import cycle in full on each import that closes it.
+- [x] Annotation diagnostics carry `path:line:column`, taken from the Gravity
+  annotation's source location, and each system plan has a qualified identity
+  (`Systems/Move.ada#MoveSystem`).
+- [x] Unknown annotations and every unsupported annotation target are diagnosed
+  from one table, `AdaScriptAnnotationCatalog`, by the runtime and the Editor.
 - [x] Generate one deterministic target-level registration entry point.
 
 ## Context
