@@ -1,6 +1,15 @@
 {
-  "originHash" : "5b43b6305b244bb954d1d8ac9bcf4b27d96fecacf0602e44c749230b9ada7500",
+  "originHash" : "a36d3e0c5b90890634a2267ca88b5d2be1e080cdb71538e2e1544dc7079a083a",
   "pins" : [
+    {
+      "identity" : "adamcp",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/AdaMCP.git",
+      "state" : {
+        "branch" : "v0.2.0",
+        "revision" : "165bd5c00857a760ecea859022d023393350baad"
+      }
+    },
     {
       "identity" : "anylanguagemodel",
       "kind" : "remoteSourceControl",
