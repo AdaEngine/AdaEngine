@@ -39,8 +39,13 @@ model. Ambient occlusion is baked into vertices. Material properties from
 - **Meshing (`AdaRender`/`AdaScene`).** Converts a model grid to a mesh.
 - **Scene import (`AdaScene`).** Converts the scene graph to entities.
 
-Axis conversion to the engine's convention happens in scene import, not in the
-parser. The default scale is 1 voxel = 0.1 world units, configurable per import.
+Axis conversion happens in scene import, not in the parser. MagicaVoxel is
+right-handed with Z up; the engine is left-handed with Y up and +Z forward. The
+import swaps Y and Z (`(x, y, z) -> (x, z, y)`), so a model keeps the look of
+MagicaVoxel's default front view. Because the swap is a mirror it is baked into
+mesh vertices with reversed triangle winding, and node matrices are conjugated by
+the swap, so no node carries a negative-determinant transform. The default scale
+is 1 voxel = 0.1 world units, configurable per import.
 
 ### 3. Hybrid scene representation
 

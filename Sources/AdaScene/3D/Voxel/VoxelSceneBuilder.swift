@@ -9,8 +9,11 @@ import Math
 
 /// Converts a parsed MagicaVoxel scene to engine nodes and mesh descriptors without touching the GPU.
 ///
-/// Coordinate conventions: the MagicaVoxel scene is built in its own space (right-handed, Z up). A single
-/// wrapper node at the top converts it to the engine's Y-up space with `(x, y, z) -> (x, z, -y)`.
+/// Coordinate conventions: MagicaVoxel is right-handed with Z up; the engine is left-handed with Y up and +Z forward.
+/// The scene is built in MagicaVoxel space and then converted by swapping the Y and Z axes
+/// (`(x, y, z) -> (x, z, y)`), which keeps the model's look from MagicaVoxel's default front view (it faces +Z,
+/// +X is right, +Z becomes up). The swap is a mirror, so it is baked into mesh vertices (with reversed triangle
+/// winding) and applied to node matrices by conjugation instead of being left as a negative-determinant node transform.
 /// A model's pivot is `floor(size / 2)`, as in the MagicaVoxel scene graph.
 struct VoxelSceneBuilder {
     struct Node {
@@ -82,10 +85,10 @@ struct VoxelSceneBuilder {
         }
     }
 
-    /// Converts MagicaVoxel space (Z up) to engine space (Y up), preserving handedness.
-    static let engineAxisConversion = Transform3D(
+    /// Swaps the Y and Z axes. Its own inverse.
+    static let axisSwap = Transform3D(
         Vector4(1, 0, 0, 0),
-        Vector4(0, 0, -1, 0),
+        Vector4(0, 0, 1, 0),
         Vector4(0, 1, 0, 0),
         Vector4(0, 0, 0, 1)
     )
@@ -117,11 +120,34 @@ struct VoxelSceneBuilder {
 
         nodes[wrapper] = Node(
             name: "Voxels",
-            transform: Self.engineAxisConversion,
+            transform: .identity,
             meshIndex: nil,
             children: contentIndex.map { [$0] } ?? []
         )
-        return Result(nodes: nodes, meshes: meshes, rootNodeIndex: wrapper)
+        return Result(
+            nodes: nodes.map { node in
+                var converted = node
+                converted.transform = Self.axisSwap * node.transform * Self.axisSwap
+                return converted
+            },
+            meshes: meshes.map(Self.convertedToEngineSpace),
+            rootNodeIndex: wrapper
+        )
+    }
+
+    /// Swaps Y and Z in positions and normals and reverses the triangle winding to compensate for the mirror.
+    private static func convertedToEngineSpace(_ descriptor: MeshDescriptor) -> MeshDescriptor {
+        var converted = descriptor
+        converted.positions = MeshBuffer(descriptor.positions.elements.map { Vector3($0.x, $0.z, $0.y) })
+        converted.normals = descriptor.normals.map { buffer in
+            MeshBuffer(buffer.elements.map { Vector3($0.x, $0.z, $0.y) })
+        }
+        var indices = descriptor.indicies
+        for triangle in stride(from: 0, to: indices.count - 2, by: 3) {
+            indices.swapAt(triangle + 1, triangle + 2)
+        }
+        converted.indicies = indices
+        return converted
     }
 
     // MARK: - Hierarchy

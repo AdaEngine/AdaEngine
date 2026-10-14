@@ -62,7 +62,7 @@ struct VoxelSceneBuilderTests {
         )
     }
 
-    /// Bounds of all geometry in MagicaVoxel space (the engine axis conversion wrapper is skipped).
+    /// Bounds of all geometry in engine space.
     private static func bounds(of result: VoxelSceneBuilder.Result) -> (min: Vector3, max: Vector3)? {
         var lower: Vector3?
         var upper: Vector3?
@@ -98,20 +98,41 @@ struct VoxelSceneBuilderTests {
     // MARK: - Tests
 
     @Test
-    func wrapsSceneWithYUpAxisConversion() throws {
+    func convertsToLeftHandedYUpSpace() throws {
         let result = Self.build(
             Self.file(
-                models: [Self.model(size: (1, 1, 1), voxels: [(0, 0, 0)])],
+                models: [Self.model(size: (2, 3, 4), voxels: [(1, 2, 3)])],
                 nodes: [Self.transform(id: 0, child: 1), Self.shape(id: 1, models: [0])]
             )
         )
 
-        let wrapper = result.nodes[result.rootNodeIndex]
-        #expect(wrapper.transform == VoxelSceneBuilder.engineAxisConversion)
-        // MagicaVoxel +Z (up) becomes engine +Y, +Y (forward) becomes engine -Z.
-        #expect(Self.apply(wrapper.transform, to: Vector3(0, 0, 1)) == Vector3(0, 1, 0))
-        #expect(Self.apply(wrapper.transform, to: Vector3(0, 1, 0)) == Vector3(0, 0, -1))
-        #expect(Self.apply(wrapper.transform, to: Vector3(1, 0, 0)) == Vector3(1, 0, 0))
+        // Pivot is (1, 1, 2); the cell box [0,1]x[1,2]x[1,2] in MagicaVoxel space swaps Y and Z.
+        let bounds = try #require(Self.bounds(of: result))
+        #expect(bounds.min == Vector3(0, 1, 1))
+        #expect(bounds.max == Vector3(1, 2, 2))
+
+        // Mirroring must not leave inside-out faces: winding follows the engine's own cube convention.
+        let descriptor = try #require(result.meshes.first)
+        let positions = descriptor.positions.elements
+        let normals = try #require(descriptor.normals).elements
+        let indices = descriptor.indicies
+        for triangle in stride(from: 0, to: indices.count, by: 3) {
+            let a = positions[Int(indices[triangle])]
+            let b = positions[Int(indices[triangle + 1])]
+            let c = positions[Int(indices[triangle + 2])]
+            let edge1 = (x: b.x - a.x, y: b.y - a.y, z: b.z - a.z)
+            let edge2 = (x: c.x - a.x, y: c.y - a.y, z: c.z - a.z)
+            let cross = (
+                x: edge1.y * edge2.z - edge1.z * edge2.y,
+                y: edge1.z * edge2.x - edge1.x * edge2.z,
+                z: edge1.x * edge2.y - edge1.y * edge2.x
+            )
+            let normal = normals[Int(indices[triangle])]
+            #expect(cross.x * normal.x + cross.y * normal.y + cross.z * normal.z > 0)
+        }
+        // The top (+Z in MagicaVoxel) face now points up (+Y).
+        #expect(normals.contains(Vector3(0, 1, 0)))
+        #expect(!normals.contains { $0.z != 0 && $0.y != 0 })
     }
 
     @Test
@@ -125,8 +146,9 @@ struct VoxelSceneBuilderTests {
 
         let bounds = try #require(Self.bounds(of: result))
         // Pivot is floor(size / 2) = (2, 1, 1).
+        // MagicaVoxel box [-2,2]x[-1,1]x[-1,2], with Y and Z swapped in engine space.
         #expect(bounds.min == Vector3(-2, -1, -1))
-        #expect(bounds.max == Vector3(2, 1, 2))
+        #expect(bounds.max == Vector3(2, 2, 1))
     }
 
     @Test
@@ -144,7 +166,8 @@ struct VoxelSceneBuilderTests {
 
         let bounds = try #require(Self.bounds(of: result))
         // Pivot-relative box [-1,1]x[0,1]x[0,1] rotates 90 degrees about Z to [-1,0]x[-1,1]x[0,1], then shifts by +5 in X.
-        #expect(bounds.min == Vector3(4, -1, 0))
+        // In engine space Y and Z are swapped: [4,5]x[0,1]x[-1,1].
+        #expect(bounds.min == Vector3(4, 0, -1))
         #expect(bounds.max == Vector3(5, 1, 1))
     }
 
