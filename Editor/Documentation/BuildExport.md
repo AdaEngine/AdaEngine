@@ -6,6 +6,13 @@ Use **Browse…** for files/directories and **Save Build Settings** to persist e
 Empty fields use automatic discovery. Path labels check availability, not compiler
 versions or successful game builds. External tools require standalone desktop Studio.
 
+Windows Web and Android builds run through WSL Ubuntu. Run
+`script/setup_windows_build_tools.ps1` once to install the managed Linux cross
+toolchains. Keep Web's Swift override empty to use the matching managed compiler;
+an explicit override must be a Linux executable path. Android discovery and
+deployment use the native Windows SDK, while the worker supplies Linux Swift,
+SDK/NDK, JDK and Dawn. Native host compiler settings continue to select Windows Swift.
+
 | Page | Tools and current use |
 | --- | --- |
 | Android | SDK, NDK, JDK, optional Gradle, build-tools version, emulator data, Swift Android SDK/toolchain and Swan/Dawn. Existing APK export and device/emulator Run consume these settings. |

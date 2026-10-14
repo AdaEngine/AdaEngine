@@ -345,6 +345,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             camera.renderTarget = .texture(AssetHandle(texture))
             camera.viewport.rect = Rect(origin: .zero, size: physicalSize)
             camera.logicalViewport.rect = Rect(origin: .zero, size: logicalSize)
+            camera.projection.updateView(width: logicalSize.width, height: logicalSize.height)
             entity.components += camera
         }
     }

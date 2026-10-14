@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
 import Foundation
 
 /// A source SDK bundled with standalone Studio; host compilers remain external.
@@ -8,7 +8,7 @@ struct EditorBuildSDK: Sendable {
 
     static func appBundle(containing executable: URL) -> URL? {
         var url = executable.resolvingSymlinksInPath().deletingLastPathComponent()
-        while url.path != "/" {
+        while url != url.deletingLastPathComponent() {
             if url.pathExtension == "app" {
                 return url
             }
@@ -63,7 +63,12 @@ struct EditorBuildSDK: Sendable {
             }
         }
         // A packaged SDK is read-only; it must contain the already-built compiler.
-        guard FileManager.default.isExecutableFile(atPath: compilerRoot.appendingPathComponent("gravity").path) else {
+        #if os(Windows)
+        let compilerName = "gravity.exe"
+        #else
+        let compilerName = "gravity"
+        #endif
+        guard FileManager.default.isExecutableFile(atPath: compilerRoot.appendingPathComponent(compilerName).path) else {
             throw EditorCLIError.environment("AdaScript compiler is missing. Rebuild the standalone Studio SDK.")
         }
     }

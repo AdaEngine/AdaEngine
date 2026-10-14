@@ -59,7 +59,7 @@ final class EditorViewModel {
     var selectedAndroidTargetID: String?
     var androidRunningSession: EditorAndroidRunSession?
     @ObservationIgnored var androidDiscoveryTask: Task<Void, Never>?
-    #if os(macOS)
+    #if os(macOS) || os(Windows) || os(Linux)
     @ObservationIgnored var androidRunner: EditorProcessRunner?
     @ObservationIgnored var androidTools: EditorAndroidTools?
     #endif
@@ -127,7 +127,7 @@ final class EditorViewModel {
     var adaScriptHotReloadTask: Task<Void, Never>?
     @ObservationIgnored
     var adaScriptHotReloadRevision = 0
-    #if os(macOS)
+    #if os(macOS) || os(Windows) || os(Linux)
         @ObservationIgnored
         var adaScriptWebServer: Process?
         @ObservationIgnored

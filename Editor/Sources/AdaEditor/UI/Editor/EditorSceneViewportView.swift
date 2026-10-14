@@ -185,7 +185,7 @@ struct EditorSceneViewportView: View {
     @MainActor
     static func uiProjectRoot(from resourceRoot: URL) -> URL {
         var candidate = resourceRoot
-        while candidate.path != "/" {
+        while candidate != candidate.deletingLastPathComponent() {
             if FileManager.default.fileExists(atPath: candidate.appendingPathComponent(".ada/project.json").path)
                 || FileManager.default.fileExists(atPath: candidate.appendingPathComponent("Package.swift").path) {
                 return candidate

@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
   import Foundation
 
   actor EditorAndroidProjectExporter {
@@ -98,8 +98,8 @@
     ) async throws -> URL {
       let output = package.appendingPathComponent("android")
       let signingArguments = signingKey.map { ["--debug-keystore", $0.path] } ?? []
-      let command = EditorProcessCommand(
-        executablePath: "/usr/bin/python3",
+      var command = EditorProcessCommand(
+        executablePath: EditorHostTools.executable("python3", windowsName: "python.exe"),
         arguments: [
           engineRoot.appendingPathComponent("Tools/Android/android.py").path,
           "build", "--package", package.path, "--product", product, "--application-id",
@@ -108,6 +108,12 @@
           "--output", output.path,
         ] + signingArguments,
         workingDirectory: package, environment: configuration.environment)
+      #if os(Windows)
+      command = EditorWindowsBuildWorker.androidCommand(
+        package: package, product: product, applicationID: applicationID, label: label,
+        engineRoot: engineRoot, configuration: configuration, abi: abi, scratch: scratch,
+        buildConfiguration: buildConfiguration, signingKey: signingKey)
+      #endif
       let result = await runner.run(command, output: log)
       try Task.checkCancellation()
       guard result.succeeded else {
@@ -135,29 +141,31 @@
     }
 
     private func copyProject(_ root: URL, to stage: URL, excluding output: URL) throws {
-      guard
-        let enumerator = FileManager.default.enumerator(
-          at: root, includingPropertiesForKeys: [.isDirectoryKey])
-      else {
-        throw EditorPreviewBuildFailure(message: "Cannot read the Swift project.")
-      }
-      for case let source as URL in enumerator {
-        let name = source.lastPathComponent
-        if name.hasPrefix(".build")
-          || [".git", ".ada", ".swiftpm", ".codegraph", "Exports"].contains(name)
-          || source.standardizedFileURL == output || source.standardizedFileURL == stage
-        {
-          enumerator.skipDescendants()
-          continue
-        }
-        let relative = String(source.path.dropFirst(root.path.count + 1))
-        let target = stage.appendingPathComponent(relative)
-        if (try source.resourceValues(forKeys: [.isDirectoryKey])).isDirectory == true {
-          try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
-        } else {
-          try FileManager.default.createDirectory(
-            at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
-          try FileManager.default.copyItem(at: source, to: target)
+      var directories = [root]
+      var count = 0
+      while let directory = directories.popLast() {
+        count += 1
+        guard count <= 10_000 else { throw EditorPreviewBuildFailure(message: "The project contains too many directories to export.") }
+        for source in try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]) {
+          let name = source.lastPathComponent
+          if name.hasPrefix(".build")
+            || [".git", ".ada", ".swiftpm", ".codegraph", "Exports"].contains(name)
+            || source.standardizedFileURL == output || source.standardizedFileURL == stage
+          {
+            continue
+          }
+          let relative = String(source.path.dropFirst(root.path.count + 1))
+          let target = stage.appendingPathComponent(relative)
+          let properties = try source.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+          guard properties.isSymbolicLink != true else { throw EditorPreviewBuildFailure(message: "Android export cannot copy a symbolic link: \(source.path)") }
+          if properties.isDirectory == true {
+            try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+            directories.append(source)
+          } else {
+            try FileManager.default.createDirectory(
+              at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.copyItem(at: source, to: target)
+          }
         }
       }
     }

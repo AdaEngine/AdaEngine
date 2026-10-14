@@ -52,8 +52,26 @@ Local Run uses the Windows destination for SwiftPM and embedded AdaScript
 projects. Project/folder selection, multi-file asset import and RGB color dialogs
 use Windows controls; inspector alpha remains editable. HTTPS clients support
 bounded streaming downloads and cancellation. Rendering/readback uses Dawn D3D12.
-Ada Cloud browser sign-in/Apple purchases and AdaPlayer device pairing currently
-require Apple frameworks and are unavailable on Windows.
+The window has a menu row with Ctrl shortcuts, a native Settings window and
+contextual cursors. Ada Cloud opens the default browser for PKCE sign-in and
+stores the session in Windows Credential Manager. Apple in-app purchases still
+require Apple platforms. AdaPlayer uses native WinSock and Windows DNS-SD;
+manual `host:port` connection is available when discovery is unavailable.
+`AdaEditor.exe --ada-player` opens the Windows player.
+
+WebAssembly and Android builds use a Linux worker under WSL (Ubuntu). Prepare
+the matching Swift SDKs, pinned Tint, Android SDK/NDK and Swan/Dawn with:
+
+```powershell
+./script/setup_windows_build_tools.ps1
+```
+
+The setup also accepts `-WebOnly` or `-AndroidOnly`. It installs tools in the WSL
+user's `~/.local/share/AdaStudio/BuildTools`; native Windows adb/emulator are
+used for device discovery, installation and launch. See
+[Android setup](Documentation/Android.md). Web Run serves the export with
+WebGPU isolation headers and opens it in the browser. Build logs stay in the
+worker's build cache and compiler errors are repeated at the end of failures.
 
 ## Generating the Xcode Project
 
@@ -98,7 +116,7 @@ The snapshot lives in `Sources/AdaEditor/Assets/Documentation/catalog.json` and 
 
 ### Android
 
-Standalone macOS Studio supports **Build → Export to Android…** and Android
+Standalone macOS and Windows Studio support **Build → Export to Android…** and Android
 Run Destinations with connected devices and AVDs. Swift and AdaScript projects
 use the native Swift/WebGPU Android host. Configure **Settings → Build & Export → Android** and
 see [Android export and run](Documentation/Android.md).

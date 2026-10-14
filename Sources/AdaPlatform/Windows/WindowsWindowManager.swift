@@ -20,6 +20,7 @@
     // Windows cursor resource identifiers
     nonisolated(unsafe) private let IDC_ARROW: LPCWSTR? = unsafe UnsafePointer<WCHAR>(bitPattern: UInt(32512))
     private let adaEngineWorkMessage = UINT(WM_APP + 1)
+    private let windowsCursorResource = Mutex<UInt>(32512)
     nonisolated(unsafe) private var windowMinimumSizes: [UIWindow.ID: Size] = [:]
     nonisolated(unsafe) private var enumeratedWindowsScreens: [Screen] = []
     nonisolated(unsafe) private let collectWindowsMonitor: MONITORENUMPROC = { hMonitor, _, _, _ in
@@ -45,6 +46,7 @@
         private var windowHandles: [UIWindow.ID: HWND] = unsafe [:]
         private var textInputDecoderStates: [UIWindow.ID: WindowsUTF16TextInputDecoder.State] = [:]
         private var windowsSynchronizingFromSystem: Set<UIWindow.ID> = []
+        private var cursorShape: Input.CursorShape = .arrow
 
         init(_ screenManager: WindowsScreenManager) {
             self.screenManager = screenManager
@@ -63,6 +65,16 @@
                 }
                 uiThread.enqueue(work)
             }
+        }
+
+        fileprivate func minimizeActiveWindow() -> Bool {
+            guard let activeWindow, let handle = windowHandles[activeWindow.id] else { return false }
+            let address = UInt(bitPattern: handle)
+            let work: @Sendable () -> Void = {
+                unsafe ShowWindow(HWND(bitPattern: address), SW_MINIMIZE)
+            }
+            uiThread.enqueue(work)
+            return true
         }
 
         override func createWindow(for window: UIWindow) {
@@ -100,6 +112,7 @@
                 unsafe wc.hInstance = unsafe hInstance
                 unsafe wc.lpszClassName = windowClassNamePtr
                 unsafe wc.hCursor = LoadCursorW(nil, IDC_ARROW)
+                unsafe wc.hIcon = LoadIconW(hInstance, UnsafePointer<WCHAR>(bitPattern: 101))
                 unsafe wc.hbrBackground = UnsafeMutablePointer<HBRUSH__>(bitPattern: UInt(COLOR_WINDOW + 1))
                 unsafe RegisterClassW(&wc)
 
@@ -300,16 +313,22 @@
             return unsafe screenManager.makeScreen(from: hMonitor)
         }
 
-        override func setCursorShape(_: Input.CursorShape) {
-            // TODO: Implement cursor shape changes
+        override func setCursorShape(_ shape: Input.CursorShape) {
+            cursorShape = shape
+            windowsCursorResource.withLock { $0 = WindowsCursorResources.identifier(for: shape) }
+            updateCursor()
         }
 
         override func updateCursor() {
-            // TODO: Implement cursor updates
+            let resource = windowsCursorResource.withLock { $0 }
+            let work: @Sendable () -> Void = {
+                unsafe SetCursor(LoadCursorW(nil, UnsafePointer<WCHAR>(bitPattern: resource)))
+            }
+            uiThread.enqueue(work)
         }
 
         override func getCursorShape() -> Input.CursorShape {
-            return .arrow
+            return cursorShape
         }
 
         override func setCursorImage(for _: Input.CursorShape, texture _: Texture2D?, hotspot _: Vector2) {
@@ -548,6 +567,10 @@
     @_spi(Internal)
     @MainActor
     public enum WindowsNativeDialogs {
+        public static func minimizeActiveWindow() -> Bool {
+            (UIWindowManager.shared as? WindowsWindowManager)?.minimizeActiveWindow() ?? false
+        }
+
         public static func present<Result: Sendable>(
             _ operation: @escaping @Sendable (HWND?) -> Result
         ) async -> Result {
@@ -650,7 +673,17 @@
         // Keyboard state belongs to the HWND message queue. Snapshot it before
         // dispatching events to Swift's main actor.
         let modifiers = getWindowsKeyModifiers()
+        if uMsg == UInt32(WM_SYSKEYDOWN), wParam == WPARAM(VK_F4), modifiers.contains(.alt) {
+            return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
+        }
         switch uMsg {
+        case UInt32(WM_SETCURSOR):
+            if Int16(truncatingIfNeeded: lParam) == Int16(HTCLIENT) {
+                let resource = windowsCursorResource.withLock { $0 }
+                unsafe SetCursor(LoadCursorW(nil, UnsafePointer<WCHAR>(bitPattern: resource)))
+                return 1
+            }
+            return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
         case UInt32(WM_MOUSEACTIVATE):
             // WS_EX_NOACTIVATE alone does not prevent message-queue activation.
             // Keep the editor focused while letting menu windows receive clicks.
@@ -974,7 +1007,7 @@
                 )
 
                 inputRef.wrappedValue.mousePosition = position
-                let mouseButton: MouseButton = (wParam & 0x0001) != 0 ? .left : .none
+                let mouseButton = WindowsPointerButtons.button(for: UInt(wParam))
 
                 let mouseEvent = MouseEvent(
                     window: window.id,

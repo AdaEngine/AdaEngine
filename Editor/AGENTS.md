@@ -20,8 +20,12 @@ and assess gaps before proposing new features.
   strings, selecting it through `ADAENGINE_GRAVITY_PACKAGE_PATH`. Manual Windows
   builds/tests must use that override too. Native project/asset file pickers,
   RGB color selection (inspector alpha), HTTPS downloads, local Run and D3D12
-  readback are implemented; Apple Cloud sign-in/purchases and AdaPlayer pairing
-  remain unavailable. See [README.md](README.md#Windows).
+  readback are implemented. Windows also has a menu row, native Settings window,
+  contextual cursors, Cloud browser PKCE sign-in with Credential Manager, and
+  WinSock/DNS-SD AdaPlayer pairing (including manual host:port). Apple in-app
+  purchases remain Apple-only. WebAssembly and Android compilation use the WSL
+  worker prepared by `../script/setup_windows_build_tools.ps1`; adb/emulator run
+  natively on Windows. See [README.md](README.md#Windows).
 - [Package.swift](Package.swift) owns package dependencies and resources;
   [project.yml](project.yml) owns XcodeGen app configuration.
 - Keep mocks, fixtures, and QA harnesses in test targets or separate executables.

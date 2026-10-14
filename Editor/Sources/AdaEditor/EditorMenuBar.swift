@@ -4,6 +4,9 @@
 //
 
 import AdaEngine
+#if os(Windows)
+@_spi(Internal) import AdaPlatform
+#endif
 
 #if canImport(AppKit)
     import AppKit
@@ -96,7 +99,28 @@ final class EditorMenuCommandRouter {
             }
             return true
         #else
-            return false
+            switch command {
+            #if os(Windows)
+            case .minimizeWindow:
+                return WindowsNativeDialogs.minimizeActiveWindow()
+            #endif
+            case .closeEditor:
+                UIWindowManager.shared?.activeWindow?.close()
+            case .enterFullScreen:
+                if let window = UIWindowManager.shared?.activeWindow {
+                    window.setWindowMode(window.isFullscreen ? .windowed : .fullscreen)
+                }
+            case .zoomWindow:
+                UIWindowManager.shared?.activeWindow?.setWindowMode(.fullScreenWindowed)
+            case .bringAllToFront:
+                UIWindowManager.shared?.activeWindow?.showWindow(makeFocused: true)
+            case .showSourceRepository:
+                guard let url = URL(string: "https://github.com/AdaEngine/Ada") else { return false }
+                return Application.shared.openURL(url)
+            default:
+                return false
+            }
+            return true
         #endif
     }
 }
@@ -122,7 +146,11 @@ enum EditorMenuBar {
     }
 
     private static func systemMenu() -> UIMenu {
+        #if os(Windows) || os(Linux)
+        let menu = UIMenu(title: "Studio", placement: .application)
+        #else
         let menu = UIMenu(title: "System", placement: .application)
+        #endif
         menu.add(item("Settings...", command: .showSettings, key: .comma))
         if EditorDistribution.current == .standalone {
             menu.add(item("Check for Updates…", command: .checkForUpdates))
@@ -195,7 +223,7 @@ enum EditorMenuBar {
             "Project",
             items: [
                 item("Refresh Files", command: .refreshProjectFiles),
-                item("Reveal Project in Finder", command: .revealProject),
+                item("Reveal Project in File Manager", command: .revealProject),
                 item("Open Project in Terminal", command: .openProjectInTerminal),
                 MenuItem.separator,
                 item("Project Settings", command: .showProjectSettings),
@@ -274,7 +302,14 @@ enum EditorMenuBar {
         key: KeyCode? = nil,
         modifiers: KeyModifier? = .main
     ) -> MenuItem {
-        MenuItem(
+        var modifiers = modifiers
+        #if os(Windows)
+        if modifiers?.contains(.main) == true {
+            modifiers?.remove(.main)
+            modifiers?.insert(.control)
+        }
+        #endif
+        return MenuItem(
             title: title,
             action: UIEventAction { EditorMenuCommandRouter.shared.perform(command) },
             keyEquivalent: key,

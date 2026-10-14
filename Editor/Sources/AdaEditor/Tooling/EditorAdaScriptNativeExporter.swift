@@ -1,8 +1,14 @@
-#if os(macOS) && canImport(GravityAOT)
+#if (os(macOS) || os(Windows) || os(Linux)) && canImport(GravityAOT)
 import AdaEngine
 import AdaScriptCompilerCore
 import CGravity
+#if os(Windows)
+import WinSDK
+#elseif canImport(Darwin)
 import Darwin
+#else
+import Glibc
+#endif
 import Foundation
 import GravityAOT
 
@@ -73,11 +79,31 @@ actor EditorAdaScriptNativeExporter {
         }
         let native = stage.appendingPathComponent("Sources/GameplayNative", isDirectory: true)
         let archive = native.appendingPathComponent("libada_game.a")
+        #if os(Windows)
+        let hostCompiler = options.gravityRoot.appendingPathComponent("gravity.exe")
+        guard FileManager.default.isExecutableFile(atPath: hostCompiler.path) else {
+            throw EditorPreviewBuildFailure(message: "Run script/ensure_windows_export_tools.py to prepare the AdaScript native compiler.")
+        }
+        #else
         if !FileManager.default.isExecutableFile(atPath: options.gravityRoot.appendingPathComponent("gravity").path) {
             try await run("/usr/bin/make", ["-j4"], at: options.gravityRoot, environment: options.buildEnvironment, log: log)
         }
+        #endif
         let tool = options.gravityRoot.appendingPathComponent("tools/aot_build.py")
         guard FileManager.default.fileExists(atPath: tool.path) else { throw EditorPreviewBuildFailure(message: "The Gravity checkout does not contain tools/aot_build.py.") }
+        #if os(Windows)
+        try await run(
+            EditorHostTools.executable("python3", windowsName: "python.exe"),
+            [tool.path] + inputPaths + ["--module", "ada_game", "--output", native.appendingPathComponent("ada_game.c").path, "--gravity", hostCompiler.path],
+            at: stage, environment: options.buildEnvironment, log: log
+        )
+        let inspection = stage.appendingPathComponent("ada_game-inspection.dll")
+        try await run(
+            EditorHostTools.executable("clang"),
+            ["-std=c11", "-shared", native.appendingPathComponent("ada_game.c").path, "-I", native.path, "-Wl,/EXPORT:ada_game_get_module", "-o", inspection.path],
+            at: stage, environment: options.buildEnvironment, log: log
+        )
+        #else
         try await run(
             "/usr/bin/python3", [tool.path] + inputPaths + ["--module", "ada_game", "--output", archive.path],
             at: stage, environment: options.buildEnvironment, log: log
@@ -87,6 +113,7 @@ actor EditorAdaScriptNativeExporter {
             "/usr/bin/clang", ["-std=c11", "-dynamiclib", native.appendingPathComponent("ada_game.c").path, "-I", native.path, "-o", inspection.path],
             at: stage, environment: options.buildEnvironment, log: log
         )
+        #endif
         try await Self.validateMetadata(at: inspection, project: project, sources: sources)
         try FileManager.default.removeItem(at: inspection)
         let include = native.appendingPathComponent("include", isDirectory: true)
@@ -168,6 +195,17 @@ actor EditorAdaScriptNativeExporter {
                 title: project.project.displayName ?? project.project.name ?? "AdaScript Game"
             )
         } else {
+            #if os(Windows)
+            let command = EditorWindowsBuildWorker.webCommand(
+                package: stage, output: stage.appendingPathComponent("web"), product: "AdaNativeGame",
+                engineRoot: options.engineRoot, gravityRoot: options.gravityRoot,
+                swift: options.swiftExecutable, sdk: options.swiftSDK,
+                configuration: options.configuration.rawValue, serve: false,
+                scratch: options.scratchDirectory, environment: options.buildEnvironment)
+            let result = await runner.run(command, output: log)
+            try Task.checkCancellation()
+            guard result.succeeded else { throw EditorPreviewBuildFailure(message: result.combinedOutput) }
+            #else
             var webEnv = env
             webEnv["ADAENGINE_DISABLE_SWAN"] = "0"
             webEnv["ADAENGINE_WEB_EXPORT"] = "1"
@@ -180,6 +218,7 @@ actor EditorAdaScriptNativeExporter {
             arguments += ["--swift-sdk", options.swiftSDK]
             arguments += [options.configuration == .debug ? "--debug" : "--release"]
             try await run(options.swiftExecutable, arguments, at: stage, environment: webEnv, log: log)
+            #endif
         }
         try Data("{\"version\":1,\"destination\":\"\(options.destination.rawValue)\"}".utf8).write(to: stage.appendingPathComponent("ada-native-export.json"))
         try Task.checkCancellation()
@@ -577,6 +616,24 @@ actor EditorAdaScriptNativeExporter {
 }
 /// Immutable loader ownership is retained by NativeModule for all metadata reads.
 private final class NativeExportLibrary {
+    #if os(Windows)
+    private let handle: HMODULE
+    init(url: URL) throws {
+        guard let handle = url.path.withCString(encodedAs: UTF16.self, { LoadLibraryW($0) }) else {
+            throw EditorPreviewBuildFailure(message: "Could not load the generated AdaScript module for metadata validation.")
+        }
+        self.handle = handle
+    }
+    deinit { FreeLibrary(handle) }
+    func module() throws -> UnsafePointer<gravity_aot_module> {
+        guard let symbol = GetProcAddress(handle, "ada_game_get_module") else {
+            throw EditorPreviewBuildFailure(message: "Generated module accessor is missing.")
+        }
+        let get = unsafeBitCast(symbol, to: (@convention(c) () -> UnsafePointer<gravity_aot_module>?).self)
+        guard let module = get() else { throw EditorPreviewBuildFailure(message: "Generated module metadata is missing.") }
+        return module
+    }
+    #else
     private let handle: UnsafeMutableRawPointer
     init(url: URL) throws {
         guard let handle = dlopen(url.path, RTLD_NOW | RTLD_LOCAL) else { throw EditorPreviewBuildFailure(message: "Could not load the generated AdaScript module for metadata validation.") }
@@ -589,5 +646,6 @@ private final class NativeExportLibrary {
         guard let module = get() else { throw EditorPreviewBuildFailure(message: "Generated module metadata is missing.") }
         return module
     }
+    #endif
 }
 #endif

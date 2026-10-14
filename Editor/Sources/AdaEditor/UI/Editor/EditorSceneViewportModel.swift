@@ -271,7 +271,13 @@ final class EditorSceneViewportModel {
         case let keyEvent as KeyEvent:
             return handleKeyEvent(keyEvent)
         case let mouseEvent as MouseEvent:
-            return handleMouseEvent(mouseEvent)
+            let handled = handleMouseEvent(mouseEvent)
+            if isTwoDPanning || isThreeDRotating || transformDrag != nil {
+                UIWindowManager.shared?.setCursorShape(.move)
+            } else if mouseEvent.phase == .ended || mouseEvent.phase == .cancelled {
+                UIWindowManager.shared?.setCursorShape(.arrow)
+            }
+            return handled
         case let touchEvent as TouchEvent:
             return handleTouchEvent(touchEvent)
         default:

@@ -22,6 +22,9 @@ import Logging
 #endif
 enum AdaApplicationEntry {
     @MainActor static func main() async throws {
+        #if os(Windows)
+        if try EditorWindowsCloudAuthentication.receiveLaunchCallback(CommandLine.arguments) { return }
+        #endif
         #if os(macOS)
             if EditorCLI.isInvocation(CommandLine.arguments) {
                 let code = await EditorCLI.run(arguments: CommandLine.arguments)
@@ -37,7 +40,7 @@ enum AdaApplicationEntry {
                 await MobileEditorAgentSmoke.run()
             }
         #endif
-        #if canImport(Network)
+        #if canImport(Network) || os(Windows)
         if Bundle.main.bundleIdentifier == "org.adaengine.player" || CommandLine.arguments.contains("--ada-player") {
             try await AppRuntime.run(AdaPlayerApp())
             return

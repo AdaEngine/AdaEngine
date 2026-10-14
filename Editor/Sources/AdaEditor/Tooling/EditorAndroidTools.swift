@@ -58,17 +58,27 @@ struct EditorAndroidConfiguration: Equatable, Sendable {
     #else
       let home = FileManager.default.homeDirectoryForCurrentUser
     #endif
-    values["ANDROID_HOME"] =
-      values["ANDROID_HOME"] ?? home.appendingPathComponent("Library/Android/sdk").path
+    #if os(Windows)
+    let androidDefault = URL(fileURLWithPath: environment["LOCALAPPDATA"] ?? home.appendingPathComponent("AppData/Local").path)
+        .appendingPathComponent("Android/Sdk").path
+    #elseif os(Linux)
+    let androidDefault = home.appendingPathComponent("Android/Sdk").path
+    #else
+    let androidDefault = home.appendingPathComponent("Library/Android/sdk").path
+    #endif
+    values["ANDROID_HOME"] = values["ANDROID_HOME"] ?? androidDefault
     values["SWIFT_ANDROID_SDK"] = values["SWIFT_ANDROID_SDK"] ?? "swift-6.4.0-RELEASE_android"
     values["SWIFT_ANDROID_SDKS_PATH"] =
       values["SWIFT_ANDROID_SDKS_PATH"]
       ?? home.appendingPathComponent("Library/org.swift.swiftpm/swift-sdks").path
-    values["SWIFT_ANDROID_SWIFT"] =
-      values["SWIFT_ANDROID_SWIFT"]
-      ?? home.appendingPathComponent(
+    #if os(Windows)
+    let defaultSwift = EditorHostTools.executable("swift")
+    #else
+    let defaultSwift = home.appendingPathComponent(
         "Library/Developer/Toolchains/swift-6.4.0-RELEASE.xctoolchain/usr/bin/swift"
       ).path
+    #endif
+    values["SWIFT_ANDROID_SWIFT"] = values["SWIFT_ANDROID_SWIFT"] ?? defaultSwift
     if let engineRoot {
       let swan = engineRoot.deletingLastPathComponent().appendingPathComponent("Swan")
       let development = engineRoot.deletingLastPathComponent().appendingPathComponent("swan")
@@ -90,7 +100,7 @@ struct EditorAndroidConfiguration: Equatable, Sendable {
     #else
     let separator = ":"
     #endif
-    if !toolPaths.isEmpty { values["PATH"] = (toolPaths + [environment["PATH"] ?? ""]).joined(separator: separator) }
+    if !toolPaths.isEmpty { values["PATH"] = (toolPaths + [EditorHostTools.environmentValue("PATH", in: environment) ?? ""]).joined(separator: separator) }
     if values["ANDROID_NDK_HOME"] == nil, let sdk = values["ANDROID_HOME"] {
       let ndks =
         (try? FileManager.default.contentsOfDirectory(
@@ -109,22 +119,33 @@ struct EditorAndroidConfiguration: Equatable, Sendable {
   }
 
   var adb: String {
-    URL(fileURLWithPath: environment["ANDROID_HOME"] ?? "").appendingPathComponent(
-      "platform-tools/adb"
-    ).path
+    #if os(Windows)
+    let name = "platform-tools/adb.exe"
+    #else
+    let name = "platform-tools/adb"
+    #endif
+    return URL(fileURLWithPath: environment["ANDROID_HOME"] ?? "").appendingPathComponent(name).path
   }
   var emulator: String {
-    URL(fileURLWithPath: environment["ANDROID_HOME"] ?? "").appendingPathComponent(
-      "emulator/emulator"
-    ).path
+    #if os(Windows)
+    let name = "emulator/emulator.exe"
+    #else
+    let name = "emulator/emulator"
+    #endif
+    return URL(fileURLWithPath: environment["ANDROID_HOME"] ?? "").appendingPathComponent(name).path
   }
   var swift: String { environment["SWIFT_ANDROID_SWIFT"] ?? "swift" }
 
   func validateBuildTools(engineRoot: URL) throws {
-    for key in [
+    #if os(Windows)
+    let required = ["ANDROID_HOME"]
+    #else
+    let required = [
       "SWIFT_ANDROID_SWIFT", "SWIFT_ANDROID_SDKS_PATH", "ANDROID_HOME", "ANDROID_NDK_HOME",
       "ADAENGINE_SWAN_PACKAGE_PATH",
-    ] {
+    ]
+    #endif
+    for key in required {
       guard let path = environment[key], FileManager.default.fileExists(atPath: path) else {
         throw EditorPreviewBuildFailure(
           message: "Configure \(key) in Settings → Build & Export → Android. The path is missing or unavailable.")
@@ -148,7 +169,7 @@ struct EditorAndroidConfiguration: Equatable, Sendable {
   }
 }
 
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
   actor EditorAndroidTools {
     private let runner: any EditorProcessRunning
     private var emulators: [String: Process] = [:]

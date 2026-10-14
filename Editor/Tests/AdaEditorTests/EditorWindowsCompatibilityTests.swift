@@ -37,6 +37,93 @@ struct EditorWindowsCompatibilityTests {
     }
 
     #if os(Windows)
+    @Test("Browser launches forward only matching, live Cloud callbacks")
+    @MainActor
+    func forwardsCloudCallback() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let state = String(repeating: "c", count: 43)
+        let code = String(repeating: "d", count: 43)
+        let arguments = ["AdaEditor.exe", "--cloud-callback=adaeditor://cloud/callback?state=\(state)&code=\(code)"]
+        let pending = directory.appendingPathComponent(state + ".pending")
+        let callback = directory.appendingPathComponent(state + ".callback")
+        #expect(try EditorWindowsCloudAuthentication.receiveLaunchCallback(arguments, callbackDirectory: directory))
+        #expect(!FileManager.default.fileExists(atPath: callback.path))
+        try Data().write(to: pending)
+        #expect(try EditorWindowsCloudAuthentication.receiveLaunchCallback(arguments, callbackDirectory: directory))
+        let url = try #require(URL(string: String(contentsOf: callback, encoding: .utf8)))
+        #expect(try EditorCloudAccount.exchangeCode(from: url, expectedState: state) == code)
+        try FileManager.default.removeItem(at: callback)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-301)], ofItemAtPath: pending.path)
+        #expect(try EditorWindowsCloudAuthentication.receiveLaunchCallback(arguments, callbackDirectory: directory))
+        #expect(!FileManager.default.fileExists(atPath: callback.path))
+        #expect(try !EditorWindowsCloudAuthentication.receiveLaunchCallback(["AdaEditor.exe"], callbackDirectory: directory))
+    }
+
+    @Test("Windows host tooling finds the case-insensitive native Path variable")
+    func findsHostExecutables() {
+        #expect(EditorHostTools.environmentValue("PATH", in: ["Path": "C:\\Tools"]) == "C:\\Tools")
+        #expect(EditorHostTools.isAbsolutePath(EditorHostTools.executable("clang")))
+        #expect(EditorHostTools.isAbsolutePath(EditorHostTools.executable("python3", windowsName: "python.exe")))
+    }
+
+    @Test("Windows command runner resolves installed bare executable names")
+    func runsNativePathCommand() async {
+        let command = EditorProcessCommand(executablePath: "git", arguments: ["--version"],
+            workingDirectory: FileManager.default.temporaryDirectory)
+        let result = await EditorProcessRunner().run(command)
+        #expect(result.succeeded)
+        #expect(result.standardOutput.hasPrefix("git version"))
+    }
+    @Test("Native Windows pointer flags preserve right and middle drags")
+    func mapsNativePointerButtons() {
+        #expect(WindowsPointerButtons.button(for: 0) == .none)
+        #expect(WindowsPointerButtons.button(for: 1) == .left)
+        #expect(WindowsPointerButtons.button(for: 2) == .right)
+        #expect(WindowsPointerButtons.button(for: 16) == .middle)
+        #expect(WindowsPointerButtons.button(for: 2 | 8) == .right)
+    }
+
+    @Test("Windows provides contextual system cursor resources")
+    func mapsSystemCursors() {
+        #expect(WindowsCursorResources.identifier(for: .iBeam) == 32513)
+        #expect(WindowsCursorResources.identifier(for: .move) == 32646)
+        #expect(WindowsCursorResources.identifier(for: .resizeLeftRight) == 32644)
+        #expect(WindowsCursorResources.identifier(for: .resizeUpDown) == 32645)
+        #expect(WindowsCursorResources.identifier(for: .forbidden) == 32648)
+    }
+
+    @Test("Cloud credentials survive reload in Windows Credential Manager")
+    @MainActor
+    func savesProtectedCloudCredentials() throws {
+        let target = "org.adaengine.cloud/tests/" + UUID().uuidString
+        defer { EditorWindowsCloudCredentials.delete(target: target) }
+        #expect(try EditorWindowsCloudCredentials.read(target: target) == nil)
+        let first = Data("private test session · кириллица".utf8)
+        try EditorWindowsCloudCredentials.write(first, target: target)
+        #expect(try EditorWindowsCloudCredentials.read(target: target) == first)
+        let updated = Data("updated private test session".utf8)
+        try EditorWindowsCloudCredentials.write(updated, target: target)
+        #expect(try EditorWindowsCloudCredentials.read(target: target) == updated)
+        EditorWindowsCloudCredentials.delete(target: target)
+        #expect(try EditorWindowsCloudCredentials.read(target: target) == nil)
+    }
+
+    @Test("WSL build commands preserve paths and pass arguments without a shell")
+    func mapsWSLBuildPaths() {
+        #expect(EditorWindowsBuildWorker.linuxPath("D:\\Projects\\Моя игра") == "/mnt/d/Projects/Моя игра")
+        let project = URL(fileURLWithPath: "D:/Projects/Моя игра")
+        let command = EditorWindowsBuildWorker.webCommand(
+            package: project, output: project.appendingPathComponent("Exports/Web"), product: "Game",
+            engineRoot: URL(fileURLWithPath: "D:/Development/AdaEngine"), gravityRoot: nil,
+            swift: "", sdk: "swift-6.3.2-RELEASE_wasm", configuration: "debug", serve: false)
+        #expect(command.arguments.contains("--exec"))
+        #expect(!command.arguments.contains("-c"))
+        #expect(command.arguments.contains("/mnt/d/Projects/Моя игра"))
+        #expect(command.arguments.contains("swift-6.3.2-RELEASE_wasm"))
+    }
+
     @Test("Windows drive and UNC paths resolve to real project files")
     @MainActor
     func recognizesAbsoluteWindowsPaths() {
@@ -158,7 +245,7 @@ struct EditorWindowsCompatibilityTests {
 
     @Test("Windows toolbar offers local Windows execution")
     func offersWindowsExecution() {
-        #expect(EditorRunDestination.toolbarDestinations == [.windows])
+        #expect(EditorRunDestination.toolbarDestinations == [.windows, .web, .android, .player])
     }
 
     @Test("Windows file dialog paths preserve Unicode and multiple selection")

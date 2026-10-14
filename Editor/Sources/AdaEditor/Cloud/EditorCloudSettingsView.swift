@@ -37,6 +37,12 @@ struct EditorCloudSettingsView: View {
                     actionButton(account.busy ? "Waiting for browser…" : "Sign in with browser", primary: true, id: "SignIn") {
                         account.perform { try await account.signInOnWebsite() }
                     }
+                    if account.busy {
+                        Button("Cancel sign-in") { account.cancelBrowserSignIn() }
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.editorColors.blue)
+                            .accessibilityIdentifier("AdaEditor.Cloud.CancelSignIn")
+                    }
                 }
             } else {
                 if let accountID = account.accountID {

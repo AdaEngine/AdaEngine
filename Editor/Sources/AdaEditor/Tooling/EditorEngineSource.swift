@@ -23,7 +23,11 @@ enum EditorEngineSource {
                 #endif
             }
             #else
+            #if DEBUG
+            root = developmentRoot
+            #else
             return nil
+            #endif
             #endif
         }
         let standardized = root.standardizedFileURL

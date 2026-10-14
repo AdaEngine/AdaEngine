@@ -29,7 +29,7 @@ import StoreKit
 final class EditorCloudAccount: NSObject {
     static let shared = EditorCloudAccount()
     static var supportsSignIn: Bool {
-        #if canImport(AuthenticationServices) && canImport(Security)
+        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows)
         true
         #else
         false
@@ -65,6 +65,9 @@ final class EditorCloudAccount: NSObject {
     @ObservationIgnored private var syncing = false
     @ObservationIgnored private var refreshTask: Task<EditorCloudValue, Error>?
     @ObservationIgnored private var sessionRevision = UUID()
+    #if os(Windows)
+    @ObservationIgnored private var browserAuthentication: Task<URL, Error>?
+    #endif
     static let settingKeys = ["appearance.agentActivityGlowEnabled", "appearance.agentGlowAccent", "appearance.agentGlowRadius", "appearance.agentGlowOpacity", "editor.fontSize"]
 
     override init() {
@@ -110,7 +113,7 @@ final class EditorCloudAccount: NSObject {
         }
     }
     func signInOnWebsite() async throws {
-        #if canImport(AuthenticationServices) && canImport(Security)
+        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows)
         guard let endpoint = URL(string: server), Self.isAllowedCloudURL(endpoint) else {
             throw CloudError.message("Cloud sign-in is not configured for this build.")
         }
@@ -129,6 +132,13 @@ final class EditorCloudAccount: NSObject {
             throw CloudError.message("Unexpected sign-in website")
         }
         status = "Complete sign-in on the Ada Cloud website."
+        let authenticationServer = server
+        #if os(Windows)
+        let task = Task { try await EditorWindowsCloudAuthentication.authenticate(url: authorizeURL, state: state) }
+        browserAuthentication = task
+        defer { browserAuthentication = nil }
+        let callback = try await task.value
+        #else
         defer { authentication = nil }
         let callback = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
             let session = ASWebAuthenticationSession(url: authorizeURL, callbackURLScheme: "adaeditor") { url, error in
@@ -145,10 +155,19 @@ final class EditorCloudAccount: NSObject {
                 continuation.resume(throwing: CloudError.message("Unable to open the sign-in website"))
             }
         }
+        #endif
+        guard server == authenticationServer else { throw EditorAIError.sessionChanged }
         let code = try Self.exchangeCode(from: callback, expectedState: state)
         try await saveSession(try await self.request("/auth/exchange", method: "POST", body: ["code": .string(code), "verifier": .string(verifier)], authenticated: false))
         #else
         throw CloudError.message("Ada Cloud sign-in is currently available on Apple platforms.")
+        #endif
+    }
+    func cancelBrowserSignIn() {
+        #if os(Windows)
+        browserAuthentication?.cancel()
+        #elseif canImport(AuthenticationServices)
+        authentication?.cancel()
         #endif
     }
     static func isAllowedCloudURL(_ url: URL) -> Bool {
@@ -626,6 +645,10 @@ final class EditorCloudAccount: NSObject {
         }
     }
     private static func keychainDelete() { SecItemDelete(keychainQuery as CFDictionary) }
+    #elseif os(Windows)
+    private static func keychainRead() throws -> Data? { try EditorWindowsCloudCredentials.read() }
+    private static func keychainWrite(_ data: Data) throws { try EditorWindowsCloudCredentials.write(data) }
+    private static func keychainDelete() { EditorWindowsCloudCredentials.delete() }
     #else
     private static func keychainRead() throws -> Data? { nil }
     private static func keychainWrite(_ data: Data) throws {

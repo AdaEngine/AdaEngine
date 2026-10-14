@@ -364,7 +364,7 @@ enum EditorSettingsWindowController {
         )
     }
 
-    #if os(macOS)
+    #if os(macOS) || os(Windows) || os(Linux)
         private static weak var settingsWindow: UIWindow?
         private static var settingsViewModel: EditorSettingsWindowViewModel?
 

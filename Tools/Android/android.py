@@ -158,7 +158,19 @@ def stage_resources(binaries, assets):
     files=sorted(path.relative_to(destination).as_posix() for path in destination.rglob("*") if path.is_file() and path!=destination/"manifest.txt")
     if not files:
         raise AndroidError("No SwiftPM resource bundles were built")
-    (destination/"manifest.txt").write_text("\n".join(files)+"\n")
+    (destination/"manifest.txt").write_bytes(("\n".join(files)+"\n").encode("utf-8"))
+
+def append_payload(unsigned,staging):
+    with zipfile.ZipFile(unsigned,"a",compression=zipfile.ZIP_STORED) as apk:
+        # Preserve the exact SwiftPM bundle manifest, including dotfiles and
+        # UTF-8 names. aapt2 filters dotfiles and omits the ZIP UTF-8 flag;
+        # appending with Python would then corrupt non-ASCII directory entries.
+        for path in sorted((staging/"assets").rglob("*")):
+            if path.is_file():
+                apk.write(path,path.relative_to(staging).as_posix(),compress_type=zipfile.ZIP_DEFLATED)
+        for path in sorted((staging/"lib").rglob("*.so")):
+            apk.write(path,path.relative_to(staging).as_posix())
+
 
 def select_swift_sdks(args,bundle):
     # Target-triple IDs select the right architecture/API metadata. Restrict
@@ -222,10 +234,8 @@ def build(args):
     manifest=output/"AndroidManifest.xml"
     write_manifest(manifest,args)
     unsigned=output/"unsigned.apk"
-    run([tool(tools/"aapt2"),"link","--manifest",manifest,"-I",tool(sdk/"platforms"/f"android-{args.target_sdk}"/"android.jar"),"-A",assets,"--version-code","1","--version-name","0.1", "-o",unsigned],env=env)
-    with zipfile.ZipFile(unsigned,"a",compression=zipfile.ZIP_STORED) as apk:
-        for path in sorted((staging/"lib").rglob("*.so")):
-            apk.write(path,path.relative_to(staging).as_posix())
+    run([tool(tools/"aapt2"),"link","--manifest",manifest,"-I",tool(sdk/"platforms"/f"android-{args.target_sdk}"/"android.jar"),"--version-code","1","--version-name","0.1", "-o",unsigned],env=env)
+    append_payload(unsigned,staging)
     aligned=output/"aligned.apk"
     run([tool(tools/"zipalign"),"-P","16","-f","4",unsigned,aligned],env=env)
     key=Path(args.debug_keystore).expanduser().resolve() if args.debug_keystore else output/"debug.keystore"

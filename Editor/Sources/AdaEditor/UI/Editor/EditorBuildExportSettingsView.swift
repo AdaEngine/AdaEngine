@@ -45,7 +45,7 @@ struct EditorBuildExportSettingsView: View {
                     .frame(minWidth: 0, maxWidth: .infinity)
                     .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surfaceElevated))
                     .accessibilityIdentifier("AdaEditor.BuildExport." + platform.rawValue + "." + field.id)
-                #if os(macOS)
+                #if os(macOS) || os(Windows)
                 if field.kind != .identifier {
                     Button("Browse…") { browse(field) }
                         .font(.system(size: 12))
@@ -73,6 +73,26 @@ struct EditorBuildExportSettingsView: View {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             model.buildToolBinding(field.id, platform: platform).wrappedValue = url.path
+        }
+    }
+    #endif
+
+    #if os(Windows)
+    private func browse(_ field: EditorBuildToolField) {
+        Task { @MainActor in
+            let url: URL?
+            if field.kind == .directory {
+                switch await WindowsProjectFilePicker.folder(title: "Choose " + field.title) {
+                case .selected(let selected): url = selected
+                default: url = nil
+                }
+            } else {
+                switch await WindowsProjectFilePicker.files(title: "Choose " + field.title, allowsMultipleSelection: false) {
+                case .selected(let selected): url = selected.first
+                default: url = nil
+                }
+            }
+            if let url { model.buildToolBinding(field.id, platform: platform).wrappedValue = url.path }
         }
     }
     #endif

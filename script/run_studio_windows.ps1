@@ -14,12 +14,17 @@ if (-not $IsWindows -and $PSVersionTable.PSEdition -eq 'Core') {
 # Headless builds are useful for tests, but cannot display Studio.
 $env:ADAENGINE_HEADLESS = '0'
 $env:ADAENGINE_DISABLE_SWAN = '0'
+$env:ADAENGINE_PACKAGE_PATH = $studioRoot
+& python (Join-Path $studioRoot 'script/ensure_windows_icon.py')
+if ($LASTEXITCODE -ne 0) { throw 'Studio icon compilation failed.' }
 
 if (-not $env:ADAENGINE_GRAVITY_PACKAGE_PATH) {
     $studioGravity = & python (Join-Path $studioRoot 'script/ensure_windows_gravity.py')
     if ($LASTEXITCODE -ne 0) { throw 'Windows AdaScript dependency preparation failed.' }
     $env:ADAENGINE_GRAVITY_PACKAGE_PATH = ($studioGravity | Select-Object -Last 1).Trim()
 }
+& python (Join-Path $studioRoot 'script/ensure_windows_export_tools.py')
+if ($LASTEXITCODE -ne 0) { throw 'AdaScript export compiler preparation failed.' }
 
 if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'

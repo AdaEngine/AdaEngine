@@ -1,4 +1,4 @@
-#if !canImport(Network)
+#if !canImport(Network) && !os(Windows)
 import AdaEngine
 import Foundation
 import Observation

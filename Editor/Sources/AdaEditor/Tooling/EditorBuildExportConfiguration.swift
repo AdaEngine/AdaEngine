@@ -155,7 +155,7 @@ struct EditorBuildExportConfiguration: Equatable, Sendable {
         return value.isEmpty ? nil : value
     }
 
-    func environment(for platform: EditorBuildPlatform, basePath: String? = ProcessInfo.processInfo.environment["PATH"]) -> [String: String] {
+    func environment(for platform: EditorBuildPlatform, basePath: String? = EditorHostTools.environmentValue("PATH")) -> [String: String] {
         var environment: [String: String] = [:]
         var toolDirectories: [String] = []
         for field in platform.fields {

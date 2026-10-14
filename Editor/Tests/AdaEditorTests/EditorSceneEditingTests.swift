@@ -254,6 +254,20 @@ struct EditorSceneEditingTests {
         #expect(selectedEntityID == nil)
     }
 
+    @Test("right mouse drag pans the scene without selecting an entity", arguments: [Float(1), 2, 150])
+    @MainActor
+    func rightMouseDragPansScene(zoom: Float) {
+        let viewport = EditorSceneViewportModel()
+        viewport.twoDZoom = zoom
+        var selected = false
+        viewport.onSelectEntity = { _ in selected = true }
+        #expect(viewport.handleInput(mouseEvent(button: .right, position: Point(x: 100, y: 100), phase: .began)))
+        #expect(viewport.handleInput(mouseEvent(button: .right, position: Point(x: 124, y: 88), phase: .changed)))
+        #expect(viewport.twoDCenter == Vector2(-24 / zoom, -12 / zoom))
+        #expect(viewport.handleInput(mouseEvent(button: .right, position: Point(x: 124, y: 88), phase: .ended)))
+        #expect(!selected)
+    }
+
     private func mouseEvent(button: MouseButton, position: Point, phase: MouseEvent.Phase) -> MouseEvent {
         MouseEvent(
             window: RID(),

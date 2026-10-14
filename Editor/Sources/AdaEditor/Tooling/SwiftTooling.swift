@@ -362,7 +362,13 @@ extension EditorProcessRunning {
             let output = Pipe()
             let error = Pipe()
 
-            process.executableURL = URL(fileURLWithPath: command.executablePath)
+            #if os(Windows)
+            let executable = EditorHostTools.isAbsolutePath(command.executablePath)
+                ? command.executablePath : EditorHostTools.executable(command.executablePath)
+            #else
+            let executable = command.executablePath
+            #endif
+            process.executableURL = URL(fileURLWithPath: executable)
             process.arguments = command.arguments
             process.currentDirectoryURL = command.workingDirectory
             process.standardOutput = output
@@ -490,7 +496,7 @@ enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
         #if os(macOS)
         allCases.filter { $0 != .windows && (EditorDistribution.current.supportsSwiftProjects || $0 != .android) }
         #elseif os(Windows)
-        [.windows]
+        [.windows, .web, .android, .player]
         #elseif !canImport(Network)
         allCases.filter { $0 != .android && $0 != .player && $0 != .windows }
         #else
@@ -688,6 +694,17 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             let sdk = buildSettings.value("ADA_WEB_SWIFT_SDK", for: .web).trimmingCharacters(in: .whitespacesAndNewlines)
             if !sdk.isEmpty { arguments += ["--swift-sdk", sdk] }
         }
+        #if os(Windows)
+        if case let .runWeb(target, outputPath, serve) = kind, let root = EditorEngineSource.locate() {
+            let output = URL(fileURLWithPath: outputPath, relativeTo: projectURL).standardizedFileURL
+            let sdk = buildSettings.value("ADA_WEB_SWIFT_SDK", for: .web)
+            return EditorWindowsBuildWorker.webCommand(
+                package: projectURL, output: output, product: target, engineRoot: root, gravityRoot: nil,
+                swift: buildSettings.swiftExecutable(for: .web) ?? "",
+                sdk: sdk.isEmpty ? "swift-6.3.2-RELEASE_wasm" : sdk,
+                configuration: "debug", serve: serve, environment: environment)
+        }
+        #endif
         return EditorProcessCommand(
             executablePath: buildSettings.swiftExecutable(for: platform) ?? toolchain.swiftExecutablePath,
             arguments: arguments,
