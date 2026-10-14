@@ -47,7 +47,7 @@ extension Edge {
 }
 
 /// The inset distances for the sides of a rectangle.
-public struct EdgeInsets: Equatable, Hashable, Sendable {
+public struct EdgeInsets: Codable, Equatable, Hashable, Sendable {
     public var top: Float
     public var leading: Float
     public var bottom: Float
@@ -133,13 +133,30 @@ struct PaddingViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
 }
 
 final class PaddingModifierViewNode: ViewModifierNode {
-    let edges: Edge.Set
-    let insets: EdgeInsets
+    private(set) var edges: Edge.Set
+    private(set) var insets: EdgeInsets
 
     init<Content>(edges: Edge.Set, insets: EdgeInsets, content: Content, node: ViewNode) where Content: View {
         self.edges = edges
         self.insets = insets
         super.init(contentNode: node, content: content)
+    }
+
+    override func update(from newNode: ViewNode) {
+        guard let other = newNode as? PaddingModifierViewNode else {
+            super.update(from: newNode)
+            return
+        }
+        let paddingChanged = edges != other.edges || insets != other.insets
+        edges = other.edges
+        insets = other.insets
+        if paddingChanged {
+            Self.recordLayoutMutationRequiringAncestorPass()
+            markNeedsLayout()
+            invalidateNearestLayer()
+            owner?.containerView?.setNeedsLayout()
+        }
+        super.update(from: newNode)
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {

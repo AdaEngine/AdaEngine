@@ -23,6 +23,11 @@
         private var appWorlds: AppWorlds?
         private var task: Task<Void, Never>?
         private var configuredFrameRateRange: ClosedRange<Int>?
+        #if IOS
+            private weak var displayLinkScreen: UIScreen?
+            private weak var updateLinkView: UIKit.UIView?
+            private var updateLink: UIUpdateLink?
+        #endif
         var displayLink: CADisplayLink!
 
         override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
@@ -40,6 +45,12 @@
         override func run(_ appWorlds: AppWorlds) throws {
             self.appWorlds = appWorlds
             self.setupInput(for: appWorlds)
+
+            #if IOS
+                (windowManager as? AppleEmbeddedWindowManager)?.onNativeWindowPresented = { [weak self] view in
+                    self?.bindDisplayLink(to: view)
+                }
+            #endif
 
             #if os(visionOS)
             self.displayLink = CADisplayLink(target: self, selector: #selector(update))
@@ -113,11 +124,32 @@
 
         override func terminate() {
             self.task?.cancel()
+            #if IOS
+                self.updateLink?.isEnabled = false
+            #endif
             self.displayLink?.invalidate()
             exit(EXIT_SUCCESS)
         }
 
         // MARK: - Private
+
+        #if IOS
+            private func bindDisplayLink(to view: UIKit.UIView) {
+                guard let screen = (view as? UIKit.UIWindow)?.windowScene?.screen ?? view.window?.windowScene?.screen,
+                    updateLinkView !== view || displayLinkScreen !== screen else { return }
+                displayLink?.invalidate()
+                updateLink?.isEnabled = false
+                displayLinkScreen = screen
+                updateLinkView = view
+                // Follow the view as Duo moves it between its physical displays.
+                let link = UIUpdateLink(view: view) { [weak self] _, _ in self?.update() }
+                link.requiresContinuousUpdates = true
+                updateLink = link
+                configuredFrameRateRange = nil
+                configureDisplayLinkFrameRate()
+                link.isEnabled = true
+            }
+        #endif
 
         private func setupInput(for app: AppWorlds) {
             let mutableInput = app.main.getRefResource(Input.self)
@@ -159,7 +191,11 @@
             #elseif os(watchOS)
                 let displayMaximumFramesPerSecond = 60
             #else
-                let displayMaximumFramesPerSecond = UIScreen.main.maximumFramesPerSecond
+                #if IOS
+                    let displayMaximumFramesPerSecond = displayLinkScreen?.maximumFramesPerSecond ?? 60
+                #else
+                    let displayMaximumFramesPerSecond = UIScreen.main.maximumFramesPerSecond
+                #endif
             #endif
             let thermalState: ApplicationFramePacing.ThermalState
             switch ProcessInfo.processInfo.thermalState {
@@ -181,11 +217,20 @@
                 return
             }
             configuredFrameRateRange = range
-            displayLink.preferredFrameRateRange = CAFrameRateRange(
+            let frameRateRange = CAFrameRateRange(
                 minimum: Float(range.lowerBound),
                 maximum: Float(range.upperBound),
                 preferred: Float(range.upperBound)
             )
+            #if IOS
+                if let updateLink {
+                    updateLink.preferredFrameRateRange = frameRateRange
+                } else {
+                    displayLink.preferredFrameRateRange = frameRateRange
+                }
+            #else
+                displayLink.preferredFrameRateRange = frameRateRange
+            #endif
         }
     }
 

@@ -16,6 +16,9 @@
     import UIKit
 
     final class AppleEmbeddedWindowManager: UIWindowManager {
+        #if IOS
+            var onNativeWindowPresented: (@MainActor (UIKit.UIView) -> Void)?
+        #endif
         private let screenManager: any ScreenManager
         private(set) var isUIKitReady = false
         private var pendingWindowCreations: [AdaUI.UIWindow] = []
@@ -176,6 +179,9 @@
             }
 
             window.windowDidAppear()
+            #if IOS
+                onNativeWindowPresented?(uiWindow)
+            #endif
 
             if isFocused {
                 self.setActiveWindow(window)
@@ -483,6 +489,25 @@
         override func viewDidLoad() {
             super.viewDidLoad()
             registerKeyboardNotifications()
+            #if IOS && compiler(>=6.4)
+                if #available(iOS 27.1, *) {
+                    view.addInteraction(UIHingeInteraction { [weak self] _, update in
+                        guard let self, let window = renderView.windowManager?.windows[renderView.windowID] else { return }
+                        window.deviceHinge = update.hinge.map { hinge in
+                            let status: DeviceHinge.Status
+                            switch hinge.status {
+                            case .closed: status = .closed
+                            case .partiallyOpen: status = .partiallyOpen
+                            case .fullyOpen: status = .fullyOpen
+                            default: status = .unknown
+                            }
+                            return DeviceHinge(status: status, angle: Float(hinge.angle))
+                        }
+                        propagateReservedRegions()
+                        window.setNeedsLayout()
+                    })
+                }
+            #endif
             registerForTraitChanges(
                 [
                     UITraitUserInterfaceIdiom.self,
@@ -548,9 +573,11 @@
 
                 let beginFrame = convertKeyboardFrameToView(beginScreenFrame)
                 let endFrame = convertKeyboardFrameToView(endScreenFrame)
-                let occludedFrame = view.bounds.intersection(endFrame)
-                let normalizedOccludedFrame = occludedFrame.isNull ? .zero : occludedFrame
-                let occludedHeight = max(0, view.bounds.maxY - normalizedOccludedFrame.minY)
+                let occlusion = KeyboardOcclusion(
+                    viewBounds: view.bounds.toEngineRect,
+                    keyboardFrame: endFrame.toEngineRect,
+                    isHidden: phase == .willHide || phase == .didHide
+                )
 
                 input.wrappedValue.receiveEvent(
                     KeyboardEvent(
@@ -558,8 +585,8 @@
                         phase: phase,
                         beginFrame: beginFrame.toEngineRect,
                         endFrame: endFrame.toEngineRect,
-                        occludedFrame: normalizedOccludedFrame.toEngineRect,
-                        occludedHeight: Float(occludedHeight),
+                        occludedFrame: occlusion.frame,
+                        occludedHeight: occlusion.height,
                         animationDuration: AdaUtils.TimeInterval(animationDuration),
                         animationCurve: animationCurve,
                         time: AdaUtils.TimeInterval(CACurrentMediaTime())
@@ -570,9 +597,9 @@
                     return
                 }
 
-                adaWindow.keyboardOccludedHeight = Float(occludedHeight)
+                adaWindow.keyboardOccludedHeight = occlusion.height
                 for subview in adaWindow.subviews {
-                    subview.keyboardOccludedHeight = Float(occludedHeight)
+                    subview.keyboardOccludedHeight = occlusion.height
                 }
             #endif
         }
@@ -596,6 +623,13 @@
 
             self.propagateTraits()
             self.propagateSize()
+            self.propagateSafeAreaInsets()
+            #if IOS
+                (renderView.windowManager as? AppleEmbeddedWindowManager)?.onNativeWindowPresented?(view)
+            #endif
+            #if IOS && compiler(>=6.4)
+                propagateReservedRegions()
+            #endif
         }
 
         private func propagateSize() {
@@ -623,8 +657,36 @@
             }
             adaWindow.userInterfaceIdiom = Self.idiom(from: traitCollection)
             adaWindow.colorScheme = Self.colorScheme(from: traitCollection)
+            adaWindow.horizontalSizeClass = Self.sizeClass(from: traitCollection.horizontalSizeClass)
+            adaWindow.verticalSizeClass = Self.sizeClass(from: traitCollection.verticalSizeClass)
             adaWindow.setNeedsLayout()
         }
+
+        private static func sizeClass(from value: UIUserInterfaceSizeClass) -> UserInterfaceSizeClass? {
+            switch value {
+            case .compact: return .compact
+            case .regular: return .regular
+            default: return nil
+            }
+        }
+
+        #if IOS && compiler(>=6.4)
+            private func propagateReservedRegions() {
+                guard #available(iOS 27.1, *), let window = renderView.windowManager?.windows[renderView.windowID] else { return }
+                let kinds: [(UIKit.UIView.ReservedRegion.Kind, ViewReservedRegion.Kind)] = [(.division, .division), (.occlusion, .occlusion)]
+                window.reservedRegions = kinds.flatMap { nativeKind, kind in
+                    view.reservedRegions(kind: nativeKind, options: .includeInactive).map { region in
+                        ViewReservedRegion(
+                            id: String(describing: region.id), kind: kind, frame: region.frame.toEngineRect,
+                            margins: EdgeInsets(top: Float(region.margins.top), leading: Float(region.margins.left),
+                                bottom: Float(region.margins.bottom), trailing: Float(region.margins.right)),
+                            isActive: region.isActive
+                        )
+                    }
+                }
+                propagateSafeAreaInsets()
+            }
+        #endif
 
         static func idiom(from traits: UITraitCollection) -> UserInterfaceIdiom {
             #if VISIONOS
@@ -662,6 +724,31 @@
             // (WindowGroupUpdateSystem adds the container view on the first ECS tick,
             // which is after the first viewSafeAreaInsetsDidChange call).
             adaWindow.safeAreaInsets = engineInsets
+            #if IOS
+                if let statusBarFrame = view.window?.windowScene?.statusBarManager?.statusBarFrame {
+                    let frame = view.convert(statusBarFrame, from: nil)
+                    let statusInset = frame.minY < view.bounds.midY ? max(0, frame.maxY - uiInsets.top) : 0
+                    let sideInset = max(uiInsets.left, uiInsets.right)
+                    // The vertical status area includes the camera/activity capsule; the
+                    // legacy statusBarFrame may only describe its thin clock baseline.
+                    let sideOcclusionBottom = adaWindow.reservedRegions
+                        .filter { region in
+                            region.isActive && region.kind == .occlusion
+                                && region.frame.minY <= Float(uiInsets.top) + 1
+                                && (region.frame.minX <= 1 || region.frame.maxX >= Float(view.bounds.width) - 1)
+                        }
+                        .map { CGFloat($0.frame.maxY + $0.margins.bottom) }
+                        .max()
+                    let hasSideOcclusion = adaWindow.reservedRegions.contains { region in
+                        region.isActive && region.kind == .occlusion
+                            && (region.frame.minX < Float(uiInsets.left) || region.frame.maxX > Float(view.bounds.width - uiInsets.right))
+                    }
+                    let verticalStatusInset = sideInset >= 60 ? sideOcclusionBottom ?? (hasSideOcclusion ? 0 : sideInset * 1.25) : 0
+                    adaWindow.navigationBarControlsTopInset = Float(max(statusInset, verticalStatusInset))
+                } else {
+                    adaWindow.navigationBarControlsTopInset = 0
+                }
+            #endif
             for subview in adaWindow.subviews {
                 if let provider = subview as? SafeAreaProvider {
                     provider.safeAreaInsets = engineInsets

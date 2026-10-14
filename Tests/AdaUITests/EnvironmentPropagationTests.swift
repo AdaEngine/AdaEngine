@@ -247,6 +247,74 @@ struct EnvironmentPropagationTests {
         #expect(tester.containerView.viewTree.rootNode.environment.keyboardSafeAreaInset == 0)
     }
 
+    @Test
+    func keyboardPaddingRestoresContentHeightAfterKeyboardHides() {
+        var contentSize = Size.zero
+        let tester = ViewTester {
+            KeyboardPaddingProbe(bottomPadding: 34, onLayout: { contentSize = $0 }).ignoresSafeArea(.bottom)
+        }.setSize(Size(width: 600, height: 600))
+        tester.containerView.safeAreaInsets = EdgeInsets(top: 0, leading: 0, bottom: 34, trailing: 0)
+        tester.performLayout()
+        #expect(contentSize.height == 566)
+        tester.containerView.keyboardOccludedHeight = 301
+        tester.containerView.updateRootView(
+            KeyboardPaddingProbe(bottomPadding: 301, onLayout: { contentSize = $0 }).ignoresSafeArea(.bottom)
+        )
+        tester.performLayout()
+        #expect(contentSize.height == 299)
+        tester.containerView.keyboardOccludedHeight = 0
+        tester.containerView.updateRootView(
+            KeyboardPaddingProbe(bottomPadding: 34, onLayout: { contentSize = $0 }).ignoresSafeArea(.bottom)
+        )
+        tester.performLayout()
+        #expect(tester.containerView.viewTree.rootNode.environment.keyboardSafeAreaInset == 0)
+        #expect(contentSize.height == 566)
+    }
+
+    @Test
+    func keyboardEnvironmentUpdatesPaddingInsideIgnoredSafeArea() {
+        var contentSize = Size.zero
+        var reportedPadding: Float = -1
+        let tester = ViewTester {
+            KeyboardEnvironmentPaddingProbe(onLayout: { contentSize = $0 }, onPadding: { reportedPadding = $0 })
+                .ignoresSafeArea(.bottom)
+        }.setSize(Size(width: 600, height: 600))
+        tester.containerView.safeAreaInsets = EdgeInsets(top: 0, leading: 0, bottom: 34, trailing: 0)
+        tester.performLayout()
+        #expect(reportedPadding == 34)
+        #expect(contentSize.height == 566)
+        tester.containerView.keyboardOccludedHeight = 301
+        tester.performLayout()
+        #expect(reportedPadding == 301)
+        #expect(contentSize.height == 299)
+        tester.containerView.keyboardOccludedHeight = 0
+        tester.performLayout()
+        #expect(reportedPadding == 34)
+        #expect(contentSize.height == 566)
+    }
+
+    @Test
+    func keyboardEnvironmentUpdatesPaddingInStatelessListView() {
+        var contentSize = Size.zero
+        var reportedPadding: Float = -1
+        let tester = ViewTester {
+            ListBuiltKeyboardProbe(onLayout: { contentSize = $0 }, onPadding: { reportedPadding = $0 })
+                .ignoresSafeArea(.bottom)
+        }.setSize(Size(width: 600, height: 600))
+        tester.containerView.safeAreaInsets = EdgeInsets(top: 0, leading: 0, bottom: 34, trailing: 0)
+        tester.performLayout()
+        #expect(reportedPadding == 34)
+        #expect(contentSize.height == 566)
+        tester.containerView.keyboardOccludedHeight = 301
+        tester.performLayout()
+        #expect(reportedPadding == 301)
+        #expect(contentSize.height == 299)
+        tester.containerView.keyboardOccludedHeight = 0
+        tester.performLayout()
+        #expect(reportedPadding == 34)
+        #expect(contentSize.height == 566)
+    }
+
     @Test("overlay title bar does not reserve root safe area")
     func overlayTitleBarDoesNotReserveRootSafeArea() {
         let configuration = UIWindow.Configuration(
@@ -334,5 +402,47 @@ struct EnvironmentPropagationTests {
         #expect(probe.values.count > initialRenderCount)
         #expect(probe.values.last == 1)
         withExtendedLifetime(tester) {}
+    }
+}
+
+private struct ListBuiltKeyboardProbe: View, ViewNodeBuilder {
+    let onLayout: (Size) -> Void
+    let onPadding: (Float) -> Void
+
+    var body: Never { fatalError("Node builder has no body") }
+
+    func buildViewNode(in inputs: _ViewInputs) -> ViewNode {
+        let probe = KeyboardEnvironmentPaddingProbe(onLayout: onLayout, onPadding: onPadding)
+        let outputs = KeyboardEnvironmentPaddingProbe._makeListView(
+            _ViewGraphNode(value: probe), inputs: _ViewListInputs(input: inputs)
+        )
+        return outputs.outputs.first?.node ?? inputs.makeNode(from: EmptyView())
+    }
+}
+
+private struct KeyboardPaddingProbe: View {
+    let bottomPadding: Float
+    let onLayout: (Size) -> Void
+
+    var body: some View {
+        GeometryReader { geometry in
+            onLayout(geometry.size)
+            return Color.clear
+        }
+            .padding(.bottom, bottomPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct KeyboardEnvironmentPaddingProbe: View {
+    @Environment(\.displaySafeAreaInsets) private var displaySafeAreaInsets
+    @Environment(\.keyboardSafeAreaInset) private var keyboardSafeAreaInset
+    let onLayout: (Size) -> Void
+    let onPadding: (Float) -> Void
+
+    var body: some View {
+        let padding = displaySafeAreaInsets.bottom + keyboardSafeAreaInset
+        onPadding(padding)
+        return KeyboardPaddingProbe(bottomPadding: padding, onLayout: onLayout)
     }
 }

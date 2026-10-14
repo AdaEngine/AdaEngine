@@ -3,9 +3,9 @@ import Foundation
 import PackageDescription
 
 let adaEngineLocalPath = ProcessInfo.processInfo.environment["ADAENGINE_PACKAGE_PATH"] ?? ".."
-let adaMCPLocalPath = ProcessInfo.processInfo.environment["ADA_MCP_LOCAL_PATH"] ?? "../../AdaMCP"
-let adaMCPURL = URL(fileURLWithPath: adaMCPLocalPath, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL
-let hasAdaMCP = FileManager.default.fileExists(atPath: adaMCPURL.appendingPathComponent("Package.swift").path)
+let adaMCPURL = ProcessInfo.processInfo.environment["ADA_MCP_LOCAL_PATH"].map {
+    URL(fileURLWithPath: $0, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL
+}
 let sloppyRuntimeLocalPath = ProcessInfo.processInfo.environment["SLOPPY_RUNTIME_LOCAL_PATH"] ?? "../../Sloppy/Packages/SloppyRuntime"
 let sloppyRuntimeURL = URL(fileURLWithPath: sloppyRuntimeLocalPath, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL
 let hasSloppyRuntime = FileManager.default.fileExists(atPath: sloppyRuntimeURL.appendingPathComponent("Package.swift").path)
@@ -18,9 +18,10 @@ let sloppyRuntimeTarget: [Target.Dependency] = hasSloppyRuntime
         .product(name: "Protocols", package: "SloppyRuntimePortable", condition: .when(platforms: [.iOS, .visionOS])),
     ]
     : []
-let adaMCPPackage: Package.Dependency = hasAdaMCP
-    ? .package(name: "AdaMCP", path: adaMCPURL.path)
-    : .package(url: "https://github.com/AdaEngine/AdaMCP.git", branch: "main")
+// AdaMCP's dependency graph includes Git revisions, so SwiftPM requires a revision here.
+let adaMCPPackage: Package.Dependency = adaMCPURL.map {
+    .package(name: "AdaMCP", path: $0.path)
+} ?? .package(url: "https://github.com/AdaEngine/AdaMCP.git", revision: "v0.2.0")
 
 let gravityAOTPath = ProcessInfo.processInfo.environment["ADAENGINE_GRAVITY_PACKAGE_PATH"]
 let gravityAOTPackage: [Package.Dependency] = gravityAOTPath.map { [.package(name: "gravity-lang", path: $0)] }

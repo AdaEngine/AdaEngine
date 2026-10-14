@@ -129,6 +129,10 @@ extension EnvironmentValues {
     /// The navigation bar's contribution to the content's top safe area.
     /// Use this as scroll content padding to start below the bar while scrolling underneath it.
     @Entry public var navigationBarContentInset: Float = 0
+    /// Allows content to arrange its own controls in the navigation bar's side strip.
+    @Entry public var navigationBarContentExtendsIntoSideControls: Bool = false
+    /// Keeps a composite workspace under the bar regardless of its active scroll content.
+    @Entry public var navigationBarContentExtendsUnderNavigationBar: Bool = false
     @Entry var navigationContext: NavigationContext?
     @Entry internal var navigationSplitCompactBackAction: NavigationSplitCompactBackAction?
     @Entry internal var navigationSplitColumnContext: NavigationSplitColumnContext?
@@ -176,6 +180,18 @@ final class NavigationBarItemContent: @unchecked Sendable {
 }
 
 extension View {
+    /// Lets a custom tab layout share the display's side strip with navigation controls.
+    /// The content is responsible for reserving that strip for its controls.
+    public func navigationBarContentExtendsIntoSideControls(_ extends: Bool = true) -> some View {
+        environment(\.navigationBarContentExtendsIntoSideControls, extends)
+    }
+
+    /// Keeps content at a stable origin beneath navigation chrome. Use
+    /// `navigationBarContentInset` to clear the bar within the content layout.
+    public func navigationBarContentExtendsUnderNavigationBar(_ extends: Bool = true) -> some View {
+        environment(\.navigationBarContentExtendsUnderNavigationBar, extends)
+    }
+
     public func navigationTitle(_ title: String) -> some View {
         self.transformEnvironment(\.navigationBarConfiguration) { configuration in
             configuration.title = title
@@ -503,7 +519,8 @@ final class NavigationStackNode: ViewNode, PresentationInputProviding {
             : viewInputs.environment.navigationSplitCompactBackAction
         let showsNavigationBar = !configuration.isHidden
 
-        let contentReceivesTopSafeArea = showsNavigationBar && Self.nodeConsumesTopSafeArea(currentContentNode)
+        let contentReceivesTopSafeArea = showsNavigationBar && (Self.nodeExtendsUnderNavigationBar(currentContentNode)
+            || Self.nodeConsumesTopSafeArea(currentContentNode))
         let reservedHeight = showsNavigationBar ? totalNavigationBarReservedHeight : 0
         let contentSafeAreaHeight = contentReceivesTopSafeArea ? reservedHeight : 0
         reservedNavigationBarHeight = reservedHeight
@@ -564,19 +581,31 @@ final class NavigationStackNode: ViewNode, PresentationInputProviding {
     override func performLayout() {
         contentBounds = contentLayoutBounds(for: currentContentNode)
         presentation.layout(in: contentBounds, boundsForNode: contentLayoutBounds(for:))
+        // Deferred composite bodies can reveal their navigation policy only after
+        // the first layout. Apply that policy before drawing their chrome/content.
+        let receivesInset = Self.nodeExtendsUnderNavigationBar(currentContentNode) || Self.nodeConsumesTopSafeArea(currentContentNode)
+        let expectedInset = receivesInset ? reservedNavigationBarHeight : 0
+        if currentContentNode.environment.navigationBarContentInset != expectedInset {
+            syncNavigationBar()
+            contentBounds = contentLayoutBounds(for: currentContentNode)
+            presentation.layout(in: contentBounds, boundsForNode: contentLayoutBounds(for:))
+        }
         navigationBarNode?
             .place(
                 in: .zero,
                 anchor: .topLeading,
-                proposal: ProposedViewSize(width: frame.width, height: totalNavigationBarReservedHeight)
+                proposal: ProposedViewSize(width: frame.width,
+                    height: environment.navigationBarControlsAxis == .vertical ? frame.height : totalNavigationBarReservedHeight)
             )
     }
 
     private func contentLayoutBounds(for node: ViewNode) -> Rect {
         let configuration = Self.navigationBarState(in: node).configuration
-        let placesBelowBar = !configuration.isHidden && !Self.nodeConsumesTopSafeArea(node)
+        let placesBelowBar = !configuration.isHidden && !Self.nodeExtendsUnderNavigationBar(node) && !Self.nodeConsumesTopSafeArea(node)
         let originY: Float = placesBelowBar ? totalNavigationBarReservedHeight : 0
-        return Rect(origin: Point(0, originY), size: Size(width: frame.width, height: max(0, frame.height - originY)))
+        let sides = node.environment.navigationBarContentExtendsIntoSideControls ? EdgeInsets() : environment.navigationContentSideInsets
+        return Rect(origin: Point(sides.leading, originY),
+            size: Size(width: max(0, frame.width - sides.leading - sides.trailing), height: max(0, frame.height - originY)))
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
@@ -628,6 +657,20 @@ final class NavigationStackNode: ViewNode, PresentationInputProviding {
             leadingItems: node.environment.navigationBarLeadingItems,
             trailingItems: node.environment.navigationBarTrailingItems
         )
+    }
+
+    private static func nodeExtendsUnderNavigationBar(_ node: ViewNode) -> Bool {
+        if node.environment.navigationBarContentExtendsUnderNavigationBar { return true }
+        if let modifier = node as? ViewModifierNode {
+            return nodeExtendsUnderNavigationBar(modifier.contentNode)
+        }
+        if let container = node as? ViewContainerNode {
+            return container.nodes.contains(where: nodeExtendsUnderNavigationBar)
+        }
+        if !(node is NavigationStackNode), let presentation = node as? any PresentationInputProviding {
+            return presentation.inputContentNodes.contains(where: nodeExtendsUnderNavigationBar)
+        }
+        return false
     }
 
     private static func nodeConsumesTopSafeArea(_ node: ViewNode) -> Bool {
@@ -887,355 +930,6 @@ final class NavigationStackNode: ViewNode, PresentationInputProviding {
             }
             self.presentation.endInteractiveTransition(completing: true)
             self.navigationContext.pop()
-        }
-    }
-}
-
-// MARK: - NavigationBarNode
-
-final class NavigationBarNode: ViewNode {
-    private enum Constants {
-        static let height: Float = 92
-        static let horizontalPadding: Float = 16
-        static let itemSpacing: Float = 10
-        static let controlHeight: Float = 44
-        static let titleHorizontalInset: Float = 72
-        static let leadingTitleOffset: Float = 54
-        static let minimumCenteredTitleWidth: Float = 120
-    }
-
-    private var configuration: NavigationBarConfiguration
-    private var leadingItems: NavigationBarItemContent?
-    private var trailingItems: NavigationBarItemContent?
-    private var splitBackAction: NavigationSplitCompactBackAction?
-    private var showsBackButton: Bool
-    private weak var navigationContext: NavigationContext?
-    private var inputs: _ViewInputs
-
-    private var titleNode: ViewNode?
-    private var splitBackButtonNode: ViewNode?
-    private var backButtonNode: ViewNode?
-    private var leadingItemsNode: ViewNode?
-    private var trailingItemsNode: ViewNode?
-
-    private var chromeTopInset: Float {
-        max(0, environment.navigationBarChromeInsets.top)
-    }
-
-    var resolvedBackgroundColor: Color {
-        configuration.navigationBarColor ?? .black
-    }
-
-    init(
-        configuration: NavigationBarConfiguration,
-        leadingItems: NavigationBarItemContent?,
-        trailingItems: NavigationBarItemContent?,
-        splitBackAction: NavigationSplitCompactBackAction?,
-        showsBackButton: Bool,
-        navigationContext: NavigationContext,
-        inputs: _ViewInputs
-    ) {
-        self.configuration = configuration
-        self.leadingItems = leadingItems
-        self.trailingItems = trailingItems
-        self.splitBackAction = splitBackAction
-        self.showsBackButton = showsBackButton
-        self.navigationContext = navigationContext
-        self.inputs = inputs
-        super.init(content: AnyView(EmptyView()))
-        rebuildChildren()
-        updateEnvironment(inputs.environment)
-    }
-
-    func update(
-        configuration: NavigationBarConfiguration,
-        leadingItems: NavigationBarItemContent?,
-        trailingItems: NavigationBarItemContent?,
-        splitBackAction: NavigationSplitCompactBackAction?,
-        showsBackButton: Bool,
-        inputs: _ViewInputs
-    ) {
-        self.configuration = configuration
-        self.leadingItems = leadingItems
-        self.trailingItems = trailingItems
-        self.splitBackAction = splitBackAction
-        self.showsBackButton = showsBackButton
-        self.inputs = inputs
-        rebuildChildren()
-        updateEnvironment(inputs.environment)
-        performLayout()
-    }
-
-    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        Size(width: proposal.width ?? 0, height: chromeTopInset + Constants.height)
-    }
-
-    override func performLayout() {
-        let titlePosition = resolvedTitlePosition()
-        let centerY = chromeTopInset + Constants.height * 0.5
-        var leadingX = Constants.horizontalPadding
-        let reservedTitleWidth =
-            titlePosition == .center || titlePosition == .automatic
-            ? Constants.minimumCenteredTitleWidth
-            : 0
-        let maxItemWidth = max(
-            0,
-            (frame.width - Constants.horizontalPadding * 2 - reservedTitleWidth - Constants.itemSpacing * 2) * 0.5
-        )
-
-        if let splitBackButtonNode {
-            splitBackButtonNode.place(
-                in: Point(x: leadingX, y: centerY),
-                anchor: .leading,
-                proposal: ProposedViewSize(width: Constants.controlHeight, height: Constants.controlHeight)
-            )
-            leadingX += Constants.controlHeight + Constants.itemSpacing
-        }
-
-        if let backButtonNode {
-            backButtonNode.place(
-                in: Point(x: leadingX, y: centerY),
-                anchor: .leading,
-                proposal: ProposedViewSize(width: Constants.controlHeight, height: Constants.controlHeight)
-            )
-            leadingX += Constants.controlHeight + Constants.itemSpacing
-        }
-
-        if let leadingItemsNode {
-            let measured = leadingItemsNode.sizeThatFits(.unspecified)
-            let width = min(measured.width, maxItemWidth)
-            leadingItemsNode.place(
-                in: Point(x: leadingX, y: centerY),
-                anchor: .leading,
-                proposal: ProposedViewSize(width: width, height: Constants.controlHeight)
-            )
-            leadingX += width + Constants.itemSpacing
-        }
-
-        var trailingWidth: Float = 0
-        if let trailingItemsNode {
-            let measured = trailingItemsNode.sizeThatFits(.unspecified)
-            trailingWidth = min(measured.width, maxItemWidth)
-            trailingItemsNode.place(
-                in: Point(x: frame.width - Constants.horizontalPadding, y: centerY),
-                anchor: .trailing,
-                proposal: ProposedViewSize(width: trailingWidth, height: Constants.controlHeight)
-            )
-        }
-
-        if let titleNode {
-            switch titlePosition {
-            case .leading:
-                let availableWidth = max(0, frame.width - leadingX - Constants.horizontalPadding)
-                titleNode.place(
-                    in: Point(x: leadingX, y: centerY),
-                    anchor: .leading,
-                    proposal: ProposedViewSize(width: availableWidth, height: Constants.controlHeight)
-                )
-            case .automatic,
-                .center:
-                let occupiedSideWidth = max(
-                    leadingX,
-                    Constants.horizontalPadding + trailingWidth + Constants.itemSpacing
-                )
-                titleNode.place(
-                    in: Point(x: frame.width * 0.5, y: centerY),
-                    anchor: .center,
-                    proposal: ProposedViewSize(
-                        width: max(0, frame.width - occupiedSideWidth * 2),
-                        height: Constants.controlHeight
-                    )
-                )
-            }
-        }
-    }
-
-    override func updateEnvironment(_ environment: EnvironmentValues) {
-        let prevVersion = self.environment.version
-        super.updateEnvironment(environment)
-        guard self.environment.version != prevVersion else {
-            return
-        }
-        inputs.environment = self.environment
-        updateChildEnvironments()
-    }
-
-    override func updateViewOwner(_ owner: ViewOwner) {
-        super.updateViewOwner(owner)
-        for node in childNodes {
-            node.updateViewOwner(owner)
-        }
-    }
-
-    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
-        guard self.point(inside: point, with: event) else {
-            return nil
-        }
-        for node in childNodes.reversed() {
-            let childPoint = node.convert(point, from: self)
-            if let hit = node.hitTest(childPoint, with: event) {
-                return hit
-            }
-        }
-        return nil
-    }
-
-    override func point(inside point: Point, with event: any InputEvent) -> Bool {
-        super.point(inside: point, with: event)
-            || childNodes.contains { node in
-                let childPoint = node.convert(point, from: self)
-                return node.point(inside: childPoint, with: event)
-            }
-    }
-
-    override func draw(with context: UIGraphicsContext) {
-        var context = context
-        context.environment = environment
-        let navigationBarColor = resolvedBackgroundColor
-        context.translateBy(x: frame.origin.x, y: -frame.origin.y)
-        context.drawLinearGradient(
-            ResolvedLinearGradient(
-                startPoint: .top,
-                endPoint: .bottom,
-                stops: [
-                    Gradient.Stop(color: navigationBarColor.opacity(0.98), location: 0),
-                    Gradient.Stop(color: navigationBarColor.opacity(0.72), location: 0.48),
-                    Gradient.Stop(color: navigationBarColor.opacity(0), location: 1),
-                ]
-            ),
-            in: Rect(origin: .zero, size: frame.size)
-        )
-        for node in childNodes {
-            node.draw(with: context)
-        }
-    }
-
-    override func update(_ deltaTime: TimeInterval) {
-        for node in childNodes {
-            node.update(deltaTime)
-        }
-    }
-
-    override func findNodeById(_ id: AnyHashable) -> ViewNode? {
-        childNodes.lazy.compactMap { $0.findNodeById(id) }.first
-    }
-
-    override func findNodyByAccessibilityIdentifier(_ identifier: String) -> ViewNode? {
-        super.findNodyByAccessibilityIdentifier(identifier)
-            ?? childNodes.lazy.compactMap { $0.findNodyByAccessibilityIdentifier(identifier) }.first
-    }
-
-    override func didMove(to parent: ViewNode?) {
-        super.didMove(to: parent)
-        if parent == nil {
-            for node in childNodes {
-                node.parent = nil
-            }
-        } else {
-            for node in childNodes { node.parent = self }
-        }
-    }
-
-    private var childNodes: [ViewNode] {
-        [
-            titleNode,
-            splitBackButtonNode,
-            backButtonNode,
-            leadingItemsNode,
-            trailingItemsNode,
-        ]
-        .compactMap { $0 }
-    }
-
-    var inspectionChildNodes: [ViewNode] {
-        childNodes
-    }
-
-    private func rebuildChildren() {
-        for node in childNodes {
-            node.parent = nil
-        }
-
-        titleNode = makeTitleNode()
-        splitBackButtonNode = splitBackAction.map(makeSplitBackButtonNode)
-        backButtonNode = showsBackButton ? makeBackButtonNode() : nil
-        leadingItemsNode = leadingItems?.makeNode(navigationBarItemInputs())
-        trailingItemsNode = trailingItems?.makeNode(navigationBarItemInputs())
-
-        for node in childNodes {
-            node.parent = self
-            if let owner {
-                node.updateViewOwner(owner)
-            }
-        }
-        updateChildEnvironments()
-    }
-
-    private func makeTitleNode() -> ViewNode? {
-        guard let title = configuration.title, !title.isEmpty else {
-            return nil
-        }
-        let pointSize: Double = resolvedTitlePosition() == .leading ? 22 : 16
-        let view = Text(title)
-            .font(configuration.titleFont ?? .system(size: pointSize))
-            .foregroundColor(.white)
-            .lineLimit(1)
-        let node = Text._makeView(_ViewGraphNode(value: view), inputs: inputs).node
-        node.accessibilityIdentifier = "AdaUI.NavigationBar.Title"
-        return node
-    }
-
-    private func makeSplitBackButtonNode(action: NavigationSplitCompactBackAction) -> ViewNode {
-        let view = Button(action: {
-            action.perform()
-        }, label: {
-            NavigationBackButtonIcon()
-                .frame(width: Constants.controlHeight, height: Constants.controlHeight)
-        })
-        let node = Button._makeView(_ViewGraphNode(value: view), inputs: navigationBarItemInputs()).node
-        node.accessibilityIdentifier = "AdaUI.NavigationSplitView.backButton"
-        return node
-    }
-
-    private func makeBackButtonNode() -> ViewNode {
-        let view = Button(action: { [weak navigationContext] in
-            navigationContext?.pop()
-        }, label: {
-            NavigationBackButtonIcon()
-                .frame(width: Constants.controlHeight, height: Constants.controlHeight)
-        })
-        return Button._makeView(_ViewGraphNode(value: view), inputs: navigationBarItemInputs()).node
-    }
-
-    private func navigationBarItemInputs() -> _ViewInputs {
-        var styledInputs = inputs
-        styledInputs.environment.buttonStyle = NavigationBarButtonStyle()
-        return styledInputs
-    }
-
-    private func updateChildEnvironments() {
-        titleNode?.updateEnvironment(inputs.environment)
-
-        let itemEnvironment = navigationBarItemInputs().environment
-        splitBackButtonNode?.updateEnvironment(itemEnvironment)
-        backButtonNode?.updateEnvironment(itemEnvironment)
-        leadingItemsNode?.updateEnvironment(itemEnvironment)
-        trailingItemsNode?.updateEnvironment(itemEnvironment)
-    }
-
-    private func resolvedTitlePosition() -> NavigationTitlePosition {
-        switch configuration.titlePosition {
-        case .leading,
-            .center:
-            return configuration.titlePosition
-        case .automatic:
-            switch configuration.titleDisplayMode {
-            case .large:
-                return .leading
-            case .automatic,
-                .inline:
-                return .center
-            }
         }
     }
 }

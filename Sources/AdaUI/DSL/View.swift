@@ -87,7 +87,8 @@ extension View {
             return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
         }
 
-        if stateContainer != nil {
+        // Environment-dependent bodies need an owner even when list construction flattens their children.
+        if stateContainer != nil || !resolvedInputs.propertyStorages.isEmpty {
             let node = LayoutViewContainerNode(
                 layout: AnyLayout(inputs.input.layout),
                 content: view.value,

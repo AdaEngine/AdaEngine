@@ -509,9 +509,15 @@ extension UIView {
     func rootEnvironmentValues() -> EnvironmentValues {
         var env = EnvironmentValues()
         env.safeAreaInsets = rootSafeAreaInsets()
+        env.displaySafeAreaInsets = safeAreaInsets
         env.keyboardSafeAreaInset = max(0, keyboardOccludedHeight - safeAreaInsets.bottom)
         env.userInterfaceIdiom = userInterfaceIdiom
         env.colorScheme = colorScheme
+        env.horizontalSizeClass = horizontalSizeClass
+        env.verticalSizeClass = verticalSizeClass
+        env.deviceHinge = deviceHinge
+        env.reservedRegions = reservedRegions
+        env.navigationBarControlsTopInset = navigationBarControlsTopInset
         env.scaleFactor = window?.screen?.scale ?? Screen.main?.scale ?? 1
         return env
     }

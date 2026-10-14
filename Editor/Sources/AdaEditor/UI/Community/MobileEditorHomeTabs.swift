@@ -44,7 +44,7 @@ struct MobileEditorHomeTabs<Studio: View>: View {
                     .id(resolvedServer)
             }
         }
-        .tabViewPosition(.bottom)
+        .tabViewPosition(.automatic)
         .tabViewStyle(MobileEditorHomeTabStyle(
             showsTabBar: showsTabBar,
             style: LiquidGlassTabBarStyle(
@@ -55,7 +55,8 @@ struct MobileEditorHomeTabs<Studio: View>: View {
                 symbols: ["Studio": "\u{E86F}", "Community": "\u{E80B}"],
                 symbolFont: AdaEditorMaterialSymbolFont.font(size: 22),
                 labelFont: .system(size: 11),
-                bottomPadding: 6
+                bottomPadding: 6,
+                reservesSideSpaceForContent: false
             )
         ))
         .background(theme.editorColors.background.ignoresSafeArea())

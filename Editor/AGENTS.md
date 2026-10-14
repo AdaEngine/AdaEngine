@@ -331,7 +331,7 @@ Coverage: [GitReviewTests.swift](Tests/AdaEditorTests/GitReviewTests.swift),
 
 ### Mobile and supporting features
 
-Mobile Studio's project toolbar includes Publish, opening title/description, cover and
+Mobile Studio's project settings include Publish, opening title/description, cover and
 up to five screenshot fields. Cloud sign-in and Pro are required. Saved AdaScript
 projects are packaged on-device and submitted as permanent Community releases in
 `pending` review; approval updates the same app card. Identical retries reuse the
@@ -367,7 +367,11 @@ Browsing needs no Cloud sign-in. Studio and Community retain separate navigation
 the last tab restores on launch, and workspace navigation focuses Studio while
 preserving its Build/Files/Play tabs.
 The home tab bar hides during Studio navigation so it does not overlap workspace controls;
-both mobile tab bars use a 6-point bottom padding above the safe area.
+Both mobile tab bars use automatic placement: a vertical glass strip on phone
+displays with a side safe area, or bottom controls with 6-point padding on ordinary
+displays. Native hinge updates expose angle, posture and opening percentage through
+the AdaUI environment and `WindowHingeChanged`. The old simulated Foldable Preview
+selector and saved preview setting have been removed; legacy projects still decode.
 The public catalog currently returns up to 100 entries. An Android Studio application shell is not provided by this change.
 Entry points: [EditorCommunityView.swift](Sources/AdaEditor/UI/Community/EditorCommunityView.swift),
 [MobileEditorHomeTabs.swift](Sources/AdaEditor/UI/Community/MobileEditorHomeTabs.swift),

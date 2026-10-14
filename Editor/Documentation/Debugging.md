@@ -75,6 +75,6 @@ persistence and the full selected-SwiftPM-product launch path. The engine's
 `EditorDebuggerGutterTests` exercise real AdaUI mouse/touch routing and Return
 submission, using the normal `AdaUITests` harness.
 
-For a worktree without an adjacent AdaMCP checkout, set `ADA_MCP_LOCAL_PATH` to
-the existing checkout when building or testing the editor. This does not change
-the default package location.
+The editor uses the published AdaMCP 0.2.0 package by default. To develop against
+a local checkout, set `ADA_MCP_LOCAL_PATH` to its path when building or testing
+the editor. Relative paths are resolved from the `Editor/` directory.

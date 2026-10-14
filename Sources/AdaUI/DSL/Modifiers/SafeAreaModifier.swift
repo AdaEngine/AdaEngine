@@ -79,7 +79,10 @@ private struct IgnoresSafeAreaModifier<Content: View>: ViewModifier, ViewNodeBui
         return IgnoresSafeAreaNode(
             edges: edges,
             contentNode: contentNode,
-            content: content,
+            // The modifier must not also own the child's dynamic properties.
+            // Shared environment storages would be updated before the child can
+            // detect their change and rebuild its body.
+            content: content.modifier(self),
             inputs: context
         )
     }
@@ -155,6 +158,11 @@ private final class IgnoresSafeAreaNode: ViewNode {
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         let newPoint = contentNode.convert(point, from: self)
         return contentNode.hitTest(newPoint, with: event)
+    }
+
+    override func point(inside point: Point, with event: any InputEvent) -> Bool {
+        if super.point(inside: point, with: event) { return true }
+        return contentNode.point(inside: contentNode.convert(point, from: self), with: event)
     }
 
     override func update(_ deltaTime: TimeInterval) {

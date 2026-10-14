@@ -27,24 +27,12 @@ struct EditorFoldableTests {
         #expect(try JSONDecoder().decode(DisplayLayout.self, from: JSONEncoder().encode(expanded)) == expanded)
     }
 
-    @Test func settingsRoundTripAndLegacyDefault() throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("Foldable-\(UUID())")
-        try FileManager.default.createDirectory(at: root.appendingPathComponent(".ada"), withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        var project = AdaProject(schemaVersion: 3)
-        project.editor.startupScene = "Assets/Scenes/Main.ascn"
-        try ProjectSystem.saveProject(project, at: root)
-        let model = EditorDisplayPreviewModel()
-        model.load(projectRoot: root)
-        #expect(model.settings.mode == .standard)
-        model.select(mode: .foldable)
-        model.toggleExpanded()
-        #expect(model.errorMessage == nil)
-        let reopened = EditorDisplayPreviewModel()
-        reopened.load(projectRoot: root)
-        #expect(reopened.settings == model.settings)
-        #expect(try ProjectSystem.loadProject(at: root).editor.startupScene == project.editor.startupScene)
-        #expect(try JSONDecoder().decode(AdaProjectEditor.self, from: Data("{}".utf8)).displayPreview == nil)
+    @Test func retiredPreviewSettingsDoNotPreventOpeningProjects() throws {
+        let legacy = Data(#"{"displayPreview":{"mode":"foldable","expanded":true},"startupScene":"Assets/Scenes/Main.ascn"}"#.utf8)
+        let settings = try JSONDecoder().decode(AdaProjectEditor.self, from: legacy)
+        #expect(settings.startupScene == "Assets/Scenes/Main.ascn")
+        let encoded = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(settings)) as? [String: Any])
+        #expect(encoded["displayPreview"] == nil)
     }
 
     @Test func realDemoBindingsMoveGateAndPreserveWorld() async throws {
