@@ -177,4 +177,37 @@ struct VoxelMesherTests {
         #expect(grid[0, 0, 0] == 0)
         #expect(grid[5, 5, 5] == 0)
     }
+
+    @Test
+    func regionMeshingUsesOutsideVoxelsAsNeighbours() throws {
+        let row = grid(4, 1, 1, solid: (0..<4).map { ($0, 0, 0, UInt8(1)) })
+        let descriptor = try #require(
+            VoxelMesher.makeDescriptor(
+                grid: row,
+                palette: palette,
+                options: VoxelMeshingOptions(voxelSize: 1, strategy: .greedy, bakesAmbientOcclusion: false),
+                region: VoxelMeshingRegion(origin: SIMD3(1, 0, 0), size: SIMD3(2, 1, 1))
+            )
+        )
+
+        // Voxels 1 and 2 are meshed; their X faces touch voxels 0 and 3 and are hidden: top, bottom, front, back.
+        #expect(quadCount(descriptor) == 4)
+        let xs = descriptor.positions.elements.map(\.x)
+        // Positions are relative to the region's minimum corner.
+        #expect(xs.min() == 0)
+        #expect(xs.max() == 2)
+    }
+
+    @Test
+    func regionWithoutExposedFacesProducesNoMesh() {
+        let solid = grid(3, 3, 3, solid: (0..<3).flatMap { z in (0..<3).flatMap { y in (0..<3).map { x in (x, y, z, UInt8(1)) } } })
+        let inner = VoxelMesher.makeDescriptor(
+            grid: solid,
+            palette: palette,
+            options: VoxelMeshingOptions(voxelSize: 1, strategy: .greedy, bakesAmbientOcclusion: false),
+            region: VoxelMeshingRegion(origin: SIMD3(1, 1, 1), size: SIMD3(1, 1, 1))
+        )
+
+        #expect(inner == nil)
+    }
 }

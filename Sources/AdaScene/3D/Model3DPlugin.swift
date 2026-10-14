@@ -42,6 +42,9 @@ public struct Model3DPlugin: Plugin {
         VoxelTransformAnimation3DComponent.registerComponent()
         VoxelShapeAnimation3DComponent.registerComponent()
         app.addSystem(VoxelAnimation3DSystem.self, on: .postUpdate)
+        VoxelWorld3DComponent.registerComponent()
+        VoxelChunk3DComponent.registerComponent()
+        app.addSystem(VoxelWorldMeshing3DSystem.self, on: .preUpdate)
 
         app.addSystem(BillboardSystem.self, on: .update)
 

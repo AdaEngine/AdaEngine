@@ -143,5 +143,63 @@ struct VoxelRenderingSmokeTests {
         // The arm moved, so the two renders differ.
         #expect(frames[0].data != frames[1].data)
     }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_VOXEL_METAL_SMOKE"] == "1"))
+    func rendersDynamicWorldBeforeAndAfterEdit() async throws {
+        let scene = try await Self.makeScene()
+        let palette = VOXPalette(
+            colors: [
+                VOXColor(red: 90, green: 170, blue: 70),
+                VOXColor(red: 140, green: 100, blue: 60),
+                VOXColor(red: 130, green: 130, blue: 140),
+                VOXColor(red: 235, green: 235, blue: 240)
+            ] + [VOXColor](repeating: VOXColor(red: 0, green: 0, blue: 0), count: 252)
+        )
+        let component = VoxelWorld3DComponent(palette: palette, voxelSize: 0.05, meshingBudget: 32)
+        let owner = scene.app.main.spawn("World") {
+            component
+            Transform(position: [-2.4, 0, 0])
+        }
+        _ = owner
+
+        // Rolling hills over 96 x 96 voxels: grass on top, soil below, stone deep down, snow on peaks.
+        for x in 0..<96 {
+            for z in 0..<96 {
+                let ridge: Double = Foundation.sin(Double(x) / 11)
+                let hollow: Double = Foundation.cos(Double(z) / 9)
+                let wave: Double = 8 * ridge + 6 * hollow
+                let height: Int = 20 + Int(wave)
+                for y in 0..<height {
+                    var color: UInt8 = 3
+                    if y == height - 1 {
+                        color = height > 30 ? 4 : 1
+                    } else if y > height - 5 {
+                        color = 2
+                    }
+                    component.storage.setVoxel(x: x, y: y, z: z, color: color)
+                }
+            }
+        }
+
+        let before = try await scene.render(frames: 12)
+        try before.writePNG(to: URL(fileURLWithPath: "\(Self.outputDirectory)/adaengine-voxel-world-before.png"))
+        #expect(!component.storage.hasDirtyChunks)
+
+        // Carve a crater: clear every voxel within 14 voxels of a point on the surface.
+        for x in 30..<66 {
+            for y in 5..<50 {
+                for z in 30..<66 {
+                    let dx = x - 48, dy = y - 28, dz = z - 48
+                    if dx * dx + dy * dy + dz * dz <= 14 * 14 {
+                        component.storage.setVoxel(x: x, y: y, z: z, color: 0)
+                    }
+                }
+            }
+        }
+        let after = try await scene.render(frames: 12)
+        try after.writePNG(to: URL(fileURLWithPath: "\(Self.outputDirectory)/adaengine-voxel-world-after.png"))
+        #expect(before.data != after.data)
+        #expect(Self.nonBackgroundPixels(in: before) > 3000)
+    }
 }
 #endif

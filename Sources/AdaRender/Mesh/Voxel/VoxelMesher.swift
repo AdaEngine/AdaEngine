@@ -29,6 +29,18 @@ public struct VoxelMeshingOptions: Sendable {
     }
 }
 
+/// A sub-box of a ``VoxelGrid`` to mesh. Voxels outside the box still count as neighbours for face culling and
+/// ambient occlusion, so chunks can be meshed from a grid padded with a border of adjacent voxels.
+public struct VoxelMeshingRegion: Sendable, Equatable {
+    public var origin: SIMD3<Int>
+    public var size: SIMD3<Int>
+
+    public init(origin: SIMD3<Int>, size: SIMD3<Int>) {
+        self.origin = origin
+        self.size = size
+    }
+}
+
 /// Converts voxel grids to triangle meshes on the CPU.
 ///
 /// The mesh stays in grid space (the minimum corner of voxel `(0, 0, 0)` is the origin) scaled by
@@ -39,14 +51,19 @@ public enum VoxelMesher {
     static let ambientOcclusionBrightness: [Float] = [0.55, 0.7, 0.85, 1.0]
 
     /// Builds a mesh descriptor, or `nil` when the grid has no exposed faces.
+    ///
+    /// When `region` is given only voxels inside it produce faces, and positions are relative to the region's
+    /// minimum corner.
     public static func makeDescriptor(
         grid: VoxelGrid,
         palette: VOXPalette,
         options: VoxelMeshingOptions = VoxelMeshingOptions(),
+        region: VoxelMeshingRegion? = nil,
         name: String = "VoxelMesh"
     ) -> MeshDescriptor? {
         var builder = MeshBuilder(options: options, palette: palette)
-        let dimensions = [grid.sizeX, grid.sizeY, grid.sizeZ]
+        let region = region ?? VoxelMeshingRegion(origin: .zero, size: SIMD3(grid.sizeX, grid.sizeY, grid.sizeZ))
+        let dimensions = [region.size.x, region.size.y, region.size.z]
 
         for axis in 0..<3 {
             for isPositive in [true, false] {
@@ -63,6 +80,7 @@ public enum VoxelMesher {
                     fillMask(
                         &mask,
                         grid: grid,
+                        origin: region.origin,
                         axis: axis,
                         isPositive: isPositive,
                         layer: layer,
@@ -92,6 +110,7 @@ public enum VoxelMesher {
     private static func fillMask(
         _ mask: inout [UInt32],
         grid: VoxelGrid,
+        origin: SIMD3<Int>,
         axis: Int,
         isPositive: Bool,
         layer: Int,
@@ -105,10 +124,10 @@ public enum VoxelMesher {
 
         for j in 0..<height {
             for i in 0..<width {
-                var position = SIMD3<Int>(repeating: 0)
-                position[axis] = layer
-                position[uAxis] = i
-                position[vAxis] = j
+                var position = origin
+                position[axis] += layer
+                position[uAxis] += i
+                position[vAxis] += j
 
                 let color = grid[position.x, position.y, position.z]
                 var neighbor = position
