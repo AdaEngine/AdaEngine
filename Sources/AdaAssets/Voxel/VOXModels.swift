@@ -174,6 +174,12 @@ public struct VOXTransformFrame: Hashable, Sendable {
     public var translation: SIMD3<Int>
     /// Animation frame index (`_f`), `nil` when the frame is not keyed.
     public var frameIndex: Int?
+
+    public init(rotation: VOXRotation = .identity, translation: SIMD3<Int> = .zero, frameIndex: Int? = nil) {
+        self.rotation = rotation
+        self.translation = translation
+        self.frameIndex = frameIndex
+    }
 }
 
 /// A transform node (`nTRN`) with at least one frame.
@@ -185,6 +191,22 @@ public struct VOXTransformNode: Hashable, Sendable {
     public var layerID: Int
     public var frames: [VOXTransformFrame]
 
+    public init(
+        id: Int,
+        name: String? = nil,
+        isHidden: Bool = false,
+        childID: Int,
+        layerID: Int = -1,
+        frames: [VOXTransformFrame] = [VOXTransformFrame()]
+    ) {
+        self.id = id
+        self.name = name
+        self.isHidden = isHidden
+        self.childID = childID
+        self.layerID = layerID
+        self.frames = frames
+    }
+
     /// `true` when the node has more than one keyframe.
     public var isAnimated: Bool { frames.count > 1 }
 }
@@ -193,6 +215,11 @@ public struct VOXTransformNode: Hashable, Sendable {
 public struct VOXGroupNode: Hashable, Sendable {
     public var id: Int
     public var childIDs: [Int]
+
+    public init(id: Int, childIDs: [Int]) {
+        self.id = id
+        self.childIDs = childIDs
+    }
 }
 
 /// A shape node (`nSHP`) referencing models by index into `VOXFile.models`.
@@ -201,10 +228,20 @@ public struct VOXShapeNode: Hashable, Sendable {
         public var modelIndex: Int
         /// Animation frame index (`_f`), `nil` when the reference is not keyed.
         public var frameIndex: Int?
+
+        public init(modelIndex: Int, frameIndex: Int? = nil) {
+            self.modelIndex = modelIndex
+            self.frameIndex = frameIndex
+        }
     }
 
     public var id: Int
     public var models: [ModelReference]
+
+    public init(id: Int, models: [ModelReference]) {
+        self.id = id
+        self.models = models
+    }
 
     /// `true` when the node switches between several models over time.
     public var isAnimated: Bool { models.count > 1 }
@@ -236,6 +273,24 @@ public struct VOXFile: Sendable {
     public var layers: [VOXLayer]
     /// Scene graph nodes by id. Empty for files older than version 150.
     public var nodes: [Int: VOXNode]
+
+    public init(
+        version: Int = 150,
+        models: [VOXModel],
+        palette: VOXPalette = .fallback,
+        hasCustomPalette: Bool = false,
+        materials: [VOXMaterial] = [],
+        layers: [VOXLayer] = [],
+        nodes: [Int: VOXNode] = [:]
+    ) {
+        self.version = version
+        self.models = models
+        self.palette = palette
+        self.hasCustomPalette = hasCustomPalette
+        self.materials = materials
+        self.layers = layers
+        self.nodes = nodes
+    }
 
     /// The root of the scene graph, the transform node with id `0` when present.
     public var rootNode: VOXNode? { nodes[0] }

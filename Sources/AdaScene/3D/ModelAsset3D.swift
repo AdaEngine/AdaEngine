@@ -67,6 +67,19 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
     }
 
     public init(from assetDecoder: any AssetDecoder) async throws {
+        if assetDecoder.assetMeta.filePath.pathExtension.lowercased() == "vox" {
+            let contents = try await Self.loadVoxelContents(url: assetDecoder.assetMeta.filePath)
+            self.nodes = contents.nodes
+            self.meshes = contents.meshes
+            self.materials = contents.materials
+            self.scenes = contents.scenes
+            self.defaultScene = 0
+            self.skins = []
+            self.animationRig = nil
+            self.animationClips = []
+            return
+        }
+
         if assetDecoder.assetMeta.filePath.pathExtension.lowercased() == "obj" {
             let loader = OBJLoaderResolver.shared.getLoader()
             let result = try await loader.load(url: assetDecoder.assetMeta.filePath)
@@ -258,7 +271,7 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
     }
 
     public static func extensions() -> [String] {
-        ["gltf", "glb", "obj"]
+        ["gltf", "glb", "obj", "vox"]
     }
 }
 

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-14
-- Implementation: Partial (`.vox` parser and CPU mesher; not released)
+- Implementation: Partial (`.vox` parser, CPU mesher and model-asset import; not released)
 
 ## Context
 
@@ -90,7 +90,7 @@ deferred until the corresponding backend capabilities are verified.
 
 1. ADR and `.vox` parser with tests (done).
 2. Mesher: culled faces, then greedy, with baked AO (done).
-3. Scene import and editor integration.
+3. Scene import (done: `.vox` loads as `ModelAsset3D`, hybrid `mergeStatic`); editor integration pending.
 4. Animation.
 5. Chunked dynamic world.
 6. Physics.
