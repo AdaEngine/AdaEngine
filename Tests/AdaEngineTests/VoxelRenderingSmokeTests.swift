@@ -121,5 +121,27 @@ struct VoxelRenderingSmokeTests {
         try image.writePNG(to: URL(fileURLWithPath: "\(Self.outputDirectory)/adaengine-voxel-robot.png"))
         #expect(Self.nonBackgroundPixels(in: image) > 600)
     }
+
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_VOXEL_METAL_SMOKE"] == "1"))
+    func rendersRobotAnimationFrames() async throws {
+        let scene = try await Self.makeScene()
+        let file = try await VOXLoader().load(url: Self.fixtureURL("robot"))
+        let model = ModelAsset3D(voxelFile: file, options: VoxelImportOptions(mergeStatic: true))
+        let root = model.instantiate(in: scene.app.main)
+        root.components[Transform.self] = Transform(position: [0, 0.1, 0])
+
+        var frames: [Image] = []
+        for (name, frame) in [("start", 0.0), ("end", 10.0)] {
+            var playback = try #require(root.components[VoxelAnimationPlayback3DComponent.self])
+            playback.isPlaying = false
+            playback.time = frame / playback.framesPerSecond
+            root.components[VoxelAnimationPlayback3DComponent.self] = playback
+            let image = try await scene.render(frames: 3)
+            try image.writePNG(to: URL(fileURLWithPath: "\(Self.outputDirectory)/adaengine-voxel-robot-\(name).png"))
+            frames.append(image)
+        }
+        // The arm moved, so the two renders differ.
+        #expect(frames[0].data != frames[1].data)
+    }
 }
 #endif

@@ -72,6 +72,11 @@ public struct Model3DSource: Codable, Equatable, Sendable {
             if lod?.animationLOD == true { animationComponent.evaluationLOD = AnimationLOD3DSettings() }
             root.components[ModelAnimation3DComponent.self] = animationComponent
         }
+        if var voxelPlayback = root.components[VoxelAnimationPlayback3DComponent.self] {
+            voxelPlayback.isPlaying = autoplay
+            voxelPlayback.repeats = repeats
+            root.components[VoxelAnimationPlayback3DComponent.self] = voxelPlayback
+        }
         owner.addChild(root)
         if let lod {
             var pending = root.children

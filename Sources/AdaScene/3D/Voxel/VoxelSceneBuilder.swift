@@ -21,6 +21,15 @@ struct VoxelSceneBuilder {
         var transform: Transform3D
         var meshIndex: Int?
         var children: [Int]
+        var animation: VoxelNodeAnimation?
+
+        init(name: String?, transform: Transform3D, meshIndex: Int?, children: [Int], animation: VoxelNodeAnimation? = nil) {
+            self.name = name
+            self.transform = transform
+            self.meshIndex = meshIndex
+            self.children = children
+            self.animation = animation
+        }
     }
 
     struct Result {
@@ -186,7 +195,13 @@ struct VoxelSceneBuilder {
                 1
             )
             let child = emit(transform.childID, allowsMerging: allowsMerging)
-            nodes[index] = Node(name: transform.name, transform: matrix, meshIndex: nil, children: child.map { [$0] } ?? [])
+            nodes[index] = Node(
+                name: transform.name,
+                transform: matrix,
+                meshIndex: nil,
+                children: child.map { [$0] } ?? [],
+                animation: transform.isAnimated ? transformAnimation(for: transform) : nil
+            )
             return index
         case .group(let group):
             let index = reserveNode()
@@ -194,7 +209,7 @@ struct VoxelSceneBuilder {
             nodes[index] = Node(name: nil, transform: .identity, meshIndex: nil, children: children)
             return index
         case .shape(let shape):
-            return shape.models.first.flatMap { emitShape(modelIndex: $0.modelIndex) }
+            return shape.models.first.flatMap { emitShape(modelIndex: $0.modelIndex, shape: shape) }
         }
     }
 
@@ -206,7 +221,7 @@ struct VoxelSceneBuilder {
         return index
     }
 
-    private mutating func emitShape(modelIndex: Int) -> Int? {
+    private mutating func emitShape(modelIndex: Int, shape: VOXShapeNode? = nil) -> Int? {
         guard file.models.indices.contains(modelIndex), let mesh = meshIndex(forModel: modelIndex) else {
             return nil
         }
@@ -217,9 +232,46 @@ struct VoxelSceneBuilder {
             name: nil,
             transform: Transform3D(translation: Vector3(Float(-pivot.x), Float(-pivot.y), Float(-pivot.z)) * options.voxelSize),
             meshIndex: mesh,
-            children: []
+            children: [],
+            animation: shape?.isAnimated == true ? shapeAnimation(for: shape) : nil
         )
         return index
+    }
+
+    /// Keys for an `nTRN` with several frames, in engine space.
+    private func transformAnimation(for transform: VOXTransformNode) -> VoxelNodeAnimation {
+        let keys = transform.frames.enumerated().map { index, frame in
+            var matrix = VoxelTransform(frame: frame).matrix
+            matrix.w = Vector4(
+                Float(frame.translation.x) * options.voxelSize,
+                Float(frame.translation.y) * options.voxelSize,
+                Float(frame.translation.z) * options.voxelSize,
+                1
+            )
+            return VoxelNodeAnimation.TransformKey(
+                frame: frame.frameIndex ?? index,
+                transform: Transform(matrix: Self.axisSwap * matrix * Self.axisSwap)
+            )
+        }
+        return VoxelNodeAnimation(transformKeys: keys)
+    }
+
+    /// Keys for an `nSHP` that switches between models. Every model brings its own pivot offset.
+    private mutating func shapeAnimation(for shape: VOXShapeNode?) -> VoxelNodeAnimation? {
+        guard let shape else {
+            return nil
+        }
+        var keys: [VoxelNodeAnimation.ShapeKey] = []
+        for (index, reference) in shape.models.enumerated() {
+            guard file.models.indices.contains(reference.modelIndex), let mesh = meshIndex(forModel: reference.modelIndex) else {
+                continue
+            }
+            let pivot = Self.pivot(of: file.models[reference.modelIndex])
+            // Offsets are expressed in engine space, so Y and Z swap.
+            let offset = Vector3(Float(-pivot.x), Float(-pivot.z), Float(-pivot.y)) * options.voxelSize
+            keys.append(.init(frame: reference.frameIndex ?? index, meshIndex: mesh, offset: offset))
+        }
+        return keys.isEmpty ? nil : VoxelNodeAnimation(shapeKeys: keys)
     }
 
     private mutating func meshIndex(forModel modelIndex: Int) -> Int? {

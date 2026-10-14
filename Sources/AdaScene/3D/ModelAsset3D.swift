@@ -24,8 +24,19 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
         public let children: [Int]
         public let skinIndex: Int?
         public let restPose: GLTFImportResult.NodeTRS?
+        /// Keyed transform and mesh animation of imported voxel scenes.
+        public let voxelAnimation: VoxelNodeAnimation?
 
-        public init(name: String?, transform: Transform3D, meshIndex: Int?, children: [Int], skinIndex: Int? = nil, restPose: GLTFImportResult.NodeTRS? = nil) {
+        public init(
+            name: String?,
+            transform: Transform3D,
+            meshIndex: Int?,
+            children: [Int],
+            skinIndex: Int? = nil,
+            restPose: GLTFImportResult.NodeTRS? = nil,
+            voxelAnimation: VoxelNodeAnimation? = nil
+        ) {
+            self.voxelAnimation = voxelAnimation
             self.name = name
             self.transform = transform
             self.meshIndex = meshIndex
@@ -45,6 +56,9 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
     public let animationClips: [SkeletalAnimationClip]
 
     public var assetMetaInfo: AssetMetaInfo?
+
+    /// Timeline of an imported voxel scene; `nil` when nothing in the scene is animated.
+    public internal(set) var voxelTimeline: VoxelTimeline?
 
     public init(
         nodes: [Node],
@@ -77,6 +91,7 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
             self.skins = []
             self.animationRig = nil
             self.animationClips = []
+            self.voxelTimeline = contents.timeline
             return
         }
 
@@ -214,6 +229,12 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
     public func instantiate(in world: World) -> Entity {
         let rootEntity = world.spawn(assetName)
         rootEntity.components[Transform.self] = Transform()
+        if let voxelTimeline {
+            rootEntity.components[VoxelAnimationPlayback3DComponent.self] = VoxelAnimationPlayback3DComponent(
+                framesPerSecond: voxelTimeline.framesPerSecond,
+                frameCount: voxelTimeline.frameCount
+            )
+        }
         if let animationRig {
             do {
                 let player = try SkeletalAnimationPlayer(rig: animationRig, clips: animationClips)
@@ -246,6 +267,26 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
         }
         if animationRig != nil {
             entity.components[ModelNode3DComponent.self] = ModelNode3DComponent(modelRoot: modelRoot.id, nodeIndex: nodeIndex)
+        }
+
+        if let animation = node.voxelAnimation {
+            if !animation.transformKeys.isEmpty {
+                entity.components[VoxelTransformAnimation3DComponent.self] = VoxelTransformAnimation3DComponent(
+                    modelRoot: modelRoot.id,
+                    animation: animation
+                )
+            }
+            if !animation.shapeKeys.isEmpty {
+                var shapeMeshes: [Int: Mesh] = [:]
+                for key in animation.shapeKeys where meshes.indices.contains(key.meshIndex) {
+                    shapeMeshes[key.meshIndex] = meshes[key.meshIndex]
+                }
+                entity.components[VoxelShapeAnimation3DComponent.self] = VoxelShapeAnimation3DComponent(
+                    modelRoot: modelRoot.id,
+                    animation: animation,
+                    meshes: shapeMeshes
+                )
+            }
         }
 
         if let meshIndex = node.meshIndex {
