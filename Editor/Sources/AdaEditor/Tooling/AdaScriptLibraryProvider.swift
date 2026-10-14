@@ -1,5 +1,8 @@
 import AdaScriptCompilerCore
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 struct AdaScriptLibraryDownload: Sendable {
     var manifest: AdaScriptLibraryManifest

@@ -117,11 +117,11 @@ public enum AdaScriptSceneSchemaResolver {
     private static func mismatch(_ value: Any, expected: AdaScriptSchemaField.Value) -> String? {
         func isNumber(_ value: Any) -> Bool {
             guard let number = value as? NSNumber else { return false }
-            return CFGetTypeID(number) != CFBooleanGetTypeID() && number.doubleValue.isFinite
+            return type(of: number) != type(of: NSNumber(value: true)) && number.doubleValue.isFinite
         }
         switch expected {
         case .bool:
-            return (value as? NSNumber).map { CFGetTypeID($0) == CFBooleanGetTypeID() } == true ? nil : "is not a Bool"
+            return (value as? NSNumber).map { type(of: $0) == type(of: NSNumber(value: true)) } == true ? nil : "is not a Bool"
         case .int, .entity:
             guard isNumber(value), let number = value as? NSNumber, number.doubleValue == number.doubleValue.rounded() else {
                 return "is not an integer"

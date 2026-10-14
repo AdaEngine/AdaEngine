@@ -1,6 +1,7 @@
 #if canImport(WebGPU) && !WASM && !os(Android)
     import AdaUtils
     import Foundation
+    import Logging
     import Subprocess
     import WebGPU
     #if canImport(System)
@@ -24,9 +25,9 @@
 
             defer { try? FileManager.default.removeItem(at: tempFileURL) }
             let process = try await run(
-                .path(FilePath(toolExecutable.path())),
+                .path(FilePath(toolExecutable.path)),
                 arguments: [
-                    tempFileURL.path(),
+                    tempFileURL.path,
                     "--format",
                     "wgsl",
                     "--allow-non-uniform-derivatives",
@@ -35,12 +36,11 @@
                 output: .string(limit: .max),
                 error: .string(limit: 1024)
             )
-            if let error = process.standardError, !error.isEmpty {
-                throw ShaderCompilerError.failed(error)
-            }
-
             guard process.terminationStatus.isSuccess else {
-                throw ShaderCompilerError.failed("Tint terminated with status \(process.terminationStatus)")
+                throw ShaderCompilerError.failed(process.standardError ?? "Tint terminated with status \(process.terminationStatus)")
+            }
+            if let warnings = process.standardError, !warnings.isEmpty {
+                Logger(label: "org.adaengine.wgsl").warning("Tint: \(warnings)")
             }
 
             guard let source = process.standardOutput else {

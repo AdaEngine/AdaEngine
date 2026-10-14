@@ -1,3 +1,4 @@
+#if canImport(Network)
 import Foundation
 import Network
 
@@ -71,3 +72,4 @@ public final class PlayerConnection {
         return result
     }
 }
+#endif

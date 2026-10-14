@@ -15,6 +15,13 @@ and assess gaps before proposing new features.
   archive/upload validation does not establish visionOS interaction parity.
 - Shared editor UI uses AdaUI. Native app wrappers and mobile-specific screens
   have separate platform boundaries; do not assume desktop/mobile feature parity.
+- Windows Studio is built/launched with [../script/run_studio_windows.ps1](../script/run_studio_windows.ps1).
+  It prepares pinned Tint and a task-local Gravity binding with C-owned UTF-8
+  strings, selecting it through `ADAENGINE_GRAVITY_PACKAGE_PATH`. Manual Windows
+  builds/tests must use that override too. Native project/asset file pickers,
+  RGB color selection (inspector alpha), HTTPS downloads, local Run and D3D12
+  readback are implemented; Apple Cloud sign-in/purchases and AdaPlayer pairing
+  remain unavailable. See [README.md](README.md#Windows).
 - [Package.swift](Package.swift) owns package dependencies and resources;
   [project.yml](project.yml) owns XcodeGen app configuration.
 - Keep mocks, fixtures, and QA harnesses in test targets or separate executables.

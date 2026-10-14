@@ -11,8 +11,14 @@ struct TintToolchainTests {
         func executable(_ path: String) throws -> URL {
             let url = root.appendingPathComponent(path)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try Data("fixture".utf8).write(to: url)
-            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            #if os(Windows)
+                // Windows checks executable contents, rather than Unix permission bits.
+                let hostTool = try #require(TintToolchain.executable())
+                try FileManager.default.copyItem(at: hostTool, to: url)
+            #else
+                try Data("fixture".utf8).write(to: url)
+                try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            #endif
             return url
         }
         let project = try executable(".build-tools/tint/bin/\(TintToolchain.platform)/\(name)")

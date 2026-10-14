@@ -110,7 +110,17 @@ extension EditorViewModel {
     }
 
     static func absoluteFilePath(from path: String) -> String? {
-        path.hasPrefix("/") ? path : nil
+        if path.hasPrefix("/") { return path }
+        #if os(Windows)
+            if path.hasPrefix("\\\\") { return path }
+            let prefix = Array(path.utf8.prefix(3))
+            guard prefix.count == 3, prefix[1] == 58,
+                prefix[2] == 47 || prefix[2] == 92,
+                (65...90).contains(prefix[0]) || (97...122).contains(prefix[0]) else { return nil }
+            return path
+        #else
+            return nil
+        #endif
     }
 
     static func buildProjectTreeItems(at projectURL: URL, fileManager: FileManager) -> [EditorProjectSidebarViewModel.Item] {
@@ -456,6 +466,7 @@ extension EditorRunDestination {
     var adaProjectDestination: AdaProjectRunDestination {
         switch self {
         case .macOS: .macOS
+        case .windows: .windows
         case .visionOS: .visionOS
         case .iPadOS,
             .player:

@@ -254,6 +254,8 @@ final class EditorViewModel {
             self.selectedRunDestination = selectedRunDestination ?? .visionOS
         #elseif os(iOS)
             self.selectedRunDestination = selectedRunDestination ?? .iPadOS
+        #elseif os(Windows)
+            self.selectedRunDestination = selectedRunDestination ?? .windows
         #else
             self.selectedRunDestination = selectedRunDestination ?? Self.editorRunDestination(from: savedProject?.run.destination ?? .macOS)
         #endif

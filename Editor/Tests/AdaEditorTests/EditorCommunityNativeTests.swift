@@ -5,6 +5,9 @@
 @_spi(AdaEngine) import AdaEngine
 import AdaScriptCompilerCore
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Testing
 
 @Suite("Community native player", .serialized)

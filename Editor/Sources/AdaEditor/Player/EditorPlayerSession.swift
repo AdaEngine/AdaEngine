@@ -1,3 +1,4 @@
+#if canImport(Network)
 import AdaEngine
 import AdaPlayerConnect
 import Foundation
@@ -237,3 +238,4 @@ struct EditorPlayerPairingView: View {
         .accessibilityIdentifier("AdaPlayer.Editor.Actions")
     }
 }
+#endif

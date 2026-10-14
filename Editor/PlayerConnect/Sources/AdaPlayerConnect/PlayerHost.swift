@@ -1,3 +1,4 @@
+#if canImport(Network)
 import Foundation
 import Network
 import Observation
@@ -118,3 +119,4 @@ public final class PlayerHost {
         }
     }
 }
+#endif

@@ -128,4 +128,60 @@
             return current
         }
     }
+#elseif os(Windows)
+    @_spi(Internal) import AdaPlatform
+    import WinSDK
+
+    @MainActor
+    final class EditorPlatformColorPicker {
+        static let shared = EditorPlatformColorPicker()
+
+        private var customColors = [COLORREF](repeating: 0xFFFFFF, count: 16)
+        private var isPresented = false
+
+        static func present(
+            value: EditorInspectorColorValue,
+            supportsAlpha: Bool = true,
+            onChange: @escaping (EditorInspectorColorValue) -> Void
+        ) {
+            guard !shared.isPresented else { return }
+            shared.isPresented = true
+            let initialColor = colorReference(value)
+            let initialCustomColors = shared.customColors
+            Task {
+                defer { shared.isPresented = false }
+                let (selection, customColors) = await WindowsNativeDialogs.present { owner in
+                    var customColors = initialCustomColors
+                    var picker = CHOOSECOLORW()
+                    picker.lStructSize = DWORD(MemoryLayout<CHOOSECOLORW>.size)
+                    picker.hwndOwner = owner
+                    picker.rgbResult = initialColor
+                    picker.Flags = DWORD(CC_RGBINIT | CC_FULLOPEN)
+                    let accepted = customColors.withUnsafeMutableBufferPointer { colors in
+                        picker.lpCustColors = colors.baseAddress
+                        return ChooseColorW(&picker)
+                    }
+                    return (accepted ? picker.rgbResult : nil, customColors)
+                }
+                shared.customColors = customColors
+                if let selection { onChange(colorValue(selection, alpha: supportsAlpha ? value.alpha : 1)) }
+            }
+        }
+
+        static func colorReference(_ value: EditorInspectorColorValue) -> COLORREF {
+            let red = UInt32((value.red * 255).rounded())
+            let green = UInt32((value.green * 255).rounded())
+            let blue = UInt32((value.blue * 255).rounded())
+            return red | (green << 8) | (blue << 16)
+        }
+
+        static func colorValue(_ value: COLORREF, alpha: Float) -> EditorInspectorColorValue {
+            EditorInspectorColorValue(
+                red: Float(value & 0xFF) / 255,
+                green: Float((value >> 8) & 0xFF) / 255,
+                blue: Float((value >> 16) & 0xFF) / 255,
+                alpha: alpha
+            )
+        }
+    }
 #endif

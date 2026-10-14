@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 struct EditorExampleCatalog: Decodable, Sendable {
     struct Item: Decodable, Identifiable, Equatable, Sendable {
@@ -111,18 +114,27 @@ actor EditorExampleService {
     private func localFiles(_ item: EditorExampleCatalog.Item, root: URL, manager: FileManager) throws -> [(String, Data, Bool)] {
         let source = root.resolvingSymlinksInPath().appendingPathComponent(item.path).standardizedFileURL
         guard source.resolvingSymlinksInPath().path == source.path else { throw EditorExampleError("Example directories must not be symbolic links.") }
-        guard let entries = manager.enumerator(at: source, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]) else {
-            throw EditorExampleError("The example folder is missing.")
-        }
         var files: [(String, Data, Bool)] = [], total = 0
-        for case let file as URL in entries {
-            let path = String(file.resolvingSymlinksInPath().path.dropFirst(source.path.count + 1))
-            if Self.excluded(path) { entries.skipDescendants(); continue }
-            let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
-            guard values.isSymbolicLink != true else { throw EditorExampleError("Example files must not be symbolic links.") }
-            guard values.isRegularFile == true else { continue }
-            try Self.checkSize(values.fileSize ?? 0, total: &total, count: files.count)
-            files.append((path, try Data(contentsOf: file), manager.isExecutableFile(atPath: file.path)))
+        // Explicit traversal avoids Foundation's Windows skipDescendants dropping
+        // later sibling directories, including the required .ada metadata.
+        var pending: [(URL, String)] = [(source, "")]
+        var directories = 0
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey]
+        while let (directory, prefix) = pending.popLast() {
+            directories += 1
+            guard directories <= 5_000 else { throw EditorExampleError("The example exceeds the download limit.") }
+            for file in try manager.contentsOfDirectory(at: directory, includingPropertiesForKeys: Array(keys)) {
+                let path = prefix + file.lastPathComponent
+                if Self.excluded(path) { continue }
+                let values = try file.resourceValues(forKeys: keys)
+                guard values.isSymbolicLink != true else { throw EditorExampleError("Example files must not be symbolic links.") }
+                if values.isDirectory == true {
+                    pending.append((file, path + "/"))
+                } else if values.isRegularFile == true {
+                    try Self.checkSize(values.fileSize ?? 0, total: &total, count: files.count)
+                    files.append((path, try Data(contentsOf: file), manager.isExecutableFile(atPath: file.path)))
+                }
+            }
         }
         return files
     }
@@ -178,14 +190,22 @@ actor EditorExampleService {
     }
 
     static func fetchHTTPS(_ url: URL, limit: Int) async throws -> Data {
+        #if canImport(FoundationNetworking)
+        let (data, response) = try await EditorBoundedHTTPTransfer.load(
+            URLRequest(url: url, timeoutInterval: 120), configuration: URLSession.shared.configuration, maximumBytes: limit
+        )
+        #else
         let (bytes, response) = try await URLSession.shared.bytes(for: URLRequest(url: url, timeoutInterval: 120))
+        #endif
         guard let http = response as? HTTPURLResponse, http.statusCode == 200, http.url?.scheme == "https",
               http.expectedContentLength <= limit else { throw EditorExampleError("Examples are unavailable. Check your connection and try again.") }
+        #if !canImport(FoundationNetworking)
         var data = Data()
         for try await byte in bytes {
             guard data.count < limit else { throw EditorExampleError("Example download exceeds the size limit.") }
             data.append(byte)
         }
+        #endif
         guard http.expectedContentLength < 0 || data.count == http.expectedContentLength else { throw EditorExampleError("Incomplete example download.") }
         return data
     }

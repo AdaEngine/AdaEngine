@@ -23,6 +23,13 @@ public protocol SystemWindow {
 
     /// Window position on screen.
     var position: Point { get set }
+
+    /// Screen position of the content coordinate origin, in logical units.
+    var contentPosition: Point { get }
+}
+
+extension SystemWindow {
+    public var contentPosition: Point { position }
 }
 
 /// Base class using to manage windows in application. All created window should be registred there.

@@ -23,6 +23,9 @@
                 guard renderWindow.isActive else {
                     return nil
                 }
+                #if !WASM
+                    renderWindow.applyPendingSurfaceConfiguration()
+                #endif
                 if renderWindow.pendingDrawableSkips > 0 {
                     renderWindow.pendingDrawableSkips -= 1
                     return nil
@@ -42,6 +45,7 @@
                     guard textureStatus == .successOptimal || textureStatus == .successSuboptimal else {
                         return nil
                     }
+                    renderWindow.acquiredDrawableCount += 1
                     return WGPUSwapchainDrawable(
                         renderWindow: renderWindow,
                         surfaceTexture: WebGPU.GPUSurfaceTexture(wgpuStruct: surfaceTexture)
@@ -66,6 +70,7 @@
             let renderWindow: WGPUContext.WGPURenderWindow
             let surfaceTexture: WebGPU.GPUSurfaceTexture
             var isPresented: Bool = false
+            private let frameFinished = Mutex(false)
 
             init(renderWindow: WGPUContext.WGPURenderWindow, surfaceTexture: WebGPU.GPUSurfaceTexture) {
                 self.renderWindow = renderWindow
@@ -75,6 +80,17 @@
                     textureView: surfaceTexture.texture.createView()
                 )
             }
+
+            deinit { finishFrame() }
+
+            private func finishFrame() {
+                let shouldFinish = frameFinished.withLock { finished in
+                    guard !finished else { return false }
+                    finished = true
+                    return true
+                }
+                if shouldFinish { renderWindow.finishDrawable() }
+            }
         #endif
 
         func present() throws {
@@ -82,6 +98,7 @@
             #if WASM
                 self.isPresented = true
             #else
+                defer { finishFrame() }
                 let value = renderWindow.surfaceLock.withLock { _ in
                     guard renderWindow.isActive else {
                         return WebGPU.GPUStatus.success

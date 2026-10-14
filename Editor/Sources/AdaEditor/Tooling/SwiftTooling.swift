@@ -480,6 +480,7 @@ enum SwiftPMCommandKind: Equatable, Sendable {
 enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
     case player = "AdaPlayer"
     case macOS = "macOS"
+    case windows = "Windows"
     case iPadOS = "iPadOS"
     case visionOS = "visionOS"
     case web = "Web"
@@ -487,9 +488,13 @@ enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
 
     static var availableCases: [Self] {
         #if os(macOS)
-        EditorDistribution.current.supportsSwiftProjects ? allCases : allCases.filter { $0 != .android }
+        allCases.filter { $0 != .windows && (EditorDistribution.current.supportsSwiftProjects || $0 != .android) }
+        #elseif os(Windows)
+        [.windows]
+        #elseif !canImport(Network)
+        allCases.filter { $0 != .android && $0 != .player && $0 != .windows }
         #else
-        allCases.filter { $0 != .android }
+        allCases.filter { $0 != .android && $0 != .windows }
         #endif
     }
 

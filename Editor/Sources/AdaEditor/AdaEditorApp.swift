@@ -37,10 +37,12 @@ enum AdaApplicationEntry {
                 await MobileEditorAgentSmoke.run()
             }
         #endif
+        #if canImport(Network)
         if Bundle.main.bundleIdentifier == "org.adaengine.player" || CommandLine.arguments.contains("--ada-player") {
             try await AppRuntime.run(AdaPlayerApp())
             return
         }
+        #endif
         _ = EditorProjectOpenURLRouter.shared
         #if os(iOS)
             if UIDevice.current.userInterfaceIdiom == .phone {
@@ -130,6 +132,10 @@ struct AdaEditorApp: App {
             .transformAppWorlds { worlds in
                 worlds.insertResource(ApplicationFramePacing(maximumFramesPerSecond: 120, minimumFramesPerSecond: 120))
             }
+        #elseif os(Windows)
+            .transformAppWorlds { worlds in
+                worlds.insertResource(ApplicationFramePacing(maximumFramesPerSecond: 60, minimumFramesPerSecond: 60))
+            }
         #endif
         #if canImport(AdaMCPPlugin)
             .addPlugins(
@@ -180,7 +186,8 @@ struct AdaEditorApp: App {
                                 return result
                             }
                             return await EditorAgentGravityMCPTools.shared.handle(name: name, arguments: arguments)
-                        }
+                        },
+                        enableDiscovery: EditorMCPServerAddress.enableDiscovery
                     )
                 )
             )

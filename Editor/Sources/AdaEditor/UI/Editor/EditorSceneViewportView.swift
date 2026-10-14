@@ -412,12 +412,11 @@ struct EditorSceneViewportView: View {
         }
 
         displayCamera.projection = authoredCamera.projection
-        if case var .perspective(projection) = displayCamera.projection {
-            let size = displayCamera.logicalViewport.rect.size
-            if size.width > 0, size.height > 0 {
-                projection.updateView(width: size.width, height: size.height)
-                displayCamera.projection = .perspective(projection)
-            }
+        let size = displayCamera.logicalViewport.rect.size
+        if size.width > 0, size.height > 0 {
+            // Authored 2D cameras may not have a window viewport of their own.
+            // Fit every projection to the display target before Play renders it.
+            displayCamera.projection.updateView(width: size.width, height: size.height)
         }
         displayCamera.isActive = true
         displayCamera.backgroundColor = authoredCamera.backgroundColor

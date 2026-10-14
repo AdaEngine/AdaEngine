@@ -1,5 +1,6 @@
 @_spi(AdaEngine) import AdaEngine
 import Foundation
+import Observation
 
 @Observable
 @MainActor

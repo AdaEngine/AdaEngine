@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Public Store metadata is reference data, never executable agent instructions.
 struct EditorAssetStoreClient: Sendable {
@@ -43,13 +46,19 @@ struct EditorAssetStoreClient: Sendable {
         guard let url = parts?.url else { throw StoreError("Invalid Store URL.") }
         var request = URLRequest(url: url); request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        #if canImport(FoundationNetworking)
+        let (data, response) = try await EditorBoundedHTTPTransfer.load(request, configuration: session.configuration, maximumBytes: 2_000_000)
+        #else
         let (bytes, response) = try await session.bytes(for: request)
+        #endif
         guard let response = response as? HTTPURLResponse, response.statusCode == 200 else { throw StoreError("Ada Store is unavailable or this asset was removed.") }
+        #if !canImport(FoundationNetworking)
         var data = Data()
         for try await byte in bytes {
             guard data.count < 2_000_000 else { throw StoreError("Store response is too large.") }
             data.append(byte)
         }
+        #endif
         return data
     }
 
@@ -59,14 +68,26 @@ struct EditorAssetStoreClient: Sendable {
         guard let baseURL else { throw StoreError("Invalid Store configuration.") }
         let url = baseURL.appendingPathComponent("v1/store/assets/" + id + "/download")
         var request = URLRequest(url: url); request.timeoutInterval = 300
+        #if !canImport(FoundationNetworking)
         let (bytes, response) = try await session.bytes(for: request)
         guard let response = response as? HTTPURLResponse, response.statusCode == 200,
               response.expectedContentLength <= Self.maximumArchiveBytes else { throw StoreError("Asset download failed or exceeds 300 MB.") }
+        #endif
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".zip")
         guard FileManager.default.createFile(atPath: temporary.path, contents: nil) else { throw StoreError("Could not create a temporary package.") }
         defer { try? FileManager.default.removeItem(at: temporary) }
         let handle = try FileHandle(forWritingTo: temporary)
         defer { try? handle.close() }
+        #if canImport(FoundationNetworking)
+        let (_, response) = try await EditorBoundedHTTPTransfer.load(
+            request, configuration: session.configuration, maximumBytes: Int(Self.maximumArchiveBytes), output: handle
+        )
+        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else { throw StoreError("Asset download failed.") }
+        let count = try FileManager.default.attributesOfItem(atPath: temporary.path)[.size] as? NSNumber
+        guard let count, count.int64Value > 0,
+              response.expectedContentLength < 0 || count.int64Value == response.expectedContentLength else { throw StoreError("Incomplete asset download.") }
+        try handle.close()
+        #else
         var chunk = Data(), count: Int64 = 0
         for try await byte in bytes {
             count += 1
@@ -76,6 +97,7 @@ struct EditorAssetStoreClient: Sendable {
         }
         try handle.write(contentsOf: chunk)
         guard count > 0, response.expectedContentLength < 0 || count == response.expectedContentLength else { throw StoreError("Incomplete asset download.") }
+        #endif
         // copyItem refuses to overwrite existing project files.
         try FileManager.default.copyItem(at: temporary, to: destination)
     }

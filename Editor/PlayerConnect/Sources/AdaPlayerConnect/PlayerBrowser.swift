@@ -1,3 +1,4 @@
+#if canImport(Network)
 import Foundation
 import Network
 import Observation
@@ -36,3 +37,4 @@ public final class PlayerBrowser {
 
     public func stop() { browser?.cancel(); browser = nil; devices = [] }
 }
+#endif

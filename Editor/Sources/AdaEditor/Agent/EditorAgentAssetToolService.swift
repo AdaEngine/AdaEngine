@@ -1,5 +1,4 @@
 import AdaEngine
-import CoreFoundation
 import Foundation
 import MCP
 import Yams
@@ -466,7 +465,7 @@ final class EditorAgentAssetToolService {
     private func integer(_ value: Any, in range: ClosedRange<Int>) throws -> Int {
         // NSNumber preserves the distinction between JSON booleans and numbers.
         // swiftlint:disable:next legacy_objc_type
-        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+        guard let number = value as? NSNumber, type(of: number) != type(of: NSNumber(value: true)),
             let result = Int(exactly: number.doubleValue), range.contains(result)
         else { throw Failure("Expected an integer in \(range).") }
         return result

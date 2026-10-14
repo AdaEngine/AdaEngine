@@ -25,6 +25,36 @@ swift build
 swift test
 ```
 
+### Windows
+
+Use Swift 6.3 or newer for the Swan/WebGPU dependency, Visual Studio C++ Build
+Tools, Python 3, CMake and Ninja. From the engine root, run:
+
+```powershell
+./script/run_studio_windows.ps1
+```
+
+The launcher verifies/builds the pinned Tint shader compiler and prepares a
+pinned Gravity binding with native string allocation and UTF-8 lengths under
+`.build-tools/gravity-windows`; it never edits shared SwiftPM checkouts. It sets
+`ADAENGINE_GRAVITY_PACKAGE_PATH`, builds Studio and opens its window.
+Use the same dependency override for manual Windows builds/tests:
+
+```powershell
+$env:ADAENGINE_GRAVITY_PACKAGE_PATH = python ./script/ensure_windows_gravity.py
+swift build --package-path Editor --product AdaEditorPackageTests
+swift test --package-path Editor --skip-build --filter EditorWindowsCompatibilityTests
+```
+
+`-ScratchPath D:/Temp/ada-studio-build` selects an isolated
+SwiftPM cache when the shared cache belongs to another Swift toolchain.
+Local Run uses the Windows destination for SwiftPM and embedded AdaScript
+projects. Project/folder selection, multi-file asset import and RGB color dialogs
+use Windows controls; inspector alpha remains editable. HTTPS clients support
+bounded streaming downloads and cancellation. Rendering/readback uses Dawn D3D12.
+Ada Cloud browser sign-in/Apple purchases and AdaPlayer device pairing currently
+require Apple frameworks and are unavailable on Windows.
+
 ## Generating the Xcode Project
 
 Install XcodeGen if it is not already installed, then run:

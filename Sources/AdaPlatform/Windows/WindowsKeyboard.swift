@@ -2,6 +2,19 @@
     import AdaInput
     import WinSDK
 
+    @_spi(Internal)
+    public enum WindowsKeyboardModifiers {
+        public static func make(shift: Int16, control: Int16, alt: Int16, capsLock: Int16, superKey: Int16 = 0) -> KeyModifier {
+            var modifiers: KeyModifier = []
+            if shift < 0 { modifiers.insert(.shift) }
+            if control < 0 { modifiers.insert(.control) }
+            if superKey < 0 { modifiers.insert(.main) }
+            if alt < 0 { modifiers.insert(.alt) }
+            if capsLock & 1 != 0 { modifiers.insert(.capsLock) }
+            return modifiers
+        }
+    }
+
     final class WindowsKeyboard: Keyboard {
         nonisolated(unsafe) static var shared = WindowsKeyboard()
 

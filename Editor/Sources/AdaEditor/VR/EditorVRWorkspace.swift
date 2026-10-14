@@ -169,14 +169,22 @@ final class EditorVRWorkspace {
         return true
     }
 
-    isolated deinit { scopedURL?.stopAccessingSecurityScopedResource() }
+    isolated deinit {
+        #if canImport(Darwin)
+        scopedURL?.stopAccessingSecurityScopedResource()
+        #endif
+    }
 
     var document: EditorSceneDocument? { sceneDocumentID.flatMap { workbench.sceneDocument(id: $0) } ?? workbench.activeSceneDocument }
     private(set) var recentProjects: [EditorProjectReference] = []
 
     func openProject(at url: URL) throws {
         guard !isImmersed, document?.isDirty != true else { throw EditorVRWorkspaceError.closeCurrentScene }
+        #if canImport(Darwin)
         let accessing = url.startAccessingSecurityScopedResource()
+        #else
+        let accessing = false
+        #endif
         do {
             let metadata = try ProjectSystem.validateProjectLayout(at: url)
             let root = url.appendingPathComponent(metadata.paths.assets ?? "Assets", isDirectory: true)
@@ -189,7 +197,9 @@ final class EditorVRWorkspace {
             }
             let reference = try store.rememberProject(at: url, name: metadata.project.displayName ?? metadata.project.name)
             stopPlay()
+            #if canImport(Darwin)
             scopedURL?.stopAccessingSecurityScopedResource()
+            #endif
             scopedURL = accessing ? url : nil
             project = reference
             recentProjects = (try? store.loadProjects()) ?? []
@@ -214,7 +224,9 @@ final class EditorVRWorkspace {
             connectStudio(reference)
             message = "Project opened"
         } catch {
+            #if canImport(Darwin)
             if accessing { url.stopAccessingSecurityScopedResource() }
+            #endif
             throw error
         }
     }
@@ -235,7 +247,9 @@ final class EditorVRWorkspace {
         sceneDocumentID = nil
         scenes.removeAll()
         modelAssets.removeAll()
+        #if canImport(Darwin)
         scopedURL?.stopAccessingSecurityScopedResource()
+        #endif
         scopedURL = nil
         message = nil
         return true
