@@ -8,7 +8,7 @@
 
 Last verified: 2026-10-14.
 
-Only the first two slices have landed on `feat/ada-script-tests` (not released); the rest is open. Gravity (the VM under Ada Script) has a
+Only the first three slices have landed on `feat/ada-script-tests` (not released); the rest is open. Gravity (the VM under Ada Script) has a
 `#unittest { name; error; result }` directive and a `unittest_callback` in its
 delegate, but they only check the return value of `main()` or an expected
 compile error. Ada Script forbids `main()` (ADR-0001), so neither is usable for
@@ -19,7 +19,12 @@ Planned:
 - [x] `@test` in `AdaScriptAnnotationCatalog` and annotation discovery; a test with parameters is diagnosed.
 - [x] Production resolution strips `@test` functions and rejects production references to test-only names (`includeTests` keeps them). Not yet done: stripping declarations reachable only from tests, and the build generator's own stripping pass.
 - [x] `expect`, `expectEqual`, `expectNear`, `expectNil`, `fail` and `require` record `path:line:column` diagnostics. `AdaScriptTestLowerer` adds the call-site location, and `require` ends the test's fiber with `Fiber.yield()`; `Fiber.abort` also ends the caller, so it is not used.
-- [ ] `TestWorld`: a fresh ECS `World` per test, driven by a manual clock.
+- [x] `TestWorld()`: a fresh ECS `World` per test with the module's systems installed, driven by a manual clock.
+  Scripts get `spawn`, `insert`, `remove`, `despawn`, `has`, `read`, `count`, `run(ticks)` and `advance(seconds)`.
+  `run` and `advance` block the test thread until the async scheduler finishes, releasing the VM lock meanwhile so
+  script systems can run on the scheduler's threads. Differences from the Decision text: `run` takes only a tick
+  count and runs every installed system, not one named system (open); there is no `get`, so a test reads a field
+  with `read(entity, "Component", "field")`; `flush` is not needed because spawn and despawn here are immediate.
 - [x] `AdaScriptPlugin(includeTests: true).runTests(matching:)` returns structured `AdaScriptTestResult`s; each test runs in its own fiber, so a runtime error fails only that test. Still open: per-test timeout and the module-globals check.
 - [ ] `Tests/` source root for integration tests.
 - [ ] Bridge into `swift test` and a CLI entry point with JUnit/JSON output.

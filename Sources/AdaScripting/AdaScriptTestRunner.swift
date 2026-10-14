@@ -45,7 +45,10 @@ struct AdaScriptTestExecution: Sendable {
 /// prepends the call-site location as the first argument.
 enum AdaScriptTestPrelude {
     static let source = """
+    extern var __adaTestFactory;
     var __adaTestFailures = [];
+
+    func TestWorld() { return __adaTestFactory.make(); }
 
     func __adaTest_expect(location, condition) {
         if (!condition) { __adaTestFailures.push(location + ": expectation failed"); }

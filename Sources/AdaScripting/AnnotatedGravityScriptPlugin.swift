@@ -133,6 +133,11 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         self.runtime = runtime
         self.plans = plans
         try runtime.instantiateSystems(plans)
+        runtime.testWorldFactory?.build = { [unowned self, runtime] in
+            let world = World(name: "Ada Script test")
+            self.installForTesting(into: world)
+            return runtime.makeTestWorld(world: world)
+        }
     }
 
     /// Runs the loaded `@test` functions, optionally only those whose name or display name contains `filter`.
@@ -298,6 +303,28 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
                 return
             }
             self.runtime.resetForSceneChange(plans: self.plans, worldID: worldID)
+        }
+    }
+
+    /// Installs the module's runtime components and systems into a bare world for a `TestWorld`.
+    ///
+    /// `setup(in:)` is main-actor isolated because it also wires multiplayer and scene navigation, which a test
+    /// world does not have. A test runs on whichever thread the runner was called from, so this takes the plain world.
+    func installForTesting(into world: World) {
+        for descriptor in runtimeComponents {
+            world.registerRuntimeComponent(descriptor)
+        }
+        world.schedulers.addSystem(AdaScriptTaskPumpSystem(pluginIdentifier: name, runtime: runtime), for: .update)
+        for plan in plans {
+            do {
+                let prepared = try Self.prepare(plan, pluginIdentifier: name, world: world)
+                world.schedulers.addSystem(
+                    AnnotatedGravityScriptSystem(pluginIdentifier: name, runtime: runtime, preparedSystem: prepared),
+                    for: prepared.scheduler
+                )
+            } catch {
+                runtime.appendDiagnostic(String(describing: error))
+            }
         }
     }
 
@@ -828,6 +855,8 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
     private let taskRuntime: AdaScriptTaskRuntime
     private let asyncHost: AdaScriptAsyncHost
     private let communityBudget: AdaScriptCommunityBudget?
+    /// Present only when the module was loaded with tests; the plugin supplies its `build` closure.
+    let testWorldFactory: AdaScriptTestWorldFactory?
     private var instances: [String: GSValue] = [:]
 
     deinit {
@@ -887,6 +916,15 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         try suspensionPolicy.bindBorrowed(AnnotatedGravityComponentView.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityResourceView.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AdaScriptMultiplayerAPI.self, to: virtualMachine)
+        if module.includesTests {
+            let factory = AdaScriptTestWorldFactory()
+            self.testWorldFactory = factory
+            try suspensionPolicy.bindBorrowed(AdaScriptTestWorld.self, to: virtualMachine)
+            try virtualMachine.bindClass(with: AdaScriptTestWorldFactory.self)
+            virtualMachine.setValue(factory, forKey: "__adaTestFactory")
+        } else {
+            self.testWorldFactory = nil
+        }
         try virtualMachine.bindClass(with: AdaScriptNetworkCommandFactory.self)
         try virtualMachine.bindClass(with: AdaScriptNetworkCommandValue.self)
         try virtualMachine.bindClass(with: AdaScriptNetworkValueBridge.self)
@@ -1039,6 +1077,23 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             }
         }
         _ = instance.callMethod(named: "update", with: [context])
+    }
+
+    /// A `TestWorld` over `world`, which the caller has already installed the module into.
+    func makeTestWorld(world: World) -> AdaScriptTestWorld {
+        let payloads = AnnotatedGravityComponentPayloads(
+            runtimeComponents: runtimeComponents.reduce(into: [:]) { result, descriptor in
+                result[descriptor.name] = descriptor
+                result[descriptor.stableID] = descriptor
+            },
+            reportDiagnostic: appendDiagnostic
+        )
+        return AdaScriptTestWorld.make(
+            world: world,
+            exclusive: AnnotatedGravityExclusiveAccess(world: world, payloads: payloads, iterators: [], reportDiagnostic: appendDiagnostic),
+            virtualMachine: virtualMachine,
+            reportDiagnostic: appendDiagnostic
+        )
     }
 
     /// Runs one `@test` function in its own fiber so a failed `require` or a runtime error ends only that test.
