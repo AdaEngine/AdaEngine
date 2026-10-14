@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-14
-- Implementation: Partial (`.vox` parser only; not released)
+- Implementation: Partial (`.vox` parser and CPU mesher; not released)
 
 ## Context
 
@@ -88,8 +88,8 @@ deferred until the corresponding backend capabilities are verified.
 
 ## Delivery stages
 
-1. ADR and `.vox` parser with tests (this change).
-2. Mesher: culled faces, then greedy, with baked AO.
+1. ADR and `.vox` parser with tests (done).
+2. Mesher: culled faces, then greedy, with baked AO (done).
 3. Scene import and editor integration.
 4. Animation.
 5. Chunked dynamic world.

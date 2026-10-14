@@ -69,4 +69,4 @@ describes the intended design even when its implementation is still planned.
 
 | ADR | Status | Implementation | Decision |
 | --- | --- | --- | --- |
-| [ADR-0025](0025-voxel-graphics-and-magicavoxel-import.md) | Accepted | Partial (`.vox` parser only; not released) | CPU-meshed voxels, layered MagicaVoxel import with hybrid hierarchy/merged scene, animation, chunked dynamic world and physics |
+| [ADR-0025](0025-voxel-graphics-and-magicavoxel-import.md) | Accepted | Partial (`.vox` parser and CPU mesher; not released) | CPU-meshed voxels, layered MagicaVoxel import with hybrid hierarchy/merged scene, animation, chunked dynamic world and physics |
