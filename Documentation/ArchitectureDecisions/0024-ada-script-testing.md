@@ -2,13 +2,13 @@
 
 - Status: Proposed
 - Date: 2026-10-14
-- Implementation: Planned
+- Implementation: Partial (worktree foundation; not released)
 
 ## Implementation status
 
 Last verified: 2026-10-14.
 
-Nothing in this ADR has shipped. Gravity (the VM under Ada Script) has a
+Only the first slice has landed on `feat/ada-script-tests` (not released); the rest is open. Gravity (the VM under Ada Script) has a
 `#unittest { name; error; result }` directive and a `unittest_callback` in its
 delegate, but they only check the return value of `main()` or an expected
 compile error. Ada Script forbids `main()` (ADR-0001), so neither is usable for
@@ -16,8 +16,8 @@ gameplay code today.
 
 Planned:
 
-- [ ] `@test` in `AdaScriptAnnotationCatalog` and annotation discovery.
-- [ ] Production build strips `@test` functions and everything only they use.
+- [x] `@test` in `AdaScriptAnnotationCatalog` and annotation discovery; a test with parameters is diagnosed.
+- [x] Production resolution strips `@test` functions and rejects production references to test-only names (`includeTests` keeps them). Not yet done: stripping declarations reachable only from tests, and the build generator's own stripping pass.
 - [ ] `expect*` assertions that record diagnostics instead of aborting.
 - [ ] `TestWorld`: a fresh ECS `World` per test, driven by a manual clock.
 - [ ] `AdaScriptTestRunner` with filtering, timeout and structured results.

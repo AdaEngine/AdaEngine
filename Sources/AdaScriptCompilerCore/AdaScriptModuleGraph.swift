@@ -245,7 +245,7 @@ public struct AdaScriptModuleGraph: Sendable {
 
     /// Annotations whose declarations are discovered by name, so they need no import.
     static let discoveryRootAnnotations: Set<String> = [
-        "component", "network_command", "replicated_component", "resource", "scriptable", "system", "tool", "view",
+        "component", "network_command", "replicated_component", "resource", "scriptable", "system", "test", "tool", "view",
     ]
 
     /// Top-level declarations other modules must import before use: everything except discovery roots,

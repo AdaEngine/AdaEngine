@@ -211,6 +211,37 @@ public struct AdaScriptTypeSyntax: Equatable, Hashable, Sendable {
     }
 }
 
+/// One top-level `@test` function.
+public struct AdaScriptTestSyntax: Equatable, Hashable, Sendable {
+    public var annotationRange: AdaScriptSourceRange
+    /// The string given to `@test("…")`, or the function name.
+    public var displayName: String
+    public var isAsync: Bool
+    public var name: String
+    /// Character offsets from the first annotation to the closing brace, so stripping removes the whole declaration.
+    public var offsets: Range<Int>
+    public var parameterCount: Int
+    public var range: AdaScriptSourceRange
+
+    public init(
+        annotationRange: AdaScriptSourceRange,
+        displayName: String,
+        isAsync: Bool,
+        name: String,
+        offsets: Range<Int>,
+        parameterCount: Int,
+        range: AdaScriptSourceRange
+    ) {
+        self.annotationRange = annotationRange
+        self.displayName = displayName
+        self.isAsync = isAsync
+        self.name = name
+        self.offsets = offsets
+        self.parameterCount = parameterCount
+        self.range = range
+    }
+}
+
 public struct AdaScriptSyntaxTree: Equatable, Sendable {
     /// Every `@name` that appears in code, with its position and what it is attached to.
     public var annotationUses: [AdaScriptAnnotationUse]
@@ -225,6 +256,8 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
     public var path: String
     /// Bare identifiers that are not member accesses or argument labels.
     public var references: [AdaScriptNameReference]
+    /// Top-level `@test` functions, in source order.
+    public var tests: [AdaScriptTestSyntax]
     public var types: [AdaScriptTypeSyntax]
     /// Character offsets of top-level `private`/`public` keywords. Gravity only accepts access specifiers
     /// on members, so lowering removes these after visibility has been read.
@@ -241,6 +274,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         isStrict: Bool = false,
         path: String,
         references: [AdaScriptNameReference] = [],
+        tests: [AdaScriptTestSyntax] = [],
         types: [AdaScriptTypeSyntax] = [],
         visibilityModifierOffsets: [Range<Int>] = []
     ) {
@@ -254,6 +288,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         self.isStrict = isStrict
         self.path = path
         self.references = references
+        self.tests = tests
         self.types = types
         self.visibilityModifierOffsets = visibilityModifierOffsets
     }
