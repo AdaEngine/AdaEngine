@@ -135,8 +135,11 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         try runtime.instantiateSystems(plans)
         runtime.testWorldFactory?.build = { [unowned self, runtime] in
             let world = World(name: "Ada Script test")
-            self.installForTesting(into: world)
-            return runtime.makeTestWorld(world: world)
+            self.registerComponentsForTesting(in: world)
+            let startupSystems = Set(self.plans.filter { $0.scheduler == .startup }.map(\.className))
+            return runtime.makeTestWorld(world: world, startupSystems: startupSystems) { [unowned self] className, installed in
+                self.installSystemsForTesting(into: world, className: className, alreadyInstalled: installed)
+            }
         }
     }
 
@@ -306,26 +309,43 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         }
     }
 
-    /// Installs the module's runtime components and systems into a bare world for a `TestWorld`.
+    /// Registers the module's runtime components in a bare world for a `TestWorld`, so a test can spawn them
+    /// before any system is installed.
     ///
     /// `setup(in:)` is main-actor isolated because it also wires multiplayer and scene navigation, which a test
-    /// world does not have. A test runs on whichever thread the runner was called from, so this takes the plain world.
-    func installForTesting(into world: World) {
+    /// world does not have. A test runs on whichever thread the runner was called from, so these take the plain world.
+    func registerComponentsForTesting(in world: World) {
         for descriptor in runtimeComponents {
             world.registerRuntimeComponent(descriptor)
         }
-        world.schedulers.addSystem(AdaScriptTaskPumpSystem(pluginIdentifier: name, runtime: runtime), for: .update)
-        for plan in plans {
+    }
+
+    /// Installs systems into a `TestWorld`: the one named by `className`, or every system when it is nil.
+    /// Returns the class names installed by this call; systems in `alreadyInstalled` are skipped.
+    func installSystemsForTesting(into world: World, className: String?, alreadyInstalled: Set<String>) -> Set<String> {
+        let selected = plans.filter { plan in
+            (className == nil || plan.className == className) && !alreadyInstalled.contains(plan.className)
+        }
+        if let className, !plans.contains(where: { $0.className == className }) {
+            runtime.appendDiagnostic("TestWorld cannot run unknown system '\(className)'")
+        }
+        if alreadyInstalled.isEmpty {
+            world.schedulers.addSystem(AdaScriptTaskPumpSystem(pluginIdentifier: name, runtime: runtime), for: .update)
+        }
+        var installed = Set<String>()
+        for plan in selected {
             do {
                 let prepared = try Self.prepare(plan, pluginIdentifier: name, world: world)
                 world.schedulers.addSystem(
                     AnnotatedGravityScriptSystem(pluginIdentifier: name, runtime: runtime, preparedSystem: prepared),
                     for: prepared.scheduler
                 )
+                installed.insert(plan.className)
             } catch {
                 runtime.appendDiagnostic(String(describing: error))
             }
         }
+        return installed
     }
 
     @MainActor
@@ -844,6 +864,14 @@ private struct AnnotatedGravityScriptSystem: System {
     }
 }
 
+private enum GlobalScalar {
+    case bool(Bool)
+    case double(Double)
+    case integer(Int64)
+    case null
+    case string(String)
+}
+
 private final class AnnotatedGravityRuntime: @unchecked Sendable {
     let annotations: [GravityAnnotation]
 
@@ -857,6 +885,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
     private let communityBudget: AdaScriptCommunityBudget?
     /// Present only when the module was loaded with tests; the plugin supplies its `build` closure.
     let testWorldFactory: AdaScriptTestWorldFactory?
+    private let globalVariableNames: [String]
     private var instances: [String: GSValue] = [:]
 
     deinit {
@@ -916,6 +945,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         try suspensionPolicy.bindBorrowed(AnnotatedGravityComponentView.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityResourceView.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AdaScriptMultiplayerAPI.self, to: virtualMachine)
+        self.globalVariableNames = module.globalVariableNames
         if module.includesTests {
             let factory = AdaScriptTestWorldFactory()
             self.testWorldFactory = factory
@@ -1079,8 +1109,40 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         _ = instance.callMethod(named: "update", with: [context])
     }
 
+    /// Scalar module-level variables before a test. Strings are kept as Swift values because the VM's collector
+    /// cannot see a `GSValue` held here. Lists and maps are references and are not restored.
+    private func snapshotGlobals() -> [(name: String, value: GlobalScalar)] {
+        globalVariableNames.compactMap { name in
+            let value = virtualMachine.getValue(forKey: name)
+            if value.isInteger { return (name, .integer(value.toInteger)) }
+            if value.isDouble { return (name, .double(value.toDouble)) }
+            if value.isBool { return (name, .bool(value.toBoolean)) }
+            if value.isString { return (name, .string(value.toString)) }
+            if value.isNull { return (name, .null) }
+            return nil
+        }
+    }
+
+    private func restoreGlobals(_ snapshot: [(name: String, value: GlobalScalar)]) {
+        for (name, scalar) in snapshot {
+            let value: GSValue
+            switch scalar {
+            case let .integer(number): value = GSValue(integer: Int(number), in: virtualMachine)
+            case let .double(number): value = GSValue(double: number, in: virtualMachine)
+            case let .bool(flag): value = GSValue(boolean: flag, in: virtualMachine)
+            case let .string(text): value = GSValue(string: text, in: virtualMachine)
+            case .null: value = GSValue(nullIn: virtualMachine)
+            }
+            virtualMachine.setValue(value, forKey: name)
+        }
+    }
+
     /// A `TestWorld` over `world`, which the caller has already installed the module into.
-    func makeTestWorld(world: World) -> AdaScriptTestWorld {
+    func makeTestWorld(
+        world: World,
+        startupSystems: Set<String>,
+        installer: @escaping @Sendable (String?, Set<String>) -> Set<String>
+    ) -> AdaScriptTestWorld {
         let payloads = AnnotatedGravityComponentPayloads(
             runtimeComponents: runtimeComponents.reduce(into: [:]) { result, descriptor in
                 result[descriptor.name] = descriptor
@@ -1092,6 +1154,8 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             world: world,
             exclusive: AnnotatedGravityExclusiveAccess(world: world, payloads: payloads, iterators: [], reportDiagnostic: appendDiagnostic),
             virtualMachine: virtualMachine,
+            installer: installer,
+            startupSystems: startupSystems,
             reportDiagnostic: appendDiagnostic
         )
     }
@@ -1107,6 +1171,8 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             return AdaScriptTestExecution(failures: [], runtimeErrors: ["Test '\(name)' is not loaded"], didAbort: true)
         }
         let errorsBefore = delegate.errors.count
+        let globals = snapshotGlobals()
+        defer { restoreGlobals(globals) }
         let raw = virtualMachine.execute(closure: runner.toGravityClosure, params: [body])
         let reply = raw?.toList ?? []
         let failures = reply.count > 1 ? reply[1].toList.map(\.toString) : []

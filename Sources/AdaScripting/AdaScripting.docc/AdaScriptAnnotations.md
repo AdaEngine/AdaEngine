@@ -36,6 +36,7 @@ async func inspect(selection: TemporarySelection) {}
 | Annotation | Target | Effect |
 | --- | --- | --- |
 | `@system(scheduler: "update", id: "...")` | Class | Registers `update(context)` with an ECS scheduler. `scheduler` defaults to `update`; `id` defaults to the class name. |
+| `@test` / `@test("name")` | Function | Declares a test with no parameters. See <doc:AdaScriptTesting>. |
 | `@after(id: "...")` | System class | Runs after another system in the same module and scheduler. Repeatable. |
 | `@before(id: "...")` | System class | Runs before another system in the same module and scheduler. Repeatable. |
 | `@query(Component, with: Filter, without: Filter)` | Stored system property | Fetches one or more components. `with` and `without` filter without exposing a row field. |

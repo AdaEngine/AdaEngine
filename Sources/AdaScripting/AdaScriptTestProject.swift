@@ -58,7 +58,7 @@ public enum AdaScriptTestReport {
             "<testsuite name=\"\(escape(suiteName))\" tests=\"\(results.count)\" failures=\"\(failures)\">",
         ]
         for result in results {
-            let attributes = "classname=\"\(escape(result.test.path))\" name=\"\(escape(result.test.displayName))\" time=\"\(seconds(result.duration))\""
+            let attributes = "classname=\"\(escape(result.test.path))\" name=\"\(escape(result.test.displayName))\" time=\"\(String(format: "%.6f", seconds(result.duration)))\""
             if result.outcome == .passed {
                 lines.append("  <testcase \(attributes)/>")
             } else {

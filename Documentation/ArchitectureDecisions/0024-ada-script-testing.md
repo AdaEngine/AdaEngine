@@ -2,34 +2,52 @@
 
 - Status: Proposed
 - Date: 2026-10-14
-- Implementation: Partial (worktree foundation; not released)
+- Implementation: Partial (all but timeout and Editor integration shipped; not released)
 
 ## Implementation status
 
-Last verified: 2026-10-14.
+Last verified: 2026-10-15.
 
-Only the first four slices have landed on `feat/ada-script-tests` (not released); the rest is open. Gravity (the VM under Ada Script) has a
-`#unittest { name; error; result }` directive and a `unittest_callback` in its
-delegate, but they only check the return value of `main()` or an expected
-compile error. Ada Script forbids `main()` (ADR-0001), so neither is usable for
-gameplay code today.
-
-Planned:
+Shipped on `feat/ada-script-tests` (not released):
 
 - [x] `@test` in `AdaScriptAnnotationCatalog` and annotation discovery; a test with parameters is diagnosed.
-- [x] Production resolution strips `@test` functions and rejects production references to test-only names (`includeTests` keeps them). Not yet done: stripping declarations reachable only from tests, and the build generator's own stripping pass.
-- [x] `expect`, `expectEqual`, `expectNear`, `expectNil`, `fail` and `require` record `path:line:column` diagnostics. `AdaScriptTestLowerer` adds the call-site location, and `require` ends the test's fiber with `Fiber.yield()`; `Fiber.abort` also ends the caller, so it is not used.
-- [x] `TestWorld()`: a fresh ECS `World` per test with the module's systems installed, driven by a manual clock.
-  Scripts get `spawn`, `insert`, `remove`, `despawn`, `has`, `read`, `count`, `run(ticks)` and `advance(seconds)`.
-  `run` and `advance` block the test thread until the async scheduler finishes, releasing the VM lock meanwhile so
-  script systems can run on the scheduler's threads. Differences from the Decision text: `run` takes only a tick
-  count and runs every installed system, not one named system (open); there is no `get`, so a test reads a field
-  with `read(entity, "Component", "field")`; `flush` is not needed because spawn and despawn here are immediate.
-- [x] `AdaScriptPlugin(includeTests: true).runTests(matching:)` returns structured `AdaScriptTestResult`s; each test runs in its own fiber, so a runtime error fails only that test. Still open: per-test timeout and the module-globals check.
-- [x] `Tests/` source root for integration tests: left out of production modules, loaded with `includeTests`, and gameplay code importing from it is diagnosed.
-- [x] `AdaScriptTestProject.run(directory:)` loads a project from disk and runs its tests; `AdaScriptTestReport` renders a summary, JUnit and JSON. A Swift Testing `@Test(arguments:)` runs every fixture project, so `swift test` covers Ada Script tests.
-- [ ] A command-line entry point (`swift run … test-scripts`) with exit codes. The library API above is what it will call.
+- [x] Production resolution strips `@test` functions and rejects production references to test-only names
+  (`includeTests` keeps them).
+- [x] `expect`, `expectEqual`, `expectNear`, `expectNil`, `fail` and `require` record `path:line:column`
+  diagnostics. `AdaScriptTestLowerer` adds the call-site location, and `require` ends the test's fiber with
+  `Fiber.yield()`; `Fiber.abort` also ends the caller, so it is not used.
+- [x] `TestWorld()`: a fresh ECS `World` per test, driven by a manual clock. Scripts get `spawn`, `insert`, `remove`,
+  `despawn`, `has`, `read`, `count`, `run(ticks)`, `runSystem(System, ticks)` and `advance(seconds)`. `run` and
+  `advance` block the test thread until the async scheduler finishes, releasing the VM lock meanwhile so script
+  systems can run on the scheduler's threads.
+- [x] `AdaScriptPlugin(includeTests: true).runTests(matching:)` returns structured `AdaScriptTestResult`s; each test
+  runs in its own fiber, so a runtime error fails only that test.
+- [x] `Tests/` source root for integration tests: left out of production modules, loaded with `includeTests`, and
+  gameplay code importing from it is diagnosed.
+- [x] `AdaScriptTestProject.run(directory:)` loads a project from disk; `AdaScriptTestReport` renders a summary, JUnit
+  and JSON. A Swift Testing `@Test(arguments:)` runs every fixture project, so `swift test` covers Ada Script tests.
+- [x] `swift run AdaScriptTest <directory> [--filter] [--format text|junit|json]` exits 0, 1 (failures or no tests)
+  or 2 (usage or load error).
+- [x] DocC article "Testing Ada Script".
+
+Differences from the Decision text, taken deliberately:
+
+- `TestWorld` has no `get` and no `flush`. A test reads a field with `read(entity, "Component", "field")`, and spawn
+  and despawn on a test world are immediate, so there is nothing to flush.
+- Module-level variables are **restored** after each test instead of failing the test on a difference. A system under
+  test legitimately keeps state in a global (a "spawned" flag, a counter), so failing would make such systems
+  untestable. Only numbers, booleans, strings and null are restored; lists and maps are references and are not.
+- A startup system runs once, on the first step after it is installed. A startup system installed later through
+  `runSystem` after the first step does not run.
+
+Remaining before this ADR is implemented:
+
+- [ ] Per-test timeout. A synchronous VM call cannot be interrupted from outside, and the existing community-mode
+  budget changes the VM's limits and removes `System`, so it cannot simply be reused. It needs a budget that only
+  counts checkpoints.
+- [ ] Strip declarations reachable only from tests, and the build generator's own stripping pass.
 - [ ] Editor language-service support and a results panel (depends on ADR-0023).
+- [ ] Parameterized tests, and a decision on which Swift plugins a `TestWorld` may install.
 
 ## Context
 

@@ -59,6 +59,8 @@ struct ResolvedGravityScriptModule: Sendable {
     var includesTests = false
     /// Every `@test` function of the module, in path then source order.
     var tests: [AdaScriptTestCase] = []
+    /// Top-level `var` names, which a test run snapshots and restores so tests stay independent.
+    var globalVariableNames: [String] = []
 
     /// Every source in the module, for scans that must see imported files as well as the entry.
     var combinedSource: String {
@@ -246,6 +248,9 @@ enum GravityScriptModuleResolver {
         )
         module.includesTests = includeTests
         if includeTests {
+            module.globalVariableNames = sortedPaths.flatMap { path in
+                (graph.modules[path]?.tree.bindings ?? []).filter { !$0.isConstant }.map(\.name)
+            }
             module.tests = sortedPaths.flatMap { path in
                 (graph.modules[path]?.tree.tests ?? []).map { test in
                     AdaScriptTestCase(

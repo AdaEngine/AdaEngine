@@ -25,6 +25,15 @@ final class AdaScriptTestWorld: @unchecked Sendable, AdaScriptNonSendableBridge 
     private let reportDiagnostic: @Sendable (String) -> Void
 
     @GSExportableIgnore
+    private let installer: @Sendable (String?, Set<String>) -> Set<String>
+
+    @GSExportableIgnore
+    private var installedSystems = Set<String>()
+
+    @GSExportableIgnore
+    private let startupSystems: Set<String>
+
+    @GSExportableIgnore
     private var didStart = false
 
     @GSExportableIgnore
@@ -32,19 +41,32 @@ final class AdaScriptTestWorld: @unchecked Sendable, AdaScriptNonSendableBridge 
         world: World,
         exclusive: AnnotatedGravityExclusiveAccess,
         virtualMachine: GravityVirtualMachine,
+        installer: @escaping @Sendable (String?, Set<String>) -> Set<String>,
+        startupSystems: Set<String>,
         reportDiagnostic: @escaping @Sendable (String) -> Void
     ) -> AdaScriptTestWorld {
-        AdaScriptTestWorld(world: world, exclusive: exclusive, virtualMachine: virtualMachine, reportDiagnostic: reportDiagnostic)
+        AdaScriptTestWorld(
+            world: world,
+            exclusive: exclusive,
+            virtualMachine: virtualMachine,
+            installer: installer,
+            startupSystems: startupSystems,
+            reportDiagnostic: reportDiagnostic
+        )
     }
 
     private init(
         world: World,
         exclusive: AnnotatedGravityExclusiveAccess,
         virtualMachine: GravityVirtualMachine,
+        installer: @escaping @Sendable (String?, Set<String>) -> Set<String>,
+        startupSystems: Set<String>,
         reportDiagnostic: @escaping @Sendable (String) -> Void
     ) {
         self.world = world
         self.exclusive = exclusive
+        self.installer = installer
+        self.startupSystems = startupSystems
         self.virtualMachine = virtualMachine
         self.reportDiagnostic = reportDiagnostic
     }
@@ -101,23 +123,48 @@ final class AdaScriptTestWorld: @unchecked Sendable, AdaScriptNonSendableBridge 
 
     // MARK: Time
 
-    /// Runs the world's systems for a number of fixed 1/60 s ticks.
+    /// Installs every system of the module, then runs the world for a number of fixed 1/60 s ticks.
     func run(_ ticks: Int) {
-        for _ in 0..<max(ticks, 0) {
-            step(Self.tickDuration)
-        }
+        install(nil)
+        tick(ticks)
     }
 
-    /// Runs the world's systems once with a step of `seconds`.
+    /// Installs only `system` (its class or its name), then runs the world for a number of fixed 1/60 s ticks.
+    /// Systems installed by earlier calls keep running.
+    func runSystem(_ system: GSValue, _ ticks: Int) {
+        let name = system.isString ? system.toString : system.isClass ? system.name : nil
+        guard let name else {
+            reportDiagnostic("TestWorld.runSystem expects a system class or its name")
+            return
+        }
+        install(name)
+        tick(ticks)
+    }
+
+    /// Installs every system, then runs the world once with a step of `seconds`.
     func advance(_ seconds: Double) {
+        install(nil)
         step(Float(max(seconds, 0)))
     }
 
     // MARK: Internals
 
     @GSExportableIgnore
+    private func install(_ className: String?) {
+        installedSystems.formUnion(installer(className, installedSystems))
+    }
+
+    @GSExportableIgnore
+    private func tick(_ ticks: Int) {
+        for _ in 0..<max(ticks, 0) {
+            step(Self.tickDuration)
+        }
+    }
+
+    @GSExportableIgnore
     private func step(_ deltaTime: Float) {
-        if !didStart {
+        // The startup scheduler exists only once a startup system is installed, and runs on the first step only.
+        if !didStart, !installedSystems.isDisjoint(with: startupSystems) {
             didStart = true
             runScheduler(.startup, deltaTime: deltaTime)
         }
