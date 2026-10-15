@@ -52,7 +52,8 @@ package struct WindowGroupPlugin<Content: View>: Plugin, @unchecked Sendable {
 
         var camera = Camera()
         camera.backgroundColor = .clear
-        app.spawn(bundle: Camera2D(camera: camera))
+        let cameraEntity = app.spawn(bundle: Camera2D(camera: camera))
+        cameraEntity.components += WindowRenderOnDemand()
     }
 }
 

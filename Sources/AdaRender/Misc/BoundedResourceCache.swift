@@ -12,6 +12,8 @@ struct BoundedResourceCache<Key: Hashable, Value> {
 
     init(capacity: Int) { self.capacity = max(1, capacity) }
 
+    var count: Int { entries.count }
+
     mutating func value(for key: Key, owners: [AnyObject], create: () -> Value?) -> Value? {
         if let entry = entries[key] {
             return entry.value

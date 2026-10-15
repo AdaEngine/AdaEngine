@@ -14,7 +14,7 @@ export ADAENGINE_WEB_EXPORT=1 ADAENGINE_VALIDATE_TINT=1 ADAENGINE_SPRITE_WGPU_SM
 export ADAENGINE_SHADER_SOURCE_ROOT="$ada_validation_root"
 ada_validation_scratch="${ADAENGINE_WEBGPU_SCRATCH:-/tmp/adaengine-webgpu-dev-validation}"
 ada_validation_package="$("$ada_validation_python" script/webgpu_validation_package.py "$ada_validation_scratch/validation-package")"
-ada_validation_filter='TintToolchainTests|TintShaderCompilerTests|WGSLReflectionTests|SpriteMetalRenderingTests/rendersLayoutsAndPickingWithWebGPU|SpriteMetalRenderingTests/rendersTileOcclusionWithWebGPU'
+ada_validation_filter='TintToolchainTests|TintShaderCompilerTests|WGSLReflectionTests|SpriteMetalRenderingTests/rendersLayoutsAndPickingWithWebGPU|SpriteMetalRenderingTests/rendersTileOcclusionWithWebGPU|BoundedResourceCacheTests|WindowFrameRequestsTests|WGPUBindingStateTests|MaterialUploadReuseTests|OptionalResourceTests'
 if [[ "${OS:-}" == "Windows_NT" ]]; then
   export ADAENGINE_SHADER_SOURCE_ROOT="$(cygpath -m "$ada_validation_root")"
   # Building the test product avoids compiling unrelated dependency command

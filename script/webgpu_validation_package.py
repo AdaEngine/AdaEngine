@@ -12,7 +12,17 @@ args = parser.parse_args()
 destination = args.destination.resolve()
 sources = destination / "Tests/RenderingValidationTests"
 sources.mkdir(parents=True, exist_ok=True)
-for relative in ["Tests/AdaUtilsTests/TintToolchainTests.swift", "Tests/AdaRenderTests/TintShaderCompilerTests.swift", "Tests/AdaRenderTests/WGSLReflectionTests.swift", "Tests/AdaEngineTests/SpriteMetalRenderingTests.swift"]:
+for relative in [
+    "Tests/AdaUtilsTests/TintToolchainTests.swift",
+    "Tests/AdaRenderTests/TintShaderCompilerTests.swift",
+    "Tests/AdaRenderTests/WGSLReflectionTests.swift",
+    "Tests/AdaEngineTests/SpriteMetalRenderingTests.swift",
+    "Tests/AdaRenderTests/BoundedResourceCacheTests.swift",
+    "Tests/AdaRenderTests/WindowFrameRequestsTests.swift",
+    "Tests/AdaRenderTests/WGPUBindingStateTests.swift",
+    "Tests/AdaEngineTests/MaterialUploadReuseTests.swift",
+    "Tests/AdaECSTests/OptionalResourceTests.swift",
+]:
     source = root / relative
     shutil.copy2(source, sources / source.name)
 modules = ["AdaApp", "AdaCorePipelines", "AdaECS", "AdaRender", "AdaSprite", "AdaTilemap", "AdaTransform", "AdaUtils", "Math"]

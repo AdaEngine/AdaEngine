@@ -30,6 +30,7 @@ enum ProjectEditorLauncher {
     static func openEditor(
         for project: EditorProjectReference,
         closing pickerWindow: UIWindow? = UIWindowManager.shared?.activeWindow
+            ?? AppWorldsSession.current?.main.getResource(PrimaryWindow.self)?.window
     ) {
         if let nativeProjectOpener { nativeProjectOpener(project); return }
         guard let manager = UIWindowManager.shared else { return }
@@ -53,6 +54,8 @@ enum ProjectEditorLauncher {
         }
         promoteToPrimaryWindow(editorWindow)
         editorWindow.showWindow(makeFocused: true)
+        // Auto-open can finish while Studio is unfocused, so the source window
+        // falls back to the previous primary window instead of being left open.
         pickerWindow?.close()
     }
 

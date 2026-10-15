@@ -83,6 +83,7 @@ open class UIWindow: UIView {
 
     /// Flag indicates that window is active.
     public internal(set) var isActive: Bool = false
+    private var presentationRequested = false
 
     /// Called after the native window or scene has been removed.
     public var onDidDisappear: (@MainActor () -> Void)?
@@ -117,6 +118,15 @@ open class UIWindow: UIView {
         super.init(frame: frame)
         self.backgroundColor = .clear
         windowManager.createWindow(for: self)
+    }
+
+    // A rotating viewport texture needs another presentation, without changing
+    // the retained UI commands or re-tessellating the surrounding interface.
+    func setNeedsPresentation() { presentationRequested = true }
+
+    func consumePresentationRequest() -> Bool {
+        defer { presentationRequested = false }
+        return presentationRequested
     }
 
     open func showWindow(makeFocused flag: Bool) {

@@ -17,6 +17,7 @@ import Math
 final class MockViewportDelegate: OffscreenViewportDelegate {
     var renderTexture: Texture2D? = nil
     var renderTextureDidChange: (@MainActor @Sendable () -> Void)?
+    var renderFrameDidChange: (@MainActor @Sendable () -> Void)?
     var bootstrapCallCount = 0
     var tickCount = 0
     var lastTickDelta: AdaUtils.TimeInterval = 0
@@ -59,6 +60,11 @@ private final class ViewportInteractionState {
     var isInteractive = true
 }
 
+@MainActor
+private final class ViewportPresentationBuilds {
+    var count = 0
+}
+
 private struct InteractiveViewport: View {
     let delegate: any OffscreenViewportDelegate
     let interaction: ViewportInteractionState
@@ -75,6 +81,34 @@ struct OffscreenViewportTests {
 
     init() async throws {
         try Application.prepareForTest()
+    }
+
+    @Test("Completed viewport frames request presentation without rebuilding UI geometry")
+    func completedFramesPreserveGeometry() {
+        let delegate = MockViewportDelegate()
+        let builds = ViewportPresentationBuilds()
+        let tester = ViewTester {
+            GeometryReader { _ in
+                builds.count += 1
+                return OffscreenViewportContainer(delegateFactory: { delegate }) { viewport in
+                    OffscreenViewportView(delegate: viewport)
+                }
+            }
+        }.setSize(Size(width: 400, height: 300)).performLayout()
+        let window = UIWindow(configuration: .init())
+        window.addSubview(tester.containerView)
+        tester.performLayout()
+        let initialBuilds = builds.count
+        _ = window.consumeNeedsDisplayInHierarchy()
+        #expect(delegate.renderFrameDidChange != nil)
+        for _ in 0..<5 {
+            delegate.renderFrameDidChange?()
+            #expect(window.consumePresentationRequest())
+            #expect(!window.consumePresentationRequest())
+            #expect(!window.consumeNeedsDisplayInHierarchy())
+            tester.performLayout()
+        }
+        #expect(builds.count == initialBuilds)
     }
 
     @Test(arguments: [true, false])

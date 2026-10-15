@@ -46,6 +46,87 @@ struct EditorScenePerformanceRegressionTests {
         #expect(!identities.contains(ObjectIdentifier(try #require(recreated.buffer))))
     }
 
+    @Test("Equal material parameters share immutable buffers while edits preserve in-flight data")
+    func materialUniformsShareValues() async throws {
+        let device = try #require(unsafe RenderEngine.shared).renderDevice
+        var uniforms = PBR3DUniforms()
+        uniforms.beginFrame()
+        let first = PBRMaterial()
+        let second = PBRMaterial()
+        first.baseColorFactor = [1, 0, 0, 1]
+        second.baseColorFactor = [0, 0, 1, 1]
+        first.roughnessFactor = 0.2
+        second.roughnessFactor = 0.8
+        let descriptor = VertexDescriptor()
+        uniforms.write(material: first, descriptor: descriptor, device: device)
+        uniforms.write(material: second, descriptor: descriptor, device: device)
+        let original = try #require(uniforms.buffer(for: first))
+        #expect(uniforms.buffer(for: second) === original)
+        let originalBytes = try await original.readData()
+        first.normalScale = 2
+        first.baseColorFactor.w = 0.5
+        first.doubleSided = true
+        first.textureCoordinates[0] = 1
+        uniforms.write(material: first, descriptor: descriptor, device: device)
+        let edited = try #require(uniforms.buffer(for: first))
+        #expect(edited !== original)
+        #expect(uniforms.buffer(for: second) === original)
+        #expect(try await original.readData() == originalBytes)
+        let bytes = try await edited.readData()
+        let uploaded = bytes.withUnsafeBytes { unsafe $0.loadUnaligned(as: PBR3DUniform.self) }
+        #expect(uploaded.properties.x == 2)
+        #expect(uploaded.emission.y == 0.5)
+        #expect(uploaded.flags.x == 1)
+        #expect(uploaded.coordinates.x == 1)
+    }
+
+    @Test("Shared material buffers survive frame changes and unused values are pruned")
+    func materialUniformsPruneUnusedValues() throws {
+        let device = try #require(unsafe RenderEngine.shared).renderDevice
+        var uniforms = PBR3DUniforms()
+        let first = PBRMaterial()
+        let second = PBRMaterial()
+        let descriptor = VertexDescriptor()
+        uniforms.beginFrame()
+        uniforms.write(material: first, descriptor: descriptor, device: device)
+        let shared = try #require(uniforms.buffer(for: first))
+        first.normalScale = 2
+        uniforms.write(material: first, descriptor: descriptor, device: device)
+        let retired = try #require(uniforms.buffer(for: first))
+        for _ in 0..<12 {
+            uniforms.beginFrame()
+            #expect(uniforms.buffer(for: first) == nil)
+            uniforms.write(material: second, descriptor: descriptor, device: device)
+            #expect(uniforms.buffer(for: second) === shared)
+        }
+        uniforms.write(material: first, descriptor: descriptor, device: device)
+        #expect(uniforms.buffer(for: first) !== retired)
+    }
+
+    @Test("Material cache keys preserve NaN payloads and signed zero")
+    func materialUniformBitsRemainDistinct() async throws {
+        let device = try #require(unsafe RenderEngine.shared).renderDevice
+        var uniforms = PBR3DUniforms()
+        let first = PBRMaterial()
+        let second = PBRMaterial()
+        let descriptor = VertexDescriptor()
+        first.normalScale = Float(bitPattern: 0x7FC01234)
+        second.normalScale = first.normalScale
+        uniforms.write(material: first, descriptor: descriptor, device: device)
+        uniforms.write(material: second, descriptor: descriptor, device: device)
+        let nanBuffer = try #require(uniforms.buffer(for: first))
+        #expect(nanBuffer === uniforms.buffer(for: second))
+        first.normalScale = 0
+        second.normalScale = -0.0
+        uniforms.write(material: first, descriptor: descriptor, device: device)
+        uniforms.write(material: second, descriptor: descriptor, device: device)
+        let negative = try #require(uniforms.buffer(for: second))
+        #expect(uniforms.buffer(for: first) !== negative)
+        let bytes = try await negative.readData()
+        let uploaded = bytes.withUnsafeBytes { unsafe $0.loadUnaligned(as: PBR3DUniform.self) }
+        #expect(uploaded.properties.x.bitPattern == 0x80000000)
+    }
+
     @Test("UI projections reuse buffers independently for each camera")
     func uiUniformBuffersStayReusable() async throws {
         let device = try #require(unsafe RenderEngine.shared).renderDevice

@@ -4,6 +4,9 @@
     import Logging
     import Subprocess
     import WebGPU
+    #if os(Windows)
+        import WinSDK
+    #endif
     #if canImport(System)
         @unsafe @preconcurrency import System
     #else
@@ -24,6 +27,15 @@
             let tempFileURL = try getTempFileURL(from: spirvData)
 
             defer { try? FileManager.default.removeItem(at: tempFileURL) }
+            var options = PlatformOptions()
+            #if os(Windows)
+            // Studio and exported games have no parent console. Without this
+            // flag Windows creates a flashing console for every Tint invocation.
+            options.windowStyle = .hidden
+            options.preSpawnProcessConfigurator = { flags, _ in
+                flags |= DWORD(CREATE_NO_WINDOW)
+            }
+            #endif
             let process = try await run(
                 .path(FilePath(toolExecutable.path)),
                 arguments: [
@@ -33,6 +45,7 @@
                     "--allow-non-uniform-derivatives",
                     "true",
                 ],
+                platformOptions: options,
                 output: .string(limit: .max),
                 error: .string(limit: 1024)
             )

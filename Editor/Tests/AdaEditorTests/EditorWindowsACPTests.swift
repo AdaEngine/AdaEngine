@@ -153,7 +153,7 @@ struct EditorWindowsACPTests {
         let arguments = ["Игра & путь", "%PATH%", "a\"b", "", "x^|y"]
         let invocation = try EditorWindowsAgentCommand.resolve(shim.path, arguments: arguments, environment: environment)
         #expect(invocation.executable.path == node)
-        let process = try EditorWindowsACPProcess(executable: invocation.executable, arguments: invocation.arguments,
+        let process = try EditorWindowsProcess(executable: invocation.executable, arguments: invocation.arguments,
             directory: fixture.root, environment: EditorHostTools.mergedEnvironment(["NODE_NO_WARNINGS": "1"]))
         try process.input.close()
         let chunks = EditorWindowsACPTransport.chunks(process.output)

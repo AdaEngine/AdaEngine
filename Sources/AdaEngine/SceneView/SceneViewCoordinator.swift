@@ -30,6 +30,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var frontRenderTexture: RenderTexture?
     private(set) var renderTexture: Texture2D?
     var renderTextureDidChange: (@MainActor @Sendable () -> Void)?
+    var renderFrameDidChange: (@MainActor @Sendable () -> Void)?
 
     private var isBootstrapping = false
     private var isShutdown = false
@@ -443,6 +444,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             if let frontRenderTexture {
                 onFrameRendered?(frontRenderTexture)
             }
+            renderFrameDidChange?()
         }
         return didPublish
     }

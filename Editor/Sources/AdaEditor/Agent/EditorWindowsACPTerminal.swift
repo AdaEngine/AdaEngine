@@ -5,7 +5,7 @@ import Foundation
 actor TerminalDelegate {
     private struct Terminal {
         var session: String
-        var process: EditorWindowsACPProcess
+        var process: EditorWindowsProcess
         var completion: Task<Int32, Never>
         var output = Data()
         var limit: Int
@@ -18,7 +18,7 @@ actor TerminalDelegate {
         guard terminals.count < 32 else { throw ClientError.transportError("Too many active agent terminals.") }
         let environment = EditorWindowsAgentCommand.environment(Dictionary((env ?? []).map { ($0.name, $0.value) }, uniquingKeysWith: { _, last in last }))
         let invocation = try EditorWindowsAgentCommand.resolve(command, arguments: args ?? [], environment: environment)
-        let process = try EditorWindowsACPProcess(executable: invocation.executable, arguments: invocation.arguments,
+        let process = try EditorWindowsProcess(executable: invocation.executable, arguments: invocation.arguments,
             directory: cwd.map { URL(fileURLWithPath: $0) }, environment: environment)
         try? process.input.close()
         let id = TerminalId(UUID().uuidString)

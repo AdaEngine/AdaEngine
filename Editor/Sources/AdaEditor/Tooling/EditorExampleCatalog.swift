@@ -197,8 +197,9 @@ actor EditorExampleService {
         #else
         let (bytes, response) = try await URLSession.shared.bytes(for: URLRequest(url: url, timeoutInterval: 120))
         #endif
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200, http.url?.scheme == "https",
-              http.expectedContentLength <= limit else { throw EditorExampleError("Examples are unavailable. Check your connection and try again.") }
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200, http.url?.scheme == "https" else {
+            throw EditorExampleError("Examples are unavailable. Check your connection and try again.")
+        }
         #if !canImport(FoundationNetworking)
         var data = Data()
         for try await byte in bytes {
@@ -206,7 +207,19 @@ actor EditorExampleService {
             data.append(byte)
         }
         #endif
-        guard http.expectedContentLength < 0 || data.count == http.expectedContentLength else { throw EditorExampleError("Incomplete example download.") }
+        try validateDownload(data, response: http, limit: limit)
         return data
+    }
+
+    static func validateDownload(_ data: Data, response: HTTPURLResponse, limit: Int) throws {
+        guard data.count <= limit else { throw EditorExampleError("Example download exceeds the size limit.") }
+        // URLSession decodes compressed bodies, while Content-Length still describes
+        // the encoded transfer. Only identity responses have comparable byte counts.
+        let encoding = response.value(forHTTPHeaderField: "Content-Encoding")?
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "identity"
+        guard encoding.isEmpty || encoding == "identity" else { return }
+        guard response.expectedContentLength < 0 || data.count == response.expectedContentLength else {
+            throw EditorExampleError("Incomplete example download.")
+        }
     }
 }

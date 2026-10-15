@@ -12,7 +12,7 @@ struct DebugMessage: Sendable {
 /// Windows uses the upstream ACP model and the editor's existing session/UI logic.
 /// Only subprocess ownership and the JSON-RPC stdio router are platform-specific.
 actor Client {
-    private var process: EditorWindowsACPProcess?
+    private var process: EditorWindowsProcess?
     private var writer: EditorWindowsACPWriter?
     private var supervisor: Task<Void, Never>?
     private var pending: [RequestId: CheckedContinuation<JSONRPCResponse, any Error>] = [:]
@@ -39,7 +39,7 @@ actor Client {
         guard process == nil else { throw ClientError.transportError("Agent already started.") }
         let environment = EditorWindowsAgentCommand.environment(environment ?? [:])
         let invocation = try EditorWindowsAgentCommand.resolve(agentPath, arguments: arguments, environment: environment)
-        let child = try EditorWindowsACPProcess(executable: invocation.executable, arguments: invocation.arguments,
+        let child = try EditorWindowsProcess(executable: invocation.executable, arguments: invocation.arguments,
             directory: workingDirectory.map { URL(fileURLWithPath: $0) }, environment: environment)
         process = child
         writer = EditorWindowsACPWriter(child.input)

@@ -16,6 +16,7 @@ import Math
 package protocol OffscreenViewportDelegate: AnyObject {
     var renderTexture: Texture2D? { get }
     var renderTextureDidChange: (@MainActor @Sendable () -> Void)? { get set }
+    var renderFrameDidChange: (@MainActor @Sendable () -> Void)? { get set }
     func bootstrapIfNeeded()
     func shutdown()
     func tick(_ deltaTime: AdaUtils.TimeInterval)
@@ -27,6 +28,10 @@ package protocol OffscreenViewportDelegate: AnyObject {
 
 extension OffscreenViewportDelegate {
     func setRenderingEnabled(_: Bool) {}
+    var renderFrameDidChange: (@MainActor @Sendable () -> Void)? {
+        get { nil }
+        set {}
+    }
 }
 
 // MARK: - Viewport View
@@ -401,6 +406,9 @@ private final class OffscreenViewportContainerNode<Content: View>: ViewContainer
                 }
                 self.invalidateContent()
                 self.owner?.containerView?.setNeedsDisplay(in: self.absoluteFrame())
+            }
+            viewportRenderer?.renderFrameDidChange = { [weak self] in
+                self?.owner?.containerView?.window?.setNeedsPresentation()
             }
         }
 

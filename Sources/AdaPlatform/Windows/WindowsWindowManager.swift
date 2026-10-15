@@ -49,8 +49,11 @@
         private var cursorShape: Input.CursorShape = .arrow
 
         /// Whether a visible FIFO surface can provide display-paced updates.
-        var hasVisibleRenderWindow: Bool {
+        func hasVisibleRenderWindow(requests: WindowFrameRequests?) -> Bool {
             windows.contains { window in
+                // Embedded game runtimes own cameras outside the host world.
+                // Unknown windows retain continuous rendering, just as acquisition does.
+                guard requests?.shouldRender(window.id) != false else { return false }
                 guard window.canDraw, !window.isHidden, let handle = windowHandles[window.id] else { return false }
                 return unsafe IsWindowVisible(handle) && !IsIconic(handle)
             }

@@ -74,7 +74,11 @@ final class EditorBoundedHTTPTransfer: NSObject, URLSessionDataDelegate, Sendabl
     ) {
         let allowed = state.withLock { state in
             state.response = response
-            guard response.expectedContentLength <= Int64(maximumBytes) else {
+            // Content-Length measures the encoded transfer. Compressed small files
+            // can be larger on the wire; didReceive(data:) bounds the decoded body.
+            let encoding = (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Encoding")?
+                .trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? "identity"
+            guard (!encoding.isEmpty && encoding != "identity") || response.expectedContentLength <= Int64(maximumBytes) else {
                 state.failure = EditorWebToolError("Response exceeds the \(maximumBytes)-byte limit.")
                 return false
             }

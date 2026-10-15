@@ -25,37 +25,57 @@ public struct PBR3DUniform: Sendable, Equatable {
     }
 }
 
-/// Reuses triple-buffered material uniforms and prunes entries after material removal.
+/// Shares immutable parameter buffers by value. A material edit selects a new
+/// buffer, preserving constants already referenced by in-flight draws.
 public struct PBR3DUniforms: Resource {
     public static let binding = 15
-    private struct Entry { var buffers: [(any UniformBuffer)?]; var uploaded: [PBR3DUniform?]; var frame: Int }
-    private var entries: [ObjectIdentifier: Entry] = [:]
-    private var currentIndex = 0
-    private var frame = 0
-    private let count: Int
+    private struct Key: Hashable {
+        let emissive: SIMD4<UInt32>
+        let properties: SIMD4<UInt32>
+        let flags: SIMD4<UInt32>
+        let coordinates: SIMD4<UInt32>
+        let emission: SIMD4<UInt32>
 
-    public init() { count = max(1, unsafe RenderEngine.configurations.maxFramesInFlight) }
+        init(_ value: PBR3DUniform) {
+            func bits(_ vector: Vector4) -> SIMD4<UInt32> {
+                SIMD4(vector.x.bitPattern, vector.y.bitPattern, vector.z.bitPattern, vector.w.bitPattern)
+            }
+            emissive = bits(value.emissiveFactor)
+            properties = bits(value.properties)
+            flags = bits(value.flags)
+            coordinates = bits(value.coordinates)
+            emission = bits(value.emission)
+        }
+    }
+    private struct Entry { let buffer: any UniformBuffer; var frame: Int }
+    private var entries: [Key: Entry] = [:]
+    private var materialBuffers: [ObjectIdentifier: any UniformBuffer] = [:]
+    private var frame = 0
+
+    public init() {}
 
     public mutating func beginFrame() {
         for (key, entry) in entries where entry.frame != frame { entries.removeValue(forKey: key) }
         frame &+= 1
-        currentIndex = (currentIndex + 1) % count
+        materialBuffers.removeAll(keepingCapacity: true)
     }
 
     public mutating func write(material: Material, descriptor: VertexDescriptor, device: RenderDevice) {
-        let key = ObjectIdentifier(material)
-        var entry = entries[key] ?? Entry(buffers: Array(repeating: nil, count: count), uploaded: Array(repeating: nil, count: count), frame: frame)
-        if entry.buffers[currentIndex] == nil { entry.buffers[currentIndex] = device.createUniformBuffer(PBR3DUniform.self, binding: Self.binding) }
         let uniform = PBR3DUniform(material: material as? PBRMaterial, descriptor: descriptor)
-        if entry.uploaded[currentIndex] != uniform {
-            entry.buffers[currentIndex]?.setData(uniform)
-            entry.uploaded[currentIndex] = uniform
+        let key = Key(uniform)
+        if var entry = entries[key] {
+            entry.frame = frame
+            entries[key] = entry
+            materialBuffers[ObjectIdentifier(material)] = entry.buffer
+        } else {
+            let buffer = device.createUniformBuffer(PBR3DUniform.self, binding: Self.binding)
+            buffer.setData(uniform)
+            entries[key] = Entry(buffer: buffer, frame: frame)
+            materialBuffers[ObjectIdentifier(material)] = buffer
         }
-        entry.frame = frame
-        entries[key] = entry
     }
 
     public func buffer(for material: Material) -> (any UniformBuffer)? {
-        entries[ObjectIdentifier(material)]?.buffers[currentIndex]
+        materialBuffers[ObjectIdentifier(material)]
     }
 }

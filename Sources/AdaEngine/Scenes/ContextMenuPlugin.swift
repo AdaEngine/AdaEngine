@@ -187,6 +187,7 @@ private enum ContextMenuPresenter {
         var camera = Camera(window: .windowId(window.id))
         camera.backgroundColor = Color(red: 0, green: 0, blue: 0, alpha: 0)
         window.runtimeCameraEntity = app.spawn(bundle: Camera2D(camera: camera))
+        if let cameraEntity = window.runtimeCameraEntity { cameraEntity.components += WindowRenderOnDemand() }
         return window
     }
 

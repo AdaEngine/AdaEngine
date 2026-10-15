@@ -255,7 +255,10 @@ final class EditorViewModel {
         #elseif os(iOS)
             self.selectedRunDestination = selectedRunDestination ?? .iPadOS
         #elseif os(Windows)
-            self.selectedRunDestination = selectedRunDestination ?? .windows
+            let savedDestination = savedProject.map { Self.editorRunDestination(from: $0.run.destination) }
+            self.selectedRunDestination = selectedRunDestination
+                ?? savedDestination.flatMap { EditorRunDestination.availableCases.contains($0) ? $0 : nil }
+                ?? .windows
         #else
             self.selectedRunDestination = selectedRunDestination ?? Self.editorRunDestination(from: savedProject?.run.destination ?? .macOS)
         #endif

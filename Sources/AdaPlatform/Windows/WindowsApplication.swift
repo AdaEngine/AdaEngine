@@ -115,9 +115,10 @@
             // Dawn's FIFO swapchain already waits for the display. Sleeping
             // again adds a coarse Windows scheduler tick and can halve FPS.
             // Keep the timed fallback for headless/hidden windows and fixed caps.
+            let frameRequests = appWorlds.getResource(WindowFrameRequests.self)
             if framePacing.synchronizesWithDisplayRefreshRate,
                RenderEngine.shared?.type == .webgpu,
-               (windowManager as? WindowsWindowManager)?.hasVisibleRenderWindow == true {
+               (windowManager as? WindowsWindowManager)?.hasVisibleRenderWindow(requests: frameRequests) == true {
                 await Task.yield()
                 return
             }

@@ -1,24 +1,6 @@
 {
-  "originHash" : "bdd4dff87a642356461aee121e53b3fdab2fd4119f12adf05a4dd4633fb90a6a",
+  "originHash" : "e2944d9a7dfcf25bb1128190ddad2b3425652dd3edd3583c5689b1562d803df3",
   "pins" : [
-    {
-      "identity" : "adamcp",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AdaEngine/AdaMCP.git",
-      "state" : {
-        "branch" : "v0.2.0",
-        "revision" : "165bd5c00857a760ecea859022d023393350baad"
-      }
-    },
-    {
-      "identity" : "gravity-lang",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AdaEngine/gravity-lang.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "26f80cc250d478b16dbbd21a3a517a669d13f616"
-      }
-    },
     {
       "identity" : "javascriptkit",
       "kind" : "remoteSourceControl",

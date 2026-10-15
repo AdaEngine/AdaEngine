@@ -91,6 +91,27 @@ struct EditorWindowsCompatibilityTests {
         #expect(result.succeeded)
         #expect(result.standardOutput.hasPrefix("git version"))
     }
+
+    @Test("Windows launcher initializes Git using the native Path variable")
+    @MainActor
+    func createsGitRepositoryFromLauncher() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let model = ProjectOpeningViewModel(store: EditorProjectStore(
+            storageURL: directory.appendingPathComponent("projects.json"), distribution: .standalone
+        ))
+        model.projectName = "Git Project"
+        model.projectLocation = directory.path
+        model.shouldCreateGitRepository = true
+        model.createProject()
+
+        let project = try #require(model.selectedProject)
+        let projectURL = URL(fileURLWithPath: project.path, isDirectory: true)
+        #expect(FileManager.default.fileExists(atPath: projectURL.appendingPathComponent(".git/HEAD").path))
+        #expect(!model.statusMessage.contains("Git was not found"))
+    }
+
     @Test("Native Windows pointer flags preserve right and middle drags")
     func mapsNativePointerButtons() {
         #expect(WindowsPointerButtons.button(for: 0) == .none)

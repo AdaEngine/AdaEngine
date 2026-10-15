@@ -499,7 +499,7 @@ final class ProjectOpeningViewModel {
         #if os(macOS) || os(Linux) || os(Windows)
             let command: [String]
             #if os(Windows)
-                let paths = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ";")
+                let paths = (EditorHostTools.environmentValue("PATH") ?? "").split(separator: ";")
                 guard let git = paths.map({ URL(fileURLWithPath: String($0)).appendingPathComponent("git.exe") })
                     .first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) else {
                     return "Git was not found on PATH. The project was created without a Git repository."

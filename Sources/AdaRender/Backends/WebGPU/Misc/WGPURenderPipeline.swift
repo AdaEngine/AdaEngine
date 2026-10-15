@@ -114,8 +114,11 @@
             }
         }
 
-        func cachedBindGroup(key: WGPUBindGroupKey, owners: [AnyObject], create: () -> WebGPU.GPUBindGroup?) -> WebGPU.GPUBindGroup? {
-            bindingLock.withLock {
+        var cachedBindGroupCount: Int { bindingLock.withLock { bindingCache.count } }
+
+        func cachedBindGroup(key: WGPUBindGroupKey, owners: [AnyObject], cacheable: Bool = true, create: () -> WebGPU.GPUBindGroup?) -> WebGPU.GPUBindGroup? {
+            guard cacheable else { return create() }
+            return bindingLock.withLock {
                 bindingCache.value(for: key, owners: owners, create: create)
             }
         }

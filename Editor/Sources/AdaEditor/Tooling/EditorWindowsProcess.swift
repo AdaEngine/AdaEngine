@@ -4,25 +4,25 @@ import Foundation
 import WinSDK
 import ucrt
 
-/// Native process ownership for ACP. Handles are immutable and synchronized by the
+/// Console-free process ownership for background tools. Handles are immutable and synchronized by the
 /// Windows kernel. The suspended child joins its job before it can spawn children.
-final class EditorWindowsACPProcess: Sendable {
+final class EditorWindowsProcess: Sendable {
     let input: FileHandle
     let output: FileHandle
     let error: FileHandle
     let exit: AsyncStream<Int32>
     private let address: UInt
-    private let tree: EditorWindowsACPProcessTree
+    private let tree: EditorWindowsProcessTree?
 
     var isRunning: Bool {
         var code: DWORD = 0
         return GetExitCodeProcess(HANDLE(bitPattern: address), &code) && code == STILL_ACTIVE
     }
 
-    init(executable: URL, arguments: [String], directory: URL?, environment: [String: String]) throws {
+    init(executable: URL, arguments: [String], directory: URL?, environment: [String: String], superviseTree: Bool = true) throws {
         guard !arguments.contains(where: { $0.contains("\0") }),
             !environment.contains(where: { $0.key.contains("\0") || $0.value.contains("\0") }) else {
-            throw EditorAgentCatalogError(message: "Agent arguments and environment cannot contain null characters.")
+            throw EditorWindowsProcessError(message: "Tool arguments and environment cannot contain null characters.")
         }
         let stdin = try NativePipe(parentReads: false)
         let stdout = try NativePipe(parentReads: true)
@@ -62,18 +62,18 @@ final class EditorWindowsACPProcess: Sendable {
                 CreateProcessW(Array(executable.path.utf16) + [0], &command, nil, nil, true, flags, &environmentBlock, workingDirectory, info, &processInfo)
             }
         }
-        guard created, let handle = processInfo.hProcess, let thread = processInfo.hThread else { throw Self.failure("launch ACP process") }
+        guard created, let handle = processInfo.hProcess, let thread = processInfo.hThread else { throw Self.failure("launch background process") }
         defer { CloseHandle(thread) }
-        do { tree = try EditorWindowsACPProcessTree(processIdentifier: Int32(bitPattern: processInfo.dwProcessId)) }
+        do { tree = superviseTree ? try EditorWindowsProcessTree(processIdentifier: Int32(bitPattern: processInfo.dwProcessId)) : nil }
         catch {
             TerminateProcess(handle, 1)
             CloseHandle(handle)
             throw error
         }
         guard ResumeThread(thread) != DWORD.max else {
-            tree.terminate()
+            TerminateProcess(handle, 1)
             CloseHandle(handle)
-            throw Self.failure("resume ACP process")
+            throw Self.failure("resume background process")
         }
         address = UInt(bitPattern: handle)
         let completion = AsyncStream<Int32>.makeStream()
@@ -87,12 +87,14 @@ final class EditorWindowsACPProcess: Sendable {
         }
     }
 
-    func terminate() { tree.terminate() }
+    func terminate() {
+        if let tree { tree.terminate() } else { TerminateProcess(HANDLE(bitPattern: address), 1) }
+    }
 
     deinit { CloseHandle(HANDLE(bitPattern: address)) }
 
-    private static func failure(_ action: String) -> EditorAgentCatalogError {
-        EditorAgentCatalogError(message: "Unable to \(action) (Windows error \(GetLastError())).")
+    private static func failure(_ action: String) -> EditorWindowsProcessError {
+        EditorWindowsProcessError(message: "Unable to \(action) (Windows error \(GetLastError())).")
     }
 
     /// CommandLineToArgvW/CRT quoting, including empty arguments and trailing slashes.
@@ -119,7 +121,7 @@ private final class NativePipe: Sendable {
         var read: HANDLE?, write: HANDLE?
         var security = SECURITY_ATTRIBUTES(nLength: DWORD(MemoryLayout<SECURITY_ATTRIBUTES>.size), lpSecurityDescriptor: nil, bInheritHandle: true)
         guard CreatePipe(&read, &write, &security, 0), let read, let write else {
-            throw EditorAgentCatalogError(message: "Unable to create ACP pipes (\(GetLastError())).")
+            throw EditorWindowsProcessError(message: "Unable to create tool pipes (\(GetLastError())).")
         }
         let parentHandle = parentReads ? read : write
         let childHandle = parentReads ? write : read
@@ -127,12 +129,17 @@ private final class NativePipe: Sendable {
         guard descriptor >= 0 else {
             CloseHandle(read)
             CloseHandle(write)
-            throw EditorAgentCatalogError(message: "Unable to prepare ACP pipe descriptors.")
+            throw EditorWindowsProcessError(message: "Unable to prepare tool pipe descriptors.")
         }
         parent = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         childAddress = UInt(bitPattern: childHandle)
     }
 
     deinit { CloseHandle(child) }
+}
+
+struct EditorWindowsProcessError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
 }
 #endif

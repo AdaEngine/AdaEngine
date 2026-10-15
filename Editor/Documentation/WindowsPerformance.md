@@ -176,3 +176,199 @@ they are excluded from the display-FPS results above.
 
 These captures establish performance for the measured Studio workloads on this
 machine. They do not establish a minimum FPS for arbitrary user scenes or hardware.
+
+## Window demand and stability validation (2026-10-15)
+
+UI window cameras now opt into presentation on demand. A completed scene texture
+requests presentation separately from UI geometry invalidation; an unchanged
+inactive editor does not need another swapchain image. Ordinary scene cameras
+and windows owned by an embedded runtime retain continuous presentation. Windows
+frame pacing checks the actual visible windows so an active game does not inherit
+the inactive editor's idle sleep.
+
+A pending redraw survives unsuccessful drawable acquisition, including the
+temporary skips during WebGPU surface resizing. The request is acknowledged when
+acquisition succeeds, and requests for closed windows are discarded. Native
+startup validation also caught an ECS resource-query defect: `Res<T?>` constructed
+through `Extract` used a different lookup from subsequent updates and trapped
+even when the wrapped resource existed. Construction now uses `getFromWorld`,
+matching update semantics, with absent/present/replaced/removed resource tests.
+
+PBR material parameters share immutable buffers by value; material changes select
+a new buffer without overwriting data referenced by earlier draws. The WebGPU
+encoder skips unchanged resource bindings while rebinding retained resources on
+pipeline changes. Tests exercise changed offsets, textures, samplers and pipeline
+layouts using actual D3D12 pixels, as well as in-flight material-buffer contents.
+
+`script/validate_webgpu.sh` passed 26 tests in nine suites on the RTX 4070 with
+Swift 6.3.1 and the pinned Dawn/Tint toolchain. A separate focused AdaUI run passed
+65 tests covering offscreen viewports, captions, environment propagation and lazy
+stacks. The broader UI suite remains unverified: existing navigation/animation
+test compilation errors and the headless combined-sampler text-shader failure
+prevent a clean full-suite run. These limitations are separate from the focused
+GPU and UI results.
+
+The first native build of these changes measured 51.89 displayed FPS in the
+maximized 2560 × 1032 editor and 61.60 displayed FPS in the 1100 × 800 game
+window, with the editor inactive. Each PresentMon capture lasted 30 seconds;
+tracing was disabled and no compiler ran. Present p99 was 22.02 ms and 18.99 ms,
+respectively (`stability-editor-after.csv`, `stability-game-after.csv`). Restoring
+the game after minimizing/maximizing retained rendering and keyboard input;
+returning to the editor measured 51.28 displayed FPS.
+
+These are intermediate results: the editor's private committed memory continued
+growing toward 8.2 GB despite a working set below 1 GB. Inline uniform bytes create
+a unique GPU buffer per call; retaining their bind groups in the long-lived
+pipeline cache cannot provide cross-frame hits and holds the associated native
+allocations. Bind groups containing an inline uniform now bypass that cache.
+Buffered uniforms retain normal caching. The GPU regression test repeatedly draws
+inline constants, verifies the pipeline cache does not grow, and checks the
+resulting pixels together with the reusable-buffer path.
+
+Final native validation, with the inline-buffer cache fix and the same scene,
+window sizes, tracing state and 30-second capture duration:
+
+| Workload | Display FPS | Present p99 | Display p99 | Working set at capture end |
+| --- | ---: | ---: | ---: | ---: |
+| Maximized editor | 52.37 | 21.37 ms | 24.15 ms | 401 MB |
+| Game, editor inactive | 62.83 | 18.74 ms | 24.01 ms | 461 MB |
+
+The editor's 120-second memory sample stayed between 1.1399 and 1.1438 GB of
+private committed memory, without the previous linear growth. During the game
+capture private bytes stayed near 1.609 GB. Working set and private committed
+memory measure different things; the table is not a claim of total GPU memory
+usage or a long-duration leak test. The captures are `stability-final-editor.csv`
+and `stability-final-game.csv`, with process/compiler metadata alongside them and
+five-second memory samples in `stability-final-editor.memory.csv`. No compiler
+ran during these final FPS captures. These results still do not establish a
+minimum of 60 FPS for the editor.
+
+Subsequent animation validation found that the game captures above used a frozen
+robot pose: scene navigation copied entities into the runtime world without
+remapping model-root references. They are not a baseline for the fully animated
+game workload. See the animation validation below for the corrected build.
+
+The final Release executable was packaged as
+`dist/AdaStudio-stability-2026-10-15-windows-x86_64.zip`; relocation smoke checks
+passed. Its executable matches the final build after the packaging script's
+normal PE subsystem conversion. The original `Editor/Package.resolved` contents
+were preserved after validation.
+
+## Scene animation transfer validation (2026-10-15)
+
+`SceneNavigator` now remaps model-node, skin and model-source root references
+after copying the complete scene hierarchy. Copied skins retain their current
+pose and receive a separate GPU palette identity. Scene replacement also declares
+exclusive world access so it cannot invalidate component pointers being traversed
+by another system.
+
+The regression test with the actual GardenRobot model passed when instantiated
+directly but failed after navigation before the fix: the playback clock and pose
+advanced while `UpperLeg.L` remained at its rest transform. The corrected path
+passes. All 15 AdaScene tests in five suites passed in the focused validation
+package, including autoplay, controlled playback, joint transforms, skin palettes,
+pause, reload, preservation of a paused pose, source-scene independence and
+existing scene lifecycle tests.
+
+The Release package was exercised through the native Run window on Windows/D3D12.
+Both robots changed joint transforms over time; keyboard-driven walking, running
+and jumping visibly changed the controlled robot's pose. A clean 30-second
+PresentMon capture with the editor inactive measured 60.33 displayed FPS,
+19.05 ms present p99 and 23.72 ms display p99 (`animation-game-first.csv`). No
+compiler or detailed CPU recording ran during this capture.
+
+That measurement followed closing an orphaned blank launcher window. Opening a
+project while Studio was unfocused left `activeWindow` empty, so the launcher's
+close call had no target. Keeping that extra window open measured roughly
+17–18 FPS in the overlay; closing it restored roughly 60 FPS. Project opening now
+falls back to the previous primary window when there is no active window.
+
+An extended native run also produced a Swift trap in the AdaScript bridge. The
+Windows minidump identified a failed conversion of the query iterator receiver
+to `AnnotatedGravityQueryBridge`. Callback setup held newly allocated `GSValue`s
+only in Swift while `setStoredProperty` allocated its lookup key; these temporary
+values are invisible to the VM collector. Setup now suspends collection while
+binding queries, resources and events, and resumes it before user code runs.
+This closes that unrooted allocation interval without disabling normal collection.
+
+The focused validation package passed 29 tests in nine suites, including 50,000
+script updates with varying temporary allocations, two queries and an Input
+resource. The test checks all 100,000 component increments, valid input access
+and restored collection state. The initial simpler stress workload did not
+reproduce the native trap; the minidump and allocation lifetime analysis motivated
+this guard. This is bounded validation, not proof that every long-running script
+is crash-free. Logs are `animation-gc-after.log`, `animation-crash-registers.log`
+and `animation-crash-symbols.log` under `.build-tools/performance`.
+
+The final packaged build automatically closed the unfocused launcher and was
+exercised again in the native game window, including jumping. Its clean
+30-second capture measured 59.63 displayed FPS, 19.47 ms present p99 and
+23.97 ms display p99 (`animation-stability-game.csv`). Private committed memory
+was 1.602–1.603 GB during the capture; no compiler or tracing session was active.
+The game window was 1100 × 800, with the maximized editor inactive.
+The subsequent 120-second memory sample stayed within 1.604–1.608 GB of private
+committed memory (24 samples, five-second intervals). The final process remained
+alive and the native game remained running after these checks.
+
+Release build and relocation/tool smoke checks passed for
+`dist/AdaStudio-animation-stability-2026-10-15-windows-x86_64.zip` (SHA-256
+`c71078019d124e4eeaae03f0f9a1027bd989eee5a01703241e76e9b668fe8e4a`).
+The original `Editor/Package.resolved` contents were restored after validation.
+
+## Authored lighting parity (2026-10-15)
+
+The Skeletal Garden scene had SSR explicitly disabled and `Studio.ibl` assigned
+at intensity 0.5. Before the viewport parity change, the editor instead used its
+default procedural sky, no IBL asset, and enabled SSR. Copying the authored camera
+environment into the editor exposed the game's brighter appearance in both views.
+The current composite shader also skips its SSR path when baked IBL is present;
+enabling the scene's SSR checkbox alone would not restore that previous preview.
+
+Restored the previous preview environment in the project's
+`Assets/Scenes/Main.ascn`: explicit default procedural sky, enabled SSR, and no
+`Studio.ibl` override. The IBL asset remains available in the project. Existing
+SSAO, FXAA, directional/local shadows and visibility settings are retained. This
+is a scene correction, with no new renderer binary or shader modification.
+The edit went through scene history and Save; comparison of parsed YAML confirmed
+that only camera `garden-0538`'s `Environment3D` changed among all 539 entities.
+The original scene is backed up as `.build-tools/performance/Main.before-lighting.ascn`.
+
+Native Run was restarted from the saved scene. Both its output and the maximized
+editor visibly restored the darker landscape, colored local lighting and glossy
+reflections. Separate 30-second PresentMon captures measured 59.84 displayed FPS
+in the 1100 x 800 game window (editor inactive) and 51.74 FPS in the maximized
+editor (game stopped). Present p99 was 19.22 ms / 22.21 ms and display p99 was
+23.92 ms / 24.35 ms respectively. Captures and compiler metadata are
+`lighting-restored-game.*` and `lighting-restored-editor.*` under
+`.build-tools/performance`; neither capture overlapped a build. These measurements
+supersede the earlier game captures for assessing the requested lighting quality;
+they do not establish 60 FPS for the editor or for simultaneous foreground views.
+
+## Windows background tool windows (2026-10-15)
+
+Tint inherited the default Windows console policy. When launched by the GUI
+release executable without a parent console, each shader compilation could
+create a transient console window. The renderer now passes `CREATE_NO_WINDOW`
+and a hidden startup window to Swift Subprocess. Shader output and errors still
+travel through captured pipes.
+
+Studio's existing native ACP process launcher is now shared by its build/tool
+runner, Swift toolchain lookup and SourceKit-LSP. It uses `CREATE_NO_WINDOW`,
+UTF-16 arguments/environment and explicitly inherited stdio handles. ACP and LSP
+keep job-based process-tree ownership; ordinary commands retain their previous
+direct-process cancellation semantics so services such as adb can persist.
+The tool runner drains stdout/stderr concurrently, retains split UTF-8 output,
+and waits for termination after cancellation.
+
+An isolated Swift Testing package compiled the actual five Windows tool source
+files and passed five subprocess tests: `GetConsoleWindow() == 0`, argument/cwd/
+environment preservation, large stderr and split UTF-8 output, cancellation,
+missing-tool errors, and bidirectional supervised stdio. The suite is checked in
+as `EditorWindowsBackgroundProcessTests`; its execution log is
+`.build-tools/performance/no-console-tools-tests.log`. This was focused validation,
+not the full editor test suite.
+
+`script/validate_webgpu.sh` also passed all 26 tests in nine suites, including
+fresh Tint SPIR-V conversion and real D3D12 GPU pixel checks on RTX 4070 with the
+installed Swift 6.3.1 toolchain. Its log is
+`.build-tools/performance/no-console-webgpu-validation.log`.

@@ -975,15 +975,39 @@ enum SourceKitLSPError: Error, Equatable, Sendable {
             case invalid
         }
 
+        #if os(Windows)
+        private var process: EditorWindowsProcess?
+        private var supervisor: Task<Void, Never>?
+        #else
         private var process: Process?
-        private var input: Pipe?
-        private var output: Pipe?
+        #endif
+        private var input: FileHandle?
+        private var output: FileHandle?
         private var nextRequestID = 1
         private var pendingResponses: [Int: CheckedContinuation<JSONRPCValue?, any Error>] = [:]
         private var readBuffer = Data()
         private var notificationHandler: (@Sendable (String, JSONRPCValue?) async -> Void)?
 
         func start(executablePath: String, projectURL: URL) async throws {
+            #if os(Windows)
+            let process = try EditorWindowsProcess(
+                executable: URL(fileURLWithPath: executablePath), arguments: Self.launchArguments,
+                directory: projectURL, environment: ProcessInfo.processInfo.environment
+            )
+            self.process = process
+            input = process.input
+            output = process.output
+            // Drain diagnostics even when Studio was launched without a console.
+            process.error.readabilityHandler = { handle in
+                let data = handle.availableData
+                if data.isEmpty { handle.readabilityHandler = nil }
+                else { try? FileHandle.standardError.write(contentsOf: data) }
+            }
+            supervisor = Task { [weak self] in
+                for await _ in process.exit { }
+                if !Task.isCancelled { await self?.processDidExit(process) }
+            }
+            #else
             let process = Process()
             let input = Pipe()
             let output = Pipe()
@@ -998,17 +1022,18 @@ enum SourceKitLSPError: Error, Equatable, Sendable {
             try process.run()
 
             self.process = process
-            self.input = input
-            self.output = output
-            output.fileHandleForReading.readabilityHandler = { [weak self] handle in
-                let data = handle.availableData
-                Task {
-                    await self?.receive(data)
-                }
-            }
+            self.input = input.fileHandleForWriting
+            self.output = output.fileHandleForReading
             process.terminationHandler = { [weak self] _ in
                 Task {
                     await self?.connectionDidClose()
+                }
+            }
+            #endif
+            self.output?.readabilityHandler = { [weak self] handle in
+                let data = handle.availableData
+                Task {
+                    await self?.receive(data)
                 }
             }
         }
@@ -1048,8 +1073,20 @@ enum SourceKitLSPError: Error, Equatable, Sendable {
             notificationHandler = handler
         }
 
+        #if os(Windows)
+        private func processDidExit(_ exited: EditorWindowsProcess) {
+            guard process === exited else { return }
+            connectionDidClose()
+        }
+        #endif
+
         func stop() {
-            output?.fileHandleForReading.readabilityHandler = nil
+            output?.readabilityHandler = nil
+            #if os(Windows)
+            process?.error.readabilityHandler = nil
+            supervisor?.cancel()
+            supervisor = nil
+            #endif
             process?.terminate()
             process = nil
             input = nil
@@ -1070,7 +1107,7 @@ enum SourceKitLSPError: Error, Equatable, Sendable {
             let data = try JSONEncoder().encode(value)
             var message = Data("Content-Length: \(data.count)\r\n\r\n".utf8)
             message.append(data)
-            input.fileHandleForWriting.write(message)
+            input.write(message)
         }
 
         private func receive(_ data: Data) async {
@@ -1172,7 +1209,12 @@ enum SourceKitLSPError: Error, Equatable, Sendable {
             guard process != nil || !pendingResponses.isEmpty else {
                 return
             }
-            output?.fileHandleForReading.readabilityHandler = nil
+            output?.readabilityHandler = nil
+            #if os(Windows)
+            process?.error.readabilityHandler = nil
+            supervisor?.cancel()
+            supervisor = nil
+            #endif
             process = nil
             input = nil
             output = nil
