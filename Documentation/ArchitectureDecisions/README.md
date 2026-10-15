@@ -59,7 +59,7 @@ describes the intended design even when its implementation is still planned.
 | [ADR-0019](0019-environment-lighting-and-postprocessing.md) | Accepted | Planned | Environment lighting and postprocessing |
 | [ADR-0020](0020-gpu-visibility-and-animation-lod.md) | Accepted | Implemented on Metal with CPU fallback; WebGPU GPU compaction remains a backend extension | GPU visibility and animation LOD |
 | [ADR-0021](0021-hybrid-ray-tracing.md) | Accepted | Planned | Hybrid ray tracing |
-| [ADR-0026](0026-3d-rendering-pipeline-gap-roadmap.md) | Proposed | Planned | 3D pipeline gap analysis and staged roadmap: post stack, materials/glTF extensions, morph targets, transparency, atmosphere, lighting scale, content features, diagnostics |
+| [ADR-0026](0026-3d-rendering-pipeline-gap-roadmap.md) | Accepted | Partial (Stage 0 local foundation; not released) | 3D pipeline gap analysis and staged roadmap: post stack, materials/glTF extensions, morph targets, transparency, atmosphere, lighting scale, content features, diagnostics |
 
 ## 2D rendering decisions
 

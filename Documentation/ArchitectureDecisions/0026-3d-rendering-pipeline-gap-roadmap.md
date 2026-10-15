@@ -1,8 +1,8 @@
 # ADR-0026: 3D rendering pipeline gap analysis and roadmap
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-16
-- Implementation: Planned
+- Implementation: Partial (Stage 0 local foundation; not released)
 
 ## Context
 
@@ -109,7 +109,9 @@ These unblock later stages and make their results verifiable.
    light-count heat map. They are developer features, off by default, and add
    no cost to the normal path. Expose GPU pass timings next to the existing
    `Render3DPerformanceMetrics`. Add a small 3D debug-draw API (lines, boxes,
-   spheres, frusta, axes) with a lifetime in frames.
+   spheres, frusta, axes) with a lifetime in frames. The first slice covers the
+   views that read data the main pass already writes; views that need new
+   shader outputs (albedo, overdraw, cascade tint, light heat map) follow.
 2. **Golden-frame tests.** Add a headless render-and-compare harness for
    deterministic scenes (PBR spheres, shadows, skybox, transparency). Compare
    against stored references with a documented tolerance per backend. Native
@@ -269,9 +271,14 @@ Each item needs its own short requirements note before implementation.
 
 ## Implementation checklist
 
-- [ ] Stage 0: debug views, GPU pass timing, and 3D debug-draw API.
-- [ ] Stage 0: golden-frame harness with recorded per-backend tolerances.
-- [ ] Stage 0: prepass decision recorded with measurements.
+- [x] Stage 0: debug views from existing main-pass outputs (normals, depth, roughness, metallic, SSAO, indirect light, wireframe).
+- [ ] Stage 0: debug views needing new shader outputs (albedo, overdraw, cascade tint, light-count heat map).
+- [x] Stage 0: GPU pass timing (already provided by `Render3DPerformanceMetrics`; the debug passes record into it).
+- [ ] Stage 0: runtime GPU timing overlay and an Editor control for the debug view.
+- [x] Stage 0: 3D debug-draw API (lines, polylines, boxes, AABBs, spheres, axes, frusta; depth-tested or overlay).
+- [x] Stage 0: golden-frame harness with Metal tolerance and checked-in references.
+- [ ] Stage 0: golden-frame tolerances for WebGPU and other backends.
+- [ ] Stage 0: prepass decision confirmed with GPU measurements (analysis recorded below).
 - [ ] Stage 1: per-camera post-process stack with exposure and tone-map operators (ADR-0019 exposure).
 - [ ] Stage 1: bloom (ADR-0019), auto-exposure, color grading LUT, vignette.
 - [ ] Stage 1: depth of field and motion blur with quality tiers.
@@ -290,6 +297,82 @@ Each item needs its own short requirements note before implementation.
 - [ ] Stage 7: decals, static-mesh LOD, terrain, water, foliage, 3D particles (each with its own requirements note).
 - [ ] Stage 7: Hi-Z/indirect-draw parity on WebGPU and Vulkan or documented fallback.
 - [ ] Stage 8: Apple mobile and non-Metal proof for TAA and the new effects.
+
+## Recorded implementation
+
+### Stage 0, first slice (2026-10-16)
+
+**Debug views.** `DebugView3D` is selected per camera through
+`Environment3D.debugView` (default `.none`; absent in older scene payloads
+decodes to `.none`). `.normals`, `.depth`, `.roughness`, `.metallic`,
+`.ambientOcclusion` and `.indirectLighting` run one fullscreen
+`DebugView3DRenderNode` after the last color writer (SSR composite, FXAA or
+temporal resolve) and before debug draw and 2D/UI, so debug output is not
+anti-aliased, tone mapped or upscaled. It samples the normal/roughness and
+view-position/metallic targets the main pass already writes, the SSAO result and
+the indirect-light target; a camera on `.none` or `.wireframe` records no GPU
+work in that node. `.wireframe` switches the main pass to line fill through the
+existing `setTriangleFillMode`; the WebGPU encoder implements that call as a
+no-op, so wireframe renders solid there. Early passes that notify the output as
+presentable (`SSR`, `FXAA`) defer that notification when a debug view or debug
+lines will still draw.
+
+```swift
+camera.environment.debugView = .normals   // or .wireframe, .depth, ...
+```
+
+**Debug draw.** `DebugDraw3D` is a main-world resource registered by
+`Core3DPlugin`. Shapes live for `duration` rendered frames (default 1, values
+below 1 draw once), are extracted once per render frame, and are bounded by
+`maximumLineCount` with `droppedLineCount` for overflow. Non-finite input is
+rejected. Rendering reuses `LinePipeline` with two variants: `lessOrEqual`
+against the scene depth (the upscaled output depth when temporal upscaling is
+active) and `always` for overlay lines.
+
+```swift
+let draw = world.getResource(DebugDraw3D.self)!
+draw.box(transform: entityTransform, halfExtents: [0.5, 1, 0.5], color: .green)
+draw.sphere(center: target, radius: 2, color: .yellow, duration: 60)
+draw.line(from: origin, to: hit, color: .red, depthTested: false)
+```
+
+**Golden frames.** `GoldenFrame` (Tests/AdaEngineTests/GoldenFrameSupport.swift)
+compares a rendered image with `GoldenFrames/<backend>/<name>.png` using a
+per-channel step and a differing-pixel fraction (Metal: 2 steps, 0.05% of
+pixels). `ADAENGINE_GOLDEN_RECORD=1` rewrites references; a mismatch writes the
+actual and a difference image to `ADAENGINE_GOLDEN_OUTPUT`. The Metal suite
+renders four PBR spheres (roughness 0.1-0.9, metallic 0-1) with a shadowed sun
+and checks each debug view, debug draw and the return to the normal frame.
+
+**Findings during implementation.**
+
+- `DepthStencilDescriptor.isDepthTestEnabled` is not read by any backend; depth
+  testing is governed by `depthCompareOperator` alone. Use `.always` to disable
+  testing. This is existing behavior and not changed here.
+- The main pass already writes view-space normals, roughness, view position and
+  metallic to dedicated targets, so SSAO, SSR and the debug views need no
+  depth/normal prepass.
+- `Render3DPerformanceMetrics` already measures per-pass GPU time with warmup;
+  the new passes record as `debug` and `debugDraw`.
+
+**Prepass decision (analysis, not measurement).** No separate prepass is
+adopted now. Current consumers (SSAO, SSR, debug views) read the main pass
+outputs, and ADR-0020's Hi-Z occlusion has its own previous-frame and
+disocclusion handling, so no existing consumer needs depth or normals before
+the main pass. A prepass would add a second geometry
+submission (including skinned, instanced and alpha-masked items) for an
+early-Z saving nobody has measured. Revisit when a stage needs pre-main-pass
+depth (for example clustered light bounds or decal culling) or when measured
+overdraw in a target scene is high. The measurement stays an open checklist item.
+
+**Validation.** On macOS with Swift 6.2.3: the full engine suite passed (1756
+tests, GPU suites gated by environment variables). The Metal suite
+(`ADAENGINE_GOLDEN_METAL=1 swift test --filter Render3DDebugViewMetalTests`)
+passed 5 tests, and a deliberate depth-scale change was caught by exactly the
+depth frame (165,082 differing pixels). Not verified: WebGPU rendering of the
+new shader (the web WGSL cache already omits several 3D shaders, so no cache
+entry was added), Apple mobile, Windows, and the windowed presentation
+notification path (only offscreen targets were exercised).
 
 ## Validation requirements
 
