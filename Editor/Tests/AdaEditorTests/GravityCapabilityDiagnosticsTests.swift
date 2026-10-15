@@ -64,6 +64,21 @@ struct GravityCapabilityDiagnosticsTests {
         ])
     }
 
+    @Test("A qualified or quoted @access name covers the short component name")
+    func accessAcceptsQualifiedAndQuotedNames() {
+        let source = """
+            @system(id: "qualified")
+            @access(read: [Game.Health], write: ["Poison"])
+            class Qualified {
+                func update(context) {
+                    context.world.read(1, "Health", "current");
+                    context.world.write(1, "Poison", "duration", 2);
+                }
+            }
+            """
+        #expect(messages(source).isEmpty)
+    }
+
     @Test("Storing context.world in a property or global is a lifetime violation")
     func retainedCapabilityIsFlagged() {
         let source = """

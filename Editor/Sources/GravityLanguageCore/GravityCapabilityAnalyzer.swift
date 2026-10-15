@@ -1,3 +1,5 @@
+import AdaScriptCompilerCore
+
 /// Diagnostics for ADR-0004 world capabilities: declaration placement, declared-access
 /// checks, and retained-capability lifetime violations.
 enum GravityCapabilityAnalyzer {
@@ -6,10 +8,15 @@ enum GravityCapabilityAnalyzer {
     private static let systemOnlyAnnotations: Set<String> = ["access", "exclusiveWorld"]
     private static let eventAnnotations: Set<String> = ["events", "eventWriter"]
 
-    static func diagnostics(regions: [GravityTypeRegion], tokens: [GravityToken], globals: Set<String>) -> [GravityDiagnostic] {
+    static func diagnostics(
+        regions: [GravityTypeRegion],
+        tokens: [GravityToken],
+        globals: Set<String>,
+        syntax: AdaScriptSyntaxTree
+    ) -> [GravityDiagnostic] {
         var diagnostics = placementDiagnostics(regions: regions, tokens: tokens)
         for region in regions where region.annotations.contains("system") {
-            diagnostics += bodyDiagnostics(region: region, tokens: tokens, globals: globals)
+            diagnostics += bodyDiagnostics(region: region, tokens: tokens, globals: globals, syntax: syntax)
         }
         return diagnostics
     }
@@ -45,13 +52,20 @@ enum GravityCapabilityAnalyzer {
 
     // MARK: Usage
 
-    private static func bodyDiagnostics(region: GravityTypeRegion, tokens: [GravityToken], globals: Set<String>) -> [GravityDiagnostic] {
+    private static func bodyDiagnostics(
+        region: GravityTypeRegion,
+        tokens: [GravityToken],
+        globals: Set<String>,
+        syntax: AdaScriptSyntaxTree
+    ) -> [GravityDiagnostic] {
         guard let declarationIndex = tokens.firstIndex(where: { $0.range.start == region.symbol.range.start }) else {
             return []
         }
         let annotations = GravityDocumentAnalyzer.annotationTokens(before: declarationIndex, in: tokens)
         let isExclusive = annotations.contains { $0.text == "exclusiveWorld" }
-        let access = annotations.first { $0.text == "access" }.map { accessSets(for: $0, in: tokens) }
+        let access = syntax.types.first { $0.name == region.symbol.name }?
+            .annotations.first { $0.name == "access" }
+            .map(accessSets)
         let properties = Set(region.symbol.members.filter { $0.kind == .property }.map(\.name))
         var diagnostics: [GravityDiagnostic] = []
         let body = (region.openBraceIndex + 1)..<region.closeBraceIndex
@@ -133,20 +147,28 @@ enum GravityCapabilityAnalyzer {
 
     // MARK: Token helpers
 
-    private static func accessSets(for annotation: GravityToken, in tokens: [GravityToken]) -> (read: Set<String>, write: Set<String>) {
-        guard let index = tokens.firstIndex(where: { $0.range == annotation.range }) else {
-            return ([], [])
-        }
-        var sets: [String: Set<String>] = ["read": [], "write": []]
-        var current: String?
-        for token in argumentTokens(after: index, in: tokens) {
-            if token.kind == .identifier, sets[token.text] != nil {
-                current = token.text
-            } else if let label = current, token.kind == .identifier || token.kind == .string {
-                sets[label, default: []].insert(unquoted(token.text))
+    /// The components named by `@access(read: [...], write: [...])`, from the shared annotation values.
+    /// A qualified `Game.Health` counts as both `Game.Health` and `Health`.
+    private static func accessSets(for annotation: AdaScriptAnnotationSyntax) -> (read: Set<String>, write: Set<String>) {
+        func names(_ label: String) -> Set<String> {
+            var result: Set<String> = []
+            func collect(_ value: AdaScriptAnnotationValue) {
+                switch value {
+                case let .identifier(name), let .string(name):
+                    result.insert(name)
+                    if let short = name.split(separator: ".").last {
+                        result.insert(String(short))
+                    }
+                case let .list(values):
+                    values.forEach(collect)
+                case .bool, .number:
+                    break
+                }
             }
+            annotation.values.filter { $0.label == label }.forEach { collect($0.value) }
+            return result
         }
-        return (sets["read"] ?? [], sets["write"] ?? [])
+        return (names("read"), names("write"))
     }
 
     /// Tokens inside the parentheses that follow an annotation name, excluding punctuation.

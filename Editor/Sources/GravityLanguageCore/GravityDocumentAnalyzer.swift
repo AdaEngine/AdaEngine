@@ -32,17 +32,15 @@ struct GravityDocumentAnalyzer {
         let typeDiagnostics = sharedAnalysis.typeIssues
             .filter { _ in projectTypeChecking == .strict || sharedAnalysis.syntax.isStrict }
             .map(gravityDiagnostic)
+        let globals = Set(symbols.filter { [.variable, .constant].contains($0.kind) }.map(\.name))
+        let capabilityDiagnostics = GravityCapabilityAnalyzer.diagnostics(regions: typeRegions, tokens: tokens, globals: globals, syntax: syntax)
         return GravityParsedDocument(
             analysis: GravityDocumentAnalysis(
                 diagnostics: lexResult.diagnostics + parsedImports.diagnostics
                     + duplicatePropertyDiagnostics(typeRegions, tokens: tokens)
                     + declarationAnnotationDiagnostics(typeRegions, tokens: tokens)
                     + catalogAnnotationDiagnostics(syntax.annotationUses)
-                    + GravityCapabilityAnalyzer.diagnostics(
-                        regions: typeRegions,
-                        tokens: tokens,
-                        globals: Set(symbols.filter { [.variable, .constant].contains($0.kind) }.map(\.name))
-                    )
+                    + capabilityDiagnostics
                     + typeDiagnostics,
                 imports: parsedImports.imports,
                 symbols: symbols
