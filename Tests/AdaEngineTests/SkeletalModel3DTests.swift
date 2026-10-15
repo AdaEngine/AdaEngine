@@ -48,7 +48,7 @@ struct SkeletalModel3DTests {
         var buffers: [ObjectIdentifier] = []
         for _ in 0 ..< 4 {
             await renderWorld.runScheduler(.extract)
-            let items = try #require(renderWorld.getResource(RenderItems<Opaque3DRenderItem>.self)).items
+            let items = try VisibleMesh3D.capture(from: renderWorld).items
             #expect(items.count == 2)
             let firstBuffer = try #require(items.first { $0.entity == firstMesh.id }?.skinningBuffer)
             let secondBuffer = try #require(items.first { $0.entity == secondMesh.id }?.skinningBuffer)
@@ -93,10 +93,11 @@ struct SkeletalModel3DTests {
         let renderWorld = try #require(app.getSubworldBuilder(by: .renderWorld)?.main)
         renderWorld.insertResource(MainWorld(world: app.main))
         await renderWorld.runScheduler(.extract)
-        let items = try #require(renderWorld.getResource(RenderItems<Opaque3DRenderItem>.self)).items
+        let visible = try VisibleMesh3D.capture(from: renderWorld)
+        let items = visible.items
         #expect(items.count == 1)
         #expect(items[0].batchRange?.count == 4)
-        let defaults = try #require(renderWorld.getResource(Opaque3DInstanceBuffers.self)?.defaultVertexBuffer)
+        let defaults = try #require(visible.buffers.defaults)
         #expect(defaults.count >= 4)
         #expect(defaults.elements.allSatisfy { $0.jointIndices.x == -1 })
     }

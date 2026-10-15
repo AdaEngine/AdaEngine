@@ -27,9 +27,6 @@ public struct Main3DRenderNode: RenderNode {
     >
     private var query
 
-    @Res<RenderItems<Opaque3DRenderItem>>
-    private var renderItems
-
     @Res<ExtractedMesh3DSources> private var candidates
     @ResMut<VisibleMesh3DLists> private var lists
     @ResMut<GPUVisibility3DState> private var gpuVisibility
@@ -62,7 +59,6 @@ public struct Main3DRenderNode: RenderNode {
     public func update(from world: World) {
         _metrics.update(from: world)
         query.update(from: world)
-        _renderItems.update(from: world)
         _lighting.update(from: world)
         _candidates.update(from: world)
         _lists.update(from: world)
@@ -285,9 +281,7 @@ public struct Main3DRenderNode: RenderNode {
                         }
                         return leftKey.depth == rightKey.depth ? left < right : leftKey.depth > rightKey.depth
                     }.map { visibleItems[$0] }
-                    var ordered = renderItems
-                    ordered.items = sorted
-                    try ordered.render(with: renderPass, world: context.world, view: view)
+                    try RenderItems<Opaque3DRenderItem>(items: sorted).render(with: renderPass, world: context.world, view: view)
                 } else {
                     try RenderItems<Opaque3DRenderItem>(items: visibleItems).render(with: renderPass, world: context.world, view: view)
                 }
