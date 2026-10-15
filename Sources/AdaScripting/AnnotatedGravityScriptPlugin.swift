@@ -27,6 +27,9 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         AdaScriptRuntimeCoordinator.lock.withLock { runtime.activeAsyncTaskCount }
     }
 
+    /// The `@test` functions loaded with `includeTests: true`; empty otherwise.
+    public let tests: [AdaScriptTestCase]
+
     private(set) var plans: [AnnotatedSystemPlan]
     private var dataSchemas: [AdaScriptDataSchema]
     private var networkCommands: [AdaScriptNetworkCommandSchema]
@@ -57,7 +60,8 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         sources: [AdaScriptSource],
         name: String,
         startupSystemIdentifier: String? = nil,
-        communityPolicy: AdaScriptCommunityPolicy? = nil
+        communityPolicy: AdaScriptCommunityPolicy? = nil,
+        includeTests: Bool = false
     ) throws {
         if communityPolicy != nil {
             for source in sources { try AdaScriptCommunityLowerer.validate(source: source.source) }
@@ -66,7 +70,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         let dataSchemas = try AdaScriptSchemaParser.parse(sources: sources)
         let runtimeComponents = AdaScriptComponentRuntime.runtimeDescriptors(schemas: dataSchemas)
         let networkCommands = try AdaScriptSchemaParser.parseNetworkCommands(sources: sources)
-        let module = try GravityScriptModuleResolver.resolve(sources)
+        let module = try GravityScriptModuleResolver.resolve(sources, includeTests: includeTests)
         let runtime: AnnotatedGravityRuntime
         do {
             runtime = try AnnotatedGravityRuntime(
@@ -122,12 +126,37 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
             plans.insert(startupPlan, at: 0)
         }
         self.name = name
+        self.tests = module.tests
         self.dataSchemas = dataSchemas
         self.networkCommands = networkCommands
         self.runtimeComponents = runtimeComponents
         self.runtime = runtime
         self.plans = plans
         try runtime.instantiateSystems(plans)
+        runtime.testWorldFactory?.build = { [unowned self, runtime] in
+            let world = World(name: "Ada Script test")
+            self.registerComponentsForTesting(in: world)
+            let startupSystems = Set(self.plans.filter { $0.scheduler == .startup }.map(\.className))
+            return runtime.makeTestWorld(world: world, startupSystems: startupSystems) { [unowned self] className, installed in
+                self.installSystemsForTesting(into: world, className: className, alreadyInstalled: installed)
+            }
+        }
+    }
+
+    /// Runs the loaded `@test` functions, optionally only those whose name or display name contains `filter`.
+    public func runTests(matching filter: String? = nil) -> [AdaScriptTestResult] {
+        let selected = tests.filter { test in
+            guard let filter, !filter.isEmpty else {
+                return true
+            }
+            return test.name.contains(filter) || test.displayName.contains(filter)
+        }
+        let clock = ContinuousClock()
+        return selected.map { test in
+            let start = clock.now
+            let execution = AdaScriptRuntimeCoordinator.lock.withLock { runtime }.runTest(named: test.name)
+            return AdaScriptTestResult(test: test, execution: execution, duration: start.duration(to: clock.now))
+        }
     }
 
     /// Compiles and validates a plugin while keeping its complete VM lifetime serialized.
@@ -278,6 +307,45 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
             }
             self.runtime.resetForSceneChange(plans: self.plans, worldID: worldID)
         }
+    }
+
+    /// Registers the module's runtime components in a bare world for a `TestWorld`, so a test can spawn them
+    /// before any system is installed.
+    ///
+    /// `setup(in:)` is main-actor isolated because it also wires multiplayer and scene navigation, which a test
+    /// world does not have. A test runs on whichever thread the runner was called from, so these take the plain world.
+    func registerComponentsForTesting(in world: World) {
+        for descriptor in runtimeComponents {
+            world.registerRuntimeComponent(descriptor)
+        }
+    }
+
+    /// Installs systems into a `TestWorld`: the one named by `className`, or every system when it is nil.
+    /// Returns the class names installed by this call; systems in `alreadyInstalled` are skipped.
+    func installSystemsForTesting(into world: World, className: String?, alreadyInstalled: Set<String>) -> Set<String> {
+        let selected = plans.filter { plan in
+            (className == nil || plan.className == className) && !alreadyInstalled.contains(plan.className)
+        }
+        if let className, !plans.contains(where: { $0.className == className }) {
+            runtime.appendDiagnostic("TestWorld cannot run unknown system '\(className)'")
+        }
+        if alreadyInstalled.isEmpty {
+            world.schedulers.addSystem(AdaScriptTaskPumpSystem(pluginIdentifier: name, runtime: runtime), for: .update)
+        }
+        var installed = Set<String>()
+        for plan in selected {
+            do {
+                let prepared = try Self.prepare(plan, pluginIdentifier: name, world: world)
+                world.schedulers.addSystem(
+                    AnnotatedGravityScriptSystem(pluginIdentifier: name, runtime: runtime, preparedSystem: prepared),
+                    for: prepared.scheduler
+                )
+                installed.insert(plan.className)
+            } catch {
+                runtime.appendDiagnostic(String(describing: error))
+            }
+        }
+        return installed
     }
 
     @MainActor
@@ -936,6 +1004,14 @@ private struct AnnotatedGravityScriptSystem: System {
     }
 }
 
+private enum GlobalScalar {
+    case bool(Bool)
+    case double(Double)
+    case integer(Int64)
+    case null
+    case string(String)
+}
+
 private final class AnnotatedGravityRuntime: @unchecked Sendable {
     let annotations: [GravityAnnotation]
 
@@ -947,6 +1023,9 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
     private let taskRuntime: AdaScriptTaskRuntime
     private let asyncHost: AdaScriptAsyncHost
     private let communityBudget: AdaScriptCommunityBudget?
+    /// Present only when the module was loaded with tests; the plugin supplies its `build` closure.
+    let testWorldFactory: AdaScriptTestWorldFactory?
+    private let globalVariableNames: [String]
     private var instances: [String: GSValue] = [:]
 
     deinit {
@@ -1006,6 +1085,16 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         try suspensionPolicy.bindBorrowed(AnnotatedGravityComponentView.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityResourceView.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AdaScriptMultiplayerAPI.self, to: virtualMachine)
+        self.globalVariableNames = module.globalVariableNames
+        if module.includesTests {
+            let factory = AdaScriptTestWorldFactory()
+            self.testWorldFactory = factory
+            try suspensionPolicy.bindBorrowed(AdaScriptTestWorld.self, to: virtualMachine)
+            try virtualMachine.bindClass(with: AdaScriptTestWorldFactory.self)
+            virtualMachine.setValue(factory, forKey: "__adaTestFactory")
+        } else {
+            self.testWorldFactory = nil
+        }
         try virtualMachine.bindClass(with: AdaScriptNetworkCommandFactory.self)
         try virtualMachine.bindClass(with: AdaScriptNetworkCommandValue.self)
         try virtualMachine.bindClass(with: AdaScriptNetworkValueBridge.self)
@@ -1035,6 +1124,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let standardLibrary = communityPolicy == nil ? AdaScriptStandardLibrary.source : AdaScriptStandardLibrary.communitySource
         let runtimeSource = (communityPolicy == nil ? "" : "extern var __adaUGCBudget;\n") + standardLibrary + "\n"
                 + AdaScriptTaskPrelude.source + "\n"
+                + (module.includesTests ? AdaScriptTestPrelude.source + "\n" : "")
                 + AdaScriptComponentRuntime.prelude(constructors: componentConstructors, authoredSource: module.combinedSource)
                 + AdaScriptNetworkBridge.prelude(commands: networkCommands)
                 + authoredSource
@@ -1157,6 +1247,80 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             }
         }
         _ = instance.callMethod(named: "update", with: [context])
+    }
+
+    /// Scalar module-level variables before a test. Strings are kept as Swift values because the VM's collector
+    /// cannot see a `GSValue` held here. Lists and maps are references and are not restored.
+    private func snapshotGlobals() -> [(name: String, value: GlobalScalar)] {
+        globalVariableNames.compactMap { name in
+            let value = virtualMachine.getValue(forKey: name)
+            if value.isInteger { return (name, .integer(value.toInteger)) }
+            if value.isDouble { return (name, .double(value.toDouble)) }
+            if value.isBool { return (name, .bool(value.toBoolean)) }
+            if value.isString { return (name, .string(value.toString)) }
+            if value.isNull { return (name, .null) }
+            return nil
+        }
+    }
+
+    private func restoreGlobals(_ snapshot: [(name: String, value: GlobalScalar)]) {
+        for (name, scalar) in snapshot {
+            let value: GSValue
+            switch scalar {
+            case let .integer(number): value = GSValue(integer: Int(number), in: virtualMachine)
+            case let .double(number): value = GSValue(double: number, in: virtualMachine)
+            case let .bool(flag): value = GSValue(boolean: flag, in: virtualMachine)
+            case let .string(text): value = GSValue(string: text, in: virtualMachine)
+            case .null: value = GSValue(nullIn: virtualMachine)
+            }
+            virtualMachine.setValue(value, forKey: name)
+        }
+    }
+
+    /// A `TestWorld` over `world`, which the caller has already installed the module into.
+    func makeTestWorld(
+        world: World,
+        startupSystems: Set<String>,
+        installer: @escaping @Sendable (String?, Set<String>) -> Set<String>
+    ) -> AdaScriptTestWorld {
+        let payloads = AnnotatedGravityComponentPayloads(
+            runtimeComponents: runtimeComponents.reduce(into: [:]) { result, descriptor in
+                result[descriptor.name] = descriptor
+                result[descriptor.stableID] = descriptor
+            },
+            reportDiagnostic: appendDiagnostic
+        )
+        return AdaScriptTestWorld.make(
+            world: world,
+            exclusive: AnnotatedGravityExclusiveAccess(world: world, payloads: payloads, iterators: [], reportDiagnostic: appendDiagnostic),
+            virtualMachine: virtualMachine,
+            installer: installer,
+            startupSystems: startupSystems,
+            reportDiagnostic: appendDiagnostic
+        )
+    }
+
+    /// Runs one `@test` function in its own fiber so a failed `require` or a runtime error ends only that test.
+    func runTest(named name: String) -> AdaScriptTestExecution {
+        AdaScriptRuntimeCoordinator.lock.lock()
+        defer { AdaScriptRuntimeCoordinator.lock.unlock() }
+        communityBudget?.reset()
+        let body = virtualMachine.getValue(forKey: name)
+        let runner = virtualMachine.getValue(forKey: "__adaTestRun")
+        guard body.isClosure, runner.isClosure else {
+            return AdaScriptTestExecution(failures: [], runtimeErrors: ["Test '\(name)' is not loaded"], didAbort: true)
+        }
+        let errorsBefore = delegate.errors.count
+        let globals = snapshotGlobals()
+        defer { restoreGlobals(globals) }
+        let raw = virtualMachine.execute(closure: runner.toGravityClosure, params: [body])
+        let reply = raw?.toList ?? []
+        let failures = reply.count > 1 ? reply[1].toList.map(\.toString) : []
+        return AdaScriptTestExecution(
+            failures: failures,
+            runtimeErrors: Array(delegate.errors.dropFirst(errorsBefore)),
+            didAbort: reply.first?.toInteger == 1
+        )
     }
 
     func pumpTasks(deltaTime: Double, worldID: String) {

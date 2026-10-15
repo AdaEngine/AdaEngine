@@ -48,6 +48,7 @@ AdaEditor projects configure automatic script discovery by default. For an exist
 
 - <doc:AdaScriptECS>
 - <doc:AdaScriptDiagnosticsAndPerformance>
+- <doc:AdaScriptTesting>
 
 ### Runtime API
 

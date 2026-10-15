@@ -46,6 +46,7 @@ public enum AdaScriptAnnotationCatalog {
             rule("state", [.property], "Declare view-owned reactive state"),
             rule("strict", [.module], "Enable strict type checking for this file"),
             rule("system", [.class], "Declare an AdaEngine ECS system"),
+            rule("test", [.function], "Declare an Ada Script test"),
             rule("tool", [.class], "Declare an AdaEditor tool"),
             rule("view", [.class, .struct], "Declare an AdaUI view"),
         ]

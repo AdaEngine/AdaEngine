@@ -49,6 +49,7 @@ struct AdaScriptSyntaxParser {
             isStrict: hasFileStrictAnnotation,
             path: path,
             references: nameReferences(excluding: imports.declarations.map(\.offsets)),
+            tests: parsed.tests,
             types: parsed.types.map(\.syntax),
             visibilityModifierOffsets: topLevelVisibilityModifiers()
         )
@@ -111,6 +112,16 @@ struct AdaScriptSyntaxParser {
                     continue
                 }
                 result.functions.append(parsed.value)
+                if let annotation = prefix.annotations.first(where: { $0.name == "test" }) {
+                    result.tests.append(
+                        testSyntax(
+                            for: parsed.value.syntax,
+                            annotation: annotation,
+                            displayName: testDisplayName(from: prefix.startIndex, to: prefix.nextIndex),
+                            offsets: tokens[prefix.startIndex].startOffset..<tokens[parsed.nextIndex - 1].endOffset
+                        )
+                    )
+                }
                 index = parsed.nextIndex
             case "const", "var":
                 guard let parsed = parseBinding(
@@ -129,6 +140,36 @@ struct AdaScriptSyntaxParser {
             }
         }
         return result
+    }
+
+    private func testSyntax(
+        for function: AdaScriptFunctionSyntax,
+        annotation: AdaScriptAnnotationSyntax,
+        displayName: String?,
+        offsets: Range<Int>
+    ) -> AdaScriptTestSyntax {
+        AdaScriptTestSyntax(
+            annotationRange: annotation.range,
+            displayName: displayName ?? function.name,
+            isAsync: function.isAsync,
+            name: function.name,
+            offsets: offsets,
+            parameterCount: function.parameters.count,
+            range: function.range
+        )
+    }
+
+    /// The string in `@test("…")`, which `AdaScriptAnnotationSyntax.arguments` drops because it keeps identifiers only.
+    private func testDisplayName(from start: Int, to end: Int) -> String? {
+        guard end - start >= 4 else {
+            return nil
+        }
+        for index in start..<(end - 3)
+        where tokens[index].text == "@" && tokens[index + 1].text == "test" && tokens[index + 2].text == "(" && tokens[index + 3].kind == .string {
+            let literal = tokens[index + 3].text
+            return literal.count >= 2 ? String(literal.dropFirst().dropLast()) : nil
+        }
+        return nil
     }
 
     private func declarationPrefix(at index: Int, upperBound: Int) -> DeclarationPrefix {
@@ -150,7 +191,7 @@ struct AdaScriptSyntaxParser {
             }
             break
         }
-        return DeclarationPrefix(annotations: annotations, isAsync: isAsync, isPrivate: isPrivate, nextIndex: cursor)
+        return DeclarationPrefix(annotations: annotations, isAsync: isAsync, isPrivate: isPrivate, nextIndex: cursor, startIndex: index)
     }
 
     private func parseAnnotation(
@@ -537,6 +578,7 @@ struct AdaScriptSyntaxParser {
 private struct ParsedDeclarations {
     var bindings: [AdaScriptParsedBinding] = []
     var functions: [AdaScriptParsedFunction] = []
+    var tests: [AdaScriptTestSyntax] = []
     var types: [AdaScriptParsedType] = []
 }
 
@@ -545,6 +587,7 @@ private struct DeclarationPrefix {
     var isAsync: Bool
     var isPrivate: Bool
     var nextIndex: Int
+    var startIndex: Int
 }
 
 private struct DelimiterDepth {
