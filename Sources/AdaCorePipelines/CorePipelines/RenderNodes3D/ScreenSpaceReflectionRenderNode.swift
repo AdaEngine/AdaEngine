@@ -125,7 +125,7 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                 postProcess: Vector4(
                     environment.postProcess.exposureScale,
                     bloomTexture == nil ? 0 : environment.postProcess.bloom.sanitized.intensity,
-                    0,
+                    environment.postProcess.toneMapper.shaderMode,
                     0
                 )
             )

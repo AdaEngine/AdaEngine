@@ -50,23 +50,47 @@ public struct Bloom3D: Codable, Sendable, Equatable {
     }
 }
 
-/// Per-camera controls applied to the linear HDR image before tone mapping. UI is never affected.
+/// Curve that maps linear HDR scene color to the displayable range, applied once after exposure and bloom.
+public enum ToneMapper3D: String, Codable, Sendable, CaseIterable {
+    /// ACES filmic fit. The original and default look: strong contrast, hue shifts in saturated highlights.
+    case aces
+    /// Khronos PBR Neutral. Leaves colors below the compression point nearly untouched, so authored
+    /// base colors and textures read as designed; highlights roll off and desaturate gently.
+    case neutral
+    /// No curve. Values above `1` clip to white, which is useful for checking raw energy.
+    case none
+
+    /// Shader selector shared with `Tonemapping.glsl`. `aces` stays `0` so unset data keeps the old output.
+    var shaderMode: Float {
+        switch self {
+        case .aces: 0
+        case .neutral: 1
+        case .none: 2
+        }
+    }
+}
+
+/// Per-camera controls applied to the linear HDR image before and during tone mapping. UI is never affected.
 public struct PostProcess3D: Codable, Sendable, Equatable {
     /// Manual exposure compensation in stops (EV). `0` leaves the image unchanged; `+1` doubles brightness.
     public var exposureEV: Float
     public var bloom: Bloom3D
+    /// Tone-mapping curve. Defaults to ``ToneMapper3D/aces``, the behavior before this setting existed.
+    public var toneMapper: ToneMapper3D
 
-    public init(exposureEV: Float = 0, bloom: Bloom3D = Bloom3D()) {
+    public init(exposureEV: Float = 0, bloom: Bloom3D = Bloom3D(), toneMapper: ToneMapper3D = ToneMapper3D.aces) {
         self.exposureEV = exposureEV
         self.bloom = bloom
+        self.toneMapper = toneMapper
     }
 
-    private enum CodingKeys: CodingKey { case exposureEV, bloom }
+    private enum CodingKeys: CodingKey { case exposureEV, bloom, toneMapper }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         exposureEV = try container.decodeIfPresent(Float.self, forKey: .exposureEV) ?? 0
         bloom = try container.decodeIfPresent(Bloom3D.self, forKey: .bloom) ?? Bloom3D()
+        toneMapper = try container.decodeIfPresent(ToneMapper3D.self, forKey: .toneMapper) ?? ToneMapper3D.aces
     }
 
     /// Linear multiplier for `exposureEV`, limited to ±10 stops so a bad value cannot overflow half floats.

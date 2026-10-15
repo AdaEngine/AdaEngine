@@ -43,7 +43,7 @@ layout (binding = 4) uniform Environment3DUniform {
     vec4 u_Starfield;
     vec4 u_IBL;
     vec4 u_Quality;
-    vec4 u_PostProcess; // x exposure scale, y bloom intensity
+    vec4 u_PostProcess; // x exposure scale, y bloom intensity, z tone mapper (see Tonemapping.glsl)
 };
 
 const float PI = 3.14159265359;
@@ -52,26 +52,14 @@ vec3 srgbToLinear(vec3 value) {
     return mix(value / 12.92, pow((value + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), value));
 }
 
-vec3 linearToSrgb(vec3 value) {
-    value = max(value, vec3(0.0));
-    return mix(value * 12.92, 1.055 * pow(value, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), value));
-}
-
-vec3 acesToneMap(vec3 value) {
-    const float a = 2.51;
-    const float b = 0.03;
-    const float c = 2.43;
-    const float d = 0.59;
-    const float e = 0.14;
-    return clamp((value * (a * value + b)) / (value * (c * value + d) + e), 0.0, 1.0);
-}
+#include <AdaEngine/Tonemapping.glsl>
 
 // Exposure and bloom act on linear HDR before tone mapping. The bloom texture is already exposed; with bloom
 // off it is a white placeholder scaled by zero, so default settings leave the color unchanged.
 vec3 presentColor(vec3 linearColor) {
     vec3 exposed = linearColor * u_PostProcess.x
         + texture(sampler2D(u_Bloom, u_LinearSampler), v_UV).rgb * u_PostProcess.y;
-    return u_Quality.z > 0.5 ? exposed : linearToSrgb(acesToneMap(exposed));
+    return u_Quality.z > 0.5 ? exposed : adaOutputTransform(exposed, u_PostProcess.z);
 }
 
 vec3 proceduralSky(vec3 direction) {

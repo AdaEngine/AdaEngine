@@ -51,6 +51,34 @@ struct Render3DPostProcessSettingsTests {
         #expect(environment.postProcess.bloom == Bloom3D(isEnabled: true, intensity: 0.4, threshold: 3))
     }
 
+    @Test func toneMapperDefaultsToAcesAndOldPayloadsKeepIt() throws {
+        #expect(PostProcess3D().toneMapper == .aces)
+        let decoded = try JSONDecoder().decode(PostProcess3D.self, from: Data(#"{"exposureEV":1}"#.utf8))
+        #expect(decoded.toneMapper == .aces)
+        #expect(decoded.exposureEV == 1)
+    }
+
+    @Test(arguments: ToneMapper3D.allCases)
+    func toneMapperRoundTrips(mapper: ToneMapper3D) throws {
+        var environment = Environment3D()
+        environment.toneMapper = mapper
+        #expect(environment.postProcess.toneMapper == mapper)
+        let decoded = try JSONDecoder().decode(Environment3D.self, from: JSONEncoder().encode(environment))
+        #expect(decoded.postProcess.toneMapper == mapper)
+    }
+
+    @Test func toneMapperRawValuesAndShaderSelectorsAreStable() {
+        #expect(ToneMapper3D.allCases.map(\.rawValue) == ["aces", "neutral", "none"])
+        // The shader selects the curve by number, and zero must remain the original ACES look.
+        #expect(ToneMapper3D.allCases.map(\.shaderMode) == [0, 1, 2])
+    }
+
+    @Test func unknownToneMapperNameFailsInsteadOfSilentlyFallingBack() {
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(PostProcess3D.self, from: Data(#"{"toneMapper":"reinhard"}"#.utf8))
+        }
+    }
+
     @Test func exposureScaleIsPowerOfTwoLimitedToTenStops() {
         #expect(PostProcess3D(exposureEV: 1).exposureScale == 2)
         #expect(PostProcess3D(exposureEV: -1).exposureScale == 0.5)
@@ -95,10 +123,11 @@ struct Render3DPostProcessMetalTests {
         (color.red + color.green + color.blue) / 3
     }
 
-    /// Bounding box of near-white pixels in the upper part of the frame: the emissive sphere's silhouette.
+    /// Bounding box of near-white pixels in the top two fifths of the frame: the emissive sphere's silhouette.
+    /// The limit keeps specular highlights on the sphere row below out of the box.
     private static func emitterBounds(in image: Image) -> (minX: Int, maxX: Int, minY: Int, maxY: Int)? {
         var bounds: (minX: Int, maxX: Int, minY: Int, maxY: Int)?
-        for y in 0..<(image.height / 2) {
+        for y in 0..<(image.height * 2 / 5) {
             for x in 0..<image.width where luminance(image.getPixel(x: x, y: y)) > 0.9 {
                 let current = bounds ?? (x, x, y, y)
                 bounds = (min(current.minX, x), max(current.maxX, x), min(current.minY, y), max(current.maxY, y))
@@ -181,6 +210,69 @@ struct Render3DPostProcessMetalTests {
             let base = Self.luminance(normal.getPixel(x: point.0, y: point.1))
             #expect(Self.luminance(brighter.getPixel(x: point.0, y: point.1)) > base + 8 / 255)
             #expect(Self.luminance(darker.getPixel(x: point.0, y: point.1)) < base - 8 / 255)
+        }
+    }
+
+    private static let probes = [(320, 440), (100, 450), (560, 430), (60, 300)]
+
+    /// The composite shader tone maps the direct and FXAA paths and the temporal shader tone maps the upscaled
+    /// path. Both include one shared transform, so every operator must give the same picture on both.
+    @Test(.enabled(if: Render3DDebugViewMetalTests.enabled), arguments: ToneMapper3D.allCases)
+    func operatorsAgreeBetweenCompositeAndTemporalShaders(mapper: ToneMapper3D) async throws {
+        let direct = try await Render3DDebugViewMetalTests.makeScene(emissiveSphere: true)
+        try direct.configure { $0.postProcess.toneMapper = mapper }
+        let directImage = try await direct.render(.none)
+        let temporal = try await Render3DDebugViewMetalTests.makeScene(emissiveSphere: true, temporalRenderScale: 1)
+        try temporal.configure { $0.postProcess.toneMapper = mapper }
+        let temporalImage = try await temporal.render(.none, frames: 10)
+        for (x, y) in Self.probes {
+            let difference = abs(Self.steps(directImage.getPixel(x: x, y: y), temporalImage.getPixel(x: x, y: y)))
+            #expect(difference <= 4, "\(mapper) at (\(x), \(y)): composite and temporal shaders differ by \(difference) steps.")
+        }
+    }
+
+    @Test(.enabled(if: Render3DDebugViewMetalTests.enabled))
+    func operatorsShapeTheImageAsDocumented() async throws {
+        let scene = try await Self.scene()
+        var images: [ToneMapper3D: Image] = [:]
+        for mapper in ToneMapper3D.allCases {
+            try scene.configure { $0.postProcess.toneMapper = mapper }
+            images[mapper] = try await scene.render(.none)
+        }
+        let aces = try #require(images[.aces]), neutral = try #require(images[.neutral]), none = try #require(images[.none])
+        let plain = try await Self.scene().render(.none)
+        #expect(GoldenFrame.compare(aces, plain, tolerance: .metal).passes(.metal), "ACES must stay the default look.")
+        let bounds = try #require(Self.emitterBounds(in: aces))
+        for (name, image) in [("aces", aces), ("neutral", neutral), ("none", none)] {
+            let point = ((bounds.minX + bounds.maxX) / 2, (bounds.minY + bounds.maxY) / 2)
+            let center = Self.luminance(image.getPixel(x: point.0, y: point.1))
+            #expect(center > 0.9, "\(name): an overbright emitter must read as near white at \(point) (bounds \(bounds), color \(image.getPixel(x: point.0, y: point.1))).")
+        }
+        // Neutral keeps mid-tones close to the untouched linear values; ACES lifts them away from that.
+        for (x, y) in Self.probes.prefix(2) {
+            let reference = none.getPixel(x: x, y: y)
+            let neutralDistance = abs(Self.steps(neutral.getPixel(x: x, y: y), reference))
+            let acesDistance = abs(Self.steps(aces.getPixel(x: x, y: y), reference))
+            #expect(neutralDistance < acesDistance, "At (\(x), \(y)) neutral should stay nearer to no curve than ACES (\(neutralDistance) vs \(acesDistance)).")
+            #expect(acesDistance > 4)
+        }
+    }
+
+    @Test(.enabled(if: Render3DDebugViewMetalTests.enabled))
+    func toneMappersMatchGoldenFrames() async throws {
+        let scene = try await Self.scene()
+        for mapper in [ToneMapper3D.neutral, .none] {
+            try scene.configure { $0.postProcess.toneMapper = mapper }
+            let image = try await scene.render(.none)
+            let name = "emissive-tonemap-\(mapper.rawValue)"
+            switch try GoldenFrame.check(image, name: name) {
+            case .recorded, .matched:
+                break
+            case .missingReference(let actual):
+                Issue.record("No golden frame for \(name); record with ADAENGINE_GOLDEN_RECORD=1. Actual: \(actual.path)")
+            case let .mismatched(comparison, actual, difference):
+                Issue.record("\(name) differs in \(comparison.differingPixels) pixels. Actual: \(actual.path), difference: \(difference.path)")
+            }
         }
     }
 

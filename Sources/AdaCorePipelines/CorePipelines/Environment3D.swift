@@ -158,6 +158,10 @@ public struct Environment3D: Codable, Sendable {
         get { postProcess.exposureEV }
         set { postProcess.exposureEV = newValue }
     }
+    public var toneMapper: ToneMapper3D {
+        get { postProcess.toneMapper }
+        set { postProcess.toneMapper = newValue }
+    }
     public var bloomEnabled: Bool {
         get { postProcess.bloom.isEnabled }
         set { postProcess.bloom.isEnabled = newValue }
