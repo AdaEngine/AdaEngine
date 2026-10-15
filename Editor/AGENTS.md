@@ -28,6 +28,12 @@ and assess gaps before proposing new features.
   natively on Windows. See [README.md](README.md#Windows).
 - [Package.swift](Package.swift) owns package dependencies and resources;
   [project.yml](project.yml) owns XcodeGen app configuration.
+- Windows release CI uses `../script/build_studio_windows.ps1` and
+  `../script/package_studio_windows.py`. It publishes an x64 ZIP and SHA-256 on
+  GitHub Release publication; manual/PR builds retain Actions artifacts. Packaging
+  bundles Swift/Dawn runtime DLLs, resources, Tint and a relocatable `BuildSDK`
+  beside the executable. It checks PE imports and launches the tools with a clean
+  PATH. Windows signing and external host/export toolchains remain separate.
 - Keep mocks, fixtures, and QA harnesses in test targets or separate executables.
   Do not add test-only objects or QA launch hooks to the main app, including Debug builds.
 - Use an isolated scratch/module cache when necessary; never delete the shared

@@ -41,8 +41,7 @@ pinned Gravity binding with native string allocation and UTF-8 lengths under
 Use the same dependency override for manual Windows builds/tests:
 
 ```powershell
-$env:ADAENGINE_GRAVITY_PACKAGE_PATH = python ./script/ensure_windows_gravity.py
-swift build --package-path Editor --product AdaEditorPackageTests
+./script/build_studio_windows.ps1 -Configuration debug
 swift test --package-path Editor --skip-build --filter EditorWindowsCompatibilityTests
 ```
 
@@ -76,6 +75,24 @@ project file access, bounded terminal output, cancellation, session restoration,
 A2UI cards and the live Studio MCP tools. Provider authentication remains with the
 agent's own account setup. Agent executables and terminal children run in Windows
 jobs and terminate with their owning process; no console window is opened.
+
+Windows release archives are built by **Windows Studio release** in GitHub Actions
+on release publication (including prereleases). The workflow builds Release with
+Swift 6.3.1 on Windows Server 2022, tests SDK relocation, checks the DLL dependency
+closure and smoke-tests the packaged tools without a Swift installation on PATH.
+It attaches `AdaStudio-<tag>-windows-x86_64.zip` and `.zip.sha256` to that release.
+Pull requests changing release tooling and manual workflow runs produce downloadable
+Actions artifacts only. Existing release assets are never overwritten on a rerun.
+
+Extract the whole archive and open `AdaEditor.exe`. Swift runtime DLLs, Dawn/DXC,
+resources, Tint and the AdaScript source build SDK are included. The archive is
+currently unsigned; native project builds still require Swift/Visual Studio C++
+tools, and Web/Android exports require WSL and their SDKs. To package locally:
+
+```powershell
+$studioBin = (& ./script/build_studio_windows.ps1 -Configuration release | Select-Object -Last 1).Trim()
+python script/package_studio_windows.py --bin "$studioBin" --compiler-root "$env:ADAENGINE_GRAVITY_PACKAGE_PATH" --tint "$env:TINT_EXECUTABLE" --version local
+```
 
 WebAssembly and Android builds use a Linux worker under WSL (Ubuntu). Prepare
 the matching Swift SDKs, pinned Tint, Android SDK/NDK and Swan/Dawn with:

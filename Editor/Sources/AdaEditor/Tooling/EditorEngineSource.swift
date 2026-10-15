@@ -22,6 +22,17 @@ enum EditorEngineSource {
                 return nil
                 #endif
             }
+            #elseif os(Windows)
+            if let executable,
+               FileManager.default.fileExists(atPath: executable.deletingLastPathComponent().appendingPathComponent("BuildSDK").path) {
+                root = executable.deletingLastPathComponent().appendingPathComponent("BuildSDK/AdaEngine")
+            } else {
+                #if DEBUG
+                root = developmentRoot
+                #else
+                return nil
+                #endif
+            }
             #else
             #if DEBUG
             root = developmentRoot

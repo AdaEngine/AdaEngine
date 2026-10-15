@@ -167,8 +167,8 @@ private struct LiquidGlassTabBarControls: View {
         return (edgePull < 0 ? -1 : 1) * extraWidth * 0.5 + edgePull * 0.10
     }
 
-    #if WASM || compiler(>=6.4)
-    // Swift 6.3.2 WASM and Swift 6.4 native SIL generators hit the opaque substitution limit.
+    #if WASM || os(Windows) || compiler(>=6.4)
+    // Swift 6.3 Windows Release/WASM and Swift 6.4 native SIL generators hit the opaque substitution limit.
     // Erase the control branches while keeping the same glass effects and gestures.
     var body: AnyView {
         AnyView(HStack(spacing: 12) {
