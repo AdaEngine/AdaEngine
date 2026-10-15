@@ -281,8 +281,8 @@ Each item needs its own short requirements note before implementation.
 - [ ] Stage 0: prepass decision confirmed with GPU measurements (analysis recorded below).
 - [x] Stage 1: per-camera `PostProcess3D` with manual exposure (ADR-0019 exposure).
 - [x] Stage 1: HDR bloom with reusable per-camera chain (ADR-0019 bloom).
-- [ ] Stage 1: tone-map operator choice (ACES fit, neutral, none) and a shared output-transform shader.
-- [ ] Stage 1: auto-exposure, color grading LUT, vignette; Editor controls for exposure and bloom.
+- [x] Stage 1: tone-map operator choice (ACES fit, neutral, none) and a shared output-transform shader.
+- [ ] Stage 1: auto-exposure, color grading LUT, vignette; Editor controls for exposure, bloom and tone mapper.
 - [ ] Stage 1: depth of field and motion blur with quality tiers.
 - [ ] Stage 2: `KHR_texture_transform`, IOR, specular and clearcoat material extensions.
 - [ ] Stage 2: sheen, anisotropy and `KHR_lights_punctual` import.
@@ -374,6 +374,24 @@ and a `scatter` weight. A disabled or zero-intensity bloom records no GPU work a
 releases its textures; the composite then multiplies a white placeholder by zero,
 so default frames are bit-identical to before.
 
+**Tone mapper.** `PostProcess3D.toneMapper` selects `ToneMapper3D`: `.aces`
+(default, the previous Narkowicz fit), `.neutral` (Khronos PBR Neutral, which
+keeps authored colors nearly untouched until highlights compress) or `.none`
+(clip). The sRGB encode and all three curves now live once in the engine's public
+`Tonemapping.glsl` (`#include <AdaEngine/Tonemapping.glsl>`) and are included by
+both tone-mapping shaders, the environment composite and the temporal tone map,
+which previously each carried a copy of ACES. The selector is `u_PostProcess.z`
+in the composite and a new trailing member of `Temporal3DUniform` in the temporal
+pass; shaders that do not declare it ignore the extra bytes. `.aces` is selector
+`0` and old payloads omit the key, so existing scenes and every earlier golden
+frame are unchanged. An unknown tone-mapper name fails to decode rather than
+silently falling back. The temporal pass reads the environment as an optional
+resource, so a world without environments keeps ACES.
+
+```swift
+camera.environment.toneMapper = .neutral
+```
+
 **Known limits.** Bloom is built from lit geometry, so a bright skybox pixel
 adds no energy (geometry bloom still spreads over it). Intense sources produce a
 wide faint veil from the widest levels; lower `scatter` narrows it. There is no
@@ -387,7 +405,12 @@ intensity; identical frames for disabled and zero-intensity bloom; exposure
 brightening and darkening; chain allocation and release; and bloom plus
 exposure on all three presentation paths (direct, FXAA, temporal upscaling at
 render scale 1 with the upscale plugin). Four new golden frames
-(`emissive-*`) cover bloom and exposure. Not verified: WebGPU, other platforms,
+(`emissive-*`) cover bloom and exposure, and two more cover the neutral and
+clipped tone mappers; a test renders every operator through the composite and
+through the temporal shader and requires the pictures to agree within 4 steps,
+which guards the shared include. Other checks: ACES output equals the default
+frame, an overbright emitter reads as near white under every operator, and
+neutral stays closer to the uncurved image than ACES at mid-tones. Not verified: WebGPU, other platforms,
 MetalFX-specific behavior beyond the offscreen temporal path, the Editor, and
 non-default render scales for the temporal path.
 
