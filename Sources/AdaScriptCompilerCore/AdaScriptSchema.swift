@@ -767,133 +767,18 @@ extension Parser {
         return parsed
     }
 
-    /// Parses defaults for the structured field types. Returns `nil` for a scalar or unknown type,
-    /// which falls back to the literal-driven scalar parse.
-    private mutating func parseStructuredFieldValue(fieldName: String, type: String) throws -> AdaScriptSchemaField.Value? {
-        switch type {
-        case "Vector2", "Vector3", "Vector4":
-            let count = Int(type.dropFirst("Vector".count)) ?? 0
-            if match("Vector\(count)") == false, check("[") == false {
-                throw error("field '\(fieldName)' of type \(type) needs a \(type)(...) or [...] default")
-            }
-            return .vector(try parseComponents(fieldName: fieldName, type: type, expected: [count], zeroConstant: "ZERO"))
-        case "Color":
-            if match("Color") == false, check("[") == false {
-                throw error("field '\(fieldName)' of type Color needs a Color(...) or [...] default")
-            }
-            let named: [String: [Double]] = ["white": [1, 1, 1, 1], "black": [0, 0, 0, 1], "clear": [0, 0, 0, 0]]
-            if match("."), let constant = consumeIdentifier() {
-                guard let components = named[constant] else {
-                    throw error("unknown Color constant '\(constant)' for '\(fieldName)'; use white, black, clear or Color(r, g, b, a)")
-                }
-                return .color(components)
-            }
-            let components = try parseComponents(fieldName: fieldName, type: type, expected: [3, 4], zeroConstant: nil)
-            return .color(components.count == 3 ? components + [1] : components)
-        case "Entity":
-            if match("null") || (match("Entity") && match(".") && consumeIdentifier() == "none") {
-                return .entity
-            }
-            throw error("field '\(fieldName)' of type Entity must default to null")
-        case "Asset":
-            if match("null") {
-                return .asset(path: nil)
-            }
-            if let token = current, token.kind == .string {
-                advance()
-                return .asset(path: token.text)
-            }
-            throw error("field '\(fieldName)' of type Asset must default to null or an asset path string")
-        default:
-            guard let cases = enums[type] else {
-                return nil
-            }
-            guard match(type), match("."), let selected = consumeIdentifier() else {
-                throw error("field '\(fieldName)' of enum \(type) must default to \(type).<case>")
-            }
-            guard cases.contains(selected) else {
-                throw error("enum \(type) has no case '\(selected)' (cases: \(cases.joined(separator: ", ")))")
-            }
-            return .enumeration(type: type, cases: cases, selected: selected)
-        }
-    }
-
-    /// Parses `(a, b, c)`, `[a, b, c]` or `.ZERO` after the type name has been consumed.
-    private mutating func parseComponents(
-        fieldName: String,
-        type: String,
-        expected: [Int],
-        zeroConstant: String?
-    ) throws -> [Double] {
-        if let zeroConstant, match(".") {
-            guard consumeIdentifier() == zeroConstant, let count = expected.first else {
-                throw error("unknown \(type) constant for '\(fieldName)'; only \(type).\(zeroConstant) is supported")
-            }
-            return Array(repeating: 0, count: count)
-        }
-        let closing: String
-        if match("(") {
-            closing = ")"
-        } else if match("[") {
-            closing = "]"
-        } else {
-            throw error("field '\(fieldName)' of type \(type) needs component values")
-        }
-        var values: [Double] = []
-        while !isAtEnd, !check(closing) {
-            var sign = 1.0
-            if match("-") { sign = -1 }
-            guard let token = current, token.kind == .number, let number = Double(token.text), number.isFinite else {
-                throw error("\(type) component of '\(fieldName)' must be a finite number")
-            }
-            advance()
-            values.append(sign * number)
-            if !match(",") { break }
-        }
-        guard match(closing) else {
-            throw error("expected '\(closing)' in the default of '\(fieldName)'")
-        }
-        guard expected.contains(values.count) else {
-            let list = expected.map(String.init).joined(separator: " or ")
-            throw error("\(type) default of '\(fieldName)' needs \(list) components, found \(values.count)")
-        }
-        return values
-    }
-
+    /// Reads the constant after the `=` the cursor just passed from the shared syntax tree, applies the declared
+    /// type to it, and moves the cursor past the value.
     private mutating func parseFieldValue(fieldName: String, declaredType: String? = nil) throws -> AdaScriptSchemaField.Value {
-        if let declaredType, let structured = try parseStructuredFieldValue(fieldName: fieldName, type: declaredType) {
-            return structured
-        }
-        var sign = ""
-        if match("-") {
-            sign = "-"
-        }
-        guard let token = current else {
+        guard index > 0, tokens[index - 1].text == "=", let syntax = defaultsByEquals[tokens[index - 1].startOffset] else {
             throw error("missing default for '\(fieldName)'")
         }
-        advance()
-        switch token.kind {
-        case .string:
-            return .string(token.text)
-        case .number:
-            let value = sign + token.text
-            if value.contains(".") || value.lowercased().contains("e") {
-                guard let number = Double(value), number.isFinite else {
-                    throw error("invalid floating-point default for '\(fieldName)'")
-                }
-                return .double(number)
-            }
-            guard let number = Int64(value) else {
-                throw error("invalid integer default for '\(fieldName)'")
-            }
-            return .int(number)
-        case .identifier where token.text == "true":
-            return .bool(true)
-        case .identifier where token.text == "false":
-            return .bool(false)
-        default:
-            throw error("unsupported default for '\(fieldName)'")
+        let value = try AdaScriptDefaultValueResolver(enums: enums, path: path)
+            .resolve(syntax.value, fieldName: fieldName, declaredType: declaredType)
+        while let token = current, token.startOffset < syntax.offsets.upperBound {
+            advance()
         }
+        return value
     }
 
     /// Reads the annotations at the cursor from the shared syntax tree, so a literal is parsed in one place.

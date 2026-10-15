@@ -43,6 +43,7 @@ struct AdaScriptSyntaxParser {
             annotations: parseAllAnnotations(),
             bindings: parsed.bindings.map(\.syntax),
             declaredNames: declaredNames(),
+            defaultValues: AdaScriptDefaultValueParser(tokens: tokens).parseAll(),
             enums: parseEnums(),
             functions: parsed.functions.map(\.syntax),
             importDiagnostics: imports.diagnostics,

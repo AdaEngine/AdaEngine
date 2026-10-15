@@ -313,6 +313,8 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
     public var bindings: [AdaScriptBindingSyntax]
     /// Every name declared anywhere in the file: variables, constants, functions, types, parameters, and loop variables.
     public var declaredNames: Set<String>
+    /// Every constant after a declaration's `=`, in source order, keyed by the offset of that `=`.
+    public var defaultValues: [AdaScriptDefaultValueSyntax]
     /// Every `enum Name { ... }`, including enums declared inside other types.
     public var enums: [AdaScriptEnumSyntax]
     public var functions: [AdaScriptFunctionSyntax]
@@ -335,6 +337,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         annotations: [AdaScriptAnnotationSyntax] = [],
         bindings: [AdaScriptBindingSyntax] = [],
         declaredNames: Set<String> = [],
+        defaultValues: [AdaScriptDefaultValueSyntax] = [],
         enums: [AdaScriptEnumSyntax] = [],
         functions: [AdaScriptFunctionSyntax] = [],
         importDiagnostics: [AdaScriptImportDiagnostic] = [],
@@ -351,6 +354,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         self.annotations = annotations
         self.bindings = bindings
         self.declaredNames = declaredNames
+        self.defaultValues = defaultValues
         self.enums = enums
         self.functions = functions
         self.importDiagnostics = importDiagnostics

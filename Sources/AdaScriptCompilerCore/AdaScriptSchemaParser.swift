@@ -231,6 +231,8 @@ struct Parser {
     let enums: [String: [String]]
     /// Annotations from the shared syntax tree, keyed by the offset of their `@`.
     let annotationsByOffset: [Int: AdaScriptAnnotationSyntax]
+    /// Constants after `=`, from the shared syntax tree, keyed by the offset of that `=`.
+    let defaultsByEquals: [Int: AdaScriptDefaultValueSyntax]
     var index = 0
     var explicitResourceAccess: [String: AdaScriptResourceBinding.Access] = [:]
 
@@ -239,7 +241,8 @@ struct Parser {
         self.tokens = lexer.lex()
         self.enums = enums
         self.path = path
-        let annotations = AdaScriptSyntaxParser(source: source, path: path).parse().syntax.annotations
-        self.annotationsByOffset = Dictionary(annotations.map { ($0.offsets.lowerBound, $0) }, uniquingKeysWith: { first, _ in first })
+        let syntax = AdaScriptSyntaxParser(source: source, path: path).parse().syntax
+        self.annotationsByOffset = Dictionary(syntax.annotations.map { ($0.offsets.lowerBound, $0) }, uniquingKeysWith: { first, _ in first })
+        self.defaultsByEquals = Dictionary(syntax.defaultValues.map { ($0.equalsOffset, $0) }, uniquingKeysWith: { first, _ in first })
     }
 }
