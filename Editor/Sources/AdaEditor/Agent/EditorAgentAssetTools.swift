@@ -110,6 +110,13 @@ enum EditorAgentAssetTools {
                 false
             ),
             tool(
+                "editor.voxel.generate",
+                "Generate a MagicaVoxel .vox model from an AdaScript `func build(model)` and save it under Assets. Read the ada-voxel-models skill for the model API. Runs in an isolated VM without file, network or scene access; existing files are preserved.",
+                ["source": string, "destination": string],
+                ["source", "destination"],
+                false
+            ),
+            tool(
                 "editor.model.material.edit",
                 "Patch PBR factors using settingsJSON. Read editor.docs.read Agent3DWorkflow for supported fields. Preserves binary geometry; rebuild after edits.",
                 ["path": string, "material": .object(["type": "integer", "minimum": 0]), "settingsJSON": string],
