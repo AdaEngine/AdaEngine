@@ -46,6 +46,30 @@ struct EditorScenePerformanceRegressionTests {
         #expect(!identities.contains(ObjectIdentifier(try #require(recreated.buffer))))
     }
 
+    @Test("UI projections reuse buffers independently for each camera")
+    func uiUniformBuffersStayReusable() async throws {
+        let device = try #require(unsafe RenderEngine.shared).renderDevice
+        let frames = max(1, unsafe RenderEngine.configurations.maxFramesInFlight)
+        var uniforms = UIViewUniform()
+        var retained: [any Buffer] = []
+        for frame in 0..<(frames * 3) {
+            let projection = Transform3D.createUIProjection(width: Float(640 + frame), height: 400)
+            let constants = uniforms.write(GlobalViewUniform(projectionMatrix: projection), view: 1, device: device)
+            let buffer = try #require(constants.buffer)
+            retained.append(buffer)
+            let bytes = try await buffer.readData()
+            let uploaded = bytes.withUnsafeBytes { unsafe $0.loadUnaligned(as: GlobalViewUniform.self) }
+            #expect(uploaded.projectionMatrix == projection)
+        }
+        let identities = Set(retained.map(ObjectIdentifier.init))
+        #expect(identities.count == frames)
+        let other = uniforms.write(GlobalViewUniform(), view: 2, device: device)
+        #expect(!identities.contains(ObjectIdentifier(try #require(other.buffer))))
+        uniforms.retainViews([2])
+        let recreated = uniforms.write(GlobalViewUniform(), view: 1, device: device)
+        #expect(!identities.contains(ObjectIdentifier(try #require(recreated.buffer))))
+    }
+
     @Test("Inactive preview skips host frames while remaining available for tooling and explicit updates")
     func inactivePreviewRetainsWorld() async throws {
         let previousHost = AppWorldsSession.current

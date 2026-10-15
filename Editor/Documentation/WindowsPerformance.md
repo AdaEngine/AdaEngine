@@ -116,7 +116,7 @@ the scene and annotations resume correctly after switching between the editor an
 native game window. The initial detach-based implementation was replaced to
 preserve tooling access while the editor is inactive.
 
-Focused validation passed 32 editor tests covering retained annotations, local
+Focused validation passed 33 editor tests covering retained annotations, local
 presentation invalidation, preview suspension/resumption, authored environment,
 lazy hierarchy/file-tree selection, stable play inspection and gizmo interaction.
 A fully started Run activity keeps its progress indicator static; unfinished
@@ -153,6 +153,22 @@ buffer count and check that different cameras and removed views keep independent
 buffer lifetimes. The six binding-cache tests passed, and the native Windows
 `script/validate_webgpu.sh` run passed seven tests, including fresh Tint
 conversion and GPU-pixel checks, with the pinned Dawn backend and Swift 6.3.1.
+
+The same buffering is used for UI projections, independently per source camera.
+Previously every UI pass allocated a new inline uniform buffer, invalidating the
+binding key of retained UI draws even when their geometry and textures were
+unchanged. The UI regression test uploads changing projections, reads them back,
+and checks reuse, camera isolation and pruning. Directional-shadow traces now
+separate list preparation (`Render3D.ShadowPrepare`) from command encoding
+(`Render3D.ShadowEncode`) for further CPU diagnosis.
+
+Before the UI-projection change, `garden-buffered-game-clean.csv` recorded
+31.42 present/display FPS in each native window over 30 seconds (game present
+p95/p99 40.83/46.62 ms, worst 81.00 ms). Continuous tracing was explicitly
+disabled; no compiler ran during that capture. Game GPU busy time averaged
+5.54 ms. A separate 15-second diagnostic capture after minimizing/restoring
+the editor geometry recorded 35.48 FPS; it is not a comparison at the same
+editor size. These are intermediate results and do not satisfy the 60 FPS goal.
 
 Keep detailed CPU captures short: their JSONL recording/decoding changes timing.
 Five-second detailed captures produced large in-memory results on this machine;
