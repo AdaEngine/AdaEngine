@@ -204,6 +204,16 @@ enum Literal {
     case list([Self])
     case number(String)
     case string(String)
+
+    init(_ value: AdaScriptAnnotationValue) {
+        switch value {
+        case let .bool(value): self = .bool(value)
+        case let .identifier(value): self = .identifier(value)
+        case let .list(values): self = .list(values.map(Self.init))
+        case let .number(value): self = .number(value)
+        case let .string(value): self = .string(value)
+        }
+    }
 }
 
 struct Token {
@@ -238,6 +248,8 @@ struct Parser {
     let tokens: [Token]
     /// Script enums visible to field declarations, collected across the whole source set.
     let enums: [String: [String]]
+    /// Annotations from the shared syntax tree, keyed by the offset of their `@`.
+    let annotationsByOffset: [Int: AdaScriptAnnotationSyntax]
     var index = 0
     var explicitResourceAccess: [String: AdaScriptResourceBinding.Access] = [:]
 
@@ -246,5 +258,7 @@ struct Parser {
         self.tokens = lexer.lex()
         self.enums = enums
         self.path = path
+        let annotations = AdaScriptSyntaxParser(source: source, path: path).parse().syntax.annotations
+        self.annotationsByOffset = Dictionary(annotations.map { ($0.offsets.lowerBound, $0) }, uniquingKeysWith: { first, _ in first })
     }
 }

@@ -98,15 +98,64 @@ public indirect enum AdaScriptType: Equatable, Hashable, Sendable {
     }
 }
 
+/// A literal inside an annotation argument list, for example `"id"`, `3`, `true`, `Game.Health as health` or `[a, b]`.
+public indirect enum AdaScriptAnnotationValue: Equatable, Hashable, Sendable {
+    case bool(Bool)
+    /// A bare or dotted name, optionally `as alias`: `Game.Health` and `Game.Health as health`.
+    case identifier(String)
+    case list([AdaScriptAnnotationValue])
+    case number(String)
+    /// The unescaped string content, without its quotes.
+    case string(String)
+}
+
+/// One annotation argument: `label: value`, or just `value` when `label` is `nil`.
+public struct AdaScriptAnnotationArgument: Equatable, Hashable, Sendable {
+    public var label: String?
+    public var value: AdaScriptAnnotationValue
+
+    public init(label: String? = nil, value: AdaScriptAnnotationValue) {
+        self.label = label
+        self.value = value
+    }
+}
+
 public struct AdaScriptAnnotationSyntax: Equatable, Hashable, Sendable {
+    /// Identifier-only arguments, kept for placement and capability checks.
     public var arguments: [String]
     public var name: String
+    /// Source offsets from the `@` through the closing parenthesis, when there is one.
+    public var offsets: Range<Int>
+    /// Why ``values`` is incomplete (an unterminated list or an unsupported value), or `nil`.
+    public var problem: String?
     public var range: AdaScriptSourceRange
+    /// Every argument with its label and literal value, in source order.
+    public var values: [AdaScriptAnnotationArgument]
 
-    public init(arguments: [String] = [], name: String, range: AdaScriptSourceRange) {
+    public init(
+        arguments: [String] = [],
+        name: String,
+        offsets: Range<Int> = 0..<0,
+        problem: String? = nil,
+        range: AdaScriptSourceRange,
+        values: [AdaScriptAnnotationArgument] = []
+    ) {
         self.arguments = arguments
         self.name = name
+        self.offsets = offsets
+        self.problem = problem
         self.range = range
+        self.values = values
+    }
+
+    /// The value of the argument labelled `label`.
+    public func value(labelled label: String) -> AdaScriptAnnotationValue? {
+        values.first { $0.label == label }?.value
+    }
+
+    /// The unlabelled arguments, in order.
+    public var positionalValues: [AdaScriptAnnotationValue] {
+        values.filter { $0.label == nil }.map(\.value)
     }
 }
 
@@ -245,6 +294,8 @@ public struct AdaScriptTestSyntax: Equatable, Hashable, Sendable {
 public struct AdaScriptSyntaxTree: Equatable, Sendable {
     /// Every `@name` that appears in code, with its position and what it is attached to.
     public var annotationUses: [AdaScriptAnnotationUse]
+    /// Every annotation in source order with its labelled literal arguments, whatever it is attached to.
+    public var annotations: [AdaScriptAnnotationSyntax]
     public var bindings: [AdaScriptBindingSyntax]
     /// Every name declared anywhere in the file: variables, constants, functions, types, parameters, and loop variables.
     public var declaredNames: Set<String>
@@ -265,6 +316,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
 
     public init(
         annotationUses: [AdaScriptAnnotationUse] = [],
+        annotations: [AdaScriptAnnotationSyntax] = [],
         bindings: [AdaScriptBindingSyntax] = [],
         declaredNames: Set<String> = [],
         functions: [AdaScriptFunctionSyntax] = [],
@@ -279,6 +331,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         visibilityModifierOffsets: [Range<Int>] = []
     ) {
         self.annotationUses = annotationUses
+        self.annotations = annotations
         self.bindings = bindings
         self.declaredNames = declaredNames
         self.functions = functions

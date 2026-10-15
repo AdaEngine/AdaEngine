@@ -896,90 +896,35 @@ extension Parser {
         }
     }
 
+    /// Reads the annotations at the cursor from the shared syntax tree, so a literal is parsed in one place.
     private mutating func parseAnnotations() throws -> [Annotation] {
         var result: [Annotation] = []
-        while match("@") {
-            guard let name = consumeIdentifier() else {
+        while let start = current, start.text == "@" {
+            guard let syntax = annotationsByOffset[start.startOffset] else {
                 throw error("expected annotation name")
             }
             var arguments: [String: Literal] = [:]
             var positionalArguments: [Literal] = []
-            if match("(") {
-                while !isAtEnd, !check(")") {
-                    if current?.kind == .identifier, checkNext(":") {
-                        guard let label = consumeIdentifier(), match(":") else {
-                            throw error("invalid named argument in @\(name)")
-                        }
-                        if name == "query", !["optional", "with", "without", "changed", "added"].contains(label) {
-                            let hint = label == "where" ? "; boolean predicates are not supported yet" : ""
-                            throw error("@query does not support '\(label):'\(hint). Supported clauses: optional, with, without, changed, added")
-                        }
-                        arguments[label] = try parseLiteral(annotation: name, label: label)
-                    } else {
-                        positionalArguments.append(try parseLiteral(annotation: name, label: "value"))
+            for argument in syntax.values {
+                if let label = argument.label {
+                    if syntax.name == "query", !["optional", "with", "without", "changed", "added"].contains(label) {
+                        let hint = label == "where" ? "; boolean predicates are not supported yet" : ""
+                        throw error("@query does not support '\(label):'\(hint). Supported clauses: optional, with, without, changed, added")
                     }
-                    if !match(",") {
-                        break
-                    }
-                }
-                guard match(")") else {
-                    throw error("unterminated @\(name) annotation")
+                    arguments[label] = Literal(argument.value)
+                } else {
+                    positionalArguments.append(Literal(argument.value))
                 }
             }
-            result.append(Annotation(arguments: arguments, name: name, positionalArguments: positionalArguments))
+            if let problem = syntax.problem {
+                throw error(problem)
+            }
+            result.append(Annotation(arguments: arguments, name: syntax.name, positionalArguments: positionalArguments))
+            while let token = current, token.startOffset < syntax.offsets.upperBound {
+                advance()
+            }
         }
         return result
-    }
-
-    private mutating func parseLiteral(annotation: String, label: String) throws -> Literal {
-        if check("[") {
-            return .list(try parseLiteralList(annotation: annotation, label: label))
-        }
-        guard let token = current else {
-            throw error("missing value for @\(annotation) \(label)")
-        }
-        advance()
-        switch token.kind {
-        case .string:
-            return .string(token.text)
-        case .number:
-            return .number(token.text)
-        case .identifier where token.text == "true":
-            return .bool(true)
-        case .identifier where token.text == "false":
-            return .bool(false)
-        case .identifier:
-            // `Game.Health` and `Game.Health as health` are query component references.
-            var text = token.text
-            while check("."), checkNext(".") == false, let next = tokens.indices.contains(index + 1) ? tokens[index + 1] : nil, next.kind == .identifier {
-                advance()
-                advance()
-                text += "." + next.text
-            }
-            if current?.kind == .identifier, current?.text == "as", let alias = tokens.indices.contains(index + 1) ? tokens[index + 1] : nil, alias.kind == .identifier {
-                advance()
-                advance()
-                text += " as " + alias.text
-            }
-            return .identifier(text)
-        default:
-            throw error("unsupported value for @\(annotation) \(label)")
-        }
-    }
-
-    private mutating func parseLiteralList(annotation: String, label: String) throws -> [Literal] {
-        _ = match("[")
-        var values: [Literal] = []
-        while !isAtEnd, !check("]") {
-            values.append(try parseLiteral(annotation: annotation, label: label))
-            if !match(",") {
-                break
-            }
-        }
-        guard match("]") else {
-            throw error("unterminated list for @\(annotation) \(label)")
-        }
-        return values
     }
 
     private mutating func skipDeclarationBody() throws {

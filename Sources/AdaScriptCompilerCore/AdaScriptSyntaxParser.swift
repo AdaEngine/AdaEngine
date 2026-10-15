@@ -40,6 +40,7 @@ struct AdaScriptSyntaxParser {
         let imports = parseImports()
         let syntax = AdaScriptSyntaxTree(
             annotationUses: parseAnnotationUses(),
+            annotations: parseAllAnnotations(),
             bindings: parsed.bindings.map(\.syntax),
             declaredNames: declaredNames(),
             functions: parsed.functions.map(\.syntax),
@@ -204,18 +205,30 @@ struct AdaScriptSyntaxParser {
         let nameToken = tokens[index + 1]
         var arguments: [String] = []
         var endIndex = index + 1
-        if index + 2 < upperBound, tokens[index + 2].text == "(",
-            let closeIndex = matchingIndex(openingAt: index + 2, opening: "(", closing: ")", upperBound: upperBound) {
-            arguments = nameToken.text == "query"
-                ? queryArguments(in: (index + 3)..<closeIndex)
-                : annotationArguments(in: (index + 3)..<closeIndex)
-            endIndex = closeIndex
+        var problem: String?
+        var values: [AdaScriptAnnotationArgument] = []
+        if index + 2 < upperBound, tokens[index + 2].text == "(" {
+            if let closeIndex = matchingIndex(openingAt: index + 2, opening: "(", closing: ")", upperBound: upperBound) {
+                arguments = nameToken.text == "query"
+                    ? queryArguments(in: (index + 3)..<closeIndex)
+                    : annotationArguments(in: (index + 3)..<closeIndex)
+                var valueParser = AdaScriptAnnotationValueParser(annotation: nameToken.text, tokens: tokens, range: (index + 3)..<closeIndex)
+                let parsed = valueParser.parse()
+                values = parsed.values
+                problem = parsed.problem
+                endIndex = closeIndex
+            } else {
+                problem = "unterminated @\(nameToken.text) annotation"
+            }
         }
         return (
             AdaScriptAnnotationSyntax(
                 arguments: arguments,
                 name: nameToken.text,
-                range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[endIndex].range.end)
+                offsets: tokens[index].startOffset..<tokens[endIndex].endOffset,
+                problem: problem,
+                range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[endIndex].range.end),
+                values: values
             ),
             endIndex + 1
         )
@@ -736,6 +749,21 @@ extension AdaScriptSyntaxParser {
                 escaped = true
             } else {
                 result.append(character)
+            }
+        }
+        return result
+    }
+
+    /// Every `@name(...)` in source order, wherever it appears, with its literal arguments.
+    private func parseAllAnnotations() -> [AdaScriptAnnotationSyntax] {
+        var result: [AdaScriptAnnotationSyntax] = []
+        var index = 0
+        while index < tokens.count {
+            if tokens[index].text == "@", let parsed = parseAnnotation(at: index, upperBound: tokens.count) {
+                result.append(parsed.value)
+                index = parsed.nextIndex
+            } else {
+                index += 1
             }
         }
         return result
