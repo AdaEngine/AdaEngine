@@ -174,7 +174,9 @@ public enum AdaScriptVirtualModules {
 public enum AdaScriptImportLowering {
     /// Blanks each `import` declaration and top-level access specifier (keeping newlines so later line numbers still match), drops the
     /// `Alias.` qualifier of namespace members, and renames `as`-imported names back to their declaration.
-    public static func lower(source: String, tree: AdaScriptSyntaxTree) -> String {
+    ///
+    /// With `stripTests`, every top-level `@test` function is blanked as well, and no other edit is applied inside one.
+    public static func lower(source: String, tree: AdaScriptSyntaxTree, stripTests: Bool = false) -> String {
         var edits: [(offsets: Range<Int>, replacement: String?)] = tree.imports.map { ($0.offsets, nil) }
         edits += tree.visibilityModifierOffsets.map { ($0, nil) }
         for use in tree.importUses {
@@ -184,6 +186,12 @@ public enum AdaScriptImportLowering {
             case let .renamed(_, original):
                 edits.append((use.offsets, original))
             }
+        }
+        if stripTests, !tree.tests.isEmpty {
+            let stripped = tree.tests.map(\.offsets)
+            // A renamed or qualified use inside a stripped test must not write its identifier back into the blanked region.
+            edits.removeAll { edit in stripped.contains { $0.contains(edit.offsets.lowerBound) } }
+            edits += stripped.map { ($0, nil) }
         }
         guard !edits.isEmpty else {
             return source

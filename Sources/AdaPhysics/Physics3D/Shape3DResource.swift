@@ -11,6 +11,22 @@ import Math
 public final class Shape3DResource: Codable, Sendable {
     struct BoxShape: Codable, Hashable, Equatable, Sendable {
         let halfExtents: Vector3
+        /// Offset of the box center from the body origin.
+        var center: Vector3 = .zero
+
+        init(halfExtents: Vector3, center: Vector3 = .zero) {
+            self.halfExtents = halfExtents
+            self.center = center
+        }
+
+        private enum CodingKeys: CodingKey { case halfExtents, center }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.halfExtents = try container.decode(Vector3.self, forKey: .halfExtents)
+            // Shapes saved before boxes could be offset have no center.
+            self.center = try container.decodeIfPresent(Vector3.self, forKey: .center) ?? .zero
+        }
     }
 
     struct SphereShape: Codable, Hashable, Equatable, Sendable {
@@ -52,8 +68,8 @@ public final class Shape3DResource: Codable, Sendable {
 
     private enum CodingKeys: CodingKey { case fixture }
 
-    /// Creates a box shape with the specified size.
-    public static func generateBox(width: Float = 1, height: Float = 1, depth: Float = 1) -> Shape3DResource {
+    /// Creates a box shape with the specified size, optionally offset from the body origin.
+    public static func generateBox(width: Float = 1, height: Float = 1, depth: Float = 1, center: Vector3 = .zero) -> Shape3DResource {
         return Shape3DResource(
             fixture: .box(
                 BoxShape(
@@ -61,7 +77,8 @@ public final class Shape3DResource: Codable, Sendable {
                         width / 2,
                         height / 2,
                         depth / 2,
-                    ]
+                    ],
+                    center: center
                 )
             )
         )
@@ -89,11 +106,14 @@ public final class Shape3DResource: Codable, Sendable {
         return Shape3DResource(fixture: .triangleMesh(TriangleMeshShape(vertices: vertices, indices: indices)))
     }
 
-    /// Creates a sphere shape offset from the body origin.
+    /// Creates a sphere or box shape offset from the body origin. Triangle meshes are returned unchanged.
     public func offsetBy(x: Float, y: Float, z: Float) -> Shape3DResource {
         switch self.fixture {
-        case .box, .triangleMesh:
+        case .triangleMesh:
             return self
+        case var .box(shape):
+            shape.center = [x, y, z]
+            return Shape3DResource(fixture: .box(shape))
         case var .sphere(shape):
             shape.center = [x, y, z]
             return Shape3DResource(fixture: .sphere(shape))

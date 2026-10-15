@@ -945,7 +945,7 @@ struct EditorSceneEditingTests {
             try await app.update()
             #expect(!renderWorld.getEntities().contains { $0.components[ExtractedCameraSource.self]?.entityId == gameCamera.id })
             #expect(gameCamera.components[Transform.self]?.position == Vector3(100, 200, 300))
-            #expect(renderWorld.getResource(RenderItems<Opaque3DRenderItem>.self)?.items.contains { $0.entity == cube.id } == true)
+            #expect(renderWorld.getResource(ExtractedMesh3DSources.self)?.meshes.contains { $0.entity == cube.id } == true)
             let sprites = try #require(renderWorld.getResource(SortedRenderItems<Transparent2DRenderItem>.self))
             let item = try #require(sprites.items.items.first { $0.entity == sprite.id })
             let scenePipeline = renderWorld.getRefResource(Scene2DPipelines.self).wrappedValue.pipeline(for: item.renderPipeline, device: device)

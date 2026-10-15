@@ -207,6 +207,7 @@ private func appendShapeLines(
     case let .box(box):
         appendOrientedBoxLines(
             halfExtents: box.halfExtents,
+            center: box.center,
             transform: transform,
             to: extractedShapes,
             color: color
@@ -240,8 +241,8 @@ private func combinedLocalBounds(for shapes: [Shape3DResource]) -> AABB? {
     for shape in shapes {
         switch shape.fixture {
         case let .box(box):
-            minimum = min(minimum, -box.halfExtents)
-            maximum = max(maximum, box.halfExtents)
+            minimum = min(minimum, box.center - box.halfExtents)
+            maximum = max(maximum, box.center + box.halfExtents)
         case let .sphere(sphere):
             let extents = Vector3(sphere.radius)
             minimum = min(minimum, sphere.center - extents)
@@ -259,6 +260,7 @@ private func combinedLocalBounds(for shapes: [Shape3DResource]) -> AABB? {
 
 private func appendOrientedBoxLines(
     halfExtents: Vector3,
+    center: Vector3 = .zero,
     transform: Transform3D,
     to extractedShapes: ResMut<ExtractedPhysicsDebugShapes3D>,
     color: Color
@@ -273,7 +275,7 @@ private func appendOrientedBoxLines(
         Vector3(halfExtents.x, halfExtents.y, halfExtents.z),
         Vector3(-halfExtents.x, halfExtents.y, halfExtents.z),
     ]
-    .map { (transform * Vector4($0, 1)).xyz }
+    .map { (transform * Vector4($0 + center, 1)).xyz }
 
     appendBoxEdges(corners: corners, to: extractedShapes, color: color)
 }

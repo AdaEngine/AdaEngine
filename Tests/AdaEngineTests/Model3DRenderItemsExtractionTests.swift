@@ -7,8 +7,8 @@ import Testing
 @Suite("Model3D render item extraction")
 struct Model3DRenderItemsExtractionTests {
 
-    @Test("opaque 3D render items survive render-world pre-update")
-    func opaque3DRenderItemsSurviveRenderWorldPreUpdate() async throws {
+    @Test("extracted meshes become one instanced opaque 3D item and lighting is extracted")
+    func extractedMeshesBecomeInstancedItems() async throws {
         try Self.setupHeadlessRenderEngineIfNeeded()
 
         let app = AppWorlds(main: World())
@@ -51,10 +51,12 @@ struct Model3DRenderItemsExtractionTests {
         renderWorld.insertResource(MainWorld(world: app.main))
         await renderWorld.runScheduler(.extract)
 
-        let extractedItems = try #require(renderWorld.getResource(RenderItems<Opaque3DRenderItem>.self))
-        #expect(extractedItems.items.count == 1)
-        #expect(extractedItems.items.first?.entity == meshEntity.id)
-        #expect(extractedItems.items.first?.batchRange == 0..<2)
+        let sources = try #require(renderWorld.getResource(ExtractedMesh3DSources.self)).meshes
+        #expect(sources.count == 2)
+        let visible = try VisibleMesh3D.capture(from: renderWorld)
+        #expect(visible.items.count == 1)
+        #expect(visible.items.first?.entity == meshEntity.id)
+        #expect(visible.items.first?.batchRange == 0..<2)
         #expect(material.baseColorFactor == [0.2, 0.4, 0.6, 1])
         #expect(material.metallicFactor == 0.75)
         #expect(material.roughnessFactor == 0.25)
@@ -69,11 +71,9 @@ struct Model3DRenderItemsExtractionTests {
         #expect(directionalLight.shadowBias == 0.001)
         #expect(directionalLight.shadowSlopeBias == 0.004)
 
-        await renderWorld.runScheduler(.preUpdate)
-
-        let preparedItems = try #require(renderWorld.getResource(RenderItems<Opaque3DRenderItem>.self))
-        #expect(preparedItems.items.count == 1)
-        #expect(preparedItems.items.first?.entity == meshEntity.id)
+        // The extraction is repeatable: a second pass sees the same meshes.
+        await renderWorld.runScheduler(.extract)
+        #expect(try #require(renderWorld.getResource(ExtractedMesh3DSources.self)).meshes.count == 2)
     }
 
     @Test("mesh shadow flags split batches and survive extraction")
@@ -111,15 +111,15 @@ struct Model3DRenderItemsExtractionTests {
         renderWorld.insertResource(MainWorld(world: app.main))
         await renderWorld.runScheduler(.extract)
 
-        let extractedItems = try #require(renderWorld.getResource(RenderItems<Opaque3DRenderItem>.self))
-        #expect(extractedItems.items.count == 2)
+        let visible = try VisibleMesh3D.capture(from: renderWorld)
+        #expect(visible.items.count == 2)
 
-        let casterItem = try #require(extractedItems.items.first { $0.entity == caster.id })
+        let casterItem = try #require(visible.items.first { $0.entity == caster.id })
         #expect(casterItem.castShadows)
         #expect(casterItem.receiveShadows)
         #expect(casterItem.batchRange == 0..<1)
 
-        let satelliteItem = try #require(extractedItems.items.first { $0.entity == satellite.id })
+        let satelliteItem = try #require(visible.items.first { $0.entity == satellite.id })
         #expect(!satelliteItem.castShadows)
         #expect(!satelliteItem.receiveShadows)
         #expect(satelliteItem.batchRange == 1..<2)

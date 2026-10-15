@@ -55,6 +55,12 @@ struct ResolvedGravityScriptModule: Sendable {
     /// Import-visibility problems, formatted `path:line:column: message`. Reported after Gravity compiles
     /// the module so a syntax error in an imported file is never masked by a missing export.
     let importDiagnostics: [String]
+    /// Whether `@test` functions and the assertion prelude are part of this module.
+    var includesTests = false
+    /// Every `@test` function of the module, in path then source order.
+    var tests: [AdaScriptTestCase] = []
+    /// Top-level `var` names, which a test run snapshots and restores so tests stay independent.
+    var globalVariableNames: [String] = []
 
     /// Every source in the module, for scans that must see imported files as well as the entry.
     var combinedSource: String {
@@ -72,7 +78,13 @@ struct ResolvedGravityScriptModule: Sendable {
 }
 
 enum GravityScriptModuleResolver {
-    static func resolve(_ sources: [AdaScriptSource]) throws -> ResolvedGravityScriptModule {
+    /// - Parameter includeTests: Keep `@test` functions. Production modules leave this off, which removes every test
+    ///   and rejects production code that references a test-only name (ADR-0024).
+    static func resolve(_ allSources: [AdaScriptSource], includeTests: Bool = false) throws -> ResolvedGravityScriptModule {
+        // The Tests/ root exists only in the test configuration (ADR-0024).
+        let sources = try includeTests ? allSources : allSources.filter { source in
+            !AdaScriptTestSupport.isTestSource(try canonicalSourcePath(source.path))
+        }
         let graph: AdaScriptModuleGraph
         do {
             graph = try AdaScriptModuleGraph(sources: sources)
@@ -120,6 +132,12 @@ enum GravityScriptModuleResolver {
                 annotationProblems.append("\(path):\(problem.use.range.start.line + 1):\(problem.use.range.start.utf16Column + 1): \(problem.message)")
             }
         }
+        for path in orderedPaths {
+            if let tree = graph.modules[path]?.tree {
+                annotationProblems += AdaScriptTestSupport.problems(in: tree)
+                annotationProblems += AdaScriptTestSupport.testImportProblems(in: tree)
+            }
+        }
         if !annotationProblems.isEmpty {
             throw AdaScriptError.compilation(annotationProblems)
         }
@@ -156,15 +174,27 @@ enum GravityScriptModuleResolver {
             }
         }
 
+        let testNames = Set(sortedPaths.flatMap { graph.modules[$0]?.tree.tests.map(\.name) ?? [] })
+        let declaredNames = sortedPaths.reduce(into: Set<String>()) { $0.formUnion(graph.modules[$1]?.tree.declaredNames ?? []) }
+        var testLeaks: [String] = []
         var loweredSources: [String: String] = [:]
         for path in sortedPaths {
             guard let source = sourceByPath[path], let tree = graph.modules[path]?.tree else {
                 continue
             }
             // Imports are resolved above; Gravity sees one flat, include-ordered module.
-            let importFreeSource = AdaScriptQueryLowerer.lower(
-                source: AdaScriptImportLowering.lower(source: source.source, tree: tree)
-            )
+            var importFreeSource = AdaScriptImportLowering.lower(source: source.source, tree: tree, stripTests: !includeTests)
+            if includeTests {
+                importFreeSource = AdaScriptTestLowerer.lower(source: importFreeSource, path: path, declared: declaredNames.subtracting(testNames))
+            } else {
+                testLeaks += AdaScriptTestSupport.leaks(
+                    inStripped: importFreeSource,
+                    path: path,
+                    testNames: testNames,
+                    declared: declaredNames.subtracting(testNames)
+                )
+            }
+            importFreeSource = AdaScriptQueryLowerer.lower(source: importFreeSource)
             let loweredViewSource: String
             do {
                 loweredViewSource = try AdaScriptViewBuilderLowerer.lower(
@@ -183,6 +213,10 @@ enum GravityScriptModuleResolver {
             loweredSources[path] = AdaScriptMathLowerer.lower(
                 source: AdaScriptNetworkLowerer.lower(source: loweredComponentSource)
             )
+        }
+
+        if !testLeaks.isEmpty {
+            throw AdaScriptError.compilation(testLeaks)
         }
 
         var sourcesByPath: [String: ResolvedGravityScriptModule.Source] = [:]
@@ -205,7 +239,7 @@ enum GravityScriptModuleResolver {
         \(includes)
         """
 
-        return ResolvedGravityScriptModule(
+        var module = ResolvedGravityScriptModule(
             entrySource: entrySource,
             sourcesByPath: sourcesByPath,
             pathsByFileID: pathsByFileID,
@@ -213,6 +247,23 @@ enum GravityScriptModuleResolver {
             asyncDeclarations: asyncDeclarations,
             importDiagnostics: importDiagnostics
         )
+        module.includesTests = includeTests
+        if includeTests {
+            module.globalVariableNames = sortedPaths.flatMap { path in
+                (graph.modules[path]?.tree.bindings ?? []).filter { !$0.isConstant }.map(\.name)
+            }
+            module.tests = sortedPaths.flatMap { path in
+                (graph.modules[path]?.tree.tests ?? []).map { test in
+                    AdaScriptTestCase(
+                        displayName: test.displayName,
+                        line: test.range.start.line + 1,
+                        name: test.name,
+                        path: path
+                    )
+                }
+            }
+        }
+        return module
     }
 
     private static let rootAnnotations: Set<String> = [
@@ -223,6 +274,7 @@ enum GravityScriptModuleResolver {
         "resource",
         "scriptable",
         "system",
+        "test",
         "tool",
         "view",
     ]

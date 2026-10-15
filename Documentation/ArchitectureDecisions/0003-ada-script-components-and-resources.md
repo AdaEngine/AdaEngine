@@ -2,11 +2,11 @@
 
 - Status: Accepted
 - Date: 2026-08-31
-- Implementation: Partial (all but the single shared schema AST)
+- Implementation: Implemented
 
 ## Implementation status
 
-Last verified: 2026-10-14.
+Last verified: 2026-10-15.
 
 Shipped:
 
@@ -60,13 +60,22 @@ Shipped:
   controls and defaults (`EditorScriptComponentStore`), registered into the
   play-mode world, and offered by import and member completion.
 
-Remaining before this ADR is implemented:
+- [x] One compiler AST for every consumer. Every fact that both the compiler and the
+  Editor derive from source comes from the shared `AdaScriptSyntax` tree, built on a
+  single lexer (`AdaScriptAnalysisLexer`; the compiler's `Lexer` and the Editor's
+  `GravityLexer` are adapters over it): imports, annotation uses with their targets
+  and labelled literal arguments (`AdaScriptAnnotationSyntax.values`), script `enum`
+  cases, field and parameter defaults (`defaultValues`, typed by the schema parser
+  through `AdaScriptDefaultValueResolver`), `context.world` uses (`worldUses`),
+  declaration visibility, name references, and the tolerant type and symbol
+  `outline` the Editor uses for regions, symbols, completion scope and annotation
+  diagnostics. The outline was checked against the Editor's previous scanner on a
+  corpus, every prefix, suffix and single-character deletion.
 
-- [ ] One compiler AST for every consumer. Imports, annotation uses with their
-  targets, declaration visibility, and name references now come from the shared
-  `AdaScriptSyntax` tree used by the runtime resolver and the Editor. The
-  schema parser (fields and defaults, system-body capability inference) and the
-  Editor's symbol and type-region scanner still walk tokens separately.
+  Not shared, because each has one consumer and one implementation: the schema
+  parser's streaming walk that locates declarations and its `@res`/`@query` usage
+  inference, the Editor's highlight/hover token heuristics, and the lowerers' source
+  rewriting (which needs token offsets, not a tree).
 
 ## Context
 
