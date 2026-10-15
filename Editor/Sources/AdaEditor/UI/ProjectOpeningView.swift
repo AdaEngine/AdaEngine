@@ -113,6 +113,7 @@ struct ProjectOpeningView: View {
                 .foregroundColor(.white)
                 .accessibilityIdentifier(ProjectOpeningAccessibility.detail)
         }
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
         .background {
             LauncherColor.window.ignoresSafeArea()
         }
