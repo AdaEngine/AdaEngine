@@ -10,36 +10,27 @@ enum GravityCapabilityAnalyzer {
     private static let systemOnlyAnnotations: Set<String> = ["access", "exclusiveWorld"]
     private static let eventAnnotations: Set<String> = ["events", "eventWriter"]
 
-    static func diagnostics(
-        regions: [GravityTypeRegion],
-        tokens: [GravityToken],
-        globals: Set<String>,
-        syntax: AdaScriptSyntaxTree
-    ) -> [GravityDiagnostic] {
-        var diagnostics = placementDiagnostics(regions: regions, tokens: tokens, syntax: syntax)
+    static func diagnostics(regions: [GravityTypeRegion], globals: Set<String>, syntax: AdaScriptSyntaxTree) -> [GravityDiagnostic] {
+        var diagnostics = placementDiagnostics(regions: regions, syntax: syntax)
         for region in regions where region.annotations.contains("system") {
-            diagnostics += bodyDiagnostics(region: region, tokens: tokens, globals: globals, syntax: syntax)
+            diagnostics += bodyDiagnostics(region: region, globals: globals, syntax: syntax)
         }
         return diagnostics
     }
 
     // MARK: Placement
 
-    private static func placementDiagnostics(
-        regions: [GravityTypeRegion],
-        tokens: [GravityToken],
-        syntax: AdaScriptSyntaxTree
-    ) -> [GravityDiagnostic] {
+    private static func placementDiagnostics(regions: [GravityTypeRegion], syntax: AdaScriptSyntaxTree) -> [GravityDiagnostic] {
         var diagnostics: [GravityDiagnostic] = []
         for region in regions where !region.annotations.contains("system") {
-            for annotation in syntaxType(for: region, in: syntax)?.annotations ?? [] where systemOnlyAnnotations.contains(annotation.name) {
+            for annotation in region.annotationSyntaxes where systemOnlyAnnotations.contains(annotation.name) {
                 diagnostics.append(GravityDiagnostic(message: "@\(annotation.name) can only annotate an @system class", range: annotation.nameRange.gravityRange))
             }
         }
         for annotation in syntax.annotations where eventAnnotations.contains(annotation.name) {
             let start = gravityPosition(annotation.range.start)
             guard let owner = regions.first(where: { region in
-                tokens[region.openBraceIndex].range.start < start && start < tokens[region.closeBraceIndex].range.start
+                region.bodyStart < start && start < region.bodyEnd
             }), owner.annotations.contains("system") else {
                 diagnostics.append(
                     GravityDiagnostic(
@@ -73,22 +64,15 @@ enum GravityCapabilityAnalyzer {
 
     // MARK: Usage
 
-    private static func bodyDiagnostics(
-        region: GravityTypeRegion,
-        tokens: [GravityToken],
-        globals: Set<String>,
-        syntax: AdaScriptSyntaxTree
-    ) -> [GravityDiagnostic] {
-        let annotations = syntaxType(for: region, in: syntax)?.annotations ?? []
+    private static func bodyDiagnostics(region: GravityTypeRegion, globals: Set<String>, syntax: AdaScriptSyntaxTree) -> [GravityDiagnostic] {
+        let annotations = region.annotationSyntaxes
         let isExclusive = annotations.contains { $0.name == "exclusiveWorld" }
         let access = annotations.first { $0.name == "access" }.map(accessSets)
         let properties = Set(region.symbol.members.filter { $0.kind == .property }.map(\.name))
-        let bodyStart = tokens[region.openBraceIndex].range.start
-        let bodyEnd = tokens[region.closeBraceIndex].range.start
         var diagnostics: [GravityDiagnostic] = []
         for use in syntax.worldUses {
             let start = gravityPosition(use.range.start)
-            guard bodyStart < start, start < bodyEnd else {
+            guard region.bodyStart < start, start < region.bodyEnd else {
                 continue
             }
             if let member = use.member, let memberRange = use.memberRange?.gravityRange {
@@ -147,11 +131,6 @@ enum GravityCapabilityAnalyzer {
     }
 
     // MARK: Helpers
-
-    /// The tree's type declared where `region` starts.
-    private static func syntaxType(for region: GravityTypeRegion, in syntax: AdaScriptSyntaxTree) -> AdaScriptTypeSyntax? {
-        syntax.types.first { $0.name == region.symbol.name && gravityPosition($0.range.start) == region.symbol.range.start }
-    }
 
     private static func gravityPosition(_ position: AdaScriptSourcePosition) -> GravitySourcePosition {
         GravitySourcePosition(line: position.line, utf16Column: position.utf16Column)

@@ -326,6 +326,8 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
     public var importUses: [AdaScriptImportUse]
     public var imports: [AdaScriptImportSyntax]
     public var isStrict: Bool
+    /// Types with their members and top-level declarations, found by a scan that tolerates unfinished code.
+    public var outline: AdaScriptOutline
     public var path: String
     /// Bare identifiers that are not member accesses or argument labels.
     public var references: [AdaScriptNameReference]
@@ -350,6 +352,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         importUses: [AdaScriptImportUse] = [],
         imports: [AdaScriptImportSyntax] = [],
         isStrict: Bool = false,
+        outline: AdaScriptOutline = AdaScriptOutline(),
         path: String,
         references: [AdaScriptNameReference] = [],
         tests: [AdaScriptTestSyntax] = [],
@@ -368,6 +371,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         self.importUses = importUses
         self.imports = imports
         self.isStrict = isStrict
+        self.outline = outline
         self.path = path
         self.references = references
         self.tests = tests

@@ -38,9 +38,10 @@ struct AdaScriptSyntaxParser {
     func parse() -> AdaScriptParsedDocument {
         let parsed = parseDeclarations(in: tokens.indices)
         let imports = parseImports()
+        let annotations = parseAllAnnotations()
         let syntax = AdaScriptSyntaxTree(
             annotationUses: parseAnnotationUses(),
-            annotations: parseAllAnnotations(),
+            annotations: annotations,
             bindings: parsed.bindings.map(\.syntax),
             declaredNames: declaredNames(),
             defaultValues: AdaScriptDefaultValueParser(tokens: tokens).parseAll(),
@@ -50,6 +51,7 @@ struct AdaScriptSyntaxParser {
             importUses: parseImportUses(imports.declarations),
             imports: imports.declarations,
             isStrict: hasFileStrictAnnotation,
+            outline: AdaScriptOutlineParser(tokens: tokens, annotations: annotations).parse(),
             path: path,
             references: nameReferences(excluding: imports.declarations.map(\.offsets)),
             tests: parsed.tests,

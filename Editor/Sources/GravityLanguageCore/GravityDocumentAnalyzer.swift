@@ -11,11 +11,20 @@ struct GravityParsedDocument: Sendable {
 }
 
 struct GravityTypeRegion: Sendable {
-    var annotations: Set<String>
-    var closeBraceIndex: Int
+    /// Annotations written before the type keyword, from the shared syntax tree.
+    var annotationSyntaxes: [AdaScriptAnnotationSyntax]
+    /// The start of the closing brace, or of the last token when the body is never closed.
+    var bodyEnd: GravitySourcePosition
+    /// The start of the opening brace.
+    var bodyStart: GravitySourcePosition
     var implicitTypes: [String: String]
-    var openBraceIndex: Int
+    /// Selection ranges of the members declared `static`.
+    var staticMembers: Set<GravitySourceRange>
     var symbol: GravitySymbol
+
+    var annotations: Set<String> {
+        Set(annotationSyntaxes.map(\.name))
+    }
 }
 
 struct GravityDocumentAnalyzer {
@@ -24,21 +33,21 @@ struct GravityDocumentAnalyzer {
         let lexResult = lexer.lex()
         let tokens = lexResult.tokens.filter { $0.kind != .comment }
         let sharedAnalysis = AdaScriptAnalyzer.analyze(source: text)
+        let syntax = sharedAnalysis.syntax
         let sharedInferredTypes = sharedAnalysis.inferredTypes.mapValues(\.displayName)
-        let typeRegions = parseTypeRegions(tokens, inferredTypes: sharedInferredTypes)
-        let symbols = parseGlobalSymbols(tokens, typeRegions: typeRegions)
-        let syntax = AdaScriptSyntax.parse(source: text, path: "")
+        let typeRegions = syntax.outline.types.map { typeRegion(for: $0, inferredTypes: sharedInferredTypes) }
+        let symbols = globalSymbols(syntax.outline, typeRegions: typeRegions)
         let parsedImports = (diagnostics: syntax.importDiagnostics.map { GravityDiagnostic(message: $0.message, range: $0.range.gravityRange) }, imports: syntax.imports.map(\.gravityImport))
         let typeDiagnostics = sharedAnalysis.typeIssues
-            .filter { _ in projectTypeChecking == .strict || sharedAnalysis.syntax.isStrict }
+            .filter { _ in projectTypeChecking == .strict || syntax.isStrict }
             .map(gravityDiagnostic)
         let globals = Set(symbols.filter { [.variable, .constant].contains($0.kind) }.map(\.name))
-        let capabilityDiagnostics = GravityCapabilityAnalyzer.diagnostics(regions: typeRegions, tokens: tokens, globals: globals, syntax: syntax)
+        let capabilityDiagnostics = GravityCapabilityAnalyzer.diagnostics(regions: typeRegions, globals: globals, syntax: syntax)
         return GravityParsedDocument(
             analysis: GravityDocumentAnalysis(
                 diagnostics: lexResult.diagnostics + parsedImports.diagnostics
-                    + duplicatePropertyDiagnostics(typeRegions, tokens: tokens)
-                    + declarationAnnotationDiagnostics(typeRegions, tokens: tokens)
+                    + duplicatePropertyDiagnostics(typeRegions)
+                    + declarationAnnotationDiagnostics(typeRegions)
                     + catalogAnnotationDiagnostics(syntax.annotationUses)
                     + capabilityDiagnostics
                     + typeDiagnostics,
@@ -59,26 +68,11 @@ struct GravityDocumentAnalyzer {
         .symbol
     }
 
-    private static func duplicatePropertyDiagnostics(_ regions: [GravityTypeRegion], tokens: [GravityToken]) -> [GravityDiagnostic] {
-        let staticProperties = Set(
-            tokens.indices.compactMap { index -> GravitySourceRange? in
-                guard tokens[index].text == "var" || tokens[index].text == "const", index + 1 < tokens.count else {
-                    return nil
-                }
-                var cursor = index - 1
-                while cursor >= 0, ["static", "private", "public", "extern"].contains(tokens[cursor].text) {
-                    if tokens[cursor].text == "static" {
-                        return tokens[index + 1].range
-                    }
-                    cursor -= 1
-                }
-                return nil
-            }
-        )
-        return regions.flatMap { region in
+    private static func duplicatePropertyDiagnostics(_ regions: [GravityTypeRegion]) -> [GravityDiagnostic] {
+        regions.flatMap { region in
             var names: Set<String> = []
             return region.symbol.members.compactMap { member -> GravityDiagnostic? in
-                let key = staticProperties.contains(member.selectionRange) ? "$\(member.name)" : member.name
+                let key = region.staticMembers.contains(member.selectionRange) ? "$\(member.name)" : member.name
                 guard member.kind == .property, !names.insert(key).inserted else {
                     return nil
                 }
@@ -105,26 +99,24 @@ struct GravityDocumentAnalyzer {
         }
     }
 
-    private static func declarationAnnotationDiagnostics(_ regions: [GravityTypeRegion], tokens: [GravityToken]) -> [GravityDiagnostic] {
+    private static func declarationAnnotationDiagnostics(_ regions: [GravityTypeRegion]) -> [GravityDiagnostic] {
         regions.flatMap { region -> [GravityDiagnostic] in
-            guard let declarationIndex = tokens.firstIndex(where: { $0.range.start == region.symbol.range.start }) else {
-                return []
-            }
-            let annotations = annotationTokens(before: declarationIndex, in: tokens)
-            let names = Set(annotations.map(\.text))
+            let annotations = region.annotationSyntaxes
+            let names = Set(annotations.map(\.name))
             var diagnostics = annotations.compactMap { annotation -> GravityDiagnostic? in
+                let range = annotation.nameRange.gravityRange
                 let requiredKind: String?
-                switch annotation.text {
+                switch annotation.name {
                 case "view":
-                    return GravityDiagnostic(message: "AdaUI views in AdaScript are temporarily unavailable.", range: annotation.range)
+                    return GravityDiagnostic(message: "AdaUI views in AdaScript are temporarily unavailable.", range: range)
                 case "previewable":
-                    return GravityDiagnostic(message: "AdaUI previews in AdaScript are temporarily unavailable.", range: annotation.range)
+                    return GravityDiagnostic(message: "AdaUI previews in AdaScript are temporarily unavailable.", range: range)
                 case "component", "replicated_component", "resource", "network_command":
                     requiredKind = "struct"
                 case "system", "scriptable", "tool":
                     requiredKind = "class"
                 case "previewable" where !names.contains("view"):
-                    return GravityDiagnostic(message: "@previewable requires @view", range: annotation.range)
+                    return GravityDiagnostic(message: "@previewable requires @view", range: range)
                 default:
                     requiredKind = nil
                 }
@@ -132,18 +124,18 @@ struct GravityDocumentAnalyzer {
                     return nil
                 }
                 return GravityDiagnostic(
-                    message: "@\(annotation.text) requires a \(requiredKind); change '\(kindDescription(region.symbol.kind))' to '\(requiredKind)'",
-                    range: annotation.range
+                    message: "@\(annotation.name) requires a \(requiredKind); change '\(kindDescription(region.symbol.kind))' to '\(requiredKind)'",
+                    range: range
                 )
             }
             let declarationAnnotations = annotations.filter {
-                ["component", "replicated_component", "resource", "network_command", "system", "scriptable", "tool"].contains($0.text)
+                ["component", "replicated_component", "resource", "network_command", "system", "scriptable", "tool"].contains($0.name)
             }
             if let first = declarationAnnotations.first {
                 diagnostics += declarationAnnotations.dropFirst().map { annotation in
                     GravityDiagnostic(
-                        message: "@\(annotation.text) cannot be combined with @\(first.text) on \(region.symbol.name)",
-                        range: annotation.range
+                        message: "@\(annotation.name) cannot be combined with @\(first.name) on \(region.symbol.name)",
+                        range: annotation.nameRange.gravityRange
                     )
                 }
             }
@@ -151,142 +143,55 @@ struct GravityDocumentAnalyzer {
         }
     }
 
-    private static func parseTypeRegions(
-        _ tokens: [GravityToken],
-        inferredTypes: [String: String]
-    ) -> [GravityTypeRegion] {
-        var regions: [GravityTypeRegion] = []
-        var index = 0
-        while index < tokens.count {
-            guard
-                let kind = typeKind(for: tokens[index].text),
-                let nameIndex = nextIdentifier(after: index, in: tokens),
-                let openBraceIndex = nextToken("{", after: nameIndex, in: tokens)
-            else {
-                index += 1
-                continue
-            }
-            let matchedCloseBraceIndex = matchingCloseBrace(for: openBraceIndex, in: tokens)
-            let memberUpperBound = matchedCloseBraceIndex ?? tokens.count
-            let closeBraceIndex = matchedCloseBraceIndex ?? (tokens.count - 1)
-            let annotations = annotationNames(before: index, in: tokens)
+    // MARK: Outline
 
-            let members = parseDeclarations(
-                tokens,
-                range: (openBraceIndex + 1)..<memberUpperBound,
-                baseDepth: 0,
-                memberContext: true
-            )
-            let nameToken = tokens[nameIndex]
-            let symbol = GravitySymbol(
-                name: nameToken.text,
-                kind: kind,
-                detail: "AdaScript \(kindDescription(kind))",
-                range: GravitySourceRange(start: tokens[index].range.start, end: tokens[closeBraceIndex].range.end),
-                selectionRange: nameToken.range,
-                members: members
-            )
-            regions.append(
-                GravityTypeRegion(
-                    annotations: annotations,
-                    closeBraceIndex: closeBraceIndex,
-                    implicitTypes: inferredTypes,
-                    openBraceIndex: openBraceIndex,
-                    symbol: symbol
-                )
-            )
-            index = memberUpperBound
-        }
-        return regions
+    private static func typeRegion(for type: AdaScriptOutlineType, inferredTypes: [String: String]) -> GravityTypeRegion {
+        GravityTypeRegion(
+            annotationSyntaxes: type.annotations,
+            bodyEnd: GravitySourcePosition(line: type.bodyEnd.line, utf16Column: type.bodyEnd.utf16Column),
+            bodyStart: GravitySourcePosition(line: type.bodyStart.line, utf16Column: type.bodyStart.utf16Column),
+            implicitTypes: inferredTypes,
+            staticMembers: Set(type.symbol.members.filter(\.isStatic).map { $0.selectionRange.gravityRange }),
+            symbol: gravitySymbol(type.symbol)
+        )
     }
 
-    private static func parseGlobalSymbols(_ tokens: [GravityToken], typeRegions: [GravityTypeRegion]) -> [GravitySymbol] {
-        var symbols = typeRegions.map(\.symbol)
-        var excludedIndices = Set<Int>()
-        for region in typeRegions {
-            excludedIndices.formUnion(region.openBraceIndex...region.closeBraceIndex)
-        }
-        symbols += parseDeclarations(
-            tokens,
-            range: tokens.indices,
-            baseDepth: 0,
-            memberContext: false,
-            excludedIndices: excludedIndices
-        )
+    private static func globalSymbols(_ outline: AdaScriptOutline, typeRegions: [GravityTypeRegion]) -> [GravitySymbol] {
+        let symbols = typeRegions.map(\.symbol) + outline.globals.map(gravitySymbol)
         return symbols.uniqued(on: { "\($0.kind.rawValue):\($0.name)" })
     }
 
-    private static func parseDeclarations(
-        _ tokens: [GravityToken],
-        range: Range<Int>,
-        baseDepth: Int,
-        memberContext: Bool,
-        excludedIndices: Set<Int> = []
-    ) -> [GravitySymbol] {
-        var braceDepth = baseDepth
-        var symbols: [GravitySymbol] = []
-        var index = range.lowerBound
-        while index < range.upperBound {
-            let token = tokens[index]
-            if excludedIndices.contains(index) {
-                index += 1
-                continue
-            }
-            if token.text == "{" {
-                braceDepth += 1
-                index += 1
-                continue
-            }
-            if token.text == "}" {
-                braceDepth = max(baseDepth, braceDepth - 1)
-                index += 1
-                continue
-            }
-            guard
-                braceDepth == baseDepth,
-                let nameIndex = nextIdentifier(after: index, upperBound: range.upperBound, in: tokens)
-            else {
-                index += 1
-                continue
-            }
-
-            if let symbol = declarationSymbol(
-                keyword: token.text,
-                nameToken: tokens[nameIndex],
-                memberContext: memberContext,
-                isAsync: token.text == "func" && index > 0 && tokens[index - 1].text == "async"
-            ) {
-                symbols.append(symbol)
-            }
-            index += 1
-        }
-        return symbols
-    }
-
-    private static func declarationSymbol(
-        keyword: String,
-        nameToken: GravityToken,
-        memberContext: Bool,
-        isAsync: Bool
-    ) -> GravitySymbol? {
+    private static func gravitySymbol(_ symbol: AdaScriptOutlineSymbol) -> GravitySymbol {
         let kind: GravitySymbolKind
         let detail: String
-        switch keyword {
-        case "func":
-            kind = memberContext ? .method : .function
-            detail = isAsync
-                ? (memberContext ? "AdaScript async method" : "AdaScript async function")
-                : (memberContext ? "AdaScript method" : "AdaScript function")
-        case "var":
-            kind = memberContext ? .property : .variable
-            detail = memberContext ? "AdaScript property" : "AdaScript variable"
-        case "const":
-            kind = memberContext ? .property : .constant
-            detail = memberContext ? "AdaScript property" : "AdaScript constant"
-        default:
-            return nil
+        switch symbol.kind {
+        case .class, .enum, .struct:
+            kind = symbol.kind == .class ? .class : (symbol.kind == .enum ? .enum : .struct)
+            detail = "AdaScript \(kindDescription(kind))"
+        case .function:
+            kind = .function
+            detail = symbol.isAsync ? "AdaScript async function" : "AdaScript function"
+        case .method:
+            kind = .method
+            detail = symbol.isAsync ? "AdaScript async method" : "AdaScript method"
+        case .variable:
+            kind = .variable
+            detail = "AdaScript variable"
+        case .constant:
+            kind = .constant
+            detail = "AdaScript constant"
+        case .property:
+            kind = .property
+            detail = "AdaScript property"
         }
-        return GravitySymbol(name: nameToken.text, kind: kind, detail: detail, range: nameToken.range)
+        return GravitySymbol(
+            name: symbol.name,
+            kind: kind,
+            detail: detail,
+            range: symbol.range.gravityRange,
+            selectionRange: symbol.selectionRange.gravityRange,
+            members: symbol.members.map(gravitySymbol)
+        )
     }
 
     private static func gravityDiagnostic(_ issue: AdaScriptTypeIssue) -> GravityDiagnostic {
@@ -305,15 +210,6 @@ struct GravityDocumentAnalyzer {
         )
     }
 
-    private static func typeKind(for text: String) -> GravitySymbolKind? {
-        switch text {
-        case "class": .class
-        case "enum": .enum
-        case "struct": .struct
-        default: nil
-        }
-    }
-
     private static func kindDescription(_ kind: GravitySymbolKind) -> String {
         switch kind {
         case .class: "class"
@@ -321,44 +217,6 @@ struct GravityDocumentAnalyzer {
         case .struct: "struct"
         default: "type"
         }
-    }
-
-    private static func nextIdentifier(after index: Int, upperBound: Int? = nil, in tokens: [GravityToken]) -> Int? {
-        let candidate = index + 1
-        let bound = upperBound ?? tokens.count
-        guard candidate < bound, tokens[candidate].kind == .identifier else {
-            return nil
-        }
-        return candidate
-    }
-
-    private static func nextToken(_ text: String, after index: Int, in tokens: [GravityToken]) -> Int? {
-        var candidate = index + 1
-        while candidate < tokens.count {
-            if tokens[candidate].text == text {
-                return candidate
-            }
-            if tokens[candidate].text == ";" || tokens[candidate].text == "}" {
-                return nil
-            }
-            candidate += 1
-        }
-        return nil
-    }
-
-    private static func matchingCloseBrace(for openBraceIndex: Int, in tokens: [GravityToken]) -> Int? {
-        var depth = 0
-        for index in openBraceIndex..<tokens.count {
-            if tokens[index].text == "{" {
-                depth += 1
-            } else if tokens[index].text == "}" {
-                depth -= 1
-                if depth == 0 {
-                    return index
-                }
-            }
-        }
-        return nil
     }
 }
 
