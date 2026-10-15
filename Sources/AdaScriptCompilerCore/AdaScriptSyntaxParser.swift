@@ -54,7 +54,8 @@ struct AdaScriptSyntaxParser {
             references: nameReferences(excluding: imports.declarations.map(\.offsets)),
             tests: parsed.tests,
             types: parsed.types.map(\.syntax),
-            visibilityModifierOffsets: topLevelVisibilityModifiers()
+            visibilityModifierOffsets: topLevelVisibilityModifiers(),
+            worldUses: AdaScriptWorldUseParser(tokens: tokens).parseAll()
         )
         return AdaScriptParsedDocument(
             bindings: parsed.bindings,
@@ -227,6 +228,7 @@ struct AdaScriptSyntaxParser {
             AdaScriptAnnotationSyntax(
                 arguments: arguments,
                 name: nameToken.text,
+                nameRange: nameToken.range,
                 offsets: tokens[index].startOffset..<tokens[endIndex].endOffset,
                 problem: problem,
                 range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[endIndex].range.end),

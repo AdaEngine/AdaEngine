@@ -233,6 +233,8 @@ struct Parser {
     let annotationsByOffset: [Int: AdaScriptAnnotationSyntax]
     /// Constants after `=`, from the shared syntax tree, keyed by the offset of that `=`.
     let defaultsByEquals: [Int: AdaScriptDefaultValueSyntax]
+    /// Every `context.world` use from the shared syntax tree.
+    let worldUses: [AdaScriptWorldUse]
     var index = 0
     var explicitResourceAccess: [String: AdaScriptResourceBinding.Access] = [:]
 
@@ -243,6 +245,7 @@ struct Parser {
         self.path = path
         let syntax = AdaScriptSyntaxParser(source: source, path: path).parse().syntax
         self.annotationsByOffset = Dictionary(syntax.annotations.map { ($0.offsets.lowerBound, $0) }, uniquingKeysWith: { first, _ in first })
+        self.worldUses = syntax.worldUses
         self.defaultsByEquals = Dictionary(syntax.defaultValues.map { ($0.equalsOffset, $0) }, uniquingKeysWith: { first, _ in first })
     }
 }

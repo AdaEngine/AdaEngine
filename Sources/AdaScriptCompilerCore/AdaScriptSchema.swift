@@ -270,6 +270,8 @@ extension Parser {
         return AdaScriptSchemaField(defaultValue: defaultValue, name: fieldName)
     }
 
+    private static let deferredWorldMembers: Set<String> = ["commands", "spawn", "setTileOrientation"]
+
     private mutating func parseSystemBody(
         systemName: String
     ) throws -> (
@@ -287,15 +289,9 @@ extension Parser {
         var networkCommands: [AdaScriptNetworkCommandSchema] = []
         var rpcMethodBindings: [AdaScriptRPCMethodBinding] = []
         var depth = 1
-        var usesDeferredCommands = false
         let bodyStart = index
         var queryProperties: [String] = []
         while !isAtEnd, depth > 0 {
-            usesDeferredCommands =
-                usesDeferredCommands
-                || checkSequence(["context", ".", "world", ".", "commands"])
-                || checkSequence(["context", ".", "world", ".", "spawn"])
-                || checkSequence(["context", ".", "world", ".", "setTileOrientation"])
             if depth == 1 {
                 let annotations = try parseAnnotations()
                 if annotations.contains(where: { $0.name == "query" }), check("var"), tokens.indices.contains(index + 1),
@@ -334,6 +330,10 @@ extension Parser {
             throw error("unterminated system declaration '\(systemName)'")
         }
         bindings = try bindings.map { try resolvingAccess(of: $0, bodyRange: bodyStart..<max(bodyStart, index - 1)) }
+        let bodyOffsets = tokens[bodyStart].startOffset..<tokens[max(bodyStart, index - 1)].endOffset
+        let usesDeferredCommands = worldUses.contains { use in
+            bodyOffsets.contains(use.offsets.lowerBound) && Self.deferredWorldMembers.contains(use.member ?? "")
+        }
         return (
             bindings,
             remoteCommandBindings,

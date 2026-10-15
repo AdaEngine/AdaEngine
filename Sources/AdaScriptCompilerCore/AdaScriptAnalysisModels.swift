@@ -124,6 +124,8 @@ public struct AdaScriptAnnotationSyntax: Equatable, Hashable, Sendable {
     /// Identifier-only arguments, kept for placement and capability checks.
     public var arguments: [String]
     public var name: String
+    /// The range of the name after the `@`.
+    public var nameRange: AdaScriptSourceRange
     /// Source offsets from the `@` through the closing parenthesis, when there is one.
     public var offsets: Range<Int>
     /// Why ``values`` is incomplete (an unterminated list or an unsupported value), or `nil`.
@@ -135,6 +137,7 @@ public struct AdaScriptAnnotationSyntax: Equatable, Hashable, Sendable {
     public init(
         arguments: [String] = [],
         name: String,
+        nameRange: AdaScriptSourceRange? = nil,
         offsets: Range<Int> = 0..<0,
         problem: String? = nil,
         range: AdaScriptSourceRange,
@@ -142,6 +145,7 @@ public struct AdaScriptAnnotationSyntax: Equatable, Hashable, Sendable {
     ) {
         self.arguments = arguments
         self.name = name
+        self.nameRange = nameRange ?? range
         self.offsets = offsets
         self.problem = problem
         self.range = range
@@ -331,6 +335,8 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
     /// Character offsets of top-level `private`/`public` keywords. Gravity only accepts access specifiers
     /// on members, so lowering removes these after visibility has been read.
     public var visibilityModifierOffsets: [Range<Int>]
+    /// Every `context.world` in code, in source order.
+    public var worldUses: [AdaScriptWorldUse]
 
     public init(
         annotationUses: [AdaScriptAnnotationUse] = [],
@@ -348,7 +354,8 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         references: [AdaScriptNameReference] = [],
         tests: [AdaScriptTestSyntax] = [],
         types: [AdaScriptTypeSyntax] = [],
-        visibilityModifierOffsets: [Range<Int>] = []
+        visibilityModifierOffsets: [Range<Int>] = [],
+        worldUses: [AdaScriptWorldUse] = []
     ) {
         self.annotationUses = annotationUses
         self.annotations = annotations
@@ -366,6 +373,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         self.tests = tests
         self.types = types
         self.visibilityModifierOffsets = visibilityModifierOffsets
+        self.worldUses = worldUses
     }
 }
 

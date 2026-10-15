@@ -119,6 +119,127 @@ struct GravityCapabilityDiagnosticsTests {
     }
 }
 
+@Suite("AdaScript capability diagnostic details")
+struct GravityCapabilityDiagnosticDetailsTests {
+    private func diagnostics(_ source: String) -> [GravityDiagnostic] {
+        GravityLanguageService().analyze(text: source).diagnostics
+    }
+
+    @Test("Diagnostics point at the member, the component string and the annotation name")
+    func ranges() throws {
+        let source = """
+            @system(id: "ranges")
+            @access(read: [Health])
+            class Ranges {
+                func update(context) {
+                    context.world.write(1, "Health", "current", 2);
+                    context.world.despawnImmediate(1);
+                }
+            }
+            @access(read: [Health])
+            class Plain {}
+            """
+        let found = diagnostics(source)
+        let lines = source.components(separatedBy: "\n")
+
+        func text(of diagnostic: GravityDiagnostic) -> String {
+            let line = Array(lines[diagnostic.range.start.line].utf16)
+            let slice = line[diagnostic.range.start.utf16Column..<diagnostic.range.end.utf16Column]
+            return String(decoding: slice, as: UTF16.self)
+        }
+        let readOnly = try #require(found.first { $0.message == "'Health' is declared read-only in @access" })
+        let immediate = try #require(found.first { $0.message.hasPrefix("world.despawnImmediate requires") })
+        let misplaced = try #require(found.first { $0.message.hasPrefix("@access can only annotate") })
+
+        #expect(text(of: readOnly) == "\"Health\"")
+        #expect(text(of: immediate) == "despawnImmediate")
+        #expect(text(of: misplaced) == "access")
+    }
+
+    @Test("An event name may be a bare or quoted word, but not qualified or labelled")
+    func eventNameForms() {
+        func messages(_ annotation: String) -> [String] {
+            diagnostics("""
+                @system(id: "events")
+                class Events {
+                    \(annotation) var hits;
+                    func update(context) {}
+                }
+                """).map(\.message)
+        }
+        #expect(messages("@events(Damage)").isEmpty)
+        #expect(messages("@events(\"Damage\")").isEmpty)
+        #expect(messages("@eventWriter(Heal)").isEmpty)
+        #expect(messages("@events(Game.Damage)") == ["@events requires exactly one event name"])
+        #expect(messages("@events(name: Damage)") == ["@events requires exactly one event name"])
+        #expect(messages("@events(A, B)") == ["@events requires exactly one event name"])
+        #expect(messages("@events") == ["@events requires exactly one event name"])
+        #expect(messages("@events(3)") == ["@events requires exactly one event name"])
+    }
+
+    @Test("Only the system's own property or a global keeps the world; a local or another object does not")
+    func retention() {
+        let source = """
+            var saved = null;
+            var other = null;
+            @system(id: "retain")
+            class Retain {
+                var kept = null;
+                func update(context) {
+                    var kept = context.world;
+                    other.kept = context.world;
+                    unknown = context.world;
+                }
+            }
+            """
+        #expect(diagnostics(source).isEmpty)
+    }
+
+    @Test("A system gets one retention diagnostic per store, at the stored name")
+    func retentionRange() throws {
+        let source = """
+            @system(id: "retain")
+            class Retain {
+                var kept = null;
+                func update(context) { kept = context.world; }
+            }
+            """
+        let found = diagnostics(source)
+        let diagnostic = try #require(found.first)
+
+        #expect(found.count == 1)
+        #expect(diagnostic.message.hasSuffix("do not store it in 'kept'"))
+        #expect(diagnostic.range.end.utf16Column - diagnostic.range.start.utf16Column == 4)
+    }
+
+    @Test("World calls in a class that is not a system are not capability-checked")
+    func plainClassIsIgnored() {
+        let source = """
+            class Plain {
+                func run(context) {
+                    context.world.despawnImmediate(1);
+                    context.world.read(1, "Health", "current");
+                }
+            }
+            """
+        #expect(diagnostics(source).isEmpty)
+    }
+
+    @Test("Access sets of one system do not leak into the next")
+    func accessIsPerSystem() {
+        let source = """
+            @system(id: "first")
+            @access(read: [Health])
+            class First { func update(context) { context.world.read(1, "Health", "x"); } }
+
+            @system(id: "second")
+            @access(read: [Mana])
+            class Second { func update(context) { context.world.read(1, "Health", "x"); } }
+            """
+        #expect(diagnostics(source).map(\.message) == ["'Health' is not declared in @access"])
+    }
+}
+
 @Suite("AdaScript query syntax in the language service")
 struct GravityQuerySyntaxTests {
     private static let source = """
