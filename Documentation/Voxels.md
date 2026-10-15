@@ -106,10 +106,8 @@ many identical models, `AdaAnimation` clips on voxel nodes, and GPU-driven rende
 
 ## Testing with real MagicaVoxel files
 
-`Tests/AdaAssetsTests/Fixtures/vox/magicavoxel` holds three small files saved by
-MagicaVoxel itself (a knight, two cars with a rotated node, and a frame-by-frame deer).
-To check a whole directory such as the `vox` folder of a MagicaVoxel release, point
-`ADAENGINE_VOX_SAMPLES` at it:
+The repository does not contain MagicaVoxel's own sample files. To check a directory of real
+files, such as the `vox` folder of a MagicaVoxel release, point `ADAENGINE_VOX_SAMPLES` at it:
 
 ```sh
 # Parse every file.
