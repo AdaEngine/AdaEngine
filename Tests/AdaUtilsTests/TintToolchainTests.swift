@@ -12,8 +12,9 @@ struct TintToolchainTests {
             let url = root.appendingPathComponent(path)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             #if os(Windows)
-                // Windows checks executable contents, rather than Unix permission bits.
-                let hostTool = try #require(TintToolchain.executable())
+                // Windows requires a real executable. Reuse the test runner so discovery
+                // fixtures do not depend on Tint being installed on the host.
+                let hostTool = Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])
                 try FileManager.default.copyItem(at: hostTool, to: url)
             #else
                 try Data("fixture".utf8).write(to: url)
