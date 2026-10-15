@@ -50,9 +50,10 @@ $studioTint = & python (Join-Path $studioRoot 'script/ensure_tint.py') --jobs $J
 if ($LASTEXITCODE -ne 0) { throw 'Tint setup failed. Check Python, CMake, Ninja and the C++ toolchain.' }
 $env:TINT_EXECUTABLE = ($studioTint | Select-Object -Last 1).Trim()
 
-# Building the test product also links AdaEditor. This bypasses SwiftPM's command-
-# plugin preflight: upstream PackageToJS currently cannot compile on Windows.
-$studioBuildArguments = @('build', '--package-path', $studioEditor, '--configuration', $Configuration, '--jobs', $Jobs, '--product', 'AdaEditorPackageTests')
+# Debug also prepares the package tests. Release ships the ordinary executable
+# without enabling testable imports in production modules.
+$studioProduct = if ($Configuration -eq 'release') { 'AdaEditor' } else { 'AdaEditorPackageTests' }
+$studioBuildArguments = @('build', '--package-path', $studioEditor, '--configuration', $Configuration, '--jobs', $Jobs, '--product', $studioProduct)
 if ($ScratchPath) { $studioBuildArguments += @('--scratch-path', $ScratchPath) }
 $studioBuildLog = Join-Path $studioRoot ".build-tools/studio-$Configuration-build.log"
 Write-Host "Building Studio ($Configuration); compiler log: $studioBuildLog"

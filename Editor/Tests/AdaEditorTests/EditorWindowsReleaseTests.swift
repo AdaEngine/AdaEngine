@@ -14,7 +14,11 @@ struct EditorWindowsReleaseTests {
         for name in ["AdaEngine/Package.swift", "AdaScript/Package.swift", "AdaScript/tools/aot_build.py", "AdaScript/gravity.exe"] {
             let url = original.appendingPathComponent("BuildSDK/" + name)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try Data().write(to: url)
+            if name.hasSuffix("gravity.exe") {
+                try FileManager.default.copyItem(at: #require(Bundle.main.executableURL), to: url)
+            } else {
+                try Data().write(to: url)
+            }
         }
         try Data("{\"schemaVersion\":1}".utf8).write(to: original.appendingPathComponent("BuildSDK/sdk.json"))
         let moved = root.appendingPathComponent("Moved Studio Кириллица")

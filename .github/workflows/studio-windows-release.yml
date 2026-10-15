@@ -9,6 +9,7 @@ on:
       - '.github/workflows/studio-windows-release.yml'
       - 'script/*studio_windows*'
       - 'script/test_package_studio_windows.py'
+      - 'script/test_windows_sdk.swift'
       - 'script/ensure_windows_*.py'
       - 'Editor/scripts/*build_sdk*'
       - 'Editor/scripts/stage-build-sdk.py'
@@ -67,14 +68,11 @@ jobs:
           "gravity=$env:ADAENGINE_GRAVITY_PACKAGE_PATH" >> $env:GITHUB_OUTPUT
           "tint=$env:TINT_EXECUTABLE" >> $env:GITHUB_OUTPUT
       - name: Test installed SDK discovery
-        env:
-          STUDIO_BIN: ${{ steps.build.outputs.bin }}
         run: |
-          # Tests use the production SDK locator with a relocated real directory.
-          $swiftPlatform = Split-Path (Split-Path $env:SDKROOT -Parent) -Parent
-          $swiftLibrary = Join-Path $swiftPlatform 'Library'
-          $env:Path = "$swiftLibrary/Testing-6.3.1/usr/bin64;$swiftLibrary/XCTest-6.3.1/usr/bin64;$env:Path"
-          & "$env:STUDIO_BIN/AdaEditorPackageTests.xctest" --testing-library swift-testing --no-parallel --filter EditorWindowsReleaseTests
+          # Compile the actual production locators without testable app imports.
+          swiftc -O -parse-as-library Editor/Sources/AdaEditor/Tooling/EditorBuildSDK.swift Editor/Sources/AdaEditor/Tooling/EditorEngineSource.swift script/test_windows_sdk.swift -o .build-tools/WindowsSDKCheck.exe
+          if ($LASTEXITCODE -ne 0) { throw 'SDK check compilation failed.' }
+          & ./.build-tools/WindowsSDKCheck.exe
           if ($LASTEXITCODE -ne 0) { throw 'Installed SDK tests failed.' }
       - name: Package and smoke-test portable ZIP
         env:
