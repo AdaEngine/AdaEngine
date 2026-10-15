@@ -6,6 +6,11 @@
 @_spi(AdaEngine) import AdaEngine
 
 enum EditorWindowSafeAreaPolicy {
+    #if os(Windows)
+        static let dragRegionHeight: Float = 32
+    #else
+        static let dragRegionHeight: Float = 52
+    #endif
     #if os(iOS)
         static let reservesSystemSafeArea = true
     #else
@@ -36,7 +41,7 @@ enum ProjectEditorLauncher {
             titleBar: .init(
                 background: .transparent,
                 reservesSafeArea: EditorWindowSafeAreaPolicy.reservesSystemSafeArea,
-                dragRegionHeight: 52,
+                dragRegionHeight: EditorWindowSafeAreaPolicy.dragRegionHeight,
                 trafficLightOffset: Point(x: 0, y: ProjectOpeningLayout.trafficLightOffsetY)
             ),
             showsImmediately: false,
@@ -62,7 +67,7 @@ enum ProjectEditorLauncher {
             titleBar: .init(
                 background: .transparent,
                 reservesSafeArea: EditorWindowSafeAreaPolicy.reservesSystemSafeArea,
-                dragRegionHeight: 52,
+                dragRegionHeight: EditorWindowSafeAreaPolicy.dragRegionHeight,
                 trafficLightOffset: Point(x: 0, y: ProjectOpeningLayout.trafficLightOffsetY)
             ),
             showsImmediately: false,

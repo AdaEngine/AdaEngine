@@ -52,7 +52,11 @@ Local Run uses the Windows destination for SwiftPM and embedded AdaScript
 projects. Project/folder selection, multi-file asset import and RGB color dialogs
 use Windows controls; inspector alpha remains editable. HTTPS clients support
 bounded streaming downloads and cancellation. Rendering/readback uses Dawn D3D12.
-The window has a menu row with Ctrl shortcuts, a native Settings window and
+The main window uses a themeable client-drawn title bar with application menus,
+Ctrl shortcuts and native minimize/maximize/close commands. Empty title-bar space
+drags the window; double-click and right-click retain Windows caption behavior.
+AdaUI's transparent overlay title-bar configuration and `WindowCaptionControls`
+also support custom layouts. Studio includes a native Settings window and
 contextual cursors. Ada Cloud opens the default browser for PKCE sign-in and
 stores the session in Windows Credential Manager. Apple in-app purchases still
 require Apple platforms. AdaPlayer uses native WinSock and Windows DNS-SD;

@@ -33,7 +33,9 @@ private struct MenuBarModifier<Content: View>: ViewModifier, ViewNodeBuilder {
         let contentNode = context.makeNode(from: VStack(spacing: 0) {
             WindowMenuBar(menus: menus, foregroundColor: foregroundColor, backgroundColor: backgroundColor)
             content
-        }.keyboardShortcuts(WindowMenuBar.shortcuts(for: menus)))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .keyboardShortcuts(WindowMenuBar.shortcuts(for: menus)))
         #else
         let contentNode = context.makeNode(from: content)
         #endif
@@ -53,6 +55,7 @@ private struct WindowMenuBar: View {
     let foregroundColor: Color?
     let backgroundColor: Color?
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.windowCaption) private var caption
 
     var body: some View {
         HStack(spacing: 0) {
@@ -60,13 +63,14 @@ private struct WindowMenuBar: View {
                 Text(menu.title)
                     .font(.system(size: 12))
                     .padding(.horizontal, 10)
-                    .frame(height: 26)
+                    .frame(height: caption.isVisible ? 32 : 26)
                     .contextMenu(opensOnPrimaryAction: true) {
                         WindowMenuItems(items: menu.items)
                     }
                     .accessibilityIdentifier("AdaUI.MenuBar." + menu.id)
             }
             Spacer(minLength: 0)
+            WindowCaptionControls()
         }
         .frame(maxWidth: .infinity)
         .foregroundColor(foregroundColor ?? (colorScheme == .dark ? .white : .black))

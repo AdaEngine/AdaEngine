@@ -448,6 +448,9 @@ extension UIWindow {
     }
 
     public struct TitleBar: Sendable, Equatable {
+        /// On Windows, a transparent background with `reservesSafeArea == false`
+        /// extends client content into the caption, preserving native resize borders.
+        /// Place `WindowCaptionControls` in custom content; `View.menuBar` adds them automatically.
         public var background: TitleBarBackground
         public var reservesSafeArea: Bool
         public var dragRegionHeight: Float?

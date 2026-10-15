@@ -124,7 +124,7 @@ struct AdaEditorApp: App {
             WindowTitleBar(
                 background: .transparent,
                 reservesSafeArea: EditorWindowSafeAreaPolicy.reservesSystemSafeArea,
-                dragRegionHeight: 52
+                dragRegionHeight: EditorWindowSafeAreaPolicy.dragRegionHeight
             )
         )
         .windowTrafficLightOffset(x: 0, y: ProjectOpeningLayout.trafficLightOffsetY)

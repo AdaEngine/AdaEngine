@@ -94,6 +94,25 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
         } else {
             placeRootNode()
         }
+        #if os(Windows)
+        if let window, parentView === window, window.configuration.chrome == .standard,
+            window.configuration.titleBar.background == .transparent, !window.configuration.titleBar.reservesSafeArea {
+            let height = window.configuration.titleBar.dragRegionHeight ?? 32
+            let regions: [Rect] = viewTree.rootNode.uiCollectNodes { $0.blocksWindowDrag }
+                .map { node in
+                    let frame = node.visualAbsoluteFrame()
+                    return Rect(origin: self.convert(frame.origin, to: window), size: frame.size)
+                }
+                .filter { (region: Rect) in region.minY < height && region.maxY > 0 }
+            let maximizeButton = viewTree.rootNode.uiCollectNodes {
+                $0.accessibilityIdentifier == "AdaUI.Caption.Maximize"
+            }.first.map { node in
+                let frame = node.visualAbsoluteFrame()
+                return Rect(origin: self.convert(frame.origin, to: window), size: frame.size)
+            }
+            window.systemWindow?.updateTitleBarInputRegions(regions, maximizeButton: maximizeButton)
+        }
+        #endif
     }
 
     private func navigationBarChromeInsets() -> EdgeInsets {
@@ -519,6 +538,17 @@ extension UIView {
         env.reservedRegions = reservedRegions
         env.navigationBarControlsTopInset = navigationBarControlsTopInset
         env.scaleFactor = window?.screen?.scale ?? Screen.main?.scale ?? 1
+        #if os(Windows)
+        if let window, parentView === window, window.configuration.chrome == .standard,
+            window.configuration.titleBar.background == .transparent, !window.configuration.titleBar.reservesSafeArea {
+            env.windowCaption = WindowCaptionPresentation(
+                isVisible: true,
+                isResizable: window.configuration.isResizable,
+                isMaximized: window.systemWindow?.isMaximized ?? false,
+                action: { [weak window] action in window?.systemWindow?.performCaptionAction(action) }
+            )
+        }
+        #endif
         return env
     }
 
@@ -533,12 +563,15 @@ extension UIView {
     }
 }
 
+protocol WindowDragBlockingNode {}
+
 extension ViewNode {
     var blocksWindowDrag: Bool {
         switch self {
         case is ButtonViewNode,
             is GestureAreaViewNode,
-            is TextFieldViewNode:
+            is TextFieldViewNode,
+            is any WindowDragBlockingNode:
             return true
         #if canImport(AppKit) || canImport(UIKit)
             case is NativeViewHostNode:

@@ -15,6 +15,15 @@ import Math
 /// Base protocol describes platform specific window.
 @MainActor
 public protocol SystemWindow {
+    /// Whether the native window is maximized.
+    var isMaximized: Bool { get }
+
+    /// Updates client regions that must receive input instead of dragging the title bar.
+    func updateTitleBarInputRegions(_ regions: [Rect], maximizeButton: Rect?)
+
+    /// Performs a native caption action, preserving the platform's close lifecycle.
+    func performCaptionAction(_ action: WindowCaptionAction)
+
     /// Window title.
     var title: String { get set }
 
@@ -30,6 +39,13 @@ public protocol SystemWindow {
 
 extension SystemWindow {
     public var contentPosition: Point { position }
+    public var isMaximized: Bool { false }
+    public func updateTitleBarInputRegions(_ regions: [Rect], maximizeButton: Rect?) {}
+    public func performCaptionAction(_ action: WindowCaptionAction) {}
+}
+
+public enum WindowCaptionAction: Sendable, Equatable {
+    case minimize, toggleMaximize, close
 }
 
 /// Base class using to manage windows in application. All created window should be registred there.

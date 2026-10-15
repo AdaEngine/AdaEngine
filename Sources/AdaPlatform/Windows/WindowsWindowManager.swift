@@ -134,7 +134,8 @@
                     right: LONG((Float(width) * initialScale).rounded()),
                     bottom: LONG((Float(height) * initialScale).rounded())
                 )
-                unsafe AdjustWindowRectExForDpi(&rect, windowStyle, false, extendedStyle, initialDPI)
+                let customTitleBar = !isBorderless && configuration.titleBar.background == .transparent && !configuration.titleBar.reservesSafeArea
+                adjustWindowsClientRect(&rect, style: windowStyle, extendedStyle: extendedStyle, dpi: initialDPI, customTitleBar: customTitleBar)
                 let windowWidth = rect.right - rect.left
                 let windowHeight = rect.bottom - rect.top
 
@@ -159,6 +160,10 @@
 
                 let ptrValue = UInt64(windowAddress)
                 unsafe SetWindowLongPtrW(hwnd, GWLP_USERDATA, LONG_PTR(bitPattern: ptrValue))
+                if customTitleBar {
+                    windowsTitleBars.withLock { $0[UInt(bitPattern: hwnd)] = WindowsTitleBarLayout(height: configuration.titleBar.dragRegionHeight ?? 32) }
+                    unsafe SetWindowPos(hwnd, nil, 0, 0, windowWidth, windowHeight, UINT(SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE))
+                }
                 return hwnd
             }
             let hwnd = self.uiThread.sync(createNativeWindow)
@@ -271,7 +276,8 @@
                 rect.right = LONG((size.width * scaleFactor).rounded())
                 rect.bottom = LONG((size.height * scaleFactor).rounded())
 
-                unsafe AdjustWindowRectExForDpi(&rect, style, false, extendedStyle, dpi)
+                adjustWindowsClientRect(&rect, style: style, extendedStyle: extendedStyle, dpi: dpi,
+                    customTitleBar: windowsTitleBars.withLock { $0[UInt(bitPattern: systemWindow.hwnd)] != nil })
                 unsafe SetWindowPos(
                     systemWindow.hwnd,
                     nil,
@@ -460,7 +466,8 @@
             right: LONG((size.width * scaleFactor).rounded()),
             bottom: LONG((size.height * scaleFactor).rounded())
         )
-        unsafe AdjustWindowRectExForDpi(&rect, style, false, exStyle, dpi)
+        adjustWindowsClientRect(&rect, style: style, extendedStyle: exStyle, dpi: dpi,
+            customTitleBar: windowsTitleBars.withLock { $0[UInt(bitPattern: hwnd)] != nil })
         return (rect.right - rect.left, rect.bottom - rect.top)
     }
 
@@ -659,6 +666,8 @@
             return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
         }
 
+        if let result = windowsTitleBarMessage(hwnd: hwnd, message: uMsg, wParam: wParam, lParam: lParam) { return result }
+
         // Get window from user data
         let windowPtr = unsafe GetWindowLongPtrW(hwnd, GWLP_USERDATA)
         guard windowPtr != 0 else {
@@ -761,6 +770,7 @@
             return 0
 
         case UInt32(WM_NCDESTROY):
+            windowsTitleBars.withLock { $0.removeValue(forKey: UInt(bitPattern: hwnd)) }
             // Non-client area destroyed - final cleanup
             // Clear window handle from mapping
             Task { @MainActor in
@@ -989,7 +999,7 @@
             }
             return 0
 
-        case UInt32(WM_MOUSEMOVE):
+        case UInt32(WM_MOUSEMOVE), UInt32(WM_NCMOUSEMOVE):
             Task { @MainActor in
                 let windowManager = window.windowManager as? WindowsWindowManager
                 guard
@@ -1003,11 +1013,12 @@
                 let position = logicalMousePosition(
                     lParam: lParam,
                     hwnd: systemWindow.hwnd,
-                    scaleFactor: scaleFactor
+                    scaleFactor: scaleFactor,
+                    isScreenPosition: uMsg == UInt32(WM_NCMOUSEMOVE)
                 )
 
                 inputRef.wrappedValue.mousePosition = position
-                let mouseButton = WindowsPointerButtons.button(for: UInt(wParam))
+                let mouseButton = WindowsPointerButtons.button(for: uMsg == UInt32(WM_MOUSEMOVE) ? UInt(wParam) : 0)
 
                 let mouseEvent = MouseEvent(
                     window: window.id,
@@ -1020,7 +1031,17 @@
 
                 inputRef.wrappedValue.receiveEvent(mouseEvent)
             }
+            if uMsg == UInt32(WM_NCMOUSEMOVE) {
+                var result: LRESULT = 0
+                if unsafe DwmDefWindowProc(hwnd, uMsg, wParam, lParam, &result) { return result }
+                return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
+            }
             return 0
+
+        case UInt32(WM_NCMOUSELEAVE):
+            var result: LRESULT = 0
+            if unsafe DwmDefWindowProc(hwnd, uMsg, wParam, lParam, &result) { return result }
+            return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
 
         case UInt32(WM_LBUTTONDOWN):
             unsafe SetCapture(hwnd)
@@ -1145,6 +1166,25 @@
             self.surface = surface
         }
 
+        var isMaximized: Bool { unsafe IsZoomed(hwnd) }
+
+        func updateTitleBarInputRegions(_ regions: [Rect], maximizeButton: Rect?) {
+            windowsTitleBars.withLock {
+                $0[UInt(bitPattern: hwnd)]?.inputRegions = regions
+                $0[UInt(bitPattern: hwnd)]?.maximizeButton = maximizeButton
+            }
+        }
+
+        func performCaptionAction(_ action: WindowCaptionAction) {
+            let command: Int32
+            switch action {
+            case .minimize: command = Int32(SC_MINIMIZE)
+            case .toggleMaximize: command = unsafe IsZoomed(hwnd) ? Int32(SC_RESTORE) : Int32(SC_MAXIMIZE)
+            case .close: command = Int32(SC_CLOSE)
+            }
+            unsafe PostMessageW(hwnd, UINT(WM_SYSCOMMAND), WPARAM(command), 0)
+        }
+
         var title: String {
             get {
                 var buffer = [WCHAR](repeating: 0, count: 256)
@@ -1169,14 +1209,16 @@
             set {
                 let scaleFactor = getWindowScaleFactor(hwnd)
                 let dpi = UINT(max((scaleFactor * 96).rounded(), 96))
-                let style = DWORD(WS_OVERLAPPEDWINDOW)
+                let style = DWORD(bitPattern: unsafe GetWindowLongW(hwnd, GWL_STYLE))
+                let extendedStyle = DWORD(bitPattern: unsafe GetWindowLongW(hwnd, GWL_EXSTYLE))
                 var rect = RECT(
                     left: 0,
                     top: 0,
                     right: LONG((newValue.width * scaleFactor).rounded()),
                     bottom: LONG((newValue.height * scaleFactor).rounded())
                 )
-                unsafe AdjustWindowRectExForDpi(&rect, style, false, 0, dpi)
+                adjustWindowsClientRect(&rect, style: style, extendedStyle: extendedStyle, dpi: dpi,
+                    customTitleBar: windowsTitleBars.withLock { $0[UInt(bitPattern: hwnd)] != nil })
                 unsafe SetWindowPos(hwnd, nil, 0, 0, rect.right - rect.left, rect.bottom - rect.top, UINT(SWP_NOMOVE | SWP_NOZORDER))
             }
         }
