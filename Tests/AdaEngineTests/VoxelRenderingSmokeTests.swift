@@ -258,5 +258,83 @@ struct VoxelRenderingSmokeTests {
         let endHeight = try #require(body.components[Transform.self]).position.y
         #expect(abs(endHeight - 0.8) < 0.15)
     }
+
+    /// Bounds of a model in its own space, from the meshes of the default scene.
+    private static func bounds(of model: ModelAsset3D) -> (min: Vector3, max: Vector3)? {
+        var lower = Vector3(Float.greatestFiniteMagnitude)
+        var upper = Vector3(-Float.greatestFiniteMagnitude)
+        var found = false
+        func visit(_ index: Int, parent: Transform3D) {
+            let node = model.nodes[index]
+            let world = parent * node.transform
+            if let meshIndex = node.meshIndex {
+                let box = model.meshes[meshIndex].bounds
+                for x in [box.min.x, box.max.x] {
+                    for y in [box.min.y, box.max.y] {
+                        for z in [box.min.z, box.max.z] {
+                            let point = (world * Vector4(x, y, z, 1)).xyz
+                            lower = min(lower, point)
+                            upper = max(upper, point)
+                            found = true
+                        }
+                    }
+                }
+            }
+            for child in node.children {
+                visit(child, parent: world)
+            }
+        }
+        for root in model.scenes.first ?? [] {
+            visit(root, parent: .identity)
+        }
+        return found ? (lower, upper) : nil
+    }
+
+    /// Renders real MagicaVoxel files. Set `ADAENGINE_VOX_SAMPLES` to a directory of `.vox` files; files are matched by name.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_VOXEL_METAL_SMOKE"] == "1" && ProcessInfo.processInfo.environment["ADAENGINE_VOX_SAMPLES"] != nil))
+    func rendersRealMagicaVoxelSamples() async throws {
+        let directory = URL(fileURLWithPath: try #require(ProcessInfo.processInfo.environment["ADAENGINE_VOX_SAMPLES"]))
+        let names = ProcessInfo.processInfo.environment["ADAENGINE_VOX_RENDER"]?.split(separator: ",").map(String.init)
+            ?? ["castle", "chr_knight", "teapot", "doom", "cars", "room", "monu1", "menger", "anim/T-Rex", "anim/Gomez", "anim/deer"]
+
+        for name in names {
+            let scene = try await Self.makeScene()
+            let url = directory.appendingPathComponent("\(name).vox")
+            let clock = ContinuousClock()
+            let started = clock.now
+            let file = try await VOXLoader().load(url: url)
+            let parsed = clock.now
+            let model = ModelAsset3D(voxelFile: file)
+            let imported = clock.now
+            let triangles = model.meshes.reduce(0) { total, mesh in
+                total + mesh.models.reduce(0) { $0 + $1.parts.reduce(0) { $0 + $1.indexCount / 3 } }
+            }
+            print("VOXRENDER \(name): parse \(parsed - started), import \(imported - parsed), meshes \(model.meshes.count), triangles \(triangles), timeline \(String(describing: model.voxelTimeline))")
+
+            let box = try #require(Self.bounds(of: model), Comment(rawValue: name))
+            let size = box.max - box.min
+            let extent = max(size.x, max(size.y, size.z))
+            let scale = extent > 0 ? 1.6 / extent : 1
+            let center = (box.min + box.max) * 0.5
+            let root = model.instantiate(in: scene.app.main)
+            root.components[Transform.self] = Transform(scale: Vector3(scale), position: Vector3(-center.x * scale, 0.9 - center.y * scale, -center.z * scale))
+
+            let safeName = name.replacingOccurrences(of: "/", with: "-")
+            if var playback = root.components[VoxelAnimationPlayback3DComponent.self] {
+                playback.isPlaying = false
+                for (label, fraction) in [("a", 0.0), ("b", 0.5)] {
+                    playback.time = fraction * Double(playback.frameCount) / playback.framesPerSecond
+                    root.components[VoxelAnimationPlayback3DComponent.self] = playback
+                    let image = try await scene.render(frames: 4)
+                    try image.writePNG(to: URL(fileURLWithPath: "\(Self.outputDirectory)/adaengine-vox-\(safeName)-\(label).png"))
+                    #expect(Self.nonBackgroundPixels(in: image) > 300, Comment(rawValue: "\(name) \(label)"))
+                }
+            } else {
+                let image = try await scene.render(frames: 4)
+                try image.writePNG(to: URL(fileURLWithPath: "\(Self.outputDirectory)/adaengine-vox-\(safeName).png"))
+                #expect(Self.nonBackgroundPixels(in: image) > 300, Comment(rawValue: name))
+            }
+        }
+    }
 }
 #endif
