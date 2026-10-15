@@ -98,15 +98,68 @@ public indirect enum AdaScriptType: Equatable, Hashable, Sendable {
     }
 }
 
+/// A literal inside an annotation argument list, for example `"id"`, `3`, `true`, `Game.Health as health` or `[a, b]`.
+public indirect enum AdaScriptAnnotationValue: Equatable, Hashable, Sendable {
+    case bool(Bool)
+    /// A bare or dotted name, optionally `as alias`: `Game.Health` and `Game.Health as health`.
+    case identifier(String)
+    case list([AdaScriptAnnotationValue])
+    case number(String)
+    /// The unescaped string content, without its quotes.
+    case string(String)
+}
+
+/// One annotation argument: `label: value`, or just `value` when `label` is `nil`.
+public struct AdaScriptAnnotationArgument: Equatable, Hashable, Sendable {
+    public var label: String?
+    public var value: AdaScriptAnnotationValue
+
+    public init(label: String? = nil, value: AdaScriptAnnotationValue) {
+        self.label = label
+        self.value = value
+    }
+}
+
 public struct AdaScriptAnnotationSyntax: Equatable, Hashable, Sendable {
+    /// Identifier-only arguments, kept for placement and capability checks.
     public var arguments: [String]
     public var name: String
+    /// The range of the name after the `@`.
+    public var nameRange: AdaScriptSourceRange
+    /// Source offsets from the `@` through the closing parenthesis, when there is one.
+    public var offsets: Range<Int>
+    /// Why ``values`` is incomplete (an unterminated list or an unsupported value), or `nil`.
+    public var problem: String?
     public var range: AdaScriptSourceRange
+    /// Every argument with its label and literal value, in source order.
+    public var values: [AdaScriptAnnotationArgument]
 
-    public init(arguments: [String] = [], name: String, range: AdaScriptSourceRange) {
+    public init(
+        arguments: [String] = [],
+        name: String,
+        nameRange: AdaScriptSourceRange? = nil,
+        offsets: Range<Int> = 0..<0,
+        problem: String? = nil,
+        range: AdaScriptSourceRange,
+        values: [AdaScriptAnnotationArgument] = []
+    ) {
         self.arguments = arguments
         self.name = name
+        self.nameRange = nameRange ?? range
+        self.offsets = offsets
+        self.problem = problem
         self.range = range
+        self.values = values
+    }
+
+    /// The value of the argument labelled `label`.
+    public func value(labelled label: String) -> AdaScriptAnnotationValue? {
+        values.first { $0.label == label }?.value
+    }
+
+    /// The unlabelled arguments, in order.
+    public var positionalValues: [AdaScriptAnnotationValue] {
+        values.filter { $0.label == nil }.map(\.value)
     }
 }
 
@@ -242,17 +295,39 @@ public struct AdaScriptTestSyntax: Equatable, Hashable, Sendable {
     }
 }
 
+/// A script `enum` and its case names in declaration order. Explicit raw values (`b = 2`) are ignored.
+public struct AdaScriptEnumSyntax: Equatable, Hashable, Sendable {
+    /// Case names as written, so a duplicate stays visible to the consumer that rejects it.
+    public var cases: [String]
+    public var name: String
+    public var range: AdaScriptSourceRange
+
+    public init(cases: [String], name: String, range: AdaScriptSourceRange) {
+        self.cases = cases
+        self.name = name
+        self.range = range
+    }
+}
+
 public struct AdaScriptSyntaxTree: Equatable, Sendable {
     /// Every `@name` that appears in code, with its position and what it is attached to.
     public var annotationUses: [AdaScriptAnnotationUse]
+    /// Every annotation in source order with its labelled literal arguments, whatever it is attached to.
+    public var annotations: [AdaScriptAnnotationSyntax]
     public var bindings: [AdaScriptBindingSyntax]
     /// Every name declared anywhere in the file: variables, constants, functions, types, parameters, and loop variables.
     public var declaredNames: Set<String>
+    /// Every constant after a declaration's `=`, in source order, keyed by the offset of that `=`.
+    public var defaultValues: [AdaScriptDefaultValueSyntax]
+    /// Every `enum Name { ... }`, including enums declared inside other types.
+    public var enums: [AdaScriptEnumSyntax]
     public var functions: [AdaScriptFunctionSyntax]
     public var importDiagnostics: [AdaScriptImportDiagnostic]
     public var importUses: [AdaScriptImportUse]
     public var imports: [AdaScriptImportSyntax]
     public var isStrict: Bool
+    /// Types with their members and top-level declarations, found by a scan that tolerates unfinished code.
+    public var outline: AdaScriptOutline
     public var path: String
     /// Bare identifiers that are not member accesses or argument labels.
     public var references: [AdaScriptNameReference]
@@ -262,35 +337,47 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
     /// Character offsets of top-level `private`/`public` keywords. Gravity only accepts access specifiers
     /// on members, so lowering removes these after visibility has been read.
     public var visibilityModifierOffsets: [Range<Int>]
+    /// Every `context.world` in code, in source order.
+    public var worldUses: [AdaScriptWorldUse]
 
     public init(
         annotationUses: [AdaScriptAnnotationUse] = [],
+        annotations: [AdaScriptAnnotationSyntax] = [],
         bindings: [AdaScriptBindingSyntax] = [],
         declaredNames: Set<String> = [],
+        defaultValues: [AdaScriptDefaultValueSyntax] = [],
+        enums: [AdaScriptEnumSyntax] = [],
         functions: [AdaScriptFunctionSyntax] = [],
         importDiagnostics: [AdaScriptImportDiagnostic] = [],
         importUses: [AdaScriptImportUse] = [],
         imports: [AdaScriptImportSyntax] = [],
         isStrict: Bool = false,
+        outline: AdaScriptOutline = AdaScriptOutline(),
         path: String,
         references: [AdaScriptNameReference] = [],
         tests: [AdaScriptTestSyntax] = [],
         types: [AdaScriptTypeSyntax] = [],
-        visibilityModifierOffsets: [Range<Int>] = []
+        visibilityModifierOffsets: [Range<Int>] = [],
+        worldUses: [AdaScriptWorldUse] = []
     ) {
         self.annotationUses = annotationUses
+        self.annotations = annotations
         self.bindings = bindings
         self.declaredNames = declaredNames
+        self.defaultValues = defaultValues
+        self.enums = enums
         self.functions = functions
         self.importDiagnostics = importDiagnostics
         self.importUses = importUses
         self.imports = imports
         self.isStrict = isStrict
+        self.outline = outline
         self.path = path
         self.references = references
         self.tests = tests
         self.types = types
         self.visibilityModifierOffsets = visibilityModifierOffsets
+        self.worldUses = worldUses
     }
 }
 

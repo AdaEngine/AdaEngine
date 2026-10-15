@@ -38,20 +38,26 @@ struct AdaScriptSyntaxParser {
     func parse() -> AdaScriptParsedDocument {
         let parsed = parseDeclarations(in: tokens.indices)
         let imports = parseImports()
+        let annotations = parseAllAnnotations()
         let syntax = AdaScriptSyntaxTree(
             annotationUses: parseAnnotationUses(),
+            annotations: annotations,
             bindings: parsed.bindings.map(\.syntax),
             declaredNames: declaredNames(),
+            defaultValues: AdaScriptDefaultValueParser(tokens: tokens).parseAll(),
+            enums: parseEnums(),
             functions: parsed.functions.map(\.syntax),
             importDiagnostics: imports.diagnostics,
             importUses: parseImportUses(imports.declarations),
             imports: imports.declarations,
             isStrict: hasFileStrictAnnotation,
+            outline: AdaScriptOutlineParser(tokens: tokens, annotations: annotations).parse(),
             path: path,
             references: nameReferences(excluding: imports.declarations.map(\.offsets)),
             tests: parsed.tests,
             types: parsed.types.map(\.syntax),
-            visibilityModifierOffsets: topLevelVisibilityModifiers()
+            visibilityModifierOffsets: topLevelVisibilityModifiers(),
+            worldUses: AdaScriptWorldUseParser(tokens: tokens).parseAll()
         )
         return AdaScriptParsedDocument(
             bindings: parsed.bindings,
@@ -204,18 +210,31 @@ struct AdaScriptSyntaxParser {
         let nameToken = tokens[index + 1]
         var arguments: [String] = []
         var endIndex = index + 1
-        if index + 2 < upperBound, tokens[index + 2].text == "(",
-            let closeIndex = matchingIndex(openingAt: index + 2, opening: "(", closing: ")", upperBound: upperBound) {
-            arguments = nameToken.text == "query"
-                ? queryArguments(in: (index + 3)..<closeIndex)
-                : annotationArguments(in: (index + 3)..<closeIndex)
-            endIndex = closeIndex
+        var problem: String?
+        var values: [AdaScriptAnnotationArgument] = []
+        if index + 2 < upperBound, tokens[index + 2].text == "(" {
+            if let closeIndex = matchingIndex(openingAt: index + 2, opening: "(", closing: ")", upperBound: upperBound) {
+                arguments = nameToken.text == "query"
+                    ? queryArguments(in: (index + 3)..<closeIndex)
+                    : annotationArguments(in: (index + 3)..<closeIndex)
+                var valueParser = AdaScriptAnnotationValueParser(annotation: nameToken.text, tokens: tokens, range: (index + 3)..<closeIndex)
+                let parsed = valueParser.parse()
+                values = parsed.values
+                problem = parsed.problem
+                endIndex = closeIndex
+            } else {
+                problem = "unterminated @\(nameToken.text) annotation"
+            }
         }
         return (
             AdaScriptAnnotationSyntax(
                 arguments: arguments,
                 name: nameToken.text,
-                range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[endIndex].range.end)
+                nameRange: nameToken.range,
+                offsets: tokens[index].startOffset..<tokens[endIndex].endOffset,
+                problem: problem,
+                range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[endIndex].range.end),
+                values: values
             ),
             endIndex + 1
         )
@@ -736,6 +755,55 @@ extension AdaScriptSyntaxParser {
                 escaped = true
             } else {
                 result.append(character)
+            }
+        }
+        return result
+    }
+
+    /// Every `enum Name { a, b = 2, c }`, wherever it appears. Only case names are read.
+    private func parseEnums() -> [AdaScriptEnumSyntax] {
+        var result: [AdaScriptEnumSyntax] = []
+        var index = 0
+        while index < tokens.count {
+            guard tokens[index].text == "enum", index + 2 < tokens.count, tokens[index + 1].kind == .identifier, tokens[index + 2].text == "{" else {
+                index += 1
+                continue
+            }
+            var cases: [String] = []
+            var cursor = index + 3
+            var expectsCase = true
+            while cursor < tokens.count, tokens[cursor].text != "}" {
+                if expectsCase, tokens[cursor].kind == .identifier {
+                    cases.append(tokens[cursor].text)
+                    expectsCase = false
+                } else if tokens[cursor].text == "," {
+                    expectsCase = true
+                }
+                cursor += 1
+            }
+            let end = min(cursor, tokens.count - 1)
+            result.append(
+                AdaScriptEnumSyntax(
+                    cases: cases,
+                    name: tokens[index + 1].text,
+                    range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[end].range.end)
+                )
+            )
+            index = cursor
+        }
+        return result
+    }
+
+    /// Every `@name(...)` in source order, wherever it appears, with its literal arguments.
+    private func parseAllAnnotations() -> [AdaScriptAnnotationSyntax] {
+        var result: [AdaScriptAnnotationSyntax] = []
+        var index = 0
+        while index < tokens.count {
+            if tokens[index].text == "@", let parsed = parseAnnotation(at: index, upperBound: tokens.count) {
+                result.append(parsed.value)
+                index = parsed.nextIndex
+            } else {
+                index += 1
             }
         }
         return result
