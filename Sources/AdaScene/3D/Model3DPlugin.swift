@@ -38,6 +38,13 @@ public struct Model3DPlugin: Plugin {
         ModelNode3DComponent.registerComponent()
         SkinnedMesh3DComponent.registerComponent()
         app.addSystem(SkeletalAnimation3DSystem.self, on: .postUpdate)
+        VoxelAnimationPlayback3DComponent.registerComponent()
+        VoxelTransformAnimation3DComponent.registerComponent()
+        VoxelShapeAnimation3DComponent.registerComponent()
+        app.addSystem(VoxelAnimation3DSystem.self, on: .postUpdate)
+        VoxelWorld3DComponent.registerComponent()
+        VoxelChunk3DComponent.registerComponent()
+        app.addSystem(VoxelWorldMeshing3DSystem.self, on: .preUpdate)
 
         app.addSystem(BillboardSystem.self, on: .update)
 

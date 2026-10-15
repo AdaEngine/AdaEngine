@@ -6,13 +6,16 @@ extension EditorComponentRegistry {
         typeName: EditorBuiltInComponentType.model3DSource,
         displayName: "Model 3D",
         category: "3D",
-        description: "Imports a GLB or glTF model with its hierarchy, materials and named animations.",
+        description: "Imports a GLB, glTF or MagicaVoxel (.vox) model with its hierarchy, materials and animations.",
         requiredComponentTypeNames: [EditorBuiltInComponentType.transform],
         fields: [
             EditorComponentField(key: "source", label: "Model", kind: .assetReference),
             EditorComponentField(key: "animation", label: "Animation name", kind: .string),
             EditorComponentField(key: "autoplay", label: "Play animation", kind: .bool),
             EditorComponentField(key: "repeats", label: "Loop animation", kind: .bool),
+            voxelField("voxelSize", "Voxel size (.vox)", .float, defaultValue: .double(Double("\(VoxelImportSettings.defaultVoxelSize)") ?? 0.1), minimumValue: 0.001),
+            voxelField("voxelMergeStatic", "Merge static voxels (.vox)", .bool, defaultValue: .bool(false)),
+            voxelField("voxelFramesPerSecond", "Voxel animation fps (.vox)", .float, defaultValue: .double(VoxelImportSettings.defaultFramesPerSecond), minimumValue: 1),
         ],
         makeDefaultPayload: { ["source": .string(""), "animation": .string(""), "autoplay": .bool(false), "repeats": .bool(true)] },
         decode: { payload in
@@ -25,14 +28,42 @@ extension EditorComponentRegistry {
                 lod: try payload["lod"].flatMap { value in
                     if case .null = value { return nil }
                     return try JSONDecoder().decode(Model3DSourceLOD.self, from: Data(value.jsonString.utf8))
-                }
+                },
+                voxel: voxelSettings(in: payload)
             )
         }
     )
+
+    private static func voxelField(
+        _ key: String,
+        _ label: String,
+        _ kind: EditorComponentFieldKind,
+        defaultValue: EditorSceneValue,
+        minimumValue: Double? = nil
+    ) -> EditorComponentField {
+        var field = EditorComponentField(key: key, label: label, kind: kind)
+        field.defaultValue = defaultValue
+        field.minimumValue = minimumValue
+        return field
+    }
+
+    /// Settings authored on the component; `nil` while every value is at its default so plain scenes stay unchanged.
+    private static func voxelSettings(in payload: EditorComponentPayload) -> VoxelImportSettings? {
+        let settings = VoxelImportSettings(
+            voxelSize: payload["voxelSize"]?.doubleValue.map { Float($0) } ?? VoxelImportSettings.defaultVoxelSize,
+            mergeStatic: payload["voxelMergeStatic"]?.boolValue ?? false,
+            framesPerSecond: payload["voxelFramesPerSecond"]?.doubleValue ?? VoxelImportSettings.defaultFramesPerSecond
+        )
+        return settings.isDefault ? nil : settings
+    }
 }
 
 enum EditorModelResource {
-    static let extensions: Set<String> = ["glb", "gltf"]
+    /// Every format Model 3D can load: glTF models and MagicaVoxel scenes.
+    static let extensions: Set<String> = ["glb", "gltf", "vox"]
+    /// Formats with glTF structure (JSON document, buffers, skins) for glTF-specific tooling.
+    static let gltfExtensions: Set<String> = ["glb", "gltf"]
+    static let voxelExtension = "vox"
 
     static func resolve(_ reference: String, sourceURL: URL?, resourceRootURL: URL?) throws -> URL {
         let url: URL
@@ -49,7 +80,7 @@ enum EditorModelResource {
             guard resolved.path.hasPrefix(root + "/") else { throw AssetError.message("Model must be inside project assets.") }
         }
         guard extensions.contains(resolved.pathExtension.lowercased()), FileManager.default.fileExists(atPath: resolved.path) else {
-            throw AssetError.message("Model is missing or is not a GLB/glTF file: \(reference)")
+            throw AssetError.message("Model is missing or is not a GLB, glTF or VOX file: \(reference)")
         }
         return resolved
     }

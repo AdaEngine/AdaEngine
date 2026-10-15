@@ -9,6 +9,12 @@ enum EditorModelAssetImporter {
     }
 
     static func copy(_ source: URL, to destination: URL, fileManager: FileManager = .default) throws -> URL {
+        // A MagicaVoxel file is self-contained: no buffers or images to carry along.
+        if source.pathExtension.lowercased() == EditorModelResource.voxelExtension {
+            let target = uniqueURL(source.lastPathComponent, in: destination, fileManager: fileManager)
+            try fileManager.copyItem(at: source, to: target)
+            return target
+        }
         let document = try JSONDecoder().decode(Document.self, from: jsonData(at: source))
         let uris = ((document.buffers ?? []) + (document.images ?? [])).compactMap(\.uri).filter { !$0.hasPrefix("data:") }
         guard !uris.isEmpty else {

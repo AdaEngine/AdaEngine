@@ -65,3 +65,9 @@ describes the intended design even when its implementation is still planned.
 | ADR | Status | Implementation | Decision |
 | --- | --- | --- | --- |
 | [ADR-0022](0022-2d-rendering-feature-roadmap.md) | Accepted | Partial (local foundation; not released) | Sprite layout, tile orientation, picking, chunk rendering, instancing and 2D effects informed by Bevy |
+
+## Voxel graphics decisions
+
+| ADR | Status | Implementation | Decision |
+| --- | --- | --- | --- |
+| [ADR-0025](0025-voxel-graphics-and-magicavoxel-import.md) | Accepted | Partial (import, animation, dynamic world and physics; editor integration shipped; not released) | CPU-meshed voxels, layered MagicaVoxel import with hybrid hierarchy/merged scene, animation, chunked dynamic world and physics |

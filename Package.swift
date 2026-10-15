@@ -1412,7 +1412,9 @@ targets += [
             "AdaScene",
             "AdaAnimation",
             "AdaECS",
-            "AdaInput"
+            "AdaInput",
+            "AdaRender",
+            "Math"
         ]
     )
 ]

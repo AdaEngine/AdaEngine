@@ -104,6 +104,42 @@ struct Physics3DGeometryTests {
         }
     }
 
+    @Test
+    func offsetBoxCollidesAwayFromTheBodyOrigin() async throws {
+        app.main.spawn {
+            PhysicsBody3DComponent(shapes: [.generateBox(width: 2, height: 1, depth: 2, center: [5, 0, 0])], mode: .static)
+            Transform()
+        }
+        await app.main.runScheduler(.physicsSync)
+        let physics = try #require(app.main.physicsWorld3D)
+
+        // Over the offset box the sweep lands on its top face (y = 0.5): 3 - 0.5 - 0.25 of a 6 unit cast.
+        let over = physics.sphereCastFraction(from: [5, 3, 0], to: [5, -3, 0], radius: 0.25)
+        #expect(abs(over - (3 - 0.5 - 0.25) / 6) < 0.01)
+        // The body origin itself is empty.
+        #expect(physics.sphereCastFraction(from: [0, 3, 0], to: [0, -3, 0], radius: 0.25) == 1)
+    }
+
+    @Test
+    func boxOffsetsRoundTripAndLegacyBoxesDecodeCentered() throws {
+        let shape = Shape3DResource.generateBox(width: 2, height: 4, depth: 6, center: [1, 2, 3])
+        #expect(try JSONDecoder().decode(Shape3DResource.self, from: JSONEncoder().encode(shape)) == shape)
+        #expect(shape != .generateBox(width: 2, height: 4, depth: 6))
+        #expect(Shape3DResource.generateBox().offsetBy(x: 1, y: 0, z: 0) == .generateBox(center: [1, 0, 0]))
+
+        // A box saved before offsets existed has no "center" key.
+        var document = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(shape)) as? [String: Any])
+        var fixture = try #require(document["fixture"] as? [String: Any])
+        var box = try #require(fixture["box"] as? [String: Any])
+        var payload = try #require(box["_0"] as? [String: Any])
+        payload["center"] = nil
+        box["_0"] = payload
+        fixture["box"] = box
+        document["fixture"] = fixture
+        let legacy = try JSONDecoder().decode(Shape3DResource.self, from: JSONSerialization.data(withJSONObject: document))
+        #expect(legacy == .generateBox(width: 2, height: 4, depth: 6))
+    }
+
     private func slope() throws -> Shape3DResource {
         try .generateTriangleMesh(vertices: [[-4, -1, -4], [-4, -1, 4], [4, 1, 4], [4, 1, -4]], indices: [0, 1, 2, 0, 2, 3])
     }
