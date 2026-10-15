@@ -1,6 +1,33 @@
 {
-  "originHash" : "5010e0c0f890828aa861dfbaa6380ad7a583029c73a3049c1856fce3ef3b79a5",
+  "originHash" : "a36d3e0c5b90890634a2267ca88b5d2be1e080cdb71538e2e1544dc7079a083a",
   "pins" : [
+    {
+      "identity" : "adamcp",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/AdaMCP.git",
+      "state" : {
+        "branch" : "v0.2.0",
+        "revision" : "165bd5c00857a760ecea859022d023393350baad"
+      }
+    },
+    {
+      "identity" : "anylanguagemodel",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mattt/AnyLanguageModel.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "0626c0fb37ba2cbc23eddc4871aefa7e98dd6c70"
+      }
+    },
+    {
+      "identity" : "eventsource",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mattt/EventSource",
+      "state" : {
+        "revision" : "86b5096ac59ab46e66bd1f6377c604bc1dab0bc2",
+        "version" : "1.5.1"
+      }
+    },
     {
       "identity" : "gravity-lang",
       "kind" : "remoteSourceControl",
@@ -17,6 +44,15 @@
       "state" : {
         "revision" : "991755e698a7516eac571e6f6a65c04c907ce5ed",
         "version" : "0.59.0"
+      }
+    },
+    {
+      "identity" : "jsonschema",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mattt/JSONSchema",
+      "state" : {
+        "revision" : "4c6f2467d5bc72b062c7a9b7e4cd77a09635ea8b",
+        "version" : "1.3.1"
       }
     },
     {
@@ -98,6 +134,15 @@
       "state" : {
         "revision" : "25cb61d3482054b09ae76ca4f281b1bfe7fe5a43",
         "version" : "0.9.0"
+      }
+    },
+    {
+      "identity" : "swift-metrics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-metrics.git",
+      "state" : {
+        "revision" : "087e8074afa97040c3b870c8664fe5482fb87cc4",
+        "version" : "2.11.0"
       }
     },
     {
