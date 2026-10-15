@@ -371,8 +371,11 @@ tests, GPU suites gated by environment variables). The Metal suite
 passed 5 tests, and a deliberate depth-scale change was caught by exactly the
 depth frame (165,082 differing pixels). Not verified: WebGPU rendering of the
 new shader (the web WGSL cache already omits several 3D shaders, so no cache
-entry was added), Apple mobile, Windows, and the windowed presentation
-notification path (only offscreen targets were exercised).
+entry was added), Apple mobile, Windows, the windowed presentation
+notification path (only offscreen targets were exercised), and the Editor
+package tests, which could not resolve their remote dependencies offline. The
+Editor serializes `Environment3D` payloads, which now include `debugView`;
+older payloads decode to `.none` (covered by an engine test).
 
 ## Validation requirements
 
