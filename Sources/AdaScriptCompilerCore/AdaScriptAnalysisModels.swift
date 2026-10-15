@@ -291,6 +291,20 @@ public struct AdaScriptTestSyntax: Equatable, Hashable, Sendable {
     }
 }
 
+/// A script `enum` and its case names in declaration order. Explicit raw values (`b = 2`) are ignored.
+public struct AdaScriptEnumSyntax: Equatable, Hashable, Sendable {
+    /// Case names as written, so a duplicate stays visible to the consumer that rejects it.
+    public var cases: [String]
+    public var name: String
+    public var range: AdaScriptSourceRange
+
+    public init(cases: [String], name: String, range: AdaScriptSourceRange) {
+        self.cases = cases
+        self.name = name
+        self.range = range
+    }
+}
+
 public struct AdaScriptSyntaxTree: Equatable, Sendable {
     /// Every `@name` that appears in code, with its position and what it is attached to.
     public var annotationUses: [AdaScriptAnnotationUse]
@@ -299,6 +313,8 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
     public var bindings: [AdaScriptBindingSyntax]
     /// Every name declared anywhere in the file: variables, constants, functions, types, parameters, and loop variables.
     public var declaredNames: Set<String>
+    /// Every `enum Name { ... }`, including enums declared inside other types.
+    public var enums: [AdaScriptEnumSyntax]
     public var functions: [AdaScriptFunctionSyntax]
     public var importDiagnostics: [AdaScriptImportDiagnostic]
     public var importUses: [AdaScriptImportUse]
@@ -319,6 +335,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         annotations: [AdaScriptAnnotationSyntax] = [],
         bindings: [AdaScriptBindingSyntax] = [],
         declaredNames: Set<String> = [],
+        enums: [AdaScriptEnumSyntax] = [],
         functions: [AdaScriptFunctionSyntax] = [],
         importDiagnostics: [AdaScriptImportDiagnostic] = [],
         importUses: [AdaScriptImportUse] = [],
@@ -334,6 +351,7 @@ public struct AdaScriptSyntaxTree: Equatable, Sendable {
         self.annotations = annotations
         self.bindings = bindings
         self.declaredNames = declaredNames
+        self.enums = enums
         self.functions = functions
         self.importDiagnostics = importDiagnostics
         self.importUses = importUses

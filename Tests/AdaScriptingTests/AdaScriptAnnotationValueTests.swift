@@ -58,4 +58,19 @@ struct AdaScriptAnnotationValueTests {
         let characters = Array(source)
         #expect(String(characters[system.offsets]) == #"@system(id: "a")"#)
     }
+
+    @Test("Enums report their cases in order, ignoring raw values, including nested declarations")
+    func enumCases() {
+        let source = """
+            enum Mode { idle, walking = 2, running }
+            class Holder {
+                enum Inner { a, a }
+            }
+            """
+        let enums = AdaScriptSyntax.parse(source: source, path: "Main.ada").enums
+
+        #expect(enums.map(\.name) == ["Mode", "Inner"])
+        #expect(enums.first?.cases == ["idle", "walking", "running"])
+        #expect(enums.last?.cases == ["a", "a"])
+    }
 }

@@ -63,10 +63,13 @@ Shipped:
 Remaining before this ADR is implemented:
 
 - [ ] One compiler AST for every consumer. Imports, annotation uses with their
-  targets, declaration visibility, and name references now come from the shared
-  `AdaScriptSyntax` tree used by the runtime resolver and the Editor. The
-  schema parser (fields and defaults, system-body capability inference) and the
-  Editor's symbol and type-region scanner still walk tokens separately.
+  targets and labelled literal arguments (`AdaScriptAnnotationSyntax.values`),
+  script `enum` cases, declaration visibility, and name references now come from
+  the shared `AdaScriptSyntax` tree used by the runtime resolver, the schema
+  parser, and the Editor (`@access` sets). Still walking tokens separately:
+  the schema parser's field declarations and defaults and its system-body
+  capability inference, the Editor's symbol and type-region scanner and
+  capability body checks, and the lowerers' paired-delimiter searches.
 
 ## Context
 

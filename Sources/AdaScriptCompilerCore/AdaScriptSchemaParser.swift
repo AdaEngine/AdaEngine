@@ -4,38 +4,19 @@ public enum AdaScriptSchemaParser {
     static func collectEnums(_ sources: [AdaScriptCompilerSource]) throws -> [String: [String]] {
         var result: [String: [String]] = [:]
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var lexer = Lexer(source: source.source)
-            let tokens = lexer.lex()
-            var index = 0
-            while index < tokens.count {
-                guard tokens[index].text == "enum", index + 2 < tokens.count, tokens[index + 1].kind == .identifier, tokens[index + 2].text == "{" else {
-                    index += 1
-                    continue
-                }
-                let name = tokens[index + 1].text
-                var cases: [String] = []
-                var cursor = index + 3
-                var expectsCase = true
-                while cursor < tokens.count, tokens[cursor].text != "}" {
-                    let token = tokens[cursor]
-                    if expectsCase, token.kind == .identifier {
-                        guard !cases.contains(token.text) else {
-                            throw AdaScriptSchemaError.invalidEnum(name: name, message: "duplicate case '\(token.text)'")
-                        }
-                        cases.append(token.text)
-                        expectsCase = false
-                    } else if token.text == "," {
-                        expectsCase = true
+            for declaration in AdaScriptSyntax.parse(source: source.source, path: source.path).enums {
+                var seen = Set<String>()
+                for name in declaration.cases {
+                    guard seen.insert(name).inserted else {
+                        throw AdaScriptSchemaError.invalidEnum(name: declaration.name, message: "duplicate case '\(name)'")
                     }
-                    cursor += 1
                 }
-                guard !cases.isEmpty else {
-                    throw AdaScriptSchemaError.invalidEnum(name: name, message: "an enum used by data needs at least one case")
+                guard !declaration.cases.isEmpty else {
+                    throw AdaScriptSchemaError.invalidEnum(name: declaration.name, message: "an enum used by data needs at least one case")
                 }
-                guard result.updateValue(cases, forKey: name) == nil else {
-                    throw AdaScriptSchemaError.invalidEnum(name: name, message: "declared more than once")
+                guard result.updateValue(declaration.cases, forKey: declaration.name) == nil else {
+                    throw AdaScriptSchemaError.invalidEnum(name: declaration.name, message: "declared more than once")
                 }
-                index = cursor
             }
         }
         return result

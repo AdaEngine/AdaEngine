@@ -43,6 +43,7 @@ struct AdaScriptSyntaxParser {
             annotations: parseAllAnnotations(),
             bindings: parsed.bindings.map(\.syntax),
             declaredNames: declaredNames(),
+            enums: parseEnums(),
             functions: parsed.functions.map(\.syntax),
             importDiagnostics: imports.diagnostics,
             importUses: parseImportUses(imports.declarations),
@@ -750,6 +751,40 @@ extension AdaScriptSyntaxParser {
             } else {
                 result.append(character)
             }
+        }
+        return result
+    }
+
+    /// Every `enum Name { a, b = 2, c }`, wherever it appears. Only case names are read.
+    private func parseEnums() -> [AdaScriptEnumSyntax] {
+        var result: [AdaScriptEnumSyntax] = []
+        var index = 0
+        while index < tokens.count {
+            guard tokens[index].text == "enum", index + 2 < tokens.count, tokens[index + 1].kind == .identifier, tokens[index + 2].text == "{" else {
+                index += 1
+                continue
+            }
+            var cases: [String] = []
+            var cursor = index + 3
+            var expectsCase = true
+            while cursor < tokens.count, tokens[cursor].text != "}" {
+                if expectsCase, tokens[cursor].kind == .identifier {
+                    cases.append(tokens[cursor].text)
+                    expectsCase = false
+                } else if tokens[cursor].text == "," {
+                    expectsCase = true
+                }
+                cursor += 1
+            }
+            let end = min(cursor, tokens.count - 1)
+            result.append(
+                AdaScriptEnumSyntax(
+                    cases: cases,
+                    name: tokens[index + 1].text,
+                    range: AdaScriptSourceRange(start: tokens[index].range.start, end: tokens[end].range.end)
+                )
+            )
+            index = cursor
         }
         return result
     }
