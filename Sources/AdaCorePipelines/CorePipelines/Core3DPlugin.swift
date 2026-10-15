@@ -32,6 +32,8 @@ public struct Core3DPlugin: Plugin {
         Environment3D.registerComponent()
         AssetsManager.registerAssetType(ImageBasedLighting3D.self)
 
+        app.insertResource(DebugDraw3D())
+
         guard let app = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
@@ -54,6 +56,7 @@ public struct Core3DPlugin: Plugin {
         graph.addNode(ScreenSpaceReflectionRenderNode(notifiesCompletion: !includes2D))
         graph.addNode(Temporal3DRenderNode())
         graph.addNode(DebugView3DRenderNode(notifiesCompletion: !includes2D))
+        graph.addNode(DebugDraw3DRenderNode(notifiesCompletion: !includes2D))
         graph.addNode(EmptyNode(), by: .Main3D.endPass)
         graph.addNode(UpscaleNode())
 
@@ -74,13 +77,14 @@ public struct Core3DPlugin: Plugin {
         graph.addNodeEdge(from: ScreenSpaceReflectionRenderNode.name, to: AntiAliasing3DRenderNode.name)
         graph.addNodeEdge(from: AntiAliasing3DRenderNode.name, to: Temporal3DRenderNode.name)
         graph.addNodeEdge(from: Temporal3DRenderNode.name, to: DebugView3DRenderNode.name)
+        graph.addNodeEdge(from: DebugView3DRenderNode.name, to: DebugDraw3DRenderNode.name)
         if includes2D {
             app.insertResource(Scene2DPipelines())
             graph.addNode(Scene2DRenderNode())
-            graph.addNodeEdge(from: DebugView3DRenderNode.name, to: Scene2DRenderNode.name)
+            graph.addNodeEdge(from: DebugDraw3DRenderNode.name, to: Scene2DRenderNode.name)
             graph.addNodeEdge(from: Scene2DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
         } else {
-            graph.addNodeEdge(from: DebugView3DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
+            graph.addNodeEdge(from: DebugDraw3DRenderNode.name, to: RenderNodeLabel.Main3D.endPass)
         }
         graph.addNodeEdge(from: RenderNodeLabel.Main3D.endPass, to: UpscaleNode.name)
 
@@ -113,6 +117,9 @@ public struct Core3DPlugin: Plugin {
             .insertResource(ScreenQuality3DPipelines(device: renderDevice))
             .insertResource(ScreenQuality3DScratch())
             .insertResource(DebugView3DPipelines(device: renderDevice))
+            .insertResource(ExtractedDebugLines3D())
+            .insertResource(DebugDraw3DResources())
+            .addSystem(ExtractDebugDraw3DSystem.self, on: .extract)
             .addSystem(ExtractEnvironment3DSystem.self, on: .extract)
             .addSystem(PrepareEnvironment3DTexturesSystem.self, on: .prepare)
             .addSystem(PrepareTemporal3DSystem.self, on: .prepare)

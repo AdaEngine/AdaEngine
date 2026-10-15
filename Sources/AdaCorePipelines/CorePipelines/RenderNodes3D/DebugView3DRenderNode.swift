@@ -17,6 +17,7 @@ public struct DebugView3DRenderNode: RenderNode {
     @ResMut<DebugView3DPipelines> private var pipelines
     @Res<RenderDeviceHandler> private var device
     @Res<Render3DPerformanceMetrics?> private var metrics
+    @Res<ExtractedDebugLines3D> private var overlays
     private let notifiesCompletion: Bool
 
     public init(notifiesCompletion: Bool = true) { self.notifiesCompletion = notifiesCompletion }
@@ -27,6 +28,7 @@ public struct DebugView3DRenderNode: RenderNode {
         _pipelines.update(from: world)
         _device.update(from: world)
         _metrics.update(from: world)
+        _overlays.update(from: world)
         var activeViews: [Entity.ID] = []
         views.forEach { _, _, _, source in activeViews.append(source.entityId) }
         pipelines.uniform.retainViews(activeViews)
@@ -64,7 +66,7 @@ public struct DebugView3DRenderNode: RenderNode {
             ]), index: 0)
             pass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             pass.endRenderPass()
-            if notifiesCompletion, let drawable = target.outputTexture, drawable === output {
+            if notifiesCompletion, !overlays.hasOverlay, let drawable = target.outputTexture, drawable === output {
                 command.addCompletedHandler { [drawable] in drawable.notifyRenderCompleted() }
             }
             if let metrics {
