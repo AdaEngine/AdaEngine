@@ -117,6 +117,13 @@ enum EditorAgentAssetTools {
                 false
             ),
             tool(
+                "editor.model.generate",
+                "Generate a low-poly GLB model from an AdaScript `func build(model)` (primitives, revolved profiles, triangles, part hierarchy, PBR materials) and save it under Assets. Read the ada-procedural-models skill for the model API. Runs in an isolated VM without file, network or scene access; existing files are preserved.",
+                ["source": string, "destination": string],
+                ["source", "destination"],
+                false
+            ),
+            tool(
                 "editor.model.material.edit",
                 "Patch PBR factors using settingsJSON. Read editor.docs.read Agent3DWorkflow for supported fields. Preserves binary geometry; rebuild after edits.",
                 ["path": string, "material": .object(["type": "integer", "minimum": 0]), "settingsJSON": string],

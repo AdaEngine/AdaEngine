@@ -2283,7 +2283,7 @@
       },
       {
         "kind": "text",
-        "text": "After validation and build, inspect a completed frame from visible Play. Exercise selected clips and compare frames at different times for animation. Isolated simulation verifies logic and keyboard/physics behavior; it does not install Model3D or prove rendering. Blender execution, 3D generation, rig editing and skeletal clip authoring are not exposed by these Studio tools.",
+        "text": "After validation and build, inspect a completed frame from visible Play. Exercise selected clips and compare frames at different times for animation. Isolated simulation verifies logic and keyboard/physics behavior; it does not install Model3D or prove rendering. Blender execution, rig editing and skeletal clip authoring are not exposed by these Studio tools. To create a new low-poly model use editor.model.generate (an AdaScript program that writes a GLB) or editor.voxel.generate (a .vox).",
         "level": 0,
         "links": []
       }

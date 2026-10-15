@@ -1,5 +1,4 @@
 import AdaAssets
-import AdaScriptCompilerCore
 import Foundation
 import Gravity
 
@@ -17,43 +16,9 @@ public struct AdaScriptVoxelResult: Sendable {
 /// `.vox` file stay with the host (see ``VOXWriter``).
 @MainActor
 public enum AdaScriptVoxelGenerator {
-    public static let policy = AdaScriptCommunityPolicy(maximumCheckpoints: 2_000_000, maximumCallbackSeconds: 3)
-
     public static func generate(source: String) throws -> AdaScriptVoxelResult {
-        guard source.utf8.count <= 64 * 1024 else {
-            throw AdaScriptError.invalidManifest("The voxel script exceeds 64 KiB.")
-        }
-        try AdaScriptCommunityLowerer.validate(source: source)
-        guard source.contains("func build(") else {
-            throw AdaScriptError.invalidManifest("Define `func build(model) { ... }`; the host calls it with the voxel builder.")
-        }
-        let module = try GravityScriptModuleResolver.resolve([AdaScriptSource(path: "voxel.ada", source: source)])
-        let guarded = try module.sourcesByPath.mapValues {
-            ResolvedGravityScriptModule.Source(fileID: $0.fileID, source: try AdaScriptCommunityLowerer.instrument(source: $0.source))
-        }
-        // Gravity holds its delegate unowned, so it must outlive the VM below.
-        let delegate = AnnotatedGravityRuntimeDelegate(module: module, sourcesByPath: guarded)
         let bridge = AdaScriptVoxelBridge()
-        try AdaScriptRuntimeCoordinator.lock.withLock {
-            let vm = GravityVirtualMachine(settings: .init(), delegate: delegate)
-            let budget = try AdaScriptCommunityBudget.install(in: vm, policy: policy)
-            let prelude = try AdaScriptCommunityLowerer.instrument(source: AdaScriptStandardLibrary.communitySource + builderPrelude)
-            try vm.bindClass(with: AdaScriptVoxelBridge.self)
-            let binary = vm.loadGravityFile(from: "extern var __adaUGCBudget;\n" + prelude + "\n" + module.entrySource)
-            guard delegate.errors.isEmpty else { throw AdaScriptError.compilation(delegate.errors) }
-            budget.reset()
-            vm.load(binary)
-            guard delegate.errors.isEmpty else { throw AdaScriptError.compilation(delegate.errors) }
-            budget.reset()
-            guard let builder = vm.getValue(forKey: "__ada_make_voxel_builder").callConstructor(with: [bridge]), !builder.isNull else {
-                throw AdaScriptError.invalidManifest("Unable to create the voxel builder.")
-            }
-            budget.reset()
-            let errorCount = delegate.errors.count
-            guard vm.getValue(forKey: "build").callConstructor(with: [builder]) != nil, delegate.errors.count == errorCount else {
-                throw AdaScriptError.compilation(Array(delegate.errors.dropFirst(errorCount)) + ["The voxel script failed."])
-            }
-        }
+        try AdaScriptGeneratorRunner.run(source: source, kind: "voxel", bridge: bridge, prelude: builderPrelude, factory: "__ada_make_voxel_builder")
         if let failure = bridge.failure { throw AdaScriptError.invalidManifest(failure) }
         return try bridge.result()
     }

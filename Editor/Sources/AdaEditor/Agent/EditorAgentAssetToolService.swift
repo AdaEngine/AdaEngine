@@ -33,11 +33,11 @@ final class EditorAgentAssetToolService {
     }
 
     func execute(name: String, arguments: [String: Value]) async throws -> [String: Any] {
+        if EditorAgentGeneratorToolService.toolNames.contains(name) {
+            return try EditorAgentGeneratorToolService(projectURL: projectURL).execute(name: name, arguments: arguments)
+        }
         if name.hasPrefix("editor.model."), name != "editor.model.texture.assign" {
             return try EditorAgentModelToolService(projectURL: projectURL).execute(name: name, arguments: arguments)
-        }
-        if name == "editor.voxel.generate" {
-            return try EditorAgentVoxelToolService(projectURL: projectURL).execute(arguments: arguments)
         }
         let path = try required("path", arguments, fallback: arguments["destination"]?.stringValue)
         switch name {
