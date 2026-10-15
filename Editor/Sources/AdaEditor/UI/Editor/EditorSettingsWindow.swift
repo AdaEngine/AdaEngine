@@ -83,6 +83,9 @@ final class EditorSettingsWindowViewModel {
     var buildExportConfiguration: EditorBuildExportConfiguration
     let buildExportDefaults: UserDefaults
     var buildExportSettingsStatusMessage = ""
+    var scanningBuildPlatforms: Set<EditorBuildPlatform> = []
+    var scannedBuildPlatforms: Set<EditorBuildPlatform> = []
+    @ObservationIgnored let buildToolDiscovery = EditorBuildToolDiscovery()
     var inputBindingsDraft: EditorInputBindingsDraft
     var adaScriptTypeChecking: AdaScriptTypeCheckingMode
     var runtimeDraft: EditorRuntimeSettingsDraft

@@ -34,6 +34,12 @@ and assess gaps before proposing new features.
   bundles Swift/Dawn runtime DLLs, resources, Tint and a relocatable `BuildSDK`
   beside the executable. It checks PE imports and launches the tools with a clean
   PATH. Windows signing and external host/export toolchains remain separate.
+- Build & Export scans host tools on page entry and provides Rescan plus official
+  Swift/Android setup links. Discovery fills missing/broken paths in the settings
+  draft, preserves valid overrides, and requires Save Build Settings to persist.
+  Windows discovery rereads registry environment and standard install locations;
+  native Windows tools must not fill WSL Web compiler/Tint fields. Setup links
+  open browser guides; they do not perform unattended installation.
 - Keep mocks, fixtures, and QA harnesses in test targets or separate executables.
   Do not add test-only objects or QA launch hooks to the main app, including Debug builds.
 - Use an isolated scratch/module cache when necessary; never delete the shared
