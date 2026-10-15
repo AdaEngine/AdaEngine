@@ -183,18 +183,25 @@ struct GoldenFrameComparisonTests {
 @Suite("3D debug views on Metal", .serialized)
 @MainActor
 struct Render3DDebugViewMetalTests {
-    private static let width = 640
-    private static let height = 480
+    static let width = 640
+    static let height = 480
     /// Roughness and metallic of the four spheres from left to right.
     private static let roughness: [Float] = [0.1, 0.35, 0.65, 0.9]
     private static let metallic: [Float] = [0, 0.33, 0.66, 1]
 
-    private struct Scene {
+    struct Scene {
         let app: AppWorlds
         let device: RenderDevice
         let target: RenderTexture
         let queue: MTLCommandQueue
         let camera: Entity
+
+        /// Edits the camera's environment before the next rendered frame.
+        func configure(_ change: (inout Environment3D) -> Void) throws {
+            var environment = try #require(camera.components[Environment3D.self])
+            change(&environment)
+            camera.components[Environment3D.self] = environment
+        }
 
         func render(_ view: DebugView3D, frames: Int = 4) async throws -> Image {
             var environment = try #require(camera.components[Environment3D.self])
@@ -212,7 +219,7 @@ struct Render3DDebugViewMetalTests {
         }
     }
 
-    private static func makeScene() async throws -> Scene {
+    static func makeScene(emissiveSphere: Bool = false, antiAliasing: AntiAliasing3D = .none, temporalRenderScale: Float? = nil) async throws -> Scene {
         unsafe RenderEngine.configurations.preferredBackend = .metal
         try RenderEngine.setupRenderEngine()
         let device = unsafe RenderEngine.shared.renderDevice
@@ -229,14 +236,21 @@ struct Render3DDebugViewMetalTests {
             .addPlugin(VisibilityPlugin())
             .addPlugin(ScenePlugin())
             .addPlugin(Core3DPlugin())
+        if temporalRenderScale != nil {
+            // Temporal upscaling renders into a private texture that the upscale node copies to the target.
+            app.addPlugin(UpscalePlugin())
+        }
         try await app.build()
 
         let target = RenderTexture(size: SizeInt(width: width, height: height), scaleFactor: 1, format: .bgra8)
-        var environment = Environment3D(ambientOcclusion: .init(isEnabled: true))
+        var environment = Environment3D(ambientOcclusion: .init(isEnabled: true), antiAliasing: antiAliasing)
         environment.skybox.isEnabled = false
         environment.screenSpaceReflection.isEnabled = false
         var camera = Camera(renderTarget: target)
         camera.backgroundColor = Color(red: 0.55, green: 0.7, blue: 0.9)
+        if let temporalRenderScale {
+            camera.temporalUpscaling = TemporalUpscalingSettings(renderScale: temporalRenderScale)
+        }
         // The camera looks along +Z at sphere centers, so the middle image row crosses all four spheres.
         let cameraEntity = app.main.spawn(
             "Camera",
@@ -255,6 +269,17 @@ struct Render3DDebugViewMetalTests {
             app.main.spawn("Sphere \(index)") {
                 Mesh3DComponent(mesh: sphere, materials: [material])
                 Transform(position: [Float(index) * 1.1 - 1.65, 0.5, 0])
+            }
+        }
+        if emissiveSphere {
+            // An HDR light source above the row, against the sky, so bloom is visible outside its silhouette.
+            let emitter = PBRMaterial()
+            emitter.baseColorFactor = [0.05, 0.05, 0.05, 1]
+            emitter.emissiveFactor = [1, 0.85, 0.55]
+            emitter.emissiveStrength = 14
+            app.main.spawn("Emitter") {
+                Mesh3DComponent(mesh: sphere, materials: [emitter], castShadows: false, receiveShadows: false)
+                Transform(position: [0, 1.9, 0])
             }
         }
         let ground = PBRMaterial()
@@ -286,7 +311,7 @@ struct Render3DDebugViewMetalTests {
         return centers
     }
 
-    nonisolated private static let enabled = ProcessInfo.processInfo.environment["ADAENGINE_GOLDEN_METAL"] == "1"
+    nonisolated static let enabled = ProcessInfo.processInfo.environment["ADAENGINE_GOLDEN_METAL"] == "1"
 
     @Test(.enabled(if: Render3DDebugViewMetalTests.enabled))
     func roughnessAndMetallicViewsReportMaterialValues() async throws {

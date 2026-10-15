@@ -122,6 +122,8 @@ public struct Environment3D: Codable, Sendable {
     public var localShadows: LocalShadowSettings3D = LocalShadowSettings3D()
     /// Developer visualization for this camera. Defaults to normal rendering.
     public var debugView: DebugView3D = DebugView3D.none
+    /// Exposure and bloom applied before tone mapping.
+    public var postProcess: PostProcess3D = PostProcess3D()
 
     /// Flat reflected controls for script and inspector access to render quality settings.
     public var shadowsEnabled: Bool {
@@ -151,6 +153,22 @@ public struct Environment3D: Codable, Sendable {
     public var gpuOcclusionEnabled: Bool {
         get { meshVisibility.gpuOcclusion }
         set { meshVisibility.gpuOcclusion = newValue }
+    }
+    public var exposureEV: Float {
+        get { postProcess.exposureEV }
+        set { postProcess.exposureEV = newValue }
+    }
+    public var bloomEnabled: Bool {
+        get { postProcess.bloom.isEnabled }
+        set { postProcess.bloom.isEnabled = newValue }
+    }
+    public var bloomIntensity: Float {
+        get { postProcess.bloom.intensity }
+        set { postProcess.bloom.intensity = newValue }
+    }
+    public var bloomThreshold: Float {
+        get { postProcess.bloom.threshold }
+        set { postProcess.bloom.threshold = newValue }
     }
     public var localShadowsEnabled: Bool {
         get { localShadows.isEnabled }
@@ -194,7 +212,7 @@ public struct Environment3D: Codable, Sendable {
         self.meshVisibility = meshVisibility
     }
 
-    private enum CodingKeys: CodingKey { case skybox, screenSpaceReflection, imageBasedLighting, shadows, ambientOcclusion, antiAliasing, meshVisibility, localShadows, debugView }
+    private enum CodingKeys: CodingKey { case skybox, screenSpaceReflection, imageBasedLighting, shadows, ambientOcclusion, antiAliasing, meshVisibility, localShadows, debugView, postProcess }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -207,6 +225,7 @@ public struct Environment3D: Codable, Sendable {
         meshVisibility = try container.decodeIfPresent(MeshVisibilitySettings3D.self, forKey: .meshVisibility) ?? MeshVisibilitySettings3D()
         localShadows = try container.decodeIfPresent(LocalShadowSettings3D.self, forKey: .localShadows) ?? LocalShadowSettings3D()
         debugView = try container.decodeIfPresent(DebugView3D.self, forKey: .debugView) ?? DebugView3D.none
+        postProcess = try container.decodeIfPresent(PostProcess3D.self, forKey: .postProcess) ?? PostProcess3D()
     }
 }
 
