@@ -261,6 +261,9 @@ public struct Main3DRenderNode: RenderNode {
             )
             renderPass.setFragmentBuffer(iblConstants, offset: 0, slot: 22)
             renderPass.setViewport(camera.viewport.rect)
+            if environments.environments[source.entityId]?.debugView == .wireframe {
+                renderPass.setTriangleFillMode(.lines)
+            }
 
             if !visibleItems.isEmpty {
                 // Resolve blend state and view depth once per item instead of inside the comparator.

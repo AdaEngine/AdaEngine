@@ -158,7 +158,7 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
             pass.setRenderPipelineState(target.temporalUpscalingActive ? pipeline.hdrRenderPipeline : pipeline.renderPipeline)
             pass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             pass.endRenderPass()
-            if notifiesCompletion, environment.antiAliasing == .none, let outputTexture = target.outputTexture,
+            if notifiesCompletion, environment.antiAliasing == .none, !environment.debugView.replacesFinalImage, let outputTexture = target.outputTexture,
                mainTexture === outputTexture {
                 commandBuffer.addCompletedHandler { [outputTexture] in
                     outputTexture.notifyRenderCompleted()

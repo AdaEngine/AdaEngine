@@ -120,6 +120,8 @@ public struct Environment3D: Codable, Sendable {
     public var antiAliasing: AntiAliasing3D
     public var meshVisibility: MeshVisibilitySettings3D
     public var localShadows: LocalShadowSettings3D = LocalShadowSettings3D()
+    /// Developer visualization for this camera. Defaults to normal rendering.
+    public var debugView: DebugView3D = DebugView3D.none
 
     /// Flat reflected controls for script and inspector access to render quality settings.
     public var shadowsEnabled: Bool {
@@ -192,7 +194,7 @@ public struct Environment3D: Codable, Sendable {
         self.meshVisibility = meshVisibility
     }
 
-    private enum CodingKeys: CodingKey { case skybox, screenSpaceReflection, imageBasedLighting, shadows, ambientOcclusion, antiAliasing, meshVisibility, localShadows }
+    private enum CodingKeys: CodingKey { case skybox, screenSpaceReflection, imageBasedLighting, shadows, ambientOcclusion, antiAliasing, meshVisibility, localShadows, debugView }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -204,6 +206,7 @@ public struct Environment3D: Codable, Sendable {
         antiAliasing = try container.decodeIfPresent(AntiAliasing3D.self, forKey: .antiAliasing) ?? .none
         meshVisibility = try container.decodeIfPresent(MeshVisibilitySettings3D.self, forKey: .meshVisibility) ?? MeshVisibilitySettings3D()
         localShadows = try container.decodeIfPresent(LocalShadowSettings3D.self, forKey: .localShadows) ?? LocalShadowSettings3D()
+        debugView = try container.decodeIfPresent(DebugView3D.self, forKey: .debugView) ?? DebugView3D.none
     }
 }
 
