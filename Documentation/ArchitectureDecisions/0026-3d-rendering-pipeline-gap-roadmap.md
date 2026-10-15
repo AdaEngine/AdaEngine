@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-16
-- Implementation: Partial (Stage 0 local foundation; not released)
+- Implementation: Partial (Stages 0 and 1 first slices; not released)
 
 ## Context
 
@@ -279,8 +279,10 @@ Each item needs its own short requirements note before implementation.
 - [x] Stage 0: golden-frame harness with Metal tolerance and checked-in references.
 - [ ] Stage 0: golden-frame tolerances for WebGPU and other backends.
 - [ ] Stage 0: prepass decision confirmed with GPU measurements (analysis recorded below).
-- [ ] Stage 1: per-camera post-process stack with exposure and tone-map operators (ADR-0019 exposure).
-- [ ] Stage 1: bloom (ADR-0019), auto-exposure, color grading LUT, vignette.
+- [x] Stage 1: per-camera `PostProcess3D` with manual exposure (ADR-0019 exposure).
+- [x] Stage 1: HDR bloom with reusable per-camera chain (ADR-0019 bloom).
+- [ ] Stage 1: tone-map operator choice (ACES fit, neutral, none) and a shared output-transform shader.
+- [ ] Stage 1: auto-exposure, color grading LUT, vignette; Editor controls for exposure and bloom.
 - [ ] Stage 1: depth of field and motion blur with quality tiers.
 - [ ] Stage 2: `KHR_texture_transform`, IOR, specular and clearcoat material extensions.
 - [ ] Stage 2: sheen, anisotropy and `KHR_lights_punctual` import.
@@ -343,6 +345,59 @@ pixels). `ADAENGINE_GOLDEN_RECORD=1` rewrites references; a mismatch writes the
 actual and a difference image to `ADAENGINE_GOLDEN_OUTPUT`. The Metal suite
 renders four PBR spheres (roughness 0.1-0.9, metallic 0-1) with a shadowed sun
 and checks each debug view, debug draw and the return to the normal frame.
+
+### Stage 1, first slice: exposure and bloom (2026-10-16)
+
+**Settings.** `Environment3D.postProcess` holds `PostProcess3D`: `exposureEV`
+(stops; `0` is unchanged, limited to ±10 so half-float targets cannot overflow)
+and `Bloom3D` (`isEnabled` false by default, `intensity`, `threshold` in
+exposed linear units, `softKnee`, `scatter`). Missing keys decode to defaults, so
+older scenes are unchanged, and non-finite values are replaced before reaching
+the shader. Flat accessors (`exposureEV`, `bloomEnabled`, `bloomIntensity`,
+`bloomThreshold`) serve scripts and inspectors.
+
+```swift
+camera.environment.exposureEV = -1
+camera.environment.postProcess.bloom = Bloom3D(isEnabled: true, intensity: 0.4, threshold: 1)
+```
+
+**Where it runs.** Tone mapping lives in two shaders: the environment
+composite (direct and FXAA presentation) and the temporal tone map. Both
+consume the composite's output, so exposure and bloom are applied once inside
+`presentColor` in the composite, before tone mapping, instead of in two places:
+`color * exposure + bloom * intensity`. With temporal upscaling the composite
+writes HDR, so the upscaler sees pre-exposed input. `Bloom3DRenderNode` runs
+between SSAO and the composite. It prefilters the lit scene color at half
+resolution (exposure, soft knee, per-tap clamp), downsamples with a dual filter
+to at most six levels, then adds each wider level back with additive blending
+and a `scatter` weight. A disabled or zero-intensity bloom records no GPU work and
+releases its textures; the composite then multiplies a white placeholder by zero,
+so default frames are bit-identical to before.
+
+**Known limits.** Bloom is built from lit geometry, so a bright skybox pixel
+adds no energy (geometry bloom still spreads over it). Intense sources produce a
+wide faint veil from the widest levels; lower `scatter` narrows it. There is no
+temporal stabilization of the bloom chain, and upscaler input is pre-exposed
+rather than described through the scaler's exposure parameter.
+
+**Validation.** Metal, macOS, Swift 6.2.3. All existing golden frames still
+match at default settings. New tests cover: glow beside an emitter that fades
+with distance and leaves low-energy pixels almost untouched; monotonic
+intensity; identical frames for disabled and zero-intensity bloom; exposure
+brightening and darkening; chain allocation and release; and bloom plus
+exposure on all three presentation paths (direct, FXAA, temporal upscaling at
+render scale 1 with the upscale plugin). Four new golden frames
+(`emissive-*`) cover bloom and exposure. Not verified: WebGPU, other platforms,
+MetalFX-specific behavior beyond the offscreen temporal path, the Editor, and
+non-default render scales for the temporal path.
+
+**Unexplained transient.** Two consecutive Metal runs, the first after building
+this slice, failed with a whole-frame shift of about 5 steps and 245 pixels
+differing between two renders of one scene. The identical binary then passed in
+every later run (warm and cold shader cache, under heavy CPU load, after a
+shader edit; about ten runs). The cause was not found. The golden tolerance
+(2 steps) would flag this drift; if it recurs, capture the failing frames before
+rerunning.
 
 **Findings during implementation.**
 
