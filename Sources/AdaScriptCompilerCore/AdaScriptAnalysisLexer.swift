@@ -1,5 +1,6 @@
-struct AdaScriptAnalysisToken: Equatable, Sendable {
-    enum Kind: Equatable, Sendable {
+/// One lexical token of AdaScript source with its character offsets and line/UTF-16 position.
+public struct AdaScriptAnalysisToken: Equatable, Sendable {
+    public enum Kind: Equatable, Sendable {
         case comment
         case identifier
         case number
@@ -7,14 +8,23 @@ struct AdaScriptAnalysisToken: Equatable, Sendable {
         case string
     }
 
-    var endOffset: Int
-    var kind: Kind
-    var range: AdaScriptSourceRange
-    var startOffset: Int
-    var text: String
+    public var endOffset: Int
+    public var kind: Kind
+    public var range: AdaScriptSourceRange
+    public var startOffset: Int
+    public var text: String
+
+    public init(endOffset: Int, kind: Kind, range: AdaScriptSourceRange, startOffset: Int, text: String) {
+        self.endOffset = endOffset
+        self.kind = kind
+        self.range = range
+        self.startOffset = startOffset
+        self.text = text
+    }
 }
 
-struct AdaScriptAnalysisLexer {
+/// The one lexer for AdaScript source, shared by the compiler analysis and the Editor's language tooling.
+public struct AdaScriptAnalysisLexer {
     private let source: String
     private var index: String.Index
     private var line = 0
@@ -22,12 +32,12 @@ struct AdaScriptAnalysisLexer {
     private var utf16Column = 0
     private var tokens: [AdaScriptAnalysisToken] = []
 
-    init(source: String) {
+    public init(source: String) {
         self.source = source
         self.index = source.startIndex
     }
 
-    mutating func lex() -> [AdaScriptAnalysisToken] {
+    public mutating func lex() -> [AdaScriptAnalysisToken] {
         while let character = currentCharacter {
             if character.isWhitespace {
                 advance()
