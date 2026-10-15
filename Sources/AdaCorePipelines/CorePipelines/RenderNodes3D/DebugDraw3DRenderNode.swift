@@ -39,7 +39,9 @@ public struct DebugDraw3DRenderNode: RenderNode {
                 let depth = target.temporalUpscalingActive ? target.temporalOutputDepthTexture : target.depthTexture
             else { return }
             let ranges = resources.prepare(lines: extracted.lines, device: device.renderDevice)
-            guard ranges.testedCount + ranges.overlayCount > 0 else { return }
+            guard ranges.testedCount + ranges.overlayCount > 0 else {
+                return
+            }
             let command = renderContext.commandQueue.makeCommandBuffer()
             command.label = "Debug Draw 3D"
             let pass = command.beginRenderPass(RenderPassDescriptor(

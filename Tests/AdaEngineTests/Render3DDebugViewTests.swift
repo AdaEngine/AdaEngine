@@ -320,7 +320,7 @@ struct Render3DDebugViewMetalTests {
                 break
             case .missingReference(let actual):
                 Issue.record("No golden frame for \(name); record with ADAENGINE_GOLDEN_RECORD=1. Actual: \(actual.path)")
-            case .mismatched(let comparison, let actual, let difference):
+            case let .mismatched(comparison, actual, difference):
                 Issue.record("\(name) differs in \(comparison.differingPixels) pixels (largest step \(comparison.largestStep)). Actual: \(actual.path), difference: \(difference.path)")
             }
         }
@@ -380,7 +380,7 @@ struct Render3DDebugViewMetalTests {
             break
         case .missingReference(let actual):
             Issue.record("No golden frame for debug draw; record with ADAENGINE_GOLDEN_RECORD=1. Actual: \(actual.path)")
-        case .mismatched(let comparison, let actual, let difference):
+        case let .mismatched(comparison, actual, difference):
             Issue.record("Debug draw differs in \(comparison.differingPixels) pixels. Actual: \(actual.path), difference: \(difference.path)")
         }
 

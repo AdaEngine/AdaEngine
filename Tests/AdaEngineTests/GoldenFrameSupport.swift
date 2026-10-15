@@ -16,7 +16,7 @@ struct GoldenFrame {
         var differingFraction: Double
 
         /// Same-GPU reruns are expected to match; the slack absorbs driver rounding only.
-        static let metal = Tolerance(channelSteps: 2, differingFraction: 0.0005)
+        static let metal = Self(channelSteps: 2, differingFraction: 0.0005)
     }
 
     struct Comparison: Equatable {
