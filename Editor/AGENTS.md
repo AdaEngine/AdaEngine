@@ -317,8 +317,8 @@ CPU native import, import project-local dependency bundles and patch PBR materia
 factors. Offline docs/API/component/examples tools are shared; bundled workflow
 skills are readable on demand through `editor.skills.list/read`. `basic-3d-scene`
 is a complete camera/cube/light example. Import validation does not prove GPU
-rendering, clip playback or gameplay; Blender execution/generation and rig/clip
-authoring remain outside these tools. Desktop scene changes use document revisions
+rendering, clip playback or gameplay; Blender execution, rig/clip authoring and
+organic or skinned model generation remain outside these tools. Desktop scene changes use document revisions
 and undo, and asset writes reject matching dirty open documents.
 
 The bundled `ada-game-builder` workflow is advertised in desktop and mobile
@@ -326,6 +326,22 @@ session catalogs without per-project installation. Agents load it on demand for
 game creation and iteration. It covers playable loops, persistent authoring,
 controls/HUD, and build/simulation/visible Play verification using the host's
 available tools; catalog discovery does not enforce model selection.
+
+Scripted asset generation ([ADR-0026](../Documentation/ArchitectureDecisions/0026-scripted-asset-generation-and-autonomous-studio.md)):
+`editor.voxel.generate` (`.vox`), `editor.model.generate` (`.glb`), `editor.audio.generate` (`.wav`)
+and `editor.sprite.generate` (`.png`) run an agent-authored AdaScript `build` function in an isolated VM and
+write a new file under the assets root (never overwriting); `editor.audio.inspect` measures any WAV (peak,
+loudness, clipping, silence, pitch, envelope). Skills `ada-voxel-models`, `ada-procedural-models`,
+`ada-pixel-art` and `ada-sound-design` document the script APIs, and a test runs their examples.
+`ada-autonomous-studio` is the whole-game workflow (clarify, `DESIGN.md` with acceptance criteria,
+`PLAN.md` milestones, build-play-check loop, acceptance pass). The `AudioSource` component plays WAV/MP3/FLAC
+in scenes and from scripts and has an inspector descriptor. Music and voices need a provider (not implemented);
+agent sounds are measured, never heard; desktop has no stepped gameplay simulation yet.
+Entry points: [EditorAgentGeneratorToolService.swift](Sources/AdaEditor/Agent/EditorAgentGeneratorToolService.swift),
+[EditorAudioSourceComponentDescriptor.swift](Sources/AdaEditor/EditorAudioSourceComponentDescriptor.swift).
+Coverage: [EditorAgentMediaGenerateTests.swift](Tests/AdaEditorTests/EditorAgentMediaGenerateTests.swift),
+[EditorAgentModelGenerateTests.swift](Tests/AdaEditorTests/EditorAgentModelGenerateTests.swift),
+[EditorAgentVoxelToolTests.swift](Tests/AdaEditorTests/EditorAgentVoxelToolTests.swift).
 
 Guide: [Agent3DWorkflow.md](Documentation/Agent3DWorkflow.md).
 Entry points: [EditorAgentModelToolService.swift](Sources/AdaEditor/Agent/EditorAgentModelToolService.swift),
@@ -427,7 +443,8 @@ Guides: [Notifications.md](Documentation/Notifications.md),
 - The embedded AdaScript Web Player's scene validation currently allows only
   Transform, Visibility and TileMapComponent. This restriction belongs to that
   path, not every AOT/Swift Web export path.
-- Audio/generic metadata previews do not provide audio playback. GLB/glTF
+- Audio/generic metadata previews do not provide audio playback in the asset browser; sounds play
+  through the `AudioSource` component in Play. GLB/glTF
   import, preview, placement and clip playback exist; visual imported-material
   editing, skeleton editing and skeletal-clip authoring remain incomplete.
   The shared-workbench model preview has not established iPhone UI parity.
