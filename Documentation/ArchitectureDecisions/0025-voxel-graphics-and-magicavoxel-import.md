@@ -115,8 +115,10 @@ thin colliders.
 
 ### 7. Deferred
 
-Mesh instancing for many identical models, skinning and GPU-driven paths are
-deferred until the corresponding backend capabilities are verified.
+Skinning and GPU-driven paths are deferred until the corresponding backend
+capabilities are verified. Instancing of identical models needs no voxel-specific
+work: copies made from one asset share buffers and material, and the 3D renderer
+already draws them as instanced batches per mesh part.
 
 ## Consequences
 

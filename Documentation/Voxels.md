@@ -56,6 +56,16 @@ the model root owns the clock: `isPlaying`, `repeats`, `speed` and `time`.
 `Model3DSource.autoplay` and `repeats` set the initial values. The timeline lasts
 until the highest keyed frame; MagicaVoxel's own project length is not read.
 
+## Instancing
+
+Copies of one imported model share their meshes and material, and the 3D renderer draws
+identical mesh parts as one instanced draw. A model with several parts is batched per
+part: six copies of a robot with a body, head and arm are drawn with three draw calls of
+six instances each. Share the asset to benefit (load it once through `AssetsManager` or
+`Model3DSource`, which caches it); importing the same file separately creates separate
+buffers, so those copies are not batched. Chunks of an editable world and detached
+islands have unique geometry and are drawn individually.
+
 ## Editable voxel worlds
 
 `VoxelWorld3DComponent` renders an editable world as one mesh entity per 32³ chunk.
@@ -101,8 +111,8 @@ density` (800 by default).
 
 ## Not supported yet
 
-Voxel materials from `MATL`, transparency, skinned deformation, mesh instancing of
-many identical models, `AdaAnimation` clips on voxel nodes, and GPU-driven rendering.
+Voxel materials from `MATL`, transparency, skinned deformation, `AdaAnimation` clips on
+voxel nodes, and GPU-driven voxel rendering.
 
 ## Testing with real MagicaVoxel files
 
