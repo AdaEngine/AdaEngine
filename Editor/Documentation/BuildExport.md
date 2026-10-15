@@ -15,6 +15,8 @@ Swift installations, Android SDK locations, Android Studio's JDK, SDK build-tool
 and side-by-side NDKs, CMake, Ninja and Visual Studio build tools. A directory alone
 does not establish availability: Android SDK needs adb, JDK needs javac, and NDK
 needs its installation metadata. Discovery does not validate compiler versions.
+Saving on Windows explicitly writes the preferences to disk, including Android
+paths, so closing Studio immediately after Save retains the configuration.
 
 **Install Swift…** on the host platform page opens the official Swift installation
 instructions for this OS. **Install Android SDK…** on Android opens Google's

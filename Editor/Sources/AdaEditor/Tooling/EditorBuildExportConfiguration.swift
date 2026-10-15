@@ -167,7 +167,8 @@ struct EditorBuildExportConfiguration: Equatable, Sendable {
         values[platform.rawValue]?[key] ?? ""
     }
 
-    func save(defaults: UserDefaults = .standard) {
+    @discardableResult
+    func save(defaults: UserDefaults = .standard) -> Bool {
         var profiles: [String: [String: String]] = [:]
         for platform in EditorBuildPlatform.allCases {
             profiles[platform.rawValue] = Dictionary(uniqueKeysWithValues: platform.fields.compactMap { field in
@@ -179,6 +180,13 @@ struct EditorBuildExportConfiguration: Equatable, Sendable {
         // all Android build/device consumers continue to use the same values.
         defaults.set(profiles.removeValue(forKey: EditorBuildPlatform.android.rawValue) ?? [:], forKey: EditorAndroidConfiguration.preferenceKey)
         defaults.set(profiles, forKey: Self.preferenceKey)
+        #if os(Windows)
+        // Windows Foundation does not reliably flush pending preferences on exit.
+        // An explicit Save must survive closing Studio immediately afterwards.
+        return defaults.synchronize()
+        #else
+        return true
+        #endif
     }
 
     func normalizedValue(_ field: EditorBuildToolField, for platform: EditorBuildPlatform) -> String {

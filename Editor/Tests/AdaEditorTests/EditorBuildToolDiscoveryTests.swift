@@ -73,6 +73,37 @@ struct EditorBuildToolDiscoveryTests {
         #expect(configuration.applyDiscoveredTools(found, for: .web, unchangedSince: configuration) == 0)
         #expect(configuration.values.isEmpty)
     }
+
+    @Test func savedPathsSurviveASeparateProcess() async throws {
+        let key = "ADA_STUDIO_TOOL_PREFS_TEST_DOMAIN"
+        let swift = "C:/Tools/Тест Swift/swift.exe"
+        let android = "C:/SDK/Тест Android"
+        if let domain = ProcessInfo.processInfo.environment[key] {
+            let defaults = try #require(UserDefaults(suiteName: domain))
+            let configuration = EditorBuildExportConfiguration.load(defaults: defaults)
+            #expect(configuration.swiftExecutable(for: .host) == swift)
+            #expect(configuration.value("ANDROID_HOME", for: .android) == android)
+            return
+        }
+        let domain = "AdaToolPreferencesTests." + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: domain))
+        defer {
+            defaults.removePersistentDomain(forName: domain)
+            _ = defaults.synchronize()
+        }
+        var configuration = EditorBuildExportConfiguration()
+        configuration.values[EditorBuildPlatform.host.rawValue] = ["SWIFT_EXECUTABLE": swift]
+        configuration.values[EditorBuildPlatform.android.rawValue] = ["ANDROID_HOME": android]
+        #expect(configuration.save(defaults: defaults))
+        let executable = try #require(Bundle.main.executableURL)
+        let result = await EditorProcessRunner().run(EditorProcessCommand(
+            executablePath: executable.path,
+            arguments: ["--testing-library", "swift-testing", "--filter", "savedPathsSurviveASeparateProcess", "--no-parallel"],
+            workingDirectory: FileManager.default.temporaryDirectory,
+            environment: [key: domain]
+        ))
+        #expect(result.succeeded, "\(result.combinedOutput)")
+    }
     #endif
 
     @Test func doesNotMixComponentsWhenSDKChangesDuringScan() throws {

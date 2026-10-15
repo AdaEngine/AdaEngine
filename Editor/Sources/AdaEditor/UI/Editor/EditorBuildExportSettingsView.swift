@@ -211,7 +211,10 @@ extension EditorSettingsWindowViewModel {
 
     func applyBuildExportSettings() {
         guard EditorDistribution.current.supportsSwiftProjects else { return }
-        buildExportConfiguration.save(defaults: buildExportDefaults)
+        guard buildExportConfiguration.save(defaults: buildExportDefaults) else {
+            buildExportSettingsStatusMessage = "Could not save tool paths to disk. Check access to your user preferences and try again."
+            return
+        }
         #if os(macOS) || os(Windows) || os(Linux)
         editorViewModel?.androidConfiguration = EditorAndroidConfiguration.load(
             engineRoot: EditorAndroidConfiguration.studioEngineRoot,
