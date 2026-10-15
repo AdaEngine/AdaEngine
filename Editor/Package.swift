@@ -109,7 +109,7 @@ let package = Package(
                 .product(name: "AdaMCPCore", package: "AdaMCP"),
                 .product(name: "MCP", package: "AdaMCP"),
                 .product(name: "ACP", package: "swift-acp", condition: .when(platforms: [.macOS])),
-                .product(name: "ACPModel", package: "swift-acp", condition: .when(platforms: [.macOS])),
+                .product(name: "ACPModel", package: "swift-acp", condition: .when(platforms: [.macOS, .windows])),
                 .product(name: "SwiftParser", package: "swift-syntax"),
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),

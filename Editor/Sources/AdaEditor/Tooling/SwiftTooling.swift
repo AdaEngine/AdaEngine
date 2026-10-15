@@ -373,7 +373,7 @@ extension EditorProcessRunning {
             process.currentDirectoryURL = command.workingDirectory
             process.standardOutput = output
             process.standardError = error
-            process.environment = ProcessInfo.processInfo.environment.merging(command.environment) { _, new in new }
+            process.environment = EditorHostTools.mergedEnvironment(command.environment)
 
             activeProcesses[processID] = process
             defer { activeProcesses[processID] = nil }

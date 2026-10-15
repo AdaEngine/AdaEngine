@@ -30,6 +30,8 @@ enum AdaApplicationEntry {
                 let code = await EditorCLI.run(arguments: CommandLine.arguments)
                 Foundation.exit(code)
             }
+        #endif
+        #if os(macOS) || os(Windows)
             if CommandLine.arguments.contains(EditorAgentMCPConnection.bridgeArgument) {
                 try await EditorAgentMCPStdioBridge(endpoint: URL(string: EditorMCPServerAddress.url)).run()
                 return

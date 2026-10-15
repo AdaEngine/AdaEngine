@@ -63,6 +63,20 @@ require Apple platforms. AdaPlayer uses native WinSock and Windows DNS-SD;
 manual `host:port` connection is available when discovery is unavailable.
 `AdaEditor.exe --ada-player` opens the Windows player.
 
+Windows Agent Chat supports local ACP agents. Open **Settings → Agents**, choose
+**Refresh**, then connect a discovered adapter or use **Install & Connect** from
+the ACP Registry. Native Windows distributions are preferred when available;
+npm adapters require Node.js and Python adapters require uv. Regular Codex/Claude
+CLIs need their ACP adapter. Manual commands can use an `.exe`, a JavaScript entry
+point, or an npm-generated `.cmd` launcher; arbitrary batch scripts should be
+launched through an explicitly configured shell executable.
+
+ACP sessions support streamed replies, model/configuration selection, permissions,
+project file access, bounded terminal output, cancellation, session restoration,
+A2UI cards and the live Studio MCP tools. Provider authentication remains with the
+agent's own account setup. Agent executables and terminal children run in Windows
+jobs and terminate with their owning process; no console window is opened.
+
 WebAssembly and Android builds use a Linux worker under WSL (Ubuntu). Prepare
 the matching Swift SDKs, pinned Tint, Android SDK/NDK and Swan/Dawn with:
 

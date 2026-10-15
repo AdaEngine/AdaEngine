@@ -22,7 +22,7 @@ struct EditorAgentCatalogView: View {
                     EditorAgentCatalogToolbar(agent: agent)
                 }
             }
-            #if os(macOS)
+            #if os(macOS) || os(Windows)
                 Text("Choose an agent for all projects, then open Agent Chat. Sign in through the agent's own account setup.")
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                 HStack(spacing: 2) {
@@ -61,12 +61,12 @@ struct EditorAgentCatalogView: View {
                     }
                 }
             #else
-                Text("Local ACP agents can be installed and launched on macOS.").font(.system(size: 12))
+                Text("Local ACP agents are available in desktop Studio.").font(.system(size: 12))
             #endif
         }
         .accessibilityIdentifier("AdaEditor.Agents.Catalog")
         .onAppear {
-            #if os(macOS)
+            #if os(macOS) || os(Windows)
                 if loadsCatalog {
                     Task { await catalog.loadIfNeeded() }
                 }

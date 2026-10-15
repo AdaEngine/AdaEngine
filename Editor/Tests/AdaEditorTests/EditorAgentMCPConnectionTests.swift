@@ -3,7 +3,7 @@ import Testing
 
 @testable import AdaEditor
 
-#if os(macOS)
+#if os(macOS) || os(Windows)
     @Suite("Editor agent MCP connection", .serialized)
     struct EditorAgentMCPConnectionTests {
         @Test("automatic connect shares session preparation and preserves the running prompt sink")
@@ -15,7 +15,7 @@ import Testing
             try Self.agentScript.write(to: script, atomically: true, encoding: .utf8)
             var project = ProjectSystem.defaultProject(projectName: "Concurrent")
             project.ai.agent.enabled = true
-            project.ai.agent.target = .init(command: "/usr/bin/python3", arguments: [script.path, "http"])
+            project.ai.agent.target = .init(command: EditorHostTools.executable("python3", windowsName: "python.exe"), arguments: [script.path, "http"])
             let request = EditorAgentRunRequest(
                 project: project,
                 projectURL: root,
@@ -41,9 +41,10 @@ import Testing
                 _ = try await service.connect(request, onEvent: { _ in }, onProjectFileChanged: { _ in })
                 let result = try await run.value
                 #expect(result.assistantText == "Hello world")
-                #expect(await recorder.chunks == ["Hello", " world"])
+                let chunks = await recorder.chunks
+                #expect(chunks == ["Hello", " world"])
                 let requests = try String(contentsOf: root.appendingPathComponent("requests.jsonl"), encoding: .utf8)
-                #expect(requests.split(separator: "\n").count == 1)
+                #expect(requests.components(separatedBy: .newlines).filter { !$0.isEmpty }.count == 1)
             } catch {
                 await service.shutdown()
                 throw error
@@ -61,7 +62,7 @@ import Testing
             var project = ProjectSystem.defaultProject(projectName: "MCP")
             project.ai.agent.enabled = true
             project.ai.mcp.enabled = true
-            project.ai.agent.target = .init(command: "/usr/bin/python3", arguments: [script.path, supportsHTTP ? "http" : "stdio"])
+            project.ai.agent.target = .init(command: EditorHostTools.executable("python3", windowsName: "python.exe"), arguments: [script.path, supportsHTTP ? "http" : "stdio"])
             var session = EditorAgentSession()
             if restored {
                 session.upstreamSessionID = "saved-session"
@@ -91,7 +92,7 @@ import Testing
             }
             await service.shutdown()
             let lines = try String(contentsOf: root.appendingPathComponent("requests.jsonl"), encoding: .utf8)
-                .split(separator: "\n")
+                .components(separatedBy: .newlines).filter { !$0.isEmpty }
             let messages = try lines.map { try #require(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any]) }
             #expect(messages.count == 3)
             for (index, message) in messages.enumerated() {
@@ -124,7 +125,7 @@ import Testing
             let script = root.appendingPathComponent("server.py")
             try Self.serverScript.write(to: script, atomically: true, encoding: .utf8)
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+            process.executableURL = URL(fileURLWithPath: EditorHostTools.executable("python3", windowsName: "python.exe"))
             process.arguments = [script.path]
             process.currentDirectoryURL = root
             try process.run()

@@ -88,7 +88,7 @@ final class EditorAgentCatalogViewModel {
         }
         do {
             agents = try await service.refresh()
-            status = "\(agents.count) agents • \(discovered.count) found on this Mac"
+            status = "\(agents.count) agents • \(discovered.count) found on this computer"
         } catch {
             status = "Registry unavailable. \(agents.isEmpty ? "Local agents are still available." : "Showing the saved catalog.") \(error.localizedDescription)"
         }

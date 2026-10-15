@@ -1,6 +1,19 @@
 import Foundation
 
 enum EditorHostTools {
+    static func mergedEnvironment(_ overrides: [String: String], inheriting base: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
+        #if os(Windows)
+        var result = base
+        for (key, value) in overrides {
+            for name in result.keys.filter({ $0.caseInsensitiveCompare(key) == .orderedSame }) { result.removeValue(forKey: name) }
+            result[key] = value
+        }
+        return result
+        #else
+        return base.merging(overrides) { _, new in new }
+        #endif
+    }
+
     static func environmentValue(_ name: String, in environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
         #if os(Windows)
         return environment.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value

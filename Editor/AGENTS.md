@@ -290,7 +290,7 @@ Coverage: [EditorAgentWorkspaceTests.swift](Tests/AdaEditorTests/EditorAgentWork
 Desktop Git status, staging, commit, stash, pull/push, branch creation/checkout,
 history and diff review. Agent Chat includes transcript/session persistence,
 attachments, context selection, permissions, skills and agent settings.
-macOS ACP and iPhone SloppyRuntime replies stream native A2UI cards. Ordinary
+macOS/Windows ACP and iPhone SloppyRuntime replies stream native A2UI cards. Ordinary
 submissions return to the owning session; reserved local actions apply scene tools
 without a new model turn. NPC subtree spawning, color-field editing, structured
 scene batches and the system color palette are available. Scene revisions guard
@@ -303,8 +303,15 @@ Entry points: [EditorAgentA2UIController.swift](Sources/AdaEditor/Agent/EditorAg
 [EditorAgentA2UISurfaceCard.swift](Sources/AdaEditor/UI/Editor/EditorAgentA2UISurfaceCard.swift).
 Coverage: [EditorAgentA2UITests.swift](Tests/AdaEditorTests/EditorAgentA2UITests.swift),
 [EditorAgentA2UITransportTests.swift](Tests/AdaEditorTests/EditorAgentA2UITransportTests.swift).
-macOS ACP catalog discovers/installs/connects agents; mobile uses an in-process
-SloppyRuntime path when available. The macOS catalog shows bundled ACP Registry logos
+macOS/Windows ACP catalog discovers/installs/connects agents; mobile uses an in-process
+SloppyRuntime path when available. Windows reuses ACPModel and the shared editor service
+with native stdio JSON-RPC, suspended process/job startup, explicit inherited handles,
+literal argv, file/terminal callbacks and MCP stdio bridging. Native Windows registry
+binaries are preferred; npm launchers resolve to Node.js without a command shell.
+Node.js/uv remain prerequisites for their package distributions. Windows process-backed
+coverage includes session/model state, streaming, cancellation, permissions, files,
+terminals, MCP and A2UI. Provider account authentication requires the agent's own setup.
+The macOS catalog shows bundled ACP Registry logos
 and Sloppy branding for installed, discovered and registry agents. New registry logos
 load from HTTPS metadata with a shared cache and a generic fallback; icon URLs persist
 with managed installations. Editor MCP/host tools expose project/docs/API
