@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-14
-- Implementation: Partial (import, animation, dynamic world and physics; editor integration pending; not released)
+- Implementation: Partial (import, animation, dynamic world and physics; editor integration shipped; not released)
 
 ## Context
 
@@ -55,6 +55,13 @@ structure for part animation. An import option, `mergeStatic`, merges subtrees
 that contain no animated transform (every `nTRN` has at most one frame) into one
 mesh per subtree, trading structure for fewer draw calls. The parser exposes
 `VOXTransformNode.isAnimated` so the importer can decide without extra data.
+
+Import settings (`voxelSize`, `mergeStatic`, `framesPerSecond`) are stored per
+model in `Model3DSource.voxel` and reach the importer as an asset query
+(`castle.vox#voxelSize=0.05&mergeStatic=1&fps=24`), the mechanism other assets
+already use for options, so they also work with `AssetsManager` directly. The
+editor exposes them in the Model 3D inspector, imports and previews `.vox` like
+other models, and keeps its glTF-specific tooling glTF-only.
 
 ### 4. Animation
 
@@ -122,7 +129,7 @@ deferred until the corresponding backend capabilities are verified.
 
 1. ADR and `.vox` parser with tests (done).
 2. Mesher: culled faces, then greedy, with baked AO (done).
-3. Scene import (done: `.vox` loads as `ModelAsset3D`, hybrid `mergeStatic`); editor integration pending.
+3. Scene import and editor integration (done: `.vox` loads as `ModelAsset3D`, hybrid `mergeStatic`, per-model `VoxelImportSettings`, editor import/preview/inspector).
 4. Animation (done: rigid parts and frame-by-frame).
 5. Chunked dynamic world (done).
 6. Physics (done: compound boxes, chunk colliders, floating islands).

@@ -17,6 +17,7 @@ final class EditorModelAssetPreviewModel {
     @ObservationIgnored private var normalizationCache: (ObjectIdentifier, Transform, AABB)?
     @ObservationIgnored private weak var world: World?
     @ObservationIgnored private var animationRoot: Entity.ID?
+    @ObservationIgnored private var voxelRoot: Entity.ID?
 
     func load(_ document: EditorAssetDocument) {
         load(path: document.absolutePath)
@@ -28,6 +29,7 @@ final class EditorModelAssetPreviewModel {
         normalizationCache = nil
         world = nil
         animationRoot = nil
+        voxelRoot = nil
         error = nil
         isLoading = true
         loadTask = Task { [weak self] in
@@ -51,10 +53,27 @@ final class EditorModelAssetPreviewModel {
     func bind(to world: World) {
         self.world = world
         animationRoot = world.getEntities().first { $0.components[ModelAnimation3DComponent.self] != nil }?.id
+        voxelRoot = world.getEntities().first { $0.components[VoxelAnimationPlayback3DComponent.self] != nil }?.id
         updatePlayback()
     }
 
+    /// Whether the previewed asset is a MagicaVoxel scene with animation to play.
+    var hasVoxelAnimation: Bool { asset?.voxelTimeline != nil }
+
+    /// Frame count and rate of the voxel timeline, for display.
+    var voxelTimelineDescription: String? {
+        asset?.voxelTimeline.map { "\($0.frameCount) frames at \(Int($0.framesPerSecond)) fps" }
+    }
+
+    private func updateVoxelPlayback() {
+        guard let world, let voxelRoot, let root = world.getEntityByID(voxelRoot),
+            var playback = root.components[VoxelAnimationPlayback3DComponent.self] else { return }
+        playback.isPlaying = playsAnimation
+        root.components[VoxelAnimationPlayback3DComponent.self] = playback
+    }
+
     private func updatePlayback() {
+        updateVoxelPlayback()
         guard let world, let animationRoot, let root = world.getEntityByID(animationRoot),
             var component = root.components[ModelAnimation3DComponent.self] else { return }
         do {
@@ -222,8 +241,13 @@ struct EditorModelAssetPreview: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(document.title).font(.system(size: 14, weight: .bold)).foregroundColor(theme.editorColors.text)
                 if let asset = model.asset {
-                    Text("\(asset.meshes.count) meshes · \(asset.materials.count) materials · \(asset.skins.count) skins")
-                        .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+                    if asset.voxelTimeline != nil || document.title.lowercased().hasSuffix(".vox") {
+                        Text(["\(asset.meshes.count) voxel meshes", model.voxelTimelineDescription].compactMap { $0 }.joined(separator: " · "))
+                            .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+                    } else {
+                        Text("\(asset.meshes.count) meshes · \(asset.materials.count) materials · \(asset.skins.count) skins")
+                            .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+                    }
                 }
             }
             Spacer()
@@ -257,7 +281,7 @@ struct EditorModelAssetPreview: View {
                 Text(model.playsAnimation ? "Pause" : "Play").font(.system(size: 11))
             }
             .buttonStyle(DefaultButtonStyle())
-            .disabled(model.animation.isEmpty && model.animationGraph == nil)
+            .disabled(model.animation.isEmpty && model.animationGraph == nil && !model.hasVoxelAnimation)
             .accessibilityIdentifier("AdaEditor.ModelPreview.PlayAnimation")
             Spacer()
         }

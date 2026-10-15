@@ -17,10 +17,10 @@ extension ModelAsset3D {
         var timeline: VoxelTimeline?
     }
 
-    /// Imports a MagicaVoxel (`.vox`) file with default options.
-    static func loadVoxelContents(url: URL) async throws -> Contents {
+    /// Imports a MagicaVoxel (`.vox`) file with the given options.
+    static func loadVoxelContents(url: URL, options: VoxelImportOptions = VoxelImportOptions()) async throws -> Contents {
         let file = try await VOXLoader().load(url: url)
-        return makeVoxelContents(file: file, options: VoxelImportOptions())
+        return makeVoxelContents(file: file, options: options)
     }
 
     /// Converts a parsed MagicaVoxel scene to model contents, creating GPU meshes on the current render device.

@@ -35,15 +35,28 @@ public struct Model3DSource: Codable, Equatable, Sendable {
     /// Optional authored pose graph. When present it takes precedence over the single clip.
     public var animationGraph: AnimationGraph?
     public var lod: Model3DSourceLOD?
+    /// Import settings for MagicaVoxel (`.vox`) sources; ignored for other formats.
+    public var voxel: VoxelImportSettings?
 
     public init(source: String = "", animation: String = "", autoplay: Bool = false, repeats: Bool = true,
-                animationGraph: AnimationGraph? = nil, lod: Model3DSourceLOD? = nil) {
+                animationGraph: AnimationGraph? = nil, lod: Model3DSourceLOD? = nil, voxel: VoxelImportSettings? = nil) {
+        self.voxel = voxel
         self.source = source
         self.animation = animation
         self.autoplay = autoplay
         self.repeats = repeats
         self.animationGraph = animationGraph
         self.lod = lod
+    }
+
+    /// The path the model asset is loaded from: ``source`` plus the import settings of a `.vox` file as an asset query.
+    public var assetPath: String {
+        guard let voxel, !voxel.isDefault, !source.isEmpty, !source.contains("#"),
+            source.lowercased().hasSuffix(".vox"), !voxel.assetQuery.isEmpty
+        else {
+            return source
+        }
+        return "\(source)#\(voxel.assetQuery)"
     }
 
     /// Installs an already loaded asset. Used by hosts that prepare models before their first frame.
@@ -142,7 +155,7 @@ public struct Model3DSourceSystem {
         for (id, reference) in pending {
             let result: Result<(ModelAsset3D?, [ModelAsset3D]), AssetError>
             do {
-                let model = reference.source.isEmpty ? nil : try await AssetsManager.load(ModelAsset3D.self, at: reference.source).asset
+                let model = reference.source.isEmpty ? nil : try await AssetsManager.load(ModelAsset3D.self, at: reference.assetPath).asset
                 var alternatives: [ModelAsset3D] = []
                 for source in reference.lod?.sources ?? [] {
                     guard let level = try await AssetsManager.load(ModelAsset3D.self, at: source).asset else {

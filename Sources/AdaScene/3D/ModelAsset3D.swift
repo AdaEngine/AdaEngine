@@ -82,7 +82,8 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
 
     public init(from assetDecoder: any AssetDecoder) async throws {
         if assetDecoder.assetMeta.filePath.pathExtension.lowercased() == "vox" {
-            let contents = try await Self.loadVoxelContents(url: assetDecoder.assetMeta.filePath)
+            let settings = VoxelImportSettings(queryParams: assetDecoder.assetMeta.queryParams)
+            let contents = try await Self.loadVoxelContents(url: assetDecoder.assetMeta.filePath, options: settings.options)
             self.nodes = contents.nodes
             self.meshes = contents.meshes
             self.materials = contents.materials
