@@ -36,6 +36,8 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var hasCalledSetup = false
     /// When true, this coordinator's ``AppWorlds`` is a subworld of ``AppWorldsSession/current`` and is updated by the host ``AppWorlds/update()`` loop (no separate ``tick`` work).
     private var isHostedSubworld = false
+    private weak var hostWorlds: AppWorlds?
+    private var isRenderingEnabled = true
     /// Fallback when no host session exists (e.g. unusual test harnesses).
     private var standaloneTickInFlight = false
 
@@ -101,7 +103,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 return
             }
             if let host = AppWorldsSession.current {
-                host.addSubworld(app, by: self.hostSubworldName)
+                self.hostWorlds = host
                 self.isHostedSubworld = true
             } else {
                 self.isHostedSubworld = false
@@ -113,6 +115,8 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 return
             }
             self.appWorlds = app
+            app.isHostedUpdateSuspended = !self.isRenderingEnabled
+            self.hostWorlds?.addSubworld(app, by: self.hostSubworldName)
             self.isBootstrapping = false
             self.finalizeSetupIfReady()
         }
@@ -139,6 +143,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         isBootstrapping = false
         hasCalledSetup = false
         isHostedSubworld = false
+        hostWorlds = nil
         standaloneTickInFlight = false
         currentSize = .zero
         scaleFactor = 1
@@ -179,6 +184,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     func tick(_ deltaTime: AdaUtils.TimeInterval) {
+        guard isRenderingEnabled else { return }
         applyPendingSizeIfReady(deltaTime: deltaTime)
 
         guard let appWorlds, hasCalledSetup else {
@@ -194,6 +200,12 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             return
         }
         standaloneTick(deltaTime)
+    }
+
+    func setRenderingEnabled(_ enabled: Bool) {
+        guard enabled != isRenderingEnabled else { return }
+        isRenderingEnabled = enabled
+        appWorlds?.isHostedUpdateSuspended = !enabled
     }
 
     func receiveInputEvent(_ event: any InputEvent) {

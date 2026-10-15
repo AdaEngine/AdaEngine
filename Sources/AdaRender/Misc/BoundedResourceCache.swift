@@ -6,6 +6,8 @@ struct BoundedResourceCache<Key: Hashable, Value> {
         let owners: [AnyObject]
     }
     private var entries: [Key: Entry] = [:]
+    private var insertionOrder: [Key] = []
+    private var nextEvictionIndex = 0
     private let capacity: Int
 
     init(capacity: Int) { self.capacity = max(1, capacity) }
@@ -17,8 +19,16 @@ struct BoundedResourceCache<Key: Hashable, Value> {
         guard let value = create() else {
             return nil
         }
-        // Pipeline-local limits keep destroyed scene resources from being retained indefinitely.
-        if entries.count >= capacity { entries.removeAll(keepingCapacity: true) }
+        // Evict one oldest binding, preserving the rest of the working set.
+        // Clearing the whole cache makes a single new resource rebuild unrelated
+        // GPU bindings as well. The ring keeps eviction and cache hits O(1).
+        if entries.count >= capacity {
+            entries.removeValue(forKey: insertionOrder[nextEvictionIndex])
+            insertionOrder[nextEvictionIndex] = key
+            nextEvictionIndex = (nextEvictionIndex + 1) % capacity
+        } else {
+            insertionOrder.append(key)
+        }
         entries[key] = Entry(value: value, owners: owners)
         return value
     }

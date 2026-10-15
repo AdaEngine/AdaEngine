@@ -98,19 +98,8 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
         if let window, parentView === window, window.configuration.chrome == .standard,
             window.configuration.titleBar.background == .transparent, !window.configuration.titleBar.reservesSafeArea {
             let height = window.configuration.titleBar.dragRegionHeight ?? 32
-            let regions: [Rect] = viewTree.rootNode.uiCollectNodes { $0.blocksWindowDrag }
-                .map { node in
-                    let frame = node.visualAbsoluteFrame()
-                    return Rect(origin: self.convert(frame.origin, to: window), size: frame.size)
-                }
-                .filter { (region: Rect) in region.minY < height && region.maxY > 0 }
-            let maximizeButton = viewTree.rootNode.uiCollectNodes {
-                $0.accessibilityIdentifier == "AdaUI.Caption.Maximize"
-            }.first.map { node in
-                let frame = node.visualAbsoluteFrame()
-                return Rect(origin: self.convert(frame.origin, to: window), size: frame.size)
-            }
-            window.systemWindow?.updateTitleBarInputRegions(regions, maximizeButton: maximizeButton)
+            let caption = windowCaptionInputRegions(height: height, window: window)
+            window.systemWindow?.updateTitleBarInputRegions(caption.regions, maximizeButton: caption.maximizeButton)
         }
         #endif
     }
@@ -545,7 +534,7 @@ extension UIView {
                 isVisible: true,
                 isResizable: window.configuration.isResizable,
                 isMaximized: window.systemWindow?.isMaximized ?? false,
-                action: { [weak window] action in window?.systemWindow?.performCaptionAction(action) }
+                target: window.captionCommandTarget
             )
         }
         #endif

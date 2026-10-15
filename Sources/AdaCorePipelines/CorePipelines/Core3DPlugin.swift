@@ -101,6 +101,7 @@ public struct Core3DPlugin: Plugin {
             .insertResource(Active3DInstanceBuffers())
             .insertResource(Render3DVisibilityStatistics())
             .insertResource(Lighting3DGPUScratch())
+            .insertResource(View3DGPUScratch())
             .insertResource(IBL3DScratch())
             .insertResource(Skinning3DUniforms())
             .insertResource(DirectionalShadow3D())

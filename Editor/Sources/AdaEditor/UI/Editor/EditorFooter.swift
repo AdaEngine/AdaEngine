@@ -231,7 +231,10 @@ private struct EditorActivityProgressView: View {
         let titleWidth = max(100, width - progressWidth - countWidth - 14 - spacingWidth)
 
         HStack(spacing: 8) {
-            EditorFlipLoadingIndicator(color: theme.editorColors.blue)
+            EditorFlipLoadingIndicator(
+                color: theme.editorColors.blue,
+                isAnimating: activity.fractionCompleted.map { $0 < 1 } ?? true
+            )
                 .accessibilityIdentifier("AdaEditor.ActivityProgress.Flip")
 
             Text(activity.compactTitle)

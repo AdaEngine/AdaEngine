@@ -24,6 +24,9 @@ final class MockViewportDelegate: OffscreenViewportDelegate {
     var lastMousePosition: Point = .zero
     var lastSize: SizeInt = .zero
     var lastScaleFactor: Float = 0
+    var renderingChanges: [Bool] = []
+
+    func setRenderingEnabled(_ enabled: Bool) { renderingChanges.append(enabled) }
 
     func bootstrapIfNeeded() {
         bootstrapCallCount += 1
@@ -72,6 +75,27 @@ struct OffscreenViewportTests {
 
     init() async throws {
         try Application.prepareForTest()
+    }
+
+    @Test(arguments: [true, false])
+    func inactiveWindowUpdatesAreOptOut(updatesWhenInactive: Bool) {
+        let delegate = MockViewportDelegate()
+        let tester = ViewTester {
+            OffscreenViewportView(delegate: delegate, updatesWhenWindowInactive: updatesWhenInactive)
+        }.setSize(Size(width: 400, height: 300)).performLayout()
+        let window = UIWindow(configuration: .init())
+        window.addSubview(tester.containerView)
+        tester.containerView.update(0.016)
+        #expect(delegate.tickCount == (updatesWhenInactive ? 1 : 0))
+        #expect(delegate.renderingChanges == (updatesWhenInactive ? [] : [false]))
+        window.isActive = true
+        tester.containerView.update(0.016)
+        #expect(delegate.tickCount == (updatesWhenInactive ? 2 : 1))
+        #expect(delegate.renderingChanges == (updatesWhenInactive ? [] : [false, true]))
+        window.isActive = false
+        tester.containerView.update(0.016)
+        #expect(delegate.tickCount == (updatesWhenInactive ? 3 : 1))
+        #expect(delegate.renderingChanges == (updatesWhenInactive ? [] : [false, true, false]))
     }
 
     @Test

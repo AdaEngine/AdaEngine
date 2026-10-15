@@ -2,11 +2,29 @@ import AdaUtils
 import Math
 
 /// Window caption commands are supplied by the hosting window, rather than the active popup.
-struct WindowCaptionPresentation: Sendable {
+struct WindowCaptionPresentation: Sendable, Hashable {
     var isVisible = false
     var isResizable = true
     var isMaximized = false
-    var action: @MainActor @Sendable (WindowCaptionAction) -> Void = { _ in }
+    var target: WindowCaptionCommandTarget?
+
+    @MainActor func action(_ action: WindowCaptionAction) {
+        target?.perform(action)
+    }
+}
+
+/// A stable command identity for an individual host. Keeping the window weak
+/// avoids retaining its view tree through the environment.
+@MainActor
+final class WindowCaptionCommandTarget: Hashable {
+    private weak var window: UIWindow?
+
+    init(window: UIWindow) { self.window = window }
+
+    func perform(_ action: WindowCaptionAction) { window?.systemWindow?.performCaptionAction(action) }
+
+    nonisolated static func == (lhs: WindowCaptionCommandTarget, rhs: WindowCaptionCommandTarget) -> Bool { lhs === rhs }
+    nonisolated func hash(into hasher: inout Hasher) { hasher.combine(ObjectIdentifier(self)) }
 }
 
 extension EnvironmentValues {

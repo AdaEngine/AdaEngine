@@ -62,6 +62,10 @@ require Apple platforms. AdaPlayer uses native WinSock and Windows DNS-SD;
 manual `host:port` connection is available when discovery is unavailable.
 `AdaEditor.exe --ada-player` opens the Windows player.
 
+Windows Studio follows the WebGPU FIFO display cadence using a high-resolution
+frame clock. Release FPS and frame-interval measurements, hardware details and
+PresentMon reproduction commands are in [Windows performance](Documentation/WindowsPerformance.md).
+
 Windows Agent Chat supports local ACP agents. Open **Settings → Agents**, choose
 **Refresh**, then connect a discovered adapter or use **Install & Connect** from
 the ACP Registry. Native Windows distributions are preferred when available;

@@ -139,7 +139,11 @@ struct AdaEditorApp: App {
             }
         #elseif os(Windows)
             .transformAppWorlds { worlds in
-                worlds.insertResource(ApplicationFramePacing(maximumFramesPerSecond: 60, minimumFramesPerSecond: 60))
+                worlds.insertResource(ApplicationFramePacing(
+                    maximumFramesPerSecond: 60,
+                    synchronizesWithDisplayRefreshRate: true,
+                    minimumFramesPerSecond: 60
+                ))
             }
         #endif
         #if canImport(AdaMCPPlugin)

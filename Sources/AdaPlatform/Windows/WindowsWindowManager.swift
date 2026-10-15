@@ -48,6 +48,14 @@
         private var windowsSynchronizingFromSystem: Set<UIWindow.ID> = []
         private var cursorShape: Input.CursorShape = .arrow
 
+        /// Whether a visible FIFO surface can provide display-paced updates.
+        var hasVisibleRenderWindow: Bool {
+            windows.contains { window in
+                guard window.canDraw, !window.isHidden, let handle = windowHandles[window.id] else { return false }
+                return unsafe IsWindowVisible(handle) && !IsIconic(handle)
+            }
+        }
+
         init(_ screenManager: WindowsScreenManager) {
             self.screenManager = screenManager
             super.init()

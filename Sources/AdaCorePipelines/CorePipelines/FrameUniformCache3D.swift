@@ -1,6 +1,10 @@
 import AdaECS
 import AdaRender
 
+struct View3DGPUScratch: Resource {
+    var cache = FrameUniformCache3D<GlobalViewUniform>()
+}
+
 /// Each camera/pass has its own ring; the graph never rewrites constants referenced by another in-flight view.
 struct FrameUniformCache3D<Value: Sendable>: Sendable {
     private struct Key: Hashable { var view: Entity.ID; var pass: Int }

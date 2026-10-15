@@ -45,6 +45,8 @@ open class UIWindow: UIView {
     }
 
     @_spi(Internal) public var systemWindow: SystemWindow?
+
+    lazy var captionCommandTarget = WindowCaptionCommandTarget(window: self)
     /// Native view containing an embedded panel's overlays, in panel-local coordinates.
     @_spi(Internal) public weak var nativeHostingView: AnyObject?
     @_spi(Internal) public var runtimeCameraEntity: Entity?

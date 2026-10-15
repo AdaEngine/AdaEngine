@@ -8,6 +8,7 @@ extension EditorSceneViewportView {
         let document = document
         let onDocumentChanged = onDocumentChanged
         let viewProxy = viewProxy
+        let viewportPresentation = viewportPresentation
 
         let loadResult = viewportModel.configure(
             sceneContent: document.content,
@@ -45,6 +46,7 @@ extension EditorSceneViewportView {
                     return
                 }
                 viewportModel.updateSelectedGizmo(gizmo)
+                viewportPresentation.revision &+= 1
                 viewProxy.redraw()
             },
             addEntity: { preset in
@@ -109,8 +111,9 @@ extension EditorSceneViewportView {
     }
 
     func redrawViewport() {
-        // Drawing invalidation alone does not rebuild the ruler labels inside GeometryReader.
-        viewportRevision &+= 1
+        // Only annotations and status observe this revision. Camera movement must
+        // not rebuild the SceneView, toolbar and Inspector action bindings.
+        viewportPresentation.revision &+= 1
         viewProxy.redraw()
     }
 

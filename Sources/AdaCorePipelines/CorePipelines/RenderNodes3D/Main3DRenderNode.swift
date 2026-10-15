@@ -48,6 +48,8 @@ public struct Main3DRenderNode: RenderNode {
     @ResMut<Lighting3DGPUScratch>
     private var lightingScratch
 
+    @ResMut<View3DGPUScratch> private var viewUniforms
+
     @Res<RenderDeviceHandler>
     private var renderDevice
 
@@ -71,6 +73,7 @@ public struct Main3DRenderNode: RenderNode {
         _materials.update(from: world)
         _statistics.update(from: world)
         _lightingScratch.update(from: world)
+        _viewUniforms.update(from: world)
         _localUniforms.update(from: world)
         _environments.update(from: world)
         _ibl.update(from: world)
@@ -78,6 +81,7 @@ public struct Main3DRenderNode: RenderNode {
         var activeViews: [Entity.ID] = []
         query.forEach { _, _, _, _, source in activeViews.append(source.entityId) }
         lightingScratch.cache.retainViews(activeViews)
+        viewUniforms.cache.retainViews(activeViews)
         ibl.cache.retainViews(activeViews)
         lists.retainViews(activeViews)
         gpuVisibility.retainViews(activeViews)
@@ -220,7 +224,10 @@ public struct Main3DRenderNode: RenderNode {
             }
             let renderPass = foveatedPass?.encoder ?? commandBuffer.beginRenderPass(descriptor)
 
-            renderPass.setVertexBuffer(drawUniform, slot: GlobalBufferIndex.viewUniform)
+            // Stable in-flight buffer identities keep material bind groups reusable
+            // across frames; inline bytes allocate a new WebGPU buffer every pass.
+            let viewConstants = viewUniforms.cache.write(drawUniform, view: source.entityId, device: renderDevice.renderDevice)
+            renderPass.setVertexBuffer(viewConstants, offset: 0, slot: GlobalBufferIndex.viewUniform)
             renderPass.setVertexBuffer(lightConstants, offset: 0, slot: 1)
             renderPass.setFragmentBuffer(lightConstants, offset: 0, slot: 1)
             renderPass.setFragmentBuffer(localConstants, offset: 0, slot: 25)
