@@ -1,8 +1,115 @@
 @_spi(AdaEngine) import AdaEngine
+@_spi(Internal) import AdaUI
+import Observation
+
+@MainActor
+@Observable
+final class EditorViewportPresentation {
+    @ObservationIgnored var revision: UInt = 0
+    private(set) var rulerRevision: UInt = 0
+    private(set) var statusSuffix: String?
+    @ObservationIgnored private var rulerState: RulerState?
+    @ObservationIgnored private var preparedAnnotations: Annotations?
+    @ObservationIgnored private(set) var presentedAnnotations: Annotations?
+    @ObservationIgnored private var annotationGeneration: UInt64 = 0
+    @ObservationIgnored var annotationTheme = Theme()
+
+    struct Annotations {
+        let generation: UInt64
+        let revision: UInt
+        let size: Size
+        let theme: Theme
+        let grid: UIGraphicsContext
+        let gizmos: UIGraphicsContext
+    }
+
+    private struct RulerState: Equatable {
+        let center: Vector2
+        let zoom: Float
+        let blend: Float
+        let size: Size
+    }
+
+    func refresh(viewportModel: EditorSceneViewportModel) {
+        revision &+= 1
+        let suffix = viewportModel.statusSuffix
+        if statusSuffix != suffix { statusSuffix = suffix }
+        let state = viewportModel.smoothPerspectiveBlend < 1
+            ? RulerState(center: viewportModel.twoDCenter, zoom: viewportModel.twoDZoom,
+                         blend: viewportModel.smoothPerspectiveBlend, size: viewportModel.viewportSize)
+            : nil
+        if rulerState != state {
+            rulerState = state
+            rulerRevision &+= 1
+        }
+    }
+
+    func invalidateAnnotations() {
+        preparedAnnotations = nil
+    }
+
+    func prepareFrame(viewportModel: EditorSceneViewportModel, theme: Theme) -> @MainActor () -> Void {
+        // SceneView debounces render-target resizing. Capture in the target's
+        // logical size and stretch with that texture until the new target arrives.
+        let cameraSize = viewportModel.cameraEntity()?.components[Camera.self]?.logicalViewport.rect.size
+        let size = cameraSize.flatMap { $0.width > 0 && $0.height > 0 ? $0 : nil } ?? viewportModel.viewportSize
+        let annotations: Annotations
+        if let preparedAnnotations, preparedAnnotations.revision == revision,
+            preparedAnnotations.size == size, preparedAnnotations.theme == theme {
+            annotations = preparedAnnotations
+        } else {
+            var grid = UIGraphicsContext()
+            var gizmos = UIGraphicsContext()
+            viewportModel.drawGrid(in: &grid, size: size, theme: theme)
+            viewportModel.drawGizmos(in: &gizmos, size: size, theme: theme)
+            grid.commitDraw()
+            gizmos.commitDraw()
+            annotationGeneration &+= 1
+            annotations = Annotations(generation: annotationGeneration, revision: revision, size: size, theme: theme, grid: grid, gizmos: gizmos)
+            preparedAnnotations = annotations
+        }
+        return { [weak self] in self?.presentedAnnotations = annotations }
+    }
+}
+
+/// Scene textures change each frame; editor annotations change only with the viewport.
+struct EditorViewportDrawingLayer: View {
+    enum Kind { case grid, gizmos }
+
+    let viewportModel: EditorSceneViewportModel
+    let presentation: EditorViewportPresentation
+    let kind: Kind
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Canvas(drawingRevision: { presentation.presentedAnnotations?.generation ?? (UInt64.max - UInt64(presentation.revision)) }) { context, size in
+            if let annotations = presentation.presentedAnnotations {
+                let source = kind == .grid ? annotations.grid : annotations.gizmos
+                let scale = Vector3(size.width / max(1, annotations.size.width), size.height / max(1, annotations.size.height), 1)
+                context.drawContents(of: source, transform: context.transform * Transform3D(scale: scale))
+                return
+            }
+            switch kind {
+            case .grid: viewportModel.drawGrid(in: &context, size: size, theme: theme)
+            case .gizmos: viewportModel.drawGizmos(in: &context, size: size, theme: theme)
+            }
+        }
+    }
+}
 
 extension EditorSceneViewportView {
     var viewportCoordinateRulerLayer: some View {
-        let revision = viewportRevision
+        EditorViewportRulerLayer(viewportModel: viewportModel, presentation: viewportPresentation)
+    }
+}
+
+struct EditorViewportRulerLayer: View {
+    let viewportModel: EditorSceneViewportModel
+    let presentation: EditorViewportPresentation
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let revision = presentation.rulerRevision
         return GeometryReader { proxy in
             // A declaration is required inside AdaUI's result builder.
             // swiftlint:disable:next redundant_discardable_let
@@ -52,5 +159,18 @@ extension EditorSceneViewportView {
                 .frame(width: 34, height: 18, alignment: .trailing)
                 .offset(x: 2, y: label.position.y - 9)
         }
+    }
+}
+
+struct EditorViewportStatusLabel: View {
+    let presentation: EditorViewportPresentation
+    let viewportModel: EditorSceneViewportModel
+    let warning: String?
+    let entityCount: Int
+
+    var body: some View {
+        Text(warning.map { "Scene warning: \($0)" }
+            ?? "Loaded \(entityCount) entities · \(presentation.statusSuffix ?? viewportModel.statusSuffix)")
+            .accessibilityIdentifier("AdaEditor.SceneViewport.Status")
     }
 }

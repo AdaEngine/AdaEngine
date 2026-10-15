@@ -17,7 +17,7 @@ struct EditorSceneViewportView: View {
     var onEditWorldReady: ((World) -> Void)?
 
     @State private var performanceSession = EditorGamePerformanceSession()
-    @State var viewportRevision: UInt = 0
+    @State var viewportPresentation = EditorViewportPresentation()
     @State var runtimeWarnings: [String] = []
     @State private var displayMode: EditorSceneViewportDisplayMode = .twoD
     @State private var activeTool: EditorSceneViewportTool = .translate
@@ -91,6 +91,7 @@ struct EditorSceneViewportView: View {
                                 runtimeWarnings = result.warnings
                             }
                             viewportModel.attachSceneWorld(app.main, loadResult: result)
+                            redrawViewport()
                             onEditWorldReady?(app.main)
                         },
                         updateContent: { world, deltaTime in
@@ -109,6 +110,9 @@ struct EditorSceneViewportView: View {
                             }
                         }
                     )
+                    .onPrepareFramePresentation {
+                        viewportPresentation.prepareFrame(viewportModel: viewportModel, theme: viewportPresentation.annotationTheme)
+                    }
                     .frame(width: geometry.size.width, height: geometry.size.height)
 
                     viewportSceneOverlay
@@ -309,18 +313,14 @@ struct EditorSceneViewportView: View {
             // A declaration is required inside AdaUI's result builder.
             // swiftlint:disable:next redundant_discardable_let
             let _ = viewportModel.setViewportSize(proxy.size)
-            Canvas { context, size in
-                viewportModel.drawGrid(in: &context, size: size, theme: theme)
-            }
+            EditorViewportDrawingLayer(viewportModel: viewportModel, presentation: viewportPresentation, kind: .grid)
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
     }
 
     private var viewportGizmoLayer: some View {
         GeometryReader { proxy in
-            Canvas { context, size in
-                viewportModel.drawGizmos(in: &context, size: size, theme: theme)
-            }
+            EditorViewportDrawingLayer(viewportModel: viewportModel, presentation: viewportPresentation, kind: .gizmos)
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
@@ -328,7 +328,12 @@ struct EditorSceneViewportView: View {
 
     private var statusBar: some View {
         HStack(spacing: 8) {
-            Text(statusText)
+            EditorViewportStatusLabel(
+                presentation: viewportPresentation,
+                viewportModel: viewportModel,
+                warning: (document.loadSummary.warnings + runtimeWarnings).first,
+                entityCount: document.loadSummary.entityCount
+            )
                 .font(.system(size: 11))
                 .foregroundColor(statusColor)
                 .padding(.horizontal, 10)
@@ -352,15 +357,6 @@ struct EditorSceneViewportView: View {
             Spacer()
         }
         .padding(12)
-    }
-
-    private var statusText: String {
-        let warnings = document.loadSummary.warnings + runtimeWarnings
-        if let firstWarning = warnings.first {
-            return "Scene warning: \(firstWarning)"
-        }
-
-        return "Loaded \(document.loadSummary.entityCount) entities · \(viewportModel.statusSuffix)"
     }
 
     private var playStatusText: String {

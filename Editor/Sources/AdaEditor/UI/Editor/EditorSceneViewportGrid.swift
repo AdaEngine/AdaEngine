@@ -268,6 +268,10 @@ extension EditorSceneViewportModel {
     func project(_ worldPoint: Vector3, size: Size) -> Vector2? {
         let state = cameraState(for: size)
         let viewProjection = state.projection.makeClipView() * state.transform.matrix.inverse
+        return project(worldPoint, viewProjection: viewProjection, size: size)
+    }
+
+    func project(_ worldPoint: Vector3, viewProjection: Transform3D, size: Size) -> Vector2? {
         let clipPoint = viewProjection * Vector4(worldPoint, 1)
         guard clipPoint.w.isFinite, abs(clipPoint.w) > 0.0001 else {
             return nil

@@ -16,6 +16,14 @@ struct EditorSceneUIPreview {
         size: Size
     ) -> [Self] {
         let entities = world.getEntities()
+        // Most scene entities have no UI. Filter before sorting and resolving
+        // authored hierarchy transforms (which decode component payloads).
+        // In particular, a 3D scene viewed in 2D should do no preview work when
+        // it contains no UI components.
+        let uiEntities = entities.filter {
+            $0.isActive && editorIDsByEntityID[$0.id] != nil && $0.components[UIComponent.self] != nil
+        }
+        guard !uiEntities.isEmpty else { return [] }
         let cameraEntity = entities.filter {
             editorIDsByEntityID[$0.id] != nil && $0.isActive && $0.components[Camera.self]?.isActive == true
         }.max {
@@ -24,14 +32,13 @@ struct EditorSceneUIPreview {
         let camera = cameraEntity?.components[Camera.self]
         let cameraMatrix = cameraEntity.flatMap { editorIDsByEntityID[$0.id] }.flatMap(viewportModel.gizmoWorldMatrix)
         let runtime = world.getResource(UIComponentRuntimeResource.self)?.runtime
-        return entities.sorted {
+        return uiEntities.sorted {
             ($0.components[Transform.self]?.position.z ?? 0) < ($1.components[Transform.self]?.position.z ?? 0)
         }.compactMap { entity in
             guard
-                entity.isActive,
                 let editorID = editorIDsByEntityID[entity.id],
-                let matrix = viewportModel.gizmoWorldMatrix(for: editorID),
                 let component = entity.components[UIComponent.self],
+                let matrix = viewportModel.gizmoWorldMatrix(for: editorID),
                 let view = try? component.resolveView(runtime: runtime)
             else {
                 return nil

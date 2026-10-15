@@ -49,12 +49,14 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private let makeClosure: @MainActor (inout AppWorlds) -> Void
     private let updateContentClosure: @MainActor (World, AdaUtils.TimeInterval) -> Void
     private let onFrameRendered: (@MainActor (Texture2D) -> Void)?
+    private let prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))?
     private let resizeApplyDelay: AdaUtils.TimeInterval = 0.08
     /// Common guaranteed 2D texture limit across the supported Metal and WebGPU device families.
     private let maximumRenderTextureDimension = 8_192
 
     private struct PendingDisplayTarget {
         var texture: RenderTexture
+        var present: (@MainActor () -> Void)?
         var isCompleted = false
     }
 
@@ -67,12 +69,14 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         useSceneCameras: Bool = false,
         make: @escaping @MainActor (inout AppWorlds) -> Void,
         updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void,
-        onFrameRendered: (@MainActor (Texture2D) -> Void)? = nil
+        onFrameRendered: (@MainActor (Texture2D) -> Void)? = nil,
+        prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))? = nil
     ) {
         self.useSceneCameras = useSceneCameras
         self.makeClosure = make
         self.updateContentClosure = updateContent
         self.onFrameRendered = onFrameRendered
+        self.prepareFramePresentation = prepareFramePresentation
         self.hostSubworldName = AppWorldName(rawValue: "SceneView.\(UUID().uuidString)")
     }
 
@@ -180,6 +184,9 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     func tick(_ deltaTime: AdaUtils.TimeInterval) {
         applyPendingSizeIfReady(deltaTime: deltaTime)
+        // GPU completion may arrive between UI extraction and submission. Only
+        // swap the displayed texture and its companion UI at the next UI tick.
+        publishRenderTextureIfReady()
 
         guard let appWorlds, hasCalledSetup else {
             return
@@ -401,6 +408,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         }
 
         var didPublish = false
+        var present: (@MainActor () -> Void)?
         while let firstTarget = pendingDisplayTargets.first,
             firstTarget.isCompleted {
             let completedTarget = pendingDisplayTargets.removeFirst()
@@ -415,11 +423,13 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 )
             }
             frontRenderTexture = completedTarget.texture
+            present = completedTarget.present
             if previousFrontTexture !== completedTarget.texture {
                 didPublish = true
             }
         }
         if didPublish {
+            present?()
             if let renderTexture = renderTexture as? Texture2DProxy,
                 let frontRenderTexture {
                 renderTexture.replaceSource(with: frontRenderTexture)
@@ -440,7 +450,6 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         }
 
         pendingDisplayTargets[index].isCompleted = true
-        publishRenderTextureIfReady()
     }
 
     private func prepareNextRenderTarget() {
@@ -486,7 +495,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             return
         }
 
-        pendingDisplayTargets.append(PendingDisplayTarget(texture: texture))
+        pendingDisplayTargets.append(PendingDisplayTarget(texture: texture, present: prepareFramePresentation?()))
     }
 
     private func nextAvailableRenderTexture() -> RenderTexture? {
