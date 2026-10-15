@@ -42,6 +42,10 @@ let package = Package(
             name: "AdaEditor",
             targets: ["AdaEditor"]
         ),
+        .library(
+            name: "AdaEditorKit",
+            targets: ["AdaEditorKit"]
+        ),
         .executable(
             name: "gravity-lsp",
             targets: ["GravityLanguageServer"]
@@ -90,9 +94,25 @@ let package = Package(
                 "AdaPackageManifestTool"
             ]
         ),
+        .target(
+            name: "AdaEditorKit",
+            dependencies: [
+                .product(name: "AdaEngine", package: "AdaEngine"),
+                .product(name: "Math", package: "AdaEngine"),
+            ],
+            swiftSettings: editorSwiftSettings
+        ),
+        .testTarget(
+            name: "AdaEditorKitTests",
+            dependencies: [
+                "AdaEditorKit",
+                .product(name: "AdaEngine", package: "AdaEngine"),
+            ]
+        ),
         .executableTarget(
             name: "AdaEditor",
             dependencies: [
+                "AdaEditorKit",
                 .product(name: "AdaDebugging", package: "AdaDebugging"),
                 .product(name: "AdaPlayerConnect", package: "AdaPlayerConnect"),
                 .product(name: "AdaEngine", package: "AdaEngine"),

@@ -259,6 +259,21 @@ Guides: [Debugging.md](Documentation/Debugging.md),
 Coverage: [EditorDebuggerLaunchTests.swift](Tests/AdaEditorTests/EditorDebuggerLaunchTests.swift),
 [EditorPerformanceTests.swift](Tests/AdaEditorTests/EditorPerformanceTests.swift).
 
+### Editor extensions (AdaEditorKit)
+
+`AdaEditorKit` (ADR-0026) is a separate library target with the extension
+contract: `EditorExtension`, manifests, contributions (panels, document editors,
+commands, inspectors, viewport tools, new-file templates) and
+`EditorExtensionRegistry` with ownership, permission, API-version and platform
+validation. It is a foundation only: `AdaEditor` does not read the registry yet,
+so no contribution reaches the UI. Native extensions are linked statically, never
+loaded at run time; AdaScript tools in `Tools/` stay the portable tier.
+Entry points: [EditorExtensionRegistry.swift](Sources/AdaEditorKit/EditorExtensionRegistry.swift),
+[EditorContributions.swift](Sources/AdaEditorKit/EditorContributions.swift).
+Coverage: [EditorExtensionRegistryTests.swift](Tests/AdaEditorKitTests/EditorExtensionRegistryTests.swift).
+In a git worktree the engine dependency identity follows the directory name; build
+from a copy named `AdaEngine` if package resolution reports `adaengine` unresolved.
+
 ### Git and agents
 
 Project-local AdaScript `@tool` extensions can mount right-sidebar `.ui` panels

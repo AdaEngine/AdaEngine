@@ -39,6 +39,7 @@ describes the intended design even when its implementation is still planned.
 | [ADR-0015](0015-adascript-async-tasks-and-coroutines.md) | Accepted | Partial (worktree foundation; not released) | Structured AdaScript async functions, awaitables, task ownership, timers, background I/O, and safe coroutine resumption |
 | [ADR-0016](0016-temporarily-disable-adascript-adaui.md) | Accepted | Partial (disablement shipped; redesign planned) | Temporarily disable AdaUI views in AdaScript and define the compiler/catalog/runtime redesign |
 | [ADR-0023](0023-studio-tools-ui-panels.md) | Accepted | Partial (local foundation; not released) | Project-local Studio tools with .ui panels, detached bindings/actions and document history |
+| [ADR-0026](0026-editor-extensions-and-editorkit.md) | Accepted | Partial (local foundation; not released) | Editor extensions in `Tools/`, the AdaEditorKit contribution registry, static native extensions and portable AdaScript tools |
 | [ADR-0024](0024-ada-script-testing.md) | Proposed | Partial (all but timeout and Editor integration; not released) | `@test` functions inline or under `Tests/`, an isolated `TestWorld` per test, and a runner bridged into `swift test` |
 
 ## Multiplayer decisions
