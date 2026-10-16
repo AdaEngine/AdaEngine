@@ -264,6 +264,8 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
                 [EditorBuiltInComponentType.camera, EditorBuiltInComponentType.visibility]
             case .sprite:
                 [EditorBuiltInComponentType.sprite]
+            case .spine2D:
+                [EditorBuiltInComponentType.spineSource]
             case .mesh2D:
                 [EditorBuiltInComponentType.mesh2D]
             case .tileMap:
@@ -296,6 +298,8 @@ struct EditorSceneModel: Codable, Equatable, Sendable {
         }
         if template == .scriptable {
             entities[entityIndex].components[EditorBuiltInComponentType.scriptableComponents] = ["scripts": .array([])]
+        } else if template == .spine2D {
+            entities[entityIndex].components[EditorBuiltInComponentType.transform]?["scale"] = .array([.double(0.005), .double(0.005), .double(1)])
         } else if template == .camera3D {
             entities[entityIndex].components[EditorBuiltInComponentType.camera]?["projection"] = .string("perspective")
             entities[entityIndex].components[EditorBuiltInComponentType.transform]?["position"] = .array([

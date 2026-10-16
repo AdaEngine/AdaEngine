@@ -232,7 +232,7 @@ extension EditorViewModel {
             return .audio
         }
 
-        if url.pathExtension.lowercased() == "tileset" || EditorModelResource.extensions.contains(url.pathExtension.lowercased()) {
+        if url.pathExtension.lowercased() == "tileset" || EditorModelResource.extensions.contains(url.pathExtension.lowercased()) || EditorSpineResource.extensions.contains(url.pathExtension.lowercased()) {
             return .genericAsset
         }
 
@@ -267,6 +267,7 @@ extension EditorViewModel {
         for kind: EditorProjectFileKind,
         fileExtension: String
     ) -> EditorAssetPreviewKind {
+        if EditorSpineResource.extensions.contains(fileExtension.lowercased()) { return .spine2D }
         if EditorModelResource.extensions.contains(fileExtension.lowercased()) {
             return .model3D
         }
@@ -398,6 +399,12 @@ extension EditorViewModel {
         inspectorSidebar.tileMapAssets = Self.tileMapAssets(from: projectSidebar.items)
         inspectorSidebar.particleEffectAssets = Self.particleEffectAssets(from: projectSidebar.items)
         inspectorSidebar.modelAssets = Self.modelAssets(from: projectSidebar.items)
+        inspectorSidebar.spineAssets = projectSidebar.items.compactMap { item in
+            guard !item.isFolder, EditorSpineResource.extensions.contains(URL(fileURLWithPath: item.title).pathExtension.lowercased()),
+                  let root = item.assetRoot, let reference = Self.assetReference(for: item.relativePath, assetsRoot: root),
+                  let path = Self.absoluteFilePath(from: item.id) else { return nil }
+            return .init(name: item.title, reference: reference, absolutePath: path)
+        }
         inspectorSidebar.sceneAssets = Self.sceneAssets(from: projectSidebar.items)
         inspectorSidebar.uiSourcePaths = Self.uiSourcePaths(from: projectSidebar.items)
         inspectorSidebar.uiSceneFiles = Self.uiSceneFiles(from: projectSidebar.items)

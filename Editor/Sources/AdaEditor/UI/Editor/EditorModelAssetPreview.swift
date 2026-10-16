@@ -10,6 +10,7 @@ final class EditorModelAssetPreviewModel {
     var error: String?
     var isLoading = true
     var selectedAnimation = "Rest pose" { didSet { updatePlayback() } }
+    var showsBones = false
     var playsAnimation = true { didSet { updatePlayback() } }
     var animationGraph: AnimationGraph? { didSet { updatePlayback() } }
     var graphEventLog: [String] = []
@@ -283,6 +284,12 @@ struct EditorModelAssetPreview: View {
             .buttonStyle(DefaultButtonStyle())
             .disabled(model.animation.isEmpty && model.animationGraph == nil && !model.hasVoxelAnimation)
             .accessibilityIdentifier("AdaEditor.ModelPreview.PlayAnimation")
+            Button(action: { model.showsBones.toggle() }) {
+                Text(model.showsBones ? "Hide bones" : "Show bones").font(.system(size: 11))
+            }
+            .buttonStyle(DefaultButtonStyle())
+            .disabled(model.asset?.skins.isEmpty != false)
+            .accessibilityIdentifier("AdaEditor.ModelPreview.Bones")
             Spacer()
         }
     }
