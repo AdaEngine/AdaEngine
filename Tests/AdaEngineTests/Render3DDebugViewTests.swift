@@ -36,8 +36,14 @@ struct Render3DDebugViewSettingsTests {
         #expect(!replacing.contains(.none))
         #expect(!replacing.contains(.wireframe))
         #expect(replacing.count == DebugView3D.allCases.count - 2)
-        // Each fullscreen view selects a distinct shader branch.
-        #expect(Set(replacing.map(\.shaderMode)).count == replacing.count)
+        // Views that read a dedicated target select their own shader branch; the three views the main pass
+        // colors itself share the scene-color branch but select distinct main-pass modes.
+        let mainPass = replacing.filter { $0.mainPassMode > 0 }
+        #expect(Set(mainPass.map(\.shaderMode)) == [7])
+        #expect(Set(mainPass.map(\.mainPassMode)).count == mainPass.count)
+        let ownTargets = replacing.filter { $0.mainPassMode == 0 }
+        #expect(Set(ownTargets.map(\.shaderMode)).count == ownTargets.count)
+        #expect(Set(ownTargets.map(\.shaderMode)).isDisjoint(with: [7]))
     }
 }
 
@@ -293,6 +299,35 @@ struct Render3DDebugViewMetalTests {
         return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity)
     }
 
+    private static func expectGolden(_ image: Image, named name: String) throws {
+        switch try GoldenFrame.check(image, name: name) {
+        case .recorded, .matched:
+            break
+        case .missingReference(let actual):
+            Issue.record("No golden frame for \(name); record with ADAENGINE_GOLDEN_RECORD=1. Actual: \(actual.path)")
+        case let .mismatched(comparison, actual, difference):
+            Issue.record("\(name) differs in \(comparison.differingPixels) pixels. Actual: \(actual.path), difference: \(difference.path)")
+        }
+    }
+
+    /// Colors at the center of each run of lit (non-placeholder) pixels along one row, left to right.
+    private static func runCenterColors(in image: Image, row: Int, threshold: Float = 0.12) -> [Color] {
+        var centers: [Color] = []
+        var start: Int?
+        for x in 0...image.width {
+            let covered = x < image.width && max(image.getPixel(x: x, y: row).red, image.getPixel(x: x, y: row).green, image.getPixel(x: x, y: row).blue) > threshold
+            if covered, start == nil {
+                start = x
+            } else if !covered, let begin = start {
+                if x - begin > 12 {
+                    centers.append(image.getPixel(x: (begin + x) / 2, y: row))
+                }
+                start = nil
+            }
+        }
+        return centers
+    }
+
     /// Gray levels (0...1) at the center of each covered run on one image row, left to right.
     private static func runCenters(in image: Image, row: Int, threshold: Float = 0.08) -> [Float] {
         var centers: [Float] = []
@@ -426,6 +461,62 @@ struct Render3DDebugViewMetalTests {
         #expect(Self.densestRow(in: withLine, where: Self.isRed).count > 100)
         let after = try await scene.render(.none, frames: 1)
         #expect(GoldenFrame.compare(baseline, after, tolerance: .metal).passes(.metal))
+    }
+
+    @Test(.enabled(if: Render3DDebugViewMetalTests.enabled))
+    func albedoViewShowsBaseColorWhateverTheLighting() async throws {
+        let scene = try await Self.makeScene()
+        let image = try await scene.render(.albedo)
+        // Ground base color (0.35, 0.40, 0.35) linear encodes to roughly (160, 170, 160) in sRGB.
+        let ground = image.getPixel(x: 320, y: 440)
+        #expect(abs(ground.red * 255 - 160) <= 3 && abs(ground.green * 255 - 170) <= 3 && abs(ground.blue * 255 - 160) <= 3, "ground albedo was \(ground)")
+        // Sphere base color (0.8, 0.45, 0.3) encodes to roughly (231, 179, 149), shaded or not.
+        let row = Self.height / 2
+        let centers = Self.runCenterColors(in: image, row: row)
+        #expect(centers.count >= 4)
+        for color in centers.prefix(4) {
+            #expect(abs(color.red * 255 - 231) <= 3 && abs(color.green * 255 - 179) <= 3 && abs(color.blue * 255 - 149) <= 3, "sphere albedo was \(color)")
+        }
+        // The background has no geometry and stays at the dark placeholder.
+        #expect(image.getPixel(x: 6, y: 6).red < 0.1)
+    }
+
+    @Test(.enabled(if: Render3DDebugViewMetalTests.enabled))
+    func cascadeViewTintsGroundByDistance() async throws {
+        let scene = try await Self.makeScene()
+        let single = try await scene.render(.cascades)
+        let nearSingle = single.getPixel(x: 320, y: 470)
+        #expect(nearSingle.red > nearSingle.green * 2 && nearSingle.red > nearSingle.blue * 2, "One cascade covers the ground in cascade zero (red): \(nearSingle)")
+        try scene.configure { $0.shadowCascadeCount = 3 }
+        let three = try await scene.render(.cascades)
+        try Self.expectGolden(three, named: "pbr-spheres-cascades3")
+        let near = three.getPixel(x: 320, y: 470)
+        let far = three.getPixel(x: 320, y: 275)
+        #expect(near.red > near.green * 2, "Nearest ground must stay in cascade zero (red): \(near)")
+        #expect(far.green > far.red, "Distant ground must fall into a later cascade (green or blue): \(far)")
+        try scene.configure { $0.shadowsEnabled = false }
+        let off = try await scene.render(.cascades)
+        let gray = off.getPixel(x: 320, y: 470)
+        #expect(abs(gray.red - gray.green) < 0.02 && abs(gray.green - gray.blue) < 0.02, "Disabled shadows must show gray, not a cascade color: \(gray)")
+    }
+
+    @Test(.enabled(if: Render3DDebugViewMetalTests.enabled))
+    func lightCountViewRampsFromBlueTowardRedAsLightsAreAdded() async throws {
+        let scene = try await Self.makeScene()
+        let single = try await scene.render(.lightCount)
+        let one = single.getPixel(x: 320, y: 440)
+        #expect(one.blue > 0.8 && one.red < 0.1 && one.green < 0.1, "One directional light is deep blue: \(one)")
+        for index in 0..<3 {
+            scene.app.main.spawn("Point \(index)") {
+                PointLightComponent(intensity: 2, castShadows: false, range: 30)
+                Transform(position: [Float(index) - 1, 2, -1])
+            }
+        }
+        let crowded = try await scene.render(.lightCount)
+        try Self.expectGolden(crowded, named: "pbr-spheres-lightcount-local")
+        let four = crowded.getPixel(x: 320, y: 440)
+        #expect(four.green > 0.8 && four.blue < one.blue, "Four lights ramp to green: \(four)")
+        #expect(four.green > one.green + 0.5)
     }
 
     @Test(.enabled(if: Render3DDebugViewMetalTests.enabled))

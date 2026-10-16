@@ -44,6 +44,7 @@ public struct DebugView3DRenderNode: RenderNode {
                 let mode = environments.environments[source.entityId]?.debugView, mode.replacesFinalImage,
                 let normalRoughness = target.normalRoughness3DTexture,
                 let viewPositionMetallic = target.viewPositionMetallic3DTexture,
+                let sceneColor = target.sceneColor3DTexture,
                 let output = target.mainTexture
             else { return }
             let constants = pipelines.uniform.write(Vector4(mode.shaderMode, 0.2, 0, 0), view: source.entityId, device: device.renderDevice)
@@ -63,6 +64,7 @@ public struct DebugView3DRenderNode: RenderNode {
                 .init(binding: 2, shaderStages: .fragment, resource: .texture(target.ambientOcclusion3DTexture ?? Texture2D.whiteTexture)),
                 .init(binding: 3, shaderStages: .fragment, resource: .texture(target.indirectLighting3DTexture ?? Texture2D.whiteTexture)),
                 .init(binding: 4, shaderStages: .fragment, resource: .sampler(pipelines.nearest)),
+                .init(binding: 6, shaderStages: .fragment, resource: .texture(sceneColor)),
             ]), index: 0)
             pass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             pass.endRenderPass()
