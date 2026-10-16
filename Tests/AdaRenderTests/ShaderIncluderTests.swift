@@ -44,6 +44,14 @@ struct ShaderIncluderTests {
         #expect(result.contains("return x >\n        0.5;"))
     }
 
+    @Test func windowsLineEndingsAreAccepted() throws {
+        let module = try makeModule(["A.glsl": "float a() { return 1.0; }\r\n"])
+        defer { module.cleanup() }
+        let result = try ShaderIncluder.processIncludes(in: "#include <Test/A.glsl>\r\nvoid main() {}\r\n", includeSearchPath: module.searchPath)
+        #expect(result.contains("float a()"))
+        #expect(!result.contains("#include"))
+    }
+
     @Test func missingModuleIncludeStillThrows() throws {
         let module = try makeModule([:])
         defer { module.cleanup() }

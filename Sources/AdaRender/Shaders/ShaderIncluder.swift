@@ -26,7 +26,7 @@ enum ShaderIncluder {
     // FIXME: That's wierd to use `\n` in regex. `$` doesn't works
     // The name excludes `<`, `>` and line breaks so adjacent includes (or a later `>` such as a comparison at
     // the end of a line) are never swallowed into one match.
-    private static let moduleIncludePattern = "#include(?:[ \\t]+)<([^<>\"\\n]+)>[ \\t]*\n"
+    private static let moduleIncludePattern = "#include(?:[ \\t]+)<([^<>\"\\n]+)>[ \\t\\r]*\n"
     private static let fileSystem = FileSystem.current
 
     enum IncluderError: LocalizedError {
