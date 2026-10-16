@@ -36,7 +36,7 @@ final class AdaScriptCommunityBudget: @unchecked Sendable {
     }
 
     @GSExportableIgnore
-    static func install(in vm: GravityVirtualMachine, policy: AdaScriptCommunityPolicy) throws -> AdaScriptCommunityBudget {
+    static func install(in vm: GravityVirtualMachine, policy: AdaScriptCommunityPolicy, restrictsRuntime: Bool = true) throws -> AdaScriptCommunityBudget {
         let budget = AdaScriptCommunityBudget()
         budget.policy = policy
         budget.reset()
@@ -65,6 +65,7 @@ final class AdaScriptCommunityBudget: @unchecked Sendable {
             gravity_vm_setslot(vm, gravity_value_from_bool(true), register)
             return true
         }
+        guard restrictsRuntime else { return budget }
         for (key, limit) in [("maxBlock", 8 * 1024 * 1024), ("maxStack", 4096), ("maxRecursionDepth", 128), ("maxCCalls", 128)] {
             _ = gravity_vm_set(pointer, key, GSValue(integer: limit, in: vm).value)
         }

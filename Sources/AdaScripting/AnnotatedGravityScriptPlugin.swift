@@ -61,7 +61,8 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         name: String,
         startupSystemIdentifier: String? = nil,
         communityPolicy: AdaScriptCommunityPolicy? = nil,
-        includeTests: Bool = false
+        includeTests: Bool = false,
+        testTimeout: Duration? = nil
     ) throws {
         if communityPolicy != nil {
             for source in sources { try AdaScriptCommunityLowerer.validate(source: source.source) }
@@ -78,7 +79,8 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
                 componentConstructors: componentConstructors,
                 runtimeComponents: runtimeComponents,
                 networkCommands: networkCommands,
-                communityPolicy: communityPolicy
+                communityPolicy: communityPolicy,
+                testTimeout: includeTests ? testTimeout : nil
             )
         } catch AdaScriptError.compilation(let diagnostics) where !module.importDiagnostics.isEmpty {
             // The compiler's own errors come first; import findings explain a missing name they report.
@@ -144,7 +146,9 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
     }
 
     /// Runs the loaded `@test` functions, optionally only those whose name or display name contains `filter`.
-    public func runTests(matching filter: String? = nil) -> [AdaScriptTestResult] {
+    ///
+    /// `onResult` is called after each test, so a caller can stream progress.
+    public func runTests(matching filter: String? = nil, onResult: ((AdaScriptTestResult) -> Void)? = nil) -> [AdaScriptTestResult] {
         let selected = tests.filter { test in
             guard let filter, !filter.isEmpty else {
                 return true
@@ -155,7 +159,9 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         return selected.map { test in
             let start = clock.now
             let execution = AdaScriptRuntimeCoordinator.lock.withLock { runtime }.runTest(named: test.name)
-            return AdaScriptTestResult(test: test, execution: execution, duration: start.duration(to: clock.now))
+            let result = AdaScriptTestResult(test: test, execution: execution, duration: start.duration(to: clock.now))
+            onResult?(result)
+            return result
         }
     }
 
@@ -1023,6 +1029,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
     private let taskRuntime: AdaScriptTaskRuntime
     private let asyncHost: AdaScriptAsyncHost
     private let communityBudget: AdaScriptCommunityBudget?
+    private var testTimeoutSeconds: Double?
     /// Present only when the module was loaded with tests; the plugin supplies its `build` closure.
     let testWorldFactory: AdaScriptTestWorldFactory?
     private let globalVariableNames: [String]
@@ -1040,12 +1047,14 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         componentConstructors: [AdaScriptLinkedComponentConstructor],
         runtimeComponents: [RuntimeComponentDescriptor],
         networkCommands: [AdaScriptNetworkCommandSchema],
-        communityPolicy: AdaScriptCommunityPolicy?
+        communityPolicy: AdaScriptCommunityPolicy?,
+        testTimeout: Duration? = nil
     ) throws {
+        let isInstrumented = communityPolicy != nil || testTimeout != nil
         let guardedSources = try module.sourcesByPath.mapValues { source in
             ResolvedGravityScriptModule.Source(
                 fileID: source.fileID,
-                source: communityPolicy == nil ? source.source : try AdaScriptCommunityLowerer.instrument(source: source.source)
+                source: !isInstrumented ? source.source : try AdaScriptCommunityLowerer.instrument(source: source.source)
             )
         }
         let delegate = AnnotatedGravityRuntimeDelegate(module: module, sourcesByPath: guardedSources)
@@ -1057,7 +1066,20 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
 
         let virtualMachine = GravityVirtualMachine(settings: .init(), delegate: delegate)
         self.virtualMachine = virtualMachine
-        self.communityBudget = try communityPolicy.map { try AdaScriptCommunityBudget.install(in: virtualMachine, policy: $0) }
+        if let communityPolicy {
+            self.communityBudget = try AdaScriptCommunityBudget.install(in: virtualMachine, policy: communityPolicy)
+        } else if let testTimeout {
+            // Only the deadline applies: tests keep `System`, the VM's default limits and unrestricted spawns.
+            let seconds = Double(testTimeout.components.seconds) + Double(testTimeout.components.attoseconds) / 1e18
+            self.communityBudget = try AdaScriptCommunityBudget.install(
+                in: virtualMachine,
+                policy: AdaScriptCommunityPolicy(maximumCheckpoints: Int.max, maximumCallbackSeconds: seconds),
+                restrictsRuntime: false
+            )
+            self.testTimeoutSeconds = seconds
+        } else {
+            self.communityBudget = nil
+        }
         let suspensionPolicy = AdaScriptSuspensionPolicy(scriptNonSendableTypes: module.nonSendableTypeNames)
         let taskRuntime = AdaScriptTaskRuntime.make(
             virtualMachine: virtualMachine,
@@ -1122,13 +1144,13 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
 
         let authoredSource = module.entrySource
         let standardLibrary = communityPolicy == nil ? AdaScriptStandardLibrary.source : AdaScriptStandardLibrary.communitySource
-        let runtimeSource = (communityPolicy == nil ? "" : "extern var __adaUGCBudget;\n") + standardLibrary + "\n"
+        let runtimeSource = (isInstrumented ? "extern var __adaUGCBudget;\n" : "") + standardLibrary + "\n"
                 + AdaScriptTaskPrelude.source + "\n"
                 + (module.includesTests ? AdaScriptTestPrelude.source + "\n" : "")
                 + AdaScriptComponentRuntime.prelude(constructors: componentConstructors, authoredSource: module.combinedSource)
                 + AdaScriptNetworkBridge.prelude(commands: networkCommands)
                 + authoredSource
-        let binary = virtualMachine.loadGravityFile(from: communityPolicy == nil ? runtimeSource : try AdaScriptCommunityLowerer.instrument(source: runtimeSource))
+        let binary = virtualMachine.loadGravityFile(from: !isInstrumented ? runtimeSource : try AdaScriptCommunityLowerer.instrument(source: runtimeSource))
         guard delegate.errors.isEmpty else {
             throw AdaScriptError.compilation(delegate.errors)
         }
@@ -1320,12 +1342,16 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let errorsBefore = delegate.errors.count
         let globals = snapshotGlobals()
         defer { restoreGlobals(globals) }
+        communityBudget?.reset()
         let raw = virtualMachine.execute(closure: runner.toGravityClosure, params: [body])
         let reply = raw?.toList ?? []
         let failures = reply.count > 1 ? reply[1].toList.map(\.toString) : []
         return AdaScriptTestExecution(
             failures: failures,
-            runtimeErrors: Array(delegate.errors.dropFirst(errorsBefore)),
+            runtimeErrors: Array(delegate.errors.dropFirst(errorsBefore)).map { error in
+                guard let testTimeoutSeconds, error.contains("Community execution limit exceeded") else { return error }
+                return "\(name): test timed out after \(testTimeoutSeconds) seconds"
+            },
             didAbort: reply.first?.toInteger == 1
         )
     }

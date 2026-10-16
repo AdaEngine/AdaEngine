@@ -89,6 +89,7 @@ final class EditorInspectorSidebarViewModel {
     var tileMapAssets: [TextureAsset] = []
     var particleEffectAssets: [TextureAsset] = []
     var modelAssets: [TextureAsset] = []
+    var spineAssets: [TextureAsset] = []
     var sceneAssets: [SceneAsset] = []
     var uiSourcePaths: [String] = []
     var uiSceneFiles: [String: String] = [:]

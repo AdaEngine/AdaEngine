@@ -86,6 +86,7 @@ targets:
           - $(BUILT_PRODUCTS_DIR)/AdaEditor_AdaEditor.bundle
           - $(BUILT_PRODUCTS_DIR)/AdaEngine_AdaUI.bundle
           - $(BUILT_PRODUCTS_DIR)/AdaEngine_AdaA2UI.bundle
+          - $(BUILT_PRODUCTS_DIR)/AdaEngine_AdaSpine.bundle
         # CodeSign must run after staging replaces the executable and resources.
         outputFiles:
           - $(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)
@@ -100,6 +101,8 @@ targets:
           destination_ui_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEngine_AdaUI.bundle"
           source_a2ui_resources="${BUILT_PRODUCTS_DIR}/AdaEngine_AdaA2UI.bundle"
           destination_a2ui_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEngine_AdaA2UI.bundle"
+          source_spine_resources="${BUILT_PRODUCTS_DIR}/AdaEngine_AdaSpine.bundle"
+          destination_spine_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEngine_AdaSpine.bundle"
 
           if [[ ! -x "${source_binary}" ]]; then
             echo "error: SwiftPM executable not found at ${source_binary}" >&2
@@ -122,6 +125,7 @@ targets:
           /usr/bin/ditto "${source_resources}" "${destination_resources}"
           /usr/bin/ditto "${source_ui_resources}" "${destination_ui_resources}"
           /usr/bin/ditto "${source_a2ui_resources}" "${destination_a2ui_resources}"
+          /usr/bin/ditto "${source_spine_resources}" "${destination_spine_resources}"
   AdaEditor-Standalone:
     type: application
     platform: macOS
@@ -166,6 +170,7 @@ targets:
           - $(BUILT_PRODUCTS_DIR)/AdaEditor_AdaEditor.bundle
           - $(BUILT_PRODUCTS_DIR)/AdaEngine_AdaUI.bundle
           - $(BUILT_PRODUCTS_DIR)/AdaEngine_AdaA2UI.bundle
+          - $(BUILT_PRODUCTS_DIR)/AdaEngine_AdaSpine.bundle
         # CodeSign must run after staging replaces the executable and resources.
         outputFiles:
           - $(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)
@@ -182,6 +187,8 @@ targets:
           destination_ui_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEngine_AdaUI.bundle"
           source_a2ui_resources="${BUILT_PRODUCTS_DIR}/AdaEngine_AdaA2UI.bundle"
           destination_a2ui_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEngine_AdaA2UI.bundle"
+          source_spine_resources="${BUILT_PRODUCTS_DIR}/AdaEngine_AdaSpine.bundle"
+          destination_spine_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEngine_AdaSpine.bundle"
 
           if [[ ! -x "${source_binary}" ]]; then
             echo "error: SwiftPM executable not found at ${source_binary}" >&2
@@ -204,6 +211,7 @@ targets:
           /usr/bin/ditto "${source_resources}" "${destination_resources}"
           /usr/bin/ditto "${source_ui_resources}" "${destination_ui_resources}"
           /usr/bin/ditto "${source_a2ui_resources}" "${destination_a2ui_resources}"
+          /usr/bin/ditto "${source_spine_resources}" "${destination_spine_resources}"
           cli_binary="${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/MacOS/adastudio"
           /usr/bin/ditto "${source_binary}" "${cli_binary}"
           /bin/chmod +x "${cli_binary}"
@@ -261,6 +269,7 @@ targets:
           - $(BUILT_PRODUCTS_DIR)/AdaEditor_AdaEditor.bundle
           - $(BUILT_PRODUCTS_DIR)/AdaEngine_AdaUI.bundle
           - $(BUILT_PRODUCTS_DIR)/AdaEngine_AdaA2UI.bundle
+          - $(BUILT_PRODUCTS_DIR)/AdaEngine_AdaSpine.bundle
         # CodeSign must run after staging replaces the executable and resources.
         outputFiles:
           - $(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)
@@ -275,6 +284,8 @@ targets:
           destination_ui_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEngine_AdaUI.bundle"
           source_a2ui_resources="${BUILT_PRODUCTS_DIR}/AdaEngine_AdaA2UI.bundle"
           destination_a2ui_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEngine_AdaA2UI.bundle"
+          source_spine_resources="${BUILT_PRODUCTS_DIR}/AdaEngine_AdaSpine.bundle"
+          destination_spine_resources="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/AdaEngine_AdaSpine.bundle"
 
           if [[ ! -x "${source_binary}" ]]; then
             echo "error: SwiftPM executable not found at ${source_binary}" >&2
@@ -298,6 +309,7 @@ targets:
           /usr/bin/ditto "${source_resources}" "${destination_resources}"
           /usr/bin/ditto "${source_ui_resources}" "${destination_ui_resources}"
           /usr/bin/ditto "${source_a2ui_resources}" "${destination_a2ui_resources}"
+          /usr/bin/ditto "${source_spine_resources}" "${destination_spine_resources}"
   AdaEditor-visionOS:
     attributes:
       SystemCapabilities:

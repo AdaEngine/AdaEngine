@@ -175,6 +175,17 @@ Coverage: [EditorUISceneTests.swift](Tests/AdaEditorTests/EditorUISceneTests.swi
 
 ### Assets and animation
 
+Spine 4.2 `.skel`/`.spine` assets have a native 2D preview with clip/skin
+selection, Play/Pause and bone overlays. Import/drop carries the atlas and pages;
+JSON exports are imported as `.spine`. Add to Scene and the Spine Character 2D
+template store a portable `SpineSource` component with playback/bone settings.
+Imported 3D skins also have a Show/Hide bones overlay in the asset viewer and
+3D scene viewport (edit and Play). `EditorSkeleton3DPlugin` installs the drawing
+system after scheduler setup; the overlay follows the current skeletal pose.
+See [Spine2D.md](Documentation/Spine2D.md). Skeleton/keyframe authoring and public
+player/export integration are separate. Coverage: `EditorSpineTests` and
+`SpineSceneTests`; native validation must exercise the Studio viewport.
+
 Image preview includes a shared texture Inspector with sampler filters/wrap/LOD,
 CPU-generated mip levels, Color/Normal/Data purpose, sRGB/Linear settings, and
 2D/Cube import from a six-face horizontal strip. Apply persists an adjacent
@@ -245,6 +256,11 @@ Coverage: [EditorTextureAtlasTests.swift](Tests/AdaEditorTests/EditorTextureAtla
 ### Build, Play, preview and export
 
 Build/Run/Stop, SwiftPM test/package commands, build output and navigable Problems.
+AdaScript projects run their `@test` functions in process (ADR-0024) through
+`EditorAdaScriptTestRunner` and `EditorViewModel.runAdaScriptTests`: sources from the project's
+source root and `Tests/`, a 30 s per-test limit, streamed PASS/FAIL lines in Output, and counts
+in `editor.task.status` (`adaScriptTests`). Coverage:
+[EditorAdaScriptTestRunnerTests.swift](Tests/AdaEditorTests/EditorAdaScriptTestRunnerTests.swift).
 Scene Play and embedded AdaScript project runtime; AdaScript hot reload compiles
 dirty source buffers and keeps previous running code when reload fails.
 Swift view previews have a dedicated build/host path. AdaPlayer pairing and
