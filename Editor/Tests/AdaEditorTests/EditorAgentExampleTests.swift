@@ -1,3 +1,4 @@
+@_spi(Internal) @testable import AdaRender
 @_spi(AdaEngine) import AdaEngine
 import AdaScriptCompilerCore
 @_spi(Internal) import AdaUI
@@ -94,6 +95,10 @@ struct EditorAgentExampleTests {
 
     @Test("Studio prepares the example as an AdaScript project")
     func studioAcceptsTheProject() throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            try RenderEngine.setupRenderEngine()
+        }
         let files = try example().files
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("SideRunnerExample-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -197,9 +202,5 @@ struct EditorAgentExampleTests {
         }
         let coding = try String(contentsOf: skillsRoot.appendingPathComponent("ada-coding/SKILL.md"), encoding: .utf8)
         for phrase in ["One file, one responsibility", "Config", "AGENTS.md", "side-scroller-3d"] { #expect(coding.contains(phrase), "\(phrase)") }
-        for skill in ["ada-build-run", "ada-visual-verification"] {
-            let text = try String(contentsOf: skillsRoot.appendingPathComponent("\(skill)/SKILL.md"), encoding: .utf8)
-            #expect(text.contains("manual:") && text.contains("blocker:"), "\(skill)")
-        }
     }
 }

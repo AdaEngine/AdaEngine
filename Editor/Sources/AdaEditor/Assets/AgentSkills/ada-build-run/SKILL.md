@@ -14,4 +14,3 @@ allowed-tools: terminal, editor.project.context, editor.build.start, editor.test
 - Prefer the narrowest build or test that exercises the changed path, then broaden when the change crosses modules.
 - Read structured diagnostics and complete output before editing again. Separate code failures from toolchain, network, storage, or platform failures.
 - Stop an existing run before replacing its runtime state. Report the exit or stop reason.
-- If a build, run or check cannot be made to work after three attempts, or the needed tool or host capability is missing, record it in `PROGRESS.md` as `blocker:` with what was tried and mark the affected verification `manual:` with what a person should check, then continue with the next milestone. A failing verification path must not stop the project.
