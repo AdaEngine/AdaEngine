@@ -1,5 +1,4 @@
 @_spi(Scripting) import AdaECS
-import CoreFoundation
 import Foundation
 
 /// Decodes one saved scene component into a runtime payload, validating each field against its

@@ -111,6 +111,9 @@ struct EditorSceneViewportView: View {
                             }
                         }
                     )
+                    .onPrepareFramePresentation {
+                        viewportPresentation.prepareFrame(viewportModel: viewportModel, theme: viewportPresentation.annotationTheme)
+                    }
                     .frame(width: geometry.size.width, height: geometry.size.height)
 
                     viewportSceneOverlay
@@ -248,7 +251,7 @@ struct EditorSceneViewportView: View {
             viewportGizmoLayer
             viewportCoordinateRulerLayer
             if displayMode == .threeD {
-                EditorSceneViewportOrientationCompass(viewportModel: viewportModel)
+                EditorSceneViewportOrientationCompass(viewportModel: viewportModel, presentation: viewportPresentation)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(12)
             }
