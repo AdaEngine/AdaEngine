@@ -1201,36 +1201,43 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
             return
         }
 
-        for (propertyName, query) in queries {
-            let queryValue = GSValue(object: query, in: virtualMachine)
-            guard instance.setStoredProperty(named: propertyName, to: queryValue) else {
-                delegate.append("Unable to bind @query property '\(propertyName)' in system '\(systemIdentifier)'")
-                return
+        do {
+            // Swift-held GSValues are not GC roots. Property lookup can allocate
+            // a key and collect a new bridge before it reaches the system instance.
+            // Resume collection once every binding is rooted, before running user code.
+            virtualMachine.setGCEnabled(false)
+            defer { virtualMachine.setGCEnabled(true) }
+            for (propertyName, query) in queries {
+                let queryValue = GSValue(object: query, in: virtualMachine)
+                guard instance.setStoredProperty(named: propertyName, to: queryValue) else {
+                    delegate.append("Unable to bind @query property '\(propertyName)' in system '\(systemIdentifier)'")
+                    return
+                }
             }
-        }
-        for (propertyName, resource) in resources {
-            let resourceValue = GSValue(object: resource.object, in: virtualMachine)
-            guard instance.setStoredProperty(named: propertyName, to: resourceValue) else {
-                delegate.append("Unable to bind @res property '\(propertyName)' in system '\(systemIdentifier)'")
-                return
+            for (propertyName, resource) in resources {
+                let resourceValue = GSValue(object: resource.object, in: virtualMachine)
+                guard instance.setStoredProperty(named: propertyName, to: resourceValue) else {
+                    delegate.append("Unable to bind @res property '\(propertyName)' in system '\(systemIdentifier)'")
+                    return
+                }
             }
-        }
-        for (propertyName, value) in events.readers {
-            guard instance.setStoredProperty(named: propertyName, to: value) else {
-                delegate.append("Unable to bind @events property '\(propertyName)' in system '\(systemIdentifier)'")
-                return
+            for (propertyName, value) in events.readers {
+                guard instance.setStoredProperty(named: propertyName, to: value) else {
+                    delegate.append("Unable to bind @events property '\(propertyName)' in system '\(systemIdentifier)'")
+                    return
+                }
             }
-        }
-        for (propertyName, writer) in events.writers {
-            guard instance.setStoredProperty(named: propertyName, to: GSValue(object: writer, in: virtualMachine)) else {
-                delegate.append("Unable to bind @eventWriter property '\(propertyName)' in system '\(systemIdentifier)'")
-                return
+            for (propertyName, writer) in events.writers {
+                guard instance.setStoredProperty(named: propertyName, to: GSValue(object: writer, in: virtualMachine)) else {
+                    delegate.append("Unable to bind @eventWriter property '\(propertyName)' in system '\(systemIdentifier)'")
+                    return
+                }
             }
-        }
-        for (propertyName, value) in remoteCommands {
-            guard instance.setStoredProperty(named: propertyName, to: value) else {
-                delegate.append("Unable to bind @remote_commands property '\(propertyName)' in system '\(systemIdentifier)'")
-                return
+            for (propertyName, value) in remoteCommands {
+                guard instance.setStoredProperty(named: propertyName, to: value) else {
+                    delegate.append("Unable to bind @remote_commands property '\(propertyName)' in system '\(systemIdentifier)'")
+                    return
+                }
             }
         }
         let context = AnnotatedGravitySystemContext.make(deltaTime: deltaTime, world: world)

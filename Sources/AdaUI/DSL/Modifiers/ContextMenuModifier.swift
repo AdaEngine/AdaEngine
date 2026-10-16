@@ -140,7 +140,7 @@ private struct ContextMenuViewModifier<WrappedContent: View, MenuItems: View>: V
     }
 }
 
-private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode {
+private final class ContextMenuModifierNode<MenuItems: View>: ViewModifierNode, WindowDragBlockingNode {
     private let minimumPressDuration: TimeInterval
     private var opensOnPrimaryAction: Bool
     private var primaryPressLocation: Point?

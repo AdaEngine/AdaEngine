@@ -433,6 +433,7 @@ extension EditorViewModel {
     static func editorRunDestination(from destination: AdaProjectRunDestination) -> EditorRunDestination {
         switch destination {
         case .macOS: .macOS
+        case .windows: .windows
         case .visionOS: .visionOS
         case .iPadOS: .iPadOS
         case .web: .web

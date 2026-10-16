@@ -21,6 +21,10 @@ not start the editor UI, cloud settings, notifications, updates or MCP server.
    **Disconnect**, closing the editor, or backgrounding the player ends pairing.
 
 For desktop diagnostics the shared executable also accepts `--ada-player`.
+Windows Studio and Player use native WinSock transport and Windows DNS-SD
+discovery. The pairing dialog also accepts `host:port` for direct connections;
+use the player machine's LAN address when connecting from another computer.
+Windows Player shows its listening port; `127.0.0.1:port` connects on the same PC.
 
 ## First-version boundaries
 

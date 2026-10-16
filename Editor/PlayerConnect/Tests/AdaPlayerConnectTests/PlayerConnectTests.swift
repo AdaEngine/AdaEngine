@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(Network)
 import Network
+#endif
 import Testing
 @testable import AdaPlayerConnect
 
@@ -39,6 +41,18 @@ struct PlayerConnectTests {
         #expect(throws: PlayerConnectError.self) { try large.validate() }
     }
 
+    #if os(Windows)
+    @Test @MainActor func nativeDiscoveryCanRestartWithoutStaleDeliveries() async throws {
+        let browser = PlayerBrowser()
+        for _ in 0..<20 {
+            browser.start()
+            try await Task.sleep(for: .milliseconds(10))
+            browser.stop()
+            #expect(browser.devices.isEmpty)
+        }
+    }
+    #endif
+
     @Test @MainActor func realConnectionPairsDeploysRestartsStopsAndDisconnects() async throws {
         let host = PlayerHost()
         var deployments: [PlayerProjectSnapshot] = []
@@ -48,7 +62,7 @@ struct PlayerConnectTests {
         try host.start(name: "AdaPlayer tests")
         defer { host.shutdown() }
         let port = try await listeningPort(host)
-        let client = PlayerConnection(NWConnection(host: "127.0.0.1", port: port, using: .tcp))
+        let client = PlayerConnection(endpoint: PlayerEndpoint(host: "127.0.0.1", port: port))
         client.start()
         let deadline = Task { try? await Task.sleep(for: .seconds(10)); if !Task.isCancelled { client.cancel() } }
         defer { deadline.cancel(); client.cancel() }
@@ -78,7 +92,7 @@ struct PlayerConnectTests {
         defer { host.shutdown() }
         let port = try await listeningPort(host)
         for message in [PlayerMessage(.pair, text: "wrong"), PlayerMessage(.deploy, project: snapshot())] {
-            let client = PlayerConnection(NWConnection(host: "127.0.0.1", port: port, using: .tcp))
+            let client = PlayerConnection(endpoint: PlayerEndpoint(host: "127.0.0.1", port: port))
             client.start()
             let deadline = Task { try? await Task.sleep(for: .seconds(10)); if !Task.isCancelled { client.cancel() } }
             defer { deadline.cancel(); client.cancel() }
@@ -100,7 +114,7 @@ struct PlayerConnectTests {
         try host.start(name: "AdaPlayer recovery tests")
         defer { host.shutdown() }
         let port = try await listeningPort(host)
-        let client = PlayerConnection(NWConnection(host: "127.0.0.1", port: port, using: .tcp))
+        let client = PlayerConnection(endpoint: PlayerEndpoint(host: "127.0.0.1", port: port))
         client.start()
         let deadline = Task { try? await Task.sleep(for: .seconds(10)); if !Task.isCancelled { client.cancel() } }
         defer { deadline.cancel(); client.cancel() }
@@ -113,9 +127,9 @@ struct PlayerConnectTests {
         #expect(host.isPaired)
     }
 
-    @MainActor private func listeningPort(_ host: PlayerHost) async throws -> NWEndpoint.Port {
+    @MainActor private func listeningPort(_ host: PlayerHost) async throws -> UInt16 {
         for _ in 0..<100 {
-            if let value = host.port, let port = NWEndpoint.Port(rawValue: value) { return port }
+            if let value = host.port { return value }
             try await Task.sleep(for: .milliseconds(20))
         }
         throw PlayerConnectError.invalid("Listener failed to start: \(host.status)")

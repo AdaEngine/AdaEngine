@@ -18,12 +18,14 @@ struct EditorCloudSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(account.accountID == nil ? "Sign in to Ada Cloud" : "Ada Cloud account")
+                Text(account.accountID == nil && EditorCloudAccount.supportsSignIn ? "Sign in to Ada Cloud" : "Ada Cloud account")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
                 Text(
                     account.accountID == nil
-                        ? "Connect Ada Studio to your Ada Cloud account. Continue securely in your browser."
+                        ? (EditorCloudAccount.supportsSignIn
+                            ? "Connect Ada Studio to your Ada Cloud account. Continue securely in your browser."
+                            : "Ada Cloud sign-in is currently available on Apple platforms. Your editor settings are saved locally.")
                         : (!account.cloudServicesAvailable ? "Cloud Services will open soon." : account.pro ? "Pro · Web publishing enabled" : "Free · Editor settings sync")
                 )
                 .font(.system(size: 12))
@@ -31,8 +33,16 @@ struct EditorCloudSettingsView: View {
                 .lineLimit(3)
             }
             if account.accountID == nil {
-                actionButton(account.busy ? "Waiting for browser…" : "Sign in with browser", primary: true, id: "SignIn") {
-                    account.perform { try await account.signInOnWebsite() }
+                if EditorCloudAccount.supportsSignIn {
+                    actionButton(account.busy ? "Waiting for browser…" : "Sign in with browser", primary: true, id: "SignIn") {
+                        account.perform { try await account.signInOnWebsite() }
+                    }
+                    if account.busy {
+                        Button("Cancel sign-in") { account.cancelBrowserSignIn() }
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.editorColors.blue)
+                            .accessibilityIdentifier("AdaEditor.Cloud.CancelSignIn")
+                    }
                 }
             } else {
                 if let accountID = account.accountID {
@@ -195,6 +205,12 @@ private final class EditorCloudFilePicker: NSObject {
                 picker.delegate = self
                 controller.present(picker, animated: true)
             }
+        #elseif os(Windows)
+            switch await WindowsProjectFilePicker.files(title: "Choose ZIP and publish", extensions: ["zip"], allowsMultipleSelection: false) {
+            case let .selected(urls): return urls.first
+            case .cancelled: return nil
+            case let .unavailable(message): throw EditorCloudAccount.CloudError.message(message)
+            }
         #else
             return nil
         #endif
@@ -209,6 +225,8 @@ private final class EditorCloudFilePicker: NSObject {
             UIApplication.shared.open(url)
         #elseif os(Android)
             _ = Application.shared.openURL(url)
+        #elseif os(Windows)
+            Application.shared?.openURL(url)
         #endif
     }
     static func copy(_ text: String) {
@@ -219,6 +237,8 @@ private final class EditorCloudFilePicker: NSObject {
             UIPasteboard.general.string = text
         #elseif os(Android)
             MobileEditorPlatform.copy(text)
+        #elseif os(Windows)
+            UIClipboard.setString(text)
         #endif
     }
 }

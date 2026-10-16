@@ -3,12 +3,48 @@ from pathlib import Path
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+import zipfile
 
 spec=importlib.util.spec_from_file_location("android",Path(__file__).parents[1]/"android.py")
 android=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(android)
 
 class AndroidPackagingTests(unittest.TestCase):
+    def test_apk_preserves_every_manifest_asset_and_utf8_filename(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); binary=root/"bin"; staging=root/"staging"
+            bundle=binary/"Game.resources"/"Assets"; bundle.mkdir(parents=True)
+            (bundle/".gitkeep").touch()
+            (bundle/"Текстура 🌈.png").write_bytes(bytes(range(256)))
+            android.stage_resources(binary,staging/"assets")
+            library=staging/"lib/arm64-v8a/libGame.so"; library.parent.mkdir(parents=True)
+            library.write_bytes(b"native runtime")
+            apk=root/"unsigned.apk"
+            with zipfile.ZipFile(apk,"w") as archive: archive.writestr("AndroidManifest.xml",b"manifest")
+            android.append_payload(apk,staging)
+            with zipfile.ZipFile(apk) as archive:
+                self.assertIsNone(archive.testzip())
+                for path in archive.read("assets/bundles/manifest.txt").decode("utf-8").splitlines():
+                    self.assertIn("assets/bundles/"+path,archive.namelist())
+                asset=archive.getinfo("assets/bundles/Game.resources/Assets/Текстура 🌈.png")
+                self.assertTrue(asset.flag_bits & 0x800)
+                self.assertEqual(archive.read(asset),bytes(range(256)))
+                self.assertEqual(archive.getinfo("lib/arm64-v8a/libGame.so").compress_type,zipfile.ZIP_STORED)
+
+    def test_java_host_dex_and_utf8_resources_share_the_apk(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); staging=root/"staging"
+            asset=staging/"assets/bundles/Studio.resources/Привет.txt"
+            asset.parent.mkdir(parents=True); asset.write_bytes("🙂".encode("utf-8"))
+            dex=root/"classes.dex"; dex.write_bytes(b"dex\n035\0host")
+            apk=root/"unsigned.apk"
+            with zipfile.ZipFile(apk,"w") as archive: archive.writestr("AndroidManifest.xml",b"manifest")
+            android.append_payload(apk,staging,[dex])
+            with zipfile.ZipFile(apk) as archive:
+                self.assertIsNone(archive.testzip())
+                self.assertEqual(archive.read("classes.dex"),dex.read_bytes())
+                self.assertEqual(archive.read(asset.relative_to(staging).as_posix()),asset.read_bytes())
+
     def test_preserves_nested_resource_manifest_and_binary_font(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary); binary=root/"bin"; assets=root/"assets"

@@ -184,7 +184,7 @@
         }
 
         /// Uses aligned texture-copy rows and the existing asynchronous owned buffer readback path.
-        func readImage(device: WebGPU.GPUDevice) async throws -> Image? {
+        func readImage(device: WebGPU.GPUDevice, instance: WebGPU.GPUInstance) async throws -> Image? {
                 guard allowsReadback else {
                     return nil
                 }
@@ -210,7 +210,7 @@
                         return nil
                     }
                     // The existing Sendable wrapper owns the handle; device operations remain serialized by the GPU lock.
-                    return WGPUBuffer(buffer: buffer, device: device)
+                    return WGPUBuffer(buffer: buffer, device: device, instance: instance)
                 }
                 guard let readback else {
                     throw WGPUBuffer.MapError.failedToMap("Cannot allocate texture readback buffer")

@@ -1,4 +1,4 @@
-#if canImport(Network)
+#if canImport(Network) || os(Windows)
 import AdaEngine
 import AdaPlayerConnect
 import Foundation
@@ -84,6 +84,8 @@ final class AdaPlayerController {
         do {
             #if canImport(UIKit)
                 let name = UIDevice.current.name
+            #elseif os(Windows)
+                let name = ProcessInfo.processInfo.hostName
             #else
                 let name = Host.current().localizedName ?? "AdaPlayer"
             #endif
@@ -161,6 +163,11 @@ private struct AdaPlayerHomeView: View {
                 VStack(spacing: 24) {
                     Text("AdaPlayer").font(.system(size: 32, weight: .bold))
                     Text(controller.startupError ?? controller.host.status).font(.system(size: 16))
+                    if let port = controller.host.port {
+                        Text("Port \(port)")
+                            .font(.system(size: 14))
+                            .accessibilityIdentifier("AdaPlayer.ListeningAddress")
+                    }
                     if !controller.host.isPaired {
                         Text(controller.host.code).font(.system(size: 42, weight: .bold))
                             .accessibilityIdentifier("AdaPlayer.PairingCode")
@@ -199,5 +206,4 @@ private struct AdaPlayerHomeView: View {
         .onDisappear { controller.close() }
     }
 }
-
 #endif

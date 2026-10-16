@@ -14,11 +14,13 @@
     import Dispatch
     import Foundation
     import Math
+    import Synchronization
     import WinSDK
 
     // Windows cursor resource identifiers
     nonisolated(unsafe) private let IDC_ARROW: LPCWSTR? = unsafe UnsafePointer<WCHAR>(bitPattern: UInt(32512))
     private let adaEngineWorkMessage = UINT(WM_APP + 1)
+    private let windowsCursorResource = Mutex<UInt>(32512)
     nonisolated(unsafe) private var windowMinimumSizes: [UIWindow.ID: Size] = [:]
     nonisolated(unsafe) private var enumeratedWindowsScreens: [Screen] = []
     nonisolated(unsafe) private let collectWindowsMonitor: MONITORENUMPROC = { hMonitor, _, _, _ in
@@ -44,10 +46,46 @@
         private var windowHandles: [UIWindow.ID: HWND] = unsafe [:]
         private var textInputDecoderStates: [UIWindow.ID: WindowsUTF16TextInputDecoder.State] = [:]
         private var windowsSynchronizingFromSystem: Set<UIWindow.ID> = []
+        private var cursorShape: Input.CursorShape = .arrow
+
+        /// Whether a visible FIFO surface can provide display-paced updates.
+        func hasVisibleRenderWindow(requests: WindowFrameRequests?) -> Bool {
+            windows.contains { window in
+                // Embedded game runtimes own cameras outside the host world.
+                // Unknown windows retain continuous rendering, just as acquisition does.
+                guard requests?.shouldRender(window.id) != false else { return false }
+                guard window.canDraw, !window.isHidden, let handle = windowHandles[window.id] else { return false }
+                return unsafe IsWindowVisible(handle) && !IsIconic(handle)
+            }
+        }
 
         init(_ screenManager: WindowsScreenManager) {
             self.screenManager = screenManager
             super.init()
+        }
+
+        fileprivate func presentNativeDialog<Result: Sendable>(
+            _ operation: @escaping @Sendable (HWND?) -> Result
+        ) async -> Result {
+            let owner = activeWindow.flatMap { windowHandles[$0.id] }.map { UInt(bitPattern: $0) }
+            return await withCheckedContinuation { continuation in
+                // An explicitly Sendable closure must not inherit MainActor
+                // isolation when the HWND thread executes it.
+                let work: @Sendable () -> Void = {
+                    continuation.resume(returning: operation(owner.flatMap { HWND(bitPattern: $0) }))
+                }
+                uiThread.enqueue(work)
+            }
+        }
+
+        fileprivate func minimizeActiveWindow() -> Bool {
+            guard let activeWindow, let handle = windowHandles[activeWindow.id] else { return false }
+            let address = UInt(bitPattern: handle)
+            let work: @Sendable () -> Void = {
+                unsafe ShowWindow(HWND(bitPattern: address), SW_MINIMIZE)
+            }
+            uiThread.enqueue(work)
+            return true
         }
 
         override func createWindow(for window: UIWindow) {
@@ -66,11 +104,16 @@
             let height = Int32(size.height)
             let initialScale = screenManager.getMainScreen()?.scale ?? 1
             let initialDPI = UINT(max((initialScale * 96).rounded(), 96))
+            let popupOwner = activeWindow.flatMap { windowHandles[$0.id] }.map { UInt(bitPattern: $0) }
+            let configuration = window.configuration
+            let title = configuration.title ?? window.title
+            let managerAddress = UInt(bitPattern: Unmanaged.passUnretained(self).toOpaque())
+            let windowAddress = UInt(bitPattern: Unmanaged.passUnretained(window).toOpaque())
 
             // Create Windows surface for rendering
             let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
 
-            let hwnd = self.uiThread.sync {
+            let createNativeWindow: @Sendable () -> HWND = {
                 let className = "AdaEngineWindow"
                 let hInstance = unsafe GetModuleHandleW(nil)
 
@@ -80,12 +123,20 @@
                 unsafe wc.hInstance = unsafe hInstance
                 unsafe wc.lpszClassName = windowClassNamePtr
                 unsafe wc.hCursor = LoadCursorW(nil, IDC_ARROW)
+                unsafe wc.hIcon = LoadIconW(hInstance, UnsafePointer<WCHAR>(bitPattern: 101))
                 unsafe wc.hbrBackground = UnsafeMutablePointer<HBRUSH__>(bitPattern: UInt(COLOR_WINDOW + 1))
                 unsafe RegisterClassW(&wc)
 
                 // Calculate window size including non-client area
-                var windowStyle = DWORD(WS_OVERLAPPEDWINDOW)
-                if !window.configuration.isResizable {
+                let isBorderless = configuration.chrome == .borderless
+                var windowStyle = DWORD(isBorderless ? WS_POPUP : WS_OVERLAPPEDWINDOW)
+                var extendedStyle: DWORD = isBorderless ? DWORD(WS_EX_TOOLWINDOW) : 0
+                if isBorderless && !configuration.makeKey { extendedStyle |= DWORD(WS_EX_NOACTIVATE) }
+                switch configuration.level {
+                case .normal: break
+                case .floating, .statusBar: extendedStyle |= DWORD(WS_EX_TOPMOST)
+                }
+                if !configuration.isResizable {
                     windowStyle &= ~DWORD(WS_THICKFRAME | WS_MAXIMIZEBOX)
                 }
                 var rect = RECT(
@@ -94,34 +145,39 @@
                     right: LONG((Float(width) * initialScale).rounded()),
                     bottom: LONG((Float(height) * initialScale).rounded())
                 )
-                unsafe AdjustWindowRectExForDpi(&rect, windowStyle, false, 0, initialDPI)
+                let customTitleBar = !isBorderless && configuration.titleBar.background == .transparent && !configuration.titleBar.reservesSafeArea
+                adjustWindowsClientRect(&rect, style: windowStyle, extendedStyle: extendedStyle, dpi: initialDPI, customTitleBar: customTitleBar)
                 let windowWidth = rect.right - rect.left
                 let windowHeight = rect.bottom - rect.top
 
                 guard
                     let hwnd = unsafe CreateWindowExW(
-                        0,
+                        extendedStyle,
                         className.wide,
-                        window.title.wide,
+                        title.wide,
                         windowStyle,
-                        CW_USEDEFAULT,
-                        CW_USEDEFAULT,
+                        isBorderless ? LONG((configuration.frame.origin.x * initialScale).rounded()) : CW_USEDEFAULT,
+                        isBorderless ? LONG((configuration.frame.origin.y * initialScale).rounded()) : CW_USEDEFAULT,
                         windowWidth,
                         windowHeight,
-                        nil,
+                        isBorderless ? popupOwner.flatMap { HWND(bitPattern: $0) } : nil,
                         nil,
                         hInstance,
-                        Unmanaged.passUnretained(self).toOpaque()
+                        UnsafeMutableRawPointer(bitPattern: managerAddress)
                     )
                 else {
                     fatalError("Failed to create window")
                 }
 
-                let windowPtr = unsafe Unmanaged.passUnretained(window).toOpaque()
-                let ptrValue = UInt64(UInt(bitPattern: OpaquePointer(windowPtr)))
+                let ptrValue = UInt64(windowAddress)
                 unsafe SetWindowLongPtrW(hwnd, GWLP_USERDATA, LONG_PTR(bitPattern: ptrValue))
+                if customTitleBar {
+                    windowsTitleBars.withLock { $0[UInt(bitPattern: hwnd)] = WindowsTitleBarLayout(height: configuration.titleBar.dragRegionHeight ?? 32) }
+                    unsafe SetWindowPos(hwnd, nil, 0, 0, windowWidth, windowHeight, UINT(SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED | SWP_NOACTIVATE))
+                }
                 return hwnd
             }
+            let hwnd = self.uiThread.sync(createNativeWindow)
 
             let windowsSurface = unsafe WindowsSurface(windowId: window.id, windowHwnd: hwnd)
             unsafe try? RenderEngine.shared.createWindow(window.id, for: windowsSurface, size: sizeInt)
@@ -131,6 +187,13 @@
 
             let systemWindow = unsafe WindowsSystemWindow(hwnd: hwnd, surface: windowsSurface)
             window.systemWindow = systemWindow
+            // The configured origin positions the HWND on screen. AdaUI draws
+            // and hit-tests inside the client area, whose origin is always zero.
+            if window.frame.origin != .zero {
+                windowsSynchronizingFromSystem.insert(window.id)
+                window.frame = Rect(origin: .zero, size: size)
+                windowsSynchronizingFromSystem.remove(window.id)
+            }
             unsafe windowMinimumSizes[window.id] = minSize
             window.minSize = minSize
             window.setWindowMode(window.configuration.mode)
@@ -217,16 +280,15 @@
             self.uiThread.sync {
                 let scaleFactor = getWindowScaleFactor(systemWindow.hwnd)
                 let dpi = UINT(max((scaleFactor * 96).rounded(), 96))
-                var style = DWORD(WS_OVERLAPPEDWINDOW)
-                if !window.configuration.isResizable {
-                    style &= ~DWORD(WS_THICKFRAME | WS_MAXIMIZEBOX)
-                }
+                let style = DWORD(bitPattern: unsafe GetWindowLongW(systemWindow.hwnd, GWL_STYLE))
+                let extendedStyle = DWORD(bitPattern: unsafe GetWindowLongW(systemWindow.hwnd, GWL_EXSTYLE))
                 var rect = RECT()
                 unsafe GetClientRect(systemWindow.hwnd, &rect)
                 rect.right = LONG((size.width * scaleFactor).rounded())
                 rect.bottom = LONG((size.height * scaleFactor).rounded())
 
-                unsafe AdjustWindowRectExForDpi(&rect, style, false, 0, dpi)
+                adjustWindowsClientRect(&rect, style: style, extendedStyle: extendedStyle, dpi: dpi,
+                    customTitleBar: windowsTitleBars.withLock { $0[UInt(bitPattern: systemWindow.hwnd)] != nil })
                 unsafe SetWindowPos(
                     systemWindow.hwnd,
                     nil,
@@ -268,16 +330,22 @@
             return unsafe screenManager.makeScreen(from: hMonitor)
         }
 
-        override func setCursorShape(_: Input.CursorShape) {
-            // TODO: Implement cursor shape changes
+        override func setCursorShape(_ shape: Input.CursorShape) {
+            cursorShape = shape
+            windowsCursorResource.withLock { $0 = WindowsCursorResources.identifier(for: shape) }
+            updateCursor()
         }
 
         override func updateCursor() {
-            // TODO: Implement cursor updates
+            let resource = windowsCursorResource.withLock { $0 }
+            let work: @Sendable () -> Void = {
+                unsafe SetCursor(LoadCursorW(nil, UnsafePointer<WCHAR>(bitPattern: resource)))
+            }
+            uiThread.enqueue(work)
         }
 
         override func getCursorShape() -> Input.CursorShape {
-            return .arrow
+            return cursorShape
         }
 
         override func setCursorImage(for _: Input.CursorShape, texture _: Texture2D?, hotspot _: Vector2) {
@@ -326,7 +394,7 @@
         ) {
             let newSize = sizeInt.toSize()
 
-            if updateWindowFrame && window.frame.size != newSize {
+            if updateWindowFrame && window.frame != Rect(origin: .zero, size: newSize) {
                 windowsSynchronizingFromSystem.insert(window.id)
                 defer {
                     windowsSynchronizingFromSystem.remove(window.id)
@@ -378,31 +446,13 @@
     }
 
     private func getWindowsKeyModifiers() -> KeyModifier {
-        var modifiers: KeyModifier = []
-
-        // let shiftState = Int32(bitPattern: UInt32(GetKeyState(0x10))) // VK_SHIFT
-        // if (shiftState & 0x8000) != 0 {
-        //     modifiers.insert(.shift)
-        // }
-        // let controlState = Int32(bitPattern: UInt32(GetKeyState(0x11))) // VK_CONTROL
-        // if (controlState & 0x8000) != 0 {
-        //     modifiers.insert(.control)
-        // }
-        // let menuState = Int32(bitPattern: UInt32(GetKeyState(0x12))) // VK_MENU
-        // if (menuState & 0x8000) != 0 {
-        //     modifiers.insert(.alt)
-        // }
-        // let lwinState = Int32(bitPattern: UInt32(GetKeyState(0x5B))) // VK_LWIN
-        // let rwinState = Int32(bitPattern: UInt32(GetKeyState(0x5C))) // VK_RWIN
-        // if (lwinState & 0x8000) != 0 || (rwinState & 0x8000) != 0 {
-        //     modifiers.insert(.main)
-        // }
-        // let capitalState = Int32(bitPattern: UInt32(GetKeyState(0x14))) // VK_CAPITAL
-        // if (capitalState & 0x0001) != 0 {
-        //     modifiers.insert(.capsLock)
-        // }
-
-        return modifiers
+        WindowsKeyboardModifiers.make(
+            shift: unsafe GetKeyState(Int32(VK_SHIFT)),
+            control: unsafe GetKeyState(Int32(VK_CONTROL)),
+            alt: unsafe GetKeyState(Int32(VK_MENU)),
+            capsLock: unsafe GetKeyState(Int32(VK_CAPITAL)),
+            superKey: unsafe GetKeyState(Int32(VK_LWIN)) | GetKeyState(Int32(VK_RWIN))
+        )
     }
 
     private func getCurrentTime() -> AdaUtils.TimeInterval {
@@ -427,7 +477,8 @@
             right: LONG((size.width * scaleFactor).rounded()),
             bottom: LONG((size.height * scaleFactor).rounded())
         )
-        unsafe AdjustWindowRectExForDpi(&rect, style, false, exStyle, dpi)
+        adjustWindowsClientRect(&rect, style: style, extendedStyle: exStyle, dpi: dpi,
+            customTitleBar: windowsTitleBars.withLock { $0[UInt(bitPattern: hwnd)] != nil })
         return (rect.right - rect.left, rect.bottom - rect.top)
     }
 
@@ -487,7 +538,7 @@
             return result
         }
 
-        private func enqueue(_ work: @escaping () -> Void) {
+        fileprivate func enqueue(_ work: @escaping () -> Void) {
             lock.lock()
             workItems.append(work)
             lock.unlock()
@@ -529,11 +580,29 @@
         }
     }
 
+    /// Runs modal Windows controls on the owning HWND thread while Swift's
+    /// main actor remains available for rendering, network work and callbacks.
+    @_spi(Internal)
+    @MainActor
+    public enum WindowsNativeDialogs {
+        public static func minimizeActiveWindow() -> Bool {
+            (UIWindowManager.shared as? WindowsWindowManager)?.minimizeActiveWindow() ?? false
+        }
+
+        public static func present<Result: Sendable>(
+            _ operation: @escaping @Sendable (HWND?) -> Result
+        ) async -> Result {
+            guard let manager = UIWindowManager.shared as? WindowsWindowManager else { return operation(nil) }
+            return await manager.presentNativeDialog(operation)
+        }
+    }
+
     @MainActor
     private func handleMouseButtonDown(
         window: UIWindow,
         button: MouseButton,
-        lParam: LPARAM
+        lParam: LPARAM,
+        modifiers: KeyModifier
     ) {
         let windowManager = window.windowManager as? WindowsWindowManager
         guard
@@ -550,10 +619,7 @@
             scaleFactor: scaleFactor
         )
 
-        unsafe SetCapture(systemWindow.hwnd)
-
         inputRef.wrappedValue.mousePosition = position
-        let modifiers = getWindowsKeyModifiers()
         let isContinious = inputRef.wrappedValue.mouseEvents[button]?.phase == .began
 
         let mouseEvent = MouseEvent(
@@ -572,7 +638,8 @@
     private func handleMouseButtonUp(
         window: UIWindow,
         button: MouseButton,
-        lParam: LPARAM
+        lParam: LPARAM,
+        modifiers: KeyModifier
     ) {
         let windowManager = window.windowManager as? WindowsWindowManager
         guard
@@ -589,10 +656,7 @@
             scaleFactor: scaleFactor
         )
 
-        unsafe ReleaseCapture()
-
         inputRef.wrappedValue.mousePosition = position
-        let modifiers = getWindowsKeyModifiers()
 
         let mouseEvent = MouseEvent(
             window: window.id,
@@ -613,6 +677,8 @@
             return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
         }
 
+        if let result = windowsTitleBarMessage(hwnd: hwnd, message: uMsg, wParam: wParam, lParam: lParam) { return result }
+
         // Get window from user data
         let windowPtr = unsafe GetWindowLongPtrW(hwnd, GWLP_USERDATA)
         guard windowPtr != 0 else {
@@ -624,7 +690,26 @@
         }
         let window = unsafe Unmanaged<UIWindow>.fromOpaque(rawPtr).takeUnretainedValue()
 
+        // Keyboard state belongs to the HWND message queue. Snapshot it before
+        // dispatching events to Swift's main actor.
+        let modifiers = getWindowsKeyModifiers()
+        if uMsg == UInt32(WM_SYSKEYDOWN), wParam == WPARAM(VK_F4), modifiers.contains(.alt) {
+            return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
+        }
         switch uMsg {
+        case UInt32(WM_SETCURSOR):
+            if Int16(truncatingIfNeeded: lParam) == Int16(HTCLIENT) {
+                let resource = windowsCursorResource.withLock { $0 }
+                unsafe SetCursor(LoadCursorW(nil, UnsafePointer<WCHAR>(bitPattern: resource)))
+                return 1
+            }
+            return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
+        case UInt32(WM_MOUSEACTIVATE):
+            // WS_EX_NOACTIVATE alone does not prevent message-queue activation.
+            // Keep the editor focused while letting menu windows receive clicks.
+            let style = DWORD(bitPattern: unsafe GetWindowLongW(hwnd, GWL_EXSTYLE))
+            if style & DWORD(WS_EX_NOACTIVATE) != 0 { return LRESULT(MA_NOACTIVATE) }
+            return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
         case UInt32(WM_GETMINMAXINFO):
             guard let minMaxInfo = unsafe UnsafeMutablePointer<MINMAXINFO>(bitPattern: Int(lParam)) else {
                 return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
@@ -642,14 +727,11 @@
             return 0
 
         case UInt32(WM_CLOSE):
-            let shouldClose = MainActor.assumeIsolated {
-                window.windowShouldClose()
-            }
-            if shouldClose {
-                MainActor.assumeIsolated {
+            // HWND messages arrive on the native UI thread, not Swift's main actor.
+            Task { @MainActor in
+                if window.windowShouldClose() {
                     window.close()
                 }
-                return 0
             }
             return 0  // Prevent default window destruction
 
@@ -699,6 +781,7 @@
             return 0
 
         case UInt32(WM_NCDESTROY):
+            windowsTitleBars.withLock { $0.removeValue(forKey: UInt(bitPattern: hwnd)) }
             // Non-client area destroyed - final cleanup
             // Clear window handle from mapping
             Task { @MainActor in
@@ -830,7 +913,6 @@
 
                 let vkCode = UInt16(wParam & 0xFF)
                 let keyCode = translateWindowsKeyCode(vkCode: vkCode)
-                let modifiers = getWindowsKeyModifiers()
                 let isRepeated = (lParam & 0x4000_0000) != 0
 
                 let keyEvent = KeyEvent(
@@ -856,7 +938,6 @@
 
                 let vkCode = UInt16(wParam & 0xFF)
                 let keyCode = translateWindowsKeyCode(vkCode: vkCode)
-                let modifiers = getWindowsKeyModifiers()
 
                 let keyEvent = KeyEvent(
                     window: window.id,
@@ -929,7 +1010,7 @@
             }
             return 0
 
-        case UInt32(WM_MOUSEMOVE):
+        case UInt32(WM_MOUSEMOVE), UInt32(WM_NCMOUSEMOVE):
             Task { @MainActor in
                 let windowManager = window.windowManager as? WindowsWindowManager
                 guard
@@ -943,12 +1024,12 @@
                 let position = logicalMousePosition(
                     lParam: lParam,
                     hwnd: systemWindow.hwnd,
-                    scaleFactor: scaleFactor
+                    scaleFactor: scaleFactor,
+                    isScreenPosition: uMsg == UInt32(WM_NCMOUSEMOVE)
                 )
 
                 inputRef.wrappedValue.mousePosition = position
-                let modifiers = getWindowsKeyModifiers()
-                let mouseButton: MouseButton = (wParam & 0x0001) != 0 ? .left : .none
+                let mouseButton = WindowsPointerButtons.button(for: uMsg == UInt32(WM_MOUSEMOVE) ? UInt(wParam) : 0)
 
                 let mouseEvent = MouseEvent(
                     window: window.id,
@@ -961,64 +1042,86 @@
 
                 inputRef.wrappedValue.receiveEvent(mouseEvent)
             }
+            if uMsg == UInt32(WM_NCMOUSEMOVE) {
+                var result: LRESULT = 0
+                if unsafe DwmDefWindowProc(hwnd, uMsg, wParam, lParam, &result) { return result }
+                return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
+            }
             return 0
 
+        case UInt32(WM_NCMOUSELEAVE):
+            var result: LRESULT = 0
+            if unsafe DwmDefWindowProc(hwnd, uMsg, wParam, lParam, &result) { return result }
+            return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
+
         case UInt32(WM_LBUTTONDOWN):
+            unsafe SetCapture(hwnd)
             Task { @MainActor in
                 handleMouseButtonDown(
                     window: window,
                     button: .left,
-                    lParam: lParam
+                    lParam: lParam,
+                    modifiers: modifiers
                 )
             }
             return 0
 
         case UInt32(WM_LBUTTONUP):
+            unsafe ReleaseCapture()
             Task { @MainActor in
                 handleMouseButtonUp(
                     window: window,
                     button: .left,
-                    lParam: lParam
+                    lParam: lParam,
+                    modifiers: modifiers
                 )
             }
             return 0
 
         case UInt32(WM_RBUTTONDOWN):
+            unsafe SetCapture(hwnd)
             Task { @MainActor in
                 handleMouseButtonDown(
                     window: window,
                     button: .right,
-                    lParam: lParam
+                    lParam: lParam,
+                    modifiers: modifiers
                 )
             }
             return 0
 
         case UInt32(WM_RBUTTONUP):
+            unsafe ReleaseCapture()
             Task { @MainActor in
                 handleMouseButtonUp(
                     window: window,
                     button: .right,
-                    lParam: lParam
+                    lParam: lParam,
+                    modifiers: modifiers
                 )
             }
             return 0
 
         case UInt32(WM_MBUTTONDOWN):
+            unsafe SetCapture(hwnd)
             Task { @MainActor in
                 handleMouseButtonDown(
                     window: window,
                     button: .middle,
-                    lParam: lParam
+                    lParam: lParam,
+                    modifiers: modifiers
                 )
             }
             return 0
 
         case UInt32(WM_MBUTTONUP):
+            unsafe ReleaseCapture()
             Task { @MainActor in
                 handleMouseButtonUp(
                     window: window,
                     button: .middle,
-                    lParam: lParam
+                    lParam: lParam,
+                    modifiers: modifiers
                 )
             }
             return 0
@@ -1043,8 +1146,6 @@
                     scaleFactor: scaleFactor,
                     isScreenPosition: true
                 )
-
-                let modifiers = getWindowsKeyModifiers()
 
                 let mouseEvent = MouseEvent(
                     window: window.id,
@@ -1076,6 +1177,25 @@
             self.surface = surface
         }
 
+        var isMaximized: Bool { unsafe IsZoomed(hwnd) }
+
+        func updateTitleBarInputRegions(_ regions: [Rect], maximizeButton: Rect?) {
+            windowsTitleBars.withLock {
+                $0[UInt(bitPattern: hwnd)]?.inputRegions = regions
+                $0[UInt(bitPattern: hwnd)]?.maximizeButton = maximizeButton
+            }
+        }
+
+        func performCaptionAction(_ action: WindowCaptionAction) {
+            let command: Int32
+            switch action {
+            case .minimize: command = Int32(SC_MINIMIZE)
+            case .toggleMaximize: command = unsafe IsZoomed(hwnd) ? Int32(SC_RESTORE) : Int32(SC_MAXIMIZE)
+            case .close: command = Int32(SC_CLOSE)
+            }
+            unsafe PostMessageW(hwnd, UINT(WM_SYSCOMMAND), WPARAM(command), 0)
+        }
+
         var title: String {
             get {
                 var buffer = [WCHAR](repeating: 0, count: 256)
@@ -1100,14 +1220,16 @@
             set {
                 let scaleFactor = getWindowScaleFactor(hwnd)
                 let dpi = UINT(max((scaleFactor * 96).rounded(), 96))
-                let style = DWORD(WS_OVERLAPPEDWINDOW)
+                let style = DWORD(bitPattern: unsafe GetWindowLongW(hwnd, GWL_STYLE))
+                let extendedStyle = DWORD(bitPattern: unsafe GetWindowLongW(hwnd, GWL_EXSTYLE))
                 var rect = RECT(
                     left: 0,
                     top: 0,
                     right: LONG((newValue.width * scaleFactor).rounded()),
                     bottom: LONG((newValue.height * scaleFactor).rounded())
                 )
-                unsafe AdjustWindowRectExForDpi(&rect, style, false, 0, dpi)
+                adjustWindowsClientRect(&rect, style: style, extendedStyle: extendedStyle, dpi: dpi,
+                    customTitleBar: windowsTitleBars.withLock { $0[UInt(bitPattern: hwnd)] != nil })
                 unsafe SetWindowPos(hwnd, nil, 0, 0, rect.right - rect.left, rect.bottom - rect.top, UINT(SWP_NOMOVE | SWP_NOZORDER))
             }
         }
@@ -1116,17 +1238,29 @@
             get {
                 var rect = RECT()
                 unsafe GetWindowRect(hwnd, &rect)
-                return Point(x: Float(rect.left), y: Float(rect.top))
+                let scale = getWindowScaleFactor(hwnd)
+                return Point(x: Float(rect.left) / scale, y: Float(rect.top) / scale)
             }
             set {
-                unsafe SetWindowPos(hwnd, nil, LONG(newValue.x), LONG(newValue.y), 0, 0, UINT(SWP_NOSIZE | SWP_NOZORDER))
+                let scale = getWindowScaleFactor(hwnd)
+                unsafe SetWindowPos(hwnd, nil, LONG((newValue.x * scale).rounded()), LONG((newValue.y * scale).rounded()), 0, 0, UINT(SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE))
             }
+        }
+
+        var contentPosition: Point {
+            var origin = POINT(x: 0, y: 0)
+            unsafe ClientToScreen(hwnd, &origin)
+            let scale = getWindowScaleFactor(hwnd)
+            return Point(x: Float(origin.x) / scale, y: Float(origin.y) / scale)
         }
     }
 
     // MARK: - WindowsScreenManager
 
     final class WindowsScreenManager: ScreenManager {
+        // Screen stores a weak native identity. Keep monitor wrappers alive so
+        // DPI and bounds do not disappear immediately after discovery.
+        private let nativeScreens = Mutex<[UInt: WindowsSystemScreen]>([:])
         func getMainScreen() -> Screen? {
             guard let hMonitor = unsafe MonitorFromWindow(nil, UInt32(MONITOR_DEFAULTTOPRIMARY)) else {
                 return nil
@@ -1164,7 +1298,8 @@
                 // Get DPI for the monitor
                 var dpiX: UINT = 0
                 var dpiY: UINT = 0
-                unsafe GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY)
+                let result = unsafe GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY)
+                guard result >= 0, dpiX > 0 else { return 1.0 }
                 return Float(dpiX) / 96.0  // 96 DPI is standard
             }
 
@@ -1183,7 +1318,8 @@
             if unsafe GetMonitorInfoW(hMonitor, &info) {
                 let width = Float(info.rcMonitor.right - info.rcMonitor.left)
                 let height = Float(info.rcMonitor.bottom - info.rcMonitor.top)
-                return Size(width: width, height: height)
+                let scale = getScreenScale(for: screen)
+                return Size(width: width / scale, height: height / scale)
             }
 
             return .zero
@@ -1199,7 +1335,13 @@
         }
 
         func makeScreen(from hMonitor: HMONITOR) -> Screen? {
-            let systemScreen = WindowsSystemScreen(hMonitor: hMonitor)
+            let key = UInt(bitPattern: hMonitor)
+            let systemScreen = nativeScreens.withLock { screens in
+                if let existing = screens[key] { return existing }
+                let screen = WindowsSystemScreen(hMonitor: hMonitor)
+                screens[key] = screen
+                return screen
+            }
             return makeScreen(from: systemScreen)
         }
 
@@ -1208,7 +1350,8 @@
 
     /// Wrapper class for HMONITOR to conform to SystemScreen protocol
     @safe
-    final class WindowsSystemScreen: SystemScreen {
+    // Immutable identity; monitor queries are synchronized by Windows itself.
+    final class WindowsSystemScreen: SystemScreen, @unchecked Sendable {
         let hMonitor: HMONITOR
 
         @safe init(hMonitor: HMONITOR) {
@@ -1218,7 +1361,7 @@
 
     extension String {
         var wide: [WCHAR] {
-            return self.utf8.map { WCHAR($0) } + [0]
+            return Array(self.utf16) + [0]
         }
     }
 

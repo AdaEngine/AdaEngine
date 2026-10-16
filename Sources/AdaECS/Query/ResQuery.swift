@@ -32,7 +32,7 @@ public final class Res<T: Resource>: @unchecked Sendable {
     /// Initialize a new resource query.
     /// - Parameter world: The world that will be used to initialize the query.
     public init(from world: World) {
-        self._value = world.getResource(T.self)
+        self._value = T.getFromWorld(world)
             .unwrap(message: "Resource \(T.self) not found in world. Make sure to call world.insertResource(_:) before using Res.")
     }
 

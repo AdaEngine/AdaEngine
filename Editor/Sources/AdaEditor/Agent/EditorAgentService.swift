@@ -1,8 +1,10 @@
 import AdaA2UI
 import Foundation
 
-#if canImport(ACP) && canImport(ACPModel)
+#if canImport(ACPModel) && (canImport(ACP) || os(Windows))
+    #if canImport(ACP)
     import ACP
+    #endif
     import ACPModel
 #endif
 
@@ -72,23 +74,26 @@ enum EditorAgentServiceError: Error, LocalizedError, Sendable {
     }
 }
 
-#if canImport(ACP) && canImport(ACPModel)
+#if canImport(ACPModel) && (canImport(ACP) || os(Windows))
     private actor EditorAgentPermissionBroker {
         private struct PendingPermission {
             var sessionID: String
-            var continuation: CheckedContinuation<String?, Never>
+            var continuation: AsyncStream<String?>.Continuation
         }
 
         private var continuations: [String: PendingPermission] = [:]
 
-        func request(id: String, sessionID: String) async -> String? {
-            await withCheckedContinuation { continuation in
-                continuations[id] = PendingPermission(sessionID: sessionID, continuation: continuation)
-            }
+        func request(id: String, sessionID: String) -> AsyncStream<String?> {
+            let pair = AsyncStream<String?>.makeStream()
+            continuations[id] = PendingPermission(sessionID: sessionID, continuation: pair.continuation)
+            return pair.stream
         }
 
         func resolve(id: String, optionID: String?) {
-            continuations.removeValue(forKey: id)?.continuation.resume(returning: optionID)
+            if let continuation = continuations.removeValue(forKey: id)?.continuation {
+                continuation.yield(optionID)
+                continuation.finish()
+            }
         }
 
         func cancel(sessionID: String) {
@@ -96,7 +101,7 @@ enum EditorAgentServiceError: Error, LocalizedError, Sendable {
                 pending.sessionID == sessionID ? id : nil
             }
             for id in ids {
-                continuations.removeValue(forKey: id)?.continuation.resume(returning: nil)
+                resolve(id: id, optionID: nil)
             }
         }
 
@@ -104,7 +109,8 @@ enum EditorAgentServiceError: Error, LocalizedError, Sendable {
             let pending = continuations.values.map(\.continuation)
             continuations.removeAll()
             for continuation in pending {
-                continuation.resume(returning: nil)
+                continuation.yield(nil)
+                continuation.finish()
             }
         }
     }
@@ -308,7 +314,18 @@ enum EditorAgentServiceError: Error, LocalizedError, Sendable {
                 return try await prepareSession(request: request, onEvent: onEvent, onProjectFileChanged: onProjectFileChanged, forPrompt: forPrompt)
             }
             if var existing = sessions[request.session.id] {
-                if existing.agentSettings == agentConfig, existing.mcpEnabled == request.project.ai.mcp.enabled {
+                #if os(Windows)
+                let isRunning = await existing.client.isRunning
+                guard let current = sessions[request.session.id], current.client === existing.client else {
+                    return try await prepareSession(request: request, onEvent: onEvent, onProjectFileChanged: onProjectFileChanged, forPrompt: forPrompt)
+                }
+                // Checking the process yields this actor. A prompt may have started
+                // while suspended; use its current sink ownership, not the old copy.
+                existing = current
+                #else
+                let isRunning = true
+                #endif
+                if isRunning, existing.agentSettings == agentConfig, existing.mcpEnabled == request.project.ai.mcp.enabled {
                     if forPrompt {
                         existing.isPromptRunning = true
                         sessions[request.session.id] = existing
@@ -924,9 +941,12 @@ enum EditorAgentPromptContext {
     }
 }
 
-#if canImport(ACP) && canImport(ACPModel)
+#if canImport(ACPModel) && (canImport(ACP) || os(Windows))
     private actor EditorACPClientDelegate: ClientDelegate {
         private let terminalDelegate = TerminalDelegate()
+        #if os(Windows)
+        func shutdown() async { await terminalDelegate.shutdown() }
+        #endif
         private let localSessionID: String
         private let projectURL: URL
         private let permissionMode: AdaProjectAgentPermissionMode
@@ -951,16 +971,17 @@ enum EditorAgentPromptContext {
         }
 
         func handleFileReadRequest(_ path: String, sessionId _: String, line: Int?, limit: Int?) async throws -> ReadTextFileResponse {
+            guard line.map({ $0 > 0 }) ?? true, limit.map({ $0 >= 0 }) ?? true else { throw EditorAgentServiceError.providerFailure("Invalid file line range.") }
             let url = try resolvedProjectURL(path)
             let content = try String(contentsOf: url, encoding: .utf8)
             let lines = content.components(separatedBy: .newlines)
             let filtered: String
             if let line, let limit {
-                let start = max(0, line - 1)
-                let end = min(lines.count, start + limit)
+                let start = min(lines.count, max(0, line - 1))
+                let end = start + min(lines.count - start, limit)
                 filtered = lines[start..<end].joined(separator: "\n")
             } else if let line {
-                let start = max(0, line - 1)
+                let start = min(lines.count, max(0, line - 1))
                 filtered = lines[start...].joined(separator: "\n")
             } else {
                 filtered = content
@@ -1024,6 +1045,9 @@ enum EditorAgentPromptContext {
                 state: .pending,
                 selectedOptionID: nil
             )
+            // Register before publishing the permission card: a fast UI response or
+            // cancellation must not arrive before its continuation exists.
+            let decisions = await permissionBroker.request(id: requestID, sessionID: localSessionID)
             await onEvent(
                 EditorAgentEvent(
                     id: requestID,
@@ -1035,6 +1059,7 @@ enum EditorAgentPromptContext {
             )
 
             guard permissionMode != .deny else {
+                await permissionBroker.resolve(id: requestID, optionID: nil)
                 await onEvent(
                     EditorAgentEvent(
                         id: requestID,
@@ -1055,7 +1080,8 @@ enum EditorAgentPromptContext {
                 return RequestPermissionResponse(outcome: PermissionOutcome(cancelled: true))
             }
 
-            let selectedOptionID = await permissionBroker.request(id: requestID, sessionID: localSessionID)
+            var selectedOptionID: String?
+            for await decision in decisions { selectedOptionID = decision; break }
             let selectedOption = options.first { $0.id == selectedOptionID }
             let allowed = selectedOption?.kind.hasPrefix("allow") == true
             await onEvent(
@@ -1083,23 +1109,37 @@ enum EditorAgentPromptContext {
 
         private func resolvedProjectURL(_ path: String) throws -> URL {
             let candidate: URL
-            if path.hasPrefix("/") {
+            if EditorHostTools.isAbsolutePath(path) {
                 candidate = URL(fileURLWithPath: path).standardizedFileURL
             } else {
                 candidate = projectURL.appendingPathComponent(path).standardizedFileURL
             }
-            guard candidate.path == projectURL.path || candidate.path.hasPrefix(projectURL.path + "/") else {
+            #if os(Windows)
+            let rootPath = try EditorWindowsACPPath.canonicalURL(projectURL).path.lowercased()
+            let candidatePath = try EditorWindowsACPPath.canonicalURL(candidate).path.lowercased()
+            #else
+            let rootPath = projectURL.path
+            let candidatePath = candidate.path
+            #endif
+            guard candidatePath == rootPath || candidatePath.hasPrefix(rootPath + "/") else {
                 throw EditorAgentServiceError.pathOutsideProject(path)
             }
             return candidate
         }
 
         private func relativePath(for url: URL) -> String {
+            #if os(Windows)
+            let standardized = (try? EditorWindowsACPPath.canonicalURL(url)) ?? url.standardizedFileURL
+            let root = (try? EditorWindowsACPPath.canonicalURL(projectURL)) ?? projectURL
+            guard standardized.path.lowercased().hasPrefix(root.path.lowercased() + "/") else { return standardized.path }
+            return String(standardized.path.dropFirst(root.path.count + 1))
+            #else
             let standardized = url.standardizedFileURL
             guard standardized.path.hasPrefix(projectURL.path + "/") else {
                 return standardized.path
             }
             return String(standardized.path.dropFirst(projectURL.path.count + 1))
+            #endif
         }
     }
 #endif

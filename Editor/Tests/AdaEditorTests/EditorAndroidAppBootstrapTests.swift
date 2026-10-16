@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
   @testable import AdaEditor
   import Foundation
   import SwiftParser
@@ -51,6 +51,7 @@
       }
     }
 
+    #if os(macOS)
     /// Compile and invoke the generated C export against a small host runtime.
     /// This proves bridge/type accessibility; Android's executor and renderer
     /// are exercised separately by the Android export integration suite.
@@ -113,5 +114,6 @@
       #expect(result.succeeded, "\(result.combinedOutput)")
       #expect(result.standardOutput.contains("Generated Android app started"))
     }
+    #endif
   }
 #endif

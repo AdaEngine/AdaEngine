@@ -86,9 +86,11 @@ pause/resume, attachments and account sign-in.
 - Built and packaged both `arm64-v8a` and `x86_64` using Swift 6.4, Android SDK 36,
   NDK r28c and the matching Android Dawn artifacts. APK signature and 16 KiB ZIP
   alignment checks passed. ARM64 was built but has not been run on a physical device.
-- All 18 Android packaging/runtime-staging Python tests passed.
-- The portable HTTP transport passed four isolated Swift Testing cases plus a
-  real HTTP-server smoke covering exact bytes, size limits, redirects and cancellation.
+- All 20 Android packaging/runtime-staging Python tests passed, including combined
+  Java DEX and Unicode resource packaging.
+- The shared Windows/Android HTTP transport passed four isolated Swift Testing cases plus a
+  real HTTP-server smoke covering exact bytes, bounded memory/file streaming, size
+  limits, redirects and cancellation.
 - An isolated Android NativeActivity fixture exercised the production PNG encoder
   for all five pixel formats and rejected an invalid buffer. The production JNI
   and Java host passed Unicode/emoji Keystore write/read/delete, committed text

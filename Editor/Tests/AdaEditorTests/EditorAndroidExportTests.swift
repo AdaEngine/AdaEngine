@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
   @testable import AdaEditor
   import AdaEngine
   import Foundation
@@ -25,6 +25,7 @@
     }
 
     @Test func androidCLIOptionsAndMetadataRoundTrip() throws {
+      #if os(macOS)
       let invocation = try EditorCLIInvocation(arguments: [
         "export", "--target", "android", "--device", "R58ABC", "--abi", "arm64-v8a",
       ])
@@ -37,6 +38,7 @@
       #expect(throws: EditorCLIError.self) {
         try EditorCLIInvocation(arguments: ["export", "--target", "macos", "--device", "R58ABC"])
       }
+      #endif
       let encoded = try JSONEncoder().encode(AdaProjectRun(destination: .android))
       #expect(try JSONDecoder().decode(AdaProjectRun.self, from: encoded).destination == .android)
       #expect(
@@ -121,7 +123,7 @@
       #expect(package.contains("https://github.com/AdaEngine/Ada.git"))
       #expect(!package.contains(root.appendingPathComponent("Engine").path))
       let dump = await EditorProcessRunner().run(EditorProcessCommand(
-        executablePath: "/usr/bin/env", arguments: ["swift", "package", "dump-package"], workingDirectory: stage))
+        executablePath: EditorHostTools.executable("swift"), arguments: ["package", "dump-package"], workingDirectory: stage))
       #expect(dump.succeeded, Comment(rawValue: dump.combinedOutput))
     }
   }

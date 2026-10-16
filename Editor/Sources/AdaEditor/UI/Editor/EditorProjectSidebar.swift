@@ -110,10 +110,8 @@ struct EditorProjectSidebar: View {
                         projectTreeBackground(width: geometry.size.width, height: geometry.size.height)
 
                         ScrollView {
-                            VStack(alignment: .leading, spacing: 2) {
-                                ForEach(viewModel.visibleItems, id: \.id) { item in
-                                    projectTreeRow(item)
-                                }
+                            LazyVStack(viewModel.visibleItems, id: \.id, alignment: .leading, spacing: 2, estimatedRowHeight: 26) { item in
+                                projectTreeRow(item)
                             }
                             .frame(width: max(0, geometry.size.width - 16), alignment: .leading)
                             .padding(8)

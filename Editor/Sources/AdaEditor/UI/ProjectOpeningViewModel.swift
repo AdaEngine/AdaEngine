@@ -454,10 +454,10 @@ final class ProjectOpeningViewModel {
         guard let project else {
             return "Never"
         }
-        #if os(Android)
-        return project.lastOpenedAt.formatted(date: .abbreviated, time: .shortened)
-        #else
+        #if canImport(Darwin)
         return Self.relativeDateFormatter.localizedString(for: project.lastOpenedAt, relativeTo: Date())
+        #else
+        return project.lastOpenedAt.formatted(date: .abbreviated, time: .shortened)
         #endif
     }
 
@@ -487,19 +487,24 @@ final class ProjectOpeningViewModel {
         EditorProjectPathDisplayFormatter.string(for: path)
     }
 
-    #if !os(Android)
+    #if canImport(Darwin)
     private static let relativeDateFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return formatter
     }()
-
     #endif
+
     private func initializeGitRepositoryIfNeeded(at path: String) -> String? {
         #if os(macOS) || os(Linux) || os(Windows)
             let command: [String]
             #if os(Windows)
-                command = ["git", "init"]
+                let paths = (EditorHostTools.environmentValue("PATH") ?? "").split(separator: ";")
+                guard let git = paths.map({ URL(fileURLWithPath: String($0)).appendingPathComponent("git.exe") })
+                    .first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) else {
+                    return "Git was not found on PATH. The project was created without a Git repository."
+                }
+                command = [git.path, "init"]
             #else
                 command = ["/usr/bin/env", "git", "init"]
             #endif

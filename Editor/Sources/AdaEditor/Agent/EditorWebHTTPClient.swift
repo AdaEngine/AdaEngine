@@ -50,8 +50,9 @@ struct EditorWebURLSessionClient: EditorWebHTTPClient {
             var request = URLRequest(url: current)
             request.setValue("AdaEditor/1.0", forHTTPHeaderField: "User-Agent")
             #if canImport(FoundationNetworking)
-            let (file, response) = try await EditorBoundedDownload.receive(request, session: session, maximumBytes: Int64(maxBytes), allowsRedirects: false)
-            defer { try? FileManager.default.removeItem(at: file) }
+            let (data, response) = try await EditorBoundedHTTPTransfer.load(
+                request, configuration: configuration, maximumBytes: maxBytes, followRedirects: false
+            )
             #else
             let (bytes, response) = try await session.bytes(for: request)
             #endif
@@ -66,9 +67,7 @@ struct EditorWebURLSessionClient: EditorWebHTTPClient {
             }
             guard (200..<300).contains(http.statusCode) else { throw EditorWebToolError("HTTP \(http.statusCode) from \(current.host ?? "server").") }
             guard response.expectedContentLength <= Int64(maxBytes) else { throw EditorWebToolError("Response exceeds the \(maxBytes)-byte limit.") }
-            #if canImport(FoundationNetworking)
-            let data = try Data(contentsOf: file)
-            #else
+            #if !canImport(FoundationNetworking)
             var data = Data()
             data.reserveCapacity(min(maxBytes, 64 * 1024))
             for try await byte in bytes {

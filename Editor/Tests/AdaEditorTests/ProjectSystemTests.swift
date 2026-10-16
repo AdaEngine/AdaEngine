@@ -90,7 +90,7 @@ struct ProjectSystemTests {
         do {
             _ = try ProjectSystem.loadProject(at: projectURL)
             Issue.record("Expected loadProject to throw")
-        } catch let error as ProjectSystemError {
+        } catch {
             #expect(error == .metadataFileMissing(path: ".ada/project.json"))
             #expect(error.code == "project.metadataFileMissing")
             #expect(error.fieldPath == ".ada/project.json")
@@ -102,7 +102,7 @@ struct ProjectSystemTests {
         do {
             _ = try ProjectSystem.loadProject(from: Data("{".utf8))
             Issue.record("Expected loadProject to throw")
-        } catch let error as ProjectSystemError {
+        } catch {
             #expect(error.code == "project.invalidJSON")
             #expect(error.fieldPath == ".ada/project.json")
         }
@@ -134,7 +134,7 @@ struct ProjectSystemTests {
         do {
             _ = try ProjectSystem.loadProject(from: Data(#"{"schemaVersion":1,"build":{"system":"xcode"}}"#.utf8))
             Issue.record("Expected loadProject to throw")
-        } catch let error as ProjectSystemError {
+        } catch {
             #expect(error == .unknownBuildSystem(path: "build.system", value: "xcode", supportedValues: ["adascript", "swiftpm"]))
             #expect(error.code == "project.unknownBuildSystem")
             #expect(error.fieldPath == "build.system")
@@ -157,7 +157,7 @@ struct ProjectSystemTests {
         do {
             _ = try ProjectSystem.loadProject(from: Data(json.utf8))
             Issue.record("Expected loadProject to throw")
-        } catch let error as ProjectSystemError {
+        } catch {
             #expect(error.code == code)
             #expect(error.fieldPath == fieldPath)
         }
@@ -193,7 +193,7 @@ struct ProjectSystemTests {
         do {
             _ = try ProjectSystem.createDefaultProject(at: projectURL)
             Issue.record("Expected createDefaultProject to throw")
-        } catch let error as ProjectSystemError {
+        } catch {
             #expect(error == .swiftPackageManifestMissing(path: "Package.swift"))
             #expect(error.code == "project.swiftPackageManifestMissing")
         }

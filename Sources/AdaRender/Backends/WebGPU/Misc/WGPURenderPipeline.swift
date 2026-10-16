@@ -18,7 +18,10 @@
         // Cache ownership is protected by this lock. NSLock avoids transferring
         // the non-Sendable vendor handles across a Mutex sending boundary.
         private let bindingLock = NSLock()
-        private var bindingCache = BoundedResourceCache<WGPUBindGroupKey, WebGPU.GPUBindGroup>(capacity: 512)
+        // A scene's material bindings repeat across in-flight buffers, cameras and
+        // shadow cascades. Keep that working set warm instead of recreating Dawn
+        // bind groups every frame once a moderately sized scene exceeds 512 keys.
+        private var bindingCache = BoundedResourceCache<WGPUBindGroupKey, WebGPU.GPUBindGroup>(capacity: 8_192)
         let vertexBufferSlots: [Int: UInt32]
         let descriptor: RenderPipelineDescriptor
         let renderPipeline: WebGPU.GPURenderPipeline
@@ -111,8 +114,11 @@
             }
         }
 
-        func cachedBindGroup(key: WGPUBindGroupKey, owners: [AnyObject], create: () -> WebGPU.GPUBindGroup?) -> WebGPU.GPUBindGroup? {
-            bindingLock.withLock {
+        var cachedBindGroupCount: Int { bindingLock.withLock { bindingCache.count } }
+
+        func cachedBindGroup(key: WGPUBindGroupKey, owners: [AnyObject], cacheable: Bool = true, create: () -> WebGPU.GPUBindGroup?) -> WebGPU.GPUBindGroup? {
+            guard cacheable else { return create() }
+            return bindingLock.withLock {
                 bindingCache.value(for: key, owners: owners, create: create)
             }
         }

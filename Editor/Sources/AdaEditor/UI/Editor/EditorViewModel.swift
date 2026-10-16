@@ -15,7 +15,7 @@ enum EditorAdaScriptProjectBuildOutcome: Sendable {
 final class EditorViewModel {
     let studioTools = EditorStudioToolHost()
     let performance = EditorPerformanceModel()
-    #if canImport(Network)
+    #if canImport(Network) || os(Windows)
     let playerSession = EditorPlayerSession()
     #endif
     var playerPairingWindow: UIWindow?
@@ -61,7 +61,7 @@ final class EditorViewModel {
     var selectedAndroidTargetID: String?
     var androidRunningSession: EditorAndroidRunSession?
     @ObservationIgnored var androidDiscoveryTask: Task<Void, Never>?
-    #if os(macOS)
+    #if os(macOS) || os(Windows) || os(Linux)
     @ObservationIgnored var androidRunner: EditorProcessRunner?
     @ObservationIgnored var androidTools: EditorAndroidTools?
     #endif
@@ -129,7 +129,7 @@ final class EditorViewModel {
     var adaScriptHotReloadTask: Task<Void, Never>?
     @ObservationIgnored
     var adaScriptHotReloadRevision = 0
-    #if os(macOS)
+    #if os(macOS) || os(Windows) || os(Linux)
         @ObservationIgnored
         var adaScriptWebServer: Process?
         @ObservationIgnored
@@ -256,6 +256,11 @@ final class EditorViewModel {
             self.selectedRunDestination = selectedRunDestination ?? .visionOS
         #elseif os(iOS)
             self.selectedRunDestination = selectedRunDestination ?? .iPadOS
+        #elseif os(Windows)
+            let savedDestination = savedProject.map { Self.editorRunDestination(from: $0.run.destination) }
+            self.selectedRunDestination = selectedRunDestination
+                ?? savedDestination.flatMap { EditorRunDestination.availableCases.contains($0) ? $0 : nil }
+                ?? .windows
         #else
             self.selectedRunDestination = selectedRunDestination ?? Self.editorRunDestination(from: savedProject?.run.destination ?? .macOS)
         #endif

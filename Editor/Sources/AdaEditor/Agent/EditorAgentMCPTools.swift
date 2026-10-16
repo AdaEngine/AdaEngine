@@ -5,6 +5,16 @@ enum EditorMCPServerAddress {
     static let host = "127.0.0.1"
     static let endpoint = "/mcp"
 
+    static var enableDiscovery: Bool {
+        // AdaMCP 0.2.0 refreshes its manifest with FileManager.replaceItemAt,
+        // which traps on Windows. Direct HTTP and stdio connections still work.
+        #if os(Windows)
+        false
+        #else
+        true
+        #endif
+    }
+
     static var port: Int {
         guard
             let value = CommandLine.arguments.first(where: { $0.hasPrefix("--mcp-port=") })?.split(separator: "=").last,

@@ -1,6 +1,6 @@
-import AdaEngine
 @_spi(Internal) @testable import AdaRender
 import Foundation
+import Math
 import Testing
 
 @testable import AdaCorePipelines
@@ -9,11 +9,7 @@ import Testing
 @MainActor
 struct MaterialUploadReuseTests {
     @Test
-    func unchangedMaterialAvoidsUploadsAndMutationUpdatesTheCurrentBuffer() async throws {
-        if unsafe RenderEngine.shared == nil {
-            unsafe RenderEngine.configurations.preferredBackend = .headless
-            try RenderEngine.setupRenderEngine()
-        }
+    func unchangedMaterialAvoidsUploadsAndMutationPreservesInFlightBuffer() async throws {
         let device = HeadlessRenderBackend().renderDevice
         var uniforms = PBR3DUniforms()
         let material = PBRMaterial()
@@ -26,10 +22,12 @@ struct MaterialUploadReuseTests {
         #expect(try await buffer.readData() == marker)
         material.normalScale = 2
         uniforms.write(material: material, descriptor: VertexDescriptor(), device: device)
-        #expect(try await buffer.readData() != marker)
-        let value = unsafe buffer.contents().load(as: PBR3DUniform.self)
+        let edited = try #require(uniforms.buffer(for: material))
+        #expect(edited !== buffer)
+        #expect(try await buffer.readData() == marker)
+        let value = unsafe edited.contents().load(as: PBR3DUniform.self)
         #expect(value.properties.x == 2)
-        // Every frame-ring slot must receive a changed material, not just the first slot.
+        // Subsequent frames reuse the edited value without rewriting in-flight data.
         for _ in 0..<max(1, unsafe RenderEngine.configurations.maxFramesInFlight) {
             uniforms.beginFrame()
             uniforms.write(material: material, descriptor: VertexDescriptor(), device: device)

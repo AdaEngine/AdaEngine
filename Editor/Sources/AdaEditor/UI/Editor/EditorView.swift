@@ -279,9 +279,9 @@ struct EditorView: View {
                     Text("\(item.title) will be permanently deleted from the project.")
                 }
             )
-            .menuBar(EditorMenuBar.makeMenus())
+            .menuBar(EditorMenuBar.makeMenus(), foregroundColor: theme.editorColors.text, backgroundColor: theme.editorColors.surface)
             .keyboardShortcuts(editorKeyboardShortcuts)
-        #if os(macOS)
+        #if os(macOS) || os(Windows) || os(Linux)
             .onChange(of: viewModel.settingsPresentationToken) { _, _ in
                 guard let section = viewModel.requestedSettingsSection else {
                     return

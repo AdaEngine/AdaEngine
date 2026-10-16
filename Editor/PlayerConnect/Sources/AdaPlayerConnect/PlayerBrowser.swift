@@ -37,5 +37,4 @@ public final class PlayerBrowser {
 
     public func stop() { browser?.cancel(); browser = nil; devices = [] }
 }
-
 #endif

@@ -115,11 +115,10 @@ extension EditorViewModel {
 
     @MainActor
     func importAssets() {
-        guard let urls = ProjectOpenPicker.pickAssetImportURLs(), !urls.isEmpty else {
-            return
+        Task { [weak self] in
+            guard let urls = await ProjectOpenPicker.pickAssetImportURLs(), !urls.isEmpty else { return }
+            self?.importAssets(from: urls)
         }
-
-        importAssets(from: urls)
     }
 
     func importAssets(from sourceURLs: [URL]) {

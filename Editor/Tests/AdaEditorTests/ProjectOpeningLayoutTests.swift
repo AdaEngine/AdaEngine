@@ -8,6 +8,41 @@ import Testing
 
 @Suite("Project opening layout")
 struct ProjectOpeningLayoutTests {
+    @Test("creation fills the client area below the desktop menu", arguments: [
+        Size(width: 1024, height: 700), Size(width: 1280, height: 720), Size(width: 1600, height: 1000)
+    ])
+    @MainActor
+    func creationFillsDesktopWindow(_ size: Size) async throws {
+        if unsafe RenderEngine.shared == nil {
+            unsafe RenderEngine.configurations.preferredBackend = .headless
+            RenderWorldPlugin().setup(in: AppWorlds(main: World(name: "LauncherDesktopLayout")))
+        }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = ProjectOpeningViewModel(store: EditorProjectStore(storageURL: root.appendingPathComponent("projects.json")))
+        model.beginCreateNewProject()
+        let container = UIContainerView(rootView: ProjectOpeningView(autoOpenLastProject: false, viewModel: model)
+            .environment(\.windowCaption, WindowCaptionPresentation(isVisible: true)))
+        container.frame = Rect(origin: .zero, size: size)
+        container.bounds.size = size
+        container.layoutIfNeeded()
+        for identifier in [ProjectOpeningAccessibility.sidebar, ProjectOpeningAccessibility.explorer, ProjectOpeningAccessibility.detail] {
+            let column = try container.uiNode(matching: .accessibilityIdentifier(identifier))
+            #expect(abs(column.absoluteFrame.maxY - size.height) < 1)
+            #expect(column.absoluteFrame.minY >= 0)
+            #expect(column.absoluteFrame.maxX <= size.width)
+        }
+        let name = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.projectName))
+        let location = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.location))
+        let type = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.projectType))
+        let actions = try container.uiNode(matching: .accessibilityIdentifier(ProjectOpeningAccessibility.createActions))
+        #expect(name.absoluteFrame.height >= 44)
+        #expect(name.absoluteFrame.maxY <= location.absoluteFrame.minY)
+        #expect(location.absoluteFrame.maxY <= type.absoluteFrame.minY)
+        #expect(type.absoluteFrame.maxY <= actions.absoluteFrame.minY)
+        #expect(abs(actions.absoluteFrame.maxY - (size.height - ProjectOpeningLayout.detailBottomPadding)) < 1)
+    }
+
     @Test(
         "iPad creation uses a navigation title and ordered fields",
         arguments: [

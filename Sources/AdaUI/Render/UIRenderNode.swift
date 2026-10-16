@@ -5,6 +5,7 @@
 //  Created by Vladislav Prusakov on 19.12.2025.
 //
 
+import AdaCorePipelines
 import AdaECS
 import AdaRender
 import AdaUtils
@@ -16,8 +17,15 @@ import Math
 /// Uses an orthographic projection with origin at top-left corner.
 public struct UIViewUniform: Resource {
     public var viewProjectionMatrix: Transform3D = .identity
+    private var bufferedViews = FrameUniformCache3D<GlobalViewUniform>()
 
     public init() {}
+
+    mutating func retainViews(_ views: [Entity.ID]) { bufferedViews.retainViews(views) }
+
+    mutating func write(_ uniform: GlobalViewUniform, view: Entity.ID, device: RenderDevice) -> BufferData<GlobalViewUniform> {
+        bufferedViews.write(uniform, view: view, device: device)
+    }
 }
 
 public struct UIRenderNode: RenderNode {
@@ -30,7 +38,8 @@ public struct UIRenderNode: RenderNode {
         Entity,
         Camera,
         RenderViewTarget,
-        GlobalViewUniform
+        GlobalViewUniform,
+        ExtractedCameraSource
     >
     private var query
 
@@ -62,6 +71,9 @@ public struct UIRenderNode: RenderNode {
         _uiViewUniform.update(from: world)
         _renderDevice.update(from: world)
         _glassBackground.update(from: world)
+        var activeViews: [Entity.ID] = []
+        query.forEach { _, _, _, _, source in activeViews.append(source.entityId) }
+        uiViewUniform.retainViews(activeViews)
     }
 
     public func execute(
@@ -72,7 +84,7 @@ public struct UIRenderNode: RenderNode {
             return []
         }
 
-        try query.forEach { entity, camera, target, _ in
+        try query.forEach { entity, camera, target, _, source in
             if entity != view {
                 return
             }
@@ -126,6 +138,7 @@ public struct UIRenderNode: RenderNode {
             let uiViewUniform = makeUIViewUniform(
                 projection: uiProjection
             )
+            let viewConstants = self.uiViewUniform.write(uiViewUniform, view: source.entityId, device: renderDevice.renderDevice)
 
             let uiRenderPassDescriptor = RenderPassDescriptor(
                 label: "UI Render Pass",
@@ -192,7 +205,7 @@ public struct UIRenderNode: RenderNode {
 
                 if renderPass == nil {
                     let activePass = commandBuffer.beginRenderPass(uiRenderPassDescriptor)
-                    activePass.setVertexBuffer(uiViewUniform, slot: GlobalBufferIndex.viewUniform)
+                    activePass.setVertexBuffer(viewConstants, offset: 0, slot: GlobalBufferIndex.viewUniform)
                     activePass.setViewport(camera.viewport.rect)
                     renderPass = activePass
                 }

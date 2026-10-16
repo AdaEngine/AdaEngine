@@ -9,7 +9,7 @@ import AdaApp
 import AdaCorePipelines
 import AdaECS
 @_spi(Internal) import AdaInput
-import AdaRender
+@_spi(Internal) import AdaRender
 import AdaText
 import AdaUtils
 import Logging
@@ -27,6 +27,7 @@ public struct UIPlugin: Plugin {
             .insertResource(UIWindowPendingDrawViews())
             .insertResource(UIContextPendingDraw())
             .insertResource(UIRedrawRequest())
+            .insertResource(WindowFrameRequests())
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -285,12 +286,21 @@ public func UpdateWindowManager(
     _ pendingViews: ResMut<UIWindowPendingDrawViews>,
     _ contexts: ResMut<UIContextPendingDraw>,
     _ redrawRequest: ResMut<UIRedrawRequest>,
+    _ frameRequests: ResMut<WindowFrameRequests>,
+    _ cameras: Query<Camera, WindowRenderOnDemand?>,
+    _ primaryWindow: Res<PrimaryWindowId?>,
     _ input: ResMut<Input>,
     _ deltaTime: Res<DeltaTime>
 ) {
     pendingViews.windows.removeAll(keepingCapacity: true)
     contexts.contexts.removeAll(keepingCapacity: true)
     redrawRequest.needsRedraw = false
+    frameRequests.wrappedValue.beginFrame()
+    let primaryID = primaryWindow.wrappedValue?.windowId
+    cameras.forEach { camera, onDemand in
+        guard camera.isActive, case let .window(window) = camera.renderTarget else { return }
+        frameRequests.wrappedValue.include(window, primary: primaryID, onDemand: onDemand != nil)
+    }
     let windowManager = windowManager.windowManager
     let deltaTime = deltaTime.deltaTime
     let windows = windowManager.windows
@@ -311,6 +321,9 @@ public func UpdateWindowManager(
         }
 
         window.internalUpdate(deltaTime)
+        if window.canDraw && (window.consumePresentationRequest() || window.needsDisplay) {
+            frameRequests.requestedWindowIDs.insert(window.id)
+        }
         if window.canDraw && window.needsDisplay {
             pendingViews.windows.append(window)
             redrawRequest.needsRedraw = true

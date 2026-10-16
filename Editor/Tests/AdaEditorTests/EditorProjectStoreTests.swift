@@ -644,12 +644,50 @@ struct EditorProjectStoreTests {
         let projectURL = URL(fileURLWithPath: reference.path, isDirectory: true)
 
         let viewModel = EditorViewModel(project: reference)
+        #if os(Windows)
+        #expect(viewModel.selectedRunDestination == .windows)
+        #else
         #expect(viewModel.selectedRunDestination == .macOS)
+        #endif
         viewModel.selectRunDestination(.web)
 
         #expect(viewModel.selectedRunDestination == .web)
         #expect(try ProjectSystem.loadProject(at: projectURL).run.destination == .web)
+        #expect(EditorViewModel(project: reference).selectedRunDestination == .web)
     }
+
+    #if os(Windows)
+    @Test("Windows restores supported saved run destinations", arguments: [EditorRunDestination.windows, .web, .android])
+    @MainActor
+    func windowsRunDestinationReopens(_ destination: EditorRunDestination) throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory()
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let reference = try store.createProject(named: "SavedDestination", at: rootURL)
+        let projectURL = URL(fileURLWithPath: reference.path, isDirectory: true)
+        let editor = EditorViewModel(project: reference)
+        editor.selectRunDestination(destination)
+
+        #expect(try ProjectSystem.loadProject(at: projectURL).run.destination == destination.adaProjectDestination)
+        #expect(EditorViewModel(project: reference).selectedRunDestination == destination)
+        #expect(EditorViewModel(project: reference, selectedRunDestination: .player).selectedRunDestination == .player)
+    }
+
+    @Test("Windows falls back to local run for unavailable saved platforms", arguments: [AdaProjectRunDestination.macOS, .iPadOS, .visionOS])
+    @MainActor
+    func windowsUnsupportedRunDestination(_ destination: AdaProjectRunDestination) throws {
+        let rootURL = try makeEditorStoreTemporaryDirectory()
+        defer { removeEditorStoreTemporaryDirectory(rootURL) }
+        let store = EditorProjectStore(storageURL: rootURL.appendingPathComponent("projects.json"))
+        let reference = try store.createProject(named: "UnsupportedDestination", at: rootURL)
+        let projectURL = URL(fileURLWithPath: reference.path, isDirectory: true)
+        try store.setRunDestination(destination, at: projectURL)
+
+        #expect(EditorViewModel(project: reference).selectedRunDestination == .windows)
+        #expect(try ProjectSystem.loadProject(at: projectURL).run.destination == destination)
+        #expect(EditorViewModel().selectedRunDestination == .windows)
+    }
+    #endif
 }
 
 private func makeEditorStoreTemporaryDirectory(named name: String? = nil) throws -> URL {

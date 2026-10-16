@@ -1,9 +1,55 @@
 @testable import AdaEditor
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Testing
 
 @Suite("Example catalog downloads")
 struct EditorExampleCatalogTests {
+    #if canImport(FoundationNetworking)
+    @Test("Compressed response headers do not reject small decoded files; decoded limits still apply")
+    func compressedTransferLimit() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ExampleCompressionProtocol.self]
+        let url = try #require(URL(string: "https://example.com/small-file"))
+        let (data, _) = try await EditorBoundedHTTPTransfer.load(
+            URLRequest(url: url), configuration: configuration, maximumBytes: 4
+        )
+        #expect(data == Data("game".utf8))
+        await #expect(throws: (any Error).self) {
+            _ = try await EditorBoundedHTTPTransfer.load(
+                URLRequest(url: url), configuration: configuration, maximumBytes: 3
+            )
+        }
+    }
+    #endif
+
+    @Test("Decoded compressed downloads are not compared to the encoded Content-Length", arguments: ["gzip", "br", " GZip "])
+    func compressedDownloadLength(_ encoding: String) throws {
+        let url = try #require(URL(string: "https://example.com/catalog.json"))
+        let response = try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: [
+            "Content-Encoding": encoding, "Content-Length": "3"
+        ]))
+        let data = Data("decoded catalog".utf8)
+        try EditorExampleService.validateDownload(data, response: response, limit: 100)
+        #expect(throws: EditorExampleError.self) {
+            try EditorExampleService.validateDownload(data, response: response, limit: 10)
+        }
+    }
+
+    @Test("Identity downloads still reject incomplete bodies", arguments: ["identity", ""])
+    func identityDownloadLength(_ encoding: String) throws {
+        let url = try #require(URL(string: "https://example.com/catalog.json"))
+        let response = try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: [
+            "Content-Encoding": encoding, "Content-Length": "4"
+        ]))
+        try EditorExampleService.validateDownload(Data("game".utf8), response: response, limit: 100)
+        #expect(throws: EditorExampleError.self) {
+            try EditorExampleService.validateDownload(Data("gam".utf8), response: response, limit: 100)
+        }
+    }
+
     private func temporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("ExampleTests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -123,3 +169,22 @@ struct EditorExampleCatalogTests {
         }
     }
 }
+
+#if canImport(FoundationNetworking)
+// Models URLSession delivering a decoded body with the original compressed headers.
+// Stateless and safe to use concurrently: every request gets the same fixed body.
+private final class ExampleCompressionProtocol: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: [
+                "Content-Encoding": "gzip", "Content-Length": "24"
+              ]) else { return }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("game".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+    override func stopLoading() {}
+}
+#endif

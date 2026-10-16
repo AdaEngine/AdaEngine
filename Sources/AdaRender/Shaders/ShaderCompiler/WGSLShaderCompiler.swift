@@ -1,8 +1,12 @@
 #if canImport(WebGPU) && !WASM && !os(Android)
     import AdaUtils
     import Foundation
+    import Logging
     import Subprocess
     import WebGPU
+    #if os(Windows)
+        import WinSDK
+    #endif
     #if canImport(System)
         @unsafe @preconcurrency import System
     #else
@@ -23,24 +27,33 @@
             let tempFileURL = try getTempFileURL(from: spirvData)
 
             defer { try? FileManager.default.removeItem(at: tempFileURL) }
+            var options = PlatformOptions()
+            #if os(Windows)
+            // Studio and exported games have no parent console. Without this
+            // flag Windows creates a flashing console for every Tint invocation.
+            options.windowStyle = .hidden
+            options.preSpawnProcessConfigurator = { flags, _ in
+                flags |= DWORD(CREATE_NO_WINDOW)
+            }
+            #endif
             let process = try await run(
-                .path(FilePath(toolExecutable.path())),
+                .path(FilePath(toolExecutable.path)),
                 arguments: [
-                    tempFileURL.path(),
+                    tempFileURL.path,
                     "--format",
                     "wgsl",
                     "--allow-non-uniform-derivatives",
                     "true",
                 ],
+                platformOptions: options,
                 output: .string(limit: .max),
                 error: .string(limit: 1024)
             )
-            if let error = process.standardError, !error.isEmpty {
-                throw ShaderCompilerError.failed(error)
-            }
-
             guard process.terminationStatus.isSuccess else {
-                throw ShaderCompilerError.failed("Tint terminated with status \(process.terminationStatus)")
+                throw ShaderCompilerError.failed(process.standardError ?? "Tint terminated with status \(process.terminationStatus)")
+            }
+            if let warnings = process.standardError, !warnings.isEmpty {
+                Logger(label: "org.adaengine.wgsl").warning("Tint: \(warnings)")
             }
 
             guard let source = process.standardOutput else {

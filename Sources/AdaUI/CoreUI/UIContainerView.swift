@@ -94,6 +94,14 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
         } else {
             placeRootNode()
         }
+        #if os(Windows)
+        if let window, parentView === window, window.configuration.chrome == .standard,
+            window.configuration.titleBar.background == .transparent, !window.configuration.titleBar.reservesSafeArea {
+            let height = window.configuration.titleBar.dragRegionHeight ?? 32
+            let caption = windowCaptionInputRegions(height: height, window: window)
+            window.systemWindow?.updateTitleBarInputRegions(caption.regions, maximizeButton: caption.maximizeButton)
+        }
+        #endif
     }
 
     private func navigationBarChromeInsets() -> EdgeInsets {
@@ -519,6 +527,17 @@ extension UIView {
         env.reservedRegions = reservedRegions
         env.navigationBarControlsTopInset = navigationBarControlsTopInset
         env.scaleFactor = window?.screen?.scale ?? Screen.main?.scale ?? 1
+        #if os(Windows)
+        if let window, parentView === window, window.configuration.chrome == .standard,
+            window.configuration.titleBar.background == .transparent, !window.configuration.titleBar.reservesSafeArea {
+            env.windowCaption = WindowCaptionPresentation(
+                isVisible: true,
+                isResizable: window.configuration.isResizable,
+                isMaximized: window.systemWindow?.isMaximized ?? false,
+                target: window.captionCommandTarget
+            )
+        }
+        #endif
         return env
     }
 
@@ -533,12 +552,15 @@ extension UIView {
     }
 }
 
+protocol WindowDragBlockingNode {}
+
 extension ViewNode {
     var blocksWindowDrag: Bool {
         switch self {
         case is ButtonViewNode,
             is GestureAreaViewNode,
-            is TextFieldViewNode:
+            is TextFieldViewNode,
+            is any WindowDragBlockingNode:
             return true
         #if canImport(AppKit) || canImport(UIKit)
             case is NativeViewHostNode:

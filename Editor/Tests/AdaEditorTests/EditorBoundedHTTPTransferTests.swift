@@ -5,17 +5,16 @@ import FoundationNetworking
 import Testing
 
 @Suite("Portable bounded HTTP downloads")
-struct EditorBoundedDownloadTests {
+struct EditorBoundedHTTPTransferTests {
     @Test("A complete response is written exactly once")
     func downloadsBytes() async throws {
         let session = makeSession()
         defer { session.invalidateAndCancel() }
-        let (file, response) = try await EditorBoundedDownload.receive(
-            request("small"), session: session, maximumBytes: 1024, allowsRedirects: false
+        let (data, response) = try await EditorBoundedHTTPTransfer.load(
+            request("small"), configuration: session.configuration, maximumBytes: 1024, followRedirects: false
         )
-        defer { try? FileManager.default.removeItem(at: file) }
         #expect((response as? HTTPURLResponse)?.statusCode == 200)
-        #expect(try Data(contentsOf: file) == Data(repeating: 120, count: 64))
+        #expect(data == Data(repeating: 120, count: 64))
     }
 
     @Test("Limits apply to headers and unknown-length bodies", arguments: ["large", "chunked"])
@@ -23,10 +22,9 @@ struct EditorBoundedDownloadTests {
         let session = makeSession()
         defer { session.invalidateAndCancel() }
         do {
-            let (file, _) = try await EditorBoundedDownload.receive(
-                request(path), session: session, maximumBytes: 1024, allowsRedirects: false
+            _ = try await EditorBoundedHTTPTransfer.load(
+                request(path), configuration: session.configuration, maximumBytes: 1024, followRedirects: false
             )
-            try? FileManager.default.removeItem(at: file)
             Issue.record("An oversized response was accepted")
         } catch let error as EditorWebToolError {
             #expect(error.message.contains("1024-byte limit"))
@@ -39,8 +37,8 @@ struct EditorBoundedDownloadTests {
         defer { session.invalidateAndCancel() }
         let task = Task {
             withUnsafeCurrentTask { $0?.cancel() }
-            return try await EditorBoundedDownload.receive(
-                request("small"), session: session, maximumBytes: 1024, allowsRedirects: false
+            return try await EditorBoundedHTTPTransfer.load(
+                request("small"), configuration: session.configuration, maximumBytes: 1024, followRedirects: false
             )
         }
         await #expect(throws: CancellationError.self) { try await task.value }

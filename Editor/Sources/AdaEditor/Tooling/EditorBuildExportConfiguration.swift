@@ -108,6 +108,44 @@ struct EditorBuildExportConfiguration: Equatable, Sendable {
     static let preferenceKey = "AdaStudio.BuildExport.Tools"
     var values: [String: [String: String]] = [:]
 
+    /// Fill missing or broken paths, preserving working overrides and edits made during a scan.
+    @discardableResult
+    mutating func applyDiscoveredTools(_ found: [String: String], for platform: EditorBuildPlatform, unchangedSince snapshot: Self) -> Int {
+        guard platform == .host || platform == .android || platform == .web
+            || (Self.appleHost && [.iOS, .xr].contains(platform)) else { return 0 }
+        let androidSDKChanged = value("ANDROID_HOME", for: platform) != snapshot.value("ANDROID_HOME", for: platform)
+        var updated = 0
+        for field in platform.fields {
+            if platform == .android, ["ANDROID_NDK_HOME", "ANDROID_BUILD_TOOLS_VERSION"].contains(field.id),
+               androidSDKChanged {
+                continue // The user selected another SDK while its components were being scanned.
+            }
+            #if os(Windows)
+            if platform == .web { continue } // These paths belong to the WSL worker.
+            #endif
+            let current = normalizedValue(field, for: platform)
+            guard current == snapshot.normalizedValue(field, for: platform),
+                  let discovered = found[field.id], discovered != current else { continue }
+            if field.kind == .identifier {
+                guard current.isEmpty else { continue }
+            } else {
+                guard !EditorBuildToolDiscovery.isAvailable(current, key: field.id),
+                      EditorBuildToolDiscovery.isAvailable(discovered, key: field.id) else { continue }
+            }
+            values[platform.rawValue, default: [:]][field.id] = discovered
+            updated += 1
+        }
+        return updated
+    }
+
+    private static var appleHost: Bool {
+        #if os(macOS)
+        true
+        #else
+        false
+        #endif
+    }
+
     static func load(defaults: UserDefaults = .standard) -> Self {
         var configuration = Self(values: defaults.dictionary(forKey: preferenceKey) as? [String: [String: String]] ?? [:])
         #if os(macOS)
@@ -129,7 +167,8 @@ struct EditorBuildExportConfiguration: Equatable, Sendable {
         values[platform.rawValue]?[key] ?? ""
     }
 
-    func save(defaults: UserDefaults = .standard) {
+    @discardableResult
+    func save(defaults: UserDefaults = .standard) -> Bool {
         var profiles: [String: [String: String]] = [:]
         for platform in EditorBuildPlatform.allCases {
             profiles[platform.rawValue] = Dictionary(uniqueKeysWithValues: platform.fields.compactMap { field in
@@ -141,6 +180,13 @@ struct EditorBuildExportConfiguration: Equatable, Sendable {
         // all Android build/device consumers continue to use the same values.
         defaults.set(profiles.removeValue(forKey: EditorBuildPlatform.android.rawValue) ?? [:], forKey: EditorAndroidConfiguration.preferenceKey)
         defaults.set(profiles, forKey: Self.preferenceKey)
+        #if os(Windows)
+        // Windows Foundation does not reliably flush pending preferences on exit.
+        // An explicit Save must survive closing Studio immediately afterwards.
+        return defaults.synchronize()
+        #else
+        return true
+        #endif
     }
 
     func normalizedValue(_ field: EditorBuildToolField, for platform: EditorBuildPlatform) -> String {
@@ -155,7 +201,7 @@ struct EditorBuildExportConfiguration: Equatable, Sendable {
         return value.isEmpty ? nil : value
     }
 
-    func environment(for platform: EditorBuildPlatform, basePath: String? = ProcessInfo.processInfo.environment["PATH"]) -> [String: String] {
+    func environment(for platform: EditorBuildPlatform, basePath: String? = EditorHostTools.environmentValue("PATH")) -> [String: String] {
         var environment: [String: String] = [:]
         var toolDirectories: [String] = []
         for field in platform.fields {
@@ -189,5 +235,23 @@ struct EditorBuildExportConfiguration: Equatable, Sendable {
             return exists && !isDirectory.boolValue && fileManager.isExecutableFile(atPath: value) ? "Available" : "Executable not found"
         }
         return exists && isDirectory.boolValue ? "Available" : "Directory not found"
+    }
+}
+
+enum EditorBuildToolSetup {
+    case swift, android
+
+    var address: String {
+        switch self {
+        case .android: "https://developer.android.com/studio/install"
+        case .swift:
+            #if os(Windows)
+            "https://www.swift.org/install/windows/"
+            #elseif os(Linux)
+            "https://www.swift.org/install/linux/"
+            #else
+            "https://www.swift.org/install/macos/"
+            #endif
+        }
     }
 }

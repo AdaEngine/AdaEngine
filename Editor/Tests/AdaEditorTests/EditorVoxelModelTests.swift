@@ -3,6 +3,7 @@
 @_spi(Internal) @testable import AdaRender
 import Foundation
 import MCP
+import Synchronization
 import Testing
 
 @testable import AdaEditor
@@ -241,6 +242,53 @@ struct EditorVoxelModelTests {
     }
 
     // MARK: - Preview
+
+    @Test("A dropped voxel model renders through the production preview configuration")
+    func droppedModelPreviewRenders() async throws {
+        let root = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source: URL
+        if let path = ProcessInfo.processInfo.environment["ADAEDITOR_MODEL_PREVIEW_ASSET"] {
+            source = URL(fileURLWithPath: path)
+        } else {
+            source = try fixture("robot", in: root.appendingPathComponent("Export"))
+        }
+        let project = try EditorProjectStore(storageURL: root.appendingPathComponent("projects.json"), distribution: .standalone)
+            .createProject(named: "Voxel Preview", at: root)
+        let editor = EditorViewModel(project: project)
+        editor.projectSidebar.select(try #require(editor.projectSidebar.items.first { $0.relativePath == "Assets" }))
+        #expect(editor.importDroppedFiles(from: [source]))
+        await editor.sourceControl.refreshTask?.value
+        let item = try #require(editor.projectSidebar.items.first { $0.title == source.lastPathComponent })
+        guard case let .asset(document) = EditorViewModel.document(for: item) else {
+            Issue.record("A dropped model must open in the model preview")
+            return
+        }
+        let model = EditorModelAssetPreviewModel()
+        model.asset = try #require(AssetsManager.loadSync(ModelAsset3D.self, at: #require(document.absolutePath)).asset)
+        let camera = EditorModelPreviewCamera()
+        camera.setViewportSize(Size(width: 64, height: 64))
+        let app = AppWorlds(main: World(name: "DroppedVoxelPreview"))
+        app.main.setSchedulers([.preUpdate])
+        app.updateScheduler = .preUpdate
+        app.insertResource(OffscreenRenderWorld())
+        app.insertResource(PrimaryWindowId(windowId: RID()))
+        EditorModelPreviewViewport.configure(app, model: model, camera: camera)
+        try await app.build()
+
+        let target = RenderTexture(size: SizeInt(width: 64, height: 64), scaleFactor: 1, format: .bgra8)
+        let completed = Mutex(false)
+        target.renderCompletedHandler = { _ in completed.withLock { $0 = true } }
+        app.main.spawn("SceneView_Camera") {
+            Camera(renderTarget: target)
+            Transform()
+            VisibleEntities()
+            Visibility.visible
+        }
+        camera.update()
+        try await app.update()
+        #expect(completed.withLock { $0 })
+    }
 
     @Test("The model preview shows voxel details and its Play button drives the voxel clock")
     func previewControlsVoxelPlayback() async throws {

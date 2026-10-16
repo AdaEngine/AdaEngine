@@ -1331,7 +1331,9 @@ targets += [
     .testTarget(
         name: "AdaAudioTests",
         dependencies: [
-            "AdaAudio"
+            "AdaAudio",
+            "AdaAssets",
+            "AdaECS",
         ]
     ),
     .testTarget(

@@ -12,10 +12,10 @@
     public final class WGPUIndexBuffer: WGPUBuffer, IndexBuffer, @unchecked Sendable {
         public let indexFormat: IndexBufferFormat
 
-        init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice, indexFormat: IndexBufferFormat) {
+        init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice, indexFormat: IndexBufferFormat, instance: WebGPU.GPUInstance? = nil) {
             self.indexFormat = indexFormat
 
-            super.init(buffer: buffer, device: device)
+            super.init(buffer: buffer, device: device, instance: instance)
         }
     }
 

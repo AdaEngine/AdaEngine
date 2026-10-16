@@ -1,14 +1,17 @@
-#if canImport(Network)
+#if canImport(Network) || os(Windows)
 import AdaEngine
 import AdaPlayerConnect
 import Foundation
+#if canImport(Network)
 import Network
+#endif
 import Observation
 
 @Observable @MainActor
 final class EditorPlayerSession {
     let browser = PlayerBrowser()
     var code = ""
+    var address = ""
     var status = "Choose a device and enter its code."
     private(set) var connected = false
     private(set) var isBusy = false
@@ -21,14 +24,14 @@ final class EditorPlayerSession {
     @ObservationIgnored private var operation: Task<Void, Never>?
     @ObservationIgnored private var timeout: Task<Void, Never>?
 
-    func connect(to endpoint: NWEndpoint, project: URL) {
+    func connect(to endpoint: PlayerEndpoint, project: URL) {
         guard !isBusy else {
             return
         }
         disconnect()
         isBusy = true
         status = "Connecting…"
-        let channel = PlayerConnection(NWConnection(to: endpoint, using: .tcp))
+        let channel = PlayerConnection(endpoint: endpoint)
         self.channel = channel
         channel.start()
         timeout = Task { [weak self, weak channel] in
@@ -160,10 +163,18 @@ struct EditorPlayerPairingView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Connect AdaPlayer")
                     .font(.system(size: 20, weight: .bold))
-                Text("Open AdaPlayer on your iPhone or iPad on the same Wi-Fi.")
+                Text("Open AdaPlayer on the target device on the same network.")
                     .font(.system(size: 13))
                     .foregroundColor(theme.editorColors.muted)
                 codeField
+                #if os(Windows)
+                TextField("Device IP or hostname:port", text: Binding(get: { session.address }, set: { session.address = $0 }))
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .font(.system(size: 13))
+                    .padding(10)
+                    .background(theme.editorColors.surfaceElevated)
+                    .accessibilityIdentifier("AdaPlayer.Editor.Address")
+                #endif
                 Text(session.status)
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.muted)
@@ -214,6 +225,21 @@ struct EditorPlayerPairingView: View {
         VStack(spacing: 0) {
             theme.editorColors.border.frame(height: 1)
             VStack(spacing: 10) {
+                #if os(Windows)
+                Button("Connect to address") {
+                    let value = session.address.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard let separator = value.lastIndex(of: ":"),
+                          let port = UInt16(value[value.index(after: separator)...]), port > 0 else {
+                        session.status = "Enter a device address and port, for example 192.168.1.20:51881."
+                        return
+                    }
+                    let host = String(value[..<separator]).trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+                    guard !host.isEmpty else { return }
+                    session.connect(to: PlayerEndpoint(host: host, port: port), project: project)
+                }
+                .disabled(session.code.count != 6 || session.isBusy || session.address.isEmpty)
+                .accessibilityIdentifier("AdaPlayer.Editor.ConnectAddress")
+                #endif
                 ForEach(session.browser.devices) { device in
                     Button(action: { session.connect(to: device.endpoint, project: project) }) {
                         Text("Connect and Run on \(device.name)")
@@ -238,5 +264,4 @@ struct EditorPlayerPairingView: View {
         .accessibilityIdentifier("AdaPlayer.Editor.Actions")
     }
 }
-
 #endif

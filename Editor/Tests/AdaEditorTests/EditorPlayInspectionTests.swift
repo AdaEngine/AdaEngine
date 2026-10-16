@@ -38,4 +38,30 @@ struct EditorPlayInspectionTests {
         #expect(EditorGameWindowSize.custom.size(projectSize: projectSize, customWidth: "1024", customHeight: "768") == Size(width: 1024, height: 768))
         #expect(EditorGameWindowSize.custom.size(projectSize: projectSize, customWidth: "99999", customHeight: "768") == nil)
     }
+
+    @Test("Stable inventory still refreshes selected components and observes spawned or removed entities")
+    func stableInventoryKeepsSelectionLive() throws {
+        let world = World(name: "Large play inspection")
+        for index in 0..<600 { _ = world.spawn("Entity \(index)") }
+        let selected = world.spawn("Selected") { Transform() }
+        let model = EditorPlayInspectionModel()
+        model.attach(world)
+        model.select(selected.id)
+        let initial = model.selection
+        let inventory = model.items
+        selected.components[Transform.self] = Transform(position: Vector3(4, 5, 6))
+        model.refresh(force: true)
+        #expect(model.items == inventory)
+        #expect(model.selection != initial)
+        #expect(model.selection?.components.first(where: { $0.name == "Transform" })?.value.contains("Position: 4.0, 5.0, 6.0") == true)
+        let spawned = world.spawn("A spawned entity")
+        model.refresh(force: true)
+        #expect(model.items.first?.id == spawned.id)
+        #expect(model.selection?.name == "Selected")
+        world.removeEntity(selected)
+        model.refresh(force: true)
+        #expect(!model.items.contains { $0.id == selected.id })
+        #expect(model.selection == nil)
+        #expect(model.selectedID == nil)
+    }
 }

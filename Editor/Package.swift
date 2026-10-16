@@ -32,6 +32,9 @@ let gravityAOTTarget: [Target.Dependency] = [.product(name: "GravityAOT", packag
 if isAndroidStudio && !hasSloppyRuntime {
     fatalError("Android Studio requires SLOPPY_RUNTIME_LOCAL_PATH pointing to Sloppy/Packages/SloppyRuntime.")
 }
+let windowsIconResource = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".build-tools/AdaStudio.res").path
+let windowsIconLinkerSettings: [LinkerSetting] = FileManager.default.fileExists(atPath: windowsIconResource)
+    ? [.unsafeFlags(["-Xlinker", windowsIconResource], .when(platforms: [.windows]))] : []
 
 let package = Package(
     name: "AdaEditor",
@@ -112,7 +115,7 @@ let package = Package(
                 .product(name: "AdaMCPCore", package: "AdaMCP"),
                 .product(name: "MCP", package: "AdaMCP"),
                 .product(name: "ACP", package: "swift-acp", condition: .when(platforms: [.macOS])),
-                .product(name: "ACPModel", package: "swift-acp", condition: .when(platforms: [.macOS])),
+                .product(name: "ACPModel", package: "swift-acp", condition: .when(platforms: [.macOS, .windows])),
                 .product(name: "SwiftParser", package: "swift-syntax"),
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
@@ -130,7 +133,8 @@ let package = Package(
             resources: [
                 .copy("Assets")
             ],
-            swiftSettings: editorSwiftSettings
+            swiftSettings: editorSwiftSettings,
+            linkerSettings: windowsIconLinkerSettings
         ),
         .testTarget(
             name: "AdaEditorTests",
@@ -184,10 +188,11 @@ private func makeEditorTarget(
     dependencies: [Target.Dependency],
     exclude: [String],
     resources: [Resource],
-    swiftSettings: [SwiftSetting]
+    swiftSettings: [SwiftSetting],
+    linkerSettings: [LinkerSetting]
 ) -> Target {
     if isAndroidStudio {
-        return .target(name: name, dependencies: dependencies, exclude: exclude, resources: resources, swiftSettings: swiftSettings)
+        return .target(name: name, dependencies: dependencies, exclude: exclude, resources: resources, swiftSettings: swiftSettings, linkerSettings: linkerSettings)
     }
-    return .executableTarget(name: name, dependencies: dependencies, exclude: exclude, resources: resources, swiftSettings: swiftSettings)
+    return .executableTarget(name: name, dependencies: dependencies, exclude: exclude, resources: resources, swiftSettings: swiftSettings, linkerSettings: linkerSettings)
 }

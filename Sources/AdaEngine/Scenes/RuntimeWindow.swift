@@ -37,6 +37,7 @@ extension UIWindowManager {
                 bundle: Camera2D(camera: camera)
             )
         window.runtimeCameraEntity = cameraEntity
+        if let cameraEntity { cameraEntity.components += WindowRenderOnDemand() }
 
         if configuration.showsImmediately {
             window.showWindow(makeFocused: configuration.makeKey)

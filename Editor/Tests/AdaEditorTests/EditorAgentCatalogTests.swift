@@ -20,10 +20,23 @@ struct EditorAgentCatalogTests {
     }
 
     private func executable(_ name: String, at root: URL) throws -> URL {
+        #if os(Windows)
+        let filename = URL(fileURLWithPath: name).pathExtension.isEmpty ? name + ".cmd" : name
+        let url = root.appendingPathComponent(filename)
+        #else
         let url = root.appendingPathComponent(name)
+        #endif
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        #if os(Windows)
+        if url.pathExtension == "exe" {
+            try FileManager.default.copyItem(at: URL(fileURLWithPath: EditorHostTools.executable("python3", windowsName: "python.exe")), to: url)
+        } else {
+            try "@echo off\nexit /b 0\n".write(to: url, atomically: true, encoding: .utf8)
+        }
+        #else
         try "#!/bin/sh\nexit 0\n".write(to: url, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        #endif
         return url
     }
 
@@ -114,12 +127,19 @@ struct EditorAgentCatalogTests {
     func searchPaths() throws {
         let root = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: root) }
+        #if os(Windows)
+        let binary = try executable(".cargo/bin/node.exe", at: root)
+        let paths = EditorAgentDiscovery.searchPaths(environment: ["Path": root.path + ";.;" + root.path], home: root)
+        #else
         let binary = try executable(".nvm/versions/node/v24.1/bin/node", at: root)
         let paths = EditorAgentDiscovery.searchPaths(environment: ["PATH": ".::/usr/bin:/usr/bin"], home: root)
+        #endif
         #expect(EditorAgentDiscovery.executable("node", paths: [binary.deletingLastPathComponent().path]) == binary.path)
         #expect(paths.contains(binary.deletingLastPathComponent().path))
+        #if !os(Windows)
         #expect(paths.contains("/Applications/Codex.app/Contents/Resources"))
         #expect(paths.contains(root.appendingPathComponent("Library/Application Support/Sloppy/Backend/current/bin").path))
+        #endif
         #expect(!paths.contains("."))
         #expect(paths.count == Set(paths).count)
     }

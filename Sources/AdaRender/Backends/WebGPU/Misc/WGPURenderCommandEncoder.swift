@@ -28,11 +28,31 @@
         // One bit per descriptor set whose bind group must be re-bound before the next draw.
         private var dirtyBindGroupSets: UInt64 = 0
         private var triangleFillMode: TriangleFillMode = .fill
+        private var lastScissorRect: Rect?
 
         struct BindGroupResources {
-            var uniformBuffers: [Int: (buffer: WGPUBuffer, offset: Int, size: UInt64)] = [:]
+            var uniformBuffers: [Int: (buffer: WGPUBuffer, offset: Int, size: UInt64, cacheable: Bool)] = [:]
             var textures: [Int: WGPUGPUTexture] = [:]
             var samplers: [Int: WGPUSampler] = [:]
+
+            mutating func setUniform(_ buffer: WGPUBuffer, offset: Int, size: UInt64, slot: Int, cacheable: Bool = true) -> Bool {
+                if let current = uniformBuffers[slot], current.buffer === buffer, current.offset == offset,
+                    current.size == size, current.cacheable == cacheable { return false }
+                uniformBuffers[slot] = (buffer, offset, size, cacheable)
+                return true
+            }
+
+            mutating func setTexture(_ texture: WGPUGPUTexture, slot: Int) -> Bool {
+                guard textures[slot] !== texture else { return false }
+                textures[slot] = texture
+                return true
+            }
+
+            mutating func setSampler(_ sampler: WGPUSampler, slot: Int) -> Bool {
+                guard samplers[slot] !== sampler else { return false }
+                samplers[slot] = sampler
+                return true
+            }
         }
 
         private var bindGroupResources: [Int: BindGroupResources] = [:]
@@ -75,7 +95,7 @@
             let expected = expectedResourceKinds(for: wgpuPipeline, setIndex: 0)
             for (slot, binding) in genericBuffers where wgpuPipeline.vertexBufferSlots[slot] == nil && expected[slot] == .uniformBuffer {
                 updateBindGroupResources(setIndex: 0) { resources in
-                    resources.uniformBuffers[slot] = (binding.buffer, Int(binding.offset), binding.size)
+                    resources.setUniform(binding.buffer, offset: Int(binding.offset), size: binding.size, slot: slot)
                 }
             }
 
@@ -90,7 +110,8 @@
             // Always mark dirty when pipeline changes so bind group uses correct layout
             if pipelineChanged {
                 bindGroupDirty = true
-                dirtyBindGroupSets = .max
+                let count = min(wgpuPipeline.bindingKinds.count, UInt64.bitWidth)
+                dirtyBindGroupSets = count == UInt64.bitWidth ? .max : (1 << UInt64(count)) - 1
             }
 
             // NOTE: Do NOT call commitBindGroup() here!
@@ -103,11 +124,7 @@
                 fatalError("UniformBuffer is not a WGPUUniformBuffer")
             }
             updateBindGroupResources(setIndex: 0) { resources in
-                resources.uniformBuffers[slot] = (
-                    buffer: wgpuBuffer,
-                    offset: offset,
-                    size: UInt64(wgpuBuffer.length)
-                )
+                resources.setUniform(wgpuBuffer, offset: offset, size: UInt64(wgpuBuffer.length - offset), slot: slot)
             }
         }
 
@@ -123,11 +140,7 @@
                 fatalError("UniformBuffer is not a WGPUUniformBuffer")
             }
             updateBindGroupResources(setIndex: 0) { resources in
-                resources.uniformBuffers[slot] = (
-                    buffer: wgpuBuffer,
-                    offset: offset,
-                    size: UInt64(wgpuBuffer.length)
-                )
+                resources.setUniform(wgpuBuffer, offset: offset, size: UInt64(wgpuBuffer.length - offset), slot: slot)
             }
         }
 
@@ -141,7 +154,7 @@
             if let pipeline = currentPipeline, pipeline.vertexBufferSlots[slot] == nil,
                 expectedResourceKinds(for: pipeline, setIndex: 0)[slot] == .uniformBuffer {
                 updateBindGroupResources(setIndex: 0) { resources in
-                    resources.uniformBuffers[slot] = (binding.buffer, offset, binding.size)
+                    resources.setUniform(binding.buffer, offset: offset, size: binding.size, slot: slot)
                 }
             }
             bindVertexBuffer(wgpuBuffer, offset: offset, engineSlot: slot)
@@ -149,6 +162,7 @@
 
         private func bindVertexBuffer(_ buffer: WGPUBuffer, offset: Int, engineSlot: Int) {
             let size = UInt64(buffer.length - offset)
+            if let current = vertexBuffers[engineSlot], current.buffer === buffer, current.offset == UInt64(offset), current.size == size { return }
             vertexBuffers[engineSlot] = (buffer, UInt64(offset), size)
             guard let gpuSlot = currentPipeline?.vertexBufferSlots[engineSlot] else {
                 return
@@ -162,11 +176,7 @@
             }
 
             updateBindGroupResources(setIndex: 0) { resources in
-                resources.uniformBuffers[slot] = (
-                    buffer: wgpuBuffer,
-                    offset: offset,
-                    size: UInt64(wgpuBuffer.length)
-                )
+                resources.setUniform(wgpuBuffer, offset: offset, size: UInt64(wgpuBuffer.length - offset), slot: slot)
             }
         }
 
@@ -205,11 +215,10 @@
                 )
             }
             updateBindGroupResources(setIndex: 0) { resources in
-                resources.uniformBuffers[slot] = (
-                    buffer: WGPUBuffer(buffer: buffer, device: device),
-                    offset: 0,
-                    size: UInt64(length)
-                )
+                // Inline bytes have a fresh identity on every call. Keeping their
+                // bind groups in the pipeline cache retains one-use allocations
+                // and displaces the reusable material/texture working set.
+                resources.setUniform(WGPUBuffer(buffer: buffer, device: device), offset: 0, size: UInt64(length), slot: slot, cacheable: false)
             }
         }
 
@@ -218,7 +227,7 @@
                 fatalError("Texture's gpuTexture is not a WGPUGPUTexture")
             }
             updateBindGroupResources(setIndex: 0) { resources in
-                resources.textures[slot] = wgpuTexture
+                resources.setTexture(wgpuTexture, slot: slot)
             }
         }
 
@@ -227,40 +236,38 @@
                 fatalError("Sampler is not a WGPUSampler")
             }
             updateBindGroupResources(setIndex: 0) { resources in
-                resources.samplers[slot] = wgpuSampler
+                resources.setSampler(wgpuSampler, slot: slot)
             }
         }
 
         func setResourceSet(_ resourceSet: RenderResourceSet, index: Int) {
             updateBindGroupResources(setIndex: index) { resources in
+                var changed = false
                 for binding in resourceSet.bindings {
                     switch binding.resource {
                     case let .uniformBuffer(uniformBuffer, offset):
                         guard let wgpuBuffer = uniformBuffer as? WGPUUniformBuffer else {
                             fatalError("UniformBuffer is not a WGPUUniformBuffer")
                         }
-                        resources.uniformBuffers[binding.binding] = (
-                            buffer: wgpuBuffer,
-                            offset: offset,
-                            size: UInt64(wgpuBuffer.length)
-                        )
+                        if resources.setUniform(wgpuBuffer, offset: offset, size: UInt64(wgpuBuffer.length - offset), slot: binding.binding) { changed = true }
                     case .texture(let texture):
                         guard let wgpuTexture = texture.gpuTexture as? WGPUGPUTexture else {
                             fatalError("Texture's gpuTexture is not a WGPUGPUTexture")
                         }
-                        resources.textures[binding.binding] = wgpuTexture
+                        if resources.setTexture(wgpuTexture, slot: binding.binding) { changed = true }
                     case .sampler(let sampler):
                         guard let wgpuSampler = sampler as? WGPUSampler else {
                             fatalError("Sampler is not a WGPUSampler")
                         }
-                        resources.samplers[binding.binding] = wgpuSampler
+                        if resources.setSampler(wgpuSampler, slot: binding.binding) { changed = true }
                     }
                 }
+                return changed
             }
         }
 
-        private func updateBindGroupResources(setIndex: Int, update: (inout BindGroupResources) -> Void) {
-            update(&bindGroupResources[setIndex, default: BindGroupResources()])
+        private func updateBindGroupResources(setIndex: Int, update: (inout BindGroupResources) -> Bool) {
+            guard update(&bindGroupResources[setIndex, default: BindGroupResources()]) else { return }
             bindGroupDirty = true
             assert(setIndex < UInt64.bitWidth, "Descriptor set index exceeds the dirty-set mask")
             dirtyBindGroupSets |= 1 << UInt64(setIndex & (UInt64.bitWidth - 1))
@@ -297,6 +304,8 @@
         }
 
         func setScissorRect(_ rect: Rect) {
+            guard lastScissorRect != rect else { return }
+            lastScissorRect = rect
             renderEncoder.setScissorRect(
                 x: UInt32(rect.origin.x),
                 y: UInt32(rect.origin.y),
@@ -383,6 +392,7 @@
                 let expectedResources = expectedResourceKinds(for: pipeline, setIndex: setIndex)
                 var keys: [WGPUBindingKey] = []
                 var owners: [AnyObject] = []
+                var cacheable = true
                 keys.reserveCapacity(expectedResources.count)
                 owners.reserveCapacity(expectedResources.count)
                 let sortedSlots = pipeline.sortedBindingSlots.indices.contains(setIndex) ? pipeline.sortedBindingSlots[setIndex] : []
@@ -390,6 +400,7 @@
                     switch expectedResources[slot] {
                     case .uniformBuffer:
                         if let uniform = resources.uniformBuffers[slot] {
+                            cacheable = cacheable && uniform.cacheable
                             keys.append(.init(slot: slot, owner: ObjectIdentifier(uniform.buffer), offset: uniform.offset, size: uniform.size))
                             owners.append(uniform.buffer)
                         }
@@ -407,7 +418,7 @@
                     }
                 }
                 let key = WGPUBindGroupKey(set: setIndex, bindings: keys)
-                let bindGroup = pipeline.cachedBindGroup(key: key, owners: owners) {
+                let bindGroup = pipeline.cachedBindGroup(key: key, owners: owners, cacheable: cacheable) {
                     #if WASM
                         var entries: [WebGPU.GPUBindGroupEntryEx] = []
                     #else

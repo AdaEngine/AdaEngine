@@ -113,6 +113,7 @@ struct ProjectOpeningView: View {
                 .foregroundColor(.white)
                 .accessibilityIdentifier(ProjectOpeningAccessibility.detail)
         }
+        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
         .background {
             LauncherColor.window.ignoresSafeArea()
         }
@@ -145,7 +146,7 @@ struct ProjectOpeningView: View {
                 .theme(.adaEditor)
             }
         #endif
-        .menuBar(EditorMenuBar.makeMenus())
+        .menuBar(EditorMenuBar.makeMenus(), foregroundColor: EditorThemeColors.dark.text, backgroundColor: EditorThemeColors.dark.surface)
         .onChange(of: viewModel.projectToOpenInEditorToken) { _, _ in
             guard let project = viewModel.consumeProjectToOpenInEditor() else {
                 return
@@ -272,7 +273,7 @@ struct ProjectOpeningView: View {
     private func presentSettings(_ section: EditorSettingsSection) {
         #if os(iOS) || os(visionOS)
             presentedSettingsSection = section
-        #elseif os(macOS)
+        #elseif os(macOS) || os(Windows) || os(Linux)
             EditorSettingsWindowController.open(project: viewModel.selectedProject, selectedSection: section)
         #endif
     }

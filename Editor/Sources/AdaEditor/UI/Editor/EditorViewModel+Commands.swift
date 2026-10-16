@@ -262,7 +262,7 @@ extension EditorViewModel {
         if let projectURL,
             let settings = projectSettings,
             settings.build.system == .adaScript,
-            (selectedRunDestination == .macOS || selectedRunDestination == .visionOS) {
+            (selectedRunDestination == .macOS || selectedRunDestination == .windows || selectedRunDestination == .visionOS) {
             let projectName = settings.project.displayName ?? settings.project.name ?? project?.name ?? "AdaScript Project"
             buildAdaScriptProject(
                 settings,
@@ -281,6 +281,8 @@ extension EditorViewModel {
                 buildAdaScriptProject(settings, at: projectURL, statusTitle: "Build AdaScript Project") { [weak self] artifact in
                     self?.runAdaScriptProjectOnWeb(settings, artifact: artifact, at: projectURL)
                 }
+            #elseif os(Windows)
+                exportAdaScriptNativeGame(web: true, launch: true)
             #else
                 let message = "Web run requires a macOS host with the Web Player template."
                 workspaceStatus = .failed(message)
@@ -294,10 +296,10 @@ extension EditorViewModel {
             exportAndroidProject(launch: true)
         case .player:
             runOnAdaPlayer()
-        case .macOS:
+        case .macOS, .windows:
             executeWorkspaceCommand(
                 .run(target: product, arguments: projectSettings?.run.arguments ?? []),
-                statusTitle: product.map { "Run \($0) on macOS" } ?? "Run on macOS"
+                statusTitle: product.map { "Run \($0) on \(selectedRunDestination.rawValue)" } ?? "Run on \(selectedRunDestination.rawValue)"
             )
         case .web:
             guard let product else {
@@ -668,7 +670,7 @@ extension EditorViewModel {
             appendOutput("Stopped AdaScript project.")
             return
         }
-        #if os(macOS)
+        #if os(macOS) || os(Windows) || os(Linux)
         let cancellingAndroidRunner = androidRunner
         #endif
         workspaceTask?.cancel()
@@ -676,7 +678,7 @@ extension EditorViewModel {
         workspaceStatus = .cancelled
         Task {
             await workspaceService.cancel()
-            #if os(macOS)
+            #if os(macOS) || os(Windows) || os(Linux)
             await adaScriptWebExportRunner?.cancelAll()
             await cancellingAndroidRunner?.cancelAll()
             #endif
@@ -761,7 +763,7 @@ extension EditorViewModel {
         case .build:
             buildAll()
         case .run:
-            if selectedRunDestination == .android {
+            if selectedRunDestination == .android || selectedRunDestination == .web || selectedRunDestination == .player {
                 runSelectedTarget()
             } else if workbench.activeSceneDocument != nil {
                 runActiveSceneInEditor()

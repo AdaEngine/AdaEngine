@@ -177,6 +177,7 @@ public struct WindowSurface: Sendable {
 
 public final class WindowSurfaces: Resource, @unchecked Sendable {
     public var windows: SparseSet<WindowRef, WindowSurface>
+    var pendingFrameRequests = PendingWindowFrameRequests()
     let allowsWindowRendering: Bool
     let allowedWindowIDs: Set<WindowID>?
 
@@ -197,7 +198,8 @@ public func CreateWindowSurfaces(
     _ surfaces: ResMut<WindowSurfaces>,
     _ renderDevice: Res<RenderDeviceHandler>,
     _ renderInstance: Res<RenderEngineHandler>,
-    _ primaryWindow: Extract<Res<PrimaryWindowId>>
+    _ primaryWindow: Extract<Res<PrimaryWindowId>>,
+    _ frameRequests: Extract<Res<WindowFrameRequests?>>
 ) async {
     surfaces.windows.removeAll()
     // Keep this system in the camera dependency graph, but never acquire host drawables offscreen.
@@ -205,13 +207,17 @@ public func CreateWindowSurfaces(
         return
     }
     let device = renderDevice.renderDevice
+    let requests = frameRequests.wrappedValue.wrappedValue
+    surfaces.wrappedValue.pendingFrameRequests.include(requests)
 
     do {
         let renderWindows = try await renderInstance.renderEngine.getRenderWindows()
+        surfaces.wrappedValue.pendingFrameRequests.retainWindows(renderWindows.windows.values.lazy.map { $0.0 })
         for (windowId, _) in renderWindows.windows.values {
             if let allowed = surfaces.wrappedValue.allowedWindowIDs, !allowed.contains(windowId) {
                 continue
             }
+            guard surfaces.wrappedValue.pendingFrameRequests.shouldAcquireDrawable(for: windowId, requests: requests) else { continue }
             guard let swapchain = await device.createSwapchain(from: windowId) else {
                 Logger(label: "org.adaengine.render")
                     .debug("Swapchain not enable for \(windowId)")
@@ -225,6 +231,7 @@ public func CreateWindowSurfaces(
                     .windowId(windowId)
                 }
             let drawable = swapchain.getNextDrawable(device)
+            if drawable != nil { surfaces.wrappedValue.pendingFrameRequests.didAcquireDrawable(for: windowId) }
             surfaces.windows[ref] = WindowSurface(
                 swapchain: swapchain,
                 currentDrawable: drawable
