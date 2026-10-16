@@ -1,3 +1,6 @@
+#if os(Android)
+import Android
+#endif
 @_spi(AdaEngine) import AdaEngine
 
 /// The body observes render inputs so a cached display list is invalidated by edits,

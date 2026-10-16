@@ -15,8 +15,31 @@ and assess gaps before proposing new features.
   archive/upload validation does not establish visionOS interaction parity.
 - Shared editor UI uses AdaUI. Native app wrappers and mobile-specific screens
   have separate platform boundaries; do not assume desktop/mobile feature parity.
+- Windows Studio is built/launched with [../script/run_studio_windows.ps1](../script/run_studio_windows.ps1).
+  It prepares pinned Tint and a task-local Gravity binding with C-owned UTF-8
+  strings, selecting it through `ADAENGINE_GRAVITY_PACKAGE_PATH`. Manual Windows
+  builds/tests must use that override too. Native project/asset file pickers,
+  RGB color selection (inspector alpha), HTTPS downloads, local Run and D3D12
+  readback are implemented. Windows also has a menu row, native Settings window,
+  contextual cursors, Cloud browser PKCE sign-in with Credential Manager, and
+  WinSock/DNS-SD AdaPlayer pairing (including manual host:port). Apple in-app
+  purchases remain Apple-only. WebAssembly and Android compilation use the WSL
+  worker prepared by `../script/setup_windows_build_tools.ps1`; adb/emulator run
+  natively on Windows. See [README.md](README.md#Windows).
 - [Package.swift](Package.swift) owns package dependencies and resources;
   [project.yml](project.yml) owns XcodeGen app configuration.
+- Windows release CI uses `../script/build_studio_windows.ps1` and
+  `../script/package_studio_windows.py`. It publishes an x64 ZIP and SHA-256 on
+  GitHub Release publication; manual/PR builds retain Actions artifacts. Packaging
+  bundles Swift/Dawn runtime DLLs, resources, Tint and a relocatable `BuildSDK`
+  beside the executable. It checks PE imports and launches the tools with a clean
+  PATH. Windows signing and external host/export toolchains remain separate.
+- Build & Export scans host tools on page entry and provides Rescan plus official
+  Swift/Android setup links. Discovery fills missing/broken paths in the settings
+  draft, preserves valid overrides, and requires Save Build Settings to persist.
+  Windows discovery rereads registry environment and standard install locations;
+  native Windows tools must not fill WSL Web compiler/Tint fields. Setup links
+  open browser guides; they do not perform unattended installation.
 - Keep mocks, fixtures, and QA harnesses in test targets or separate executables.
   Do not add test-only objects or QA launch hooks to the main app, including Debug builds.
 - Use an isolated scratch/module cache when necessary; never delete the shared
@@ -85,8 +108,12 @@ Coverage: [EditorSpritePickingTests.swift](Tests/AdaEditorTests/EditorSpritePick
 Viewport annotations are captured with each scheduled scene frame and published
 with its completed texture at the next UI tick. Their Canvas drawing revisions
 refresh synchronously without rebuilding the viewport; 3D rotation leaves hidden
-rulers and unchanged status text alone. Coverage:
+rulers and unchanged status text alone. The compass observes its own presented
+camera orientation. Gizmo hover/drag use the displayed geometry, mapping pointer
+coordinates into the captured target while resizing. Coverage:
 [EditorViewportPresentationTests.swift](Tests/AdaEditorTests/EditorViewportPresentationTests.swift),
+[EditorViewportCompassPresentationTests.swift](Tests/AdaEditorTests/EditorViewportCompassPresentationTests.swift),
+[EditorViewportInteractionPresentationTests.swift](Tests/AdaEditorTests/EditorViewportInteractionPresentationTests.swift),
 [SceneViewTests.swift](../Tests/AdaEngineTests/SceneViewTests.swift).
 2D scene UI previews filter active authored UI components before sorting or
 decoding hierarchy transforms; scenes without UI skip preview preparation.
@@ -299,7 +326,7 @@ Coverage: [EditorAgentWorkspaceTests.swift](Tests/AdaEditorTests/EditorAgentWork
 Desktop Git status, staging, commit, stash, pull/push, branch creation/checkout,
 history and diff review. Agent Chat includes transcript/session persistence,
 attachments, context selection, permissions, skills and agent settings.
-macOS ACP and iPhone SloppyRuntime replies stream native A2UI cards. Ordinary
+macOS/Windows ACP and iPhone SloppyRuntime replies stream native A2UI cards. Ordinary
 submissions return to the owning session; reserved local actions apply scene tools
 without a new model turn. NPC subtree spawning, color-field editing, structured
 scene batches and the system color palette are available. Scene revisions guard
@@ -312,8 +339,15 @@ Entry points: [EditorAgentA2UIController.swift](Sources/AdaEditor/Agent/EditorAg
 [EditorAgentA2UISurfaceCard.swift](Sources/AdaEditor/UI/Editor/EditorAgentA2UISurfaceCard.swift).
 Coverage: [EditorAgentA2UITests.swift](Tests/AdaEditorTests/EditorAgentA2UITests.swift),
 [EditorAgentA2UITransportTests.swift](Tests/AdaEditorTests/EditorAgentA2UITransportTests.swift).
-macOS ACP catalog discovers/installs/connects agents; mobile uses an in-process
-SloppyRuntime path when available. The macOS catalog shows bundled ACP Registry logos
+macOS/Windows ACP catalog discovers/installs/connects agents; mobile uses an in-process
+SloppyRuntime path when available. Windows reuses ACPModel and the shared editor service
+with native stdio JSON-RPC, suspended process/job startup, explicit inherited handles,
+literal argv, file/terminal callbacks and MCP stdio bridging. Native Windows registry
+binaries are preferred; npm launchers resolve to Node.js without a command shell.
+Node.js/uv remain prerequisites for their package distributions. Windows process-backed
+coverage includes session/model state, streaming, cancellation, permissions, files,
+terminals, MCP and A2UI. Provider account authentication requires the agent's own setup.
+The macOS catalog shows bundled ACP Registry logos
 and Sloppy branding for installed, discovered and registry agents. New registry logos
 load from HTTPS metadata with a shared cache and a generic fallback; icon URLs persist
 with managed installations. Editor MCP/host tools expose project/docs/API
@@ -326,8 +360,8 @@ CPU native import, import project-local dependency bundles and patch PBR materia
 factors. Offline docs/API/component/examples tools are shared; bundled workflow
 skills are readable on demand through `editor.skills.list/read`. `basic-3d-scene`
 is a complete camera/cube/light example. Import validation does not prove GPU
-rendering, clip playback or gameplay; Blender execution/generation and rig/clip
-authoring remain outside these tools. Desktop scene changes use document revisions
+rendering, clip playback or gameplay; Blender execution, rig/clip authoring and
+organic or skinned model generation remain outside these tools. Desktop scene changes use document revisions
 and undo, and asset writes reject matching dirty open documents.
 
 The bundled `ada-game-builder` workflow is advertised in desktop and mobile
@@ -335,6 +369,22 @@ session catalogs without per-project installation. Agents load it on demand for
 game creation and iteration. It covers playable loops, persistent authoring,
 controls/HUD, and build/simulation/visible Play verification using the host's
 available tools; catalog discovery does not enforce model selection.
+
+Scripted asset generation ([ADR-0026](../Documentation/ArchitectureDecisions/0026-scripted-asset-generation-and-autonomous-studio.md)):
+`editor.voxel.generate` (`.vox`), `editor.model.generate` (`.glb`), `editor.audio.generate` (`.wav`)
+and `editor.sprite.generate` (`.png`) run an agent-authored AdaScript `build` function in an isolated VM and
+write a new file under the assets root (never overwriting); `editor.audio.inspect` measures any WAV (peak,
+loudness, clipping, silence, pitch, envelope). Skills `ada-voxel-models`, `ada-procedural-models`,
+`ada-pixel-art` and `ada-sound-design` document the script APIs, and a test runs their examples.
+`ada-autonomous-studio` is the whole-game workflow (clarify, `DESIGN.md` with acceptance criteria,
+`PLAN.md` milestones, build-play-check loop, acceptance pass). The `AudioSource` component plays WAV/MP3/FLAC
+in scenes and from scripts and has an inspector descriptor. Music and voices need a provider (not implemented);
+agent sounds are measured, never heard; desktop has no stepped gameplay simulation yet.
+Entry points: [EditorAgentGeneratorToolService.swift](Sources/AdaEditor/Agent/EditorAgentGeneratorToolService.swift),
+[EditorAudioSourceComponentDescriptor.swift](Sources/AdaEditor/EditorAudioSourceComponentDescriptor.swift).
+Coverage: [EditorAgentMediaGenerateTests.swift](Tests/AdaEditorTests/EditorAgentMediaGenerateTests.swift),
+[EditorAgentModelGenerateTests.swift](Tests/AdaEditorTests/EditorAgentModelGenerateTests.swift),
+[EditorAgentVoxelToolTests.swift](Tests/AdaEditorTests/EditorAgentVoxelToolTests.swift).
 
 Guide: [Agent3DWorkflow.md](Documentation/Agent3DWorkflow.md).
 Entry points: [EditorAgentModelToolService.swift](Sources/AdaEditor/Agent/EditorAgentModelToolService.swift),
@@ -392,7 +442,12 @@ displays with a side safe area, or bottom controls with 6-point padding on ordin
 displays. Native hinge updates expose angle, posture and opening percentage through
 the AdaUI environment and `WindowHingeChanged`. The old simulated Foldable Preview
 selector and saved preview setting have been removed; legacy projects still decode.
-The public catalog currently returns up to 100 entries. An Android Studio application shell is not provided by this change.
+The public catalog currently returns up to 100 entries. The Android mobile host
+reuses the mobile screens and adds NativeActivity services for keyboard input,
+Back, document selection, dictation, speech output and encrypted credentials.
+Build it with `Platforms/Android/studio.py`; see [AndroidMobile.md](Documentation/AndroidMobile.md).
+Android background agent execution, clipboard image paste and Google Play Billing
+remain unavailable. Compilation and packaging checks do not establish interaction parity.
 Entry points: [EditorCommunityView.swift](Sources/AdaEditor/UI/Community/EditorCommunityView.swift),
 [MobileEditorHomeTabs.swift](Sources/AdaEditor/UI/Community/MobileEditorHomeTabs.swift),
 [EditorCommunityClient.swift](Sources/AdaEditor/Cloud/EditorCommunityClient.swift).
@@ -436,7 +491,8 @@ Guides: [Notifications.md](Documentation/Notifications.md),
 - The embedded AdaScript Web Player's scene validation currently allows only
   Transform, Visibility and TileMapComponent. This restriction belongs to that
   path, not every AOT/Swift Web export path.
-- Audio/generic metadata previews do not provide audio playback. GLB/glTF
+- Audio/generic metadata previews do not provide audio playback in the asset browser; sounds play
+  through the `AudioSource` component in Play. GLB/glTF
   import, preview, placement and clip playback exist; visual imported-material
   editing, skeleton editing and skeletal-clip authoring remain incomplete.
   The shared-workbench model preview has not established iPhone UI parity.

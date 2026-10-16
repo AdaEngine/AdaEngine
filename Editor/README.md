@@ -25,6 +25,93 @@ swift build
 swift test
 ```
 
+### Windows
+
+Use Swift 6.3 or newer for the Swan/WebGPU dependency, Visual Studio C++ Build
+Tools, Python 3, CMake and Ninja. From the engine root, run:
+
+```powershell
+./script/run_studio_windows.ps1
+```
+
+The launcher verifies/builds the pinned Tint shader compiler and prepares a
+pinned Gravity binding with native string allocation and UTF-8 lengths under
+`.build-tools/gravity-windows`; it never edits shared SwiftPM checkouts. It sets
+`ADAENGINE_GRAVITY_PACKAGE_PATH`, builds Studio and opens its window.
+Use the same dependency override for manual Windows builds/tests:
+
+```powershell
+./script/build_studio_windows.ps1 -Configuration debug
+swift test --package-path Editor --skip-build --filter EditorWindowsCompatibilityTests
+```
+
+`-ScratchPath D:/Temp/ada-studio-build` selects an isolated
+SwiftPM cache when the shared cache belongs to another Swift toolchain.
+Local Run uses the Windows destination for SwiftPM and embedded AdaScript
+projects. Project/folder selection, multi-file asset import and RGB color dialogs
+use Windows controls; inspector alpha remains editable. HTTPS clients support
+bounded streaming downloads and cancellation. Rendering/readback uses Dawn D3D12.
+The main window uses a themeable client-drawn title bar with application menus,
+Ctrl shortcuts and native minimize/maximize/close commands. Empty title-bar space
+drags the window; double-click and right-click retain Windows caption behavior.
+AdaUI's transparent overlay title-bar configuration and `WindowCaptionControls`
+also support custom layouts. Studio includes a native Settings window and
+contextual cursors. Ada Cloud opens the default browser for PKCE sign-in and
+stores the session in Windows Credential Manager. Apple in-app purchases still
+require Apple platforms. AdaPlayer uses native WinSock and Windows DNS-SD;
+manual `host:port` connection is available when discovery is unavailable.
+`AdaEditor.exe --ada-player` opens the Windows player.
+
+Windows Studio follows the WebGPU FIFO display cadence using a high-resolution
+frame clock. Release FPS and frame-interval measurements, hardware details and
+PresentMon reproduction commands are in [Windows performance](Documentation/WindowsPerformance.md).
+
+Windows Agent Chat supports local ACP agents. Open **Settings → Agents**, choose
+**Refresh**, then connect a discovered adapter or use **Install & Connect** from
+the ACP Registry. Native Windows distributions are preferred when available;
+npm adapters require Node.js and Python adapters require uv. Regular Codex/Claude
+CLIs need their ACP adapter. Manual commands can use an `.exe`, a JavaScript entry
+point, or an npm-generated `.cmd` launcher; arbitrary batch scripts should be
+launched through an explicitly configured shell executable.
+
+ACP sessions support streamed replies, model/configuration selection, permissions,
+project file access, bounded terminal output, cancellation, session restoration,
+A2UI cards and the live Studio MCP tools. Provider authentication remains with the
+agent's own account setup. Agent executables and terminal children run in Windows
+jobs and terminate with their owning process; no console window is opened.
+
+Windows release archives are built by **Windows Studio release** in GitHub Actions
+on release publication (including prereleases). The workflow builds Release with
+Swift 6.3.1 on Windows Server 2022, tests SDK relocation, checks the DLL dependency
+closure and smoke-tests the packaged tools without a Swift installation on PATH.
+It attaches `AdaStudio-<tag>-windows-x86_64.zip` and `.zip.sha256` to that release.
+Pull requests changing release tooling and manual workflow runs produce downloadable
+Actions artifacts only. Existing release assets are never overwritten on a rerun.
+
+Extract the whole archive and open `AdaEditor.exe`. Swift runtime DLLs, Dawn/DXC,
+resources, Tint and the AdaScript source build SDK are included. The archive is
+currently unsigned; native project builds still require Swift/Visual Studio C++
+tools, and Web/Android exports require WSL and their SDKs. To package locally:
+
+```powershell
+$studioBin = (& ./script/build_studio_windows.ps1 -Configuration release | Select-Object -Last 1).Trim()
+python script/package_studio_windows.py --bin "$studioBin" --compiler-root "$env:ADAENGINE_GRAVITY_PACKAGE_PATH" --tint "$env:TINT_EXECUTABLE" --version local
+```
+
+WebAssembly and Android builds use a Linux worker under WSL (Ubuntu). Prepare
+the matching Swift SDKs, pinned Tint, Android SDK/NDK and Swan/Dawn with:
+
+```powershell
+./script/setup_windows_build_tools.ps1
+```
+
+The setup also accepts `-WebOnly` or `-AndroidOnly`. It installs tools in the WSL
+user's `~/.local/share/AdaStudio/BuildTools`; native Windows adb/emulator are
+used for device discovery, installation and launch. See
+[Android setup](Documentation/Android.md). Web Run serves the export with
+WebGPU isolation headers and opens it in the browser. Build logs stay in the
+worker's build cache and compiler errors are repeated at the end of failures.
+
 ## Generating the Xcode Project
 
 Install XcodeGen if it is not already installed, then run:
@@ -68,7 +155,7 @@ The snapshot lives in `Sources/AdaEditor/Assets/Documentation/catalog.json` and 
 
 ### Android
 
-Standalone macOS Studio supports **Build → Export to Android…** and Android
+Standalone macOS and Windows Studio support **Build → Export to Android…** and Android
 Run Destinations with connected devices and AVDs. Swift and AdaScript projects
 use the native Swift/WebGPU Android host. Configure **Settings → Build & Export → Android** and
 see [Android export and run](Documentation/Android.md).

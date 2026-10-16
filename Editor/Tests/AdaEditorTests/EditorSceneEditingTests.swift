@@ -254,6 +254,20 @@ struct EditorSceneEditingTests {
         #expect(selectedEntityID == nil)
     }
 
+    @Test("right mouse drag pans the scene without selecting an entity", arguments: [Float(1), 2, 150])
+    @MainActor
+    func rightMouseDragPansScene(zoom: Float) {
+        let viewport = EditorSceneViewportModel()
+        viewport.twoDZoom = zoom
+        var selected = false
+        viewport.onSelectEntity = { _ in selected = true }
+        #expect(viewport.handleInput(mouseEvent(button: .right, position: Point(x: 100, y: 100), phase: .began)))
+        #expect(viewport.handleInput(mouseEvent(button: .right, position: Point(x: 124, y: 88), phase: .changed)))
+        #expect(viewport.twoDCenter == Vector2(-24 / zoom, -12 / zoom))
+        #expect(viewport.handleInput(mouseEvent(button: .right, position: Point(x: 124, y: 88), phase: .ended)))
+        #expect(!selected)
+    }
+
     private func mouseEvent(button: MouseButton, position: Point, phase: MouseEvent.Phase) -> MouseEvent {
         MouseEvent(
             window: RID(),
@@ -477,6 +491,24 @@ struct EditorSceneEditingTests {
         #expect(displayCamera.components[CameraRenderGraph.self]?.subgraphLabel == .main3D)
         #expect(displayCamera.components[Environment3D.self]?.skybox.intensity == 1.75)
         #expect(displayCamera.components[Environment3D.self]?.screenSpaceReflection.isEnabled == false)
+    }
+
+    @Test("Play gives an authored orthographic camera the display viewport")
+    @MainActor
+    func playViewportFitsOrthographicCamera() throws {
+        let world = World()
+        let size = Size(width: 800, height: 600)
+        var display = Camera()
+        display.logicalViewport.rect = Rect(origin: .zero, size: size)
+        let displayEntity = world.spawn("SceneView_Camera") { display; Transform() }
+        var authored = Camera()
+        authored.projection = .orthographic(OrthographicProjection(near: -2, far: 800, scale: 2))
+        world.spawn("Game camera") { authored; Transform() }
+        #expect(EditorSceneViewportView.synchronizePlayCamera(in: world))
+        let mirrored = try #require(displayEntity.components[Camera.self])
+        let expected = OrthographicProjection(near: -2, far: 800, scale: 2, viewportSize: size)
+        #expect(mirrored.projection.makeClipView() == expected.makeClipView())
+        #expect(mirrored.projection.near == -2 && mirrored.projection.far == 800)
     }
 
     @Test("scene editor embeds hierarchy beside the viewport")

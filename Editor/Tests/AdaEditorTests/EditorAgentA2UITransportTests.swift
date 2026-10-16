@@ -1,7 +1,11 @@
-#if os(macOS)
+#if os(macOS) || os(Windows)
 import AdaA2UI
 @_spi(AdaEngine) import AdaEngine
+#if os(macOS)
 import Darwin
+#else
+import WinSDK
+#endif
 import Foundation
 import Testing
 
@@ -17,7 +21,7 @@ struct EditorAgentA2UITransportTests {
         let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/a2ui-acp-agent.py")
         var project = ProjectSystem.defaultProject(projectName: "FailedConnection", buildSystem: .adaScript)
         project.ai.agent.enabled = true
-        project.ai.agent.target = .init(command: "/usr/bin/python3", arguments: [fixture.path, "--fail-new", pidFile.path])
+        project.ai.agent.target = .init(command: EditorHostTools.executable("python3", windowsName: "python.exe"), arguments: [fixture.path, "--fail-new", pidFile.path])
         let service = EditorACPAgentService()
         let request = EditorAgentRunRequest(project: project, projectURL: root, session: .init(id: "failed"), mode: .ask,
                                             prompt: "No prompt should run", attachments: [], sceneContext: nil, codeSelection: nil, skills: [])
@@ -27,12 +31,22 @@ struct EditorAgentA2UITransportTests {
         } catch {
             let pid = try #require(Int32(String(contentsOf: pidFile, encoding: .utf8)))
             for _ in 0..<30 {
-                if kill(pid, 0) != 0 { break }
+                if !Self.isProcessRunning(pid) { break }
                 try await Task.sleep(for: .milliseconds(20))
             }
-            #expect(kill(pid, 0) != 0)
+            #expect(!Self.isProcessRunning(pid))
         }
         await service.shutdown()
+    }
+
+    private static func isProcessRunning(_ pid: Int32) -> Bool {
+        #if os(Windows)
+        guard let handle = OpenProcess(DWORD(SYNCHRONIZE), false, DWORD(pid)) else { return false }
+        defer { CloseHandle(handle) }
+        return WaitForSingleObject(handle, 0) == DWORD(WAIT_TIMEOUT)
+        #else
+        return kill(pid, 0) == 0
+        #endif
     }
 
     @Test func promptCompletionWaitsForBurstNotificationsAndASlowUISink() async throws {
@@ -46,7 +60,7 @@ struct EditorAgentA2UITransportTests {
         let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/a2ui-acp-agent.py")
         var project = ProjectSystem.defaultProject(projectName: "Transport", buildSystem: .adaScript)
         project.ai.agent.enabled = true
-        project.ai.agent.target = .init(command: "/usr/bin/python3", arguments: [fixture.path])
+        project.ai.agent.target = .init(command: EditorHostTools.executable("python3", windowsName: "python.exe"), arguments: [fixture.path])
         let probe = root.appendingPathComponent("delegate.txt")
         try "delegate-alive".write(to: probe, atomically: true, encoding: .utf8)
         project.ai.agent.target.arguments += ["--probe-client", probe.path]

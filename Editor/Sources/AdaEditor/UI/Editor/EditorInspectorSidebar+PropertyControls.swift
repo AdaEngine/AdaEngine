@@ -46,7 +46,7 @@ extension EditorInspectorSidebar {
         value: EditorInspectorColorValue,
         text: Binding<String>
     ) -> some View {
-        #if (canImport(AppKit) && os(macOS)) || (canImport(UIKit) && os(iOS))
+        #if (canImport(AppKit) && os(macOS)) || (canImport(UIKit) && os(iOS)) || os(Windows)
             Button(action: {
                 EditorPlatformColorPicker.present(value: value) { updatedValue in
                     clearColorDrafts(fieldID: fieldID)

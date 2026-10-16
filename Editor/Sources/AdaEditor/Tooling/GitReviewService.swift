@@ -16,10 +16,17 @@ extension GitRepositoryServicing {
 
 extension GitRepositoryService {
     func readGit(_ arguments: [String], at url: URL) async -> EditorProcessResult {
-        await processRunner.run(
+        #if os(Windows)
+        let executable = EditorHostTools.executable("git")
+        let prefix = [String]()
+        #else
+        let executable = "/usr/bin/env"
+        let prefix = ["git"]
+        #endif
+        return await processRunner.run(
             EditorProcessCommand(
-                executablePath: "/usr/bin/env",
-                arguments: ["git", "--no-pager", "--literal-pathspecs"] + arguments,
+                executablePath: executable,
+                arguments: prefix + ["--no-pager", "--literal-pathspecs"] + arguments,
                 workingDirectory: url,
                 environment: ["GIT_OPTIONAL_LOCKS": "0", "LC_ALL": "C"]
             )

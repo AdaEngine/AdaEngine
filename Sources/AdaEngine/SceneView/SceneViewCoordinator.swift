@@ -30,12 +30,15 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var frontRenderTexture: RenderTexture?
     private(set) var renderTexture: Texture2D?
     var renderTextureDidChange: (@MainActor @Sendable () -> Void)?
+    var renderFrameDidChange: (@MainActor @Sendable () -> Void)?
 
     private var isBootstrapping = false
     private var isShutdown = false
     private var hasCalledSetup = false
     /// When true, this coordinator's ``AppWorlds`` is a subworld of ``AppWorldsSession/current`` and is updated by the host ``AppWorlds/update()`` loop (no separate ``tick`` work).
     private var isHostedSubworld = false
+    private weak var hostWorlds: AppWorlds?
+    private var isRenderingEnabled = true
     /// Fallback when no host session exists (e.g. unusual test harnesses).
     private var standaloneTickInFlight = false
 
@@ -105,7 +108,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 return
             }
             if let host = AppWorldsSession.current {
-                host.addSubworld(app, by: self.hostSubworldName)
+                self.hostWorlds = host
                 self.isHostedSubworld = true
             } else {
                 self.isHostedSubworld = false
@@ -117,6 +120,8 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 return
             }
             self.appWorlds = app
+            app.isHostedUpdateSuspended = !self.isRenderingEnabled
+            self.hostWorlds?.addSubworld(app, by: self.hostSubworldName)
             self.isBootstrapping = false
             self.finalizeSetupIfReady()
         }
@@ -143,6 +148,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         isBootstrapping = false
         hasCalledSetup = false
         isHostedSubworld = false
+        hostWorlds = nil
         standaloneTickInFlight = false
         currentSize = .zero
         scaleFactor = 1
@@ -183,6 +189,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     func tick(_ deltaTime: AdaUtils.TimeInterval) {
+        guard isRenderingEnabled else { return }
         applyPendingSizeIfReady(deltaTime: deltaTime)
         // GPU completion may arrive between UI extraction and submission. Only
         // swap the displayed texture and its companion UI at the next UI tick.
@@ -201,6 +208,12 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             return
         }
         standaloneTick(deltaTime)
+    }
+
+    func setRenderingEnabled(_ enabled: Bool) {
+        guard enabled != isRenderingEnabled else { return }
+        isRenderingEnabled = enabled
+        appWorlds?.isHostedUpdateSuspended = !enabled
     }
 
     func receiveInputEvent(_ event: any InputEvent) {
@@ -352,6 +365,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             camera.renderTarget = .texture(AssetHandle(texture))
             camera.viewport.rect = Rect(origin: .zero, size: physicalSize)
             camera.logicalViewport.rect = Rect(origin: .zero, size: logicalSize)
+            camera.projection.updateView(width: logicalSize.width, height: logicalSize.height)
             entity.components += camera
         }
     }
@@ -440,6 +454,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             if let frontRenderTexture {
                 onFrameRendered?(frontRenderTexture)
             }
+            renderFrameDidChange?()
         }
         return didPublish
     }

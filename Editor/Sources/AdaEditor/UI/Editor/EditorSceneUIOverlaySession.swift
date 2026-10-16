@@ -1,4 +1,6 @@
+import Observation
 import AdaEngine
+import Observation
 
 /// Mounts ECS overlays in the native game window. SceneView's offscreen world
 /// has a virtual window ID, so overlay UI cannot attach through UIComponentSystem.

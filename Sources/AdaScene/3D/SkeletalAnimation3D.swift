@@ -57,6 +57,14 @@ public struct SkinnedMesh3DComponent: Component {
         self.matrices = Array(repeating: .identity, count: skin.joints.count)
     }
 
+    /// Keeps the copied pose while giving the destination mesh its own palette identity.
+    func remapped(to modelRoot: Entity.ID) -> Self {
+        var copy = Self(modelRoot: modelRoot, meshNodeIndex: meshNodeIndex, skin: skin)
+        copy.matrices = matrices
+        copy.poseGeneration = poseGeneration
+        return copy
+    }
+
     public mutating func updateMatrices(using player: SkeletalAnimationPlayer) {
         guard player.globalTransforms.indices.contains(meshNodeIndex),
             skin.inverseBindMatrices.count == skin.joints.count,

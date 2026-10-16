@@ -1,3 +1,6 @@
+#if os(Android)
+import Android
+#endif
 @_spi(AdaEngine) import AdaEngine
 import Foundation
 import Observation

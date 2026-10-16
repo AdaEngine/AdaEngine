@@ -43,7 +43,7 @@
       },
       {
         "kind": "text",
-        "text": "Use **File > Import Assets** or drop a `.glb`/`.gltf` into the project navigator.\nModels open in a 3D preview with camera navigation, mesh/material/skin counts,\nand a named animation picker with Play/Pause. Preview framing fits the model;\nplacing it in a scene preserves its original scale.",
+        "text": "Use **File > Import Assets** or drop a `.glb`, `.gltf` or MagicaVoxel `.vox` into the project navigator.\nModels open in a 3D preview with camera navigation, mesh/material/skin counts,\nand a named animation picker with Play/Pause. Preview framing fits the model;\nplacing it in a scene preserves its original scale.",
         "level": 0,
         "links": []
       },
@@ -62,6 +62,42 @@
       {
         "kind": "text",
         "text": "glTF imports with external buffers or textures are copied into a new model folder\nwith those dependencies. Keep dependencies beneath the source model's directory;\nremote URLs and references escaping that directory are rejected. Missing files\nfail the bundle import. Repeated imports create another bundle without replacing\nthe original. Imported materials are preserved; visual material editing and\nskeleton/clip authoring are not part of this workflow yet.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "MagicaVoxel models",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A `.vox` file is imported and placed like any other model: it opens in the 3D\npreview, **Add to Scene…** creates a **Model 3D** entity, and the model appears in\nthe scene viewport and in Play. A voxel file is self-contained, so import simply\ncopies it (repeated imports get a new name instead of overwriting).",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The scene is imported as an entity hierarchy that keeps the MagicaVoxel node names\nand transforms, so parts such as an arm can be picked and animated separately.\nKeyframed transforms and models with several frames animate; the preview header\nshows the frame count and rate, and Play/Pause controls the voxel timeline.\n**Play animation** on the Model 3D component decides whether it starts playing.\nMagicaVoxel is right-handed with Z up and the engine is left-handed with Y up,\nso the import swaps those axes; a model keeps the look of MagicaVoxel's front view.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The Model 3D inspector has three voxel settings that apply to `.vox` sources only\nand stay at their defaults for other formats:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• **Voxel size** (default 0.1) is the edge length of one voxel in world units.\n• **Merge static voxels** merges parts without animation into one mesh. This lowers\n  the draw count and removes hidden faces between parts, but merged parts can no\n  longer be picked separately.\n• **Voxel animation fps** (default 30) is the playback rate of MagicaVoxel frames.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Voxel materials are not imported yet: colors come from the palette and the model\nuses one diffuse material. The model tools of the AI agent work with glTF only.",
         "level": 0,
         "links": []
       },
@@ -942,7 +978,7 @@
       },
       {
         "kind": "text",
-        "text": "• AdaScript ECS\n• AdaScript Diagnostics and Performance",
+        "text": "• AdaScript ECS\n• AdaScript Diagnostics and Performance\n• Testing AdaScript",
         "level": 0,
         "links": [
           {
@@ -952,6 +988,10 @@
           {
             "title": "AdaScript Diagnostics and Performance",
             "destination": "AdaScriptDiagnosticsAndPerformance"
+          },
+          {
+            "title": "Testing AdaScript",
+            "destination": "AdaScriptTesting"
           }
         ]
       },
@@ -2283,7 +2323,7 @@
       },
       {
         "kind": "text",
-        "text": "After validation and build, inspect a completed frame from visible Play. Exercise selected clips and compare frames at different times for animation. Isolated simulation verifies logic and keyboard/physics behavior; it does not install Model3D or prove rendering. Blender execution, 3D generation, rig editing and skeletal clip authoring are not exposed by these Studio tools.",
+        "text": "After validation and build, inspect a completed frame from visible Play. Exercise selected clips and compare frames at different times for animation. Isolated simulation verifies logic and keyboard/physics behavior; it does not install Model3D or prove rendering. Blender execution, rig editing and skeletal clip authoring are not exposed by these Studio tools. To create a new low-poly model use editor.model.generate (an AdaScript program that writes a GLB) or editor.voxel.generate (a .vox).",
         "level": 0,
         "links": []
       }
@@ -2710,9 +2750,14 @@
       },
       {
         "kind": "text",
-        "text": "| Annotation | Target | Effect |\n| --- | --- | --- |\n| `@system(scheduler: \"update\", id: \"...\")` | Class | Registers `update(context)` with an ECS scheduler. `scheduler` defaults to `update`; `id` defaults to the class name. |\n| `@after(id: \"...\")` | System class | Runs after another system in the same module and scheduler. Repeatable. |\n| `@before(id: \"...\")` | System class | Runs before another system in the same module and scheduler. Repeatable. |\n| `@query(Component, with: Filter, without: Filter)` | Stored system property | Fetches one or more components. `with` and `without` filter without exposing a row field. |\n| `@res` or `@res(optional: true)` | Typed system property | Binds an ECS resource during `update(context)`. Optional bindings support `available()`. |\n| `@remote_commands(CommandType)` | Stored system property | Exposes received typed network commands. |",
+        "text": "| Annotation | Target | Effect |\n| --- | --- | --- |\n| `@system(scheduler: \"update\", id: \"...\")` | Class | Registers `update(context)` with an ECS scheduler. `scheduler` defaults to `update`; `id` defaults to the class name. |\n| `@test` / `@test(\"name\")` | Function | Declares a test with no parameters. See Testing AdaScript. |\n| `@after(id: \"...\")` | System class | Runs after another system in the same module and scheduler. Repeatable. |\n| `@before(id: \"...\")` | System class | Runs before another system in the same module and scheduler. Repeatable. |\n| `@query(Component, with: Filter, without: Filter)` | Stored system property | Fetches one or more components. `with` and `without` filter without exposing a row field. |\n| `@res` or `@res(optional: true)` | Typed system property | Binds an ECS resource during `update(context)`. Optional bindings support `available()`. |\n| `@remote_commands(CommandType)` | Stored system property | Exposes received typed network commands. |",
         "level": 0,
-        "links": []
+        "links": [
+          {
+            "title": "Testing AdaScript",
+            "destination": "AdaScriptTesting"
+          }
+        ]
       },
       {
         "kind": "text",
@@ -3363,6 +3408,146 @@
       {
         "kind": "text",
         "text": "The editor's `AdaScriptLibraryProvider` protocol accepts a provider/location/revision reference and\nreturns a pinned manifest plus source files. An Assets Store adapter can implement this same contract\nwithout changing source imports, runtime loading, or the lock format. The store service, catalog,\nauthentication, and purchasing flows are future work.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "AdaScriptTesting",
+    "title": "Testing AdaScript",
+    "section": "AdaScript",
+    "source": "Sources/AdaScripting/AdaScripting.docc/AdaScriptTesting.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Write tests next to your gameplay code, run them with `swift test` or a command, and keep them out of shipped builds.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Overview",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "A function annotated with `@test` is a test. It takes no parameters and may sit in any `.ada` file, where it can see that file's `private` declarations, or under a `Tests/` directory, where it sees public declarations only.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@system(id: \"gravity\")\nclass GravitySystem {\n    @query(Body)\n    var bodies;\n\n    func update(context) { /* … */ }\n}\n\nprivate func clampSpeed(speed) { return Math.max(speed, -50.0); }\n\n@test(\"speed is capped\")\nfunc speedIsCapped() {\n    expectEqual(clampSpeed(-100.0), -50.0);\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Assertions",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`expect(condition)`, `expectEqual(actual, expected)`, `expectNear(actual, expected, tolerance)`, `expectNil(value)` and `fail(message)` record a failure and let the test continue. `require(condition)` records a failure and ends the test. Each failure is reported as `path:line:column: message`.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "TestWorld",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`TestWorld()` creates an isolated world with the module's components and systems. Time moves only when the test says so.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "@test(\"a body falls\")\nfunc falls() {\n    var world = TestWorld();\n    var body = world.spawn([Body(y: 10.0, speed: 0.0)]);\n    world.run(30);\n    expect(world.read(body, \"Body\", \"y\") < 10.0);\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• `spawn(components)`, `insert(entity, component)`, `remove(entity, name)` and `despawn(entity)` change entities at once.\n• `has(entity, name)`, `read(entity, name, field)` and `count(name)` inspect them.\n• `run(ticks)` installs every system and runs fixed 1/60 s ticks. `runSystem(System, ticks)` installs only that system. `advance(seconds)` runs one step of an exact length.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Each test gets its own world. Module-level `var` values that are numbers, booleans, strings or null are restored after each test; lists and maps are not.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "The Tests directory",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Files under `Tests/` are compiled only when tests run, and gameplay code cannot import from them.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Running tests",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Load a project with tests and run it from Swift:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "let plugin = try AdaScriptPlugin(sources: sources, name: \"Game\", includeTests: true)\nlet results = plugin.runTests()",
+        "language": "swift",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "or point `AdaScriptTestProject` at a directory, which picks up every `.ada` file, and render the outcome with `AdaScriptTestReport` as text, JUnit or JSON. The `AdaScriptTest` command does the same from a terminal and exits non-zero on failure:",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "swift run AdaScriptTest Path/To/Project --format junit",
+        "language": "",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Production modules never contain tests. Loading without `includeTests` removes every `@test` function and the `Tests/` directory, and reports any gameplay code that refers to a test-only name such as `expect` or `TestWorld`.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Topics",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Running tests",
+        "level": 3,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "• `AdaScriptTestProject`\n• `AdaScriptTestReport`\n• `AdaScriptTestCase`\n• `AdaScriptTestResult`",
         "level": 0,
         "links": []
       }

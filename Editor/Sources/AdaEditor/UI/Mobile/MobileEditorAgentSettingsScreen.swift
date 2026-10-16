@@ -1,6 +1,8 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
 @_spi(AdaEngine) import AdaEngine
+#if canImport(UIKit)
 import UIKit
+#endif
 
 struct MobileEditorAgentSettingsScreen: View {
     @Environment(\.theme) private var theme
@@ -53,7 +55,7 @@ struct MobileEditorAgentSettingsScreen: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .accessibilityIdentifier("AdaEditor.Mobile.CodexDeviceCode")
                                 Button {
-                                    UIPasteboard.general.string = deviceCode.userCode
+                                    MobileEditorPlatform.copy(deviceCode.userCode)
                                     isCodeCopied = true
                                 } label: {
                                     Text(isCodeCopied ? "Copied" : "Copy")
@@ -298,7 +300,7 @@ struct MobileEditorAgentSettingsScreen: View {
                     deviceCode = nil
                     return
                 }
-                UIPasteboard.general.string = code.userCode
+                MobileEditorPlatform.copy(code.userCode)
                 isCodeCopied = true
                 statusMessage = "Code copied. Paste it in the sign-in window. Ada Studio will finish automatically."
                 let interval = max(1, code.interval)

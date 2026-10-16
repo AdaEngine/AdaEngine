@@ -3,12 +3,48 @@ from pathlib import Path
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+import zipfile
 
 spec=importlib.util.spec_from_file_location("android",Path(__file__).parents[1]/"android.py")
 android=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(android)
 
 class AndroidPackagingTests(unittest.TestCase):
+    def test_apk_preserves_every_manifest_asset_and_utf8_filename(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); binary=root/"bin"; staging=root/"staging"
+            bundle=binary/"Game.resources"/"Assets"; bundle.mkdir(parents=True)
+            (bundle/".gitkeep").touch()
+            (bundle/"Текстура 🌈.png").write_bytes(bytes(range(256)))
+            android.stage_resources(binary,staging/"assets")
+            library=staging/"lib/arm64-v8a/libGame.so"; library.parent.mkdir(parents=True)
+            library.write_bytes(b"native runtime")
+            apk=root/"unsigned.apk"
+            with zipfile.ZipFile(apk,"w") as archive: archive.writestr("AndroidManifest.xml",b"manifest")
+            android.append_payload(apk,staging)
+            with zipfile.ZipFile(apk) as archive:
+                self.assertIsNone(archive.testzip())
+                for path in archive.read("assets/bundles/manifest.txt").decode("utf-8").splitlines():
+                    self.assertIn("assets/bundles/"+path,archive.namelist())
+                asset=archive.getinfo("assets/bundles/Game.resources/Assets/Текстура 🌈.png")
+                self.assertTrue(asset.flag_bits & 0x800)
+                self.assertEqual(archive.read(asset),bytes(range(256)))
+                self.assertEqual(archive.getinfo("lib/arm64-v8a/libGame.so").compress_type,zipfile.ZIP_STORED)
+
+    def test_java_host_dex_and_utf8_resources_share_the_apk(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary); staging=root/"staging"
+            asset=staging/"assets/bundles/Studio.resources/Привет.txt"
+            asset.parent.mkdir(parents=True); asset.write_bytes("🙂".encode("utf-8"))
+            dex=root/"classes.dex"; dex.write_bytes(b"dex\n035\0host")
+            apk=root/"unsigned.apk"
+            with zipfile.ZipFile(apk,"w") as archive: archive.writestr("AndroidManifest.xml",b"manifest")
+            android.append_payload(apk,staging,[dex])
+            with zipfile.ZipFile(apk) as archive:
+                self.assertIsNone(archive.testzip())
+                self.assertEqual(archive.read("classes.dex"),dex.read_bytes())
+                self.assertEqual(archive.read(asset.relative_to(staging).as_posix()),asset.read_bytes())
+
     def test_preserves_nested_resource_manifest_and_binary_font(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary); binary=root/"bin"; assets=root/"assets"
@@ -51,6 +87,55 @@ class AndroidPackagingTests(unittest.TestCase):
     def test_rejects_incompatible_api_level_before_building(self):
         args=android.parser().parse_args(["build","--min-sdk","28"])
         with self.assertRaises(android.AndroidError): android.validate_options(args)
+
+    def test_studio_manifest_enables_dex_and_excludes_keystore_backup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source=Path(temporary)/"StudioActivity.java"
+            source.write_text("class StudioActivity {}")
+            args=android.parser().parse_args([
+                "build", "--product", "AdaStudioMobile", "--activity", "org.adaengine.studio.StudioActivity",
+                "--java-source", str(source)
+            ])
+            android.validate_options(args)
+            path=Path(temporary)/"AndroidManifest.xml"
+            android.write_manifest(path,args)
+            app=ET.parse(path).getroot().find("application")
+            self.assertEqual(app.attrib[android.ANDROID+"hasCode"],"true")
+            self.assertEqual(app.attrib[android.ANDROID+"allowBackup"],"false")
+            self.assertEqual(app.find("activity").attrib[android.ANDROID+"name"],"org.adaengine.studio.StudioActivity")
+            self.assertEqual(app.find("activity/meta-data").attrib[android.ANDROID+"value"],"AdaStudioMobile")
+
+    def test_custom_activity_requires_source(self):
+        args=android.parser().parse_args(["build", "--activity", "org.adaengine.studio.StudioActivity"])
+        with self.assertRaisesRegex(android.AndroidError,"--java-source"):
+            android.validate_options(args)
+
+    def test_custom_activity_requires_qualified_class_name(self):
+        args=android.parser().parse_args(["build", "--activity", "StudioActivity"])
+        with self.assertRaisesRegex(android.AndroidError,"fully qualified"):
+            android.validate_options(args)
+
+    def test_browser_callback_returns_to_the_existing_activity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source=Path(temporary)/"StudioActivity.java"; source.write_text("class StudioActivity {}")
+            args=android.parser().parse_args([
+                "build", "--activity", "org.adaengine.studio.StudioActivity", "--java-source", str(source),
+                "--callback-url", "adaeditor://cloud/callback"
+            ])
+            android.validate_options(args)
+            path=Path(temporary)/"AndroidManifest.xml"; android.write_manifest(path,args)
+            activity=ET.parse(path).getroot().find("application/activity")
+            self.assertEqual(activity.attrib[android.ANDROID+"launchMode"],"singleTask")
+            link=activity.findall("intent-filter")[1]
+            self.assertEqual(link.find("data").attrib,{
+                android.ANDROID+"scheme":"adaeditor",android.ANDROID+"host":"cloud",android.ANDROID+"path":"/callback"
+            })
+            self.assertIn("android.intent.category.BROWSABLE",[item.attrib[android.ANDROID+"name"] for item in link.findall("category")])
+
+    def test_callback_without_a_java_host_is_rejected(self):
+        args=android.parser().parse_args(["build", "--callback-url", "adaeditor://cloud/callback"])
+        with self.assertRaisesRegex(android.AndroidError,"Java host"):
+            android.validate_options(args)
 
 if __name__=="__main__": unittest.main()
 

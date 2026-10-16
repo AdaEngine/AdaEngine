@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
 @_spi(AdaEngine) import AdaEngine
 import Foundation
 
@@ -91,7 +91,7 @@ struct MobileEditorPromptPanel: View {
                 }
                 HStack(spacing: 8) {
                     iconButton("\u{E145}", identifier: "AdaEditor.Mobile.AddAttachment") {
-                        ProjectOpenPicker.presentAgentAttachmentSourcePicker(
+                        MobileEditorPlatform.pickAttachmentSource(
                             pickFiles: pickFiles,
                             pickPhotos: pickPhotos
                         )

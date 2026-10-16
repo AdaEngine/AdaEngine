@@ -11,6 +11,8 @@
 
 
 dist/
+!Plugins/AdaWebExportPlugin/BrowserWASIShim/dist/
+!Plugins/AdaWebExportPlugin/BrowserWASIShim/dist/*.js
 
 # Ignore generated Xcode projects
 *.xcodeproj

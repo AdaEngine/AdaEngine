@@ -13,9 +13,9 @@
     public final class WGPUUniformBuffer: WGPUBuffer, UniformBuffer, @unchecked Sendable {
         public let binding: Int
 
-        init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice, binding: Int) {
+        init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice, binding: Int, instance: WebGPU.GPUInstance? = nil) {
             self.binding = binding
-            super.init(buffer: buffer, device: device)
+            super.init(buffer: buffer, device: device, instance: instance)
         }
     }
 #endif

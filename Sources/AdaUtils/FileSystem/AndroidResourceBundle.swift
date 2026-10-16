@@ -6,6 +6,14 @@
     /// The native host extracts assets before starting the Swift app, so existing
     /// Foundation file and Bundle APIs can use shaders, fonts and game resources.
     public enum AndroidResourceBundle {
+        /// App-private writable storage supplied by NativeActivity.
+        public static var filesDirectory: URL {
+            guard let path = unsafe ada_android_files_path() else {
+                preconditionFailure("Android storage requires the AdaEngine NativeActivity host")
+            }
+            return unsafe URL(fileURLWithPath: String(cString: path), isDirectory: true)
+        }
+
         public static func bundle(named name: String) -> Bundle {
             guard let path = unsafe ada_android_files_path() else {
                 preconditionFailure("Android resources require the AdaEngine NativeActivity host")

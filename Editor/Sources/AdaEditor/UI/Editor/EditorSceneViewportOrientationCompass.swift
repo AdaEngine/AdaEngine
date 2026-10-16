@@ -2,6 +2,7 @@
 
 struct EditorSceneViewportOrientationCompass: View {
     let viewportModel: EditorSceneViewportModel
+    let presentation: EditorViewportPresentation
 
     private let diameter: Float = 120
     private let axisLength: Float = 44
@@ -59,9 +60,10 @@ struct EditorSceneViewportOrientationCompass: View {
     }
 
     private func compassAxes() -> [CompassAxis] {
-        let right = viewportModel.right3D
-        let up = viewportModel.up3D
-        let front = viewportModel.front3D
+        let orientation = presentation.compassOrientation
+        let right = orientation?.right ?? viewportModel.right3D
+        let up = orientation?.up ?? viewportModel.up3D
+        let front = orientation?.front ?? viewportModel.front3D
 
         return [
             axis("X", color: Color.fromHex(0xF44364), direction: Vector3(1, 0, 0), right: right, up: up, front: front),

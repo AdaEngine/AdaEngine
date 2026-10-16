@@ -1,9 +1,7 @@
 import Foundation
 import Yams
 
-#if os(macOS)
-    import CryptoKit
-#endif
+import Crypto
 
 enum EditorAgentRole: String, Codable, Equatable, Sendable {
     case user
@@ -317,16 +315,12 @@ struct EditorAgentSession: Codable, Equatable, Identifiable, Sendable {
 extension AdaProjectAgentTarget {
     /// Persist a fingerprint so session history never copies connection environment secrets.
     var sessionIdentity: String? {
-        #if os(macOS)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = .sortedKeys
-            guard let data = try? encoder.encode(self) else {
-                return nil
-            }
-            return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-        #else
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode(self) else {
             return nil
-        #endif
+        }
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }
 

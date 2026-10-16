@@ -187,6 +187,7 @@ private enum ContextMenuPresenter {
         var camera = Camera(window: .windowId(window.id))
         camera.backgroundColor = Color(red: 0, green: 0, blue: 0, alpha: 0)
         window.runtimeCameraEntity = app.spawn(bundle: Camera2D(camera: camera))
+        if let cameraEntity = window.runtimeCameraEntity { cameraEntity.components += WindowRenderOnDemand() }
         return window
     }
 
@@ -207,12 +208,16 @@ private enum ContextMenuPresenter {
             return presentation.location
         }
 
-        let sourceOrigin = systemWindow.position
+        let sourceOrigin = systemWindow.contentPosition
         let sourceSize = sourceWindow.frame.size
         var origin = Point(
             x: sourceOrigin.x + presentation.location.x,
             y: sourceOrigin.y + sourceSize.height - presentation.location.y - menuSize.height
         )
+        #if os(Windows)
+            // Win32 desktop coordinates, like pointer coordinates, start at the top.
+            origin.y = sourceOrigin.y + presentation.location.y
+        #endif
 
         if let screenSize = sourceWindow.screen?.size {
             origin.x = min(max(0, origin.x), max(0, screenSize.width - menuSize.width))
@@ -239,6 +244,9 @@ private enum ContextMenuPresenter {
             x: parentOrigin.x + parentSize.width - ContextMenuMetrics.submenuOverlap,
             y: parentOrigin.y + parentSize.height - ContextMenuMetrics.verticalPadding - rowOffset(for: rowIndex, in: parentItems) - menuSize.height
         )
+        #if os(Windows)
+            origin.y = parentOrigin.y + ContextMenuMetrics.verticalPadding + rowOffset(for: rowIndex, in: parentItems)
+        #endif
 
         if let screenSize = (sourceWindow ?? parentWindow).screen?.size {
             if origin.x + menuSize.width > screenSize.width {

@@ -210,9 +210,12 @@ public final class SceneNavigator: Resource, @unchecked Sendable {
 
         let root = world.spawn("Scene: \(scene.name)") {}
         let sceneEntities = scene.world.getEntities()
+        var copies: [Entity.ID: Entity] = [:]
+        copies.reserveCapacity(sceneEntities.count)
         for entity in sceneEntities where entity.parent == nil {
-            copyHierarchy(from: entity, beneath: root, into: world)
+            copyHierarchy(from: entity, beneath: root, into: world, copies: &copies)
         }
+        remapModelReferences(in: copies)
 
         let existingResources = Dictionary(uniqueKeysWithValues: world.getResources().map { (ObjectIdentifier(type(of: $0)), $0) })
         var previousResources: [PreviousResource] = []
@@ -229,21 +232,48 @@ public final class SceneNavigator: Resource, @unchecked Sendable {
     }
 
     @MainActor
-    private func copyHierarchy(from original: Entity, beneath parent: Entity, into world: World) {
+    private func copyHierarchy(from original: Entity, beneath parent: Entity, into world: World, copies: inout [Entity.ID: Entity]) {
         let copy = original.copy()
         copy.components[RelationshipComponent.self] = nil
         world.addEntity(copy)
+        copies[original.id] = copy
         parent.addChild(copy)
         for child in original.children {
-            copyHierarchy(from: child, beneath: copy, into: world)
+            copyHierarchy(from: child, beneath: copy, into: world, copies: &copies)
+        }
+    }
+
+    @MainActor
+    private func remapModelReferences(in copies: [Entity.ID: Entity]) {
+        // Entity IDs belong to a world. Resolve references only after the whole
+        // hierarchy has been copied, including roots visited after their owners.
+        for copy in copies.values {
+            if let state = copy.components[Model3DSourceState.self] {
+                copy.components[Model3DSourceState.self] = Model3DSourceState(
+                    reference: state.reference,
+                    rootEntityID: state.rootEntityID.flatMap { copies[$0]?.id },
+                    error: state.error
+                )
+            }
+            if let node = copy.components[ModelNode3DComponent.self], let root = copies[node.modelRoot] {
+                copy.components[ModelNode3DComponent.self] = ModelNode3DComponent(modelRoot: root.id, nodeIndex: node.nodeIndex)
+            }
+            if let skin = copy.components[SkinnedMesh3DComponent.self], let root = copies[skin.modelRoot] {
+                copy.components[SkinnedMesh3DComponent.self] = skin.remapped(to: root.id)
+            }
         }
     }
 }
 
-@PlainSystem
-struct SceneNavigationSystem {
+struct SceneNavigationSystem: System {
     @Res<SceneNavigator>
     private var navigator
+
+    // Replacing a scene changes archetypes and invalidates component pointers.
+    // It must finish before another system starts traversing the world.
+    var queries: SystemQueries {
+        SystemQueries(queries: [_navigator, ExclusiveWorldAccess()])
+    }
 
     init(world _: World) {}
 

@@ -73,10 +73,8 @@ struct EditorSceneHierarchySidebar: View {
                         hierarchyBackground(sceneModel: sceneModel, size: geometry.size)
 
                         ScrollView {
-                            VStack(alignment: .leading, spacing: 0) {
-                                ForEach(items, id: \.id) { item in
-                                    hierarchyRow(item, items: items, sceneModel: sceneModel)
-                                }
+                            LazyVStack(items, id: \.id, alignment: .leading, spacing: 0, estimatedRowHeight: 34) { item in
+                                hierarchyRow(item, items: items, sceneModel: sceneModel)
                             }
                             .padding(.horizontal, 8)
                             .padding(.bottom, 8)

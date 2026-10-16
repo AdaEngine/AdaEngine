@@ -1,5 +1,5 @@
-#if os(macOS)
 import Foundation
+#if os(macOS)
 
 /// Strict, noninteractive command contract shared by the bundled CLI and its tests.
 struct EditorCLIInvocation: Sendable {
@@ -109,6 +109,8 @@ struct EditorCLIInvocation: Sendable {
     """
 }
 
+#endif
+
 enum EditorCLIError: Error, LocalizedError, Sendable {
     case argument(String)
     case environment(String)
@@ -130,4 +132,3 @@ enum EditorCLIError: Error, LocalizedError, Sendable {
         }
     }
 }
-#endif

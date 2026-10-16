@@ -15,6 +15,7 @@
     public class WGPUBuffer: Buffer, @unchecked Sendable {
         let buffer: WebGPU.GPUBuffer
         let device: WebGPU.GPUDevice
+        let instance: WebGPU.GPUInstance?
 
         public var label: String? {
             didSet {
@@ -22,9 +23,10 @@
             }
         }
 
-        init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice) {
+        init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice, instance: WebGPU.GPUInstance? = nil) {
             self.buffer = buffer
             self.device = device
+            self.instance = instance
         }
 
         public var length: Int { return Int(buffer.size) }
@@ -89,6 +91,38 @@
             encoder.copyBufferToBuffer(source: buffer, sourceOffset: 0, destination: staging, destinationOffset: 0, size: UInt64(length))
             let command: WebGPU.GPUCommandBuffer = encoder.finish(descriptor: nil as WebGPU.GPUCommandBufferDescriptor?)
             webGPUDeviceLock.withLock { _ in device.queue.submit(commands: [command]) }
+            #if !WASM
+            if let instance {
+                // Native Dawn needs event processing to advance GPU mapping,
+                // even with spontaneous callbacks. Yield while the GPU works.
+                let result = Mutex<Result<Data, MapError>?>(nil)
+                defer { staging.destroy() }
+                _ = staging.mapAsync(mode: .read, offset: 0, size: length, callbackInfo: WebGPU.GPUBufferMapCallbackInfo(
+                    mode: .allowProcessEvents,
+                    callback: { [length] status, message in
+                        let mapped: Result<Data, MapError>
+                        if status != .success {
+                            mapped = .failure(.failedToMap(message ?? "GPU mapping failed"))
+                        } else if let pointer = unsafe staging.getConstMappedRange(offset: 0, size: length) {
+                            mapped = .success(unsafe Data(bytes: pointer, count: length))
+                            staging.unmap()
+                        } else {
+                            mapped = .failure(.failedToGetMappedRange)
+                            staging.unmap()
+                        }
+                        result.withLock { $0 = mapped }
+                    }
+                ))
+                let deadline = ContinuousClock.now + .seconds(30)
+                while true {
+                    try Task.checkCancellation()
+                    instance.processEvents()
+                    if let mapped = result.withLock({ $0 }) { return try mapped.get() }
+                    guard ContinuousClock.now < deadline else { throw MapError.failedToMap("GPU mapping timed out") }
+                    try await Task.sleep(for: .milliseconds(1))
+                }
+            }
+            #endif
             return try await withCheckedThrowingContinuation { continuation in
                 _ = staging.mapAsync(mode: .read, offset: 0, size: length, callbackInfo: WebGPU.GPUBufferMapCallbackInfo(
                     mode: .allowSpontaneous,

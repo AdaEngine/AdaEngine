@@ -83,6 +83,9 @@ final class EditorSettingsWindowViewModel {
     var buildExportConfiguration: EditorBuildExportConfiguration
     let buildExportDefaults: UserDefaults
     var buildExportSettingsStatusMessage = ""
+    var scanningBuildPlatforms: Set<EditorBuildPlatform> = []
+    var scannedBuildPlatforms: Set<EditorBuildPlatform> = []
+    @ObservationIgnored let buildToolDiscovery = EditorBuildToolDiscovery()
     var inputBindingsDraft: EditorInputBindingsDraft
     var adaScriptTypeChecking: AdaScriptTypeCheckingMode
     var runtimeDraft: EditorRuntimeSettingsDraft
@@ -364,7 +367,7 @@ enum EditorSettingsWindowController {
         )
     }
 
-    #if os(macOS)
+    #if os(macOS) || os(Windows) || os(Linux)
         private static weak var settingsWindow: UIWindow?
         private static var settingsViewModel: EditorSettingsWindowViewModel?
 

@@ -116,7 +116,7 @@ struct EditorTileOrientationTests {
         let url = root.appendingPathComponent("Layout.tilemap")
         var map = EditorTileMapResource(atlasColors: [.red], cells: [])
         if textured {
-            try Image(width: 24, height: 16, color: .red).pngData().write(to: root.appendingPathComponent("Tile.png"))
+            try Image(width: 24, height: 16, color: .red).writePNG(to: root.appendingPathComponent("Tile.png"))
             map.atlasTextures = ["Tile.png"]
             let scenes = root.appendingPathComponent("Scenes")
             try FileManager.default.createDirectory(at: scenes, withIntermediateDirectories: true)

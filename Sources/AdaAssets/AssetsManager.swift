@@ -950,8 +950,12 @@ extension AssetsManager {
             cursor.appendPathComponent(String(component))
             if (try? FileManager.default.destinationOfSymbolicLink(atPath: cursor.path)) != nil { return false }
         }
-        let base = root.url.resolvingSymlinksInPath().standardizedFileURL.path
-        let target = root.url.appendingPathComponent(relative).resolvingSymlinksInPath().standardizedFileURL.path
+        // Resolve the existing root before appending a possibly missing asset.
+        // Windows expands 8.3 names only for existing paths; resolving the full
+        // missing path can otherwise compare VLADIS~1 against Vladislav.
+        let canonicalRoot = root.url.resolvingSymlinksInPath().standardizedFileURL
+        let base = canonicalRoot.path
+        let target = canonicalRoot.appendingPathComponent(relative).resolvingSymlinksInPath().standardizedFileURL.path
         return target == base || target.hasPrefix(base + "/")
     }
 

@@ -99,3 +99,37 @@ pass. The file-backed UI preview case now runs with both zero and 539 additional
 scene objects, including pan/zoom retention and removing the last UI entity.
 Logs: `.build-tools/viewport-2d-release-build.log`,
 `.build-tools/viewport-2d-tests-build.log`, `.build-tools/viewport-2d-focused-tests.log`.
+
+## Compass and pointer consistency
+
+The compass observes a separate orientation value published with the completed
+scene frame. Rotating the camera updates its Canvas and axis labels while leaving
+the viewport host, hidden rulers and unchanged status label alone.
+
+Transform-handle geometry is retained alongside the presented annotation commands.
+Hover and drag start use that geometry, including its camera projection, rather
+than the newer navigation state. During a target resize, pointer coordinates map
+back into the captured target, matching the stretched texture and annotations.
+An explicitly empty handle snapshot stays empty until a matching frame is shown;
+changing selection, display mode or tool cannot activate an obsolete handle.
+
+Focused regressions exercise the real AdaUI compass drawing and production mouse
+and transform-drag paths in `EditorViewportCompassPresentationTests` and
+`EditorViewportInteractionPresentationTests`. They cover delayed publication and
+both ordinary and doubled viewport sizes. These correctness checks do not add a
+new performance measurement to the historical captures above.
+
+The branch now builds independently on Windows with Swift 6.3.1. The focused
+editor run passes 45 tests in nine suites, including the new compass/input cases
+and the tile source/orientation/occlusion suites. JavaScriptKit is pinned to the
+engine's 0.53.0 version because 0.59.0's PackageToJS plugin fails to import
+`stderr` on Windows. Windows validation uses the existing local AdaMCP v0.2.0 and prepared
+Gravity package via the documented package-path overrides. Logs are under
+`.build-tools/pr145/editor-tests-verified.log`. No new native GPU performance
+capture was made for this revision.
+
+The engine run passes all 13 selected tests in `SceneViewTests`,
+`CanvasRevisionTests`, `AdaScriptSceneSchemaTests` and `PortablePNGTests`
+(`.build-tools/pr145/engine-tests.log`). The offline documentation check verifies
+21 guides. Obsolete CoreFoundation imports and tile-test AdaMCP PNG fallback
+imports were removed to restore Windows compilation after merging main.

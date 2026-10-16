@@ -1,5 +1,10 @@
+#if canImport(Network) || os(Windows)
 import Foundation
+#if canImport(Network)
 import Network
+#else
+import CWindowsPlayer
+#endif
 import Observation
 
 /// A foreground-only host with one paired editor. Pairing expires on disconnect.
@@ -11,7 +16,11 @@ public final class PlayerHost {
     public private(set) var isPaired = false
     public var onDeploy: ((PlayerProjectSnapshot) async throws -> Void)?
     public var onStop: (() -> Void)?
+    #if canImport(Network)
     @ObservationIgnored private var listener: NWListener?
+    #else
+    @ObservationIgnored private var listener: WindowsPlayerListener?
+    #endif
     @ObservationIgnored private var connection: PlayerConnection?
     @ObservationIgnored private var session: Task<Void, Never>?
     @ObservationIgnored private var timeout: Task<Void, Never>?
@@ -20,6 +29,7 @@ public final class PlayerHost {
 
     public func start(name: String) throws {
         guard listener == nil else { return }
+        #if canImport(Network)
         let listener = try NWListener(using: .tcp)
         self.listener = listener
         listener.service = .init(name: name, type: PlayerConnection.serviceType)
@@ -37,6 +47,12 @@ public final class PlayerHost {
             Task { @MainActor in self?.accept(incoming) }
         }
         listener.start(queue: .main)
+        #else
+        let listener = try WindowsPlayerListener { [weak self] in self?.accept($0) }
+        self.listener = listener
+        port = listener.port
+        status = "Waiting for Ada Studio · \(ProcessInfo.processInfo.hostName):\(listener.port)"
+        #endif
     }
 
     public func shutdown() {
@@ -63,9 +79,20 @@ public final class PlayerHost {
         try await connection.send(message)
     }
 
+    #if canImport(Network)
     private func accept(_ incoming: NWConnection) {
         guard connection == nil else { incoming.cancel(); return }
         let channel = PlayerConnection(incoming)
+        accept(channel)
+    }
+    #else
+    private func accept(_ incoming: UInt) {
+        guard connection == nil else { ada_player_close(incoming); return }
+        accept(PlayerConnection(socket: incoming))
+    }
+    #endif
+
+    private func accept(_ channel: PlayerConnection) {
         connection = channel
         channel.start()
         timeout = Task { [weak self, weak channel] in
@@ -118,3 +145,4 @@ public final class PlayerHost {
         }
     }
 }
+#endif

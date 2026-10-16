@@ -30,10 +30,10 @@ struct KeyboardShortcutTests {
         .setSize(Size(width: 320, height: 200))
         .performLayout()
 
-        tester.sendKeyEvent(.p, modifiers: [.main, .shift], time: 0)
+        tester.sendKeyEvent(.p, modifiers: [.command, .shift], time: 0)
         #expect(count == 1)
 
-        tester.sendKeyEvent(.p, modifiers: [.main], time: 0.01)
+        tester.sendKeyEvent(.p, modifiers: [.command], time: 0.01)
         #expect(count == 1)
     }
 
@@ -110,9 +110,10 @@ struct KeyboardShortcutTests {
         .setSize(Size(width: 200, height: 200))
         .performLayout()
 
-        tester.sendKeyEvent(.s, modifiers: .main, time: 0)
-        tester.sendKeyEvent(.plus, modifiers: .main, time: 0.01)
-        tester.sendKeyEvent(.plus, modifiers: .control, time: 0.02)
+        tester.sendKeyEvent(.s, modifiers: .command, time: 0)
+        tester.sendKeyEvent(.plus, modifiers: .command, time: 0.01)
+        let alternateModifier: KeyModifier = KeyModifier.command == .control ? .main : .control
+        tester.sendKeyEvent(.plus, modifiers: alternateModifier, time: 0.02)
 
         #expect(saveCount == 1)
         #expect(zoomCount == 1)

@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
     import Foundation
 
     struct MobileEditorImageCredentials: EditorImageCredentialProviding {

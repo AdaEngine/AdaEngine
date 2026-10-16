@@ -48,6 +48,8 @@ struct Temporal3DUniform: Sendable {
     var inverseJitteredProjection: Transform3D
     var currentToPreviousView: Transform3D
     var parameters: Vector4
+    /// `x` tone mapper selector. Only the temporal tone-map shader declares this member.
+    var toneMapping: Vector4 = .zero
 }
 
 struct Temporal3DPipelines: Resource {

@@ -26,6 +26,7 @@ extern void ada_android_surface_changed(int32_t, int32_t, float);
 extern void ada_android_state(int32_t);
 extern void ada_android_touch(int32_t, int32_t, float, float);
 extern void ada_android_surface_lost(void);
+extern void ada_android_back(void);
 
 typedef struct JobNode { void *job; struct JobNode *next; } JobNode;
 static pthread_mutex_t job_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -153,7 +154,7 @@ static int process_input(int fd, int events, void *data) {
             }
             handled=1;
         } else if (AInputEvent_getType(event)==AINPUT_EVENT_TYPE_KEY && AKeyEvent_getKeyCode(event)==AKEYCODE_BACK) {
-            if (AKeyEvent_getAction(event)==AKEY_EVENT_ACTION_UP && activity) ANativeActivity_finish(activity);
+            if (AKeyEvent_getAction(event)==AKEY_EVENT_ACTION_UP && activity) ada_android_back();
             handled=1;
         }
         AInputQueue_finishEvent(queue,event,handled);
@@ -208,6 +209,17 @@ __attribute__((visibility("default"))) void ANativeActivity_onCreate(ANativeActi
     resumed=false; frame_generation++; frame_pending=false;
     if (!files_path) files_path=strdup(a->internalDataPath);
     if (!extract_resources(a)) { ada_android_log("Resource extraction failed"); ANativeActivity_finish(a); return; }
+    char resources_path[PATH_MAX];
+    int resources_length=snprintf(resources_path,sizeof(resources_path),"%s/resources",a->internalDataPath);
+    if (!started) {
+        if (resources_length>0 && (size_t)resources_length<sizeof(resources_path)) setenv("ADAENGINE_RESOURCE_ROOT",resources_path,1);
+        setenv("HOME",a->internalDataPath,1);
+        char cache_path[PATH_MAX];
+        int cache_length=snprintf(cache_path,sizeof(cache_path),"%s/cache",a->internalDataPath);
+        if (cache_length>0 && (size_t)cache_length<sizeof(cache_path) && (mkdir(cache_path,0700)==0 || access(cache_path,W_OK)==0)) {
+            setenv("TMPDIR",cache_path,1);
+        }
+    }
     AConfiguration *configuration=AConfiguration_new();
     AConfiguration_fromAssetManager(configuration,a->assetManager);
     int density=AConfiguration_getDensity(configuration);
@@ -227,6 +239,7 @@ __attribute__((visibility("default"))) void ANativeActivity_onCreate(ANativeActi
     ANativeActivity_setWindowFlags(a,AWINDOW_FLAG_FULLSCREEN,0);
     ada_android_log("NativeActivity created");
 }
+void *ada_android_activity(void) { return activity; }
 bool ada_android_is_main_thread(void) { return pthread_equal(pthread_self(),main_thread); }
 void ada_android_finish(void) { if (activity) ANativeActivity_finish(activity); }
 bool ada_android_open_url(const char *url) {
@@ -273,4 +286,5 @@ const char *ada_android_files_path(void) { return files_path; }
 // Host builds keep CAndroid importable without Android SDK headers.
 void ada_android_log(const char *message) { (void)message; }
 bool ada_android_open_url(const char *url) { (void)url; return false; }
+void *ada_android_activity(void) { return NULL; }
 #endif

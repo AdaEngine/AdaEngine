@@ -119,8 +119,7 @@ final class EditorAgentWorkspaceMCPTools {
             viewModel.workspaceTask != nil
                 || viewModel.playModeState.isPlaying
                 || viewModel.debugger.isActive
-                || viewModel.playerSession.isRunning
-                || viewModel.playerSession.isBusy
+                || viewModel.isAdaPlayerActive
         else {
             throw EditorWorkspaceMCPError.noTaskToStop
         }

@@ -73,6 +73,7 @@ struct EditorSceneViewportView: View {
             GeometryReader { geometry in
                 ZStack(anchor: .bottomLeading) {
                     SceneView(
+                        updatesWhenWindowInactive: false,
                         make: { app in
                             if isAssetPreview {
                                 viewportModel.threeDPosition = Vector3(0, 0, -5)
@@ -189,7 +190,7 @@ struct EditorSceneViewportView: View {
     @MainActor
     static func uiProjectRoot(from resourceRoot: URL) -> URL {
         var candidate = resourceRoot
-        while candidate.path != "/" {
+        while candidate != candidate.deletingLastPathComponent() {
             if FileManager.default.fileExists(atPath: candidate.appendingPathComponent(".ada/project.json").path)
                 || FileManager.default.fileExists(atPath: candidate.appendingPathComponent("Package.swift").path) {
                 return candidate
@@ -250,7 +251,7 @@ struct EditorSceneViewportView: View {
             viewportGizmoLayer
             viewportCoordinateRulerLayer
             if displayMode == .threeD {
-                EditorSceneViewportOrientationCompass(viewportModel: viewportModel)
+                EditorSceneViewportOrientationCompass(viewportModel: viewportModel, presentation: viewportPresentation)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .padding(12)
             }
@@ -408,12 +409,11 @@ struct EditorSceneViewportView: View {
         }
 
         displayCamera.projection = authoredCamera.projection
-        if case var .perspective(projection) = displayCamera.projection {
-            let size = displayCamera.logicalViewport.rect.size
-            if size.width > 0, size.height > 0 {
-                projection.updateView(width: size.width, height: size.height)
-                displayCamera.projection = .perspective(projection)
-            }
+        let size = displayCamera.logicalViewport.rect.size
+        if size.width > 0, size.height > 0 {
+            // Authored 2D cameras may not have a window viewport of their own.
+            // Fit every projection to the display target before Play renders it.
+            displayCamera.projection.updateView(width: size.width, height: size.height)
         }
         displayCamera.isActive = true
         displayCamera.backgroundColor = authoredCamera.backgroundColor

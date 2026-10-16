@@ -14,7 +14,7 @@ struct EditorUIColorField: View {
     var body: some View {
         let color = Self.color(value) ?? .clear
         HStack(spacing: 6) {
-            #if (canImport(AppKit) && os(macOS)) || (canImport(UIKit) && os(iOS))
+            #if (canImport(AppKit) && os(macOS)) || (canImport(UIKit) && os(iOS)) || os(Windows)
                 Button {
                     EditorPlatformColorPicker.present(value: .init(red: color.red, green: color.green, blue: color.blue, alpha: color.alpha), supportsAlpha: supportsAlpha) {
                         onChange($0.hexString)

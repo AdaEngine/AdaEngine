@@ -1,6 +1,9 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
-#if os(macOS)
+#if os(macOS) || os(Windows)
     import ACPModel
 
     enum EditorAgentMCPConnection {
@@ -49,12 +52,27 @@ import Foundation
 
         func run() async throws {
             do {
+                #if os(Windows)
+                var buffer = Data()
+                for await chunk in EditorWindowsACPTransport.chunks(FileHandle.standardInput) {
+                    buffer.append(chunk)
+                    while let newline = buffer.firstIndex(of: 10) {
+                        let line = Data(buffer[..<newline])
+                        buffer.removeSubrange(...newline)
+                        guard line.count <= EditorWindowsACPTransport.maximumMessageBytes else { throw BridgeError.invalidMessage }
+                        if line.isEmpty { continue }
+                        if let response = await forward(line) { try FileHandle.standardOutput.write(contentsOf: response + Data([10])) }
+                    }
+                    guard buffer.count <= EditorWindowsACPTransport.maximumMessageBytes else { throw BridgeError.invalidMessage }
+                }
+                #else
                 for try await line in FileHandle.standardInput.bytes.lines where !line.isEmpty {
                     let response = await forward(Data(line.utf8))
                     if let response {
                         try FileHandle.standardOutput.write(contentsOf: response + Data([10]))
                     }
                 }
+                #endif
             } catch {
                 await disconnect()
                 throw error

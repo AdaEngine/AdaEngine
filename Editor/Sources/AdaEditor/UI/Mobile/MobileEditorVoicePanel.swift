@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
 @_spi(AdaEngine) import AdaEngine
 import Foundation
 

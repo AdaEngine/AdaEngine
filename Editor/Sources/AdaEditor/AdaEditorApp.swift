@@ -13,20 +13,25 @@ import Logging
     import UIKit
 #endif
 
-#if canImport(AdaMCPPlugin)
+#if !os(Android) && canImport(AdaMCPPlugin)
     import AdaMCPPlugin
 #endif
 
-#if !os(visionOS)
+#if !os(visionOS) && !os(Android)
 @main
 #endif
 enum AdaApplicationEntry {
     @MainActor static func main() async throws {
+        #if os(Windows)
+        if try EditorWindowsCloudAuthentication.receiveLaunchCallback(CommandLine.arguments) { return }
+        #endif
         #if os(macOS)
             if EditorCLI.isInvocation(CommandLine.arguments) {
                 let code = await EditorCLI.run(arguments: CommandLine.arguments)
                 Foundation.exit(code)
             }
+        #endif
+        #if os(macOS) || os(Windows)
             if CommandLine.arguments.contains(EditorAgentMCPConnection.bridgeArgument) {
                 try await EditorAgentMCPStdioBridge(endpoint: URL(string: EditorMCPServerAddress.url)).run()
                 return
@@ -37,10 +42,12 @@ enum AdaApplicationEntry {
                 await MobileEditorAgentSmoke.run()
             }
         #endif
+        #if canImport(Network) || os(Windows)
         if Bundle.main.bundleIdentifier == "org.adaengine.player" || CommandLine.arguments.contains("--ada-player") {
             try await AppRuntime.run(AdaPlayerApp())
             return
         }
+        #endif
         _ = EditorProjectOpenURLRouter.shared
         #if os(iOS)
             if UIDevice.current.userInterfaceIdiom == .phone {
@@ -119,7 +126,7 @@ struct AdaEditorApp: App {
             WindowTitleBar(
                 background: .transparent,
                 reservesSafeArea: EditorWindowSafeAreaPolicy.reservesSystemSafeArea,
-                dragRegionHeight: 52
+                dragRegionHeight: EditorWindowSafeAreaPolicy.dragRegionHeight
             )
         )
         .windowTrafficLightOffset(x: 0, y: ProjectOpeningLayout.trafficLightOffsetY)
@@ -130,8 +137,16 @@ struct AdaEditorApp: App {
             .transformAppWorlds { worlds in
                 worlds.insertResource(ApplicationFramePacing(maximumFramesPerSecond: 120, minimumFramesPerSecond: 120))
             }
+        #elseif os(Windows)
+            .transformAppWorlds { worlds in
+                worlds.insertResource(ApplicationFramePacing(
+                    maximumFramesPerSecond: 60,
+                    synchronizesWithDisplayRefreshRate: true,
+                    minimumFramesPerSecond: 60
+                ))
+            }
         #endif
-        #if canImport(AdaMCPPlugin)
+        #if !os(Android) && canImport(AdaMCPPlugin)
             .addPlugins(
                 MCPPlugin(
                     configuration: .init(
@@ -180,7 +195,8 @@ struct AdaEditorApp: App {
                                 return result
                             }
                             return await EditorAgentGravityMCPTools.shared.handle(name: name, arguments: arguments)
-                        }
+                        },
+                        enableDiscovery: EditorMCPServerAddress.enableDiscovery
                     )
                 )
             )
@@ -190,7 +206,9 @@ struct AdaEditorApp: App {
 
 extension Foundation.Bundle {
     public static var editor: Foundation.Bundle {
-        #if SWIFT_PACKAGE
+        #if os(Android)
+            return AndroidResourceBundle.bundle(named: "AdaEditor_AdaEditor")
+        #elseif SWIFT_PACKAGE
             return Self.module
         #else
             return Foundation.Bundle(for: BundleToken.self)

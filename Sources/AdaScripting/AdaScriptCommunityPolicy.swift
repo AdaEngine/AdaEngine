@@ -14,7 +14,7 @@ public struct AdaScriptCommunityPolicy: Sendable {
 @GSExportable("AdaUGCBudget")
 final class AdaScriptCommunityBudget: @unchecked Sendable {
     @GSExportableIgnore private var remaining = 0
-    @GSExportableIgnore private var deadline: UInt64 = 0
+    @GSExportableIgnore private var deadline = ContinuousClock.now
     @GSExportableIgnore private var policy = AdaScriptCommunityPolicy()
     @GSExportableIgnore private var spawnedEntities = 0
 
@@ -27,12 +27,12 @@ final class AdaScriptCommunityBudget: @unchecked Sendable {
     @GSExportableIgnore
     func reset() {
         remaining = policy.maximumCheckpoints
-        deadline = DispatchTime.now().uptimeNanoseconds + UInt64(policy.maximumCallbackSeconds * 1_000_000_000)
+        deadline = ContinuousClock.now.advanced(by: .seconds(policy.maximumCallbackSeconds))
     }
 
     func check() -> Bool {
         remaining -= 1
-        return remaining >= 0 && DispatchTime.now().uptimeNanoseconds < deadline
+        return remaining >= 0 && ContinuousClock.now < deadline
     }
 
     @GSExportableIgnore

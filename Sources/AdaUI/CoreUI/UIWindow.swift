@@ -45,6 +45,8 @@ open class UIWindow: UIView {
     }
 
     @_spi(Internal) public var systemWindow: SystemWindow?
+
+    lazy var captionCommandTarget = WindowCaptionCommandTarget(window: self)
     /// Native view containing an embedded panel's overlays, in panel-local coordinates.
     @_spi(Internal) public weak var nativeHostingView: AnyObject?
     @_spi(Internal) public var runtimeCameraEntity: Entity?
@@ -81,6 +83,7 @@ open class UIWindow: UIView {
 
     /// Flag indicates that window is active.
     public internal(set) var isActive: Bool = false
+    private var presentationRequested = false
 
     /// Called after the native window or scene has been removed.
     public var onDidDisappear: (@MainActor () -> Void)?
@@ -115,6 +118,15 @@ open class UIWindow: UIView {
         super.init(frame: frame)
         self.backgroundColor = .clear
         windowManager.createWindow(for: self)
+    }
+
+    // A rotating viewport texture needs another presentation, without changing
+    // the retained UI commands or re-tessellating the surrounding interface.
+    func setNeedsPresentation() { presentationRequested = true }
+
+    func consumePresentationRequest() -> Bool {
+        defer { presentationRequested = false }
+        return presentationRequested
     }
 
     open func showWindow(makeFocused flag: Bool) {
@@ -448,6 +460,9 @@ extension UIWindow {
     }
 
     public struct TitleBar: Sendable, Equatable {
+        /// On Windows, a transparent background with `reservesSafeArea == false`
+        /// extends client content into the caption, preserving native resize borders.
+        /// Place `WindowCaptionControls` in custom content; `View.menuBar` adds them automatically.
         public var background: TitleBarBackground
         public var reservesSafeArea: Bool
         public var dragRegionHeight: Float?

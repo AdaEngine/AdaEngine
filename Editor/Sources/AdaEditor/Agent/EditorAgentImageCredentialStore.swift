@@ -29,8 +29,8 @@ actor EditorOpenAIImageCredentialStore: EditorImageCredentialProviding {
     static let service = "org.adaengine.editor.openai-images"
     static let account = "default"
 
-    func apiKey() throws -> String {
-        if let stored = try read(), !stored.isEmpty {
+    func apiKey() async throws -> String {
+        if let stored = try await read(), !stored.isEmpty {
             return stored
         }
         if let environmentKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"]?
@@ -40,10 +40,10 @@ actor EditorOpenAIImageCredentialStore: EditorImageCredentialProviding {
         throw EditorImageCredentialError.missingAPIKey
     }
 
-    func save(_ apiKey: String) throws {
+    func save(_ apiKey: String) async throws {
         let value = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else {
-            try delete()
+            try await delete()
             return
         }
 
@@ -67,12 +67,14 @@ actor EditorOpenAIImageCredentialStore: EditorImageCredentialProviding {
             guard createStatus == errSecSuccess else {
                 throw EditorImageCredentialError.keychainFailure(createStatus)
             }
+        #elseif os(Android)
+            try await AndroidStudioCredentials.save(Data(value.utf8), key: Self.service + ":" + Self.account)
         #else
             throw EditorImageCredentialError.unsupportedPlatform
         #endif
     }
 
-    func delete() throws {
+    func delete() async throws {
         #if canImport(Security)
             let query: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
@@ -83,12 +85,14 @@ actor EditorOpenAIImageCredentialStore: EditorImageCredentialProviding {
             guard status == errSecSuccess || status == errSecItemNotFound else {
                 throw EditorImageCredentialError.keychainFailure(status)
             }
+        #elseif os(Android)
+            try await AndroidStudioCredentials.delete(key: Self.service + ":" + Self.account)
         #else
             throw EditorImageCredentialError.unsupportedPlatform
         #endif
     }
 
-    private func read() throws -> String? {
+    private func read() async throws -> String? {
         #if canImport(Security)
             let query: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
@@ -106,6 +110,8 @@ actor EditorOpenAIImageCredentialStore: EditorImageCredentialProviding {
                 throw EditorImageCredentialError.keychainFailure(status)
             }
             return String(bytes: data, encoding: .utf8)
+        #elseif os(Android)
+            return AndroidStudioCredentials.load(key: Self.service + ":" + Self.account).flatMap { String(data: $0, encoding: .utf8) }
         #else
             return nil
         #endif

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage the relocatable source build SDK for standalone macOS Ada Studio."""
+"""Stage the relocatable source build SDK for standalone desktop Ada Studio."""
 
 import argparse
 import json
@@ -47,9 +47,11 @@ def stage(engine, compiler, destination, swan=None):
         copy_inputs(engine, staged / "AdaEngine", ["Package.swift", "Package.resolved", ".swiftlint.yml", "LICENSE", "NOTICE",
                                                    "Sources", "Plugins", "Tools", "Tests", "Demos", "Assets", "script"])
         copy_inputs(compiler, staged / "AdaScript", ["Package.swift", "Package.resolved", "LICENSE", "Makefile", "src", "binding",
-                                                    "tools", "Tests", "examples", "gravity"])
-        host = staged / "AdaScript/gravity"
+                                                    "tools", "Tests", "examples", "gravity", "gravity.exe"])
+        host = staged / "AdaScript" / ("gravity.exe" if os.name == "nt" else "gravity")
         if not host.is_file() or not os.access(host, os.X_OK):
+            if os.name == "nt":
+                raise RuntimeError("Build gravity.exe with script/ensure_windows_export_tools.py before staging the Windows SDK.")
             subprocess.run(["/usr/bin/make", "-j4"], cwd=staged / "AdaScript", check=True)
         subprocess.run([str(host), "--help"], stdout=subprocess.DEVNULL, check=True)
         for generated in (staged / "AdaScript/src").rglob("*.o"):

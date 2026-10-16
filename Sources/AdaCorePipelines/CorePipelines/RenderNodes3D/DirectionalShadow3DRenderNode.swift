@@ -2,6 +2,7 @@ import AdaECS
 @_spi(Internal) import AdaRender
 import AdaUtils
 import Math
+import Tracing
 
 /// Math used to position the primary directional shadow map around the active camera.
 public enum DirectionalShadow3DMath {
@@ -176,6 +177,7 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
             let resolution = Float(DirectionalShadow3D.resolution)
             for cascadeIndex in cascades.indices {
                 pass.setViewport(Rect(x: Float(cascadeIndex) * resolution, y: 0, width: resolution, height: resolution))
+                let preparationSpan = AdaTrace.startSpan("Render3D.ShadowPrepare")
                 lists.prepare(
                     sources: candidates.meshes,
                     view: source.entityId,
@@ -187,6 +189,7 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
                     device: renderDevice.renderDevice,
                     materials: &_materialUniforms.wrappedValue
                 )
+                preparationSpan.end()
                 let visibleItems = lists.items(view: source.entityId, pass: cascadeIndex)
                 let buffers = lists.buffers(view: source.entityId, pass: cascadeIndex)
                 statistics.record(lists.count(view: source.entityId, pass: cascadeIndex), view: source.entityId, pass: cascadeIndex)
@@ -202,6 +205,7 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
                 )
                 pass.setVertexBuffer(constants, offset: 0, slot: GlobalBufferIndex.viewUniform)
 
+                let encodingSpan = AdaTrace.startSpan("Render3D.ShadowEncode")
                 for item in visibleItems {
                     let part = item.mesh.models[item.modelIndex].parts[item.partIndex]
                     guard item.castShadows, (item.material as? PBRMaterial)?.alphaMode != .blend, let batchRange = item.batchRange else {
@@ -238,6 +242,7 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
                         instanceCount: Int(batchRange.count)
                     )
                 }
+                encodingSpan.end()
             }
             pass.endRenderPass()
             if let metrics {

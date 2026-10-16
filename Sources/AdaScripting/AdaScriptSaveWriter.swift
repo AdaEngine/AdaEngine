@@ -1,5 +1,8 @@
 import Foundation
 import Gravity
+#if os(Windows)
+    import WinSDK
+#endif
 
 /// An engine-owned temporary save that accepts bounded chunks off the VM thread.
 @GSExportable("AdaSaveWriter")
@@ -146,12 +149,23 @@ private actor AdaScriptSaveStreamState {
         try handle?.close()
         handle = nil
         try Task.checkCancellation()
-        let fileManager = FileManager.default
-        if fileManager.fileExists(atPath: destination.path) {
-            _ = try fileManager.replaceItemAt(destination, withItemAt: temporary)
-        } else {
-            try fileManager.moveItem(at: temporary, to: destination)
-        }
+        #if os(Windows)
+            // Foundation's replaceItemAt is unavailable on Windows. A native
+            // same-directory rename commits without first deleting the old save.
+            let moved = temporary.path.withCString(encodedAs: UTF16.self) { source in
+                destination.path.withCString(encodedAs: UTF16.self) { target in
+                    MoveFileExW(source, target, DWORD(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+                }
+            }
+            guard moved else { throw SaveStreamError.commitFailed(GetLastError()) }
+        #else
+            let fileManager = FileManager.default
+            if fileManager.fileExists(atPath: destination.path) {
+                _ = try fileManager.replaceItemAt(destination, withItemAt: temporary)
+            } else {
+                try fileManager.moveItem(at: temporary, to: destination)
+            }
+        #endif
         status = .committed
     }
 
@@ -181,4 +195,7 @@ private actor AdaScriptSaveStreamState {
 private enum SaveStreamError: Error {
     case cannotCreateTemporaryFile
     case closed
+    #if os(Windows)
+        case commitFailed(DWORD)
+    #endif
 }

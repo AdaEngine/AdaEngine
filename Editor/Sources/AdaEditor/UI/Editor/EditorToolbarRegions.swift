@@ -27,7 +27,7 @@ struct EditorTopToolbarRegion: View {
     }
     private var canRun: Bool {
         if viewModel.selectedRunDestination == .player {
-            return !viewModel.playerSession.isBusy
+            return !viewModel.isAdaPlayerBusy
         }
         return !viewModel.isProjectRunning
     }

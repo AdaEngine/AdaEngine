@@ -23,6 +23,8 @@ import Math
 /// `onFrameRendered` receives the scene texture on the main actor at the next UI
 /// update after GPU completion, when the frame becomes visible to the view.
 /// Read pixels during the callback; the texture is reused for subsequent frames.
+/// Set `updatesWhenWindowInactive` to false for editor previews: their runtime
+/// and rendering stop while the containing window is inactive, retaining its last texture.
 ///
 /// ```swift
 /// SceneView(make: { app in
@@ -37,6 +39,7 @@ import Math
 public struct SceneView<Placeholder: View>: View {
     let useSceneCameras: Bool
     let isInteractive: Bool
+    let updatesWhenWindowInactive: Bool
     let make: @MainActor (inout AppWorlds) -> Void
     let updateContent: @MainActor (World, AdaUtils.TimeInterval) -> Void
     let onFrameRendered: (@MainActor (Texture2D) -> Void)?
@@ -58,12 +61,14 @@ public struct SceneView<Placeholder: View>: View {
     public init(
         isInteractive: Bool = true,
         useSceneCameras: Bool = false,
+        updatesWhenWindowInactive: Bool = true,
         make: @escaping @MainActor (inout AppWorlds) -> Void,
         updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void,
         onFrameRendered: (@MainActor (Texture2D) -> Void)? = nil
     ) where Placeholder == EmptyView {
         self.useSceneCameras = useSceneCameras
         self.isInteractive = isInteractive
+        self.updatesWhenWindowInactive = updatesWhenWindowInactive
         self.make = make
         self.updateContent = updateContent
         self.onFrameRendered = onFrameRendered
@@ -73,6 +78,7 @@ public struct SceneView<Placeholder: View>: View {
     public init(
         isInteractive: Bool = true,
         useSceneCameras: Bool = false,
+        updatesWhenWindowInactive: Bool = true,
         make: @escaping @MainActor (inout AppWorlds) -> Void,
         updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void,
         onFrameRendered: (@MainActor (Texture2D) -> Void)? = nil,
@@ -80,6 +86,7 @@ public struct SceneView<Placeholder: View>: View {
     ) {
         self.useSceneCameras = useSceneCameras
         self.isInteractive = isInteractive
+        self.updatesWhenWindowInactive = updatesWhenWindowInactive
         self.make = make
         self.updateContent = updateContent
         self.onFrameRendered = onFrameRendered
@@ -97,10 +104,10 @@ public struct SceneView<Placeholder: View>: View {
                     prepareFramePresentation: prepareFramePresentation
                 )
             },
-            contentBuilder: { [placeholder, isInteractive] delegate in
+            contentBuilder: { [placeholder, isInteractive, updatesWhenWindowInactive] delegate in
                 let coordinator = delegate as! SceneViewCoordinator
                 ZStack {
-                    OffscreenViewportView(delegate: coordinator, isInteractive: isInteractive)
+                    OffscreenViewportView(delegate: coordinator, isInteractive: isInteractive, updatesWhenWindowInactive: updatesWhenWindowInactive)
 
                     if coordinator.renderTexture == nil {
                         placeholder()

@@ -1,6 +1,9 @@
 @testable import AdaEditor
 @_spi(AdaEngine) import AdaEngine
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Testing
 
 @MainActor

@@ -1,10 +1,24 @@
 # Android export and run
 
-Android builds are available in **standalone Ada Studio on macOS**. Projects run
+Android builds are available in **standalone Ada Studio on macOS and Windows**. Projects run
 as native Swift applications using Swan/Dawn WebGPU over Vulkan, with Android
 NativeActivity and Swift Concurrency. Android API 29 or newer is required.
 
 ## Setup
+
+On Windows, install the native Android SDK with platform-tools and emulator
+(Android Studio provides these), enable WSL with Ubuntu, then run
+`./script/setup_windows_build_tools.ps1 -AndroidOnly` from the engine root.
+The worker prepares Linux Swift 6.4, the matching Android Swift SDK, NDK r28c,
+JDK 17 and pinned Swan/Dawn for ARM64 and x86_64. Existing Android SDK licenses
+are copied from the Windows SDK. The Windows SDK setting selects native
+adb/emulator; compilation uses the managed Linux tools. APKs are written back
+to the project's export folder. Use a Vulkan-capable emulator GPU; the API 35
+SwiftShader image does not satisfy Dawn's core uniform-buffer limits.
+
+For an API 35 x86_64 image installed through Android Studio,
+`./script/create_windows_android_emulator.ps1` creates the optional
+`AdaStudio_API35` AVD without changing existing AVDs.
 
 Open **Settings → Build & Export → Android** and configure:
 

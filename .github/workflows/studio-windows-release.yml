@@ -1,0 +1,126 @@
+name: Windows Studio release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/studio-windows-release.yml'
+      - 'script/*studio_windows*'
+      - 'script/test_package_studio_windows.py'
+      - 'script/test_windows_sdk.swift'
+      - 'script/ensure_windows_*.py'
+      - 'Editor/scripts/*build_sdk*'
+      - 'Editor/scripts/stage-build-sdk.py'
+      - 'Editor/Sources/AdaEditor/Tooling/EditorBuildSDK.swift'
+      - 'Editor/Sources/AdaEditor/Tooling/EditorEngineSource.swift'
+      - 'Editor/Tests/AdaEditorTests/EditorWindowsReleaseTests.swift'
+      - 'Sources/AdaUI/DSL/LiquidGlassTabBarStyle.swift'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-studio-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    name: Build and package Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: AdaEngine
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # AdaMCP references the local package identity AdaEngine.
+          path: AdaEngine
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: compnerd/gha-setup-swift@v0.2.3
+        with:
+          branch: swift-6.3.1-release
+          tag: 6.3.1-RELEASE
+      - name: Prepare C++ build environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Cache verified Tint
+        uses: actions/cache@v4
+        with:
+          path: AdaEngine/.build-tools/tint
+          key: tint-windows-x64-${{ hashFiles('AdaEngine/Tools/Tint/toolchain.json', 'AdaEngine/script/ensure_tint.py') }}
+      - name: Test portable dependency packaging
+        run: python script/test_package_studio_windows.py
+      - name: Build Release Studio
+        id: build
+        run: |
+          $studioBin = (& ./script/build_studio_windows.ps1 -Configuration release -Jobs 2 | Select-Object -Last 1).Trim()
+          "bin=$studioBin" >> $env:GITHUB_OUTPUT
+          "gravity=$env:ADAENGINE_GRAVITY_PACKAGE_PATH" >> $env:GITHUB_OUTPUT
+          "tint=$env:TINT_EXECUTABLE" >> $env:GITHUB_OUTPUT
+      - name: Test installed SDK discovery
+        run: |
+          # Compile the actual production locators without testable app imports.
+          swiftc -O -parse-as-library Editor/Sources/AdaEditor/Tooling/EditorBuildSDK.swift Editor/Sources/AdaEditor/Tooling/EditorEngineSource.swift script/test_windows_sdk.swift -o .build-tools/WindowsSDKCheck.exe
+          if ($LASTEXITCODE -ne 0) { throw 'SDK check compilation failed.' }
+          & ./.build-tools/WindowsSDKCheck.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Installed SDK tests failed.' }
+      - name: Package and smoke-test portable ZIP
+        env:
+          STUDIO_BIN: ${{ steps.build.outputs.bin }}
+          STUDIO_GRAVITY: ${{ steps.build.outputs.gravity }}
+          STUDIO_TINT: ${{ steps.build.outputs.tint }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          $studioVersion = if ($env:RELEASE_TAG) { $env:RELEASE_TAG } else { "ci-$($env:GITHUB_SHA.Substring(0, 12))" }
+          python script/package_studio_windows.py --bin "$env:STUDIO_BIN" --compiler-root "$env:STUDIO_GRAVITY" --tint "$env:STUDIO_TINT" --version "$studioVersion"
+          if ($LASTEXITCODE -ne 0) { throw 'Studio packaging failed.' }
+      - name: Upload ZIP and SHA-256
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdaStudio-windows-x86_64
+          path: |
+            AdaEngine/dist/*.zip
+            AdaEngine/dist/*.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Upload compiler log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdaStudio-windows-build-log
+          path: AdaEngine/.build-tools/studio-release-build.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  publish:
+    name: Attach Windows archive to release
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: AdaStudio-windows-x86_64
+          path: dist
+      - name: Upload existing release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          # Avoid overwriting an existing published binary on a workflow rerun.
+          gh release upload "$RELEASE_TAG" dist/*.zip dist/*.zip.sha256

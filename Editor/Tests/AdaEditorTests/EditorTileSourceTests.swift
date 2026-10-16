@@ -86,7 +86,7 @@ struct EditorTileSourceTests {
         defer { try? FileManager.default.removeItem(at: fixture.root) }
         let model = EditorTileSourceEditorModel(document: fixture.document)
         let opaquePNG = fixture.root.appendingPathComponent("opaque.png")
-        try Image(width: 32, height: 32, color: .white).pngData().write(to: opaquePNG)
+        try Image(width: 32, height: 32, color: .white).writePNG(to: opaquePNG)
         model.addImages([opaquePNG, opaquePNG])
         #expect(model.sources.count == 2)
         model.selectSource(0)
@@ -122,7 +122,7 @@ struct EditorTileSourceTests {
         image.setPixel(in: Point(0, 0), color: .white)
         image.setPixel(in: Point(3, 2), color: .white)
         image.setPixel(in: Point(2, 3), color: .white)
-        try image.pngData().write(to: png)
+        try image.writePNG(to: png)
         let workbench = EditorWorkbenchViewModel()
         workbench.open(.asset(fixture.document))
         let model = workbench.tileSourceModel(for: fixture.document)
@@ -167,7 +167,7 @@ struct EditorTileSourceTests {
         let fixture = try fixture()
         defer { try? FileManager.default.removeItem(at: fixture.root) }
         let png = fixture.root.appendingPathComponent("empty.png")
-        try Image(width: 32, height: 32).pngData().write(to: png)
+        try Image(width: 32, height: 32).writePNG(to: png)
         let model = EditorTileSourceEditorModel(document: fixture.document)
         model.addImages([png])
         model.createAllTiles()

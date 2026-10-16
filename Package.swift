@@ -70,6 +70,7 @@ extension String {
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
 var products: [Product] = [
+    .library(name: "CAndroid", targets: ["CAndroid"]),
     .executable(name: "AdaWebPlayer", targets: ["AdaWebPlayer"]),
     .executable(name: "AdaWebPlayerPackager", targets: ["AdaWebPlayerPackager"]),
     .executable(name: "AdaScriptTest", targets: ["AdaScriptTest"]),
@@ -1330,7 +1331,9 @@ targets += [
     .testTarget(
         name: "AdaAudioTests",
         dependencies: [
-            "AdaAudio"
+            "AdaAudio",
+            "AdaAssets",
+            "AdaECS",
         ]
     ),
     .testTarget(

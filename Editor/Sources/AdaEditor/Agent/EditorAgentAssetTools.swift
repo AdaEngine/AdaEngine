@@ -110,6 +110,41 @@ enum EditorAgentAssetTools {
                 false
             ),
             tool(
+                "editor.voxel.generate",
+                "Generate a MagicaVoxel .vox model from an AdaScript `func build(model)` and save it under Assets. Read the ada-voxel-models skill for the model API. Runs in an isolated VM without file, network or scene access; existing files are preserved.",
+                ["source": string, "destination": string],
+                ["source", "destination"],
+                false
+            ),
+            tool(
+                "editor.audio.generate",
+                "Synthesize a mono 16-bit WAV from an AdaScript `func build(sound)` (oscillators, envelopes, sweeps, filters, echo) and save it under Assets. Returns measurements (peak, loudness, silence, pitch). Read the ada-sound-design skill for the sound API. Runs in an isolated VM; existing files are preserved.",
+                ["source": string, "destination": string],
+                ["source", "destination"],
+                false
+            ),
+            tool(
+                "editor.audio.inspect",
+                "Measure a WAV file under Assets without playing it: duration, peak and RMS in dBFS, clipping, DC offset, leading and trailing silence, dominant frequency, brightness and a loudness envelope.",
+                ["path": string],
+                ["path"],
+                true
+            ),
+            tool(
+                "editor.sprite.generate",
+                "Draw a pixel-art PNG from an AdaScript `func build(sprite)` (palette, shapes, outline, mirror) and save it under Assets. Read the ada-pixel-art skill for the sprite API. Runs in an isolated VM; existing files are preserved.",
+                ["source": string, "destination": string],
+                ["source", "destination"],
+                false
+            ),
+            tool(
+                "editor.model.generate",
+                "Generate a low-poly GLB model from an AdaScript `func build(model)` (primitives, revolved profiles, triangles, part hierarchy, PBR materials) and save it under Assets. Read the ada-procedural-models skill for the model API. Runs in an isolated VM without file, network or scene access; existing files are preserved.",
+                ["source": string, "destination": string],
+                ["source", "destination"],
+                false
+            ),
+            tool(
                 "editor.model.material.edit",
                 "Patch PBR factors using settingsJSON. Read editor.docs.read Agent3DWorkflow for supported fields. Preserves binary geometry; rebuild after edits.",
                 ["path": string, "material": .object(["type": "integer", "minimum": 0]), "settingsJSON": string],
