@@ -54,7 +54,7 @@ public struct AntiAliasing3DRenderNode: RenderNode {
             ]), index: 0)
             pass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             pass.endRenderPass()
-            if notifiesCompletion, !overlays.hasOverlay, environments.environments[source.entityId]?.debugView.replacesFinalImage != true, let drawable = target.outputTexture, drawable === output {
+            if notifiesCompletion, !overlays.hasOverlay, environments.environments[source.entityId]?.laterPassesWriteOutput != true, let drawable = target.outputTexture, drawable === output {
                 command.addCompletedHandler { [drawable] in drawable.notifyRenderCompleted() }
             }
             if let metrics {

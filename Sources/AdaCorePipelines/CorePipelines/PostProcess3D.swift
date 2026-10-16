@@ -52,6 +52,55 @@ public struct Bloom3D: Codable, Sendable, Equatable {
     }
 }
 
+/// Depth of field: surfaces away from `focusDistance` blur with a bokeh-disc gather.
+///
+/// It runs on the final display color after tone mapping and anti-aliasing, using the view-space depth the
+/// main pass already writes. Pixels without geometry (the sky) count as infinitely far. Because it works on
+/// display values, very bright highlights do not bloom into bokeh balls the way they would in linear HDR.
+public struct DepthOfField3D: Codable, Sendable, Equatable {
+    public var isEnabled: Bool
+    /// Distance from the camera, along the view axis, that stays sharp.
+    public var focusDistance: Float
+    /// Blur growth with distance from the focus plane. Larger values give a shallower field.
+    public var aperture: Float
+    /// Largest blur radius in pixels at the output resolution, which bounds the cost.
+    public var maximumBlurRadius: Float
+
+    public init(isEnabled: Bool = false, focusDistance: Float = 5, aperture: Float = 1, maximumBlurRadius: Float = 10) {
+        self.isEnabled = isEnabled
+        self.focusDistance = focusDistance
+        self.aperture = aperture
+        self.maximumBlurRadius = maximumBlurRadius
+    }
+
+    private enum CodingKeys: CodingKey { case isEnabled, focusDistance, aperture, maximumBlurRadius }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = DepthOfField3D()
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? defaults.isEnabled
+        focusDistance = try container.decodeIfPresent(Float.self, forKey: .focusDistance) ?? defaults.focusDistance
+        aperture = try container.decodeIfPresent(Float.self, forKey: .aperture) ?? defaults.aperture
+        maximumBlurRadius = try container.decodeIfPresent(Float.self, forKey: .maximumBlurRadius) ?? defaults.maximumBlurRadius
+    }
+
+    var sanitized: DepthOfField3D {
+        let defaults = DepthOfField3D()
+        return DepthOfField3D(
+            isEnabled: isEnabled,
+            focusDistance: finiteRenderValue(focusDistance, fallback: defaults.focusDistance, range: 0.05...10000),
+            aperture: finiteRenderValue(aperture, fallback: defaults.aperture, range: 0...20),
+            maximumBlurRadius: finiteRenderValue(maximumBlurRadius, fallback: defaults.maximumBlurRadius, range: 0...32)
+        )
+    }
+
+    /// Whether the effect changes the image at all for these settings.
+    var changesImage: Bool {
+        let settings = sanitized
+        return settings.isEnabled && settings.aperture > 0 && settings.maximumBlurRadius >= 0.5
+    }
+}
+
 /// Automatic exposure that meters the lit scene and adapts toward a mid-gray average.
 ///
 /// Exposure starts at 0 EV (kept inside the limits) and adapts at the configured speeds; use `infinity` speeds
@@ -235,6 +284,7 @@ public struct PostProcess3D: Codable, Sendable, Equatable {
     public var vignette: Vignette3D
     public var colorGrading: ColorGrading3D
     public var autoExposure: AutoExposure3D
+    public var depthOfField: DepthOfField3D
 
     public init(
         exposureEV: Float = 0,
@@ -242,7 +292,8 @@ public struct PostProcess3D: Codable, Sendable, Equatable {
         toneMapper: ToneMapper3D = ToneMapper3D.aces,
         vignette: Vignette3D = Vignette3D(),
         colorGrading: ColorGrading3D = ColorGrading3D(),
-        autoExposure: AutoExposure3D = AutoExposure3D()
+        autoExposure: AutoExposure3D = AutoExposure3D(),
+        depthOfField: DepthOfField3D = DepthOfField3D()
     ) {
         self.exposureEV = exposureEV
         self.bloom = bloom
@@ -250,9 +301,10 @@ public struct PostProcess3D: Codable, Sendable, Equatable {
         self.vignette = vignette
         self.colorGrading = colorGrading
         self.autoExposure = autoExposure
+        self.depthOfField = depthOfField
     }
 
-    private enum CodingKeys: CodingKey { case exposureEV, bloom, toneMapper, vignette, colorGrading, autoExposure }
+    private enum CodingKeys: CodingKey { case exposureEV, bloom, toneMapper, vignette, colorGrading, autoExposure, depthOfField }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -262,6 +314,7 @@ public struct PostProcess3D: Codable, Sendable, Equatable {
         vignette = try container.decodeIfPresent(Vignette3D.self, forKey: .vignette) ?? Vignette3D()
         colorGrading = try container.decodeIfPresent(ColorGrading3D.self, forKey: .colorGrading) ?? ColorGrading3D()
         autoExposure = try container.decodeIfPresent(AutoExposure3D.self, forKey: .autoExposure) ?? AutoExposure3D()
+        depthOfField = try container.decodeIfPresent(DepthOfField3D.self, forKey: .depthOfField) ?? DepthOfField3D()
     }
 
     /// Linear multiplier for `exposureEV`, limited to ±10 stops so a bad value cannot overflow half floats.

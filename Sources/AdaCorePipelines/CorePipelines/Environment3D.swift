@@ -174,6 +174,14 @@ public struct Environment3D: Codable, Sendable {
         get { postProcess.colorGrading.contrast }
         set { postProcess.colorGrading.contrast = newValue }
     }
+    public var depthOfFieldEnabled: Bool {
+        get { postProcess.depthOfField.isEnabled }
+        set { postProcess.depthOfField.isEnabled = newValue }
+    }
+    public var focusDistance: Float {
+        get { postProcess.depthOfField.focusDistance }
+        set { postProcess.depthOfField.focusDistance = newValue }
+    }
     public var autoExposureEnabled: Bool {
         get { postProcess.autoExposure.isEnabled }
         set { postProcess.autoExposure.isEnabled = newValue }
@@ -232,7 +240,10 @@ public struct Environment3D: Codable, Sendable {
         self.meshVisibility = meshVisibility
     }
 
-    private enum CodingKeys: CodingKey { case skybox, screenSpaceReflection, imageBasedLighting, shadows, ambientOcclusion, antiAliasing, meshVisibility, localShadows, debugView, postProcess }
+    private enum CodingKeys: CodingKey {
+        case skybox, screenSpaceReflection, imageBasedLighting, shadows,
+             ambientOcclusion, antiAliasing, meshVisibility, localShadows, debugView, postProcess
+    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -246,6 +257,14 @@ public struct Environment3D: Codable, Sendable {
         localShadows = try container.decodeIfPresent(LocalShadowSettings3D.self, forKey: .localShadows) ?? LocalShadowSettings3D()
         debugView = try container.decodeIfPresent(DebugView3D.self, forKey: .debugView) ?? DebugView3D.none
         postProcess = try container.decodeIfPresent(PostProcess3D.self, forKey: .postProcess) ?? PostProcess3D()
+    }
+}
+
+extension Environment3D {
+    /// Whether a pass after the color writers (a full-screen debug view or depth of field) still writes the
+    /// output, so earlier passes must not yet report it as ready to present.
+    var laterPassesWriteOutput: Bool {
+        debugView.replacesFinalImage || postProcess.depthOfField.changesImage
     }
 }
 
