@@ -29,7 +29,6 @@ struct EditorAdaScriptProjectBuildArtifact: Sendable {
 enum EditorAdaScriptProjectBuildError: Error, Equatable, LocalizedError, Sendable {
     case entryViewMissing(identifier: String)
     case uiViewsUnavailable
-    case nativeDataRequiresRuntimeLayout(names: [String])
     case noSources(path: String)
     case notAdaScriptProject(buildSystem: String)
     case sourceReadFailed(path: String, message: String)
@@ -43,8 +42,6 @@ enum EditorAdaScriptProjectBuildError: Error, Equatable, LocalizedError, Sendabl
             "AdaScript entry view '\(identifier)' is temporarily unavailable. Remove runtime.entry.view."
         case .uiViewsUnavailable:
             "AdaUI views in AdaScript are temporarily unavailable. Remove runtime.entry.view and @view declarations."
-        case let .nativeDataRequiresRuntimeLayout(names):
-            "AdaScript runtime resources are not available yet: \(names.joined(separator: ", "))."
         case let .noSources(path):
             "No .ada source files were found under \(path)."
         case let .notAdaScriptProject(buildSystem):
@@ -106,17 +103,6 @@ struct EditorAdaScriptProjectBuilder {
             try analysis.requireValidTypes(mode: project.build.adaScriptTypeChecking)
         } catch let error as AdaScriptTypeCheckingError {
             throw EditorAdaScriptProjectBuildError.typeChecking(error.description)
-        }
-        let unsupportedResources = dataSchemas.filter {
-            if case .resource = $0.kind {
-                return true
-            }
-            return false
-        }
-        guard unsupportedResources.isEmpty else {
-            throw EditorAdaScriptProjectBuildError.nativeDataRequiresRuntimeLayout(
-                names: unsupportedResources.map(\.name).sorted()
-            )
         }
         let scriptableObjectSupport = try EditorScriptableObjectCatalogLoader.makeResult(
             project: project,

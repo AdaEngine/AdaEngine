@@ -34,6 +34,11 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
     private var dataSchemas: [AdaScriptDataSchema]
     private var networkCommands: [AdaScriptNetworkCommandSchema]
     private var runtimeComponents: [RuntimeComponentDescriptor]
+    /// Script `@resource` structs. Nothing in a script-hosted game can insert them later, so every one is
+    /// present from setup regardless of `autoInsert`.
+    private var runtimeResources: [RuntimeResourceLayout] {
+        AdaScriptComponentRuntime.runtimeResourceLayouts(schemas: dataSchemas)
+    }
     private var runtime: AnnotatedGravityRuntime
 
     public convenience init(contentsOf fileURL: URL) throws {
@@ -250,6 +255,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         for descriptor in runtimeComponents {
             app.main.registerRuntimeComponent(descriptor)
         }
+        app.main.registerRuntimeResources(runtimeResources)
         let replicatedSchemas = dataSchemas.filter { $0.replication != nil }
         if !networkCommands.isEmpty || !replicatedSchemas.isEmpty {
             guard app.getResource(MultiplayerRegistry.self) != nil else {
@@ -324,6 +330,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         for descriptor in runtimeComponents {
             world.registerRuntimeComponent(descriptor)
         }
+        world.registerRuntimeResources(runtimeResources)
     }
 
     /// Installs systems into a `TestWorld`: the one named by `className`, or every system when it is nil.
@@ -380,7 +387,7 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
                 )
             }
         let resources = try plan.resources.map { resource in
-            try prepareResource(resource, systemIdentifier: plan.identifier)
+            try prepareResource(resource, systemIdentifier: plan.identifier, world: world)
         }
         if !(plan.eventReaders + plan.eventWriters).isEmpty, !world.supportsEventDelivery {
             throw AdaScriptError.invalidManifest("System '\(plan.identifier)' uses @events or @eventWriter, which requires EventsPlugin")
@@ -449,7 +456,8 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
 
     private static func prepareResource(
         _ plan: AnnotatedResourcePlan,
-        systemIdentifier: String
+        systemIdentifier: String,
+        world: World
     ) throws -> PreparedAnnotatedResource {
         if plan.resourceName == "Input" {
             return .input(propertyName: plan.propertyName, parameter: Res<Input?>(), optional: plan.isOptional)
@@ -461,6 +469,15 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
             )
         }
         guard let resourceType = RuntimeTypeRegistry.resourceType(named: plan.resourceName) else {
+            // A script-declared `@resource` has no Swift type; it lives in the shared runtime store.
+            if let layout = world.getResource(RuntimeResourceStore.self)?.layout(named: plan.resourceName) {
+                return .reflected(
+                    fields: Dictionary(uniqueKeysWithValues: layout.fields.map { ($0.key, $0) }),
+                    parameter: DynamicResource(resourceType: RuntimeResourceStore.self, isOptional: plan.isOptional, writable: plan.access == .write),
+                    propertyName: plan.propertyName,
+                    resourceName: plan.resourceName
+                )
+            }
             throw AdaScriptError.unknownResource(system: systemIdentifier, resource: plan.resourceName)
         }
         let descriptor = RuntimeResourceReflectionRegistry.descriptor(for: resourceType)
