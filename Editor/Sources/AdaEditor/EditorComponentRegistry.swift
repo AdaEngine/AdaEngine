@@ -313,7 +313,7 @@ enum EditorComponentRegistry {
         RuntimeTypeRegistry.registerComponent(LightModulate2D.self, names: ["LightModulate2D"])
         RuntimeTypeRegistry.registerComponent(SceneInstance.self, names: ["SceneInstance"])
         RuntimeTypeRegistry.registerComponent(Model3DSource.self, names: ["Model3DSource"])
-        RuntimeTypeRegistry.registerComponent(AudioSource.self, names: ["AudioSource"])
+        RuntimeTypeRegistry.registerComponent(AudioSource.self, names: ["AudioSource"], makeDefault: { AudioSource() })
         ModelAnimationPlayback3DComponent.registerComponent()
         CharacterController3DComponent.registerComponent()
         CameraCollision3DComponent.registerComponent()

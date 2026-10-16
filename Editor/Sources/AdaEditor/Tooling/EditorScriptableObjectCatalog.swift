@@ -39,6 +39,9 @@ struct EditorScenePlayRuntime: Sendable {
 
     @MainActor
     func registerScriptableObjects() throws {
+        // Scenes name script @component structs by stable ID; the loader resolves them through this store, so Play,
+        // mobile validation and the agent simulation must fill it even when no editor window opened the project.
+        EditorScriptComponentStore.shared.replace(with: EditorScriptComponentCatalog.makeComponents(from: (try? AdaScriptSchemaParser.parse(sources: sources)) ?? []))
         let unregisteredSchemas = schemas.filter {
             ScriptableObjectRegistry.descriptor(named: $0.identifier) == nil
         }

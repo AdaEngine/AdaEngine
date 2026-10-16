@@ -20,7 +20,11 @@ enum EditorAgentKnowledgeTools {
                 ["id": .object(["type": "string"])],
                 ["id"]
             ),
-            EditorMobileAgentTools.tool("editor.examples.list", "List bundled complete AdaScript example projects and their files."),
+            EditorMobileAgentTools.tool(
+                "editor.examples.list",
+                "List bundled complete AdaScript example projects and their files. Optional query matches ids, descriptions and tags such as '3D game', 'side scroller', 'flappy' or 'runner'.",
+                ["query": query]
+            ),
             EditorMobileAgentTools.tool(
                 "editor.examples.read",
                 "Read complete example project files. Adapt with files.write; configure via editor.project.configure on mobile or .ada/project.json on desktop.",

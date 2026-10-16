@@ -1,0 +1,10 @@
+func build(sound) {            // crash: noise burst with a low thump
+    var n = sound.tone("noise", 700, 0.45);
+    sound.lowpass(n, 1400);
+    sound.envelope(n, 0.003, 0.4, 0.0);
+    var t = sound.tone("sine", 110, 0.35);
+    sound.sweep(t, 40);
+    sound.envelope(t, 0.002, 0.3, 0.0);
+    sound.seed(11);
+    sound.peak(0.85);
+}

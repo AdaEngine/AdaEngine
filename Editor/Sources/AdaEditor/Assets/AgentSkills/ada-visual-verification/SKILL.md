@@ -14,3 +14,5 @@ Use this after any change whose success is visible.
 4. Inspect the image and relevant diagnostics. If the result is wrong, fix it and repeat the same capture.
 
 Never treat compilation, a saved PNG path, or a screenshot without visible rendered content as runtime proof.
+
+If capture or launch is unavailable or still fails after three attempts, do not keep retrying: write `blocker:` in `PROGRESS.md`, list the criterion as `manual:` with exactly what a person should look at, and continue with the next milestone.
