@@ -46,6 +46,8 @@ final class EditorViewModel {
         }
     }
     var packageModel: SwiftPackageModel?
+    /// Counts and per-test results of the latest AdaScript test run; nil before the first run.
+    var adaScriptTestSummary: EditorAdaScriptTestSummary?
     var gameLogLines: [EditorWorkspaceLogLine] = []
     var activeLogSource = "Game"
     @ObservationIgnored var runtimeLogCursor = 0

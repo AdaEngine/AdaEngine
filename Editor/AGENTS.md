@@ -245,6 +245,11 @@ Coverage: [EditorTextureAtlasTests.swift](Tests/AdaEditorTests/EditorTextureAtla
 ### Build, Play, preview and export
 
 Build/Run/Stop, SwiftPM test/package commands, build output and navigable Problems.
+AdaScript projects run their `@test` functions in process (ADR-0024) through
+`EditorAdaScriptTestRunner` and `EditorViewModel.runAdaScriptTests`: sources from the project's
+source root and `Tests/`, a 30 s per-test limit, streamed PASS/FAIL lines in Output, and counts
+in `editor.task.status` (`adaScriptTests`). Coverage:
+[EditorAdaScriptTestRunnerTests.swift](Tests/AdaEditorTests/EditorAdaScriptTestRunnerTests.swift).
 Scene Play and embedded AdaScript project runtime; AdaScript hot reload compiles
 dirty source buffers and keeps previous running code when reload fails.
 Swift view previews have a dedicated build/host path. AdaPlayer pairing and
