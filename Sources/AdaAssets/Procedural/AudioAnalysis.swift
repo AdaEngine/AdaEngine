@@ -3,6 +3,9 @@
 //  AdaEngine
 //
 
+#if os(Android)
+import Android
+#endif
 import Foundation
 
 /// Objective measurements of an audio clip, so a program can check a sound without listening to it.

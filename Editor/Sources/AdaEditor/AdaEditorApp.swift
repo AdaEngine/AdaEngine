@@ -13,11 +13,11 @@ import Logging
     import UIKit
 #endif
 
-#if canImport(AdaMCPPlugin)
+#if !os(Android) && canImport(AdaMCPPlugin)
     import AdaMCPPlugin
 #endif
 
-#if !os(visionOS)
+#if !os(visionOS) && !os(Android)
 @main
 #endif
 enum AdaApplicationEntry {
@@ -146,7 +146,7 @@ struct AdaEditorApp: App {
                 ))
             }
         #endif
-        #if canImport(AdaMCPPlugin)
+        #if !os(Android) && canImport(AdaMCPPlugin)
             .addPlugins(
                 MCPPlugin(
                     configuration: .init(
@@ -206,7 +206,9 @@ struct AdaEditorApp: App {
 
 extension Foundation.Bundle {
     public static var editor: Foundation.Bundle {
-        #if SWIFT_PACKAGE
+        #if os(Android)
+            return AndroidResourceBundle.bundle(named: "AdaEditor_AdaEditor")
+        #elseif SWIFT_PACKAGE
             return Self.module
         #else
             return Foundation.Bundle(for: BundleToken.self)

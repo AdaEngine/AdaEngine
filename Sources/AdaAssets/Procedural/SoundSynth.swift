@@ -3,6 +3,9 @@
 //  AdaEngine
 //
 
+#if os(Android)
+import Android
+#endif
 import Foundation
 
 public enum Waveform: String, CaseIterable, Sendable {

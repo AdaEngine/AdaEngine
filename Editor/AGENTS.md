@@ -429,7 +429,12 @@ displays with a side safe area, or bottom controls with 6-point padding on ordin
 displays. Native hinge updates expose angle, posture and opening percentage through
 the AdaUI environment and `WindowHingeChanged`. The old simulated Foldable Preview
 selector and saved preview setting have been removed; legacy projects still decode.
-The public catalog currently returns up to 100 entries. An Android Studio application shell is not provided by this change.
+The public catalog currently returns up to 100 entries. The Android mobile host
+reuses the mobile screens and adds NativeActivity services for keyboard input,
+Back, document selection, dictation, speech output and encrypted credentials.
+Build it with `Platforms/Android/studio.py`; see [AndroidMobile.md](Documentation/AndroidMobile.md).
+Android background agent execution, clipboard image paste and Google Play Billing
+remain unavailable. Compilation and packaging checks do not establish interaction parity.
 Entry points: [EditorCommunityView.swift](Sources/AdaEditor/UI/Community/EditorCommunityView.swift),
 [MobileEditorHomeTabs.swift](Sources/AdaEditor/UI/Community/MobileEditorHomeTabs.swift),
 [EditorCommunityClient.swift](Sources/AdaEditor/Cloud/EditorCommunityClient.swift).

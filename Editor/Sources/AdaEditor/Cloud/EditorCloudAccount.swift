@@ -29,7 +29,7 @@ import StoreKit
 final class EditorCloudAccount: NSObject {
     static let shared = EditorCloudAccount()
     static var supportsSignIn: Bool {
-        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows)
+        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows) || os(Android)
         true
         #else
         false
@@ -113,7 +113,7 @@ final class EditorCloudAccount: NSObject {
         }
     }
     func signInOnWebsite() async throws {
-        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows)
+        #if (canImport(AuthenticationServices) && canImport(Security)) || os(Windows) || os(Android)
         guard let endpoint = URL(string: server), Self.isAllowedCloudURL(endpoint) else {
             throw CloudError.message("Cloud sign-in is not configured for this build.")
         }
@@ -133,7 +133,9 @@ final class EditorCloudAccount: NSObject {
         }
         status = "Complete sign-in on the Ada Cloud website."
         let authenticationServer = server
-        #if os(Windows)
+        #if os(Android)
+        let callback = try await AndroidStudioHost.authenticate(authorizeURL)
+        #elseif os(Windows)
         let task = Task { try await EditorWindowsCloudAuthentication.authenticate(url: authorizeURL, state: state) }
         browserAuthentication = task
         defer { browserAuthentication = nil }
@@ -164,7 +166,9 @@ final class EditorCloudAccount: NSObject {
         #endif
     }
     func cancelBrowserSignIn() {
-        #if os(Windows)
+        #if os(Android)
+        _ = try? AndroidStudioHost.call("auth.cancel")
+        #elseif os(Windows)
         browserAuthentication?.cancel()
         #elseif canImport(AuthenticationServices)
         authentication?.cancel()
@@ -414,6 +418,9 @@ final class EditorCloudAccount: NSObject {
         for await result in Transaction.currentEntitlements { try await acceptPurchase(result) }
         try await refreshPlan()
         status = "Purchases restored."
+        #elseif os(Android)
+        try await refreshPlan()
+        status = "Subscription refreshed."
         #else
         throw CloudError.message("App Store purchases are unavailable on this platform.")
         #endif
@@ -645,6 +652,10 @@ final class EditorCloudAccount: NSObject {
         }
     }
     private static func keychainDelete() { SecItemDelete(keychainQuery as CFDictionary) }
+    #elseif os(Android)
+    private static func keychainRead() throws -> Data? { AndroidStudioCredentials.load(key: "org.adaengine.cloud:session") }
+    private static func keychainWrite(_ data: Data) throws { try AndroidStudioCredentials.save(data, key: "org.adaengine.cloud:session") }
+    private static func keychainDelete() { try? AndroidStudioCredentials.delete(key: "org.adaengine.cloud:session") }
     #elseif os(Windows)
     private static func keychainRead() throws -> Data? { try EditorWindowsCloudCredentials.read() }
     private static func keychainWrite(_ data: Data) throws { try EditorWindowsCloudCredentials.write(data) }

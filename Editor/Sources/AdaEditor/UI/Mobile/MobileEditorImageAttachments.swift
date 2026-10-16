@@ -59,11 +59,7 @@ enum EditorImageAttachment {
     }
 
     static func encodePNG(_ image: Image) throws -> Data {
-        #if canImport(CoreGraphics) && canImport(ImageIO)
-            return try image.pngData()
-        #else
-            throw CocoaError(.featureUnsupported)
-        #endif
+        return try image.pngData()
     }
 
     /// Model transport uses supported PNG bytes even when the user selected a different image format.
@@ -112,6 +108,9 @@ enum EditorImageAttachment {
         #endif
     }
 
+#endif
+
+#if os(iOS) || os(Android)
     struct MobileEditorAttachmentPreviews: View {
         @Environment(\.theme) private var theme
         let urls: [URL]

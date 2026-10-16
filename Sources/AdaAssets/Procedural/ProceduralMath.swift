@@ -3,6 +3,9 @@
 //  AdaEngine
 //
 
+#if os(Android)
+import Android
+#endif
 import Foundation
 
 // Small vector helpers so procedural geometry builds without `simd`, which is not available on every platform.

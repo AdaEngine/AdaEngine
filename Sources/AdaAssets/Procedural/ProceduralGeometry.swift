@@ -3,6 +3,9 @@
 //  AdaEngine
 //
 
+#if os(Android)
+import Android
+#endif
 import Foundation
 
 /// CPU mesh data for procedurally generated models. Front faces wind so that `cross(b - a, c - a)` points outward.

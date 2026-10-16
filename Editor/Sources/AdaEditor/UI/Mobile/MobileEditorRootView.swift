@@ -1,12 +1,14 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
 @_spi(AdaEngine) import AdaEngine
 import Foundation
 import Protocols
+#if canImport(UIKit)
 import UIKit
+#endif
 #if canImport(SloppyRuntime)
 import SloppyRuntime
 #else
-#error("AdaEditor iOS requires the SloppyRuntimePortable package. Set SLOPPY_RUNTIME_LOCAL_PATH to its checkout.")
+#error("Ada Studio Mobile requires the SloppyRuntimePortable package. Set SLOPPY_RUNTIME_LOCAL_PATH to its checkout.")
 #endif
 
 enum MobileEditorWorkspaceTab: Hashable {
@@ -96,6 +98,20 @@ struct MobileEditorRootView: View {
         .mobileEditorSafeAreaContent(.bottom)
         .background(theme.editorColors.background.ignoresSafeArea())
         .onAppear {
+            #if os(Android)
+            AndroidStudioHost.refreshInsets()
+            AndroidRuntime.backRequested = {
+                if isPromptPresented { isPromptPresented = false }
+                else if isVoicePresented { isVoicePresented = false }
+                else if isModelPickerPresented { isModelPickerPresented = false }
+                else if presentedFile != nil { presentedFile = nil }
+                else if presentedPlayProject != nil { presentedPlayProject = nil }
+                else if publicationProject != nil { publicationProject = nil }
+                else if !navigationPath.isEmpty { navigationPath.removeLast() }
+                else { return false }
+                return true
+            }
+            #endif
             installMobileNotifications()
             #if DEBUG && targetEnvironment(simulator)
             if !didPrepareVoiceLayoutQA, CommandLine.arguments.contains("--mobile-voice-layout-qa"), let project = projects.first {
@@ -569,19 +585,23 @@ struct MobileEditorRootView: View {
         operation.start(
             projectName: projects[index].title,
             requestBackground: { activityID, coordinator in
+                #if os(iOS)
                 if #available(iOS 26.0, *) {
                     EditorContinuedProcessing.shared.request(for: activityID, coordinator: coordinator, onUnavailable: operation.backgroundUnavailable)
                 } else {
                     coordinator.update(activityID, detail: "Connecting to the model…", backgroundStatus: "Background agent execution requires iOS/iPadOS 26.")
                     operation.backgroundUnavailable("Background agent execution requires iOS/iPadOS 26. Keep the app open for this request.")
                 }
+                #else
+                coordinator.update(activityID, detail: "Connecting to the model…", backgroundStatus: "Keep Ada Studio open while the agent works.")
+                #endif
             },
             work: {
                 let toolService = EditorMobileAgentToolService(
                     projectURL: workspaceURL,
                     liveDiagnostics: { playSession?.projectID == id ? (playSession?.runtime.view.diagnostics ?? []) : [] },
                     startPlay: {
-                        guard UIApplication.shared.applicationState == .active else {
+                        guard MobileEditorPlatform.isForeground else {
                             throw NSError(domain: "AdaEditor.MobilePlay", code: 2, userInfo: [NSLocalizedDescriptionKey: "Play rendering requires the foreground. Use editor.runtime tools in the background, then capture Play after reopening the app."])
                         }
                         preparePlay(for: id)
@@ -596,7 +616,7 @@ struct MobileEditorRootView: View {
                     },
                     capturePlay: {
                         try Task.checkCancellation()
-                        guard UIApplication.shared.applicationState == .active else {
+                        guard MobileEditorPlatform.isForeground else {
                             throw NSError(domain: "AdaEditor.MobilePlay", code: 2, userInfo: [NSLocalizedDescriptionKey: "Play capture requires the foreground. Use editor.runtime tools while the app is in the background."])
                         }
                         guard playSession?.projectID == id, let capture = playSession?.capture else {
@@ -690,7 +710,7 @@ struct MobileEditorRootView: View {
                     operation.completedStep()
                     if validation.ok {
                         let hasChatUI = chatState.interfaces.controller.sessions[sessionID]?.didPresentUIInCurrentRun == true
-                        if runSettings.opensPreview, !hasChatUI, UIApplication.shared.applicationState == .active { preparePlay(for: id) }
+                        if runSettings.opensPreview, !hasChatUI, MobileEditorPlatform.isForeground { preparePlay(for: id) }
                         return .init(succeeded: true, detail: "AdaScript, scenes and simulation validated")
                     }
                     operation.reportError(validation.payload)
@@ -763,7 +783,9 @@ struct MobileEditorRootView: View {
 
     private func installMobileNotifications() {
         let center = EditorNotificationCenter.shared
+        #if os(iOS)
         EditorSystemNotifications.shared.install(on: center)
+        #endif
         center.onAction = { action in
             guard let projectID = action.projectID.flatMap(UUID.init(uuidString:)),
                   let project = projects.first(where: { $0.id == projectID }) else {
@@ -771,7 +793,9 @@ struct MobileEditorRootView: View {
                 return
             }
             presentedFile = nil
+            #if os(iOS)
             if UIDevice.current.userInterfaceIdiom == .pad { MobileEditorWindowLauncher.open() }
+            #endif
             presentedPlayProject = nil
             isPromptPresented = false
             isVoicePresented = false
@@ -871,13 +895,13 @@ struct MobileEditorRootView: View {
     }
 
     private func pickAgentFiles() {
-        ProjectOpenPicker.presentAgentContextPicker { result in
+        MobileEditorPlatform.pickFiles { result in
             handleAgentAttachmentPickerResult(result)
         }
     }
 
     private func pickAgentPhotos() {
-        ProjectOpenPicker.presentAgentPhotoPicker { result in
+        MobileEditorPlatform.pickPhotos { result in
             handleAgentAttachmentPickerResult(result)
         }
     }
