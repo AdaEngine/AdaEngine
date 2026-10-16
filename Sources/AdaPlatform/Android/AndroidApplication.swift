@@ -50,12 +50,20 @@
         func stop() { frameContinuation.finish() }
 
         func insertText(_ text: String, deleteBackward: Bool) {
+            inputText(text, action: deleteBackward ? .deleteBackward : .insert)
+        }
+
+        func inputText(_ text: String, action: TextInputEvent.Action, cursorOffset: Int = 1, rangeStart: Int = 0, rangeEnd: Int = 0) {
             guard resumed, let window = windowManager.activeWindow, let input = windowManager.inputRef else { return }
             input.wrappedValue.receiveEvent(TextInputEvent(
                 window: window.id,
                 text: text,
-                action: deleteBackward ? .deleteBackward : .insert,
-                time: Float(Time.absolute)
+                action: action,
+                time: Float(Time.absolute),
+                session: AndroidRuntime.textInputSession,
+                cursorOffset: cursorOffset,
+                rangeStart: rangeStart,
+                rangeEnd: rangeEnd
             ))
         }
 

@@ -1,5 +1,6 @@
 #if os(Android)
     import AdaApp
+    import AdaInput
     import CAndroid
     import Foundation
 
@@ -10,10 +11,18 @@
     /// Android main looper before invoking the entry point.
     @MainActor
     public enum AndroidRuntime {
+        static var textInputSession = TextInputEvent.Session()
+
         private static var task: Task<Void, Never>?
 
         /// Optional native host integration for AdaUI's software keyboard focus.
         public static var textInputFocusChanged: (@MainActor (Bool) -> Void)?
+
+        static func updateTextInputFocus(_ focused: Bool) {
+            textInputSession.invalidate()
+            textInputSession = TextInputEvent.Session()
+            textInputFocusChanged?(focused)
+        }
 
         /// Refreshes host services when a paused or recreated activity resumes.
         public static var didResume: (@MainActor () -> Void)?
@@ -30,6 +39,11 @@
         /// Delivers committed IME text to the focused AdaUI control.
         public static func insertText(_ text: String, deleteBackward: Bool = false) {
             (Application.shared as? AndroidApplication)?.insertText(text, deleteBackward: deleteBackward)
+        }
+
+        /// Delivers an operation from a full Android InputConnection.
+        public static func inputText(_ text: String, action: TextInputEvent.Action, cursorOffset: Int = 1, rangeStart: Int = 0, rangeEnd: Int = 0) {
+            (Application.shared as? AndroidApplication)?.inputText(text, action: action, cursorOffset: cursorOffset, rangeStart: rangeStart, rangeEnd: rangeEnd)
         }
 
         /// Updates AdaUI's keyboard avoidance from the native IME inset, in pixels.
