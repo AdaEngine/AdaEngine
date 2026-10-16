@@ -56,6 +56,7 @@ struct Environment3DUniform: Sendable {
     var starfield: Vector4
     var ibl: Vector4
     var quality: Vector4
+    var postProcess: Vector4
 }
 
 public struct ScreenSpaceReflectionScratch: Resource, Sendable {

@@ -14,6 +14,8 @@ public struct Temporal3DRenderNode: RenderNode {
     @Res<Render3DTemporalStatistics> private var statistics
     @Res<RenderDeviceHandler> private var device
     @Res<Render3DPerformanceMetrics?> private var metrics
+    /// Optional so a temporal-only world without environments keeps the default ACES curve.
+    @Res<ExtractedEnvironment3D?> private var environments
 
     public init() {}
 
@@ -26,6 +28,7 @@ public struct Temporal3DRenderNode: RenderNode {
         _statistics.update(from: world)
         _device.update(from: world)
         _metrics.update(from: world)
+        _environments.update(from: world)
         var active: [Entity.ID] = []
         cameras.forEach { _, _, _, _, source in active.append(source.entityId) }
         pipelines.uniform.retainViews(active)
@@ -106,6 +109,7 @@ public struct Temporal3DRenderNode: RenderNode {
             let reconstructed = encoded || command.encodeSpatialUpscale(source: input, destination: output)
             var toneConstants = constants
             toneConstants.parameters.w = reconstructed ? 0 : 1
+            toneConstants.toneMapping = Vector4((environments?.environments[source.entityId]?.postProcess.toneMapper ?? ToneMapper3D.aces).shaderMode, 0, 0, 0)
             let toneBuffer = pipelines.uniform.write(toneConstants, view: source.entityId, pass: 2, device: device.renderDevice)
             let tone = command.beginRenderPass(
                 .init(

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-05
-- Implementation: Planned
+- Implementation: Partial (exposure and bloom local foundation; not released)
 
 ## Context
 
@@ -26,7 +26,7 @@ Dynamic global illumination remains a later decision driven by scene needs.
 
 ## Implementation checklist
 
-- [ ] Manual exposure and HDR bloom with per-camera settings and reusable targets.
+- [x] Manual exposure and HDR bloom with per-camera settings and reusable targets (Metal; recorded in ADR-0026 Stage 1).
 - [ ] Local probe assets, influence volumes, selection/blending and Editor authoring.
 - [ ] Offline probe capture/baking and lightmap UV/import/material integration.
 - [ ] Unified SSR/probe/future-RT reflection composition.
