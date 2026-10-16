@@ -272,18 +272,24 @@ Each item needs its own short requirements note before implementation.
 ## Implementation checklist
 
 - [x] Stage 0: debug views from existing main-pass outputs (normals, depth, roughness, metallic, SSAO, indirect light, wireframe).
-- [ ] Stage 0: debug views needing new shader outputs (albedo, overdraw, cascade tint, light-count heat map).
+- [x] Stage 0: albedo, cascade tint and light-count debug views (the main pass colors scene color by selector).
+- [ ] Stage 0: overdraw debug view (needs a counting pass; see the second-pass notes).
 - [x] Stage 0: GPU pass timing (already provided by `Render3DPerformanceMetrics`; the debug passes record into it).
-- [ ] Stage 0: runtime GPU timing overlay and an Editor control for the debug view.
+- [x] Stage 0: GPU timing report table (`Render3DPerformanceMetrics.report()`).
+- [ ] Stage 0: on-screen GPU timing overlay (needs a UI host in the app or Editor).
+- [x] Stage 0: Editor controls for the debug view and the post-processing settings.
 - [x] Stage 0: 3D debug-draw API (lines, polylines, boxes, AABBs, spheres, axes, frusta; depth-tested or overlay).
 - [x] Stage 0: golden-frame harness with Metal tolerance and checked-in references.
-- [ ] Stage 0: golden-frame tolerances for WebGPU and other backends.
+- [x] Stage 0: golden-frame references and tolerance for WebGPU, plus a Metal/WebGPU agreement test.
+- [ ] Stage 0: golden-frame references for other backends (Vulkan, OpenGL, Windows).
 - [ ] Stage 0: prepass decision confirmed with GPU measurements (analysis recorded below).
 - [x] Stage 1: per-camera `PostProcess3D` with manual exposure (ADR-0019 exposure).
 - [x] Stage 1: HDR bloom with reusable per-camera chain (ADR-0019 bloom).
 - [x] Stage 1: tone-map operator choice (ACES fit, neutral, none) and a shared output-transform shader.
-- [ ] Stage 1: auto-exposure, color grading LUT, vignette; Editor controls for exposure, bloom and tone mapper.
-- [ ] Stage 1: depth of field and motion blur with quality tiers.
+- [x] Stage 1: auto-exposure, saturation/contrast, strip-LUT color grading and vignette.
+- [x] Stage 1: depth of field.
+- [ ] Stage 1: motion blur (needs a velocity buffer that exists without temporal upscaling).
+- [ ] Stage 1: quality tiers for depth of field, bloom and auto-exposure.
 - [ ] Stage 2: `KHR_texture_transform`, IOR, specular and clearcoat material extensions.
 - [ ] Stage 2: sheen, anisotropy and `KHR_lights_punctual` import.
 - [ ] Stage 2: unsupported-extension degradation policy and documented supported list.
@@ -410,7 +416,7 @@ clipped tone mappers; a test renders every operator through the composite and
 through the temporal shader and requires the pictures to agree within 4 steps,
 which guards the shared include. Other checks: ACES output equals the default
 frame, an overbright emitter reads as near white under every operator, and
-neutral stays closer to the uncurved image than ACES at mid-tones. Not verified: WebGPU, other platforms,
+neutral stays closer to the uncurved image than ACES at mid-tones. Not verified in this slice: other platforms,
 MetalFX-specific behavior beyond the offscreen temporal path, the Editor, and
 non-default render scales for the temporal path.
 
@@ -418,9 +424,9 @@ non-default render scales for the temporal path.
 this slice, failed with a whole-frame shift of about 5 steps and 245 pixels
 differing between two renders of one scene. The identical binary then passed in
 every later run (warm and cold shader cache, under heavy CPU load, after a
-shader edit; about ten runs). The cause was not found. The golden tolerance
-(2 steps) would flag this drift; if it recurs, capture the failing frames before
-rerunning.
+shader edit; about ten runs). The cause was not found. A real stale-shader
+cache bug was found later (second pass below, fixed); it is plausible but
+unproven that it explains this. The golden tolerance would flag the drift again.
 
 **Findings during implementation.**
 
@@ -447,13 +453,98 @@ overdraw in a target scene is high. The measurement stays an open checklist item
 tests, GPU suites gated by environment variables). The Metal suite
 (`ADAENGINE_GOLDEN_METAL=1 swift test --filter Render3DDebugViewMetalTests`)
 passed 5 tests, and a deliberate depth-scale change was caught by exactly the
-depth frame (165,082 differing pixels). Not verified: WebGPU rendering of the
-new shader (the web WGSL cache already omits several 3D shaders, so no cache
-entry was added), Apple mobile, Windows, the windowed presentation
-notification path (only offscreen targets were exercised), and the Editor
-package tests, which could not resolve their remote dependencies offline. The
-Editor serializes `Environment3D` payloads, which now include `debugView`;
-older payloads decode to `.none` (covered by an engine test).
+depth frame (165,082 differing pixels). WebGPU is covered in the second pass. Not
+verified: Apple mobile, Windows, the windowed presentation
+notification path (only offscreen targets were exercised). Editor coverage is in
+the second pass. The Editor serializes `Environment3D` payloads, which now
+include `debugView`; older payloads decode to `.none` (covered by an engine test).
+
+### Stage 0 and 1 second pass (2026-10-16)
+
+This pass closes most open Stage 0 and Stage 1 items. Each effect keeps its
+settings in `PostProcess3D`, decodes missing keys to neutral defaults, and
+leaves the frame bit-identical (and allocates nothing) while it is off.
+
+**More debug views.** `.albedo`, `.cascades` and `.lightCount`. The main pass
+writes their display-ready colors into scene color when `u_ShadowAtlas.w` (a
+field that was unused) selects a mode, and the debug pass shows scene color. A
+new render target would not fit: the four main-pass targets already use the 32
+bytes per sample that WebGPU allows. Overdraw is still open because it needs
+either additive blending per material pipeline or a stencil counter, neither of
+which fits the current per-item pipelines without a larger change.
+
+**Timing report.** `Render3DPerformanceMetrics.report()` renders the measured
+passes as an aligned table, slowest first, with the summed average (a budget
+indicator, since passes can overlap). An on-screen overlay needs a UI host and is
+left to the app or Editor.
+
+**Auto exposure.** `AutoExposure3D` meters the log-luminance of lit pixels
+covered by geometry (64 by 64 meter, 2x2 chain to one pixel), then adapts a
+one-pixel exposure state in stops toward mid gray at separate up and down speeds
+(`infinity` snaps). The manual `exposureEV` acts as compensation. Bloom and the
+composite read the state. Pixels with no geometry or no light carry no weight and
+a frame with nothing to meter holds the last value. Exposure always starts at
+0 EV and adapts, rather than snapping to the first measurement: the first frames
+of a scene are often only partly lit, and snapping stranded a slow adaptation at
+an extreme in testing. The sky is not metered (it is added later in the
+composite), so a dim scene with a bright sky can overexpose the sky.
+
+**Vignette and color grading.** `Vignette3D`, saturation and contrast act on
+linear HDR in the composite. An optional strip LUT (documented on
+`ColorGrading3D`: `N` tiles of `N` by `N`, red along x, green down the rows,
+blue by tile, sampled without sRGB decoding) acts on the display color after
+tone mapping, in both the composite and the temporal tone-map shader, through
+the shared `ColorGrading.glsl` include.
+
+**Depth of field.** `DepthOfField3D` gathers a 24-tap bokeh disc on the final
+display color after tone mapping and anti-aliasing, using the view depth the main
+pass already writes; sky counts as infinitely far, and neighbors contribute only
+as much as their own blur reaches, so sharp surfaces do not smear into blurred
+ones. It works on display values, so very bright highlights do not become bokeh
+balls. It uses a scratch texture created only while it runs. It is skipped
+under a full-screen debug view. **Motion blur** is not done: motion vectors exist
+only when temporal upscaling is active, so it needs a velocity buffer of its own.
+
+**Editor.** The Environment 3D inspector has controls for the debug view,
+exposure, tone mapper, auto exposure, bloom, depth of field, saturation,
+contrast and vignette. The color-grading LUT asset has no inspector field yet.
+
+**WebGPU validation.** `script/validate_webgpu.sh` now also runs the 3D GPU
+suites on WebGPU (Dawn over Metal here), compares against checked-in WebGPU
+references (`GoldenFrames/webgpu`), and runs `GoldenBackendAgreementTests`,
+which compares the Metal and WebGPU references: all 26 shared frames are
+currently identical (wireframe is excluded because the WebGPU encoder ignores
+fill mode). Tint, Dawn and the SPIR-V to WGSL path accepted every new shader
+(bloom, auto exposure, depth of field, debug view, tone mapping and grading
+includes). The temporal path exists only on Metal, so its tests are skipped on
+WebGPU. All GPU suites live under one serialized parent suite
+(`Render3DGPUTests`) because the engine owns a single process-wide renderer and
+main-actor tests interleave at each `await`; the validation script runs its
+package with `--no-parallel` for the same reason. Backend selection is
+`ADAENGINE_GOLDEN_METAL=1` or `ADAENGINE_GOLDEN_WEBGPU=1`; the suites were renamed
+from `...MetalTests` to `...GPUTests`.
+
+**Two shader-pipeline bugs found and fixed.**
+
+- `ShaderIncluder` matched module include names greedily, so two adjacent
+  `#include <...>` lines (or any later line ending in `>`) failed to resolve.
+- `ShaderCache` keyed compiled shaders by the shader's own text, so editing an
+  included file silently reused the stale compiled shader. The key now hashes the
+  text after include expansion, using the compiler's full include search paths
+  (the compiler adds the engine's `AdaEngine` module itself).
+
+**Tests worth knowing.** Temporal renders keep accumulating history, so
+self-comparisons on that path are held to the drift two untouched renders show.
+The temporal jitter period is eight frames, so equal-length renders land on the
+same phase.
+
+**Validation (second pass).** Metal: all GPU suites pass, repeatedly. WebGPU:
+`script/validate_webgpu.sh` passes (114 tests). The full engine suite passes
+apart from two issues outside this work: `AdaUITests` crashes on
+`WindowFrameRequests is not stored in world` in the "Window routing blocks a UI
+press" test, and `Physics3DTests.fixedSchedulerAdvancesAndWritesBackDynamicBody`
+fails under parallel load but passes alone. Not verified: Apple mobile, Windows
+(the GPU suites are macOS-only), the windowed presentation notification path.
 
 ## Validation requirements
 
