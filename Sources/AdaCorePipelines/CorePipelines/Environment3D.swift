@@ -162,6 +162,18 @@ public struct Environment3D: Codable, Sendable {
         get { postProcess.toneMapper }
         set { postProcess.toneMapper = newValue }
     }
+    public var vignetteIntensity: Float {
+        get { postProcess.vignette.intensity }
+        set { postProcess.vignette.intensity = newValue }
+    }
+    public var saturation: Float {
+        get { postProcess.colorGrading.saturation }
+        set { postProcess.colorGrading.saturation = newValue }
+    }
+    public var contrast: Float {
+        get { postProcess.colorGrading.contrast }
+        set { postProcess.colorGrading.contrast = newValue }
+    }
     public var bloomEnabled: Bool {
         get { postProcess.bloom.isEnabled }
         set { postProcess.bloom.isEnabled = newValue }

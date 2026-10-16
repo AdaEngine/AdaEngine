@@ -74,6 +74,7 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
             let compositeTarget = target.temporalUpscalingActive ? (target.temporalInputTexture ?? mainTexture)
                 : (environment.antiAliasing == .none ? mainTexture : (target.antiAliasing3DInputTexture ?? mainTexture))
             let jitteredUniform = temporalViewUniform(viewUniform, target: target)
+            let gradingLUT = environment.postProcess.colorGrading.activeLUT
             let bloomTexture = environment.postProcess.bloom.isEnabled ? bloomViews.output(view: source.entityId) : nil
             let skybox = environment.skybox
             let reflection = environment.screenSpaceReflection
@@ -126,8 +127,15 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                     environment.postProcess.exposureScale,
                     bloomTexture == nil ? 0 : environment.postProcess.bloom.sanitized.intensity,
                     environment.postProcess.toneMapper.shaderMode,
-                    0
-                )
+                    gradingLUT?.intensity ?? 0
+                ),
+                grading: Vector4(
+                    environment.postProcess.colorGrading.sanitized.saturation,
+                    environment.postProcess.colorGrading.sanitized.contrast,
+                    environment.postProcess.vignette.sanitized.intensity,
+                    environment.postProcess.vignette.sanitized.radius
+                ),
+                vignette: Vector4(environment.postProcess.vignette.sanitized.smoothness, 0, 0, 0)
             )
             let constants = scratch.cache.write(uniform, view: source.entityId, device: renderDevice.renderDevice)
 
@@ -155,6 +163,8 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                         .init(binding: 9, shaderStages: .fragment, resource: .texture(target.ambientOcclusion3DTexture ?? Texture2D.whiteTexture)),
                         .init(binding: 11, shaderStages: .fragment, resource: .sampler(pipeline.nearest)),
                         .init(binding: 12, shaderStages: .fragment, resource: .texture(bloomTexture ?? Texture2D.whiteTexture)),
+                        .init(binding: 13, shaderStages: .fragment, resource: .texture(gradingLUT?.texture ?? Texture2D.whiteTexture)),
+                        .init(binding: 14, shaderStages: .fragment, resource: .sampler(pipeline.sampler)),
                         .init(binding: 0, shaderStages: .fragment, resource: .texture(sceneColor)),
                         .init(binding: 1, shaderStages: .fragment, resource: .texture(normalRoughness)),
                         .init(binding: 2, shaderStages: .fragment, resource: .texture(viewPositionMetallic)),

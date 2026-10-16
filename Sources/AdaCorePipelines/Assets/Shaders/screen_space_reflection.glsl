@@ -28,6 +28,8 @@ layout (binding = 8) uniform texture2D u_Indirect;
 layout (binding = 9) uniform texture2D u_AO;
 layout (binding = 11) uniform sampler u_GBufferSampler;
 layout (binding = 12) uniform texture2D u_Bloom;
+layout (binding = 13) uniform texture2D u_GradingLUT;
+layout (binding = 14) uniform sampler u_GradingSampler;
 
 layout (binding = 4) uniform Environment3DUniform {
     mat4 u_Projection;
@@ -43,7 +45,9 @@ layout (binding = 4) uniform Environment3DUniform {
     vec4 u_Starfield;
     vec4 u_IBL;
     vec4 u_Quality;
-    vec4 u_PostProcess; // x exposure scale, y bloom intensity, z tone mapper (see Tonemapping.glsl)
+    vec4 u_PostProcess; // x exposure scale, y bloom intensity, z tone mapper (see Tonemapping.glsl), w LUT intensity
+    vec4 u_Grading;     // x saturation, y contrast, z vignette intensity, w vignette radius
+    vec4 u_Vignette;    // x vignette smoothness
 };
 
 const float PI = 3.14159265359;
@@ -53,13 +57,18 @@ vec3 srgbToLinear(vec3 value) {
 }
 
 #include <AdaEngine/Tonemapping.glsl>
+#include <AdaEngine/ColorGrading.glsl>
 
 // Exposure and bloom act on linear HDR before tone mapping. The bloom texture is already exposed; with bloom
 // off it is a white placeholder scaled by zero, so default settings leave the color unchanged.
 vec3 presentColor(vec3 linearColor) {
     vec3 exposed = linearColor * u_PostProcess.x
         + texture(sampler2D(u_Bloom, u_LinearSampler), v_UV).rgb * u_PostProcess.y;
-    return u_Quality.z > 0.5 ? exposed : adaOutputTransform(exposed, u_PostProcess.z);
+    exposed = adaGradeLinear(exposed, u_Grading, u_Vignette, v_UV);
+    if (u_Quality.z > 0.5) {
+        return exposed;
+    }
+    return adaApplyLut(adaOutputTransform(exposed, u_PostProcess.z), u_PostProcess.w);
 }
 
 vec3 proceduralSky(vec3 direction) {
