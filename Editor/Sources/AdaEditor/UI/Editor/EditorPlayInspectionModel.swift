@@ -27,6 +27,7 @@ final class EditorPlayInspectionModel {
 
     @ObservationIgnored private weak var world: World?
     @ObservationIgnored private var lastRefresh = 0.0
+    @ObservationIgnored private var previousInventory: [Item] = []
 
     func select(_ id: Entity.ID?) {
         selectedID = id
@@ -44,6 +45,7 @@ final class EditorPlayInspectionModel {
         selectedID = nil
         selection = nil
         lastRefresh = 0
+        previousInventory = []
     }
 
     func refresh(force: Bool = false) {
@@ -56,13 +58,19 @@ final class EditorPlayInspectionModel {
         for entity in world.getEntities() where entity.name != "SceneView_Camera" {
             currentItems.append(Item(id: entity.id, name: entity.name))
         }
-        currentItems.sort { lhs, rhs in
-            if lhs.name == rhs.name { return lhs.id < rhs.id }
-            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        // Most refreshes only update selected component values. Windows natural
+        // string comparison is costly for large imported scenes; sort only when
+        // entity names/identities or their enumeration order actually changed.
+        if currentItems != previousInventory {
+            previousInventory = currentItems
+            currentItems.sort { lhs, rhs in
+                if lhs.name == rhs.name { return lhs.id < rhs.id }
+                return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            }
+            if items != currentItems { items = currentItems }
         }
-        if items != currentItems { items = currentItems }
 
-        guard let selectedID, let item = currentItems.first(where: { $0.id == selectedID }) else {
+        guard let selectedID, let item = items.first(where: { $0.id == selectedID }) else {
             if selectedID != nil { self.selectedID = nil }
             if selection != nil { selection = nil }
             return

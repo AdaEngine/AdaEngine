@@ -1,5 +1,7 @@
-#if canImport(ACP) && canImport(ACPModel)
+#if canImport(ACPModel) && (canImport(ACP) || os(Windows))
+#if canImport(ACP)
 import ACP
+#endif
 import ACPModel
 import Foundation
 

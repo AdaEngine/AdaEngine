@@ -6,6 +6,33 @@ Use **Browse…** for files/directories and **Save Build Settings** to persist e
 Empty fields use automatic discovery. Path labels check availability, not compiler
 versions or successful game builds. External tools require standalone desktop Studio.
 
+Each page has **Rescan** and scans once when first opened. Discovery fills empty
+or unavailable paths; working overrides and edits made during a scan are kept.
+Use **Save Build Settings** to apply the results. On Windows the scan rereads the
+user and system environment from the registry, so tools installed after Studio
+started can be found without restarting it. It also checks standard versioned
+Swift installations, Android SDK locations, Android Studio's JDK, SDK build-tools
+and side-by-side NDKs, CMake, Ninja and Visual Studio build tools. A directory alone
+does not establish availability: Android SDK needs adb, JDK needs javac, and NDK
+needs its installation metadata. Discovery does not validate compiler versions.
+Saving on Windows explicitly writes the preferences to disk, including Android
+paths, so closing Studio immediately after Save retains the configuration.
+
+**Install Swift…** on the host platform page opens the official Swift installation
+instructions for this OS. **Install Android SDK…** on Android opens Google's
+Android Studio setup page. These are guided browser flows, not unattended
+installers. Finish installation there, then return to **Rescan** and save.
+In Android Studio's SDK Manager, install Platform-Tools, Build-Tools, Emulator and
+NDK (Side by side) as needed. An Android emulator still needs an AVD created in
+Android Studio. Rescan does not download packages or accept license agreements.
+
+Windows Web and Android builds run through WSL Ubuntu. Run
+`script/setup_windows_build_tools.ps1` once to install the managed Linux cross
+toolchains. Keep Web's Swift override empty to use the matching managed compiler;
+an explicit override must be a Linux executable path. Android discovery and
+deployment use the native Windows SDK, while the worker supplies Linux Swift,
+SDK/NDK, JDK and Dawn. Native host compiler settings continue to select Windows Swift.
+
 | Page | Tools and current use |
 | --- | --- |
 | Android | SDK, NDK, JDK, optional Gradle, build-tools version, emulator data, Swift Android SDK/toolchain and Swan/Dawn. Existing APK export and device/emulator Run consume these settings. |

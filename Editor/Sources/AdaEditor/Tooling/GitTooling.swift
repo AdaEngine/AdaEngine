@@ -220,9 +220,16 @@ actor GitRepositoryService: GitRepositoryServicing {
                 ["git", "checkout", "-b", name]
             }
 
+        #if os(Windows)
+        let executable = EditorHostTools.executable("git")
+        let processArguments = Array(arguments.dropFirst())
+        #else
+        let executable = "/usr/bin/env"
+        let processArguments = arguments
+        #endif
         return EditorProcessCommand(
-            executablePath: "/usr/bin/env",
-            arguments: arguments,
+            executablePath: executable,
+            arguments: processArguments,
             workingDirectory: projectURL,
             displayName: arguments.joined(separator: " ")
         )

@@ -97,7 +97,7 @@ def main():
             flags = ["CMAKE_BUILD_TYPE=Release", "DAWN_FETCH_DEPENDENCIES=ON", "DAWN_BUILD_MONOLITHIC_LIBRARY=OFF",
                      "DAWN_BUILD_SAMPLES=OFF", "DAWN_BUILD_TESTS=OFF", "DAWN_ENABLE_D3D11=OFF", "DAWN_ENABLE_D3D12=OFF",
                      "DAWN_ENABLE_METAL=OFF", "DAWN_ENABLE_VULKAN=OFF", "DAWN_ENABLE_DESKTOP_GL=OFF", "DAWN_ENABLE_OPENGLES=OFF",
-                     "DAWN_USE_GLFW=OFF", "TINT_BUILD_TESTS=OFF", "TINT_BUILD_SPV_READER=ON", "TINT_BUILD_WGSL_WRITER=ON",
+                     "DAWN_USE_GLFW=OFF", "DAWN_SUPPORTS_CXX_MODULES=OFF", "TINT_BUILD_TESTS=OFF", "TINT_BUILD_SPV_READER=ON", "TINT_BUILD_WGSL_WRITER=ON",
                      "TINT_BUILD_HLSL_WRITER=OFF", "TINT_BUILD_MSL_WRITER=OFF", "TINT_BUILD_GLSL_WRITER=OFF", "TINT_BUILD_SPV_WRITER=OFF"]
             run(["cmake", "-S", source, "-B", build, "-G", "Ninja", *["-D" + flag for flag in flags]])
             run(["cmake", "--build", build, "--target", "tint_cmd_tint_cmd", "--parallel", max(1, args.jobs)])

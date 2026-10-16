@@ -28,6 +28,7 @@ final class EditorSceneViewportModel {
         let startPayload: EditorComponentPayload
     }
     private var cameraEntityID: Entity.ID?
+    private var sceneEnvironmentCameraID: Entity.ID?
     var displayMode: EditorSceneViewportDisplayMode = .twoD
     var viewportSize: Size = .zero
     private var entitiesByEditorID: [String: Entity.ID] = [:]
@@ -134,6 +135,7 @@ final class EditorSceneViewportModel {
         depthGridEntityIDs.removeAll()
         world = nil
         cameraEntityID = nil
+        sceneEnvironmentCameraID = nil
         entitiesByEditorID.removeAll()
         editorIDsByEntityID.removeAll()
         pressedKeys.removeAll()
@@ -155,6 +157,7 @@ final class EditorSceneViewportModel {
         self.world = world
         self.entitiesByEditorID = loadResult.entitiesByEditorID
         self.editorIDsByEntityID = loadResult.editorIDsByEntityID
+        refreshSceneEnvironmentCamera(in: world)
         cameraEntityID = isImmersive ? nil : findCameraEntity(in: world)?.id
         if !isImmersive { applyCamera() }
     }
@@ -187,6 +190,7 @@ final class EditorSceneViewportModel {
         )
         entitiesByEditorID = result.entitiesByEditorID
         editorIDsByEntityID = result.editorIDsByEntityID
+        refreshSceneEnvironmentCamera(in: world)
         cameraEntityID = isImmersive ? nil : findCameraEntity(in: world)?.id
         if !isImmersive { applyCamera() }
         return result
@@ -271,7 +275,13 @@ final class EditorSceneViewportModel {
         case let keyEvent as KeyEvent:
             return handleKeyEvent(keyEvent)
         case let mouseEvent as MouseEvent:
-            return handleMouseEvent(mouseEvent)
+            let handled = handleMouseEvent(mouseEvent)
+            if isTwoDPanning || isThreeDRotating || transformDrag != nil {
+                UIWindowManager.shared?.setCursorShape(.move)
+            } else if mouseEvent.phase == .ended || mouseEvent.phase == .cancelled {
+                UIWindowManager.shared?.setCursorShape(.arrow)
+            }
+            return handled
         case let touchEvent as TouchEvent:
             return handleTouchEvent(touchEvent)
         default:
@@ -875,7 +885,8 @@ extension EditorSceneViewportModel {
         let state = cameraState(for: viewportSize)
         camera.projection = state.projection
         transform = state.transform
-        camera.backgroundColor = Color.fromHex(0x15181D)
+        let sceneCamera = sceneEnvironmentCameraID.flatMap { world?.getEntityByID($0) }
+        camera.backgroundColor = sceneCamera?.components[Camera.self]?.backgroundColor ?? Color.fromHex(0x15181D)
         cameraEntity.components += CameraRenderGraph(
             subgraphLabel: state.renderGraphLabel,
             inputSlot: "view"
@@ -883,9 +894,12 @@ extension EditorSceneViewportModel {
 
         cameraEntity.components += camera
         cameraEntity.components += transform
-        var environment = cameraEntity.components[Environment3D.self] ?? Environment3D()
-        environment.skybox.isEnabled = smoothPerspectiveBlend > 0
-        environment.screenSpaceReflection.isEnabled = smoothPerspectiveBlend > 0
+        // Preview the authored lighting/IBL and quality settings used by Run.
+        // Navigation only changes the preview pose; it must not replace lighting
+        // with an unrelated default environment or force authored effects on.
+        var environment = sceneCamera?.components[Environment3D.self] ?? Environment3D()
+        environment.skybox.isEnabled = environment.skybox.isEnabled && smoothPerspectiveBlend > 0
+        environment.screenSpaceReflection.isEnabled = environment.screenSpaceReflection.isEnabled && smoothPerspectiveBlend > 0
         cameraEntity.components += environment
         if let world {
             EditorSceneViewportDepthGrid.centerGrid(at: threeDPosition, entityIDs: depthGridEntityIDs, in: world)
@@ -1002,6 +1016,13 @@ extension EditorSceneViewportModel {
                     && entity.components[Camera.self] != nil
                     && entity.components[Transform.self] != nil
             }
+    }
+
+    private func refreshSceneEnvironmentCamera(in world: World) {
+        sceneEnvironmentCameraID = entitiesByEditorID.values
+            .compactMap { world.getEntityByID($0) }
+            .filter { $0.isActive && $0.components[Camera.self]?.isActive == true }
+            .max { ($0.components[Camera.self]?.renderOrder ?? 0) < ($1.components[Camera.self]?.renderOrder ?? 0) }?.id
     }
 }
 
@@ -1274,6 +1295,7 @@ extension EditorSceneViewportModel {
         entitiesByEditorID = loadResult.entitiesByEditorID
         editorIDsByEntityID = loadResult.editorIDsByEntityID
         cameraEntityID = nil
+        sceneEnvironmentCameraID = nil
     }
 
     func setSpatialTool(_ mode: SpatialManipulationMode) {

@@ -12,9 +12,9 @@
     public final class WGPUVertexBuffer: WGPUBuffer, VertexBuffer, @unchecked Sendable {
         public var binding: Int
 
-        init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice, binding: Int) {
+        init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice, binding: Int, instance: WebGPU.GPUInstance? = nil) {
             self.binding = binding
-            super.init(buffer: buffer, device: device)
+            super.init(buffer: buffer, device: device, instance: instance)
         }
     }
 #endif

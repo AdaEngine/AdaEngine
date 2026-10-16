@@ -11,6 +11,8 @@ import Foundation
     import AppKit
 #elseif canImport(UIKit)
     import UIKit
+#elseif os(Windows)
+    import WinSDK
 #endif
 
 /// Clipboard helper used by editable UI controls.
@@ -56,6 +58,15 @@ public enum UIClipboard {
                 return urls.map { $0.isFileURL ? $0.path : $0.absoluteString }.joined(separator: "\n")
             }
             return nil
+        #elseif os(Windows)
+            guard OpenClipboard(GetForegroundWindow()) else { return nil }
+            defer { CloseClipboard() }
+            guard let handle = GetClipboardData(UINT(CF_UNICODETEXT)), let pointer = GlobalLock(handle) else { return nil }
+            defer { GlobalUnlock(handle) }
+            let capacity = Int(GlobalSize(handle)) / MemoryLayout<UInt16>.size
+            let characters = UnsafeBufferPointer(start: pointer.assumingMemoryBound(to: UInt16.self), count: capacity)
+            let end = characters.firstIndex(of: 0) ?? characters.endIndex
+            return String(decoding: characters[..<end], as: UTF16.self)
         #else
             fallbackString
         #endif
@@ -71,6 +82,17 @@ public enum UIClipboard {
             fallbackPasteboardChangeCount = pasteboard.changeCount
         #elseif canImport(UIKit)
             UIPasteboard.general.string = value
+        #elseif os(Windows)
+            let characters = Array(value.utf16) + [0]
+            guard let handle = GlobalAlloc(UINT(GMEM_MOVEABLE), SIZE_T(characters.count * MemoryLayout<UInt16>.size)) else { return }
+            guard let pointer = GlobalLock(handle) else { GlobalFree(handle); return }
+            characters.withUnsafeBytes { buffer in
+                if let source = buffer.baseAddress { pointer.copyMemory(from: source, byteCount: buffer.count) }
+            }
+            GlobalUnlock(handle)
+            guard OpenClipboard(GetForegroundWindow()) else { GlobalFree(handle); return }
+            defer { CloseClipboard() }
+            guard EmptyClipboard(), SetClipboardData(UINT(CF_UNICODETEXT), handle) != nil else { GlobalFree(handle); return }
         #else
             fallbackString = value
         #endif

@@ -1,8 +1,9 @@
+import Crypto
 import Foundation
-
-#if os(macOS)
-    import CryptoKit
+#if canImport(FoundationNetworking)
+import FoundationNetworking
 #endif
+
 
 struct EditorAgentCatalogError: LocalizedError {
     var message: String
@@ -21,8 +22,7 @@ actor EditorAgentCatalogService {
         let homeDirectory = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
         self.root =
             root
-            ?? homeDirectory
-            .appendingPathComponent("Library/Application Support/AdaEditor/Agents")
+            ?? Self.defaultRoot(home: homeDirectory)
         self.paths =
             paths
             ?? EditorAgentDiscovery.searchPaths(
@@ -33,8 +33,18 @@ actor EditorAgentCatalogService {
         self.session = session
     }
 
+    private static func defaultRoot(home: URL) -> URL {
+        #if os(Windows)
+        let local = EditorHostTools.environmentValue("LOCALAPPDATA").map { URL(fileURLWithPath: $0) }
+            ?? home.appendingPathComponent("AppData/Local")
+        return local.appendingPathComponent("AdaStudio/Agents")
+        #else
+        return home.appendingPathComponent("Library/Application Support/AdaEditor/Agents")
+        #endif
+    }
+
     func discover() -> [EditorDiscoveredAgent] {
-        #if os(macOS)
+        #if os(macOS) || os(Windows)
             EditorAgentDiscovery.discover(paths: paths)
         #else
             []
@@ -88,7 +98,7 @@ actor EditorAgentCatalogService {
     }
 
     func install(_ agent: EditorRegistryAgent) async throws -> EditorInstalledAgent {
-        #if os(macOS)
+        #if os(macOS) || os(Windows)
             guard Self.validComponent(agent.id), Self.validComponent(agent.version) else {
                 throw EditorAgentCatalogError(message: "Invalid agent identity.")
             }
@@ -98,7 +108,14 @@ actor EditorAgentCatalogService {
             do {
                 let target: AdaProjectAgentTarget
                 var installedVersion = agent.version
-                if let package = agent.distribution.npx {
+                #if os(Windows)
+                let preferredBinary = agent.distribution.binary?[EditorRegistryAgent.platform]
+                #else
+                let preferredBinary: EditorRegistryAgent.Binary? = nil
+                #endif
+                if let binary = preferredBinary {
+                    target = try await installBinary(binary, in: directory)
+                } else if let package = agent.distribution.npx {
                     let installation = try await installNPM(package, in: directory)
                     target = installation.target
                     installedVersion = installation.version
@@ -107,7 +124,7 @@ actor EditorAgentCatalogService {
                 } else if let binary = agent.distribution.binary?[EditorRegistryAgent.platform] {
                     target = try await installBinary(binary, in: directory)
                 } else {
-                    throw EditorAgentCatalogError(message: "This agent has no distribution for this Mac.")
+                    throw EditorAgentCatalogError(message: "This agent has no distribution for this computer.")
                 }
                 let entry = EditorInstalledAgent(id: agent.id, name: agent.name, version: installedVersion, target: target, managedDirectory: directory.path, icon: agent.icon)
                 try save(entry)
@@ -117,7 +134,7 @@ actor EditorAgentCatalogService {
                 throw error
             }
         #else
-            throw EditorAgentCatalogError(message: "Local ACP agents require macOS.")
+            throw EditorAgentCatalogError(message: "Local ACP agents require desktop Studio.")
         #endif
     }
 
@@ -156,19 +173,25 @@ actor EditorAgentCatalogService {
         !value.isEmpty && value != "." && value != ".." && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || "-._+".contains($0)) }
     }
 
-    #if os(macOS)
+    #if os(macOS) || os(Windows)
         private func run(_ executable: String, _ arguments: [String], in directory: URL, environment: [String: String] = [:]) async throws -> String {
             let timeout = Task {
                 do { try await Task.sleep(for: .seconds(300)) } catch { return }
                 await runner.cancelAll()
             }
             defer { timeout.cancel() }
+            #if os(Windows)
+            let environment = EditorWindowsAgentCommand.environment(["PATH": paths.joined(separator: EditorAgentDiscovery.pathSeparator)].merging(environment) { _, new in new })
+            let invocation = try EditorWindowsAgentCommand.resolve(executable, arguments: arguments, environment: environment)
+            let executable = invocation.executable.path
+            let arguments = invocation.arguments
+            #endif
             let result = await runner.run(
                 EditorProcessCommand(
                     executablePath: executable,
                     arguments: arguments,
                     workingDirectory: directory,
-                    environment: ["PATH": paths.joined(separator: ":")].merging(environment) { _, new in new }
+                    environment: ["PATH": paths.joined(separator: EditorAgentDiscovery.pathSeparator)].merging(environment) { _, new in new }
                 )
             )
             guard result.succeeded else {
@@ -251,7 +274,12 @@ actor EditorAgentCatalogService {
             else {
                 throw EditorAgentCatalogError(message: "The package exposes multiple or no executables. Configure it manually.")
             }
-            return (try executableTarget(directory.appendingPathComponent("node_modules/.bin/\(name)"), args: package.args, env: package.env), installedVersion)
+            #if os(Windows)
+            let binName = name + ".cmd"
+            #else
+            let binName = name
+            #endif
+            return (try executableTarget(directory.appendingPathComponent("node_modules/.bin/\(binName)"), args: package.args, env: package.env), installedVersion)
         }
 
         private func installUV(_ package: EditorRegistryAgent.Package, in directory: URL) async throws -> AdaProjectAgentTarget {
@@ -272,13 +300,18 @@ actor EditorAgentCatalogService {
             )
             let binaries = try FileManager.default.contentsOfDirectory(at: bin, includingPropertiesForKeys: nil)
             let packageName = package.package.components(separatedBy: "==")[0].components(separatedBy: "@")[0]
-            guard let binary = binaries.first(where: { $0.lastPathComponent == packageName }) ?? (binaries.count == 1 ? binaries.first : nil) else {
+            guard let binary = binaries.first(where: { $0.deletingPathExtension().lastPathComponent == packageName || $0.lastPathComponent == packageName }) ?? (binaries.count == 1 ? binaries.first : nil) else {
                 throw EditorAgentCatalogError(message: "The Python package exposes multiple or no executables. Configure it manually.")
             }
             return try executableTarget(binary, args: package.args, env: package.env)
         }
 
         private func installBinary(_ binary: EditorRegistryAgent.Binary, in directory: URL) async throws -> AdaProjectAgentTarget {
+            #if os(Windows)
+            let command = binary.cmd.replacingOccurrences(of: "\\", with: "/")
+            #else
+            let command = binary.cmd
+            #endif
             let data = try await download(binary.archive)
             if let checksum = binary.sha256 {
                 let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
@@ -288,23 +321,35 @@ actor EditorAgentCatalogService {
             }
             let archive = directory.appendingPathComponent("download.archive")
             try data.write(to: archive)
-            let names = try await run("/usr/bin/tar", ["-tf", archive.path], in: directory)
-            let details = try await run("/usr/bin/tar", ["-tvf", archive.path], in: directory)
-            try Self.validateArchive(names: names, details: details, command: binary.cmd)
-            _ = try await run("/usr/bin/tar", ["-xf", archive.path, "--no-same-owner", "--no-same-permissions"], in: directory)
+            #if os(Windows)
+            let tar = EditorHostTools.executable("tar")
+            #else
+            let tar = "/usr/bin/tar"
+            #endif
+            // Windows' bundled tar still uses narrow argv for archive paths. Keep
+            // the archive argument ASCII; CreateProcess sets the Unicode cwd.
+            let names = try await run(tar, ["-tf", archive.lastPathComponent], in: directory)
+            let details = try await run(tar, ["-tvf", archive.lastPathComponent], in: directory)
+            try Self.validateArchive(names: names, details: details, command: command)
+            _ = try await run(tar, ["-xf", archive.lastPathComponent, "--no-same-owner", "--no-same-permissions"], in: directory)
             try FileManager.default.removeItem(at: archive)
-            let executable = directory.appendingPathComponent(binary.cmd).standardizedFileURL
+            let executable = directory.appendingPathComponent(command).standardizedFileURL
+            #if !os(Windows)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
+            #endif
             return try executableTarget(executable, args: binary.args, env: binary.env)
         }
 
         static func validateArchive(names: String, details: String, command: String) throws {
             func safe(_ path: String) -> Bool {
-                !path.isEmpty && !path.hasPrefix("/") && !path.contains("\\") && !path.split(separator: "/").contains("..")
+                #if os(Windows)
+                let path = path.replacingOccurrences(of: "\\", with: "/")
+                #endif
+                return !path.isEmpty && !EditorHostTools.isAbsolutePath(path) && !path.contains(":") && !path.contains("\\") && !path.split(separator: "/").contains("..")
             }
             guard
-                safe(command), names.split(separator: "\n").allSatisfy({ safe(String($0)) }),
-                details.split(separator: "\n").allSatisfy({ $0.first == "-" || $0.first == "d" })
+                safe(command), names.components(separatedBy: .newlines).filter({ !$0.isEmpty }).allSatisfy(safe),
+                details.components(separatedBy: .newlines).filter({ !$0.isEmpty }).allSatisfy({ $0.first == "-" || $0.first == "d" })
             else {
                 throw EditorAgentCatalogError(message: "Unsafe archive paths or links. Install this agent manually.")
             }
@@ -314,7 +359,7 @@ actor EditorAgentCatalogService {
             guard FileManager.default.isExecutableFile(atPath: url.path) else {
                 throw EditorAgentCatalogError(message: "Installed agent executable is missing.")
             }
-            return AdaProjectAgentTarget(command: url.path, arguments: args ?? [], environment: ["PATH": paths.joined(separator: ":")].merging(env ?? [:]) { _, new in new })
+            return AdaProjectAgentTarget(command: url.path, arguments: args ?? [], environment: ["PATH": paths.joined(separator: EditorAgentDiscovery.pathSeparator)].merging(env ?? [:]) { _, new in new })
         }
     #endif
 }

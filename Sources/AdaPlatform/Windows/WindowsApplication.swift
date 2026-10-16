@@ -9,6 +9,7 @@
     import AdaApp
     import AdaECS
     @_spi(Internal) import AdaInput
+    import AdaRender
     @_spi(Internal) import AdaUI
     import AdaUtils
     import Foundation
@@ -107,6 +108,17 @@
 
         private func waitForNextFrameIfNeeded(startedAt frameStartedAt: LongTimeInterval, appWorlds: AppWorlds) async throws {
             guard let framePacing = appWorlds.getResource(ApplicationFramePacing.self) else {
+                await Task.yield()
+                return
+            }
+
+            // Dawn's FIFO swapchain already waits for the display. Sleeping
+            // again adds a coarse Windows scheduler tick and can halve FPS.
+            // Keep the timed fallback for headless/hidden windows and fixed caps.
+            let frameRequests = appWorlds.getResource(WindowFrameRequests.self)
+            if framePacing.synchronizesWithDisplayRefreshRate,
+               RenderEngine.shared?.type == .webgpu,
+               (windowManager as? WindowsWindowManager)?.hasVisibleRenderWindow(requests: frameRequests) == true {
                 await Task.yield()
                 return
             }

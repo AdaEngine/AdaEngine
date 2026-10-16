@@ -3,7 +3,7 @@ import Testing
 
 @testable import AdaEditor
 
-#if os(macOS)
+#if os(macOS) || os(Windows)
     @Suite("Editor agent ACP streaming", .serialized)
     struct EditorAgentStreamingTests {
         @Test("connected session keeps model selection and delivers deltas before prompt completion")
@@ -15,7 +15,7 @@ import Testing
             try Self.agentScript.write(to: script, atomically: true, encoding: .utf8)
             var project = ProjectSystem.defaultProject(projectName: "Streaming")
             project.ai.agent.enabled = true
-            project.ai.agent.target = AdaProjectAgentTarget(command: "/usr/bin/python3", arguments: [script.path])
+            project.ai.agent.target = AdaProjectAgentTarget(command: EditorHostTools.executable("python3", windowsName: "python.exe"), arguments: [script.path])
             let request = EditorAgentRunRequest(
                 project: project,
                 projectURL: root,
@@ -77,7 +77,7 @@ import Testing
             try Self.replayAgentScript.write(to: script, atomically: true, encoding: .utf8)
             var project = ProjectSystem.defaultProject(projectName: "Replay")
             project.ai.agent.enabled = true
-            project.ai.agent.target = .init(command: "/usr/bin/python3", arguments: [script.path])
+            project.ai.agent.target = .init(command: EditorHostTools.executable("python3", windowsName: "python.exe"), arguments: [script.path])
             var session = EditorAgentSession()
             session.upstreamSessionID = "previous-session"
             session.agentTargetIdentity = project.ai.agent.target.sessionIdentity
@@ -114,7 +114,7 @@ import Testing
             try Self.agentScript.write(to: script, atomically: true, encoding: .utf8)
             var project = ProjectSystem.defaultProject(projectName: "Notifications")
             project.ai.agent.enabled = true
-            project.ai.agent.target = AdaProjectAgentTarget(command: "/usr/bin/python3", arguments: [script.path])
+            project.ai.agent.target = AdaProjectAgentTarget(command: EditorHostTools.executable("python3", windowsName: "python.exe"), arguments: [script.path])
             try ProjectSystem.saveProject(project, at: root)
             let service = EditorACPAgentService()
             let center = EditorNotificationCenter()
@@ -166,7 +166,7 @@ import Testing
                 .write(to: script, atomically: true, encoding: .utf8)
             var project = ProjectSystem.defaultProject(projectName: "Switch")
             project.ai.agent.enabled = true
-            project.ai.agent.target = .init(command: "/usr/bin/python3", arguments: [script.path], environment: ["AGENT": "first"])
+            project.ai.agent.target = .init(command: EditorHostTools.executable("python3", windowsName: "python.exe"), arguments: [script.path], environment: ["AGENT": "first"])
             var session = EditorAgentSession()
             let service = EditorACPAgentService()
             do {

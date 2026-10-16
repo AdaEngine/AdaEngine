@@ -15,8 +15,31 @@ and assess gaps before proposing new features.
   archive/upload validation does not establish visionOS interaction parity.
 - Shared editor UI uses AdaUI. Native app wrappers and mobile-specific screens
   have separate platform boundaries; do not assume desktop/mobile feature parity.
+- Windows Studio is built/launched with [../script/run_studio_windows.ps1](../script/run_studio_windows.ps1).
+  It prepares pinned Tint and a task-local Gravity binding with C-owned UTF-8
+  strings, selecting it through `ADAENGINE_GRAVITY_PACKAGE_PATH`. Manual Windows
+  builds/tests must use that override too. Native project/asset file pickers,
+  RGB color selection (inspector alpha), HTTPS downloads, local Run and D3D12
+  readback are implemented. Windows also has a menu row, native Settings window,
+  contextual cursors, Cloud browser PKCE sign-in with Credential Manager, and
+  WinSock/DNS-SD AdaPlayer pairing (including manual host:port). Apple in-app
+  purchases remain Apple-only. WebAssembly and Android compilation use the WSL
+  worker prepared by `../script/setup_windows_build_tools.ps1`; adb/emulator run
+  natively on Windows. See [README.md](README.md#Windows).
 - [Package.swift](Package.swift) owns package dependencies and resources;
   [project.yml](project.yml) owns XcodeGen app configuration.
+- Windows release CI uses `../script/build_studio_windows.ps1` and
+  `../script/package_studio_windows.py`. It publishes an x64 ZIP and SHA-256 on
+  GitHub Release publication; manual/PR builds retain Actions artifacts. Packaging
+  bundles Swift/Dawn runtime DLLs, resources, Tint and a relocatable `BuildSDK`
+  beside the executable. It checks PE imports and launches the tools with a clean
+  PATH. Windows signing and external host/export toolchains remain separate.
+- Build & Export scans host tools on page entry and provides Rescan plus official
+  Swift/Android setup links. Discovery fills missing/broken paths in the settings
+  draft, preserves valid overrides, and requires Save Build Settings to persist.
+  Windows discovery rereads registry environment and standard install locations;
+  native Windows tools must not fill WSL Web compiler/Tint fields. Setup links
+  open browser guides; they do not perform unattended installation.
 - Keep mocks, fixtures, and QA harnesses in test targets or separate executables.
   Do not add test-only objects or QA launch hooks to the main app, including Debug builds.
 - Use an isolated scratch/module cache when necessary; never delete the shared
@@ -290,7 +313,7 @@ Coverage: [EditorAgentWorkspaceTests.swift](Tests/AdaEditorTests/EditorAgentWork
 Desktop Git status, staging, commit, stash, pull/push, branch creation/checkout,
 history and diff review. Agent Chat includes transcript/session persistence,
 attachments, context selection, permissions, skills and agent settings.
-macOS ACP and iPhone SloppyRuntime replies stream native A2UI cards. Ordinary
+macOS/Windows ACP and iPhone SloppyRuntime replies stream native A2UI cards. Ordinary
 submissions return to the owning session; reserved local actions apply scene tools
 without a new model turn. NPC subtree spawning, color-field editing, structured
 scene batches and the system color palette are available. Scene revisions guard
@@ -303,8 +326,15 @@ Entry points: [EditorAgentA2UIController.swift](Sources/AdaEditor/Agent/EditorAg
 [EditorAgentA2UISurfaceCard.swift](Sources/AdaEditor/UI/Editor/EditorAgentA2UISurfaceCard.swift).
 Coverage: [EditorAgentA2UITests.swift](Tests/AdaEditorTests/EditorAgentA2UITests.swift),
 [EditorAgentA2UITransportTests.swift](Tests/AdaEditorTests/EditorAgentA2UITransportTests.swift).
-macOS ACP catalog discovers/installs/connects agents; mobile uses an in-process
-SloppyRuntime path when available. The macOS catalog shows bundled ACP Registry logos
+macOS/Windows ACP catalog discovers/installs/connects agents; mobile uses an in-process
+SloppyRuntime path when available. Windows reuses ACPModel and the shared editor service
+with native stdio JSON-RPC, suspended process/job startup, explicit inherited handles,
+literal argv, file/terminal callbacks and MCP stdio bridging. Native Windows registry
+binaries are preferred; npm launchers resolve to Node.js without a command shell.
+Node.js/uv remain prerequisites for their package distributions. Windows process-backed
+coverage includes session/model state, streaming, cancellation, permissions, files,
+terminals, MCP and A2UI. Provider account authentication requires the agent's own setup.
+The macOS catalog shows bundled ACP Registry logos
 and Sloppy branding for installed, discovered and registry agents. New registry logos
 load from HTTPS metadata with a shared cache and a generic fallback; icon URLs persist
 with managed installations. Editor MCP/host tools expose project/docs/API

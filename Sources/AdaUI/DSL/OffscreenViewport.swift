@@ -16,12 +16,22 @@ import Math
 package protocol OffscreenViewportDelegate: AnyObject {
     var renderTexture: Texture2D? { get }
     var renderTextureDidChange: (@MainActor @Sendable () -> Void)? { get set }
+    var renderFrameDidChange: (@MainActor @Sendable () -> Void)? { get set }
     func bootstrapIfNeeded()
     func shutdown()
     func tick(_ deltaTime: AdaUtils.TimeInterval)
     func receiveInputEvent(_ event: any InputEvent)
     func updateMousePosition(_ position: Point)
     func updateSize(_ size: SizeInt, scaleFactor: Float)
+    func setRenderingEnabled(_ enabled: Bool)
+}
+
+extension OffscreenViewportDelegate {
+    func setRenderingEnabled(_: Bool) {}
+    var renderFrameDidChange: (@MainActor @Sendable () -> Void)? {
+        get { nil }
+        set {}
+    }
 }
 
 // MARK: - Viewport View
@@ -31,14 +41,16 @@ package struct OffscreenViewportView: View, ViewNodeBuilder {
 
     let delegate: any OffscreenViewportDelegate
     let isInteractive: Bool
+    let updatesWhenWindowInactive: Bool
 
-    package init(delegate: any OffscreenViewportDelegate, isInteractive: Bool = true) {
+    package init(delegate: any OffscreenViewportDelegate, isInteractive: Bool = true, updatesWhenWindowInactive: Bool = true) {
         self.delegate = delegate
         self.isInteractive = isInteractive
+        self.updatesWhenWindowInactive = updatesWhenWindowInactive
     }
 
     func buildViewNode(in _: BuildContext) -> ViewNode {
-        OffscreenViewportNode(delegate: delegate, isInteractive: isInteractive, content: self)
+        OffscreenViewportNode(delegate: delegate, isInteractive: isInteractive, updatesWhenWindowInactive: updatesWhenWindowInactive, content: self)
     }
 }
 
@@ -76,6 +88,8 @@ private final class OffscreenViewportNode: ViewNode {
     private var isActive = false
     private var didBootstrap = false
     private var isInteractive: Bool
+    private var updatesWhenWindowInactive: Bool
+    private var isRenderingEnabled = true
     private var pressedKeys: [KeyCode: KeyEvent] = [:]
     private var pressedMouse: MouseEvent?
     private var activeTouches: [RID: TouchEvent] = [:]
@@ -86,9 +100,10 @@ private final class OffscreenViewportNode: ViewNode {
         false
     }
 
-    init<C: View>(delegate: any OffscreenViewportDelegate, isInteractive: Bool, content: C) {
+    init<C: View>(delegate: any OffscreenViewportDelegate, isInteractive: Bool, updatesWhenWindowInactive: Bool, content: C) {
         self.viewportRenderer = delegate
         self.isInteractive = isInteractive
+        self.updatesWhenWindowInactive = updatesWhenWindowInactive
         super.init(content: content)
     }
 
@@ -101,6 +116,7 @@ private final class OffscreenViewportNode: ViewNode {
             cancelActiveInput()
         }
         isInteractive = other.isInteractive
+        updatesWhenWindowInactive = other.updatesWhenWindowInactive
         super.update(from: newNode)
     }
 
@@ -160,6 +176,13 @@ private final class OffscreenViewportNode: ViewNode {
     // MARK: Tick
 
     override func update(_ deltaTime: AdaUtils.TimeInterval) {
+        let enabled = updatesWhenWindowInactive || owner?.containerView?.window?.isActive != false
+        if enabled != isRenderingEnabled {
+            isRenderingEnabled = enabled
+            if !enabled { cancelActiveInput() }
+            viewportRenderer.setRenderingEnabled(enabled)
+        }
+        guard enabled else { return }
         viewportRenderer.tick(deltaTime)
     }
 
@@ -383,6 +406,9 @@ private final class OffscreenViewportContainerNode<Content: View>: ViewContainer
                 }
                 self.invalidateContent()
                 self.owner?.containerView?.setNeedsDisplay(in: self.absoluteFrame())
+            }
+            viewportRenderer?.renderFrameDidChange = { [weak self] in
+                self?.owner?.containerView?.window?.setNeedsPresentation()
             }
         }
 

@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows) || os(Linux)
   import AdaPackageManifestTool
   import Foundation
   import SwiftParser
@@ -20,7 +20,7 @@
       let originalRoot = originalRoot.resolvingSymlinksInPath()
       let targetPath = target.path ?? "Sources/\(targetName)"
       let originalTarget =
-        (targetPath.hasPrefix("/")
+        (EditorHostTools.isAbsolutePath(targetPath)
         ? URL(fileURLWithPath: targetPath) : originalRoot.appendingPathComponent(targetPath))
         .resolvingSymlinksInPath().standardizedFileURL
       guard originalTarget.path.hasPrefix(originalRoot.path + "/") else {
@@ -150,14 +150,18 @@
               ?? .package(url: "https://github.com/AdaEngine/gravity-lang.git", branch: "master")
             """)
         }
-        if let path = literal("path"), !path.hasPrefix("/") {
+        if let path = literal("path") {
           var changed = node
           changed.arguments = LabeledExprListSyntax(
             node.arguments.map { argument in
               guard argument.label?.text == "path" else { return argument }
               var edited = argument
-              edited.expression = expression(
-                swiftString(originalRoot.appendingPathComponent(path).standardizedFileURL.path))
+              let absolute = EditorHostTools.isAbsolutePath(path) ? path : originalRoot.appendingPathComponent(path).standardizedFileURL.path
+              #if os(Windows)
+              edited.expression = expression(swiftString(EditorWindowsBuildWorker.linuxPath(absolute)))
+              #else
+              edited.expression = expression(swiftString(absolute))
+              #endif
               return edited
             })
           return ExprSyntax(changed)

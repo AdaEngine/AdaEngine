@@ -76,7 +76,8 @@
                     pixelFormat: surface.prefferedPixelFormat,
                     size: size,
                     scaleFactor: surface.scaleFactor,
-                    surfaceOwner: surface
+                    surfaceOwner: surface,
+                    device: device
                 )
             )
         }
@@ -125,6 +126,27 @@
                     guard window.size != newSize || (scaleFactor ?? window.scaleFactor) != window.scaleFactor else {
                         return
                     }
+                    #if !WASM
+                    if window.acquiredDrawableCount > 0 {
+                        // Configuring invalidates the current surface texture.
+                        // The render actor may still be encoding that frame.
+                        window.pendingSurfaceConfiguration = .init(
+                            size: newSize,
+                            scaleFactor: scaleFactor ?? window.scaleFactor,
+                            pixelFormat: pixelFormat ?? window.pixelFormat
+                        )
+                    } else {
+                        window.pendingSurfaceConfiguration = nil
+                        webGPUDeviceLock.withLock { _ in
+                            configureSurface(
+                                surface: window.surface,
+                                size: newSize,
+                                scaleFactor: scaleFactor ?? window.scaleFactor,
+                                pixelFormat: pixelFormat ?? window.pixelFormat
+                            )
+                        }
+                    }
+                    #else
                     webGPUDeviceLock.withLock { _ in
                         configureSurface(
                             surface: window.surface,
@@ -133,6 +155,7 @@
                             pixelFormat: pixelFormat ?? window.pixelFormat
                         )
                     }
+                    #endif
                     window.size = newSize
                     if let scaleFactor {
                         window.scaleFactor = scaleFactor
@@ -153,7 +176,10 @@
                 window.surfaceLock.withLock { _ in
                     window.isActive = false
                     #if !WASM
-                    webGPUDeviceLock.withLock { _ in window.surface.unconfigure() }
+                    window.pendingSurfaceConfiguration = nil
+                    if window.acquiredDrawableCount == 0 {
+                        webGPUDeviceLock.withLock { _ in window.surface.unconfigure() }
+                    }
                     #endif
                 }
                 $0.removeValue(forKey: windowId)
@@ -185,12 +211,14 @@
             let windows = self.windows.withLock { $0 }
             var renderWindows = SparseSet<WindowID, AdaRender.RenderWindow>()
             for (windowId, window) in windows {
-                renderWindows[windowId] = AdaRender.RenderWindow(
-                    windowId: window.windowId,
-                    height: window.size.height,
-                    width: window.size.width,
-                    scaleFactor: window.scaleFactor
-                )
+                renderWindows[windowId] = window.surfaceLock.withLock { _ in
+                    AdaRender.RenderWindow(
+                        windowId: window.windowId,
+                        height: window.size.height,
+                        width: window.size.width,
+                        scaleFactor: window.scaleFactor
+                    )
+                }
             }
 
             return AdaRender.RenderWindows(windows: renderWindows)
@@ -198,6 +226,16 @@
 
         private func configureSurface(
             surface: WGPUSurfaceHandle,
+            size: Math.SizeInt,
+            scaleFactor: Float,
+            pixelFormat: PixelFormat
+        ) {
+            Self.configureSurface(surface: surface, device: device, size: size, scaleFactor: scaleFactor, pixelFormat: pixelFormat)
+        }
+
+        private static func configureSurface(
+            surface: WGPUSurfaceHandle,
+            device: WebGPU.GPUDevice,
             size: Math.SizeInt,
             scaleFactor: Float,
             pixelFormat: PixelFormat
@@ -238,6 +276,38 @@
             var pendingDrawableSkips: Int = 0
             public var size: Math.SizeInt
             public var scaleFactor: Float
+            private let device: WebGPU.GPUDevice
+            #if !WASM
+            struct SurfaceConfiguration: Sendable {
+                let size: Math.SizeInt
+                let scaleFactor: Float
+                let pixelFormat: PixelFormat
+            }
+            // All frame lifetime and configuration state uses surfaceLock.
+            var acquiredDrawableCount = 0
+            var pendingSurfaceConfiguration: SurfaceConfiguration?
+
+            func applyPendingSurfaceConfiguration() {
+                guard acquiredDrawableCount == 0, let pendingSurfaceConfiguration else { return }
+                webGPUDeviceLock.withLock { _ in
+                    WGPUContext.configureSurface(
+                        surface: surface, device: device,
+                        size: pendingSurfaceConfiguration.size, scaleFactor: pendingSurfaceConfiguration.scaleFactor,
+                        pixelFormat: pendingSurfaceConfiguration.pixelFormat
+                    )
+                }
+                self.pendingSurfaceConfiguration = nil
+            }
+
+            func finishDrawable() {
+                surfaceLock.withLock { _ in
+                    acquiredDrawableCount -= 1
+                    if !isActive, acquiredDrawableCount == 0 {
+                        webGPUDeviceLock.withLock { _ in surface.unconfigure() }
+                    }
+                }
+            }
+            #endif
 
             init(
                 windowId: WindowID,
@@ -245,7 +315,8 @@
                 pixelFormat: PixelFormat,
                 size: Math.SizeInt,
                 scaleFactor: Float,
-                surfaceOwner: any RenderSurface
+                surfaceOwner: any RenderSurface,
+                device: WebGPU.GPUDevice
             ) {
                 self.windowId = windowId
                 self.surface = surface
@@ -253,6 +324,7 @@
                 self.size = size
                 self.scaleFactor = scaleFactor
                 self.surfaceOwner = surfaceOwner
+                self.device = device
             }
         }
 

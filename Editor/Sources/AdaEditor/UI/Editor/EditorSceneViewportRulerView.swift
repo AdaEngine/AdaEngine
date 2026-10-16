@@ -1,8 +1,48 @@
 @_spi(AdaEngine) import AdaEngine
+import Observation
+
+@MainActor
+@Observable
+final class EditorViewportPresentation {
+    var revision: UInt = 0
+}
+
+/// Scene textures change each frame; editor annotations change only with the viewport.
+struct EditorViewportDrawingLayer: View {
+    enum Kind { case grid, gizmos }
+
+    let viewportModel: EditorSceneViewportModel
+    let presentation: EditorViewportPresentation
+    let kind: Kind
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        // Read outside Canvas so a navigation update invalidates the retained layer.
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = presentation.revision
+        Canvas { context, size in
+            switch kind {
+            case .grid: viewportModel.drawGrid(in: &context, size: size, theme: theme)
+            case .gizmos: viewportModel.drawGizmos(in: &context, size: size, theme: theme)
+            }
+        }
+        .drawingGroup()
+    }
+}
 
 extension EditorSceneViewportView {
     var viewportCoordinateRulerLayer: some View {
-        let revision = viewportRevision
+        EditorViewportRulerLayer(viewportModel: viewportModel, presentation: viewportPresentation)
+    }
+}
+
+struct EditorViewportRulerLayer: View {
+    let viewportModel: EditorSceneViewportModel
+    let presentation: EditorViewportPresentation
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        let revision = presentation.revision
         return GeometryReader { proxy in
             // A declaration is required inside AdaUI's result builder.
             // swiftlint:disable:next redundant_discardable_let
@@ -52,5 +92,21 @@ extension EditorSceneViewportView {
                 .frame(width: 34, height: 18, alignment: .trailing)
                 .offset(x: 2, y: label.position.y - 9)
         }
+    }
+}
+
+struct EditorViewportStatusLabel: View {
+    let presentation: EditorViewportPresentation
+    let viewportModel: EditorSceneViewportModel
+    let warning: String?
+    let entityCount: Int
+
+    var body: some View {
+        // Subscribe at the label, not at the viewport that owns SceneView.
+        // swiftlint:disable:next redundant_discardable_let
+        let _ = presentation.revision
+        Text(warning.map { "Scene warning: \($0)" }
+            ?? "Loaded \(entityCount) entities · \(viewportModel.statusSuffix)")
+            .accessibilityIdentifier("AdaEditor.SceneViewport.Status")
     }
 }

@@ -211,6 +211,12 @@ struct EditorAgentProjectFileSearch {
 
         var entries: [Entry] = []
         for case let url as URL in enumerator {
+            // Windows' hidden-file attribute does not include Unix dotfiles.
+            // Keep mention suggestions consistent and avoid scanning .ada/.build.
+            if url.lastPathComponent.hasPrefix(".") {
+                if (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true { enumerator.skipDescendants() }
+                continue
+            }
             let standardized = url.standardizedFileURL
             guard standardized.path.hasPrefix(rootURL.path + "/") else {
                 continue

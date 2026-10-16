@@ -8,7 +8,12 @@ struct EditorMenuBarTests {
     func menuBarContainsEditorWorkflowMenus() {
         let menus = EditorMenuBar.makeMenus()
 
-        #expect(menus.map(\.title) == ["System", "File", "Edit", "View", "Project", "Build", "Code", "Window", "Help"])
+        #if os(Windows) || os(Linux)
+        let applicationTitle = "Studio"
+        #else
+        let applicationTitle = "System"
+        #endif
+        #expect(menus.map(\.title) == [applicationTitle, "File", "Edit", "View", "Project", "Build", "Code", "Window", "Help"])
         #expect(menus.allSatisfy { !$0.items.isEmpty })
         #expect(menus.flatMap(\.items).filter { !$0.isSeparator }.allSatisfy { $0.isEnabled })
         #expect(menus.first?.placement == .application)
@@ -19,11 +24,11 @@ struct EditorMenuBarTests {
         let menus = EditorMenuBar.makeMenus()
         let edit = try #require(menus.first { $0.title == "Edit" })
         #expect(edit.items.first { $0.title == "Undo" }?.keyEquivalent == .z)
-        #expect(edit.items.first { $0.title == "Redo" }?.keyEquivalentModifierMask == [.main, .alt])
+        #expect(edit.items.first { $0.title == "Redo" }?.keyEquivalentModifierMask == [.command, .alt])
         let file = try #require(menus.first { $0.title == "File" })
         let build = try #require(menus.first { $0.title == "Build" })
         let code = try #require(menus.first { $0.title == "Code" })
-        let system = try #require(menus.first { $0.title == "System" })
+        let system = try #require(menus.first { $0.placement == .application })
 
         #expect(file.items.map(\.title).contains("New File"))
         #expect(file.items.map(\.title).contains("Open Project..."))
@@ -33,7 +38,7 @@ struct EditorMenuBarTests {
         #expect(code.items.map(\.title).contains("Show Preview"))
         #expect(code.items.map(\.title).contains("Rebuild Preview"))
         #expect(edit.items.first { $0.title == "Find in File" }?.keyEquivalent == .f)
-        #expect(edit.items.first { $0.title == "Find in Project" }?.keyEquivalentModifierMask == [.main, .shift])
+        #expect(edit.items.first { $0.title == "Find in Project" }?.keyEquivalentModifierMask == [.command, .shift])
         let systemTitles = system.items.filter { !$0.isSeparator }.map(\.title)
         let expectedPrefix = EditorDistribution.current == .standalone ? ["Settings...", "Check for Updates…"] : ["Settings..."]
         #expect(systemTitles.starts(with: expectedPrefix))
@@ -47,9 +52,12 @@ struct EditorMenuBarTests {
         #expect(system.items.first?.keyEquivalent == .comma)
         #expect(file.items.first { $0.title == "Save" }?.keyEquivalent == .s)
         #expect(file.items.first { $0.title == "Close Editor Tab" }?.keyEquivalent == .w)
-        #expect(file.items.first { $0.title == "Close Editor Tab" }?.keyEquivalentModifierMask == .main)
-        #expect(file.items.first { $0.title == "Close Window" }?.keyEquivalentModifierMask == [.main, .shift])
+        #expect(file.items.first { $0.title == "Close Editor Tab" }?.keyEquivalentModifierMask == .command)
+        #expect(file.items.first { $0.title == "Close Window" }?.keyEquivalentModifierMask == [.command, .shift])
         #expect(code.items.first { $0.title == "Close Editor Tab" } == nil)
+        #if os(Windows)
+        #expect(code.items.first { $0.title == "Increase Font Size" }?.keyEquivalent == .equals)
+        #endif
         #expect(build.items.first { $0.title == "Build Project" }?.keyEquivalent == .b)
     }
 }

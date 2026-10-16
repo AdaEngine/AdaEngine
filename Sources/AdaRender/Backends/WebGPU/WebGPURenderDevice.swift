@@ -33,7 +33,7 @@
                     )
                 }
                 .unwrap(message: "Failed to create uniform buffer")
-            return WGPUUniformBuffer(buffer: _buffer, device: context.device, binding: binding)
+            return WGPUUniformBuffer(buffer: _buffer, device: context.device, binding: binding, instance: context.instance)
         }
 
         public func createVertexBuffer(label: String?, length: Int, binding: Int) -> any VertexBuffer {
@@ -48,7 +48,7 @@
                     )
                 }
                 .unwrap(message: "Failed to create vertex buffer")
-            return WGPUVertexBuffer(buffer: _buffer, device: context.device, binding: binding)
+            return WGPUVertexBuffer(buffer: _buffer, device: context.device, binding: binding, instance: context.instance)
         }
 
         public func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> any IndexBuffer {
@@ -63,7 +63,7 @@
                     )
                 }
                 .unwrap(message: "Failed to create index buffer")
-            let buffer = WGPUIndexBuffer(buffer: _buffer, device: context.device, indexFormat: format)
+            let buffer = WGPUIndexBuffer(buffer: _buffer, device: context.device, indexFormat: format, instance: context.instance)
             unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
             return buffer
         }
@@ -80,7 +80,7 @@
                     )
                 }
                 .unwrap(message: "Failed to create buffer")
-            let buffer = WGPUBuffer(buffer: _buffer, device: context.device)
+            let buffer = WGPUBuffer(buffer: _buffer, device: context.device, instance: context.instance)
             unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
             return buffer
         }
@@ -97,7 +97,7 @@
                     )
                 }
                 .unwrap(message: "Failed to create buffer")
-            return WGPUBuffer(buffer: buffer, device: context.device)
+            return WGPUBuffer(buffer: buffer, device: context.device, instance: context.instance)
         }
 
         public func compileShader(from shader: Shader) throws -> any CompiledShader {
@@ -149,7 +149,7 @@
         }
 
         public func readImage(from texture: Texture) async throws -> Image? {
-            return try await (texture.gpuTexture as? WGPUGPUTexture)?.readImage(device: context.device)
+            return try await (texture.gpuTexture as? WGPUGPUTexture)?.readImage(device: context.device, instance: context.instance)
         }
 
         public func createCommandQueue() -> any CommandQueue {

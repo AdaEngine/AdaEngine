@@ -59,7 +59,7 @@ struct EditorAdaScriptProjectRuntimeView: View {
             ZStack {
                 SceneView(
                     isInteractive: controls?.inputEnabled ?? true,
-                    useSceneCameras: artifact.plugins.contains(.core3D),
+                    useSceneCameras: artifact.plugins.contains(.core3D) || hasSceneCamera,
                     make: { app in
                         configureRuntime(&app)
                     },
@@ -89,6 +89,12 @@ struct EditorAdaScriptProjectRuntimeView: View {
             performanceSession.stop()
             controls?.finish()
         }
+    }
+
+    private var hasSceneCamera: Bool {
+        artifact.sceneModel?.entities.contains { entity in
+            entity.components[EditorBuiltInComponentType.camera] != nil
+        } == true
     }
 
     private func configureRuntime(_ app: inout AppWorlds) {

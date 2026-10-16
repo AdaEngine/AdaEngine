@@ -1,5 +1,9 @@
 import AdaDebugging
+#if canImport(CryptoKit)
 import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
 import Observation
 

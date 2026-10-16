@@ -28,6 +28,10 @@ let gravityAOTPackage: [Package.Dependency] = gravityAOTPath.map { [.package(nam
     ?? [.package(url: "https://github.com/AdaEngine/gravity-lang.git", branch: "master")]
 let gravityAOTTarget: [Target.Dependency] = [.product(name: "GravityAOT", package: "gravity-lang"), .product(name: "CGravity", package: "gravity-lang")]
 
+let windowsIconResource = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(".build-tools/AdaStudio.res").path
+let windowsIconLinkerSettings: [LinkerSetting] = FileManager.default.fileExists(atPath: windowsIconResource)
+    ? [.unsafeFlags(["-Xlinker", windowsIconResource], .when(platforms: [.windows]))] : []
+
 let package = Package(
     name: "AdaEditor",
     defaultLocalization: "en",
@@ -105,7 +109,7 @@ let package = Package(
                 .product(name: "AdaMCPCore", package: "AdaMCP"),
                 .product(name: "MCP", package: "AdaMCP"),
                 .product(name: "ACP", package: "swift-acp", condition: .when(platforms: [.macOS])),
-                .product(name: "ACPModel", package: "swift-acp", condition: .when(platforms: [.macOS])),
+                .product(name: "ACPModel", package: "swift-acp", condition: .when(platforms: [.macOS, .windows])),
                 .product(name: "SwiftParser", package: "swift-syntax"),
                 .product(name: "SwiftSyntax", package: "swift-syntax"),
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
@@ -122,7 +126,8 @@ let package = Package(
             resources: [
                 .copy("Assets")
             ],
-            swiftSettings: editorSwiftSettings
+            swiftSettings: editorSwiftSettings,
+            linkerSettings: windowsIconLinkerSettings
         ),
         .testTarget(
             name: "AdaEditorTests",

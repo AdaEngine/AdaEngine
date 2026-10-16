@@ -1,8 +1,11 @@
 import Foundation
 
 extension EditorViewModel {
-    func exportAdaScriptNativeGame(web: Bool) {
-        #if os(macOS) && canImport(GravityAOT)
+    func exportAdaScriptNativeGame(web: Bool, launch: Bool = false) {
+        #if (os(macOS) || os(Windows) || os(Linux)) && canImport(GravityAOT)
+        #if !os(macOS)
+        guard web else { appendOutput("macOS application packaging requires a macOS host."); return }
+        #endif
         guard workspaceTask == nil, let projectURL else {
             return
         }
@@ -26,10 +29,15 @@ extension EditorViewModel {
                 let sdk = try EditorBuildSDK.locate()
                 let toolchain = await SwiftToolchainLocator.locate()
                 let buildSettings = EditorBuildExportConfiguration.load()
+                #if os(Windows)
+                let webSwift = ProcessInfo.processInfo.environment["ADA_WEB_SWIFT_EXECUTABLE"]
+                    ?? buildSettings.swiftExecutable(for: .web) ?? ""
+                #else
                 let webSwift =
                     ProcessInfo.processInfo.environment["ADA_WEB_SWIFT_EXECUTABLE"]
                     ?? buildSettings.swiftExecutable(for: .web)
                     ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Developer/Toolchains/swift-6.3.2-RELEASE.xctoolchain/usr/bin/swift").path
+                #endif
                 let options = EditorAdaScriptNativeExportOptions(
                     destination: web ? .web : .macOS,
                     gravityRoot: sdk.compilerRoot,
@@ -47,7 +55,15 @@ extension EditorViewModel {
                 workspaceStatus = .idle
                 buildActivity?.finish(succeeded: true)
                 finishWorkspaceActivity(activity, succeeded: true)
-                _ = EditorPlatformFileActions.reveal(result)
+                if launch, web {
+                    #if os(Windows)
+                    try await serveWindowsWebExport(at: result.appendingPathComponent("web"), engine: sdk.engineRoot, runner: runner)
+                    #else
+                    _ = EditorPlatformFileActions.reveal(result)
+                    #endif
+                } else {
+                    _ = EditorPlatformFileActions.reveal(result)
+                }
             } catch is CancellationError {
                 workspaceStatus = .cancelled
                 buildActivity?.finish(succeeded: false)
@@ -66,4 +82,33 @@ extension EditorViewModel {
         appendOutput("Native export requires standalone macOS AdaEditor with Gravity AOT.")
         #endif
     }
+
+    #if os(Windows)
+    private func serveWindowsWebExport(at directory: URL, engine: URL, runner: EditorProcessRunner) async throws {
+        guard FileManager.default.fileExists(atPath: directory.appendingPathComponent("index.html").path) else {
+            throw EditorPreviewBuildFailure(message: "The Web export has no index.html.")
+        }
+        let command = EditorProcessCommand(
+            executablePath: EditorHostTools.executable("python3", windowsName: "python.exe"),
+            arguments: [engine.appendingPathComponent("Tools/Windows/serve_web.py").path, "--directory", directory.path],
+            workingDirectory: directory, environment: [:])
+        let result = await runner.run(command) { [weak self] event in
+            await MainActor.run {
+                guard let self else { return }
+                self.appendOutputBlock(event.text)
+                for line in event.text.split(whereSeparator: \.isNewline) where line.hasPrefix("ADA_WEB_READY ") {
+                    let data = Data(line.dropFirst("ADA_WEB_READY ".count).utf8)
+                    if let address = (try? JSONDecoder().decode([String: String].self, from: data))?["url"], let url = URL(string: address) {
+                        _ = self.externalURLOpener(url)
+                        self.workspaceStatus = .running("Web · " + address)
+                        self.footer.setWorkspaceFooterTitle(self.workspaceStatus.title)
+                    }
+                }
+            }
+        }
+        try Task.checkCancellation()
+        guard result.succeeded else { throw EditorPreviewBuildFailure(message: result.combinedOutput) }
+        workspaceStatus = .ready
+    }
+    #endif
 }

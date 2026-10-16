@@ -4,7 +4,10 @@ extension EditorProjectStore {
     func projectForOpening(at url: URL) throws -> AdaProject {
         do {
             return try ProjectSystem.validateProjectLayout(at: url, fileManager: fileManager)
-        } catch ProjectSystemError.metadataFileMissing {
+        } catch {
+            // Keep the typed error explicit; matching a throwing catch pattern
+            // triggers a SIL verifier failure in the Windows Swift 6.3.1 compiler.
+            guard case .metadataFileMissing = error else { throw error }
             let buildSystem: AdaProjectBuildSystem = fileManager.fileExists(atPath: url.appendingPathComponent("Package.swift").path) ? .swiftpm : .adaScript
             try distribution.validate(buildSystem: buildSystem)
             if buildSystem.isAdaScript {

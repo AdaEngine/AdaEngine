@@ -32,10 +32,16 @@ struct EditorBuildExportSettingsTests {
             }
             let page = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.BuildExport.Page." + platform.rawValue))
             #expect(page.absoluteFrame.width > 300)
+            let rescan = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.BuildExport.Rescan." + platform.rawValue))
+            #expect(rescan.absoluteFrame.height > 20)
+            if platform == .host {
+                _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.BuildExport.InstallSwift." + platform.rawValue))
+            }
             let field = try #require(platform.fields.first)
             let input = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.BuildExport." + platform.rawValue + "." + field.id))
             #expect(input.absoluteFrame.height > 20)
             if platform == .android {
+                _ = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.BuildExport.InstallAndroid"))
                 let ndk = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.BuildExport.ANDROID.ANDROID_NDK_HOME"))
                 let jdk = try container.uiNode(matching: .accessibilityIdentifier("AdaEditor.BuildExport.ANDROID.JAVA_HOME"))
                 #expect(abs(input.absoluteFrame.width - ndk.absoluteFrame.width) < 1)
@@ -85,10 +91,17 @@ struct EditorBuildExportSettingsTests {
         let native = service.makeCommand(.build(target: nil, buildTests: false), projectURL: root, toolchain: toolchain, buildSettings: settings)
         #expect(native.executablePath == "/Tools/Native/swift")
         let web = service.makeCommand(.runWeb(target: "Game", outputPath: "dist/web", serve: true), projectURL: root, toolchain: toolchain, buildSettings: settings)
+        #if os(Windows)
+        #expect(web.executablePath.lowercased().hasSuffix("wsl.exe"))
+        #expect(web.arguments.contains("/Tools/WASM/swift"))
+        #expect(web.arguments.contains("custom-wasm-sdk"))
+        #expect(web.arguments.contains("/Tools/Tint/tint"))
+        #else
         #expect(web.executablePath == "/Tools/WASM/swift")
         #expect(web.arguments.suffix(2) == ["--swift-sdk", "custom-wasm-sdk"])
         #expect(web.environment["TINT_EXECUTABLE"] == "/Tools/Tint/tint")
         #expect(web.environment["BUILD_WASM"] == "1")
+        #endif
         #expect(web.environment["DEVELOPER_DIR"] == nil)
     }
 
@@ -97,9 +110,14 @@ struct EditorBuildExportSettingsTests {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("BuildTools." + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
+        #if os(Windows)
+        let tool = root.appendingPathComponent("swift.exe")
+        try FileManager.default.copyItem(at: #require(Bundle.main.executableURL), to: tool)
+        #else
         let tool = root.appendingPathComponent("swift")
         try Data("#!/bin/sh\nexit 0\n".utf8).write(to: tool)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: tool.path)
+        #endif
         var settings = EditorBuildExportConfiguration()
         settings.values[EditorBuildPlatform.macOS.rawValue] = ["SWIFT_EXECUTABLE": tool.path, "DEVELOPER_DIR": root.path]
         #expect(settings.pathStatus(EditorBuildToolField("SWIFT_EXECUTABLE", "Swift", .executable), for: .macOS) == "Available")

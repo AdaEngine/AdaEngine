@@ -17,9 +17,9 @@ import Foundation
     import Android
 #elseif os(Linux)
     import Glibc
+#elseif os(Windows)
+    import WinSDK
 #endif
-
-// TODO: (Vlad) Time for Windows OS
 
 /// Represent time interval in system.
 public typealias TimeInterval = Float
@@ -32,8 +32,13 @@ public struct Time {
         #if os(iOS) || os(tvOS) || os(visionOS) || os(OSX) || os(watchOS)
             return LongTimeInterval(CACurrentMediaTime())
         #elseif os(Windows)
-            // Windows doesn't have clock_gettime, use Foundation's ProcessInfo
-            return LongTimeInterval(ProcessInfo.processInfo.systemUptime)
+            // Foundation's Windows uptime clock advances in ~15 ms steps. Frame
+            // deltas and pacing need the monotonic, high-resolution QPC clock.
+            var counter = LARGE_INTEGER()
+            if let secondsPerTick, unsafe QueryPerformanceCounter(&counter) {
+                return unsafe LongTimeInterval(counter.QuadPart) * secondsPerTick
+            }
+            return ProcessInfo.processInfo.systemUptime
         #elseif os(Android)
             return ProcessInfo.processInfo.systemUptime
         #elseif os(WASI)
@@ -45,4 +50,16 @@ public struct Time {
             return LongTimeInterval(time.tv_sec) + LongTimeInterval(time.tv_nsec) / LongTimeInterval(1.0e-9)
         #endif
     }
+
+    #if os(Windows)
+    // QPC's frequency is fixed at boot and shared across processors. Cache only
+    // this immutable conversion factor; each read obtains a fresh counter.
+    private static let secondsPerTick: LongTimeInterval? = {
+        var frequency = LARGE_INTEGER()
+        guard unsafe QueryPerformanceFrequency(&frequency), unsafe frequency.QuadPart > 0 else {
+            return nil
+        }
+        return unsafe 1 / LongTimeInterval(frequency.QuadPart)
+    }()
+    #endif
 }

@@ -23,7 +23,7 @@ enum AdaScriptSceneComponentDecoder {
 
     static func value(_ json: Any, kind: ReflectedFieldKind) -> ReflectedFieldValue? {
         func number(_ value: Any) -> Double? {
-            guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+            guard let number = value as? NSNumber, type(of: number) != type(of: NSNumber(value: true)) else { return nil }
             return number.doubleValue
         }
         switch kind {

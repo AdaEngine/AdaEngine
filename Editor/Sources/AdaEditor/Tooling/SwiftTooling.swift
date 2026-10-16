@@ -70,7 +70,15 @@ enum SwiftToolchainLocator {
     }
 
     private static func runCapture(executable: String, arguments: [String]) async -> String? {
-        #if os(macOS) || os(Linux) || os(Windows)
+        #if os(Windows)
+            let result = await EditorProcessRunner().run(EditorProcessCommand(
+                executablePath: executable, arguments: arguments,
+                workingDirectory: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            ))
+            guard result.succeeded else { return nil }
+            return result.standardOutput.split(whereSeparator: \Character.isNewline).first.map(String.init)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        #elseif os(macOS) || os(Linux)
             await withCheckedContinuation { continuation in
                 let process = Process()
                 let output = Pipe()
@@ -98,42 +106,6 @@ enum SwiftToolchainLocator {
             nil
         #endif
     }
-}
-
-struct EditorProcessCommand: Equatable, Sendable {
-    var executablePath: String
-    var arguments: [String]
-    var workingDirectory: URL
-    var environment: [String: String]
-    var displayName: String
-
-    init(
-        executablePath: String,
-        arguments: [String],
-        workingDirectory: URL,
-        environment: [String: String] = [:],
-        displayName: String? = nil
-    ) {
-        self.executablePath = executablePath
-        self.arguments = arguments
-        self.workingDirectory = workingDirectory
-        self.environment = environment
-        self.displayName = displayName ?? ([URL(fileURLWithPath: executablePath).lastPathComponent] + arguments).joined(separator: " ")
-    }
-
-    var shellDescription: String {
-        displayName
-    }
-}
-
-enum EditorProcessOutputStream: Equatable, Sendable {
-    case standardOutput
-    case standardError
-}
-
-struct EditorProcessOutputEvent: Equatable, Sendable {
-    var stream: EditorProcessOutputStream
-    var text: String
 }
 
 enum SwiftPMWorkspaceBootstrapPhase: String, Equatable, Sendable {
@@ -319,36 +291,7 @@ actor SwiftPMBuildProgressTracker {
     }
 }
 
-struct EditorProcessResult: Equatable, Sendable {
-    var command: EditorProcessCommand
-    var exitCode: Int32
-    var standardOutput: String
-    var standardError: String
-
-    var succeeded: Bool {
-        exitCode == 0
-    }
-
-    var combinedOutput: String {
-        [standardOutput, standardError]
-            .filter { !$0.isEmpty }
-            .joined(separator: standardOutput.isEmpty || standardError.isEmpty ? "" : "\n")
-    }
-}
-
-protocol EditorProcessRunning: Sendable {
-    func run(_ command: EditorProcessCommand) async -> EditorProcessResult
-    func run(_ command: EditorProcessCommand, output: @Sendable @escaping (EditorProcessOutputEvent) async -> Void) async -> EditorProcessResult
-    func cancelAll() async
-}
-
-extension EditorProcessRunning {
-    func run(_ command: EditorProcessCommand, output _: @Sendable @escaping (EditorProcessOutputEvent) async -> Void) async -> EditorProcessResult {
-        await run(command)
-    }
-}
-
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS) || os(Linux)
     actor EditorProcessRunner: EditorProcessRunning {
         private var activeProcesses: [UUID: Process] = [:]
 
@@ -362,12 +305,18 @@ extension EditorProcessRunning {
             let output = Pipe()
             let error = Pipe()
 
-            process.executableURL = URL(fileURLWithPath: command.executablePath)
+            #if os(Windows)
+            let executable = EditorHostTools.isAbsolutePath(command.executablePath)
+                ? command.executablePath : EditorHostTools.executable(command.executablePath)
+            #else
+            let executable = command.executablePath
+            #endif
+            process.executableURL = URL(fileURLWithPath: executable)
             process.arguments = command.arguments
             process.currentDirectoryURL = command.workingDirectory
             process.standardOutput = output
             process.standardError = error
-            process.environment = ProcessInfo.processInfo.environment.merging(command.environment) { _, new in new }
+            process.environment = EditorHostTools.mergedEnvironment(command.environment)
 
             activeProcesses[processID] = process
             defer { activeProcesses[processID] = nil }
@@ -450,7 +399,7 @@ extension EditorProcessRunning {
             }
         }
     }
-#else
+#elseif !os(Windows)
     actor EditorProcessRunner: EditorProcessRunning {
         func run(_ command: EditorProcessCommand) async -> EditorProcessResult {
             EditorProcessResult(
@@ -480,6 +429,7 @@ enum SwiftPMCommandKind: Equatable, Sendable {
 enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
     case player = "AdaPlayer"
     case macOS = "macOS"
+    case windows = "Windows"
     case iPadOS = "iPadOS"
     case visionOS = "visionOS"
     case web = "Web"
@@ -487,9 +437,13 @@ enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
 
     static var availableCases: [Self] {
         #if os(macOS)
-        EditorDistribution.current.supportsSwiftProjects ? allCases : allCases.filter { $0 != .android }
+        allCases.filter { $0 != .windows && (EditorDistribution.current.supportsSwiftProjects || $0 != .android) }
+        #elseif os(Windows)
+        [.windows, .web, .android, .player]
+        #elseif !canImport(Network)
+        allCases.filter { $0 != .android && $0 != .player && $0 != .windows }
         #else
-        allCases.filter { $0 != .android }
+        allCases.filter { $0 != .android && $0 != .windows }
         #endif
     }
 
@@ -683,6 +637,17 @@ actor SwiftPMWorkspaceService: SwiftPMWorkspaceServicing {
             let sdk = buildSettings.value("ADA_WEB_SWIFT_SDK", for: .web).trimmingCharacters(in: .whitespacesAndNewlines)
             if !sdk.isEmpty { arguments += ["--swift-sdk", sdk] }
         }
+        #if os(Windows)
+        if case let .runWeb(target, outputPath, serve) = kind, let root = EditorEngineSource.locate() {
+            let output = URL(fileURLWithPath: outputPath, relativeTo: projectURL).standardizedFileURL
+            let sdk = buildSettings.value("ADA_WEB_SWIFT_SDK", for: .web)
+            return EditorWindowsBuildWorker.webCommand(
+                package: projectURL, output: output, product: target, engineRoot: root, gravityRoot: nil,
+                swift: buildSettings.swiftExecutable(for: .web) ?? "",
+                sdk: sdk.isEmpty ? "swift-6.3.2-RELEASE_wasm" : sdk,
+                configuration: "debug", serve: serve, environment: environment)
+        }
+        #endif
         return EditorProcessCommand(
             executablePath: buildSettings.swiftExecutable(for: platform) ?? toolchain.swiftExecutablePath,
             arguments: arguments,

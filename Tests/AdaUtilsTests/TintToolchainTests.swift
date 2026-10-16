@@ -11,8 +11,15 @@ struct TintToolchainTests {
         func executable(_ path: String) throws -> URL {
             let url = root.appendingPathComponent(path)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try Data("fixture".utf8).write(to: url)
-            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            #if os(Windows)
+                // Windows requires a real executable. Reuse the test runner so discovery
+                // fixtures do not depend on Tint being installed on the host.
+                let hostTool = Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])
+                try FileManager.default.copyItem(at: hostTool, to: url)
+            #else
+                try Data("fixture".utf8).write(to: url)
+                try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            #endif
             return url
         }
         let project = try executable(".build-tools/tint/bin/\(TintToolchain.platform)/\(name)")

@@ -1,6 +1,9 @@
 @_spi(AdaEngine) import AdaEngine
 @_spi(Internal) import AdaUI
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Math
 import Testing
 

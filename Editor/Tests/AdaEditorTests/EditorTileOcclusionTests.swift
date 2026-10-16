@@ -2,6 +2,9 @@
 @testable import AdaTilemap
 @_spi(Internal) import AdaUI
 import Foundation
+#if !(canImport(CoreGraphics) && canImport(ImageIO))
+import AdaMCPCore
+#endif
 import Testing
 
 @testable import AdaEditor
@@ -179,7 +182,7 @@ struct EditorTileOcclusionTests {
         let sourceURL = root.appendingPathComponent("Walls.tileset")
         try Data("tileSize: {x: 16, y: 16}\nsources: []\n".utf8).write(to: sourceURL)
         let png = root.appendingPathComponent("wall.png")
-        try Image(width: 16, height: 16, color: .white).pngData().write(to: png)
+        try Image(width: 16, height: 16, color: .white).writePNG(to: png)
         let document = asset(sourceURL, kind: .tileSource)
         let model = EditorTileSourceEditorModel(document: document)
         model.addImages([png])

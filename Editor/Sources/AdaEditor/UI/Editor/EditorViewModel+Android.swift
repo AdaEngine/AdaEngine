@@ -15,7 +15,7 @@ extension EditorAndroidConfiguration {
 
 extension EditorViewModel {
   func refreshAndroidTargets() {
-    #if os(macOS)
+    #if os(macOS) || os(Windows) || os(Linux)
       androidDiscoveryTask?.cancel()
       let configuration = androidConfiguration
       let root = projectURL ?? FileManager.default.homeDirectoryForCurrentUser
@@ -54,7 +54,7 @@ extension EditorViewModel {
   }
 
   func exportAndroidProject(launch: Bool = false) {
-    #if os(macOS)
+    #if os(macOS) || os(Windows) || os(Linux)
       guard workspaceTask == nil, let projectURL else { return }
       guard EditorDistribution.current.supportsSwiftProjects else {
         appendOutput("Android export requires standalone macOS Ada Studio.")
@@ -143,7 +143,7 @@ extension EditorViewModel {
   }
 
   func stopAndroidRun() {
-    #if os(macOS)
+    #if os(macOS) || os(Windows) || os(Linux)
       guard let session = androidRunningSession else { return }
       androidRunningSession = nil
       Task { [weak self] in

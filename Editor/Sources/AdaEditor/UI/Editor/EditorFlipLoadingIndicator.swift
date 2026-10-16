@@ -12,9 +12,10 @@ import Math
 struct EditorFlipLoadingIndicator: View {
     var size: Float = 14
     var color: Color
+    var isAnimating = true
 
     var body: some View {
-        if Self.reduceMotion {
+        if !isAnimating || Self.reduceMotion {
             RoundedRectangleShape(cornerRadius: size * 0.08)
                 .fill(color)
                 .frame(width: size, height: size)

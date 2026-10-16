@@ -1,5 +1,13 @@
+#if canImport(Network)
 import Foundation
 import Network
+
+public typealias PlayerEndpoint = NWEndpoint
+extension NWEndpoint {
+    public init(host: String, port: UInt16) {
+        self = .hostPort(host: .init(host), port: .init(integerLiteral: port))
+    }
+}
 
 /// One ordered TCP stream. Only one receive loop may read a connection at a time.
 @MainActor
@@ -10,6 +18,7 @@ public final class PlayerConnection {
     public var onFailure: ((String) -> Void)?
 
     public init(_ connection: NWConnection) { self.connection = connection }
+    public convenience init(endpoint: PlayerEndpoint) { self.init(NWConnection(to: endpoint, using: .tcp)) }
 
     public func start() {
         connection.stateUpdateHandler = { [weak self] state in
@@ -71,3 +80,4 @@ public final class PlayerConnection {
         return result
     }
 }
+#endif

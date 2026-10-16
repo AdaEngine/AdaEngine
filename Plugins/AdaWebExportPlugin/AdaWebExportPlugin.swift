@@ -20,6 +20,10 @@ struct AdaWebExportPlugin: CommandPlugin {
             FileHandle.standardOutput.write(Data("\n".utf8))
             return
         }
+        let wasiRuntime = Self.assetsDirectory.appendingPathComponent("BrowserWASIShim/dist/index.js")
+        guard FileManager.default.fileExists(atPath: wasiRuntime.path) else {
+            throw ExportError.browserWASIRuntimeNotFound
+        }
         let sdk = try options.swiftSDK ?? detectWasmSDK()
         // Bundle.module embeds this absolute path. Use the same canonical spelling
         // as the resource manifest (notably /tmp versus /private/tmp on macOS).
@@ -700,7 +704,7 @@ struct AdaWebExportPlugin: CommandPlugin {
             }
             entries.append(
                 ResourceManifestEntry(
-                    path: url.path(),
+                    path: url.path(percentEncoded: false),
                     url: browserRelativeURL(forResourceURL: url, in: bundle)
                 )
             )
@@ -1168,7 +1172,7 @@ private extension URL {
     }
 
     var normalizedPath: String {
-        var path = resolvingSymlinksInPath().standardizedFileURL.path()
+        var path = resolvingSymlinksInPath().standardizedFileURL.path(percentEncoded: false)
         while path.count > 1, path.hasSuffix("/") {
             path.removeLast()
         }
@@ -1223,6 +1227,7 @@ private enum ExportError: LocalizedError, CustomStringConvertible {
     case bridgeJSToolNotFound
     case tintNotFound(String)
     case unsafeScratchDirectory
+    case browserWASIRuntimeNotFound
 
     var errorDescription: String? {
         description
@@ -1237,6 +1242,8 @@ private enum ExportError: LocalizedError, CustomStringConvertible {
             """
         case .unsafeScratchDirectory:
             return "Web export requires an isolated --scratch-path; the shared .build directory cannot be used."
+        case .browserWASIRuntimeNotFound:
+            return "Web export is missing BrowserWASIShim/dist/index.js. Restore the bundled WASI runtime modules from the engine repository."
         case .missingTarget:
             return "Missing required --product <ProductName> argument."
         case .missingValue(let argument):

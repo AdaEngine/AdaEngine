@@ -35,6 +35,10 @@ public final class AppWorlds {
     /// Assign on the root of an embedded game. Nested worlds inherit its profiling context.
     public var profilingTargetID: String?
 
+    /// Skips this runtime in its host's automatic frame loop while retaining it
+    /// for tooling and explicit updates (for example an inactive editor preview).
+    package var isHostedUpdateSuspended = false
+
     #if ENABLE_RUN_IN_CONCURRENCY
         public typealias ApplicationRunnerBlock = () async -> Void
     #else
@@ -199,7 +203,7 @@ extension AppWorlds {
             await main.runScheduler(updateScheduler)
         }
 
-        for world in self.subWorlds.values {
+        for world in self.subWorlds.values where !world.isHostedUpdateSuspended {
             unsafe await world.worldExctractor?.exctract(from: main, to: world.main)
             try await world.update()
         }

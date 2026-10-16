@@ -37,6 +37,10 @@ struct EditorRegistryAgent: Codable, Identifiable, Equatable, Sendable {
             "darwin-aarch64"
         #elseif os(macOS)
             "darwin-x86_64"
+        #elseif os(Windows) && arch(arm64)
+            "windows-aarch64"
+        #elseif os(Windows)
+            "windows-x86_64"
         #else
             "unsupported"
         #endif
@@ -61,7 +65,29 @@ struct EditorDiscoveredAgent: Identifiable, Equatable, Sendable {
 }
 
 enum EditorAgentDiscovery {
+    static var pathSeparator: String {
+        #if os(Windows)
+        ";"
+        #else
+        ":"
+        #endif
+    }
+
     static func searchPaths(environment: [String: String], home: URL, fileManager: FileManager = .default) -> [String] {
+        #if os(Windows)
+        var paths = (EditorHostTools.environmentValue("PATH", in: environment) ?? "").components(separatedBy: ";")
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "\"")) }
+            .filter { EditorHostTools.isAbsolutePath($0) }
+        paths += [".local/bin", ".bun/bin", ".volta/bin", ".cargo/bin", "AppData/Roaming/npm"].map { home.appendingPathComponent($0).path }
+        if let local = EditorHostTools.environmentValue("LOCALAPPDATA", in: environment) {
+            paths.append(URL(fileURLWithPath: local).appendingPathComponent("Programs/nodejs").path)
+        }
+        if let programs = EditorHostTools.environmentValue("ProgramFiles", in: environment) {
+            paths.append(URL(fileURLWithPath: programs).appendingPathComponent("nodejs").path)
+        }
+        var seen = Set<String>()
+        return paths.filter { seen.insert($0.lowercased()).inserted }
+        #else
         var paths = (environment["PATH"] ?? "").components(separatedBy: ":").filter { $0.hasPrefix("/") }
         paths += ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
         paths += [".local/bin", ".npm-global/bin", ".bun/bin", ".volta/bin", ".cargo/bin", ".opencode/bin"]
@@ -76,15 +102,21 @@ enum EditorAgentDiscovery {
         paths += ["/Applications/Codex.app/Contents/Resources", home.appendingPathComponent("Applications/Codex.app/Contents/Resources").path]
         var seen = Set<String>()
         return paths.filter { seen.insert($0).inserted }
+        #endif
     }
 
     static func executable(_ name: String, paths: [String], fileManager: FileManager = .default) -> String? {
         for directory in paths {
-            let path = URL(fileURLWithPath: directory).appendingPathComponent(name).path
-            var isDirectory: ObjCBool = false
-            if fileManager.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue,
-                fileManager.isExecutableFile(atPath: path) {
-                return path
+            #if os(Windows)
+            let names = URL(fileURLWithPath: name).pathExtension.isEmpty ? [name + ".exe", name + ".com", name + ".cmd", name + ".bat", name] : [name]
+            #else
+            let names = [name]
+            #endif
+            for filename in names {
+                let path = URL(fileURLWithPath: directory).appendingPathComponent(filename).path
+                var isDirectory: ObjCBool = false
+                if fileManager.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue,
+                    fileManager.isExecutableFile(atPath: path) { return path }
             }
         }
         return nil
@@ -107,7 +139,7 @@ enum EditorAgentDiscovery {
                         name: name,
                         path: path,
                         target: arguments.map {
-                            AdaProjectAgentTarget(command: path, arguments: $0, environment: ["PATH": paths.joined(separator: ":")])
+                            AdaProjectAgentTarget(command: path, arguments: $0, environment: ["PATH": paths.joined(separator: pathSeparator)])
                         }
                     )
                 }

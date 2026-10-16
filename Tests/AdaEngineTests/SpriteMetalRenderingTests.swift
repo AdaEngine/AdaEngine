@@ -1,4 +1,4 @@
-#if os(macOS)
+#if os(macOS) || os(Windows)
 @_spi(Internal) import AdaApp
 @testable import AdaCorePipelines
 import AdaECS
@@ -12,9 +12,10 @@ import Math
 import Testing
 
 /// Run one backend alone so the process does not share a previously initialized renderer.
-@Suite("Sprite layout Metal rendering", .serialized)
+@Suite("Sprite layout GPU rendering", .serialized)
 @MainActor
 struct SpriteMetalRenderingTests {
+    #if os(macOS)
     @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_SPRITE_METAL_SMOKE"] == "1"))
     func rendersLayoutsAndTileOrientations() async throws {
         let chunks = try await renderReferenceScene(backend: .metal)
@@ -26,6 +27,7 @@ struct SpriteMetalRenderingTests {
         #expect(sprites.data == referenceSprites.data)
     }
 
+    #endif
     @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_SPRITE_WGPU_SMOKE"] == "1"))
     func rendersLayoutsAndPickingWithWebGPU() async throws {
         let chunks = try await renderReferenceScene(backend: .webgpu)
@@ -52,8 +54,10 @@ struct SpriteMetalRenderingTests {
         #expect(try await device.readImage(from: samplingOnly) == nil)
     }
 
+    #if os(macOS)
     @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_SPRITE_METAL_SMOKE"] == "1"))
     func rendersTileOcclusionWithMetal() async throws { try await renderTileOcclusionMask(backend: .metal) }
+    #endif
 
     @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_SPRITE_WGPU_SMOKE"] == "1"))
     func rendersTileOcclusionWithWebGPU() async throws { try await renderTileOcclusionMask(backend: .webgpu) }
@@ -124,8 +128,10 @@ struct SpriteMetalRenderingTests {
         #expect(result.getPixel(x: 110, y: 32) == .white)
         #expect(result.getPixel(x: 110, y: 96) == .black)
         #expect(result.getPixel(x: 16, y: 64) == .white)
+        #if canImport(CoreGraphics) && canImport(ImageIO)
         let captureVariable = backend == .webgpu ? "ADAENGINE_TILE_OCCLUSION_WGPU_CAPTURE" : "ADAENGINE_TILE_OCCLUSION_METAL_CAPTURE"
         if let path = ProcessInfo.processInfo.environment[captureVariable] { try result.writePNG(to: URL(fileURLWithPath: path)) }
+        #endif
     }
 
     private func renderReferenceScene(
@@ -297,10 +303,12 @@ struct SpriteMetalRenderingTests {
         for orientation in TileOrientation.allCases {
             #expect(result.getPixel(x: 32 + orientation.rawValue * 48, y: 192) != .black)
         }
+        #if canImport(CoreGraphics) && canImport(ImageIO)
         let captureVariable = backend == .webgpu ? "ADAENGINE_SPRITE_WGPU_CAPTURE" : "ADAENGINE_SPRITE_METAL_CAPTURE"
         if tileMapMode == .chunks, let path = ProcessInfo.processInfo.environment[captureVariable] {
             try result.writePNG(to: URL(fileURLWithPath: path))
         }
+        #endif
         return result
     }
 }
