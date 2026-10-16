@@ -167,7 +167,12 @@ public struct Main3DRenderNode: RenderNode {
                     shadowViewProjection1: shadow.viewProjection1,
                     shadowViewProjection2: shadow.viewProjection2,
                     cascadeSplits: shadow.cascadeSplits,
-                    shadowAtlas: Vector4(1 / Float(shadow.colorTexture?.size.width ?? 1024), 1 / Float(shadow.colorTexture?.size.height ?? 1024), shadow.blendFraction, 0)
+                    shadowAtlas: Vector4(
+                        1 / Float(shadow.colorTexture?.size.width ?? 1024),
+                        1 / Float(shadow.colorTexture?.size.height ?? 1024),
+                        shadow.blendFraction,
+                        environments.environments[source.entityId]?.debugView.mainPassMode ?? 0
+                    )
                 ),
                 view: source.entityId,
                 device: renderDevice.renderDevice

@@ -24,12 +24,22 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
 - For shader, sprite-renderer or WebGPU changes, run `script/validate_webgpu.sh`
   from the engine root with compatible Swan/Dawn and Swift 6.3.2. It bootstraps
   pinned Tint and tests a fresh SPIR-V → WGSL conversion plus actual GPU pixels.
+- The script also runs the 3D GPU suites (`Render3DGPUTests`) on WebGPU against the
+  references in `Tests/AdaEngineTests/GoldenFrames/webgpu` and checks that they agree
+  with the Metal references. It runs its package sequentially because the engine owns
+  one process-wide renderer.
 - `python3 script/ensure_tint.py --check` verifies the installed tool hash and
   reader/writer smoke. Do not treat cached WGSL as proof of current Tint behavior.
 - Tool setup and overrides are documented in [Tools/Tint/README.md](Tools/Tint/README.md).
 
 ### Test
 - **Use Swift Testing** for AdaEngine package tests: `import Testing`, `@Suite`, `@Test`, and `#expect` / `#require`. Do not add new **XCTest**-based tests in `AdaEngine/Tests/`.
+- 3D rendering is checked with golden frames. The GPU suites are gated by
+  `ADAENGINE_GOLDEN_METAL=1` (run `swift test --filter Render3DGPUTests`) or
+  `ADAENGINE_GOLDEN_WEBGPU=1` (through `script/validate_webgpu.sh`). References live in
+  `Tests/AdaEngineTests/GoldenFrames/<backend>`; re-record with `ADAENGINE_GOLDEN_RECORD=1`
+  and review the diff images written to `ADAENGINE_GOLDEN_OUTPUT` on a mismatch. Keep every
+  GPU suite nested under `Render3DGPUTests`, which serializes them.
 - Run all tests: `swift test --parallel`
 - Run a single test target:
   - `swift test --parallel --filter AdaEngineTests`

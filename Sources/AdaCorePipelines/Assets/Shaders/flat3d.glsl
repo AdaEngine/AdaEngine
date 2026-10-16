@@ -109,6 +109,8 @@ layout (location = 1) out vec4 normalRoughness;
 layout (location = 2) out vec4 viewPositionMetallic;
 layout (location = 3) out vec4 indirectLighting;
 
+#include <AdaEngine/Tonemapping.glsl>
+
 layout (binding = 1) uniform DirectionalLight3DUniform {
     vec4 u_LightDirectionIntensity;
     vec4 u_LightRadianceAmbient;
@@ -405,6 +407,41 @@ float visibilityDither(vec2 pixel) {
     return (values[y * 4 + x] + 0.5) / 16.0;
 }
 
+// Debug visualizations selected by u_ShadowAtlas.w (see DebugView3D.mainPassMode). Mode 0 is normal shading.
+vec3 heatRamp(float t) {
+    t = clamp(t, 0.0, 1.0);
+    return clamp(vec3(1.5 - abs(4.0 * t - 3.0), 1.5 - abs(4.0 * t - 2.0), 1.5 - abs(4.0 * t - 1.0)), 0.0, 1.0);
+}
+
+vec3 cascadeTint(float normalLight) {
+    float shade = 0.35 + 0.65 * normalLight;
+    if (Input.ShadowFlags.x < 0.5 || u_ShadowParameters.x < 0.5) { return vec3(0.5) * shade; }
+    float depth = Input.ViewPosition.z;
+    if (depth > u_CascadeSplits.z) { return vec3(0.18) * shade; }
+    int count = int(u_CascadeSplits.w);
+    int cascade = min(depth <= u_CascadeSplits.x ? 0 : (depth <= u_CascadeSplits.y ? 1 : 2), count - 1);
+    vec3 tint = cascade == 0 ? vec3(0.9, 0.2, 0.2) : (cascade == 1 ? vec3(0.2, 0.8, 0.3) : vec3(0.25, 0.4, 0.95));
+    return tint * shade;
+}
+
+float reachingLightCount() {
+    float count = u_LightDirectionIntensity.w > 0.0 ? 1.0 : 0.0;
+    count += float(int(u_LightCounts.x));
+    for (int i = 0; i < 32; ++i) {
+        if (i >= int(u_LightCounts.y)) { break; }
+        LocalLight3D light = u_LocalLights[i];
+        vec3 delta = light.positionRange.xyz - Input.ViewPosition;
+        float distance = length(delta), range = light.positionRange.w;
+        if (distance >= range || range <= 0.0) { continue; }
+        if (light.directionOuter.w >= 0.0) {
+            float cone = dot(normalize(light.directionOuter.xyz), -delta / max(distance, 0.00001));
+            if (smoothstep(light.directionOuter.w, light.innerShadow.x, cone) <= 0.0) { continue; }
+        }
+        count += 1.0;
+    }
+    return count;
+}
+
 [[main]]
 void flat3d_fragment()
 {
@@ -496,6 +533,11 @@ void flat3d_fragment()
     ).rgb) * u_EmissiveFactor.rgb * Input.EmissiveStrength * emissiveVisibility;
 
     color = vec4(directLighting + ambient + emissive, opacity);
+    if (u_ShadowAtlas.w > 0.5) {
+        vec3 debugColor = u_ShadowAtlas.w < 1.5 ? adaLinearToSrgb(baseColor.rgb)
+            : (u_ShadowAtlas.w < 2.5 ? cascadeTint(normalLight) : heatRamp(reachingLightCount() / 8.0));
+        color = vec4(debugColor, opacity);
+    }
     // Transparent surfaces attenuate the opaque indirect buffer but do not contribute to it.
     indirectLighting = vec4(u_SurfaceProperties.w > 1.5 ? vec3(0.0) : ambient, opacity);
     normalRoughness = vec4(normal, roughness);

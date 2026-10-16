@@ -137,7 +137,7 @@ public final class ShaderCompiler {
             span.end()
         }
         let version = self.getShaderVersion(for: stage)
-        let hasChanges = ShaderCache.hasChanges(for: self.shaderSource, stage: stage, version: version)
+        let hasChanges = ShaderCache.hasChanges(for: self.shaderSource, stage: stage, version: version, includeSearchPaths: self.includeSearchPaths)
         if !hasChanges {
             if let deviceCompiledShader = ShaderCache.getCachedDeviceCompiledShader(for: self.shaderSource, stage: stage),
                deviceCompiledShader.language == (unsafe RenderEngine.shared.type.deviceLang) {
@@ -230,7 +230,7 @@ public final class ShaderCompiler {
     internal func compileSpirvBin(for stage: ShaderStage, ignoreCache: Bool = false) throws -> SpirvBinary {
         let version = self.getShaderVersion(for: stage)
 
-        if !ignoreCache, !ShaderCache.hasChanges(for: self.shaderSource, stage: stage, version: version) {
+        if !ignoreCache, !ShaderCache.hasChanges(for: self.shaderSource, stage: stage, version: version, includeSearchPaths: self.includeSearchPaths) {
             let entryPoint = self.shaderSource.getEntryPoint(for: stage)
             if let binary = ShaderCache.getCachedShader(
                 for: self.shaderSource,

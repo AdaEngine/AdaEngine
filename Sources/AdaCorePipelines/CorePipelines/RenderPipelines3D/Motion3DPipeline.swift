@@ -58,8 +58,13 @@ struct Temporal3DPipelines: Resource {
     var depth: (any RenderPipeline)?
     var toneMap: (any RenderPipeline)?
     let sampler: any Sampler
+    /// Filtering for the color-grading LUT.
+    let linear: any Sampler
 
-    init(device: RenderDevice) { sampler = device.createSampler(from: .init(minFilter: .nearest, magFilter: .nearest, mipFilter: .notMipmapped)) }
+    init(device: RenderDevice) {
+        sampler = device.createSampler(from: .init(minFilter: .nearest, magFilter: .nearest, mipFilter: .notMipmapped))
+        linear = device.createSampler(from: .init(minFilter: .linear, magFilter: .linear, mipFilter: .notMipmapped))
+    }
 
     mutating func skyPipeline(device: RenderDevice) -> any RenderPipeline {
         if let sky {

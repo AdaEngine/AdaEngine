@@ -13,18 +13,28 @@ layout (location = 0) in vec2 v_UV;
 layout (location = 0) out vec4 o_Color;
 layout (binding = 0) uniform texture2D u_Source;
 layout (binding = 1) uniform sampler u_Sampler;
+layout (binding = 2) uniform texture2D u_Exposure;
 layout (binding = 4) uniform Bloom3DUniform {
     vec4 u_Parameters; // x mode (0 prefilter + downsample, 1 downsample, 2 upsample), y threshold, z knee, w scatter
-    vec4 u_Texel;      // xy source texel size, z exposure scale
+    vec4 u_Texel;      // xy source texel size, z manual exposure scale, w 1 when automatic exposure is bound
 };
 
 vec3 fetch(vec2 uv) {
     return texture(sampler2D(u_Source, u_Sampler), uv).rgb;
 }
 
+// Manual exposure, times the adapted automatic exposure when that texture is bound.
+float exposureScale() {
+    float scale = u_Texel.z;
+    if (u_Texel.w > 0.5) {
+        scale *= exp2(textureLod(sampler2D(u_Exposure, u_Sampler), vec2(0.5), 0.0).x);
+    }
+    return scale;
+}
+
 // Soft-knee threshold on exposed luminance. Clamping first keeps a single overbright texel from flooding the chain.
-vec3 prefilter(vec3 color) {
-    color = clamp(color * u_Texel.z, vec3(0.0), vec3(65000.0));
+vec3 prefilter(vec3 color, float scale) {
+    color = clamp(color * scale, vec3(0.0), vec3(65000.0));
     float brightness = max(color.r, max(color.g, color.b));
     float knee = max(u_Parameters.z, 0.0001);
     float soft = clamp(brightness - u_Parameters.y + knee, 0.0, 2.0 * knee);
@@ -38,11 +48,12 @@ void bloom_fragment() {
     vec2 texel = u_Texel.xy;
     vec3 result;
     if (u_Parameters.x < 0.5) {
-        result = prefilter(fetch(v_UV)) * 4.0
-            + prefilter(fetch(v_UV + vec2(-texel.x, -texel.y)))
-            + prefilter(fetch(v_UV + vec2(texel.x, -texel.y)))
-            + prefilter(fetch(v_UV + vec2(-texel.x, texel.y)))
-            + prefilter(fetch(v_UV + vec2(texel.x, texel.y)));
+        float scale = exposureScale();
+        result = prefilter(fetch(v_UV), scale) * 4.0
+            + prefilter(fetch(v_UV + vec2(-texel.x, -texel.y)), scale)
+            + prefilter(fetch(v_UV + vec2(texel.x, -texel.y)), scale)
+            + prefilter(fetch(v_UV + vec2(-texel.x, texel.y)), scale)
+            + prefilter(fetch(v_UV + vec2(texel.x, texel.y)), scale);
         result /= 8.0;
     } else if (u_Parameters.x < 1.5) {
         result = fetch(v_UV) * 4.0

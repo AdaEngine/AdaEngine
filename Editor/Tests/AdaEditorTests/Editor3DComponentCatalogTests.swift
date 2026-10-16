@@ -49,6 +49,56 @@ struct Editor3DComponentCatalogTests {
         #expect(result.warnings.isEmpty, Comment(rawValue: result.warnings.joined(separator: "\n")))
     }
 
+    @Test("Environment 3D exposes the post-processing and debug controls and round-trips edits")
+    func environment3DPostProcessingControls() throws {
+        EditorComponentRegistry.registerBuiltIns()
+        let descriptor = try #require(EditorComponentRegistry.descriptor(named: EditorBuiltInComponentType.environment3D))
+        func field(_ key: String) throws -> EditorComponentField { try #require(descriptor.fields.first { $0.key == key }, Comment(rawValue: key)) }
+        #expect(try field("debugView").kind == .enumeration(DebugView3D.allCases.map(\.rawValue)))
+        #expect(try field("postProcess.toneMapper").kind == .enumeration(ToneMapper3D.allCases.map(\.rawValue)))
+        for key in [
+            "postProcess.bloom.isEnabled", "postProcess.autoExposure.isEnabled", "postProcess.depthOfField.isEnabled",
+        ] {
+            #expect(try field(key).kind == .bool)
+        }
+        for key in ["postProcess.exposureEV", "postProcess.bloom.intensity", "postProcess.colorGrading.saturation", "postProcess.vignette.intensity"] {
+            #expect(try field(key).kind == .float)
+        }
+
+        // Untouched defaults decode to the engine defaults, and a legacy empty payload still decodes.
+        let defaults = try #require(EditorComponentRegistry.decode(typeName: EditorBuiltInComponentType.environment3D, payload: descriptor.makeDefaultPayload()) as? Environment3D)
+        #expect(defaults.postProcess == PostProcess3D())
+        #expect(defaults.debugView == DebugView3D.none)
+
+        var payload = descriptor.makeDefaultPayload()
+        try field("debugView").write("normals", to: &payload)
+        try field("postProcess.exposureEV").write("-1.5", to: &payload)
+        try field("postProcess.toneMapper").write("neutral", to: &payload)
+        try field("postProcess.bloom.isEnabled").write("true", to: &payload)
+        try field("postProcess.bloom.intensity").write("0.4", to: &payload)
+        try field("postProcess.autoExposure.isEnabled").write("true", to: &payload)
+        try field("postProcess.depthOfField.focusDistance").write("7", to: &payload)
+        try field("postProcess.colorGrading.saturation").write("0.5", to: &payload)
+        try field("postProcess.vignette.intensity").write("0.6", to: &payload)
+        let edited = try #require(EditorComponentRegistry.decode(typeName: EditorBuiltInComponentType.environment3D, payload: payload) as? Environment3D)
+        #expect(edited.debugView == .normals)
+        #expect(edited.postProcess.exposureEV == -1.5)
+        #expect(edited.postProcess.toneMapper == .neutral)
+        #expect(edited.postProcess.bloom.isEnabled && edited.postProcess.bloom.intensity == 0.4)
+        #expect(edited.postProcess.autoExposure.isEnabled)
+        #expect(edited.postProcess.depthOfField.focusDistance == 7)
+        #expect(edited.postProcess.colorGrading.saturation == 0.5)
+        #expect(edited.postProcess.vignette.intensity == 0.6)
+        // Values that were not edited keep their defaults, and the older fields still decode.
+        #expect(edited.postProcess.bloom.threshold == Bloom3D().threshold)
+        #expect(edited.skybox.isEnabled == Environment3D().skybox.isEnabled)
+
+        // An enumeration write outside the choices falls back to the first choice instead of corrupting the scene.
+        try field("postProcess.toneMapper").write("reinhard", to: &payload)
+        let fallback = try #require(EditorComponentRegistry.decode(typeName: EditorBuiltInComponentType.environment3D, payload: payload) as? Environment3D)
+        #expect(fallback.postProcess.toneMapper == .aces)
+    }
+
     @Test("3D components are available before scene plugins start")
     func catalogue() throws {
         EditorComponentRegistry.registerBuiltIns()

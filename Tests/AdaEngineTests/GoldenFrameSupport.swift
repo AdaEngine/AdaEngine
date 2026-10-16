@@ -1,14 +1,22 @@
 import AdaRender
 import AdaUtils
 import Foundation
+import Testing
 
 /// Compares rendered frames against checked-in reference PNGs.
 ///
-/// References live in `GoldenFrames/<backend>/<name>.png` next to the tests. Set
-/// `ADAENGINE_GOLDEN_RECORD=1` to (re)write them from the current output, and
+/// References live in `GoldenFrames/<backend>/<name>.png` next to the tests. Select the backend with
+/// `ADAENGINE_GOLDEN_METAL=1` or `ADAENGINE_GOLDEN_WEBGPU=1` (WebGPU runs through `script/validate_webgpu.sh`).
+/// Set `ADAENGINE_GOLDEN_RECORD=1` to (re)write references from the current output,
+/// `ADAENGINE_GOLDEN_REFERENCES=<dir>` to read or write references somewhere other than next to the tests, and
 /// `ADAENGINE_GOLDEN_OUTPUT=<dir>` to choose where actual and difference images go on a mismatch.
 /// Tolerances are per backend because GPUs differ in rounding; Metal is the reference backend.
 struct GoldenFrame {
+    enum Backend: String, CaseIterable {
+        case metal
+        case webgpu
+    }
+
     struct Tolerance: Sendable, Equatable {
         /// Largest allowed per-channel difference, in 8-bit steps, before a pixel counts as different.
         var channelSteps: Int
@@ -17,7 +25,26 @@ struct GoldenFrame {
 
         /// Same-GPU reruns are expected to match; the slack absorbs driver rounding only.
         static let metal = Self(channelSteps: 2, differingFraction: 0.0005)
+        static let webgpu = Self(channelSteps: 3, differingFraction: 0.001)
     }
+
+    /// The backend the GPU suites render with, or `nil` when no backend was requested.
+    static var activeBackend: Backend? {
+        let environment = ProcessInfo.processInfo.environment
+        if environment["ADAENGINE_GOLDEN_WEBGPU"] == "1" {
+            return .webgpu
+        }
+        return environment["ADAENGINE_GOLDEN_METAL"] == "1" ? .metal : nil
+    }
+
+    static var isEnabled: Bool { activeBackend != nil }
+
+    static func tolerance(for backend: Backend) -> Tolerance {
+        backend == .webgpu ? .webgpu : .metal
+    }
+
+    /// Tolerance for comparing two renders of the active backend with each other or with its references.
+    static var activeTolerance: Tolerance { tolerance(for: activeBackend ?? .metal) }
 
     struct Comparison: Equatable {
         var differingPixels: Int
@@ -45,9 +72,9 @@ struct GoldenFrame {
     }
 
     static func referenceURL(backend: String, name: String) -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .appendingPathComponent("GoldenFrames/\(backend)/\(name).png")
+        let root = ProcessInfo.processInfo.environment["ADAENGINE_GOLDEN_REFERENCES"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("GoldenFrames", isDirectory: true)
+        return root.appendingPathComponent("\(backend)/\(name).png")
     }
 
     private static func step(_ left: Color, _ right: Color) -> Int {
@@ -95,8 +122,10 @@ struct GoldenFrame {
         return result
     }
 
-    static func check(_ actual: Image, name: String, backend: String = "metal", tolerance: Tolerance = .metal) throws -> Outcome {
-        let reference = referenceURL(backend: backend, name: name)
+    static func check(_ actual: Image, name: String, backend: Backend? = nil, tolerance: Tolerance? = nil) throws -> Outcome {
+        let backend = backend ?? activeBackend ?? .metal
+        let tolerance = tolerance ?? Self.tolerance(for: backend)
+        let reference = referenceURL(backend: backend.rawValue, name: name)
         if isRecording {
             try FileManager.default.createDirectory(at: reference.deletingLastPathComponent(), withIntermediateDirectories: true)
             try actual.writePNG(to: reference)
@@ -119,3 +148,10 @@ struct GoldenFrame {
         return .mismatched(comparison, actual: actualURL, difference: differenceURL)
     }
 }
+
+/// Parent of every GPU rendering suite. The engine owns one process-wide renderer and tests on the main actor
+/// interleave at each `await`, so these suites must run one test at a time; `.serialized` on a parent suite
+/// applies to its nested suites, which is the only way to serialize across suites.
+@Suite("3D GPU rendering", .serialized)
+@MainActor
+enum Render3DGPUTests {}

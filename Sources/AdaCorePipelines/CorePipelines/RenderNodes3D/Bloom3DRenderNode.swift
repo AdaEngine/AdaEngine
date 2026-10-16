@@ -17,6 +17,7 @@ public struct Bloom3DRenderNode: RenderNode {
     @ResMut<Bloom3DViews> private var bloom
     @Res<RenderDeviceHandler> private var device
     @Res<Render3DPerformanceMetrics?> private var metrics
+    @Res<AutoExposure3DViews> private var autoExposure
 
     public init() {}
 
@@ -26,6 +27,7 @@ public struct Bloom3DRenderNode: RenderNode {
         _bloom.update(from: world)
         _device.update(from: world)
         _metrics.update(from: world)
+        _autoExposure.update(from: world)
         var activeViews: [Entity.ID] = []
         views.forEach { _, _, _, source in activeViews.append(source.entityId) }
         bloom.retainViews(activeViews)
@@ -52,12 +54,13 @@ public struct Bloom3DRenderNode: RenderNode {
             let command = renderContext.commandQueue.makeCommandBuffer()
             command.label = "Bloom 3D"
             let exposure = environment.postProcess.exposureScale
+            let automatic = environment.postProcess.autoExposure.isEnabled ? autoExposure.output(view: source.entityId) : nil
             var passIndex = 0
             func encode(source texture: RenderTexture, destination: RenderTexture, mode: Float, additive: Bool) {
                 let constants = bloom.uniform.write(
                     Bloom3DUniform(
                         parameters: Vector4(mode, settings.threshold, max(settings.threshold * settings.softKnee, 0.0001), settings.scatter),
-                        texel: Vector4(1 / Float(texture.size.width), 1 / Float(texture.size.height), exposure, 0)
+                        texel: Vector4(1 / Float(texture.size.width), 1 / Float(texture.size.height), exposure, automatic == nil ? 0 : 1)
                     ),
                     view: source.entityId,
                     pass: passIndex,
@@ -75,6 +78,7 @@ public struct Bloom3DRenderNode: RenderNode {
                 pass.setResourceSet(RenderResourceSet(bindings: [
                     .init(binding: 0, shaderStages: .fragment, resource: .texture(texture)),
                     .init(binding: 1, shaderStages: .fragment, resource: .sampler(bloom.sampler)),
+                    .init(binding: 2, shaderStages: .fragment, resource: .texture(automatic ?? Texture2D.whiteTexture)),
                 ]), index: 0)
                 pass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
                 pass.endRenderPass()

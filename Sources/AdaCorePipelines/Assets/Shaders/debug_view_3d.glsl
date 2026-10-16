@@ -16,8 +16,9 @@ layout (binding = 1) uniform texture2D u_PositionMetallic;
 layout (binding = 2) uniform texture2D u_AmbientOcclusion;
 layout (binding = 3) uniform texture2D u_Indirect;
 layout (binding = 4) uniform sampler u_Nearest;
+layout (binding = 6) uniform texture2D u_SceneColor;
 layout (binding = 5) uniform DebugView3DUniform {
-    vec4 u_Parameters; // x mode, y depth scale
+    vec4 u_Parameters; // x mode (0 normals ... 7 scene color), y depth scale
 };
 [[main]]
 void debug_view_fragment() {
@@ -37,8 +38,11 @@ void debug_view_fragment() {
         if (covered) { color = vec3(positionMetallic.w); }
     } else if (mode < 5.5) {
         color = vec3(texture(sampler2D(u_AmbientOcclusion, u_Nearest), v_UV).r);
-    } else {
+    } else if (mode < 6.5) {
         if (covered) { color = vec3(1.0) - exp(-texture(sampler2D(u_Indirect, u_Nearest), v_UV).rgb * 24.0); }
+    } else {
+        // Albedo, cascades and light count: the main pass already wrote display-ready colors into scene color.
+        if (covered) { color = clamp(texture(sampler2D(u_SceneColor, u_Nearest), v_UV).rgb, 0.0, 1.0); }
     }
     o_Color = vec4(color, 1.0);
 }
