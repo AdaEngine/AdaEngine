@@ -59,7 +59,7 @@ struct EditorAdaScriptProjectRuntimeView: View {
             ZStack {
                 SceneView(
                     isInteractive: controls?.inputEnabled ?? true,
-                    useSceneCameras: artifact.plugins.contains(.core3D) || hasSceneCamera,
+                    useSceneCameras: usesSceneCameras,
                     make: { app in
                         configureRuntime(&app)
                     },
@@ -69,6 +69,7 @@ struct EditorAdaScriptProjectRuntimeView: View {
                     },
                     onFrameRendered: { texture in previewCapture?.capture(texture) }
                 )
+                .frameCaptureLabel(EditorGameFrameCapture.gameLabel)
                 .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
 
                 ForEach(overlaySession.views) { overlay in
@@ -91,13 +92,16 @@ struct EditorAdaScriptProjectRuntimeView: View {
         }
     }
 
+    var usesSceneCameras: Bool { artifact.plugins.contains(.core3D) || hasSceneCamera }
+
     private var hasSceneCamera: Bool {
         artifact.sceneModel?.entities.contains { entity in
             entity.components[EditorBuiltInComponentType.camera] != nil
         } == true
     }
 
-    private func configureRuntime(_ app: inout AppWorlds) {
+    /// Installs the game's plugins and scene. Shared by the Play window and offscreen automation runs.
+    func configureRuntime(_ app: inout AppWorlds) {
         performanceSession.attach(app, title: artifact.report.entryDescription)
         app.addPlugin(TransformPlugin())
         app.addPlugin(InputPlugin(actions: artifact.scenePlayRuntime.inputActions))

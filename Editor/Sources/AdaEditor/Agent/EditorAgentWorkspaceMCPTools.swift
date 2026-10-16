@@ -5,6 +5,8 @@ import MCP
 final class EditorAgentWorkspaceMCPTools {
     static let shared = EditorAgentWorkspaceMCPTools()
 
+    private var scenarioIsRunning = false
+
     private init() {}
 
     static func tools() -> [Tool] {
@@ -25,6 +27,36 @@ final class EditorAgentWorkspaceMCPTools {
                 name: "editor.play.start",
                 description: "Run the active scene in the editor, or the selected project target when mode is 'product'.",
                 inputSchema: objectSchema(properties: ["mode": .object(["type": "string", "enum": .array(["scene", "product"].map(Value.string)), "description": "Defaults to scene when a scene document is active; otherwise product."])]),
+                annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+            ),
+            Tool(
+                name: "editor.play.capture",
+                description: "Capture the next completed frame of the RUNNING GAME (2D or 3D game camera, never the editor window) as a PNG under .ada/workspace/agent-captures. Start Play first; errors explicitly when no game is running. Read the returned path as an image.",
+                inputSchema: objectSchema(properties: [
+                    "cameraName": .object(["type": "string", "description": "Require this camera to be active in the game."]),
+                    "maxDimension": .object(["type": "integer", "minimum": 64, "maximum": EditorPlayScenario.Limits.maxDimension.asValue, "description": .string("Downscale so neither side exceeds this. Default \(EditorPlayScenario.Limits.defaultDimension).")])
+                ]),
+                annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+            ),
+            Tool(
+                name: "editor.play.run_scenario",
+                description: """
+                    Verify a game without a human. Runs the AdaScript project in an isolated offscreen runtime (target 'offscreen', default) or attaches to the running Play game (target 'play'), \
+                    replays timed input, captures game-camera frames (PNG) and reads game state at chosen moments, then returns frames, snapshots, script logs/errors and a verdict-ready summary. \
+                    steps: [{t:0.5,key:'space',tap:true},{t:1,capture:'after-flap'},{t:1.2,snapshot:'state'},{t:2,key:'r',down:true},{t:2.1,key:'r',down:false},{t:3,mouse:'left',tap:true,x:100,y:80},{t:3,move:{x:10,y:20}}]. \
+                    Key names: space, r, w, arrowUp, enter, escape... Limits: \(Int(EditorPlayScenario.Limits.maxDuration))s, \(EditorPlayScenario.Limits.maxEvents) events, \(EditorPlayScenario.Limits.maxFrames) frames, \(EditorPlayScenario.Limits.maxSnapshots) snapshots. \
+                    Timing is wall-clock; state snapshots read entity components, so expose values you need (for example @export fields or System.print lines).
+                    """,
+                inputSchema: objectSchema(properties: [
+                    "steps": .object(["type": "array", "items": .object(["type": "object"]), "description": "Timed events; see tool description."]),
+                    "duration": .object(["type": "number", "description": "Total seconds; defaults to last event + 0.5."]),
+                    "target": .object(["type": "string", "enum": .array(["offscreen", "play"].map(Value.string))]),
+                    "warmup": .object(["type": "boolean", "description": "Default true: the clock starts after the game rendered its first frames. Use false to capture startup frames (flash/blank-frame checks)."]),
+                    "watch": .object(["type": "object", "description": "{entities:[names], components:[type names]} to include in snapshots; default is the first 25 entities."]),
+                    "maxDimension": .object(["type": "integer", "description": .string("Longest frame side in pixels. Default \(EditorPlayScenario.Limits.defaultDimension).")]),
+                    "width": .object(["type": "integer", "description": .string("Offscreen surface width. Default \(EditorPlayScenario.Limits.defaultSize.width).")]),
+                    "height": .object(["type": "integer", "description": .string("Offscreen surface height. Default \(EditorPlayScenario.Limits.defaultSize.height).")])
+                ], required: ["steps"]),
                 annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
             ),
             Tool(
@@ -72,6 +104,67 @@ final class EditorAgentWorkspaceMCPTools {
         } catch {
             return .init(content: [.text(text: error.localizedDescription, annotations: nil, _meta: nil)], isError: true)
         }
+    }
+
+    func handleAsync(name: String, arguments: [String: Value]) async -> CallTool.Result? {
+        guard name == "editor.play.capture" || name == "editor.play.run_scenario" else { return nil }
+        do {
+            let payload: String
+            if name == "editor.play.capture" {
+                let viewModel = try requireViewModel()
+                guard let projectURL = viewModel.projectURL else { throw EditorWorkspaceMCPError.noOpenProject }
+                payload = try json(try await EditorGameFrameCapture.captureTool(
+                    projectURL: projectURL,
+                    cameraName: arguments["cameraName"]?.stringValue,
+                    maxDimension: arguments["maxDimension"]?.intValue
+                ))
+            } else {
+                payload = try json(try await runScenario(arguments))
+            }
+            return .init(content: [.text(text: payload, annotations: nil, _meta: nil)], isError: false)
+        } catch {
+            return .init(content: [.text(text: error.localizedDescription, annotations: nil, _meta: nil)], isError: true)
+        }
+    }
+
+    private func runScenario(_ arguments: [String: Value]) async throws -> [String: Any] {
+        guard !scenarioIsRunning else { throw EditorWorkspaceMCPError.scenarioAlreadyRunning }
+        let scenario = try EditorPlayScenario.parse(arguments)
+        let viewModel = try requireViewModel()
+        guard let projectURL = viewModel.projectURL else { throw EditorWorkspaceMCPError.noOpenProject }
+        scenarioIsRunning = true
+        defer { scenarioIsRunning = false }
+
+        let host: EditorSceneViewScenarioHost
+        switch scenario.target {
+        case .play:
+            host = try EditorSceneViewScenarioHost.attachToPlay()
+        case .offscreen:
+            try saveDocumentsBeforeTask(viewModel)
+            let project = try ProjectSystem.loadProject(at: projectURL, fileManager: viewModel.fileManager)
+            guard project.build.system.isAdaScript else { throw EditorWorkspaceMCPError.scenarioNeedsAdaScript }
+            let destination = viewModel.selectedRunDestination.adaProjectDestination
+            let artifact = try await Task.detached(priority: .userInitiated) {
+                try Self.prepareArtifact(project, at: projectURL, destination: destination)
+            }.value
+            host = try await EditorSceneViewScenarioHost.startOffscreen(artifact: artifact, size: scenario.surface, warmUp: scenario.warmUp)
+        }
+        defer { host.stop() }
+        let directory = EditorGameFrameCapture.capturesDirectory(projectURL: projectURL)
+        let runner = EditorPlayScenarioRunner(host: host) { image, label in
+            try EditorGameFrameCapture.write(image, to: directory, name: "scenario-\(label)").path
+        }
+        return await runner.run(scenario)
+    }
+
+    nonisolated private static func prepareArtifact(
+        _ project: AdaProject,
+        at projectURL: URL,
+        destination: AdaProjectRunDestination
+    ) throws -> EditorAdaScriptProjectBuildArtifact {
+        let fileManager = FileManager()
+        try ProjectSystem.validateRunCompatibility(of: project, at: projectURL, destination: destination, fileManager: fileManager)
+        return try EditorAdaScriptProjectBuilder(fileManager: fileManager).prepare(project: project, at: projectURL)
     }
 
     private func startBuild() throws -> String {
@@ -221,6 +314,8 @@ private enum EditorWorkspaceMCPError: Error, LocalizedError {
     case invalidPlayMode(String)
     case invalidOutputSource(String)
     case outputCursorExpired
+    case scenarioAlreadyRunning
+    case scenarioNeedsAdaScript
 
     var errorDescription: String? {
         switch self {
@@ -232,7 +327,13 @@ private enum EditorWorkspaceMCPError: Error, LocalizedError {
         case .noActiveScene: "Open a scene document before starting scene Play Mode."
         case let .invalidPlayMode(mode): "Unsupported play mode: \(mode). Use 'scene' or 'product'."
         case let .invalidOutputSource(source): "Unknown output source '\(source)'. Use 'editor' or 'game'."
+        case .scenarioAlreadyRunning: "Another editor.play.run_scenario is still running."
+        case .scenarioNeedsAdaScript: "editor.play.run_scenario with target 'offscreen' supports AdaScript projects. For other projects use target 'play' after editor.play.start, or editor.play.capture."
         case .outputCursorExpired: "The output cursor expired when the bounded log buffer rolled over. Read the latest output without afterID."
         }
     }
+}
+
+private extension Int {
+    var asValue: Value { .int(self) }
 }

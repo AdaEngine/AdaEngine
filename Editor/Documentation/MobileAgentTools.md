@@ -54,6 +54,18 @@ Selected, pasted and marked-up images are transmitted as actual image segments t
 
 After edits, use `editor.asset.validate`, build, start visible Play, then `editor.play.capture`. Capture reads only a completed GPU frame and saves a project PNG for `editor.image.read`. Simulation results remain separate from visual proof.
 
+## Desktop game verification
+
+Desktop Studio sees the game through the game's own camera, not through the editor window.
+
+- `editor.play.capture` (`cameraName`, `maxDimension`): waits for a completed frame of the running game and saves a PNG under `<project>/.ada/workspace/agent-captures` (newest 80 kept). It returns an explicit error when no game is running, the camera is not active, or the backend cannot read pixels.
+- `render.capture_screenshot` returns the same game frame while Play runs. Without a running game it captures the editor window and says so in `world`; that image is not game evidence. `ui.capture_node_screenshot` keeps using the editor window.
+- `editor.play.run_scenario` runs a timed input script against an isolated offscreen runtime of the AdaScript project (`target: "offscreen"`, default) or the running game (`target: "play"`). Steps are `{t,key,down|tap}`, `{t,mouse,down|tap,x,y}`, `{t,move}`, `{t,capture,camera?}` and `{t,snapshot}`. The result lists `frames` (PNG paths or per-frame errors), `snapshots` (entities and component summaries chosen with `watch`), `logs`, `diagnostics`, `errors`, `status` (`completed`, `timed_out`, `cancelled`, `failed`) and `manualChecks` for unavailable frames. Limits: 60 s, 400 events, 12 frames, 40 snapshots, 1280 px frames, 25 entities per snapshot, wall-clock deadline of duration plus 15 s.
+- The offscreen runtime renders scene cameras only. `@view` HUD overlays and the Studio game toolbar are not part of it; use `target: "play"` to capture them. SwiftPM projects can use `target: "play"` and `editor.play.capture`; offscreen requires an AdaScript project.
+- Timing is wall-clock. Verify direction, ordering and thresholds rather than exact positions, and keep needed values in `@export` fields of a scriptable object (snapshots list them under `scripts[].fields`). Script statics and `System.print` output are not readable.
+
+Engine support: `SceneView.frameCaptureLabel(_:)` registers a view in `SceneViewFrameRegistry`; `SceneViewFrameSource` reads the latest completed frame (downscaled on request) and `OffscreenSceneRuntime` hosts a window-less scene. Games in Play use the label `game`.
+
 ## Background agent activity
 
 On iOS/iPadOS 26, user-started mobile turns request `BGContinuedProcessingTask` while the app is active. The system Activity reports the project, current model/tool/validation phase, elapsed duration and the latest tool error. Progress counts completed operations; the dynamically discovered workload always has an outstanding unit until successful validation. Timer updates never advance progress.

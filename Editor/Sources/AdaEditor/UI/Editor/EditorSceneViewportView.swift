@@ -139,6 +139,7 @@ struct EditorSceneViewportView: View {
                 ZStack(anchor: .bottomLeading) {
                     AdaptiveSceneView(
                         layout: nil,
+                        frameCaptureLabel: EditorGameFrameCapture.gameLabel,
                         make: configurePlayWorld,
                         updateContent: { world, _ in
                             Self.synchronizePlayCamera(in: world)

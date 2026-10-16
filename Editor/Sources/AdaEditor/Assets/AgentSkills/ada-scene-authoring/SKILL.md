@@ -1,7 +1,7 @@
 ---
 name: ada-scene-authoring
 description: Create and edit Ada scene entities, hierarchy, components, and scriptable objects safely.
-allowed-tools: files.read, files.write, editor.project.context, editor.scene.list_open, editor.scene.get, editor.scene.apply, editor.scene.undo, entity.find, component.get, render.capture_screenshot
+allowed-tools: files.read, files.write, editor.project.context, editor.scene.list_open, editor.scene.get, editor.scene.apply, editor.scene.undo, entity.find, component.get, editor.play.capture, render.capture_screenshot
 ---
 
 # Ada Scene Authoring
@@ -13,4 +13,5 @@ allowed-tools: files.read, files.write, editor.project.context, editor.scene.lis
 - These tools operate on scene documents already open in Ada Editor. Open an unopened scene in the editor before editing it. If direct YAML editing is required, preserve `format`, `schemaVersion`, editor state, stable entity IDs, and unknown component payloads.
 - Keep parent relationships acyclic. Add required components before dependent components.
 - Validate the decoded scene, open it in the editor, and run it when the requested behavior is executable.
-- Finish visual scene work with a screenshot of the relevant viewport or runtime window and inspect the result.
+- Finish visual scene work by playing the scene and inspecting the game camera's frame (`editor.play.capture`; load `ada-visual-verification`). The editor viewport shows the editor camera, not what the game renders.
+- Give every game scene a render setup that cannot flash blank: an active `Camera` with an explicit `backgroundColor` and clear flags, at least one light, and for 3D an `Environment3D` (sky/ambient). `render.capture_screenshot` without a running game is the editor window; never use it to judge the scene.
