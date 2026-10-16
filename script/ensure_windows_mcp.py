@@ -1,10 +1,107 @@
 #!/usr/bin/env python3
-"""Stage pinned AdaMCP as a local dependency of the Windows source build."""
+"""Stage pinned AdaMCP with Windows GPU readback and discovery compatibility."""
 from pathlib import Path
+import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "165bd5c00857a760ecea859022d023393350baad"  # Editor's AdaMCP v0.2.0
+
+
+PATCH_VERSION = "async-readback-v1"
+CAPTURE_FILES = (
+    "Sources/AdaMCPCore/RenderCaptureService.swift",
+    "Sources/AdaMCPCore/AdaMCPRuntime+RenderGraph.swift",
+)
+ORIGINAL = "        let image = texture.image"
+REPLACEMENT = """        // WebGPU readback is asynchronous; Texture.image otherwise returns an empty 1x1 image.
+        guard let image = try await RenderEngine.shared.renderDevice.readImage(from: texture) else {
+            throw AdaMCPError.screenshotUnavailable("The render backend cannot read this texture.")
+        }"""
+
+
+DISCOVERY_FILE = "Sources/AdaMCPServer/AdaMCPDiscovery.swift"
+DISCOVERY_ORIGINAL = r"""        let temporaryURL = state.manifestURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(".\(state.manifestURL.lastPathComponent).tmp")
+        try data.write(to: temporaryURL, options: .atomic)
+
+        if fileManager.fileExists(atPath: state.manifestURL.path) {
+            _ = try fileManager.replaceItemAt(state.manifestURL, withItemAt: temporaryURL)
+        } else {
+            try fileManager.moveItem(at: temporaryURL, to: state.manifestURL)
+        }"""
+DISCOVERY_REPLACEMENT = """        #if os(Windows)
+        // replaceItemAt traps in Windows Foundation. Data.write atomically replaces the destination.
+        try data.write(to: state.manifestURL, options: .atomic)
+        #else
+""" + DISCOVERY_ORIGINAL + "\n        #endif"
+CAPTURE_GUARD = "        guard let renderWorld = appWorlds.getSubworldBuilder(by: .renderWorld) else {"
+CAPTURE_EXCLUSIVE = """        return try await appWorlds.withExclusiveWorldAccess {
+            try await self.captureCurrentFrame(appWorlds: appWorlds, cameraEntityID: cameraEntityID, cameraName: cameraName)
+        }
+    }
+
+    private func captureCurrentFrame(
+        appWorlds: AppWorlds,
+        cameraEntityID: Int?,
+        cameraName: String?
+    ) async throws -> ScreenshotCaptureResult {
+""" + CAPTURE_GUARD
+GRAPH_START = """        if refreshFrame {
+            try await appWorlds.update()
+        }
+
+        let cameraEntity = try self.resolveRenderCamera("""
+GRAPH_EXCLUSIVE = """        if refreshFrame {
+            try await appWorlds.update()
+        }
+
+        return try await appWorlds.withExclusiveWorldAccess {
+            try await self.dumpCurrentAttachment(arguments: arguments, attachmentName: attachmentName)
+        }
+    }
+
+    private func dumpCurrentAttachment(arguments: [String: Value], attachmentName: String) async throws -> Value {
+        let cameraEntity = try self.resolveRenderCamera("""
+PATCHES = [(relative, ORIGINAL, REPLACEMENT) for relative in CAPTURE_FILES] + [
+    (CAPTURE_FILES[0], CAPTURE_GUARD, CAPTURE_EXCLUSIVE),
+    (CAPTURE_FILES[1], GRAPH_START, GRAPH_EXCLUSIVE),
+    (DISCOVERY_FILE, DISCOVERY_ORIGINAL, DISCOVERY_REPLACEMENT),
+]
+
+
+def prepare_windows_package(source, destination):
+    """Keep the pinned checkout pristine and patch only a separate local package."""
+    if not destination.exists():
+        # Packages contains the npm CLI and a developer-local AdaEngine symlink.
+        # Neither belongs to the native Swift package.
+        shutil.copytree(
+            source, destination,
+            ignore=shutil.ignore_patterns(".git", ".build", "Packages"),
+            ignore_dangling_symlinks=True,
+        )
+    grouped = {}
+    for relative, original, replacement in PATCHES:
+        grouped.setdefault(relative, []).append((original, replacement))
+    for relative, patches in grouped.items():
+        target = destination / relative
+        expected = (source / relative).read_text(encoding="utf-8")
+        # Accept only the pinned source or a known earlier stage of these patches.
+        # This also upgrades existing readback-only packages without overwriting edits.
+        known_versions = [expected]
+        for original, replacement in patches:
+            if expected.count(original) != 1:
+                raise RuntimeError(f"Unexpected AdaMCP compatibility source: {relative}")
+            expected = expected.replace(original, replacement)
+            known_versions.append(expected)
+        current = target.read_text(encoding="utf-8")
+        if current == expected:
+            continue
+        if current not in known_versions:
+            raise RuntimeError(f"Unexpected AdaMCP staged modifications: {relative}")
+        target.write_text(expected, encoding="utf-8")
+    return destination
 
 
 def main():
@@ -18,7 +115,8 @@ def main():
     actual = subprocess.check_output(["git", "-C", str(destination), "rev-parse", "HEAD"], text=True).strip()
     if actual != REVISION or not (destination / "Package.swift").is_file():
         raise RuntimeError("Staged AdaMCP does not match the pinned revision")
-    print(destination)
+    patched = ROOT / ".build-tools" / ("adamcp-" + REVISION + "-" + PATCH_VERSION)
+    print(prepare_windows_package(destination, patched))
 
 
 if __name__ == "__main__":
