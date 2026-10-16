@@ -1,4 +1,4 @@
-# ADR-0026: 3D rendering pipeline gap analysis and roadmap
+# ADR-0027: 3D rendering pipeline gap analysis and roadmap
 
 - Status: Accepted
 - Date: 2026-10-16
