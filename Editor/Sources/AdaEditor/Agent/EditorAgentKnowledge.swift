@@ -73,7 +73,8 @@ enum EditorAgentKnowledge {
             }
             return ["id": skill.id, "content": skill.instructions]
         case "editor.examples.list":
-            return ["examples": examples.map { ["id": $0.id, "description": $0.description, "files": $0.files.keys.sorted()] }]
+            let found = examples.filter { matches($0.id + " " + $0.description + " " + $0.tags.joined(separator: " "), query) }
+            return ["examples": found.map { ["id": $0.id, "description": $0.description, "tags": $0.tags, "files": $0.files.keys.sorted()] as [String: Any] }]
         case "editor.examples.read":
             guard let example = examples.first(where: { $0.id == arguments["id"]?.stringValue }) else {
                 throw KnowledgeError("Unknown example. Call editor.examples.list for IDs.")
@@ -91,11 +92,14 @@ enum EditorAgentKnowledge {
         let id: String
         let description: String
         let files: [String: String]
+        /// Search words for `editor.examples.list`, such as genres and techniques.
+        var tags: [String] = []
     }
 
     static var examples: [Example] {
         [
             basic3DExample(),
+            EditorAgentBundledExamples.sideScroller3D(),
             example(
                 id: "keyboard-movement",
                 description: "Complete scene-based AdaScript example: MoveRight/MoveLeft keyboard actions move a player Transform. Includes exact scene payloads and input configuration.",
