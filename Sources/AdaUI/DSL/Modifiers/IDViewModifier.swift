@@ -15,12 +15,23 @@ extension View {
 final class IDViewNodeModifier: ViewModifierNode {
     var identifier: AnyHashable?
 
+    override func canUpdate(_ node: ViewNode) -> Bool {
+        guard let other = node as? IDViewNodeModifier else { return false }
+        return identifier == other.identifier && super.canUpdate(node)
+    }
+
     override func update(from newNode: ViewNode) {
         guard let other = newNode as? IDViewNodeModifier else {
             super.update(from: newNode)
             return
         }
 
+        // Root nodes can be updated directly without a parent's identity check.
+        // A new explicit identity must also replace their stateful subtree.
+        if identifier != other.identifier {
+            contentNode.parent = nil
+            contentNode = other.contentNode
+        }
         self.identifier = other.identifier
         super.update(from: newNode)
     }

@@ -20,6 +20,53 @@ struct ViewIdentityTests {
     }
 
     @Test
+    func changingExplicitIDThroughModifiersResetsState() throws {
+        let selection = BindingBox("first")
+        let recorder = IdentityRecorder()
+        let tester = ViewTester {
+            VStack {
+                StatefulIdentityRow(label: selection.value, recorder: recorder)
+                    .id(selection.value)
+                    .padding(4)
+                    .frame(width: 120)
+            }
+        }
+        .setSize(Size(width: 300, height: 200))
+        .performLayout()
+        let first = try #require(tester.findNodeByAccessibilityIdentifier("row-first"))
+        let counter = try #require(recorder.counters["first"])
+        counter.wrappedValue = 17
+        tester.invalidateContent().performLayout()
+        #expect(recorder.values["first"] == 17)
+        #expect(tester.findNodeByAccessibilityIdentifier("row-first") === first)
+
+        selection.value = "second"
+        tester.invalidateContent().performLayout()
+        #expect(recorder.values["second"] == 0)
+        #expect(tester.findNodeByAccessibilityIdentifier("row-second") !== first)
+
+        selection.value = "first"
+        tester.invalidateContent().performLayout()
+        #expect(recorder.values["first"] == 0)
+    }
+
+    @Test
+    func changingRootExplicitIDResetsState() throws {
+        let recorder = IdentityRecorder()
+        let tester = ViewTester(rootView: StatefulIdentityRow(label: "first", recorder: recorder).id("first"))
+            .setSize(Size(width: 300, height: 200))
+            .performLayout()
+        let counter = try #require(recorder.counters["first"])
+        counter.wrappedValue = 23
+        tester.invalidateContent().performLayout()
+        #expect(recorder.values["first"] == 23)
+
+        tester.containerView.updateRootView(StatefulIdentityRow(label: "second", recorder: recorder).id("second"))
+        tester.performLayout()
+        #expect(recorder.values["second"] == 0)
+    }
+
+    @Test
     func nestedVirtualGroupsPreserveRowsOnFirstUpdate() throws {
         let items = BindingBox(["a", "b", "c"])
         let recorder = IdentityRecorder()
