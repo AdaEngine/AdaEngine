@@ -28,6 +28,28 @@ extension EditorComponentRegistry {
             environmentField("screenSpaceReflection.maxSteps", "Reflection Steps", .int, minimumValue: 1),
             environmentField("screenSpaceReflection.intensity", "Reflection Intensity", .float, minimumValue: 0),
             environmentField("screenSpaceReflection.edgeFade", "Reflection Edge Fade", .float, minimumValue: 0),
+            environmentField("debugView", "Debug View", .enumeration(DebugView3D.allCases.map(\.rawValue))),
+            environmentField("postProcess.exposureEV", "Exposure (EV)", .float),
+            environmentField("postProcess.toneMapper", "Tone Mapper", .enumeration(ToneMapper3D.allCases.map(\.rawValue))),
+            environmentField("postProcess.autoExposure.isEnabled", "Auto Exposure Enabled", .bool),
+            environmentField("postProcess.autoExposure.minimumEV", "Auto Exposure Minimum (EV)", .float),
+            environmentField("postProcess.autoExposure.maximumEV", "Auto Exposure Maximum (EV)", .float),
+            environmentField("postProcess.autoExposure.speedUp", "Auto Exposure Speed Up", .float, minimumValue: 0),
+            environmentField("postProcess.autoExposure.speedDown", "Auto Exposure Speed Down", .float, minimumValue: 0),
+            environmentField("postProcess.bloom.isEnabled", "Bloom Enabled", .bool),
+            environmentField("postProcess.bloom.intensity", "Bloom Intensity", .float, minimumValue: 0),
+            environmentField("postProcess.bloom.threshold", "Bloom Threshold", .float, minimumValue: 0),
+            environmentField("postProcess.bloom.softKnee", "Bloom Soft Knee", .float, minimumValue: 0),
+            environmentField("postProcess.bloom.scatter", "Bloom Scatter", .float, minimumValue: 0),
+            environmentField("postProcess.depthOfField.isEnabled", "Depth of Field Enabled", .bool),
+            environmentField("postProcess.depthOfField.focusDistance", "Focus Distance", .float, minimumValue: 0),
+            environmentField("postProcess.depthOfField.aperture", "Aperture", .float, minimumValue: 0),
+            environmentField("postProcess.depthOfField.maximumBlurRadius", "Maximum Blur Radius (px)", .float, minimumValue: 0),
+            environmentField("postProcess.colorGrading.saturation", "Saturation", .float, minimumValue: 0),
+            environmentField("postProcess.colorGrading.contrast", "Contrast", .float, minimumValue: 0),
+            environmentField("postProcess.vignette.intensity", "Vignette Intensity", .float, minimumValue: 0),
+            environmentField("postProcess.vignette.radius", "Vignette Radius", .float, minimumValue: 0),
+            environmentField("postProcess.vignette.smoothness", "Vignette Smoothness", .float, minimumValue: 0),
         ],
         makeDefaultPayload: makeDefaultEnvironment3DPayload,
         decode: decodeEnvironment3D
@@ -73,7 +95,47 @@ extension EditorComponentRegistry {
                 "intensity": .double(Double(environment.screenSpaceReflection.intensity)),
                 "edgeFade": .double(Double(environment.screenSpaceReflection.edgeFade)),
             ]),
+            "debugView": .string(environment.debugView.rawValue),
+            "postProcess": defaultPostProcessPayload(environment.postProcess),
         ]
+    }
+
+    private static func defaultPostProcessPayload(_ settings: PostProcess3D) -> EditorSceneValue {
+        func number(_ value: Float) -> EditorSceneValue { .double(Double(value)) }
+        return .object([
+            "exposureEV": number(settings.exposureEV),
+            "toneMapper": .string(settings.toneMapper.rawValue),
+            "autoExposure": .object([
+                "isEnabled": .bool(settings.autoExposure.isEnabled),
+                "minimumEV": number(settings.autoExposure.minimumEV),
+                "maximumEV": number(settings.autoExposure.maximumEV),
+                "speedUp": number(settings.autoExposure.speedUp),
+                "speedDown": number(settings.autoExposure.speedDown),
+            ]),
+            "bloom": .object([
+                "isEnabled": .bool(settings.bloom.isEnabled),
+                "intensity": number(settings.bloom.intensity),
+                "threshold": number(settings.bloom.threshold),
+                "softKnee": number(settings.bloom.softKnee),
+                "scatter": number(settings.bloom.scatter),
+            ]),
+            "depthOfField": .object([
+                "isEnabled": .bool(settings.depthOfField.isEnabled),
+                "focusDistance": number(settings.depthOfField.focusDistance),
+                "aperture": number(settings.depthOfField.aperture),
+                "maximumBlurRadius": number(settings.depthOfField.maximumBlurRadius),
+            ]),
+            "colorGrading": .object([
+                "saturation": number(settings.colorGrading.saturation),
+                "contrast": number(settings.colorGrading.contrast),
+                "lutIntensity": number(settings.colorGrading.lutIntensity),
+            ]),
+            "vignette": .object([
+                "intensity": number(settings.vignette.intensity),
+                "radius": number(settings.vignette.radius),
+                "smoothness": number(settings.vignette.smoothness),
+            ]),
+        ])
     }
 
     private static func decodeEnvironment3D(_ payload: EditorComponentPayload) throws -> any Component {
