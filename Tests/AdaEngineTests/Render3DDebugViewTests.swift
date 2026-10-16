@@ -201,6 +201,14 @@ struct Render3DDebugViewMetalTests {
         let target: RenderTexture
         let queue: MTLCommandQueue
         let camera: Entity
+        let sun: Entity
+
+        /// Scales the sun's intensity, which changes how bright the whole lit scene is.
+        func setSunIntensity(_ intensity: Float) throws {
+            var light = try #require(sun.components[DirectionalLightComponent.self])
+            light.intensity = intensity
+            sun.components[DirectionalLightComponent.self] = light
+        }
 
         /// Edits the camera's environment before the next rendered frame.
         func configure(_ change: (inout Environment3D) -> Void) throws {
@@ -262,7 +270,7 @@ struct Render3DDebugViewMetalTests {
             "Camera",
             bundle: Camera3D(camera: camera, transform: Transform(position: [0, 0.5, -3.4]), environment: environment)
         )
-        app.main.spawn("Sun") {
+        let sunEntity = app.main.spawn("Sun") {
             DirectionalLightComponent(radiance: [1, 0.95, 0.85], intensity: 3, castShadows: true)
             Transform(rotation: Quat.euler([-0.9, 0.6, 0]))
         }
@@ -296,7 +304,7 @@ struct Render3DDebugViewMetalTests {
             Mesh3DComponent(mesh: Mesh.generateCube(size: [10, 0.1, 10], renderDevice: device), materials: [ground])
             Transform(position: [0, -0.05, 0])
         }
-        return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity)
+        return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity, sun: sunEntity)
     }
 
     private static func expectGolden(_ image: Image, named name: String) throws {

@@ -174,6 +174,10 @@ public struct Environment3D: Codable, Sendable {
         get { postProcess.colorGrading.contrast }
         set { postProcess.colorGrading.contrast = newValue }
     }
+    public var autoExposureEnabled: Bool {
+        get { postProcess.autoExposure.isEnabled }
+        set { postProcess.autoExposure.isEnabled = newValue }
+    }
     public var bloomEnabled: Bool {
         get { postProcess.bloom.isEnabled }
         set { postProcess.bloom.isEnabled = newValue }

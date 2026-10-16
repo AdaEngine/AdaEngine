@@ -52,6 +52,64 @@ public struct Bloom3D: Codable, Sendable, Equatable {
     }
 }
 
+/// Automatic exposure that meters the lit scene and adapts toward a mid-gray average.
+///
+/// Exposure starts at 0 EV (kept inside the limits) and adapts at the configured speeds; use `infinity` speeds
+/// to follow the scene instantly. The meter averages the logarithmic luminance of lit pixels covered by
+/// geometry, so a frame that shows only sky keeps its exposure. The automatic result, limited to `minimumEV...maximumEV`, is added to the manual
+/// ``PostProcess3D/exposureEV``, which therefore acts as exposure compensation.
+public struct AutoExposure3D: Codable, Sendable, Equatable {
+    public var isEnabled: Bool
+    /// Lowest automatic correction in stops. A bright scene cannot be darkened below this.
+    public var minimumEV: Float
+    /// Highest automatic correction in stops. A dim scene cannot be brightened beyond this.
+    public var maximumEV: Float
+    /// How fast exposure rises when the scene gets darker, per second. `infinity` snaps instantly.
+    public var speedUp: Float
+    /// How fast exposure falls when the scene gets brighter, per second. `infinity` snaps instantly.
+    public var speedDown: Float
+
+    public init(isEnabled: Bool = false, minimumEV: Float = -3, maximumEV: Float = 3, speedUp: Float = 1, speedDown: Float = 2.5) {
+        self.isEnabled = isEnabled
+        self.minimumEV = minimumEV
+        self.maximumEV = maximumEV
+        self.speedUp = speedUp
+        self.speedDown = speedDown
+    }
+
+    private enum CodingKeys: CodingKey { case isEnabled, minimumEV, maximumEV, speedUp, speedDown }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = AutoExposure3D()
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? defaults.isEnabled
+        minimumEV = try container.decodeIfPresent(Float.self, forKey: .minimumEV) ?? defaults.minimumEV
+        maximumEV = try container.decodeIfPresent(Float.self, forKey: .maximumEV) ?? defaults.maximumEV
+        speedUp = try container.decodeIfPresent(Float.self, forKey: .speedUp) ?? defaults.speedUp
+        speedDown = try container.decodeIfPresent(Float.self, forKey: .speedDown) ?? defaults.speedDown
+    }
+
+    /// Largest speed passed to the shader. It is large enough that one frame reaches the target.
+    static let snapSpeed: Float = 1e7
+
+    /// Values the shader can use: ordered limits within ±10 stops and finite speeds, with `infinity` kept as a snap.
+    var sanitized: AutoExposure3D {
+        let defaults = AutoExposure3D()
+        func speed(_ value: Float, fallback: Float) -> Float {
+            value == .infinity ? Self.snapSpeed : finiteRenderValue(value, fallback: fallback, range: 0...1000)
+        }
+        let low = finiteRenderValue(minimumEV, fallback: defaults.minimumEV, range: -10...10)
+        let high = finiteRenderValue(maximumEV, fallback: defaults.maximumEV, range: -10...10)
+        return AutoExposure3D(
+            isEnabled: isEnabled,
+            minimumEV: min(low, high),
+            maximumEV: max(low, high),
+            speedUp: speed(speedUp, fallback: defaults.speedUp),
+            speedDown: speed(speedDown, fallback: defaults.speedDown)
+        )
+    }
+}
+
 /// Darkens the image toward its corners. Applied to linear HDR before tone mapping.
 public struct Vignette3D: Codable, Sendable, Equatable {
     /// Strength at the corners: `0` is off (the default), `1` fades the corners to black.
@@ -176,22 +234,25 @@ public struct PostProcess3D: Codable, Sendable, Equatable {
     public var toneMapper: ToneMapper3D
     public var vignette: Vignette3D
     public var colorGrading: ColorGrading3D
+    public var autoExposure: AutoExposure3D
 
     public init(
         exposureEV: Float = 0,
         bloom: Bloom3D = Bloom3D(),
         toneMapper: ToneMapper3D = ToneMapper3D.aces,
         vignette: Vignette3D = Vignette3D(),
-        colorGrading: ColorGrading3D = ColorGrading3D()
+        colorGrading: ColorGrading3D = ColorGrading3D(),
+        autoExposure: AutoExposure3D = AutoExposure3D()
     ) {
         self.exposureEV = exposureEV
         self.bloom = bloom
         self.toneMapper = toneMapper
         self.vignette = vignette
         self.colorGrading = colorGrading
+        self.autoExposure = autoExposure
     }
 
-    private enum CodingKeys: CodingKey { case exposureEV, bloom, toneMapper, vignette, colorGrading }
+    private enum CodingKeys: CodingKey { case exposureEV, bloom, toneMapper, vignette, colorGrading, autoExposure }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -200,6 +261,7 @@ public struct PostProcess3D: Codable, Sendable, Equatable {
         toneMapper = try container.decodeIfPresent(ToneMapper3D.self, forKey: .toneMapper) ?? ToneMapper3D.aces
         vignette = try container.decodeIfPresent(Vignette3D.self, forKey: .vignette) ?? Vignette3D()
         colorGrading = try container.decodeIfPresent(ColorGrading3D.self, forKey: .colorGrading) ?? ColorGrading3D()
+        autoExposure = try container.decodeIfPresent(AutoExposure3D.self, forKey: .autoExposure) ?? AutoExposure3D()
     }
 
     /// Linear multiplier for `exposureEV`, limited to ±10 stops so a bad value cannot overflow half floats.
