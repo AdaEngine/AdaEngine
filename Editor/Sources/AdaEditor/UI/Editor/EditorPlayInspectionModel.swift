@@ -85,7 +85,7 @@ final class EditorPlayInspectionModel {
         if selection != snapshot { selection = snapshot }
     }
 
-    private static func summary(of component: any Component, typeName: String) -> String {
+    static func summary(of component: any Component, typeName: String) -> String {
         if let transform = component as? Transform {
             let position = transform.position
             let rotation = transform.rotation
@@ -108,7 +108,7 @@ final class EditorPlayInspectionModel {
         return value.count > 160 ? String(value.prefix(159)) + "…" : value
     }
 
-    private static func reflectedValue(_ value: ReflectedFieldValue) -> String {
+    static func reflectedValue(_ value: ReflectedFieldValue) -> String {
         switch value {
         case .null: "—"
         case let .bool(value): value ? "true" : "false"

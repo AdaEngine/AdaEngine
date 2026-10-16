@@ -29,6 +29,9 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var nextRenderTextureIndex = 0
     private var frontRenderTexture: RenderTexture?
     private(set) var renderTexture: Texture2D?
+    /// Frames that finished rendering and were made visible.
+    private(set) var completedFrameCount = 0
+    private(set) var frameSource: SceneViewFrameSource?
     var renderTextureDidChange: (@MainActor @Sendable () -> Void)?
     var renderFrameDidChange: (@MainActor @Sendable () -> Void)?
 
@@ -53,6 +56,10 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private let updateContentClosure: @MainActor (World, AdaUtils.TimeInterval) -> Void
     private let onFrameRendered: (@MainActor (Texture2D) -> Void)?
     private let prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))?
+    private let frameCaptureLabel: String?
+    /// `false` keeps the scene on its own update loop even when a host session exists, so it
+    /// advances without the host's display link (for automation that must not depend on a visible window).
+    private let joinsHostSession: Bool
     private let resizeApplyDelay: AdaUtils.TimeInterval = 0.08
     /// Common guaranteed 2D texture limit across the supported Metal and WebGPU device families.
     private let maximumRenderTextureDimension = 8_192
@@ -73,14 +80,23 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         make: @escaping @MainActor (inout AppWorlds) -> Void,
         updateContent: @escaping @MainActor (World, AdaUtils.TimeInterval) -> Void,
         onFrameRendered: (@MainActor (Texture2D) -> Void)? = nil,
-        prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))? = nil
+        prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))? = nil,
+        frameCaptureLabel: String? = nil,
+        joinsHostSession: Bool = true
     ) {
+        self.joinsHostSession = joinsHostSession
+        self.frameCaptureLabel = frameCaptureLabel
         self.useSceneCameras = useSceneCameras
         self.makeClosure = make
         self.updateContentClosure = updateContent
         self.onFrameRendered = onFrameRendered
         self.prepareFramePresentation = prepareFramePresentation
         self.hostSubworldName = AppWorldName(rawValue: "SceneView.\(UUID().uuidString)")
+        if let frameCaptureLabel {
+            let source = SceneViewFrameSource(label: frameCaptureLabel, coordinator: self)
+            frameSource = source
+            SceneViewFrameRegistry.register(source)
+        }
     }
 
     deinit {
@@ -88,6 +104,18 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         Task { @MainActor in
             AppWorldsSession.current?.removeSubworld(by: name)
         }
+    }
+
+    /// The last frame that finished rendering. It is no longer a render target, so it is safe to read back.
+    var completedFrameTexture: RenderTexture? { frontRenderTexture }
+
+    /// Names of cameras that contribute to the frame. A display camera mirroring an authored one is included.
+    var activeCameraNames: [String] {
+        guard let appWorlds else { return [] }
+        return appWorlds.main.getEntities()
+            .filter { $0.components[Camera.self]?.isActive == true }
+            .map(\.name)
+            .sorted()
     }
 
     // MARK: - OffscreenViewportDelegate
@@ -107,7 +135,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 self.isBootstrapping = false
                 return
             }
-            if let host = AppWorldsSession.current {
+            if self.joinsHostSession, let host = AppWorldsSession.current {
                 self.hostWorlds = host
                 self.isHostedSubworld = true
             } else {
@@ -129,6 +157,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
 
     func shutdown() {
         isShutdown = true
+        frameSource.map { SceneViewFrameRegistry.unregister($0) }
         stopAudioPlaybacks()
         AppWorldsSession.current?.removeSubworld(by: hostSubworldName)
         if let executionID = appWorlds?.executionID {
@@ -403,8 +432,13 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         retiredDisplayTargets.removeAll()
         nextRenderTextureIndex = 0
         frontRenderTexture = nil
-        renderTexture = nil
-        renderTextureDidChange?()
+        // Keep presenting the last completed frame (stretched) until the first frame at the new
+        // size completes. Dropping it uncovers whatever is behind the viewport, which shows up
+        // as a flash on every resize (window layout, panel toggles, Play start).
+        if !(renderTexture is Texture2DProxy) {
+            renderTexture = nil
+            renderTextureDidChange?()
+        }
 
         if let texture = nextAvailableRenderTexture() {
             setTargetRenderTexture(texture)
@@ -443,6 +477,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             }
         }
         if didPublish {
+            completedFrameCount += 1
             present?()
             if let renderTexture = renderTexture as? Texture2DProxy,
                 let frontRenderTexture {

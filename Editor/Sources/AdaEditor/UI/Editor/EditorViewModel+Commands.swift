@@ -225,7 +225,7 @@ extension EditorViewModel {
         executeWorkspaceCommand(.build(target: target, buildTests: false), statusTitle: "Build \(target)")
     }
 
-    private func saveDocumentsForNativeRun() -> Bool {
+    func saveDocumentsForNativeRun() -> Bool {
         guard nativeAdaScriptLauncher != nil else { return true }
         guard workbench.saveAllDocuments() else {
             let message = "Build/Run blocked: unable to save project documents."
@@ -617,10 +617,15 @@ extension EditorViewModel {
     }
 
     func runTests(filter: String? = nil) {
-        executeWorkspaceCommand(
-            .test(filter: filter ?? (selectedTestFilter.isEmpty ? nil : selectedTestFilter)),
-            statusTitle: "Test"
-        )
+        let filter = filter ?? (selectedTestFilter.isEmpty ? nil : selectedTestFilter)
+        if let projectURL,
+            let settings = try? ProjectSystem.loadProject(at: projectURL, fileManager: fileManager),
+            settings.build.system.isAdaScript {
+            guard saveDocumentsForNativeRun() else { return }
+            runAdaScriptTests(settings, at: projectURL, filter: filter)
+            return
+        }
+        executeWorkspaceCommand(.test(filter: filter), statusTitle: "Test")
     }
 
     func updateDependencies() {

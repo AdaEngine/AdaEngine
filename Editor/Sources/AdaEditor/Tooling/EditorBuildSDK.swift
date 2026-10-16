@@ -8,7 +8,9 @@ struct EditorBuildSDK: Sendable {
 
     static func appBundle(containing executable: URL) -> URL? {
         var url = executable.resolvingSymlinksInPath().deletingLastPathComponent()
-        while url != url.deletingLastPathComponent() {
+        // `deletingLastPathComponent()` of "/" yields "/.." on current Foundation, so compare
+        // path components instead of URLs; otherwise a non-bundle launch never terminates.
+        while url.pathComponents.count > 1 {
             if url.pathExtension == "app" {
                 return url
             }

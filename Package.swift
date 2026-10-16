@@ -70,6 +70,8 @@ extension String {
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
 var products: [Product] = [
+    .executable(name: "SpinePreview", targets: ["SpinePreview"]),
+    .library(name: "AdaSpine", targets: ["AdaSpine"]),
     .library(name: "CAndroid", targets: ["CAndroid"]),
     .executable(name: "AdaWebPlayer", targets: ["AdaWebPlayer"]),
     .executable(name: "AdaWebPlayerPackager", targets: ["AdaWebPlayerPackager"]),
@@ -323,6 +325,29 @@ let adaEngineMacros: Target = .macro(
 // MARK: Other Targets
 
 var targets: [Target] = [
+    .executableTarget(
+        name: "SpinePreview",
+        dependencies: ["AdaSpineRuntime"],
+        path: "Demos/SpinePreview",
+        exclude: ["README.md"],
+        resources: [.copy("Assets")],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "SpineRuntimeC",
+        exclude: ["LICENSE", "UPSTREAM.md"],
+        publicHeadersPath: "include"
+    ),
+    .target(name: "AdaSpineBridgeC", dependencies: ["SpineRuntimeC"]),
+    .target(name: "AdaSpineRuntime", dependencies: ["AdaSpineBridgeC"], swiftSettings: swiftSettings),
+    .adaTarget(
+        name: "AdaSpine",
+        dependencies: ["AdaSpineRuntime", "AdaApp", "AdaAssets", "AdaCorePipelines", "AdaECS", "AdaRender", "AdaTransform", "AdaUtils", "Math"],
+        resources: [.copy("Assets")],
+        swiftSettings: swiftSettings
+    ),
+    .testTarget(name: "AdaSpineTests", dependencies: ["AdaSpineRuntime"], resources: [.copy("Fixtures")]),
+    .testTarget(name: "AdaSpineIntegrationTests", dependencies: ["AdaSpine", "AdaApp", "AdaAssets", "AdaCorePipelines", "AdaECS", "AdaRender", "AdaTransform", "AdaUtils", "Math"]),
     .target(
         name: "CAndroid",
         linkerSettings: [

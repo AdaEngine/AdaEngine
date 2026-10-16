@@ -51,7 +51,9 @@ extension EditorViewModel {
                     continue
                 }
                 let target: URL
-                if values.isDirectory != true, EditorModelResource.extensions.contains(source.pathExtension.lowercased()) {
+                if values.isDirectory != true, EditorSpineAssetImporter.accepts(source) {
+                    target = try EditorSpineAssetImporter.copy(source, to: destination, fileManager: fileManager)
+                } else if values.isDirectory != true, EditorModelResource.extensions.contains(source.pathExtension.lowercased()) {
                     target = try EditorModelAssetImporter.copy(source, to: destination, fileManager: fileManager)
                 } else {
                     target = uniqueAssetDestinationURL(for: sourceURL, in: destination)

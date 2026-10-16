@@ -1,7 +1,9 @@
 @_spi(AdaEngine) import AdaEngine
+import AdaSpine
 import Foundation
 
 enum EditorBuiltInComponentType {
+    static let spineSource = String(reflecting: SpineSource.self)
     static let transform = String(reflecting: Transform.self)
     static let camera = String(reflecting: Camera.self)
     static let sprite = String(reflecting: Sprite.self)
@@ -266,6 +268,7 @@ enum EditorComponentRegistry {
         mesh2DDescriptor,
         mesh3DDescriptor,
         model3DSourceDescriptor,
+        spineSourceDescriptor,
         audioSourceDescriptor,
         physicsBody3DDescriptor,
         directionalLight3DDescriptor,
@@ -313,6 +316,8 @@ enum EditorComponentRegistry {
         RuntimeTypeRegistry.registerComponent(LightModulate2D.self, names: ["LightModulate2D"])
         RuntimeTypeRegistry.registerComponent(SceneInstance.self, names: ["SceneInstance"])
         RuntimeTypeRegistry.registerComponent(Model3DSource.self, names: ["Model3DSource"])
+        RuntimeTypeRegistry.registerComponent(SpineSource.self, names: ["SpineSource"])
+        AssetsManager.registerAssetType(SpineSkeleton.self)
         RuntimeTypeRegistry.registerComponent(AudioSource.self, names: ["AudioSource"], makeDefault: { AudioSource() })
         ModelAnimationPlayback3DComponent.registerComponent()
         CharacterController3DComponent.registerComponent()
