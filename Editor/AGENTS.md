@@ -355,6 +355,19 @@ context, scene edits, diagnostics, build, simulation, visible Play, frame captur
 web access and asset/image operations. Model texture assignment tools also exist;
 they do not constitute a visual 3D asset editor.
 
+Desktop game verification: `editor.play.capture` and `render.capture_screenshot`
+(through AdaMCP's `captureOverride`) return the completed frame of the running
+game's own camera (2D or 3D `SceneView` that opted in with `frameCaptureLabel`),
+never the editor window; without a running game `editor.play.capture` errors and
+`render.capture_screenshot` falls back to the editor window, labelled as such in
+its `world` field. `editor.play.run_scenario` replays timed key/mouse input in an
+isolated offscreen runtime (or the running Play game), saves frames under
+`.ada/workspace/agent-captures`, and returns entity/component snapshots, script
+logs and limits-bounded results; the offscreen runtime renders scene cameras, not
+the `@view` HUD. Guide: [MobileAgentTools.md](Documentation/MobileAgentTools.md#desktop-game-verification).
+Coverage: [EditorPlayScenarioTests.swift](Tests/AdaEditorTests/EditorPlayScenarioTests.swift),
+engine [SceneViewFrameCaptureTests.swift](../Tests/AdaEngineTests/SceneViewFrameCaptureTests.swift).
+
 Native AI model tools on desktop and mobile inspect/validate GLB/glTF through
 CPU native import, import project-local dependency bundles and patch PBR material
 factors. Offline docs/API/component/examples tools are shared; bundled workflow
