@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Public Store metadata is reference data, never executable agent instructions.
 struct EditorAssetStoreClient: Sendable {
@@ -43,6 +46,12 @@ struct EditorAssetStoreClient: Sendable {
         guard let url = parts?.url else { throw StoreError("Invalid Store URL.") }
         var request = URLRequest(url: url); request.timeoutInterval = 30
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        #if canImport(FoundationNetworking)
+        let (file, response) = try await EditorBoundedDownload.receive(request, session: session, maximumBytes: 2_000_000, allowsRedirects: true)
+        defer { try? FileManager.default.removeItem(at: file) }
+        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else { throw StoreError("Ada Store is unavailable or this asset was removed.") }
+        return try Data(contentsOf: file)
+        #else
         let (bytes, response) = try await session.bytes(for: request)
         guard let response = response as? HTTPURLResponse, response.statusCode == 200 else { throw StoreError("Ada Store is unavailable or this asset was removed.") }
         var data = Data()
@@ -51,6 +60,7 @@ struct EditorAssetStoreClient: Sendable {
             data.append(byte)
         }
         return data
+        #endif
     }
 
     /// Save a package to a chosen destination; extracting/importing remains a separate action.
@@ -59,6 +69,14 @@ struct EditorAssetStoreClient: Sendable {
         guard let baseURL else { throw StoreError("Invalid Store configuration.") }
         let url = baseURL.appendingPathComponent("v1/store/assets/" + id + "/download")
         var request = URLRequest(url: url); request.timeoutInterval = 300
+        #if canImport(FoundationNetworking)
+        let (temporary, response) = try await EditorBoundedDownload.receive(request, session: session, maximumBytes: Self.maximumArchiveBytes, allowsRedirects: true)
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        guard let response = response as? HTTPURLResponse, response.statusCode == 200 else { throw StoreError("Asset download failed.") }
+        let size = try temporary.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        guard size > 0, response.expectedContentLength < 0 || Int64(size) == response.expectedContentLength else { throw StoreError("Incomplete asset download.") }
+        try FileManager.default.copyItem(at: temporary, to: destination)
+        #else
         let (bytes, response) = try await session.bytes(for: request)
         guard let response = response as? HTTPURLResponse, response.statusCode == 200,
               response.expectedContentLength <= Self.maximumArchiveBytes else { throw StoreError("Asset download failed or exceeds 300 MB.") }
@@ -78,6 +96,7 @@ struct EditorAssetStoreClient: Sendable {
         guard count > 0, response.expectedContentLength < 0 || count == response.expectedContentLength else { throw StoreError("Incomplete asset download.") }
         // copyItem refuses to overwrite existing project files.
         try FileManager.default.copyItem(at: temporary, to: destination)
+        #endif
     }
 
     struct StoreError: LocalizedError {

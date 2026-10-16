@@ -454,7 +454,11 @@ final class ProjectOpeningViewModel {
         guard let project else {
             return "Never"
         }
+        #if os(Android)
+        return project.lastOpenedAt.formatted(date: .abbreviated, time: .shortened)
+        #else
         return Self.relativeDateFormatter.localizedString(for: project.lastOpenedAt, relativeTo: Date())
+        #endif
     }
 
     func consumeProjectToOpenInEditor() -> EditorProjectReference? {
@@ -483,12 +487,14 @@ final class ProjectOpeningViewModel {
         EditorProjectPathDisplayFormatter.string(for: path)
     }
 
+    #if !os(Android)
     private static let relativeDateFormatter: RelativeDateTimeFormatter = {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return formatter
     }()
 
+    #endif
     private func initializeGitRepositoryIfNeeded(at path: String) -> String? {
         #if os(macOS) || os(Linux) || os(Windows)
             let command: [String]

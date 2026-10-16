@@ -1,9 +1,22 @@
-import AuthenticationServices
-import CryptoKit
 import Foundation
 import Observation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(CryptoKit)
+import CryptoKit
+#else
+import Crypto
+#endif
+#if canImport(AuthenticationServices)
+import AuthenticationServices
+#endif
+#if canImport(Security)
 import Security
+#endif
+#if canImport(StoreKit)
 import StoreKit
+#endif
 
 #if os(macOS)
     import AppKit
@@ -13,7 +26,7 @@ import StoreKit
 
 @MainActor
 @Observable
-final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContextProviding {
+final class EditorCloudAccount: NSObject {
     static let shared = EditorCloudAccount()
     var server = EditorCloudConfiguration.server(
         environment: ProcessInfo.processInfo.environment["ADA_CLOUD_API_URL"],
@@ -36,7 +49,9 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
     var expiresAt: Date?
     var applySettings: ((EditorCloudValue) -> Void)?
     @ObservationIgnored private var credentials: EditorCloudValue = [:]
+    #if canImport(AuthenticationServices)
     @ObservationIgnored private var authentication: ASWebAuthenticationSession?
+    #endif
     @ObservationIgnored private var loop: Task<Void, Never>?
     @ObservationIgnored private var transactionLoop: Task<Void, Never>?
     @ObservationIgnored private var applying = false
@@ -66,6 +81,7 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
                 try? await Task.sleep(for: .seconds(10))
             }
         }
+        #if canImport(StoreKit)
         transactionLoop = Task { [weak self] in
             for await update in Transaction.updates {
                 guard let self, self.accountID != nil else {
@@ -74,6 +90,7 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
                 do { try await self.acceptPurchase(update) } catch { self.status = "Purchase verification will retry: \(error.localizedDescription)" }
             }
         }
+        #endif
     }
     func perform(_ work: @escaping @MainActor () async throws -> Void) {
         guard !busy else {
@@ -104,6 +121,9 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
             throw CloudError.message("Unexpected sign-in website")
         }
         status = "Complete sign-in on the Ada Cloud website."
+        #if os(Android)
+        let callback = try await AndroidStudioHost.authenticate(authorizeURL)
+        #elseif canImport(AuthenticationServices)
         defer { authentication = nil }
         let callback = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
             let session = ASWebAuthenticationSession(url: authorizeURL, callbackURLScheme: "adaeditor") { url, error in
@@ -120,8 +140,13 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
                 continuation.resume(throwing: CloudError.message("Unable to open the sign-in website"))
             }
         }
+        #else
+        throw CloudError.message("Browser sign-in is unavailable on this platform.")
+        #endif
+        #if os(Android) || canImport(AuthenticationServices)
         let code = try Self.exchangeCode(from: callback, expectedState: state)
         try await saveSession(try await self.request("/auth/exchange", method: "POST", body: ["code": .string(code), "verifier": .string(verifier)], authenticated: false))
+        #endif
     }
     static func isAllowedCloudURL(_ url: URL) -> Bool {
         guard url.host != nil, url.user == nil, url.password == nil else {
@@ -308,6 +333,7 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
         applySettings?(visibleValues)
     }
     func buyPro() async throws {
+        #if canImport(StoreKit)
         guard let owner = accountID.flatMap(UUID.init(uuidString:)) else {
             throw CloudError.message("Sign in before purchasing Pro.")
         }
@@ -343,7 +369,11 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
         case .userCancelled: status = "Purchase cancelled."
         @unknown default: status = "Purchase status is unavailable."
         }
+        #else
+        throw CloudError.message("Pro purchases are unavailable in the Android preview. Existing subscriptions remain available after sign-in.")
+        #endif
     }
+    #if canImport(StoreKit)
     private func acceptPurchase(_ result: VerificationResult<Transaction>) async throws {
         guard case let .verified(transaction) = result else {
             throw CloudError.message("Unverified App Store transaction")
@@ -352,7 +382,9 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
         await transaction.finish()
         try await refreshPlan()
     }
+    #endif
     func restorePurchases() async throws {
+        #if canImport(StoreKit)
         guard accountID != nil else {
             throw CloudError.message("Sign in before restoring purchases.")
         }
@@ -360,6 +392,10 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
         for await result in Transaction.currentEntitlements { try await acceptPurchase(result) }
         try await refreshPlan()
         status = "Purchases restored."
+        #else
+        try await refreshPlan()
+        status = "Subscription refreshed."
+        #endif
     }
     @discardableResult
     func publish(zip: URL, mode: String = "invite", pageID: String? = nil) async throws -> EditorCloudValue {
@@ -371,10 +407,10 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
             throw CloudError.message("Cloud Services will open soon.")
         }
         guard accountID == owner else { throw EditorAIError.sessionChanged }
-        let scoped = zip.startAccessingSecurityScopedResource()
+        let scoped = zip.startAccessingEditorResource()
         defer {
             if scoped {
-                zip.stopAccessingSecurityScopedResource()
+                zip.stopAccessingEditorResource()
             }
         }
         let attributes = try FileManager.default.attributesOfItem(atPath: zip.path)
@@ -544,6 +580,7 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
         }
     }
 
+    #if canImport(AuthenticationServices)
     func presentationAnchor(for _: ASWebAuthenticationSession) -> ASPresentationAnchor {
         #if os(macOS)
             NSApplication.shared.keyWindow ?? ASPresentationAnchor()
@@ -551,14 +588,18 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows).first(where: \.isKeyWindow) ?? ASPresentationAnchor()
         #endif
     }
+    #endif
     static func base64URL(_ data: Data) -> String {
         data.base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
     }
+    #if canImport(Security)
     private static var keychainQuery: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "org.adaengine.cloud", kSecAttrAccount as String: "session"]
     }
+    #endif
     private static func keychainRead() throws -> Data? {
+        #if canImport(Security)
         var query = keychainQuery
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -568,8 +609,14 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
             throw CloudError.message("Keychain unavailable (\(result))")
         }
         return value as? Data
+        #elseif os(Android)
+        return AndroidStudioCredentials.load(key: "org.adaengine.cloud:session")
+        #else
+        return nil
+        #endif
     }
     private static func keychainWrite(_ data: Data) throws {
+        #if canImport(Security)
         let result = SecItemUpdate(keychainQuery as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         if result == errSecItemNotFound {
             var query = keychainQuery
@@ -581,8 +628,19 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
         } else if result != errSecSuccess {
             throw CloudError.message("Unable to update Keychain")
         }
+        #elseif os(Android)
+        try AndroidStudioCredentials.save(data, key: "org.adaengine.cloud:session")
+        #else
+        throw CloudError.message("Secure storage is unavailable on this platform.")
+        #endif
     }
-    private static func keychainDelete() { SecItemDelete(keychainQuery as CFDictionary) }
+    private static func keychainDelete() {
+        #if canImport(Security)
+        SecItemDelete(keychainQuery as CFDictionary)
+        #elseif os(Android)
+        try? AndroidStudioCredentials.delete(key: "org.adaengine.cloud:session")
+        #endif
+    }
     enum CloudError: LocalizedError {
         case message(String)
         case http(Int, String)
@@ -593,3 +651,7 @@ final class EditorCloudAccount: NSObject, ASWebAuthenticationPresentationContext
         }
     }
 }
+
+#if canImport(AuthenticationServices)
+extension EditorCloudAccount: ASWebAuthenticationPresentationContextProviding {}
+#endif

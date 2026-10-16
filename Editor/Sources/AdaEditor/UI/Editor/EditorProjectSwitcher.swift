@@ -1,3 +1,4 @@
+import Observation
 @_spi(AdaEngine) import AdaEngine
 import Foundation
 

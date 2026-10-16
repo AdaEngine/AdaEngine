@@ -15,7 +15,9 @@ enum EditorAdaScriptProjectBuildOutcome: Sendable {
 final class EditorViewModel {
     let studioTools = EditorStudioToolHost()
     let performance = EditorPerformanceModel()
+    #if canImport(Network)
     let playerSession = EditorPlayerSession()
+    #endif
     var playerPairingWindow: UIWindow?
     let debugger = EditorDebugger()
     let textSearch = EditorTextSearchModel()

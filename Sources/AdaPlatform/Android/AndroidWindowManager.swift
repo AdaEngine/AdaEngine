@@ -39,6 +39,13 @@
         }
 
         func surfaceChanged() {
+            // A replacement activity can create its window before Android delivers
+            // destruction callbacks for the previous activity. In that case there
+            // is no surfaceLost event for the cached lease; replace it explicitly.
+            for (id, surface) in surfaces where !surface.matchesCurrentNativeWindow {
+                unsafe try? RenderEngine.shared.destroyWindow(id)
+                surfaces[id] = nil
+            }
             for (id, window) in windows.values where surfaces[id] == nil {
                 guard let surface = AndroidRenderSurface() else { continue }
                 surfaces[id] = surface
@@ -76,6 +83,9 @@
         override func setMouseMode(_: Input.MouseMode) {}
         override func getMouseMode() -> Input.MouseMode { .visible }
         override func updateCursor() {}
+        override func textInputFocusDidChange(_ focused: Bool) {
+            AndroidRuntime.textInputFocusChanged?(focused)
+        }
     }
 
     @MainActor
@@ -101,6 +111,11 @@
     final class AndroidRenderSurface: AndroidNativeWindowRenderSurface {
         private let lease: AndroidNativeWindowLease
         var nativeWindow: UnsafeMutableRawPointer { unsafe lease.pointer }
+        var matchesCurrentNativeWindow: Bool {
+            guard let current = unsafe ada_android_acquire_window() else { return false }
+            defer { unsafe ada_android_release_window(current) }
+            return unsafe current == lease.pointer
+        }
         init?() {
             guard let lease = AndroidNativeWindowLease() else { return nil }
             self.lease = lease

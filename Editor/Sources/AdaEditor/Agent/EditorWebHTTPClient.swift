@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 struct EditorWebHTTPResponse: Sendable {
     let data: Data
@@ -46,7 +49,12 @@ struct EditorWebURLSessionClient: EditorWebHTTPClient {
             try Task.checkCancellation()
             var request = URLRequest(url: current)
             request.setValue("AdaEditor/1.0", forHTTPHeaderField: "User-Agent")
+            #if canImport(FoundationNetworking)
+            let (file, response) = try await EditorBoundedDownload.receive(request, session: session, maximumBytes: Int64(maxBytes), allowsRedirects: false)
+            defer { try? FileManager.default.removeItem(at: file) }
+            #else
             let (bytes, response) = try await session.bytes(for: request)
+            #endif
             guard let http = response as? HTTPURLResponse else { throw EditorWebToolError("Expected an HTTP response.") }
             if [301, 302, 303, 307, 308].contains(http.statusCode) {
                 guard redirect < 5, let location = http.value(forHTTPHeaderField: "Location"),
@@ -58,6 +66,9 @@ struct EditorWebURLSessionClient: EditorWebHTTPClient {
             }
             guard (200..<300).contains(http.statusCode) else { throw EditorWebToolError("HTTP \(http.statusCode) from \(current.host ?? "server").") }
             guard response.expectedContentLength <= Int64(maxBytes) else { throw EditorWebToolError("Response exceeds the \(maxBytes)-byte limit.") }
+            #if canImport(FoundationNetworking)
+            let data = try Data(contentsOf: file)
+            #else
             var data = Data()
             data.reserveCapacity(min(maxBytes, 64 * 1024))
             for try await byte in bytes {
@@ -65,6 +76,7 @@ struct EditorWebURLSessionClient: EditorWebHTTPClient {
                 data.append(byte)
                 if data.count % (64 * 1024) == 0 { try Task.checkCancellation() }
             }
+            #endif
             return EditorWebHTTPResponse(data: data, url: current, mimeType: response.mimeType ?? "application/octet-stream", textEncodingName: response.textEncodingName)
         }
         throw EditorWebToolError("Too many redirects.")

@@ -1,3 +1,4 @@
+import Observation
 import AdaEngine
 
 /// Mounts ECS overlays in the native game window. SceneView's offscreen world

@@ -52,6 +52,55 @@ class AndroidPackagingTests(unittest.TestCase):
         args=android.parser().parse_args(["build","--min-sdk","28"])
         with self.assertRaises(android.AndroidError): android.validate_options(args)
 
+    def test_studio_manifest_enables_dex_and_excludes_keystore_backup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source=Path(temporary)/"StudioActivity.java"
+            source.write_text("class StudioActivity {}")
+            args=android.parser().parse_args([
+                "build", "--product", "AdaStudioMobile", "--activity", "org.adaengine.studio.StudioActivity",
+                "--java-source", str(source)
+            ])
+            android.validate_options(args)
+            path=Path(temporary)/"AndroidManifest.xml"
+            android.write_manifest(path,args)
+            app=ET.parse(path).getroot().find("application")
+            self.assertEqual(app.attrib[android.ANDROID+"hasCode"],"true")
+            self.assertEqual(app.attrib[android.ANDROID+"allowBackup"],"false")
+            self.assertEqual(app.find("activity").attrib[android.ANDROID+"name"],"org.adaengine.studio.StudioActivity")
+            self.assertEqual(app.find("activity/meta-data").attrib[android.ANDROID+"value"],"AdaStudioMobile")
+
+    def test_custom_activity_requires_source(self):
+        args=android.parser().parse_args(["build", "--activity", "org.adaengine.studio.StudioActivity"])
+        with self.assertRaisesRegex(android.AndroidError,"--java-source"):
+            android.validate_options(args)
+
+    def test_custom_activity_requires_qualified_class_name(self):
+        args=android.parser().parse_args(["build", "--activity", "StudioActivity"])
+        with self.assertRaisesRegex(android.AndroidError,"fully qualified"):
+            android.validate_options(args)
+
+    def test_browser_callback_returns_to_the_existing_activity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source=Path(temporary)/"StudioActivity.java"; source.write_text("class StudioActivity {}")
+            args=android.parser().parse_args([
+                "build", "--activity", "org.adaengine.studio.StudioActivity", "--java-source", str(source),
+                "--callback-url", "adaeditor://cloud/callback"
+            ])
+            android.validate_options(args)
+            path=Path(temporary)/"AndroidManifest.xml"; android.write_manifest(path,args)
+            activity=ET.parse(path).getroot().find("application/activity")
+            self.assertEqual(activity.attrib[android.ANDROID+"launchMode"],"singleTask")
+            link=activity.findall("intent-filter")[1]
+            self.assertEqual(link.find("data").attrib,{
+                android.ANDROID+"scheme":"adaeditor",android.ANDROID+"host":"cloud",android.ANDROID+"path":"/callback"
+            })
+            self.assertIn("android.intent.category.BROWSABLE",[item.attrib[android.ANDROID+"name"] for item in link.findall("category")])
+
+    def test_callback_without_a_java_host_is_rejected(self):
+        args=android.parser().parse_args(["build", "--callback-url", "adaeditor://cloud/callback"])
+        with self.assertRaisesRegex(android.AndroidError,"Java host"):
+            android.validate_options(args)
+
 if __name__=="__main__": unittest.main()
 
 class AndroidWebGPUSetupTests(unittest.TestCase):

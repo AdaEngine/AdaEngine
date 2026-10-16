@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 struct EditorExampleCatalog: Decodable, Sendable {
     struct Item: Decodable, Identifiable, Equatable, Sendable {
@@ -178,14 +181,23 @@ actor EditorExampleService {
     }
 
     static func fetchHTTPS(_ url: URL, limit: Int) async throws -> Data {
+        #if canImport(FoundationNetworking)
+        let (file, response) = try await EditorBoundedDownload.receive(URLRequest(url: url, timeoutInterval: 120), session: .shared, maximumBytes: Int64(limit), allowsRedirects: true)
+        defer { try? FileManager.default.removeItem(at: file) }
+        #else
         let (bytes, response) = try await URLSession.shared.bytes(for: URLRequest(url: url, timeoutInterval: 120))
+        #endif
         guard let http = response as? HTTPURLResponse, http.statusCode == 200, http.url?.scheme == "https",
               http.expectedContentLength <= limit else { throw EditorExampleError("Examples are unavailable. Check your connection and try again.") }
+        #if canImport(FoundationNetworking)
+        let data = try Data(contentsOf: file)
+        #else
         var data = Data()
         for try await byte in bytes {
             guard data.count < limit else { throw EditorExampleError("Example download exceeds the size limit.") }
             data.append(byte)
         }
+        #endif
         guard http.expectedContentLength < 0 || data.count == http.expectedContentLength else { throw EditorExampleError("Incomplete example download.") }
         return data
     }

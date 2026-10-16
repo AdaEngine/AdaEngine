@@ -1,3 +1,4 @@
+#if canImport(Network)
 import AdaEngine
 import AdaPlayerConnect
 import Foundation
@@ -198,3 +199,5 @@ private struct AdaPlayerHomeView: View {
         .onDisappear { controller.close() }
     }
 }
+
+#endif

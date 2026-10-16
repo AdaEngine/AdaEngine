@@ -323,7 +323,7 @@ struct EditorView: View {
             }
             .onDisappear {
                 EditorAgentMCPTools.shared.deactivate(viewModel)
-                viewModel.playerSession.disconnect()
+                viewModel.disconnectAdaPlayer()
                 viewModel.playerPairingWindow?.close()
                 viewModel.playerPairingWindow = nil
                 viewModel.stopProjectFileWatching()

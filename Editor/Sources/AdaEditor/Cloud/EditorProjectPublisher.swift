@@ -71,8 +71,8 @@ final class EditorProjectPublisher {
         try checkSession(owner, server)
         let imageURLs = [draft.cover].compactMap { $0 } + draft.screenshots
         let images = try imageURLs.map { url -> Data in
-            let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            let scoped = url.startAccessingEditorResource()
+            defer { if scoped { url.stopAccessingEditorResource() } }
             let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
             guard size > 0, size <= 5_000_000 else { throw EditorPublicationError("Each image must be at most 5 MB.") }
             return try Data(contentsOf: url)

@@ -2,7 +2,36 @@
 import Foundation
 
 extension EditorViewModel {
+    var isAdaPlayerActive: Bool {
+        #if canImport(Network)
+        playerSession.isRunning || playerSession.isBusy
+        #else
+        false
+        #endif
+    }
+
+    var isAdaPlayerBusy: Bool {
+        #if canImport(Network)
+        playerSession.isBusy
+        #else
+        false
+        #endif
+    }
+
+    func stopAdaPlayer() {
+        #if canImport(Network)
+        playerSession.stop()
+        #endif
+    }
+
+    func disconnectAdaPlayer() {
+        #if canImport(Network)
+        playerSession.disconnect()
+        #endif
+    }
+
     func runOnAdaPlayer() {
+        #if canImport(Network)
         guard let projectURL else {
             return
         }
@@ -51,5 +80,8 @@ extension EditorViewModel {
             playerPairingWindow = window
             window.showWindow(makeFocused: true)
         } catch { appendOutput("AdaPlayer: \(error.localizedDescription)") }
+        #else
+        appendOutput("AdaPlayer device pairing is unavailable on this platform. Use embedded Play.")
+        #endif
     }
 }

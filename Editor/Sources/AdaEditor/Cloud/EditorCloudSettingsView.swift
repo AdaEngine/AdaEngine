@@ -1,6 +1,8 @@
 @_spi(AdaEngine) import AdaEngine
 import Foundation
+#if canImport(UniformTypeIdentifiers)
 import UniformTypeIdentifiers
+#endif
 
 #if os(macOS)
     import AppKit
@@ -57,11 +59,16 @@ struct EditorCloudSettingsView: View {
                     actionButton("Manage account", id: "Manage") { EditorCloudFilePicker.open(account.server + "/cloud") }
                 }
                 HStack(spacing: 10) {
+                    #if os(Android)
+                    actionButton("Refresh subscription", id: "Restore") { account.perform { try await account.refreshPlan() } }
+                    #else
                     if account.billingAvailable {
                         actionButton("Subscribe to Cloud Pro", id: "Subscribe") { account.perform { try await account.buyPro() } }
                     }
                     actionButton("Restore purchases", id: "Restore") { account.perform { try await account.restorePurchases() } }
+                    #endif
                 }
+                #if !os(Android)
                 if account.cloudServicesAvailable {
                     Text("One active build · ZIP up to 300 MB · Secret links last 48 hours")
                         .font(.system(size: 11)).foregroundColor(theme.editorColors.muted).lineLimit(2)
@@ -74,6 +81,7 @@ struct EditorCloudSettingsView: View {
                         }
                     }
                 }
+                #endif
                 if let url = account.publicationURL {
                     Text(url).font(.system(size: 11)).foregroundColor(theme.editorColors.muted).lineLimit(2)
                     HStack(spacing: 10) {
@@ -199,6 +207,8 @@ private final class EditorCloudFilePicker: NSObject {
             NSWorkspace.shared.open(url)
         #elseif os(iOS)
             UIApplication.shared.open(url)
+        #elseif os(Android)
+            _ = Application.shared.openURL(url)
         #endif
     }
     static func copy(_ text: String) {
@@ -207,6 +217,8 @@ private final class EditorCloudFilePicker: NSObject {
             NSPasteboard.general.setString(text, forType: .string)
         #elseif os(iOS)
             UIPasteboard.general.string = text
+        #elseif os(Android)
+            MobileEditorPlatform.copy(text)
         #endif
     }
 }

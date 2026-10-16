@@ -169,14 +169,14 @@ final class EditorVRWorkspace {
         return true
     }
 
-    isolated deinit { scopedURL?.stopAccessingSecurityScopedResource() }
+    isolated deinit { scopedURL?.stopAccessingEditorResource() }
 
     var document: EditorSceneDocument? { sceneDocumentID.flatMap { workbench.sceneDocument(id: $0) } ?? workbench.activeSceneDocument }
     private(set) var recentProjects: [EditorProjectReference] = []
 
     func openProject(at url: URL) throws {
         guard !isImmersed, document?.isDirty != true else { throw EditorVRWorkspaceError.closeCurrentScene }
-        let accessing = url.startAccessingSecurityScopedResource()
+        let accessing = url.startAccessingEditorResource()
         do {
             let metadata = try ProjectSystem.validateProjectLayout(at: url)
             let root = url.appendingPathComponent(metadata.paths.assets ?? "Assets", isDirectory: true)
@@ -189,7 +189,7 @@ final class EditorVRWorkspace {
             }
             let reference = try store.rememberProject(at: url, name: metadata.project.displayName ?? metadata.project.name)
             stopPlay()
-            scopedURL?.stopAccessingSecurityScopedResource()
+            scopedURL?.stopAccessingEditorResource()
             scopedURL = accessing ? url : nil
             project = reference
             recentProjects = (try? store.loadProjects()) ?? []
@@ -214,7 +214,7 @@ final class EditorVRWorkspace {
             connectStudio(reference)
             message = "Project opened"
         } catch {
-            if accessing { url.stopAccessingSecurityScopedResource() }
+            if accessing { url.stopAccessingEditorResource() }
             throw error
         }
     }
@@ -235,7 +235,7 @@ final class EditorVRWorkspace {
         sceneDocumentID = nil
         scenes.removeAll()
         modelAssets.removeAll()
-        scopedURL?.stopAccessingSecurityScopedResource()
+        scopedURL?.stopAccessingEditorResource()
         scopedURL = nil
         message = nil
         return true

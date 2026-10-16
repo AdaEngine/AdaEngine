@@ -1,6 +1,8 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
 @_spi(AdaEngine) import AdaEngine
+#if canImport(UIKit)
 import UIKit
+#endif
 
 struct MobileEditorProjectsScreen: View {
     @Environment(\.theme) private var theme

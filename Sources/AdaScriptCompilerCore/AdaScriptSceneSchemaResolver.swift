@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 /// A finding about how a scene's saved component data relates to the current script schema.

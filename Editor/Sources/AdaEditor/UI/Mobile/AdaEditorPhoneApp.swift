@@ -1,21 +1,21 @@
-#if os(iOS)
+#if os(iOS) || os(Android)
     @_spi(AdaEngine) import AdaEngine
-    #if DEBUG && canImport(AdaMCPPlugin)
+    import Foundation
+    #if DEBUG && !os(Android) && canImport(AdaMCPPlugin)
         import AdaMCPPlugin
-        import Foundation
     #endif
 
     struct AdaEditorPhoneApp: App {
         var body: some AppScene {
-            WindowGroup {
+            WindowGroup(content: {
                 MobileEditorRootView()
                     .theme(.adaEditor)
                     .ignoresSafeArea([.horizontal, .bottom])
-            }
+            }, assetBundle: mobileAssetBundle)
             .windowMode(.windowed)
             .windowTitle("Ada Studio")
             .addPlugins(MobileEditorFramePacingPlugin())
-            #if DEBUG && canImport(AdaMCPPlugin)
+            #if DEBUG && !os(Android) && canImport(AdaMCPPlugin)
                 .addPlugins(MCPPlugin(configuration: .init(
                     enableHTTP: CommandLine.arguments.contains { $0.hasPrefix("--mcp-port=") },
                     enableStdio: false,
@@ -24,6 +24,14 @@
                     endpoint: EditorMCPServerAddress.endpoint,
                     serverName: "Ada Studio Mobile"
                 )))
+            #endif
+        }
+
+        private var mobileAssetBundle: Bundle? {
+            #if os(Android)
+            .editor
+            #else
+            nil
             #endif
         }
     }

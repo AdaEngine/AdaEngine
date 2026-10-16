@@ -526,7 +526,7 @@ extension EditorViewModel {
     }
 
     var isProjectRunning: Bool {
-        if androidRunningSession != nil || playerSession.isRunning || playerSession.isBusy {
+        if androidRunningSession != nil || isAdaPlayerActive {
             return true
         }
         if debugger.isActive {
@@ -588,8 +588,8 @@ extension EditorViewModel {
     }
 
     func stopFromToolbar() {
-        if selectedRunDestination == .player, playerSession.isRunning || playerSession.isBusy {
-            playerSession.stop()
+        if selectedRunDestination == .player, isAdaPlayerActive {
+            stopAdaPlayer()
             return
         }
         if playModeState.isPlaying {
@@ -644,8 +644,8 @@ extension EditorViewModel {
             return
         }
         #endif
-        if playerSession.isRunning || playerSession.isBusy {
-            playerSession.stop()
+        if isAdaPlayerActive {
+            stopAdaPlayer()
             return
         }
         if debugger.isActive {

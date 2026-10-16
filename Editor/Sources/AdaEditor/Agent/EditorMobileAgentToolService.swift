@@ -1,6 +1,9 @@
 @_spi(Internal) import AdaEngine
 import AdaScriptCompilerCore
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import GravityLanguageCore
 import MCP
 
