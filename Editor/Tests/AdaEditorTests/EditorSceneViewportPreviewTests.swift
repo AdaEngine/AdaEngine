@@ -40,9 +40,9 @@ struct EditorSceneViewportPreviewTests {
         #expect(lines.contains { abs(abs($0.1.y - $0.0.y) - 150) < 0.01 })
     }
 
-    @Test("A file-backed overlay renders in the camera frame and follows scene pan and zoom")
-    func overlayPreview() throws {
-        let fixture = try fixture()
+    @Test("A file-backed overlay renders in the camera frame and follows scene pan and zoom", arguments: [0, 539])
+    func overlayPreview(sceneEntityCount: Int) throws {
+        let fixture = try fixture(sceneEntityCount: sceneEntityCount)
         defer { try? FileManager.default.removeItem(at: fixture.root) }
         let host = EditorSceneUIPreviewHost(frame: Rect(origin: .zero, size: fixture.size))
         #expect(!host.isInteractionEnabled)
@@ -114,12 +114,15 @@ struct EditorSceneViewportPreviewTests {
         let uiID: Entity.ID
     }
 
-    private func fixture(behaviour: String = "overlay") throws -> Fixture {
+    private func fixture(behaviour: String = "overlay", sceneEntityCount: Int = 0) throws -> Fixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("SceneUIPreview-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let ui = UISceneDocument(root: .init(type: "Rectangle", arguments: ["color": .init(value: .string("#ff0000ff"))]))
         try ui.encodedYAML().write(to: root.appendingPathComponent("HUD.ui"), atomically: true, encoding: .utf8)
         var scene = EditorSceneModel.default(projectName: "Preview")
+        for index in 0..<sceneEntityCount {
+            _ = scene.addEntity(name: "Scene object \(index)", parentID: "root")
+        }
         let cameraID = scene.addEntity(name: "Camera", parentID: nil).id
         scene.addComponent(typeName: EditorBuiltInComponentType.camera, to: cameraID)
         scene.updateField(typeName: EditorBuiltInComponentType.transform, field: .init(key: "position", label: "Position", kind: .vector3), value: "20, 10, 10", in: cameraID)

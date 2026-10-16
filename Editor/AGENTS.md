@@ -105,6 +105,19 @@ and Move/Scale/Rotate tools. Scene edits have undo/redo.
 2D sprite picking shares the runtime hit test: CPU alpha masks, atlas regions,
 anchors, image modes and composed parent transforms before ECS propagation.
 Coverage: [EditorSpritePickingTests.swift](Tests/AdaEditorTests/EditorSpritePickingTests.swift).
+Viewport annotations are captured with each scheduled scene frame and published
+with its completed texture at the next UI tick. Their Canvas drawing revisions
+refresh synchronously without rebuilding the viewport; 3D rotation leaves hidden
+rulers and unchanged status text alone. The compass observes its own presented
+camera orientation. Gizmo hover/drag use the displayed geometry, mapping pointer
+coordinates into the captured target while resizing. Coverage:
+[EditorViewportPresentationTests.swift](Tests/AdaEditorTests/EditorViewportPresentationTests.swift),
+[EditorViewportCompassPresentationTests.swift](Tests/AdaEditorTests/EditorViewportCompassPresentationTests.swift),
+[EditorViewportInteractionPresentationTests.swift](Tests/AdaEditorTests/EditorViewportInteractionPresentationTests.swift),
+[SceneViewTests.swift](../Tests/AdaEngineTests/SceneViewTests.swift).
+2D scene UI previews filter active authored UI components before sorting or
+decoding hierarchy transforms; scenes without UI skip preview preparation.
+Coverage: [EditorSceneViewportPreviewTests.swift](Tests/AdaEditorTests/EditorSceneViewportPreviewTests.swift).
 The Sprite Inspector authors anchor presets/custom coordinates, stretch/fit/fill,
 nine-slice borders and tiled axes/scale through normal scene history and Save.
 AdaScript constructors and query writes share these layout values; native AOT

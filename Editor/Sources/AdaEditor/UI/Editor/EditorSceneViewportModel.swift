@@ -44,6 +44,7 @@ final class EditorSceneViewportModel {
     private(set) var selectedEditorID: String?
     private(set) var activeTool: EditorSceneViewportTool = .translate
     private(set) var hoveredGizmoHandle: EditorTransformGizmo.Handle?
+    var presentedGizmo: PresentedGizmo?
     var activeGizmoHandle: EditorTransformGizmo.Handle? { transformDrag?.interaction.handle }
 
     var twoDCenter = Vector2.zero
@@ -137,6 +138,7 @@ final class EditorSceneViewportModel {
         }
         depthGridEntityIDs.removeAll()
         world = nil
+        presentedGizmo = nil
         cameraEntityID = nil
         sceneEnvironmentCameraID = nil
         entitiesByEditorID.removeAll()
@@ -302,15 +304,18 @@ final class EditorSceneViewportModel {
         }
     }
 
-    func drawGizmos(in context: inout UIGraphicsContext, size: Size, theme: Theme) {
+    @discardableResult
+    func drawGizmos(in context: inout UIGraphicsContext, size: Size, theme: Theme) -> EditorTransformGizmo? {
+        let camera = cameraState(for: size)
+        let viewProjection = camera.projection.makeClipView() * camera.transform.matrix.inverse
         if let world {
             for icon in EditorGizmoOverlayModel.icons(in: world, editorIDsByEntityID: editorIDsByEntityID) {
-                guard let point = projectedPoint(from: icon.position, size: size) else {
+                guard let point = project(icon.position, viewProjection: viewProjection, size: size) else {
                     continue
                 }
                 let radius = max(5, min(18, icon.size * 8))
                 let rect = Rect(x: point.x - radius, y: point.y - radius, width: radius * 2, height: radius * 2)
-                context.fill(CircleShape().path(in: rect), with: color(for: icon, theme: theme).opacity(icon.isExplicit ? 0.86 : 0.58))
+                context.drawEllipse(in: rect, color: color(for: icon, theme: theme).opacity(icon.isExplicit ? 0.86 : 0.58))
             }
             if !isPerspectiveTransitionActive {
                 EditorSceneViewportCameraGizmo.draw(
@@ -325,15 +330,16 @@ final class EditorSceneViewportModel {
         }
 
         guard let model = sceneModel else {
-            return
+            return nil
         }
 
-        let selectedPoint = selectedEditorID.flatMap { gizmoWorldMatrix(for: $0) }.flatMap { project($0.origin, size: size) }
+        let selectedPoint = selectedEditorID.flatMap { gizmoWorldMatrix(for: $0) }
+            .flatMap { project($0.origin, viewProjection: viewProjection, size: size) }
         for entity in model.entities {
             let isSelected = entity.id == selectedEditorID
             guard
                 let payload = entity.components[EditorBuiltInComponentType.transform],
-                let point = isSelected ? selectedPoint : projectedPoint(from: payload, size: size)
+                let point = isSelected ? selectedPoint : projectedPoint(from: payload, viewProjection: viewProjection, size: size)
             else {
                 continue
             }
@@ -345,9 +351,9 @@ final class EditorSceneViewportModel {
                 in: &context
             )
         }
-        if let gizmo = transformGizmo() {
-            gizmo.draw(in: &context, highlighted: activeGizmoHandle ?? hoveredGizmoHandle)
-        }
+        let gizmo = transformGizmo(size: size)
+        gizmo?.draw(in: &context, highlighted: activeGizmoHandle ?? hoveredGizmoHandle)
+        return gizmo
     }
 
     func uiPreviews(size: Size) -> [EditorSceneUIPreview] {
@@ -440,7 +446,8 @@ extension EditorSceneViewportModel {
             return transformDrag != nil || handleScroll(event)
         }
         if event.phase == .changed, transformDrag == nil, !isTwoDPanning, !isThreeDRotating {
-            let handle = transformGizmo()?.hitTest(event.mousePosition)
+            let gizmo = interactionGizmo()
+            let handle = gizmo.flatMap { $0.hitTest(gizmoPosition(event.mousePosition, size: $0.size)) }
             if handle != hoveredGizmoHandle {
                 hoveredGizmoHandle = handle
                 return true
@@ -571,7 +578,7 @@ extension EditorSceneViewportModel {
             let entity = sceneModel?.entities.first(where: { $0.id == selectedEditorID }),
             let payload = entity.components[EditorBuiltInComponentType.transform],
             let transform = try? EditorComponentPayloadDecoder.decode(Transform.self, payload: payload) as? Transform,
-            let gizmo = transformGizmo(), let handle = gizmo.hitTest(position)
+            let gizmo = interactionGizmo(), let handle = gizmo.hitTest(gizmoPosition(position, size: gizmo.size))
         else {
             return false
         }
@@ -579,7 +586,7 @@ extension EditorSceneViewportModel {
             editorID: selectedEditorID,
             startContent: sceneContent,
             startPayload: payload,
-            interaction: EditorTransformGizmo.Drag(gizmo: gizmo, handle: handle, start: position, transform: transform)
+            interaction: EditorTransformGizmo.Drag(gizmo: gizmo, handle: handle, start: gizmoPosition(position, size: gizmo.size), transform: transform)
         )
         hoveredGizmoHandle = handle
         return true
@@ -589,7 +596,7 @@ extension EditorSceneViewportModel {
         guard var drag = transformDrag else {
             return false
         }
-        let transform = drag.interaction.updated(at: position)
+        let transform = drag.interaction.updated(at: gizmoPosition(position, size: drag.interaction.gizmo.size))
         transformDrag = drag
         var payload = drag.startPayload
         if transform != drag.interaction.transform {
@@ -1271,18 +1278,14 @@ extension EditorSceneViewportModel {
         return try? EditorComponentPayloadDecoder.decode(EditorGizmo.self, payload: payload) as? EditorGizmo
     }
 
-    private func projectedPoint(from transformPayload: EditorComponentPayload, size: Size) -> Point? {
+    private func projectedPoint(from transformPayload: EditorComponentPayload, viewProjection: Transform3D, size: Size) -> Point? {
         guard case let .array(position)? = transformPayload["position"], position.count >= 2 else {
             return nil
         }
 
         let world = Vector2(Float(position[0].doubleValue ?? 0), Float(position[1].doubleValue ?? 0))
         let z = position.count > 2 ? Float(position[2].doubleValue ?? 0) : 0
-        return projectedPoint(from: Vector3(world.x, world.y, z), size: size)
-    }
-
-    private func projectedPoint(from position: Vector3, size: Size) -> Point? {
-        project(position, size: size)
+        return project(Vector3(world.x, world.y, z), viewProjection: viewProjection, size: size)
     }
 
     private func shortComponentName(_ componentName: String) -> String {
