@@ -169,7 +169,7 @@ extension EditorInspectorSidebar {
                     Text("\u{E3F4}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 17))
                         .foregroundColor(theme.editorColors.purple)
-                    Text(value.isEmpty ? (isParticleField(fieldID) ? "Choose particle effect…" : isModelField(fieldID) ? "Choose model…" : fieldID.hasSuffix(".map") ? "Choose tile map…" : "Choose texture…") : value)
+                    Text(value.isEmpty ? (isSpineField(fieldID) ? "Choose skeleton..." : isParticleField(fieldID) ? "Choose particle effect…" : isModelField(fieldID) ? "Choose model…" : fieldID.hasSuffix(".map") ? "Choose tile map…" : "Choose texture…") : value)
                         .font(.system(size: 10))
                         .foregroundColor(value.isEmpty ? theme.editorColors.muted : theme.editorColors.text)
                         .lineLimit(1)
@@ -188,7 +188,7 @@ extension EditorInspectorSidebar {
             .accessibilityIdentifier("AdaEditor.Inspector.AssetReference.\(fieldID)")
             .overlay {
                 #if canImport(AppKit) && os(macOS)
-                if !isModelField(fieldID) {
+                if !isModelField(fieldID) && !isSpineField(fieldID) {
                         EditorInspectorTextureDropTarget(
                             onClick: {
                                 activeAssetFieldID = activeAssetFieldID == fieldID ? nil : fieldID
@@ -210,7 +210,7 @@ extension EditorInspectorSidebar {
             }
 
             if activeAssetFieldID == fieldID {
-                assetPicker(text: text, tileMaps: fieldID.hasSuffix(".map"), models: isModelField(fieldID), particles: isParticleField(fieldID))
+                assetPicker(text: text, tileMaps: fieldID.hasSuffix(".map"), models: isModelField(fieldID), particles: isParticleField(fieldID), spines: isSpineField(fieldID))
             }
         }
     }
@@ -322,6 +322,10 @@ extension EditorInspectorSidebar {
         .overlay { RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.border.opacity(0.65), lineWidth: 1) }
     }
 
+    private func isSpineField(_ fieldID: String) -> Bool {
+        fieldID == "\(EditorBuiltInComponentType.spineSource).source"
+    }
+
     private func isModelField(_ fieldID: String) -> Bool {
         fieldID == "\(EditorBuiltInComponentType.model3DSource).source"
     }
@@ -330,12 +334,12 @@ extension EditorInspectorSidebar {
         fieldID == "\(EditorBuiltInComponentType.particleEmitter).effect"
     }
 
-    func assetPicker(text: Binding<String>, tileMaps: Bool = false, models: Bool = false, particles: Bool = false) -> some View {
-        let assets = particles ? viewModel.particleEffectAssets(matching: assetSearchText) : models ? viewModel.modelAssets(matching: assetSearchText)
+    func assetPicker(text: Binding<String>, tileMaps: Bool = false, models: Bool = false, particles: Bool = false, spines: Bool = false) -> some View {
+        let assets = spines ? viewModel.spineAssets.filter { assetSearchText.isEmpty || $0.reference.localizedCaseInsensitiveContains(assetSearchText) } : particles ? viewModel.particleEffectAssets(matching: assetSearchText) : models ? viewModel.modelAssets(matching: assetSearchText)
             : tileMaps ? viewModel.tileMapAssets(matching: assetSearchText) : viewModel.textureAssets(matching: assetSearchText)
         return VStack(alignment: .leading, spacing: 5) {
             TextField(
-                particles ? "Search particle effects" : models ? "Search project models" : tileMaps ? "Search project tile maps" : "Search project textures",
+                spines ? "Search Spine skeletons" : particles ? "Search particle effects" : models ? "Search project models" : tileMaps ? "Search project tile maps" : "Search project textures",
                 text: Binding(get: { assetSearchText }, set: { assetSearchText = $0 })
             )
                 .font(.system(size: 10, weight: .bold))
@@ -364,7 +368,7 @@ extension EditorInspectorSidebar {
                     }
                     .buttonStyle(DefaultButtonStyle())
                     if assets.isEmpty {
-                        Text(models ? "Import a GLB or glTF into Assets first." : tileMaps ? "No tile maps found in this project." : "No image assets found in this project.")
+                        Text(spines ? "Import a Spine skeleton and its atlas into Assets first." : models ? "Import a GLB or glTF into Assets first." : tileMaps ? "No tile maps found in this project." : "No image assets found in this project.")
                             .font(.system(size: 9))
                             .foregroundColor(theme.editorColors.muted)
                             .padding(6)

@@ -1,4 +1,5 @@
 @_spi(AdaEngine) import AdaEngine
+import AdaSpine
 import Foundation
 
 struct EditorSceneViewportView: View {
@@ -19,6 +20,7 @@ struct EditorSceneViewportView: View {
     @State private var performanceSession = EditorGamePerformanceSession()
     @State var viewportPresentation = EditorViewportPresentation()
     @State var runtimeWarnings: [String] = []
+    @State private var showsBones = false
     @State private var displayMode: EditorSceneViewportDisplayMode = .twoD
     @State private var activeTool: EditorSceneViewportTool = .translate
     @State var viewportModel = EditorSceneViewportModel()
@@ -96,6 +98,7 @@ struct EditorSceneViewportView: View {
                             onEditWorldReady?(app.main)
                         },
                         updateContent: { world, deltaTime in
+                            world.getResource(EditorSkeleton3DOverlay.self)?.isEnabled = showsBones && displayMode == .threeD
                             var didChangeViewport = false
                             if let input = world.getResource(Input.self) {
                                 for event in input.getInputEvents() {
@@ -139,6 +142,7 @@ struct EditorSceneViewportView: View {
                         make: configurePlayWorld,
                         updateContent: { world, _ in
                             Self.synchronizePlayCamera(in: world)
+                            world.getResource(EditorSkeleton3DOverlay.self)?.isEnabled = showsBones && displayMode == .threeD
                         }
                     )
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -223,6 +227,8 @@ struct EditorSceneViewportView: View {
         app.addPlugin(SpritePlugin())
         app.addPlugin(Mesh2DPlugin())
         app.addPlugin(Model3DPlugin())
+        app.addPlugin(EditorSkeleton3DPlugin())
+        app.addPlugin(SpinePlugin())
         app.addPlugin(TextPlugin())
         app.addPlugin(ScenePlugin())
         Self.configureSimulation(in: app, isPlaying: isPlayingThisDocument)
@@ -270,6 +276,9 @@ struct EditorSceneViewportView: View {
                 .foregroundColor(theme.editorColors.muted)
             #endif
             Spacer()
+            if displayMode == .threeD {
+                skeletonVisibilityButton
+            }
             Text(isPlayingThisDocument ? "PLAY MODE" : isAssetPreview ? "MODEL PREVIEW" : "SCENE")
                 .font(.system(size: 10))
                 .foregroundColor(isPlayingThisDocument ? theme.editorColors.purple : theme.editorColors.muted)
@@ -279,12 +288,21 @@ struct EditorSceneViewportView: View {
         .background(theme.editorColors.surface)
     }
 
+    private var skeletonVisibilityButton: some View {
+        Button(action: { showsBones.toggle() }) {
+            Text(showsBones ? "Hide bones" : "Show bones").font(.system(size: 11))
+        }
+        .buttonStyle(DefaultButtonStyle())
+        .accessibilityIdentifier("AdaEditor.SceneViewport.Bones")
+    }
+
     private var playToolbar: some View {
         HStack(spacing: 8) {
             Text(document.title)
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
             Spacer()
+            if displayMode == .threeD { skeletonVisibilityButton }
             Text("PLAY MODE")
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.purple)
