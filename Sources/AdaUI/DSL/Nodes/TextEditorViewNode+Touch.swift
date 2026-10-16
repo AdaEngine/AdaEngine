@@ -22,6 +22,10 @@ extension TextEditorViewNode {
     static var touchSelectionDelay: AdaUtils.TimeInterval { 0.45 }
 
     func updateTextEditorFocus(_ isFocused: Bool) {
+        self.nativeInputSession?.invalidate()
+        self.nativeInputSession = nil
+        self.inputComposition = TextInputComposition()
+        self.hasNativeInputSession = false
         self.isFocused = isFocused
         if !isFocused {
             showsTouchSelectionHandles = false
@@ -43,6 +47,7 @@ extension TextEditorViewNode {
             return
         }
         if touch.phase == .began {
+            restartInputComposition()
             // Keep one stable contact; another finger must not restart selection.
             guard touchSession == nil else {
                 return
