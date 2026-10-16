@@ -322,7 +322,8 @@ final class EditorAgentModelToolService {
             let resolved = root.resolvingSymlinksInPath().standardizedFileURL
             return resolved.path.hasPrefix(projectURL.path + "/") && (url == resolved && directory || url.path.hasPrefix(resolved.path + "/"))
         }) else { throw Failure("Keep model files inside project Assets or Downloads; destinations must be inside Assets.") }
-        if !directory, model, !EditorModelResource.extensions.contains(url.pathExtension.lowercased()) {
+        // The model tools inspect glTF structure, so MagicaVoxel files are not accepted here.
+        if !directory, model, !EditorModelResource.gltfExtensions.contains(url.pathExtension.lowercased()) {
             throw Failure("Expected a .glb or .gltf model.")
         }
         return url

@@ -1,3 +1,4 @@
+import AdaScriptCompilerCore
 import Foundation
 
 struct GravityToken: Equatable, Sendable {
@@ -19,214 +20,114 @@ struct GravityLexResult: Sendable {
     var tokens: [GravityToken]
 }
 
+/// Language-tooling view of the shared AdaScript lexer: the same tokens the compiler sees, plus the
+/// unterminated string/comment and unbalanced delimiter diagnostics an editor reports while typing.
 struct GravityLexer {
     private let source: String
-    private var index: String.Index
-    private var line = 0
-    private var utf16Column = 0
-    private var diagnostics: [GravityDiagnostic] = []
-    private var tokens: [GravityToken] = []
-    private var delimiters: [(Character, GravitySourcePosition)] = []
 
     init(source: String) {
         self.source = source
-        self.index = source.startIndex
     }
 
     mutating func lex() -> GravityLexResult {
-        while let character = currentCharacter {
-            if character.isWhitespace {
-                advance()
-            } else if character == "/", peekCharacter() == "/" {
-                lexLineComment()
-            } else if character == "/", peekCharacter() == "*" {
-                lexBlockComment()
-            } else if character == "\"" || character == "'" {
-                lexString(quote: character)
-            } else if isIdentifierStart(character) {
-                lexIdentifier()
-            } else if character.isNumber {
-                lexNumber()
-            } else {
-                lexPunctuation(character)
+        var lexer = AdaScriptAnalysisLexer(source: source)
+        let analysisTokens = lexer.lex()
+        var diagnostics: [GravityDiagnostic] = []
+        var delimiters: [AdaScriptAnalysisToken] = []
+        for token in analysisTokens {
+            switch token.kind {
+            case .comment where Self.isUnterminatedBlockComment(token.text):
+                diagnostics.append(GravityDiagnostic(message: "Unterminated block comment", range: token.range.gravityRange))
+            case .string where !Self.isTerminatedString(token.text):
+                diagnostics.append(GravityDiagnostic(message: "Unterminated string literal", range: token.range.gravityRange))
+            case .punctuation:
+                if let diagnostic = Self.balance(delimiter: token, stack: &delimiters) {
+                    diagnostics.append(diagnostic)
+                }
+            case .comment, .identifier, .number, .string:
+                break
             }
         }
-
-        for (delimiter, position) in delimiters.reversed() {
-            diagnostics.append(
-                GravityDiagnostic(
-                    message: "Unclosed '\(delimiter)'",
-                    range: GravitySourceRange(start: position, end: positionAfterCharacter(at: position, character: delimiter))
-                )
-            )
+        for opening in delimiters.reversed() {
+            diagnostics.append(GravityDiagnostic(message: "Unclosed '\(opening.text)'", range: opening.range.gravityRange))
         }
-        return GravityLexResult(diagnostics: diagnostics, tokens: tokens)
+        return GravityLexResult(diagnostics: diagnostics, tokens: analysisTokens.map(Self.gravityToken))
     }
 
-    private var currentCharacter: Character? {
-        index < source.endIndex ? source[index] : nil
+    private static func gravityToken(_ token: AdaScriptAnalysisToken) -> GravityToken {
+        let kind: GravityToken.Kind =
+            switch token.kind {
+            case .comment: .comment
+            case .identifier: .identifier
+            case .number: .number
+            case .punctuation: .punctuation
+            case .string: .string
+            }
+        return GravityToken(kind: kind, text: token.text, range: token.range.gravityRange)
     }
 
-    private var position: GravitySourcePosition {
-        GravitySourcePosition(line: line, utf16Column: utf16Column)
-    }
-
-    private func peekCharacter() -> Character? {
-        guard index < source.endIndex else {
+    /// Pushes an opening delimiter, or pops its match; returns the diagnostic for a closing one with no opening.
+    private static func balance(delimiter token: AdaScriptAnalysisToken, stack: inout [AdaScriptAnalysisToken]) -> GravityDiagnostic? {
+        switch token.text {
+        case "(", "[", "{":
+            stack.append(token)
+            return nil
+        case ")", "]", "}":
+            let expectedOpening =
+                switch token.text {
+                case ")": "("
+                case "]": "["
+                default: "{"
+                }
+            if stack.last?.text == expectedOpening {
+                stack.removeLast()
+                return nil
+            }
+            return GravityDiagnostic(message: "Unexpected '\(token.text)'", range: token.range.gravityRange)
+        default:
             return nil
         }
-        let nextIndex = source.index(after: index)
-        return nextIndex < source.endIndex ? source[nextIndex] : nil
     }
 
-    private mutating func advance() {
-        guard let character = currentCharacter else {
-            return
+    /// A `/* ... */` comment whose nested openings and closings do not balance by the end of the text.
+    private static func isUnterminatedBlockComment(_ text: String) -> Bool {
+        guard text.hasPrefix("/*") else {
+            return false
         }
-        index = source.index(after: index)
-        if character == "\n" {
-            line += 1
-            utf16Column = 0
-        } else {
-            utf16Column += String(character).utf16.count
-        }
-    }
-
-    private mutating func lexLineComment() {
-        let startIndex = index
-        let startPosition = position
-        advance()
-        advance()
-        while let character = currentCharacter, character != "\n" {
-            advance()
-        }
-        appendToken(kind: .comment, from: startIndex, position: startPosition)
-    }
-
-    private mutating func lexBlockComment() {
-        let startIndex = index
-        let startPosition = position
         var depth = 0
-        while currentCharacter != nil {
-            if currentCharacter == "/", peekCharacter() == "*" {
+        var characters = Substring(text)
+        while !characters.isEmpty {
+            if characters.hasPrefix("/*") {
                 depth += 1
-                advance()
-                advance()
-            } else if currentCharacter == "*", peekCharacter() == "/" {
+                characters = characters.dropFirst(2)
+            } else if characters.hasPrefix("*/") {
                 depth -= 1
-                advance()
-                advance()
+                characters = characters.dropFirst(2)
                 if depth == 0 {
-                    break
+                    return false
                 }
             } else {
-                advance()
+                characters = characters.dropFirst()
             }
         }
-        appendToken(kind: .comment, from: startIndex, position: startPosition)
-        if depth != 0 {
-            diagnostics.append(
-                GravityDiagnostic(
-                    message: "Unterminated block comment",
-                    range: GravitySourceRange(start: startPosition, end: position)
-                )
-            )
-        }
+        return depth != 0
     }
 
-    private mutating func lexString(quote: Character) {
-        let startIndex = index
-        let startPosition = position
+    /// A string token ends with its own unescaped closing quote.
+    private static func isTerminatedString(_ text: String) -> Bool {
+        guard let quote = text.first else {
+            return false
+        }
         var escaped = false
-        var terminated = false
-        advance()
-        while let character = currentCharacter {
-            advance()
+        for character in text.dropFirst() {
             if escaped {
                 escaped = false
             } else if character == "\\" {
                 escaped = true
             } else if character == quote {
-                terminated = true
-                break
+                return true
             }
         }
-        appendToken(kind: .string, from: startIndex, position: startPosition)
-        if !terminated {
-            diagnostics.append(
-                GravityDiagnostic(
-                    message: "Unterminated string literal",
-                    range: GravitySourceRange(start: startPosition, end: position)
-                )
-            )
-        }
-    }
-
-    private mutating func lexIdentifier() {
-        let startIndex = index
-        let startPosition = position
-        while let character = currentCharacter, isIdentifierContinuation(character) {
-            advance()
-        }
-        appendToken(kind: .identifier, from: startIndex, position: startPosition)
-    }
-
-    private mutating func lexNumber() {
-        let startIndex = index
-        let startPosition = position
-        while let character = currentCharacter, character.isNumber || character == "." || character == "_" {
-            advance()
-        }
-        appendToken(kind: .number, from: startIndex, position: startPosition)
-    }
-
-    private mutating func lexPunctuation(_ character: Character) {
-        let startIndex = index
-        let startPosition = position
-        advance()
-        appendToken(kind: .punctuation, from: startIndex, position: startPosition)
-
-        if "([{".contains(character) {
-            delimiters.append((character, startPosition))
-        } else if ")]}".contains(character) {
-            let expectedOpening: Character =
-                switch character {
-                case ")": "("
-                case "]": "["
-                default: "{"
-                }
-            if delimiters.last?.0 == expectedOpening {
-                delimiters.removeLast()
-            } else {
-                diagnostics.append(
-                    GravityDiagnostic(
-                        message: "Unexpected '\(character)'",
-                        range: GravitySourceRange(start: startPosition, end: position)
-                    )
-                )
-            }
-        }
-    }
-
-    private mutating func appendToken(kind: GravityToken.Kind, from startIndex: String.Index, position startPosition: GravitySourcePosition) {
-        tokens.append(
-            GravityToken(
-                kind: kind,
-                text: String(source[startIndex..<index]),
-                range: GravitySourceRange(start: startPosition, end: position)
-            )
-        )
-    }
-
-    private func isIdentifierStart(_ character: Character) -> Bool {
-        character == "_" || character.isLetter
-    }
-
-    private func isIdentifierContinuation(_ character: Character) -> Bool {
-        isIdentifierStart(character) || character.isNumber
-    }
-
-    private func positionAfterCharacter(at position: GravitySourcePosition, character: Character) -> GravitySourcePosition {
-        GravitySourcePosition(line: position.line, utf16Column: position.utf16Column + String(character).utf16.count)
+        return false
     }
 }

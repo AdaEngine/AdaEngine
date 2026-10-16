@@ -197,6 +197,17 @@ PBR materials appear in edit and Play, with independent animation players and
 child-to-authored-entity picking. glTF imports copy local buffers/textures as a
 collision-free bundle. Save/reopen, duplicate and scene undo/redo retain references.
 
+MagicaVoxel `.vox` files are model assets too (`EditorModelResource.extensions`). Import
+and drop copy the file as is (no dependencies); the preview reports frame count and
+rate, and its Play/Pause drives the voxel clock (`VoxelAnimationPlayback3DComponent`)
+as well as skeletal clips. The Model 3D inspector adds `voxelSize`,
+`voxelMergeStatic` and `voxelFramesPerSecond`; they decode into
+`Model3DSource.voxel` (nil while all are default) and reach the importer as an
+asset query through `Model3DSource.assetPath`. Scene loading uses `assetPath` too.
+glTF-specific tooling (agent model tools, texture assignment) uses
+`EditorModelResource.gltfExtensions` and rejects `.vox`. Community packages still
+accept only glTF models; adding `.vox` there needs a content validator.
+
 Model preview and the selected model's Animator include skeletal graph authoring:
 clip/blend/additive nodes, connections, bone/subtree masks and clip event markers.
 Graphs preview through the production model renderer and save as structured

@@ -4,38 +4,19 @@ public enum AdaScriptSchemaParser {
     static func collectEnums(_ sources: [AdaScriptCompilerSource]) throws -> [String: [String]] {
         var result: [String: [String]] = [:]
         for source in sources.sorted(by: { $0.path < $1.path }) {
-            var lexer = Lexer(source: source.source)
-            let tokens = lexer.lex()
-            var index = 0
-            while index < tokens.count {
-                guard tokens[index].text == "enum", index + 2 < tokens.count, tokens[index + 1].kind == .identifier, tokens[index + 2].text == "{" else {
-                    index += 1
-                    continue
-                }
-                let name = tokens[index + 1].text
-                var cases: [String] = []
-                var cursor = index + 3
-                var expectsCase = true
-                while cursor < tokens.count, tokens[cursor].text != "}" {
-                    let token = tokens[cursor]
-                    if expectsCase, token.kind == .identifier {
-                        guard !cases.contains(token.text) else {
-                            throw AdaScriptSchemaError.invalidEnum(name: name, message: "duplicate case '\(token.text)'")
-                        }
-                        cases.append(token.text)
-                        expectsCase = false
-                    } else if token.text == "," {
-                        expectsCase = true
+            for declaration in AdaScriptSyntax.parse(source: source.source, path: source.path).enums {
+                var seen = Set<String>()
+                for name in declaration.cases {
+                    guard seen.insert(name).inserted else {
+                        throw AdaScriptSchemaError.invalidEnum(name: declaration.name, message: "duplicate case '\(name)'")
                     }
-                    cursor += 1
                 }
-                guard !cases.isEmpty else {
-                    throw AdaScriptSchemaError.invalidEnum(name: name, message: "an enum used by data needs at least one case")
+                guard !declaration.cases.isEmpty else {
+                    throw AdaScriptSchemaError.invalidEnum(name: declaration.name, message: "an enum used by data needs at least one case")
                 }
-                guard result.updateValue(cases, forKey: name) == nil else {
-                    throw AdaScriptSchemaError.invalidEnum(name: name, message: "declared more than once")
+                guard result.updateValue(declaration.cases, forKey: declaration.name) == nil else {
+                    throw AdaScriptSchemaError.invalidEnum(name: declaration.name, message: "declared more than once")
                 }
-                index = cursor
             }
         }
         return result
@@ -204,6 +185,16 @@ enum Literal {
     case list([Self])
     case number(String)
     case string(String)
+
+    init(_ value: AdaScriptAnnotationValue) {
+        switch value {
+        case let .bool(value): self = .bool(value)
+        case let .identifier(value): self = .identifier(value)
+        case let .list(values): self = .list(values.map(Self.init))
+        case let .number(value): self = .number(value)
+        case let .string(value): self = .string(value)
+        }
+    }
 }
 
 struct Token {
@@ -238,6 +229,12 @@ struct Parser {
     let tokens: [Token]
     /// Script enums visible to field declarations, collected across the whole source set.
     let enums: [String: [String]]
+    /// Annotations from the shared syntax tree, keyed by the offset of their `@`.
+    let annotationsByOffset: [Int: AdaScriptAnnotationSyntax]
+    /// Constants after `=`, from the shared syntax tree, keyed by the offset of that `=`.
+    let defaultsByEquals: [Int: AdaScriptDefaultValueSyntax]
+    /// Every `context.world` use from the shared syntax tree.
+    let worldUses: [AdaScriptWorldUse]
     var index = 0
     var explicitResourceAccess: [String: AdaScriptResourceBinding.Access] = [:]
 
@@ -246,5 +243,9 @@ struct Parser {
         self.tokens = lexer.lex()
         self.enums = enums
         self.path = path
+        let syntax = AdaScriptSyntaxParser(source: source, path: path).parse().syntax
+        self.annotationsByOffset = Dictionary(syntax.annotations.map { ($0.offsets.lowerBound, $0) }, uniquingKeysWith: { first, _ in first })
+        self.worldUses = syntax.worldUses
+        self.defaultsByEquals = Dictionary(syntax.defaultValues.map { ($0.equalsOffset, $0) }, uniquingKeysWith: { first, _ in first })
     }
 }

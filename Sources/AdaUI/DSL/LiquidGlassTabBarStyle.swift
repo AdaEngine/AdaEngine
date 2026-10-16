@@ -167,30 +167,14 @@ private struct LiquidGlassTabBarControls: View {
         return (edgePull < 0 ? -1 : 1) * extraWidth * 0.5 + edgePull * 0.10
     }
 
-    #if WASM || os(Windows) || compiler(>=6.4)
-    // Swift 6.3 Windows Release/WASM and Swift 6.4 native SIL generators hit the opaque substitution limit.
-    // Erase the control branches while keeping the same glass effects and gestures.
+    // Keep type erasure on every platform: multiple Swift versions hit the SIL
+    // opaque substitution limit when lowering the combined control branches.
     var body: AnyView {
         AnyView(HStack(spacing: 12) {
             if !tabs.isEmpty { AnyView(mainTabBar) }
             ForEach(floatingTabs) { tab in AnyView(floatingTab(tab)) }
         }.frame(maxWidth: .infinity, alignment: .center))
     }
-    #else
-    var body: some View { tabBar }
-
-    private var tabBar: some View {
-        HStack(spacing: 12) {
-            if !tabs.isEmpty {
-                mainTabBar
-            }
-            ForEach(floatingTabs) { tab in
-                floatingTab(tab)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-    #endif
 
     private func floatingTab(_ tab: TabViewStyleConfiguration.Tab) -> some View {
         Button(action: tab.action) {

@@ -72,6 +72,7 @@ let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 var products: [Product] = [
     .executable(name: "AdaWebPlayer", targets: ["AdaWebPlayer"]),
     .executable(name: "AdaWebPlayerPackager", targets: ["AdaWebPlayerPackager"]),
+    .executable(name: "AdaScriptTest", targets: ["AdaScriptTest"]),
     .library(name: "AdaUIDescription", targets: ["AdaUIDescription"]),
     .library(name: "AdaA2UI", targets: ["AdaA2UI"]),
     .executable(name: "A2UIFormDemo", targets: ["A2UIFormDemo"]),
@@ -690,6 +691,14 @@ var targets: [Target] = [
         swiftSettings: swiftSettings
     ),
 ]
+
+targets.append(
+    .executableTarget(
+        name: "AdaScriptTest",
+        dependencies: ["AdaScripting"],
+        path: "Tools/AdaScriptTest"
+    )
+)
 
 targets.append(
     .executableTarget(
@@ -1403,7 +1412,9 @@ targets += [
             "AdaScene",
             "AdaAnimation",
             "AdaECS",
-            "AdaInput"
+            "AdaInput",
+            "AdaRender",
+            "Math"
         ]
     )
 ]

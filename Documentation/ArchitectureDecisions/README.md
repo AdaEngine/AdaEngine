@@ -28,7 +28,7 @@ describes the intended design even when its implementation is still planned.
 | --- | --- | --- | --- |
 | [ADR-0001](0001-ada-script-annotation-modules.md) | Accepted | Implemented | Annotation-driven modules, imports, and discovery without `main()` |
 | [ADR-0002](0002-ada-script-ecs-query-api.md) | Accepted | Implemented | Iterator-based ECS queries, canonical filter syntax, and inferred access |
-| [ADR-0003](0003-ada-script-components-and-resources.md) | Accepted | Partial (all but the single shared schema AST) | Ada Script-defined components and resources backed by generated Swift types |
+| [ADR-0003](0003-ada-script-components-and-resources.md) | Accepted | Implemented | Ada Script-defined components and resources backed by generated Swift types |
 | [ADR-0004](0004-ada-script-world-capabilities.md) | Accepted | Partial (all but asset/UI capabilities shipped) | Capability-scoped world access and deferred structural changes |
 | [ADR-0005](0005-scriptable-objects-and-coding.md) | Accepted | Implemented | Scriptable object lifecycle, registration, and scene coding |
 | [ADR-0006](0006-ada-script-adaui-integration.md) | Superseded | Partial (foundation shipped) | Previous AdaScript and AdaUI integration design |
@@ -39,6 +39,7 @@ describes the intended design even when its implementation is still planned.
 | [ADR-0015](0015-adascript-async-tasks-and-coroutines.md) | Accepted | Partial (worktree foundation; not released) | Structured AdaScript async functions, awaitables, task ownership, timers, background I/O, and safe coroutine resumption |
 | [ADR-0016](0016-temporarily-disable-adascript-adaui.md) | Accepted | Partial (disablement shipped; redesign planned) | Temporarily disable AdaUI views in AdaScript and define the compiler/catalog/runtime redesign |
 | [ADR-0023](0023-studio-tools-ui-panels.md) | Accepted | Partial (local foundation; not released) | Project-local Studio tools with .ui panels, detached bindings/actions and document history |
+| [ADR-0024](0024-ada-script-testing.md) | Proposed | Partial (all but timeout and Editor integration; not released) | `@test` functions inline or under `Tests/`, an isolated `TestWorld` per test, and a runner bridged into `swift test` |
 
 ## Multiplayer decisions
 
@@ -64,3 +65,9 @@ describes the intended design even when its implementation is still planned.
 | ADR | Status | Implementation | Decision |
 | --- | --- | --- | --- |
 | [ADR-0022](0022-2d-rendering-feature-roadmap.md) | Accepted | Partial (local foundation; not released) | Sprite layout, tile orientation, picking, chunk rendering, instancing and 2D effects informed by Bevy |
+
+## Voxel graphics decisions
+
+| ADR | Status | Implementation | Decision |
+| --- | --- | --- | --- |
+| [ADR-0025](0025-voxel-graphics-and-magicavoxel-import.md) | Accepted | Partial (import, animation, dynamic world and physics; editor integration shipped; not released) | CPU-meshed voxels, layered MagicaVoxel import with hybrid hierarchy/merged scene, animation, chunked dynamic world and physics |

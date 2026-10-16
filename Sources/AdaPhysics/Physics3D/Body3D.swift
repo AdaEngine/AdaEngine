@@ -162,10 +162,11 @@ final class BoxShape3D {
     ) -> b3ShapeId? {
         switch shape.fixture {
         case let .box(shape):
-            var hull = b3MakeBoxHull(
+            var hull = b3MakeOffsetBoxHull(
                 shape.halfExtents.x,
                 shape.halfExtents.y,
-                shape.halfExtents.z
+                shape.halfExtents.z,
+                shape.center.b3Vec
             )
             return withUnsafePointer(to: shapeDef) { shapeDefPtr in
                 withUnsafePointer(to: &hull.base) { hullPtr in

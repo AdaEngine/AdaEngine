@@ -241,7 +241,7 @@ enum EditorSceneFileLoader {
             #if !WASM
             if let reference = entity.components[Model3DSource.self], !reference.source.isEmpty {
                 do {
-                    let model = try AssetsManager.loadSync(ModelAsset3D.self, at: reference.source)
+                    let model = try AssetsManager.loadSync(ModelAsset3D.self, at: reference.assetPath)
                     guard let asset = model.asset else { throw AssetError.message("Model has not loaded.") }
                     let alternatives = try (reference.lod?.sources ?? []).map { source in
                         guard let level = try AssetsManager.loadSync(ModelAsset3D.self, at: source).asset else {

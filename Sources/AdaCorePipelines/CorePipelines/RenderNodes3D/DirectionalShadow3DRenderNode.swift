@@ -56,9 +56,6 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
     @Query<Entity, Camera, GlobalViewUniform, ExtractedCameraSource>
     private var query
 
-    @Res<RenderItems<Opaque3DRenderItem>>
-    private var renderItems
-
     @Res<ExtractedMesh3DSources> private var candidates
     @ResMut<VisibleMesh3DLists> private var lists
     @Res<Render3DVisibilityStatistics> private var statistics
@@ -67,9 +64,6 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
 
     @Res<ExtractedLighting3D>
     private var lighting
-
-    @Res<Opaque3DInstanceBuffers>
-    private var instanceBuffers
 
     @ResMut<PBR3DUniforms>
     private var materialUniforms
@@ -96,13 +90,11 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
     public func update(from world: World) {
         _metrics.update(from: world)
         query.update(from: world)
-        _renderItems.update(from: world)
         _lighting.update(from: world)
         _environments.update(from: world)
         _candidates.update(from: world)
         _lists.update(from: world)
         _statistics.update(from: world)
-        _instanceBuffers.update(from: world)
         _skinningUniforms.update(from: world)
         _materialUniforms.update(from: world)
         _shadow.update(from: world)
