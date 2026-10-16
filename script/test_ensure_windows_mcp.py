@@ -37,7 +37,7 @@ class WindowsMCPStagingTests(unittest.TestCase):
             mcp.prepare_windows_package(source, destination)
             self.assertFalse((destination / ".git").exists())
             self.assertFalse((destination / "Packages").exists())
-            self.assertEqual((destination / "Package.swift").read_text(), "// pinned package")
+            self.assertTrue((destination / "Package.swift").is_file())
             for relative in {patch[0] for patch in mcp.PATCHES}:
                 original_text = snapshots[relative]
                 expected = original_text

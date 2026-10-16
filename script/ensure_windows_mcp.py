@@ -64,10 +64,28 @@ GRAPH_EXCLUSIVE = """        if refreshFrame {
 
     private func dumpCurrentAttachment(arguments: [String: Value], attachmentName: String) async throws -> Value {
         let cameraEntity = try self.resolveRenderCamera("""
+MANIFEST_PNG_ORIGINAL = "let package = Package("
+MANIFEST_PNG_REPLACEMENT = """// Newer engines provide portable PNG encoding. Keep AdaMCP's fallback only for older engines.
+let hasEnginePNGWriter = FileManager.default.fileExists(
+    atPath: adaEngineURL.appendingPathComponent("Sources/AdaRender/Image/Image+PortablePNG.swift").path
+)
+
+let package = Package("""
+MANIFEST_CORE_ORIGINAL = """            ]
+        ),
+        .target(
+            name: "AdaMCPServer","""
+MANIFEST_CORE_REPLACEMENT = """            ],
+            exclude: hasEnginePNGWriter ? ["ImagePNGFallback.swift"] : []
+        ),
+        .target(
+            name: "AdaMCPServer","""
 PATCHES = [(relative, ORIGINAL, REPLACEMENT) for relative in CAPTURE_FILES] + [
     (CAPTURE_FILES[0], CAPTURE_GUARD, CAPTURE_EXCLUSIVE),
     (CAPTURE_FILES[1], GRAPH_START, GRAPH_EXCLUSIVE),
     (DISCOVERY_FILE, DISCOVERY_ORIGINAL, DISCOVERY_REPLACEMENT),
+    ("Package.swift", MANIFEST_PNG_ORIGINAL, MANIFEST_PNG_REPLACEMENT),
+    ("Package.swift", MANIFEST_CORE_ORIGINAL, MANIFEST_CORE_REPLACEMENT),
 ]
 
 
