@@ -5,7 +5,7 @@ description: Create or iterate on a playable 2D or 3D AdaEngine game in Ada Stud
 
 # Ada Game Builder
 
-Turn the user's request into a playable game using the current Ada project, supported engine APIs, and Studio's authoring tools. Keep the scope requested by the user. For an existing game, extend its design and conventions; do not replace it with a new template.
+Turn the user's request into a playable game using the current Ada project, supported engine APIs, and Studio's authoring tools. Keep the scope requested by the user. For an existing game, extend its design and conventions; do not replace it with a new template. For a whole game from a brief, an autonomous run, or a request for a design document and plans, load `ada-autonomous-studio` first; it wraps this workflow with a design document, acceptance criteria and an iterate-until-accepted loop.
 
 ## Recover the project and choose the next slice
 
@@ -30,7 +30,7 @@ Turn the user's request into a playable game using the current Ada project, supp
 - Show the objective and controls where the player needs them. Keep score, health, timer or progress legible and outside important play areas. Give clear success/failure feedback and make restart reset gameplay state, timers, spawned objects and input.
 - Tune movement, collision response, camera and difficulty with the actual game running. Add feedback such as animation, particles, sound or hit reactions where it improves the requested experience; verify that the host and APIs support it.
 - For touch destinations, share gameplay actions with desktop bindings and provide visible movement/action controls. Handle simultaneous movement and actions, release/cancel, safe areas and readable targets. Keyboard simulation cannot verify touch input.
-- Reuse existing assets first. When creating or importing resources, load `ada-assets` or the relevant 3D workflow, validate them, connect their resource references, and check them in Play. Preserve source/license attribution for external assets. Use only generation providers actually configured on the host; unavailable generation should not prevent a prototype using suitable placeholders.
+- Reuse existing assets first. When creating or importing resources, load `ada-assets` or the relevant 3D workflow, validate them, connect their resource references, and check them in Play. Preserve source/license attribution for external assets. Use only generation providers actually configured on the host; unavailable generation should not prevent a prototype using suitable placeholders. Studio can also create assets from scripts without a provider: `ada-pixel-art` (sprites, tile sheets), `ada-sound-design` (sound effects, played by `AudioSource`), `ada-procedural-models` and `ada-voxel-models` (3D).
 
 ## Close the verification loop
 

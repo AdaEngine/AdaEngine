@@ -71,3 +71,9 @@ describes the intended design even when its implementation is still planned.
 | ADR | Status | Implementation | Decision |
 | --- | --- | --- | --- |
 | [ADR-0025](0025-voxel-graphics-and-magicavoxel-import.md) | Accepted | Partial (import, animation, dynamic world and physics; editor integration shipped; not released) | CPU-meshed voxels, layered MagicaVoxel import with hybrid hierarchy/merged scene, animation, chunked dynamic world and physics |
+
+## Studio agent decisions
+
+| ADR | Status | Implementation | Decision |
+| --- | --- | --- | --- |
+| [ADR-0026](0026-scripted-asset-generation-and-autonomous-studio.md) | Accepted | Implemented (not released) | Sandboxed AdaScript generators for voxel models, GLB models, WAV sounds and PNG sprites, measured audio, the `AudioSource` component, and an autonomous design-plan-build-accept workflow for Studio agents |

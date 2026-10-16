@@ -20,6 +20,7 @@ enum EditorBuiltInComponentType {
     static let mesh2D = String(reflecting: Mesh2D.self)
     static let mesh3D = String(reflecting: Mesh3DComponent.self)
     static let model3DSource = String(reflecting: Model3DSource.self)
+    static let audioSource = String(reflecting: AudioSource.self)
     static let physicsBody3D = String(reflecting: PhysicsBody3DComponent.self)
     static let directionalLight3D = String(reflecting: DirectionalLightComponent.self)
     static let pointLight3D = String(reflecting: PointLightComponent.self)
@@ -265,6 +266,7 @@ enum EditorComponentRegistry {
         mesh2DDescriptor,
         mesh3DDescriptor,
         model3DSourceDescriptor,
+        audioSourceDescriptor,
         physicsBody3DDescriptor,
         directionalLight3DDescriptor,
         pointLight3DDescriptor,
@@ -311,6 +313,7 @@ enum EditorComponentRegistry {
         RuntimeTypeRegistry.registerComponent(LightModulate2D.self, names: ["LightModulate2D"])
         RuntimeTypeRegistry.registerComponent(SceneInstance.self, names: ["SceneInstance"])
         RuntimeTypeRegistry.registerComponent(Model3DSource.self, names: ["Model3DSource"])
+        RuntimeTypeRegistry.registerComponent(AudioSource.self, names: ["AudioSource"])
         ModelAnimationPlayback3DComponent.registerComponent()
         CharacterController3DComponent.registerComponent()
         CameraCollision3DComponent.registerComponent()
