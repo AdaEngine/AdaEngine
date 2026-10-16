@@ -1,7 +1,9 @@
 #if os(macOS)
-import AdaEngine
+import AdaECS
 @_spi(Internal) import AdaRender
+import AdaScene
 import AdaTransform
+import AdaUtils
 import Foundation
 import Math
 import Testing

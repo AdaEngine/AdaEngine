@@ -1,11 +1,17 @@
 #if os(macOS)
 @_spi(Internal) import AdaApp
-@testable import AdaCorePipelines
-import AdaEngine
+import AdaAssets
+import AdaECS
 @_spi(Internal) import AdaRender
+import AdaScene
+import AdaTransform
+import AdaUtils
 import Foundation
+import Math
 import Metal
 import Testing
+
+@testable import AdaCorePipelines
 
 /// Debug views and golden frames that need no GPU.
 @Suite("3D debug view settings")
@@ -244,7 +250,6 @@ struct Render3DDebugViewMetalTests {
             .addPlugin(MainSchedulerPlugin())
             .addPlugin(TransformPlugin())
             .addPlugin(RenderWorldPlugin())
-            .addPlugin(EventsPlugin())
             .addPlugin(CameraPlugin())
             .addPlugin(AssetsPlugin(filePath: #filePath))
             .addPlugin(VisibilityPlugin())

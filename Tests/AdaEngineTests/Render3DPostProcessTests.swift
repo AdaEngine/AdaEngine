@@ -1,10 +1,13 @@
 #if os(macOS)
-@testable import AdaCorePipelines
-import AdaEngine
+import AdaECS
 @_spi(Internal) import AdaRender
+import AdaScene
+import AdaUtils
 import Foundation
 import Math
 import Testing
+
+@testable import AdaCorePipelines
 
 /// Exposure and bloom settings and chain sizing that need no GPU.
 @Suite("3D post-process settings")
