@@ -58,6 +58,43 @@ public final class Render3DPerformanceMetrics: Resource, Sendable {
         }
     }
 
+    /// Sum of the per-pass averages in milliseconds. Passes can overlap on the GPU, so treat this as a
+    /// budget indicator rather than a measured frame time.
+    public var totalAverageMilliseconds: Double {
+        samples.reduce(0) { $0 + $1.averageMilliseconds }
+    }
+
+    /// A fixed-width table of the measured passes, slowest first, ending with the summed average. Meant for
+    /// logs and developer overlays; returns a single line while nothing has been measured yet.
+    public func report() -> String {
+        let measured = samples.sorted { $0.averageMilliseconds > $1.averageMilliseconds }
+        guard !measured.isEmpty else {
+            return "No GPU pass timings recorded yet."
+        }
+        func milliseconds(_ value: Double) -> String {
+            let thousandths = Int((value * 1000).rounded())
+            let fraction = String(thousandths % 1000)
+            return "\(thousandths / 1000)." + String(repeating: "0", count: 3 - fraction.count) + fraction
+        }
+        func column(_ text: String, _ width: Int, alignRight: Bool = true) -> String {
+            let padding = String(repeating: " ", count: max(0, width - text.count))
+            return alignRight ? padding + text : text + padding
+        }
+        let nameWidth = max(8, measured.map(\.pass.count).max() ?? 0)
+        var lines = [column("pass", nameWidth, alignRight: false) + column("avg ms", 9) + column("min ms", 9) + column("max ms", 9) + column("frames", 8)]
+        for sample in measured {
+            lines.append(
+                column(sample.pass, nameWidth, alignRight: false)
+                    + column(milliseconds(sample.averageMilliseconds), 9)
+                    + column(milliseconds(sample.minimumMilliseconds), 9)
+                    + column(milliseconds(sample.maximumMilliseconds), 9)
+                    + column(String(sample.count), 8)
+            )
+        }
+        lines.append(column("total", nameWidth, alignRight: false) + column(milliseconds(totalAverageMilliseconds), 9))
+        return lines.joined(separator: "\n")
+    }
+
     public var samples: [Sample] {
         state.withLock { values in
             values.compactMap { name, value in
