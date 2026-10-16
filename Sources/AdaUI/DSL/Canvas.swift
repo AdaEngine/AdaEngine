@@ -16,22 +16,35 @@ public struct Canvas: View, ViewNodeBuilder {
     public var body: Never { fatalError("Unreachable code") }
 
     let render: RenderBlock
+    let drawingRevision: (() -> UInt64)?
 
     public init(render: @escaping RenderBlock) {
         self.render = render
+        self.drawingRevision = nil
+    }
+
+    /// Retains drawing commands until the revision changes. The revision is read
+    /// synchronously when drawing, so externally presented frames need no view rebuild.
+    @_spi(Internal)
+    public init(drawingRevision: @escaping () -> UInt64, render: @escaping RenderBlock) {
+        self.render = render
+        self.drawingRevision = drawingRevision
     }
 
     func buildViewNode(in _: BuildContext) -> ViewNode {
-        return CanvasViewNode(content: self, drawBlock: self.render)
+        return CanvasViewNode(content: self, drawBlock: self.render, drawingRevision: drawingRevision)
     }
 }
 
 @MainActor
 class CanvasViewNode: ViewNode {
     private(set) var drawBlock: Canvas.RenderBlock
+    private var drawingRevision: (() -> UInt64)?
+    private var recordedRevision: UInt64?
 
-    init<Content: View>(content: Content, drawBlock: @escaping Canvas.RenderBlock) {
+    init<Content: View>(content: Content, drawBlock: @escaping Canvas.RenderBlock, drawingRevision: (() -> UInt64)? = nil) {
         self.drawBlock = drawBlock
+        self.drawingRevision = drawingRevision
         super.init(content: content)
     }
 
@@ -39,8 +52,16 @@ class CanvasViewNode: ViewNode {
         var context = context
         context.environment = self.environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        if let drawingRevision {
+            let revision = drawingRevision()
+            if recordedRevision != revision || layer?.frame.size != frame.size {
+                invalidateLayerIfNeeded()
+                recordedRevision = revision
+            }
+            layer?.drawLayer(in: context)
+            return
+        }
         self.drawBlock(&context, self.frame.size)
-
         super.draw(with: context)
     }
 
@@ -52,6 +73,22 @@ class CanvasViewNode: ViewNode {
         }
 
         self.drawBlock = otherNode.drawBlock
+        self.drawingRevision = otherNode.drawingRevision
+        recordedRevision = nil
+        if drawingRevision == nil {
+            layer = nil
+        } else {
+            invalidateLayerIfNeeded()
+        }
+    }
+
+    override func createLayer() -> UILayer? {
+        guard drawingRevision != nil else { return nil }
+        let layer = UILayer(frame: frame) { [weak self] context, size in
+            self?.drawBlock(&context, size)
+        }
+        layer.propagatesInvalidation = false
+        return layer
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {

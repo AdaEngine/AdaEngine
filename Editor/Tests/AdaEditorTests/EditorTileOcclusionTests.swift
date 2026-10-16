@@ -2,9 +2,6 @@
 @testable import AdaTilemap
 @_spi(Internal) import AdaUI
 import Foundation
-#if !(canImport(CoreGraphics) && canImport(ImageIO))
-import AdaMCPCore
-#endif
 import Testing
 
 @testable import AdaEditor

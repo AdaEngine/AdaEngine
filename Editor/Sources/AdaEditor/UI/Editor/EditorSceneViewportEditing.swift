@@ -9,6 +9,8 @@ extension EditorSceneViewportView {
         let onDocumentChanged = onDocumentChanged
         let viewProxy = viewProxy
         let viewportPresentation = viewportPresentation
+        viewportPresentation.annotationTheme = theme
+        viewportPresentation.invalidateAnnotations()
 
         let loadResult = viewportModel.configure(
             sceneContent: document.content,
@@ -46,7 +48,7 @@ extension EditorSceneViewportView {
                     return
                 }
                 viewportModel.updateSelectedGizmo(gizmo)
-                viewportPresentation.revision &+= 1
+                viewportPresentation.refresh(viewportModel: viewportModel)
                 viewProxy.redraw()
             },
             addEntity: { preset in
@@ -111,10 +113,10 @@ extension EditorSceneViewportView {
     }
 
     func redrawViewport() {
-        // Only annotations and status observe this revision. Camera movement must
-        // not rebuild the SceneView, toolbar and Inspector action bindings.
-        viewportPresentation.revision &+= 1
-        viewProxy.redraw()
+        // Annotations are captured for the next scene frame. Only changed ruler
+        // or status values notify their layers; 3D rotation leaves the host intact.
+        viewportPresentation.refresh(viewportModel: viewportModel)
+        viewProxy.setNeedsDisplay()
     }
 
     func mutateSceneDocument(status: String, update: (inout EditorSceneModel) -> Void) {

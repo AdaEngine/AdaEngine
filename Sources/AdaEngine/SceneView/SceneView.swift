@@ -20,7 +20,8 @@ import Math
 /// Set `useSceneCameras` to render with the game's active cameras (including 3D)
 /// instead of creating a default 2D viewport camera. Their projections and transforms
 /// are preserved; render targets and viewport sizes are owned by this view.
-/// `onFrameRendered` receives the scene texture on the main actor after GPU completion.
+/// `onFrameRendered` receives the scene texture on the main actor at the next UI
+/// update after GPU completion, when the frame becomes visible to the view.
 /// Read pixels during the callback; the texture is reused for subsequent frames.
 /// Set `updatesWhenWindowInactive` to false for editor previews: their runtime
 /// and rendering stop while the containing window is inactive, retaining its last texture.
@@ -43,6 +44,19 @@ public struct SceneView<Placeholder: View>: View {
     let updateContent: @MainActor (World, AdaUtils.TimeInterval) -> Void
     let onFrameRendered: (@MainActor (Texture2D) -> Void)?
     let placeholder: @MainActor () -> Placeholder
+    private var prepareFramePresentation: (@MainActor () -> (@MainActor () -> Void))?
+
+    /// Captures companion UI state for a scheduled scene frame. The returned
+    /// closure runs when that exact frame becomes the displayed texture, before
+    /// UI drawing. Frames discarded by resize or shutdown are never presented.
+    @_spi(AdaEngine)
+    public func onPrepareFramePresentation(
+        _ prepare: @escaping @MainActor () -> (@MainActor () -> Void)
+    ) -> Self {
+        var view = self
+        view.prepareFramePresentation = prepare
+        return view
+    }
 
     public init(
         isInteractive: Bool = true,
@@ -81,12 +95,13 @@ public struct SceneView<Placeholder: View>: View {
 
     public var body: some View {
         OffscreenViewportContainer(
-            delegateFactory: { [make, updateContent, onFrameRendered, useSceneCameras] in
+            delegateFactory: { [make, updateContent, onFrameRendered, useSceneCameras, prepareFramePresentation] in
                 SceneViewCoordinator(
                     useSceneCameras: useSceneCameras,
                     make: make,
                     updateContent: updateContent,
-                    onFrameRendered: onFrameRendered
+                    onFrameRendered: onFrameRendered,
+                    prepareFramePresentation: prepareFramePresentation
                 )
             },
             contentBuilder: { [placeholder, isInteractive, updatesWhenWindowInactive] delegate in
