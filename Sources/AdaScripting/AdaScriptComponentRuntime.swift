@@ -25,6 +25,25 @@ enum AdaScriptComponentRuntime {
         }
     }
 
+    /// Layouts for script `@resource` structs, which are stored as payloads rather than Swift values.
+    static func runtimeResourceLayouts(
+        schemas: [AdaScriptDataSchema]
+    ) -> [RuntimeResourceLayout] {
+        schemas.compactMap { schema in
+            guard case .resource = schema.kind else { return nil }
+            return RuntimeResourceLayout(
+                component: RuntimeComponentDescriptor(
+                    stableID: schema.id,
+                    name: schema.name,
+                    aliases: schema.aliases,
+                    fieldNames: schema.fields.map(\.name),
+                    fieldKinds: schema.fields.map { $0.defaultValue.reflectedKind },
+                    defaultValues: schema.fields.map { $0.defaultValue.reflectedDefault }
+                )
+            )
+        }
+    }
+
     static func linkedConstructors() -> [AdaScriptLinkedComponentConstructor] {
         RuntimeTypeRegistry.registeredRuntimeComponentConstructors()
             .enumerated()

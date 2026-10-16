@@ -3,8 +3,13 @@ import Gravity
 
 @GSExportable("AdaAttachedComponent")
 final class GravityAttachedComponentView: @unchecked Sendable, AdaScriptNonSendableBridge {
-    private let componentType: any Component.Type
-    private let descriptor: ReflectedComponentDescriptor?
+    /// A component is either a native Swift type or a script-declared runtime payload.
+    private enum Target {
+        case native(type: any Component.Type, descriptor: ReflectedComponentDescriptor?)
+        case runtime(RuntimeComponentDescriptor)
+    }
+
+    private let target: Target
     private let entityID: Entity.ID
     private let reportDiagnostic: @Sendable (String) -> Void
     private let virtualMachine: GravityVirtualMachine
@@ -24,8 +29,24 @@ final class GravityAttachedComponentView: @unchecked Sendable, AdaScriptNonSenda
         GravityAttachedComponentView(
             world: world,
             entityID: entityID,
-            componentType: componentType,
-            descriptor: descriptor,
+            target: .native(type: componentType, descriptor: descriptor),
+            reportDiagnostic: reportDiagnostic,
+            virtualMachine: virtualMachine
+        )
+    }
+
+    @GSExportableIgnore
+    static func make(
+        world: World,
+        entityID: Entity.ID,
+        runtimeDescriptor: RuntimeComponentDescriptor,
+        reportDiagnostic: @escaping @Sendable (String) -> Void,
+        virtualMachine: GravityVirtualMachine
+    ) -> GravityAttachedComponentView {
+        GravityAttachedComponentView(
+            world: world,
+            entityID: entityID,
+            target: .runtime(runtimeDescriptor),
             reportDiagnostic: reportDiagnostic,
             virtualMachine: virtualMachine
         )
@@ -34,13 +55,11 @@ final class GravityAttachedComponentView: @unchecked Sendable, AdaScriptNonSenda
     private init(
         world: World,
         entityID: Entity.ID,
-        componentType: any Component.Type,
-        descriptor: ReflectedComponentDescriptor?,
+        target: Target,
         reportDiagnostic: @escaping @Sendable (String) -> Void,
         virtualMachine: GravityVirtualMachine
     ) {
-        self.componentType = componentType
-        self.descriptor = descriptor
+        self.target = target
         self.entityID = entityID
         self.reportDiagnostic = reportDiagnostic
         self.virtualMachine = virtualMachine
@@ -48,16 +67,16 @@ final class GravityAttachedComponentView: @unchecked Sendable, AdaScriptNonSenda
     }
 
     func available() -> Bool {
-        world?.has(componentType.identifier, in: entityID) == true
+        switch target {
+        case let .native(type, _):
+            world?.has(type.identifier, in: entityID) == true
+        case let .runtime(descriptor):
+            world?.has(descriptor.componentID, in: entityID) == true
+        }
     }
 
     func get(_ fieldName: String) -> GSValue? {
-        guard
-            let world, let descriptor,
-            let field = descriptor.fields.first(where: { $0.key == fieldName }),
-            let component = world.getComponent(named: descriptor.typeName, from: entityID),
-            let value = field.read(component)
-        else {
+        guard let world, let value = readField(fieldName, in: world) else {
             reportDiagnostic("Unknown or unavailable attached component field '\(fieldName)'")
             return nil
         }
@@ -67,14 +86,48 @@ final class GravityAttachedComponentView: @unchecked Sendable, AdaScriptNonSenda
     @discardableResult
     func set(_ fieldName: String, _ value: GSValue) -> Bool {
         guard
-            let world, let descriptor,
+            let world,
             let fieldValue = AnnotatedGravityValueBridge.makeReflectedFieldValue(value),
-            descriptor.write(fieldValue, toField: fieldName, in: world, entity: entityID)
+            writeField(fieldName, fieldValue, in: world)
         else {
             reportDiagnostic("Invalid attached component field '\(fieldName)'")
             return false
         }
         return true
+    }
+
+    private func readField(_ fieldName: String, in world: World) -> ReflectedFieldValue? {
+        switch target {
+        case let .native(_, descriptor):
+            guard
+                let descriptor,
+                let field = descriptor.fields.first(where: { $0.key == fieldName }),
+                let component = world.getComponent(named: descriptor.typeName, from: entityID)
+            else {
+                return nil
+            }
+            return field.read(component)
+        case let .runtime(descriptor):
+            guard
+                let field = descriptor.fields.first(where: { $0.key == fieldName }),
+                let payload = world.getRuntimeComponent(descriptor.componentID, from: entityID)
+            else {
+                return nil
+            }
+            return field.read(payload)
+        }
+    }
+
+    private func writeField(_ fieldName: String, _ value: ReflectedFieldValue, in world: World) -> Bool {
+        switch target {
+        case let .native(_, descriptor):
+            return descriptor?.write(value, toField: fieldName, in: world, entity: entityID) == true
+        case let .runtime(descriptor):
+            guard let field = descriptor.fields.first(where: { $0.key == fieldName }) else {
+                return false
+            }
+            return world.writeComponentField(component: descriptor.componentID, entity: entityID, field: field, value: value)
+        }
     }
 }
 

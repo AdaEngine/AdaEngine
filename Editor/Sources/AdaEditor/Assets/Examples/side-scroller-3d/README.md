@@ -9,9 +9,9 @@ Use it as the reference for how a game is laid out, not as a template to copy bl
 | --- | --- |
 | `Sources/Config.ada` | Every balance number and phase constant. |
 | `Sources/Rules.ada` | Pure rules (gap heights, collision, passing, cue routing). Unit-testable. |
-| `Sources/Components/*.ada` | Data only: `Player`, `Obstacle`, `SoundCue`, and the `GameState`, `PlayerIntent`, `Cues` components that live on one `Game` entity (Studio AdaScript projects have no `@resource`). |
+| `Sources/Components/*.ada` | Data only: `Player`, `Obstacle`, `SoundCue`, and the `GameState`, `PlayerIntent`, `Cues` components that live on one `Game` entity (authored in the scene and readable by `TestWorld`, which cannot read `@resource`). |
 | `Sources/Systems/*.ada` | One `@system` per behaviour, ordered with `@before`/`@after`: input, phase, restart, flight, obstacles, collision, score, audio. |
-| `Sources/UI/*.ada` | HUD wording, the small `HudModel` presentation model and the `@scriptable` that feeds `Assets/UI/Hud.ui` (a scriptable cannot bind script-defined components in Studio). |
+| `Sources/UI/*.ada` | HUD wording, the small `HudModel` presentation model and the `@scriptable` that feeds `Assets/UI/Hud.ui` (a scriptable can bind script components; the model keeps gameplay systems free of HUD wording). |
 | `Assets/UI/Hud.ui` | HUD layout with `score`, `status` and `hint` inputs. |
 | `Tests/*.ada` | `@test` functions; `TestWorld` has no `Input`, so tests press keys by replacing `PlayerIntent` on the `Game` entity. |
 | `Generators/*.txt` | Source for `editor.audio.generate` / `editor.model.generate`. Run them to create `Assets/Audio/*.wav` and `Assets/Models/runner.glb`. |

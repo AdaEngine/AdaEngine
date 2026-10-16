@@ -23,7 +23,7 @@ enum EditorAgentKnowledge {
             }
             return [
                 "id": article.id, "source": article.source, "content": article.plainText,
-                "portableRuntimeNote": "This app currently rejects @view and @resource declarations. Check editor.project.context for device capabilities.",
+                "portableRuntimeNote": "This app currently rejects @view declarations. Check editor.project.context for device capabilities.",
             ]
         case "editor.api.describe":
             let environment = AdaScriptTypeEnvironment.standard

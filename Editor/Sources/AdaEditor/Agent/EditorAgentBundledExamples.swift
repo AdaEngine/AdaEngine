@@ -122,7 +122,7 @@ enum EditorAgentBundledExamples {
         ui["scriptBindings"] = .string(
             #"{"score":{"script":"runner.hud","field":"score"},"status":{"script":"runner.hud","field":"status"},"hint":{"script":"runner.hud","field":"hint"}}"#
         )
-        // Shared round data lives on one entity, because Studio AdaScript projects have no @resource declarations.
+        // Shared round data lives on one entity, so a scene can author it and TestWorld can read it (it cannot read @resource).
         entities.append(entity("game", "Game", [
             types.transform: transform([0, 0, 0]),
             "runner.state": ["phase": .int(0), "score": .int(0), "best": .int(0), "nextSequence": .int(0), "resetRequested": .bool(true)],

@@ -2317,13 +2317,13 @@
       },
       {
         "kind": "text",
-        "text": "Desktop uses `editor.build.start`, `editor.play.start`, `editor.task.status`, `editor.output.read` and `render.capture_screenshot`. Mobile uses `editor.build`, `editor.play.start`, `editor.play.capture` and `editor.image.read`. Select the tools actually advertised by the current host. Desktop asset tools exclude mobile vision analysis and direct on-disk scene assignment; desktop scene edits go through the revision/undo workflow. Save dirty asset documents before tool writes.",
+        "text": "Desktop uses `editor.build.start`, `editor.play.start`, `editor.task.status`, `editor.output.read`, `editor.play.capture` / `render.capture_screenshot` (the running game's camera frame; the editor window is returned only when no game runs, and is not evidence) and `editor.play.run_scenario` for scripted input, frames and state. Mobile uses `editor.build`, `editor.play.start`, `editor.play.capture` and `editor.image.read`. Select the tools actually advertised by the current host. Desktop asset tools exclude mobile vision analysis and direct on-disk scene assignment; desktop scene edits go through the revision/undo workflow. Save dirty asset documents before tool writes.",
         "level": 0,
         "links": []
       },
       {
         "kind": "text",
-        "text": "After validation and build, inspect a completed frame from visible Play. Exercise selected clips and compare frames at different times for animation. Isolated simulation verifies logic and keyboard/physics behavior; it does not install Model3D or prove rendering. Blender execution, rig editing and skeletal clip authoring are not exposed by these Studio tools. To create a new low-poly model use editor.model.generate (an AdaScript program that writes a GLB) or editor.voxel.generate (a .vox).",
+        "text": "After validation and build, inspect a completed frame from visible Play. A 3D scene needs a camera, a light and an `Environment3D` (or a camera `backgroundColor`/clear flags) so the frame is not a flat clear color; `editor.play.run_scenario` can capture before/after frames around input. Exercise selected clips and compare frames at different times for animation. Isolated simulation verifies logic and keyboard/physics behavior; it does not install Model3D or prove rendering. Blender execution, rig editing and skeletal clip authoring are not exposed by these Studio tools. To create a new low-poly model use editor.model.generate (an AdaScript program that writes a GLB) or editor.voxel.generate (a .vox).",
         "level": 0,
         "links": []
       }
@@ -2543,7 +2543,7 @@
       },
       {
         "kind": "text",
-        "text": "The complete game that uses all of them is the bundled example `side-scroller-3d`: a 3D side-scroller in about twenty small files with a scene, a HUD, sounds and tests. Find it with `editor.examples.list` (query \"3D game\", \"side scroller\", \"flappy\" or \"runner\") and read it with `editor.examples.read`. Blocks marked `// recipe` below are compiled by Studio's test suite, so they are safe to copy. Studio's pure AdaScript projects do not accept `@resource` declarations yet, so shared data (round state, intent, cues) lives in `@component` structs on one \"Game\" entity in the scene, read with `@query`; only built-in resources such as `Input` are bound with `@res`. Syntax follows ADR-0001 to ADR-0003 (annotations and modules, ECS queries, components and resources); see AdaScript ECS and AdaScript Language.",
+        "text": "The complete game that uses all of them is the bundled example `side-scroller-3d`: a 3D side-scroller in about twenty small files with a scene, a HUD, sounds and tests. Find it with `editor.examples.list` (query \"3D game\", \"side scroller\", \"flappy\" or \"runner\") and read it with `editor.examples.read`. Blocks marked `// recipe` below are compiled by Studio's test suite, so they are safe to copy. Studio's pure AdaScript projects accept `@resource` structs, bound with `@res`; the example nevertheless keeps shared data (round state, intent, cues) in `@component` structs on one \"Game\" entity in the scene, read with `@query`, so the scene can author it and tests can read it. Syntax follows ADR-0001 to ADR-0003 (annotations and modules, ECS queries, components and resources); see AdaScript ECS and AdaScript Language.",
         "level": 0,
         "links": [
           {
@@ -2708,7 +2708,7 @@
       },
       {
         "kind": "text",
-        "text": "Author the HUD as a `.ui` file with string inputs, add a `UIComponent` entity that points to it, and bind each input to an exported field of a `@scriptable` class with `scriptBindings`. A scriptable cannot bind a script-defined component, so one system writes the text into a small `static var` presentation model (`HudModel`) and the scriptable copies it into its exported fields in `update(context)`. Gameplay never reads the model. Keep the wording in a pure function so tests can check it.",
+        "text": "Author the HUD as a `.ui` file with string inputs, add a `UIComponent` entity that points to it, and bind each input to an exported field of a `@scriptable` class with `scriptBindings`. A scriptable can bind a script-defined `@component` with `@component var state: GameState;` and read it in `update(context)`. The example instead has one system write the text into a small `static var` presentation model (`HudModel`) that the scriptable copies into its exported fields. Gameplay never reads the model. Keep the wording in a pure function so tests can check it.",
         "level": 0,
         "links": []
       },
@@ -2720,7 +2720,7 @@
       },
       {
         "kind": "text",
-        "text": "`TestWorld()` creates an isolated world with the module's systems; `run(ticks)` runs fixed 1/60 s ticks, `advance(seconds)` runs one step, `read(entity, \"Component\", \"field\")` and `count(\"Component\")` inspect it. It has no `Input` resource, so bind `Input` optionally in the input system and press keys by replacing the intent component: `world.insert(game, Intent(flap: true))`, run one tick, then insert a fresh `Intent()`. A test cannot read resources, which is one more reason to keep round data in components. `Tests/RoundTests.ada` in the example does this for the whole round: start, flap, fall, game over, restart, scoring and sound.",
+        "text": "`TestWorld()` creates an isolated world with the module's systems; `run(ticks)` runs fixed 1/60 s ticks, `advance(seconds)` runs one step, `read(entity, \"Component\", \"field\")` and `count(\"Component\")` inspect it. It has no `Input` resource, so bind `Input` optionally in the input system and press keys by replacing the intent component: `world.insert(game, Intent(flap: true))`, run one tick, then insert a fresh `Intent()`. A test cannot read resources, so keep data a test must check in components. `Tests/RoundTests.ada` in the example does this for the whole round: start, flap, fall, game over, restart, scoring and sound.",
         "level": 0,
         "links": []
       }
