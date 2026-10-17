@@ -69,9 +69,9 @@ public enum NavigationMeshBaker {
         }
         guard result == AE_NAV_SUCCESS.rawValue, let bytes = unsafe bytes else {
             switch result {
-            case AE_NAV_INVALID_INPUT.rawValue: throw .invalidSettings
-            case AE_NAV_OUT_OF_MEMORY.rawValue: throw .outOfMemory
-            case AE_NAV_EMPTY_MESH.rawValue: throw .emptyMesh
+            case Int32(truncatingIfNeeded: AE_NAV_INVALID_INPUT.rawValue): throw .invalidSettings
+            case Int32(truncatingIfNeeded: AE_NAV_OUT_OF_MEMORY.rawValue): throw .outOfMemory
+            case Int32(truncatingIfNeeded: AE_NAV_EMPTY_MESH.rawValue): throw .emptyMesh
             default: throw .buildFailed
             }
         }

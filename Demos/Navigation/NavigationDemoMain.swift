@@ -100,7 +100,7 @@ struct NavigationDemoMain {
             let session = world.getResource(NavigationDemoSession.self),
             let robotID = session.robot, let robot = world.getEntityByID(robotID) else { throw DemoFailure.sceneUnavailable }
         let probe = Vector3(7.5, 0, 4.5)
-        let clip = camera.projection.makeClipView() * transform.matrix.inverse * Vector4(probe, 1)
+        let clip = camera.projection.makeClipView() * (transform.matrix.inverse * Vector4(probe, 1))
         guard clip.w.isFinite, clip.w > 0 else { throw DemoFailure.sceneUnavailable }
         let projected = clip.xyz / clip.w
         guard projected.x.isFinite, projected.y.isFinite, projected.z >= 0, projected.z <= 1 else {
