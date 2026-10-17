@@ -114,20 +114,20 @@ func ExtractModel3D(
     }
     materialUniforms.wrappedValue.beginFrame()
 
+    // Many mesh parts share the same model ancestors. Resolve each ancestor's
+    // visibility once per extraction, including hidden parents without meshes.
+    var hiddenHierarchy: [Entity.ID: Bool] = [:]
+    func isHidden(_ entity: Entity) -> Bool {
+        if let hidden = hiddenHierarchy[entity.id] { return hidden }
+        let hidden = entity.components[Visibility.self] == .hidden || entity.parent.map(isHidden) == true
+        hiddenHierarchy[entity.id] = hidden
+        return hidden
+    }
+
     query.wrappedValue.forEach { entity, mesh3d, transform in
         let lod = lodByEntity[entity.id]
-        let visibility = entity.components[Visibility.self]
+        if isHidden(entity) { return }
         let noCulling = entity.components[NoFrustumCulling.self]
-        if visibility == .hidden {
-            return
-        }
-        var ancestor = entity.parent
-        while let parent = ancestor {
-            if parent.components[Visibility.self] == .hidden {
-                return
-            }
-            ancestor = parent.parent
-        }
         let mesh = mesh3d.mesh
         let palette = skinningUniforms.wrappedValue.buffer(for: entity.id)
         var localBounds: AABB? = palette == nil ? mesh.bounds : posedBounds[entity.id]

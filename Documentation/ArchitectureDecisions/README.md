@@ -57,7 +57,7 @@ describes the intended design even when its implementation is still planned.
 | [ADR-0017](0017-temporal-antialiasing-and-metalfx.md) | Accepted | Partial (local foundation; not released) | Temporal antialiasing and MetalFX |
 | [ADR-0018](0018-local-lights-and-shadow-scheduling.md) | Accepted | Implemented (Metal and native WebGPU; Apple mobile unverified) | Local lights and shadow scheduling |
 | [ADR-0019](0019-environment-lighting-and-postprocessing.md) | Accepted | Partial (exposure and bloom local foundation; not released) | Environment lighting and postprocessing |
-| [ADR-0020](0020-gpu-visibility-and-animation-lod.md) | Accepted | Implemented on Metal with CPU fallback; WebGPU GPU compaction remains a backend extension | GPU visibility and animation LOD |
+| [ADR-0020](0020-gpu-visibility-and-animation-lod.md) | Accepted | Implemented on Metal and WebGPU with CPU fallback | GPU visibility and animation LOD |
 | [ADR-0021](0021-hybrid-ray-tracing.md) | Accepted | Planned | Hybrid ray tracing |
 | [ADR-0026](0026-3d-rendering-pipeline-gap-roadmap.md) | Accepted | Partial (Stages 0 and 1 first slices; not released) | 3D pipeline gap analysis and staged roadmap: post stack, materials/glTF extensions, morph targets, transparency, atmosphere, lighting scale, content features, diagnostics |
 

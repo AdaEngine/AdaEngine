@@ -7,6 +7,46 @@ import Testing
 @Suite
 struct MeshVisibilityLOD3DTests {
     @Test
+    func shadowBatchesShareEquivalentBindingsAndPreserveMaterialEdits() throws {
+        try setup()
+        let device = unsafe RenderEngine.shared.renderDevice
+        let mesh = Mesh.generateCube(renderDevice: device)
+        let world = World()
+        let red = PBRMaterial(), green = PBRMaterial(), masked = PBRMaterial(), textured = PBRMaterial(), blended = PBRMaterial()
+        red.baseColorFactor = [1, 0, 0, 1]
+        green.baseColorFactor = [0, 1, 0, 1]
+        masked.alphaMode = .mask
+        masked.alphaCutoff = 0.7
+        textured.baseColorTexture = Texture2D.whiteTexture
+        blended.alphaMode = .blend
+        let sources = [red, green, masked, textured, blended].enumerated().map { index, material in
+            source(world.spawn().id, mesh: mesh, material: material, at: [Float(index), 0, 5])
+        }
+        let projection = Transform3D.orthographic(left: -10, right: 10, top: 10, bottom: -10, zNear: 0.1, zFar: 100)
+        let view = world.spawn().id
+        var lists = VisibleMesh3DLists(), uniforms = PBR3DUniforms()
+        uniforms.beginFrame()
+        func prepare(_ pass: Int) {
+            lists.prepare(sources: sources, view: view, pass: pass, viewMatrix: .identity, projection: projection,
+                          cullingProjection: projection, settings: .init(), device: device, materials: &uniforms)
+        }
+        prepare(0)
+        let items = lists.items(view: view, pass: 0)
+        #expect(items.count == 3)
+        #expect(items.first?.batchRange == 0..<2)
+        let buffer = try #require(lists.buffers(view: view, pass: 0).instances?.buffer)
+        let first = unsafe buffer.contents().load(as: Flat3DInstanceData.self)
+        let second = unsafe buffer.contents().load(fromByteOffset: MemoryLayout<Flat3DInstanceData>.stride, as: Flat3DInstanceData.self)
+        #expect(first.color == red.baseColorFactor && second.color == green.baseColorFactor)
+        #expect(first.shadowFlags.w == 0 && second.shadowFlags.w == 0)
+        prepare(-1)
+        #expect(lists.items(view: view, pass: -1).count == 5)
+        green.normalScale = 2
+        prepare(0)
+        #expect(lists.items(view: view, pass: 0).count == 4)
+    }
+
+    @Test
     func cameraAndShadowListsCullIndependentlyAndKeepOffscreenCasters() throws {
         try setup()
         let device = unsafe RenderEngine.shared.renderDevice

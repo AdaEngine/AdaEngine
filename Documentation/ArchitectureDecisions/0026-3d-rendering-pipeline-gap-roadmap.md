@@ -33,7 +33,7 @@ must re-verify its own premise before implementation starts.
 - **Batching.** Opaque meshes are batched by mesh/material/skin key and drawn
   with per-instance data and `instanceCount`. Blended meshes are not merged and
   are depth sorted in `Main3DRenderNode`.
-- **Visibility.** CPU frustum, distance and LOD culling; Metal GPU Hi-Z
+- **Visibility.** CPU frustum, distance and LOD culling; Metal and WebGPU GPU Hi-Z
   occlusion with indirect draw (ADR-0020).
 - **Skinning and animation.** GPU skinning, skeletal animation graphs, animation
   LOD, motion vectors for camera, rigid and skinned meshes (ADR-0017).
@@ -236,8 +236,10 @@ Each item needs its own short requirements note before implementation.
 - **3D particles.** GPU particles with lit and unlit modes, soft depth fade,
   and depth sorting that cooperates with Stage 4. Particles need their own
   requirements, as ADR-0022 already states for 2D.
-- **Backend parity.** Implement Hi-Z occlusion and indirect draw on WebGPU and
-  Vulkan, or document a measured CPU fallback as the permanent contract.
+- **Backend parity.** Hi-Z occlusion and indirect draw are implemented on Metal
+  and WebGPU (ADR-0020); browser runtime validation remains separate from native
+  GPU validation. Implement the Vulkan path, or document a measured CPU fallback
+  as the permanent contract.
 
 ### Stage 8. Platform parity and budgets
 

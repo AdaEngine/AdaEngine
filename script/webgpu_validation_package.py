@@ -18,8 +18,10 @@ for relative in [
     "Tests/AdaRenderTests/WGSLReflectionTests.swift",
     "Tests/AdaEngineTests/SpriteMetalRenderingTests.swift",
     "Tests/AdaRenderTests/BoundedResourceCacheTests.swift",
+    "Tests/AdaRenderTests/RenderGraphDiagnosticsTests.swift",
     "Tests/AdaRenderTests/WindowFrameRequestsTests.swift",
     "Tests/AdaRenderTests/WGPUBindingStateTests.swift",
+    "Tests/AdaRenderTests/WGPUVisibilityProcessorTests.swift",
     "Tests/AdaEngineTests/MaterialUploadReuseTests.swift",
     "Tests/AdaECSTests/OptionalResourceTests.swift",
 ]:

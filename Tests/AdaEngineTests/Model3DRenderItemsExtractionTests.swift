@@ -6,6 +6,33 @@ import Testing
 @MainActor
 @Suite("Model3D render item extraction")
 struct Model3DRenderItemsExtractionTests {
+    @Test("hierarchy visibility updates after ancestor edits and reparenting")
+    func hierarchyVisibilityUpdatesAcrossExtractions() async throws {
+        try Self.setupHeadlessRenderEngineIfNeeded()
+        let app = AppWorlds(main: World())
+        app.addPlugin(MainSchedulerPlugin()).addPlugin(TransformPlugin()).addPlugin(RenderWorldPlugin()).addPlugin(Model3DPlugin())
+        try await app.build()
+        let hidden = app.main.spawn { Transform(); Visibility.hidden }
+        let branch = app.main.spawn { Transform() }
+        hidden.addChild(branch)
+        let mesh = Self.makeTriangleMesh(), material = PBRMaterial()
+        var children: [Entity] = []
+        for _ in 0..<12 {
+            let child = app.main.spawn { Mesh3DComponent(mesh: mesh, materials: [material]); Transform() }
+            branch.addChild(child)
+            children.append(child)
+        }
+        let initial = try await VisibleMesh3D.capture(from: app)
+        #expect(initial.count.visibleMeshes == 0)
+        hidden.components.remove(Visibility.self)
+        let revealed = try await VisibleMesh3D.capture(from: app)
+        #expect(revealed.count.visibleMeshes == 12)
+        hidden.components[Visibility.self] = .hidden
+        children[0].removeFromParent()
+        let reparented = try await VisibleMesh3D.capture(from: app)
+        #expect(reparented.items.first?.entity == children[0].id)
+        #expect(reparented.count.visibleMeshes == 1)
+    }
 
     @Test("extracted meshes become one instanced opaque 3D item and lighting is extracted")
     func extractedMeshesBecomeInstancedItems() async throws {

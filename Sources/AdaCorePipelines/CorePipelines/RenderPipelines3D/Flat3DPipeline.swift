@@ -12,7 +12,7 @@ import AdaUtils
 import Math
 
 /// Per-instance data consumed by the flat 3D vertex pipeline.
-public struct Flat3DInstanceData: Sendable {
+public struct Flat3DInstanceData: Sendable, Equatable {
     public let modelMatrix: Transform3D
     public let color: Vector4
     public let material: Vector4
@@ -62,15 +62,19 @@ public struct Flat3DDefaultVertexData: Sendable {
 
 /// Triple-buffered instance data shared by the main and shadow 3D passes.
 public struct Opaque3DInstanceBuffers: Resource {
-    private var buffers: [(any Buffer)?]
-    private var instances: [Flat3DInstanceData]
+    private struct Frame {
+        var buffer: (any Buffer)?
+        var instances: [Flat3DInstanceData] = []
+        var count = 0
+        var dirty = false
+    }
+    private var frames: [Frame]
     private var defaultVertexData: BufferData<Flat3DDefaultVertexData>
     private var currentIndex: Int
 
     public init() {
         let bufferCount = max(1, unsafe RenderEngine.configurations.maxFramesInFlight)
-        buffers = Array(repeating: nil, count: bufferCount)
-        instances = []
+        frames = Array(repeating: Frame(), count: bufferCount)
         defaultVertexData = BufferData(
             label: "Opaque 3D Default Vertex Data",
             elements: [Flat3DDefaultVertexData()]
@@ -79,7 +83,7 @@ public struct Opaque3DInstanceBuffers: Resource {
     }
 
     public var currentBuffer: BufferData<Flat3DInstanceData>? {
-        guard let buffer = buffers[currentIndex] else {
+        guard let buffer = frames[currentIndex].buffer else {
             return nil
         }
 
@@ -96,24 +100,35 @@ public struct Opaque3DInstanceBuffers: Resource {
     }
 
     public mutating func beginFrame() {
-        currentIndex = (currentIndex + 1) % buffers.count
-        instances.removeAll(keepingCapacity: true)
+        currentIndex = (currentIndex + 1) % frames.count
+        frames[currentIndex].count = 0
+        frames[currentIndex].dirty = false
     }
 
     public mutating func append(_ instance: Flat3DInstanceData) -> Int32 {
-        let index = Int32(instances.count)
-        instances.append(instance)
-        return index
+        let index = frames[currentIndex].count
+        if index < frames[currentIndex].instances.count {
+            if frames[currentIndex].instances[index] != instance {
+                frames[currentIndex].instances[index] = instance
+                frames[currentIndex].dirty = true
+            }
+        } else {
+            frames[currentIndex].instances.append(instance)
+            frames[currentIndex].dirty = true
+        }
+        frames[currentIndex].count += 1
+        return Int32(index)
     }
 
     public mutating func write(to renderDevice: RenderDevice) {
-        guard !instances.isEmpty else {
+        let count = frames[currentIndex].count
+        guard count > 0 else {
             return
         }
 
         // Fallback attributes advance per instance too, including multi-instance static batches.
-        if defaultVertexData.count < instances.count {
-            for _ in defaultVertexData.count ..< instances.count {
+        if defaultVertexData.count < count {
+            for _ in defaultVertexData.count ..< count {
                 defaultVertexData.append(Flat3DDefaultVertexData())
             }
             defaultVertexData.write(to: renderDevice)
@@ -121,15 +136,22 @@ public struct Opaque3DInstanceBuffers: Resource {
             defaultVertexData.write(to: renderDevice)
         }
 
-        let requiredLength = instances.count * MemoryLayout<Flat3DInstanceData>.stride
-        if buffers[currentIndex]?.length ?? 0 < requiredLength {
-            buffers[currentIndex] = renderDevice.createBuffer(
+        let requiredLength = frames[currentIndex].instances.count * MemoryLayout<Flat3DInstanceData>.stride
+        if frames[currentIndex].buffer?.length ?? 0 < requiredLength {
+            frames[currentIndex].buffer = renderDevice.createBuffer(
                 label: "Opaque 3D Instances \(currentIndex)",
                 length: requiredLength,
                 options: .storageShared
             )
+            frames[currentIndex].dirty = true
         }
-        buffers[currentIndex]?.setElements(&instances)
+        // Each in-flight buffer owns its CPU snapshot. Static main/shadow lists
+        // reuse the existing GPU contents; edits, reordering and growth upload again.
+        if frames[currentIndex].dirty {
+            let buffer = frames[currentIndex].buffer
+            buffer?.setElements(&frames[currentIndex].instances)
+            frames[currentIndex].dirty = false
+        }
     }
 }
 

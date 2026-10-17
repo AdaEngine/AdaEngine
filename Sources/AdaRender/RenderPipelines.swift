@@ -25,6 +25,12 @@ public struct RenderPipelines<T: RenderPipelineConfigurator>: Resource {
     @usableFromInline
     let configurator: T
 
+    @usableFromInline
+    var lastConfiguration: T.Configuration?
+
+    @usableFromInline
+    var lastPipeline: (any RenderPipeline)?
+
     public init(configurator: T) {
         self.configurator = configurator
     }
@@ -33,19 +39,30 @@ public struct RenderPipelines<T: RenderPipelineConfigurator>: Resource {
         for configuration: T.Configuration,
         device: RenderDevice
     ) -> any RenderPipeline {
+        // Consecutive mesh draws usually share a layout. Equality can reuse the
+        // descriptor's array storage without hashing every attribute name again.
+        if lastConfiguration == configuration, let lastPipeline {
+            return lastPipeline
+        }
         if let pipeline = self.caches[configuration] {
+            lastConfiguration = configuration
+            lastPipeline = pipeline
             return pipeline
         }
 
         let pipelineDesc = configurator.configurate(with: configuration)
         let pipeline = device.createRenderPipeline(from: pipelineDesc)
         caches[configuration] = pipeline
+        lastConfiguration = configuration
+        lastPipeline = pipeline
         return pipeline
     }
 
     @inlinable
     public mutating func dropCache() {
         self.caches.removeAll(keepingCapacity: true)
+        lastConfiguration = nil
+        lastPipeline = nil
     }
 }
 
