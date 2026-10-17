@@ -3,6 +3,7 @@ import Testing
 @testable import AdaRender
 import Foundation
 import Math
+import Synchronization
 
 @Suite("Render graph diagnostics")
 struct RenderGraphDiagnosticsTests {
@@ -101,6 +102,49 @@ struct RenderGraphDiagnosticsTests {
             #expect(records.first?.error == TestRenderError.failed.localizedDescription)
             #expect(records.first?.nodes.first?.label == FailingRenderNode.name.rawValue)
         }
+    }
+
+    @Test("Disabled diagnostics execute nodes without inspecting their resources")
+    func disabledDiagnosticsSkipResourceInspection() async throws {
+        let world = World(name: "RenderWorld")
+        let buffer = InspectedBuffer(label: "Output", length: 16)
+        var graph = RenderGraph(label: "Root")
+        graph.addNode(BufferSourceNode(buffer: buffer))
+        let diagnostics = RenderGraphDiagnostics(isEnabled: false)
+        let executor = RenderGraphExecutor()
+
+        try await executor.execute(graph, renderDevice: TestRenderDevice(), in: world, diagnostics: diagnostics)
+        #expect(buffer.executions.load(ordering: .relaxed) == 1)
+        #expect(buffer.inspections.load(ordering: .relaxed) == 0)
+        #expect(diagnostics.records.isEmpty)
+
+        diagnostics.configure(isEnabled: true)
+        try await executor.execute(graph, renderDevice: TestRenderDevice(), in: world, diagnostics: diagnostics)
+        #expect(buffer.executions.load(ordering: .relaxed) == 2)
+        #expect(buffer.inspections.load(ordering: .relaxed) == 1)
+        #expect(diagnostics.records.first?.nodes.first?.outputResources.first?.label == "Output")
+    }
+}
+
+private struct BufferSourceNode: RenderNode {
+    let buffer: InspectedBuffer
+    var outputResources: [RenderSlot] { [RenderSlot(name: "buffer", kind: .buffer)] }
+
+    func execute(context: inout Context, renderContext: RenderContext) async throws -> [RenderSlotValue] {
+        buffer.executions.wrappingAdd(1, ordering: .relaxed)
+        return [RenderSlotValue(name: "buffer", value: .buffer(buffer))]
+    }
+}
+
+private final class InspectedBuffer: TestBuffer, @unchecked Sendable {
+    let inspections = Atomic(0)
+    let executions = Atomic(0)
+    override var label: String? {
+        get {
+            inspections.wrappingAdd(1, ordering: .relaxed)
+            return super.label
+        }
+        set { super.label = newValue }
     }
 }
 

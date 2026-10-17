@@ -32,10 +32,18 @@ public struct VisibleMesh3DLists: Resource {
     private struct BatchKey: Hashable {
         var vertex: ObjectIdentifier
         var index: ObjectIdentifier
-        var material: RID
+        var indexCount: Int
+        var material: MaterialKey
         var skin: ObjectIdentifier?
         var cast: Bool
         var receive: Bool
+    }
+
+    private enum MaterialKey: Hashable {
+        case identity(RID)
+        // Shadow shaders consume the shared parameter buffer and base texture;
+        // separate material objects with identical bindings can share a draw.
+        case shadow(ObjectIdentifier, ObjectIdentifier?)
     }
 
     private struct Record {
@@ -122,10 +130,17 @@ public struct VisibleMesh3DLists: Resource {
                     let material = source.materials[part.materialIndex]
                     if pass >= 0 && (material as? PBRMaterial)?.alphaMode == .blend { continue }
                     materials.write(material: material, descriptor: part.vertexDescriptor, device: device)
+                    let materialKey: MaterialKey
+                    if pass >= 0, let pbr = material as? PBRMaterial, let buffer = materials.buffer(for: material) {
+                        materialKey = .shadow(ObjectIdentifier(buffer), pbr.baseColorTexture.map(ObjectIdentifier.init))
+                    } else {
+                        materialKey = .identity(material.rid)
+                    }
                     let batchKey = BatchKey(
                         vertex: ObjectIdentifier(part.vertexBuffer),
                         index: ObjectIdentifier(part.indexBuffer),
-                        material: material.rid,
+                        indexCount: part.indexCount,
+                        material: materialKey,
                         skin: source.skinningBuffer.map(ObjectIdentifier.init),
                         cast: source.castShadows,
                         receive: source.receiveShadows
@@ -162,11 +177,25 @@ public struct VisibleMesh3DLists: Resource {
             return $0.sequence < $1.sequence
         }
         var previousKey: BatchKey?
+        var previousDescriptor: VertexDescriptor?
         for record in entry.records {
             let source = sources[record.source]
             let part = record.mesh.models[record.model].parts[record.part]
-            let instanceIndex = entry.buffers.append(makeInstance(source, material: record.material, descriptor: part.vertexDescriptor, fade: record.fade))
-            if !record.blended, previousKey == record.key, let last = entry.items.indices.last {
+            let instance: Flat3DInstanceData
+            if pass >= 0 {
+                // The shadow vertex shader only reads transform, alpha and fade.
+                // Avoid rebuilding PBR texture/UV flags for every shadow face.
+                instance = Flat3DInstanceData(
+                    modelMatrix: source.transform,
+                    color: (record.material as? PBRMaterial)?.baseColorFactor ?? .one,
+                    material: .zero,
+                    shadowFlags: [0, 0, 0, 1 - record.fade]
+                )
+            } else {
+                instance = makeInstance(source, material: record.material, descriptor: part.vertexDescriptor, fade: record.fade)
+            }
+            let instanceIndex = entry.buffers.append(instance)
+            if !record.blended, previousKey == record.key, previousDescriptor == part.vertexDescriptor, let last = entry.items.indices.last {
                 let lower = entry.items[last].batchRange?.lowerBound ?? instanceIndex
                 entry.items[last].batchRange = lower..<(instanceIndex + 1)
             } else {
@@ -199,6 +228,7 @@ public struct VisibleMesh3DLists: Resource {
                 )
             }
             previousKey = record.blended ? nil : record.key
+            previousDescriptor = part.vertexDescriptor
         }
         entry.buffers.write(to: device)
         entry.count.drawCalls = entry.items.count

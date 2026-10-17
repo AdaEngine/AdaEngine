@@ -16,6 +16,8 @@
         let buffer: WebGPU.GPUBuffer
         let device: WebGPU.GPUDevice
         let instance: WebGPU.GPUInstance?
+        // WebGPU buffer sizes never change. Keep draw setup off the native/JS getter.
+        public let length: Int
 
         public var label: String? {
             didSet {
@@ -25,11 +27,10 @@
 
         init(buffer: WebGPU.GPUBuffer, device: WebGPU.GPUDevice, instance: WebGPU.GPUInstance? = nil) {
             self.buffer = buffer
+            self.length = Int(buffer.size)
             self.device = device
             self.instance = instance
         }
-
-        public var length: Int { return Int(buffer.size) }
 
         private var mappedBuffer: WebGPU.GPUBuffer?
 
