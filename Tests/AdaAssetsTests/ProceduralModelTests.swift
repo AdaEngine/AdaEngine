@@ -1,3 +1,4 @@
+import Math
 import Testing
 
 @testable import AdaAssets
@@ -141,6 +142,49 @@ struct ProceduralModelTests {
         let primitive = try #require(imported.meshes[meshIndex].primitives.first)
         let positions = try #require(primitive.attributes[.position]?.vector3Values())
         #expect(abs((positions.map(\.x).max() ?? 0) - 3) < 1e-4, "the exported mesh carries the baked scale")
+    }
+
+    @Test("Mirrored, singular and nonfinite leaf scales preserve the original mesh and transform", arguments: [
+        SIMD3<Float>(-2, 1, 3), SIMD3<Float>(2, -1, 3), SIMD3<Float>(2, 1, -3),
+        SIMD3<Float>(-2, -1, 3), SIMD3<Float>(-2, -1, -3),
+        SIMD3<Float>(0, 1, 3), SIMD3<Float>(2, 0, 3), SIMD3<Float>(2, 1, 0),
+        SIMD3<Float>(.infinity, 1, 3), SIMD3<Float>(2, -.infinity, 3), SIMD3<Float>(2, 1, .nan),
+    ])
+    func preservesUnsupportedLeafScale(scale: SIMD3<Float>) {
+        var node = ProceduralNode(name: "Leaf", mesh: ProceduralGeometry.box(width: 1, height: 2, depth: 3))
+        node.scale = scale
+        let model = ProceduralModel(materials: [ProceduralMaterial(name: "Default")], nodes: [node])
+
+        let baked = model.bakingLeafScales()
+        #expect(baked.nodes[0].mesh == node.mesh)
+        for axis in 0..<3 {
+            if scale[axis].isNaN {
+                #expect(baked.nodes[0].scale[axis].isNaN)
+            } else {
+                #expect(baked.nodes[0].scale[axis] == scale[axis])
+            }
+        }
+    }
+
+    @Test("GLB output preserves mirrored and singular leaf transforms and geometry", arguments: [
+        SIMD3<Float>(-2, 1, 3), SIMD3<Float>(-2, -1, 3), SIMD3<Float>(-2, -1, -3),
+        SIMD3<Float>(0, 1, 3), SIMD3<Float>(2, 0, 3), SIMD3<Float>(2, 1, 0),
+    ])
+    func unsupportedScaleRoundTrip(scale: SIMD3<Float>) throws {
+        let mesh = ProceduralGeometry.box(width: 1, height: 2, depth: 3)
+        var node = ProceduralNode(name: "Leaf", mesh: mesh)
+        node.scale = scale
+        let model = ProceduralModel(materials: [ProceduralMaterial(name: "Default")], nodes: [node])
+
+        let imported = try NativeGLTFLoader().load(data: GLBWriter().encode(model))
+        let importedNode = try #require(imported.nodes.first)
+        let restPose = try #require(importedNode.restPose)
+        #expect(restPose.scale.x == scale.x && restPose.scale.y == scale.y && restPose.scale.z == scale.z)
+        let meshIndex = try #require(importedNode.meshIndex)
+        let primitive = try #require(imported.meshes[meshIndex].primitives.first)
+        #expect(primitive.attributes[.position]?.values == mesh.positions.flatMap { [$0.x, $0.y, $0.z] })
+        #expect(primitive.attributes[.normal]?.values == mesh.normals.flatMap { [$0.x, $0.y, $0.z] })
+        #expect(primitive.indices == mesh.indices)
     }
 
     @Test("Models without geometry, with bad parents or bad materials are rejected")

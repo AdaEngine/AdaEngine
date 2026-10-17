@@ -1,4 +1,6 @@
 {
+  "The Linux file dialog could not be opened.": "Не удалось открыть окно выбора файлов в Linux.",
+  "Install Zenity to use Linux file dialogs.": "Установи Zenity, чтобы выбирать файлы и папки в Linux.",
   " · Stopped": " · Остановлено",
   "#RRGGBB": "#RRGGBB",
   "#RRGGBBAA": "#RRGGBBAA",

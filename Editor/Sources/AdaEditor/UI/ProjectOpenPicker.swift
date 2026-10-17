@@ -55,7 +55,7 @@ enum ProjectOpenPicker {
     static func presentProjectPicker(completion: @escaping @MainActor (URL?) -> Void) {
         #if canImport(AppKit)
             Task { completion(await pickProjectURL()) }
-        #elseif os(Windows)
+        #elseif os(Windows) || os(Linux)
             Task { completion(await pickProjectURL()) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
@@ -107,6 +107,11 @@ enum ProjectOpenPicker {
                 return projectDirectoryURL(fromPickerSelection: url)
             }
             return nil
+        #elseif os(Linux)
+            if case let .selected(url) = await LinuxProjectFilePicker.folder(title: L10n.tr(title)) {
+                return projectDirectoryURL(fromPickerSelection: url)
+            }
+            return nil
         #else
             return nil
         #endif
@@ -138,6 +143,8 @@ enum ProjectOpenPicker {
             completion(.selected(retainSecurityScopedAccess(to: projectLocationURL(fromPickerSelection: selectedURL))))
         #elseif os(Windows)
             Task { completion(await WindowsProjectFilePicker.folder(title: L10n.tr(projectLocationTitle))) }
+        #elseif os(Linux)
+            Task { completion(await LinuxProjectFilePicker.folder(title: L10n.tr(projectLocationTitle))) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))
@@ -178,6 +185,9 @@ enum ProjectOpenPicker {
         #elseif os(Windows)
             if case let .selected(urls) = await WindowsProjectFilePicker.files(title: L10n.tr(assetImportTitle)) { return urls }
             return nil
+        #elseif os(Linux)
+            if case let .selected(urls) = await LinuxProjectFilePicker.files(title: L10n.tr(assetImportTitle)) { return urls }
+            return nil
         #else
             return nil
         #endif
@@ -209,6 +219,8 @@ enum ProjectOpenPicker {
             completion(.selected(panel.urls))
         #elseif os(Windows)
             Task { completion(await WindowsProjectFilePicker.files(title: L10n.tr(agentContextTitle))) }
+        #elseif os(Linux)
+            Task { completion(await LinuxProjectFilePicker.files(title: L10n.tr(agentContextTitle))) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))
@@ -298,6 +310,8 @@ enum ProjectOpenPicker {
             }
         #elseif os(Windows)
             Task { completion(await WindowsProjectFilePicker.files(title: L10n.text("Choose Build Files"), directory: directoryURL)) }
+        #elseif os(Linux)
+            Task { completion(await LinuxProjectFilePicker.files(title: L10n.text("Choose Build Files"), directory: directoryURL)) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))
@@ -342,6 +356,8 @@ enum ProjectOpenPicker {
             completion(.selected(panel.urls))
         #elseif os(Windows)
             Task { completion(await WindowsProjectFilePicker.files(title: L10n.tr(atlasImageTitle), extensions: ["png"])) }
+        #elseif os(Linux)
+            Task { completion(await LinuxProjectFilePicker.files(title: L10n.tr(atlasImageTitle), extensions: ["png"])) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))
@@ -382,6 +398,8 @@ enum ProjectOpenPicker {
             }
         #elseif os(Windows)
             Task { completion(await WindowsProjectFilePicker.files(title: L10n.text("Link Tile Source"), extensions: ["tileset"], allowsMultipleSelection: false, directory: directoryURL)) }
+        #elseif os(Linux)
+            Task { completion(await LinuxProjectFilePicker.files(title: L10n.text("Link Tile Source"), extensions: ["tileset"], allowsMultipleSelection: false, directory: directoryURL)) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))

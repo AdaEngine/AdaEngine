@@ -16,7 +16,7 @@ export ADAENGINE_SHADER_SOURCE_ROOT="$ada_validation_root"
 ada_validation_scratch="${ADAENGINE_WEBGPU_SCRATCH:-/tmp/adaengine-webgpu-dev-validation}"
 ada_validation_package="$("$ada_validation_python" script/webgpu_validation_package.py "$ada_validation_scratch/validation-package")"
 # The GPU suites share one process-wide renderer, so the validation package runs its tests one at a time.
-ada_validation_filter='TintToolchainTests|TintShaderCompilerTests|WGSLReflectionTests|SpriteMetalRenderingTests/rendersLayoutsAndPickingWithWebGPU|SpriteMetalRenderingTests/rendersTileOcclusionWithWebGPU|BoundedResourceCacheTests|RenderGraphDiagnosticsTests|WindowFrameRequestsTests|WGPUBindingStateTests|WGPUVisibilityProcessorTests|MaterialUploadReuseTests|OptionalResourceTests|ShaderIncluderTests|ShaderCacheKeyTests|Render3D|GoldenFrameComparisonTests|GoldenBackendAgreementTests'
+ada_validation_filter='TintToolchainTests|TintShaderCompilerTests|WGSLReflectionTests|SpriteMetalRenderingTests/rendersLayoutsAndPickingWithWebGPU|SpriteMetalRenderingTests/rendersTileOcclusionWithWebGPU|BoundedResourceCacheTests|RenderGraphDiagnosticsTests|WindowFrameRequestsTests|WGPUBindingStateTests|WGPUVisibilityProcessorTests|MaterialUploadReuseTests|OptionalResourceTests|ShaderIncluderTests|ShaderCacheKeyTests|Render3D|GoldenFrameComparisonTests|GoldenBackendAgreementTests|VisibleMesh3DListsEquivalenceTests'
 if [[ "${OS:-}" == "Windows_NT" ]]; then
   export ADAENGINE_SHADER_SOURCE_ROOT="$(cygpath -m "$ada_validation_root")"
   # Building the test product avoids compiling unrelated dependency command

@@ -10,8 +10,8 @@ import Math
 // MARK: - KeyModifier alias (SwiftUI-style naming)
 
 extension KeyModifier {
-    /// Primary shortcut modifier: Ctrl on Windows and Command on Apple platforms.
-    #if os(Windows)
+    /// Primary shortcut modifier: Ctrl on Windows/Linux and Command on Apple platforms.
+    #if os(Windows) || os(Linux)
     public static let command = KeyModifier.control
     #else
     public static let command = KeyModifier.main

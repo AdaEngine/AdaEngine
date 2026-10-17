@@ -50,17 +50,21 @@ public struct ProceduralModel: Sendable, Equatable {
 }
 
 extension ProceduralModel {
-    /// Applies the scale of every part that has no children to its vertices and normals, leaving the node unscaled.
+    /// Applies positive, finite scales of parts without children to their vertices and normals, leaving those nodes unscaled.
     ///
     /// A non-uniform node scale distorts normals unless the renderer uses the inverse transpose, which produces dark
     /// patches on squashed spheres such as clouds. Baking the scale makes the model shade correctly everywhere.
-    /// Scales are positive, so triangle winding is unchanged. A scaled part with children keeps its node scale.
+    /// Parts with children or nonpositive or nonfinite scale components keep their original mesh and node scale.
     public func bakingLeafScales() -> ProceduralModel {
         var result = self
         let parents = Set(nodes.compactMap(\.parent))
         for index in result.nodes.indices where !parents.contains(index) {
             let scale = result.nodes[index].scale
-            guard scale != .one, var mesh = result.nodes[index].mesh, mesh.positions.count == mesh.normals.count else { continue }
+            guard scale != .one,
+                scale.x > 0, scale.y > 0, scale.z > 0,
+                scale.x.isFinite, scale.y.isFinite, scale.z.isFinite,
+                var mesh = result.nodes[index].mesh, mesh.positions.count == mesh.normals.count
+            else { continue }
             let inverse = SIMD3<Float>(1 / scale.x, 1 / scale.y, 1 / scale.z)
             for vertex in mesh.positions.indices {
                 mesh.positions[vertex] *= scale

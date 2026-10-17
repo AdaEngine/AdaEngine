@@ -67,11 +67,11 @@ public enum NavigationMeshBaker {
                 )
             }
         }
-        guard result == AE_NAV_SUCCESS.rawValue, let bytes = unsafe bytes else {
-            switch result {
-            case Int32(truncatingIfNeeded: AE_NAV_INVALID_INPUT.rawValue): throw .invalidSettings
-            case Int32(truncatingIfNeeded: AE_NAV_OUT_OF_MEMORY.rawValue): throw .outOfMemory
-            case Int32(truncatingIfNeeded: AE_NAV_EMPTY_MESH.rawValue): throw .emptyMesh
+        guard Int64(result) == Int64(AE_NAV_SUCCESS.rawValue), let bytes = unsafe bytes else {
+            switch Int64(result) {
+            case Int64(AE_NAV_INVALID_INPUT.rawValue): throw .invalidSettings
+            case Int64(AE_NAV_OUT_OF_MEMORY.rawValue): throw .outOfMemory
+            case Int64(AE_NAV_EMPTY_MESH.rawValue): throw .emptyMesh
             default: throw .buildFailed
             }
         }
