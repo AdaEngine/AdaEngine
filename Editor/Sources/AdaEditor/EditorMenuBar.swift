@@ -304,7 +304,7 @@ enum EditorMenuBar {
     ) -> MenuItem {
         var key = key
         var modifiers = modifiers
-        #if os(Windows)
+        #if os(Windows) || os(Linux)
         if key == .plus { key = .equals }
         if modifiers?.contains(.main) == true {
             modifiers?.remove(.main)

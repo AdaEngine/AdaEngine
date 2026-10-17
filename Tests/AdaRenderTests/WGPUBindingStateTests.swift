@@ -127,6 +127,65 @@ struct WGPUBindingStateTests {
         #expect(image.getPixel(x: 7, y: 3) == .init(red: 1, green: 1, blue: 0, alpha: 1))
     }
 
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["ADAENGINE_SPRITE_WGPU_SMOKE"] == "1"))
+    func transientRenderAttachmentsAreNotRetainedByBindings() async throws {
+        let device = try makeDevice()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("transient.glsl")
+        try """
+        #version 450 core
+        #pragma stage : vert
+        [[main]]
+        void transient_vertex() {
+            vec2 p[3] = vec2[](vec2(-1,-1), vec2(3,-1), vec2(-1,3));
+            gl_Position = vec4(p[gl_VertexIndex], 0, 1);
+        }
+        #version 450 core
+        #pragma stage : frag
+        layout(binding=0) uniform texture2D u_Texture;
+        layout(binding=1) uniform sampler u_Sampler;
+        layout(location=0) out vec4 o_Color;
+        [[main]]
+        void transient_fragment() { o_Color = texture(sampler2D(u_Texture, u_Sampler), vec2(0.5)); }
+        """.write(to: source, atomically: true, encoding: .utf8)
+        let module = try ShaderCompiler(from: source).compileShaderModule()
+        let pipeline = device.createRenderPipeline(from: RenderPipelineDescriptor(
+            vertex: try #require(module.getShader(for: .vertex)),
+            fragment: try module.getShader(for: .fragment),
+            debugName: "Transient attachments",
+            backfaceCulling: false,
+            colorAttachments: [.init(format: .rgba8)]
+        ))
+        let native = try #require(pipeline as? WGPURenderPipeline)
+        let target = RenderTexture(size: [2, 2], scaleFactor: 1, format: .rgba8)
+        weak var lastAttachment: WGPUGPUTexture?
+        for _ in 0..<8 {
+            let sampled = RenderTexture(size: [2, 2], scaleFactor: 1, format: .rgba8)
+            lastAttachment = sampled.gpuTexture as? WGPUGPUTexture
+            let command = device.createCommandQueue().makeCommandBuffer()
+            let clear = command.beginRenderPass(.init(colorAttachments: [
+                .init(texture: sampled, operation: .init(loadAction: .clear, storeAction: .store), clearColor: .red)
+            ]))
+            clear.endRenderPass()
+            let pass = command.beginRenderPass(.init(colorAttachments: [
+                .init(texture: target, operation: .init(loadAction: .clear, storeAction: .store), clearColor: .black)
+            ]))
+            pass.setViewport(Rect(x: 0, y: 0, width: 2, height: 2))
+            pass.setRenderPipelineState(pipeline)
+            pass.setFragmentTexture(sampled, slot: 0)
+            pass.setFragmentSamplerState(sampled.sampler, slot: 1)
+            pass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
+            pass.endRenderPass()
+            command.commit()
+            let image = try #require(try await device.readImage(from: target))
+            #expect(image.getPixel(x: 0, y: 0) == .red)
+        }
+        #expect(native.cachedBindGroupCount == 0)
+        #expect(lastAttachment == nil)
+    }
+
     private func makeDevice() throws -> any RenderDevice {
         unsafe RenderEngine.configurations.preferredBackend = .webgpu
         try RenderEngine.setupRenderEngine()

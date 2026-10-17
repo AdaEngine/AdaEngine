@@ -177,9 +177,10 @@ products.append(.library(name: "AndroidDemo", type: .dynamic, targets: ["Android
 // MARK: Editor Target
 
 var commonPlugins: [Target.PluginUsage] = []
+let shouldSkipSwiftLint = ProcessInfo.processInfo.environment["ADAENGINE_SKIP_SWIFTLINT"] == "1"
 
 #if os(macOS) || os(Linux)
-if !isWebExportEnabled && !isAndroidBuildEnabled {
+if !isWebExportEnabled && !isAndroidBuildEnabled && !shouldSkipSwiftLint {
     commonPlugins.append(
         .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins")
     )
@@ -246,10 +247,6 @@ var adaEngineDependencies: [Target.Dependency] = [
     "AdaPhysics",
     "AdaSpatial"
 ]
-
-#if os(Linux)
-adaEngineDependencies += [.target(name: "X11", condition: .when(platforms: [.linux]))]
-#endif
 
 var adaRenderDependencies: [Target.Dependency] = [
     .target(name: "CAndroid", condition: .when(platforms: [.android])),
@@ -413,6 +410,7 @@ var targets: [Target] = [
     .adaTarget(
         name: "AdaPlatform",
         dependencies: [
+            .target(name: "X11", condition: .when(platforms: [.linux])),
             "AdaUtils",
             "AdaECS",
             "AdaApp",
@@ -903,18 +901,23 @@ if isWGPUEnabled {
 
 // MARK: Extra
 
+#if os(Linux)
+products.append(.executable(name: "LinuxSmoke", targets: ["LinuxSmoke"]))
+targets += [
+    .executableTarget(name: "LinuxSmoke", dependencies: ["AdaEngine", "AdaPlatform"], path: "Demos/LinuxSmoke", swiftSettings: swiftSettings),
+    .testTarget(name: "AdaPlatformTests", dependencies: ["AdaPlatform", "AdaECS", "AdaInput", "AdaRender", "AdaUI", "AdaUtils", "Math", "X11"], swiftSettings: swiftSettings),
+]
+#endif
+
 #if os(Android) || os(Linux)
 targets += [
     .testTarget(name: "AdaEngineEmbeddableTests", dependencies: ["AdaEngineEmbeddable"]),
     .testTarget(name: "AdaScriptCompilerCoreTests", dependencies: ["AdaScriptCompilerCore"]),
-    .systemLibrary(
-        name: "X11",
-        pkgConfig: "x11",
-        providers: [
-            .apt(["libx11-dev"])
-        ]),
 ]
 #endif
+
+// The target must exist on every host because AdaPlatform's dependency is conditional.
+targets.append(.systemLibrary(name: "X11", pkgConfig: "x11", providers: [.apt(["libx11-dev"])]))
 
 // MARK: - CXX Internal Targets
 
@@ -940,6 +943,7 @@ targets += [
         ],
         publicHeadersPath: "include",
         cSettings: [
+            .define("_POSIX_C_SOURCE", to: "200809L", .when(platforms: [.linux])),
             .unsafeFlags(["-w"])
         ]
     ),
@@ -967,6 +971,7 @@ targets += [
         ],
         publicHeadersPath: "include",
         cSettings: [
+            .define("_POSIX_C_SOURCE", to: "200809L", .when(platforms: [.linux])),
             .unsafeFlags(["-w", "-std=c17"])
         ]
     ),

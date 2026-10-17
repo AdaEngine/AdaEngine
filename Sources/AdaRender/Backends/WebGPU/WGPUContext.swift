@@ -369,9 +369,12 @@
                     }
                     surfaceDescriptor.nextInChain = unsafe WebGPU.GPUSurfaceSourceAndroidNativeWindow(window: androidSurface.nativeWindow)
                 #elseif os(Linux)
+                    guard let surface = self as? any LinuxXlibRenderSurface else {
+                        preconditionFailure("Linux WebGPU requires an Xlib window surface.")
+                    }
                     surfaceDescriptor.nextInChain = unsafe WebGPU.GPUSurfaceSourceXlibWindow(
-                        display: UnsafeMutableRawPointer(glfwGetX11Display()),
-                        window: UInt64(glfwGetX11Window(handle))
+                        display: surface.xlibDisplay,
+                        window: surface.xlibWindow
                     )
                 #elseif os(Windows)
                     let surface = (self as! WindowsSurface)

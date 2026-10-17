@@ -474,6 +474,7 @@ extension EditorRunDestination {
         switch self {
         case .macOS: .macOS
         case .windows: .windows
+        case .linux: .linux
         case .visionOS: .visionOS
         case .iPadOS,
             .player:

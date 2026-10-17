@@ -6,9 +6,24 @@
 //
 
 
-#ifndef XLIB_ILLEGAL_ACCESS
-#define XLIB_ILLEGAL_ACCESS 1
-#endif
-
 #include <X11/Xlib.h>
 #include <X11/X.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/XKBlib.h>
+#include <X11/keysym.h>
+#include <X11/cursorfont.h>
+
+// Swift cannot call the variadic XCreateIC API directly.
+static inline XIC ada_x11_create_input_context(XIM method, Window window) {
+    return XCreateIC(method, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
+                     XNClientWindow, window, XNFocusWindow, window, NULL);
+}
+
+static inline void ada_x11_set_decorated(Display *display, Window window, int decorated) {
+    struct { unsigned long flags, functions, decorations; long inputMode; unsigned long status; } hints = {0};
+    hints.flags = 2; // MWM_HINTS_DECORATIONS
+    hints.decorations = decorated ? 1 : 0;
+    Atom property = XInternAtom(display, "_MOTIF_WM_HINTS", False);
+    XChangeProperty(display, window, property, property, 32, PropModeReplace, (unsigned char *)&hints, 5);
+}
