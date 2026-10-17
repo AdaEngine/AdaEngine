@@ -31,6 +31,9 @@ for relative in [
     "Tests/AdaEngineTests/Render3DColorGradingTests.swift",
     "Tests/AdaEngineTests/Render3DAutoExposureTests.swift",
     "Tests/AdaEngineTests/Render3DDepthOfFieldTests.swift",
+    "Tests/AdaEngineTests/Render3DReflectionTests.swift",
+    "Tests/AdaEngineTests/Render3DPerformanceBenchmarkTests.swift",
+    "Tests/AdaEngineTests/VisibleMesh3DListsEquivalenceTests.swift",
     "Tests/AdaEngineTests/Render3DMetricsReportTests.swift",
     "Tests/AdaEngineTests/GoldenBackendAgreementTests.swift",
 ]:

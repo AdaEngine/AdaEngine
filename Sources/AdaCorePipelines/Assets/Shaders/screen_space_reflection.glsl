@@ -52,6 +52,8 @@ layout (binding = 4) uniform Environment3DUniform {
 };
 
 const float PI = 3.14159265359;
+// Weight below which a screen-space reflection ray is not traced (reflectivity times ambient occlusion).
+const float MINIMUM_TRACED_REFLECTIVITY = 0.004;
 
 vec3 srgbToLinear(vec3 value) {
     return mix(value / 12.92, pow((value + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), value));
@@ -144,36 +146,67 @@ vec3 blurredScene(vec2 uv, float roughness) {
     return center;
 }
 
+// Projects a view-space point to screen UV, or reports that it falls outside the view.
+bool projectToScreen(vec3 point, out vec2 uv) {
+    vec4 clip = u_Projection * vec4(point, 1.0);
+    if (clip.w <= 0.0) {
+        return false;
+    }
+    uv = (clip.xy / clip.w) * vec2(0.5, -0.5) + 0.5;
+    return !(any(lessThanEqual(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0))));
+}
+
+// How far behind the visible surface the point lies (negative in front of it), or a large negative number when
+// nothing is rendered there.
+float depthBehindSurface(vec3 point, vec2 uv) {
+    vec3 scenePosition = texture(sampler2D(u_ViewPositionMetallic, u_GBufferSampler), uv).xyz;
+    // View-space z grows away from the camera, so a point farther than the surface has the larger z.
+    return length(scenePosition) > 0.0001 ? point.z - scenePosition.z : -1000000.0;
+}
+
+// Marches in steps of twice the configured stride and, once a step crosses a surface, narrows the crossing with a
+// short binary search. Half the steps of a fixed-stride march find the same hits.
 bool traceReflection(vec3 origin, vec3 direction, out vec2 hitUV) {
-    vec3 ray = origin + direction * u_Reflection.w;
-    for (int step = 0; step < 64; ++step) {
-        if (step >= int(u_ReflectionQuality.x)) {
+    float stride = u_Reflection.z * 2.0;
+    float thickness = u_Reflection.w;
+    vec3 previous = origin + direction * thickness;
+    vec3 ray = previous;
+    int steps = (min(int(u_ReflectionQuality.x), 64) + 1) / 2;
+    for (int step = 0; step < 32; ++step) {
+        if (step >= steps) {
             break;
         }
-        ray += direction * u_Reflection.z;
+        ray += direction * stride;
         if (distance(ray, origin) > u_Reflection.y) {
             break;
         }
-
-        vec4 clip = u_Projection * vec4(ray, 1.0);
-        if (clip.w <= 0.0) {
+        vec2 uv;
+        if (!projectToScreen(ray, uv)) {
             break;
         }
-        vec2 uv = clip.xy / clip.w;
-        uv = uv * vec2(0.5, -0.5) + 0.5;
-        if (any(lessThanEqual(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0)))) {
-            break;
-        }
-
-        vec3 scenePosition = texture(sampler2D(u_ViewPositionMetallic, u_GBufferSampler), uv).xyz;
-        if (length(scenePosition) > 0.0001) {
-            float rayDepth = -ray.z;
-            float sceneDepth = -scenePosition.z;
-            if (rayDepth >= sceneDepth - u_Reflection.w && rayDepth <= sceneDepth + u_Reflection.w) {
-                hitUV = uv;
+        float behind = depthBehindSurface(ray, uv);
+        if (behind > 0.0 && behind < stride + thickness) {
+            vec3 near = previous;
+            vec3 far = ray;
+            for (int refinement = 0; refinement < 4; ++refinement) {
+                vec3 middle = (near + far) * 0.5;
+                vec2 middleUV;
+                if (!projectToScreen(middle, middleUV)) {
+                    break;
+                }
+                if (depthBehindSurface(middle, middleUV) > 0.0) {
+                    far = middle;
+                } else {
+                    near = middle;
+                }
+            }
+            vec2 hitCandidate;
+            if (projectToScreen(far, hitCandidate) && abs(depthBehindSurface(far, hitCandidate)) <= thickness) {
+                hitUV = hitCandidate;
                 return true;
             }
         }
+        previous = ray;
     }
     return false;
 }
@@ -225,19 +258,21 @@ void ssr_fragment() {
     vec3 reflectionDirection = normalize(reflect(viewDirection, normal));
     vec3 environment = sampleSky(reflectionDirection);
 
+    float fresnel = pow(1.0 - clamp(dot(-viewDirection, normal), 0.0, 1.0), 5.0);
+    float reflectivity = mix(0.04, 1.0, metallic) * mix(1.0, fresnel, 0.35);
+    reflectivity *= (1.0 - roughness * 0.7) * u_ReflectionQuality.y;
+
     vec3 reflectedColor = environment;
     float visibility = 0.0;
-    if (u_Reflection.x > 0.5) {
+    // Most of a typical frame is matte or head-on surfaces whose reflection weighs a percent or two of the
+    // pixel. Tracing a ray for them costs the bulk of this pass and cannot change the result visibly.
+    if (u_Reflection.x > 0.5 && reflectivity * ao > MINIMUM_TRACED_REFLECTIVITY) {
         vec2 hitUV;
         if (traceReflection(positionMetallic.xyz + normal * u_Reflection.w, reflectionDirection, hitUV)) {
             reflectedColor = blurredScene(hitUV, roughness);
             visibility = edgeVisibility(hitUV);
         }
     }
-
-    float fresnel = pow(1.0 - clamp(dot(-viewDirection, normal), 0.0, 1.0), 5.0);
-    float reflectivity = mix(0.04, 1.0, metallic) * mix(1.0, fresnel, 0.35);
-    reflectivity *= (1.0 - roughness * 0.7) * u_ReflectionQuality.y;
     vec3 ambient = sampleSky(normal) * (0.035 + 0.035 * (1.0 - roughness));
     vec3 reflectionResult = mix(environment, reflectedColor, visibility);
     o_Color = vec4(presentColor(baseColor + (ambient + reflectionResult * reflectivity) * ao), 1.0);
