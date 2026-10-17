@@ -430,6 +430,7 @@ enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
     case player = "AdaPlayer"
     case macOS = "macOS"
     case windows = "Windows"
+    case linux = "Linux"
     case iPadOS = "iPadOS"
     case visionOS = "visionOS"
     case web = "Web"
@@ -437,13 +438,15 @@ enum EditorRunDestination: String, CaseIterable, Equatable, Sendable {
 
     static var availableCases: [Self] {
         #if os(macOS)
-        allCases.filter { $0 != .windows && (EditorDistribution.current.supportsSwiftProjects || $0 != .android) }
+        allCases.filter { $0 != .windows && $0 != .linux && (EditorDistribution.current.supportsSwiftProjects || $0 != .android) }
         #elseif os(Windows)
         [.windows, .web, .android, .player]
+        #elseif os(Linux)
+        [.linux]
         #elseif !canImport(Network)
-        allCases.filter { $0 != .android && $0 != .player && $0 != .windows }
+        allCases.filter { $0 != .android && $0 != .player && $0 != .windows && $0 != .linux }
         #else
-        allCases.filter { $0 != .android && $0 != .windows }
+        allCases.filter { $0 != .android && $0 != .windows && $0 != .linux }
         #endif
     }
 

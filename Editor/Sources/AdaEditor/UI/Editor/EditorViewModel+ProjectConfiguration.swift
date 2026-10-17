@@ -434,6 +434,7 @@ extension EditorViewModel {
         switch destination {
         case .macOS: .macOS
         case .windows: .windows
+        case .linux: .linux
         case .visionOS: .visionOS
         case .iPadOS: .iPadOS
         case .web: .web

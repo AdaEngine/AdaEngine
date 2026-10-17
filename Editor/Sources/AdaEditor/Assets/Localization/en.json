@@ -1,4 +1,6 @@
 {
+  "The Linux file dialog could not be opened.": "The Linux file dialog could not be opened.",
+  "Install Zenity to use Linux file dialogs.": "Install Zenity to use Linux file dialogs.",
   " · Stopped": " · Stopped",
   "#RRGGBB": "#RRGGBB",
   "#RRGGBBAA": "#RRGGBBAA",

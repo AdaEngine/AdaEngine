@@ -42,6 +42,12 @@ and assess gaps before proposing new features.
   open browser guides; they do not perform unattended installation.
 - Keep mocks, fixtures, and QA harnesses in test targets or separate executables.
   Do not add test-only objects or QA launch hooks to the main app, including Debug builds.
+- Linux Standalone uses X11/XWayland and Vulkan. Follow
+  [../Documentation/Linux.md](../Documentation/Linux.md) and launch through
+  `../script/run_studio_linux.sh` to stage resources, runtime libraries and BuildSDK.
+  Use the bundled Gravity compiler and staged Linux Swan overrides for builds/tests;
+  native dialogs require Zenity. The initial Linux workbench/local Run port does
+  not establish remote AdaPlayer, ACP, debugger, Cloud or cross-export parity.
 - Use an isolated scratch/module cache when necessary; never delete the shared
   `.build`. Preserve unrelated engine, demo, and editor changes.
 - Debug macOS builds accept `--editor-project=<absolute-path>` to open the
