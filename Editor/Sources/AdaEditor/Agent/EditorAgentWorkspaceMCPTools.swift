@@ -15,19 +15,25 @@ final class EditorAgentWorkspaceMCPTools {
                 name: "editor.build.start",
                 description: "Build the open project using Ada Editor's native build workflow. Poll editor.task.status and read editor.output.read for results.",
                 inputSchema: objectSchema(),
-                annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+                annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false),
+                // Lets harnesses such as Sloppy count a successful call as completion evidence.
+                _meta: Metadata(additionalFields: ["sloppy/verification": "build"])
             ),
             Tool(
                 name: "editor.test.start",
                 description: "Run project tests. SwiftPM projects run `swift test`. AdaScript projects (build.system adascript) run every @test function found in any .ada file or under Tests/ in-process, no SwiftPM, each with a 30 s timeout; it is rejected when the project has no @test. Poll editor.task.status (status plus adaScriptTests passed/failed/total and per-test results) and read editor.output.read: one PASS/FAIL line per test, failures followed by `path:line:column: message`.",
                 inputSchema: objectSchema(properties: ["filter": .object(["type": "string", "description": "Optional text; only tests whose function name or @test display name contains it run."])]),
-                annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+                annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false),
+                // Lets harnesses such as Sloppy count a successful call as completion evidence.
+                _meta: Metadata(additionalFields: ["sloppy/verification": "test"])
             ),
             Tool(
                 name: "editor.play.start",
                 description: "Run the active scene in the editor, or the selected project target when mode is 'product'.",
                 inputSchema: objectSchema(properties: ["mode": .object(["type": "string", "enum": .array(["scene", "product"].map(Value.string)), "description": "Defaults to scene when a scene document is active; otherwise product."])]),
-                annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false)
+                annotations: .init(readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false),
+                // Lets harnesses such as Sloppy count a successful call as completion evidence.
+                _meta: Metadata(additionalFields: ["sloppy/verification": "run"])
             ),
             Tool(
                 name: "editor.play.capture",
