@@ -107,6 +107,42 @@ struct ProceduralModelTests {
         #expect(gold.emissiveFactor.x == 0.1)
     }
 
+    @Test("Scale of a part without children is baked into its geometry so normals stay correct")
+    func bakesLeafScale() throws {
+        var group = ProceduralNode(name: "Group")
+        group.scale = [2, 2, 2]
+        var cloud = ProceduralNode(name: "Cloud", mesh: ProceduralGeometry.sphere(radius: 1, segments: 16))
+        cloud.scale = [1.7, 0.55, 0.6]
+        cloud.parent = 0
+        var puff = ProceduralNode(name: "Puff", mesh: ProceduralGeometry.sphere(radius: 1, segments: 16))
+        puff.scale = [3, 1, 1]
+        let model = ProceduralModel(materials: [ProceduralMaterial(name: "Default")], nodes: [group, cloud, puff])
+
+        let baked = model.bakingLeafScales()
+        #expect(baked.nodes[1].scale == .one && baked.nodes[2].scale == .one)
+        #expect(baked.nodes[0].scale == SIMD3<Float>(2, 2, 2), "a parent keeps its scale")
+        let mesh = try #require(baked.nodes[2].mesh)
+        #expect(abs((mesh.positions.map(\.x).max() ?? 0) - 3) < 1e-4)
+        #expect(abs((mesh.positions.map(\.y).max() ?? 0) - 1) < 1e-4)
+        #expect(mesh.normals.allSatisfy { abs(vecLength($0) - 1) < 1e-4 })
+        // The pole of a stretched sphere still faces straight up, and the stretched equator faces along the long axis.
+        let top = try #require(mesh.positions.indices.max { mesh.positions[$0].y < mesh.positions[$1].y })
+        #expect(mesh.normals[top].y > 0.99)
+        // Every triangle still faces outward after scaling.
+        for start in stride(from: 0, to: mesh.indices.count, by: 3) {
+            let corners = (0..<3).map { Int(mesh.indices[start + $0]) }
+            let face = vecCross(mesh.positions[corners[1]] - mesh.positions[corners[0]], mesh.positions[corners[2]] - mesh.positions[corners[0]])
+            let centroid = corners.map { mesh.positions[$0] }.reduce(SIMD3<Float>.zero, +)
+            #expect((face * centroid).sum() > 0)
+        }
+
+        let imported = try NativeGLTFLoader().load(data: GLBWriter().encode(model))
+        let meshIndex = try #require(imported.nodes[2].meshIndex)
+        let primitive = try #require(imported.meshes[meshIndex].primitives.first)
+        let positions = try #require(primitive.attributes[.position]?.vector3Values())
+        #expect(abs((positions.map(\.x).max() ?? 0) - 3) < 1e-4, "the exported mesh carries the baked scale")
+    }
+
     @Test("Models without geometry, with bad parents or bad materials are rejected")
     func invalidModels() {
         let material = ProceduralMaterial(name: "Default")
