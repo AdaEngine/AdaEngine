@@ -10,6 +10,7 @@ struct EditorInspectorSidebar: View {
     @State var colorTextDrafts: [String: String] = [:]
     @State var activeSceneFieldID: String?
     @State var sceneSearchText = ""
+    @State var spineCatalog = EditorSpinePreviewModel()
     @State private var collapsedComponentTypeNames: Set<String> = []
 
     @Environment(\.metrics) private var metrics
@@ -22,11 +23,11 @@ struct EditorInspectorSidebar: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         if let runtimeSelection = viewModel.runtimeSelection {
-                            inspectorSection("PLAY MODE · \(runtimeSelection.name.uppercased())") {
-                                Text("Entity #\(runtimeSelection.id)")
+                            inspectorSection(L10n.text("PLAY MODE · \(runtimeSelection.name.uppercased())")) {
+                                Text(L10n.text("Entity #\(runtimeSelection.id)"))
                                     .font(.system(size: 11))
                                     .foregroundColor(theme.editorColors.muted)
-                                Text("Live values · read only")
+                                Text(L10n.text("Live values · read only"))
                                     .font(.system(size: 11))
                                     .foregroundColor(theme.editorColors.muted)
                             }
@@ -47,7 +48,7 @@ struct EditorInspectorSidebar: View {
                             }
                         } else if viewModel.isInspectingPlayMode {
                             inspectorSection("PLAY MODE") {
-                                Text("Select a live entity from the Play toolbar to inspect its components.")
+                                Text(L10n.text("Select a live entity from the Play toolbar to inspect its components."))
                                     .font(.system(size: 11))
                                     .foregroundColor(theme.editorColors.muted)
                                     .lineLimit(3)
@@ -79,7 +80,7 @@ struct EditorInspectorSidebar: View {
                             }
                         } else {
                             inspectorSection("SELECTION") {
-                                Text("Click an entity in the scene or hierarchy to inspect it.")
+                                Text(L10n.text("Click an entity in the scene or hierarchy to inspect it."))
                                     .font(.system(size: 11))
                                     .foregroundColor(theme.editorColors.muted)
                                     .lineLimit(2)
@@ -110,7 +111,7 @@ struct EditorInspectorSidebar: View {
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.system(size: 12)).foregroundColor(theme.editorColors.blue)
+            Text(L10n.tr(title)).font(.system(size: 12)).foregroundColor(theme.editorColors.blue)
             content()
         }
         .padding(12)
@@ -125,7 +126,7 @@ struct EditorInspectorSidebar: View {
                         Text(isCollapsed ? "\u{E5CC}" : "\u{E5CF}")
                             .font(AdaEditorMaterialSymbolFont.font(size: 15))
                             .foregroundColor(theme.editorColors.muted)
-                        Text(component.displayName)
+                        Text(L10n.tr(component.displayName))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(theme.editorColors.text)
                     }
@@ -171,7 +172,7 @@ struct EditorInspectorSidebar: View {
         VStack(alignment: .leading, spacing: 6) {
             fieldLabel(field.field.label)
             if [EditorBuiltInComponentType.uiComponent, EditorBuiltInComponentType.companionPanel].contains(field.typeName), field.field.key == "path" {
-                Button("Choose UI source…") { activeSceneFieldID = activeSceneFieldID == "ui-source" ? nil : "ui-source" }
+                Button(L10n.text("Choose UI source…")) { activeSceneFieldID = activeSceneFieldID == "ui-source" ? nil : "ui-source" }
                 if activeSceneFieldID == "ui-source" {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 4) {
@@ -194,6 +195,8 @@ struct EditorInspectorSidebar: View {
                     is3D: field.typeName == EditorBuiltInComponentType.physicsBody3D
                 )
                 .id(viewModel.selectedEntity?.editorID)
+            } else if field.typeName == EditorBuiltInComponentType.spineSource, ["animation", "skin"].contains(field.field.key) {
+                spineChoiceField(field)
             } else {
                 fieldControl(
                     fieldID: "\(field.typeName).\(field.field.key)",
@@ -208,7 +211,7 @@ struct EditorInspectorSidebar: View {
     }
 
     func fieldLabel(_ label: String) -> some View {
-        Text(label)
+        Text(L10n.tr(label))
             .font(.system(size: 11))
             .foregroundColor(theme.editorColors.muted)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -268,7 +271,7 @@ struct EditorInspectorSidebar: View {
 
     private func vectorAxisField(label: String, value: String, isEditable: Bool, text: Binding<String>) -> some View {
         HStack(spacing: 0) {
-            Text(label)
+            Text(L10n.tr(label))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.white)
                 .frame(width: 24, height: 32)
@@ -321,7 +324,7 @@ struct EditorInspectorSidebar: View {
             text.wrappedValue = text.wrappedValue == "true" ? "false" : "true"
         }) {
             HStack(spacing: 8) {
-                Text(isOn ? "On" : "Off")
+                Text(isOn ? L10n.text("On") : L10n.text("Off"))
                     .font(.system(size: 11))
                     .foregroundColor(isOn ? theme.editorColors.text : theme.editorColors.muted)
                 Spacer()
@@ -385,7 +388,7 @@ struct EditorInspectorSidebar: View {
             if selectedEntity.hasExplicitGizmo {
                 HStack {
                     Button(action: { viewModel.toggleGizmoEnabled() }) {
-                        Text((selectedEntity.gizmo?.isEnabled ?? false) ? "Enabled" : "Disabled")
+                        Text((selectedEntity.gizmo?.isEnabled ?? false) ? L10n.text("Enabled") : L10n.text("Disabled"))
                             .font(.system(size: 11))
                             .foregroundColor(theme.editorColors.text)
                             .padding(.horizontal, 8)
@@ -403,7 +406,7 @@ struct EditorInspectorSidebar: View {
                 }
                 .buttonStyle(DefaultButtonStyle())
 
-                TextField("Name", text: viewModel.gizmoNameBinding)
+                TextField(L10n.text("Name"), text: viewModel.gizmoNameBinding)
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
                     .textFieldStyle(PlainTextFieldStyle())
@@ -419,7 +422,7 @@ struct EditorInspectorSidebar: View {
                 }
             } else {
                 Button(action: { viewModel.addGizmo() }) {
-                    Text("Add Gizmo")
+                    Text(L10n.text("Add Gizmo"))
                         .font(.system(size: 11))
                         .foregroundColor(theme.editorColors.blue)
                         .padding(.horizontal, 8)

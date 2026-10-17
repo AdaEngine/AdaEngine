@@ -111,3 +111,17 @@ The ordinary engine test runner on this Linux host was blocked by existing
 SwiftLint/file-length, box2d feature-macro and FileWatcher Sendable errors. The
 isolated Android PNG fixture and HTTP tests above were used for the relevant
 new behavior; they do not establish a passing full engine/editor test suite.
+
+### Software keyboard composition
+
+Studio forwards Android's full `InputConnection` editing operations to the shared
+AdaUI `TextField` and `TextEditor`. Composing text appears immediately and replaces
+the previous marked range; commit replaces it once, while finish keeps the visible
+text. Marked ranges use UTF-16 offsets, preserving combining marks and emoji even
+though the controls expose caret positions in Swift Characters. Surrounding deletion
+retains Android's UTF-16 versus code-point distinction and protects marked text.
+
+Moving the caret in Studio, changing a binding, or switching focus ends the old
+composition and restarts the native input connection. Connection generations and
+invalidatable event sessions reject callbacks already queued for an old caret or
+field. Focused regression coverage is in `TextInputCompositionTests`.

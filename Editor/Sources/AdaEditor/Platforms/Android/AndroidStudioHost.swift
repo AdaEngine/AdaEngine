@@ -1,5 +1,6 @@
 #if os(Android)
 @_spi(AdaEngine) import AdaEngine
+import AdaInput
 import CAndroidStudio
 import Foundation
 
@@ -21,6 +22,11 @@ public func startAndroidStudio() {
 @MainActor
 enum AndroidStudioHost {
     struct Reply: Codable, Sendable {
+        var generation: Int64?
+        var action: UInt8?
+        var cursorOffset: Int?
+        var rangeStart: Int?
+        var rangeEnd: Int?
         var text: String?
         var paths: [String]?
         var insets: [Float]?
@@ -33,8 +39,10 @@ enum AndroidStudioHost {
         var text: String
         var key: String
         var secret: Bool
+        var generation: Int64
     }
 
+    private static var inputGeneration: Int64 = 0
     private static var nextRequest: Int64 = 0
     private static var callbacks: [Int64: @MainActor (Reply) -> Void] = [:]
 
@@ -43,12 +51,15 @@ enum AndroidStudioHost {
         catch { AndroidRuntime.log("Could not load protected credentials: \(error.localizedDescription)") }
         AndroidRuntime.didResume = refreshInsets
         AndroidRuntime.textInputFocusChanged = { focused in
+            // Assigned before JNI: old callbacks queued for MainActor cannot edit
+            // a new field or a relocated caret after this point.
+            inputGeneration &+= 1
             _ = try? call(focused ? "keyboard.show" : "keyboard.hide")
         }
     }
 
     static func call(_ action: String, text: String = "", key: String = "", secret: Bool = false, request: Int64 = 0) throws -> Reply {
-        let payload = try JSONEncoder().encode(Request(text: text, key: key, secret: secret)).base64EncodedString()
+        let payload = try JSONEncoder().encode(Request(text: text, key: key, secret: secret, generation: inputGeneration)).base64EncodedString()
         let result = action.withCString { name in
             payload.withCString { data in ada_studio_call(name, data, request) }
         }
@@ -76,7 +87,12 @@ enum AndroidStudioHost {
 
     static func receive(_ reply: Reply, request: Int64) {
         if request == -1 {
-            AndroidRuntime.insertText(reply.text ?? "", deleteBackward: reply.flag == true)
+            guard reply.generation == inputGeneration,
+                  let rawAction = reply.action, let action = TextInputEvent.Action(rawValue: rawAction) else { return }
+            AndroidRuntime.inputText(
+                reply.text ?? "", action: action, cursorOffset: reply.cursorOffset ?? 1,
+                rangeStart: reply.rangeStart ?? 0, rangeEnd: reply.rangeEnd ?? 0
+            )
         } else if request == -2 {
             AndroidRuntime.setKeyboardOccludedHeight(Float(reply.text ?? "") ?? 0)
         } else if request == -3 {

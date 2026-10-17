@@ -90,7 +90,7 @@ struct EditorTileSourceAssetEditor: View {
                                 secondaryDrag: { model.handleSecondaryDrag($0) }
                             )
                         } else {
-                            Text("Image preview unavailable")
+                            Text(L10n.text("Image preview unavailable"))
                                 .font(.system(size: 12))
                                 .foregroundColor(theme.editorColors.muted)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -103,10 +103,10 @@ struct EditorTileSourceAssetEditor: View {
             .accessibilityIdentifier("AdaEditor.TileSourceEditor.Preview")
         } else {
             VStack(spacing: 12) {
-                Text(model.sources.isEmpty ? "Tile Source" : "Image preview unavailable")
+                Text(model.sources.isEmpty ? L10n.text("Tile Source") : L10n.text("Image preview unavailable"))
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
-                Text("Choose a PNG sprite sheet, then set its tile size and spacing.")
+                Text(L10n.text("Choose a PNG sprite sheet, then set its tile size and spacing."))
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.muted)
                 action("+ Add image", id: "EmptyAdd") { model.presentImagePicker() }
@@ -211,7 +211,7 @@ struct EditorTileSourceAssetEditor: View {
                 heading("Tile Source")
                 action("+ Add image", id: "Add") { model.presentImagePicker() }.disabled(!model.isEditable)
                 if !model.sources.isEmpty {
-                    Text("Selected: \(model.sourceName(at: model.selectedSource))")
+                    Text(L10n.text("Selected: \(model.sourceName(at: model.selectedSource))"))
                         .font(.system(size: 11))
                         .foregroundColor(theme.editorColors.muted)
                     action("Remove source", id: "RemoveSource") { model.removeSource() }.disabled(!model.isEditable)
@@ -224,7 +224,7 @@ struct EditorTileSourceAssetEditor: View {
                 action("Apply settings", id: "ApplySettings") { model.applySettings() }.disabled(!model.isEditable)
                 if model.canEditSource {
                     Divider()
-                    heading("Tiles • \(model.tiles.count)")
+                    heading(L10n.text("Tiles • \(model.tiles.count)"))
                     action("Create all tiles", id: "CreateAll") { model.createAllTiles() }
                     tileInspector
                 }
@@ -244,7 +244,7 @@ struct EditorTileSourceAssetEditor: View {
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(3)
             if let image = model.image {
-                Text("\(image.width) × \(image.height) px • \(model.gridSize.width) × \(model.gridSize.height) cells")
+                Text(L10n.text("\(image.width) × \(image.height) px • \(model.gridSize.width) × \(model.gridSize.height) cells"))
                     .font(.system(size: 10))
                     .foregroundColor(theme.editorColors.muted)
             }
@@ -260,7 +260,7 @@ struct EditorTileSourceAssetEditor: View {
 
     @ViewBuilder private var tileInspector: some View {
         if let tile = model.selectedTile {
-            Text("Cell \(tile.x), \(tile.y)")
+            Text(L10n.text("Cell \(tile.x), \(tile.y)"))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
             action(model.hasTile(tile) ? "Remove tile" : "Create tile", id: "ToggleTile") { model.toggleTile() }
@@ -273,7 +273,7 @@ struct EditorTileSourceAssetEditor: View {
                 }
                 action("Apply animation", id: "ApplyAnimation") { model.applyAnimation() }
                 heading("Light occlusion")
-                Text("Drag points; click an edge to add a point. Clear removes the shadow shape.")
+                Text(L10n.text("Drag points; click an edge to add a point. Clear removes the shadow shape."))
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                 EditorTilePolygonEditor(model: model.occlusionDraft, identifier: "AdaEditor.TileSourceEditor.Occlusion.Canvas")
                 HStack(spacing: 5) {
@@ -285,7 +285,7 @@ struct EditorTileSourceAssetEditor: View {
                 action("Apply occlusion", id: "Occlusion.Apply") { model.applyOcclusion() }
             }
         } else {
-            Text("Select a cell in the image")
+            Text(L10n.text("Select a cell in the image"))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
         }
@@ -301,8 +301,8 @@ struct EditorTileSourceAssetEditor: View {
 
     private func field(_ title: String, text: Binding<String>) -> some View {
         HStack(spacing: 8) {
-            Text(title).font(.system(size: 11)).foregroundColor(theme.editorColors.muted).frame(width: 96)
-            TextField(title, text: text)
+            Text(L10n.tr(title)).font(.system(size: 11)).foregroundColor(theme.editorColors.muted).frame(width: 96)
+            TextField(L10n.tr(title), text: text)
                 .textFieldStyle(PlainTextFieldStyle())
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.text)
@@ -315,7 +315,7 @@ struct EditorTileSourceAssetEditor: View {
 
     private func action(_ title: String, id: String, perform: @escaping () -> Void) -> some View {
         Button(action: perform) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.blue)
                 .padding(.horizontal, 8)

@@ -15,8 +15,8 @@ struct AdaScriptNativeSourceTests {
             """
         let result = try AdaScriptNativeSourceBuilder.prepare(sources: [.init(path: "Game.ada", source: source)], constructors: ["Transform": ["position", "rotation", "scale"]])
         #expect(result[1].source.contains("@component(id: \"position\") struct Position"))
-        #expect(result[1].source.contains("makeNamed(\"Transform\", [[1.0, 0.0, 0.0], null, [2.0, 2.0, 2.0]])"))
-        #expect(result[1].source.contains("makeNamed(\"Position\", [3.0])"))
+        #expect(result[1].source.contains("makeNamed(\"Transform\", [[1.0, 0.0, 0.0], null, [2.0, 2.0, 2.0]], [0, 2])"))
+        #expect(result[1].source.contains("makeNamed(\"Position\", [3.0], [0])"))
         #expect(throws: (any Error).self) {
             try AdaScriptNativeSourceBuilder.prepare(sources: [.init(path: "Bad.ada", source: "func main() { return Transform(unknown: 1); }")], constructors: ["Transform": ["position"]])
         }

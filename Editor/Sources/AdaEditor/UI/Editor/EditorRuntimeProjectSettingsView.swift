@@ -60,7 +60,7 @@ struct EditorRuntimeProjectSettingsView: View {
                 }
             }
             settingsField("0.75", detail: "Render scale for spatial upscaling, 0.5 to 1.", text: viewModel.runtimeTextBinding(\.renderScale))
-            Text("Applies to exported players. Play inside Ada Studio keeps the editor's own render settings.")
+            Text(L10n.text("Applies to exported players. Play inside Ada Studio keeps the editor's own render settings."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(2)
@@ -102,7 +102,7 @@ struct EditorRuntimeProjectSettingsView: View {
                     viewModel.selectTypeChecking(.strict)
                 }
             }
-            Text("Dynamic preserves AdaScript runtime typing. Strict checks annotated values across the project; @strict enables it for one file.")
+            Text(L10n.text("Dynamic preserves AdaScript runtime typing. Strict checks annotated values across the project; @strict enables it for one file."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(2)
@@ -159,7 +159,7 @@ struct EditorRuntimeProjectSettingsView: View {
             }
             ForEach(section.sections) { child in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(child.title)
+                    Text(L10n.tr(child.title))
                         .font(.system(size: 12))
                         .foregroundColor(theme.editorColors.text)
                         .lineLimit(1)
@@ -226,7 +226,7 @@ struct EditorRuntimeProjectSettingsView: View {
     ) -> some View {
         if viewModel.showsPage(title) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(title)
+                Text(L10n.tr(title))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.blue)
                     .lineLimit(1)
@@ -245,12 +245,12 @@ struct EditorRuntimeProjectSettingsView: View {
     ) -> some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
+                Text(L10n.tr(title))
                     .font(.system(size: 13))
                     .foregroundColor(theme.editorColors.text)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
-                Text(detail)
+                Text(L10n.tr(detail))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .lineLimit(1)
@@ -263,10 +263,10 @@ struct EditorRuntimeProjectSettingsView: View {
 
     private func settingsField(_ placeholder: String, detail: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(detail)
+            Text(L10n.tr(detail))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
-            TextField(placeholder, text: text)
+            TextField(L10n.tr(placeholder), text: text)
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
                 .padding(.horizontal, 10)
@@ -285,7 +285,7 @@ struct EditorRuntimeProjectSettingsView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11))
                 .foregroundColor(selected ? theme.editorColors.text : theme.editorColors.muted)
                 .padding(.horizontal, 10)

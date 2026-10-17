@@ -15,6 +15,7 @@ import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import android.text.InputType;
+import android.text.Selection;
 import android.util.Base64;
 import android.view.KeyEvent;
 import android.view.View;
@@ -53,6 +54,9 @@ public final class StudioActivity extends NativeActivity {
     private boolean foreground;
     private boolean bridgeReady;
     private View inputView;
+    private long inputGeneration;
+    private long inputConnectionID;
+    private boolean keyboardActive;
     private AlertDialog prompt;
     private long promptRequest;
     private TextToSpeech speaker;
@@ -70,35 +74,87 @@ public final class StudioActivity extends NativeActivity {
             @Override public InputConnection onCreateInputConnection(EditorInfo info) {
                 info.inputType = InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE;
                 info.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_FLAG_NO_FULLSCREEN;
-                return new BaseInputConnection(this, false) {
-                    private String composing = "";
+                info.initialSelStart = info.initialSelEnd = 0;
+                final long generation = inputGeneration, connectionID = ++inputConnectionID;
+                return new BaseInputConnection(this, true) {
+                    private boolean closed;
+                    private boolean current() {
+                        return !closed && keyboardActive && generation == inputGeneration && connectionID == inputConnectionID;
+                    }
+                    private void send(int action, String text, int cursor, int start, int end) {
+                        if (current()) sendInput(generation, action, text, cursor, start, end);
+                    }
                     @Override public boolean commitText(CharSequence text, int position) {
-                        composing = "";
-                        sendText(text.toString(), false);
-                        return true;
+                        if (!current()) return false;
+                        boolean result = super.commitText(text, position);
+                        if (result) send(3, text.toString(), position, 0, 0);
+                        return result;
                     }
                     @Override public boolean setComposingText(CharSequence text, int position) {
-                        composing = text.toString();
-                        return true;
+                        if (!current()) return false;
+                        boolean result = super.setComposingText(text, position);
+                        if (result) send(2, text.toString(), position, 0, 0);
+                        return result;
                     }
                     @Override public boolean finishComposingText() {
-                        if (!composing.isEmpty()) sendText(composing, false);
-                        composing = "";
-                        return true;
+                        if (!current()) return false;
+                        boolean result = super.finishComposingText();
+                        if (result) send(4, "", 1, 0, 0);
+                        return result;
                     }
                     @Override public boolean deleteSurroundingText(int before, int after) {
-                        if (!composing.isEmpty()) {
-                            composing = composing.substring(0, Math.max(0, composing.length() - before));
-                            return true;
+                        if (!current() || before < 0 || after < 0) return false;
+                        // BaseInputConnection uses UTF-16 lengths. Round a split
+                        // surrogate outward so its Editable and Swift stay aligned.
+                        CharSequence editable = getEditable();
+                        int lower = Math.min(Selection.getSelectionStart(editable), Selection.getSelectionEnd(editable));
+                        int upper = Math.max(Selection.getSelectionStart(editable), Selection.getSelectionEnd(editable));
+                        int markedStart = getComposingSpanStart(getEditable()), markedEnd = getComposingSpanEnd(getEditable());
+                        if (markedStart >= 0 && markedEnd >= 0) {
+                            lower = Math.min(lower, Math.min(markedStart, markedEnd));
+                            upper = Math.max(upper, Math.max(markedStart, markedEnd));
                         }
-                        for (int i = 0; i < before; i++) sendText("", true);
-                        return true;
+                        int start = Math.max(0, lower - before), end = Math.min(editable.length(), upper + after);
+                        if (start > 0 && start < editable.length() && Character.isHighSurrogate(editable.charAt(start - 1)) && Character.isLowSurrogate(editable.charAt(start))) ++before;
+                        if (end > 0 && end < editable.length() && Character.isHighSurrogate(editable.charAt(end - 1)) && Character.isLowSurrogate(editable.charAt(end))) ++after;
+                        boolean result = super.deleteSurroundingText(before, after);
+                        if (result) send(5, "", 1, before, after);
+                        return result;
+                    }
+                    @Override public boolean deleteSurroundingTextInCodePoints(int before, int after) {
+                        if (!current() || before < 0 || after < 0) return false;
+                        boolean result = super.deleteSurroundingTextInCodePoints(before, after);
+                        if (result) send(6, "", 1, before, after);
+                        return result;
+                    }
+                    @Override public boolean setComposingRegion(int start, int end) {
+                        if (!current()) return false;
+                        int caret = Selection.getSelectionEnd(getEditable());
+                        boolean result = super.setComposingRegion(start, end);
+                        if (result) {
+                            int markedStart = getComposingSpanStart(getEditable()), markedEnd = getComposingSpanEnd(getEditable());
+                            if (markedStart < 0 || markedEnd < 0) send(4, "", 1, 0, 0);
+                            else send(7, "", 1, markedStart - caret, markedEnd - caret);
+                        }
+                        return result;
+                    }
+                    @Override public boolean setSelection(int start, int end) {
+                        if (!current()) return false;
+                        int caret = Selection.getSelectionEnd(getEditable());
+                        boolean result = super.setSelection(start, end);
+                        if (result) send(8, "", 1, Selection.getSelectionStart(getEditable()) - caret, Selection.getSelectionEnd(getEditable()) - caret);
+                        return result;
+                    }
+                    @Override public void closeConnection() {
+                        closed = true;
+                        super.closeConnection();
                     }
                     @Override public boolean sendKeyEvent(KeyEvent event) {
+                        if (!current()) return false;
                         if (event.getAction() != KeyEvent.ACTION_DOWN) return true;
-                        if (event.getKeyCode() == KeyEvent.KEYCODE_DEL) sendText("", true);
-                        else if (event.getKeyCode() == KeyEvent.KEYCODE_ENTER) sendText("\n", false);
-                        else if (event.getUnicodeChar() != 0) sendText(new String(Character.toChars(event.getUnicodeChar())), false);
+                        if (event.getKeyCode() == KeyEvent.KEYCODE_DEL) send(1, "", 1, 0, 0);
+                        else if (event.getKeyCode() == KeyEvent.KEYCODE_ENTER) commitText("\n", 1);
+                        else if (event.getUnicodeChar() != 0) commitText(new String(Character.toChars(event.getUnicodeChar())), 1);
                         return true;
                     }
                 };
@@ -172,11 +228,17 @@ public final class StudioActivity extends NativeActivity {
                     if (!getSharedPreferences("credentials", MODE_PRIVATE).edit().remove(key).commit()) throw new Exception("Could not remove credentials.");
                     break;
                 case "keyboard.show":
+                    inputGeneration = args.getLong("generation");
+                    keyboardActive = true;
+                    ++inputConnectionID;
                     inputView.requestFocus();
                     ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).restartInput(inputView);
                     ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(inputView, InputMethodManager.SHOW_IMPLICIT);
                     break;
                 case "keyboard.hide":
+                    inputGeneration = args.getLong("generation");
+                    keyboardActive = false;
+                    ++inputConnectionID;
                     ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(inputView.getWindowToken(), 0);
                     inputView.clearFocus();
                     break;
@@ -357,9 +419,16 @@ public final class StudioActivity extends NativeActivity {
         return new String(cipher.doFinal(Base64.decode(record.getString("data"), Base64.DEFAULT)), StandardCharsets.UTF_8);
     }
 
-    private void sendText(String text, boolean delete) {
+    // Action numbers match TextInputEvent.Action. UTF-8 JSON preserves emoji.
+    private void sendInput(long generation, int action, String text, int cursor, int start, int end) {
         JSONObject value = object("text", text);
-        try { value.put("flag", delete); } catch (Exception ignored) { }
+        try {
+            value.put("generation", generation);
+            value.put("action", action);
+            value.put("cursorOffset", cursor);
+            value.put("rangeStart", start);
+            value.put("rangeEnd", end);
+        } catch (Exception ignored) { }
         complete(-1, value);
     }
     private static JSONObject object(String key, Object value) {

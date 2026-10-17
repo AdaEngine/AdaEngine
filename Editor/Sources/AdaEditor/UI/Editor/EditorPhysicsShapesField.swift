@@ -23,7 +23,7 @@ struct EditorPhysicsShapesField: View {
             if let errorMessage {
                 Text(errorMessage).foregroundColor(.red)
             }
-            Button("+ Add Shape") {}
+            Button(L10n.text("+ Add Shape")) {}
                 .contextMenu(opensOnPrimaryAction: true) {
                     ForEach(EditorPhysicsShapeValue.kinds(is3D: is3D), id: \.rawValue) { kind in
                         Button(kind.rawValue.capitalized) {
@@ -42,7 +42,7 @@ struct EditorPhysicsShapesField: View {
     private func shapeRow(_ index: Int) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Shape \(index + 1)")
+                Text(L10n.text("Shape \(index + 1)"))
                 Spacer()
                 Button("−") {
                     var values = shapes
@@ -86,8 +86,8 @@ struct EditorPhysicsShapesField: View {
         case .polygon:
             if case let .array(vertices) = shapes[index].value(at: EditorPhysicsShapeValue.path(kind, "verticies")[...]) {
                 ForEach(Array(vertices.indices), id: \.self) { vertex in
-                    numberField("Point \(vertex + 1) X", index: index, kind: kind, property: "verticies.\(vertex).x")
-                    numberField("Point \(vertex + 1) Y", index: index, kind: kind, property: "verticies.\(vertex).y")
+                    numberField(L10n.text("Point \(vertex + 1) X"), index: index, kind: kind, property: "verticies.\(vertex).x")
+                    numberField(L10n.text("Point \(vertex + 1) Y"), index: index, kind: kind, property: "verticies.\(vertex).y")
                 }
             }
         }
@@ -122,7 +122,7 @@ struct EditorPhysicsShapesField: View {
         positive: Bool = false
     ) -> some View {
         HStack {
-            Text(title).frame(width: 90, alignment: .leading)
+            Text(L10n.tr(title)).frame(width: 90, alignment: .leading)
             TextField(
                 "0",
                 text: Binding(

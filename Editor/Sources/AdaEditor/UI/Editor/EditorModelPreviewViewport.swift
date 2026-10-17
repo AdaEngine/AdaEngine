@@ -138,6 +138,7 @@ struct EditorModelPreviewViewport: View {
             .addPlugin(Model3DPlugin())
             .addPlugin(Core3DPlugin())
             .addPlugin(UpscalePlugin())
+        app.addPlugin(EditorSkeleton3DPlugin())
         guard let asset = model.asset else { return }
         let root = asset.instantiate(in: app.main)
         root.components[Transform.self] = model.normalizationTransform
@@ -165,10 +166,11 @@ struct EditorModelPreviewViewport: View {
                         }
                         camera.update()
                         model.pollGraphEvents(in: world)
+                        world.getResource(EditorSkeleton3DOverlay.self)?.isEnabled = model.showsBones
                     }
                 )
                 .frame(width: geometry.size.width, height: geometry.size.height)
-                Text("Drag to orbit · Scroll to zoom")
+                Text(L10n.text("Drag to orbit · Scroll to zoom"))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(16)

@@ -16,6 +16,9 @@ public protocol ReflectableComponent: Component {
 /// A component macro is more preffered way to create a component.
 /// When you use a component macro, you will atomatically conforms ``Component`` protocol
 /// and also get DSL style to modify your component.
+/// Runtime reflection supports nullable values, constants and getter-only properties.
+/// Constants and restricted setters are read-only; private and actor-isolated properties
+/// are omitted. Public component types expose their public fields to scripts.
 ///
 /// Example:
 /// ```swift

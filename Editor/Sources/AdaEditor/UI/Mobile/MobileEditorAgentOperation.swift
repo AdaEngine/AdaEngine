@@ -35,7 +35,7 @@ final class MobileEditorAgentOperation {
             .init(
                 id: id,
                 source: .agent,
-                title: "Agent · \(projectName)",
+                title: L10n.text("Agent · \(projectName)"),
                 projectName: projectName,
                 action: .init(title: "Open chat", destination: .chat, projectID: projectID.uuidString, sessionID: projectID.uuidString),
                 detail: detail,

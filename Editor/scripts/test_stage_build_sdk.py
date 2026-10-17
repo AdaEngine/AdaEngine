@@ -13,6 +13,15 @@ spec.loader.exec_module(sdk)
 
 
 class StageSDKTests(unittest.TestCase):
+    def test_compiler_discovery_prefers_checked_in_runtime(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            compiler = root / "Sources/gravity-lang"
+            marker = compiler / "tools/aot_build.py"
+            marker.parent.mkdir(parents=True)
+            marker.touch()
+            self.assertEqual(sdk.compiler_root(root, None), compiler.resolve())
+
     def test_compiler_discovery_supports_xcode_build_and_archive_directories(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

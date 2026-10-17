@@ -2,11 +2,11 @@
 
 - Status: Proposed
 - Date: 2026-10-14
-- Implementation: Partial (all but timeout and Editor integration shipped; not released)
+- Implementation: Partial (timeout and Studio test run shipped; results panel, stripping pass and parameterized tests remain; not released)
 
 ## Implementation status
 
-Last verified: 2026-10-15.
+Last verified: 2026-10-16.
 
 Shipped on `feat/ada-script-tests` (not released):
 
@@ -29,6 +29,16 @@ Shipped on `feat/ada-script-tests` (not released):
 - [x] `swift run AdaScriptTest <directory> [--filter] [--format text|junit|json]` exits 0, 1 (failures or no tests)
   or 2 (usage or load error).
 - [x] DocC article "Testing Ada Script".
+- [x] Per-test timeout. `AdaScriptPlugin(includeTests:testTimeout:)` instruments the module with the existing
+  checkpoint calls but installs a timeout-only budget: the deadline is reset before each test, and `System`, the VM
+  limits and spawns stay unrestricted. A runaway test fails with `<name>: test timed out after N seconds` and the
+  next test still runs. The limit is cooperative (function entries and loop iterations); a single long native call is
+  not interrupted, and a script system that resets the budget while the test waits in `run` or `advance` restarts the
+  clock. `AdaScriptTestProject.run(sources:name:matching:testTimeout:onResult:)` exposes it with a per-test callback.
+- [x] Editor integration for AdaScript projects: `editor.test.start` and the Run Tests command load the source root and
+  `Tests/` with project-relative paths, run in process (no SwiftPM, default 30 s per test), stream `PASS`/`FAIL`
+  lines with `path:line:column: message` to the Output panel, and report passed/failed/total in `editor.task.status`.
+  A project with no `@test`, or a filter matching nothing, is refused or fails rather than passing.
 
 Differences from the Decision text, taken deliberately:
 
@@ -42,11 +52,8 @@ Differences from the Decision text, taken deliberately:
 
 Remaining before this ADR is implemented:
 
-- [ ] Per-test timeout. A synchronous VM call cannot be interrupted from outside, and the existing community-mode
-  budget changes the VM's limits and removes `System`, so it cannot simply be reused. It needs a budget that only
-  counts checkpoints.
 - [ ] Strip declarations reachable only from tests, and the build generator's own stripping pass.
-- [ ] Editor language-service support and a results panel (depends on ADR-0023).
+- [ ] Editor language-service support, run buttons beside each `@test` and a results panel (depends on ADR-0023). Results currently go to the Output panel and the MCP task status.
 - [ ] Parameterized tests, and a decision on which Swift plugins a `TestWorld` may install.
 
 ## Context

@@ -66,13 +66,13 @@ struct EditorTextureSettingsInspector: View {
     private var mipmapSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             title("MIPMAPS")
-            Toggle("Generate mipmaps", isOn: Binding(get: { model.settings.generateMipmaps }, set: { model.settings.generateMipmaps = $0 }))
+            Toggle(L10n.text("Generate mipmaps"), isOn: Binding(get: { model.settings.generateMipmaps }, set: { model.settings.generateMipmaps = $0 }))
                 .accessibilityIdentifier("AdaEditor.TextureSettings.GenerateMipmaps")
             number("Level count", id: "LevelCount", value: Double(model.settings.mipLevelCount), integer: true) {
                 model.settings.mipLevelCount = Int($0)
             }
             .disabled(!model.settings.generateMipmaps)
-            hint("0 = full chain. Count includes level 0. Available: \(model.sourceImage.map { model.settings.maximumMipLevelCount(for: $0) } ?? 1).")
+            hint(L10n.text("0 = full chain. Count includes level 0. Available: \(model.sourceImage.map { model.settings.maximumMipLevelCount(for: $0) } ?? 1)."))
         }
         .disabled(!model.isEditable || model.isApplying)
     }
@@ -134,7 +134,7 @@ struct EditorTextureSettingsInspector: View {
                     if let value = Int($0) { model.previewFace = value }
                 }
             }
-            if let image = model.previewImage { hint("\(image.width) × \(image.height) px · \(model.levelCount) level(s)") }
+            if let image = model.previewImage { hint(L10n.text("\(image.width) × \(image.height) px · \(model.levelCount) level(s)")) }
         }
     }
 
@@ -158,7 +158,7 @@ struct EditorTextureSettingsInspector: View {
 
     private func actionButton(_ title: String, primary: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11))
                 .foregroundColor(primary ? theme.editorColors.blue : theme.editorColors.text)
                 .padding(.horizontal, 10)
@@ -179,7 +179,7 @@ struct EditorTextureSettingsInspector: View {
 
     private func selection(_ label: String, id: String, value: String, options: [(String, String)], set: @escaping (String) -> Void) -> some View {
         HStack(spacing: 8) {
-            Text(label).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+            Text(L10n.tr(label)).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             Spacer()
             Text((options.first { $0.0 == value }?.1 ?? value) + " ▾")
                 .font(.system(size: 11))
@@ -220,9 +220,9 @@ private struct EditorTextureNumberField: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(title).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+            Text(L10n.tr(title)).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             Spacer()
-            TextField(title, text: $draft)
+            TextField(L10n.tr(title), text: $draft)
                 .font(.system(size: 11))
                 .textFieldStyle(PlainTextFieldStyle())
                 .padding(.horizontal, 8)

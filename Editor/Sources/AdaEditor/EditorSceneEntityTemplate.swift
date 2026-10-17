@@ -15,6 +15,7 @@ enum EditorSceneEntityTemplate: String, CaseIterable, Hashable, Sendable {
     case sceneInstance
     case camera2D
     case sprite
+    case spine2D
     case mesh2D
     case tileMap
     case light2D
@@ -35,6 +36,7 @@ enum EditorSceneEntityTemplate: String, CaseIterable, Hashable, Sendable {
             .sceneInstance:
             .general
         case .camera2D,
+            .spine2D,
             .sprite,
             .mesh2D,
             .tileMap,
@@ -61,6 +63,7 @@ enum EditorSceneEntityTemplate: String, CaseIterable, Hashable, Sendable {
         case .sceneInstance: "Scene Instance"
         case .camera2D: "Camera 2D"
         case .sprite: "Sprite Entity"
+        case .spine2D: "Spine Character 2D"
         case .mesh2D: "Mesh Entity 2D"
         case .tileMap: "Tile Map"
         case .light2D: "Light 2D"
@@ -83,6 +86,7 @@ enum EditorSceneEntityTemplate: String, CaseIterable, Hashable, Sendable {
         case .sceneInstance: "Nested reusable scene"
         case .camera2D: "Orthographic camera and visibility"
         case .sprite: "Sprite renderer and visibility"
+        case .spine2D: "Spine skeleton, animations and visible bones"
         case .mesh2D: "Built-in 2D mesh and material"
         case .tileMap: "Editable empty tile map"
         case .light2D: "2D light and visibility"

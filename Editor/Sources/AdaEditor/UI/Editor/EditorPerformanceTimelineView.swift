@@ -25,13 +25,13 @@ struct EditorPerformanceTimelineView: View {
             controls
             if let event = selectedEvent {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(event.name) · \(number(event.durationMs)) ms")
+                    Text(L10n.text("\(event.name) · \(number(event.durationMs)) ms"))
                         .foregroundColor(theme.editorColors.text)
-                    Text("\(event.category) · start \(number(event.startMs)) ms · end \(number(event.endMs)) ms")
+                    Text(L10n.text("\(event.category) · start \(number(event.startMs)) ms · end \(number(event.endMs)) ms"))
                         .foregroundColor(theme.editorColors.muted)
-                    if let graph = event.graph { Text("Graph: \(graph)") }
+                    if let graph = event.graph { Text(L10n.text("Graph: \(graph)")) }
                     if let type = event.typeName { Text(type).lineLimit(1) }
-                    Button("Focus call") {
+                    Button(L10n.text("Focus call")) {
                         let span = max(0.01, event.durationMs * 4)
                         zoom = min(4096, max(1, timeline.durationMs / span))
                         startMs = max(0, min(event.startMs - windowMs / 4, timeline.durationMs - windowMs))
@@ -42,15 +42,15 @@ struct EditorPerformanceTimelineView: View {
                 .accessibilityIdentifier("AdaEditor.Performance.SelectedEvent")
             }
             if lanes.isEmpty {
-                Text("No completed CPU spans in this capture.").foregroundColor(theme.editorColors.muted)
+                Text(L10n.text("No completed CPU spans in this capture.")).foregroundColor(theme.editorColors.muted)
             } else {
                 HStack(spacing: 8) {
-                    Text("CPU calls").frame(width: 140, alignment: .leading)
+                    Text(L10n.text("CPU calls")).frame(width: 140, alignment: .leading)
                     GeometryReader { geometry in
                         HStack {
-                            Text("\(number(startMs)) ms")
+                            Text(L10n.text("\(number(startMs)) ms"))
                             Spacer()
-                            Text("\(number(startMs + windowMs)) ms")
+                            Text(L10n.text("\(number(startMs + windowMs)) ms"))
                         }
                         .frame(width: geometry.size.width)
                     }
@@ -61,7 +61,7 @@ struct EditorPerformanceTimelineView: View {
                     laneView(lane)
                 }
             }
-            Text("Elapsed CPU spans; concurrent calls overlap. GPU execution time is not measured.")
+            Text(L10n.text("Elapsed CPU spans; concurrent calls overlap. GPU execution time is not measured."))
                 .foregroundColor(theme.editorColors.muted)
         }
         .accessibilityIdentifier("AdaEditor.Performance.Timeline")
@@ -82,7 +82,7 @@ struct EditorPerformanceTimelineView: View {
                 control("‹") { startMs = max(0, startMs - windowMs / 2) }
                 control("›") { startMs = min(max(0, timeline.durationMs - windowMs), startMs + windowMs / 2) }
                 control("Fit") { zoom = 1; startMs = 0 }
-                Text("\(timeline.events.count) calls · \(number(timeline.durationMs)) ms")
+                Text(L10n.text("\(timeline.events.count) calls · \(number(timeline.durationMs)) ms"))
                     .foregroundColor(theme.editorColors.muted)
             }
             .frame(height: 26)
@@ -92,8 +92,8 @@ struct EditorPerformanceTimelineView: View {
     private func laneView(_ lane: EditorPerformanceTimeline.Lane) -> some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(lane.title).lineLimit(2).foregroundColor(color(lane.category))
-                Text("\(lane.events.count) calls").foregroundColor(theme.editorColors.muted)
+                Text(L10n.tr(lane.title)).lineLimit(2).foregroundColor(color(lane.category))
+                Text(L10n.text("\(lane.events.count) calls")).foregroundColor(theme.editorColors.muted)
             }
             .frame(width: 140, alignment: .leading)
             VStack(spacing: 2) {
@@ -144,7 +144,7 @@ struct EditorPerformanceTimelineView: View {
         }
     }
     private func control(_ title: String, _ action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
+        Button(L10n.tr(title), action: action)
             .buttonStyle(DefaultButtonStyle())
             .foregroundColor(theme.editorColors.blue)
             .accessibilityIdentifier("AdaEditor.Performance.Timeline.\(title)")

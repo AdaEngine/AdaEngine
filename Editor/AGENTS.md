@@ -49,6 +49,32 @@ and assess gaps before proposing new features.
 - Public scripting terminology is **AdaScript**. `Gravity*` names are internal
   compiler, VM, and language-tooling implementation names.
 
+## Localization (required for every UI change)
+
+- Ada Studio supports **English (`en`) and Russian (`ru`)**. Always write
+  user-facing text for localization, including labels, tooltips, placeholders,
+  menus, dialogs, accessibility labels, empty states and app-authored errors.
+- Add or update both translations automatically in the same change, under
+  `Sources/AdaEditor/Assets/Localization/en.json` and `ru.json`. Do not leave
+  Russian translations for a follow-up task. Use clear, friendly Russian that
+  a young reader can understand; keep product names and code/API identifiers.
+- Use `L10n.text("Text with \(value)")` for interpolated UI messages and
+  `L10n.tr(key)` when rendering a stable key supplied by a model or UI helper.
+  Preserve numbered placeholders in both catalogs. Never concatenate translated
+  sentence fragments or translate user text, source code, file paths, persisted
+  enum values, protocol keys or accessibility identifiers.
+- `EditorLocalization` owns the saved app language. The default follows the
+  system's preferred languages, selecting Russian or English with English as
+  fallback. Desktop General > Language and mobile Settings expose System,
+  English and Russian; changes update mounted UI through Observation.
+- Keep routing, settings page IDs and automation identifiers language-independent.
+  Translate at presentation boundaries. Shared AdaUI and native platform UI must
+  use the same preference; do not independently check `Locale.preferredLanguages`.
+- Run `python ../script/check_studio_localization.py` from `Editor/` and
+  `swift test --filter EditorLocalizationTests` after changing
+  localized UI. Test switching languages with the existing view mounted, and
+  check that longer Russian text fits the affected controls.
+
 ## Capability inventory
 
 Snapshot: **2026-10-04**, checked against the current working-tree source and
@@ -175,6 +201,17 @@ Coverage: [EditorUISceneTests.swift](Tests/AdaEditorTests/EditorUISceneTests.swi
 
 ### Assets and animation
 
+Spine 4.2 `.skel`/`.spine` assets have a native 2D preview with clip/skin
+selection, Play/Pause and bone overlays. Import/drop carries the atlas and pages;
+JSON exports are imported as `.spine`. Add to Scene and the Spine Character 2D
+template store a portable `SpineSource` component with playback/bone settings.
+Imported 3D skins also have a Show/Hide bones overlay in the asset viewer and
+3D scene viewport (edit and Play). `EditorSkeleton3DPlugin` installs the drawing
+system after scheduler setup; the overlay follows the current skeletal pose.
+See [Spine2D.md](Documentation/Spine2D.md). Skeleton/keyframe authoring and public
+player/export integration are separate. Coverage: `EditorSpineTests` and
+`SpineSceneTests`; native validation must exercise the Studio viewport.
+
 Image preview includes a shared texture Inspector with sampler filters/wrap/LOD,
 CPU-generated mip levels, Color/Normal/Data purpose, sRGB/Linear settings, and
 2D/Cube import from a six-face horizontal strip. Apply persists an adjacent
@@ -245,6 +282,11 @@ Coverage: [EditorTextureAtlasTests.swift](Tests/AdaEditorTests/EditorTextureAtla
 ### Build, Play, preview and export
 
 Build/Run/Stop, SwiftPM test/package commands, build output and navigable Problems.
+AdaScript projects run their `@test` functions in process (ADR-0024) through
+`EditorAdaScriptTestRunner` and `EditorViewModel.runAdaScriptTests`: sources from the project's
+source root and `Tests/`, a 30 s per-test limit, streamed PASS/FAIL lines in Output, and counts
+in `editor.task.status` (`adaScriptTests`). Coverage:
+[EditorAdaScriptTestRunnerTests.swift](Tests/AdaEditorTests/EditorAdaScriptTestRunnerTests.swift).
 Scene Play and embedded AdaScript project runtime; AdaScript hot reload compiles
 dirty source buffers and keeps previous running code when reload fails.
 Swift view previews have a dedicated build/host path. AdaPlayer pairing and
@@ -355,6 +397,19 @@ context, scene edits, diagnostics, build, simulation, visible Play, frame captur
 web access and asset/image operations. Model texture assignment tools also exist;
 they do not constitute a visual 3D asset editor.
 
+Desktop game verification: `editor.play.capture` and `render.capture_screenshot`
+(through AdaMCP's `captureOverride`) return the completed frame of the running
+game's own camera (2D or 3D `SceneView` that opted in with `frameCaptureLabel`),
+never the editor window; without a running game `editor.play.capture` errors and
+`render.capture_screenshot` falls back to the editor window, labelled as such in
+its `world` field. `editor.play.run_scenario` replays timed key/mouse input in an
+isolated offscreen runtime (or the running Play game), saves frames under
+`.ada/workspace/agent-captures`, and returns entity/component snapshots, script
+logs and limits-bounded results; the offscreen runtime renders scene cameras, not
+the `@view` HUD. Guide: [MobileAgentTools.md](Documentation/MobileAgentTools.md#desktop-game-verification).
+Coverage: [EditorPlayScenarioTests.swift](Tests/AdaEditorTests/EditorPlayScenarioTests.swift),
+engine [SceneViewFrameCaptureTests.swift](../Tests/AdaEngineTests/SceneViewFrameCaptureTests.swift).
+
 Native AI model tools on desktop and mobile inspect/validate GLB/glTF through
 CPU native import, import project-local dependency bundles and patch PBR material
 factors. Offline docs/API/component/examples tools are shared; bundled workflow
@@ -380,9 +435,26 @@ loudness, clipping, silence, pitch, envelope). Skills `ada-voxel-models`, `ada-p
 `PLAN.md` milestones, build-play-check loop, acceptance pass). The `AudioSource` component plays WAV/MP3/FLAC
 in scenes and from scripts and has an inspector descriptor. Music and voices need a provider (not implemented);
 agent sounds are measured, never heard; desktop has no stepped gameplay simulation yet.
+Autonomous-run harness rules (skill text, not enforced by code): `ada-autonomous-studio` opens with a start
+card (context once into `PROGRESS.md` "Facts", only the required skills, one research pass, notes before code),
+plans M1 playable core, M2 art and sound (3-6 generated sounds wired through `AudioSource`) right after it,
+then content and polish, forbids planning "primitives"/"silence" when generators exist, and limits stalling
+(about 10 reads in a row, 3 attempts per check, unavailable checks become `blocker:`/`manual:` and the run
+continues). `ada-coding` requires a file layout decided in `DESIGN.md` before code: one responsibility per
+file, `Components`/`Systems`/`Rules`/`Config`/`UI`/`Tests`/`Generators` folders, size limits, balance numbers in `Config`;
+Swift projects get the same rules in their own `AGENTS.md`.
+`editor.examples.list` takes an optional `query` over ids, descriptions and tags. `side-scroller-3d`
+([Assets/Examples/side-scroller-3d](Sources/AdaEditor/Assets/Examples/side-scroller-3d)) is a complete multi-file
+3D flappy/runner game (files on disk; the project JSON and scene are generated by
+[EditorAgentBundledExamples.swift](Sources/AdaEditor/Agent/EditorAgentBundledExamples.swift)) with `@query` systems,
+input actions, a reused obstacle pool, collisions, score, restart, `AudioSource` cues, a `.ui` HUD, `@test` tests and
+asset generator sources. Its production sources and tests are compiled and run, its scene is checked against the scripts,
+and the `// recipe` blocks of [AdaScriptGameplayRecipes.md](Documentation/AdaScriptGameplayRecipes.md) (also in the offline
+documentation) are executed. Regenerate the offline snapshot with `python3 scripts/update-offline-documentation.py`.
 Entry points: [EditorAgentGeneratorToolService.swift](Sources/AdaEditor/Agent/EditorAgentGeneratorToolService.swift),
 [EditorAudioSourceComponentDescriptor.swift](Sources/AdaEditor/EditorAudioSourceComponentDescriptor.swift).
-Coverage: [EditorAgentMediaGenerateTests.swift](Tests/AdaEditorTests/EditorAgentMediaGenerateTests.swift),
+Coverage: [EditorAgentExampleTests.swift](Tests/AdaEditorTests/EditorAgentExampleTests.swift),
+[EditorAgentMediaGenerateTests.swift](Tests/AdaEditorTests/EditorAgentMediaGenerateTests.swift),
 [EditorAgentModelGenerateTests.swift](Tests/AdaEditorTests/EditorAgentModelGenerateTests.swift),
 [EditorAgentVoxelToolTests.swift](Tests/AdaEditorTests/EditorAgentVoxelToolTests.swift).
 

@@ -56,8 +56,8 @@ struct EditorPublicationForm: View {
                 .frame(width: 44, height: 44)
                 .background(RoundedRectangleShape(cornerRadius: 14).fill(theme.editorColors.blue.opacity(0.12)))
             VStack(alignment: .leading, spacing: 4) {
-                Text("Publish game").font(.system(size: 23, weight: .bold))
-                Text("Create your Community listing")
+                Text(L10n.text("Publish game")).font(.system(size: 23, weight: .bold))
+                Text(L10n.text("Create your Community listing"))
                     .font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
             }
             Spacer(minLength: 8)
@@ -91,7 +91,7 @@ struct EditorPublicationForm: View {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 8) {
                         label("Game title")
-                        TextField("Give your game a name", text: _title)
+                        TextField(L10n.text("Give your game a name"), text: _title)
                             .textFieldStyle(PlainTextFieldStyle())
                             .font(.system(size: 16))
                             .padding(.horizontal, 14)
@@ -120,7 +120,7 @@ struct EditorPublicationForm: View {
                             }
                             .overlay(anchor: .topLeading) {
                                 if description.isEmpty {
-                                    Text("What is your game about?")
+                                    Text(L10n.text("What is your game about?"))
                                         .font(.system(size: 15)).foregroundColor(theme.editorColors.muted)
                                         .padding(12).allowsHitTesting(false)
                                 }
@@ -136,7 +136,7 @@ struct EditorPublicationForm: View {
                     HStack {
                         label("Screenshots")
                         Spacer()
-                        caption("\(screenshots.count) / 5 · optional")
+                        caption(L10n.text("\(screenshots.count) / 5 · optional"))
                     }
                     if !screenshots.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false, respectsSafeArea: false) {
@@ -150,7 +150,7 @@ struct EditorPublicationForm: View {
                     Button(action: addScreenshots) {
                         HStack(spacing: 8) {
                             symbol("\u{E145}", size: 20)
-                            Text("Add screenshots").font(.system(size: 14, weight: .semibold))
+                            Text(L10n.text("Add screenshots")).font(.system(size: 14, weight: .semibold))
                             Spacer()
                         }
                         .foregroundColor(theme.editorColors.blue)
@@ -173,7 +173,7 @@ struct EditorPublicationForm: View {
                 label("Cover image")
                 Spacer()
                 if cover != nil {
-                    Button("Remove", action: removeCover)
+                    Button(L10n.text("Remove"), action: removeCover)
                         .font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
                         .frame(minHeight: 32)
                         .accessibilityIdentifier("AdaEditor.Mobile.Publish.RemoveCover")
@@ -203,7 +203,7 @@ struct EditorPublicationForm: View {
     private func screenshot(_ url: URL) -> some View {
         VStack(spacing: 4) {
             PublicationCover(url: url).frame(width: 96, height: 64).mask(RoundedRectangleShape(cornerRadius: 10))
-            Button("Remove") { removeScreenshot(url) }
+            Button(L10n.text("Remove")) { removeScreenshot(url) }
                 .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                 .frame(width: 96, height: 24)
         }
@@ -213,7 +213,7 @@ struct EditorPublicationForm: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 6) {
                 symbol("\u{E417}", size: 16)
-                Text("LISTING PREVIEW").font(.system(size: 11, weight: .semibold))
+                Text(L10n.text("LISTING PREVIEW")).font(.system(size: 11, weight: .semibold))
             }.foregroundColor(theme.editorColors.muted)
             VStack(alignment: .leading, spacing: 0) {
                 PublicationCover(url: cover).frame(height: 164).frame(maxWidth: .infinity)
@@ -222,7 +222,7 @@ struct EditorPublicationForm: View {
                         .font(.system(size: 19, weight: .bold)).lineLimit(2)
                     Text(description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Your game's description will appear here." : description)
                         .font(.system(size: 13)).foregroundColor(theme.editorColors.muted).lineLimit(4)
-                    Text("Community").font(.system(size: 11, weight: .semibold))
+                    Text(L10n.text("Community")).font(.system(size: 11, weight: .semibold))
                         .foregroundColor(theme.editorColors.blue)
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .background(CapsuleShape().fill(theme.editorColors.blue.opacity(0.1)))
@@ -234,7 +234,7 @@ struct EditorPublicationForm: View {
             HStack(alignment: .top, spacing: 10) {
                 symbol("\u{E88E}", size: 20).foregroundColor(theme.editorColors.blue)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Community review").font(.system(size: 14, weight: .semibold))
+                    Text(L10n.text("Community review")).font(.system(size: 14, weight: .semibold))
                     caption("Your game goes live after Community review. You can update its listing with a new release.")
                 }
             }.padding(4)
@@ -255,7 +255,7 @@ struct EditorPublicationForm: View {
                 VStack(alignment: .leading, spacing: 4) {
                     caption(footerCaption)
                     if let refreshPlan {
-                        Button("Refresh plan", action: refreshPlan)
+                        Button(L10n.text("Refresh plan"), action: refreshPlan)
                             .font(.system(size: 12, weight: .semibold)).foregroundColor(theme.editorColors.blue)
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading)
@@ -301,7 +301,7 @@ private struct PublicationSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 9) {
                 Text(symbol).font(AdaEditorMaterialSymbolFont.font(size: 19)).foregroundColor(theme.editorColors.blue)
-                Text(title).font(.system(size: 16, weight: .semibold))
+                Text(L10n.tr(title)).font(.system(size: 16, weight: .semibold))
             }
             content
         }

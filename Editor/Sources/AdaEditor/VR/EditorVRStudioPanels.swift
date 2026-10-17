@@ -37,7 +37,7 @@ struct EditorVRStudioPanel: View {
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             .disabled(workspace.isManipulating)
         } else {
-            Text("Open a project to use Studio panels.").padding(24)
+            Text(L10n.text("Open a project to use Studio panels.")).padding(24)
         }
     }
 }

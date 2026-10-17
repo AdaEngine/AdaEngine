@@ -114,7 +114,9 @@ public enum AdaScriptNativeSourceBuilder {
                 last -= 1
                 arguments[field] = String(characters[tokens[first].startOffset..<tokens[last].endOffset])
             }
-            let expression = "\(factory).makeNamed(\"\(tokens[index].text)\", [\(arguments.joined(separator: ", "))])"
+            // Missing arguments keep Swift defaults; an explicitly supplied null must clear an Optional.
+            let presence = factory == "__adaComponentFactory" ? ", [\(assigned.sorted().map(String.init).joined(separator: ", "))]" : ""
+            let expression = "\(factory).makeNamed(\"\(tokens[index].text)\", [\(arguments.joined(separator: ", "))]\(presence))"
             replacements.append((tokens[index].startOffset..<tokens[end].endOffset, expression))
         }
         // Nested constructor replacements are applied recursively through the

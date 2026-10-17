@@ -44,10 +44,10 @@ final class TextFieldViewNode: ViewNode {
     private var onSubmit: (() -> Void)?
     private var textBinding: Binding<String>
 
-    var text: String
+    var text: String { didSet { if oldValue != text { invalidateInputComposition() } } }
     private var textLayout: TextLayoutManager?
 
-    private var isFocused: Bool = false
+    var isFocused: Bool = false
     private var isSelectingWithMouse: Bool = false
     private var isSelectingWithTouch: Bool = false
     private var showsTouchSelectionHandles = false
@@ -63,8 +63,13 @@ final class TextFieldViewNode: ViewNode {
     var lastTapTime: AdaUtils.TimeInterval?
     var lastTapPosition: Point?
 
-    var selectionAnchor: Int = 0
-    var selectionHead: Int = 0
+    var selectionAnchor: Int = 0 { didSet { if oldValue != selectionAnchor { invalidateInputComposition() } } }
+    var selectionHead: Int = 0 { didSet { if oldValue != selectionHead { invalidateInputComposition() } } }
+
+    var inputComposition = TextInputComposition()
+    var nativeInputSession: TextInputEvent.Session?
+    var hasNativeInputSession = false
+    var isApplyingInputComposition = false
 
     private var undoStack: [Snapshot] = []
     private var redoStack: [Snapshot] = []
@@ -146,6 +151,10 @@ final class TextFieldViewNode: ViewNode {
     }
 
     override func onFocusChanged(isFocused: Bool) {
+        self.nativeInputSession?.invalidate()
+        self.nativeInputSession = nil
+        self.inputComposition = TextInputComposition()
+        self.hasNativeInputSession = false
         self.isFocused = isFocused
         if !isFocused {
             self.showsTouchSelectionHandles = false
@@ -167,6 +176,7 @@ final class TextFieldViewNode: ViewNode {
     }
 
     override func onMouseEvent(_ event: MouseEvent) {
+        if event.phase == .began { restartInputComposition() }
         self.showsTouchSelectionHandles = false
         self.owner?.window?.windowManager.setCursorShape(.iBeam)
 
@@ -236,6 +246,7 @@ final class TextFieldViewNode: ViewNode {
             return
         }
         if touch.phase == .began {
+            restartInputComposition()
             guard self.activeSelectionTouch == nil else {
                 return
             }
@@ -317,9 +328,7 @@ final class TextFieldViewNode: ViewNode {
     }
 
     override func onTextInputEvent(_ event: TextInputEvent) {
-        guard self.isFocused else {
-            return
-        }
+        guard self.isFocused, event.session?.isActive != false else { return }
 
         self.resetCaretBlink()
 
@@ -328,6 +337,8 @@ final class TextFieldViewNode: ViewNode {
             self.insertText(event.text)
         case .deleteBackward:
             self.deleteBackward()
+        default:
+            self.applyInputComposition(event)
         }
     }
 

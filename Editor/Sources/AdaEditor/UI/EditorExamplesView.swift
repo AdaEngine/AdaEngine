@@ -58,7 +58,7 @@ struct EditorExamplesDetail: View {
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 20) {
-                Text("EXAMPLES & SAMPLE GAMES")
+                Text(L10n.text("EXAMPLES & SAMPLE GAMES"))
                     .font(.system(size: 11))
                     .foregroundColor(AdaColorPalette.accentViolet)
                 if let item = model.selected {
@@ -70,20 +70,20 @@ struct EditorExamplesDetail: View {
                     Text(item.tags.joined(separator: " · "))
                         .font(.system(size: 12))
                         .foregroundColor(AdaColorPalette.accentOrange)
-                    Text("Download an editable copy into a folder of your choice and open it in Ada Studio.")
+                    Text(L10n.text("Download an editable copy into a folder of your choice and open it in Ada Studio."))
                         .font(.system(size: 13))
                         .foregroundColor(AdaColorPalette.muted)
                     if item.requiresSwift && !supportsSwiftProjects {
-                        Text("This example contains Swift code and requires Ada Studio standalone.")
+                        Text(L10n.text("This example contains Swift code and requires Ada Studio standalone."))
                             .font(.system(size: 13))
                             .foregroundColor(AdaColorPalette.accentOrange)
                     }
                     if item.tags.contains("visionOS") {
-                        Text("Requires visionOS 26 and Xcode. Follow the project's README to run the immersive host.")
+                        Text(L10n.text("Requires visionOS 26 and Xcode. Follow the project's README to run the immersive host."))
                             .font(.system(size: 13))
                             .foregroundColor(AdaColorPalette.muted)
                     }
-                    Button(model.downloading ? "Downloading…" : "Download example") { chooseDestination() }
+                    Button(model.downloading ? L10n.text("Downloading…") : L10n.text("Download example")) { chooseDestination() }
                         .font(.system(size: 16))
                         .foregroundColor(.white)
                         .padding(14)
@@ -100,7 +100,7 @@ struct EditorExamplesDetail: View {
                         .foregroundColor(AdaColorPalette.accentOrange)
                         .accessibilityIdentifier("AdaEditor.Launcher.ExampleStatus")
                 }
-                Button("Refresh catalog") { Task { await model.refresh() } }
+                Button(L10n.text("Refresh catalog")) { Task { await model.refresh() } }
                     .foregroundColor(AdaColorPalette.accentViolet)
                     .disabled(model.loading || model.downloading)
                     .accessibilityIdentifier("AdaEditor.Launcher.RefreshExamples")

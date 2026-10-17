@@ -38,7 +38,7 @@ struct EditorUISceneEditor: View {
             ForEach(model.document.inputs, id: \.name) { input in
                 HStack {
                     TextField(
-                        "Name",
+                        L10n.text("Name"),
                         text: Binding(
                             get: { input.name },
                             set: { name in
@@ -53,7 +53,7 @@ struct EditorUISceneEditor: View {
                     Button("×") { model.edit { $0.inputs.removeAll { $0.name == input.name } } }
                 }
                 TextField(
-                    "Default (JSON)",
+                    L10n.text("Default (JSON)"),
                     text: Binding(
                         get: { Self.format(input.defaultValue ?? .null) },
                         set: { text in
@@ -85,11 +85,11 @@ struct EditorUISceneEditor: View {
                     }
                 }
             }
-            Button("+ Input") { model.edit { $0.inputs.append(.init("input\($0.inputs.count + 1)", type: .string, defaultValue: .string(""))) } }
+            Button(L10n.text("+ Input")) { model.edit { $0.inputs.append(.init("input\($0.inputs.count + 1)", type: .string, defaultValue: .string(""))) } }
             ForEach(model.document.actions, id: \.name) { action in
                 HStack {
                     TextField(
-                        "Action name",
+                        L10n.text("Action name"),
                         text: Binding(
                             get: { action.name },
                             set: { name in
@@ -104,7 +104,7 @@ struct EditorUISceneEditor: View {
                     Button("×") { model.edit { $0.actions.removeAll { $0.name == action.name } } }
                 }
             }
-            Button("+ Action") { model.edit { $0.actions.append(.init("action\($0.actions.count + 1)")) } }
+            Button(L10n.text("+ Action")) { model.edit { $0.actions.append(.init("action\($0.actions.count + 1)")) } }
         }
     }
 
@@ -131,7 +131,7 @@ struct EditorUISceneEditor: View {
             }
             if let signature = model.catalog.modifiers[modifier.type]?.signature {
                 if signature.content != .none {
-                    Button("Add content from palette") { model.insertionModifierID = modifier.id }
+                    Button(L10n.text("Add content from palette")) { model.insertionModifierID = modifier.id }
                 }
                 ForEach(signature.parameters, id: \.name) { parameter in
                     parameterEditor(parameter, argument: modifier.arguments[parameter.name], modifierID: modifier.id) { value in

@@ -18,6 +18,25 @@ struct UISceneDocumentTests {
         #expect(throws: UIDiagnostic.self) { try document.validate() }
     }
 
+    @Test func missingNodeAndModifierIDsAreGenerated() throws {
+        let document = try UISceneDocument.decode("""
+        format: ada.ui
+        schemaVersion: 1
+        root:
+          type: VStack
+          children:
+            - type: Text
+              modifiers:
+                - type: padding
+            - type: Text
+        """)
+        let nodes = [document.root] + document.root.children
+        #expect(Set(nodes.map(\.id)).count == 3)
+        #expect(nodes.allSatisfy { !$0.id.isEmpty })
+        #expect(!document.root.children[0].modifiers[0].id.isEmpty)
+        #expect(try UISceneDocument.decode(document.encodedYAML()) == document)
+    }
+
     @Test func formatAndVersionAreValidated() {
         var document = UISceneDocument()
         document.schemaVersion = 2

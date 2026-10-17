@@ -150,6 +150,8 @@ public struct Environment3D: Codable, Sendable {
         get { meshVisibility.lod }
         set { meshVisibility.lod = newValue }
     }
+    /// Enables current-frame Hi-Z occlusion and indirect draws on Metal and WebGPU.
+    /// Other backends retain CPU visibility. Disabled by default because the depth prepass has a cost.
     public var gpuOcclusionEnabled: Bool {
         get { meshVisibility.gpuOcclusion }
         set { meshVisibility.gpuOcclusion = newValue }

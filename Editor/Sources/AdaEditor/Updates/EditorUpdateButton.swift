@@ -6,7 +6,7 @@ struct EditorUpdateButton: View {
     var body: some View {
         if EditorDistribution.current == .standalone, updater.availableVersion != nil {
             Button(action: updater.checkForUpdates) {
-                Text("Update")
+                Text(L10n.text("Update"))
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)

@@ -37,7 +37,7 @@ struct EditorTaskRunner: View {
                 HStack(spacing: 6) {
                     Text(collapsed.contains(group.id) ? "\u{E5CC}" : "\u{E5CF}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 16))
-                    Text(group.title).font(.system(size: 12, weight: .semibold))
+                    Text(L10n.tr(group.title)).font(.system(size: 12, weight: .semibold))
                     Spacer()
                 }
                 .foregroundColor(theme.editorColors.muted)
@@ -47,7 +47,7 @@ struct EditorTaskRunner: View {
             .accessibilityIdentifier("AdaEditor.Tasks.Group.\(group.id)")
             if !collapsed.contains(group.id) {
                 if group.tasks.isEmpty {
-                    Text("No runnable products")
+                    Text(L10n.text("No runnable products"))
                         .font(.system(size: 11)).foregroundColor(theme.editorColors.muted).padding(.leading, 24)
                 }
                 ForEach(group.tasks) { task in taskRow(task) }
@@ -65,7 +65,7 @@ struct EditorTaskRunner: View {
                     .foregroundColor(Color.fromHex(0x35D6B1))
                     .frame(width: 20, height: 20)
                     .overlay { CircleShape().stroke(Color.fromHex(0x35D6B1), lineWidth: 1) }
-                Text(task.title).font(.system(size: 12)).lineLimit(1)
+                Text(L10n.tr(task.title)).font(.system(size: 12)).lineLimit(1)
                 Spacer()
             }
             .padding(.leading, 20)

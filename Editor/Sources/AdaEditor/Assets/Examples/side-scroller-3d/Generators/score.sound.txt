@@ -1,0 +1,8 @@
+func build(sound) {            // score: two quick notes a fifth apart
+    var a = sound.tone("square", sound.pitch(83), 0.07);
+    var b = sound.tone("square", sound.pitch(90), 0.2);
+    sound.at(b, 0.07);
+    sound.envelope(b, 0.002, 0.18, 0.0);
+    sound.volume(a, 0.7);
+    sound.peak(0.6);
+}

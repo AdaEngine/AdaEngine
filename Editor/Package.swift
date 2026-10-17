@@ -24,9 +24,10 @@ let adaMCPPackage: Package.Dependency = adaMCPURL.map {
     .package(name: "AdaMCP", path: $0.path)
 } ?? .package(url: "https://github.com/AdaEngine/AdaMCP.git", revision: "v0.2.0")
 
+let engineSourceURL = URL(fileURLWithPath: adaEngineLocalPath, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL
 let gravityAOTPath = ProcessInfo.processInfo.environment["ADAENGINE_GRAVITY_PACKAGE_PATH"]
-let gravityAOTPackage: [Package.Dependency] = gravityAOTPath.map { [.package(name: "gravity-lang", path: $0)] }
-    ?? [.package(url: "https://github.com/AdaEngine/gravity-lang.git", branch: "master")]
+    ?? engineSourceURL.appendingPathComponent("Sources/gravity-lang").path
+let gravityAOTPackage: [Package.Dependency] = [.package(name: "gravity-lang", path: gravityAOTPath)]
 let gravityAOTTarget: [Target.Dependency] = [.product(name: "GravityAOT", package: "gravity-lang"), .product(name: "CGravity", package: "gravity-lang")]
 
 if isAndroidStudio && !hasSloppyRuntime {
@@ -106,6 +107,7 @@ let package = Package(
                 .product(name: "AdaDebugging", package: "AdaDebugging"),
                 .product(name: "AdaPlayerConnect", package: "AdaPlayerConnect"),
                 .product(name: "AdaEngine", package: "AdaEngine"),
+                .product(name: "AdaSpine", package: "AdaEngine"),
                 .product(name: "AdaA2UI", package: "AdaEngine"),
                 .product(name: "AdaEngineEmbeddable", package: "AdaEngine"),
                 .product(name: "AdaMultiplayer", package: "AdaEngine"),
@@ -142,6 +144,7 @@ let package = Package(
                 .product(name: "AdaDebugging", package: "AdaDebugging"),
                 .product(name: "AdaPlayerConnect", package: "AdaPlayerConnect"),
                 "AdaEditor",
+                .product(name: "AdaSpine", package: "AdaEngine"),
                 .product(name: "AdaMCPCore", package: "AdaMCP"),
                 .product(name: "MCP", package: "AdaMCP"),
                 "AdaPackageManifestTool",

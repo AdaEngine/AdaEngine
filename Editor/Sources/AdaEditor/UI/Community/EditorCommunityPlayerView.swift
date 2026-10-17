@@ -207,11 +207,11 @@ struct EditorCommunityPlayerView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 16) {
-                Button("Close") { if let close { close() } else { dismiss() } }.accessibilityIdentifier("AdaEditor.Community.Player.Close")
+                Button(L10n.text("Close")) { if let close { close() } else { dismiss() } }.accessibilityIdentifier("AdaEditor.Community.Player.Close")
                 Spacer()
                 Text(model.game.title).lineLimit(1)
                 Spacer()
-                Button("Restart") { reload() }.disabled(model.loading || model.room != nil)
+                Button(L10n.text("Restart")) { reload() }.disabled(model.loading || model.room != nil)
                     .accessibilityIdentifier("AdaEditor.Community.Player.Restart")
             }
             .font(.system(size: 16)).foregroundColor(theme.editorColors.text).padding(18)
@@ -220,9 +220,9 @@ struct EditorCommunityPlayerView: View {
             }
             if let error = runtimeError ?? model.error {
                 Spacer()
-                Text("Couldn’t start this world").font(.system(size: 22))
+                Text(L10n.text("Couldn’t start this world")).font(.system(size: 22))
                 Text(error).font(.system(size: 14)).lineLimit(6).padding(22)
-                Button("Try again") { reload() }
+                Button(L10n.text("Try again")) { reload() }
                 Spacer()
             } else if model.choosingMode {
                 multiplayerLobby
@@ -247,8 +247,8 @@ struct EditorCommunityPlayerView: View {
                 .accessibilityIdentifier("AdaEditor.Community.Player.Scene")
             } else {
                 Spacer()
-                Text("Loading world…").font(.system(size: 22))
-                Text("Preparing your game.").font(.system(size: 14))
+                Text(L10n.text("Loading world…")).font(.system(size: 22))
+                Text(L10n.text("Preparing your game.")).font(.system(size: 14))
                 Spacer()
             }
         }
@@ -263,18 +263,18 @@ struct EditorCommunityPlayerView: View {
     private var multiplayerLobby: some View {
         VStack(spacing: 18) {
             Spacer()
-            Text("Play together").font(.system(size: 26))
-            Button("Play solo") { model.solo() }.accessibilityIdentifier("AdaEditor.Community.Multiplayer.Solo")
-            Button("Host a room") { connect(host: true) }.disabled(model.loading)
+            Text(L10n.text("Play together")).font(.system(size: 26))
+            Button(L10n.text("Play solo")) { model.solo() }.accessibilityIdentifier("AdaEditor.Community.Multiplayer.Solo")
+            Button(L10n.text("Host a room")) { connect(host: true) }.disabled(model.loading)
                 .accessibilityIdentifier("AdaEditor.Community.Multiplayer.Host")
-            TextField("Room code", text: Binding(get: { model.joinCode }, set: { model.joinCode = $0 }))
+            TextField(L10n.text("Room code"), text: Binding(get: { model.joinCode }, set: { model.joinCode = $0 }))
                 .textFieldStyle(PlainTextFieldStyle()).padding(12)
                 .background(RoundedRectangleShape(cornerRadius: 10).fill(theme.editorColors.surface))
                 .accessibilityIdentifier("AdaEditor.Community.Multiplayer.Code")
-            Button("Join room") { connect(host: false) }.disabled(model.loading || model.joinCode.count != 8)
+            Button(L10n.text("Join room")) { connect(host: false) }.disabled(model.loading || model.joinCode.count != 8)
                 .accessibilityIdentifier("AdaEditor.Community.Multiplayer.Join")
             if let error = model.networkError { Text(error).font(.system(size: 14)).lineLimit(4) }
-            if model.loading { Text("Connecting…") }
+            if model.loading { Text(L10n.text("Connecting…")) }
             Spacer()
         }
         .font(.system(size: 17)).padding(24)

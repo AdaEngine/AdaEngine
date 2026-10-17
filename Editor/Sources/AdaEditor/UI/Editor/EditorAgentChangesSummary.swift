@@ -9,7 +9,7 @@ struct EditorAgentChangesSummary: View {
         let files = EditorAgentSessionChanges.files(in: events)
         if !files.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(files.count) files changed · This session")
+                Text(L10n.text("\(files.count) files changed · This session"))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(theme.editorColors.text)
                 ForEach(Array(files.prefix(3))) { file in
@@ -18,7 +18,7 @@ struct EditorAgentChangesSummary: View {
                             Text("\u{E24D}").font(AdaEditorMaterialSymbolFont.font(size: 15))
                             Text(file.path).font(.system(size: 12)).lineLimit(1)
                             Spacer()
-                            Text("Open").font(.system(size: 11))
+                            Text(L10n.text("Open")).font(.system(size: 11))
                         }
                         .foregroundColor(theme.editorColors.blue)
                         .frame(height: 24)
@@ -27,7 +27,7 @@ struct EditorAgentChangesSummary: View {
                     .accessibilityIdentifier("AdaEditor.Agent.ChangedFile.\(file.path)")
                 }
                 if files.count > 3 {
-                    Text("All changed files are listed under the selected session.")
+                    Text(L10n.text("All changed files are listed under the selected session."))
                         .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                 }
             }

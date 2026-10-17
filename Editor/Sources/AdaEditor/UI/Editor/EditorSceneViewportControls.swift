@@ -36,7 +36,7 @@ struct EditorSceneViewportControls: View {
     private var controlsPill: some View {
         HStack(spacing: 5) {
             if isPlaying {
-                Text("Playing")
+                Text(L10n.text("Playing"))
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(theme.editorColors.purple)
                     .padding(.horizontal, 7)
@@ -113,7 +113,7 @@ struct EditorSceneViewportControls: View {
                     .font(AdaEditorMaterialSymbolFont.font(size: 15))
             }
             #endif
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 10))
         }
         .foregroundColor(color ?? (active ? theme.editorColors.text : theme.editorColors.muted))

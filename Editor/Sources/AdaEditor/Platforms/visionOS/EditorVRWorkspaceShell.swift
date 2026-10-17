@@ -67,7 +67,7 @@
                 SwiftUI.Button {
                     session.requestsLeave = true
                 } label: {
-                    SwiftUI.Label("Exit Immersive", systemImage: "rectangle.portrait.and.arrow.right")
+                    SwiftUI.Label(L10n.text("Exit Immersive"), systemImage: "rectangle.portrait.and.arrow.right")
                 }
                 .buttonStyle(.borderless).controlSize(.large)
                 .disabled(session.requestsLeave)

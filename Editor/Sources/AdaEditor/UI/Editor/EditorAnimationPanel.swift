@@ -42,7 +42,7 @@ struct EditorAnimationPanel: View {
 
     private var panelToolbar: some View {
         HStack(spacing: 7) {
-            Text("ANIMATOR")
+            Text(L10n.text("ANIMATOR"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(theme.editorColors.muted)
             transportButton(
@@ -66,7 +66,7 @@ struct EditorAnimationPanel: View {
             .disabled(viewModel.selectedAnimationKeyframe == nil)
 
             if let clip = viewModel.selectedAnimationClip {
-                TextField("Clip name", text: clipNameBinding(clip))
+                TextField(L10n.text("Clip name"), text: clipNameBinding(clip))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.text)
                     .frame(width: 126, height: 24)
@@ -121,7 +121,7 @@ struct EditorAnimationPanel: View {
     private func clipList(selectedClip: EditorAnimationClip) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 4) {
-                Text("CLIPS")
+                Text(L10n.text("CLIPS"))
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(theme.editorColors.muted)
                 Spacer()
@@ -187,7 +187,7 @@ struct EditorAnimationPanel: View {
                 }
             }) {
                 HStack(spacing: 4) {
-                    Text("+ Track").font(.system(size: 10, weight: .semibold))
+                    Text(L10n.text("+ Track")).font(.system(size: 10, weight: .semibold))
                     Spacer()
                     Text("\u{E5CF}").font(AdaEditorMaterialSymbolFont.font(size: 13))
                 }
@@ -207,7 +207,7 @@ struct EditorAnimationPanel: View {
                 Button(action: { viewModel.animationPanel.selectTrack(track) }) {
                     HStack(spacing: 5) {
                         Text("\u{EAD5}").font(AdaEditorMaterialSymbolFont.font(size: 10))
-                        Text(track.property.title).font(.system(size: 10)).lineLimit(1)
+                        Text(L10n.tr(track.property.title)).font(.system(size: 10)).lineLimit(1)
                         Spacer()
                     }
                     .foregroundColor(track.id == viewModel.selectedAnimationTrack?.id ? theme.editorColors.text : theme.editorColors.muted)
@@ -240,7 +240,7 @@ struct EditorAnimationPanel: View {
 
     private func selectionInspector(clip _: EditorAnimationClip, track: EditorAnimationTrack) -> some View {
         HStack(spacing: 8) {
-            Text(track.property.title)
+            Text(L10n.tr(track.property.title))
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundColor(theme.editorColors.muted)
             if let keyframe = viewModel.selectedAnimationKeyframe {
@@ -251,7 +251,7 @@ struct EditorAnimationPanel: View {
                 }
                 compactTextButton("Delete Key") { viewModel.removeSelectedAnimationKeyframe() }
             } else {
-                Text("Drag the playhead, then add a keyframe. Select a key below to edit its value and curve.")
+                Text(L10n.text("Drag the playhead, then add a keyframe. Select a key below to edit its value and curve."))
                     .font(.system(size: 10))
                     .foregroundColor(theme.editorColors.muted)
                 ForEach(track.keyframes, id: \.id) { keyframe in
@@ -271,7 +271,7 @@ struct EditorAnimationPanel: View {
     private func emptyState(title: String, actionTitle: String?, action: @escaping () -> Void) -> some View {
         HStack(spacing: 10) {
             Spacer()
-            Text(title).font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
+            Text(L10n.tr(title)).font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
             if let actionTitle {
                 compactTextButton(actionTitle, action: action)
             }
@@ -388,7 +388,7 @@ struct EditorAnimationPanel: View {
 
     private func compactTextButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).font(.system(size: 10, weight: .semibold)).padding(.horizontal, 6).frame(height: 22)
+            Text(L10n.tr(title)).font(.system(size: 10, weight: .semibold)).padding(.horizontal, 6).frame(height: 22)
         }
         .buttonStyle(EditorAnimationControlButtonStyle(theme: theme))
     }
@@ -396,7 +396,7 @@ struct EditorAnimationPanel: View {
     private func cycleButton(title: String, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 3) {
-                Text(title).font(.system(size: 10))
+                Text(L10n.tr(title)).font(.system(size: 10))
                 Text("\u{E5CF}").font(AdaEditorMaterialSymbolFont.font(size: 12))
             }
             .padding(.horizontal, 7)
@@ -409,7 +409,7 @@ struct EditorAnimationPanel: View {
     private func modeButton(_ mode: EditorAnimationPanelMode) -> some View {
         let selected = viewModel.animationPanel.mode == mode
         return Button(action: { viewModel.animationPanel.mode = mode }) {
-            Text(mode.title)
+            Text(L10n.tr(mode.title))
                 .font(.system(size: 10, weight: selected ? .semibold : .regular))
                 .foregroundColor(selected ? theme.editorColors.text : theme.editorColors.muted)
                 .padding(.horizontal, 9)
@@ -422,7 +422,7 @@ struct EditorAnimationPanel: View {
 
     private func curveButton(_ curve: EditorAnimationCurve, selected: Bool) -> some View {
         Button(action: { viewModel.updateSelectedAnimationKeyframe(curve: curve) }) {
-            Text(curve.title)
+            Text(L10n.tr(curve.title))
                 .font(.system(size: 10))
                 .padding(.horizontal, 7)
                 .frame(height: 22)
@@ -433,7 +433,7 @@ struct EditorAnimationPanel: View {
 
     private func labeledField(_ label: String, text: Binding<String>, width: Float) -> some View {
         HStack(spacing: 3) {
-            Text(label).font(.system(size: 9)).foregroundColor(theme.editorColors.muted)
+            Text(L10n.tr(label)).font(.system(size: 9)).foregroundColor(theme.editorColors.muted)
             TextField("", text: text)
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.text)

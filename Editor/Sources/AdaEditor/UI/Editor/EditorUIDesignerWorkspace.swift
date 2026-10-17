@@ -59,7 +59,7 @@ extension EditorUISceneEditor {
             HStack(spacing: 10) {
                 HStack(spacing: 7) {
                     symbol("\u{E8F1}").foregroundColor(theme.editorColors.blue)
-                    Text("UI Designer").font(.system(size: 12, weight: .semibold))
+                    Text(L10n.text("UI Designer")).font(.system(size: 12, weight: .semibold))
                 }
                 if layout.size.width >= 1100 {
                     modeControls
@@ -69,7 +69,7 @@ extension EditorUISceneEditor {
                     .opacity(model.canUndo && !model.isReadOnly ? 1 : 0.35)
                 iconButton("\u{E15A}", title: "Redo", action: model.redo).disabled(!model.canRedo || model.isReadOnly)
                     .opacity(model.canRedo && !model.isReadOnly ? 1 : 0.35)
-                Button(model.showsSource ? "Designer" : "YAML") { model.showsSource.toggle() }
+                Button(model.showsSource ? L10n.text("Designer") : L10n.text("YAML")) { model.showsSource.toggle() }
                     .buttonStyle(EditorUIDesignerButtonStyle(colors: theme.editorColors, selected: model.showsSource, bordered: true))
                     .accessibilityIdentifier("AdaEditor.UIScene.SourceToggle")
                 if layout.size.width >= 1100 {
@@ -91,7 +91,7 @@ extension EditorUISceneEditor {
             }
             if layout.size.width < 560 {
                 HStack {
-                    Text("Canvas size").foregroundColor(theme.editorColors.muted)
+                    Text(L10n.text("Canvas size")).foregroundColor(theme.editorColors.muted)
                     Spacer()
                     dimensions
                 }
@@ -102,13 +102,13 @@ extension EditorUISceneEditor {
 
     var modeControls: some View {
         HStack(spacing: 2) {
-            Button("Design") {
+            Button(L10n.text("Design")) {
                 model.isInteractive = false
                 model.showsSource = false
             }
             .buttonStyle(EditorUIDesignerButtonStyle(colors: theme.editorColors, selected: !model.isInteractive && !model.showsSource))
             .accessibilityIdentifier("AdaEditor.UIScene.Mode")
-            Button("Interact") {
+            Button(L10n.text("Interact")) {
                 model.isInteractive = true
                 model.showsSource = false
             }
@@ -149,7 +149,7 @@ extension EditorUISceneEditor {
                 fitsCanvas = false
             }
             .frame(width: 26)
-            Button("Fit") { fitsCanvas = true }
+            Button(L10n.text("Fit")) { fitsCanvas = true }
                 .buttonStyle(EditorUIDesignerButtonStyle(colors: theme.editorColors, selected: fitsCanvas))
                 .accessibilityIdentifier("AdaEditor.UIScene.Fit")
         }
@@ -187,14 +187,14 @@ extension EditorUISceneEditor {
                         emptyCanvas
                             .frame(width: min(320, model.width * zoom - 24))
                     } else if model.preview == nil {
-                        Text("Preview unavailable").foregroundColor(theme.editorColors.muted)
+                        Text(L10n.text("Preview unavailable")).foregroundColor(theme.editorColors.muted)
                     }
                 }
                 .frame(width: model.width * zoom, height: model.height * zoom)
                 .background(theme.editorColors.surfaceElevated)
                 .border(theme.editorColors.border.opacity(0.85))
                 .accessibilityIdentifier("AdaEditor.UIScene.Artboard")
-                Text(model.isInteractive ? "Interact with the live interface" : "Drag layers between containers or onto free canvas space")
+                Text(model.isInteractive ? L10n.text("Interact with the live interface") : L10n.text("Drag layers between containers or onto free canvas space"))
                     .font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
                     .frame(width: model.width * zoom)
             }
@@ -224,10 +224,10 @@ extension EditorUISceneEditor {
                 .foregroundColor(theme.editorColors.blue)
                 .padding(14)
                 .background(RoundedRectangleShape(cornerRadius: 14).fill(theme.editorColors.blue.opacity(0.10)))
-            Text("Start with a component").font(.system(size: 16, weight: .semibold))
-            Text("Add content from the library, then arrange it on the canvas.")
+            Text(L10n.text("Start with a component")).font(.system(size: 16, weight: .semibold))
+            Text(L10n.text("Add content from the library, then arrange it on the canvas."))
                 .font(.system(size: 12)).foregroundColor(theme.editorColors.muted).multilineTextAlignment(.center)
-            Button("Add Text") { model.add("Text") }
+            Button(L10n.text("Add Text")) { model.add("Text") }
                 .buttonStyle(EditorUIDesignerButtonStyle(colors: theme.editorColors, selected: true, bordered: true))
                 .disabled(model.isReadOnly)
                 .accessibilityIdentifier("AdaEditor.UIScene.Empty.AddText")

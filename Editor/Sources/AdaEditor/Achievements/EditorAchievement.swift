@@ -17,10 +17,10 @@ struct EditorAchievement: Identifiable, Sendable {
     let points: Int
     let secret: Bool
 
-    var title: String { Self.isRussian ? russianTitle : englishTitle }
-    var detail: String { Self.isRussian ? russianDetail : englishDetail }
+    @MainActor var title: String { Self.isRussian ? russianTitle : englishTitle }
+    @MainActor var detail: String { Self.isRussian ? russianDetail : englishDetail }
     var gameCenterID: String { "org.adaengine.editor.achievement.\(id.rawValue)" }
-    static var isRussian: Bool { Locale.preferredLanguages.first?.hasPrefix("ru") == true }
+    @MainActor static var isRussian: Bool { EditorLocalization.shared.language == .russian }
 
     init(
         _ id: EditorAchievementID,

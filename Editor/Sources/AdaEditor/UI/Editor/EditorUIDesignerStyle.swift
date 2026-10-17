@@ -51,7 +51,7 @@ struct EditorUIDesignerField: View {
     @Environment(\.theme) private var theme
 
     var body: some View {
-        TextField(placeholder, text: text)
+        TextField(L10n.tr(placeholder), text: text)
             .textFieldStyle(PlainTextFieldStyle())
             .font(.system(size: 12))
             .foregroundColor(theme.editorColors.text)
@@ -146,10 +146,10 @@ extension EditorUISceneEditor {
 
     func sectionTitle(_ title: String, detail: String? = nil) -> some View {
         HStack(spacing: 8) {
-            Text(title).font(.system(size: 12, weight: .semibold)).foregroundColor(theme.editorColors.text)
+            Text(L10n.tr(title)).font(.system(size: 12, weight: .semibold)).foregroundColor(theme.editorColors.text)
             Spacer()
             if let detail {
-                Text(detail).font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
+                Text(L10n.tr(detail)).font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
             }
         }
         .frame(height: 20)

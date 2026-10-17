@@ -15,14 +15,14 @@ struct EditorSloppyInviteSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Sloppy invite token")
+            Text(L10n.text("Sloppy invite token"))
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(theme.editorColors.text)
             Text(catalog.registeredSloppy.map { "Registered as \($0.login) on \($0.serverURL.host ?? "Sloppy Core"). Session saved in Keychain." }
                 ?? "Paste a Sloppy user invite (slp_inv_) to create an account on your Sloppy Core.")
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
-            Button(catalog.isBusy ? "Registering…" : "Paste invite token") {
+            Button(catalog.isBusy ? L10n.text("Registering…") : L10n.text("Paste invite token")) {
                 presentInvite { values in
                     Task { @MainActor in
                         await catalog.registerSloppyInvite(
@@ -46,10 +46,10 @@ struct EditorSloppyInviteSettingsView: View {
                     .accessibilityIdentifier("AdaEditor.Agents.SloppyInviteStatus")
             }
             #if os(macOS)
-                Text("To use Sloppy in Agent Chat, connect its local ACP Server below.")
+                Text(L10n.text("To use Sloppy in Agent Chat, connect its local ACP Server below."))
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             #else
-                Text("This registers your Sloppy account. Choose Codex or an API model separately for the on-device agent.")
+                Text(L10n.text("This registers your Sloppy account. Choose Codex or an API model separately for the on-device agent."))
                     .font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
             #endif
         }

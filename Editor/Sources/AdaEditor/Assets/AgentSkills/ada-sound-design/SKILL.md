@@ -98,14 +98,22 @@ A loop for music is a melody written with `sound.pitch` and `sound.at` in a `whi
 A script triggers an effect by setting `play` to `true`; the engine restarts the sound and clears the flag. Set `stop` to end it. Use one AudioSource entity per sound that can overlap itself, because a second `play` restarts the first.
 
 ```
-@query(AudioSource, with: JumpSound)
-var jumps;
+@component(id: "game.sound-cue")
+struct SoundCue { @export var name = ""; }
 
-func update() {
-    if (Input.isKeyPressed(Key.space)) {
-        for (var entity in jumps) { entity.audioSource.play = true; }
+@system(id: "game.sound")
+class SoundSystem {
+    @res var input: Input;
+    @query(AudioSource, SoundCue) var sounds;
+
+    func update(context) {
+        if (input.isActionJustPressed("Jump")) {
+            for (var row in sounds) {
+                if (row.soundCue.name == "jump") { row.audioSource.play = true; }
+            }
+        }
     }
 }
 ```
 
-Check the exact query and input syntax with `editor.docs.search` and `editor.examples.read`; the structure above is what matters. Keep a short note of every generated sound (path, purpose, where it plays) in the project's progress notes.
+The input action `Jump` is declared in project settings. The example `side-scroller-3d` (`editor.examples.read`) wires three cues this way and has the generator sources (`Generators/*.sound.txt`); the "AdaScript gameplay recipes" article explains the pattern. Keep a short note of every generated sound (path, purpose, where it plays) in the project's progress notes.

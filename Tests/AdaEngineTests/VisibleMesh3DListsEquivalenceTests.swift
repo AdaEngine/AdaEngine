@@ -161,8 +161,9 @@ struct VisibleMesh3DListsEquivalenceTests {
         return (String(digest.value, radix: 16), lastCount)
     }
 
-    /// Recorded from the implementation before the speed-up. A deliberate behavior change must update it with a reason.
-    private static let expectedDigest = "bdb830bd2f6b4b89"
+    /// Recorded from main's unoptimized implementation after it gained descriptor-aware batch keys and lightweight shadow
+    /// instances; the optimized version produces the same digest. A deliberate behavior change must update it with a reason.
+    private static let expectedDigest = "5de09fd1016c21b6"
 
     @Test func listsAreIdenticalToTheRecordedBehavior() throws {
         let scene = try makeScene(count: 600)

@@ -31,11 +31,9 @@ struct EditorPerformancePanel: View {
                                 EditorPerformanceTimelineView(timeline: timeline)
                                     .id(model.selectedCaptureID ?? "")
                             } else {
-                                Text(
-                                    model.activeCapture == nil
-                                        ? "Record a capture or select a completed recording to inspect CPU calls."
-                                        : "Recording CPU calls… Timeline appears when the capture completes."
-                                )
+                                Text(model.activeCapture == nil
+                                        ? L10n.text("Record a capture or select a completed recording to inspect CPU calls.")
+                                        : L10n.text("Recording CPU calls… Timeline appears when the capture completes."))
                                     .foregroundColor(theme.editorColors.muted)
                             }
                         } else {
@@ -65,7 +63,7 @@ struct EditorPerformancePanel: View {
                             }
                         }
                     } else {
-                        Text("Run a scene or an AdaScript project inside AdaEditor to begin.")
+                        Text(L10n.text("Run a scene or an AdaScript project inside AdaEditor to begin."))
                             .foregroundColor(theme.editorColors.muted)
                     }
                 }
@@ -83,11 +81,11 @@ struct EditorPerformancePanel: View {
     private var toolbar: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text(model.target?.title ?? "Performance")
+                Text(model.target?.title ?? L10n.text("Performance"))
                     .foregroundColor(theme.editorColors.text)
                     .contextMenu(opensOnPrimaryAction: true) {
                         ForEach(model.targets) { target in
-                            ContextMenuOption(target.title + (target.isRunning ? "" : " · Stopped"), isSelected: target.id == model.target?.id) {
+                            ContextMenuOption(target.title + (target.isRunning ? "" : L10n.text(" · Stopped")), isSelected: target.id == model.target?.id) {
                                 model.selectTarget(target.id)
                             }
                         }
@@ -114,24 +112,24 @@ struct EditorPerformancePanel: View {
                         if model.activeCapture?.objectValue?["targetId"]?.stringValue == model.target?.id {
                             action("Stop recording") { model.stopRecording() }
                         }
-                        Text("Recording…").foregroundColor(theme.editorColors.purple)
+                        Text(L10n.text("Recording…")).foregroundColor(theme.editorColors.purple)
                     } else if model.target?.isRunning == true {
-                        action("Record \(model.recordingDurationSeconds) s") { model.record() }
+                        action(L10n.text("Record \(model.recordingDurationSeconds) s")) { model.record() }
                     }
-                    Text("Delay \(Int(model.recordingDelaySeconds)) s ▾")
+                    Text(L10n.text("Delay \(Int(model.recordingDelaySeconds)) s ▾"))
                         .accessibilityIdentifier("AdaEditor.Performance.Delay")
                         .contextMenu(opensOnPrimaryAction: true) {
                             ForEach([0, 1, 3, 5, 10, 30, 60], id: \.self) { seconds in
-                                ContextMenuOption("\(seconds) s", isSelected: model.recordingDelaySeconds == Double(seconds)) {
+                                ContextMenuOption(L10n.text("\(seconds) s"), isSelected: model.recordingDelaySeconds == Double(seconds)) {
                                     model.recordingDelaySeconds = Double(seconds)
                                 }
                             }
                         }
-                    Text("Duration \(model.recordingDurationSeconds) s ▾")
+                    Text(L10n.text("Duration \(model.recordingDurationSeconds) s ▾"))
                         .accessibilityIdentifier("AdaEditor.Performance.Duration")
                         .contextMenu(opensOnPrimaryAction: true) {
                             ForEach([1, 5, 10, 30, 60, 120], id: \.self) { seconds in
-                                ContextMenuOption("\(seconds) s", isSelected: model.recordingDurationSeconds == seconds) {
+                                ContextMenuOption(L10n.text("\(seconds) s"), isSelected: model.recordingDurationSeconds == seconds) {
                                     model.recordingDurationSeconds = seconds
                                 }
                             }
@@ -141,7 +139,7 @@ struct EditorPerformancePanel: View {
                         .frame(height: 26)
                         .background(theme.editorColors.surface)
                         .contextMenu(opensOnPrimaryAction: true) {
-                            ContextMenuOption("Live", isSelected: model.selectedCaptureID == nil) { model.selectCapture(nil) }
+                            ContextMenuOption(L10n.text("Live"), isSelected: model.selectedCaptureID == nil) { model.selectCapture(nil) }
                             ForEach(Array(model.captures.indices), id: \.self) { index in
                                 let value = model.captures[index].objectValue
                                 let id = value?["id"]?.stringValue ?? ""
@@ -185,7 +183,7 @@ struct EditorPerformancePanel: View {
 
     private var physicsProfiles: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Physics")
+            Text(L10n.text("Physics"))
                 .foregroundColor(theme.editorColors.text)
             ForEach(model.physicsSnapshots) { snapshot in
                 physicsProfile(snapshot)
@@ -198,10 +196,10 @@ struct EditorPerformancePanel: View {
             HStack(spacing: 8) {
                 Text(snapshot.dimension == .twoD ? "Box2D" : "Box3D")
                     .foregroundColor(theme.editorColors.text)
-                Text("step \(number(snapshot.step?.currentMilliseconds)) ms")
+                Text(L10n.text("step \(number(snapshot.step?.currentMilliseconds)) ms"))
                     .foregroundColor(theme.editorColors.blue)
                 Spacer()
-                Text("\(snapshot.phases.count) phases · \(snapshot.stepCount) steps")
+                Text(L10n.text("\(snapshot.phases.count) phases · \(snapshot.stepCount) steps"))
                     .foregroundColor(theme.editorColors.muted)
             }
             Text(physicsCounters(snapshot.counters))
@@ -222,11 +220,11 @@ struct EditorPerformancePanel: View {
 
     private var physicsHeader: some View {
         HStack(spacing: 8) {
-            Text("Phase").frame(width: 190, alignment: .leading)
+            Text(L10n.text("Phase")).frame(width: 190, alignment: .leading)
             ForEach(["Now ms", "Avg ms", "Max ms"], id: \.self) { label in
-                Text(label).frame(width: 72, alignment: .trailing)
+                Text(L10n.tr(label)).frame(width: 72, alignment: .trailing)
             }
-            Text("% step").frame(width: 132, alignment: .leading)
+            Text(L10n.text("% step")).frame(width: 132, alignment: .leading)
         }
         .foregroundColor(theme.editorColors.muted)
     }
@@ -234,7 +232,7 @@ struct EditorPerformancePanel: View {
     private func physicsRow(_ sample: PhysicsPerformancePhaseSample, stepMilliseconds: Double) -> some View {
         let ratio = stepMilliseconds > 0 ? min(1, sample.currentMilliseconds / stepMilliseconds) : 0
         return HStack(spacing: 8) {
-            Text(sample.phase.title)
+            Text(L10n.tr(sample.phase.title))
                 .foregroundColor(physicsColor(sample.phase))
                 .frame(width: 190, alignment: .leading)
             Text(number(sample.currentMilliseconds)).frame(width: 72, alignment: .trailing)
@@ -279,7 +277,7 @@ struct EditorPerformancePanel: View {
         secondary: ((AdaMCPPerformanceSample) -> Double?)? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title).foregroundColor(theme.editorColors.muted)
+            Text(L10n.tr(title)).foregroundColor(theme.editorColors.muted)
             Text(value).foregroundColor(theme.editorColors.text)
             EditorPerformanceChart(
                 samples: model.samples,
@@ -300,8 +298,8 @@ struct EditorPerformancePanel: View {
         let times = summary?["frameTime"]?.objectValue
         let manifest = capture["manifest"]?.objectValue
         return VStack(alignment: .leading, spacing: 5) {
-            Text("Capture · \(number(manifest?["durationMs"]?.doubleValue.map { $0 / 1000 })) s · \(summary?["frameCount"]?.intValue ?? 0) updates")
-            Text("Update rate \(number(summary?["updateRateHz"]?.doubleValue)) / s · CPU mean \(number(times?["meanMs"]?.doubleValue)) ms · p95 \(number(times?["p95Ms"]?.doubleValue)) ms")
+            Text(L10n.text("Capture · \(number(manifest?["durationMs"]?.doubleValue.map { $0 / 1000 })) s · \(summary?["frameCount"]?.intValue ?? 0) updates"))
+            Text(L10n.text("Update rate \(number(summary?["updateRateHz"]?.doubleValue)) / s · CPU mean \(number(times?["meanMs"]?.doubleValue)) ms · p95 \(number(times?["p95Ms"]?.doubleValue)) ms"))
             if let error = manifest?["error"]?.stringValue {
                 Text(error).foregroundColor(theme.editorColors.purple)
             }
@@ -350,9 +348,9 @@ struct EditorPerformancePanel: View {
 
     private func hotspots(_ title: String, values: [Row]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).foregroundColor(theme.editorColors.text)
+            Text(L10n.tr(title)).foregroundColor(theme.editorColors.text)
             if values.isEmpty {
-                Text("No data").foregroundColor(theme.editorColors.muted)
+                Text(L10n.text("No data")).foregroundColor(theme.editorColors.muted)
             }
             ScrollView(.horizontal) {
                 VStack(alignment: .leading, spacing: 5) {
@@ -366,9 +364,9 @@ struct EditorPerformancePanel: View {
     }
     private var hotspotHeader: some View {
         HStack(spacing: 8) {
-            Text("Name").frame(width: 240, alignment: .leading)
+            Text(L10n.text("Name")).frame(width: 240, alignment: .leading)
             ForEach(["Calls", "Mean ms", "p95 ms", "Max ms", "Total ms"], id: \.self) { label in
-                Text(label).frame(width: 78, alignment: .trailing)
+                Text(L10n.tr(label)).frame(width: 78, alignment: .trailing)
             }
         }
         .foregroundColor(theme.editorColors.muted)
@@ -389,7 +387,7 @@ struct EditorPerformancePanel: View {
     private func number(_ value: Double?) -> String { value.map { String(format: "%.2f", $0) } ?? "No data" }
     private func action(_ title: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).foregroundColor(theme.editorColors.blue).padding(.horizontal, 8).frame(height: 26)
+            Text(L10n.tr(title)).foregroundColor(theme.editorColors.blue).padding(.horizontal, 8).frame(height: 26)
                 .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.blue.opacity(0.12)))
         }
         .buttonStyle(DefaultButtonStyle())

@@ -67,7 +67,7 @@ struct EditorAgentSidebar: View {
 
     private var agentHeader: some View {
         HStack(spacing: 8) {
-            Text(presentation == .workspace ? (viewModel.activeSession?.title ?? "New session") : viewModel.projectName)
+            Text(presentation == .workspace ? (viewModel.activeSession?.title ?? L10n.text("New session")) : viewModel.projectName)
                 .font(.system(size: 13, weight: .bold))
                 .foregroundColor(theme.editorColors.text)
                 .lineLimit(1)
@@ -76,8 +76,8 @@ struct EditorAgentSidebar: View {
                     .accessibilityIdentifier("AdaEditor.Agent.ConnectionFlip")
             }
             Text(viewModel.isSending
-                ? (viewModel.runningSessionID == viewModel.activeSession?.id ? "Working" : "Another session is running")
-                : viewModel.isConnectingCatalogAgent ? "Connecting" : (viewModel.settings.configuration.enabled ? viewModel.currentConnectionState.title : "Choose an agent"))
+                ? (viewModel.runningSessionID == viewModel.activeSession?.id ? L10n.text("Working") : L10n.text("Another session is running"))
+                : viewModel.isConnectingCatalogAgent ? L10n.text("Connecting") : (viewModel.settings.configuration.enabled ? viewModel.currentConnectionState.title : L10n.text("Choose an agent")))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(1)
@@ -111,7 +111,7 @@ struct EditorAgentSidebar: View {
             }
             .frame(minWidth: 0, maxWidth: .infinity)
             if case .failed = viewModel.currentConnectionState {
-                Button("Retry", action: viewModel.connect)
+                Button(L10n.text("Retry"), action: viewModel.connect)
                     .font(.system(size: 12))
                     .disabled(viewModel.isSending)
                     .accessibilityIdentifier("AdaEditor.Agent.Retry")
@@ -161,7 +161,7 @@ struct EditorAgentSidebar: View {
         }
         .buttonStyle(DefaultButtonStyle())
         .contextMenu {
-            Button("Delete session") { viewModel.deleteSession(session) }
+            Button(L10n.text("Delete session")) { viewModel.deleteSession(session) }
         }
         .accessibilityIdentifier("AdaEditor.Agent.Session.\(session.id)")
     }
@@ -200,18 +200,18 @@ struct EditorAgentSidebar: View {
         switch viewModel.currentConnectionState {
         case .ready,
             .running:
-            Text("Agent default")
+            Text(L10n.text("Agent default"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(theme.editorColors.muted)
                 .padding(.horizontal, 7)
                 .frame(height: 30)
         case .connecting:
-            Text("Loading models…")
+            Text(L10n.text("Loading models…"))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
         case .disconnected,
             .failed:
-            Text("Select model")
+            Text(L10n.text("Select model"))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
         }
@@ -219,7 +219,7 @@ struct EditorAgentSidebar: View {
 
     private func configurationLabel(_ title: String) -> some View {
         HStack(spacing: 3) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11, weight: .semibold))
                 .lineLimit(1)
             Text("\u{E5CF}")
@@ -248,7 +248,7 @@ struct EditorAgentSidebar: View {
     private var contextPicker: some View {
         if showsContextPicker {
             VStack(alignment: .leading, spacing: 6) {
-                TextField("Search project files", text: Binding(get: { contextSearchText }, set: { contextSearchText = $0 }))
+                TextField(L10n.text("Search project files"), text: Binding(get: { contextSearchText }, set: { contextSearchText = $0 }))
                     .font(.system(size: 10))
                     .foregroundColor(theme.editorColors.text)
                     .padding(.horizontal, 8)
@@ -257,7 +257,7 @@ struct EditorAgentSidebar: View {
                     .textFieldStyle(PlainTextFieldStyle())
                     .accessibilityIdentifier("AdaEditor.Agent.ContextSearch")
                 Button(action: { viewModel.presentContextFilePicker() }) {
-                    Text("Browse files and images…")
+                    Text(L10n.text("Browse files and images…"))
                         .font(.system(size: 10))
                         .foregroundColor(theme.editorColors.blue)
                         .frame(height: 24)
@@ -366,7 +366,7 @@ struct EditorAgentSidebar: View {
 
     private func compactComposerButton(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: title == "+" ? 20 : 11, weight: .semibold))
                 .foregroundColor(active ? theme.editorColors.blue : theme.editorColors.text)
                 .frame(width: 30, height: 30)
@@ -379,7 +379,7 @@ struct EditorAgentSidebar: View {
     private var codeSelectionIndicator: some View {
         if let context = viewModel.codeSelection {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Selected code · \(context.lineDescription)")
+                Text(L10n.text("Selected code · \(context.lineDescription)"))
                     .font(.system(size: 10))
                     .foregroundColor(theme.editorColors.text)
                 Text(context.documentRelativePath)
@@ -424,17 +424,17 @@ struct EditorAgentSidebar: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("What should we build?")
+            Text(L10n.text("What should we build?"))
                 .font(.system(size: 17))
                 .foregroundColor(theme.editorColors.text)
-            Text(viewModel.statusMessage ?? "The agent can work with code, scenes, assets, project documentation, and the live Ada runtime.")
+            Text(viewModel.statusMessage ?? L10n.text("The agent can work with code, scenes, assets, project documentation, and the live Ada runtime."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(4)
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(promptSuggestions, id: \.self) { suggestion in
-                    Button(action: { viewModel.prompt = suggestion }) {
-                        Text(suggestion)
+                    Button(action: { viewModel.prompt = L10n.tr(suggestion) }) {
+                        Text(L10n.tr(suggestion))
                             .font(.system(size: 10))
                             .foregroundColor(theme.editorColors.blue)
                             .padding(.horizontal, 9)
@@ -488,7 +488,7 @@ struct EditorAgentSidebar: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(entry.title).font(.system(size: 11)).lineLimit(1)
                                         if let detail = entry.detail, !detail.isEmpty {
-                                            Text(detail).font(.system(size: 9)).foregroundColor(theme.editorColors.muted).lineLimit(1)
+                                            Text(L10n.tr(detail)).font(.system(size: 9)).foregroundColor(theme.editorColors.muted).lineLimit(1)
                                         }
                                     }
                                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)

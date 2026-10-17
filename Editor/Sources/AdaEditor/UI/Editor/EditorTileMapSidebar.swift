@@ -25,7 +25,7 @@ struct EditorTileMapSidebar: View {
     @ViewBuilder private var cellOcclusion: some View {
         if let cell = model.selectedCell {
             VStack(alignment: .leading, spacing: 6) {
-                sectionTitle("Light occlusion", detail: "Cell \(cell.x), \(cell.y)")
+                sectionTitle("Light occlusion", detail: L10n.text("Cell \(cell.x), \(cell.y)"))
                 EditorEnumField(cases: ["Inherit", "Disabled", "Custom"], selection: Binding(
                     get: { model.occlusionMode }, set: { model.setOcclusionMode($0) }
                 ))
@@ -49,7 +49,7 @@ struct EditorTileMapSidebar: View {
     private var orientationControls: some View {
         VStack(alignment: .leading, spacing: 6) {
             sectionTitle("Orientation", detail: model.selectedCell == nil ? "Brush" : "Brush / cell")
-            Text("Brush").font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+            Text(L10n.text("Brush")).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             EditorEnumField(cases: TileOrientation.allCases.map(\.editorLabel), selection: Binding(
                 get: { model.brushOrientation.editorLabel },
                 set: { label in
@@ -61,7 +61,7 @@ struct EditorTileMapSidebar: View {
                 }
             )).accessibilityIdentifier("AdaEditor.TileMapEditor.BrushOrientation")
             if model.selectedCell != nil {
-                Text("Selected cell").font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+                Text(L10n.text("Selected cell")).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                 EditorEnumField(cases: TileOrientation.allCases.map(\.editorLabel), selection: Binding(
                     get: { model.selectedCellOrientation.editorLabel },
                     set: { label in
@@ -154,7 +154,7 @@ struct EditorTileMapSidebar: View {
                     action("Refresh", id: "RefreshTileSet") { model.refreshTileSet() }
                 }
             }
-            Text(model.map.tileSetReference == nil ? "Choose a color below, or link a tile source for textures." : model.tileSetStatus)
+            Text(model.map.tileSetReference == nil ? L10n.text("Choose a color below, or link a tile source for textures.") : model.tileSetStatus)
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(2)
@@ -174,7 +174,7 @@ struct EditorTileMapSidebar: View {
                 action("Remove color…", id: "RemoveColor") { pendingColorRemoval = model.selectedColor }
                     .disabled(!model.canRemoveSelectedColor)
             }
-            Text("Erase cells: eraser tool or right-drag. Remove color also clears its cells on all layers.")
+            Text(L10n.text("Erase cells: eraser tool or right-drag. Remove color also clears its cells on all layers."))
                 .font(.system(size: 11)).foregroundColor(theme.editorColors.muted).lineLimit(3)
             GeometryReader { geometry in
                 // Leave space for the scroll indicator while filling the palette width.
@@ -208,7 +208,7 @@ struct EditorTileMapSidebar: View {
             .frame(maxHeight: .infinity)
             .accessibilityIdentifier("AdaEditor.TileMapEditor.Palette")
             HStack(spacing: 6) {
-                TextField("Hex color", text: Binding(get: { model.newColorHex }, set: { model.newColorHex = $0 }))
+                TextField(L10n.text("Hex color"), text: Binding(get: { model.newColorHex }, set: { model.newColorHex = $0 }))
                     .font(.system(size: 12))
                     .textFieldStyle(PlainTextFieldStyle())
                     .padding(8)
@@ -244,9 +244,9 @@ struct EditorTileMapSidebar: View {
 
     private func sectionTitle(_ title: String, detail: String) -> some View {
         HStack {
-            Text(title).font(.system(size: 13, weight: .bold)).foregroundColor(theme.editorColors.text)
+            Text(L10n.tr(title)).font(.system(size: 13, weight: .bold)).foregroundColor(theme.editorColors.text)
             Spacer()
-            Text(detail).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+            Text(L10n.tr(detail)).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
         }
     }
 
@@ -256,7 +256,7 @@ struct EditorTileMapSidebar: View {
 
     private func action(_ title: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11, weight: .regular))
                 .foregroundColor(theme.editorColors.text)
                 .padding(.horizontal, 7)

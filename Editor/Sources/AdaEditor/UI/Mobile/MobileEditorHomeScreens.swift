@@ -18,10 +18,10 @@ struct MobileEditorProjectsScreen: View {
             MobileEditorPageScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 9) {
-                        Text("Your Worlds")
+                        Text(L10n.text("Your Worlds"))
                             .font(MobileEditorFont.font(size: 34))
                             .foregroundColor(theme.editorColors.text)
-                        Text("Choose a project or start a new game.")
+                        Text(L10n.text("Choose a project or start a new game."))
                             .font(MobileEditorFont.font(size: 15))
                             .foregroundColor(theme.editorColors.muted)
                     }
@@ -34,10 +34,10 @@ struct MobileEditorProjectsScreen: View {
                                 .frame(width: 48, height: 48)
                                 .background(RoundedRectangleShape(cornerRadius: 14).fill(theme.editorColors.blue.opacity(0.15)))
                             VStack(alignment: .leading, spacing: 5) {
-                                Text("Create Game")
+                                Text(L10n.text("Create Game"))
                                     .font(MobileEditorFont.font(size: 17))
                                     .foregroundColor(theme.editorColors.text)
-                                Text("Open your workspace")
+                                Text(L10n.text("Open your workspace"))
                                     .font(MobileEditorFont.font(size: 12))
                                     .foregroundColor(theme.editorColors.muted)
                             }
@@ -53,7 +53,7 @@ struct MobileEditorProjectsScreen: View {
                     .buttonStyle(DefaultButtonStyle())
                     .accessibilityIdentifier("AdaEditor.Mobile.CreateGame")
 
-                    Text("PROJECTS")
+                    Text(L10n.text("PROJECTS"))
                         .font(MobileEditorFont.font(size: 11))
                         .foregroundColor(theme.editorColors.muted)
                         .padding(.top, 8)
@@ -85,7 +85,7 @@ struct MobileEditorProjectsScreen: View {
                             .font(MobileEditorFont.font(size: 18))
                             .lineLimit(1)
                             .foregroundColor(theme.editorColors.text)
-                        Text("Open Build")
+                        Text(L10n.text("Open Build"))
                             .font(MobileEditorFont.font(size: 13))
                             .foregroundColor(theme.editorColors.muted)
                     }
@@ -111,6 +111,7 @@ struct MobileEditorSettingsScreen: View {
     var body: some View {
         MobileEditorPageScrollView {
             VStack(alignment: .leading, spacing: 22) {
+                EditorLanguageSettings()
                 EditorCloudSettingsView()
                 Button(action: configureAgent) {
                     settingsRow("Agent", detail: agentSettingsSummary, showsChevron: true)
@@ -125,7 +126,7 @@ struct MobileEditorSettingsScreen: View {
                             .scaledToFit()
                             .frame(width: 28, height: 28)
                     }
-                    Text("Power by Sloppy")
+                    Text(L10n.text("Power by Sloppy"))
                         .font(MobileEditorFont.font(size: 13))
                         .foregroundColor(theme.editorColors.muted)
                 }
@@ -151,10 +152,10 @@ struct MobileEditorSettingsScreen: View {
         MobileEditorCard {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(title)
+                    Text(L10n.tr(title))
                         .font(MobileEditorFont.font(size: 16))
                         .foregroundColor(theme.editorColors.text)
-                    Text(detail)
+                    Text(L10n.tr(detail))
                         .font(MobileEditorFont.font(size: 13))
                         .foregroundColor(theme.editorColors.muted)
                 }

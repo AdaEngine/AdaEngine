@@ -84,7 +84,7 @@
         override func getMouseMode() -> Input.MouseMode { .visible }
         override func updateCursor() {}
         override func textInputFocusDidChange(_ focused: Bool) {
-            AndroidRuntime.textInputFocusChanged?(focused)
+            AndroidRuntime.updateTextInputFocus(focused)
         }
     }
 

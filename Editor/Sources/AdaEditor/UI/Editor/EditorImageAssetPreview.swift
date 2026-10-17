@@ -85,7 +85,7 @@ struct EditorImageAssetPreview: View {
     private var unavailableCanvas: some View {
         ZStack {
             canvasBackground
-            Text(document.errorMessage ?? "Unable to load image preview.")
+            Text(document.errorMessage ?? L10n.text("Unable to load image preview."))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
         }
@@ -175,7 +175,7 @@ struct EditorImageAssetPreview: View {
 
     private func metadataRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(label)
+            Text(L10n.tr(label))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .frame(width: 76, alignment: .leading)

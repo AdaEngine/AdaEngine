@@ -18,7 +18,7 @@
                                 Text(status).font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
                             }
                             if center.activities.canCancel(activity.id) {
-                                Button("Stop agent") { center.activities.cancel(activity.id) }
+                                Button(L10n.text("Stop agent")) { center.activities.cancel(activity.id) }
                                     .accessibilityIdentifier("AdaEditor.Mobile.Activity.Stop.\(activity.id)")
                             }
                         }
@@ -26,7 +26,7 @@
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangleShape(cornerRadius: 12).fill(theme.editorColors.surface))
                     }
-                    Text("Notifications").font(.system(size: 18, weight: .semibold))
+                    Text(L10n.text("Notifications")).font(.system(size: 18, weight: .semibold))
                     ForEach(center.notifications) { item in
                         EditorNotificationCard(item: item, center: center)
                     }

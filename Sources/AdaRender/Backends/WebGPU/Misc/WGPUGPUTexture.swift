@@ -12,9 +12,7 @@
     @unsafe @preconcurrency import WebGPU
 
     public final class WGPUGPUTexture: GPUTexture {
-        public var size: SizeInt {
-            SizeInt(width: Int(self.texture.width), height: Int(self.texture.height))
-        }
+        public let size: SizeInt
 
         public var label: String? {
             didSet {
@@ -30,6 +28,7 @@
 
         init(texture: WebGPU.GPUTexture, textureView: WebGPU.GPUTextureView, device: WebGPU.GPUDevice? = nil) {
             self.texture = texture
+            self.size = SizeInt(width: Int(texture.width), height: Int(texture.height))
             self.textureView = textureView
             self.device = device
             #if WASM
@@ -76,6 +75,7 @@
         }
 
         init(descriptor: TextureDescriptor, device: WebGPU.GPUDevice) {
+            self.size = SizeInt(width: descriptor.width, height: descriptor.height)
             var wgpuUsage: WebGPU.GPUTextureUsage = []
 
             if descriptor.textureUsage.contains(.read) {

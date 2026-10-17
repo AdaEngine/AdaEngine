@@ -87,7 +87,7 @@ struct EditorFileInspector: View {
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                 } else {
                     inspectorSection("SELECTION") {
-                        Text("Open a document to inspect it.")
+                        Text(L10n.text("Open a document to inspect it."))
                             .font(.system(size: 11))
                             .foregroundColor(theme.editorColors.muted)
                     }
@@ -189,7 +189,7 @@ struct EditorFileInspector: View {
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.blue)
             content()

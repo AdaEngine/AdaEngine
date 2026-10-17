@@ -1,5 +1,5 @@
 import AdaECS
-import AdaRender
+@_spi(Internal) import AdaRender
 import Math
 
 /// Per-draw material parameters; vertex instance data retains color and metal/rough factors.
@@ -48,8 +48,14 @@ public struct PBR3DUniforms: Resource {
         }
     }
     private struct Entry { let buffer: any UniformBuffer; var frame: Int }
+    private struct MaterialEntry {
+        // Retain identity owners until the frame ends, preventing identifier reuse.
+        let owner: Material
+        let revision: UInt64?
+        let buffer: any UniformBuffer
+    }
     private var entries: [Key: Entry] = [:]
-    private var materialBuffers: [ObjectIdentifier: any UniformBuffer] = [:]
+    private var materialBuffers: [ObjectIdentifier: MaterialEntry] = [:]
     private var frame = 0
 
     public init() {}
@@ -61,21 +67,27 @@ public struct PBR3DUniforms: Resource {
     }
 
     public mutating func write(material: Material, descriptor: VertexDescriptor, device: RenderDevice) {
-        let uniform = PBR3DUniform(material: material as? PBRMaterial, descriptor: descriptor)
+        let identity = ObjectIdentifier(material)
+        let pbr = material as? PBRMaterial
+        let revision = pbr?.uniformRevision
+        if let entry = materialBuffers[identity], entry.revision == revision { return }
+        let uniform = PBR3DUniform(material: pbr, descriptor: descriptor)
         let key = Key(uniform)
         if var entry = entries[key] {
-            entry.frame = frame
-            entries[key] = entry
-            materialBuffers[ObjectIdentifier(material)] = entry.buffer
+            if entry.frame != frame {
+                entry.frame = frame
+                entries[key] = entry
+            }
+            materialBuffers[identity] = MaterialEntry(owner: material, revision: revision, buffer: entry.buffer)
         } else {
             let buffer = device.createUniformBuffer(PBR3DUniform.self, binding: Self.binding)
             buffer.setData(uniform)
             entries[key] = Entry(buffer: buffer, frame: frame)
-            materialBuffers[ObjectIdentifier(material)] = buffer
+            materialBuffers[identity] = MaterialEntry(owner: material, revision: revision, buffer: buffer)
         }
     }
 
     public func buffer(for material: Material) -> (any UniformBuffer)? {
-        materialBuffers[ObjectIdentifier(material)]
+        materialBuffers[ObjectIdentifier(material)]?.buffer
     }
 }

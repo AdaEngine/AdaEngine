@@ -13,15 +13,15 @@ struct EditorBuildExportSettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text(platform.title + " Build Tools")
                 .font(.system(size: 16, weight: .bold))
-            Text(platform.detail)
+            Text(L10n.tr(platform.detail))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
-            Text("Tool paths apply to this computer, across all projects. Leave a field empty to use automatic discovery.")
+            Text(L10n.text("Tool paths apply to this computer, across all projects. Leave a field empty to use automatic discovery."))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
             toolSetup
             if !EditorDistribution.current.supportsSwiftProjects {
-                Text("External build tools require standalone desktop Studio.")
+                Text(L10n.text("External build tools require standalone desktop Studio."))
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.muted)
             }
@@ -49,35 +49,35 @@ struct EditorBuildExportSettingsView: View {
     private var toolSetup: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                Button(model.scanningBuildPlatforms.contains(platform) ? "Scanning…" : "Rescan") {
+                Button(model.scanningBuildPlatforms.contains(platform) ? L10n.text("Scanning…") : L10n.text("Rescan")) {
                     Task { await model.rescanBuildTools(for: platform) }
                 }
                 .frame(width: 110, height: 34)
                 .disabled(model.scanningBuildPlatforms.contains(platform))
                 .accessibilityIdentifier("AdaEditor.BuildExport.Rescan." + platform.rawValue)
                 if platform == .host || (platform == .android && EditorBuildPlatform.host != .windows) {
-                    Button("Install Swift…") { model.openBuildToolSetup(.swift) }
+                    Button(L10n.text("Install Swift…")) { model.openBuildToolSetup(.swift) }
                         .frame(width: 130, height: 34)
                         .accessibilityIdentifier("AdaEditor.BuildExport.InstallSwift." + platform.rawValue)
                 }
                 if platform == .android {
-                    Button("Install Android SDK…") { model.openBuildToolSetup(.android) }
+                    Button(L10n.text("Install Android SDK…")) { model.openBuildToolSetup(.android) }
                         .frame(width: 175, height: 34)
                         .accessibilityIdentifier("AdaEditor.BuildExport.InstallAndroid")
                 }
             }
             .disabled(!EditorDistribution.current.supportsSwiftProjects)
-            Text("Install opens the official setup page in your browser. Finish installation, then Rescan and Save Build Settings.")
+            Text(L10n.text("Install opens the official setup page in your browser. Finish installation, then Rescan and Save Build Settings."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
             if platform == .android {
-                Text("In Android Studio, use SDK Manager to install Platform-Tools, Build-Tools, Emulator and NDK (Side by side). The bundled JDK is detected automatically.")
+                Text(L10n.text("In Android Studio, use SDK Manager to install Platform-Tools, Build-Tools, Emulator and NDK (Side by side). The bundled JDK is detected automatically."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
             }
             #if os(Windows)
             if platform == .android || platform == .web {
-                Text("Web and Android compilation also require the WSL export tools. Native Windows Swift is used for Windows projects.")
+                Text(L10n.text("Web and Android compilation also require the WSL export tools. Native Windows Swift is used for Windows projects."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
             }
@@ -87,9 +87,9 @@ struct EditorBuildExportSettingsView: View {
 
     private func toolField(_ field: EditorBuildToolField) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(field.title).font(.system(size: 12, weight: .bold))
+            Text(L10n.tr(field.title)).font(.system(size: 12, weight: .bold))
             HStack(spacing: 8) {
-                TextField(field.kind == .identifier ? "Identifier / version" : "Automatic", text: model.buildToolBinding(field.id, platform: platform))
+                TextField(field.kind == .identifier ? L10n.text("Identifier / version") : L10n.text("Automatic"), text: model.buildToolBinding(field.id, platform: platform))
                     .textFieldStyle(PlainTextFieldStyle())
                     .font(.system(size: 12))
                     .padding(.horizontal, 10)
@@ -99,7 +99,7 @@ struct EditorBuildExportSettingsView: View {
                     .accessibilityIdentifier("AdaEditor.BuildExport." + platform.rawValue + "." + field.id)
                 #if os(macOS) || os(Windows)
                 if field.kind != .identifier {
-                    Button("Browse…") { browse(field) }
+                    Button(L10n.text("Browse…")) { browse(field) }
                         .font(.system(size: 12))
                         .frame(width: 88, height: 34)
                         .accessibilityIdentifier("AdaEditor.BuildExport.Browse." + platform.rawValue + "." + field.id)
@@ -107,7 +107,7 @@ struct EditorBuildExportSettingsView: View {
                 #endif
             }
             .disabled(!EditorDistribution.current.supportsSwiftProjects)
-            Text(model.buildToolStatus(field, platform: platform))
+            Text(L10n.tr(model.buildToolStatus(field, platform: platform)))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
         }
@@ -121,7 +121,7 @@ struct EditorBuildExportSettingsView: View {
         panel.canChooseDirectories = field.kind == .directory
         panel.allowsMultipleSelection = false
         panel.treatsFilePackagesAsDirectories = true
-        panel.prompt = "Select"
+        panel.prompt = L10n.tr("Select")
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             model.buildToolBinding(field.id, platform: platform).wrappedValue = url.path
@@ -134,12 +134,12 @@ struct EditorBuildExportSettingsView: View {
         Task { @MainActor in
             let url: URL?
             if field.kind == .directory {
-                switch await WindowsProjectFilePicker.folder(title: "Choose " + field.title) {
+                switch await WindowsProjectFilePicker.folder(title: L10n.text("Choose \(L10n.tr(field.title))")) {
                 case .selected(let selected): url = selected
                 default: url = nil
                 }
             } else {
-                switch await WindowsProjectFilePicker.files(title: "Choose " + field.title, allowsMultipleSelection: false) {
+                switch await WindowsProjectFilePicker.files(title: L10n.text("Choose \(L10n.tr(field.title))"), allowsMultipleSelection: false) {
                 case .selected(let selected): url = selected.first
                 default: url = nil
                 }

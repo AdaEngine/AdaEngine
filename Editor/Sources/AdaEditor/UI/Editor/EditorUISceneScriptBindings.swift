@@ -184,15 +184,15 @@ extension EditorUISceneEditor {
         VStack(alignment: .leading, spacing: 6) {
             let owners = model.bindingOwners
             if owners.isEmpty {
-                Text("Open a scene that uses this UI and attach a script with @export fields.")
+                Text(L10n.text("Open a scene that uses this UI and attach a script with @export fields."))
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             } else {
-                Text("Scene owner").font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
+                Text(L10n.text("Scene owner")).font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
                 ForEach(owners) { owner in
                     Button {
                         model.selectedBindingOwnerID = owner.id
                     } label: {
-                        Text(owner.label).font(.system(size: 11)).lineLimit(2)
+                        Text(L10n.tr(owner.label)).font(.system(size: 11)).lineLimit(2)
                             .foregroundColor(model.bindingOwner?.id == owner.id ? theme.editorColors.blue : theme.editorColors.text)
                     }
                     .accessibilityIdentifier("AdaEditor.UIScene.BindingOwner.\(owner.id)")
@@ -220,7 +220,7 @@ extension EditorUISceneEditor {
                         }
                     }
                 } else {
-                    Text("Select the entity to change. Other instances keep their bindings.")
+                    Text(L10n.text("Select the entity to change. Other instances keep their bindings."))
                         .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                 }
             }

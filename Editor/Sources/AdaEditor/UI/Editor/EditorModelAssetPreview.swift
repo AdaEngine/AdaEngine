@@ -10,6 +10,7 @@ final class EditorModelAssetPreviewModel {
     var error: String?
     var isLoading = true
     var selectedAnimation = "Rest pose" { didSet { updatePlayback() } }
+    var showsBones = false
     var playsAnimation = true { didSet { updatePlayback() } }
     var animationGraph: AnimationGraph? { didSet { updatePlayback() } }
     var graphEventLog: [String] = []
@@ -190,7 +191,7 @@ struct EditorModelAssetPreview: View {
                 if showsScenePicker {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Choose destination scene").font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+                            Text(L10n.text("Choose destination scene")).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                             ForEach(targetScenes, id: \.id) { scene in
                                 Button(action: { place(in: scene.id) }) {
                                     Text(scene.relativePath).font(.system(size: 12)).foregroundColor(theme.editorColors.blue)
@@ -205,7 +206,7 @@ struct EditorModelAssetPreview: View {
                 ZStack {
                     RoundedRectangleShape(cornerRadius: 10).fill(Color.fromHex(0x24282F))
                     if model.isLoading {
-                        Text("Loading model…").foregroundColor(theme.editorColors.muted)
+                        Text(L10n.text("Loading model…")).foregroundColor(theme.editorColors.muted)
                     } else if let error = model.error {
                         Text(error).foregroundColor(.red).padding(24)
                     } else if model.asset != nil {
@@ -245,14 +246,14 @@ struct EditorModelAssetPreview: View {
                         Text(["\(asset.meshes.count) voxel meshes", model.voxelTimelineDescription].compactMap { $0 }.joined(separator: " · "))
                             .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                     } else {
-                        Text("\(asset.meshes.count) meshes · \(asset.materials.count) materials · \(asset.skins.count) skins")
+                        Text(L10n.text("\(asset.meshes.count) meshes · \(asset.materials.count) materials · \(asset.skins.count) skins"))
                             .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                     }
                 }
             }
             Spacer()
             Button(action: { camera.reset() }) {
-                Text("Frame model").font(.system(size: 12)).foregroundColor(theme.editorColors.text).padding(8)
+                Text(L10n.text("Frame model")).font(.system(size: 12)).foregroundColor(theme.editorColors.text).padding(8)
             }
             .buttonStyle(DefaultButtonStyle())
             .accessibilityIdentifier("AdaEditor.ModelPreview.Frame")
@@ -263,11 +264,11 @@ struct EditorModelAssetPreview: View {
 
     private var animationControls: some View {
         HStack(spacing: 8) {
-            Text("Animation").font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+            Text(L10n.text("Animation")).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             Button(action: {
                 showsGraph.toggle()
                 model.animationGraph = showsGraph ? graphModel.validGraph : nil
-            }) { Text(showsGraph ? "Clips" : "Animation Graph").font(.system(size: 11)) }
+            }) { Text(showsGraph ? L10n.text("Clips") : L10n.text("Animation Graph")).font(.system(size: 11)) }
                 .buttonStyle(DefaultButtonStyle())
                 .disabled(model.asset?.animationClips.isEmpty != false)
                 .accessibilityIdentifier("AdaEditor.ModelPreview.Graph")
@@ -278,11 +279,17 @@ struct EditorModelAssetPreview: View {
             )
                 .frame(maxWidth: 260)
             Button(action: { model.playsAnimation.toggle() }) {
-                Text(model.playsAnimation ? "Pause" : "Play").font(.system(size: 11))
+                Text(model.playsAnimation ? L10n.text("Pause") : L10n.text("Play")).font(.system(size: 11))
             }
             .buttonStyle(DefaultButtonStyle())
             .disabled(model.animation.isEmpty && model.animationGraph == nil && !model.hasVoxelAnimation)
             .accessibilityIdentifier("AdaEditor.ModelPreview.PlayAnimation")
+            Button(action: { model.showsBones.toggle() }) {
+                Text(model.showsBones ? "Hide bones" : "Show bones").font(.system(size: 11))
+            }
+            .buttonStyle(DefaultButtonStyle())
+            .disabled(model.asset?.skins.isEmpty != false)
+            .accessibilityIdentifier("AdaEditor.ModelPreview.Bones")
             Spacer()
         }
     }
@@ -304,7 +311,7 @@ struct EditorModelAssetPreview: View {
                 showsScenePicker.toggle()
             }
         }) {
-            Text(targetScenes.count == 1 ? "Add to Scene" : "Add to Scene…")
+            Text(targetScenes.count == 1 ? L10n.text("Add to Scene") : L10n.text("Add to Scene…"))
                 .font(.system(size: 12)).foregroundColor(theme.editorColors.blue)
                 .padding(8)
                 .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.blue.opacity(0.12)))

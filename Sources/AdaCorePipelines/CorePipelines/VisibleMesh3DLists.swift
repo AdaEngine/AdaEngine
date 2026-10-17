@@ -33,10 +33,19 @@ public struct VisibleMesh3DLists: Resource {
     private struct BatchKey: Hashable {
         var vertex: ObjectIdentifier
         var index: ObjectIdentifier
-        var material: RID
+        var indexCount: Int
+        var material: MaterialKey
+        var descriptor: Int32
         var skin: ObjectIdentifier?
         var cast: Bool
         var receive: Bool
+    }
+
+    private enum MaterialKey: Hashable {
+        case identity(RID)
+        // Shadow shaders consume the shared parameter buffer and base texture;
+        // separate material objects with identical bindings can share a draw.
+        case shadow(ObjectIdentifier, ObjectIdentifier?)
     }
 
     /// What a part contributes to a batch that does not depend on which source it came from. Built once per
@@ -97,6 +106,7 @@ public struct VisibleMesh3DLists: Resource {
         var templateIndex: [BatchKey: Int32] = [:]
         var templates: [BatchTemplate] = []
         var rankCount = 0
+        var descriptors: [VertexDescriptor] = []
         // The loops read fields straight from the array instead of binding each source: a source is a large value
         // with several references, and copying it for every pass and every mesh dominated this function.
         for sourceIndex in sources.indices {
@@ -147,10 +157,37 @@ public struct VisibleMesh3DLists: Resource {
                     let materialIndex = parts[partIndex].materialIndex
                     guard sources[sourceIndex].materials.indices.contains(materialIndex) else { continue }
                     let material = sources[sourceIndex].materials[materialIndex]
+                    let pbr = material as? PBRMaterial
+                    if isShadowPass && pbr?.alphaMode == .blend { continue }
+                    // Batches never mix vertex layouts: the descriptor is interned per call so the key stays cheap.
+                    let descriptor = parts[partIndex].vertexDescriptor
+                    var descriptorID = -1
+                    if let last = descriptors.indices.last, descriptors[last] == descriptor {
+                        descriptorID = last
+                    } else if let found = descriptors.firstIndex(of: descriptor) {
+                        descriptorID = found
+                    } else {
+                        descriptorID = descriptors.count
+                        descriptors.append(descriptor)
+                    }
+                    let materialKey: MaterialKey
+                    if isShadowPass {
+                        // The parameter buffer must exist before it can be part of the key.
+                        materials.write(material: material, descriptor: descriptor, device: device)
+                        if let pbr, let buffer = materials.buffer(for: material) {
+                            materialKey = .shadow(ObjectIdentifier(buffer), pbr.baseColorTexture.map(ObjectIdentifier.init))
+                        } else {
+                            materialKey = .identity(material.rid)
+                        }
+                    } else {
+                        materialKey = .identity(material.rid)
+                    }
                     let batchKey = BatchKey(
                         vertex: ObjectIdentifier(parts[partIndex].vertexBuffer),
                         index: ObjectIdentifier(parts[partIndex].indexBuffer),
-                        material: material.rid,
+                        indexCount: parts[partIndex].indexCount,
+                        material: materialKey,
+                        descriptor: Int32(descriptorID),
                         skin: sources[sourceIndex].skinningBuffer.map(ObjectIdentifier.init),
                         cast: sources[sourceIndex].castShadows,
                         receive: sources[sourceIndex].receiveShadows
@@ -158,24 +195,17 @@ public struct VisibleMesh3DLists: Resource {
                     let template: Int32
                     if let existing = templateIndex[batchKey] {
                         template = existing
-                        if isShadowPass && templates[Int(template)].blended { continue }
                     } else {
-                        let blended = (material as? PBRMaterial)?.alphaMode == .blend
-                        if isShadowPass && blended {
-                            // Remember the decision so later parts of this batch skip without rebuilding it.
-                            templateIndex[batchKey] = Int32(templates.count)
-                            templates.append(BatchTemplate(color: .one, material: .zero, textureFlags: .zero, shadowFlags: .zero, blended: true, rank: -1))
-                            continue
-                        }
                         // Written once per batch: the uniform depends only on the material and vertex layout.
-                        materials.write(material: material, descriptor: parts[partIndex].vertexDescriptor, device: device)
+                        if !isShadowPass { materials.write(material: material, descriptor: descriptor, device: device) }
                         template = Int32(templates.count)
                         templateIndex[batchKey] = template
                         templates.append(Self.makeTemplate(
                             material: material,
-                            descriptor: parts[partIndex].vertexDescriptor,
+                            descriptor: descriptor,
                             receivesShadows: sources[sourceIndex].receiveShadows,
-                            blended: blended
+                            blended: pbr?.alphaMode == .blend,
+                            shadowOnly: isShadowPass
                         ))
                     }
                     if templates[Int(template)].rank < 0 {
@@ -221,11 +251,12 @@ public struct VisibleMesh3DLists: Resource {
             shadowFlags.w = 1 - record.fade
             let instanceIndex = entry.buffers.append(Flat3DInstanceData(
                 modelMatrix: sources[sourceIndex].transform,
-                color: template.color,
+                // Shadow batches can mix materials that only differ in colour, so that comes from the record itself.
+                color: isShadowPass ? (sources[sourceIndex].materials[Int(record.material)] as? PBRMaterial)?.baseColorFactor ?? .one : template.color,
                 material: template.material,
                 textureFlags: template.textureFlags,
                 shadowFlags: shadowFlags,
-                previousModelMatrix: sources[sourceIndex].previousTransform
+                previousModelMatrix: isShadowPass ? nil : sources[sourceIndex].previousTransform
             ))
             if !template.blended, previousTemplate == record.template, let last = entry.items.indices.last {
                 let lower = entry.items[last].batchRange?.lowerBound ?? instanceIndex
@@ -280,8 +311,12 @@ public struct VisibleMesh3DLists: Resource {
         return result
     }
 
-    private static func makeTemplate(material: Material, descriptor: VertexDescriptor, receivesShadows: Bool, blended: Bool) -> BatchTemplate {
+    private static func makeTemplate(material: Material, descriptor: VertexDescriptor, receivesShadows: Bool, blended: Bool, shadowOnly: Bool) -> BatchTemplate {
         let pbr = material as? PBRMaterial
+        if shadowOnly {
+            // The shadow vertex shader only reads transform, alpha and fade.
+            return BatchTemplate(color: pbr?.baseColorFactor ?? .one, material: .zero, textureFlags: .zero, shadowFlags: .zero, blended: false, rank: -1)
+        }
         let atmosphere = material as? AtmosphereMaterial
         func hasUV(_ slot: Int) -> Bool {
             let set = pbr?.textureCoordinates.indices.contains(slot) == true ? pbr?.textureCoordinates[slot] ?? 0 : 0
