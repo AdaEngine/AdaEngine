@@ -48,7 +48,11 @@ extension Image {
     }
 
     public func writePNG(to url: URL) throws {
+        #if os(WASI)
+        try pngData().write(to: url)
+        #else
         try pngData().write(to: url, options: .atomic)
+        #endif
     }
 }
 #endif

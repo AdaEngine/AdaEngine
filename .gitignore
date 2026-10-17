@@ -5,6 +5,7 @@
 .build/
 **/.build/
 .build-codex/
+.build-studio-core/
 .build-web-*/
 .build-tools/
 .zed/

@@ -56,6 +56,7 @@ let package = Package(
         ),
     ],
     dependencies: [
+        .package(path: "StudioCore"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "4.0.0"),
         .package(name: "AdaEngine", path: adaEngineLocalPath),
         .package(name: "AdaDebugging", path: "Debugging"),
@@ -104,6 +105,7 @@ let package = Package(
         makeEditorTarget(
             name: "AdaEditor",
             dependencies: [
+                .product(name: "AdaStudioCore", package: "StudioCore"),
                 .product(name: "AdaDebugging", package: "AdaDebugging"),
                 .product(name: "AdaPlayerConnect", package: "AdaPlayerConnect"),
                 .product(name: "AdaEngine", package: "AdaEngine"),

@@ -51,6 +51,25 @@ and assess gaps before proposing new features.
 
 ## Capability inventory
 
+### Browser Studio
+
+`WebUI/` is the default React/DOM browser shell, with floating panels and an
+native text inputs. The scene viewport and Play use one isolated fixed AdaPlayer
+with authored cameras, materials and lighting. Opening a project loads the engine;
+document/mode changes replace its world without recreating WASM or the GPU device.
+There is no separate SVG scene renderer. Editor mode disables gameplay, physics
+and autoplay; selecting and transforming objects currently uses hierarchy/inspector,
+with direct viewport picking/gizmos still unavailable. It implements the existing
+portable snapshot/scene/API contracts with transactions/undo, cloud recovery, ZIP
+interchange and an in-tab agent. `Web/` retains the prior AdaUI/WASM application
+(`AdaEditorWeb`) behind `--legacy-wasm-editor`, including its UGC publication UI;
+publication controls are not yet ported to DOM. Native Studio uses the shared
+`StudioCore/` value codec and supported runtime component contract. The browser does
+not use native ACP, processes, SourceKit, key storage or file dialogs. See
+[Documentation/StudioWeb.md](Documentation/StudioWeb.md) for export, service
+boundaries and the browser release gate; source presence is not acceptance of a
+hosted deployment or a live paid provider.
+
 Snapshot: **2026-10-04**, checked against the current working-tree source and
 documentation. “Present” means an implementation exists, not that every
 interaction or platform was exercised during this inventory. Test links identify

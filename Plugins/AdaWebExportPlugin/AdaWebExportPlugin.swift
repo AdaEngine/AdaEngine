@@ -36,6 +36,7 @@ struct AdaWebExportPlugin: CommandPlugin {
             throw ExportError.unsafeScratchDirectory
         }
         try prepareBuildDirectory(buildDirectory, packageDirectory: context.package.directoryURL)
+        try restorePortableDependencyPatches(in: buildDirectory)
         // Resolve first so platform-compatibility patches run on actual private
         // checkouts, including a cold scratch directory with no Yams checkout.
         try run(
@@ -55,6 +56,7 @@ struct AdaWebExportPlugin: CommandPlugin {
                 buildDirectory.path(),
                 "--disable-sandbox",
                 "--skip-update",
+                "--disable-build-manifest-caching",
                 "--disable-keychain",
                 "--disable-experimental-prebuilts",
                 "--disable-index-store",
@@ -221,6 +223,34 @@ struct AdaWebExportPlugin: CommandPlugin {
         }
     }
 
+    /// SwiftPM refuses to resolve a checkout changed by the previous export's compatibility pass.
+    /// Restore only this plugin's exact replacements, and only inside a private scratch directory.
+    private func restorePortableDependencyPatches(in buildDirectory: URL) throws {
+        let checkouts = buildDirectory.appending(component: "checkouts", directoryHint: .isDirectory)
+        let base = buildDirectory.resolvingSymlinksInPath().standardizedFileURL.path + "/"
+        guard checkouts.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(base) else { return }
+        let replacements = [
+            ("Yams/Sources/Yams/Representer.swift",
+             "String(format: \"%.*g\", Int32(ceil(1 + Double(Double.significandBitCount + 1) * log10(2))), value)",
+             "String(format: \"%.*g\", DBL_DECIMAL_DIG, value)"),
+            ("gravity-lang/binding/GravitySwift/GravityVirtualMachine.swift",
+             "OutputStream(toBuffer: UnsafeMutableRawPointer(buffer).assumingMemoryBound(to: UInt8.self), capacity: data.count)",
+             "OutputStream(toBuffer: buffer, capacity: data.count)"),
+            ("gravity-lang/binding/GravitySwift/GravityVirtualMachine.swift",
+             "let charPointer = pointer.bindMemory(to: UInt8.self)", "let charPointer = pointer.bindMemory(to: CChar.self)")
+        ]
+        for (relative, patched, original) in replacements {
+            let file = checkouts.appendingPathComponent(relative)
+            guard file.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(base),
+                  FileManager.default.fileExists(atPath: file.path()) else { continue }
+            let content = try String(contentsOf: file, encoding: .utf8)
+            guard content.contains(patched), let checkout = relative.split(separator: "/").first else { continue }
+            let sourcePath = relative.split(separator: "/").dropFirst().joined(separator: "/")
+            let committed = try capture(executable: "/usr/bin/env", arguments: ["git", "-C", checkouts.appendingPathComponent(String(checkout)).path(), "show", "HEAD:" + sourcePath], workingDirectory: nil)
+            if committed.contains(original) { try content.replacingOccurrences(of: patched, with: original).write(to: file, atomically: true, encoding: .utf8) }
+        }
+    }
+
     private func exportBundle(
         wasm: URL,
         options: ExportOptions,
@@ -240,7 +270,7 @@ struct AdaWebExportPlugin: CommandPlugin {
             with: Self.assetsDirectory.appending(components: "Runtime", "engine-audio.js")
         )
         if options.product == "AdaWebPlayer" {
-            try "{\"runtimeAPI\":3,\"profile\":\"universal\"}".write(
+            try "{\"runtimeAPI\":4,\"profile\":\"universal\"}".write(
                 to: options.outputDirectory.appending(component: "ada-web-player.json"),
                 atomically: true,
                 encoding: .utf8
@@ -992,16 +1022,19 @@ struct AdaWebExportPlugin: CommandPlugin {
 
     private func capture(executable: String, arguments: [String], workingDirectory: URL?) throws -> String {
         let process = Process()
-        let pipe = Pipe()
+        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("ada-web-command-" + UUID().uuidString)
+        FileManager.default.createFile(atPath: outputURL.path, contents: nil)
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+        let outputHandle = try FileHandle(forWritingTo: outputURL)
+        defer { try? outputHandle.close() }
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
         process.currentDirectoryURL = workingDirectory
-        process.standardOutput = pipe
-        process.standardError = pipe
+        process.standardOutput = outputHandle
+        process.standardError = outputHandle
         try process.run()
         process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let data = try Data(contentsOf: outputURL)
         let output = String(decoding: data, as: UTF8.self)
         guard process.terminationStatus == 0 else {
             throw ExportError.commandFailed(arguments.joined(separator: " "), process.terminationStatus)
@@ -1600,10 +1633,30 @@ private func mainJS(product: String) -> String {
           [...map.entries()].map(([name, value]) => [name, value instanceof Map ? materialize(value) : value])
         );
         const rootEntries = () => [...root.entries()].map(([name, value]) => [name, value instanceof Map ? materialize(value) : value]);
-        return [
+        const preopens = [
           new PreopenDirectory("/", rootEntries()),
           new PreopenDirectory(".", rootEntries()),
         ];
+        // Studio reloads source snapshots into the same WASI/renderer instance.
+        // Only /game is replaced; engine bundles and the host filesystem stay untouched.
+        if (globalThis.__adaStudioPreview === true) {
+          globalThis.__adaInstallStudioFiles = (files) => {
+            const game = new Directory([]);
+            for (const file of files) {
+              const parts = file.path.split("/");
+              if (!parts.length || parts.some(part => !part || part === "." || part === "..")) throw new Error("Unsafe Studio file path");
+              let directory = game;
+              for (const part of parts.slice(0, -1)) {
+                if (!directory.contents.has(part)) directory.contents.set(part, new Directory([]));
+                directory = directory.contents.get(part);
+                if (!(directory instanceof Directory)) throw new Error("Conflicting Studio file path");
+              }
+              directory.contents.set(parts.at(-1), new File(file.bytes, {readonly: true}));
+            }
+            for (const preopen of preopens) preopen.dir.contents.set("game", game);
+          };
+        }
+        return preopens;
       }
 
       function installResourceFetchResolver(manifest) {
