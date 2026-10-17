@@ -2317,13 +2317,13 @@
       },
       {
         "kind": "text",
-        "text": "Desktop uses `editor.build.start`, `editor.play.start`, `editor.task.status`, `editor.output.read` and `render.capture_screenshot`. Mobile uses `editor.build`, `editor.play.start`, `editor.play.capture` and `editor.image.read`. Select the tools actually advertised by the current host. Desktop asset tools exclude mobile vision analysis and direct on-disk scene assignment; desktop scene edits go through the revision/undo workflow. Save dirty asset documents before tool writes.",
+        "text": "Desktop uses `editor.build.start`, `editor.play.start`, `editor.task.status`, `editor.output.read`, `editor.play.capture` / `render.capture_screenshot` (the running game's camera frame; the editor window is returned only when no game runs, and is not evidence) and `editor.play.run_scenario` for scripted input, frames and state. Mobile uses `editor.build`, `editor.play.start`, `editor.play.capture` and `editor.image.read`. Select the tools actually advertised by the current host. Desktop asset tools exclude mobile vision analysis and direct on-disk scene assignment; desktop scene edits go through the revision/undo workflow. Save dirty asset documents before tool writes.",
         "level": 0,
         "links": []
       },
       {
         "kind": "text",
-        "text": "After validation and build, inspect a completed frame from visible Play. Exercise selected clips and compare frames at different times for animation. Isolated simulation verifies logic and keyboard/physics behavior; it does not install Model3D or prove rendering. Blender execution, rig editing and skeletal clip authoring are not exposed by these Studio tools. To create a new low-poly model use editor.model.generate (an AdaScript program that writes a GLB) or editor.voxel.generate (a .vox).",
+        "text": "After validation and build, inspect a completed frame from visible Play. A 3D scene needs a camera, a light and an `Environment3D` (or a camera `backgroundColor`/clear flags) so the frame is not a flat clear color; `editor.play.run_scenario` can capture before/after frames around input. Exercise selected clips and compare frames at different times for animation. Isolated simulation verifies logic and keyboard/physics behavior; it does not install Model3D or prove rendering. Blender execution, rig editing and skeletal clip authoring are not exposed by these Studio tools. To create a new low-poly model use editor.model.generate (an AdaScript program that writes a GLB) or editor.voxel.generate (a .vox).",
         "level": 0,
         "links": []
       }
@@ -2524,6 +2524,203 @@
       {
         "kind": "text",
         "text": "Desktop prompts advertise A2UI with a short capability notice. The complete contract, including component schemas, scene actions and examples, is available through `editor.skills.read` with ID `ada-chat-ui`; `editor.skills.list` discovers it. Bundled skill catalogs retain IDs and bounded descriptions without repeating installed bundle paths. Explicitly selected skill instructions and user action envelopes remain in the request.",
+        "level": 0,
+        "links": []
+      }
+    ]
+  },
+  {
+    "id": "AdaScriptGameplayRecipes",
+    "title": "AdaScript gameplay recipes",
+    "section": "Editor",
+    "source": "Editor/Documentation/AdaScriptGameplayRecipes.md",
+    "blocks": [
+      {
+        "kind": "text",
+        "text": "Short, working patterns for input, movement, spawning, collisions, score, restart and sound in AdaScript games.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "The complete game that uses all of them is the bundled example `side-scroller-3d`: a 3D side-scroller in about twenty small files with a scene, a HUD, sounds and tests. Find it with `editor.examples.list` (query \"3D game\", \"side scroller\", \"flappy\" or \"runner\") and read it with `editor.examples.read`. Blocks marked `// recipe` below are compiled by Studio's test suite, so they are safe to copy. Studio's pure AdaScript projects accept `@resource` structs, bound with `@res`; the example nevertheless keeps shared data (round state, intent, cues) in `@component` structs on one \"Game\" entity in the scene, read with `@query`, so the scene can author it and tests can read it. Syntax follows ADR-0001 to ADR-0003 (annotations and modules, ECS queries, components and resources); see AdaScript ECS and AdaScript Language.",
+        "level": 0,
+        "links": [
+          {
+            "title": "AdaScript ECS",
+            "destination": "AdaScriptECS"
+          },
+          {
+            "title": "AdaScript Language",
+            "destination": "AdaScriptLanguage"
+          }
+        ]
+      },
+      {
+        "kind": "heading",
+        "text": "Lay the game out in files",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "One responsibility per file, grouped by layer: `Config.ada` (all balance numbers), `Rules.ada` (pure functions), `Components/` (data only), `Systems/` (one `@system` per file), `UI/`, `Tests/`, `Generators/` (asset generator sources as `.txt`, not compiled). Import across files with `import { Name } from \"./Path.ada\";`. Systems are ordered with `@before(id:)` and `@after(id:)`. Do not write a game as one file.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "// recipe\nclass Config {\n    static var gravity = 22.0;\n    static var flapSpeed = 7.5;\n}\n\nclass Rules {\n    static func fall(velocity, dt) { return velocity - Config.gravity * dt; }\n}\n\n@test(\"gravity pulls down\")\nfunc gravityPullsDown() {\n    expect(Rules.fall(0.0, 0.1) < 0.0);\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Input",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Declare actions (name and bindings such as Space, left mouse button, touch) in project settings; they are stored in `.ada/project.json`. Bind the `Input` resource in exactly one system (`@res(optional: true)` with an `available()` check, so tests can run it without `Input`) and publish what the player asked for as a component on the Game entity. The other systems read that component, which keeps them testable because tests have no `Input`.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "// recipe\n@component(id: \"recipes.intent\")\nstruct Intent {\n    @export var flap = false;\n    @export var move = 0.0;\n}\n\n@system(id: \"recipes.input\")\nclass InputSystem {\n    @res(optional: true) var input: Input;\n    @query(Intent) var intents;\n\n    func update(context) {\n        if (!input.available()) return;\n        for (var game in intents) {\n            game.intent.flap = input.isActionJustPressed(\"Flap\");\n            game.intent.move = input.getActionStrength(\"MoveRight\") - input.getActionStrength(\"MoveLeft\");\n        }\n    }\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`isActionPressed` is true while held, `isActionJustPressed` and `isActionJustReleased` are single-frame transitions, `getActionStrength` is 0 to 1. Action names are case sensitive; an unknown name is false or zero.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Movement and gravity",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Components hold state; the position is the entity's `Transform`. Read `position` as a list and write a whole list back. Scale all motion by `context.deltaTime`, clamped so a long frame cannot skip over a collision.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "// recipe\nclass Tuning {\n    static var gravity = 20.0;\n}\n\n@component(id: \"recipes.body\")\nstruct Body {\n    @export var velocity = 0.0;\n}\n\n@system(id: \"recipes.fall\")\nclass FallSystem {\n    @query(Body, Transform) var bodies;\n\n    func update(context) {\n        var dt = Math.clamp(context.deltaTime, 0.0, 0.05);\n        for (var row in bodies) {\n            row.body.velocity -= Tuning.gravity * dt;\n            var position = row.transform.position;\n            row.transform.position = [position[0], position[1] + row.body.velocity * dt, position[2]];\n        }\n    }\n}\n\n@test(\"a body falls\")\nfunc bodyFalls() {\n    var world = TestWorld();\n    var body = world.spawn([Body(), Transform(position: [0.0, 5.0, 0.0])]);\n    world.runSystem(FallSystem, 30);\n    expect(world.read(body, \"Body\", \"velocity\") < 0.0);\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Put balance numbers in a `Config` class (`static var`), never in the systems.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Spawning and removing entities",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Structural changes go through `context.world.commands` and are applied after the system finishes. `spawn([...])` takes component constructors; `despawn(entity.id)` removes an entity. A query row is borrowed: use it inside the loop, do not store it.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "// recipe\n@component(id: \"recipes.shot\")\nstruct Shot {\n    @export var life = 0.6;\n}\n\n@component(id: \"recipes.spawner\")\nstruct Spawner {\n    @export var left = 0.0;\n}\n\n@system(id: \"recipes.spawn\")\nclass SpawnSystem {\n    @query(Spawner) var spawners;\n\n    func update(context) {\n        var fire = false;\n        for (var row in spawners) {\n            row.spawner.left -= context.deltaTime;\n            if (row.spawner.left <= 0.0) {\n                row.spawner.left = 0.25;\n                fire = true;\n            }\n        }\n        if (fire) { context.world.commands.spawn([Transform(position: [0.0, 0.0, 0.0]), Shot()]); }\n    }\n}\n\n@system(id: \"recipes.expire\")\nclass ExpireSystem {\n    @query(Shot) var shots;\n\n    func update(context) {\n        for (var row in shots) {\n            row.shot.life -= context.deltaTime;\n            if (row.shot.life <= 0.0) { context.world.commands.despawn(row.id); }\n        }\n    }\n}\n\n@test(\"shots appear and expire\")\nfunc shotsComeAndGo() {\n    var world = TestWorld();\n    world.spawn([Spawner()]);\n    world.run(30);\n    expect(world.count(\"Shot\") > 0);\n    expect(world.count(\"Shot\") < 5);\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Mesh and material components cannot be constructed from a script, so anything with a visible 3D mesh is authored in the scene. Scroll a **pool** of scene entities and reuse them instead of spawning: when an obstacle leaves the screen, move it to the back of the line and give it a new gap (`ObstacleSystem` in the example). Spawn and despawn suit logic-only entities and entities built from components a script can construct.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Collisions and scoring",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Keep the geometry in a pure function and the reaction in a system. For a side view, test the circle or box against columns in x and y. Score a column once, with a `passed` flag on the obstacle component, and raise a cue for sound.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "// recipe\nclass Hit {\n    // True when a circle at (x, y) with radius r touches a circle at (cx, cy) with radius cr.\n    static func circles(x, y, r, cx, cy, cr) {\n        var dx = x - cx;\n        var dy = y - cy;\n        var reach = r + cr;\n        return dx * dx + dy * dy <= reach * reach;\n    }\n}\n\n@test(\"circles touch only when close\")\nfunc circlesTouch() {\n    expect(Hit.circles(0.0, 0.0, 1.0, 1.5, 0.0, 1.0));\n    expect(!Hit.circles(0.0, 0.0, 1.0, 3.0, 0.0, 1.0));\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Two queries in one system can be nested (`for (var a in as) { for (var b in bs) { ... } }`). Pass numbers into functions, not rows.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Phases, game over and restart",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Store the round in a component on the Game entity: `phase` (ready, playing, over), `score`, `best` and a `resetRequested` flag. One system changes the phase from the intent; another system performs the reset when the flag is set (positions, velocities, score, flags), then clears the flag. A reset flag that starts `true` also places everything on the first frame. Gameplay systems return early unless the phase is playing.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Sound with AudioSource",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Create the sound with `editor.audio.generate`, add one entity per sound in the scene with an `AudioSource` (`source: \"@res://Audio/flap.wav\"`) and a small marker component carrying the cue name. Systems raise a cue flag in a component on the Game entity; one audio system sets `audioSource.play = true` on the matching entity and clears the cues. The engine clears `play` itself. Use one entity per sound that can overlap itself, because a second `play` restarts the first.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "code",
+        "text": "// recipe\n@component(id: \"recipes.cue-name\")\nstruct CueName {\n    @export var name = \"\";\n}\n\n@component(id: \"recipes.cues\")\nstruct Cues {\n    @export var hit = false;\n}\n\n@system(id: \"recipes.audio\")\nclass AudioSystem {\n    @query(Cues) var games;\n    @query(AudioSource, CueName) var sounds;\n\n    func update(context) {\n        var hit = false;\n        for (var game in games) {\n            hit = game.cues.hit;\n            game.cues.hit = false;\n        }\n        for (var row in sounds) {\n            if (row.cueName.name == \"hit\" && hit) { row.audioSource.play = true; }\n        }\n    }\n}\n\n@test(\"a hit cue plays the matching sound\")\nfunc hitPlaysSound() {\n    var world = TestWorld();\n    world.spawn([Cues(hit: true)]);\n    var sound = world.spawn([AudioSource(source: \"@res://Audio/hit.wav\"), CueName(name: \"hit\")]);\n    world.runSystem(AudioSystem, 1);\n    expect(world.read(sound, \"AudioSource\", \"play\"));\n}",
+        "language": "ada",
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "HUD",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "Author the HUD as a `.ui` file with string inputs, add a `UIComponent` entity that points to it, and bind each input to an exported field of a `@scriptable` class with `scriptBindings`. A scriptable can bind a script-defined `@component` with `@component var state: GameState;` and read it in `update(context)`. The example instead has one system write the text into a small `static var` presentation model (`HudModel`) that the scriptable copies into its exported fields. Gameplay never reads the model. Keep the wording in a pure function so tests can check it.",
+        "level": 0,
+        "links": []
+      },
+      {
+        "kind": "heading",
+        "text": "Test the game without a window",
+        "level": 2,
+        "links": []
+      },
+      {
+        "kind": "text",
+        "text": "`TestWorld()` creates an isolated world with the module's systems; `run(ticks)` runs fixed 1/60 s ticks, `advance(seconds)` runs one step, `read(entity, \"Component\", \"field\")` and `count(\"Component\")` inspect it. It has no `Input` resource, so bind `Input` optionally in the input system and press keys by replacing the intent component: `world.insert(game, Intent(flap: true))`, run one tick, then insert a fresh `Intent()`. A test cannot read resources, so keep data a test must check in components. `Tests/RoundTests.ada` in the example does this for the whole round: start, flap, fall, game over, restart, scoring and sound.",
         "level": 0,
         "links": []
       }

@@ -33,6 +33,7 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
     @Res<Render3DPerformanceMetrics?> private var metrics
     @Res<ExtractedDebugLines3D> private var overlays
     @Res<Bloom3DViews> private var bloomViews
+    @Res<AutoExposure3DViews> private var autoExposureViews
 
     public init(notifiesCompletion: Bool = true) {
         self.notifiesCompletion = notifiesCompletion
@@ -42,6 +43,7 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
         _metrics.update(from: world)
         _overlays.update(from: world)
         _bloomViews.update(from: world)
+        _autoExposureViews.update(from: world)
         query.update(from: world)
         _environments.update(from: world)
         _pipeline.update(from: world)
@@ -74,6 +76,8 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
             let compositeTarget = target.temporalUpscalingActive ? (target.temporalInputTexture ?? mainTexture)
                 : (environment.antiAliasing == .none ? mainTexture : (target.antiAliasing3DInputTexture ?? mainTexture))
             let jitteredUniform = temporalViewUniform(viewUniform, target: target)
+            let gradingLUT = environment.postProcess.colorGrading.activeLUT
+            let autoExposureTexture = environment.postProcess.autoExposure.isEnabled ? autoExposureViews.output(view: source.entityId) : nil
             let bloomTexture = environment.postProcess.bloom.isEnabled ? bloomViews.output(view: source.entityId) : nil
             let skybox = environment.skybox
             let reflection = environment.screenSpaceReflection
@@ -126,8 +130,15 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                     environment.postProcess.exposureScale,
                     bloomTexture == nil ? 0 : environment.postProcess.bloom.sanitized.intensity,
                     environment.postProcess.toneMapper.shaderMode,
-                    0
-                )
+                    gradingLUT?.intensity ?? 0
+                ),
+                grading: Vector4(
+                    environment.postProcess.colorGrading.sanitized.saturation,
+                    environment.postProcess.colorGrading.sanitized.contrast,
+                    environment.postProcess.vignette.sanitized.intensity,
+                    environment.postProcess.vignette.sanitized.radius
+                ),
+                vignette: Vector4(environment.postProcess.vignette.sanitized.smoothness, autoExposureTexture == nil ? 0 : 1, 0, 0)
             )
             let constants = scratch.cache.write(uniform, view: source.entityId, device: renderDevice.renderDevice)
 
@@ -155,6 +166,9 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                         .init(binding: 9, shaderStages: .fragment, resource: .texture(target.ambientOcclusion3DTexture ?? Texture2D.whiteTexture)),
                         .init(binding: 11, shaderStages: .fragment, resource: .sampler(pipeline.nearest)),
                         .init(binding: 12, shaderStages: .fragment, resource: .texture(bloomTexture ?? Texture2D.whiteTexture)),
+                        .init(binding: 13, shaderStages: .fragment, resource: .texture(gradingLUT?.texture ?? Texture2D.whiteTexture)),
+                        .init(binding: 14, shaderStages: .fragment, resource: .sampler(pipeline.sampler)),
+                        .init(binding: 15, shaderStages: .fragment, resource: .texture(autoExposureTexture ?? Texture2D.whiteTexture)),
                         .init(binding: 0, shaderStages: .fragment, resource: .texture(sceneColor)),
                         .init(binding: 1, shaderStages: .fragment, resource: .texture(normalRoughness)),
                         .init(binding: 2, shaderStages: .fragment, resource: .texture(viewPositionMetallic)),
@@ -170,7 +184,7 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
             pass.setRenderPipelineState(target.temporalUpscalingActive ? pipeline.hdrRenderPipeline : pipeline.renderPipeline)
             pass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             pass.endRenderPass()
-            if notifiesCompletion, !overlays.hasOverlay, environment.antiAliasing == .none, !environment.debugView.replacesFinalImage, let outputTexture = target.outputTexture,
+            if notifiesCompletion, !overlays.hasOverlay, environment.antiAliasing == .none, !environment.laterPassesWriteOutput, let outputTexture = target.outputTexture,
                mainTexture === outputTexture {
                 commandBuffer.addCompletedHandler { [outputTexture] in
                     outputTexture.notifyRenderCompleted()

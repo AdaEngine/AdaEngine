@@ -28,18 +28,39 @@ enum ShaderCache {
     private static let logger = Logger(label: "org.adaengine.shader-cache")
     private static let cachedManifest = Mutex<Cache?>(nil)
 
-    static func hasChanges(for source: ShaderSource, version: Int) -> Set<ShaderStage> {
-        changedStages(for: source, stages: source.stages, version: version)
+    /// Hash of a stage's source with its includes expanded, so editing an included file invalidates every
+    /// shader that uses it. When an include cannot be resolved the raw text is hashed and compilation reports
+    /// the error later.
+    static func hashValue(of source: String, includeSearchPaths: [ShaderSource.IncludeSearchPath]) -> Int {
+        let expanded = (try? ShaderIncluder.processIncludes(in: source, includeSearchPath: includeSearchPaths)) ?? source
+        return expanded.uniqueHashValue
     }
 
-    static func hasChanges(for source: ShaderSource, stage: ShaderStage, version: Int) -> Bool {
-        changedStages(for: source, stages: [stage], version: version).contains(stage)
+    /// - Parameter includeSearchPaths: Every path the compiler resolves includes through. The compiler adds
+    ///   the engine's own `AdaEngine` module itself, so callers that compile should pass its full list;
+    ///   otherwise only `source.includeSearchPaths` is used.
+    static func hasChanges(
+        for source: ShaderSource,
+        version: Int,
+        includeSearchPaths: [ShaderSource.IncludeSearchPath]? = nil
+    ) -> Set<ShaderStage> {
+        changedStages(for: source, stages: source.stages, version: version, includeSearchPaths: includeSearchPaths)
+    }
+
+    static func hasChanges(
+        for source: ShaderSource,
+        stage: ShaderStage,
+        version: Int,
+        includeSearchPaths: [ShaderSource.IncludeSearchPath]? = nil
+    ) -> Bool {
+        changedStages(for: source, stages: [stage], version: version, includeSearchPaths: includeSearchPaths).contains(stage)
     }
 
     private static func changedStages(
         for source: ShaderSource,
         stages: [ShaderStage],
-        version: Int
+        version: Int,
+        includeSearchPaths: [ShaderSource.IncludeSearchPath]?
     ) -> Set<ShaderStage> {
         guard let fileURL = source.fileURL else {
             return []
@@ -60,7 +81,7 @@ enum ShaderCache {
                 }
 
                 let shaderCache = ShaderCache(
-                    sourceHashValue: shaderSource.uniqueHashValue,
+                    sourceHashValue: Self.hashValue(of: shaderSource, includeSearchPaths: includeSearchPaths ?? source.includeSearchPaths),
                     headers: source.includeSearchPaths,
                     version: version
                 )

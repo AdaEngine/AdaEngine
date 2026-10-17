@@ -40,6 +40,7 @@ struct EditorBuildSDK: Sendable {
             throw EditorCLIError.environment("AdaScript build SDK not found. Use --sdk or ADA_STUDIO_SDK.")
         }
         let candidates = environment["ADAENGINE_GRAVITY_PACKAGE_PATH"].map { [URL(fileURLWithPath: $0)] } ?? [
+            engine.appendingPathComponent("Sources/gravity-lang"),
             engine.appendingPathComponent("Editor/.build/checkouts/gravity-lang"),
             engine.appendingPathComponent(".build/checkouts/gravity-lang"),
             engine.deletingLastPathComponent().appendingPathComponent("gravity-lang-aot"),

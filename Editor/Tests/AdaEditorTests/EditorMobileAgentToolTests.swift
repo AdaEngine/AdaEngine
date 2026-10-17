@@ -99,7 +99,7 @@ struct EditorMobileAgentToolTests {
         let components = try await call(service, "editor.components.describe", ["query": "Transform"])
         #expect(String(describing: components).contains("defaultPayload"))
         let list = try await call(service, "editor.examples.list")
-        #expect((list["examples"] as? [[String: Any]])?.count == 3)
+        #expect((list["examples"] as? [[String: Any]])?.count == 4)
         let example = try await call(service, "editor.examples.read", ["id": "keyboard-movement"])
         #expect((example["files"] as? [String: String])?["Sources/Game.ada"]?.contains("@res var input") == true)
     }
@@ -137,6 +137,15 @@ struct EditorMobileAgentToolTests {
             } else if example.id == "basic-3d-scene" {
                 #expect(entities.contains { $0["name"] as? String == "Cube" })
                 #expect(stepped["rendered"] as? Bool == false)
+            } else if example.id == EditorAgentBundledExamples.sideScrollerID {
+                // The Flap action is bound to Space: pressing it starts the round and lifts the player.
+                let flown = try await call(service, "editor.runtime.step", ["frames": 6, "keys": .array(["space"])])
+                let flownEntities = try #require(flown["entities"] as? [[String: Any]])
+                let player = try #require(flownEntities.first { $0["name"] as? String == "Player" })
+                #expect(((player["position"] as? [Double])?[1] ?? 0) > 0.2)
+                let game = try #require(flownEntities.first { $0["name"] as? String == "Game" })
+                #expect(String(describing: game).contains("GameState"))
+                #expect((flown["diagnostics"] as? [String])?.isEmpty == true)
             } else {
                 #expect(String(describing: entities).contains("Counter"))
                 #expect(String(describing: entities).contains("6"))

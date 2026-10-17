@@ -5,7 +5,8 @@
     import Foundation
     import Testing
 
-    /// Run alone: other integration suites may initialize the process-wide renderer as headless.
+    extension Render3DGPUTests {
+    /// Enable explicitly; shares serialization with the other 3D GPU suites.
     @MainActor
     @Suite("WebGPU Hi-Z 3D scene", .serialized)
     struct WGPUVisibilitySceneTests {
@@ -161,5 +162,6 @@
                 try unshadowed.writePNG(to: URL(fileURLWithPath: directory).appendingPathComponent("shadow-disabled.png"))
             }
         }
+    }
     }
 #endif

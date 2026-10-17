@@ -46,7 +46,7 @@ enum MobileEditorAgentContext {
         - Use editor.gravity.diagnostics after edits; completion, hover and definition use the embedded project-aware Gravity LSP.
           Always pass project-relative paths. Positions use zero-based UTF-16 coordinates.
         - Use editor.project.configure to change runtime.entry, runtime.plugins or inputActions; files.write cannot overwrite .ada/project.json.
-          AdaScript @view and @resource declarations are currently unavailable in this portable runtime. Use supported scene UI and @res Input.
+          AdaScript @view declarations are currently unavailable in this portable runtime. Use supported scene UI. @resource structs are supported and are bound with @res.
         - Use editor.runtime.start, editor.runtime.step and editor.runtime.inspect to exercise real systems, keyboard input, startup callbacks and scene navigation.
           runtime.step keys is the complete set of held keys; [] releases them. Restart after file edits.
           Use editor.output.read for full build/debug output and errors from visible Play. Simulation does not verify rendering or touch hit testing.

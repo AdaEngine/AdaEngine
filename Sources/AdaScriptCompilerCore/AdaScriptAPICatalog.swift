@@ -31,6 +31,21 @@ public extension AdaScriptTypeEnvironment {
     ]
 
     private static let standardMembers: [String: [String: AdaScriptMemberType]] = [
+        "NavigationTarget3DComponent": members([
+            property("destination", type: .list(.float), detail: "World-space goal; assign null to stop navigation"),
+        ]),
+        "NavigationAgent3DComponent": members([
+            property("state", type: .string, detail: "Read-only: idle, following, arrived, partialEnd, blocked or failed"),
+            property("errorCode", type: .string, detail: "Read-only NavigationError case name; empty on success"),
+            property("hasArrived", type: .bool, detail: "Read-only: the character reached the route endpoint"),
+            property("hasPath", type: .bool, detail: "Read-only: a route is assigned"),
+            property("pathPointCount", type: .int, detail: "Read-only number of route corners"),
+            property("routeLength", type: .float, detail: "Read-only length of the assigned route"),
+            property("maximumSpeed", type: .float, detail: "Maximum navigation speed in world units per second"),
+            property("arrivalTolerance", type: .float, detail: "Horizontal distance accepted at the route endpoint"),
+            property("repathInterval", type: .float, detail: "Minimum seconds between failed or blocked route retries"),
+            property("targetRepathDistance", type: .float, detail: "Target movement needed to request a replacement route"),
+        ]),
         "$AdaCommands": members([
             method(
                 "setTileOrientation",

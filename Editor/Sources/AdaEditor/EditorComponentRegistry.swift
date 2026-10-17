@@ -49,6 +49,8 @@ enum EditorComponentFieldKind: Equatable, Sendable {
 extension EditorComponentFieldKind {
     init(reflectedKind: ReflectedFieldKind) {
         switch reflectedKind {
+        case let .optional(wrapped):
+            self.init(reflectedKind: wrapped)
         case .bool:
             self = .bool
         case .int:
@@ -318,7 +320,7 @@ enum EditorComponentRegistry {
         RuntimeTypeRegistry.registerComponent(Model3DSource.self, names: ["Model3DSource"])
         RuntimeTypeRegistry.registerComponent(SpineSource.self, names: ["SpineSource"])
         AssetsManager.registerAssetType(SpineSkeleton.self)
-        RuntimeTypeRegistry.registerComponent(AudioSource.self, names: ["AudioSource"])
+        RuntimeTypeRegistry.registerComponent(AudioSource.self, names: ["AudioSource"], makeDefault: { AudioSource() })
         ModelAnimationPlayback3DComponent.registerComponent()
         CharacterController3DComponent.registerComponent()
         CameraCollision3DComponent.registerComponent()

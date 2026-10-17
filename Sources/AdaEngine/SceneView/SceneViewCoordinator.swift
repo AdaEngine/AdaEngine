@@ -43,7 +43,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private weak var hostWorlds: AppWorlds?
     private var isRenderingEnabled = true
     /// Fallback when no host session exists (e.g. unusual test harnesses).
-    private var standaloneTickInFlight = false
+    private(set) var standaloneTickInFlight = false
 
     private let hostSubworldName: AppWorldName
     private var currentSize: SizeInt = .zero
@@ -227,6 +227,9 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         guard let appWorlds, hasCalledSetup else {
             return
         }
+        // A standalone update may suspend during startup, asset loading or rendering.
+        // Retargeting before it finishes reserves textures for frames that were never submitted.
+        guard isHostedSubworld || !standaloneTickInFlight else { return }
         appWorlds.withExecutionContext {
             updateContentClosure(appWorlds.main, deltaTime)
         }
@@ -253,8 +256,9 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             return
         }
         let input = app.main.getRefResource(Input.self)
+        // Parse on the next preUpdate. Flushing during an in-flight async frame
+        // lets its postUpdate cleanup discard the event before input systems see it.
         input.wrappedValue.receiveEvent(event)
-        input.wrappedValue.flushPendingEvents()
     }
 
     func updateMousePosition(_ position: Point) {
@@ -541,6 +545,12 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     private func scheduleForDisplay(_ texture: RenderTexture) {
+        // Authored cameras may appear during the first startup scheduler. Do not leave
+        // an unrendered target at the head of the presentation queue before they exist.
+        if useSceneCameras,
+            appWorlds?.main.getEntities().contains(where: { $0.components[Camera.self]?.isActive == true }) != true {
+            return
+        }
         guard !pendingDisplayTargets.contains(where: { $0.texture === texture }) else {
             return
         }
