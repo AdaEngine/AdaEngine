@@ -19,6 +19,8 @@ public enum ReflectedFieldKind: Equatable, Sendable {
     case vector4
     case color
     case assetReference
+    /// A nullable field with the same value representation as its wrapped kind.
+    indirect case optional(ReflectedFieldKind)
     case readOnly
 }
 
@@ -157,7 +159,7 @@ public struct ReflectedComponentDescriptor: @unchecked Sendable {
 }
 
 /// An enum whose cases can be represented by component reflection.
-public protocol ReflectedEnum: CaseIterable, Sendable {
+public protocol ReflectedEnum: CaseIterable, ReflectedFieldConvertible, Sendable {
     var reflectedName: String { get }
     static var reflectedNames: [String] { get }
     static func reflectedCase(named name: String) -> Self?

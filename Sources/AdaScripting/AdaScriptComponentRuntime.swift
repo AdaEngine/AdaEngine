@@ -204,7 +204,7 @@ final class AnnotatedGravityComponentFactory: @unchecked Sendable {
             reportDiagnostic("AdaScript component constructor index \(constructorIndex) is not linked")
             return AnnotatedGravityComponentValue()
         }
-        guard let arguments = arguments(from: argumentValues) else { return AnnotatedGravityComponentValue() }
+        guard let arguments = arguments(from: argumentValues, kinds: constructors[constructorIndex].parameters.map(\.kind)) else { return AnnotatedGravityComponentValue() }
 
         do {
             return AnnotatedGravityComponentValue(
@@ -217,7 +217,8 @@ final class AnnotatedGravityComponentFactory: @unchecked Sendable {
     }
 
     func makeNamed(_ name: String, _ argumentValues: GSValue) -> AnnotatedGravityComponentValue {
-        guard let arguments = arguments(from: argumentValues) else { return AnnotatedGravityComponentValue() }
+        let kinds = constructorsByName[name]?.parameters.map(\.kind) ?? runtimeDescriptorsByName[name]?.fields.map(\.kind) ?? []
+        guard let arguments = arguments(from: argumentValues, kinds: kinds) else { return AnnotatedGravityComponentValue() }
         if let constructor = constructorsByName[name] {
             do {
                 return AnnotatedGravityComponentValue(component: try constructor.construct(arguments: arguments))
@@ -253,16 +254,19 @@ final class AnnotatedGravityComponentFactory: @unchecked Sendable {
         )
     }
 
-    private func arguments(from argumentValues: GSValue) -> [ReflectedFieldValue?]? {
+    private func arguments(from argumentValues: GSValue, kinds: [ReflectedFieldKind]) -> [ReflectedFieldValue?]? {
         guard argumentValues.isList else {
             reportDiagnostic("AdaScript component constructor arguments must be a list")
             return nil
         }
         var arguments: [ReflectedFieldValue?] = []
         arguments.reserveCapacity(argumentValues.toList.count)
-        for value in argumentValues.toList {
-            if value.isNull || value.isUndefined {
+        for (index, value) in argumentValues.toList.enumerated() {
+            if value.isUndefined {
                 arguments.append(nil)
+            } else if value.isNull {
+                if kinds.indices.contains(index), case .optional = kinds[index] { arguments.append(.null) }
+                else { arguments.append(nil) }
             } else if let fieldValue = AnnotatedGravityValueBridge.makeReflectedFieldValue(value) {
                 arguments.append(fieldValue)
             } else {

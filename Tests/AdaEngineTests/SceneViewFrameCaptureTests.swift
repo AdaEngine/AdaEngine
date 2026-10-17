@@ -123,6 +123,7 @@ struct SceneViewFrameCaptureTests {
 
         coordinator.updateSize(SizeInt(width: 32, height: 24), scaleFactor: 1)
         coordinator.tick(0.2)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
 
         // The viewport must never expose what is behind it (a white flash) while the new targets render.
         #expect(coordinator.renderTexture === displayed)
@@ -133,8 +134,29 @@ struct SceneViewFrameCaptureTests {
         target.notifyRenderCompleted()
         for _ in 0..<50 { await Task.yield() }
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
         #expect(coordinator.renderTexture === displayed)
         #expect(displayed.width == 32)
+    }
+
+    @Test
+    func asynchronousBackendsCanReadCompletedFrames() async throws {
+        let coordinator = SceneViewCoordinator(make: { _ in }, updateContent: { _, _ in }, frameCaptureLabel: "async")
+        defer { coordinator.shutdown() }
+        let source = try #require(coordinator.frameSource)
+        source.asyncPixelReader = { _ in
+            await Task.yield()
+            return Image(width: 20, height: 10, color: .green, format: .bgra8)
+        }
+        try await boot(coordinator)
+        try await completeFrame(of: coordinator)
+        let sequence = source.frameSequence
+        let frame = try await source.captureFrame(after: 0, maxDimension: 10)
+        #expect(frame.sequence == sequence)
+        #expect(frame.sourceWidth == 20)
+        #expect(frame.sourceHeight == 10)
+        #expect(frame.image.width == 10)
+        #expect(frame.image.height == 5)
     }
 
     @Test
@@ -165,10 +187,12 @@ struct SceneViewFrameCaptureTests {
     /// Submits one frame to the render target and reports its GPU completion.
     private func completeFrame(of coordinator: SceneViewCoordinator) async throws {
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
         let app = try #require(coordinator.appWorlds)
         let target = try #require(renderTarget(in: app.main))
         target.notifyRenderCompleted()
         for _ in 0..<50 { await Task.yield() }
         coordinator.tick(0.016)
+        for _ in 0..<5000 where coordinator.standaloneTickInFlight { await Task.yield() }
     }
 }

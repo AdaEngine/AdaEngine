@@ -69,6 +69,9 @@ public final class SceneViewFrameSource {
     weak var coordinator: SceneViewCoordinator?
     /// Replaceable in tests; headless render backends have no readable pixels.
     var pixelReader: @MainActor (Texture2D) -> Image = { Image(texture: $0) }
+    var asyncPixelReader: @MainActor (Texture2D) async throws -> Image? = {
+        try await unsafe RenderEngine.shared.renderDevice.readImage(from: $0)
+    }
 
     init(label: String, coordinator: SceneViewCoordinator) {
         self.label = label
@@ -129,7 +132,7 @@ public final class SceneViewFrameSource {
         )
     }
 
-    /// Waits for a frame newer than `sequence`, then reads it.
+    /// Waits for a frame newer than `sequence`, then reads it, including asynchronous GPU backends.
     ///
     /// Use after sending input to observe its effect: pass ``frameSequence`` from before the input.
     public func captureFrame(
@@ -148,7 +151,27 @@ public final class SceneViewFrameSource {
             guard clock.now < deadline else { throw SceneViewFrameCaptureError.timeout }
             try await Task.sleep(for: .milliseconds(8))
         }
-        return try captureFrame(cameraName: cameraName, maxDimension: maxDimension)
+        do {
+            return try captureFrame(cameraName: cameraName, maxDimension: maxDimension)
+        } catch SceneViewFrameCaptureError.frameUnreadable {
+            guard let coordinator, let texture = coordinator.completedFrameTexture else {
+                throw SceneViewFrameCaptureError.noCompletedFrame
+            }
+            // Snapshot metadata before readback suspends and the next frame is published.
+            let sequence = coordinator.completedFrameCount
+            let cameras = coordinator.activeCameraNames
+            guard let image = try await asyncPixelReader(texture),
+                !image.data.isEmpty, image.width > 0, image.height > 0 else {
+                throw SceneViewFrameCaptureError.frameUnreadable
+            }
+            return SceneViewCapturedFrame(
+                image: maxDimension.map { image.scaledToFit(maxDimension: $0) } ?? image,
+                sequence: sequence,
+                sourceWidth: image.width,
+                sourceHeight: image.height,
+                activeCameras: cameras
+            )
+        }
     }
 }
 

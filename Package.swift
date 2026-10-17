@@ -34,7 +34,7 @@ let isWebExportEnabled: Bool = {
     return webExportValue.map(enabledValues.contains) == true
 }()
 
-// Local compiler development can override the Gravity default branch.
+// Local compiler development can override the checked-in, patched AdaScript runtime.
 let gravityDevelopmentPath = ProcessInfo.processInfo.environment["ADAENGINE_GRAVITY_PACKAGE_PATH"]
 let gravityAOTDependencies: [Target.Dependency] = [
     .product(name: "GravityAOT", package: "gravity-lang")
@@ -70,6 +70,9 @@ extension String {
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
 var products: [Product] = [
+    .executable(name: "NavigationDemo", targets: ["NavigationDemo"]),
+    .library(name: "AdaNavigation", targets: ["AdaNavigation"]),
+    .library(name: "AdaNavigationBaking", targets: ["AdaNavigationBaking"]),
     .executable(name: "SpinePreview", targets: ["SpinePreview"]),
     .library(name: "AdaSpine", targets: ["AdaSpine"]),
     .library(name: "CAndroid", targets: ["CAndroid"]),
@@ -235,6 +238,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "AdaRender",
     "AdaText",
     "AdaInput",
+    "AdaNavigation",
     "AdaScene",
     "AdaScripting",
     "AdaSprite",
@@ -325,6 +329,30 @@ let adaEngineMacros: Target = .macro(
 // MARK: Other Targets
 
 var targets: [Target] = [
+    .executableTarget(
+        name: "NavigationDemo",
+        dependencies: ["AdaEngine", "AdaNavigationBaking"],
+        path: "Demos/Navigation",
+        resources: [.copy("NavigationRobot.ada")],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "Detour",
+        path: "Sources/RecastNavigation/Detour",
+        sources: ["Source"],
+        publicHeadersPath: "Include"
+    ),
+    .target(
+        name: "Recast",
+        path: "Sources/RecastNavigation/Recast",
+        sources: ["Source"],
+        publicHeadersPath: "Include"
+    ),
+    .target(name: "CNavigation", dependencies: ["Detour"]),
+    .target(name: "CNavigationBaking", dependencies: ["CNavigation", "Detour", "Recast"]),
+    .target(name: "AdaNavigation", dependencies: ["CNavigation", "Math"], swiftSettings: swiftSettings),
+    .target(name: "AdaNavigationBaking", dependencies: ["AdaNavigation", "CNavigationBaking", "Math"], swiftSettings: swiftSettings),
+    .testTarget(name: "AdaNavigationTests", dependencies: ["AdaNavigation", "AdaNavigationBaking", "Math"], swiftSettings: swiftSettings),
     .executableTarget(
         name: "SpinePreview",
         dependencies: ["AdaSpineRuntime"],
@@ -640,6 +668,7 @@ var targets: [Target] = [
             "AdaECS",
             "AdaAnimation",
             "box2d",
+            "AdaNavigation",
             "AdaTransform",
             "AdaText",
             "AdaAudio",
@@ -1320,7 +1349,7 @@ if isECSBenchmarkEnabled {
 targets += [
     .testTarget(
         name: "AdaEngineTests",
-        dependencies: ["AdaEngine"],
+        dependencies: ["AdaEngine", "AdaNavigationBaking", "AdaScriptAOTFixture", .product(name: "GravityAOT", package: "gravity-lang")],
         exclude: ["Fixtures"],
     ),
     .testTarget(
@@ -1435,6 +1464,10 @@ targets += [
     .testTarget(
         name: "AdaSceneTests",
         dependencies: [
+            "AdaNavigation",
+            "AdaNavigationBaking",
+            "AdaPhysics",
+            "AdaTransform",
             "AdaApp",
             "AdaAssets",
             "AdaScene",
@@ -1489,17 +1522,14 @@ let package = Package(
 if let gravityDevelopmentPath {
     package.dependencies.append(.package(name: "gravity-lang", path: gravityDevelopmentPath))
 } else {
-    package.dependencies.append(.package(
-        url: "https://github.com/AdaEngine/gravity-lang.git",
-        branch: "master"
-    ))
+    package.dependencies.append(.package(name: "gravity-lang", path: "Sources/gravity-lang"))
 }
 
 package.targets.append(.target(
     name: "AdaScriptAOTFixture",
     dependencies: [.product(name: "CGravity", package: "gravity-lang")],
     path: "Tests/AdaScriptAOTFixture",
-    exclude: ["Movement.ada", "HostAdapters.ada", "Async.ada"],
+    exclude: ["Movement.ada", "HostAdapters.ada", "Async.ada", "Navigation.ada"],
     publicHeadersPath: "include"
 ))
 

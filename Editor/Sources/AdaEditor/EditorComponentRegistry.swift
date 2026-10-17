@@ -49,6 +49,8 @@ enum EditorComponentFieldKind: Equatable, Sendable {
 extension EditorComponentFieldKind {
     init(reflectedKind: ReflectedFieldKind) {
         switch reflectedKind {
+        case let .optional(wrapped):
+            self.init(reflectedKind: wrapped)
         case .bool:
             self = .bool
         case .int:

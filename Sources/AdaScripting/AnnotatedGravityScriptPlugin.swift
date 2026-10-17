@@ -1145,6 +1145,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         let authoredSource = module.entrySource
         let standardLibrary = communityPolicy == nil ? AdaScriptStandardLibrary.source : AdaScriptStandardLibrary.communitySource
         let runtimeSource = (isInstrumented ? "extern var __adaUGCBudget;\n" : "") + standardLibrary + "\n"
+                + "func __ada_instantiate_system(systemType) { return systemType(); }\n"
                 + AdaScriptTaskPrelude.source + "\n"
                 + (module.includesTests ? AdaScriptTestPrelude.source + "\n" : "")
                 + AdaScriptComponentRuntime.prelude(constructors: componentConstructors, authoredSource: module.combinedSource)
@@ -1171,7 +1172,10 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         communityBudget?.reset()
         for plan in plans {
             let systemClass = virtualMachine.getValue(forKey: plan.className)
-            guard systemClass.isClass, let instance = systemClass.callAsFunction(), instance.isInstance else {
+            // Class.exec can redirect to an automatically generated initializer. That
+            // redirection is executed by VM bytecode, not by a direct host closure call.
+            let factory = virtualMachine.getValue(forKey: "__ada_instantiate_system")
+            guard systemClass.isClass, let instance = factory.callConstructor(with: [systemClass]), instance.isInstance else {
                 throw AdaScriptError.invalidManifest("Unable to instantiate @system class '\(plan.className)'")
             }
             guard instance.hasMethod(named: "update") else {
