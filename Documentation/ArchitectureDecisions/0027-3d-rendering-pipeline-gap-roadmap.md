@@ -282,7 +282,9 @@ Each item needs its own short requirements note before implementation.
 - [x] Stage 0: golden-frame harness with Metal tolerance and checked-in references.
 - [x] Stage 0: golden-frame references and tolerance for WebGPU, plus a Metal/WebGPU agreement test.
 - [ ] Stage 0: golden-frame references for other backends (Vulkan, OpenGL, Windows).
-- [ ] Stage 0: prepass decision confirmed with GPU measurements (analysis recorded below).
+- [x] Stage 0: GPU/CPU performance baseline harness (`Render3DGPUTests/Benchmarks`) with reproducible numbers.
+- [x] Performance pass 1: visible-list preparation, SSR trace cost and redundant shadow lookups (numbers below).
+- [ ] Stage 0: prepass decision confirmed with GPU measurements (the harness now exists; overdraw is still not measured).
 - [x] Stage 1: per-camera `PostProcess3D` with manual exposure (ADR-0019 exposure).
 - [x] Stage 1: HDR bloom with reusable per-camera chain (ADR-0019 bloom).
 - [x] Stage 1: tone-map operator choice (ACES fit, neutral, none) and a shared output-transform shader.
@@ -458,6 +460,84 @@ verified: Apple mobile, Windows, the windowed presentation
 notification path (only offscreen targets were exercised). Editor coverage is in
 the second pass. The Editor serializes `Environment3D` payloads, which now
 include `debugView`; older payloads decode to `.none` (covered by an engine test).
+
+### Performance pass 1 (2026-10-17)
+
+**Method.** `Render3DGPUTests/Benchmarks` renders a heavy scene (400 PBR spheres
+with 8 materials, a ground, a sun with three cascades, six point and two spot
+lights, 1920 by 1080) under a set of configurations and reports, per
+configuration, GPU milliseconds per pass (passes serialized so each is isolated),
+their sum, the wall time of that serialized run, and `free`: time per frame with
+nothing serialized, which is the rate the engine really sustains. Each
+configuration is measured in several rounds and every figure keeps its best
+round, because GPU clocks ramp and other GPU work on the machine (another test
+run, Xcode) inflates single runs, for example a bare frame once read 5 ms of
+geometry instead of 1.7. Run it on a quiet machine:
+
+```sh
+ADAENGINE_PERF=1 ADAENGINE_GOLDEN_METAL=1 swift test -c release -Xswiftc -enable-testing \
+  --filter Render3DGPUTests/Benchmarks
+```
+
+`ADAENGINE_PERF_OUTPUT`, `_SIZE`, `_GRID`, `_FILTER`, `_ROUNDS` and `_FRAMES` select
+the report file, target size, mesh grid size, configurations and effort. GPU
+pass timings exist on Metal only; WebGPU reports no timestamps.
+
+**Results on an Apple M-class GPU, 1080p, release build (best of rounds).**
+
+| configuration | free ms/frame | notes |
+| --- | ---: | --- |
+| bare (geometry, shadows, composite, 8 local lights) | 2.4 | geometry 1.7, local shadows 1.15, sun shadows 0.56 |
+| bare without local lights | 1.4 | local lights cost about 1 ms here |
+| + SSAO | 3.3 | pass 0.66 |
+| + SSR | 3.7 | composite 1.43, was 2.31 |
+| + FXAA, vignette, grading, LUT | within 0.1 | effectively free |
+| + bloom | 2.8 | 0.32 |
+| + auto exposure | 2.8 | 0.24 (about eight tiny passes) |
+| + depth of field | 3.2 | 0.75 |
+| everything on | 5.7 | |
+| MetalFX temporal at 75% scale | 5.1 | temporal pass 3.2 |
+
+**What changed.**
+
+- *Visible-list preparation.* A 4,900-mesh frame took 12 to 15 ms and was
+  CPU-bound; a profile put most of the render-node time in
+  `VisibleMesh3DLists.prepare`, which runs for the camera, every shadow cascade
+  and every local-light face. It copied a large source value per pass and mesh,
+  hashed, string-compared and dynamically cast per part, and sorted records that
+  held references. It now reads fields in place, skips LOD bookkeeping for meshes
+  without alternatives, builds one template per batch, keeps reference-free records
+  and places them with a counting pass. A digest test
+  (`VisibleMesh3DListsEquivalenceTests`) pins every draw item, instance and counter of
+  the old implementation on a varied scene. One camera pass over 5,000 sources went
+  from 5.24 ms to 0.57 ms, and the 4,900-mesh frame to 6.8 ms (6.2 ms without local
+  lights), now bounded by the GPU. Systems still cost about half a millisecond
+  per frame at that size, mostly `ExtractModel3D`.
+- *Screen-space reflections.* The pass cost is almost entirely ray steps (one step
+  0.31 ms, 16 steps 0.65, 48 steps 2.3 at 1080p). The trace now marches at twice the
+  stride and refines the crossing with a four-step binary search, which finds the
+  same hits in half the steps, and skips rays whose weight is below 0.4%. Reflections
+  keep their look except for one or two pixels at the edges of reflected objects and
+  smoother banding, so the reflection golden frames were deliberately re-recorded
+  (`pbr-spheres-ssr*`, Metal and WebGPU). Composite: 2.31 ms to 1.43 ms.
+- *Shadow lookups.* The sun and local lights sampled their shadow maps even where the
+  light contributed nothing (surface facing away, outside a cone). They now skip the
+  lookup when the contribution is zero; the output is unchanged.
+
+**Where the time still goes (candidates, in order of measured cost).**
+
+1. Local lights: about 1 ms for eight lights (13 shadow faces plus the per-pixel
+   loop). Clustered or tiled assignment and a cheaper shadow filter are the options
+   (Stage 6).
+2. Geometry: vertex-bound for dense meshes (4,900 spheres of about 1,300 triangles
+   took 4 to 5 ms regardless of resolution). Static-mesh LOD (Stage 7) is the fix.
+3. MetalFX temporal at 3.2 ms is outside engine code.
+4. Depth of field 0.75 ms (24 taps plus a copy pass) and SSAO 0.66 ms.
+5. Many tiny passes (auto exposure, bloom) cost per-pass overhead; merging them is
+   possible but showed under 0.1 ms in `free` time, so it is not worth the risk yet.
+
+**Not measured.** WebGPU and mobile timings, memory per effect, overdraw (the
+prepass decision stays open), and scenes with skinned meshes.
 
 ### Stage 0 and 1 second pass (2026-10-16)
 
