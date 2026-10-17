@@ -61,21 +61,20 @@ public actor NavigationMesh {
             }
         }
         let status: NavigationPathStatus
-        // C enum signedness varies by host; normalize both sides before matching.
-        switch Int(result) {
-        case Int(AE_NAV_SUCCESS.rawValue):
+        switch Int64(result) {
+        case Int64(AE_NAV_SUCCESS.rawValue):
             status = .complete
-        case Int(AE_NAV_PARTIAL.rawValue):
+        case Int64(AE_NAV_PARTIAL.rawValue):
             guard options.allowsPartialPath else { throw .unreachable }
             status = .partial
-        case Int(AE_NAV_SEARCH_LIMIT.rawValue):
+        case Int64(AE_NAV_SEARCH_LIMIT.rawValue):
             guard options.allowsPartialPath else { throw .searchLimitReached }
             status = .searchLimitReached
-        case Int(AE_NAV_START_OUTSIDE.rawValue): throw .startOutsideMesh
-        case Int(AE_NAV_TARGET_OUTSIDE.rawValue): throw .targetOutsideMesh
-        case Int(AE_NAV_OUT_OF_MEMORY.rawValue): throw .outOfMemory
-        case Int(AE_NAV_BUFFER_LIMIT.rawValue): throw .pathCapacityExceeded
-        case Int(AE_NAV_INVALID_INPUT.rawValue): throw .invalidQuery
+        case Int64(AE_NAV_START_OUTSIDE.rawValue): throw .startOutsideMesh
+        case Int64(AE_NAV_TARGET_OUTSIDE.rawValue): throw .targetOutsideMesh
+        case Int64(AE_NAV_OUT_OF_MEMORY.rawValue): throw .outOfMemory
+        case Int64(AE_NAV_BUFFER_LIMIT.rawValue): throw .pathCapacityExceeded
+        case Int64(AE_NAV_INVALID_INPUT.rawValue): throw .invalidQuery
         default: throw .queryFailed
         }
         let corners = (0..<Int(pointCount)).map { index in
