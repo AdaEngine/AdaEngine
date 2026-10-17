@@ -3,7 +3,7 @@
 extension EditorInspectorSidebar {
     func compactActionButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.blue)
                 .padding(.horizontal, 7)
@@ -24,7 +24,7 @@ extension EditorInspectorSidebar {
                 label: {
                     HStack(spacing: 6) {
                         Text("\u{E145}").font(AdaEditorMaterialSymbolFont.font(size: 15))
-                        Text("Add Component").font(.system(size: 11))
+                        Text(L10n.text("Add Component")).font(.system(size: 11))
                         Spacer()
                         Text("\u{E5CC}")
                             .font(AdaEditorMaterialSymbolFont.font(size: 16))
@@ -45,7 +45,7 @@ extension EditorInspectorSidebar {
     func scriptableObjectEditor(_ object: EditorInspectorSidebarViewModel.ScriptableObjectSection) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Text(object.displayName)
+                Text(L10n.tr(object.displayName))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.text)
                 Spacer()
@@ -152,7 +152,7 @@ struct EditorAddComponentDialog: View {
                 .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.blue.opacity(0.15)))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Add Component")
+                Text(L10n.text("Add Component"))
                     .font(.system(size: 18, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
                 Text(dialogDescription)
@@ -186,7 +186,7 @@ struct EditorAddComponentDialog: View {
             Text("\u{E8B6}")
                 .font(AdaEditorMaterialSymbolFont.font(size: 18))
                 .foregroundColor(theme.editorColors.muted)
-            TextField("Search by name, category, or description", text: viewModel.componentSearchTextBinding)
+            TextField(L10n.text("Search by name, category, or description"), text: viewModel.componentSearchTextBinding)
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
                 .textFieldStyle(PlainTextFieldStyle())
@@ -223,10 +223,10 @@ struct EditorAddComponentDialog: View {
         if components.isEmpty {
             VStack(spacing: 8) {
                 Spacer()
-                Text("No components found")
+                Text(L10n.text("No components found"))
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
-                Text("Try another name, category, or description.")
+                Text(L10n.text("Try another name, category, or description."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                 Spacer()
@@ -262,11 +262,11 @@ struct EditorAddComponentDialog: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            Text("\(viewModel.addableComponents(matching: viewModel.componentSearchText).count) available")
+            Text(L10n.text("\(viewModel.addableComponents(matching: viewModel.componentSearchText).count) available"))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.muted)
             Spacer()
-            Button("Cancel", action: close)
+            Button(L10n.text("Cancel"), action: close)
                 .font(.system(size: 11, weight: .bold))
                 .foregroundColor(theme.editorColors.text)
                 .padding(.horizontal, 14)
@@ -338,17 +338,17 @@ private struct EditorAddComponentRow: View {
     private var componentDescription: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Text(component.displayName)
+                Text(L10n.tr(component.displayName))
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
-                Text(component.category)
+                Text(L10n.tr(component.category))
                     .font(.system(size: 9, weight: .bold))
                     .foregroundColor(theme.editorColors.blue)
                     .padding(.horizontal, 7)
                     .frame(height: 20)
                     .background(CapsuleShape().fill(theme.editorColors.blue.opacity(0.12)))
             }
-            Text(component.description)
+            Text(L10n.tr(component.description))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(2)

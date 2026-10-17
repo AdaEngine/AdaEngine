@@ -13,14 +13,14 @@ struct EditorVRDock: View {
                 Button(action: { togglePanel(.project) }) {
                     HStack(spacing: 8) {
                         Text("\u{E2C7}").font(AdaEditorMaterialSymbolFont.font(size: 18))
-                        Text(workspace.project?.name ?? "Ada Studio VR").font(.system(size: 15, weight: .semibold)).lineLimit(1)
+                        Text(workspace.project?.name ?? L10n.text("Ada Studio VR")).font(.system(size: 15, weight: .semibold)).lineLimit(1)
                         Text(workspace.document?.title ?? "").font(.system(size: 13)).foregroundColor(theme.editorColors.muted).lineLimit(1)
                         Text("\u{E5CF}").font(AdaEditorMaterialSymbolFont.font(size: 16))
                     }
                 }.buttonStyle(DefaultButtonStyle()).accessibilityIdentifier("AdaEditor.VR.Project")
-                Button("Studio") { togglePanel(.studio) }.accessibilityIdentifier("AdaEditor.VR.Panel.studio")
-                Button("Files") { togglePanel(.files) }.accessibilityIdentifier("AdaEditor.VR.Panel.files")
-                Button("Voice") { togglePanel(.voice) }.accessibilityIdentifier("AdaEditor.VR.Panel.voice")
+                Button(L10n.text("Studio")) { togglePanel(.studio) }.accessibilityIdentifier("AdaEditor.VR.Panel.studio")
+                Button(L10n.text("Files")) { togglePanel(.files) }.accessibilityIdentifier("AdaEditor.VR.Panel.files")
+                Button(L10n.text("Voice")) { togglePanel(.voice) }.accessibilityIdentifier("AdaEditor.VR.Panel.voice")
                 Spacer()
                 if let name = workspace.selectedName {
                     Button(action: focusSelection) {
@@ -85,7 +85,7 @@ struct EditorVRDockButton: View {
         Button(action: action) {
             VStack(spacing: 7) {
                 Text(symbol).font(AdaEditorMaterialSymbolFont.font(size: 25))
-                Text(title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text(L10n.tr(title)).font(.system(size: 13, weight: .semibold)).lineLimit(1)
             }
             .foregroundColor(active ? Color.white : theme.editorColors.text)
             .frame(width: 62, height: 66)

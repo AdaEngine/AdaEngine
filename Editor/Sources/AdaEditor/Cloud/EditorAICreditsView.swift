@@ -17,7 +17,7 @@ struct EditorAICreditsBadge: View {
                 Text("\u{E65F}")
                     .font(AdaEditorMaterialSymbolFont.font(size: 16))
                     .foregroundColor(theme.editorColors.blue)
-                Text(label)
+                Text(L10n.tr(label))
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.text)
                     .lineLimit(1)
@@ -56,20 +56,20 @@ struct EditorAICreditsDetails: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("AI credits")
+            Text(L10n.text("AI credits"))
                 .font(.system(size: 15, weight: .bold))
                 .foregroundColor(theme.editorColors.text)
             if let balance = model.balance {
-                Text("\(EditorAICreditAmount.text(balance.available)) available")
+                Text(L10n.text("\(EditorAICreditAmount.text(balance.available)) available"))
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(theme.editorColors.blue)
                     .accessibilityIdentifier("AdaEditor.Cloud.AICredits.Available")
-                Text("\(EditorAICreditAmount.text(balance.spent)) used · \(EditorAICreditAmount.text(balance.reserved)) reserved · \(EditorAICreditAmount.text(balance.allowance)) per cycle")
+                Text(L10n.text("\(EditorAICreditAmount.text(balance.spent)) used · \(EditorAICreditAmount.text(balance.reserved)) reserved · \(EditorAICreditAmount.text(balance.allowance)) per cycle"))
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.muted)
                     .lineLimit(2)
                 if balance.cycleEnd > 0 {
-                    Text("Cycle ends \(Date(timeIntervalSince1970: Double(balance.cycleEnd)).formatted(date: .abbreviated, time: .omitted))")
+                    Text(L10n.text("Cycle ends \(Date(timeIntervalSince1970: Double(balance.cycleEnd)).formatted(date: .abbreviated, time: .omitted))"))
                         .font(.system(size: 12))
                         .foregroundColor(theme.editorColors.muted)
                 }
@@ -79,13 +79,13 @@ struct EditorAICreditsDetails: View {
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(3)
                 .accessibilityIdentifier("AdaEditor.Cloud.AICredits.Status")
-            Button("Refresh credits", action: refresh)
+            Button(L10n.text("Refresh credits"), action: refresh)
                 .font(.system(size: 14))
                 .foregroundColor(theme.editorColors.blue)
                 .frame(height: 36)
                 .accessibilityIdentifier("AdaEditor.Cloud.AICredits.Refresh")
             if model.phase == .ready {
-                Text("Credit activity")
+                Text(L10n.text("Credit activity"))
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
                 ForEach(model.history) { entry in
@@ -99,13 +99,13 @@ struct EditorAICreditsDetails: View {
                     .accessibilityIdentifier("AdaEditor.Cloud.AICredits.Activity.\(entry.cursor)")
                 }
                 if model.history.isEmpty && !model.loadingHistory && model.historyError == nil {
-                    Text("No credit activity yet.").font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
+                    Text(L10n.text("No credit activity yet.")).font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
                 }
                 if let error = model.historyError {
                     Text(error).font(.system(size: 12)).foregroundColor(theme.editorColors.muted).lineLimit(2)
                 }
                 if model.hasMoreHistory || model.historyError != nil || model.loadingHistory {
-                    Button(model.loadingHistory ? "Loading activity…" : "Load more activity", action: loadHistory)
+                    Button(model.loadingHistory ? L10n.text("Loading activity…") : L10n.text("Load more activity"), action: loadHistory)
                         .font(.system(size: 14))
                         .foregroundColor(theme.editorColors.blue)
                         .frame(height: 36)

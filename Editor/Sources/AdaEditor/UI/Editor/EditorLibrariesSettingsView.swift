@@ -84,11 +84,11 @@ struct EditorLibrariesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("ADASCRIPT LIBRARIES")
+            Text(L10n.text("ADASCRIPT LIBRARIES"))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.blue)
             Divider()
-            Text("Install a public GitHub library using a tag or commit. Dependencies are pinned automatically.")
+            Text(L10n.text("Install a public GitHub library using a tag or commit. Dependencies are pinned automatically."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
             installControls
@@ -120,9 +120,9 @@ struct EditorLibrariesView: View {
             )
             .accessibilityIdentifier("AdaEditor.Libraries.Revision")
             VStack(alignment: .leading, spacing: 8) {
-                Button("Install / Update") { Task { await viewModel.install() } }
+                Button(L10n.text("Install / Update")) { Task { await viewModel.install() } }
                     .accessibilityIdentifier("AdaEditor.Libraries.Install")
-                Button("Restore Locked Libraries") { Task { await viewModel.restore() } }
+                Button(L10n.text("Restore Locked Libraries")) { Task { await viewModel.restore() } }
                     .accessibilityIdentifier("AdaEditor.Libraries.Restore")
             }
             .font(.system(size: 12))
@@ -143,17 +143,17 @@ struct EditorLibrariesView: View {
                 }
                 Spacer()
                 if viewModel.lock.roots.contains(library.manifest.id) {
-                    Button("Remove") { Task { await viewModel.remove(library.manifest.id) } }
+                    Button(L10n.text("Remove")) { Task { await viewModel.remove(library.manifest.id) } }
                         .disabled(viewModel.isWorking)
                 } else {
-                    Text("Dependency").font(.system(size: 11))
+                    Text(L10n.text("Dependency")).font(.system(size: 11))
                 }
             }
         }
     }
 
     private func libraryField(_ placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
+        TextField(L10n.tr(placeholder), text: text)
             .font(.system(size: 12))
             .foregroundColor(theme.editorColors.text)
             .padding(.horizontal, 10)

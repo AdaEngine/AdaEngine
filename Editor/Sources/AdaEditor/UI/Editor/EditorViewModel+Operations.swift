@@ -271,7 +271,7 @@ extension EditorViewModel {
                         .init(
                             source: .sourceControl,
                             importance: .error,
-                            title: "\(statusTitle) failed",
+                            title: L10n.text("\(statusTitle) failed"),
                             detail: String(result.combinedOutput.prefix(600)),
                             projectName: self.project?.name,
                             actions: [.init(title: "Open Git", destination: .sourceControl, projectID: self.project?.id)]

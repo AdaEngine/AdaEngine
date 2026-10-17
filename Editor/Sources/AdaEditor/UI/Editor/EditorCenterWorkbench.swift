@@ -141,7 +141,7 @@ extension EditorCenterWorkbench {
             }
             .frame(minWidth: 0, maxWidth: .infinity)
             if viewModel.isSplit {
-                Button("Merge") { viewModel.mergePanes() }
+                Button(L10n.text("Merge")) { viewModel.mergePanes() }
                     .buttonStyle(DefaultButtonStyle())
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
@@ -168,7 +168,7 @@ extension EditorCenterWorkbench {
                 Text("\u{E2C7}")
                     .font(AdaEditorMaterialSymbolFont.font(size: 14))
                     .foregroundColor(theme.editorColors.blue)
-                Text("Files")
+                Text(L10n.text("Files"))
                     .font(.system(size: 12))
                     .foregroundColor(filesBrowserPanes.contains(pane) ? theme.editorColors.text : theme.editorColors.muted)
             }
@@ -274,7 +274,7 @@ extension EditorCenterWorkbench {
             viewModel.closeDocument(id: document.id)
         }
         .contextMenu {
-            Button(viewModel.pane(for: document.id) == .secondary ? "Move to Left Group" : "Split Right") {
+            Button(viewModel.pane(for: document.id) == .secondary ? L10n.text("Move to Left Group") : L10n.text("Split Right")) {
                 filesBrowserPanes.remove(.secondary)
                 if viewModel.pane(for: document.id) == .secondary {
                     viewModel.moveDocument(id: document.id, to: .primary)
@@ -283,46 +283,46 @@ extension EditorCenterWorkbench {
                 }
             }
             if viewModel.isSplit {
-                Button("Merge Editor Groups") { viewModel.mergePanes() }
+                Button(L10n.text("Merge Editor Groups")) { viewModel.mergePanes() }
             }
             Divider()
-            Button("Close") {
+            Button(L10n.text("Close")) {
                 viewModel.closeDocument(id: document.id)
             }
             if viewModel.documents(in: viewModel.pane(for: document.id)).count > 1 {
-                Button("Close Others") {
+                Button(L10n.text("Close Others")) {
                     viewModel.closeOtherDocuments(keeping: document.id)
                 }
             }
             if let index = viewModel.documents(in: viewModel.pane(for: document.id)).firstIndex(where: { $0.id == document.id }), index > 0 {
-                Button("Close Left") {
+                Button(L10n.text("Close Left")) {
                     viewModel.closeDocumentsToLeft(of: document.id)
                 }
             }
             if let index = viewModel.documents(in: viewModel.pane(for: document.id)).firstIndex(where: { $0.id == document.id }),
                 index < viewModel.documents(in: viewModel.pane(for: document.id)).count - 1
             {
-                Button("Close Right") {
+                Button(L10n.text("Close Right")) {
                     viewModel.closeDocumentsToRight(of: document.id)
                 }
             }
             Divider()
-            Button("Close Clean") {
+            Button(L10n.text("Close Clean")) {
                 viewModel.closeCleanDocuments()
             }
-            Button("Close All") {
+            Button(L10n.text("Close All")) {
                 viewModel.closeAllDocuments()
             }
             if document.absolutePath != nil {
                 Divider()
-                Button("Copy Path") {
+                Button(L10n.text("Copy Path")) {
                     onCopyDocumentPath?(document, false)
                 }
-                Button("Copy Relative Path") {
+                Button(L10n.text("Copy Relative Path")) {
                     onCopyDocumentPath?(document, true)
                 }
                 Divider()
-                Button("Reveal in Finder") {
+                Button(L10n.text("Reveal in Finder")) {
                     onRevealDocument?(document)
                 }
             }
@@ -518,7 +518,7 @@ extension EditorCenterWorkbench {
 
     private func assetMetadataRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .top, spacing: 12) {
-            Text(label)
+            Text(L10n.tr(label))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .frame(width: 76, alignment: .leading)
@@ -632,7 +632,7 @@ extension EditorCenterWorkbench {
         ZStack {
             // Match the surrounding project and inspector surfaces when no editor is open.
             theme.editorColors.surfaceElevated
-            Text("No file selected")
+            Text(L10n.text("No file selected"))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
         }
@@ -679,7 +679,7 @@ extension EditorCenterWorkbench {
             }
             .buttonStyle(DefaultButtonStyle())
             Button(action: { viewModel.saveSceneDocument(id: document.id) }) {
-                Text(document.isDirty ? "Save *" : "Save")
+                Text(document.isDirty ? L10n.text("Save *") : L10n.text("Save"))
                     .font(.system(size: 10))
                     .foregroundColor(theme.editorColors.blue)
                     .padding(.horizontal, 8)
@@ -726,7 +726,7 @@ extension EditorCenterWorkbench {
 
     private func sceneDocumentError(message: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Unable to open scene")
+            Text(L10n.text("Unable to open scene"))
                 .font(.system(size: 13))
                 .foregroundColor(theme.editorColors.text)
             Text(message)
@@ -794,7 +794,7 @@ extension EditorCenterWorkbench {
     private func viewportStatus(document: EditorSceneDocument) -> some View {
         VStack {
             HStack {
-                Text("Scene · \(document.relativePath)")
+                Text(L10n.text("Scene · \(document.relativePath)"))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(.horizontal, 10)
@@ -850,7 +850,7 @@ extension EditorCenterWorkbench {
     }
 
     private func aiChip(_ title: String) -> some View {
-        Text(title)
+        Text(L10n.tr(title))
             .font(.system(size: 10))
             .foregroundColor(viewModel.hoveredChip == title ? theme.editorColors.text : theme.editorColors.purple)
             .padding(.horizontal, 9)
@@ -886,13 +886,13 @@ private struct EditorPreviewPanel: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text("Preview")
+            Text(L10n.text("Preview"))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
             previewSelector
             Spacer()
             Button(action: onRebuild) {
-                Text("Refresh")
+                Text(L10n.text("Refresh"))
                     .font(.system(size: 10))
                     .foregroundColor(theme.editorColors.text)
                     .padding(.horizontal, 8)
@@ -922,7 +922,7 @@ private struct EditorPreviewPanel: View {
                 HStack(spacing: 4) {
                     ForEach(declarations, id: \.id) { declaration in
                         Button(action: { onSelectPreview(declaration) }) {
-                            Text(declaration.title)
+                            Text(L10n.tr(declaration.title))
                                 .font(.system(size: 10))
                                 .foregroundColor(declaration.id == selectedPreviewID ? theme.editorColors.text : theme.editorColors.muted)
                                 .padding(.horizontal, 7)
@@ -997,7 +997,7 @@ private struct EditorPreviewPanel: View {
             HStack(spacing: 8) {
                 EditorFlipLoadingIndicator(color: theme.editorColors.blue)
                     .accessibilityIdentifier("AdaEditor.Preview.BuildFlip")
-                Text(title)
+                Text(L10n.tr(title))
                     .font(.system(size: 13))
                     .foregroundColor(theme.editorColors.text)
             }
@@ -1042,7 +1042,7 @@ private struct EditorPreviewPanel: View {
                     EditorFlipLoadingIndicator(size: 12, color: theme.editorColors.blue)
                         .accessibilityIdentifier("AdaEditor.Preview.BannerFlip")
                 }
-                Text(title)
+                Text(L10n.tr(title))
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(theme.editorColors.text)
             }
@@ -1063,7 +1063,7 @@ private struct EditorPreviewPanel: View {
 
     private func messageView(title: String, message: String, showsBuildOutputButton: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 13))
                 .foregroundColor(theme.editorColors.text)
             Text(message)
@@ -1081,7 +1081,7 @@ private struct EditorPreviewPanel: View {
 
     private var showBuildOutputButton: some View {
         Button(action: onShowBuildOutput) {
-            Text("Show Build Output")
+            Text(L10n.text("Show Build Output"))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.blue)
                 .padding(.horizontal, 8)

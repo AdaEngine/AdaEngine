@@ -53,10 +53,10 @@ struct EditorEntityPickerDialog: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("Add Entity")
+            Text(L10n.text("Add Entity"))
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(theme.editorColors.text)
-            Text("Choose an entity bundle · Child of \(parentName)")
+            Text(L10n.text("Choose an entity bundle · Child of \(parentName)"))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(1)
@@ -70,7 +70,7 @@ struct EditorEntityPickerDialog: View {
             Text("\u{E8B6}")
                 .font(AdaEditorMaterialSymbolFont.font(size: 18))
                 .foregroundColor(theme.editorColors.muted)
-            TextField("Search bundles", text: $search)
+            TextField(L10n.text("Search bundles"), text: $search)
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.text)
                 .textFieldStyle(PlainTextFieldStyle())
@@ -95,12 +95,12 @@ struct EditorEntityPickerDialog: View {
 
     private func templateGrid(width: Float, height: Float) -> some View {
         let groups = EditorSceneEntityTemplateGroup.allCases.filter { group in
-            group.templates.contains { $0.matches(search) }
+            group.templates.contains { $0.matches(search) || L10n.matches(search, keys: [$0.title, $0.detail, $0.group.rawValue]) }
         }
         let columns = groupedColumns(groups, width: width)
         return ScrollView(.vertical) {
             if groups.isEmpty {
-                Text("No entity bundles match your search.")
+                Text(L10n.text("No entity bundles match your search."))
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(20)
@@ -144,13 +144,13 @@ struct EditorEntityPickerDialog: View {
     private func templateGroup(_ group: EditorSceneEntityTemplateGroup) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 8) {
-                Text(group.rawValue)
+                Text(L10n.tr(group.rawValue))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(theme.editorColors.muted)
                 RectangleShape().fill(theme.editorColors.border.opacity(0.6)).frame(height: 1)
             }
             .frame(height: 22)
-            ForEach(group.templates.filter { $0.matches(search) }, id: \.self) { template in
+            ForEach(group.templates.filter { $0.matches(search) || L10n.matches(search, keys: [$0.title, $0.detail, $0.group.rawValue]) }, id: \.self) { template in
                 templateButton(template)
             }
         }
@@ -173,11 +173,11 @@ struct EditorEntityPickerDialog: View {
                     .frame(width: 34, height: 34)
                     .background(RoundedRectangleShape(cornerRadius: 7).fill(template.tint.opacity(0.10)))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(template.title)
+                    Text(L10n.tr(template.title))
                         .font(.system(size: 12))
                         .foregroundColor(theme.editorColors.text)
                         .lineLimit(1)
-                    Text(template.detail)
+                    Text(L10n.tr(template.detail))
                         .font(.system(size: 10))
                         .foregroundColor(theme.editorColors.muted)
                         .lineLimit(1)
@@ -193,11 +193,11 @@ struct EditorEntityPickerDialog: View {
 
     private var footer: some View {
         HStack {
-            Text("\(EditorSceneEntityTemplate.allCases.filter { $0.matches(search) }.count) bundles")
+            Text(L10n.text("\(EditorSceneEntityTemplate.allCases.filter { $0.matches(search) || L10n.matches(search, keys: [$0.title, $0.detail, $0.group.rawValue]) }.count) bundles"))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.muted)
             Spacer()
-            Button("Cancel", action: close)
+            Button(L10n.text("Cancel"), action: close)
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
                 .padding(.horizontal, 14)

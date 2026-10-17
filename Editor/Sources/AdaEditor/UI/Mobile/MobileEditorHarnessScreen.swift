@@ -13,12 +13,12 @@ struct MobileEditorHarnessScreen: View {
     var body: some View {
         MobileEditorPageScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Settings for all projects on this device. Changes apply to the next agent run.")
+                Text(L10n.text("Settings for all projects on this device. Changes apply to the next agent run."))
                     .font(MobileEditorFont.font(size: 13))
                     .foregroundColor(theme.editorColors.muted)
                 navigationCard("Providers & model", detail: "Connect Codex or an API provider", action: showProviders)
                     .accessibilityIdentifier("AdaEditor.Mobile.AgentProviders")
-                navigationCard("Skills", detail: "\(store.settings.enabledSkills.count) enabled · Import your instructions", action: showSkills)
+                navigationCard("Skills", detail: L10n.text("\(store.settings.enabledSkills.count) enabled · Import your instructions"), action: showSkills)
                     .accessibilityIdentifier("AdaEditor.Mobile.AgentSkills")
                 MobileEditorCard {
                     VStack(alignment: .leading, spacing: 14) {
@@ -52,9 +52,9 @@ struct MobileEditorHarnessScreen: View {
                             draft.opensPreview.toggle()
                         } label: {
                             HStack {
-                                Text("Open Play after success")
+                                Text(L10n.text("Open Play after success"))
                                 Spacer()
-                                Text(draft.opensPreview ? "On" : "Off")
+                                Text(draft.opensPreview ? L10n.text("On") : L10n.text("Off"))
                                     .foregroundColor(theme.editorColors.blue)
                             }
                             .font(MobileEditorFont.font(size: 14))

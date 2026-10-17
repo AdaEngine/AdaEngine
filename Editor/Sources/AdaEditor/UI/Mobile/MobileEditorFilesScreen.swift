@@ -29,7 +29,7 @@ struct MobileEditorFilesScreen: View {
                     .font(MobileEditorFont.font(size: 11))
                     .foregroundColor(theme.editorColors.blue)
                 Spacer()
-                Button("Refresh") { refreshFiles() }
+                Button(L10n.text("Refresh")) { refreshFiles() }
                     .font(MobileEditorFont.font(size: 12))
                     .foregroundColor(theme.editorColors.blue)
                     .accessibilityIdentifier("AdaEditor.Mobile.Files.Refresh")
@@ -40,7 +40,7 @@ struct MobileEditorFilesScreen: View {
                     .font(MobileEditorFont.font(size: 12))
                     .foregroundColor(theme.editorColors.purple)
             } else if files.isEmpty {
-                Text("No project files yet.")
+                Text(L10n.text("No project files yet."))
                     .font(MobileEditorFont.font(size: 13))
                     .foregroundColor(theme.editorColors.muted)
             } else {

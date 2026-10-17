@@ -453,7 +453,7 @@ struct EditorSettingsWindowView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Settings")
+            Text(L10n.text("Settings"))
                 .font(.system(size: 20))
                 .foregroundColor(theme.editorColors.text)
                 .padding(.horizontal, 18)
@@ -464,7 +464,7 @@ struct EditorSettingsWindowView: View {
                 Text("\u{E8B6}")
                     .font(AdaEditorMaterialSymbolFont.font(size: 16))
                     .foregroundColor(theme.editorColors.muted)
-                TextField("Search settings…", text: viewModel.searchTextBinding)
+                TextField(L10n.text("Search settings…"), text: viewModel.searchTextBinding)
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.text)
                     .textFieldStyle(PlainTextFieldStyle())
@@ -494,10 +494,10 @@ struct EditorSettingsWindowView: View {
             .frame(minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(viewModel.selectedSection == .agent || viewModel.selectedSection == .buildExport ? "APPLIES TO" : "CURRENT PROJECT")
+                Text(viewModel.selectedSection == .agent || viewModel.selectedSection == .buildExport ? L10n.text("APPLIES TO") : L10n.text("CURRENT PROJECT"))
                     .font(.system(size: 9))
                     .foregroundColor(theme.editorColors.muted)
-                Text(viewModel.selectedSection == .buildExport ? "This Computer" : viewModel.selectedSection == .agent ? "All Projects" : viewModel.projectName)
+                Text(viewModel.selectedSection == .buildExport ? L10n.text("This Computer") : viewModel.selectedSection == .agent ? L10n.text("All Projects") : viewModel.projectName)
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.text)
                     .lineLimit(1)
@@ -528,7 +528,7 @@ struct EditorSettingsWindowView: View {
             }
             .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             .background(theme.editorColors.background)
-            .navigationTitle(viewModel.selectedPage.map(EditorSettingsPage.title) ?? viewModel.selectedSection.title)
+            .navigationTitle(viewModel.selectedPage.map(EditorSettingsPage.title) ?? L10n.tr(viewModel.selectedSection.title))
             .navigationTitleFont(AdaEditorTitleFont.font(size: 22))
             .navigationTitlePosition(.leading)
             .navigationBarColor(theme.editorColors.background)
@@ -547,7 +547,7 @@ struct EditorSettingsWindowView: View {
                     EditorAgentCatalogToolbar(agent: viewModel.agent)
                 }
             #endif
-            Text(viewModel.selectedSection == .buildExport ? "This Computer" : viewModel.selectedSection == .agent ? "All Projects" : viewModel.projectName)
+            Text(viewModel.selectedSection == .buildExport ? L10n.text("This Computer") : viewModel.selectedSection == .agent ? L10n.text("All Projects") : viewModel.projectName)
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(1)
@@ -558,7 +558,7 @@ struct EditorSettingsWindowView: View {
                         .fill(theme.editorColors.surface)
                 )
             if showsCloseButton {
-                Button("Close") {
+                Button(L10n.text("Close")) {
                     dismiss()
                 }
                 .font(.system(size: 11))
@@ -581,6 +581,7 @@ struct EditorSettingsWindowView: View {
             agentSettings(viewModel.agent)
         } else if viewModel.selectedSection == .general, viewModel.editorViewModel == nil {
             VStack(alignment: .leading, spacing: 0) {
+                settingsGroup(EditorSettingsPage.language) { EditorLanguageSettings() }
                 settingsGroup("ADA CLOUD") { EditorCloudSettingsView() }
                 settingsGroup("APPEARANCE") { EditorAgentGlowSettings() }
                 settingsGroup(EditorSettingsPage.editorDisplay) { EditorCodeDisplaySettings() }
@@ -607,6 +608,7 @@ struct EditorSettingsWindowView: View {
 
     private var generalSettings: some View {
         VStack(alignment: .leading, spacing: 0) {
+            settingsGroup(EditorSettingsPage.language) { EditorLanguageSettings() }
             settingsGroup("ADA CLOUD") { EditorCloudSettingsView() }
             settingsGroup("APPEARANCE") {
                 EditorAgentGlowSettings()
@@ -645,7 +647,7 @@ struct EditorSettingsWindowView: View {
                 ) {
                     HStack(spacing: 6) {
                         compactButton("−", action: viewModel.decreaseCodeFontSize)
-                        Text("\(Int(viewModel.codeFontSize)) pt")
+                        Text(L10n.text("\(Int(viewModel.codeFontSize)) pt"))
                             .font(.system(size: 11))
                             .foregroundColor(theme.editorColors.text)
                             .frame(width: 48)
@@ -755,7 +757,7 @@ struct EditorSettingsWindowView: View {
                 EditorAgentCatalogView(agent: agent, showsToolbar: false)
             }
             settingsGroup("ACP CONNECTION") {
-                Text("Configure the agent used by all projects in AdaEditor.")
+                Text(L10n.text("Configure the agent used by all projects in AdaEditor."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                 selectionButton(
@@ -777,14 +779,14 @@ struct EditorSettingsWindowView: View {
                         agent.selectPermissionMode(.deny)
                     }
                 }
-                Text("File access is restricted to the project root. Terminal working directories are validated against it.")
+                Text(L10n.text("File access is restricted to the project root. Terminal working directories are validated against it."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .lineLimit(2)
             }
             settingsGroup("CONTEXT") {
                 EditorAgentSkillDirectoriesView(agent: agent)
-                Text("Live scene, entity, asset, render and UI inspection is provided through the embedded AdaEditor Runtime MCP server.")
+                Text(L10n.text("Live scene, entity, asset, render and UI inspection is provided through the embedded AdaEditor Runtime MCP server."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .lineLimit(3)
@@ -794,10 +796,10 @@ struct EditorSettingsWindowView: View {
 
     private var emptyProjectSettings: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Open or select a project to edit its settings.")
+            Text(L10n.text("Open or select a project to edit its settings."))
                 .font(.system(size: 14))
                 .foregroundColor(theme.editorColors.text)
-            Text("General editor preferences will become available in an editor window.")
+            Text(L10n.text("General editor preferences will become available in an editor window."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
         }
@@ -813,7 +815,7 @@ struct EditorSettingsWindowView: View {
     private func settingsGroup<Content: View>(_ title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
         if viewModel.showsPage(title) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(title)
+                Text(EditorSettingsPage.title(title))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.blue)
                     .lineLimit(1)
@@ -832,15 +834,14 @@ struct EditorSettingsWindowView: View {
     ) -> some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
+                Text(L10n.tr(title))
                     .font(.system(size: 13))
                     .foregroundColor(theme.editorColors.text)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                Text(detail)
+                    .lineLimit(3)
+                Text(L10n.tr(detail))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
-                    .lineLimit(1)
+                    .lineLimit(3)
             }
             Spacer()
             control()
@@ -850,7 +851,7 @@ struct EditorSettingsWindowView: View {
 
     private func settingsField(_ placeholder: String, detail: String, text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(detail)
+            Text(L10n.tr(detail))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
             settingsInput(placeholder, text: text)
@@ -858,7 +859,7 @@ struct EditorSettingsWindowView: View {
     }
 
     private func settingsInput(_ placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
+        TextField(L10n.tr(placeholder), text: text)
             .font(.system(size: 12))
             .foregroundColor(theme.editorColors.text)
             .padding(.horizontal, 10)
@@ -876,7 +877,7 @@ struct EditorSettingsWindowView: View {
 
     private func selectionButton(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11))
                 .foregroundColor(selected ? theme.editorColors.text : theme.editorColors.muted)
                 .padding(.horizontal, 10)
@@ -891,7 +892,7 @@ struct EditorSettingsWindowView: View {
 
     private func compactButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.text)
                 .padding(.horizontal, 9)
@@ -913,7 +914,7 @@ struct EditorSettingsWindowView: View {
                 CircleShape()
                     .fill(preset.palette.keyword)
                     .frame(width: 9, height: 9)
-                Text(preset.title)
+                Text(L10n.tr(preset.title))
                     .font(.system(size: 11))
                     .foregroundColor(isSelected ? theme.editorColors.text : theme.editorColors.muted)
                     .lineLimit(1)
@@ -979,7 +980,7 @@ struct EditorSettingsWindowView: View {
             Divider()
             HStack(spacing: 12) {
                 if !configuration.status.isEmpty {
-                    Text(configuration.status)
+                    Text(L10n.tr(configuration.status))
                         .font(.system(size: 11))
                         .foregroundColor(theme.editorColors.muted)
                         .lineLimit(1)
@@ -1028,7 +1029,7 @@ struct EditorSettingsWindowView: View {
 
     private func primaryButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 12))
                 .foregroundColor(.white)
                 .padding(.horizontal, 14)

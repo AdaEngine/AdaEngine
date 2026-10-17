@@ -280,7 +280,7 @@ struct EditorSceneViewportView: View {
             if displayMode == .threeD {
                 skeletonVisibilityButton
             }
-            Text(isPlayingThisDocument ? "PLAY MODE" : isAssetPreview ? "MODEL PREVIEW" : "SCENE")
+            Text(isPlayingThisDocument ? L10n.text("PLAY MODE") : isAssetPreview ? L10n.text("MODEL PREVIEW") : L10n.text("SCENE"))
                 .font(.system(size: 10))
                 .foregroundColor(isPlayingThisDocument ? theme.editorColors.purple : theme.editorColors.muted)
         }
@@ -304,7 +304,7 @@ struct EditorSceneViewportView: View {
                 .foregroundColor(theme.editorColors.text)
             Spacer()
             if displayMode == .threeD { skeletonVisibilityButton }
-            Text("PLAY MODE")
+            Text(L10n.text("PLAY MODE"))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.purple)
         }
@@ -468,7 +468,7 @@ struct EditorSceneViewportView: View {
 
     private func viewportMessage(title: String, message: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 13))
                 .foregroundColor(theme.editorColors.text)
             Text(message)

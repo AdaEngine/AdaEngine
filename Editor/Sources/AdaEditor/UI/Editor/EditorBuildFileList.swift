@@ -9,7 +9,7 @@ struct EditorBuildFileList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(selection.title)
+                Text(L10n.tr(selection.title))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                 Spacer()
@@ -23,7 +23,7 @@ struct EditorBuildFileList: View {
             }
             VStack(alignment: .leading, spacing: 0) {
                 if viewModel.buildFiles(for: selection).isEmpty {
-                    Text(selection == .included ? "All project sources are included." : "No files excluded.")
+                    Text(selection == .included ? L10n.text("All project sources are included.") : L10n.text("No files excluded."))
                         .font(.system(size: 11))
                         .foregroundColor(theme.editorColors.muted)
                         .padding(10)

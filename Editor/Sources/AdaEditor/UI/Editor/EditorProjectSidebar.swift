@@ -74,7 +74,7 @@ struct EditorProjectSidebar: View {
                         viewModel.toggleDisplayModeMenu()
                     }) {
                         HStack(spacing: 4) {
-                            Text(viewModel.displayMode.title)
+                            Text(L10n.tr(viewModel.displayMode.title))
                                 .font(.system(size: 14, weight: .bold))
                             Text(EditorProjectTreeIcon.expandMore)
                                 .font(AdaEditorMaterialSymbolFont.font(size: 16))
@@ -92,7 +92,7 @@ struct EditorProjectSidebar: View {
                         HStack(spacing: 5) {
                             Text("\u{E145}")
                                 .font(AdaEditorMaterialSymbolFont.font(size: 14))
-                            Text("New")
+                            Text(L10n.text("New"))
                                 .font(.system(size: 11))
                         }
                         .foregroundColor(theme.editorColors.blue)
@@ -145,7 +145,7 @@ struct EditorProjectSidebar: View {
     }
 
     private var newFileAction: some View {
-        Button("New…") { onNewFile(nil) }
+        Button(L10n.text("New…")) { onNewFile(nil) }
     }
 
     private var displayModeMenu: some View {
@@ -189,29 +189,29 @@ struct EditorProjectSidebar: View {
                 }
             }) {
                 newFileAction
-                Button("Import Assets") {
+                Button(L10n.text("Import Assets")) {
                     onImportAssets()
                 }
                 Divider()
                 if let projectRootItem {
-                    Button("Reveal in Finder") {
+                    Button(L10n.text("Reveal in Finder")) {
                         onRevealItem(projectRootItem)
                     }
-                    Button("Open in Terminal") {
+                    Button(L10n.text("Open in Terminal")) {
                         onOpenInTerminal(projectRootItem)
                     }
-                    Button("Find in Folder...") {
+                    Button(L10n.text("Find in Folder...")) {
                         onFindInProjectRoot()
                     }
-                    Button("Copy Path") {
+                    Button(L10n.text("Copy Path")) {
                         onCopyPath(projectRootItem, false)
                     }
                     Divider()
                 }
-                Button("Expand All") {
+                Button(L10n.text("Expand All")) {
                     viewModel.expandAll()
                 }
-                Button("Collapse All") {
+                Button(L10n.text("Collapse All")) {
                     viewModel.collapseAll()
                 }
             }
@@ -259,47 +259,47 @@ struct EditorProjectSidebar: View {
         }
         .contextMenu(onPresent: { viewModel.select(item) }) {
             newFileAction
-            Button(item.isFolder ? (viewModel.isCollapsed(item) ? "Expand" : "Collapse") : "Open") {
+            Button(item.isFolder ? (viewModel.isCollapsed(item) ? L10n.text("Expand") : L10n.text("Collapse")) : L10n.text("Open")) {
                 onOpenItem(item)
             }
             if item.kind == .scene {
-                Button("Open as Raw") {
+                Button(L10n.text("Open as Raw")) {
                     onOpenRawItem(item)
                 }
             }
             Divider()
-            Button("Reveal in Finder") {
+            Button(L10n.text("Reveal in Finder")) {
                 onRevealItem(item)
             }
             if !item.isFolder {
-                Button("Open in Default App") {
+                Button(L10n.text("Open in Default App")) {
                     onOpenInDefaultApplication(item)
                 }
             }
-            Button("Open in Terminal") {
+            Button(L10n.text("Open in Terminal")) {
                 onOpenInTerminal(item)
             }
-            Button("Find in Folder...") {
+            Button(L10n.text("Find in Folder...")) {
                 onFindInFolder(item)
             }
             Divider()
-            Button("Copy Path") {
+            Button(L10n.text("Copy Path")) {
                 onCopyPath(item, false)
             }
-            Button("Copy Relative Path") {
+            Button(L10n.text("Copy Relative Path")) {
                 onCopyPath(item, true)
             }
             if item.isFolder {
                 Divider()
-                Button("Expand All") {
+                Button(L10n.text("Expand All")) {
                     viewModel.expandAll()
                 }
-                Button("Collapse All") {
+                Button(L10n.text("Collapse All")) {
                     viewModel.collapseAll()
                 }
             }
             Divider()
-            Button("Delete", role: .destructive) {
+            Button(L10n.text("Delete"), role: .destructive) {
                 onDeleteItem(item)
             }
         }

@@ -259,9 +259,7 @@ final class EditorInspectorSidebarViewModel {
             return components
         }
         return components.filter {
-            $0.displayName.lowercased().contains(normalizedQuery)
-                || $0.category.lowercased().contains(normalizedQuery)
-                || $0.description.lowercased().contains(normalizedQuery)
+            L10n.matches(normalizedQuery, keys: [$0.displayName, $0.category, $0.description])
         }
     }
 

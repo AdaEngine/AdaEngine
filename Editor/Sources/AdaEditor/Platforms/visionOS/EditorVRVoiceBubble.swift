@@ -79,7 +79,7 @@
 
                 SwiftUI.Text(status).font(.caption).padding(.horizontal, 14).padding(.vertical, 8)
                     .glassBackgroundEffect(in: SwiftUI.Capsule())
-                SwiftUI.TextField("Your prompt", text: SwiftUI.Binding(get: { draft.agent.prompt }, set: { draft.receiveTranscript($0) }), axis: .vertical)
+                SwiftUI.TextField(L10n.text("Your prompt"), text: SwiftUI.Binding(get: { draft.agent.prompt }, set: { draft.receiveTranscript($0) }), axis: .vertical)
                     .lineLimit(2...4).textFieldStyle(.roundedBorder).focused($editingTranscript)
                     .accessibilityIdentifier("AdaEditor.VR.VoiceTranscript")
                     .disabled(working)
@@ -98,10 +98,10 @@
                     } label: {
                         SwiftUI.Image(systemName: "square.and.pencil")
                     }
-                    .accessibilityLabel("Write to Ada")
+                    .accessibilityLabel(L10n.text("Write to Ada"))
                     .accessibilityIdentifier("AdaEditor.VR.WritePrompt")
                     .contextMenu {
-                        SwiftUI.Button("Open Agent Chat") {
+                        SwiftUI.Button(L10n.text("Open Agent Chat")) {
                             voice.stop()
                             workspace.activatedPalmPanel = .agent
                         }
@@ -114,7 +114,7 @@
                     } label: {
                         SwiftUI.Image(systemName: "arrow.up")
                     }
-                    .disabled(working || !draft.agent.canSend).accessibilityLabel("Send prompt")
+                    .disabled(working || !draft.agent.canSend).accessibilityLabel(L10n.text("Send prompt"))
                     .accessibilityIdentifier("AdaEditor.VR.SendVoicePrompt")
                     SwiftUI.Button {
                         voice.stop()
@@ -122,7 +122,7 @@
                     } label: {
                         SwiftUI.Image(systemName: "gearshape")
                     }
-                    .accessibilityLabel("Voice settings")
+                    .accessibilityLabel(L10n.text("Voice settings"))
                 }.buttonStyle(.borderless).controlSize(.large).padding(12)
                     .glassBackgroundEffect(in: SwiftUI.Capsule())
             }

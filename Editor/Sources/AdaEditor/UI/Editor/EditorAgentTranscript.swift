@@ -87,7 +87,7 @@ struct EditorAgentActionsDisclosure: View {
                 HStack(spacing: 6) {
                     Text(isExpanded ? "\u{E5CF}" : "\u{E5CC}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 16))
-                    Text("Actions · \(events.count)")
+                    Text(L10n.text("Actions · \(events.count)"))
                         .font(.system(size: 12, weight: .semibold))
                     Spacer()
                     if let title = events.last?.title {

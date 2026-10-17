@@ -81,9 +81,9 @@ enum ProjectOpenPicker {
     static func pickProjectURL() async -> URL? {
         #if canImport(AppKit)
             let panel = NSOpenPanel()
-            panel.title = title
-            panel.prompt = prompt
-            panel.message = message
+            panel.title = L10n.tr(title)
+            panel.prompt = L10n.tr(prompt)
+            panel.message = L10n.tr(message)
             panel.canChooseDirectories = true
             panel.canChooseFiles = true
             panel.treatsFilePackagesAsDirectories = false
@@ -103,7 +103,7 @@ enum ProjectOpenPicker {
 
             return retainSecurityScopedAccess(to: projectDirectoryURL(fromPickerSelection: selectedURL))
         #elseif os(Windows)
-            if case let .selected(url) = await WindowsProjectFilePicker.folder(title: title) {
+            if case let .selected(url) = await WindowsProjectFilePicker.folder(title: L10n.tr(title)) {
                 return projectDirectoryURL(fromPickerSelection: url)
             }
             return nil
@@ -118,9 +118,9 @@ enum ProjectOpenPicker {
     ) {
         #if canImport(AppKit)
             let panel = NSOpenPanel()
-            panel.title = projectLocationTitle
-            panel.prompt = projectLocationPrompt
-            panel.message = projectLocationMessage
+            panel.title = L10n.tr(projectLocationTitle)
+            panel.prompt = L10n.tr(projectLocationPrompt)
+            panel.message = L10n.tr(projectLocationMessage)
             panel.canChooseDirectories = true
             panel.canChooseFiles = false
             panel.allowsMultipleSelection = false
@@ -137,7 +137,7 @@ enum ProjectOpenPicker {
             }
             completion(.selected(retainSecurityScopedAccess(to: projectLocationURL(fromPickerSelection: selectedURL))))
         #elseif os(Windows)
-            Task { completion(await WindowsProjectFilePicker.folder(title: projectLocationTitle)) }
+            Task { completion(await WindowsProjectFilePicker.folder(title: L10n.tr(projectLocationTitle))) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))
@@ -161,9 +161,9 @@ enum ProjectOpenPicker {
     static func pickAssetImportURLs() async -> [URL]? {
         #if canImport(AppKit)
             let panel = NSOpenPanel()
-            panel.title = assetImportTitle
-            panel.prompt = assetImportPrompt
-            panel.message = assetImportMessage
+            panel.title = L10n.tr(assetImportTitle)
+            panel.prompt = L10n.tr(assetImportPrompt)
+            panel.message = L10n.tr(assetImportMessage)
             panel.canChooseDirectories = false
             panel.canChooseFiles = true
             panel.allowsMultipleSelection = true
@@ -176,7 +176,7 @@ enum ProjectOpenPicker {
 
             return panel.urls
         #elseif os(Windows)
-            if case let .selected(urls) = await WindowsProjectFilePicker.files(title: assetImportTitle) { return urls }
+            if case let .selected(urls) = await WindowsProjectFilePicker.files(title: L10n.tr(assetImportTitle)) { return urls }
             return nil
         #else
             return nil
@@ -189,9 +189,9 @@ enum ProjectOpenPicker {
     ) {
         #if canImport(AppKit)
             let panel = NSOpenPanel()
-            panel.title = agentContextTitle
-            panel.prompt = agentContextPrompt
-            panel.message = agentContextMessage
+            panel.title = L10n.tr(agentContextTitle)
+            panel.prompt = L10n.tr(agentContextPrompt)
+            panel.message = L10n.tr(agentContextMessage)
             panel.canChooseDirectories = false
             panel.canChooseFiles = true
             panel.allowsMultipleSelection = true
@@ -208,7 +208,7 @@ enum ProjectOpenPicker {
             }
             completion(.selected(panel.urls))
         #elseif os(Windows)
-            Task { completion(await WindowsProjectFilePicker.files(title: agentContextTitle)) }
+            Task { completion(await WindowsProjectFilePicker.files(title: L10n.tr(agentContextTitle))) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))
@@ -238,13 +238,13 @@ enum ProjectOpenPicker {
                 return
             }
             let picker = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
-            picker.addAction(UIAlertAction(title: "Files", style: .default) { _ in
+            picker.addAction(UIAlertAction(title: L10n.text("Files"), style: .default) { _ in
                 presenter.dismiss(animated: true, completion: pickFiles)
             })
-            picker.addAction(UIAlertAction(title: "Photos", style: .default) { _ in
+            picker.addAction(UIAlertAction(title: L10n.text("Photos"), style: .default) { _ in
                 presenter.dismiss(animated: true, completion: pickPhotos)
             })
-            picker.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            picker.addAction(UIAlertAction(title: L10n.text("Cancel"), style: .cancel))
             if let popover = picker.popoverPresentationController {
                 popover.sourceView = presenter.view
                 popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY - 80, width: 1, height: 1)
@@ -284,9 +284,9 @@ enum ProjectOpenPicker {
     ) {
         #if canImport(AppKit)
             let panel = NSOpenPanel()
-            panel.title = "Add Build Files and Directories"
-            panel.prompt = "Add"
-            panel.message = "Choose files or folders inside the project."
+            panel.title = L10n.text("Add Build Files and Directories")
+            panel.prompt = L10n.text("Add")
+            panel.message = L10n.text("Choose files or folders inside the project.")
             panel.directoryURL = directoryURL
             panel.canChooseDirectories = true
             panel.canChooseFiles = true
@@ -297,7 +297,7 @@ enum ProjectOpenPicker {
                 completion(response == .OK ? .selected(panel.urls) : .cancelled)
             }
         #elseif os(Windows)
-            Task { completion(await WindowsProjectFilePicker.files(title: "Choose Build Files", directory: directoryURL)) }
+            Task { completion(await WindowsProjectFilePicker.files(title: L10n.text("Choose Build Files"), directory: directoryURL)) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))
@@ -321,9 +321,9 @@ enum ProjectOpenPicker {
     ) {
         #if canImport(AppKit)
             let panel = NSOpenPanel()
-            panel.title = atlasImageTitle
-            panel.prompt = atlasImagePrompt
-            panel.message = atlasImageMessage
+            panel.title = L10n.tr(atlasImageTitle)
+            panel.prompt = L10n.tr(atlasImagePrompt)
+            panel.message = L10n.tr(atlasImageMessage)
             panel.canChooseDirectories = false
             panel.canChooseFiles = true
             panel.allowsMultipleSelection = true
@@ -341,7 +341,7 @@ enum ProjectOpenPicker {
             }
             completion(.selected(panel.urls))
         #elseif os(Windows)
-            Task { completion(await WindowsProjectFilePicker.files(title: atlasImageTitle, extensions: ["png"])) }
+            Task { completion(await WindowsProjectFilePicker.files(title: L10n.tr(atlasImageTitle), extensions: ["png"])) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))
@@ -368,9 +368,9 @@ enum ProjectOpenPicker {
     ) {
         #if canImport(AppKit)
             let panel = NSOpenPanel()
-            panel.title = "Link Tile Source"
-            panel.prompt = "Link"
-            panel.message = "Choose a .tileset file inside this project's Assets folder."
+            panel.title = L10n.text("Link Tile Source")
+            panel.prompt = L10n.text("Link")
+            panel.message = L10n.text("Choose a .tileset file inside this project's Assets folder.")
             panel.directoryURL = directoryURL
             panel.canChooseDirectories = false
             panel.canChooseFiles = true
@@ -381,7 +381,7 @@ enum ProjectOpenPicker {
                 completion(response == .OK ? .selected(panel.urls) : .cancelled)
             }
         #elseif os(Windows)
-            Task { completion(await WindowsProjectFilePicker.files(title: "Link Tile Source", extensions: ["tileset"], allowsMultipleSelection: false, directory: directoryURL)) }
+            Task { completion(await WindowsProjectFilePicker.files(title: L10n.text("Link Tile Source"), extensions: ["tileset"], allowsMultipleSelection: false, directory: directoryURL)) }
         #elseif canImport(UIKit)
             guard let presenter = activeViewController() else {
                 completion(.unavailable("AdaEditor has no active window from which to open Files."))

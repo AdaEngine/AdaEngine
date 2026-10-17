@@ -110,7 +110,7 @@ struct EditorAgentEventCard: View {
                 EditorAgentA2UISurfaceCard(viewModel: viewModel, session: ui, surfaceID: surfaceID, presentation: a2uiPresentation)
             }
             if let error = ui.eventErrors[event.id] {
-                Text("Interface error: \(error)").font(.system(size: 12)).foregroundColor(.red)
+                Text(L10n.text("Interface error: \(error)")).font(.system(size: 12)).foregroundColor(.red)
             }
         }
     }
@@ -223,11 +223,11 @@ struct EditorAgentEventCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangleShape(cornerRadius: 5).fill(theme.editorColors.background))
         case .terminal:
-            Text("Terminal · \(content.terminalID ?? "running")")
+            Text(L10n.text("Terminal · \(content.terminalID ?? "running")"))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
         case .image:
-            Text("Image output · \(content.mimeType ?? "image")")
+            Text(L10n.text("Image output · \(content.mimeType ?? "image")"))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.blue)
         case .resource:
@@ -246,7 +246,7 @@ struct EditorAgentEventCard: View {
                     .foregroundColor(permission.state == .pending ? theme.editorColors.purple : theme.editorColors.muted)
                 Spacer()
                 if permission.state != .pending {
-                    Text(permission.state == .selected ? "Resolved" : "Cancelled")
+                    Text(permission.state == .selected ? "Resolved" : L10n.text("Cancelled"))
                         .font(.system(size: 9))
                         .foregroundColor(theme.editorColors.muted)
                 }
@@ -268,7 +268,7 @@ struct EditorAgentEventCard: View {
                         .buttonStyle(DefaultButtonStyle())
                     }
                     Button(action: { viewModel.resolvePermission(requestID: permission.id, optionID: nil) }) {
-                        Text("Cancel")
+                        Text(L10n.text("Cancel"))
                             .font(.system(size: 12))
                             .foregroundColor(theme.editorColors.muted)
                             .padding(.horizontal, 9)

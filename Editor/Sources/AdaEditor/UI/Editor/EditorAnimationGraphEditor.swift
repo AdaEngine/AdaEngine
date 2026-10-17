@@ -18,7 +18,7 @@ struct EditorAnimationGraphEditor: View {
     private func content(height: Float) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Text("Output").font(.system(size: 11))
+                Text(L10n.text("Output")).font(.system(size: 11))
                 EditorEnumField(
                     cases: model.graph.nodes.map(\.id), 
                     selection: Binding(get: { model.graph.root }, set: { model.graph.root = $0 }),
@@ -71,7 +71,7 @@ struct EditorAnimationGraphEditor: View {
                 Text(error).font(.system(size: 11)).foregroundColor(.red)
                     .accessibilityIdentifier("AdaEditor.AnimationGraph.Validation")
             } else {
-                Text("Blend fills unused weight with rest pose. Additive: first input is base; other inputs add rest-relative motion.")
+                Text(L10n.text("Blend fills unused weight with rest pose. Additive: first input is base; other inputs add rest-relative motion."))
                     .font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
             }
         }
@@ -187,14 +187,14 @@ struct EditorAnimationGraphEditor: View {
 
     @ViewBuilder
     private func eventsEditor(_ node: AnimationGraph.Node) -> some View {
-        Text("CLIP EVENTS").font(.system(size: 10, weight: .semibold)).foregroundColor(theme.editorColors.muted)
+        Text(L10n.text("CLIP EVENTS")).font(.system(size: 10, weight: .semibold)).foregroundColor(theme.editorColors.muted)
         ForEach(Array(node.events.indices), id: \.self) { index in
             HStack(spacing: 5) {
                 number("Seconds", value: node.events[index].time, id: "EventTime.\(index)") { value in
                     model.editNode(node.id) { $0.events[index].time = value }
                 }
                 TextField(
-                    "Event name",
+                    L10n.text("Event name"),
                     text: Binding(
                         get: { node.events[index].name },
                         set: { value in
@@ -204,7 +204,7 @@ struct EditorAnimationGraphEditor: View {
                 ).font(.system(size: 11)).frame(width: 110, height: 28)
                     .accessibilityIdentifier("AdaEditor.AnimationGraph.EventName.\(index)")
                 TextField(
-                    "Payload",
+                    L10n.text("Payload"),
                     text: Binding(
                         get: { node.events[index].payload },
                         set: { value in
@@ -234,7 +234,7 @@ struct EditorAnimationGraphEditor: View {
     }
 
     private func button(_ title: String, id: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Text(title).font(.system(size: 11)).padding(4) }
+        Button(action: action) { Text(L10n.tr(title)).font(.system(size: 11)).padding(4) }
             .buttonStyle(DefaultButtonStyle())
             .accessibilityIdentifier("AdaEditor.AnimationGraph.\(id)")
     }
@@ -251,8 +251,8 @@ private struct EditorAnimationGraphNumberField: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Text(title).font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
-            TextField(title, text: $draft)
+            Text(L10n.tr(title)).font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
+            TextField(L10n.tr(title), text: $draft)
                 .font(.system(size: 11)).frame(width: 54, height: 28)
                 .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.background))
                 .accessibilityIdentifier("AdaEditor.AnimationGraph.\(identifier)")

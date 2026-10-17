@@ -113,7 +113,7 @@ struct EditorProjectToolSidebar: View {
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.blue)
             content()
@@ -134,12 +134,12 @@ struct EditorProjectToolSidebar: View {
         HStack(spacing: 6) {
             row(dependency.url ?? dependency.path ?? dependency.identity)
             if dependency.identity.lowercased() == "adaengine" {
-                Text("Managed")
+                Text(L10n.text("Managed"))
                     .font(.system(size: 10))
                     .foregroundColor(theme.editorColors.muted)
             } else {
                 Button(action: { viewModel.removeProjectDependency(identity: dependency.identity) }) {
-                    Text("Remove")
+                    Text(L10n.text("Remove"))
                         .font(.system(size: 10))
                         .foregroundColor(theme.editorColors.blue)
                 }
@@ -149,7 +149,7 @@ struct EditorProjectToolSidebar: View {
     }
 
     private func input(_ placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
+        TextField(L10n.tr(placeholder), text: text)
             .textFieldStyle(PlainTextFieldStyle())
             .font(.system(size: 11))
             .foregroundColor(theme.editorColors.text)
@@ -163,7 +163,7 @@ struct EditorProjectToolSidebar: View {
 
     private func command(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.blue)
                 .frame(height: 24, alignment: .leading)

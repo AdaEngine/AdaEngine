@@ -35,11 +35,11 @@ struct EditorParticleEffectAssetEditor: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text("Particle FX").font(.system(size: 14, weight: .bold))
+            Text(L10n.text("Particle FX")).font(.system(size: 14, weight: .bold))
             Spacer()
-            Button("Undo") { model.undo() }.disabled(!model.canUndo)
-            Button("Redo") { model.redo() }.disabled(!model.canRedo)
-            Button("Reload") { model.reload() }
+            Button(L10n.text("Undo")) { model.undo() }.disabled(!model.canUndo)
+            Button(L10n.text("Redo")) { model.redo() }.disabled(!model.canRedo)
+            Button(L10n.text("Reload")) { model.reload() }
         }
         .buttonStyle(DefaultButtonStyle()).foregroundColor(theme.editorColors.text)
         .font(.system(size: 12))
@@ -51,9 +51,9 @@ struct EditorParticleEffectAssetEditor: View {
             EditorParticleEffectViewport(model: model)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack(spacing: 12) {
-                Button(model.isPlaying ? "Pause" : "Play") { model.isPlaying.toggle() }
+                Button(model.isPlaying ? L10n.text("Pause") : L10n.text("Play")) { model.isPlaying.toggle() }
                     .accessibilityIdentifier("AdaEditor.ParticleFX.Play")
-                Button("Restart") { model.restartCount &+= 1 }
+                Button(L10n.text("Restart")) { model.restartCount &+= 1 }
                     .accessibilityIdentifier("AdaEditor.ParticleFX.Restart")
                 Spacer()
                 EditorParticleLiveCount(statistics: model.previewStatistics)
@@ -66,7 +66,7 @@ struct EditorParticleEffectAssetEditor: View {
                         get: { sceneSelection.isEmpty ? targetScenes.first?.relativePath ?? "" : sceneSelection },
                         set: { sceneSelection = $0 }
                     ), accessibilityID: "AdaEditor.ParticleFX.Scene")
-                    Button("Add to Scene") {
+                    Button(L10n.text("Add to Scene")) {
                         let scene = targetScenes.first { $0.relativePath == sceneSelection } ?? targetScenes.first
                         if let scene { workbench.addParticleEffect(document, to: scene.id) }
                     }
@@ -95,9 +95,9 @@ struct EditorParticleEffectAssetEditor: View {
                 ), accessibilityID: "AdaEditor.ParticleFX.Emitter")
                 .drawingGroup()
                 HStack {
-                    Button("Add Emitter") { model.addEmitter() }.disabled(model.descriptor.emitters.count >= 16)
+                    Button(L10n.text("Add Emitter")) { model.addEmitter() }.disabled(model.descriptor.emitters.count >= 16)
                     Spacer()
-                    Button("Remove") { model.removeEmitter() }.disabled(model.descriptor.emitters.count <= 1).foregroundColor(.red)
+                    Button(L10n.text("Remove")) { model.removeEmitter() }.disabled(model.descriptor.emitters.count <= 1).foregroundColor(.red)
                 }.buttonStyle(DefaultButtonStyle())
                 text("Name", \ParticleEmitterDescriptor.name)
                 text("Texture", \ParticleEmitterDescriptor.texture)
@@ -118,7 +118,7 @@ struct EditorParticleEffectAssetEditor: View {
                 scalar("Emission / sec", \ParticleEmitterDescriptor.emissionRate)
                 integer("Burst", \ParticleEmitterDescriptor.burstCount)
                 scalar("Duration", \ParticleEmitterDescriptor.duration)
-                Toggle("Loop", isOn: Binding(get: { model.emitter.loops }, set: { value in model.updateEmitter { $0.loops = value } }))
+                Toggle(L10n.text("Loop"), isOn: Binding(get: { model.emitter.loops }, set: { value in model.updateEmitter { $0.loops = value } }))
                 scalar("Lifetime Min", \ParticleEmitterDescriptor.lifetimeMin)
                 scalar("Lifetime Max", \ParticleEmitterDescriptor.lifetimeMax)
                 scalar("Speed Min", \ParticleEmitterDescriptor.speedMin)
@@ -143,7 +143,7 @@ struct EditorParticleEffectAssetEditor: View {
 
     private func text(_ title: String, _ path: WritableKeyPath<ParticleEmitterDescriptor, String>) -> some View {
         HStack {
-            Text(title).frame(width: 100, alignment: .leading)
+            Text(L10n.tr(title)).frame(width: 100, alignment: .leading)
             EditorUIDesignerField(placeholder: title, text: Binding(
                 get: { model.emitter[keyPath: path] }, set: { value in model.updateEmitter { $0[keyPath: path] = value } }
             ))
@@ -157,7 +157,7 @@ struct EditorParticleEffectAssetEditor: View {
 
     private func number(_ title: String, get: @escaping () -> Float, set: @escaping (Float) -> Void) -> some View {
         HStack {
-            Text(title).frame(width: 100, alignment: .leading)
+            Text(L10n.tr(title)).frame(width: 100, alignment: .leading)
             EditorUIDesignerField(placeholder: title, text: Binding(
                 get: { String(format: "%.3g", get()) }, set: { if let value = Float($0), value.isFinite { set(value) } }
             )).accessibilityIdentifier("AdaEditor.ParticleFX.Field.\(title)")
@@ -167,7 +167,7 @@ struct EditorParticleEffectAssetEditor: View {
 
     private func integer(_ title: String, _ path: WritableKeyPath<ParticleEmitterDescriptor, Int>) -> some View {
         HStack {
-            Text(title).frame(width: 100, alignment: .leading)
+            Text(L10n.tr(title)).frame(width: 100, alignment: .leading)
             EditorUIDesignerField(placeholder: title, text: Binding(
                 get: { String(model.emitter[keyPath: path]) }, set: { if let value = Int($0) { model.updateEmitter { $0[keyPath: path] = value } } }
             ))
@@ -177,7 +177,7 @@ struct EditorParticleEffectAssetEditor: View {
 
     private func choice(_ title: String, cases: [String], get: @escaping () -> String, set: @escaping (String) -> Void) -> some View {
         HStack {
-            Text(title).frame(width: 100, alignment: .leading)
+            Text(L10n.tr(title)).frame(width: 100, alignment: .leading)
             EditorEnumField(cases: cases, selection: Binding(get: get, set: set), accessibilityID: "AdaEditor.ParticleFX.\(title)")
         }
         .drawingGroup()
@@ -185,7 +185,7 @@ struct EditorParticleEffectAssetEditor: View {
 
     private func color(_ title: String, _ path: WritableKeyPath<ParticleEmitterDescriptor, Color>) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+            Text(L10n.tr(title))
             EditorUIColorField(value: colorHex(model.emitter[keyPath: path])) { string in
                 if let color = EditorUIColorField.color(string) { model.updateEmitter { $0[keyPath: path] = color } }
             }

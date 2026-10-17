@@ -21,7 +21,7 @@ struct EditorUIArgumentModePicker: View {
         Button {
             onSelect(binding)
         } label: {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 10, weight: isBinding == binding ? .semibold : .regular))
                 .frame(maxWidth: .infinity)
         }

@@ -161,14 +161,14 @@ struct EditorPlayerPairingView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Connect AdaPlayer")
+                Text(L10n.text("Connect AdaPlayer"))
                     .font(.system(size: 20, weight: .bold))
-                Text("Open AdaPlayer on the target device on the same network.")
+                Text(L10n.text("Open AdaPlayer on the target device on the same network."))
                     .font(.system(size: 13))
                     .foregroundColor(theme.editorColors.muted)
                 codeField
                 #if os(Windows)
-                TextField("Device IP or hostname:port", text: Binding(get: { session.address }, set: { session.address = $0 }))
+                TextField(L10n.text("Device IP or hostname:port"), text: Binding(get: { session.address }, set: { session.address = $0 }))
                     .textFieldStyle(PlainTextFieldStyle())
                     .font(.system(size: 13))
                     .padding(10)
@@ -198,10 +198,10 @@ struct EditorPlayerPairingView: View {
 
     private var codeField: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Pairing code")
+            Text(L10n.text("Pairing code"))
                 .font(.system(size: 12, weight: .semibold))
             TextField(
-                "Six-digit code",
+                L10n.text("Six-digit code"),
                 text: Binding(
                     get: { session.code },
                     set: { session.code = String($0.filter(\.isNumber).prefix(6)) }
@@ -226,7 +226,7 @@ struct EditorPlayerPairingView: View {
             theme.editorColors.border.frame(height: 1)
             VStack(spacing: 10) {
                 #if os(Windows)
-                Button("Connect to address") {
+                Button(L10n.text("Connect to address")) {
                     let value = session.address.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard let separator = value.lastIndex(of: ":"),
                           let port = UInt16(value[value.index(after: separator)...]), port > 0 else {
@@ -242,7 +242,7 @@ struct EditorPlayerPairingView: View {
                 #endif
                 ForEach(session.browser.devices) { device in
                     Button(action: { session.connect(to: device.endpoint, project: project) }) {
-                        Text("Connect and Run on \(device.name)")
+                        Text(L10n.text("Connect and Run on \(device.name)"))
                             .lineLimit(1)
                             .frame(maxWidth: .infinity)
                     }
@@ -253,7 +253,7 @@ struct EditorPlayerPairingView: View {
                     session.browser.stop()
                     session.browser.start()
                 }) {
-                    Text("Search again").frame(maxWidth: .infinity)
+                    Text(L10n.text("Search again")).frame(maxWidth: .infinity)
                 }
                 .buttonStyle(EditorUIDesignerButtonStyle(colors: theme.editorColors, bordered: true))
                 .accessibilityIdentifier("AdaPlayer.Editor.SearchAgain")

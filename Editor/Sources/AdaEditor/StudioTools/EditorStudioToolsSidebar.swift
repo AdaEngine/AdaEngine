@@ -8,7 +8,7 @@ struct EditorStudioToolsSidebar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("STUDIO TOOLS").font(.system(size: 12, weight: .bold))
+                Text(L10n.text("STUDIO TOOLS")).font(.system(size: 12, weight: .bold))
                 Spacer()
                 Button {
                     host.reload()
@@ -29,7 +29,7 @@ struct EditorStudioToolsSidebar: View {
                 Text(error).foregroundColor(Color(red: 0.9, green: 0.3, blue: 0.2)).font(.system(size: 11))
             }
             if !host.reviewCandidateIDs.isEmpty {
-                Button("Review Tool Access") { host.reviewAvailableTools() }
+                Button(L10n.text("Review Tool Access")) { host.reviewAvailableTools() }
                     .accessibilityIdentifier("studio.tools.review-access")
             }
             if let panel = host.selectedPanel {
@@ -51,7 +51,7 @@ struct EditorStudioToolsSidebar: View {
                     .id(panel.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             } else {
-                Text(host.definitions.isEmpty ? "Add a .ada tool and its .ui under Tools/ in this project." : "Tool access is managed in Project Settings.")
+                Text(host.definitions.isEmpty ? L10n.text("Add a .ada tool and its .ui under Tools/ in this project.") : L10n.text("Tool access is managed in Project Settings."))
                     .font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
                 Spacer()
             }

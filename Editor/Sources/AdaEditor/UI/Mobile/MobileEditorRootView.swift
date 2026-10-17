@@ -219,7 +219,7 @@ struct MobileEditorRootView: View {
         NavigationStack(path: $navigationPath) {
             MobileEditorProjectsScreen(projects: projects, create: createProject, open: openProject)
                 .overlay(anchor: .topTrailing) { creditsBadge.padding(.trailing, 16).padding(.top, 24) }
-                .navigationTitle("Ada Studio")
+                .navigationTitle(L10n.text("Ada Studio"))
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 24))
                 .navigationTitlePosition(.leading)
                 .navigationBarTitleDisplayMode(.inline)
@@ -335,20 +335,20 @@ struct MobileEditorRootView: View {
                     }
                 }
             } else {
-                Text("Project unavailable")
-                    .navigationTitle("Project")
+                Text(L10n.text("Project unavailable"))
+                    .navigationTitle(L10n.text("Project"))
                     .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
             }
         case .settings:
             MobileEditorSettingsScreen(agentStatus: agentStatus, configureAgent: configureAgent)
-                .navigationTitle("Settings")
+                .navigationTitle(L10n.text("Settings"))
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                 .navigationTitlePosition(.center)
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationBarColor(theme.editorColors.background)
         case .activity:
             MobileEditorActivityScreen()
-                .navigationTitle("Activity")
+                .navigationTitle(L10n.text("Activity"))
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationBarColor(theme.editorColors.background)
@@ -359,7 +359,7 @@ struct MobileEditorRootView: View {
                 showProviders: { navigationPath.append(MobileEditorDestination.providers) },
                 showSkills: { navigationPath.append(MobileEditorDestination.agentSkills) }
             )
-                .navigationTitle("Agent")
+                .navigationTitle(L10n.text("Agent"))
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                 .navigationTitlePosition(.center)
                 .navigationBarTitleDisplayMode(.inline)
@@ -368,7 +368,7 @@ struct MobileEditorRootView: View {
             MobileEditorAgentSettingsScreen(modelStore: providerModels) {
                 isModelPickerPresented = true
             }
-                .navigationTitle("Providers")
+                .navigationTitle(L10n.text("Providers"))
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                 .navigationTitlePosition(.center)
                 .navigationBarTitleDisplayMode(.inline)
@@ -377,7 +377,7 @@ struct MobileEditorRootView: View {
             MobileEditorSkillsScreen(store: harness, isBusy: isAgentRunning) {
                 navigationPath.append(MobileEditorDestination.agentSkill($0))
             }
-                .navigationTitle("Skills")
+                .navigationTitle(L10n.text("Skills"))
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationBarColor(theme.editorColors.background)
@@ -410,7 +410,7 @@ struct MobileEditorRootView: View {
                     showSessions: { navigationPath.append(MobileEditorDestination.sessions(id)) },
                     showPublication: { publicationProject = project }
                 )
-                .navigationTitle("Project settings")
+                .navigationTitle(L10n.text("Project settings"))
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationBarColor(theme.editorColors.background)
@@ -420,7 +420,7 @@ struct MobileEditorRootView: View {
                 MobileEditorSessionsScreen(workspaceURL: directory) { sessionID in
                     navigationPath.append(MobileEditorDestination.session(id, sessionID))
                 }
-                .navigationTitle("Previous sessions")
+                .navigationTitle(L10n.text("Previous sessions"))
                 .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationBarColor(theme.editorColors.background)
@@ -428,7 +428,7 @@ struct MobileEditorRootView: View {
         case .session(let id, let sessionID):
             if let directory = try? MobileAdaScriptProjectService.projectURL(for: id) {
                 MobileEditorSessionDetailScreen(workspaceURL: directory, sessionID: sessionID)
-                    .navigationTitle("Conversation")
+                    .navigationTitle(L10n.text("Conversation"))
                     .navigationTitleFont(MobileEditorFont.navigationFont(size: 18))
                     .navigationBarTitleDisplayMode(.inline)
                     .navigationBarColor(theme.editorColors.background)
@@ -445,7 +445,7 @@ struct MobileEditorRootView: View {
     private func createProject() {
         let project = MobileEditorProject(
             id: UUID(),
-            title: "New Game \(projects.count)",
+            title: L10n.text("New Game \(projects.count)"),
             prompt: nil
         )
         do {
