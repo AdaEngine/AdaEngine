@@ -28,7 +28,6 @@
                     .addPlugin(MainSchedulerPlugin())
                     .addPlugin(TransformPlugin())
                     .addPlugin(RenderWorldPlugin())
-                    .addPlugin(EventsPlugin())
                     .addPlugin(CameraPlugin())
                     .addPlugin(AssetsPlugin(filePath: #filePath))
                     .addPlugin(VisibilityPlugin())
