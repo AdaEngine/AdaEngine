@@ -30,7 +30,7 @@ struct EditorNewFileMenu: View {
                 Text("\u{E8B6}")
                     .font(AdaEditorMaterialSymbolFont.font(size: 18))
                     .foregroundColor(theme.editorColors.muted)
-                TextField("Search templates", text: $search)
+                TextField(L10n.text("Search templates"), text: $search)
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.text)
                     .textFieldStyle(PlainTextFieldStyle())
@@ -56,7 +56,7 @@ struct EditorNewFileMenu: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
                 } else {
-                    Text("No templates match your search.")
+                    Text(L10n.text("No templates match your search."))
                         .font(.system(size: 12))
                         .foregroundColor(theme.editorColors.muted)
                         .padding(20)
@@ -90,7 +90,7 @@ struct EditorNewFileMenu: View {
                             .frame(width: 34, height: 34)
                             .background(RoundedRectangleShape(cornerRadius: 7).fill(kind.tint.opacity(0.10)))
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(kind.title)
+                            Text(L10n.tr(kind.title))
                                 .font(.system(size: 12))
                                 .foregroundColor(theme.editorColors.text)
                                 .lineLimit(1)

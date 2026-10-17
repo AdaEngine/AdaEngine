@@ -52,7 +52,7 @@ struct MobileEditorVoicePanel: View {
         GeometryReader { geometry in
             VStack(spacing: 16) {
                 HStack {
-                    Text("Voice with Ada")
+                    Text(L10n.text("Voice with Ada"))
                         .font(MobileEditorFont.font(size: 18))
                     Spacer()
                     symbolButton("\u{E5CD}", identifier: "AdaEditor.Mobile.CloseVoice") {

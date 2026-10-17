@@ -325,7 +325,7 @@ struct ProjectOpeningView: View {
                     }
 
                     if viewModel.filteredRecentProjects.isEmpty {
-                        Text("No recent projects")
+                        Text(L10n.text("No recent projects"))
                             .font(.system(size: 13))
                             .foregroundColor(LauncherColor.muted)
                             .padding(.leading, 20)
@@ -365,7 +365,7 @@ struct ProjectOpeningView: View {
         VStack(alignment: .leading, spacing: 0) {
             launcherListHeader("Examples & Sample Games")
                 .padding(.top, ProjectOpeningLayout.explorerTopPadding)
-            TextField("Search examples and tags", text: Binding(
+            TextField(L10n.text("Search examples and tags"), text: Binding(
                 get: { viewModel.examples.query }, set: { viewModel.examples.query = $0 }
             ))
             .font(.system(size: 13))
@@ -388,7 +388,7 @@ struct ProjectOpeningView: View {
                         .accessibilityIdentifier("AdaEditor.Launcher.Example.\(item.id)")
                     }
                     if !viewModel.examples.loading && viewModel.examples.results.isEmpty {
-                        Text("No examples found")
+                        Text(L10n.text("No examples found"))
                             .font(.system(size: 13))
                             .foregroundColor(LauncherColor.muted)
                             .padding(20)
@@ -421,7 +421,7 @@ struct ProjectOpeningView: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .center, spacing: 8) {
-                    Text(title)
+                    Text(L10n.tr(title))
                         .font(.system(size: 14))
                         .foregroundColor(.white)
                         .lineLimit(1)
@@ -432,7 +432,7 @@ struct ProjectOpeningView: View {
                             .foregroundColor(LauncherColor.accentOrange)
                     }
                 }
-                Text(subtitle)
+                Text(L10n.tr(subtitle))
                     .font(.system(size: 11))
                     .foregroundColor(LauncherColor.muted)
                     .lineLimit(1)
@@ -450,7 +450,7 @@ struct ProjectOpeningView: View {
                 .font(AdaEditorMaterialSymbolFont.font(size: 18))
                 .frame(width: 18, height: 18)
                 .foregroundColor(.white.opacity(0.72))
-            TextField("Search projects...", text: viewModel.searchQueryBinding)
+            TextField(L10n.text("Search projects..."), text: viewModel.searchQueryBinding)
                 .font(.system(size: 13))
                 .foregroundColor(.white)
         }
@@ -493,10 +493,10 @@ struct ProjectOpeningView: View {
         return AnyView(
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("ACTIVE PROJECT")
+                    Text(L10n.text("ACTIVE PROJECT"))
                         .font(.system(size: 10))
                         .foregroundColor(LauncherColor.accentViolet)
-                    Text(project?.name ?? "Create or Open")
+                    Text(project?.name ?? L10n.text("Create or Open"))
                         .font(.system(size: 36))
                         .foregroundColor(.white)
                         .lineLimit(1)
@@ -507,7 +507,7 @@ struct ProjectOpeningView: View {
 
                 ZStack {
                     RoundedRectangleShape(cornerRadius: 12).fill(LauncherColor.preview)
-                    Text("NO RENDER PREVIEW AVAILABLE")
+                    Text(L10n.text("NO RENDER PREVIEW AVAILABLE"))
                         .font(.system(size: 11))
                         .foregroundColor(LauncherColor.muted.opacity(0.4))
                 }
@@ -542,7 +542,7 @@ struct ProjectOpeningView: View {
     private var createProjectForm: some View {
         NavigationStack {
             createProjectFormBody
-                .navigationTitle("New Project")
+                .navigationTitle(L10n.text("New Project"))
                 .navigationTitleFont(AdaEditorTitleFont.font(size: 22))
                 .navigationTitlePosition(.leading)
                 .navigationBarColor(LauncherColor.window)
@@ -567,7 +567,7 @@ struct ProjectOpeningView: View {
 
     private var createProjectFormFields: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Choose a project name and a destination folder. AdaEditor will create a new folder with the project files inside it.")
+            Text(L10n.text("Choose a project name and a destination folder. AdaEditor will create a new folder with the project files inside it."))
                 .font(.system(size: 13))
                 .foregroundColor(LauncherColor.muted)
                 .lineLimit(3)
@@ -577,7 +577,7 @@ struct ProjectOpeningView: View {
 
             VStack(alignment: .leading, spacing: 18) {
                 createFormField(title: "Project Name") {
-                    TextField("My_Game", text: viewModel.projectNameBinding)
+                    TextField(L10n.text("My_Game"), text: viewModel.projectNameBinding)
                         .font(.system(size: 14))
                         .foregroundColor(.white)
                         .padding(.leading, 14)
@@ -604,7 +604,7 @@ struct ProjectOpeningView: View {
                         Button {
                             chooseProjectLocation()
                         } label: {
-                            Text("Browse…")
+                            Text(L10n.text("Browse…"))
                                 .font(.system(size: 12))
                         }
                         .buttonStyle(LauncherInlineButtonStyle())
@@ -658,7 +658,7 @@ struct ProjectOpeningView: View {
                     viewModel.isCreatingNewProject = false
                     viewModel.statusMessage = "Project creation cancelled."
                 } label: {
-                    Text("Cancel")
+                    Text(L10n.text("Cancel"))
                 }
                 .buttonStyle(LauncherActionButtonStyle(kind: .outline))
 
@@ -667,7 +667,7 @@ struct ProjectOpeningView: View {
                 Button {
                     viewModel.createBlankTemplateProject()
                 } label: {
-                    Text("Create Project")
+                    Text(L10n.text("Create Project"))
                 }
                 .buttonStyle(LauncherActionButtonStyle(kind: .primary))
                 .disabled(!viewModel.canCreateProject)
@@ -689,7 +689,7 @@ struct ProjectOpeningView: View {
                     .frame(width: 32, height: 20, alignment: viewModel.shouldCreateProjectPackage ? .trailing : .leading)
                     .padding(.horizontal, 2)
                     .background(CapsuleShape().fill(viewModel.shouldCreateProjectPackage ? LauncherColor.accentViolet : LauncherColor.muted.opacity(0.35)))
-                Text("Create .adaproject package")
+                Text(L10n.text("Create .adaproject package"))
                     .font(.system(size: 13))
                     .foregroundColor(.white)
             }
@@ -708,7 +708,7 @@ struct ProjectOpeningView: View {
                     .frame(width: 32, height: 20, alignment: viewModel.shouldCreateGitRepository ? .trailing : .leading)
                     .padding(.horizontal, 2)
                     .background(CapsuleShape().fill(viewModel.shouldCreateGitRepository ? LauncherColor.accentViolet : LauncherColor.muted.opacity(0.35)))
-                Text("Create GIT repository")
+                Text(L10n.text("Create GIT repository"))
                     .font(.system(size: 13))
                     .foregroundColor(.white)
             }
@@ -726,7 +726,7 @@ struct ProjectOpeningView: View {
 
             if !viewModel.validationDiagnostics.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("PROJECT VALIDATION")
+                    Text(L10n.text("PROJECT VALIDATION"))
                         .font(.system(size: 10))
                         .foregroundColor(LauncherColor.accentOrange)
                     ForEach(viewModel.validationDiagnostics) { diagnostic in
@@ -758,7 +758,7 @@ struct ProjectOpeningView: View {
 
     private func createFormField<Content: View>(title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 12))
                 .foregroundColor(LauncherColor.muted)
             content()
@@ -786,11 +786,11 @@ struct ProjectOpeningView: View {
                         .padding(.bottom, 20)
                 }
 
-                Text("Ada")
+                Text(L10n.text("Ada"))
                     .font(AdaEditorTitleFont.font(size: 26))
                     .foregroundColor(.white)
 
-                Text("Create a new game project or continue with an existing package.")
+                Text(L10n.text("Create a new game project or continue with an existing package."))
                     .font(.system(size: 12))
                     .foregroundColor(LauncherColor.muted)
                     .padding(.top, 6)
@@ -798,7 +798,7 @@ struct ProjectOpeningView: View {
 
                 if let errorMessage = viewModel.operationErrorMessage {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("UNABLE TO OPEN PROJECT")
+                        Text(L10n.text("UNABLE TO OPEN PROJECT"))
                             .font(.system(size: 10))
                             .foregroundColor(LauncherColor.accentOrange)
                         Text(errorMessage)
@@ -903,7 +903,7 @@ struct ProjectOpeningView: View {
     }
 
     private func launcherListHeader(_ title: String) -> some View {
-        Text(title)
+        Text(L10n.tr(title))
             .font(.system(size: 10))
             .foregroundColor(Color.white.opacity(0.3))
             .padding(.leading, 20)
@@ -928,7 +928,7 @@ struct ProjectOpeningView: View {
 
     private func detailRow(label: String, value: String, highlighted: Bool) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            Text(label)
+            Text(L10n.tr(label))
                 .font(.system(size: 11))
                 .foregroundColor(LauncherColor.muted)
             Spacer()

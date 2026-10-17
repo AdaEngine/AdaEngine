@@ -28,7 +28,7 @@ struct EditorCommunityView: View {
                 let width = min(1000, geometry.size.width)
                 catalog(width: width, columns: 2)
             }
-            .navigationTitle("Community")
+            .navigationTitle(L10n.text("Community"))
             .navigationTitleFont(AdaEditorTitleFont.font(size: 24))
             .navigationTitlePosition(.leading)
             .navigationBarTitleDisplayMode(.inline)
@@ -57,14 +57,14 @@ struct EditorCommunityView: View {
         return MobileEditorPageScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 9) {
-                    Text("Discover worlds")
+                    Text(L10n.text("Discover worlds"))
                         .font(AdaEditorTitleFont.font(size: 28))
                         .foregroundColor(theme.editorColors.text)
-                    Text("Games created by the community.")
+                    Text(L10n.text("Games created by the community."))
                         .font(.system(size: 15))
                         .foregroundColor(theme.editorColors.muted)
                 }
-                TextField("Search worlds and tags", text: Binding(get: { model.query }, set: { model.query = $0 }))
+                TextField(L10n.text("Search worlds and tags"), text: Binding(get: { model.query }, set: { model.query = $0 }))
                     .textFieldStyle(PlainTextFieldStyle())
                     .font(.system(size: 15))
                     .foregroundColor(theme.editorColors.text)
@@ -81,7 +81,7 @@ struct EditorCommunityView: View {
                     status("Loading worlds…", detail: "Connecting to the community.")
                 } else if let error = model.error {
                     status("Couldn’t load the community", detail: error)
-                    Button("Try again") { Task { @MainActor in await model.reload() } }
+                    Button(L10n.text("Try again")) { Task { @MainActor in await model.reload() } }
                         .font(.system(size: 16))
                         .foregroundColor(theme.editorColors.blue)
                         .disabled(model.loading)
@@ -119,7 +119,7 @@ struct EditorCommunityView: View {
 
     private func sortButton(_ title: String, popular: Bool) -> some View {
         Button { model.popularFirst = popular } label: {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 13))
                 .foregroundColor(model.popularFirst == popular ? theme.editorColors.text : theme.editorColors.muted)
                 .frame(height: 40)
@@ -132,8 +132,8 @@ struct EditorCommunityView: View {
 
     private func status(_ title: String, detail: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.system(size: 20)).foregroundColor(theme.editorColors.text)
-            Text(detail).font(.system(size: 14)).foregroundColor(theme.editorColors.muted).lineLimit(4)
+            Text(L10n.tr(title)).font(.system(size: 20)).foregroundColor(theme.editorColors.text)
+            Text(L10n.tr(detail)).font(.system(size: 14)).foregroundColor(theme.editorColors.muted).lineLimit(4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 24)
@@ -182,13 +182,13 @@ struct EditorCommunityDetailView: View {
                 EditorCommunityArtwork(url: game.coverURL, height: 240)
                 Text(game.title).font(AdaEditorTitleFont.font(size: 32)).foregroundColor(theme.editorColors.text).lineLimit(3)
                 HStack {
-                    Text("Community creation").font(.system(size: 14))
+                    Text(L10n.text("Community creation")).font(.system(size: 14))
                     Spacer()
                     EditorCommunityLikes(count: game.likes)
                 }
                 .foregroundColor(theme.editorColors.muted)
                 Button(action: play) {
-                    Text(checking ? "Checking availability…" : (game.runtime == .web ? "Play in browser" : "Play"))
+                    Text(checking ? "Checking availability…" : (game.runtime == .web ? "Play in browser" : L10n.text("Play")))
                         .font(.system(size: 17))
                         .foregroundColor(.white)
                         .frame(height: 52)
@@ -202,13 +202,13 @@ struct EditorCommunityDetailView: View {
                     Text(error).font(.system(size: 14)).foregroundColor(theme.editorColors.muted).lineLimit(4)
                         .accessibilityIdentifier("AdaEditor.Community.PlayError")
                 }
-                Text("About this world").font(.system(size: 22)).foregroundColor(theme.editorColors.text)
+                Text(L10n.text("About this world")).font(.system(size: 22)).foregroundColor(theme.editorColors.text)
                 Text(game.description).font(.system(size: 16)).foregroundColor(theme.editorColors.text)
                 if !game.tags.isEmpty {
                     Text(game.tags.joined(separator: " · ")).font(.system(size: 13)).foregroundColor(theme.editorColors.purple).lineLimit(3)
                 }
                 if !game.screenshotURLs.isEmpty {
-                    Text("Screenshots").font(.system(size: 22)).foregroundColor(theme.editorColors.text)
+                    Text(L10n.text("Screenshots")).font(.system(size: 22)).foregroundColor(theme.editorColors.text)
                     ForEach(game.screenshotURLs.indices, id: \.self) { index in
                         EditorCommunityArtwork(url: game.screenshotURLs[index], height: 200)
                     }

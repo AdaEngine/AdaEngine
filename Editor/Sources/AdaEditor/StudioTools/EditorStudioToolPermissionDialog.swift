@@ -45,14 +45,14 @@ struct EditorStudioToolPermissionDialog: View {
             ZStack {
                 Color.black.opacity(0.45)
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Allow \(request.definition.schema.name)?")
+                    Text(L10n.text("Allow \(request.definition.schema.name)?"))
                         .font(.system(size: 20, weight: .semibold))
-                    Text("This project tool will run inside Studio. Review its access before enabling it.")
+                    Text(L10n.text("This project tool will run inside Studio. Review its access before enabling it."))
                         .font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
                     Text("\(request.definition.schema.id) · \(request.definition.schema.version)")
                         .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                     if request.definition.schema.permissions.isEmpty {
-                        Text("This tool requests no document access.").font(.system(size: 12))
+                        Text(L10n.text("This tool requests no document access.")).font(.system(size: 12))
                     }
                     ForEach(request.definition.schema.permissions, id: \.rawValue) { permission in
                         VStack(alignment: .leading, spacing: 4) {
@@ -61,13 +61,13 @@ struct EditorStudioToolPermissionDialog: View {
                         }
                     }
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("You can revoke access in").font(.system(size: 11))
+                        Text(L10n.text("You can revoke access in")).font(.system(size: 11))
                         HStack(spacing: 4) {
-                            Text("Settings").font(.system(size: 11))
+                            Text(L10n.text("Settings")).font(.system(size: 11))
                             settingsPathArrow
-                            Text("Project").font(.system(size: 11))
+                            Text(L10n.text("Project")).font(.system(size: 11))
                             settingsPathArrow
-                            Text("Studio Tools").font(.system(size: 11))
+                            Text(L10n.text("Studio Tools")).font(.system(size: 11))
                         }
                     }
                     .foregroundColor(theme.editorColors.muted)
@@ -99,7 +99,7 @@ struct EditorStudioToolPermissionDialog: View {
     }
 
     private func dialogButton(title: String, isPrimary: Bool, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
+        Button(L10n.tr(title), action: action)
             .font(.system(size: 12))
             .foregroundColor(isPrimary ? theme.editorColors.text : theme.editorColors.muted)
             .padding(.horizontal, 14)

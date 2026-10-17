@@ -27,7 +27,7 @@
                     SwiftUI.Button {
                         workspace.studio?.stopFromToolbar()
                     } label: {
-                        SwiftUI.Label("Stop", systemImage: "stop.fill")
+                        SwiftUI.Label(L10n.text("Stop"), systemImage: "stop.fill")
                     }
                     .accessibilityIdentifier("AdaEditor.VR.Play.Stop")
                     .buttonStyle(.borderless).controlSize(.large)

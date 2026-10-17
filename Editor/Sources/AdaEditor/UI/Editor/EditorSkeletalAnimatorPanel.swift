@@ -17,7 +17,7 @@ struct EditorSkeletalAnimatorPanel: View {
         VStack(alignment: .leading, spacing: 6) {
             toolbar
             if preview.isLoading {
-                Text("Loading animation model…").font(.system(size: 12))
+                Text(L10n.text("Loading animation model…")).font(.system(size: 12))
             } else if let error = preview.error {
                 Text(error).font(.system(size: 12)).foregroundColor(.red)
             } else if preview.asset != nil {
@@ -25,7 +25,7 @@ struct EditorSkeletalAnimatorPanel: View {
                     VStack(alignment: .leading, spacing: 4) {
                         EditorModelPreviewViewport(model: preview, camera: camera)
                             .frame(minHeight: 130)
-                        Text(preview.graphEventLog.last ?? "Event markers appear here during playback")
+                        Text(preview.graphEventLog.last ?? L10n.text("Event markers appear here during playback"))
                             .font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
                             .accessibilityIdentifier("AdaEditor.AnimationGraph.EventLog")
                     }
@@ -54,9 +54,9 @@ struct EditorSkeletalAnimatorPanel: View {
 
     private var toolbar: some View {
         HStack(spacing: 8) {
-            Text("SKELETAL GRAPH").font(.system(size: 11, weight: .semibold))
+            Text(L10n.text("SKELETAL GRAPH")).font(.system(size: 11, weight: .semibold))
             action(preview.playsAnimation ? "Pause" : "Play", id: "Play") { preview.playsAnimation.toggle() }
-            TextField("Seconds", text: $seekTime).font(.system(size: 11)).frame(width: 55, height: 26)
+            TextField(L10n.text("Seconds"), text: $seekTime).font(.system(size: 11)).frame(width: 55, height: 26)
                 .accessibilityIdentifier("AdaEditor.AnimationGraph.SeekTime")
             action("Seek", id: "Seek") {
                 if let value = Double(seekTime), value.isFinite { preview.seekGraph(to: value) }
@@ -82,7 +82,7 @@ struct EditorSkeletalAnimatorPanel: View {
     }
 
     private func action(_ title: String, id: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { Text(title).font(.system(size: 11)).padding(4) }
+        Button(action: action) { Text(L10n.tr(title)).font(.system(size: 11)).padding(4) }
             .buttonStyle(DefaultButtonStyle())
             .accessibilityIdentifier("AdaEditor.AnimationGraph.\(id)")
     }

@@ -97,11 +97,11 @@ struct MobileEditorFileScreen: View {
         case let .asset(asset):
             assetPreview(asset)
         case .scene:
-            Text("Scene editor unavailable")
+            Text(L10n.text("Scene editor unavailable"))
                 .font(MobileEditorFont.font(size: 12))
                 .foregroundColor(theme.editorColors.muted)
         case .git:
-            Text("Preview unavailable")
+            Text(L10n.text("Preview unavailable"))
                 .font(MobileEditorFont.font(size: 12))
                 .foregroundColor(theme.editorColors.muted)
         }
@@ -119,7 +119,7 @@ struct MobileEditorFileScreen: View {
                 .foregroundColor(theme.editorColors.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if content.count > 80_000 {
-                Text("Preview limited to the first 80,000 characters.")
+                Text(L10n.text("Preview limited to the first 80,000 characters."))
                     .font(MobileEditorFont.font(size: 11))
                     .foregroundColor(theme.editorColors.muted)
             }
@@ -144,7 +144,7 @@ struct MobileEditorFileScreen: View {
         }
         MobileEditorCard {
             VStack(alignment: .leading, spacing: 8) {
-                Text(asset.kind == .audio ? "Audio asset" : "Asset")
+                Text(asset.kind == .audio ? "Audio asset" : L10n.text("Asset"))
                     .font(MobileEditorFont.font(size: 13))
                     .foregroundColor(theme.editorColors.blue)
                 Text(asset.assetReference ?? asset.relativePath)

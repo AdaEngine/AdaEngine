@@ -80,7 +80,7 @@ extension EditorUISceneEditor {
                 Text(row.node.type).lineLimit(1)
                 Spacer()
                 if row.depth == 0 {
-                    Text("ROOT").font(.system(size: 9, weight: .semibold)).foregroundColor(theme.editorColors.muted)
+                    Text(L10n.text("ROOT")).font(.system(size: 9, weight: .semibold)).foregroundColor(theme.editorColors.muted)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -104,17 +104,17 @@ extension EditorUISceneEditor {
             .allowsHitTesting(false)
         }
         .contextMenu {
-            Button("Move selected here") { model.move(model.selectedID, into: row.node.id) }
+            Button(L10n.text("Move selected here")) { model.move(model.selectedID, into: row.node.id) }
             if row.hasChildren {
-                Button(model.collapsedLayerIDs.contains(row.node.id) ? "Expand" : "Collapse") {
+                Button(model.collapsedLayerIDs.contains(row.node.id) ? L10n.text("Expand") : L10n.text("Collapse")) {
                     model.toggleLayerCollapsed(row.node.id)
                 }
             }
-            Button("Duplicate") {
+            Button(L10n.text("Duplicate")) {
                 model.selectedID = row.node.id
                 model.duplicateSelected()
             }
-            Button("Delete") {
+            Button(L10n.text("Delete")) {
                 model.selectedID = row.node.id
                 model.removeSelected()
             }

@@ -158,7 +158,7 @@ struct EditorGameWindowToolbar: View {
 
     var body: some View {
         HStack(spacing: 9) {
-            Button(controls.inputEnabled ? "Input" : "Inspect") {
+            Button(controls.inputEnabled ? L10n.text("Input") : L10n.text("Inspect")) {
                 controls.inputEnabled.toggle()
                 viewProxy.redraw()
             }
@@ -184,11 +184,11 @@ struct EditorGameWindowToolbar: View {
                 )
                 .frame(width: 128)
                 if controls.selectedSize == .custom {
-                    TextField("Width", text: Binding(get: { controls.customWidth }, set: { controls.customWidth = $0; controls.applySize(); viewProxy.redraw() }))
+                    TextField(L10n.text("Width"), text: Binding(get: { controls.customWidth }, set: { controls.customWidth = $0; controls.applySize(); viewProxy.redraw() }))
                         .frame(width: 58)
                         .accessibilityIdentifier("AdaEditor.GameWindow.Width")
                     Text("×").foregroundColor(theme.editorColors.muted)
-                    TextField("Height", text: Binding(get: { controls.customHeight }, set: { controls.customHeight = $0; controls.applySize(); viewProxy.redraw() }))
+                    TextField(L10n.text("Height"), text: Binding(get: { controls.customHeight }, set: { controls.customHeight = $0; controls.applySize(); viewProxy.redraw() }))
                         .frame(width: 58)
                         .accessibilityIdentifier("AdaEditor.GameWindow.Height")
                 }
@@ -202,7 +202,7 @@ struct EditorGameWindowToolbar: View {
 
     private var entityPicker: some View {
         HStack(spacing: 5) {
-            Text(controls.inspection.selection?.name ?? "Select entity")
+            Text(controls.inspection.selection?.name ?? L10n.text("Select entity"))
                 .lineLimit(1)
             Text("\u{E5CF}").font(AdaEditorMaterialSymbolFont.font(size: 16))
         }
@@ -212,7 +212,7 @@ struct EditorGameWindowToolbar: View {
         .frame(width: 150, height: 28)
         .background(RoundedRectangleShape(cornerRadius: 6).fill(theme.editorColors.surfaceElevated))
         .contextMenu(opensOnPrimaryAction: true) {
-            ContextMenuOption("None", isSelected: controls.inspection.selectedID == nil) {
+            ContextMenuOption(L10n.text("None"), isSelected: controls.inspection.selectedID == nil) {
                 controls.selectEntity(nil)
                 viewProxy.redraw()
             }

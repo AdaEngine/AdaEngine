@@ -36,10 +36,10 @@ struct MobileEditorHomeTabs<Studio: View>: View {
             get: { showsTabBar ? selection : .studio },
             set: { selection = $0 }
         )) {
-            Tab("Studio", value: MobileEditorHomeTab.studio) {
+            Tab(L10n.text("Studio"), value: MobileEditorHomeTab.studio) {
                 studio
             }
-            Tab("Community", value: MobileEditorHomeTab.community) {
+            Tab(L10n.text("Community"), value: MobileEditorHomeTab.community) {
                 EditorCommunityView(client: EditorCommunityClient(server: resolvedServer))
                     .id(resolvedServer)
             }

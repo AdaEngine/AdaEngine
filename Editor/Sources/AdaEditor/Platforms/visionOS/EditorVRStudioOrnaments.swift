@@ -45,22 +45,22 @@
 
         var body: some SwiftUI.View {
             SwiftUI.HStack(spacing: 12) {
-                SwiftUI.Button(action: resize) { SwiftUI.Label("Wide", systemImage: "arrow.left.and.right") }
+                SwiftUI.Button(action: resize) { SwiftUI.Label(L10n.text("Wide"), systemImage: "arrow.left.and.right") }
                     .accessibilityIdentifier("AdaEditor.VR.WideWindow")
                 SwiftUI.Button {
                     openWindow(id: EditorVRPanel.voice.windowID, value: true)
                 } label: {
-                    SwiftUI.Label("Ada", systemImage: "sparkles")
-                }.accessibilityLabel("Open Ada bubble").accessibilityIdentifier("AdaEditor.VR.OpenVoiceBubble")
+                    SwiftUI.Label(L10n.text("Ada"), systemImage: "sparkles")
+                }.accessibilityLabel(L10n.text("Open Ada bubble")).accessibilityIdentifier("AdaEditor.VR.OpenVoiceBubble")
                 if let enter {
                     SwiftUI.Divider().frame(height: 24)
                     SwiftUI.Button { enter(.full) } label: {
-                        SwiftUI.Label(workspace.isOpening ? "Entering…" : "Enter Immersive", systemImage: "visionpro")
+                        SwiftUI.Label(workspace.isOpening ? L10n.text("Entering…") : L10n.text("Enter Immersive"), systemImage: "visionpro")
                     }
                     .disabled(workspace.document == nil || workspace.isOpening)
                     .accessibilityIdentifier("AdaEditor.VR.Enter")
                     SwiftUI.Button { enter(.mixed) } label: {
-                        SwiftUI.Label("Mixed", systemImage: "person.crop.rectangle")
+                        SwiftUI.Label(L10n.text("Mixed"), systemImage: "person.crop.rectangle")
                     }
                     .disabled(workspace.document == nil || workspace.isOpening)
                     .accessibilityIdentifier("AdaEditor.VR.EnterMixed")
@@ -137,13 +137,13 @@
         private func row(_ pane: EditorWorkbenchPane) -> some SwiftUI.View {
             SwiftUI.HStack(spacing: 8) {
                 if workbench.isSplit {
-                    SwiftUI.Button(pane == .primary ? "Left" : "Right") { workbench.focusPane(pane) }
+                    SwiftUI.Button(pane == .primary ? L10n.text("Left") : L10n.text("Right")) { workbench.focusPane(pane) }
                         .tint(workbench.focusedPane == pane ? .accentColor : .secondary)
                 }
                 SwiftUI.Button {
                     workbench.filesBrowserPanes.insert(pane)
                 } label: {
-                    SwiftUI.Label("Files", systemImage: "folder")
+                    SwiftUI.Label(L10n.text("Files"), systemImage: "folder")
                 }.tint(workbench.filesBrowserPanes.contains(pane) ? .accentColor : .secondary)
                     .accessibilityIdentifier(pane == .primary ? "AdaEditor.Tab.Files" : "AdaEditor.Tab.Files.secondary")
                 SwiftUI.ScrollView(.horizontal, showsIndicators: false) {
@@ -152,9 +152,9 @@
                     }
                 }.frame(width: 640, height: 48)
                 if workbench.isSplit {
-                    SwiftUI.Button("Merge") { workbench.mergePanes() }
+                    SwiftUI.Button(L10n.text("Merge")) { workbench.mergePanes() }
                 } else if let document = workbench.selectedDocument(in: pane) {
-                    SwiftUI.Button("Split") { workbench.splitDocument(id: document.id) }
+                    SwiftUI.Button(L10n.text("Split")) { workbench.splitDocument(id: document.id) }
                 }
             }.buttonStyle(.borderless)
         }
@@ -176,7 +176,7 @@
                 } label: {
                     SwiftUI.Image(systemName: "xmark").font(.caption)
                 }
-                .accessibilityLabel("Close \(document.title)").accessibilityIdentifier("AdaEditor.Tab.Close.\(document.id)")
+                .accessibilityLabel(L10n.text("Close \(document.title)")).accessibilityIdentifier("AdaEditor.Tab.Close.\(document.id)")
             }.padding(.horizontal, 12).padding(.vertical, 10)
                 .background(
                     !workbench.filesBrowserPanes.contains(workbench.pane(for: document.id)) && workbench.selectedDocument(in: workbench.pane(for: document.id))?.id == document.id
@@ -193,18 +193,18 @@
                     return true
                 }
                 .contextMenu {
-                    SwiftUI.Button(workbench.pane(for: document.id) == .secondary ? "Move to Left Group" : "Split Right") {
+                    SwiftUI.Button(workbench.pane(for: document.id) == .secondary ? L10n.text("Move to Left Group") : L10n.text("Split Right")) {
                         if workbench.pane(for: document.id) == .secondary { workbench.moveDocument(id: document.id, to: .primary) } else { workbench.splitDocument(id: document.id) }
                     }
-                    SwiftUI.Button("Close Others") { workbench.closeOtherDocuments(keeping: document.id) }
-                    SwiftUI.Button("Close Left") { workbench.closeDocumentsToLeft(of: document.id) }
-                    SwiftUI.Button("Close Right") { workbench.closeDocumentsToRight(of: document.id) }
-                    SwiftUI.Button("Close Clean") { workbench.closeCleanDocuments() }
-                    SwiftUI.Button("Close All") { workbench.closeAllDocuments() }
+                    SwiftUI.Button(L10n.text("Close Others")) { workbench.closeOtherDocuments(keeping: document.id) }
+                    SwiftUI.Button(L10n.text("Close Left")) { workbench.closeDocumentsToLeft(of: document.id) }
+                    SwiftUI.Button(L10n.text("Close Right")) { workbench.closeDocumentsToRight(of: document.id) }
+                    SwiftUI.Button(L10n.text("Close Clean")) { workbench.closeCleanDocuments() }
+                    SwiftUI.Button(L10n.text("Close All")) { workbench.closeAllDocuments() }
                     if document.absolutePath != nil {
-                        SwiftUI.Button("Reveal File") { editor.revealDocument(document) }
-                        SwiftUI.Button("Copy Relative Path") { editor.copyDocumentPath(document, relative: true) }
-                        SwiftUI.Button("Copy Absolute Path") { editor.copyDocumentPath(document, relative: false) }
+                        SwiftUI.Button(L10n.text("Reveal File")) { editor.revealDocument(document) }
+                        SwiftUI.Button(L10n.text("Copy Relative Path")) { editor.copyDocumentPath(document, relative: true) }
+                        SwiftUI.Button(L10n.text("Copy Absolute Path")) { editor.copyDocumentPath(document, relative: false) }
                     }
                 }
         }
