@@ -25,7 +25,7 @@ struct MobileEditorDuoGamePane: View {
                     .mask(RoundedRectangleShape(cornerRadius: 16))
                     .accessibilityIdentifier("AdaEditor.Duo.GameViewport")
             } else {
-                Text(message ?? "Create your game with Ada. Your preview will appear here.")
+                Text(message ?? L10n.text("Create your game with Ada. Your preview will appear here."))
                     .font(MobileEditorFont.font(size: 15))
                     .foregroundColor(theme.editorColors.muted)
                     .multilineTextAlignment(.center)
@@ -71,7 +71,7 @@ private struct MobileEditorDuoPlaybackControls: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 if showsTitle {
-                    Text(selection == .files ? "Files" : "Play")
+                    Text(selection == .files ? L10n.text("Files") : L10n.text("Play"))
                         .font(MobileEditorFont.font(size: 14))
                         .foregroundColor(theme.editorColors.muted)
                     Spacer()
@@ -119,7 +119,7 @@ private struct MobileEditorDuoPanePicker: View {
     }
 
     private func paneButton(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
+        Button(L10n.tr(title), action: action)
             .foregroundColor(selected ? .white : theme.editorColors.text)
             .frame(width: 88, height: 44)
             .background(CapsuleShape().fill(selected ? theme.editorColors.blue : .clear))

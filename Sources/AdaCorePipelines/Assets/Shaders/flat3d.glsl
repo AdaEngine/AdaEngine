@@ -396,6 +396,9 @@ vec3 additionalLighting(vec3 normal, vec3 viewDirection, vec3 baseColor, float m
         if (attenuation <= 0.0) { continue; }
         vec3 contribution = evaluateDirect(normal, viewDirection, direction, baseColor, metallic, roughness,
             light.radianceIntensity.rgb * max(light.radianceIntensity.w, 0.0) * attenuation);
+        // The shadow lookup (nine depth taps) only scales the contribution, so a light that adds nothing here
+        // (facing away, or behind the surface) never needs it.
+        if (max(contribution.r, max(contribution.g, contribution.b)) <= 0.0) { continue; }
         result += contribution * localShadowVisibility(light, direction, normal);
     }
     return result;
@@ -512,7 +515,8 @@ void flat3d_fragment()
     vec3 specular = distribution * geometry * fresnel / max(4.0 * normalView * normalLight, 0.0001);
     vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
     vec3 radiance = max(u_LightRadianceAmbient.rgb, vec3(0.0)) * max(u_LightDirectionIntensity.w, 0.0);
-    float shadowVisibility = directionalShadow(normal, lightDirection);
+    // The sun term is multiplied by n.l, so surfaces facing away from it skip the cascade lookups.
+    float shadowVisibility = normalLight > 0.0 ? directionalShadow(normal, lightDirection) : 1.0;
     vec3 directLighting = (diffuseWeight * baseColor.rgb / PI + specular) * radiance * normalLight * shadowVisibility;
     directLighting += additionalLighting(normal, viewDirection, baseColor.rgb, metallic, roughness);
     vec3 ambient = baseColor.rgb * (1.0 - metallic) * max(u_LightRadianceAmbient.w, 0.0);

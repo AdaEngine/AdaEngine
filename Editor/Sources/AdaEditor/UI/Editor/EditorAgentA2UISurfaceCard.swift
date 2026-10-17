@@ -43,7 +43,7 @@ struct EditorAgentA2UISurfaceCard: View {
             }
             if let result = record?.lastApplication {
                 Text(result.message).font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
-                Button("Undo") {
+                Button(L10n.text("Undo")) {
                     if let viewModel { viewModel.undoA2UITool(surfaceID: surfaceID) }
                     else { presentation?.onUndo(surfaceID) }
                 }
@@ -51,7 +51,7 @@ struct EditorAgentA2UISurfaceCard: View {
                 .disabled(!canInteract)
                 .accessibilityIdentifier("AdaEditor.Agent.A2UI.Undo.\(surfaceID)")
             }
-            Button(viewModel == nil ? "Open UI Source" : "Open in UI Designer") {
+            Button(viewModel == nil ? L10n.text("Open UI Source") : L10n.text("Open in UI Designer")) {
                 if let viewModel { viewModel.openA2UIPreview(surfaceID: surfaceID) }
                 else { presentation?.onOpenPreview(surfaceID) }
             }

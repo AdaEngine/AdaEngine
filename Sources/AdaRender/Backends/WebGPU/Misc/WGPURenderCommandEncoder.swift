@@ -350,6 +350,23 @@
             )
         }
 
+        func drawIndexedIndirect(arguments: any Buffer, offset: Int) -> Bool {
+            guard let arguments = arguments as? WGPUBuffer, currentIndexBuffer != nil,
+                offset >= 0, offset % 4 == 0, arguments.length >= MemoryLayout<IndexedIndirectArguments>.stride,
+                offset <= arguments.length - MemoryLayout<IndexedIndirectArguments>.stride
+            else { return false }
+            if bindGroupDirty { commitBindGroup() }
+            #if WASM
+                // Swan's browser wrapper does not expose indexed indirect draws yet.
+                let object = renderEncoder.jsObject
+                guard let draw = object["drawIndexedIndirect"].function else { return false }
+                _ = draw.callAsFunction(this: object, arguments.buffer.jsObject, Double(offset))
+            #else
+                renderEncoder.drawIndexedIndirect(indirectBuffer: arguments.buffer, indirectOffset: UInt64(offset))
+            #endif
+            return true
+        }
+
         func draw(type _: IndexPrimitive, vertexStart: Int, vertexCount: Int, instanceCount: Int) {
             // Ensure bind groups are committed before drawing
             if bindGroupDirty {
@@ -406,6 +423,7 @@
                         }
                     case .texture:
                         if let texture = resources.textures[slot] {
+                            cacheable = cacheable && texture.allowsBindingCache
                             keys.append(.init(slot: slot, owner: ObjectIdentifier(texture)))
                             owners.append(texture)
                         }

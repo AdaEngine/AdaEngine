@@ -30,7 +30,7 @@ extension EditorUISceneEditor {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 14) {
                     if model.palette.isEmpty {
-                        Text("No matching components").foregroundColor(theme.editorColors.muted).font(.system(size: 12)).padding(.vertical, 12)
+                        Text(L10n.text("No matching components")).foregroundColor(theme.editorColors.muted).font(.system(size: 12)).padding(.vertical, 12)
                     }
                     ForEach(["Layout", "Content", "Controls", "Drawing", "Advanced"], id: \.self) { category in
                         let items = model.palette.filter { EditorUIDesignerSymbols.category($0.id) == category }
@@ -61,7 +61,7 @@ extension EditorUISceneEditor {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxHeight: .infinity)
-            Text("Adding to \(model.selectedNode?.type ?? "selected layer")")
+            Text(L10n.text("Adding to \(model.selectedNode?.type ?? "selected layer")"))
                 .font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
         }
         .padding(10)
@@ -69,7 +69,7 @@ extension EditorUISceneEditor {
 
     var layerLibrary: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("Document", detail: "\(layerCount) layers").padding(.horizontal, 8)
+            sectionTitle("Document", detail: L10n.text("\(layerCount) layers")).padding(.horizontal, 8)
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(rows, id: \.node.id) { row in
@@ -88,7 +88,7 @@ extension EditorUISceneEditor {
                 iconButton("\u{E872}", title: "Layer.Delete", action: model.removeSelected)
             }
             .disabled(model.isReadOnly || model.selectedID == model.document.root.id)
-            Text("Wrap selection in").font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
+            Text(L10n.text("Wrap selection in")).font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
             ScrollView(.horizontal) {
                 HStack(spacing: 2) {
                     ForEach(["VStack", "HStack", "ZStack", "Grid"], id: \.self) { type in
@@ -112,7 +112,7 @@ extension EditorUISceneEditor {
                         .background(RoundedRectangleShape(cornerRadius: 8).fill(theme.editorColors.blue.opacity(0.12)))
                     VStack(alignment: .leading, spacing: 3) {
                         Text(signature.name).font(.system(size: 15, weight: .semibold))
-                        Text(node.id == model.document.root.id ? "Root container" : "Selected layer")
+                        Text(node.id == model.document.root.id ? L10n.text("Root container") : L10n.text("Selected layer"))
                             .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                     }
                     Spacer()
@@ -122,12 +122,12 @@ extension EditorUISceneEditor {
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 16) {
                         if node.type == "UI" {
-                            Button("Open UI source") { model.openNestedUI() }
+                            Button(L10n.text("Open UI source")) { model.openNestedUI() }
                         }
                         VStack(alignment: .leading, spacing: 12) {
                             sectionTitle("Properties", detail: String(signature.parameters.count))
                             if signature.parameters.isEmpty {
-                                Text("This component has no properties.").font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+                                Text(L10n.text("This component has no properties.")).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                             }
                             ForEach(signature.parameters, id: \.name) { parameter in
                                 parameterEditor(parameter, argument: node.arguments[parameter.name]) { argument in
@@ -159,7 +159,7 @@ extension EditorUISceneEditor {
                                 } label: {
                                     HStack {
                                         symbol(showsInputs ? "\u{E5CF}" : "\u{E5CC}", size: 14)
-                                        Text("Inputs & actions").font(.system(size: 12, weight: .semibold))
+                                        Text(L10n.text("Inputs & actions")).font(.system(size: 12, weight: .semibold))
                                         Spacer()
                                         Text(String(model.document.inputs.count + model.document.actions.count)).foregroundColor(theme.editorColors.muted)
                                     }
@@ -176,7 +176,7 @@ extension EditorUISceneEditor {
                 .frame(maxHeight: .infinity)
                 .disabled(model.isReadOnly)
             } else {
-                Text("Select a layer to inspect").foregroundColor(theme.editorColors.muted).padding(16)
+                Text(L10n.text("Select a layer to inspect")).foregroundColor(theme.editorColors.muted).padding(16)
                 Spacer()
             }
         }
@@ -190,7 +190,7 @@ extension EditorUISceneEditor {
         VStack(alignment: .leading, spacing: 10) {
             sectionTitle("Modifiers", detail: String(node.modifiers.count))
             if node.modifiers.isEmpty {
-                Text("Add padding, color or a frame to style this layer.")
+                Text(L10n.text("Add padding, color or a frame to style this layer."))
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             }
             ForEach(node.modifiers) { modifier in modifierEditor(modifier) }
@@ -203,7 +203,7 @@ extension EditorUISceneEditor {
             } label: {
                 HStack {
                     symbol("\u{E145}", size: 14)
-                    Text("Add modifier")
+                    Text(L10n.text("Add modifier"))
                     Spacer()
                 }
             }

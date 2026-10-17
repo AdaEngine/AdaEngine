@@ -40,6 +40,9 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
   `Tests/AdaEngineTests/GoldenFrames/<backend>`; re-record with `ADAENGINE_GOLDEN_RECORD=1`
   and review the diff images written to `ADAENGINE_GOLDEN_OUTPUT` on a mismatch. Keep every
   GPU suite nested under `Render3DGPUTests`, which serializes them.
+- Measure 3D performance with the benchmark, never by eye: `ADAENGINE_PERF=1 ADAENGINE_GOLDEN_METAL=1
+  swift test -c release -Xswiftc -enable-testing --filter Render3DGPUTests/Benchmarks` (options and
+  interpretation in ADR-0027, "Performance pass 1"). Run it on a quiet machine; other GPU work inflates results.
 - Run all tests: `swift test --parallel`
 - Run a single test target:
   - `swift test --parallel --filter AdaEngineTests`

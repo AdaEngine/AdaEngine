@@ -34,7 +34,7 @@ Define `func build(model)`. Axes follow the engine: X right, Y up, Z forward. Ev
 | `model.group()` | Empty part, used as a pivot or parent. |
 | `model.place(id, x, y, z)` | Position relative to the parent. |
 | `model.rotate(id, x, y, z)` | Degrees; roll (Z) is applied first, then pitch (X), then yaw (Y). |
-| `model.scale(id, x, y, z)` | Positive factors only; mirroring is not supported. |
+| `model.scale(id, x, y, z)` | Positive factors only; mirroring is not supported. The scale of a part without children is baked into its geometry, so squashed spheres (clouds, bushes) shade correctly; a scaled group scales its children and can distort their shading when the factors differ. |
 | `model.paint(id, i)` | Material for the part. Material 0 is neutral gray unless you define it. |
 | `model.parent(id, parentId)` | Attach to a part created earlier; transforms are inherited. |
 | `model.name(id, "text")` | Name shown in the scene hierarchy and `editor.model.inspect`. |

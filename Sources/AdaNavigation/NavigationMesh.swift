@@ -61,7 +61,6 @@ public actor NavigationMesh {
             }
         }
         let status: NavigationPathStatus
-        // C enum signedness differs between WASI and native Clang targets.
         switch Int64(result) {
         case Int64(AE_NAV_SUCCESS.rawValue):
             status = .complete

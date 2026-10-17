@@ -92,7 +92,7 @@ enum EditorActivityPresentation {
                 EditorActivityEvent(
                     id: "preview",
                     kind: .preview,
-                    title: "Building preview \(declaration.title)",
+                    title: L10n.text("Building preview \(declaration.title)"),
                     detail: message
                 )
             )

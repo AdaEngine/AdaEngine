@@ -22,7 +22,7 @@ struct MobileEditorModelPickerScreen: View {
                             .font(MobileEditorFont.font(size: 12))
                             .foregroundColor(theme.editorColors.muted)
                         Spacer()
-                        Button("Refresh") { modelStore.reload() }
+                        Button(L10n.text("Refresh")) { modelStore.reload() }
                             .font(MobileEditorFont.font(size: 13))
                             .foregroundColor(theme.editorColors.text)
                             .frame(minHeight: 44)
@@ -34,7 +34,7 @@ struct MobileEditorModelPickerScreen: View {
                             .accessibilityIdentifier("AdaEditor.Mobile.ModelCatalogError")
                     }
                     if modelStore.isLoading && modelStore.models.isEmpty {
-                        messageCard(title: "Loading your models", detail: "Fetching the catalog from \(modelStore.providerTitle)…")
+                        messageCard(title: "Loading your models", detail: L10n.text("Fetching the catalog from \(modelStore.providerTitle)…"))
                     } else if visibleModels.isEmpty {
                         if modelStore.errorMessage.isEmpty {
                             messageCard(
@@ -42,7 +42,7 @@ struct MobileEditorModelPickerScreen: View {
                                 detail: query.isEmpty ? "Refresh the catalog or choose another provider." : "Search by model name or ID."
                             )
                             if !query.isEmpty {
-                                Button("Clear search") { query = "" }
+                                Button(L10n.text("Clear search")) { query = "" }
                                     .foregroundColor(theme.editorColors.text)
                                     .frame(minHeight: 44)
                                     .accessibilityIdentifier("AdaEditor.Mobile.ClearModelSearch")
@@ -65,7 +65,7 @@ struct MobileEditorModelPickerScreen: View {
                 .frame(maxWidth: .infinity)
             }
             .background(theme.editorColors.background)
-            .navigationTitle("Choose model")
+            .navigationTitle(L10n.text("Choose model"))
             .navigationTitleFont(MobileEditorFont.navigationFont(size: 22))
             .navigationTitlePosition(.center)
             .navigationBarTitleDisplayMode(.inline)
@@ -106,7 +106,7 @@ struct MobileEditorModelPickerScreen: View {
                 if selected {
                     Text("\u{E5CA}").font(AdaEditorMaterialSymbolFont.font(size: 18))
                 }
-                Text(title).font(MobileEditorFont.font(size: 14))
+                Text(L10n.tr(title)).font(MobileEditorFont.font(size: 14))
             }
             .foregroundColor(selected ? .white : theme.editorColors.text.opacity(enabled ? 1 : 0.45))
             .frame(maxWidth: .infinity, minHeight: 44)
@@ -122,7 +122,7 @@ struct MobileEditorModelPickerScreen: View {
             Text("\u{E8B6}")
                 .font(AdaEditorMaterialSymbolFont.font(size: 22))
                 .foregroundColor(theme.editorColors.muted)
-            TextField("Search models by name or ID", text: $query)
+            TextField(L10n.text("Search models by name or ID"), text: $query)
                 .textFieldStyle(PlainTextFieldStyle())
                 .font(MobileEditorFont.font(size: 13))
                 .foregroundColor(theme.editorColors.text)
@@ -187,10 +187,10 @@ struct MobileEditorModelPickerScreen: View {
     private func messageCard(title: String, detail: String) -> some View {
         MobileEditorCard {
             VStack(alignment: .leading, spacing: 8) {
-                Text(title)
+                Text(L10n.tr(title))
                     .font(MobileEditorFont.navigationFont(size: 19))
                     .foregroundColor(theme.editorColors.text)
-                Text(detail)
+                Text(L10n.tr(detail))
                     .font(MobileEditorFont.font(size: 13))
                     .foregroundColor(theme.editorColors.muted)
             }

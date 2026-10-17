@@ -42,12 +42,44 @@ and assess gaps before proposing new features.
   open browser guides; they do not perform unattended installation.
 - Keep mocks, fixtures, and QA harnesses in test targets or separate executables.
   Do not add test-only objects or QA launch hooks to the main app, including Debug builds.
+- Linux Standalone uses X11/XWayland and Vulkan. Follow
+  [../Documentation/Linux.md](../Documentation/Linux.md) and launch through
+  `../script/run_studio_linux.sh` to stage resources, runtime libraries and BuildSDK.
+  Use the bundled Gravity compiler and staged Linux Swan overrides for builds/tests;
+  native dialogs require Zenity. The initial Linux workbench/local Run port does
+  not establish remote AdaPlayer, ACP, debugger, Cloud or cross-export parity.
 - Use an isolated scratch/module cache when necessary; never delete the shared
   `.build`. Preserve unrelated engine, demo, and editor changes.
 - Debug macOS builds accept `--editor-project=<absolute-path>` to open the
   production workspace directly for native UI validation.
 - Public scripting terminology is **AdaScript**. `Gravity*` names are internal
   compiler, VM, and language-tooling implementation names.
+
+## Localization (required for every UI change)
+
+- Ada Studio supports **English (`en`) and Russian (`ru`)**. Always write
+  user-facing text for localization, including labels, tooltips, placeholders,
+  menus, dialogs, accessibility labels, empty states and app-authored errors.
+- Add or update both translations automatically in the same change, under
+  `Sources/AdaEditor/Assets/Localization/en.json` and `ru.json`. Do not leave
+  Russian translations for a follow-up task. Use clear, friendly Russian that
+  a young reader can understand; keep product names and code/API identifiers.
+- Use `L10n.text("Text with \(value)")` for interpolated UI messages and
+  `L10n.tr(key)` when rendering a stable key supplied by a model or UI helper.
+  Preserve numbered placeholders in both catalogs. Never concatenate translated
+  sentence fragments or translate user text, source code, file paths, persisted
+  enum values, protocol keys or accessibility identifiers.
+- `EditorLocalization` owns the saved app language. The default follows the
+  system's preferred languages, selecting Russian or English with English as
+  fallback. Desktop General > Language and mobile Settings expose System,
+  English and Russian; changes update mounted UI through Observation.
+- Keep routing, settings page IDs and automation identifiers language-independent.
+  Translate at presentation boundaries. Shared AdaUI and native platform UI must
+  use the same preference; do not independently check `Locale.preferredLanguages`.
+- Run `python ../script/check_studio_localization.py` from `Editor/` and
+  `swift test --filter EditorLocalizationTests` after changing
+  localized UI. Test switching languages with the existing view mounted, and
+  check that longer Russian text fits the affected controls.
 
 ## Capability inventory
 

@@ -20,6 +20,10 @@
             self.context = context
         }
 
+        public func createGPUVisibilityProcessor() -> (any GPUVisibilityProcessor)? {
+            WGPUVisibilityProcessor(context: context)
+        }
+
         public func createUniformBuffer(length: Int, binding: Int) -> any UniformBuffer {
             // WebGPU requires uniform buffers to be aligned to 16 bytes for proper struct alignment
             let alignedLength = (length + 15) & ~15

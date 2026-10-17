@@ -35,7 +35,7 @@ enum ProjectEditorLauncher {
         if let nativeProjectOpener { nativeProjectOpener(project); return }
         guard let manager = UIWindowManager.shared else { return }
         let configuration = UIWindow.Configuration(
-            title: "Ada - \(project.name)",
+            title: L10n.text("Ada - \(project.name)"),
             frame: Rect(x: 0, y: 0, width: ProjectOpeningLayout.windowWidth, height: ProjectOpeningLayout.windowHeight),
             minimumSize: Size(width: ProjectOpeningLayout.windowWidth, height: ProjectOpeningLayout.windowHeight),
             mode: .fullScreenWindowed,

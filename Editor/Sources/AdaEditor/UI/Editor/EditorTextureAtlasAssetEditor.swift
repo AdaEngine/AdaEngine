@@ -390,7 +390,7 @@ struct EditorTextureAtlasAssetEditor: View {
                         .aspectRatio(Float(atlasImage.width) / Float(max(1, atlasImage.height)), contentMode: .fit)
                         .padding(28)
                 } else {
-                    Text(model.isLoadingPreview ? "Building atlas preview…" : "Add images to build the atlas")
+                    Text(model.isLoadingPreview ? L10n.text("Building atlas preview…") : L10n.text("Add images to build the atlas"))
                         .font(.system(size: 12))
                         .foregroundColor(theme.editorColors.muted)
                 }
@@ -422,7 +422,7 @@ struct EditorTextureAtlasAssetEditor: View {
                     .foregroundColor(theme.editorColors.muted)
             }
             Spacer()
-            Text("\(model.descriptor.images.count) images")
+            Text(L10n.text("\(model.descriptor.images.count) images"))
                 .font(.system(size: 10))
                 .foregroundColor(theme.editorColors.blue)
         }
@@ -452,14 +452,14 @@ struct EditorTextureAtlasAssetEditor: View {
 
     private var sourcePaneHeader: some View {
         HStack(spacing: 8) {
-            Text("Atlas Images")
+            Text(L10n.text("Atlas Images"))
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(theme.editorColors.text)
             Spacer()
             Button(
                 action: addImages,
                 label: {
-                    Text("+ Add")
+                    Text(L10n.text("+ Add"))
                         .font(.system(size: 11))
                         .foregroundColor(theme.editorColors.blue)
                         .padding(.horizontal, 8)
@@ -476,7 +476,7 @@ struct EditorTextureAtlasAssetEditor: View {
     @ViewBuilder
     private var sourceList: some View {
         if model.descriptor.images.isEmpty {
-            Text("No images yet")
+            Text(L10n.text("No images yet"))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
             Spacer()
@@ -523,13 +523,13 @@ struct EditorTextureAtlasAssetEditor: View {
 
     private var settingsSummary: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Packing")
+            Text(L10n.text("Packing"))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(theme.editorColors.text)
-            Text("Margin \(model.descriptor.margin)  •  Padding \(model.descriptor.padding)  •  Extrude \(model.descriptor.extrude)")
+            Text(L10n.text("Margin \(model.descriptor.margin)  •  Padding \(model.descriptor.padding)  •  Extrude \(model.descriptor.extrude)"))
                 .font(.system(size: 9))
                 .foregroundColor(theme.editorColors.muted)
-            Text("Sampler \(model.descriptor.filter.rawValue)  •  Power of two \(model.descriptor.powerOfTwo ? "on" : "off")")
+            Text(L10n.text("Sampler \(model.descriptor.filter.rawValue)  •  Power of two \(model.descriptor.powerOfTwo ? "on" : "off")"))
                 .font(.system(size: 9))
                 .foregroundColor(theme.editorColors.muted)
         }

@@ -32,10 +32,10 @@ struct EditorNewFileDialog: View {
                     .accessibilityIdentifier("AdaEditor.ProjectTree.New.Dismiss")
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("New File")
+                        Text(L10n.text("New File"))
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(theme.editorColors.text)
-                        Text("Choose a template · \(viewModel.newFileLocationTitle)")
+                        Text(L10n.text("Choose a template · \(viewModel.newFileLocationTitle)"))
                             .font(.system(size: 11))
                             .foregroundColor(theme.editorColors.muted)
                             .lineLimit(1)
@@ -77,17 +77,17 @@ struct EditorNewFileDialog: View {
                     .foregroundColor(theme.editorColors.text)
                     .padding(.bottom, 6)
 
-                Text(viewModel.isNewFileKindPreselected ? viewModel.newFileKind.detail : "Choose a file type and name.")
+                Text(viewModel.isNewFileKindPreselected ? viewModel.newFileKind.detail : L10n.text("Choose a file type and name."))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(.bottom, 16)
 
-                Text("File name")
+                Text(L10n.text("File name"))
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.muted)
                     .padding(.bottom, 6)
 
-                TextField("Name", text: viewModel.newFileNameBinding)
+                TextField(L10n.text("Name"), text: viewModel.newFileNameBinding)
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.text)
                     .textFieldStyle(PlainTextFieldStyle())
@@ -101,7 +101,7 @@ struct EditorNewFileDialog: View {
                     .accessibilityIdentifier("AdaEditor.NewFile.Name")
 
                 HStack(spacing: 5) {
-                    Text("Location: \(viewModel.newFileLocationTitle)")
+                    Text(L10n.text("Location: \(viewModel.newFileLocationTitle)"))
                     Spacer()
                     Text(viewModel.newFileExtensionHint)
                 }
@@ -110,7 +110,7 @@ struct EditorNewFileDialog: View {
                 .padding(.top, 6)
 
                 if !viewModel.newFilePreviewPath.isEmpty {
-                    Text("Preview: \(viewModel.newFilePreviewPath)")
+                    Text(L10n.text("Preview: \(viewModel.newFilePreviewPath)"))
                         .font(.system(size: 10))
                         .foregroundColor(theme.editorColors.muted)
                         .padding(.top, 6)
@@ -160,7 +160,7 @@ struct EditorNewFileDialog: View {
     }
 
     private func dialogButton(title: String, isPrimary: Bool, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
+        Button(L10n.tr(title), action: action)
             .font(.system(size: 12))
             .foregroundColor(isPrimary ? theme.editorColors.text : theme.editorColors.muted)
             .padding(.horizontal, 14)

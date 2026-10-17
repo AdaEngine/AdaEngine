@@ -49,6 +49,34 @@ public struct ProceduralModel: Sendable, Equatable {
     }
 }
 
+extension ProceduralModel {
+    /// Applies positive, finite scales of parts without children to their vertices and normals, leaving those nodes unscaled.
+    ///
+    /// A non-uniform node scale distorts normals unless the renderer uses the inverse transpose, which produces dark
+    /// patches on squashed spheres such as clouds. Baking the scale makes the model shade correctly everywhere.
+    /// Parts with children or nonpositive or nonfinite scale components keep their original mesh and node scale.
+    public func bakingLeafScales() -> ProceduralModel {
+        var result = self
+        let parents = Set(nodes.compactMap(\.parent))
+        for index in result.nodes.indices where !parents.contains(index) {
+            let scale = result.nodes[index].scale
+            guard scale != .one,
+                scale.x > 0, scale.y > 0, scale.z > 0,
+                scale.x.isFinite, scale.y.isFinite, scale.z.isFinite,
+                var mesh = result.nodes[index].mesh, mesh.positions.count == mesh.normals.count
+            else { continue }
+            let inverse = SIMD3<Float>(1 / scale.x, 1 / scale.y, 1 / scale.z)
+            for vertex in mesh.positions.indices {
+                mesh.positions[vertex] *= scale
+                mesh.normals[vertex] = vecNormalize(mesh.normals[vertex] * inverse)
+            }
+            result.nodes[index].mesh = mesh
+            result.nodes[index].scale = .one
+        }
+        return result
+    }
+}
+
 public enum GLBWritingError: Error, Equatable, Sendable {
     case noGeometry
     case invalidMaterial(node: Int)
@@ -60,7 +88,8 @@ public enum GLBWritingError: Error, Equatable, Sendable {
 public struct GLBWriter: Sendable {
     public init() {}
 
-    public func encode(_ model: ProceduralModel) throws -> Data {
+    public func encode(_ source: ProceduralModel) throws -> Data {
+        let model = source.bakingLeafScales()
         guard model.nodes.contains(where: { $0.mesh?.isEmpty == false }) else { throw GLBWritingError.noGeometry }
 
         var binary = Data()

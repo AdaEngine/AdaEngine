@@ -11,7 +11,7 @@ struct EditorSourceControlSidebar: View {
         VStack(alignment: .leading, spacing: 0) {
             adaEditorPanelTitle("SOURCE CONTROL", trailing: viewModel.sourceControl.snapshot.branchTitle, theme: theme)
             HStack(spacing: 6) {
-                tabButton("Changes (\(Set(viewModel.sourceControl.snapshot.files.map(\.path)).count))", active: !viewModel.sourceControl.showsHistory) {
+                tabButton(L10n.text("Changes (\(Set(viewModel.sourceControl.snapshot.files.map(\.path)).count))"), active: !viewModel.sourceControl.showsHistory) {
                     viewModel.sourceControl.showsHistory = false
                 }
                 tabButton("History", active: viewModel.sourceControl.showsHistory) { viewModel.selectGitHistory() }
@@ -59,7 +59,7 @@ struct EditorSourceControlSidebar: View {
 
     private func tabButton(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 12))
                 .foregroundColor(active ? theme.editorColors.text : theme.editorColors.muted)
                 .frame(maxWidth: .infinity, minHeight: 28, maxHeight: 28)
@@ -105,7 +105,7 @@ struct EditorSourceControlSidebar: View {
 
     private var commitSection: some View {
         section("COMMIT") {
-            TextField("Commit message", text: viewModel.sourceControl.commitMessageBinding)
+            TextField(L10n.text("Commit message"), text: viewModel.sourceControl.commitMessageBinding)
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.text)
                 .padding(.horizontal, 9)
@@ -203,7 +203,7 @@ struct EditorSourceControlSidebar: View {
     private var branchSection: some View {
         section("BRANCHES") {
             HStack(spacing: 8) {
-                TextField("new-branch", text: viewModel.sourceControl.newBranchNameBinding)
+                TextField(L10n.text("new-branch"), text: viewModel.sourceControl.newBranchNameBinding)
                     .font(.system(size: 11))
                     .foregroundColor(theme.editorColors.text)
                     .padding(.horizontal, 9)
@@ -292,7 +292,7 @@ struct EditorSourceControlSidebar: View {
 
     private func section<Content: View>(_ title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.blue)
                 .lineLimit(1)
@@ -310,7 +310,7 @@ struct EditorSourceControlSidebar: View {
 
     private func commandButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
+            Text(L10n.tr(title))
                 .font(.system(size: 10))
                 .foregroundColor(enabled ? theme.editorColors.text : theme.editorColors.muted)
                 .padding(.horizontal, 8)

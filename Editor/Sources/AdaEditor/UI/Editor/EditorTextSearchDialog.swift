@@ -46,7 +46,7 @@ struct EditorTextSearchDialog: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Text("Find in Files").font(.system(size: 18, weight: .semibold))
+            Text(L10n.text("Find in Files")).font(.system(size: 18, weight: .semibold))
             Text(model.status)
                 .font(.system(size: 12))
                 .foregroundColor(theme.editorColors.muted)
@@ -72,7 +72,7 @@ struct EditorTextSearchDialog: View {
     private var searchField: some View {
         HStack(spacing: 12) {
             TextField(
-                "Search text in project",
+                L10n.text("Search text in project"),
                 text: Binding(
                     get: { model.query },
                     set: {
@@ -87,13 +87,13 @@ struct EditorTextSearchDialog: View {
             .foregroundColor(theme.editorColors.text)
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier(Self.fieldIdentifier)
-            Button("Aa") {
+            Button(L10n.text("Aa")) {
                 model.caseSensitive.toggle()
                 viewModel.refreshTextSearch()
             }
             .foregroundColor(model.caseSensitive ? theme.editorColors.blue : theme.editorColors.muted)
             .accessibilityIdentifier("AdaEditor.TextSearch.CaseSensitive")
-            Button("Whole word") {
+            Button(L10n.text("Whole word")) {
                 model.wholeWord.toggle()
                 viewModel.refreshTextSearch()
             }
@@ -163,7 +163,7 @@ struct EditorTextSearchDialog: View {
     private var preview: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let match = model.selectedMatch {
-                Text("\(match.relativePath) · line \(match.range.start.line + 1)")
+                Text(L10n.text("\(match.relativePath) · line \(match.range.start.line + 1)"))
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                 ScrollView(.horizontal) {
                     Text(highlightedText(match, size: 13)).lineLimit(1).fixedSize(horizontal: true, vertical: false)
@@ -199,7 +199,7 @@ struct EditorTextSearchDialog: View {
                 }
                 .accessibilityIdentifier("AdaEditor.TextSearch.Shortcuts")
                 if model.results.skippedFiles > 0 {
-                    Text("\(model.results.skippedFiles) files skipped · binary, too large or unreadable")
+                    Text(L10n.text("\(model.results.skippedFiles) files skipped · binary, too large or unreadable"))
                         .font(.system(size: 10))
                         .foregroundColor(theme.editorColors.muted)
                         .lineLimit(2)
@@ -210,7 +210,7 @@ struct EditorTextSearchDialog: View {
             Button {
                 openSelected()
             } label: {
-                Text("Open in Editor")
+                Text(L10n.text("Open in Editor"))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 14)
@@ -232,7 +232,7 @@ struct EditorTextSearchDialog: View {
                 .padding(.horizontal, 5)
                 .frame(height: 20)
                 .background(RoundedRectangleShape(cornerRadius: 4).fill(theme.editorColors.background))
-            Text(label).font(.system(size: 10))
+            Text(L10n.tr(label)).font(.system(size: 10))
         }
         .foregroundColor(theme.editorColors.muted)
     }

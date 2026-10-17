@@ -19,6 +19,15 @@ public protocol RenderSurface {
     var prefferedPixelFormat: PixelFormat { get }
 }
 
+#if os(Linux)
+    /// An Xlib window whose owner keeps the display and window alive until rendering finishes.
+    @MainActor
+    public protocol LinuxXlibRenderSurface: RenderSurface {
+        var xlibDisplay: UnsafeMutableRawPointer { get }
+        var xlibWindow: UInt64 { get }
+    }
+#endif
+
 #if WASM && canImport(JavaScriptKit)
     @MainActor
     public protocol BrowserCanvasRenderSurface: RenderSurface {

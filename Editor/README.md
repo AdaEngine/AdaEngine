@@ -25,6 +25,16 @@ swift build
 swift test
 ```
 
+### Linux
+
+Studio Standalone can be built for X11/XWayland, including WSLg, with Swift 6.3.2
+and Vulkan. See [Linux setup and validation](../Documentation/Linux.md) for the
+pinned Swan/Dawn, Tint and bundled compiler setup, then run
+`bash script/run_studio_linux.sh` from the engine root. It builds and stages the
+editor, resources, Swift runtime and source BuildSDK before launching. File
+dialogs require Zenity; Linux is the local Run destination. This initial port
+does not establish parity for every desktop service or export target.
+
 ### Windows
 
 Use Swift 6.3 or newer for the Swan/WebGPU dependency, Visual Studio C++ Build

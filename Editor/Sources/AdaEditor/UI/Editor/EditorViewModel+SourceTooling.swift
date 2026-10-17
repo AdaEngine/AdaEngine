@@ -449,39 +449,39 @@ extension EditorViewModel {
         }
 
         var items = [
-            TextEditorContextMenuItem(title: "Toggle Breakpoint") { [weak self] in
+            TextEditorContextMenuItem(title: L10n.text("Toggle Breakpoint")) { [weak self] in
                 guard let path = document.absolutePath else {
                     return
                 }
                 self?.debugger.toggleBreakpoint(path: path, line: position.line + 1)
             },
             TextEditorContextMenuItem(
-                title: "Go To",
+                title: L10n.text("Go To"),
                 submenu: [
-                    TextEditorContextMenuItem(title: "Definition") { [weak self] in
+                    TextEditorContextMenuItem(title: L10n.text("Definition")) { [weak self] in
                         self?.goToDefinition(document: document, position: position)
                     },
-                    TextEditorContextMenuItem(title: "References") { [weak self] in
+                    TextEditorContextMenuItem(title: L10n.text("References")) { [weak self] in
                         self?.findReferences(document: document, position: position)
                     },
                 ]
             ),
-            TextEditorContextMenuItem(title: "Show Hover Info") { [weak self] in
+            TextEditorContextMenuItem(title: L10n.text("Show Hover Info")) { [weak self] in
                 self?.showHoverInfo(document: document, position: position)
             },
-            TextEditorContextMenuItem(title: "Document Highlights") { [weak self] in
+            TextEditorContextMenuItem(title: L10n.text("Document Highlights")) { [weak self] in
                 self?.handleSourceHover(document: document, position: position)
             },
-            TextEditorContextMenuItem(title: "Rename (Unavailable)"),
+            TextEditorContextMenuItem(title: L10n.text("Rename (Unavailable)")),
         ]
         let quickFixes = document.language == .ada
             ? EditorGravityLanguageService.quickFixes(text: document.content, position: position)
             : []
         if quickFixes.isEmpty {
-            items.append(TextEditorContextMenuItem(title: "Code Actions (Unavailable)"))
+            items.append(TextEditorContextMenuItem(title: L10n.text("Code Actions (Unavailable)")))
         } else {
             items.append(TextEditorContextMenuItem(
-                title: "Code Actions",
+                title: L10n.text("Code Actions"),
                 submenu: quickFixes.map { fix in
                     TextEditorContextMenuItem(title: fix.title) { [weak self] in
                         self?.applySourceQuickFix(fix, to: document)

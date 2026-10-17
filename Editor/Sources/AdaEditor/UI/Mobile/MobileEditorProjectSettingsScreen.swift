@@ -34,10 +34,10 @@ struct MobileEditorProjectSettingsScreen: View {
             VStack(alignment: .leading, spacing: 20) {
                 MobileEditorCard {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Project name")
+                        Text(L10n.text("Project name"))
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(theme.editorColors.muted)
-                        TextField("Project name", text: $title)
+                        TextField(L10n.text("Project name"), text: $title)
                             .textFieldStyle(PlainTextFieldStyle())
                             .font(.system(size: 17))
                             .padding(.horizontal, 12)
@@ -63,8 +63,8 @@ struct MobileEditorProjectSettingsScreen: View {
                     .accessibilityIdentifier("AdaEditor.Mobile.ProjectSessions")
                 MobileEditorCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Delete project").font(.system(size: 17, weight: .semibold))
-                        Text("Removes this project, its files and saved sessions from this device.")
+                        Text(L10n.text("Delete project")).font(.system(size: 17, weight: .semibold))
+                        Text(L10n.text("Removes this project, its files and saved sessions from this device."))
                             .font(.system(size: 14))
                             .foregroundColor(theme.editorColors.muted)
                         settingsButton("Delete project", color: Color(red: 0.92, green: 0.20, blue: 0.23)) { confirmsDeletion = true }
@@ -75,7 +75,7 @@ struct MobileEditorProjectSettingsScreen: View {
                     .padding(16)
                 }
                 if isBusy {
-                    Text("Wait for the agent to finish before changing this project.")
+                    Text(L10n.text("Wait for the agent to finish before changing this project."))
                         .foregroundColor(theme.editorColors.muted)
                 }
                 if !errorMessage.isEmpty {
@@ -87,19 +87,19 @@ struct MobileEditorProjectSettingsScreen: View {
         }
         .background(theme.editorColors.background)
         .alert("Delete this project?", isPresented: $confirmsDeletion) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
+            Button(L10n.text("Cancel"), role: .cancel) {}
+            Button(L10n.text("Delete"), role: .destructive) {
                 do { try delete() } catch { errorMessage = error.localizedDescription }
             }
         } message: {
-            Text("The project files and saved sessions will be deleted from this device.")
+            Text(L10n.text("The project files and saved sessions will be deleted from this device."))
         }
     }
 
     private func settingsButton(_ title: String, color: Color, showsChevron: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Text(title).font(.system(size: 15, weight: .semibold))
+                Text(L10n.tr(title)).font(.system(size: 15, weight: .semibold))
                 Spacer()
                 if showsChevron {
                     Text("\u{E5CC}").font(AdaEditorMaterialSymbolFont.font(size: 18))

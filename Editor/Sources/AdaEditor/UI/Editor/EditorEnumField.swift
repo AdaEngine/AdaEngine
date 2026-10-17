@@ -8,7 +8,7 @@ struct EditorEnumField: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Text(selection.wrappedValue)
+            Text(L10n.tr(selection.wrappedValue))
                 .font(.system(size: 12))
                 .lineLimit(1)
             Spacer()
@@ -23,7 +23,7 @@ struct EditorEnumField: View {
         .overlay { RoundedRectangleShape(cornerRadius: 6).stroke(theme.editorColors.border.opacity(0.6), lineWidth: 1) }
         .contextMenu(opensOnPrimaryAction: true) {
             ForEach(cases, id: \.self) { value in
-                ContextMenuOption(value, isSelected: selection.wrappedValue == value) {
+                ContextMenuOption(L10n.tr(value), isSelected: selection.wrappedValue == value) {
                     selection.wrappedValue = value
                 }
             }

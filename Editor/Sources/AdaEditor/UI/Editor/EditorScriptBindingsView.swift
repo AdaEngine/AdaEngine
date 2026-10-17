@@ -55,10 +55,10 @@ struct EditorScriptFieldPicker: View {
             .buttonStyle(DefaultButtonStyle())
             .accessibilityIdentifier("AdaEditor.ScriptFieldPicker.Toggle")
             if expanded {
-                TextField("Find script or field…", text: $search)
+                TextField(L10n.text("Find script or field…"), text: $search)
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Button("Not bound") {
+                        Button(L10n.text("Not bound")) {
                             onSelect(nil)
                             expanded = false
                         }
@@ -69,7 +69,7 @@ struct EditorScriptFieldPicker: View {
                                 expanded = false
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(option.label).font(.system(size: 12))
+                                    Text(L10n.tr(option.label)).font(.system(size: 12))
                                     Text("\(option.script) · \(option.type.rawValue)").font(.system(size: 10))
                                         .foregroundColor(theme.editorColors.muted)
                                 }
@@ -79,7 +79,7 @@ struct EditorScriptFieldPicker: View {
                             .accessibilityIdentifier("AdaEditor.ScriptFieldPicker.Option.\(option.id)")
                         }
                         if options.isEmpty {
-                            Text("No compatible exported fields.").font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
+                            Text(L10n.text("No compatible exported fields.")).font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
                         }
                     }
                 }
@@ -107,7 +107,7 @@ struct EditorScriptBindingsView: View {
         let mappings = model.uiScriptBindings(for: typeName)
         let failure = model.uiBindingsError(for: typeName) ?? model.uiBindingSourceIssue(for: typeName)
         VStack(alignment: .leading, spacing: 12) {
-            Text("Connect UI inputs to exported fields on this entity.")
+            Text(L10n.text("Connect UI inputs to exported fields on this entity."))
                 .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             if let failure {
                 Text(failure).font(.system(size: 11)).foregroundColor(.red)
@@ -121,17 +121,17 @@ struct EditorScriptBindingsView: View {
                     .disabled(failure != nil)
             }
             if inputs.isEmpty {
-                Text("Choose a .ui source with declared inputs. Add inputs in the UI Designer.")
+                Text(L10n.text("Choose a .ui source with declared inputs. Add inputs in the UI Designer."))
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)
             } else {
-                Button("Match by name") { model.matchUIBindingsByName(typeName: typeName) }
+                Button(L10n.text("Match by name")) { model.matchUIBindingsByName(typeName: typeName) }
                     .disabled(failure != nil)
                     .accessibilityIdentifier("AdaEditor.UIBinding.Add")
             }
-            Button(showsJSON ? "Hide JSON" : "Show JSON") { showsJSON.toggle() }
+            Button(showsJSON ? L10n.text("Hide JSON") : L10n.text("Show JSON")) { showsJSON.toggle() }
                 .accessibilityIdentifier("AdaEditor.UIBinding.JSON.Toggle")
             if showsJSON, let field = model.uiFields(for: typeName).first(where: { $0.field.key == "scriptBindings" }) {
-                TextField("Bindings JSON", text: model.componentFieldBinding(typeName: typeName, field: field.field))
+                TextField(L10n.text("Bindings JSON"), text: model.componentFieldBinding(typeName: typeName, field: field.field))
                     .accessibilityIdentifier("AdaEditor.UIBinding.JSON")
             }
         }

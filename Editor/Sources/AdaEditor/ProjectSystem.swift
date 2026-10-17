@@ -659,6 +659,7 @@ public struct AdaProjectRun: Codable, Equatable, Sendable {
 public enum AdaProjectRunDestination: String, Codable, CaseIterable, Equatable, Sendable {
     case macOS = "macos"
     case windows
+    case linux
     case iPadOS = "ipados"
     case visionOS = "visionos"
     case web

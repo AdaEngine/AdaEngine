@@ -99,7 +99,7 @@ struct EditorSceneHierarchySidebar: View {
             adaEditorPanelTitle("HIERARCHY", trailing: trailingTitle, theme: theme)
         case .embedded:
             HStack(spacing: 8) {
-                Text("Hierarchy")
+                Text(L10n.text("Hierarchy"))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(theme.editorColors.text)
                     .padding(.horizontal, 8)
@@ -170,12 +170,12 @@ struct EditorSceneHierarchySidebar: View {
                 Text("\u{E24B}")
                     .font(AdaEditorMaterialSymbolFont.font(size: 16))
                     .foregroundColor(theme.editorColors.muted)
-                Text("No scene open")
+                Text(L10n.text("No scene open"))
                     .font(.system(size: 12))
                     .foregroundColor(theme.editorColors.text)
                     .lineLimit(1)
             }
-            Text("Open a scene file to inspect its entities.")
+            Text(L10n.text("Open a scene file to inspect its entities."))
                 .font(.system(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .lineLimit(2)
@@ -189,10 +189,10 @@ struct EditorSceneHierarchySidebar: View {
         Color.clear
             .frame(width: size.width, height: size.height)
             .contextMenu {
-                Button("Add") {
+                Button(L10n.text("Add")) {
                     onAddEntity(sceneModel.rootEntityID)
                 }
-                Button("Paste") {
+                Button(L10n.text("Paste")) {
                     onPasteEntity(sceneModel.rootEntityID)
                 }
             }
@@ -227,7 +227,7 @@ struct EditorSceneHierarchySidebar: View {
                         .foregroundColor(theme.editorColors.blue)
                         .frame(width: 18, height: 18)
                         .accessibilityIdentifier("AdaEditor.SceneHierarchy.Icon.\(item.id)")
-                    TextField("Entity name", text: Binding(get: { renameDraft }, set: { renameDraft = $0 }))
+                    TextField(L10n.text("Entity name"), text: Binding(get: { renameDraft }, set: { renameDraft = $0 }))
                         .textFieldStyle(PlainTextFieldStyle())
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(theme.editorColors.text)
@@ -321,30 +321,30 @@ struct EditorSceneHierarchySidebar: View {
                 .accessibilityIdentifier("AdaEditor.SceneHierarchy.Separator.\(item.id)")
         }
         .contextMenu(onPresent: { onSelectEntity(item.id) }) {
-            Button("Add Child") {
+            Button(L10n.text("Add Child")) {
                 onAddEntity(item.id)
             }
             Divider()
-            Button(item.isEnabled ? "Hide" : "Show") {
+            Button(item.isEnabled ? L10n.text("Hide") : L10n.text("Show")) {
                 onSetEntityEnabled(item.id, !item.isEnabled)
             }
-            Button("Rename") {
+            Button(L10n.text("Rename")) {
                 beginRename(item)
             }
             if !sceneModel.isRootEntity(item.id) {
-                Button("Duplicate") {
+                Button(L10n.text("Duplicate")) {
                     onDuplicateEntity(item.id)
                 }
             }
-            Button("Copy") {
+            Button(L10n.text("Copy")) {
                 onCopyEntity(item.id)
             }
-            Button("Paste as Child") {
+            Button(L10n.text("Paste as Child")) {
                 onPasteEntity(item.id)
             }
             if !sceneModel.isRootEntity(item.id) {
                 Divider()
-                Button("Delete", role: .destructive) {
+                Button(L10n.text("Delete"), role: .destructive) {
                     onDeleteEntity(item.id)
                 }
             }

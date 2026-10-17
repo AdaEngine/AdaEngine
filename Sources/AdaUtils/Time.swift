@@ -45,9 +45,11 @@ public struct Time {
             return LongTimeInterval(Date().timeIntervalSince1970)
         #else
             var time = timespec()
-            clock_gettime(CLOCK_MONOTONIC, &time)
+            guard unsafe clock_gettime(CLOCK_MONOTONIC, &time) == 0 else {
+                return ProcessInfo.processInfo.systemUptime
+            }
 
-            return LongTimeInterval(time.tv_sec) + LongTimeInterval(time.tv_nsec) / LongTimeInterval(1.0e-9)
+            return LongTimeInterval(time.tv_sec) + LongTimeInterval(time.tv_nsec) * 1.0e-9
         #endif
     }
 

@@ -71,7 +71,7 @@ extension EditorInspectorSidebar {
     private func colorChannelField(fieldID: String, index: Int, text: Binding<String>) -> some View {
         let label = ["R", "G", "B", "A"][index]
         return HStack(spacing: 2) {
-            Text(label)
+            Text(L10n.tr(label))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(index == 3 ? theme.editorColors.muted : axisColor(for: ["X", "Y", "Z"][index]))
                 .frame(width: 11)
@@ -145,7 +145,7 @@ extension EditorInspectorSidebar {
             colorFieldModes[fieldID] = mode
             clearColorDrafts(fieldID: fieldID)
         }) {
-            Text(mode.title)
+            Text(L10n.tr(mode.title))
                 .font(.system(size: 9))
                 .foregroundColor(mode == selectedMode ? theme.editorColors.text : theme.editorColors.muted)
                 .padding(.horizontal, 7)
@@ -169,7 +169,7 @@ extension EditorInspectorSidebar {
                     Text("\u{E3F4}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 17))
                         .foregroundColor(theme.editorColors.purple)
-                    Text(value.isEmpty ? (isSpineField(fieldID) ? "Choose skeleton..." : isParticleField(fieldID) ? "Choose particle effect…" : isModelField(fieldID) ? "Choose model…" : fieldID.hasSuffix(".map") ? "Choose tile map…" : "Choose texture…") : value)
+                    Text(value.isEmpty ? (isSpineField(fieldID) ? L10n.text("Choose skeleton...") : isParticleField(fieldID) ? L10n.text("Choose particle effect…") : isModelField(fieldID) ? L10n.text("Choose model…") : fieldID.hasSuffix(".map") ? L10n.text("Choose tile map…") : L10n.text("Choose texture…")) : value)
                         .font(.system(size: 10))
                         .foregroundColor(value.isEmpty ? theme.editorColors.muted : theme.editorColors.text)
                         .lineLimit(1)
@@ -226,7 +226,7 @@ extension EditorInspectorSidebar {
                     Text("\u{F720}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 17))
                         .foregroundColor(theme.editorColors.blue)
-                    Text(value.isEmpty ? "Choose scene prefab…" : value)
+                    Text(value.isEmpty ? L10n.text("Choose scene prefab…") : value)
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(value.isEmpty ? theme.editorColors.muted : theme.editorColors.text)
                         .lineLimit(1)
@@ -258,7 +258,7 @@ extension EditorInspectorSidebar {
 
     func scenePicker(text: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            TextField("Search project scenes", text: Binding(get: { sceneSearchText }, set: { sceneSearchText = $0 }))
+            TextField(L10n.text("Search project scenes"), text: Binding(get: { sceneSearchText }, set: { sceneSearchText = $0 }))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(theme.editorColors.text)
                 .padding(.horizontal, 8)
@@ -276,7 +276,7 @@ extension EditorInspectorSidebar {
                             Text("\u{E14C}")
                                 .font(AdaEditorMaterialSymbolFont.font(size: 15))
                                 .foregroundColor(theme.editorColors.muted)
-                            Text("None")
+                            Text(L10n.text("None"))
                                 .font(.system(size: 10))
                                 .foregroundColor(theme.editorColors.text)
                             Spacer()
@@ -286,7 +286,7 @@ extension EditorInspectorSidebar {
                     }
                     .buttonStyle(DefaultButtonStyle())
                     if viewModel.sceneAssets(matching: sceneSearchText).isEmpty {
-                        Text("No scene assets found in this project.")
+                        Text(L10n.text("No scene assets found in this project."))
                             .font(.system(size: 9))
                             .foregroundColor(theme.editorColors.muted)
                             .padding(6)
@@ -339,7 +339,7 @@ extension EditorInspectorSidebar {
             : tileMaps ? viewModel.tileMapAssets(matching: assetSearchText) : viewModel.textureAssets(matching: assetSearchText)
         return VStack(alignment: .leading, spacing: 5) {
             TextField(
-                spines ? "Search Spine skeletons" : particles ? "Search particle effects" : models ? "Search project models" : tileMaps ? "Search project tile maps" : "Search project textures",
+                spines ? L10n.text("Search Spine skeletons") : particles ? L10n.text("Search particle effects") : models ? L10n.text("Search project models") : tileMaps ? L10n.text("Search project tile maps") : L10n.text("Search project textures"),
                 text: Binding(get: { assetSearchText }, set: { assetSearchText = $0 })
             )
                 .font(.system(size: 10, weight: .bold))
@@ -358,7 +358,7 @@ extension EditorInspectorSidebar {
                             Text("\u{E14C}")
                                 .font(AdaEditorMaterialSymbolFont.font(size: 15))
                                 .foregroundColor(theme.editorColors.muted)
-                            Text("None")
+                            Text(L10n.text("None"))
                                 .font(.system(size: 10))
                                 .foregroundColor(theme.editorColors.text)
                             Spacer()
@@ -368,7 +368,7 @@ extension EditorInspectorSidebar {
                     }
                     .buttonStyle(DefaultButtonStyle())
                     if assets.isEmpty {
-                        Text(spines ? "Import a Spine skeleton and its atlas into Assets first." : models ? "Import a GLB or glTF into Assets first." : tileMaps ? "No tile maps found in this project." : "No image assets found in this project.")
+                        Text(spines ? L10n.text("Import a Spine skeleton and its atlas into Assets first.") : models ? L10n.text("Import a GLB or glTF into Assets first.") : tileMaps ? L10n.text("No tile maps found in this project.") : L10n.text("No image assets found in this project."))
                             .font(.system(size: 9))
                             .foregroundColor(theme.editorColors.muted)
                             .padding(6)

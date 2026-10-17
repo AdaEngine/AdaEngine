@@ -11,10 +11,10 @@ struct EditorParticleCurveEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(title).font(.system(size: 11, weight: .bold))
+                Text(L10n.tr(title)).font(.system(size: 11, weight: .bold))
                 Spacer()
-                Button("+ Key") { model.addCurveKey(path) }.buttonStyle(DefaultButtonStyle())
-                Button("− Key") {
+                Button(L10n.text("+ Key")) { model.addCurveKey(path) }.buttonStyle(DefaultButtonStyle())
+                Button(L10n.text("− Key")) {
                     if let selectedKey, model.emitter[keyPath: path].keys.indices.contains(selectedKey) {
                         model.updateEmitter { $0[keyPath: path].keys.remove(at: selectedKey) }
                     }
@@ -66,7 +66,7 @@ struct EditorParticleCurveEditor: View {
                     dragLocation = nil
                 })
             }.frame(height: 85)
-            Text("Birth → Lifetime → End · Drag a key to edit").font(.system(size: 9)).foregroundColor(theme.editorColors.muted)
+            Text(L10n.text("Birth → Lifetime → End · Drag a key to edit")).font(.system(size: 9)).foregroundColor(theme.editorColors.muted)
         }
         .accessibilityIdentifier("AdaEditor.ParticleFX.Curve.\(title)")
         .onChange(of: model.selectedEmitter) { _, _ in selectedKey = nil; dragLocation = nil }

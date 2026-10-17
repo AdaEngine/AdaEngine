@@ -77,7 +77,7 @@ struct MobileEditorPlayScreen: View {
             }
             Button(action: captureFrame) {
                 HStack(spacing: 6) {
-                    Text(isCapturing ? "Capturing…" : "Ask Ada")
+                    Text(isCapturing ? L10n.text("Capturing…") : L10n.text("Ask Ada"))
                         .font(MobileEditorFont.font(size: 12))
                 }
                 .foregroundColor(theme.editorColors.text)
@@ -136,7 +136,7 @@ private struct MobileEditorPlayControl: View {
         Button(action: action) {
             Group {
                 if symbol == "\u{E5D5}" {
-                    Text("Restart").font(MobileEditorFont.font(size: 11))
+                    Text(L10n.text("Restart")).font(MobileEditorFont.font(size: 11))
                 } else {
                     Text(symbol).font(AdaEditorMaterialSymbolFont.font(size: 22))
                 }
@@ -169,7 +169,7 @@ private struct MobileEditorScreenshotPrompt: View {
             HStack(spacing: 8) {
                 MobileEditorPlayControl(symbol: "\u{E5CD}", identifier: "CancelGameFeedback", action: cancel)
                     .disabled(isSending)
-                Text("Mark a change")
+                Text(L10n.text("Mark a change"))
                     .font(MobileEditorFont.navigationFont(size: 16))
                     .foregroundColor(theme.editorColors.text)
                 Spacer()
@@ -182,7 +182,7 @@ private struct MobileEditorScreenshotPrompt: View {
             }
             .padding(.horizontal, 12)
 
-            Text("Draw on the screenshot to show Ada what to change.")
+            Text(L10n.text("Draw on the screenshot to show Ada what to change."))
                 .font(MobileEditorFont.font(size: 11))
                 .foregroundColor(theme.editorColors.muted)
                 .padding(.horizontal, 16)
@@ -255,12 +255,12 @@ private struct MobileEditorScreenshotPrompt: View {
                     Text(errorMessage).font(MobileEditorFont.font(size: 11)).foregroundColor(theme.editorColors.muted)
                 }
                 HStack {
-                    Text("Screenshot attached")
+                    Text(L10n.text("Screenshot attached"))
                         .font(MobileEditorFont.font(size: 11))
                         .foregroundColor(theme.editorColors.muted)
                     Spacer()
                     Button(action: send) {
-                        Text(isSending ? "Sending…" : "Send to Ada")
+                        Text(isSending ? L10n.text("Sending…") : L10n.text("Send to Ada"))
                             .font(MobileEditorFont.font(size: 13))
                             .foregroundColor(.white)
                             .padding(.horizontal, 14)

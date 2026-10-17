@@ -24,7 +24,7 @@ enum EditorDocumentationWindowController {
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Ada Documentation"
+            window.title = L10n.tr("Ada Documentation")
             window.minSize = NSSize(width: 760, height: 520)
             window.isReleasedWhenClosed = false
             window.contentViewController = NSHostingController(rootView: EditorDocumentationView(viewModel: viewModel))
