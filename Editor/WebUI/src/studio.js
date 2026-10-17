@@ -55,6 +55,7 @@ export class Studio {
   localAxes = false;
   snapTransforms = false;
   renderedGeneration = -1;
+  viewportExpanded = false;
   constructor() {
     this.preview = new Preview((state) => {
       this.runtime = state;
@@ -70,6 +71,10 @@ export class Studio {
       this.preview.stop();
     });
     window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.viewportExpanded) {
+        this.viewportExpanded = false;
+        this.emit();
+      }
       if (
         (e.metaKey || e.ctrlKey) &&
         e.key.toLowerCase() === "z" &&
@@ -204,6 +209,7 @@ export class Studio {
     this.activity = [];
     this.savedGeneration = 0;
     this.view = "editor";
+    this.viewportExpanded = false;
     this.playing = false;
     this.viewportError = "";
     this.activeFile = this.sources[0]?.path ?? "Sources/Game.ada";
@@ -404,10 +410,18 @@ export class Studio {
         throw new Error("Некорректная трансформация");
       this.editScene((scene) => {
         const entity = scene.entities.find((e) => e.id === value.id);
-        if (entity) entity.components["AdaTransform.Transform"] = clone(t);
+        if (entity)
+          entity.components["AdaTransform.Transform"] = {
+            ...entity.components["AdaTransform.Transform"],
+            ...clone(t),
+          };
       });
     }
     if (type === "shortcut") {
+      if (value.key === "escape") {
+        this.viewportExpanded = false;
+        this.emit();
+      }
       if (value.key === "z") value.shift ? this.redo() : this.undo();
       if (value.key === "s") return this.save();
       if (!this.running && this.selected && value.key === "delete")
@@ -496,10 +510,12 @@ export class Studio {
   }
   undo() {
     this.document?.undo();
+    if (!this.entity) this.selected = null;
     this.changed();
   }
   redo() {
     this.document?.redo();
+    if (!this.entity) this.selected = null;
     this.changed();
   }
   writeCode(text) {

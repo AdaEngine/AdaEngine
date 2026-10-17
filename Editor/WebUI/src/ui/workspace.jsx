@@ -5,6 +5,7 @@ import { Icon, Mark, Button, act, entityIcon } from "./controls.jsx";
 import { Assistant } from "./assistant.jsx";
 import { Inspector } from "./inspector.jsx";
 import { Code, Assets } from "./code-assets.jsx";
+import { ViewportInput } from "./viewport-input.jsx";
 
 function Workspace() {
   const s = studio,
@@ -31,10 +32,15 @@ function Workspace() {
     return () => clearTimeout(timer);
   }, [s.document, s.document.contentGeneration, s.view, s.playing]);
   return (
-    <main className="workspace">
+    <main
+      className={`workspace ${s.viewportExpanded && s.view !== "code" ? "viewport-expanded" : ""}`}
+    >
       <div className={`stage ${mobile ? "mobile-preview" : ""}`}>
         <div className="stage-surface">
           <div ref={host} className="player-host visible" />
+          {s.view === "editor" && s.runtime === "ready" && !s.playing && (
+            <ViewportInput />
+          )}
           {s.view !== "code" &&
             (s.runtime === "error" || !s.preview.hasFrame) && (
               <div className="runtime-loading">
@@ -67,9 +73,14 @@ function Workspace() {
             )}
         </div>
       </div>
-      {s.view !== "code" && s.panel === "objects" && <Objects />}
-      {s.assistant && s.view !== "code" && <Assistant />}
-      {s.inspector && s.selected && s.view === "editor" && <Inspector />}
+      {!s.viewportExpanded && s.view !== "code" && s.panel === "objects" && (
+        <Objects />
+      )}
+      {!s.viewportExpanded && s.assistant && s.view !== "code" && <Assistant />}
+      {!s.viewportExpanded &&
+        s.inspector &&
+        s.selected &&
+        s.view === "editor" && <Inspector />}
       {s.assetPanel && <Assets />}
       {s.view === "code" && <Code />}
       <div className="stage-badge">
@@ -100,6 +111,20 @@ function Workspace() {
             />
           </div>
           <div className="viewport-toolbar">
+            <Button
+              icon={s.viewportExpanded ? "close" : "focus"}
+              label={
+                s.viewportExpanded
+                  ? "Вернуться к панелям (Esc)"
+                  : "Развернуть сцену"
+              }
+              active={s.viewportExpanded}
+              onClick={() => {
+                setMobile(false);
+                s.viewportExpanded = !s.viewportExpanded;
+                s.emit();
+              }}
+            />
             {!s.playing && (
               <>
                 {[

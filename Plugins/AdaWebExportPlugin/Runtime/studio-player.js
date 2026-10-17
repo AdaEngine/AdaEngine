@@ -97,6 +97,7 @@ async function execute(type,payload) {
   if(type==='load')return load(payload);
   if(type==='logs')return logs;
   if(type==='editor')return editor.command(payload||{});
+  if(type==='editor-input')return editor.input(payload||{});
   const canvas=document.querySelector('canvas');
   if(!loaded||!canvas)throw new Error('Game is not ready');
   if(type==='capture') {

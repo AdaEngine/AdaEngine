@@ -30,15 +30,36 @@ transactions as manual changes. Undo preserves the conversation. Scene preview
 installs component schemas without running gameplay systems; Game runs gameplay.
 The inspector edits authored component values, including position/quaternion/scale.
 Unknown runtime components fail with a diagnostic before scene entities spawn.
-Scene selection uses the object hierarchy; the inspector edits supported transforms,
-materials and camera properties. Scene changes replace the world inside the running
+Scene selection uses the object hierarchy or viewport bounds picking; the inspector edits supported transforms,
+materials and camera properties. Move/rotate/scale gizmos update the live world during
+a drag and commit one document transaction on release. Escape/pointer cancellation
+restores the original transform. Translation supports global/local axes; rotation
+and scale use local axes. Ctrl enables positional/15-degree/scale snapping.
+Scene changes replace the world inside the running
 Player, retaining its WASM instance, GPU device and browser window. Editor mode uses
-the authored game cameras and renderer with gameplay scripts, physics and autoplay
+an ephemeral copy of the authored game camera and the same renderer with gameplay scripts, physics and autoplay
 disabled. Play recreates the world from the same source snapshot with gameplay on;
 Stop restores the authored scene. Readiness is acknowledged after an actual completed
 GPU frame. Failed updates show engine diagnostics, and older queued updates cannot
-mark a newer document revision ready. Direct viewport picking/gizmos are not yet
-implemented; do not substitute a separate schematic for the engine viewport.
+mark a newer document revision ready. The SVG layer contains only gizmo handles and
+selection bounds projected with actual AdaEngine matrices; all scene pixels remain
+AdaEngine output. Camera/light entities are selected through the hierarchy. Meshes,
+models and sprites use bounds picking (sprite transparent pixels are not filtered).
+An edit overlapping a newer document/agent revision is discarded and reloaded.
+
+Right-drag looks around; right-drag + WASD/QE flies (Shift is faster). Alt-left-drag
+orbits the selection, middle-drag or Q pans, the wheel dollies/zooms, and F/double
+click frames the selection. Reset returns to the authored game view. Navigation
+never changes project cameras or enters undo; Play always uses authored cameras.
+Studio captures pointer gestures and forwards bounded coordinates/revisions to the
+isolated Player; dragging across panels does not lose the gesture. Expand Scene
+hides panels until the toolbar button or Escape restores them.
+Tools and navigation hints are available from the viewport toolbar. Duplicate
+retains children and remaps their parent IDs. Delete removes the selected subtree.
+
+The Code tab uses CodeMirror with an AdaScript tokenizer, syntax colors, line
+numbers, bracket matching, indentation and Ctrl-F search. Code edits and undo use
+the same document as scene/agent edits; a selection becomes assistant context.
 
 ## Export
 

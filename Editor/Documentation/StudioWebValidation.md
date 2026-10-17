@@ -1,10 +1,49 @@
-# Ada Studio Web validation — 2026-10-17
+# Ada Studio Web validation — 2026-10-18
 
 The implementation spans AdaEngine and the sibling `ada_cloud` checkout. No
 external environment was deployed, no paid provider request was submitted, and
 `STUDIO_WEB_ENABLED` remains off by default.
 
-## Engine viewport correction (current)
+## Viewport tools and source editor (current)
+
+The branch includes upstream `main` through `433e2d88`. The new Hi-Z buffer
+allocation path needed optional-handle normalization to compile with both Swan
+and the browser WebGPU binding; the native GPU suite was rerun after that fix.
+
+- The fixed Player exports with Swift 6.3.2/WASI. The prepared debug module is
+  94.3 MiB / 33.0 MiB gzip; DOM controls still load independently of it.
+- In the actual in-app browser/WebGPU viewport, dragging X changed a 3D object's
+  position from 0 to 1.8906; one undo restored 0. Rotation changed quaternion Z/W
+  to 0.6842/0.7293, and scale X changed from 0.8 to 1.4903. Each was undone.
+- Clicking the rendered tree selected its authored crown. Duplicate created one
+  additional object; undo restored the original count. Camera pan/focus/reset
+  changed real frames, while the authored camera remained at `[0, 5, -12]`.
+- The 2D scene exposes only XY translation and Z rotation. A snapped 36-pixel
+  drag advanced the sprite by 40 scene units; undo restored the original. Both
+  2D/3D switched to gameplay and back without replacing their canvas/WASM instance.
+- Gesture capture lives in Studio, so pointer capture survives iframe and panel
+  boundaries. The isolated Player validates bounded coordinates and the rendered
+  revision before running its editor handlers. Its transient camera copies preserve
+  authored cameras; Play has no editor input layer.
+- CodeMirror rendered distinct annotation, keyword, type, function, numeric,
+  comment and string colors in the real DOM. Ctrl-F opened search; Ctrl-Z restored
+  the exact temporary source edit. The export retains editable AdaScript.
+- 31 Node tests pass, including production gesture handlers, cancellation,
+  coordinate conversion, stale revision/origin rejection, transform transactions,
+  parent-space geometry, syntax tokens, documents, ZIP and agent tools.
+- `script/validate_webgpu.sh` passes **53 tests in 17 suites** after the merge/fix,
+  with actual pixels. Portable core: 7 Swift Testing tests. Workspace/provider:
+  9 Swift Testing tests against disposable PostgreSQL/Redis/S3. Python: 2 frontend
+  preparation tests and 3 source-package assembly tests pass.
+- The Windows native editor and its test executable build after the shared-core
+  extraction and upstream merge; 11 scene/agent/mobile validation tests pass.
+
+Viewport picking uses object bounds, including aggregated imported model bounds;
+transparent sprite pixels are not filtered. Live paid providers and hosted public
+publication are still the release gates below. Pro controls remain disabled in the
+running local test service. No test fixture or launch hook was added to the app.
+
+## Earlier engine viewport correction
 
 The SVG scene renderer has been removed. Opening a project now starts the actual
 AdaEngine Player in editor mode; both editor and Play use its authored cameras,
@@ -26,10 +65,9 @@ materials, lights and asset loaders. DOM panels still render independently of WA
   rejecting superseded acknowledgements, cancellation and origin/source checks.
   The WebGPU validation script passes 38 tests in 13 suites, including actual pixels.
 
-Selection and transforms currently use the hierarchy/inspector. Direct on-viewport
-picking/gizmos remain unimplemented; there is no substitute schematic or second
-renderer. First project opening still waits for engine compilation/GPU setup in the
-viewport while panels and code remain usable.
+This earlier correction established the shared renderer; its hierarchy-only input
+has since been replaced by the tools above. First project opening still waits for
+engine compilation/GPU setup while panels and code remain usable.
 
 ## Earlier DOM frontend iteration (superseded viewport)
 

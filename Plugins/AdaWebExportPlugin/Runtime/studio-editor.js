@@ -117,6 +117,70 @@ export class StudioEditor {
     this.draw();
     return { ok: true };
   }
+  input(value) {
+    if (!this.enabled || value.revision !== this.revision) return { ok: false };
+    const phase = value.phase;
+    if (phase === "cancel") {
+      this.cancel();
+      return { ok: true };
+    }
+    const event = {
+      preventDefault() {},
+      proxy: true,
+      altKey: value.altKey === true,
+      shiftKey: value.shiftKey === true,
+      ctrlKey: value.ctrlKey === true,
+      metaKey: value.metaKey === true,
+    };
+    if (phase === "keyDown" || phase === "keyUp") {
+      if (
+        typeof value.key !== "string" ||
+        value.key.length > 32 ||
+        typeof value.code !== "string" ||
+        value.code.length > 32
+      )
+        throw new Error("Invalid editor key");
+      event.key = value.key;
+      event.code = value.code;
+      if (phase === "keyDown") this.key(event);
+      else this.keys.delete(value.code);
+    } else if (phase === "wheel") {
+      if (!Number.isFinite(value.deltaY))
+        throw new Error("Invalid editor wheel");
+      this.wheel({ ...event, deltaY: M.clamp(value.deltaY, -200, 200) });
+    } else {
+      if (
+        !["down", "move", "up"].includes(phase) ||
+        ![
+          value.x,
+          value.y,
+          value.width,
+          value.height,
+          value.pointerId,
+          value.button,
+        ].every(Number.isFinite) ||
+        value.width <= 0 ||
+        value.height <= 0 ||
+        Math.abs(value.x) > 100000 ||
+        Math.abs(value.y) > 100000 ||
+        ![0, 1, 2, -1].includes(value.button)
+      )
+        throw new Error("Invalid editor pointer");
+      event.clientX = (value.x / value.width) * innerWidth;
+      event.clientY = (value.y / value.height) * innerHeight;
+      event.pointerId = value.pointerId;
+      event.button = value.button;
+      event.target =
+        document.elementFromPoint(
+          M.clamp(event.clientX, 0, innerWidth - 1),
+          M.clamp(event.clientY, 0, innerHeight - 1),
+        ) || this.svg;
+      if (phase === "down") this.down(event);
+      if (phase === "move") this.move(event);
+      if (phase === "up") this.up(event);
+    }
+    return { ok: true };
+  }
   pose() {
     return {
       position: this.state.camera.slice(12, 15),
@@ -335,8 +399,10 @@ export class StudioEditor {
   down(event) {
     if (!this.enabled || this.drag) return;
     event.preventDefault();
-    this.svg.focus();
-    this.svg.setPointerCapture(event.pointerId);
+    if (!event.proxy) {
+      this.svg.focus();
+      this.svg.setPointerCapture(event.pointerId);
+    }
     const p = [event.clientX, event.clientY],
       handle = event.target
         .closest("[data-handle]")
@@ -379,11 +445,7 @@ export class StudioEditor {
         p,
         lastP: p,
         pose: this.pose(),
-        pan:
-          event.button === 1 ||
-          event.shiftKey ||
-          !!this.state.zoom ||
-          this.tool === "hand",
+        pan: event.button === 1 || !!this.state.zoom || this.tool === "hand",
         orbit: event.altKey && event.button === 0,
       };
       this.flyTime = performance.now();
@@ -437,11 +499,14 @@ export class StudioEditor {
         if (parameter == null || drag.parameter == null) return;
         delta = M.mul(a, parameter - drag.parameter);
       }
+      if (snapping) {
+        const step = this.state.zoom ? 10 : 0.5;
+        delta =
+          index === null
+            ? delta.map((v) => M.snap(v, step))
+            : M.mul(a, M.snap(M.dot(delta, a), step));
+      }
       result = M.translateLocal(start, delta, drag.entity.parent);
-      if (snapping)
-        result.position = result.position.map((v) =>
-          M.snap(v, this.state.zoom ? 10 : 0.5),
-        );
     } else if (this.tool === "scale") {
       let amount;
       if (index === null) amount = (drag.p[1] - p[1]) / 90;
@@ -460,7 +525,13 @@ export class StudioEditor {
       const factor = Math.exp(M.clamp(amount, -5, 5));
       result.scale = start.scale.map((v, i) =>
         index === null || i === index
-          ? Math.max(0.01, snapping ? M.snap(v * factor, 0.1) : v * factor)
+          ? (Math.sign(v) || 1) *
+            Math.max(
+              0.01,
+              snapping
+                ? M.snap(Math.abs(v) * factor, 0.1)
+                : Math.abs(v) * factor,
+            )
           : v,
       );
     } else {
@@ -556,8 +627,9 @@ export class StudioEditor {
   }
   look(delta, orbit = false) {
     const pose = this.pose(),
-      yaw = M.quatAxis([0, 1, 0], -delta[0] * 0.004),
-      pitch = M.quatAxis([1, 0, 0], -delta[1] * 0.004);
+      sign = orbit ? -1 : 1,
+      yaw = M.quatAxis([0, 1, 0], sign * delta[0] * 0.004),
+      pitch = M.quatAxis([1, 0, 0], sign * delta[1] * 0.004);
     let rotation = M.norm(M.quatMul(M.quatMul(yaw, pose.rotation), pitch));
     // Avoid flipping through the poles while retaining a level horizon.
     if (Math.abs(M.rotate(rotation, [0, 0, 1])[1]) > 0.995)
@@ -631,7 +703,9 @@ export class StudioEditor {
     if (!this.enabled) return;
     if (event.key === "Escape") {
       event.preventDefault();
+      const active = !!this.drag;
       this.cancel();
+      if (!active) this.notify("shortcut", { key: "escape" });
       return;
     }
     if (

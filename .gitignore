@@ -56,3 +56,4 @@ Derived/
 
 # Local, machine-specific benchmark baselines
 .benchmarkBaselines/
+__pycache__/

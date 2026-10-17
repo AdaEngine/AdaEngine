@@ -1037,44 +1037,10 @@ strong {
   align-self: center;
 }
 .code-body {
-  display: flex;
+  display: block;
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding-top: 19px;
-}
-.line-numbers {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 23px;
-  font:
-    12px/23px Consolas,
-    monospace;
-  color: #4f5861;
-  min-width: 53px;
-  padding-right: 17px;
-  user-select: none;
-}
-.code-body > textarea {
-  width: 100%;
-  resize: none;
-  background: none;
-  border: 0;
-  outline: none;
-  padding: 0 25px 20px 5px;
-  color: #c6cfbf;
-  line-height: 23px;
-  font:
-    12px/23px Consolas,
-    monospace;
-  tab-size: 2;
-  white-space: pre;
-  overflow: auto;
-  caret-color: #c9b8ff;
-}
-.code-body > textarea:focus-visible {
-  outline: none;
+  overflow: hidden;
 }
 .code-status {
   display: flex;
@@ -1984,11 +1950,6 @@ strong {
   height: 100%;
   overflow: hidden;
 }
-.code-body {
-  display: block;
-  min-height: 0;
-  overflow: hidden;
-}
 .viewport-help {
   position: absolute;
   right: 18px;
@@ -2028,4 +1989,25 @@ strong {
   justify-content: center;
   font-size: 11px;
   padding: 7px;
+}
+.workspace.viewport-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.viewport-expanded .stage {
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+}
+.viewport-expanded .viewport-controls {
+  top: 14px;
+  right: 16px;
+}
+.viewport-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  touch-action: none;
+  outline: none;
 }

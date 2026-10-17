@@ -90,8 +90,10 @@ native text inputs. The scene viewport and Play use one isolated fixed AdaPlayer
 with authored cameras, materials and lighting. Opening a project loads the engine;
 document/mode changes replace its world without recreating WASM or the GPU device.
 There is no separate SVG scene renderer. Editor mode disables gameplay, physics
-and autoplay; selecting and transforming objects currently uses hierarchy/inspector,
-with direct viewport picking/gizmos still unavailable. It implements the existing
+and autoplay. Hierarchy/viewport bounds picking, move/rotate/scale gizmos, snapping,
+duplicate/delete and a transient free camera are available. Gizmo gestures commit
+one undo transaction; navigation never changes authored cameras. CodeMirror provides
+AdaScript highlighting, indentation and search. It implements the existing
 portable snapshot/scene/API contracts with transactions/undo, cloud recovery, ZIP
 interchange and an in-tab agent. `Web/` retains the prior AdaUI/WASM application
 (`AdaEditorWeb`) behind `--legacy-wasm-editor`, including its UGC publication UI;

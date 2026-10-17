@@ -18,9 +18,15 @@ final class PlayerEditorBridge {
     func install(entities: [String: Entity], in world: World) {
         guard PlayerBrowserSession.editMode else { return }
         self.entities = entities
-        let cameras = entities.values.filter { $0.components[Camera.self]?.isActive == true }
-            .sorted { ($0.components[Camera.self]?.renderOrder ?? 0) < ($1.components[Camera.self]?.renderOrder ?? 0) }
-        if let source = cameras.last, var camera = source.components[Camera.self] {
+        let cameras = entities.values.filter { $0.components[Camera.self]?.isActive == true && Self.visible($0) }
+            .sorted {
+                let first = $0.components[Camera.self]?.renderOrder ?? 0, second = $1.components[Camera.self]?.renderOrder ?? 0
+                return first == second ? $0.id < $1.id : first < second
+            }
+        // Preserve camera composition on opening. Navigation controls the final
+        // active view; each authored camera remains a separate editable entity.
+        for source in cameras {
+            guard var camera = source.components[Camera.self] else { continue }
             let editor = world.spawn("Studio editor camera")
             camera.isActive = true
             editor.components += camera
@@ -29,7 +35,7 @@ final class PlayerEditorBridge {
             if let graph = source.components[CameraRenderGraph.self] { editor.components += graph }
             SceneRuntimeBootstrap.prepareCamera(on: editor, in: world)
             cameraEntity = editor
-            for authored in cameras { authored.components[Camera.self]?.isActive = false }
+            source.components[Camera.self]?.isActive = false
         }
         #if os(WASI)
         let handler = JSClosure { [weak self] values in
