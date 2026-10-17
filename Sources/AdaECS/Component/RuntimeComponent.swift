@@ -192,6 +192,9 @@ public struct RuntimeComponentDescriptor: Sendable {
             return .array(numbers.map(ReflectedFieldValue.double))
         }
         switch kind {
+        case let .optional(wrapped):
+            if case .null = value { return .null }
+            return normalized(value, as: wrapped, defaultValue: defaultValue)
         case .bool:
             if case .bool = value { return value }
         case .int:

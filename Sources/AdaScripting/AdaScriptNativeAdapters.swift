@@ -392,12 +392,24 @@ final class NativeComponentFactory: NativeHostObject {
     }
     func call(_ method: String, arguments: [NativeValue]) throws -> NativeValue? {
         try scope.check()
-        guard method == "makeNamed", arguments.count == 2, case .string(let name) = arguments[0], case .list(let args) = arguments[1] else {
+        guard method == "makeNamed", (2...3).contains(arguments.count), case .string(let name) = arguments[0], case .list(let args) = arguments[1] else {
             return nil
         }
-        let values = try args.map { value -> ReflectedFieldValue? in
+        var supplied: Set<Int>?
+        if arguments.count == 3 {
+            guard case let .list(indices) = arguments[2] else { throw AdaScriptError.invalidManifest("Invalid constructor argument presence") }
+            var found = Set<Int>()
+            for value in indices {
+                guard case let .integer(raw) = value, let index = Int(exactly: raw), args.indices.contains(index), found.insert(index).inserted else {
+                    throw AdaScriptError.invalidManifest("Invalid constructor argument presence")
+                }
+            }
+            supplied = found
+        }
+        let values = try args.enumerated().map { index, value -> ReflectedFieldValue? in
+            if let supplied, !supplied.contains(index) { return nil }
             if case .null = value {
-                return nil
+                return supplied == nil ? nil : .null
             }
             guard let value = value.literal?.reflected else { throw AdaScriptError.invalidManifest("Invalid component constructor value") }
             return value
