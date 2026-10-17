@@ -28,6 +28,7 @@ for relative in [
     "Tests/AdaRenderTests/ShaderCacheKeyTests.swift",
     # 3D post-processing and debug views render through the selected GPU backend and compare against references.
     "Tests/AdaEngineTests/GoldenFrameSupport.swift",
+    "Tests/AdaEngineTests/WGPUVisibilitySceneTests.swift",
     "Tests/AdaEngineTests/Render3DDebugViewTests.swift",
     "Tests/AdaEngineTests/Render3DPostProcessTests.swift",
     "Tests/AdaEngineTests/Render3DColorGradingTests.swift",

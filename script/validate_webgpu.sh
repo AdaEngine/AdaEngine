@@ -11,7 +11,7 @@ fi
 export TINT_EXECUTABLE
 TINT_EXECUTABLE="$("$ada_validation_python" script/ensure_tint.py)"
 export ADAENGINE_WEB_EXPORT=1 ADAENGINE_VALIDATE_TINT=1 ADAENGINE_SPRITE_WGPU_SMOKE=1 ADAENGINE_GOLDEN_WEBGPU=1
-export ADAENGINE_WEBGPU_VISIBILITY_SMOKE=1
+export ADAENGINE_WEBGPU_VISIBILITY_SMOKE=1 ADAENGINE_WEBGPU_SCENE_SMOKE=1
 export ADAENGINE_SHADER_SOURCE_ROOT="$ada_validation_root"
 ada_validation_scratch="${ADAENGINE_WEBGPU_SCRATCH:-/tmp/adaengine-webgpu-dev-validation}"
 ada_validation_package="$("$ada_validation_python" script/webgpu_validation_package.py "$ada_validation_scratch/validation-package")"
