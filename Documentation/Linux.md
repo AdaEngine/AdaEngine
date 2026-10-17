@@ -93,8 +93,10 @@ Ubuntu 24.04 under WSL 2 / WSLg, Swift 6.3.2 and Mesa llvmpipe Vulkan:
 - All 5 focused Linux runtime/platform tests pass, including real X11 resize,
   keyboard/text delivery, focus-loss releases and `WM_DELETE_WINDOW` teardown.
 - All 70 `AdaUtilsTests` / `AdaInputTests` tests pass.
-- All 27 focused WebGPU tests pass, including fresh Tint conversion, sprite
-  pixel comparisons, picking, tile occlusion and transient attachment lifetime.
+- All 47 checks selected by the current WebGPU validation script pass, including
+  fresh Tint conversion, sprite pixels, picking, tile occlusion, render graph
+  diagnostics and transient attachment lifetime. The 3D golden-frame cases are
+  excluded by their Linux compile guards and are not covered by this result.
 - Both Swan staging helper tests pass; the Windows package manifest still loads.
 - The native demo displays its UI, accepts Latin and Cyrillic text, responds to
   button clicks, resizes and exits on a native close request.
