@@ -226,7 +226,7 @@ extension EditorInspectorSidebar {
                     Text("\u{F720}")
                         .font(AdaEditorMaterialSymbolFont.font(size: 17))
                         .foregroundColor(theme.editorColors.blue)
-                    Text(value.isEmpty ? L10n.text(L10n.text("Choose scene prefab…")) : value)
+                    Text(value.isEmpty ? L10n.text("Choose scene prefab…") : value)
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(value.isEmpty ? theme.editorColors.muted : theme.editorColors.text)
                         .lineLimit(1)
