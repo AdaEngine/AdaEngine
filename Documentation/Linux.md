@@ -151,11 +151,14 @@ selects this engine by local path and migrates Fold's older reflection API names
 Open AdaScript-only samples such as UnfoldTheWorld through Studio's Open Project
 dialog. Under WSLg, `GDK_BACKEND=x11` can select X11 for Zenity as well.
 
-The Linux Studio validation passes 13 focused tests across distribution, Linux
+The Linux Studio validation passes 13 focused tests serially across distribution, Linux
 destination/SDK discovery, UTF-8/CRLF AdaScript compilation, localization, scene
 script loading, hot reload and project input delivery. Another 23 compiler tests
 pass in an isolated package built from the production compiler sources, including
 newline positions and scriptable schema discovery after comments.
+The rebased Studio executable and test product build successfully. SwiftPM's
+post-build test invocation stalled under WSL; the compiled Swift Testing runner
+completed these 13 checks with `--testing-library swift-testing --no-parallel`.
 StarQuest and Fold render native windows; Fold's Jump and Turn controls execute
 its AdaScript controller. A 45-second Fold run held shared graphics memory near
 105 MiB after excluding transient render attachments from the persistent WebGPU
