@@ -295,6 +295,7 @@ Each item needs its own short requirements note before implementation.
 - [ ] Stage 1: motion blur (needs a velocity buffer that exists without temporal upscaling).
 - [ ] Stage 1: quality tiers for depth of field, bloom and auto-exposure.
 - [ ] Stage 2: `KHR_texture_transform`, IOR, specular and clearcoat material extensions.
+- [x] Stage 2: parallax occlusion mapping from `PBRMaterial.heightTexture` (world-unit `heightScale`, per-pixel ray march in `flat3d.glsl` that derives the UV shift from screen-space derivatives so no tangents are needed; the height map is read with the base color sampler because Metal has no free sampler slot; depth, shadows and silhouettes are not displaced; no glTF import yet because no displacement extension is ratified).
 - [ ] Stage 2: sheen, anisotropy and `KHR_lights_punctual` import.
 - [ ] Stage 2: unsupported-extension degradation policy and documented supported list.
 - [ ] Stage 3: morph-target asset, glTF import and GPU evaluation.

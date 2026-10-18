@@ -210,6 +210,8 @@ extension Render3DGPUTests {
             let queue: MTLCommandQueue?
             let camera: Entity
             let sun: Entity
+            /// The ground's material, which tests edit between renders.
+            var groundMaterial: PBRMaterial?
 
             /// Scales the sun's intensity, which changes how bright the whole lit scene is.
             func setSunIntensity(_ intensity: Float) throws {
@@ -334,7 +336,7 @@ extension Render3DGPUTests {
                 Mesh3DComponent(mesh: Mesh.generateCube(size: [10, 0.1, 10], renderDevice: device), materials: [ground])
                 Transform(position: [0, -0.05, 0])
             }
-            return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity, sun: sunEntity)
+            return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity, sun: sunEntity, groundMaterial: ground)
         }
 
         private static func expectGolden(_ image: Image, named name: String) throws {

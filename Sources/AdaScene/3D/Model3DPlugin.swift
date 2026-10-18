@@ -214,6 +214,7 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
         let metallicRoughnessTexture = pbrMaterial?.metallicRoughnessTexture ?? Texture2D.whiteTexture
         let normalTexture = pbrMaterial?.normalTexture ?? Self.flatNormalTexture
         let emissiveTexture = pbrMaterial?.emissiveTexture ?? Texture2D.whiteTexture
+        let heightTexture = pbrMaterial?.heightTexture ?? Texture2D.whiteTexture
 
         if isMotion {
             let previous = world.getResource(Skinning3DUniforms.self)?.previousBuffer(for: item.entity) ?? palette
@@ -237,6 +238,7 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
                     .init(binding: 9, shaderStages: .fragment, resource: .sampler(normalTexture.sampler)),
                     .init(binding: 12, shaderStages: .fragment, resource: .texture(emissiveTexture)),
                     .init(binding: 13, shaderStages: .fragment, resource: .sampler(emissiveTexture.sampler)),
+                    .init(binding: 17, shaderStages: .fragment, resource: .texture(heightTexture)),
                 ]
             ),
             index: 0
