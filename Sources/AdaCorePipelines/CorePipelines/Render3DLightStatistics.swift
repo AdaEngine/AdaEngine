@@ -15,6 +15,8 @@ public final class Render3DLightStatistics: Resource, Sendable {
         public var shadowFaces: Int
         public var atlasWidth: Int
         public var atlasHeight: Int
+        /// Shadow faces kept from an earlier frame instead of redrawn.
+        public var reusedShadowFaces: Int = 0
     }
     private let state = Mutex<[String: Snapshot]>([:])
     public init() {}
@@ -30,7 +32,8 @@ public final class Render3DLightStatistics: Resource, Sendable {
             shadowLights: selected.count,
             shadowFaces: selected.reduce(0) { $0 + ($1.kind == .point ? 6 : 1) },
             atlasWidth: entry.color?.size.width ?? 0,
-            atlasHeight: entry.color?.size.height ?? 0
+            atlasHeight: entry.color?.size.height ?? 0,
+            reusedShadowFaces: entry.reusedFaces
         )
         state.withLock { $0["\(view)"] = value }
     }

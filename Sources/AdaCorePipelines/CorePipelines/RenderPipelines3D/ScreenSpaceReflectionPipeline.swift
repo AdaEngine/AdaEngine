@@ -59,6 +59,11 @@ struct Environment3DUniform: Sendable {
     var postProcess: Vector4
     var grading: Vector4
     var vignette: Vector4
+    var fogColor: Vector4
+    var fogShape: Vector4
+    var fogRange: Vector4
+    var fogSun: Vector4
+    var fogSunColor: Vector4
 }
 
 public struct ScreenSpaceReflectionScratch: Resource, Sendable {

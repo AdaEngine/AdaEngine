@@ -139,7 +139,16 @@ layout (binding = 15) uniform PBR3DUniform {
     vec4 u_SurfaceFlags;
     vec4 u_UVSets;
     vec4 u_Emission;
+    // Per texture slot (base color, metallic/roughness, normal, occlusion, emission): xyzw is a row-major 2x2
+    // matrix, then xy is the offset (glTF KHR_texture_transform).
+    vec4 u_TextureTransforms[10];
+    vec4 u_Dielectric; // rgb: reflectance of non-metals at normal incidence (0.04 for the default IOR of 1.5)
 };
+
+vec2 applyTextureTransform(vec2 uv, int slot) {
+    vec4 matrix = u_TextureTransforms[slot * 2];
+    return vec2(dot(matrix.xy, uv), dot(matrix.zw, uv)) + u_TextureTransforms[slot * 2 + 1].xy;
+}
 layout (binding = 16) uniform texture2D u_OcclusionTexture;
 layout (binding = 0) uniform sampler u_OcclusionSampler;
 layout (binding = 18) uniform texture2D u_Irradiance;
@@ -188,6 +197,27 @@ layout (binding = 28) uniform LocalShadow3DUniform {
     vec4 u_LocalAtlas;
 };
 layout (binding = 26) uniform texture2D u_LocalShadowTexture;
+layout (binding = 27) uniform LightTiles3DUniform {
+    mat4 u_TileProjection;
+    vec4 u_TileViewport; // xy pixel origin, zw pixel size of the viewport the projection maps to
+    vec4 u_TileInfo;     // x tile size in pixels, y columns, z rows, w 1 when tile masks are valid
+};
+layout (binding = 29) uniform LightTileMasks3DUniform {
+    uvec4 u_TileMasks[1024];
+};
+
+// Bit mask of the local lights that may reach this fragment. The tile comes from projecting the view-space
+// position the same way the CPU bounded each light, so it holds for any backend's fragment coordinate origin.
+uint localLightMask() {
+    uint reachable = int(u_LightCounts.y) >= 32 ? 0xFFFFFFFFu : ((1u << uint(max(int(u_LightCounts.y), 0))) - 1u);
+    if (u_TileInfo.w < 0.5) { return reachable; }
+    vec4 clip = u_TileProjection * vec4(Input.ViewPosition, 1.0);
+    if (clip.w <= 0.0001) { return reachable; }
+    vec2 pixel = u_TileViewport.xy + vec2(clip.x / clip.w * 0.5 + 0.5, 0.5 - clip.y / clip.w * 0.5) * u_TileViewport.zw;
+    ivec2 tile = clamp(ivec2(floor(pixel / u_TileInfo.x)), ivec2(0), ivec2(int(u_TileInfo.y) - 1, int(u_TileInfo.z) - 1));
+    int index = tile.y * int(u_TileInfo.y) + tile.x;
+    return u_TileMasks[index >> 2][index & 3] & reachable;
+}
 
 const float PI = 3.14159265359;
 
@@ -218,8 +248,8 @@ vec3 fresnelSchlick(float cosine, vec3 reflectanceAtNormal) {
     return reflectanceAtNormal + (vec3(1.0) - reflectanceAtNormal) * pow(clamp(1.0 - cosine, 0.0, 1.0), 5.0);
 }
 
-vec2 materialUV(float setIndex) {
-    return setIndex > 0.5 ? Input.TextureCoordinate1 : Input.TextureCoordinate;
+vec2 materialUV(float setIndex, int slot) {
+    return applyTextureTransform(setIndex > 0.5 ? Input.TextureCoordinate1 : Input.TextureCoordinate, slot);
 }
 
 vec2 environmentUV(vec3 direction) {
@@ -245,7 +275,7 @@ vec3 environmentLighting(vec3 normal, vec3 viewDirection, vec3 baseColor, float 
     vec3 worldNormal = normalize(mat3(u_EnvironmentInverseView) * normal);
     vec3 worldView = normalize(mat3(u_EnvironmentInverseView) * viewDirection);
     float ndotv = max(dot(normal, viewDirection), 0.0);
-    vec3 f0 = mix(vec3(0.04), baseColor, metallic);
+    vec3 f0 = mix(u_Dielectric.rgb, baseColor, metallic);
     vec3 fresnel = f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(1.0 - ndotv, 5.0);
     vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
     vec3 irradiance = texture(sampler2D(u_Irradiance, u_IBLSampler), environmentUV(worldNormal)).rgb;
@@ -275,15 +305,18 @@ vec3 materialNormal() {
         return normal;
     }
 
-    vec3 tangentNormal = texture(sampler2D(u_NormalTexture, u_NormalSampler), materialUV(u_UVSets.z)).xyz * 2.0 - 1.0;
+    vec3 tangentNormal = texture(sampler2D(u_NormalTexture, u_NormalSampler), materialUV(u_UVSets.z, 2)).xyz * 2.0 - 1.0;
     tangentNormal.xy *= u_SurfaceProperties.x;
-    if (Input.TextureFlags.w > 0.5 && u_UVSets.z < 0.5) {
+    // Authored tangents follow the mesh UVs, so they only hold while the normal map's transform keeps its axes.
+    vec4 normalMatrix = u_TextureTransforms[4];
+    bool keepsTangents = abs(normalMatrix.y) < 0.0001 && abs(normalMatrix.z) < 0.0001 && normalMatrix.x > 0.0 && normalMatrix.w > 0.0;
+    if (Input.TextureFlags.w > 0.5 && u_UVSets.z < 0.5 && keepsTangents) {
         vec3 tangent = normalize(Input.ViewTangent.xyz - normal * dot(normal, Input.ViewTangent.xyz));
         vec3 bitangent = normalize(cross(normal, tangent)) * Input.ViewTangent.w;
         return normalize(mat3(tangent, bitangent, normal) * tangentNormal);
     }
 
-    return normalize(cotangentFrame(normal, Input.ViewPosition, materialUV(u_UVSets.z)) * tangentNormal);
+    return normalize(cotangentFrame(normal, Input.ViewPosition, materialUV(u_UVSets.z, 2)) * tangentNormal);
 }
 
 float cascadeVisibility(int cascade, vec3 normal, vec3 lightDirection) {
@@ -334,7 +367,7 @@ vec3 evaluateDirect(vec3 normal, vec3 viewDirection, vec3 lightDirection, vec3 b
     float nl = max(dot(normal, lightDirection), 0.0), nv = max(dot(normal, viewDirection), 0.0);
     if (nl <= 0.0 || nv <= 0.0) { return vec3(0.0); }
     vec3 halfway = normalize(viewDirection + lightDirection);
-    vec3 f0 = mix(vec3(0.04), baseColor, metallic);
+    vec3 f0 = mix(u_Dielectric.rgb, baseColor, metallic);
     vec3 fresnel = fresnelSchlick(max(dot(halfway, viewDirection), 0.0), f0);
     float distribution = distributionGGX(normal, halfway, roughness);
     float geometry = geometrySmith(normal, viewDirection, lightDirection, roughness);
@@ -379,8 +412,11 @@ vec3 additionalLighting(vec3 normal, vec3 viewDirection, vec3 baseColor, float m
         result += evaluateDirect(normal, viewDirection, normalize(u_AdditionalDirections[i].xyz), baseColor, metallic, roughness,
             u_AdditionalRadiance[i].rgb * max(u_AdditionalDirections[i].w, 0.0));
     }
-    for (int i = 0; i < 32; ++i) {
-        if (i >= int(u_LightCounts.y)) { break; }
+    uint mask = localLightMask();
+    for (int n = 0; n < 32; ++n) {
+        if (mask == 0u) { break; }
+        int i = findLSB(mask);
+        mask &= mask - 1u;
         LocalLight3D light = u_LocalLights[i];
         vec3 delta = light.positionRange.xyz - Input.ViewPosition;
         float distance = length(delta), range = light.positionRange.w;
@@ -452,7 +488,7 @@ void flat3d_fragment()
     if (u_SurfaceFlags.x < 0.5 && !gl_FrontFacing) { discard; }
     vec4 baseColor = Input.Color;
     if (Input.TextureFlags.x > 0.5) {
-        vec4 sampledBaseColor = texture(sampler2D(u_BaseColorTexture, u_BaseColorSampler), materialUV(u_UVSets.x));
+        vec4 sampledBaseColor = texture(sampler2D(u_BaseColorTexture, u_BaseColorSampler), materialUV(u_UVSets.x, 0));
         baseColor *= vec4(srgbToLinear(sampledBaseColor.rgb), sampledBaseColor.a);
     }
 
@@ -463,7 +499,7 @@ void flat3d_fragment()
     if (Input.TextureFlags.y > 0.5) {
         vec4 metallicRoughness = texture(
             sampler2D(u_MetallicRoughnessTexture, u_MetallicRoughnessSampler),
-            materialUV(u_UVSets.y)
+            materialUV(u_UVSets.y, 1)
         );
         roughness = clamp(roughness * metallicRoughness.g, 0.04, 1.0);
         metallic = clamp(metallic * metallicRoughness.b, 0.0, 1.0);
@@ -508,7 +544,7 @@ void flat3d_fragment()
     float normalLight = max(dot(normal, lightDirection), 0.0);
     float normalView = max(dot(normal, viewDirection), 0.0);
 
-    vec3 reflectanceAtNormal = mix(vec3(0.04), baseColor.rgb, metallic);
+    vec3 reflectanceAtNormal = mix(u_Dielectric.rgb, baseColor.rgb, metallic);
     vec3 fresnel = fresnelSchlick(max(dot(halfway, viewDirection), 0.0), reflectanceAtNormal);
     float distribution = distributionGGX(normal, halfway, roughness);
     float geometry = geometrySmith(normal, viewDirection, lightDirection, roughness);
@@ -521,7 +557,7 @@ void flat3d_fragment()
     directLighting += additionalLighting(normal, viewDirection, baseColor.rgb, metallic, roughness);
     vec3 ambient = baseColor.rgb * (1.0 - metallic) * max(u_LightRadianceAmbient.w, 0.0);
     if (u_IBLParameters.x > 0.5) { ambient = environmentLighting(normal, viewDirection, baseColor.rgb, metallic, roughness); }
-    float occlusion = u_SurfaceFlags.y > 0.5 ? texture(sampler2D(u_OcclusionTexture, u_OcclusionSampler), materialUV(u_UVSets.w)).r : 1.0;
+    float occlusion = u_SurfaceFlags.y > 0.5 ? texture(sampler2D(u_OcclusionTexture, u_OcclusionSampler), materialUV(u_UVSets.w, 3)).r : 1.0;
     ambient *= mix(1.0, occlusion, u_SurfaceProperties.y);
     float emissiveVisibility = 1.0;
     if (Input.EmissiveLightThreshold >= 0.0) {
@@ -533,7 +569,7 @@ void flat3d_fragment()
     }
     vec3 emissive = srgbToLinear(texture(
         sampler2D(u_EmissiveTexture, u_EmissiveSampler),
-        materialUV(u_Emission.x)
+        materialUV(u_Emission.x, 4)
     ).rgb) * u_EmissiveFactor.rgb * Input.EmissiveStrength * emissiveVisibility;
 
     color = vec4(directLighting + ambient + emissive, opacity);

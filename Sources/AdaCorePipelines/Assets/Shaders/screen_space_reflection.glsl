@@ -31,6 +31,7 @@ layout (binding = 12) uniform texture2D u_Bloom;
 layout (binding = 13) uniform texture2D u_GradingLUT;
 layout (binding = 14) uniform sampler u_GradingSampler;
 layout (binding = 15) uniform texture2D u_ExposureState;
+layout (binding = 16) uniform texture2D u_Volumetric;
 
 layout (binding = 4) uniform Environment3DUniform {
     mat4 u_Projection;
@@ -49,6 +50,11 @@ layout (binding = 4) uniform Environment3DUniform {
     vec4 u_PostProcess; // x exposure scale, y bloom intensity, z tone mapper (see Tonemapping.glsl), w LUT intensity
     vec4 u_Grading;     // x saturation, y contrast, z vignette intensity, w vignette radius
     vec4 u_Vignette;    // x vignette smoothness, y 1 when automatic exposure is bound
+    vec4 u_FogColor;    // rgb sRGB fog color, w density (0 = fog off)
+    vec4 u_FogShape;    // x height falloff, y base height, z start distance, w maximum opacity
+    vec4 u_FogRange;    // x sky influence, y sun exponent, z 1 when volumetric light shafts are bound
+    vec4 u_FogSun;      // xyz world direction to the sun, w sun in-scattering strength
+    vec4 u_FogSunColor; // rgb sun radiance times intensity
 };
 
 const float PI = 3.14159265359;
@@ -73,6 +79,60 @@ vec3 presentColor(vec3 linearColor) {
         return exposed;
     }
     return adaApplyLut(adaOutputTransform(exposed, u_PostProcess.z), u_PostProcess.w);
+}
+
+// View-space depth the half-resolution volumetric pass saw at `uv`; sky counts as very far.
+float volumetricDepthAt(vec2 uv) {
+    vec3 position = texture(sampler2D(u_ViewPositionMetallic, u_GBufferSampler), uv).xyz;
+    return length(position) > 0.0001 ? position.z : 10000.0;
+}
+
+// Shadowed sun light marched through the fog by the half-resolution volumetric pass. The four surrounding
+// half-resolution texels are weighted by how close their depth is to this pixel's, so shafts do not bleed
+// across silhouettes.
+vec3 volumetricScatter(float depth) {
+    if (u_FogRange.z < 0.5) {
+        return vec3(0.0);
+    }
+    vec2 size = vec2(textureSize(sampler2D(u_Volumetric, u_LinearSampler), 0));
+    vec2 base = floor(v_UV * size - 0.5);
+    vec2 fraction = fract(v_UV * size - 0.5);
+    vec3 sum = vec3(0.0);
+    vec3 plain = vec3(0.0);
+    float weights = 0.0;
+    for (int y = 0; y < 2; ++y) {
+        for (int x = 0; x < 2; ++x) {
+            vec2 uv = clamp((base + vec2(float(x), float(y)) + 0.5) / size, 0.5 / size, vec2(1.0) - 0.5 / size);
+            float bilinear = (x == 0 ? 1.0 - fraction.x : fraction.x) * (y == 0 ? 1.0 - fraction.y : fraction.y);
+            vec3 value = texture(sampler2D(u_Volumetric, u_GBufferSampler), uv).rgb;
+            float weight = bilinear * exp(-abs(volumetricDepthAt(uv) - depth) / max(0.1 * depth, 0.05));
+            sum += value * weight;
+            plain += value * bilinear;
+            weights += weight;
+        }
+    }
+    return weights > 0.001 ? sum / weights : plain;
+}
+
+// Blends exponential height fog into linear HDR color. `viewPosition` is the view-space position of the surface
+// (or a far point along the ray for the sky, flagged by `isSky`) and `skyAmount` scales fog for sky pixels.
+vec3 applyFog(vec3 linearColor, vec3 viewPosition, float skyAmount, bool isSky) {
+    if (u_FogColor.w <= 0.0) {
+        return linearColor;
+    }
+    float travel = max(length(viewPosition) - u_FogShape.z, 0.0);
+    vec3 worldDirection = normalize((u_InverseView * vec4(viewPosition, 0.0)).xyz);
+    float falloff = u_FogShape.x;
+    float cameraHeight = u_InverseView[3].y;
+    float rise = falloff * worldDirection.y;
+    // Integral of exp(-falloff * (height - base)) along the ray, with the series limit for a flat ray.
+    float exponent = clamp(rise * travel, -60.0, 60.0);
+    float pathFactor = abs(rise * travel) > 0.0001 ? (1.0 - exp(-exponent)) / rise : travel;
+    float baseDensity = u_FogColor.w * exp(clamp(-falloff * (cameraHeight - u_FogShape.y), -60.0, 60.0));
+    float opacity = min(1.0 - exp(-baseDensity * pathFactor), u_FogShape.w) * skyAmount;
+    float sunAlignment = pow(max(dot(worldDirection, u_FogSun.xyz), 0.0), u_FogRange.y);
+    vec3 scattered = srgbToLinear(u_FogColor.rgb) + u_FogSunColor.rgb * (u_FogSun.w * sunAlignment);
+    return mix(linearColor, scattered, opacity) + volumetricScatter(isSky ? 10000.0 : viewPosition.z);
 }
 
 vec3 proceduralSky(vec3 direction) {
@@ -241,7 +301,7 @@ void ssr_fragment() {
         vec2 ndc = vec2(v_UV.x * 2.0 - 1.0, 1.0 - v_UV.y * 2.0);
         vec4 viewFar = u_InverseProjection * vec4(ndc, 1.0, 1.0);
         vec3 viewRay = normalize(viewFar.xyz / viewFar.w);
-        o_Color = vec4(presentColor(sampleSky(viewRay)), 1.0);
+        o_Color = vec4(presentColor(applyFog(sampleSky(viewRay), viewRay * 1000.0, u_FogRange.x, true)), 1.0);
         return;
     }
 
@@ -250,7 +310,7 @@ void ssr_fragment() {
     vec3 indirect = texture(sampler2D(u_Indirect, u_LinearSampler), v_UV).rgb;
     baseColor = max(baseColor - indirect * (1.0 - ao), vec3(0.0));
     // The PBR pass already integrated diffuse and specular IBL, including AO and material F0.
-    if (u_IBL.x > 0.5) { o_Color = vec4(presentColor(baseColor), 1.0); return; }
+    if (u_IBL.x > 0.5) { o_Color = vec4(presentColor(applyFog(baseColor, positionMetallic.xyz, 1.0, false)), 1.0); return; }
     vec3 normal = normalize(normalRoughness.xyz);
     float roughness = clamp(normalRoughness.w, 0.04, 1.0);
     float metallic = clamp(positionMetallic.w, 0.0, 1.0);
@@ -275,5 +335,5 @@ void ssr_fragment() {
     }
     vec3 ambient = sampleSky(normal) * (0.035 + 0.035 * (1.0 - roughness));
     vec3 reflectionResult = mix(environment, reflectedColor, visibility);
-    o_Color = vec4(presentColor(baseColor + (ambient + reflectionResult * reflectivity) * ao), 1.0);
+    o_Color = vec4(presentColor(applyFog(baseColor + (ambient + reflectionResult * reflectivity) * ao, positionMetallic.xyz, 1.0, false)), 1.0);
 }

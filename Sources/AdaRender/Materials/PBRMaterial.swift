@@ -9,6 +9,22 @@ import AdaAssets
 import AdaUtils
 import Math
 
+/// Scales, then rotates, then offsets the UV coordinates a PBR texture is sampled with (glTF `KHR_texture_transform`).
+public struct PBRTextureTransform: Sendable, Equatable {
+    public var offset: Vector2
+    /// Counter-clockwise rotation in radians.
+    public var rotation: Float
+    public var scale: Vector2
+
+    public static let identity = PBRTextureTransform()
+
+    public init(offset: Vector2 = .zero, rotation: Float = 0, scale: Vector2 = .one) {
+        self.offset = offset
+        self.rotation = rotation
+        self.scale = scale
+    }
+}
+
 /// A material that uses Physically Based Rendering (PBR) to define its appearance.
 public class PBRMaterial: Material, @unchecked Sendable {
     public var baseColorFactor: Vector4 = .one { didSet { uniformRevision &+= 1 } }
@@ -32,6 +48,14 @@ public class PBRMaterial: Material, @unchecked Sendable {
     /// A negative value emits everywhere. Non-negative values fade emission
     /// out as direct illumination rises above this threshold.
     public var emissiveLightThreshold: Float = -1
+    /// UV transforms for base color, metallic/roughness, normal, occlusion, and emission.
+    public var textureTransforms: [PBRTextureTransform] = Array(repeating: .identity, count: 5) { didSet { uniformRevision &+= 1 } }
+    /// Index of refraction of the dielectric layer. The default 1.5 gives the usual 4% reflectance at normal incidence.
+    public var ior: Float = 1.5 { didSet { uniformRevision &+= 1 } }
+    /// Strength of the dielectric specular reflection (`KHR_materials_specular`).
+    public var specularFactor: Float = 1 { didSet { uniformRevision &+= 1 } }
+    /// Tint of the dielectric specular reflection (`KHR_materials_specular`).
+    public var specularColorFactor: Vector3 = .one { didSet { uniformRevision &+= 1 } }
 
     /// Changes whenever parameters in the shared PBR uniform snapshot are edited.
     @_spi(Internal) public private(set) var uniformRevision: UInt64 = 0

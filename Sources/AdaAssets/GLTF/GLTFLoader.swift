@@ -159,6 +159,8 @@ public struct GLTFImportResult: Sendable {
     public let defaultScene: Int?
     public let skins: [Skin]
     public let animations: [Animation]
+    /// Content the importer read but could not honor, such as an optional extension it does not implement.
+    public let warnings: [String]
 
     public init(
         nodes: [Node],
@@ -170,7 +172,8 @@ public struct GLTFImportResult: Sendable {
         defaultScene: Int?,
         skins: [Skin] = [],
         animations: [Animation] = [],
-        samplers: [Sampler] = []
+        samplers: [Sampler] = [],
+        warnings: [String] = []
     ) {
         self.nodes = nodes
         self.meshes = meshes
@@ -182,6 +185,7 @@ public struct GLTFImportResult: Sendable {
         self.skins = skins
         self.animations = animations
         self.samplers = samplers
+        self.warnings = warnings
     }
 }
 

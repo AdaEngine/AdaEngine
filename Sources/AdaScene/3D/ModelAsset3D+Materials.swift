@@ -59,6 +59,12 @@ extension ModelAsset3D {
             material.alphaCutoff = source.alphaCutoff
             material.doubleSided = source.doubleSided
             material.textureCoordinates = source.textureCoordinates
+            material.textureTransforms = source.textureTransforms.map {
+                PBRTextureTransform(offset: $0.offset, rotation: $0.rotation, scale: $0.scale)
+            }
+            material.ior = source.ior
+            material.specularFactor = source.specularFactor
+            material.specularColorFactor = source.specularColorFactor
             switch source.alphaMode {
             case .opaque: material.alphaMode = .opaque
             case .mask: material.alphaMode = .mask

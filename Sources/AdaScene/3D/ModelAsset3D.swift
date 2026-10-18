@@ -54,6 +54,9 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
     public let skins: [GLTFImportResult.Skin]
     public let animationRig: SkeletalRig?
     public let animationClips: [SkeletalAnimationClip]
+    /// Content of the source file the importer could not honor, such as glTF extensions it does not implement.
+    /// Empty for formats that report nothing. The model still loads and renders without that content.
+    public private(set) var importWarnings: [String] = []
 
     public var assetMetaInfo: AssetMetaInfo?
 
@@ -138,6 +141,7 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
 
         let loader = GLTFLoaderResolver.shared.getLoader()
         let result = try await loader.load(url: assetDecoder.assetMeta.filePath)
+        importWarnings = result.warnings
 
         guard result.skins.allSatisfy({ $0.joints.count <= Skinning3DUniforms.maximumJoints }) else {
             throw AssetError.message("A skinned mesh supports at most \(Skinning3DUniforms.maximumJoints) joints.")

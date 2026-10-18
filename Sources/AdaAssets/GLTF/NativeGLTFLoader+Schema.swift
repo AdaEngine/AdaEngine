@@ -83,10 +83,21 @@ extension NativeGLTFLoader {
             let primitives: [Primitive]
         }
 
+        struct TextureExtensions: Codable {
+            struct Transform: Codable {
+                let offset: [Float]?
+                let rotation: Float?
+                let scale: [Float]?
+                let texCoord: Int?
+            }
+            let KHR_texture_transform: Transform?
+        }
+
         struct Material: Codable {
             struct TextureInfo: Codable {
                 let index: Int
                 let texCoord: Int?
+                let extensions: TextureExtensions?
             }
 
             struct PBR: Codable {
@@ -101,17 +112,29 @@ extension NativeGLTFLoader {
                 let index: Int
                 let texCoord: Int?
                 let scale: Float?
+                let extensions: TextureExtensions?
             }
 
             struct OcclusionTextureInfo: Codable {
                 let index: Int
                 let texCoord: Int?
                 let strength: Float?
+                let extensions: TextureExtensions?
             }
 
             struct Extensions: Codable {
                 struct EmissiveStrength: Codable { let emissiveStrength: Float }
+                struct IOR: Codable { let ior: Float? }
+                struct TextureReference: Codable { let index: Int }
+                struct Specular: Codable {
+                    let specularFactor: Float?
+                    let specularColorFactor: [Float]?
+                    let specularTexture: TextureReference?
+                    let specularColorTexture: TextureReference?
+                }
                 let KHR_materials_emissive_strength: EmissiveStrength?
+                let KHR_materials_ior: IOR?
+                let KHR_materials_specular: Specular?
             }
 
             let name: String?

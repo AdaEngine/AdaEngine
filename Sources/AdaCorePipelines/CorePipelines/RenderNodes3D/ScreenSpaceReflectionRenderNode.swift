@@ -19,6 +19,9 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
     @Res<ExtractedEnvironment3D>
     private var environments
 
+    @Res<ExtractedLighting3D>
+    private var lighting
+
     @Res<ScreenSpaceReflectionPipeline>
     private var pipeline
 
@@ -33,6 +36,7 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
     @Res<Render3DPerformanceMetrics?> private var metrics
     @Res<ExtractedDebugLines3D> private var overlays
     @Res<Bloom3DViews> private var bloomViews
+    @Res<VolumetricFog3DViews> private var volumetricViews
     @Res<AutoExposure3DViews> private var autoExposureViews
 
     public init(notifiesCompletion: Bool = true) {
@@ -43,9 +47,11 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
         _metrics.update(from: world)
         _overlays.update(from: world)
         _bloomViews.update(from: world)
+        _volumetricViews.update(from: world)
         _autoExposureViews.update(from: world)
         query.update(from: world)
         _environments.update(from: world)
+        _lighting.update(from: world)
         _pipeline.update(from: world)
         _scratch.update(from: world)
         _renderDevice.update(from: world)
@@ -82,6 +88,12 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
             let skybox = environment.skybox
             let reflection = environment.screenSpaceReflection
             let skyIntensity = max(0, skybox.intensity)
+            let fog = environment.fog.sanitized
+            let fogActive = environment.fog.changesImage
+            let shafts = fogActive && environment.fog.volumetricActive ? volumetricViews.output(view: source.entityId) : nil
+            let sun = lighting.directionalLight
+            let fogSunDirection = sun?.directionToLight.normalized ?? Vector3(0, 1, 0)
+            let fogSunRadiance = sun.map { $0.radiance * $0.intensity } ?? .zero
             let uniform = Environment3DUniform(
                 projection: jitteredUniform.projectionMatrix,
                 inverseProjection: jitteredUniform.projectionMatrix.inverse,
@@ -138,7 +150,12 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                     environment.postProcess.vignette.sanitized.intensity,
                     environment.postProcess.vignette.sanitized.radius
                 ),
-                vignette: Vector4(environment.postProcess.vignette.sanitized.smoothness, autoExposureTexture == nil ? 0 : 1, 0, 0)
+                vignette: Vector4(environment.postProcess.vignette.sanitized.smoothness, autoExposureTexture == nil ? 0 : 1, 0, 0),
+                fogColor: Vector4(fog.color.asVector.xyz, fogActive ? fog.density : 0),
+                fogShape: Vector4(fog.heightFalloff, fog.baseHeight, fog.startDistance, fog.maximumOpacity),
+                fogRange: Vector4(fog.skyInfluence, fog.sunExponent, shafts == nil ? 0 : 1, 0),
+                fogSun: Vector4(fogSunDirection, fogActive && shafts == nil ? fog.sunInscattering : 0),
+                fogSunColor: Vector4(fogSunRadiance, 0)
             )
             let constants = scratch.cache.write(uniform, view: source.entityId, device: renderDevice.renderDevice)
 
@@ -166,6 +183,7 @@ public struct ScreenSpaceReflectionRenderNode: RenderNode {
                         .init(binding: 9, shaderStages: .fragment, resource: .texture(target.ambientOcclusion3DTexture ?? Texture2D.whiteTexture)),
                         .init(binding: 11, shaderStages: .fragment, resource: .sampler(pipeline.nearest)),
                         .init(binding: 12, shaderStages: .fragment, resource: .texture(bloomTexture ?? Texture2D.whiteTexture)),
+                        .init(binding: 16, shaderStages: .fragment, resource: .texture(shafts ?? Texture2D.whiteTexture)),
                         .init(binding: 13, shaderStages: .fragment, resource: .texture(gradingLUT?.texture ?? Texture2D.whiteTexture)),
                         .init(binding: 14, shaderStages: .fragment, resource: .sampler(pipeline.sampler)),
                         .init(binding: 15, shaderStages: .fragment, resource: .texture(autoExposureTexture ?? Texture2D.whiteTexture)),

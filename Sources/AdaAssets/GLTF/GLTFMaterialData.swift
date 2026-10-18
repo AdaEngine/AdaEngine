@@ -7,6 +7,21 @@ public extension GLTFImportResult {
         case blend = "BLEND"
     }
 
+    /// `KHR_texture_transform`: the UV of a texture is scaled, then rotated (counter-clockwise, radians), then offset.
+    struct TextureTransform: Sendable, Equatable {
+        public var offset: Vector2
+        public var rotation: Float
+        public var scale: Vector2
+
+        public static let identity = TextureTransform()
+
+        public init(offset: Vector2 = .zero, rotation: Float = 0, scale: Vector2 = .one) {
+            self.offset = offset
+            self.rotation = rotation
+            self.scale = scale
+        }
+    }
+
     /// glTF metallic/roughness material values; color factors are linear.
     struct Material: Sendable {
         public let name: String?
@@ -27,6 +42,13 @@ public extension GLTFImportResult {
         public let doubleSided: Bool
         /// UV set indices for base color, metallic/roughness, normal, occlusion, emission.
         public let textureCoordinates: [Int]
+        /// `KHR_texture_transform` for base color, metallic/roughness, normal, occlusion, emission.
+        public let textureTransforms: [TextureTransform]
+        /// `KHR_materials_ior`. The glTF default is 1.5, which gives the 4% dielectric reflectance.
+        public let ior: Float
+        /// `KHR_materials_specular` strength and tint of the dielectric reflection. Specular textures are not read.
+        public let specularFactor: Float
+        public let specularColorFactor: Vector3
 
         public init(
             name: String?,
@@ -45,7 +67,11 @@ public extension GLTFImportResult {
             alphaMode: AlphaMode = .opaque,
             alphaCutoff: Float = 0.5,
             doubleSided: Bool = false,
-            textureCoordinates: [Int] = [0, 0, 0, 0, 0]
+            textureCoordinates: [Int] = [0, 0, 0, 0, 0],
+            textureTransforms: [TextureTransform] = Array(repeating: .identity, count: 5),
+            ior: Float = 1.5,
+            specularFactor: Float = 1,
+            specularColorFactor: Vector3 = .one
         ) {
             self.name = name
             self.baseColorFactor = baseColorFactor
@@ -64,6 +90,10 @@ public extension GLTFImportResult {
             self.alphaCutoff = alphaCutoff
             self.doubleSided = doubleSided
             self.textureCoordinates = textureCoordinates
+            self.textureTransforms = textureTransforms
+            self.ior = ior
+            self.specularFactor = specularFactor
+            self.specularColorFactor = specularColorFactor
         }
     }
 

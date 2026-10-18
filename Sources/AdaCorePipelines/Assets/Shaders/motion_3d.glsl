@@ -65,6 +65,8 @@ layout (binding = 4) uniform texture2D u_BaseColor;
 layout (binding = 7) uniform sampler u_Sampler;
 layout (binding = 15) uniform PBR3DUniform {
     vec4 u_EmissiveFactor; vec4 u_SurfaceProperties; vec4 u_SurfaceFlags; vec4 u_UVSets; vec4 u_Emission;
+    vec4 u_TextureTransforms[10];
+    vec4 u_Dielectric;
 };
 [[main]]
 void motion_fragment() {
@@ -75,7 +77,11 @@ void motion_fragment() {
         if ((values[y * 4 + x] + 0.5) / 16.0 < v_Fade) { discard; }
     }
     float alpha = v_ColorFlags.x;
-    if (v_ColorFlags.y > 0.5) { alpha *= texture(sampler2D(u_BaseColor, u_Sampler), u_UVSets.x > 0.5 ? v_UV1 : v_UV).a; }
+    if (v_ColorFlags.y > 0.5) {
+        vec2 uv = u_UVSets.x > 0.5 ? v_UV1 : v_UV;
+        uv = vec2(dot(u_TextureTransforms[0].xy, uv), dot(u_TextureTransforms[0].zw, uv)) + u_TextureTransforms[1].xy;
+        alpha *= texture(sampler2D(u_BaseColor, u_Sampler), uv).a;
+    }
     if (u_SurfaceProperties.w > 0.5 && u_SurfaceProperties.w < 1.5 && alpha < u_SurfaceProperties.z) { discard; }
     bool valid = v_CurrentClip.w > 0.00001 && v_PreviousClip.w > 0.00001;
     vec2 motion = valid ? (v_PreviousClip.xy / v_PreviousClip.w - v_CurrentClip.xy / v_CurrentClip.w) * vec2(0.5, -0.5) : vec2(0.0);

@@ -294,17 +294,20 @@ Each item needs its own short requirements note before implementation.
 - [x] Stage 1: depth of field.
 - [ ] Stage 1: motion blur (needs a velocity buffer that exists without temporal upscaling).
 - [ ] Stage 1: quality tiers for depth of field, bloom and auto-exposure.
-- [ ] Stage 2: `KHR_texture_transform`, IOR, specular and clearcoat material extensions.
+- [x] Stage 2: `KHR_texture_transform`, `KHR_materials_ior` and `KHR_materials_specular` factors (see "Stage 2, first slice").
+- [ ] Stage 2: clearcoat material extension.
 - [ ] Stage 2: sheen, anisotropy and `KHR_lights_punctual` import.
-- [ ] Stage 2: unsupported-extension degradation policy and documented supported list.
+- [x] Stage 2: unsupported-extension degradation policy and documented supported list (`NativeGLTFLoader.supportedExtensions`, `GLTFImportResult.warnings`).
 - [ ] Stage 3: morph-target asset, glTF import and GPU evaluation.
 - [ ] Stage 3: morph with skinning, shadows, motion vectors, bounds and animation weights.
 - [ ] Stage 4: OIT mode with sorted fallback.
 - [ ] Stage 4: transmission/volume pass.
-- [ ] Stage 5: distance/height fog.
+- [x] Stage 5: distance/height fog (`Fog3D` in `Environment3D`, applied in the composite pass; see "Stage 5, first slice").
 - [ ] Stage 5: physically based sky feeding IBL and time-of-day driver.
-- [ ] Stage 5: volumetric fog and planar reflections.
-- [ ] Stage 6: clustered or tiled light assignment with measured limits.
+- [x] Stage 5: sun light shafts through the fog (half-resolution raymarch, `Fog3D.volumetric`; see "Stage 5, second slice").
+- [ ] Stage 5: froxel volumetric fog for local lights, fog volumes and planar reflections.
+- [x] Stage 6: tiled local-light assignment with measured limits (2D tiles, CPU masks; depth slicing is not done; see "Stage 6, first slice").
+- [x] Stage 6: reuse of unchanged local shadow faces (see "Stage 6, second slice").
 - [ ] Stage 6: contact shadows, soft shadows, area lights and cookies.
 - [ ] Stage 7: decals, static-mesh LOD, terrain, water, foliage, 3D particles (each with its own requirements note).
 - [ ] Stage 7: Hi-Z/indirect-draw parity on WebGPU and Vulkan or documented fallback.
@@ -627,6 +630,140 @@ apart from two issues outside this work: `AdaUITests` crashes on
 press" test, and `Physics3DTests.fixedSchedulerAdvancesAndWritesBackDynamicBody`
 fails under parallel load but passes alone. Not verified: Apple mobile, Windows
 (the GPU suites are macOS-only), the windowed presentation notification path.
+
+### Stage 5, first slice: distance and height fog (2026-10-18)
+
+`Environment3D.fog` (`Fog3D`) adds exponential height fog with distance start, maximum opacity, optional sky
+influence and sun in-scattering. It is evaluated in `screen_space_reflection.glsl`, in linear HDR on the lit
+color and before exposure, bloom add, grading and tone mapping, so it follows exposure like any other light.
+Optical depth is the analytic integral of `density * exp(-heightFalloff * (y - baseHeight))` along the view
+ray (uniform distance fog when `heightFalloff` is `0`). It costs one extra branch per pixel when off and
+allocates nothing. Sky pixels are untouched unless `skyInfluence` is above zero. Sun in-scattering reads the
+primary directional light's radiance and direction. SSR-traced reflection hits are not fogged separately
+(the fog applies to the final composited pixel). Tests: `Render3DFogSettingsTests` and
+`Render3DGPUTests/Fog` (Metal passes, with the `pbr-spheres-fog` golden frame recorded; WebGPU references are not yet recorded because they need `script/validate_webgpu.sh` with Swan/Dawn and Swift 6.3.2).
+
+### Stage 5, second slice: volumetric light shafts (2026-10-18)
+
+The ADR first named froxel volumetrics. This slice uses the approach Bevy ships (a full-screen raymarch that
+samples shadow maps) instead of Godot's compute froxel grid: it needs no compute path, so it works on every
+backend the main pass does, and it reuses the cascaded sun shadows already rendered.
+
+`Fog3D.volumetric` (`VolumetricFog3D`: intensity, anisotropy, steps, maximum distance) enables
+`VolumetricFog3DRenderNode`, which runs after `Main3D` and before the composite. Per half-resolution pixel it
+marches the view ray to the surface (or to `maxDistance` for sky pixels) with interleaved-gradient jitter,
+integrates the fog medium (the same density and height falloff as the analytic fog), looks up the covering
+sun cascade and accumulates `density * transmittance * visibility`, scaled by a Henyey-Greenstein phase and the
+sun radiance. The composite adds the bilinearly upsampled result in linear HDR, and the unshadowed analytic
+`sunInscattering` term switches off while shafts run. A camera without active shafts allocates no texture
+(`VolumetricFog3DViews`) and records no pass.
+
+The upsample weights the four surrounding half-resolution texels by bilinear distance and by how close their
+view depth is to the full-resolution pixel's (sky counts as very far), so shafts do not bleed across silhouettes.
+
+**Cost (Apple M-class GPU, 1080p, release, 400-sphere benchmark scene, best of 3 rounds).** Analytic fog is free
+(`free` 2.43 ms bare, 2.45 ms with fog). Light shafts add 0.26 ms GPU for the pass at 16 steps (`free` 2.69 ms)
+and 0.65 ms at 48 steps (`free` 3.09 ms). Reproduce with `ADAENGINE_PERF_FILTER='bare,fog,shafts'`.
+
+Limits of this slice: sun only (no point or spot lights, no fog volumes), one shadow tap per step, no temporal
+accumulation (the jitter shows as fine noise), and no WebGPU validation yet. Tests: `Render3DGPUTests/Fog` (additive light, shadows carving the shafts, texture
+release, `pbr-spheres-light-shafts` golden frame on Metal).
+
+### Stage 6, first slice: tiled local lights (2026-10-18)
+
+Measured before building: on the benchmark scene the per-pixel loop over 8 local lights cost 0.47 ms (geometry
+1.71 ms against 1.24 ms without local lights) and over 32 lights 1.33 ms (2.57 ms). The local shadow pass is
+a separate 1.10 ms for 13 faces, which this slice does not touch.
+
+The CPU now bins the (up to 32) local lights into screen tiles of at least 32 pixels (the size doubles until
+there are at most 4,096 tiles, so 1080p is 60 by 34 tiles and 4K is 2,040 to 8,160 at 64 pixels).
+Each tile holds a 32-bit light mask; a light sets the bits of the tiles its view-space bounding box projects
+onto, plus one pixel of margin. A light whose sphere reaches the camera plane marks every tile. The main pass
+projects the fragment's view-space position with the same matrix to find its tile (so the lookup does not depend
+on a backend's fragment-coordinate origin), then loops only over the set bits. The masks are conservative: a
+light outside its range already contributed zero, so the lit image is unchanged. `Environment3D.tiledLocalLights`
+(on by default) falls back to the flat loop, and foveated rendering keeps the flat loop.
+
+**Results (same machine and method as Performance pass 1).** With 32 local lights geometry went from 2.57 ms to
+2.09 ms and `free` from 3.30 ms to 2.81 ms. With 8 lights the change is within noise (1.71 ms to 1.69 ms),
+so this helps scenes with many lights, not typical ones. The remaining 0.83 ms at 32 lights is mostly real
+shading: the benchmark lights overlap heavily (range 5 at 4 unit spacing), so each pixel still evaluates several.
+
+Not done: depth slicing into clusters (a tile still lists lights that are in front of or behind the surface),
+tighter bounds for spot cones, and a limit above 32 local lights. Those only pay off with many overlapping
+lights at different depths. Tests: `Render3DLightTilesMathTests` (bounds, near-plane handling, viewport offset,
+32-light cap), `Render3DGPUTests/LightTiles` (tiled and flat frames match; the test fails when the mask is
+broken) and the `32 lights` benchmark configuration.
+
+### Stage 6, second slice: reusing unchanged local shadow faces (2026-10-19)
+
+Every frame the local shadow pass cleared the atlas and redrew all faces (13 faces, 1.10 ms in the benchmark scene)
+even when nothing near a light had moved. Now each face keeps what it drew:
+
+- `VisibleMesh3DLists` fingerprints every shadow pass it prepares (`shadowDigest`): the batch key of each batch
+  (mesh part buffers, material parameter buffer, base color texture, skin), each caster's transform, color factor and
+  fade. A pass with a skinned caster has no fingerprint, because a pose changes without any visible change on
+  the CPU, so those faces are always redrawn.
+- `LocalShadow3DRenderNode` combines it with the face's view-projection matrix (the light's position, direction, range and
+  cone) and compares it with the one stored for the same atlas tile. If every face matches, the pass is skipped
+  entirely. Otherwise the atlas is loaded rather than cleared, each dirty tile is reset with a small
+  scissored clear draw and then redrawn, and clean tiles are left alone. A new atlas or a different budget starts
+  from scratch. `LocalShadowSettings3D.reusesStaticFaces` (on by default) turns it off, and
+  `Render3DLightStatistics.Snapshot.reusedShadowFaces` reports how many faces the last frame kept.
+
+**Result (same machine and method).** On the static benchmark scene the local shadow pass goes from 1.10 ms to
+0 ms and `free` from 2.39 ms to 1.90 ms. Preparing the per-face visible lists still runs on the CPU every frame
+because the fingerprint comes from it. A moving light dirties all of its faces; a moving caster dirties only the
+faces whose frustum it enters or leaves.
+
+**CPU follow-up.** Fingerprinting a face needed its visible list, so the node still prepared every face each frame.
+`ShadowSceneDigest3D` now fingerprints the shadow casters once per frame (transform, mesh part buffers, material
+identity and revision, base color texture). While that digest and a face's matrix are both unchanged, the face
+is kept without building its list; when the digest changes, every face is prepared and compared by content as
+before, so a caster that moves still dirties only the faces it touches. A scene with skinned casters, or with
+level-of-detail alternatives while LOD is on (the chosen mesh follows the camera), has no digest and keeps the
+per-face path. Measured on 4,900 meshes the node's CPU time per frame went from 0.49 ms to 0.21 ms; the frame
+itself is GPU-bound there (`free` 7.4 to 7.5 ms either way), so the saving shows on CPU-bound machines and
+scenes, not in the benchmark's frame time. The digest is now the main remaining cost (about 40 ns per caster); an
+extraction-time change counter would remove it.
+
+Limits: meshes edited in place (same buffers, new vertices) are not noticed; a caster that animates only through
+skinning keeps its faces dirty every frame; the directional cascades (0.53 ms) are not cached, since they follow
+the camera. Tests: `Render3DShadowFaceCacheSettingsTests`, and `Render3DGPUTests/ShadowFaceCache` (a static scene
+keeps all faces and looks identical to a redraw, a moved caster dirties some but not all faces and the partly
+reused atlas equals a full redraw, a moved light dirties every face).
+
+### Stage 2, first slice: texture transforms, IOR, specular and the extension policy (2026-10-19)
+
+**Correction to G2.** The audit said the loader "rejects" extensions it does not know. It only rejects those a file
+lists in `extensionsRequired`, which is what the glTF specification asks for; extensions listed only in
+`extensionsUsed` were already ignored, silently. The gap was the silence, not a rejection.
+
+- **Policy.** `NativeGLTFLoader.supportedExtensions` is the public list (`KHR_mesh_quantization`,
+  `KHR_materials_emissive_strength`, `KHR_texture_transform`, `KHR_materials_ior`, `KHR_materials_specular`). A file that
+  *requires* anything else still fails with `unsupportedRequiredExtension`. An extension a file merely *uses* is
+  ignored and reported in `GLTFImportResult.warnings`, as is a `KHR_materials_specular` texture (only the factors are
+  read). `ModelAsset3D.importWarnings` carries them to the engine; nothing is logged yet because `AdaScene` has no
+  logging dependency.
+- **`KHR_texture_transform`** for base color, metallic/roughness, normal, occlusion and emission: offset, rotation, scale and
+  the `texCoord` override. `PBRMaterial.textureTransforms` holds five `PBRTextureTransform`s; the material uniform stores each
+  as a 2x2 matrix and an offset, and `flat3d.glsl` applies it in `materialUV`. The directional-shadow and motion shaders
+  apply the base-color transform to their alpha test, so cut-out shadows and motion vectors follow the texture. A normal map
+  whose transform rotates or flips axes stops using authored tangents (the derivative frame follows the transformed UVs).
+- **`KHR_materials_ior` and `KHR_materials_specular` (factors).** Non-metal reflectance at normal incidence is
+  `min(((ior - 1) / (ior + 1))^2 * specularColor, 1) * specularFactor`, computed on the CPU into `PBR3DUniform.dielectric`
+  and used in place of the fixed 0.04 in the direct, local-light and image-based terms. The defaults give 0.04, so
+  existing frames are unchanged (all golden frames still match). The glTF specular `F90` term is not modeled (full
+  white at grazing angles, as before), and the SSR composite keeps its own fixed reflectivity.
+- **Validation.** Malformed transforms (wrong vector length, UV set above 1) and out-of-range reflectance (IOR outside
+  1...100, negative or short specular values) fail with `invalidMaterial`.
+
+Cost: the per-material uniform grew from 80 to 272 bytes and the deduplication key from five to sixteen vectors; the benchmark
+frame (`bare`, 1.91 ms) is unchanged. Tests: `GLTFMaterialExtensionTests` (import, validation, warnings, the required-extension
+failure), `GLTFMaterialExtensionMappingTests` (importer to `PBRMaterial`), `Render3DMaterialExtensionConstantTests` and
+`Render3DGPUTests/MaterialExtensions` (a transform moves, scales and rotates the texture, a full turn is the identity, higher IOR
+brightens and zero specular dims the highlight, a red tint shifts it, defaults change nothing). Not validated on WebGPU (no
+Swan/Dawn here). Still open in Stage 2: clearcoat, sheen, anisotropy, specular textures and `KHR_lights_punctual`.
 
 ## Validation requirements
 
