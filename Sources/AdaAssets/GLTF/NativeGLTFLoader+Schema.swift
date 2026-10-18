@@ -139,7 +139,20 @@ extension NativeGLTFLoader {
                     let clearcoatRoughnessTexture: TextureReference?
                     let clearcoatNormalTexture: TextureReference?
                 }
+                struct Sheen: Codable {
+                    let sheenColorFactor: [Float]?
+                    let sheenColorTexture: TextureReference?
+                    let sheenRoughnessFactor: Float?
+                    let sheenRoughnessTexture: TextureReference?
+                }
+                struct Anisotropy: Codable {
+                    let anisotropyStrength: Float?
+                    let anisotropyRotation: Float?
+                    let anisotropyTexture: TextureReference?
+                }
                 let KHR_materials_emissive_strength: EmissiveStrength?
+                let KHR_materials_sheen: Sheen?
+                let KHR_materials_anisotropy: Anisotropy?
                 let KHR_materials_clearcoat: Clearcoat?
                 let KHR_materials_ior: IOR?
                 let KHR_materials_specular: Specular?

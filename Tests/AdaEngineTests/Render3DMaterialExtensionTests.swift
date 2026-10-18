@@ -55,6 +55,23 @@ struct Render3DMaterialExtensionConstantTests {
         #expect(plain.bitPatterns != PBR3DUniform(material: material, descriptor: VertexDescriptor()).bitPatterns)
     }
 
+    @Test func sheenAndAnisotropyDefaultToOffAndClamp() {
+        let plain = PBR3DUniform(material: PBRMaterial(), descriptor: VertexDescriptor())
+        #expect(plain.sheen == .zero && plain.anisotropy == .zero)
+        let material = PBRMaterial()
+        material.sheenColorFactor = Vector3(0.9, 0.5, 0.2)
+        material.sheenRoughnessFactor = 0.4
+        material.anisotropyStrength = 0.6
+        material.anisotropyRotation = 1.2
+        let value = PBR3DUniform(material: material, descriptor: VertexDescriptor())
+        #expect(value.sheen == Vector4(0.9, 0.5, 0.2, 0.4) && value.anisotropy == Vector4(0.6, 1.2, 0, 0))
+        material.sheenColorFactor = Vector3(5, .nan, -1)
+        material.anisotropyStrength = .infinity
+        let wild = PBR3DUniform(material: material, descriptor: VertexDescriptor())
+        #expect(wild.sheen.x == 1 && wild.sheen.y.isFinite && wild.sheen.z == 0 && wild.anisotropy.x.isFinite)
+        #expect(plain.bitPatterns != value.bitPatterns && value.bitPatterns != wild.bitPatterns)
+    }
+
     @Test func nonFiniteValuesFallBackToDefaults() {
         let material = PBRMaterial()
         material.ior = .nan
@@ -101,7 +118,7 @@ extension Render3DGPUTests {
         }
 
         /// A large sphere in front of the camera, in the middle of the frame.
-        private static func makeScene(_ configure: (PBRMaterial) -> Void) async throws -> (scene: Render3DGPUTests.DebugViews.Scene, material: PBRMaterial) {
+        private static func makeScene(polesSideways: Bool = false, _ configure: (PBRMaterial) -> Void) async throws -> (scene: Render3DGPUTests.DebugViews.Scene, material: PBRMaterial) {
             let scene = try await Render3DDebugViewGPUTests.makeScene()
             let material = PBRMaterial()
             material.baseColorFactor = [0.5, 0.5, 0.5, 1]
@@ -110,7 +127,7 @@ extension Render3DGPUTests {
             configure(material)
             scene.app.main.spawn("Probe") {
                 Mesh3DComponent(mesh: Mesh.generateSphere(radius: 0.5, renderDevice: scene.device), materials: [material])
-                Transform(position: [0, 0.5, -2.2])
+                Transform(rotation: polesSideways ? Quat(axis: Vector3(0, 0, 1), angle: .pi / 2) : .identity, position: [0, 0.5, -2.2])
             }
             return (scene, material)
         }
@@ -217,6 +234,56 @@ extension Render3DGPUTests {
         }
 
         @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func sheenAddsSoftLightThatGrowsWithItsColorAndTurnsOff() async throws {
+            let (scene, material) = try await Self.makeScene { $0.baseColorFactor = [0.03, 0.03, 0.03, 1]; $0.roughnessFactor = 0.9 }
+            let baseline = try await scene.render(.none)
+            material.sheenRoughnessFactor = 0.4
+            var gains: [Float] = []
+            for strength: Float in [0.3, 0.7, 1] {
+                material.sheenColorFactor = Vector3(strength, strength, strength)
+                gains.append(Self.largestGain(try await scene.render(.none), over: baseline))
+            }
+            #expect(gains[0] > 0.05, "Sheen must add light (gain \(gains[0])).")
+            #expect(zip(gains, gains.dropFirst()).allSatisfy { $0 < $1 }, "Sheen must grow with its color: \(gains)")
+            material.sheenColorFactor = .zero
+            #expect(Self.matches(baseline, try await scene.render(.none)), "Turning sheen off must restore the frame.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func sheenColorTintsTheAddedLight() async throws {
+            let (scene, material) = try await Self.makeScene { $0.baseColorFactor = [0.03, 0.03, 0.03, 1]; $0.roughnessFactor = 0.9; $0.sheenRoughnessFactor = 0.4 }
+            material.sheenColorFactor = Vector3(1, 0, 0)
+            let red = try await scene.render(.none)
+            material.sheenColorFactor = Vector3(0, 0, 1)
+            let blue = try await scene.render(.none)
+            var redExcess: Float = 0
+            for y in stride(from: 130, to: 350, by: 2) {
+                for x in stride(from: 170, to: 470, by: 2) {
+                    let a = red.getPixel(x: x, y: y), b = blue.getPixel(x: x, y: y)
+                    redExcess += (a.red - a.blue) - (b.red - b.blue)
+                }
+            }
+            #expect(redExcess > 0, "A red sheen must leave the surface redder than a blue one (\(redExcess)).")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func anisotropyStretchesTheHighlightAndRotationTurnsIt() async throws {
+            let (scene, material) = try await Self.makeScene { $0.baseColorFactor = [0.03, 0.03, 0.03, 1]; $0.roughnessFactor = 0.35 }
+            let round = try await scene.render(.none)
+            material.anisotropyStrength = 0.8
+            let stretched = try await scene.render(.none)
+            material.anisotropyRotation = .pi / 2
+            let turned = try await scene.render(.none)
+            #expect(!Self.matches(round, stretched), "Anisotropy must change the highlight.")
+            #expect(!Self.matches(stretched, turned), "Rotating the stretch direction must change the highlight.")
+            material.anisotropyRotation = .pi
+            #expect(Self.matches(stretched, try await scene.render(.none)), "Half a turn flips the direction and must look the same.")
+            material.anisotropyStrength = 0
+            material.anisotropyRotation = 0
+            #expect(Self.matches(round, try await scene.render(.none)), "Zero strength must restore the round highlight.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
         func clearcoatMatchesItsGoldenFrame() async throws {
             let (scene, _) = try await Self.makeScene {
                 $0.baseColorFactor = [0.55, 0.04, 0.04, 1]
@@ -233,6 +300,37 @@ extension Render3DGPUTests {
             case let .mismatched(comparison, actual, difference):
                 Issue.record("pbr-sphere-clearcoat differs in \(comparison.differingPixels) pixels. Actual: \(actual.path), difference: \(difference.path)")
             }
+        }
+
+        private static func expectGolden(_ image: Image, named name: String) throws {
+            switch try GoldenFrame.check(image, name: name) {
+            case .recorded, .matched:
+                break
+            case .missingReference(let actual):
+                Issue.record("No golden frame for \(name); record with ADAENGINE_GOLDEN_RECORD=1. Actual: \(actual.path)")
+            case let .mismatched(comparison, actual, difference):
+                Issue.record("\(name) differs in \(comparison.differingPixels) pixels. Actual: \(actual.path), difference: \(difference.path)")
+            }
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func sheenAndAnisotropyMatchTheirGoldenFrames() async throws {
+            let (velvet, _) = try await Self.makeScene {
+                $0.baseColorFactor = [0.25, 0.02, 0.05, 1]
+                $0.metallicFactor = 0
+                $0.roughnessFactor = 0.85
+                $0.sheenColorFactor = Vector3(0.9, 0.55, 0.65)
+                $0.sheenRoughnessFactor = 0.45
+            }
+            try Self.expectGolden(try await velvet.render(.none), named: "pbr-sphere-sheen")
+            // The sphere's UV poles degenerate, which shows in a derivative-based tangent frame, so keep them at the sides.
+            let (brushed, _) = try await Self.makeScene(polesSideways: true) {
+                $0.baseColorFactor = [0.8, 0.8, 0.82, 1]
+                $0.metallicFactor = 1
+                $0.roughnessFactor = 0.35
+                $0.anisotropyStrength = 0.85
+            }
+            try Self.expectGolden(try await brushed.render(.none), named: "pbr-sphere-anisotropy")
         }
 
         @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))

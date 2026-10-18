@@ -297,7 +297,8 @@ Each item needs its own short requirements note before implementation.
 - [x] Stage 2: `KHR_texture_transform`, `KHR_materials_ior` and `KHR_materials_specular` factors (see "Stage 2, first slice").
 - [x] Stage 2: `KHR_materials_clearcoat` factors (see "Stage 2, second slice").
 - [x] Stage 2: parallax occlusion mapping from `PBRMaterial.heightTexture` (world-unit `heightScale`, per-pixel ray march in `flat3d.glsl` that derives the UV shift from screen-space derivatives so no tangents are needed; the height map is read with the base color sampler because Metal has no free sampler slot; depth, shadows and silhouettes are not displaced; no glTF import yet because no displacement extension is ratified).
-- [ ] Stage 2: sheen, anisotropy and `KHR_lights_punctual` import.
+- [x] Stage 2: sheen and anisotropy factors (see "Stage 2, third slice").
+- [ ] Stage 2: `KHR_lights_punctual` import.
 - [x] Stage 2: unsupported-extension degradation policy and documented supported list (`NativeGLTFLoader.supportedExtensions`, `GLTFImportResult.warnings`).
 - [ ] Stage 3: morph-target asset, glTF import and GPU evaluation.
 - [ ] Stage 3: morph with skinning, shadows, motion vectors, bounds and animation weights.
@@ -791,6 +792,38 @@ highlights but not a sky reflection. There is no clearcoat debug view and no Web
 `GLTFMaterialExtensionTests` (import, ranges, texture warning), `Render3DMaterialExtensionConstantTests` (uniform),
 `Render3DGPUTests/MaterialExtensions` (a smooth coat adds a highlight to rough paint, a rougher coat dims it, the highlight grows
 with strength, turning the coat off restores the frame) and the `pbr-sphere-clearcoat` golden frame (Metal).
+
+### Stage 2, third slice: sheen and anisotropy (2026-10-19)
+
+`KHR_materials_sheen` (cloth) and `KHR_materials_anisotropy` (brushed metal, satin) factors. `PBRMaterial` gains
+`sheenColorFactor`, `sheenRoughnessFactor`, `anisotropyStrength` and `anisotropyRotation`, imported with range
+validation (sheen color and roughness 0 to 1, strength 0 to 1) and carried in `PBR3DUniform.sheen` and `.anisotropy`.
+
+- **Sheen.** The Charlie distribution with the Neubelt visibility term, as in the glTF specification, evaluated per light in
+  `evaluateDirect`; the base layer under it is dimmed by `1 - max(sheenColor) * 0.4`. The specification's sheen albedo lookup
+  table is replaced by that constant (0.4), and under image-based lighting sheen is a diffuse lobe from the irradiance map
+  with the same albedo. Without image-based lighting only the lights produce sheen.
+- **Anisotropy.** Anisotropic GGX (distribution and height-correlated visibility) with `alphaT = mix(alpha, 1, strength^2)`
+  along the stretch direction and `alpha` across it, so the highlight streaks perpendicular to the direction. The frame
+  is the authored tangent when the mesh has tangents and the UV-derivative frame otherwise, rotated by
+  `anisotropyRotation`. Image-based reflections bend the lookup normal toward the stretch (the Filament approximation).
+- **Layering order** is base, then sheen, then clearcoat. The sun now goes through `evaluateDirect` like every other light, which
+  removed the duplicated inline copy of the lighting model.
+
+**Cost (same machine and method).** With every layer switched off, `bare` main-pass geometry went from 1.77 ms at the merge
+with `main` to 1.82 ms with clearcoat and to 1.92 ms with sheen and anisotropy (32 lights: 2.18, 2.26, 2.40 ms), so the
+three layered-material features together cost about 8 percent of main-pass geometry on scenes that use none of them. The
+branches are uniform across a draw, so the cost is most likely register pressure from the larger lighting function. The fix
+is shader permutations selected by the material (the `HAS_...` define mechanism exists on `PBRMaterial`, but the PBR
+pipeline is keyed by vertex layout only), which is not done.
+
+Limits: the sheen color, sheen roughness and anisotropy textures are not read (reported as import warnings). Meshes
+without tangents get a tangent frame from UV derivatives, which is constant per triangle and shows faceting along an
+anisotropic highlight on coarse meshes (visible on the primitive sphere in `pbr-sphere-anisotropy`) and at UV poles; assets with
+authored tangents do not show it. No WebGPU validation. Tests: import, ranges and warnings in `GLTFMaterialExtensionTests`,
+the uniform in `Render3DMaterialExtensionConstantTests`, and in `Render3DGPUTests/MaterialExtensions` sheen adds light that
+grows with its color and tints it, turning it off restores the frame, anisotropy changes and rotates the highlight and a half
+turn looks the same, plus the `pbr-sphere-sheen` and `pbr-sphere-anisotropy` golden frames (Metal).
 
 ## Validation requirements
 

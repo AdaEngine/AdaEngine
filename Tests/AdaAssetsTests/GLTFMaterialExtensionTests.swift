@@ -112,16 +112,51 @@ struct GLTFMaterialExtensionTests {
     }
 
     @Test
+    func importsSheenAndAnisotropy() throws {
+        let material = try #require(load(material: ["extensions": [
+            "KHR_materials_sheen": ["sheenColorFactor": [0.9, 0.5, 0.2], "sheenRoughnessFactor": 0.4],
+            "KHR_materials_anisotropy": ["anisotropyStrength": 0.6, "anisotropyRotation": 1.2],
+        ]], used: ["KHR_materials_sheen", "KHR_materials_anisotropy"]).materials.first)
+        #expect(material.sheenColorFactor == Vector3(0.9, 0.5, 0.2) && material.sheenRoughnessFactor == 0.4)
+        #expect(material.anisotropyStrength == 0.6 && material.anisotropyRotation == 1.2)
+        let plain = try #require(load(material: [:]).materials.first)
+        #expect(plain.sheenColorFactor == .zero && plain.sheenRoughnessFactor == 0)
+        #expect(plain.anisotropyStrength == 0 && plain.anisotropyRotation == 0)
+    }
+
+    @Test(arguments: [
+        #"{"KHR_materials_sheen":{"sheenColorFactor":[2,0,0]}}"#,
+        #"{"KHR_materials_sheen":{"sheenColorFactor":[1,1]}}"#,
+        #"{"KHR_materials_sheen":{"sheenRoughnessFactor":-1}}"#,
+        #"{"KHR_materials_anisotropy":{"anisotropyStrength":2}}"#,
+        #"{"KHR_materials_anisotropy":{"anisotropyStrength":-0.5}}"#,
+    ])
+    func rejectsOutOfRangeSheenAndAnisotropy(json: String) throws {
+        let extensions = try object(json)
+        #expect(throws: NativeGLTFLoader.GLTFError.invalidMaterial(0)) { try load(material: ["extensions": extensions]) }
+    }
+
+    @Test
+    func sheenAndAnisotropyTexturesAreReportedAsSkipped() throws {
+        let result = try load(material: ["extensions": [
+            "KHR_materials_sheen": ["sheenColorTexture": ["index": 0]],
+            "KHR_materials_anisotropy": ["anisotropyTexture": ["index": 0]],
+        ]], used: ["KHR_materials_sheen", "KHR_materials_anisotropy"])
+        #expect(result.warnings.count == 2)
+        #expect(result.warnings.contains { $0.contains("KHR_materials_sheen") } && result.warnings.contains { $0.contains("KHR_materials_anisotropy") })
+    }
+
+    @Test
     func unsupportedUsedExtensionsLoadWithAWarning() throws {
-        let result = try load(material: [:], used: ["KHR_materials_sheen", "KHR_texture_transform"])
+        let result = try load(material: [:], used: ["KHR_materials_transmission", "KHR_texture_transform"])
         #expect(result.warnings.count == 1)
-        #expect(result.warnings.first?.contains("KHR_materials_sheen") == true)
+        #expect(result.warnings.first?.contains("KHR_materials_transmission") == true)
     }
 
     @Test
     func unsupportedRequiredExtensionsStillFail() {
-        #expect(throws: NativeGLTFLoader.GLTFError.unsupportedRequiredExtension("KHR_materials_sheen")) {
-            try load(material: [:], used: ["KHR_materials_sheen"], required: ["KHR_materials_sheen"])
+        #expect(throws: NativeGLTFLoader.GLTFError.unsupportedRequiredExtension("KHR_materials_transmission")) {
+            try load(material: [:], used: ["KHR_materials_transmission"], required: ["KHR_materials_transmission"])
         }
     }
 
@@ -134,7 +169,7 @@ struct GLTFMaterialExtensionTests {
     @Test
     func theSupportedListNamesEveryImplementedExtension() {
         let supported = NativeGLTFLoader.supportedExtensions
-        for name in ["KHR_texture_transform", "KHR_materials_ior", "KHR_materials_specular", "KHR_materials_clearcoat", "KHR_materials_emissive_strength", "KHR_mesh_quantization"] {
+        for name in ["KHR_texture_transform", "KHR_materials_ior", "KHR_materials_specular", "KHR_materials_clearcoat", "KHR_materials_sheen", "KHR_materials_anisotropy", "KHR_materials_emissive_strength", "KHR_mesh_quantization"] {
             #expect(supported.contains(name))
         }
     }

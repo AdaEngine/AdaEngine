@@ -39,6 +39,10 @@ public struct PBR3DUniform: Sendable, Equatable {
     public let dielectric: Vector4
     /// X is the clearcoat strength and y its roughness.
     public let coat: Vector4
+    /// RGB is the sheen color and w its roughness.
+    public let sheen: Vector4
+    /// X is the anisotropy strength and y its rotation in radians.
+    public let anisotropy: Vector4
 
     public init(material: PBRMaterial?, descriptor _: VertexDescriptor) {
         func coordinate(_ slot: Int) -> Int {
@@ -74,6 +78,19 @@ public struct PBR3DUniform: Sendable, Equatable {
             0,
             0
         )
+        let sheenColor = material?.sheenColorFactor ?? .zero
+        sheen = Vector4(
+            finiteRenderValue(sheenColor.x, fallback: 0, range: 0...1),
+            finiteRenderValue(sheenColor.y, fallback: 0, range: 0...1),
+            finiteRenderValue(sheenColor.z, fallback: 0, range: 0...1),
+            finiteRenderValue(material?.sheenRoughnessFactor ?? 0, fallback: 0, range: 0...1)
+        )
+        anisotropy = Vector4(
+            finiteRenderValue(material?.anisotropyStrength ?? 0, fallback: 0, range: 0...1),
+            finiteRenderValue(material?.anisotropyRotation ?? 0, fallback: 0, range: -100...100),
+            0,
+            0
+        )
     }
 
     /// Reflectance at normal incidence of the dielectric layer: ((ior - 1) / (ior + 1))^2 tinted and scaled by the
@@ -98,7 +115,7 @@ public struct PBR3DUniform: Sendable, Equatable {
             bits(emissiveFactor), bits(properties), bits(flags), bits(coordinates), bits(emission), bits(parallax),
             bits(transform0.matrix), bits(transform0.offset), bits(transform1.matrix), bits(transform1.offset),
             bits(transform2.matrix), bits(transform2.offset), bits(transform3.matrix), bits(transform3.offset),
-            bits(transform4.matrix), bits(transform4.offset), bits(dielectric), bits(coat),
+            bits(transform4.matrix), bits(transform4.offset), bits(dielectric), bits(coat), bits(sheen), bits(anisotropy),
         ]
     }
 }

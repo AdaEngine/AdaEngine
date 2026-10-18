@@ -74,6 +74,14 @@ public class PBRMaterial: Material, @unchecked Sendable {
     public var clearcoatFactor: Float = 0 { didSet { uniformRevision &+= 1 } }
     /// Roughness of the clearcoat layer, independent of the base layer's roughness.
     public var clearcoatRoughnessFactor: Float = 0 { didSet { uniformRevision &+= 1 } }
+    /// Color of a soft fabric sheen over the surface (`KHR_materials_sheen`); black turns the layer off.
+    public var sheenColorFactor: Vector3 = .zero { didSet { uniformRevision &+= 1 } }
+    /// Roughness of the sheen layer.
+    public var sheenRoughnessFactor: Float = 0 { didSet { uniformRevision &+= 1 } }
+    /// How much highlights stretch (`KHR_materials_anisotropy`, 0 to 1); 0 keeps them round.
+    public var anisotropyStrength: Float = 0 { didSet { uniformRevision &+= 1 } }
+    /// Rotation of the stretch direction from the surface tangent, in radians.
+    public var anisotropyRotation: Float = 0 { didSet { uniformRevision &+= 1 } }
 
     /// Changes whenever parameters in the shared PBR uniform snapshot are edited.
     @_spi(Internal) public private(set) var uniformRevision: UInt64 = 0

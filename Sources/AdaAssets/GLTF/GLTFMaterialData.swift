@@ -52,6 +52,12 @@ public extension GLTFImportResult {
         /// `KHR_materials_clearcoat` strength and roughness. Clearcoat textures are not read.
         public let clearcoatFactor: Float
         public let clearcoatRoughnessFactor: Float
+        /// `KHR_materials_sheen` color (linear) and roughness. Sheen textures are not read.
+        public let sheenColorFactor: Vector3
+        public let sheenRoughnessFactor: Float
+        /// `KHR_materials_anisotropy` strength and rotation. The anisotropy texture is not read.
+        public let anisotropyStrength: Float
+        public let anisotropyRotation: Float
 
         public init(
             name: String?,
@@ -76,7 +82,11 @@ public extension GLTFImportResult {
             specularFactor: Float = 1,
             specularColorFactor: Vector3 = .one,
             clearcoatFactor: Float = 0,
-            clearcoatRoughnessFactor: Float = 0
+            clearcoatRoughnessFactor: Float = 0,
+            sheenColorFactor: Vector3 = .zero,
+            sheenRoughnessFactor: Float = 0,
+            anisotropyStrength: Float = 0,
+            anisotropyRotation: Float = 0
         ) {
             self.name = name
             self.baseColorFactor = baseColorFactor
@@ -101,6 +111,10 @@ public extension GLTFImportResult {
             self.specularColorFactor = specularColorFactor
             self.clearcoatFactor = clearcoatFactor
             self.clearcoatRoughnessFactor = clearcoatRoughnessFactor
+            self.sheenColorFactor = sheenColorFactor
+            self.sheenRoughnessFactor = sheenRoughnessFactor
+            self.anisotropyStrength = anisotropyStrength
+            self.anisotropyRotation = anisotropyRotation
         }
     }
 

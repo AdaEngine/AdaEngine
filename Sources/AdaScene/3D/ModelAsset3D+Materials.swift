@@ -67,6 +67,10 @@ extension ModelAsset3D {
             material.specularColorFactor = source.specularColorFactor
             material.clearcoatFactor = source.clearcoatFactor
             material.clearcoatRoughnessFactor = source.clearcoatRoughnessFactor
+            material.sheenColorFactor = source.sheenColorFactor
+            material.sheenRoughnessFactor = source.sheenRoughnessFactor
+            material.anisotropyStrength = source.anisotropyStrength
+            material.anisotropyRotation = source.anisotropyRotation
             switch source.alphaMode {
             case .opaque: material.alphaMode = .opaque
             case .mask: material.alphaMode = .mask

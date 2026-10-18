@@ -26,6 +26,8 @@ public struct NativeGLTFLoader: GLTFLoader {
         "KHR_materials_ior",
         "KHR_materials_specular",
         "KHR_materials_clearcoat",
+        "KHR_materials_sheen",
+        "KHR_materials_anisotropy",
     ]
 
     /// Optional content the importer cannot honor: unimplemented extensions the file lists as used, and the parts
@@ -42,6 +44,12 @@ public struct NativeGLTFLoader: GLTFLoader {
             if let coat = material.extensions?.KHR_materials_clearcoat,
                coat.clearcoatTexture != nil || coat.clearcoatRoughnessTexture != nil || coat.clearcoatNormalTexture != nil {
                 result.append("Material \(index) uses a KHR_materials_clearcoat texture; only its factors were applied.")
+            }
+            if let sheen = material.extensions?.KHR_materials_sheen, sheen.sheenColorTexture != nil || sheen.sheenRoughnessTexture != nil {
+                result.append("Material \(index) uses a KHR_materials_sheen texture; only its factors were applied.")
+            }
+            if let anisotropy = material.extensions?.KHR_materials_anisotropy, anisotropy.anisotropyTexture != nil {
+                result.append("Material \(index) uses a KHR_materials_anisotropy texture; only its factors were applied.")
             }
         }
         return result

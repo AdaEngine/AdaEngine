@@ -24,7 +24,11 @@ struct GLTFMaterialExtensionMappingTests {
             specularFactor: 0.6,
             specularColorFactor: Vector3(1, 0.8, 0.6),
             clearcoatFactor: 0.7,
-            clearcoatRoughnessFactor: 0.15
+            clearcoatRoughnessFactor: 0.15,
+            sheenColorFactor: Vector3(0.5, 0.4, 0.3),
+            sheenRoughnessFactor: 0.35,
+            anisotropyStrength: 0.8,
+            anisotropyRotation: 0.25
         )
         let result = GLTFImportResult(nodes: [], meshes: [], materials: [source], textures: [], images: [], scenes: [], defaultScene: nil)
         let material = try #require(ModelAsset3D.makeMaterials(result).first as? PBRMaterial)
@@ -34,5 +38,7 @@ struct GLTFMaterialExtensionMappingTests {
         #expect(material.ior == 1.33 && material.specularFactor == 0.6)
         #expect(material.specularColorFactor == Vector3(1, 0.8, 0.6))
         #expect(material.clearcoatFactor == 0.7 && material.clearcoatRoughnessFactor == 0.15)
+        #expect(material.sheenColorFactor == Vector3(0.5, 0.4, 0.3) && material.sheenRoughnessFactor == 0.35)
+        #expect(material.anisotropyStrength == 0.8 && material.anisotropyRotation == 0.25)
     }
 }

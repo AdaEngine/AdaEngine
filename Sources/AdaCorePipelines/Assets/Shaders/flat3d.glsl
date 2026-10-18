@@ -145,6 +145,8 @@ layout (binding = 15) uniform PBR3DUniform {
     vec4 u_TextureTransforms[10];
     vec4 u_Dielectric; // rgb: reflectance of non-metals at normal incidence (0.04 for the default IOR of 1.5)
     vec4 u_Coat;       // x clearcoat strength, y clearcoat roughness (KHR_materials_clearcoat)
+    vec4 u_Sheen;      // rgb sheen color, w sheen roughness (KHR_materials_sheen)
+    vec4 u_Anisotropy; // x strength, y rotation in radians (KHR_materials_anisotropy)
 };
 
 vec2 applyTextureTransform(vec2 uv, int slot) {
@@ -260,6 +262,25 @@ float coatTransmission(float normalView) {
     return 1.0 - g_Clearcoat.x * fresnelSchlick(normalView, vec3(0.04)).x;
 }
 
+// Sheen layer (cloth): rgb color, w roughness. A black color turns it off.
+vec4 g_Sheen = vec4(0.0);
+// Average share of light the sheen lobe takes from the base layer. The glTF sheen albedo lookup is replaced by this constant.
+const float SHEEN_ALBEDO = 0.4;
+
+bool hasSheen() {
+    return max(g_Sheen.r, max(g_Sheen.g, g_Sheen.b)) > 0.0;
+}
+
+// Share of the base layer's light that survives the sheen.
+float sheenTransmission() {
+    return 1.0 - max(g_Sheen.r, max(g_Sheen.g, g_Sheen.b)) * SHEEN_ALBEDO;
+}
+
+// Anisotropy: strength, and the view-space tangent and bitangent of the stretched highlight.
+float g_Anisotropy = 0.0;
+vec3 g_AnisotropyT = vec3(1.0, 0.0, 0.0);
+vec3 g_AnisotropyB = vec3(0.0, 1.0, 0.0);
+
 // UV shift from parallax occlusion mapping, applied to every material texture that uses the height map's UV set.
 vec2 g_ParallaxDelta = vec2(0.0);
 
@@ -341,11 +362,23 @@ vec3 environmentLighting(vec3 normal, vec3 viewDirection, vec3 baseColor, float 
     vec3 fresnel = f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(1.0 - ndotv, 5.0);
     vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
     vec3 irradiance = texture(sampler2D(u_Irradiance, u_IBLSampler), environmentUV(worldNormal)).rgb;
-    vec3 reflected = samplePrefiltered(reflect(-worldView, worldNormal), roughness);
+    vec3 reflectionNormal = worldNormal;
+    if (g_Anisotropy > 0.0) {
+        // Bend the reflection toward the stretched direction so the environment smears along it (Filament).
+        vec3 anisotropicTangent = cross(g_AnisotropyB, viewDirection);
+        vec3 anisotropicNormal = cross(anisotropicTangent, g_AnisotropyB);
+        float bend = g_Anisotropy * clamp(5.0 * roughness, 0.0, 1.0);
+        reflectionNormal = normalize(mat3(u_EnvironmentInverseView) * normalize(mix(normal, anisotropicNormal, bend)));
+    }
+    vec3 reflected = samplePrefiltered(reflect(-worldView, reflectionNormal), roughness);
     vec2 lutSize = vec2(textureSize(sampler2D(u_BRDF, u_IBLSampler), 0));
     vec2 lutUV = clamp(vec2(ndotv, roughness), 0.5 / lutSize, vec2(1.0) - 0.5 / lutSize);
     vec2 lut = texture(sampler2D(u_BRDF, u_IBLSampler), lutUV).rg;
     vec3 result = (diffuseWeight * irradiance * baseColor / PI + reflected * (f0 * lut.x + lut.y)) * u_IBLParameters.y;
+    if (hasSheen()) {
+        // Sheen under image-based lighting is approximated as a diffuse lobe with the average sheen albedo.
+        result = result * sheenTransmission() + g_Sheen.rgb * SHEEN_ALBEDO * irradiance / PI * u_IBLParameters.y;
+    }
     if (g_Clearcoat.x > 0.0) {
         // The coat reflects the environment along the geometric normal and dims the base layer beneath it.
         vec3 coatWorldNormal = normalize(mat3(u_EnvironmentInverseView) * g_CoatNormal);
@@ -450,6 +483,18 @@ vec4 clearcoatDirect(vec3 viewDirection, vec3 lightDirection, vec3 radiance) {
     return vec4(vec3(specular) * max(radiance, vec3(0.0)) * nl, transmission);
 }
 
+// Charlie sheen distribution (Estevez and Kulla) and the Neubelt visibility term, as in the glTF sheen specification.
+float sheenDistribution(float roughness, float normalHalfway) {
+    float alpha = roughness * roughness;
+    float inverseAlpha = 1.0 / alpha;
+    float sine2 = max(1.0 - normalHalfway * normalHalfway, 0.0078125);
+    return (2.0 + inverseAlpha) * pow(sine2, inverseAlpha * 0.5) / (2.0 * PI);
+}
+
+float sheenVisibility(float normalLight, float normalView) {
+    return clamp(1.0 / (4.0 * (normalLight + normalView - normalLight * normalView)), 0.0, 1.0);
+}
+
 vec3 evaluateDirect(vec3 normal, vec3 viewDirection, vec3 lightDirection, vec3 baseColor, float metallic, float roughness, vec3 radiance) {
     float nl = max(dot(normal, lightDirection), 0.0), nv = max(dot(normal, viewDirection), 0.0);
     vec3 base = vec3(0.0);
@@ -457,10 +502,28 @@ vec3 evaluateDirect(vec3 normal, vec3 viewDirection, vec3 lightDirection, vec3 b
         vec3 halfway = normalize(viewDirection + lightDirection);
         vec3 f0 = mix(u_Dielectric.rgb, baseColor, metallic);
         vec3 fresnel = fresnelSchlick(max(dot(halfway, viewDirection), 0.0), f0);
-        float distribution = distributionGGX(normal, halfway, roughness);
-        float geometry = geometrySmith(normal, viewDirection, lightDirection, roughness);
-        vec3 specular = distribution * geometry * fresnel / max(4.0 * nv * nl, 0.0001);
+        vec3 specular;
+        if (g_Anisotropy > 0.0) {
+            // Anisotropic GGX: roughness stretches along the tangent, so the highlight streaks along the bitangent.
+            float normalHalfway = max(dot(normal, halfway), 0.0);
+            float alpha = roughness * roughness;
+            float alphaT = mix(alpha, 1.0, g_Anisotropy * g_Anisotropy), alphaB = alpha;
+            float tangentHalfway = dot(g_AnisotropyT, halfway), bitangentHalfway = dot(g_AnisotropyB, halfway);
+            float denominator = tangentHalfway * tangentHalfway / (alphaT * alphaT) + bitangentHalfway * bitangentHalfway / (alphaB * alphaB) + normalHalfway * normalHalfway;
+            float distribution = 1.0 / max(PI * alphaT * alphaB * denominator * denominator, 0.000001);
+            float lambdaView = nl * length(vec3(alphaT * dot(g_AnisotropyT, viewDirection), alphaB * dot(g_AnisotropyB, viewDirection), nv));
+            float lambdaLight = nv * length(vec3(alphaT * dot(g_AnisotropyT, lightDirection), alphaB * dot(g_AnisotropyB, lightDirection), nl));
+            specular = fresnel * distribution * 0.5 / max(lambdaView + lambdaLight, 0.00001);
+        } else {
+            float distribution = distributionGGX(normal, halfway, roughness);
+            float geometry = geometrySmith(normal, viewDirection, lightDirection, roughness);
+            specular = distribution * geometry * fresnel / max(4.0 * nv * nl, 0.0001);
+        }
         base = ((vec3(1.0) - fresnel) * (1.0 - metallic) * baseColor / PI + specular) * max(radiance, vec3(0.0)) * nl;
+        if (hasSheen()) {
+            vec3 sheen = g_Sheen.rgb * sheenDistribution(g_Sheen.w, max(dot(normal, halfway), 0.0)) * sheenVisibility(nl, nv);
+            base = base * sheenTransmission() + sheen * max(radiance, vec3(0.0)) * nl;
+        }
     }
     if (g_Clearcoat.x <= 0.0) { return base; }
     vec4 coat = clearcoatDirect(viewDirection, lightDirection, radiance);
@@ -600,6 +663,16 @@ void flat3d_fragment()
 
     vec3 normal = materialNormal();
     if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { normal = -normal; }
+    g_Sheen = vec4(max(u_Sheen.rgb, vec3(0.0)), clamp(u_Sheen.w, 0.07, 1.0));
+    g_Anisotropy = clamp(u_Anisotropy.x, 0.0, 1.0);
+    if (g_Anisotropy > 0.0) {
+        bool authored = Input.TextureFlags.w > 0.5;
+        vec3 tangent = authored ? Input.ViewTangent.xyz : cotangentFrame(normalize(Input.ViewNormal), Input.ViewPosition, materialUV(u_UVSets.x, 0))[0];
+        tangent = normalize(tangent - normal * dot(normal, tangent));
+        vec3 bitangent = normalize(cross(normal, tangent)) * (authored ? Input.ViewTangent.w : 1.0);
+        g_AnisotropyT = normalize(cos(u_Anisotropy.y) * tangent + sin(u_Anisotropy.y) * bitangent);
+        g_AnisotropyB = normalize(cross(normal, g_AnisotropyT));
+    }
     g_Clearcoat = vec2(u_Coat.x, clamp(u_Coat.y, 0.04, 1.0));
     g_CoatNormal = normalize(Input.ViewNormal);
     if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { g_CoatNormal = -g_CoatNormal; }
@@ -640,20 +713,11 @@ void flat3d_fragment()
     float normalLight = max(dot(normal, lightDirection), 0.0);
     float normalView = max(dot(normal, viewDirection), 0.0);
 
-    vec3 reflectanceAtNormal = mix(u_Dielectric.rgb, baseColor.rgb, metallic);
-    vec3 fresnel = fresnelSchlick(max(dot(halfway, viewDirection), 0.0), reflectanceAtNormal);
-    float distribution = distributionGGX(normal, halfway, roughness);
-    float geometry = geometrySmith(normal, viewDirection, lightDirection, roughness);
-    vec3 specular = distribution * geometry * fresnel / max(4.0 * normalView * normalLight, 0.0001);
-    vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
     vec3 radiance = max(u_LightRadianceAmbient.rgb, vec3(0.0)) * max(u_LightDirectionIntensity.w, 0.0);
-    // The sun term is multiplied by n.l, so surfaces facing away from it skip the cascade lookups.
+    // The sun term is multiplied by n.l, so surfaces facing away from it skip the cascade lookups. The clearcoat
+    // follows the geometric normal and can still be lit there.
     float shadowVisibility = (normalLight > 0.0 || g_Clearcoat.x > 0.0) ? directionalShadow(normal, lightDirection) : 1.0;
-    vec3 directLighting = (diffuseWeight * baseColor.rgb / PI + specular) * radiance * normalLight * shadowVisibility;
-    if (g_Clearcoat.x > 0.0) {
-        vec4 coat = clearcoatDirect(viewDirection, lightDirection, radiance);
-        directLighting = directLighting * coat.a + coat.rgb * shadowVisibility;
-    }
+    vec3 directLighting = evaluateDirect(normal, viewDirection, lightDirection, baseColor.rgb, metallic, roughness, radiance) * shadowVisibility;
     directLighting += additionalLighting(normal, viewDirection, baseColor.rgb, metallic, roughness);
     vec3 ambient = baseColor.rgb * (1.0 - metallic) * max(u_LightRadianceAmbient.w, 0.0);
     if (u_IBLParameters.x > 0.5) { ambient = environmentLighting(normal, viewDirection, baseColor.rgb, metallic, roughness); }
