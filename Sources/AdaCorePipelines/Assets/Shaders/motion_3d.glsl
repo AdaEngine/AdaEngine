@@ -65,6 +65,7 @@ layout (binding = 4) uniform texture2D u_BaseColor;
 layout (binding = 7) uniform sampler u_Sampler;
 layout (binding = 15) uniform PBR3DUniform {
     vec4 u_EmissiveFactor; vec4 u_SurfaceProperties; vec4 u_SurfaceFlags; vec4 u_UVSets; vec4 u_Emission;
+    vec4 u_Parallax;
     vec4 u_TextureTransforms[10];
     vec4 u_Dielectric;
 };

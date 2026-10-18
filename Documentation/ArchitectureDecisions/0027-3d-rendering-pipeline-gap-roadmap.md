@@ -296,6 +296,7 @@ Each item needs its own short requirements note before implementation.
 - [ ] Stage 1: quality tiers for depth of field, bloom and auto-exposure.
 - [x] Stage 2: `KHR_texture_transform`, `KHR_materials_ior` and `KHR_materials_specular` factors (see "Stage 2, first slice").
 - [ ] Stage 2: clearcoat material extension.
+- [x] Stage 2: parallax occlusion mapping from `PBRMaterial.heightTexture` (world-unit `heightScale`, per-pixel ray march in `flat3d.glsl` that derives the UV shift from screen-space derivatives so no tangents are needed; the height map is read with the base color sampler because Metal has no free sampler slot; depth, shadows and silhouettes are not displaced; no glTF import yet because no displacement extension is ratified).
 - [ ] Stage 2: sheen, anisotropy and `KHR_lights_punctual` import.
 - [x] Stage 2: unsupported-extension degradation policy and documented supported list (`NativeGLTFLoader.supportedExtensions`, `GLTFImportResult.warnings`).
 - [ ] Stage 3: morph-target asset, glTF import and GPU evaluation.

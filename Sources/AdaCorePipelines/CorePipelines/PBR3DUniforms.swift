@@ -27,6 +27,8 @@ public struct PBR3DUniform: Sendable, Equatable {
     public let flags: Vector4
     public let coordinates: Vector4
     public let emission: Vector4
+    /// Parallax: height scale, UV set, maximum ray-march layers and fade distance.
+    public let parallax: Vector4
     /// UV transforms for base color, metallic/roughness, normal, occlusion and emission, in that order.
     public let transform0: PBR3DTextureTransform
     public let transform1: PBR3DTextureTransform
@@ -48,9 +50,16 @@ public struct PBR3DUniform: Sendable, Equatable {
         }
         emissiveFactor = Vector4(material?.emissiveFactor ?? .one, 0)
         properties = Vector4(material?.normalScale ?? 1, material?.occlusionStrength ?? 1, material?.alphaCutoff ?? 0.5, Float(material?.alphaMode.rawValue ?? 0))
-        flags = Vector4(material?.doubleSided ?? true ? 1 : 0, material?.occlusionTexture != nil ? 1 : 0, 0, 0)
+        let heightScale = material?.heightTexture != nil ? max(finiteRenderValue(material?.heightScale ?? 0, fallback: 0, range: 0...1000), 0) : 0
+        flags = Vector4(material?.doubleSided ?? true ? 1 : 0, material?.occlusionTexture != nil ? 1 : 0, heightScale > 0 ? 1 : 0, 0)
         coordinates = Vector4(Float(coordinate(0)), Float(coordinate(1)), Float(coordinate(2)), Float(coordinate(3)))
         emission = Vector4(Float(coordinate(4)), material?.baseColorFactor.w ?? 1, 1, 0)
+        parallax = Vector4(
+            heightScale,
+            Float(min(max(material?.heightTextureCoordinate ?? 0, 0), 1)),
+            Float(min(max(material?.heightMaxLayers ?? 32, 4), 64)),
+            finiteRenderValue(material?.heightFadeDistance ?? 30, fallback: 30, range: 0.1...100000)
+        )
         transform0 = transform(0)
         transform1 = transform(1)
         transform2 = transform(2)
@@ -78,7 +87,7 @@ public struct PBR3DUniform: Sendable, Equatable {
             SIMD4(vector.x.bitPattern, vector.y.bitPattern, vector.z.bitPattern, vector.w.bitPattern)
         }
         return [
-            bits(emissiveFactor), bits(properties), bits(flags), bits(coordinates), bits(emission),
+            bits(emissiveFactor), bits(properties), bits(flags), bits(coordinates), bits(emission), bits(parallax),
             bits(transform0.matrix), bits(transform0.offset), bits(transform1.matrix), bits(transform1.offset),
             bits(transform2.matrix), bits(transform2.offset), bits(transform3.matrix), bits(transform3.offset),
             bits(transform4.matrix), bits(transform4.offset), bits(dielectric),

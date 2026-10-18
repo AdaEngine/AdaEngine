@@ -139,6 +139,7 @@ layout (binding = 15) uniform PBR3DUniform {
     vec4 u_SurfaceFlags;
     vec4 u_UVSets;
     vec4 u_Emission;
+    vec4 u_Parallax;
     // Per texture slot (base color, metallic/roughness, normal, occlusion, emission): xyzw is a row-major 2x2
     // matrix, then xy is the offset (glTF KHR_texture_transform).
     vec4 u_TextureTransforms[10];
@@ -150,6 +151,7 @@ vec2 applyTextureTransform(vec2 uv, int slot) {
     return vec2(dot(matrix.xy, uv), dot(matrix.zw, uv)) + u_TextureTransforms[slot * 2 + 1].xy;
 }
 layout (binding = 16) uniform texture2D u_OcclusionTexture;
+layout (binding = 17) uniform texture2D u_HeightTexture;
 layout (binding = 0) uniform sampler u_OcclusionSampler;
 layout (binding = 18) uniform texture2D u_Irradiance;
 layout (binding = 19) uniform texture2D u_PrefilteredEnvironment;
@@ -248,8 +250,58 @@ vec3 fresnelSchlick(float cosine, vec3 reflectanceAtNormal) {
     return reflectanceAtNormal + (vec3(1.0) - reflectanceAtNormal) * pow(clamp(1.0 - cosine, 0.0, 1.0), 5.0);
 }
 
+// UV shift from parallax occlusion mapping, applied to every material texture that uses the height map's UV set.
+vec2 g_ParallaxDelta = vec2(0.0);
+
 vec2 materialUV(float setIndex, int slot) {
-    return applyTextureTransform(setIndex > 0.5 ? Input.TextureCoordinate1 : Input.TextureCoordinate, slot);
+    vec2 uv = setIndex > 0.5 ? Input.TextureCoordinate1 : Input.TextureCoordinate;
+    // The parallax shift lives in mesh UV space, so it applies before the texture's own transform.
+    if (abs(setIndex - u_Parallax.y) < 0.5) { uv += g_ParallaxDelta; }
+    return applyTextureTransform(uv, slot);
+}
+
+// Ray-marches the height map along the view ray. Returns the UV shift that makes the surface appear to have depth.
+// Depth is measured in view units: a surface point `d * scale` below the top shifts by `d * scale` along the view
+// ray's projection onto the surface, converted to UV through the screen-space position/UV derivatives so no
+// tangent frame is needed.
+vec2 parallaxDelta() {
+    vec3 normal = normalize(Input.ViewNormal);
+    vec3 viewDirection = normalize(-Input.ViewPosition);
+    float facing = dot(normal, viewDirection);
+    if (facing < 0.0) { normal = -normal; facing = -facing; }
+    float fadeDistance = u_Parallax.w;
+    float scale = u_Parallax.x * (1.0 - smoothstep(fadeDistance * 0.5, fadeDistance, length(Input.ViewPosition)));
+    vec2 uv = u_Parallax.y > 0.5 ? Input.TextureCoordinate1 : Input.TextureCoordinate;
+    vec3 positionX = dFdx(Input.ViewPosition);
+    vec3 positionY = dFdy(Input.ViewPosition);
+    float xx = dot(positionX, positionX), xy = dot(positionX, positionY), yy = dot(positionY, positionY);
+    float determinant = xx * yy - xy * xy;
+    if (scale <= 0.0 || abs(determinant) < 1e-12) { return vec2(0.0); }
+
+    vec3 shift = -(viewDirection - normal * facing) / max(facing, 0.08);
+    vec2 projected = vec2(dot(shift, positionX), dot(shift, positionY));
+    vec2 coefficients = vec2(yy * projected.x - xy * projected.y, xx * projected.y - xy * projected.x) / determinant;
+    vec2 uvPerDepth = (dFdx(uv) * coefficients.x + dFdy(uv) * coefficients.y) * scale;
+
+    vec2 gradientX = dFdx(uv), gradientY = dFdy(uv);
+    float maximumLayers = u_Parallax.z;
+    float layers = mix(maximumLayers, max(maximumLayers * 0.25, 4.0), clamp(facing, 0.0, 1.0));
+    float previousDepth = 0.0;
+    float previousGap = -(1.0 - textureGrad(sampler2D(u_HeightTexture, u_BaseColorSampler), uv, gradientX, gradientY).r);
+    float hitDepth = 1.0;
+    for (int i = 1; i <= 64; ++i) {
+        if (float(i) > layers) { break; }
+        float depth = float(i) / layers;
+        float height = textureGrad(sampler2D(u_HeightTexture, u_BaseColorSampler), uv + uvPerDepth * depth, gradientX, gradientY).r;
+        float gap = depth - (1.0 - height);
+        if (gap >= 0.0) {
+            hitDepth = mix(previousDepth, depth, previousGap / (previousGap - gap));
+            break;
+        }
+        previousDepth = depth;
+        previousGap = gap;
+    }
+    return uvPerDepth * hitDepth;
 }
 
 vec2 environmentUV(vec3 direction) {
@@ -484,6 +536,7 @@ float reachingLightCount() {
 [[main]]
 void flat3d_fragment()
 {
+    if (u_SurfaceFlags.z > 0.5) { g_ParallaxDelta = parallaxDelta(); }
     if (Input.ShadowFlags.w > 0.0 && visibilityDither(gl_FragCoord.xy) < Input.ShadowFlags.w) { discard; }
     if (u_SurfaceFlags.x < 0.5 && !gl_FrontFacing) { discard; }
     vec4 baseColor = Input.Color;
