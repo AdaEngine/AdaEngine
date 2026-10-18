@@ -49,6 +49,9 @@ public extension GLTFImportResult {
         /// `KHR_materials_specular` strength and tint of the dielectric reflection. Specular textures are not read.
         public let specularFactor: Float
         public let specularColorFactor: Vector3
+        /// `KHR_materials_clearcoat` strength and roughness. Clearcoat textures are not read.
+        public let clearcoatFactor: Float
+        public let clearcoatRoughnessFactor: Float
 
         public init(
             name: String?,
@@ -71,7 +74,9 @@ public extension GLTFImportResult {
             textureTransforms: [TextureTransform] = Array(repeating: .identity, count: 5),
             ior: Float = 1.5,
             specularFactor: Float = 1,
-            specularColorFactor: Vector3 = .one
+            specularColorFactor: Vector3 = .one,
+            clearcoatFactor: Float = 0,
+            clearcoatRoughnessFactor: Float = 0
         ) {
             self.name = name
             self.baseColorFactor = baseColorFactor
@@ -94,6 +99,8 @@ public extension GLTFImportResult {
             self.ior = ior
             self.specularFactor = specularFactor
             self.specularColorFactor = specularColorFactor
+            self.clearcoatFactor = clearcoatFactor
+            self.clearcoatRoughnessFactor = clearcoatRoughnessFactor
         }
     }
 

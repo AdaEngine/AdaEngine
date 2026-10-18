@@ -83,16 +83,45 @@ struct GLTFMaterialExtensionTests {
     }
 
     @Test
+    func importsClearcoat() throws {
+        let material = try #require(load(material: ["extensions": [
+            "KHR_materials_clearcoat": ["clearcoatFactor": 0.8, "clearcoatRoughnessFactor": 0.1],
+        ]], used: ["KHR_materials_clearcoat"]).materials.first)
+        #expect(material.clearcoatFactor == 0.8 && material.clearcoatRoughnessFactor == 0.1)
+        let plain = try #require(load(material: [:]).materials.first)
+        #expect(plain.clearcoatFactor == 0 && plain.clearcoatRoughnessFactor == 0)
+    }
+
+    @Test(arguments: [
+        #"{"KHR_materials_clearcoat":{"clearcoatFactor":1.5}}"#,
+        #"{"KHR_materials_clearcoat":{"clearcoatFactor":-0.1}}"#,
+        #"{"KHR_materials_clearcoat":{"clearcoatRoughnessFactor":2}}"#,
+    ])
+    func rejectsOutOfRangeClearcoat(json: String) throws {
+        let extensions = try object(json)
+        #expect(throws: NativeGLTFLoader.GLTFError.invalidMaterial(0)) { try load(material: ["extensions": extensions]) }
+    }
+
+    @Test
+    func clearcoatTexturesAreReportedAsSkipped() throws {
+        let result = try load(
+            material: ["extensions": ["KHR_materials_clearcoat": ["clearcoatFactor": 1, "clearcoatNormalTexture": ["index": 0]]]],
+            used: ["KHR_materials_clearcoat"]
+        )
+        #expect(result.warnings.count == 1 && result.warnings[0].contains("KHR_materials_clearcoat") && result.warnings[0].contains("Material 0"))
+    }
+
+    @Test
     func unsupportedUsedExtensionsLoadWithAWarning() throws {
-        let result = try load(material: [:], used: ["KHR_materials_clearcoat", "KHR_texture_transform"])
+        let result = try load(material: [:], used: ["KHR_materials_sheen", "KHR_texture_transform"])
         #expect(result.warnings.count == 1)
-        #expect(result.warnings.first?.contains("KHR_materials_clearcoat") == true)
+        #expect(result.warnings.first?.contains("KHR_materials_sheen") == true)
     }
 
     @Test
     func unsupportedRequiredExtensionsStillFail() {
-        #expect(throws: NativeGLTFLoader.GLTFError.unsupportedRequiredExtension("KHR_materials_clearcoat")) {
-            try load(material: [:], used: ["KHR_materials_clearcoat"], required: ["KHR_materials_clearcoat"])
+        #expect(throws: NativeGLTFLoader.GLTFError.unsupportedRequiredExtension("KHR_materials_sheen")) {
+            try load(material: [:], used: ["KHR_materials_sheen"], required: ["KHR_materials_sheen"])
         }
     }
 
@@ -105,7 +134,7 @@ struct GLTFMaterialExtensionTests {
     @Test
     func theSupportedListNamesEveryImplementedExtension() {
         let supported = NativeGLTFLoader.supportedExtensions
-        for name in ["KHR_texture_transform", "KHR_materials_ior", "KHR_materials_specular", "KHR_materials_emissive_strength", "KHR_mesh_quantization"] {
+        for name in ["KHR_texture_transform", "KHR_materials_ior", "KHR_materials_specular", "KHR_materials_clearcoat", "KHR_materials_emissive_strength", "KHR_mesh_quantization"] {
             #expect(supported.contains(name))
         }
     }

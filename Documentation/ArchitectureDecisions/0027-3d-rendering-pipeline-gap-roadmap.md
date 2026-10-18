@@ -295,7 +295,7 @@ Each item needs its own short requirements note before implementation.
 - [ ] Stage 1: motion blur (needs a velocity buffer that exists without temporal upscaling).
 - [ ] Stage 1: quality tiers for depth of field, bloom and auto-exposure.
 - [x] Stage 2: `KHR_texture_transform`, `KHR_materials_ior` and `KHR_materials_specular` factors (see "Stage 2, first slice").
-- [ ] Stage 2: clearcoat material extension.
+- [x] Stage 2: `KHR_materials_clearcoat` factors (see "Stage 2, second slice").
 - [x] Stage 2: parallax occlusion mapping from `PBRMaterial.heightTexture` (world-unit `heightScale`, per-pixel ray march in `flat3d.glsl` that derives the UV shift from screen-space derivatives so no tangents are needed; the height map is read with the base color sampler because Metal has no free sampler slot; depth, shadows and silhouettes are not displaced; no glTF import yet because no displacement extension is ratified).
 - [ ] Stage 2: sheen, anisotropy and `KHR_lights_punctual` import.
 - [x] Stage 2: unsupported-extension degradation policy and documented supported list (`NativeGLTFLoader.supportedExtensions`, `GLTFImportResult.warnings`).
@@ -765,6 +765,32 @@ failure), `GLTFMaterialExtensionMappingTests` (importer to `PBRMaterial`), `Rend
 `Render3DGPUTests/MaterialExtensions` (a transform moves, scales and rotates the texture, a full turn is the identity, higher IOR
 brightens and zero specular dims the highlight, a red tint shifts it, defaults change nothing). Not validated on WebGPU (no
 Swan/Dawn here). Still open in Stage 2: clearcoat, sheen, anisotropy, specular textures and `KHR_lights_punctual`.
+
+### Stage 2, second slice: clearcoat (2026-10-19)
+
+`KHR_materials_clearcoat` adds a clear lacquer layer over the base surface (car paint, varnished wood, nails).
+`PBRMaterial.clearcoatFactor` and `clearcoatRoughnessFactor` come from the glTF factors (0 to 1, validated on import) and
+reach the shader through `PBR3DUniform.coat`. Following the glTF layering model, in `flat3d.glsl`:
+
+- the coat is a dielectric layer (reflectance 0.04) shaded with its own GGX lobe and roughness on the **geometric normal**
+  (the normal map belongs to the base layer);
+- every light (the sun, extra directional lights and local lights, through `evaluateDirect`) adds the coat's highlight and
+  dims the base layer under it by `1 - strength * F(N.V)`, so energy is conserved;
+- with image-based lighting the coat also reflects the environment along the geometric normal, using the BRDF
+  lookup at the coat's roughness, and dims the base IBL by the same transmission;
+- with only the flat ambient, the ambient term is dimmed by the same transmission.
+
+A material with no coat takes one branch on `g_Clearcoat.x`. Measured against the merge commit without this change (1080p, Apple
+M-class, release): `bare` geometry 1.77 to 1.82 ms and 2.18 to 2.26 ms with 32 lights, about 3 to 4 percent. For reference
+the parallax merge from `main` had already moved `bare` geometry from 1.69 to 1.77 ms.
+
+Limits: the clearcoat, clearcoat roughness and clearcoat normal **textures are not read** (the importer reports them in
+`GLTFImportResult.warnings`), because the main pass has no free texture slots on Metal. The screen-space reflection composite
+reflects the procedural sky from the base layer's roughness only, so without image-based lighting the coat shows light
+highlights but not a sky reflection. There is no clearcoat debug view and no WebGPU validation. Tests:
+`GLTFMaterialExtensionTests` (import, ranges, texture warning), `Render3DMaterialExtensionConstantTests` (uniform),
+`Render3DGPUTests/MaterialExtensions` (a smooth coat adds a highlight to rough paint, a rougher coat dims it, the highlight grows
+with strength, turning the coat off restores the frame) and the `pbr-sphere-clearcoat` golden frame (Metal).
 
 ## Validation requirements
 

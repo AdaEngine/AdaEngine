@@ -22,7 +22,9 @@ struct GLTFMaterialExtensionMappingTests {
             textureTransforms: transforms,
             ior: 1.33,
             specularFactor: 0.6,
-            specularColorFactor: Vector3(1, 0.8, 0.6)
+            specularColorFactor: Vector3(1, 0.8, 0.6),
+            clearcoatFactor: 0.7,
+            clearcoatRoughnessFactor: 0.15
         )
         let result = GLTFImportResult(nodes: [], meshes: [], materials: [source], textures: [], images: [], scenes: [], defaultScene: nil)
         let material = try #require(ModelAsset3D.makeMaterials(result).first as? PBRMaterial)
@@ -31,5 +33,6 @@ struct GLTFMaterialExtensionMappingTests {
         #expect(material.textureTransforms[1] == .identity)
         #expect(material.ior == 1.33 && material.specularFactor == 0.6)
         #expect(material.specularColorFactor == Vector3(1, 0.8, 0.6))
+        #expect(material.clearcoatFactor == 0.7 && material.clearcoatRoughnessFactor == 0.15)
     }
 }

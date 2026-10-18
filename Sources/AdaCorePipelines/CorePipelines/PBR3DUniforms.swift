@@ -37,6 +37,8 @@ public struct PBR3DUniform: Sendable, Equatable {
     public let transform4: PBR3DTextureTransform
     /// RGB is the reflectance of a non-metal at normal incidence, from the index of refraction and `KHR_materials_specular`.
     public let dielectric: Vector4
+    /// X is the clearcoat strength and y its roughness.
+    public let coat: Vector4
 
     public init(material: PBRMaterial?, descriptor _: VertexDescriptor) {
         func coordinate(_ slot: Int) -> Int {
@@ -66,6 +68,12 @@ public struct PBR3DUniform: Sendable, Equatable {
         transform3 = transform(3)
         transform4 = transform(4)
         dielectric = Vector4(Self.dielectricReflectance(material), 0)
+        coat = Vector4(
+            finiteRenderValue(material?.clearcoatFactor ?? 0, fallback: 0, range: 0...1),
+            finiteRenderValue(material?.clearcoatRoughnessFactor ?? 0, fallback: 0, range: 0...1),
+            0,
+            0
+        )
     }
 
     /// Reflectance at normal incidence of the dielectric layer: ((ior - 1) / (ior + 1))^2 tinted and scaled by the
@@ -90,7 +98,7 @@ public struct PBR3DUniform: Sendable, Equatable {
             bits(emissiveFactor), bits(properties), bits(flags), bits(coordinates), bits(emission), bits(parallax),
             bits(transform0.matrix), bits(transform0.offset), bits(transform1.matrix), bits(transform1.offset),
             bits(transform2.matrix), bits(transform2.offset), bits(transform3.matrix), bits(transform3.offset),
-            bits(transform4.matrix), bits(transform4.offset), bits(dielectric),
+            bits(transform4.matrix), bits(transform4.offset), bits(dielectric), bits(coat),
         ]
     }
 }

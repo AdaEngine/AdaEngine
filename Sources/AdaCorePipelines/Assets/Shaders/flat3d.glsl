@@ -144,6 +144,7 @@ layout (binding = 15) uniform PBR3DUniform {
     // matrix, then xy is the offset (glTF KHR_texture_transform).
     vec4 u_TextureTransforms[10];
     vec4 u_Dielectric; // rgb: reflectance of non-metals at normal incidence (0.04 for the default IOR of 1.5)
+    vec4 u_Coat;       // x clearcoat strength, y clearcoat roughness (KHR_materials_clearcoat)
 };
 
 vec2 applyTextureTransform(vec2 uv, int slot) {
@@ -250,6 +251,15 @@ vec3 fresnelSchlick(float cosine, vec3 reflectanceAtNormal) {
     return reflectanceAtNormal + (vec3(1.0) - reflectanceAtNormal) * pow(clamp(1.0 - cosine, 0.0, 1.0), 5.0);
 }
 
+// Clearcoat layer: x strength, y roughness. It sits on the geometric normal, not on the normal map. Set once per fragment.
+vec2 g_Clearcoat = vec2(0.0);
+vec3 g_CoatNormal = vec3(0.0, 0.0, 1.0);
+
+// Share of the base layer's light that survives the coat at this view angle.
+float coatTransmission(float normalView) {
+    return 1.0 - g_Clearcoat.x * fresnelSchlick(normalView, vec3(0.04)).x;
+}
+
 // UV shift from parallax occlusion mapping, applied to every material texture that uses the height map's UV set.
 vec2 g_ParallaxDelta = vec2(0.0);
 
@@ -335,7 +345,17 @@ vec3 environmentLighting(vec3 normal, vec3 viewDirection, vec3 baseColor, float 
     vec2 lutSize = vec2(textureSize(sampler2D(u_BRDF, u_IBLSampler), 0));
     vec2 lutUV = clamp(vec2(ndotv, roughness), 0.5 / lutSize, vec2(1.0) - 0.5 / lutSize);
     vec2 lut = texture(sampler2D(u_BRDF, u_IBLSampler), lutUV).rg;
-    return (diffuseWeight * irradiance * baseColor / PI + reflected * (f0 * lut.x + lut.y)) * u_IBLParameters.y;
+    vec3 result = (diffuseWeight * irradiance * baseColor / PI + reflected * (f0 * lut.x + lut.y)) * u_IBLParameters.y;
+    if (g_Clearcoat.x > 0.0) {
+        // The coat reflects the environment along the geometric normal and dims the base layer beneath it.
+        vec3 coatWorldNormal = normalize(mat3(u_EnvironmentInverseView) * g_CoatNormal);
+        float coatNormalView = max(dot(g_CoatNormal, viewDirection), 0.0);
+        vec2 coatLutUV = clamp(vec2(coatNormalView, g_Clearcoat.y), 0.5 / lutSize, vec2(1.0) - 0.5 / lutSize);
+        vec2 coatLut = texture(sampler2D(u_BRDF, u_IBLSampler), coatLutUV).rg;
+        vec3 coatReflected = samplePrefiltered(reflect(-worldView, coatWorldNormal), g_Clearcoat.y);
+        result = result * coatTransmission(coatNormalView) + coatReflected * (0.04 * coatLut.x + coatLut.y) * g_Clearcoat.x * u_IBLParameters.y;
+    }
+    return result;
 }
 
 mat3 cotangentFrame(vec3 normal, vec3 position, vec2 uv) {
@@ -415,16 +435,36 @@ float directionalShadow(vec3 normal, vec3 lightDirection) {
     return visibility;
 }
 
+// The coat's own highlight for one light (rgb, already scaled by radiance and n.l) and the transmission of the
+// base layer under it (a).
+vec4 clearcoatDirect(vec3 viewDirection, vec3 lightDirection, vec3 radiance) {
+    vec3 normal = g_CoatNormal;
+    float nl = max(dot(normal, lightDirection), 0.0), nv = max(dot(normal, viewDirection), 0.0);
+    float transmission = coatTransmission(nv);
+    if (nl <= 0.0 || nv <= 0.0) { return vec4(0.0, 0.0, 0.0, transmission); }
+    vec3 halfway = normalize(viewDirection + lightDirection);
+    float fresnel = fresnelSchlick(max(dot(halfway, viewDirection), 0.0), vec3(0.04)).x * g_Clearcoat.x;
+    float distribution = distributionGGX(normal, halfway, g_Clearcoat.y);
+    float geometry = geometrySmith(normal, viewDirection, lightDirection, g_Clearcoat.y);
+    float specular = distribution * geometry * fresnel / max(4.0 * nv * nl, 0.0001);
+    return vec4(vec3(specular) * max(radiance, vec3(0.0)) * nl, transmission);
+}
+
 vec3 evaluateDirect(vec3 normal, vec3 viewDirection, vec3 lightDirection, vec3 baseColor, float metallic, float roughness, vec3 radiance) {
     float nl = max(dot(normal, lightDirection), 0.0), nv = max(dot(normal, viewDirection), 0.0);
-    if (nl <= 0.0 || nv <= 0.0) { return vec3(0.0); }
-    vec3 halfway = normalize(viewDirection + lightDirection);
-    vec3 f0 = mix(u_Dielectric.rgb, baseColor, metallic);
-    vec3 fresnel = fresnelSchlick(max(dot(halfway, viewDirection), 0.0), f0);
-    float distribution = distributionGGX(normal, halfway, roughness);
-    float geometry = geometrySmith(normal, viewDirection, lightDirection, roughness);
-    vec3 specular = distribution * geometry * fresnel / max(4.0 * nv * nl, 0.0001);
-    return ((vec3(1.0) - fresnel) * (1.0 - metallic) * baseColor / PI + specular) * max(radiance, vec3(0.0)) * nl;
+    vec3 base = vec3(0.0);
+    if (nl > 0.0 && nv > 0.0) {
+        vec3 halfway = normalize(viewDirection + lightDirection);
+        vec3 f0 = mix(u_Dielectric.rgb, baseColor, metallic);
+        vec3 fresnel = fresnelSchlick(max(dot(halfway, viewDirection), 0.0), f0);
+        float distribution = distributionGGX(normal, halfway, roughness);
+        float geometry = geometrySmith(normal, viewDirection, lightDirection, roughness);
+        vec3 specular = distribution * geometry * fresnel / max(4.0 * nv * nl, 0.0001);
+        base = ((vec3(1.0) - fresnel) * (1.0 - metallic) * baseColor / PI + specular) * max(radiance, vec3(0.0)) * nl;
+    }
+    if (g_Clearcoat.x <= 0.0) { return base; }
+    vec4 coat = clearcoatDirect(viewDirection, lightDirection, radiance);
+    return base * coat.a + coat.rgb;
 }
 
 int localPointFace(vec3 ray) {
@@ -560,6 +600,9 @@ void flat3d_fragment()
 
     vec3 normal = materialNormal();
     if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { normal = -normal; }
+    g_Clearcoat = vec2(u_Coat.x, clamp(u_Coat.y, 0.04, 1.0));
+    g_CoatNormal = normalize(Input.ViewNormal);
+    if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { g_CoatNormal = -g_CoatNormal; }
     vec3 viewDirection = normalize(-Input.ViewPosition);
     vec3 lightDirection = normalize(u_LightDirectionIntensity.xyz);
     gl_FragDepth = gl_FragCoord.z;
@@ -605,11 +648,16 @@ void flat3d_fragment()
     vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
     vec3 radiance = max(u_LightRadianceAmbient.rgb, vec3(0.0)) * max(u_LightDirectionIntensity.w, 0.0);
     // The sun term is multiplied by n.l, so surfaces facing away from it skip the cascade lookups.
-    float shadowVisibility = normalLight > 0.0 ? directionalShadow(normal, lightDirection) : 1.0;
+    float shadowVisibility = (normalLight > 0.0 || g_Clearcoat.x > 0.0) ? directionalShadow(normal, lightDirection) : 1.0;
     vec3 directLighting = (diffuseWeight * baseColor.rgb / PI + specular) * radiance * normalLight * shadowVisibility;
+    if (g_Clearcoat.x > 0.0) {
+        vec4 coat = clearcoatDirect(viewDirection, lightDirection, radiance);
+        directLighting = directLighting * coat.a + coat.rgb * shadowVisibility;
+    }
     directLighting += additionalLighting(normal, viewDirection, baseColor.rgb, metallic, roughness);
     vec3 ambient = baseColor.rgb * (1.0 - metallic) * max(u_LightRadianceAmbient.w, 0.0);
     if (u_IBLParameters.x > 0.5) { ambient = environmentLighting(normal, viewDirection, baseColor.rgb, metallic, roughness); }
+    else if (g_Clearcoat.x > 0.0) { ambient *= coatTransmission(max(dot(g_CoatNormal, viewDirection), 0.0)); }
     float occlusion = u_SurfaceFlags.y > 0.5 ? texture(sampler2D(u_OcclusionTexture, u_OcclusionSampler), materialUV(u_UVSets.w, 3)).r : 1.0;
     ambient *= mix(1.0, occlusion, u_SurfaceProperties.y);
     float emissiveVisibility = 1.0;

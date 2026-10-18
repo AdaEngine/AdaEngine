@@ -70,6 +70,10 @@ public class PBRMaterial: Material, @unchecked Sendable {
     public var specularFactor: Float = 1 { didSet { uniformRevision &+= 1 } }
     /// Tint of the dielectric specular reflection (`KHR_materials_specular`).
     public var specularColorFactor: Vector3 = .one { didSet { uniformRevision &+= 1 } }
+    /// Strength of a clear lacquer layer over the surface (`KHR_materials_clearcoat`); 0 turns the layer off.
+    public var clearcoatFactor: Float = 0 { didSet { uniformRevision &+= 1 } }
+    /// Roughness of the clearcoat layer, independent of the base layer's roughness.
+    public var clearcoatRoughnessFactor: Float = 0 { didSet { uniformRevision &+= 1 } }
 
     /// Changes whenever parameters in the shared PBR uniform snapshot are edited.
     @_spi(Internal) public private(set) var uniformRevision: UInt64 = 0

@@ -40,6 +40,21 @@ struct Render3DMaterialExtensionConstantTests {
         #expect(PBR3DUniform.dielectricReflectance(material).x <= 1, "The tint cannot push reflectance beyond total reflection.")
     }
 
+    @Test func clearcoatDefaultsToOffAndClampsToTheUnitRange() {
+        #expect(PBR3DUniform(material: PBRMaterial(), descriptor: VertexDescriptor()).coat == .zero)
+        #expect(PBR3DUniform(material: nil, descriptor: VertexDescriptor()).coat == .zero)
+        let material = PBRMaterial()
+        material.clearcoatFactor = 0.6
+        material.clearcoatRoughnessFactor = 0.2
+        #expect(PBR3DUniform(material: material, descriptor: VertexDescriptor()).coat == Vector4(0.6, 0.2, 0, 0))
+        material.clearcoatFactor = 7
+        material.clearcoatRoughnessFactor = .nan
+        let wild = PBR3DUniform(material: material, descriptor: VertexDescriptor()).coat
+        #expect(wild.x == 1 && wild.y.isFinite)
+        let plain = PBR3DUniform(material: PBRMaterial(), descriptor: VertexDescriptor())
+        #expect(plain.bitPatterns != PBR3DUniform(material: material, descriptor: VertexDescriptor()).bitPatterns)
+    }
+
     @Test func nonFiniteValuesFallBackToDefaults() {
         let material = PBRMaterial()
         material.ior = .nan
@@ -116,6 +131,18 @@ extension Render3DGPUTests {
             return peak
         }
 
+        /// The largest brightness a frame gained over `baseline` anywhere in the middle of the frame.
+        private static func largestGain(_ image: Image, over baseline: Image) -> Float {
+            var gain: Float = 0
+            for y in stride(from: 130, to: 350, by: 2) {
+                for x in stride(from: 170, to: 470, by: 2) {
+                    let now = image.getPixel(x: x, y: y), before = baseline.getPixel(x: x, y: y)
+                    gain = max(gain, (now.red + now.green + now.blue) - (before.red + before.green + before.blue))
+                }
+            }
+            return gain
+        }
+
         private static func matches(_ left: Image, _ right: Image) -> Bool {
             GoldenFrame.compare(left, right, tolerance: GoldenFrame.activeTolerance).passes(GoldenFrame.activeTolerance)
         }
@@ -160,6 +187,52 @@ extension Render3DGPUTests {
             material.specularColorFactor = Vector3(1, 0, 0)
             let red = Self.peakHighlight(try await scene.render(.none))
             #expect(red.red - red.blue > neutral.red - neutral.blue, "A red specular tint must shift the highlight toward red.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func clearcoatAddsASharpHighlightToARoughSurface() async throws {
+            let (scene, material) = try await Self.makeScene { $0.baseColorFactor = [0.03, 0.03, 0.03, 1]; $0.roughnessFactor = 0.9 }
+            let baseline = try await scene.render(.none)
+            material.clearcoatFactor = 1
+            material.clearcoatRoughnessFactor = 0.05
+            let glossy = Self.largestGain(try await scene.render(.none), over: baseline)
+            material.clearcoatRoughnessFactor = 0.6
+            let blurred = Self.largestGain(try await scene.render(.none), over: baseline)
+            #expect(glossy > 0.3, "A smooth coat must add a bright highlight to rough paint (gain \(glossy)).")
+            #expect(glossy > blurred, "A rougher coat must spread and dim the highlight (\(glossy) vs \(blurred)).")
+            material.clearcoatFactor = 0
+            #expect(Self.matches(baseline, try await scene.render(.none)), "Turning the coat off must restore the frame.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func clearcoatStrengthScalesTheCoatMonotonically() async throws {
+            let (scene, material) = try await Self.makeScene { $0.baseColorFactor = [0.03, 0.03, 0.03, 1]; $0.roughnessFactor = 0.9; $0.clearcoatRoughnessFactor = 0.05 }
+            let baseline = try await scene.render(.none)
+            var gains: [Float] = []
+            for strength: Float in [0.3, 0.7, 1] {
+                material.clearcoatFactor = strength
+                gains.append(Self.largestGain(try await scene.render(.none), over: baseline))
+            }
+            #expect(zip(gains, gains.dropFirst()).allSatisfy { $0 < $1 }, "The coat's highlight must grow with its strength: \(gains)")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func clearcoatMatchesItsGoldenFrame() async throws {
+            let (scene, _) = try await Self.makeScene {
+                $0.baseColorFactor = [0.55, 0.04, 0.04, 1]
+                $0.metallicFactor = 0
+                $0.roughnessFactor = 0.5
+                $0.clearcoatFactor = 1
+                $0.clearcoatRoughnessFactor = 0.04
+            }
+            switch try GoldenFrame.check(try await scene.render(.none), name: "pbr-sphere-clearcoat") {
+            case .recorded, .matched:
+                break
+            case .missingReference(let actual):
+                Issue.record("No golden frame for pbr-sphere-clearcoat; record with ADAENGINE_GOLDEN_RECORD=1. Actual: \(actual.path)")
+            case let .mismatched(comparison, actual, difference):
+                Issue.record("pbr-sphere-clearcoat differs in \(comparison.differingPixels) pixels. Actual: \(actual.path), difference: \(difference.path)")
+            }
         }
 
         @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))

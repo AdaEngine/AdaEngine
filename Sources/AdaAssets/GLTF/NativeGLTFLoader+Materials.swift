@@ -85,6 +85,9 @@ extension NativeGLTFLoader {
         let specular = material.extensions?.KHR_materials_specular
         let specularFactor: Float = specular?.specularFactor ?? 1
         let specularColor: [Float] = specular?.specularColorFactor ?? [1, 1, 1]
+        let coat = material.extensions?.KHR_materials_clearcoat
+        let clearcoatFactor: Float = coat?.clearcoatFactor ?? 0
+        let clearcoatRoughness: Float = coat?.clearcoatRoughnessFactor ?? 0
         let textures: [Int?] = [
             pbr?.baseColorTexture?.index,
             pbr?.metallicRoughnessTexture?.index,
@@ -96,9 +99,11 @@ extension NativeGLTFLoader {
         let texturesExist = textures.compactMap { $0 }.allSatisfy { $0 >= 0 && $0 < textureCount }
         let factorsAreValid = base.count == 4 && emissive.count == 3 && unitValues.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 1 }
         let scalarsAreValid = normalScale.isFinite && cutoff.isFinite && cutoff >= 0 && strength.isFinite && strength >= 0
+        let coatIsValid = clearcoatFactor.isFinite && clearcoatFactor >= 0 && clearcoatFactor <= 1
+            && clearcoatRoughness.isFinite && clearcoatRoughness >= 0 && clearcoatRoughness <= 1
         let specularIsValid = ior.isFinite && ior >= 1 && ior <= 100 && specularFactor.isFinite && specularFactor >= 0
             && specularColor.count == 3 && specularColor.allSatisfy { $0.isFinite && $0 >= 0 }
-        guard factorsAreValid, scalarsAreValid, specularIsValid, texturesExist, transformsAreValid,
+        guard factorsAreValid, scalarsAreValid, specularIsValid, coatIsValid, texturesExist, transformsAreValid,
               coordinates.allSatisfy({ $0 == 0 || $0 == 1 }),
               let alpha = GLTFImportResult.AlphaMode(rawValue: material.alphaMode ?? "OPAQUE")
         else { throw GLTFError.invalidMaterial(index) }
@@ -123,7 +128,9 @@ extension NativeGLTFLoader {
             textureTransforms: transforms,
             ior: ior,
             specularFactor: specularFactor,
-            specularColorFactor: Vector3(specularColor[0], specularColor[1], specularColor[2])
+            specularColorFactor: Vector3(specularColor[0], specularColor[1], specularColor[2]),
+            clearcoatFactor: clearcoatFactor,
+            clearcoatRoughnessFactor: clearcoatRoughness
         )
     }
 }

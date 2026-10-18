@@ -132,7 +132,15 @@ extension NativeGLTFLoader {
                     let specularTexture: TextureReference?
                     let specularColorTexture: TextureReference?
                 }
+                struct Clearcoat: Codable {
+                    let clearcoatFactor: Float?
+                    let clearcoatTexture: TextureReference?
+                    let clearcoatRoughnessFactor: Float?
+                    let clearcoatRoughnessTexture: TextureReference?
+                    let clearcoatNormalTexture: TextureReference?
+                }
                 let KHR_materials_emissive_strength: EmissiveStrength?
+                let KHR_materials_clearcoat: Clearcoat?
                 let KHR_materials_ior: IOR?
                 let KHR_materials_specular: Specular?
             }

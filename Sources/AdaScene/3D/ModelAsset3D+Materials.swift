@@ -65,6 +65,8 @@ extension ModelAsset3D {
             material.ior = source.ior
             material.specularFactor = source.specularFactor
             material.specularColorFactor = source.specularColorFactor
+            material.clearcoatFactor = source.clearcoatFactor
+            material.clearcoatRoughnessFactor = source.clearcoatRoughnessFactor
             switch source.alphaMode {
             case .opaque: material.alphaMode = .opaque
             case .mask: material.alphaMode = .mask
