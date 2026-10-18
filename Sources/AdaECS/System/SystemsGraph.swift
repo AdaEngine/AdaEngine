@@ -55,6 +55,12 @@ public struct SystemsGraph: Sendable {
     /// Initialize a new systems graph.
     public init() {}
 
+    /// Returns whether an instance of the system type is registered, including custom identifiers.
+    @_spi(Internal)
+    public func containsSystem<T: System>(_: T.Type) -> Bool {
+        nodes.contains { $0.typeName == T.swiftName }
+    }
+
     // MARK: - Internal methods
 
     /// Add a node of the current system. If a node exists with the same type, it will be overridden.

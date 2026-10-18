@@ -8,19 +8,35 @@ final class EditorAgentViewModel {
     var connectionState: EditorAgentConnectionState = .disconnected
     var sessions: [EditorAgentSessionSummary] = []
     var activeSession: EditorAgentSession? {
-        didSet { if let activeSession { a2ui.restoreIfNeeded(activeSession) } }
+        didSet {
+            if let activeSession { a2ui.restoreIfNeeded(activeSession) }
+            refreshPromptSuggestions()
+        }
     }
     let a2ui = EditorAgentA2UIController()
+    let promptSuggestions: EditorAgentPromptSuggestions
     var isSubmittingA2UI = false
     @ObservationIgnored private var a2uiSaveTasks: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var onOpenA2UIPreview: (String) -> Void = { _ in }
-    var prompt: String = ""
-    var mode: EditorAgentChatMode = .build
+    var prompt: String = "" {
+        didSet {
+            promptCaretOffset = prompt.count
+            updateAutocomplete()
+        }
+    }
+    var mode: EditorAgentChatMode = .build {
+        didSet { refreshPromptSuggestions() }
+    }
     var autocompleteSuggestions: [EditorAgentCompletion] = []
     var selectedCompletionIndex = 0
     var promptCompletionFocus: TextEditorSourceRange?
-    @ObservationIgnored private var promptCaretOffset: Int?
-    @ObservationIgnored private var isPanelVisible = false
+    @ObservationIgnored var promptCaretOffset: Int? {
+        didSet { refreshPromptSuggestions() }
+    }
+    @ObservationIgnored private(set) var isPanelVisible = false {
+        didSet { refreshPromptSuggestions() }
+    }
+    @ObservationIgnored var unpersistedSuggestionSessions: Set<String> = []
     var pendingAttachments: [EditorAgentAttachment] = []
     var sceneContext: EditorAgentSceneContext?
     var codeSelection: EditorAgentCodeSelectionContext?
@@ -35,7 +51,9 @@ final class EditorAgentViewModel {
     var availableSkills: [EditorAgentSkill] = []
     var selectedSkillIDs: Set<String> = []
     var statusMessage: String?
-    var isSending = false
+    var isSending = false {
+        didSet { refreshPromptSuggestions() }
+    }
     private(set) var runningSessionID: String?
     @ObservationIgnored var sessionDrafts: [String: SessionDraft] = [:]
     private(set) var lastActivityID: String?
@@ -74,7 +92,9 @@ final class EditorAgentViewModel {
     }
     var settingsStatusMessage = ""
     let catalog: EditorAgentCatalogViewModel
-    var isConnectingCatalogAgent = false
+    var isConnectingCatalogAgent = false {
+        didSet { refreshPromptSuggestions() }
+    }
 
     @ObservationIgnored
     private let project: EditorProjectReference?
@@ -103,6 +123,7 @@ final class EditorAgentViewModel {
         settings: EditorAgentSettingsStore = .shared,
         fileManager: FileManager = .default,
         service: any EditorAgentServicing = EditorAgentDefaultService.make(),
+        suggestionService: any EditorAgentSuggestionServing = EditorAgentSuggestionService(),
         catalog: EditorAgentCatalogViewModel = EditorAgentCatalogViewModel(),
         notifications: EditorNotificationCenter = .shared,
         onProjectFileChanged: @escaping (String) -> Void = { _ in }
@@ -112,6 +133,7 @@ final class EditorAgentViewModel {
         self.project = project
         self.fileManager = fileManager
         self.service = service
+        self.promptSuggestions = EditorAgentPromptSuggestions(service: suggestionService)
         self.catalog = catalog
         catalog.notificationAction.projectID = project?.id
         catalog.notificationProjectName = project?.name
@@ -801,7 +823,7 @@ final class EditorAgentViewModel {
         selectedCompletionIndex = 0
     }
 
-    private func focusCompletionPrompt() {
+    func focusCompletionPrompt() {
         guard let window = UIWindowManager.shared?.activeWindow else {
             return
         }
@@ -843,6 +865,7 @@ final class EditorAgentViewModel {
         }
         session.agentTargetIdentity = settings.configuration.target.sessionIdentity
         let preparedPrompt = a2uiSubmission?.summary ?? prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        unpersistedSuggestionSessions.insert(session.id)
         let invokedSkills = skillsInvokedByPrompt(preparedPrompt)
         let visibleRequestSkills = uniqueSkills(selectedSkills + invokedSkills)
         let coreSkills = availableSkills.filter { $0.id == "ada-project-orientation" }
@@ -980,6 +1003,7 @@ final class EditorAgentViewModel {
         if let store, let runningSession {
             do {
                 try await store.saveSession(runningSession, makeActive: activeSession?.id == sessionID)
+                unpersistedSuggestionSessions.remove(sessionID)
                 sessions = try await store.listSessions()
             } catch { statusMessage = error.localizedDescription }
         }
@@ -1148,6 +1172,7 @@ final class EditorAgentViewModel {
     }
 
     private func updateAutocomplete() {
+        defer { refreshPromptSuggestions() }
         guard let token = EditorAgentCompletionToken.current(in: prompt, cursorOffset: promptCaretOffset) else {
             autocompleteSuggestions = []
             selectedCompletionIndex = 0

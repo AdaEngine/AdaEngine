@@ -420,6 +420,14 @@ Coverage: [EditorAgentWorkspaceTests.swift](Tests/AdaEditorTests/EditorAgentWork
 Desktop Git status, staging, commit, stash, pull/push, branch creation/checkout,
 history and diff review. Agent Chat includes transcript/session persistence,
 attachments, context selection, permissions, skills and agent settings.
+The shared sidebar/workspace composer offers a debounced, full-draft completion
+while typing and up to three next-message suggestions after a successful saved
+reply. Chips fill an editable draft without sending; Enter retains ordinary
+submission and slash/@ completion behavior. Suggestions can be dismissed and
+refresh with the app language. Generation uses the local Foundation Models model
+only on supported, available Apple systems, with contextual/history suggestions
+as a fallback; it does not make a separate ACP or hosted-model request.
+Coverage: [EditorAgentSuggestionUITests.swift](Tests/AdaEditorTests/EditorAgentSuggestionUITests.swift).
 macOS/Windows ACP and iPhone SloppyRuntime replies stream native A2UI cards. Ordinary
 submissions return to the owning session; reserved local actions apply scene tools
 without a new model turn. NPC subtree spawning, color-field editing, structured

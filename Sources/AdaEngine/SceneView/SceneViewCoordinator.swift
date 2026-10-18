@@ -9,7 +9,7 @@
 @_spi(Internal) import AdaAssets
 import AdaAudio
 import AdaCorePipelines
-import AdaECS
+@_spi(Internal) import AdaECS
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaRender
 import AdaTransform
@@ -51,6 +51,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private var pendingSize: SizeInt?
     private var pendingScaleFactor: Float = 1
     private var pendingSizeElapsed: AdaUtils.TimeInterval = 0
+    private var contentDeltaTime: AdaUtils.TimeInterval = 0
 
     private let makeClosure: @MainActor (inout AppWorlds) -> Void
     private let updateContentClosure: @MainActor (World, AdaUtils.TimeInterval) -> Void
@@ -67,6 +68,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     private struct PendingDisplayTarget {
         var texture: RenderTexture
         var present: (@MainActor () -> Void)?
+        var isPresentationPrepared = false
         var isCompleted = false
     }
 
@@ -142,6 +144,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
                 self.isHostedSubworld = false
             }
             try? await app.build()
+            self.configureContentScheduling(in: app)
             guard !self.isShutdown else {
                 AppWorldsSession.current?.removeSubworld(by: self.hostSubworldName)
                 self.isBootstrapping = false
@@ -224,18 +227,15 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         // swap the displayed texture and its companion UI at the next UI tick.
         publishRenderTextureIfReady()
 
-        guard let appWorlds, hasCalledSetup else {
+        guard appWorlds != nil, hasCalledSetup else {
             return
         }
         // A standalone update may suspend during startup, asset loading or rendering.
         // Retargeting before it finishes reserves textures for frames that were never submitted.
         guard isHostedSubworld || !standaloneTickInFlight else { return }
-        appWorlds.withExecutionContext {
-            updateContentClosure(appWorlds.main, deltaTime)
-        }
+        contentDeltaTime = deltaTime
         ageRetiredDisplayTargets()
         prepareNextRenderTarget()
-
         if isHostedSubworld {
             return
         }
@@ -273,6 +273,23 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
     }
 
     // MARK: - Private
+
+    private func updateSceneContent(in world: World) {
+        guard isRenderingEnabled, hasCalledSetup, !isShutdown else {
+            return
+        }
+        // Run after input parsing and before camera preparation in preUpdate.
+        updateContentClosure(world, contentDeltaTime)
+        // Target eligibility is decided before simulation. Capture companion UI only
+        // after this frame's input has updated the scene and its camera.
+        guard let targetRenderTexture,
+            let index = pendingDisplayTargets.firstIndex(where: { $0.texture === targetRenderTexture }),
+            !pendingDisplayTargets[index].isPresentationPrepared else {
+            return
+        }
+        pendingDisplayTargets[index].isPresentationPrepared = true
+        pendingDisplayTargets[index].present = prepareFramePresentation?()
+    }
 
     private func standaloneTick(_ deltaTime: AdaUtils.TimeInterval) {
         guard !standaloneTickInFlight else {
@@ -555,7 +572,7 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
             return
         }
 
-        pendingDisplayTargets.append(PendingDisplayTarget(texture: texture, present: prepareFramePresentation?()))
+        pendingDisplayTargets.append(PendingDisplayTarget(texture: texture, present: nil))
     }
 
     private func nextAvailableRenderTexture() -> RenderTexture? {
@@ -613,5 +630,47 @@ final class SceneViewCoordinator: OffscreenViewportDelegate {
         app.insertResource(PrimaryWindowId(windowId: RID()))
 
         return app
+    }
+
+    private func configureContentScheduling(in app: AppWorlds) {
+        app.insertResource(ContentUpdateTarget(coordinator: self))
+        app.addSystem(ContentUpdateSystem.self, on: .preUpdate)
+    }
+
+    @MainActor
+    private final class ContentUpdateTarget: Resource {
+        weak var coordinator: SceneViewCoordinator?
+
+        init(coordinator: SceneViewCoordinator) {
+            self.coordinator = coordinator
+        }
+    }
+
+    private struct ContentUpdateSystem: System {
+        private let target: ContentUpdateTarget?
+        let systemDependencies: [SystemDependency]
+
+        // The client callback can mutate arbitrary components in this world.
+        var queries: SystemQueries {
+            SystemQueries(queries: [ExclusiveWorldAccess()])
+        }
+
+        init(world: World) {
+            target = world.getResource(ContentUpdateTarget.self)
+            let graph = world.schedulers.getScheduler(.preUpdate)?.systemGraph
+            var dependencies: [SystemDependency] = []
+            if graph?.containsSystem(InputEventParseSystem.self) == true {
+                dependencies.append(.after(InputEventParseSystem.self))
+            }
+            if graph?.containsSystem(CameraSystem.self) == true {
+                dependencies.append(.before(CameraSystem.self))
+            }
+            systemDependencies = dependencies
+        }
+
+        @MainActor
+        func update(context: UpdateContext) async {
+            target?.coordinator?.updateSceneContent(in: context.world)
+        }
     }
 }

@@ -39,6 +39,9 @@ struct EditorAgentSidebar: View {
         }
         .onAppear { viewModel.panelDidAppear() }
         .onDisappear { viewModel.panelDidDisappear() }
+        .onChange(of: EditorLocalization.shared.language) { _, _ in
+            viewModel.refreshPromptSuggestions()
+        }
     }
 
     static let maximumContentWidth: Float = 800
@@ -320,6 +323,7 @@ struct EditorAgentSidebar: View {
             contextPicker
             pendingAttachmentList
             autocompleteList
+            EditorAgentSuggestionsView(viewModel: viewModel)
             EditorAgentComposerSurface {
                 VStack(alignment: .leading, spacing: 4) {
                     EditorAgentPromptEditor(viewModel: viewModel)
