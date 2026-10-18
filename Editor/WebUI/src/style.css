@@ -324,6 +324,197 @@ strong {
   isolation: isolate;
   overflow: hidden;
 }
+.workspace[hidden] {
+  display: none;
+}
+.code-panel[hidden] {
+  display: none;
+}
+.breadcrumbs .projects-link {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.workspace-section-name {
+  color: #92909c;
+  font-size: 12px;
+  padding-left: 18px;
+  border-left: 1px solid #ffffff12;
+}
+.project-overview {
+  height: 100%;
+  overflow: auto;
+  padding: clamp(24px, 4vw, 64px);
+  background:
+    radial-gradient(ellipse at top right, #51427218, transparent 65%), #131416;
+}
+.overview-heading,
+.project-storage,
+.overview-bottom,
+.resume-project {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.overview-heading > div,
+.project-storage > div,
+.overview-bottom > div,
+.resume-project > div {
+  flex: 1;
+  min-width: 0;
+}
+.project-overview h1 {
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 500;
+  letter-spacing: -1px;
+  margin: 15px 0;
+  overflow-wrap: anywhere;
+}
+.project-overview p,
+.resume-project p {
+  color: #8c8e98;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.project-storage {
+  border: 1px solid #ffffff10;
+  border-radius: 14px;
+  padding: 22px;
+  margin: 30px 0;
+  background: #ffffff02;
+}
+.project-storage > svg {
+  color: #9d91da;
+  flex-shrink: 0;
+}
+.project-storage strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.project-storage p {
+  margin: 7px 0 0;
+}
+.project-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.project-sections > button {
+  text-align: left;
+  padding: 24px;
+  border: 1px solid #ffffff0c;
+  border-radius: 14px;
+  background: #1a1b1e;
+  position: relative;
+}
+.project-sections > button:hover {
+  border-color: #9d91da70;
+  background: #212026;
+}
+.project-sections > button > svg:first-child {
+  color: #afa3ed;
+}
+.project-sections > button > svg:last-child {
+  position: absolute;
+  right: 22px;
+  top: 28px;
+  color: #77747f;
+}
+.project-sections h2,
+.overview-bottom h2,
+.resume-project h2 {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 16px 0 6px;
+}
+.project-sections p {
+  margin: 0;
+}
+.overview-bottom {
+  margin-top: 30px;
+  padding-bottom: 12px;
+}
+.overview-bottom h2 {
+  margin-top: 0;
+}
+.overview-bottom p {
+  max-width: 540px;
+  margin-bottom: 0;
+}
+.resume-project {
+  margin: 28px 0;
+  padding: 22px 26px;
+  border: 1px solid #9d91da45;
+  border-radius: 14px;
+  background: #9380ee0a;
+}
+.resume-project h2 {
+  margin-top: 10px;
+}
+.resume-project p {
+  margin-bottom: 0;
+}
+.section-assets .assets-panel,
+.section-assistant .assistant-panel,
+.section-code .code-panel {
+  inset: 20px 24px 24px 12px;
+  width: auto;
+  max-height: none;
+}
+.section-assets .assets-panel {
+  display: flex;
+  flex-direction: column;
+}
+.section-assets .asset-grid {
+  max-height: none;
+  align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+.section-assistant .assistant-panel {
+  max-width: 920px;
+  margin: 0 auto;
+}
+.section-assistant .assistant-panel.collapsed {
+  bottom: auto;
+}
+.section-assistant .conversation {
+  flex: 1;
+  max-height: none;
+}
+.section-assistant .composer {
+  flex-shrink: 0;
+}
+.leave-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+@media (max-width: 900px) {
+  .workspace-section-name {
+    display: none;
+  }
+  .overview-bottom,
+  .project-storage,
+  .overview-heading,
+  .resume-project {
+    flex-wrap: wrap;
+  }
+  .overview-bottom > div,
+  .resume-project > div {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 600px) {
+  .project-sections {
+    grid-template-columns: 1fr;
+  }
+  .project-overview {
+    padding: 22px;
+  }
+}
 .stage {
   position: absolute;
   inset: 0 12px 12px 0;

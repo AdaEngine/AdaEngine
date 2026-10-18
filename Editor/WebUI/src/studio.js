@@ -21,6 +21,9 @@ export class Studio {
   workspace = null;
   document = null;
   view = "editor";
+  projectBrowser = false;
+  leavePrompt = "";
+  leaving = false;
   panel = "objects";
   selected = null;
   inspector = true;
@@ -70,12 +73,23 @@ export class Studio {
       this.agent?.abort();
       this.preview.stop();
     });
+    window.addEventListener("beforeunload", (e) => {
+      if (
+        this.running ||
+        (this.document && this.document.generation !== this.savedGeneration)
+      ) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.viewportExpanded) {
         this.viewportExpanded = false;
         this.emit();
       }
       if (
+        this.document &&
+        !this.projectBrowser &&
         (e.metaKey || e.ctrlKey) &&
         e.key.toLowerCase() === "z" &&
         !document.activeElement?.closest(
@@ -89,6 +103,7 @@ export class Studio {
     window.addEventListener("keydown", (e) => {
       if (
         this.document &&
+        !this.projectBrowser &&
         this.view === "editor" &&
         !this.playing &&
         !e.target.closest?.("input, textarea, [contenteditable=true]") &&
@@ -188,6 +203,8 @@ export class Studio {
     this.emit();
   }
   async create(dimension = 3) {
+    if (this.running)
+      throw new Error("Остановите ассистента перед сменой проекта");
     await this.save();
     await this.createSnapshot(template(dimension));
   }
@@ -209,6 +226,9 @@ export class Studio {
     this.activity = [];
     this.savedGeneration = 0;
     this.view = "editor";
+    this.projectBrowser = false;
+    this.leavePrompt = "";
+    this.assetPanel = false;
     this.viewportExpanded = false;
     this.playing = false;
     this.viewportError = "";
@@ -221,6 +241,11 @@ export class Studio {
     this.emit();
   }
   async open(record) {
+    if (record.id === this.workspace?.id) {
+      this.projectBrowser = false;
+      this.emit();
+      return;
+    }
     if (this.running)
       throw new Error("Остановите ассистента перед сменой проекта");
     await this.save();
@@ -245,15 +270,46 @@ export class Studio {
       }
     }
   }
-  async home() {
-    if (this.running) throw new Error("Сначала остановите ассистента");
-    await this.save();
-    this.preview.stop();
-    this.document = null;
-    this.workspace = null;
-    this.history = false;
+  home() {
+    this.navigate("overview");
+  }
+  navigate(view) {
+    if (!this.document) return;
+    this.projectBrowser = false;
+    this.view = view;
+    if (view === "editor") this.playing = false;
+    this.assetPanel = false;
+    this.viewportExpanded = false;
     this.emit();
-    await this.refresh();
+  }
+  async browseProjects(local = false) {
+    if (this.leaving) return;
+    if (this.running)
+      throw new Error("Остановите ассистента перед выходом к проектам");
+    this.leaving = true;
+    this.emit();
+    try {
+      if (local && this.document) {
+        // Confirm the durable write, including any queued edits, before leaving.
+        await this.recoveryQueue;
+        await recovery("save", this.account.id, this.workspace.id, {
+          revision: this.workspace.revision,
+          snapshot: portable(this.snapshot),
+        });
+      } else {
+        await this.save();
+      }
+      this.projectBrowser = true;
+      this.leavePrompt = "";
+      this.history = false;
+      // Retain the document, undo, selection and Player for the Continue action.
+      await this.refresh().catch((e) => this.fail(e));
+    } catch (e) {
+      this.leavePrompt = e.message;
+    } finally {
+      this.leaving = false;
+      this.emit();
+    }
   }
   changed(checkpoint = false) {
     this.checkpointPending ||= checkpoint;
@@ -546,6 +602,8 @@ export class Studio {
     return path;
   }
   async importFile(input) {
+    if (this.running)
+      throw new Error("Остановите ассистента перед сменой проекта");
     await this.save();
     await this.createSnapshot(importZIP(await input.arrayBuffer()));
   }
@@ -582,8 +640,7 @@ export class Studio {
   async play(editMode = false) {
     if (!this.snapshot) return;
     this.playing = !editMode;
-    this.view = editMode ? "editor" : "preview";
-    this.emit();
+    this.navigate(editMode ? "editor" : "preview");
     return this.syncViewport(editMode);
   }
   async syncViewport(editMode = !this.playing) {
@@ -612,8 +669,7 @@ export class Studio {
   }
   async stop() {
     this.playing = false;
-    this.view = "editor";
-    this.emit();
+    this.navigate("editor");
     return this.syncViewport(true);
   }
   async retryViewport() {

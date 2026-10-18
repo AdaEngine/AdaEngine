@@ -173,4 +173,52 @@ function History() {
   );
 }
 
-export { Settings, History };
+function LeaveProject() {
+  const s = studio;
+  const stay = () => {
+    if (s.leaving) return;
+    s.leavePrompt = "";
+    s.emit();
+  };
+  return (
+    <Modal title="Не удалось сохранить проект в облаке" onClose={stay}>
+      <div className="modal-body">
+        <p>
+          Ваш проект «{s.snapshot.title}» остаётся открыт. Можно повторить
+          сохранение или сохранить изменения в этом браузере перед переходом к
+          списку проектов.
+        </p>
+        <p className="muted">
+          Локальная копия доступна только на этом устройстве. При следующем
+          открытии проекта Studio восстановит её. ZIP можно скачать для
+          отдельной резервной копии.
+        </p>
+        <p role="status">{s.leavePrompt}</p>
+        <div className="leave-actions">
+          <Button autoFocus disabled={s.leaving} onClick={stay}>
+            Остаться в проекте
+          </Button>
+          <Button
+            disabled={s.leaving}
+            onClick={act(() => s.export())}
+            icon="download"
+          >
+            Скачать ZIP
+          </Button>
+          <Button disabled={s.leaving} onClick={act(() => s.browseProjects())}>
+            Повторить сохранение
+          </Button>
+          <Button
+            disabled={s.leaving}
+            className="primary"
+            onClick={act(() => s.browseProjects(true))}
+          >
+            Сохранить локально и выйти
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+export { Settings, History, LeaveProject };

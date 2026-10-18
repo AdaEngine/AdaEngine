@@ -6,12 +6,12 @@ import { decode, bytes } from "../platform.js";
 import { file } from "../documents.js";
 import { SourceEditor } from "./source-editor.jsx";
 
-function Code() {
+function Code({ hidden = false }) {
   const s = studio,
     text = decode(file(s.snapshot, s.activeFile)?.data || ""),
     lines = text.split("\n").length;
   return (
-    <section className="code-panel panel">
+    <section className="code-panel panel" hidden={hidden}>
       <div className="file-tabs">
         {s.sources.map((f) => (
           <button
@@ -64,7 +64,7 @@ function Assets() {
           icon="close"
           label="Закрыть ассеты"
           onClick={() => {
-            s.assetPanel = false;
+            s.view === "assets" ? s.navigate("editor") : (s.assetPanel = false);
             s.emit();
           }}
         />
@@ -78,7 +78,7 @@ function Assets() {
               onClick={() => {
                 s.prompt += (s.prompt ? "\n" : "") + "Используй " + f.path;
                 s.assistant = true;
-                s.emit();
+                s.navigate("assistant");
               }}
             >
               {/\.(png|jpe?g)$/i.test(f.path) ? (

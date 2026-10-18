@@ -61,6 +61,20 @@ The Code tab uses CodeMirror with an AdaScript tokenizer, syntax colors, line
 numbers, bracket matching, indentation and Ctrl-F search. Code edits and undo use
 the same document as scene/agent edits; a selection becomes assistant context.
 
+The side rail navigates sections of the open project: overview (Home), scene,
+assets, code and assistant. Assets have their own section instead of covering code.
+The project title and save status stay visible. Switching sections retains the
+document, undo, selected object, code editor and isolated Player instance.
+
+All Projects is a separate action. It waits for cloud save before opening the
+project list, which offers Continue for the open project. Selecting that project
+returns to the existing document; opening another project reads its cloud snapshot
+and pending IndexedDB recovery. On save failure the user can stay, retry, export a
+ZIP or explicitly save a local draft and leave. The latter waits for a successful
+IndexedDB transaction; storage failure keeps the project open. Local recovery is
+scoped to this browser/device and cloud reopen currently requires a connection.
+The browser's unload guard protects unsaved cloud changes and active agent work.
+
 ## Export
 
 Use Swift 6.3.2 with its `swift-6.3.2-RELEASE_wasm` SDK on Linux/macOS (WSL on

@@ -4,7 +4,7 @@ import { studio } from "./ui/state.js";
 import { Icon, Mark, Button, act } from "./ui/controls.jsx";
 import { Home } from "./ui/home.jsx";
 import { Workspace } from "./ui/workspace.jsx";
-import { Settings, History } from "./ui/dialogs.jsx";
+import { Settings, History, LeaveProject } from "./ui/dialogs.jsx";
 import "./style.css";
 function App() {
   useSyncExternalStore(studio.subscribe, studio.getVersion);
@@ -17,54 +17,31 @@ function App() {
       <aside className="rail">
         <button
           className="brand"
-          aria-label="Ada Studio — проекты"
+          aria-label="Ada Studio — обзор проекта"
           onClick={act(() => s.home())}
         >
           <Mark />
         </button>
-        <div className="rail-group">
-          <Button
-            icon="home"
-            label="Мои проекты"
-            onClick={act(() => s.home())}
-          />
-          <Button
-            icon="cube"
-            label="Объекты сцены"
-            active={!!s.document && s.panel === "objects"}
-            onClick={() => {
-              s.panel = s.panel === "objects" ? "" : "objects";
-              s.emit();
-            }}
-          />
-          <Button
-            icon="image"
-            label="Ассеты"
-            active={s.assetPanel}
-            onClick={() => {
-              s.assetPanel = !s.assetPanel;
-              s.emit();
-            }}
-          />
-          <Button
-            icon="code"
-            label="Код"
-            active={s.view === "code"}
-            onClick={() => {
-              s.view = s.view === "code" ? "editor" : "code";
-              s.emit();
-            }}
-          />
-          <Button
-            icon="spark"
-            label="Ассистент"
-            active={s.assistant}
-            onClick={() => {
-              s.assistant = !s.assistant;
-              s.emit();
-            }}
-          />
-        </div>
+        <nav className="rail-group" aria-label="Разделы проекта">
+          {[
+            ["overview", "home", "Обзор проекта"],
+            ["editor", "cube", "Сцена"],
+            ["assets", "image", "Ассеты"],
+            ["code", "code", "Код"],
+            ["assistant", "spark", "Ассистент"],
+          ].map(([view, icon, label]) => (
+            <Button
+              key={view}
+              icon={icon}
+              label={label}
+              disabled={!s.document}
+              active={!!s.document && !s.projectBrowser && s.view === view}
+              onClick={act(() =>
+                view === "editor" ? s.stop() : s.navigate(view),
+              )}
+            />
+          ))}
+        </nav>
         <div className="rail-bottom">
           <Button
             icon="settings"
@@ -82,7 +59,13 @@ function App() {
       <div className="main">
         <header className="topbar">
           <div className="breadcrumbs">
-            <button onClick={act(() => s.home())}>Studio</button>
+            <button
+              className="projects-link"
+              disabled={s.leaving}
+              onClick={act(() => s.browseProjects())}
+            >
+              <Icon name="folder" size={14} /> Все проекты
+            </button>
             <Icon name="chevron" size={12} />
             {s.document ? (
               <input
@@ -104,46 +87,34 @@ function App() {
                   s.status === "saved"
                     ? "Все изменения сохранены"
                     : s.status === "offline"
-                      ? "Нет соединения. Изменения сохранены на этом устройстве."
+                      ? "Облако недоступно. Перед выходом можно сохранить локальную копию."
                       : "Сохранение"
                 }
               >
                 <i />
                 {s.status === "saved"
                   ? "Сохранено"
-                  : s.status === "offline"
-                    ? "Нет соединения"
-                    : "Сохраняется"}
+                  : s.status === "signedout"
+                    ? "Войдите для сохранения"
+                    : s.status === "offline"
+                      ? "Нет соединения"
+                      : "Сохраняется"}
               </span>
             )}
           </div>
-          {s.document && (
-            <nav className="mode-tabs" aria-label="Режим редактора">
-              <Button
-                icon="cube"
-                active={s.view === "editor"}
-                onClick={act(() => s.stop())}
-              >
-                Редактор
-              </Button>
-              <Button
-                icon="code"
-                active={s.view === "code"}
-                onClick={() => {
-                  s.view = "code";
-                  s.emit();
-                }}
-              >
-                Код
-              </Button>
-              <Button
-                icon="play"
-                active={s.view === "preview"}
-                onClick={act(() => s.play())}
-              >
-                Игра
-              </Button>
-            </nav>
+          {s.document && !s.projectBrowser && (
+            <span className="workspace-section-name">
+              {
+                {
+                  overview: "Обзор проекта",
+                  editor: "Сцена",
+                  assets: "Ассеты",
+                  code: "Код",
+                  assistant: "Ассистент",
+                  preview: "Игра",
+                }[s.view]
+              }
+            </span>
           )}
           <div className="header-actions">
             {s.document && (
@@ -177,10 +148,12 @@ function App() {
             />
           </div>
         </header>
-        {s.document ? <Workspace /> : <Home />}
+        {s.document && <Workspace hidden={s.projectBrowser} />}
+        {(!s.document || s.projectBrowser) && <Home />}
       </div>
       {s.settings && <Settings />}
       {s.history && <History />}
+      {s.leavePrompt && <LeaveProject />}
       {s.error && (
         <div className="toast" role="alert">
           <span>{s.error}</span>

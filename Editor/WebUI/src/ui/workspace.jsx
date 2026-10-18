@@ -5,13 +5,15 @@ import { Icon, Mark, Button, act, entityIcon } from "./controls.jsx";
 import { Assistant } from "./assistant.jsx";
 import { Inspector } from "./inspector.jsx";
 import { Code, Assets } from "./code-assets.jsx";
+import { ProjectOverview } from "./project-overview.jsx";
 import { ViewportInput } from "./viewport-input.jsx";
 
-function Workspace() {
+function Workspace({ hidden = false }) {
   const s = studio,
     host = useRef(),
     [mobile, setMobile] = useState(false),
     [help, setHelp] = useState(false);
+  const viewport = ["editor", "preview"].includes(s.view);
   useEffect(() => {
     s.preview.host = host.current;
     return () => {
@@ -20,7 +22,7 @@ function Workspace() {
     };
   }, []);
   useEffect(() => {
-    if (s.view === "code") return;
+    if (!viewport || hidden) return;
     const timer = setTimeout(
       () =>
         s.syncViewport().catch((error) => {
@@ -30,71 +32,80 @@ function Workspace() {
       s.document.contentGeneration ? 250 : 0,
     );
     return () => clearTimeout(timer);
-  }, [s.document, s.document.contentGeneration, s.view, s.playing]);
+  }, [s.document, s.document.contentGeneration, s.view, s.playing, hidden]);
   return (
     <main
-      className={`workspace ${s.viewportExpanded && s.view !== "code" ? "viewport-expanded" : ""}`}
+      hidden={hidden}
+      className={`workspace section-${s.view} ${s.viewportExpanded && viewport ? "viewport-expanded" : ""}`}
     >
-      <div className={`stage ${mobile ? "mobile-preview" : ""}`}>
+      <div
+        aria-hidden={!viewport}
+        style={{ visibility: viewport ? "visible" : "hidden" }}
+        className={`stage ${mobile ? "mobile-preview" : ""}`}
+      >
         <div className="stage-surface">
           <div ref={host} className="player-host visible" />
-          {s.view === "editor" && s.runtime === "ready" && !s.playing && (
-            <ViewportInput />
-          )}
-          {s.view !== "code" &&
-            (s.runtime === "error" || !s.preview.hasFrame) && (
-              <div className="runtime-loading">
-                {s.runtime !== "error" && <span className="spinner" />}
-                <h3>
-                  {s.runtime === "error"
-                    ? "Не удалось обновить сцену"
-                    : "Загружаем сцену в AdaEngine"}
-                </h3>
-                <p>
-                  {s.runtime === "error" ? (
-                    s.viewportError
-                  ) : (
-                    <>
-                      Сцену и игру рисует AdaEngine.
-                      <br />
-                      Редактор уже готов к работе.
-                    </>
-                  )}
-                </p>
-                {s.runtime === "error" && (
-                  <button
-                    className="button"
-                    onClick={act(() => s.retryViewport())}
-                  >
-                    Повторить загрузку
-                  </button>
+          {!hidden &&
+            s.view === "editor" &&
+            s.runtime === "ready" &&
+            !s.playing && <ViewportInput />}
+          {viewport && (s.runtime === "error" || !s.preview.hasFrame) && (
+            <div className="runtime-loading">
+              {s.runtime !== "error" && <span className="spinner" />}
+              <h3>
+                {s.runtime === "error"
+                  ? "Не удалось обновить сцену"
+                  : "Загружаем сцену в AdaEngine"}
+              </h3>
+              <p>
+                {s.runtime === "error" ? (
+                  s.viewportError
+                ) : (
+                  <>
+                    Сцену и игру рисует AdaEngine.
+                    <br />
+                    Редактор уже готов к работе.
+                  </>
                 )}
-              </div>
-            )}
+              </p>
+              {s.runtime === "error" && (
+                <button
+                  className="button"
+                  onClick={act(() => s.retryViewport())}
+                >
+                  Повторить загрузку
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
-      {!s.viewportExpanded && s.view !== "code" && s.panel === "objects" && (
-        <Objects />
-      )}
-      {!s.viewportExpanded && s.assistant && s.view !== "code" && <Assistant />}
+      {!s.viewportExpanded && viewport && s.panel === "objects" && <Objects />}
+      {((!s.viewportExpanded && s.assistant && s.view === "editor") ||
+        s.view === "assistant") && <Assistant />}
       {!s.viewportExpanded &&
         s.inspector &&
         s.selected &&
         s.view === "editor" && <Inspector />}
-      {s.assetPanel && <Assets />}
-      {s.view === "code" && <Code />}
-      <div className="stage-badge">
-        <span className={s.runtime === "ready" ? "live-dot" : "muted-dot"} />
-        {"AdaEngine · " +
-          (s.runtime === "loading"
-            ? "Обновление сцены…"
-            : s.runtime === "error"
-              ? "Ошибка сцены"
-              : s.playing
-                ? "Игра запущена"
-                : "Редактор сцены")}
-      </div>
-      {s.view !== "code" && (
+      {(s.view === "assets" || (s.assetPanel && s.view === "editor")) && (
+        <Assets />
+      )}
+      {s.view === "overview" && <ProjectOverview />}
+      <Code key={s.workspace.id} hidden={s.view !== "code"} />
+      {viewport && (
+        <div className="stage-badge">
+          <span className={s.runtime === "ready" ? "live-dot" : "muted-dot"} />
+          {"AdaEngine · " +
+            (s.runtime === "loading"
+              ? "Обновление сцены…"
+              : s.runtime === "error"
+                ? "Ошибка сцены"
+                : s.playing
+                  ? "Игра запущена"
+                  : "Редактор сцены")}
+        </div>
+      )}
+      {viewport && (
         <>
           <div className="viewport-controls">
             <Button
@@ -248,12 +259,14 @@ function Workspace() {
           )}
         </>
       )}
-      <div className="viewport-caption">
-        {s.view === "preview"
-          ? "Играет ваша текущая версия"
-          : "ПКМ + WASD — камера · Колесо — масштаб · F — фокус"}
-        <kbd>{s.view === "preview" ? "WebGPU" : "W / E / R — гизмо"}</kbd>
-      </div>
+      {viewport && (
+        <div className="viewport-caption">
+          {s.view === "preview"
+            ? "Играет ваша текущая версия"
+            : "ПКМ + WASD — камера · Колесо — масштаб · F — фокус"}
+          <kbd>{s.view === "preview" ? "WebGPU" : "W / E / R — гизмо"}</kbd>
+        </div>
+      )}
     </main>
   );
 }

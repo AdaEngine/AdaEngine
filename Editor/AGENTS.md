@@ -85,7 +85,7 @@ and assess gaps before proposing new features.
 
 ### Browser Studio
 
-`WebUI/` is the default React/DOM browser shell, with floating panels and an
+`WebUI/` is the default React/DOM browser shell, with floating scene panels and
 native text inputs. The scene viewport and Play use one isolated fixed AdaPlayer
 with authored cameras, materials and lighting. Opening a project loads the engine;
 document/mode changes replace its world without recreating WASM or the GPU device.
@@ -95,7 +95,12 @@ duplicate/delete and a transient free camera are available. Gizmo gestures commi
 one undo transaction; navigation never changes authored cameras. CodeMirror provides
 AdaScript highlighting, indentation and search. It implements the existing
 portable snapshot/scene/API contracts with transactions/undo, cloud recovery, ZIP
-interchange and an in-tab agent. `Web/` retains the prior AdaUI/WASM application
+interchange and an in-tab agent. The rail switches overview, scene, assets, code
+and assistant within one project. Home opens its overview; All Projects waits for
+cloud save and retains the current document, undo, selection and Player for Continue.
+Save failure offers Stay, retry, ZIP or an explicit IndexedDB-backed local exit;
+failed local writes keep the project open. Closing a tab with unsaved changes or
+an active agent requests browser confirmation. `Web/` retains the prior AdaUI/WASM application
 (`AdaEditorWeb`) behind `--legacy-wasm-editor`, including its UGC publication UI;
 publication controls are not yet ported to DOM. Native Studio uses the shared
 `StudioCore/` value codec and supported runtime component contract. The browser does

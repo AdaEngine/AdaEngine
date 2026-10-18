@@ -13,26 +13,44 @@ function Home() {
         <span className="eyebrow">ADA STUDIO</span>
         <span className="home-version">Ваши идеи. Ваши миры.</span>
       </div>
-      <section className="home-hero">
-        <div className="hero-orbit" aria-hidden="true">
-          <i />
-          <i />
-          <i />
-          <Mark />
-        </div>
-        <span className="eyebrow">МЕСТО, ГДЕ НАЧИНАЮТСЯ ИГРЫ</span>
-        <h1>
-          Что создадим
-          <br />
-          <em>сегодня?</em>
-        </h1>
-        <p>
-          Начните с идеи. Остальное создавайте
-          <br />
-          вместе с вашим ассистентом.
-        </p>
-        <Composer home />
-      </section>
+      {s.document && (
+        <section className="resume-project">
+          <div>
+            <span className="eyebrow">ОТКРЫТЫЙ ПРОЕКТ</span>
+            <h2>{s.snapshot.title}</h2>
+            <p>Вернитесь к работе: сцена, код и история изменений на месте.</p>
+          </div>
+          <Button
+            className="primary"
+            icon="chevron"
+            onClick={() => s.navigate(s.view)}
+          >
+            Продолжить работу
+          </Button>
+        </section>
+      )}
+      {!s.document && (
+        <section className="home-hero">
+          <div className="hero-orbit" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <Mark />
+          </div>
+          <span className="eyebrow">МЕСТО, ГДЕ НАЧИНАЮТСЯ ИГРЫ</span>
+          <h1>
+            Что создадим
+            <br />
+            <em>сегодня?</em>
+          </h1>
+          <p>
+            Начните с идеи. Остальное создавайте
+            <br />
+            вместе с вашим ассистентом.
+          </p>
+          <Composer home />
+        </section>
+      )}
       {s.status === "signedout" ? (
         <button
           className="button primary"
@@ -119,7 +137,10 @@ function Home() {
                     <Icon name="cube" size={24} />
                   </div>
                   <div>
-                    <strong>{p.title}</strong>
+                    <strong>
+                      {p.title}
+                      {p.id === s.workspace?.id ? " · открыт" : ""}
+                    </strong>
                     <small>
                       {new Date(p.updatedAt * 1000).toLocaleDateString(
                         "ru-RU",
