@@ -2,6 +2,7 @@ import React from "react";
 import { studio } from "./state.js";
 
 const paths = {
+  annotate: "M4 4h16v12H9l-5 4Zm4 4h8m-8 4h5",
   snap: "M4 3v10a8 8 0 0 0 16 0V3h-5v10a3 3 0 0 1-6 0V3Zm0 5h5m6 0h5",
   focus: "M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M9 9h6v6H9Z",
   reset: "M3 11a9 9 0 1 1 2 7M3 4v7h7",

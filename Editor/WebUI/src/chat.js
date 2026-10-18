@@ -1,5 +1,6 @@
 import { t } from "./localization.js";
 import { validateSurface } from "./a2ui.js";
+import { validateAnnotations, cancelAnnotation } from "./annotations.js";
 
 export function validateChat(snapshot) {
   const messages = snapshot.messages || [];
@@ -27,7 +28,8 @@ export function validateChat(snapshot) {
     c.events.length > 100
   )
     throw new Error("Invalid chat state");
-  for (const s of c.sessions)
+  for (const s of c.sessions) {
+    validateAnnotations(s.annotations);
     if (
       typeof s.id !== "string" ||
       typeof s.title !== "string" ||
@@ -43,6 +45,7 @@ export function validateChat(snapshot) {
       s.attachments.some((p) => typeof p !== "string")
     )
       throw new Error("Invalid chat session");
+  }
   const generations = new Set();
   for (const r of c.surfaces) {
     if (
@@ -98,6 +101,7 @@ export function editChat(studio, update) {
 export function switchSession(studio, id) {
   if (!studio.chat.sessions.some((s) => s.id === id))
     throw new Error("Chat session not found");
+  cancelAnnotation(studio);
   editChat(studio, (c) => {
     c.sessions.find((s) => s.id === c.activeSessionID).draft = studio.prompt;
     c.activeSessionID = id;

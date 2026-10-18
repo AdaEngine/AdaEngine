@@ -7,6 +7,7 @@ import { Inspector } from "./inspector.jsx";
 import { Code, Assets } from "./code-assets.jsx";
 import { ProjectOverview } from "./project-overview.jsx";
 import { ViewportInput } from "./viewport-input.jsx";
+import { AnnotationViewport } from "./annotations.jsx";
 
 function Workspace({ hidden = false }) {
   const s = studio,
@@ -45,6 +46,7 @@ function Workspace({ hidden = false }) {
       >
         <div className="stage-surface">
           <div ref={host} className="player-host visible" />
+          {!hidden && viewport && <AnnotationViewport />}
           {!hidden &&
             s.view === "editor" &&
             s.runtime === "ready" &&
@@ -314,6 +316,7 @@ function Objects() {
             {entities.map((e) => (
               <button
                 key={e.id}
+                data-annotation-entity={e.id}
                 className={`entity-row ${s.selected === e.id ? "selected" : ""}`}
                 onClick={() => s.select(e.id)}
                 onDoubleClick={() =>

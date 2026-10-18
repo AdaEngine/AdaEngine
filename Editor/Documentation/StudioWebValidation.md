@@ -9,9 +9,18 @@ external environment was deployed, no paid provider request was submitted, and
 - The build exports 19 native workflow sources plus the native A2UI prompt,
   documentation, API source and examples; the browser/Cloud registry contains
   35 fixed tools. No test-only route or fixture was added to application sources.
-- 55 Node tests pass, including progressive/invalid A2UI, ownership, bindings,
+- 63 Node tests pass, including progressive/invalid A2UI, ownership, bindings,
   revision conflicts, atomic Apply and durable Undo, conversations/drafts,
   cancellation, permissions, interrupted cleanup and attachment project switching.
+- Annotation checks cover accumulation/removal, draft whitespace, sessions/reopen,
+  edited composer text, image request budgets, stale/cancelled captures and pure
+  native-viewport picking. In the actual browser, hierarchy/viewport selection
+  opened an anchored note popup; the Player returned its entity ID and a marked
+  JPEG. Clicking/keyboard-selecting an A2UI action in annotation mode did not run
+  it (the scene retained its 29 entities). Add changed only the composer; Send
+  reached the external no-fee provider fixture. A pending UI annotation and its
+  context chip survived Cloud save/reload. Canvas-UI target override was checked;
+  this is a frame/point reference, not semantic HUD-node inspection.
 - The fixed Player exports with Swift 6.3.2/WASI (94.6 MiB / 33.1 MiB gzip).
   Windows native Studio and its test executable build. Portable core: 8 Swift
   Testing tests; native localization: 4; shared catalogs check passes. Cloud:

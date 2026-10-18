@@ -15,6 +15,15 @@ import {
   exportSurface,
 } from "./chat-ui-controller.js";
 import { writeTools } from "./agent-tools.js";
+import {
+  toggleAnnotations,
+  cancelAnnotation,
+  annotateEntity,
+  annotateUI,
+  annotatePreview,
+  addAnnotation,
+  removeAnnotation,
+} from "./annotations.js";
 import { json, recovery, Preview, base64, download } from "./platform.js";
 import {
   Document,
@@ -78,6 +87,10 @@ export class Studio {
   snapTransforms = false;
   renderedGeneration = -1;
   viewportExpanded = false;
+  annotationMode = false;
+  annotationDraft = null;
+  annotationEpoch = 0;
+  composerFocus = 0;
   constructor() {
     this.preview = new Preview((state) => {
       this.runtime = state;
@@ -95,6 +108,7 @@ export class Studio {
     window.addEventListener("beforeunload", (e) => {
       if (
         this.running ||
+        !!this.annotationDraft?.note.trim() ||
         (this.document && this.document.generation !== this.savedGeneration)
       ) {
         e.preventDefault();
@@ -185,6 +199,27 @@ export class Studio {
   }
   updateChat(update) {
     editChat(this, update);
+  }
+  toggleAnnotations() {
+    toggleAnnotations(this);
+  }
+  cancelAnnotation() {
+    cancelAnnotation(this);
+  }
+  annotateEntity(...args) {
+    return annotateEntity(this, ...args);
+  }
+  annotateUI(...args) {
+    return annotateUI(this, ...args);
+  }
+  annotatePreview(...args) {
+    return annotatePreview(this, ...args);
+  }
+  addAnnotation() {
+    return addAnnotation(this);
+  }
+  removeAnnotation(id) {
+    removeAnnotation(this, id);
   }
   newSession() {
     newSession(this);
@@ -345,6 +380,7 @@ export class Studio {
     await this.refresh();
   }
   install(record, snapshot) {
+    this.cancelAnnotation();
     this.preview.stop();
     this.workspace = record;
     this.document = new Document(snapshot);
@@ -441,6 +477,7 @@ export class Studio {
         await this.save();
       }
       this.projectBrowser = true;
+      this.cancelAnnotation();
       this.leavePrompt = "";
       this.history = false;
       // Retain the document, undo, selection and Player for the Continue action.

@@ -5,6 +5,8 @@ import { Icon, Mark, Button, act } from "./ui/controls.jsx";
 import { Home } from "./ui/home.jsx";
 import { Workspace } from "./ui/workspace.jsx";
 import { Settings, History, LeaveProject } from "./ui/dialogs.jsx";
+import { AnnotationLayer } from "./ui/annotations.jsx";
+import { t } from "./localization.js";
 import "./style.css";
 function App() {
   useSyncExternalStore(studio.subscribe, studio.getVersion);
@@ -13,7 +15,7 @@ function App() {
     studio.start();
   }, []);
   return (
-    <div className="app">
+    <div className={`app ${s.annotationMode ? "annotating" : ""}`}>
       <aside className="rail">
         <button
           className="brand"
@@ -119,6 +121,16 @@ function App() {
           <div className="header-actions">
             {s.document && (
               <>
+                {!s.projectBrowser && (
+                  <Button
+                    icon="annotate"
+                    active={s.annotationMode}
+                    data-annotation-ui
+                    onClick={() => s.toggleAnnotations()}
+                  >
+                    {t("Annotate")}
+                  </Button>
+                )}
                 <Button
                   className="primary"
                   icon={s.playing ? "stop" : "play"}
@@ -154,6 +166,7 @@ function App() {
       {s.settings && <Settings />}
       {s.history && <History />}
       {s.leavePrompt && <LeaveProject />}
+      <AnnotationLayer />
       {s.error && (
         <div className="toast" role="alert">
           <span>{s.error}</span>

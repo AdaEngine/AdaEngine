@@ -100,6 +100,13 @@ export class StudioEditor {
   command(options) {
     if (!this.enabled)
       throw new Error("Инструменты доступны после остановки игры");
+    if (options.action === "annotate") {
+      const p = options.point;
+      if (options.revision !== this.revision || !p ||
+          ![p.x, p.y].every(n => Number.isFinite(n) && n >= 0 && n <= 1))
+        throw new Error("Invalid annotation point or stale scene");
+      return {entityID: this.hit([p.x * innerWidth, p.y * innerHeight])?.id ?? null};
+    }
     if (options.action === "cancel") {
       this.cancel();
       return { ok: true };
@@ -602,6 +609,11 @@ export class StudioEditor {
     if (this.enabled) this.draw();
   }
   pick(p) {
+    this.selected = this.hit(p)?.id ?? null;
+    this.notify("select", { id: this.selected });
+    this.draw();
+  }
+  hit(p) {
     const g = this.geometry(),
       r = M.ray(p, g.inv, g.size);
     const hits = this.state.entities
@@ -615,9 +627,7 @@ export class StudioEditor {
           ? b.e.matrix[14] - a.e.matrix[14] || b.e.id.localeCompare(a.e.id)
           : a.t - b.t,
       );
-    this.selected = hits[0]?.e.id ?? null;
-    this.notify("select", { id: this.selected });
-    this.draw();
+    return hits[0]?.e;
   }
   setCamera(pose) {
     if (!pose) return;

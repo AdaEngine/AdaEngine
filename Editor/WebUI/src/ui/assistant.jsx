@@ -4,6 +4,7 @@ import { studio } from "./state.js";
 import { useRef, useEffect, useState } from "react";
 import { sessionMessages } from "../chat.js";
 import { Markdown, A2UICard } from "./chat-content.jsx";
+import { AnnotationChips } from "./annotations.jsx";
 import {
   ConversationToolbar,
   SkillPicker,
@@ -18,6 +19,9 @@ function Assistant() {
   useEffect(() => {
     if (chat.current) chat.current.scrollTop = chat.current.scrollHeight;
   }, [s.streamText, s.snapshot.messages.length, s.running, s.session.id]);
+  useEffect(() => {
+    if (s.composerFocus) setCollapsed(false);
+  }, [s.composerFocus]);
   const messages = sessionMessages(s.snapshot, s.session.id).filter(
     (m) =>
       m.role !== "tool" &&
@@ -245,7 +249,11 @@ const toolLabel = (name) =>
   })[name] || t("Working on the project");
 function Composer({ home = false }) {
   const s = studio,
-    attach = useRef();
+    attach = useRef(),
+    input = useRef();
+  useEffect(() => {
+    if (s.composerFocus) input.current?.focus();
+  }, [s.composerFocus]);
   return (
     <form
       className={`composer ${home ? "home-composer" : ""}`}
@@ -255,6 +263,7 @@ function Composer({ home = false }) {
       }}
     >
       <textarea
+        ref={input}
         aria-label={t("Message the assistant")}
         placeholder={
           home
@@ -288,6 +297,7 @@ function Composer({ home = false }) {
         }}
       />
       {!home && <SkillPicker />}
+      {!home && <AnnotationChips />}
       {!home && (s.session.attachments || []).length > 0 && (
         <div className="attachment-chips">
           {s.session.attachments.map((path) => (

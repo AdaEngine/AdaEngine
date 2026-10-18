@@ -111,6 +111,15 @@ async function execute(type,payload) {
     const image=document.createElement('canvas'), scale=Math.min(1,1024/canvas.width);
     image.width=Math.max(1,Math.round(canvas.width*scale));image.height=Math.max(1,Math.round(canvas.height*scale));
     image.getContext('2d').drawImage(canvas,0,0,image.width,image.height);
+    if(payload?.point) {
+      const p=payload.point;
+      if(![p.x,p.y].every(n=>Number.isFinite(n)&&n>=0&&n<=1))throw new Error('Invalid annotation point');
+      const context=image.getContext('2d'), x=p.x*image.width, y=p.y*image.height;
+      context.beginPath();context.arc(x,y,12,0,Math.PI*2);
+      context.strokeStyle='#ffffff';context.lineWidth=5;context.stroke();
+      context.strokeStyle='#795cff';context.lineWidth=3;context.stroke();
+      context.beginPath();context.moveTo(x-5,y);context.lineTo(x+5,y);context.moveTo(x,y-5);context.lineTo(x,y+5);context.stroke();
+    }
     let encoded=image.toDataURL('image/jpeg',0.65);
     for(const quality of [0.45,0.3,0.15]) {
       if(encoded.length<=96*1024)break;

@@ -2485,9 +2485,13 @@ strong {
   overflow: visible;
 }
 .section-editor .assistant-panel:not(.collapsed) {
+  height: min(52%, 480px);
   min-height: min(390px, calc(100% - 44px));
   max-height: calc(100% - 44px);
   bottom: 22px;
+}
+.section-editor .conversation {
+  min-height: 0;
 }
 .assistant-panel .composer {
   overflow: visible;
@@ -2511,4 +2515,171 @@ strong {
 .project-overview {
   position: relative;
   z-index: 2;
+}
+.annotation-viewport {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  cursor: crosshair;
+  touch-action: none;
+}
+.annotation-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #795cff;
+  color: white;
+  box-shadow: 0 0 0 5px #795cff44;
+  pointer-events: none;
+  font-size: 12px;
+}
+.annotating [data-annotation-component] :is(button, input, select, textarea) {
+  pointer-events: none;
+}
+.annotating [data-annotation-entity],
+.annotating [data-annotation-component] {
+  cursor: crosshair;
+}
+.annotating [data-annotation-entity]:hover,
+.annotating
+  [data-annotation-component]:hover:not(
+    :has([data-annotation-component]:hover)
+  ) {
+  outline: 2px solid #ad98ff;
+  outline-offset: 2px;
+}
+.annotation-hint {
+  position: fixed;
+  z-index: 80;
+  top: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 40px);
+  padding: 10px 14px;
+  border: 1px solid #a18bf05a;
+  background: #24202ff5;
+  border-radius: 10px;
+  box-shadow: 0 10px 36px #0006;
+  font-size: 12px;
+}
+.annotation-popover {
+  position: fixed;
+  z-index: 200;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  padding: 14px;
+  box-shadow: 0 18px 70px #0009;
+  border: 1px solid #a18bf066;
+  background: #1d1c23;
+}
+.annotation-popover header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+}
+.annotation-popover header .icon-button {
+  margin-left: auto;
+}
+.annotation-target-label {
+  color: #b5a7dc;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  margin: 8px 0 12px;
+}
+.annotation-kind {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  margin-bottom: 10px;
+  color: #b5a7dc;
+}
+.annotation-kind select {
+  min-width: 0;
+  flex: 1;
+  background: #111216;
+  padding: 6px;
+  border: 1px solid #ffffff18;
+  border-radius: 6px;
+}
+.annotation-popover > img {
+  width: 100%;
+  max-height: 110px;
+  object-fit: contain;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  background: #101015;
+}
+.annotation-popover textarea {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  max-height: 220px;
+  padding: 10px;
+  border: 1px solid #ffffff18;
+  border-radius: 7px;
+  background: #111216;
+  color: #eee9ff;
+  font: inherit;
+  font-size: 12px;
+}
+.annotation-popover footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.annotation-popover footer span,
+.annotation-popover .muted {
+  font-size: 10px;
+  color: #9c96ac;
+  line-height: 1.5;
+}
+.annotation-popover footer .button {
+  flex-shrink: 0;
+  font-size: 11px;
+}
+.annotation-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.annotation-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 3px 5px 3px 8px;
+  background: #9580ed20;
+  border: 1px solid #9580ed25;
+  border-radius: 6px;
+  color: #c1b0f8;
+  font-size: 10px;
+}
+.annotation-chip > span {
+  max-width: 180px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.annotation-chip > img {
+  width: 32px;
+  height: 22px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+.annotation-chip .icon-button {
+  width: 20px;
+  height: 20px;
 }

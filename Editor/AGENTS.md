@@ -119,6 +119,12 @@ generators and exports `.ui` through AdaA2UI. New assistant chrome uses the shar
 en/ru catalogs; browser settings use the same language preference enum. OS/process,
 external MCP, search, TestWorld and publication tools remain unavailable here.
 
+Web Annotate selects entities via hierarchy/native viewport, A2UI components, or
+canvas UI via a marked frame/point. Its popup adds context to the originating
+conversation's persistent composer; only Send invokes the agent. Selection
+suppresses form actions and gizmos. Notes survive Cloud reopen; manually edited
+composer text remains authoritative. Canvas UI has no semantic native hit tree.
+
 Snapshot: **2026-10-04**, checked against the current working-tree source and
 documentation. “Present” means an implementation exists, not that every
 interaction or platform was exercised during this inventory. Test links identify

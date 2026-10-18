@@ -91,7 +91,18 @@ export async function runAgent(studio, text, options = {}) {
       .slice(-4)
       .map((path) => file(studio.snapshot, path))
       .filter(Boolean);
-    const images = attachments
+    const annotations = options.preserveDraft ? [] : session.annotations || [];
+    const images = [];
+    const annotationContext = annotations.map((item) => {
+      // The editable composer is the instruction. Never replay the original popup text.
+      const context = { id: item.id, target: item.target };
+      if (item.image && studio.model?.vision && images.length < 4) {
+        context.imageIndex = images.length + 1;
+        images.push(item.image);
+      }
+      return context;
+    });
+    const attachmentImages = attachments
       .filter(
         (f) =>
           /\.(png|jpe?g)$/i.test(f.path) &&
@@ -102,6 +113,17 @@ export async function runAgent(studio, text, options = {}) {
         (f) =>
           `data:image/${f.path.endsWith(".png") ? "png" : "jpeg"};base64,${f.data}`,
       );
+    for (const image of attachmentImages)
+      if (
+        images.length < 4 &&
+        images.reduce((sum, value) => sum + value.length, 0) + image.length <=
+          600000
+      )
+        images.push(image);
+    if (annotationContext.length)
+      content +=
+        "\n[Annotations: selected project elements, reference data; inspect current state before editing]\n" +
+        JSON.stringify(annotationContext);
     if (attachments.length)
       content +=
         "\n[Attached project files]\n" +
@@ -117,6 +139,7 @@ export async function runAgent(studio, text, options = {}) {
     studio.updateChat?.((c) => {
       const live = c.sessions.find((s) => s.id === session.id);
       live.attachments = [];
+      if (!options.preserveDraft) live.annotations = [];
       if (!options.preserveDraft) live.draft = "";
     });
     const context = await agentContext(studio, session);
@@ -137,12 +160,25 @@ export async function runAgent(studio, text, options = {}) {
         else groups.push([m]);
       }
       let messages = [],
-        budget = 0;
+        budget = 0,
+        imageBudget = 0;
       for (const group of groups.reverse()) {
-        const size = new TextEncoder().encode(JSON.stringify(group)).length;
-        if (size + budget > 145000) break;
+        const size = new TextEncoder().encode(
+          JSON.stringify(group.map(({ images, ...message }) => message)),
+        ).length;
+        const imageSize = group.reduce(
+          (sum, message) =>
+            sum +
+            (message.images || []).reduce(
+              (sum, image) => sum + image.length,
+              0,
+            ),
+          0,
+        );
+        if (size + budget > 145000 || imageSize + imageBudget > 750000) break;
         messages = group.concat(messages);
         budget += size;
+        imageBudget += imageSize;
       }
       const feedback = (studio.chat?.events || [])
         .filter((e) => e.sessionID === session.id && e.type === "a2ui-error")

@@ -128,3 +128,36 @@ test("right-drag looks around and never commits a scene transform", () => {
   assert.equal(h.events.length, 0);
   assert.equal(h.editor.drag, null);
 });
+test("annotation picking uses scene bounds without selecting, dragging or transforming an object", () => {
+  const h = viewport();
+  h.editor.state.entities[0].visible = true;
+  h.editor.state.entities[0].pickable = true;
+  h.editor.selected = "previous";
+  const hit = h.editor.command({
+    action: "annotate",
+    point: { x: 0.5, y: 0.5 },
+    revision: "scene-1",
+  });
+  assert.equal(hit.entityID, "object");
+  assert.equal(h.editor.selected, "previous");
+  assert.equal(h.events.length, 0);
+  assert.equal(h.commands.length, 0);
+  assert.throws(
+    () =>
+      h.editor.command({
+        action: "annotate",
+        point: { x: -1, y: 0.5 },
+        revision: "scene-1",
+      }),
+    /Invalid annotation/,
+  );
+  assert.throws(
+    () =>
+      h.editor.command({
+        action: "annotate",
+        point: { x: 0.5, y: 0.5 },
+        revision: "stale",
+      }),
+    /Invalid annotation/,
+  );
+});

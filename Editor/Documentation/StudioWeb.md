@@ -167,6 +167,24 @@ Assistant chrome uses the shared English/Russian catalogs and
 outside project exports; assistant settings switch the mounted UI. Agent/user
 content, code, paths and protocol fields retain their original language.
 
+The header's Annotate button enters a project-element picker. Choose a hierarchy
+object, an object in the native viewport, or a component of an A2UI form; describe
+the change in the anchored popup, then Add to composer. Notes accumulate in the
+current conversation's saved draft and remain editable before Send. Picking a
+form button never executes it, and viewport picking never starts a gizmo gesture.
+Escape cancels the popup. Context chips remove their note without overwriting
+manually edited text. Neither selection nor Add invokes the provider.
+
+Scene targets carry the entity ID/path/transform; A2UI targets carry surface and
+component IDs plus bounded definition/value context. Canvas UI uses a marked
+Player frame and normalized point rather than a semantic native UI hit tree.
+If a scene object sits behind the HUD, the popup's target selector can explicitly
+choose Game UI element. Capture is confined to the isolated game canvas; editor
+settings/credentials are not annotation targets. Frames are sent only to vision
+models, with a visible notice for text-only models. At most eight notes and four
+images enter a request. The final composer text, including manual edits, is the
+instruction; original popup text is not replayed as a second instruction.
+
 Native ACP processes, shell/SwiftPM, SourceKit-LSP, external MCP, native Git,
 network search, TestWorld simulation and publication tools are explicitly absent
 from the browser host. Their shared workflow text is reference material, not an

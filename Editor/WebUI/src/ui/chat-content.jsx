@@ -62,6 +62,11 @@ export function A2UICard({ surface }) {
     if (depth > 64) return null;
     const c = r.components[id];
     if (!c) return null;
+    const annotation = {
+      "data-annotation-component": id,
+      "data-annotation-surface": r.id,
+      "data-annotation-generation": r.generation,
+    };
     const value = (prop) => resolve(c[prop], r.data),
       errors = failures(c, r.data),
       label = value("label");
@@ -72,6 +77,7 @@ export function A2UICard({ surface }) {
         return (
           <div
             key={id}
+            {...annotation}
             className={"a2ui-" + c.component.toLowerCase()}
             style={{ gap: c.spacing ?? 12 }}
           >
@@ -79,7 +85,11 @@ export function A2UICard({ surface }) {
           </div>
         );
       case "Text":
-        return <p key={id}>{value("text")}</p>;
+        return (
+          <p key={id} {...annotation}>
+            {value("text")}
+          </p>
+        );
       case "TextField":
         control = (
           <input
@@ -180,7 +190,7 @@ export function A2UICard({ surface }) {
         return null;
     }
     return (
-      <div key={id} className="a2ui-control">
+      <div key={id} className="a2ui-control" {...annotation}>
         {control}
         {errors.map((e, i) => (
           <small key={i} className="field-error">
