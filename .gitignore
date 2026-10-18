@@ -5,6 +5,7 @@
 .build/
 **/.build/
 .build-codex/
+.build-studio-core/
 .build-web-*/
 .build-tools/
 .zed/
@@ -55,3 +56,4 @@ Derived/
 
 # Local, machine-specific benchmark baselines
 .benchmarkBaselines/
+__pycache__/

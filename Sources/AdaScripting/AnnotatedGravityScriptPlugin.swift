@@ -321,6 +321,22 @@ public final class AdaScriptPlugin: Plugin, @unchecked Sendable {
         }
     }
 
+    /// Decodes authored AdaScript component fields without exposing the module's mutable runtime.
+    @MainActor
+    public func decodeSceneComponent(named name: String, data: Data) throws -> (any Component)? {
+        guard let descriptor = runtimeComponents.first(where: { $0.name == name || $0.stableID == name || $0.aliases.contains(name) }) else { return nil }
+        guard let fields = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw AdaScriptError.invalidManifest("Scene component must be an object: \(name)")
+        }
+        return try AdaScriptSceneComponentDecoder.decode(fields, as: descriptor)
+    }
+    /// Installs authored data in an editor world without starting gameplay systems.
+    @MainActor
+    public func registerSceneComponents(in world: World) {
+        for descriptor in runtimeComponents { world.registerRuntimeComponent(descriptor) }
+        world.registerRuntimeResources(runtimeResources)
+    }
+
     /// Registers the module's runtime components in a bare world for a `TestWorld`, so a test can spawn them
     /// before any system is installed.
     ///

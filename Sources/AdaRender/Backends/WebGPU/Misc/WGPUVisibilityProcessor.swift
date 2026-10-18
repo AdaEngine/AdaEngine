@@ -228,11 +228,13 @@
 
         private func makeFrame(candidateBytes: Int, instanceBytes: Int, argumentBytes: Int) -> Frame? {
             let device = context.device
-            guard let candidates = device.createBuffer(descriptor: .init(usage: [.storage, .copyDst], size: UInt64(candidateBytes))),
-                let constants = device.createBuffer(descriptor: .init(usage: [.uniform, .copyDst], size: UInt64(MemoryLayout<View>.stride))),
-                let instances = device.createBuffer(descriptor: .init(usage: [.storage, .vertex, .copySrc], size: UInt64(instanceBytes))),
-                let arguments = device.createBuffer(descriptor: .init(usage: [.storage, .indirect, .copyDst, .copySrc], size: UInt64(argumentBytes)))
-            else { return nil }
+            // Swan returns optional handles; the browser binding returns concrete
+            // handles and reports allocation/validation failure through WebGPU.
+            let candidates: WebGPU.GPUBuffer? = device.createBuffer(descriptor: .init(usage: [.storage, .copyDst], size: UInt64(candidateBytes)))
+            let constants: WebGPU.GPUBuffer? = device.createBuffer(descriptor: .init(usage: [.uniform, .copyDst], size: UInt64(MemoryLayout<View>.stride)))
+            let instances: WebGPU.GPUBuffer? = device.createBuffer(descriptor: .init(usage: [.storage, .vertex, .copySrc], size: UInt64(instanceBytes)))
+            let arguments: WebGPU.GPUBuffer? = device.createBuffer(descriptor: .init(usage: [.storage, .indirect, .copyDst, .copySrc], size: UInt64(argumentBytes)))
+            guard let candidates, let constants, let instances, let arguments else { return nil }
             return Frame(
                 candidates: candidates, constants: constants,
                 instances: WGPUBuffer(buffer: instances, device: device, instance: context.instance),

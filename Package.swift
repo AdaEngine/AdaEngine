@@ -765,7 +765,8 @@ targets.append(
     .executableTarget(
         name: "AdaWebPlayer",
         dependencies: [
-            "AdaEngine", "AdaScriptCompilerCore",
+            .product(name: "AdaStudioCore", package: "StudioCore"),
+            "AdaEngine", "AdaScriptCompilerCore", "AdaAssets", "AdaScripting", "AdaA2UI", "AdaUIDescription",
             .product(name: "Yams", package: "Yams"),
             "AdaMultiplayer",
             .product(name: "JavaScriptKit", package: "JavaScriptKit", condition: .when(platforms: [.wasi])),
@@ -1539,6 +1540,7 @@ package.targets.append(.target(
 ))
 
 package.dependencies += [
+    .package(path: "Editor/StudioCore"),
     .package(url: "https://github.com/apple/swift-collections", from: "1.3.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),
     .package(url: "https://github.com/apple/swift-distributed-tracing", from: "1.0.0"),
@@ -1550,7 +1552,8 @@ package.dependencies += [
     .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.7.3"),
     .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", from: "0.36.0"),
     // TODO: SpectralDragon packages should move to AdaEngine
-    .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
+    ProcessInfo.processInfo.environment["ADAENGINE_YAMS_PACKAGE_PATH"].map { .package(name: "Yams", path: $0) }
+        ?? .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),

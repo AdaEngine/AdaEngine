@@ -1,5 +1,6 @@
 #if os(macOS)
     import AdaScriptCompilerCore
+    import AdaStudioCore
     import Foundation
 
     extension EditorViewModel {
@@ -81,7 +82,8 @@
             guard let scene = artifact.sceneModel else {
                 throw AdaScriptWebRunError.entrySceneRequired
             }
-            let supported: Set<String> = ["AdaTransform.Transform", "AdaRender.Visibility", "AdaTilemap.TileMapComponent"]
+            let schemas = try AdaScriptSchemaParser.parse(sources: artifact.sources)
+            let supported = StudioRuntimeCapabilities.components.union(schemas.flatMap { [$0.id, $0.name] + $0.aliases })
             if let unsupported = scene.entities.flatMap({ $0.components.keys }).first(where: { !supported.contains($0) }) {
                 throw AdaScriptWebRunError.unsupportedSceneComponent(unsupported)
             }
@@ -161,7 +163,7 @@
                 "bridge-js.js", "browser-wasi-shim/dist/index.js",
                 "ada-resource-manifest.json", "ada-web-manifest.json", "package.json", "player-lobby.js",
             ]
-            return descriptor.runtimeAPI >= 3 && descriptor.profile == "universal"
+            return descriptor.runtimeAPI >= StudioRuntimeCapabilities.webPlayerAPI && descriptor.profile == "universal"
                 && requiredFiles.allSatisfy { FileManager.default.fileExists(atPath: url.appendingPathComponent($0).path) }
         }
 

@@ -83,6 +83,52 @@ and assess gaps before proposing new features.
 
 ## Capability inventory
 
+### Browser Studio
+
+`WebUI/` is the default React/DOM browser shell, with floating scene panels and
+native text inputs. The scene viewport and Play use one isolated fixed AdaPlayer
+with authored cameras, materials and lighting. Opening a project loads the engine;
+document/mode changes replace its world without recreating WASM or the GPU device.
+There is no separate SVG scene renderer. Editor mode disables gameplay, physics
+and autoplay. Hierarchy/viewport bounds picking, move/rotate/scale gizmos, snapping,
+duplicate/delete and a transient free camera are available. Gizmo gestures commit
+one undo transaction; navigation never changes authored cameras. CodeMirror provides
+AdaScript highlighting, indentation and search. It implements the existing
+portable snapshot/scene/API contracts with transactions/undo, cloud recovery, ZIP
+interchange and an in-tab agent. The rail switches overview, scene, assets, code
+and assistant within one project. Home opens its overview; All Projects waits for
+cloud save and retains the current document, undo, selection and Player for Continue.
+Save failure offers Stay, retry, ZIP or an explicit IndexedDB-backed local exit;
+failed local writes keep the project open. Closing a tab with unsaved changes or
+an active agent requests browser confirmation. `Web/` retains the prior AdaUI/WASM application
+(`AdaEditorWeb`) behind `--legacy-wasm-editor`, including its UGC publication UI;
+publication controls are not yet ported to DOM. Native Studio uses the shared
+`StudioCore/` value codec and supported runtime component contract. The browser does
+not use native ACP, processes, SourceKit, key storage or file dialogs. See
+[Documentation/StudioWeb.md](Documentation/StudioWeb.md) for export, service
+boundaries and the browser release gate; source presence is not acceptance of a
+hosted deployment or a live paid provider.
+
+The browser assistant exports native bundled skills, documentation, examples and
+the A2UI prompt at build time. Conversations, drafts, attachments, selected skills,
+progress and interactive forms persist with the project. Build/plan modes and
+optional per-tool approval use a fixed 35-tool registry. A2UI uses validated DOM
+controls and native action envelopes; local scene actions and their durable Undo
+are atomic and revision checked. The isolated Player runs native procedural asset
+generators and exports `.ui` through AdaA2UI. New assistant chrome uses the shared
+en/ru catalogs; browser settings use the same language preference enum. OS/process,
+external MCP, search, TestWorld and publication tools remain unavailable here.
+
+Web Annotate selects entities via hierarchy/native viewport, A2UI components, or
+canvas UI via a marked frame/point. Its popup adds context to the originating
+conversation's persistent composer; only Send invokes the agent. Selection
+stays active after Add for collecting multiple notes. Numbered chips and current
+viewport pins reopen the note for editing; numbers remain stable when other notes
+are removed, and one Send includes all pending notes in the same request. Pins
+are scoped to the current selection session so camera movement cannot leave stale
+screen markers. Selection suppresses form actions and gizmos. Notes survive Cloud reopen; manually edited
+composer text remains authoritative. Canvas UI has no semantic native hit tree.
+
 Snapshot: **2026-10-04**, checked against the current working-tree source and
 documentation. “Present” means an implementation exists, not that every
 interaction or platform was exercised during this inventory. Test links identify

@@ -1,6 +1,9 @@
 import AdaEngine
 import AdaScriptCompilerCore
 import Foundation
+#if os(WASI)
+import JavaScriptKit
+#endif
 
 /// A fixed host: no game source is compiled into this executable or its SwiftPM resources.
 @main
@@ -42,18 +45,52 @@ struct AdaWebPlayer: App {
 
 @MainActor
 private struct PlayerContent: View {
-    private let content: AnyView
+    let project: AdaWebPlayerProject?
+    let sources: [AdaScriptSource]
+    let loadError: String?
+    let directory: URL
+    @State private var content: AnyView?
+    @State private var didLoad = false
+    @State private var agentBridge = PlayerAgentBridge()
+    #if os(WASI)
+    @State private var reloadCallback: JSClosure?
+    #endif
 
     init(project: AdaWebPlayerProject?, sources: [AdaScriptSource], loadError: String?, directory: URL) {
+        self.project = project; self.sources = sources; self.loadError = loadError; self.directory = directory
+    }
+
+    @discardableResult
+    private func load(reload: Bool = false, requestID: String? = nil) -> String? {
+        agentBridge.install()
+        guard reload || !didLoad else { return nil }
+        didLoad = true
         do {
-            guard let project else {
+            let currentProject = reload ? try AdaWebPlayerProject.load(at: directory) : project
+            guard let project = currentProject else {
                 throw AdaWebPlayerProjectError.invalid(loadError ?? "Missing project.")
             }
+            let sources = reload ? try project.loadSources(at: directory) : sources
             if project.entryScene != nil {
-                let scene = try PlayerScene(project: project, sources: sources, directory: directory)
-                self.content = AnyView(scene.view)
+                #if os(WASI)
+                let frameID = requestID ?? JSObject.global["__adaStudioRequestID"].string
+                #else
+                let frameID: String? = nil
+                #endif
+                var presented = false
+                let scene = try PlayerScene(project: project, sources: sources, directory: directory, onFrameRendered: { _ in
+                    guard !presented else { return }
+                    presented = true
+                    #if os(WASI)
+                    if let frameID, let ready = JSObject.global["__adaStudioFrameReady"].function { _ = ready(frameID) }
+                    #endif
+                })
+                // A new identity tears down the previous world, while retaining the
+                // browser window, renderer, GPU device and compiled WASM instance.
+                self.content = AnyView(scene.view.id(UUID()))
+                installReloadCallback()
                 print("[AdaWebPlayer] Ready: scene \(project.entryScene ?? "")")
-                return
+                return nil
             }
             guard try AdaScriptSchemaParser.parse(sources: sources).isEmpty else {
                 throw AdaWebPlayerProjectError.invalid("Web Player views do not support native components or resources.")
@@ -65,15 +102,38 @@ private struct PlayerContent: View {
             let resources = PlayerResources(project: project, directory: directory)
             self.content = AnyView(try AdaScriptView(sources: sources, identifier: project.entryView, catalog: resources.catalog()))
             print("[AdaWebPlayer] Ready: \(project.entryView)")
+            return nil
         } catch {
             print("[AdaWebPlayer] Startup failed: \(error)")
-            self.content = AnyView(
+            if !reload { self.content = AnyView(
                 Text("Unable to start game: \(error)")
                     .foregroundColor(.red)
                     .padding(24)
-            )
+            ) }
+            return String(describing: error)
         }
     }
 
-    var body: some View { content }
+    private func installReloadCallback() {
+        #if os(WASI)
+        guard reloadCallback == nil, JSObject.global["__adaStudioPreview"].boolean == true else { return }
+        let callback = JSClosure { values in
+            let requestID = values.first?.string
+            let error = MainActor.assumeIsolated { load(reload: true, requestID: requestID) }
+            return error.map(JSValue.string) ?? .null
+        }
+        reloadCallback = callback
+        JSObject.global["__adaStudioReload"] = callback.jsValue
+        #endif
+    }
+
+    var body: some View {
+        Group {
+            if let content { content }
+            else { Text("Loading game…").foregroundColor(.white) }
+        }
+        // RenderEngine's default textures are installed after the window exists.
+        // Scene assets must not be constructed while WindowGroup is still being described.
+        .task { _ = await load() }
+    }
 }
