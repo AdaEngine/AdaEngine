@@ -27,6 +27,10 @@ external environment was deployed, no paid provider request was submitted, and
   in one message to the local no-fee delivery fixture. Adding a note leaves the
   picker active; Send exits it. The fixture confirms transport only, not model
   interpretation or scene edits. DOM build, packaging and en/ru checks pass.
+  A native rebuild for this annotation-only pass failed in Windows Swift's
+  diagnostic decoder (`Corrupted JSON`, then `fatalError`). The four localization
+  tests pass with `--skip-build` using the existing test executable; this does not
+  establish a fresh native build. No Swift source changed in this pass.
 - The fixed Player exports with Swift 6.3.2/WASI (94.6 MiB / 33.1 MiB gzip).
   Windows native Studio and its test executable build. Portable core: 8 Swift
   Testing tests; native localization: 4; shared catalogs check passes. Cloud:
