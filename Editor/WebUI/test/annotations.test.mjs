@@ -30,6 +30,42 @@ function add(s, note = "Make the object brighter") {
   assert.equal(s.addAnnotation(), true);
   return s.session.annotations.at(-1);
 }
+test("numbered annotations edit in place, retain IDs and survive deletion and reopen", () => {
+  const s = harness();
+  const first = add(s, "First note"),
+    second = add(s, "Second note");
+  assert.equal(first.number, 1);
+  assert.equal(second.number, 2);
+  assert.equal(s.annotationMode, true);
+  s.editAnnotation(second.id, anchor);
+  s.annotationDraft.note = "Updated second note";
+  s.addAnnotation();
+  assert.equal(s.session.annotations.length, 2);
+  assert.equal(s.session.annotations[1].id, second.id);
+  assert.equal(s.session.annotations[1].number, 2);
+  assert.equal(s.prompt.includes("Second note"), false);
+  s.removeAnnotation(first.id);
+  const third = add(s, "Third note");
+  assert.equal(third.number, 3);
+  s.document = new Document(s.snapshot);
+  assert.deepEqual(
+    s.session.annotations.map((r) => r.number),
+    [2, 3],
+  );
+});
+test("popup editing uses the current manually edited annotation block", () => {
+  const s = harness(),
+    first = add(s, "Original"),
+    second = add(s, "Other note");
+  s.prompt = s.prompt.replace("Original", "Manually corrected");
+  s.editAnnotation(first.id, anchor);
+  assert.equal(s.annotationDraft.note, "Manually corrected");
+  s.annotationDraft.note = "Final correction";
+  s.addAnnotation();
+  assert.ok(s.prompt.includes("Final correction"));
+  assert.ok(s.prompt.includes(second.fragment));
+  assert.equal(s.prompt.includes("Manually corrected"), false);
+});
 test("annotation notes enter the existing composer and persistent session without sending or editing the scene", () => {
   const s = harness(),
     before = structuredClone(s.scene);
@@ -60,6 +96,7 @@ test("annotation notes enter the existing composer and persistent session withou
   s.removeAnnotation(item.id);
   assert.equal(s.prompt, "Keep the current game objective.");
   assert.equal(s.session.annotations.length, 0);
+  assert.equal(s.annotationMode, false);
 });
 test("A2UI annotations identify the actual component without submitting its action or changing values", () => {
   const s = harness();
@@ -174,6 +211,9 @@ test("only Send sends annotations, preserves edited composer text, and budgets m
   assert.equal(sent.images.length, 2);
   assert.ok(sent.content.includes(note.target.entityID));
   assert.ok(sent.content.includes('"imageIndex":2'));
+  assert.ok(sent.content.includes('"number":1'));
+  assert.ok(sent.content.includes('"number":2'));
+  assert.equal(request.messages.filter((m) => m.images).length, 1);
   assert.equal(sent.content.includes("OLD_POPUP_TEXT"), false);
   assert.equal(s.session.annotations.length, 0);
 });
@@ -201,6 +241,11 @@ test("annotation limits reject before changing a persisted draft", () => {
   assert.throws(() => add(s), /eight annotations/);
   assert.equal(s.prompt, prompt);
   assert.equal(s.session.annotations.length, 8);
+  s.editAnnotation(s.session.annotations[7].id, anchor);
+  s.annotationDraft.note = "Updated eighth note";
+  assert.equal(s.addAnnotation(), true);
+  assert.equal(s.session.annotations.length, 8);
+  assert.equal(s.session.annotations[7].number, 8);
 });
 test("adding and removing a note preserve whitespace in the existing composer", () => {
   const s = harness();

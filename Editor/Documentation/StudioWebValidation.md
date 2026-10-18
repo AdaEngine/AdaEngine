@@ -9,7 +9,7 @@ external environment was deployed, no paid provider request was submitted, and
 - The build exports 19 native workflow sources plus the native A2UI prompt,
   documentation, API source and examples; the browser/Cloud registry contains
   35 fixed tools. No test-only route or fixture was added to application sources.
-- 63 Node tests pass, including progressive/invalid A2UI, ownership, bindings,
+- 65 Node tests pass, including progressive/invalid A2UI, ownership, bindings,
   revision conflicts, atomic Apply and durable Undo, conversations/drafts,
   cancellation, permissions, interrupted cleanup and attachment project switching.
 - Annotation checks cover accumulation/removal, draft whitespace, sessions/reopen,
@@ -21,6 +21,12 @@ external environment was deployed, no paid provider request was submitted, and
   reached the external no-fee provider fixture. A pending UI annotation and its
   context chip survived Cloud save/reload. Canvas-UI target override was checked;
   this is a frame/point reference, not semantic HUD-node inspection.
+- Numbered notes retain their IDs/numbers during editing, deletion of other notes
+  and document reopen. The browser verified reopening both a viewport pin and a
+  composer chip, editing without duplication, then sending two numbered targets
+  in one message to the local no-fee delivery fixture. Adding a note leaves the
+  picker active; Send exits it. The fixture confirms transport only, not model
+  interpretation or scene edits. DOM build, packaging and en/ru checks pass.
 - The fixed Player exports with Swift 6.3.2/WASI (94.6 MiB / 33.1 MiB gzip).
   Windows native Studio and its test executable build. Portable core: 8 Swift
   Testing tests; native localization: 4; shared catalogs check passes. Cloud:

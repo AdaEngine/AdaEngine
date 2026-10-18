@@ -122,7 +122,11 @@ external MCP, search, TestWorld and publication tools remain unavailable here.
 Web Annotate selects entities via hierarchy/native viewport, A2UI components, or
 canvas UI via a marked frame/point. Its popup adds context to the originating
 conversation's persistent composer; only Send invokes the agent. Selection
-suppresses form actions and gizmos. Notes survive Cloud reopen; manually edited
+stays active after Add for collecting multiple notes. Numbered chips and current
+viewport pins reopen the note for editing; numbers remain stable when other notes
+are removed, and one Send includes all pending notes in the same request. Pins
+are scoped to the current selection session so camera movement cannot leave stale
+screen markers. Selection suppresses form actions and gizmos. Notes survive Cloud reopen; manually edited
 composer text remains authoritative. Canvas UI has no semantic native hit tree.
 
 Snapshot: **2026-10-04**, checked against the current working-tree source and

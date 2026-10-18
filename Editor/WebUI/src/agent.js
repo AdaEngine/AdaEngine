@@ -10,6 +10,7 @@ import {
 import { skills } from "./knowledge.js";
 import { sessionMessages, identity } from "./chat.js";
 import { sceneRevision } from "./scene-tools.js";
+import { annotationNumber } from "./annotations.js";
 
 async function agentContext(studio, session) {
   const catalog = await skills(studio);
@@ -62,7 +63,10 @@ export async function runAgent(studio, text, options = {}) {
   studio.runningSessionID = session.id;
   studio.turnText = text;
   studio.turnOwner = owner;
-  if (!options.preserveDraft) studio.prompt = "";
+  if (!options.preserveDraft) {
+    studio.cancelAnnotation?.();
+    studio.prompt = "";
+  }
   studio.activity = [];
   let completed = false,
     usage = { inputTokens: 0, outputTokens: 0 };
@@ -95,7 +99,11 @@ export async function runAgent(studio, text, options = {}) {
     const images = [];
     const annotationContext = annotations.map((item) => {
       // The editable composer is the instruction. Never replay the original popup text.
-      const context = { id: item.id, target: item.target };
+      const context = {
+        id: item.id,
+        number: annotationNumber(annotations, item),
+        target: item.target,
+      };
       if (item.image && studio.model?.vision && images.length < 4) {
         context.imageIndex = images.length + 1;
         images.push(item.image);

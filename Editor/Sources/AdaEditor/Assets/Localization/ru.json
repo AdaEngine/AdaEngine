@@ -1637,5 +1637,11 @@
   "This model receives text context only. Choose a vision model to include the image.": "Эта модель получит только текстовый контекст. Для отправки кадра выберите модель с поддержкой изображений.",
   "Annotation target": "Что аннотируем",
   "Scene object": "Объект сцены",
-  "Game UI element": "Элемент UI игры"
+  "Game UI element": "Элемент UI игры",
+  "Annotation #{0}: {1}": "Аннотация №{0}: {1}",
+  "Annotation #{0}": "Аннотация №{0}",
+  "Save annotation": "Сохранить аннотацию",
+  "Edit annotation #{0}: {1}": "Редактировать аннотацию №{0}: {1}",
+  "Ready to send together: {0}": "Будут отправлены вместе: {0}",
+  "This note was edited in the composer. Edit its text there or remove it before replacing it.": "Текст замечания изменён в композере. Отредактируйте его там или удалите аннотацию перед заменой."
 }

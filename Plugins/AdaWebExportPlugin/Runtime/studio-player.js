@@ -119,6 +119,11 @@ async function execute(type,payload) {
       context.strokeStyle='#ffffff';context.lineWidth=5;context.stroke();
       context.strokeStyle='#795cff';context.lineWidth=3;context.stroke();
       context.beginPath();context.moveTo(x-5,y);context.lineTo(x+5,y);context.moveTo(x,y-5);context.lineTo(x,y+5);context.stroke();
+      if(Number.isSafeInteger(payload.annotationNumber)&&payload.annotationNumber>0) {
+        context.font='bold 18px sans-serif';context.lineWidth=4;context.strokeStyle='#111111';
+        context.strokeText(String(payload.annotationNumber),Math.min(image.width-24,x+16),Math.max(20,y-14));
+        context.fillStyle='#ffffff';context.fillText(String(payload.annotationNumber),Math.min(image.width-24,x+16),Math.max(20,y-14));
+      }
     }
     let encoded=image.toDataURL('image/jpeg',0.65);
     for(const quality of [0.45,0.3,0.15]) {

@@ -2,6 +2,11 @@ import React, { useEffect, useRef } from "react";
 import { studio } from "./state.js";
 import { Button, Icon, act } from "./controls.jsx";
 import { t } from "../localization.js";
+import { annotationNumber } from "../annotations.js";
+const anchorFor = (event) => {
+  const box = event.currentTarget.getBoundingClientRect();
+  return { x: box.left, y: box.top };
+};
 
 /** Project targets only: settings, credentials and editor chrome are never captured. */
 export function AnnotationLayer() {
@@ -98,6 +103,11 @@ export function AnnotationLayer() {
         <Icon name="annotate" />
         <span>
           {t("Select an object, a form element or a point in the game")}
+          {(s.session.annotations || []).length > 0 && (
+            <small>
+              {t("Ready to send together: {0}", s.session.annotations.length)}
+            </small>
+          )}
         </span>
         <Button
           icon="close"
@@ -122,7 +132,7 @@ export function AnnotationLayer() {
     >
       <header>
         <Icon name="annotate" size={16} />
-        <strong>{t("Annotate")}</strong>
+        <strong>{t("Annotation #{0}", draft.number)}</strong>
         <Button
           type="button"
           icon="close"
@@ -198,7 +208,7 @@ export function AnnotationLayer() {
           className="primary"
           disabled={draft.busy || !!draft.error || !draft.note.trim()}
         >
-          {t("Add to composer")}
+          {draft.editingID ? t("Save annotation") : t("Add to composer")}
         </Button>
       </footer>
     </form>
@@ -214,6 +224,7 @@ export function AnnotationViewport() {
       role="application"
       aria-label={t("Select a point to annotate")}
       onPointerDown={(event) => {
+        if (event.target.closest?.("[data-annotation-ui]")) return;
         event.preventDefault();
         event.stopPropagation();
         if (event.button !== 0 || s.annotationDraft) return;
@@ -233,6 +244,36 @@ export function AnnotationViewport() {
         event.stopPropagation();
       }}
     >
+      {(s.session.annotations || [])
+        .filter(
+          (r) =>
+            r.batchID === s.annotationBatchID &&
+            r.target.point &&
+            r.id !== s.annotationDraft?.editingID,
+        )
+        .map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className="annotation-pin"
+            data-annotation-ui
+            aria-label={t(
+              "Edit annotation #{0}: {1}",
+              annotationNumber(s.session.annotations, item),
+              item.target.label,
+            )}
+            style={{
+              left: item.target.point.x * 100 + "%",
+              top: item.target.point.y * 100 + "%",
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              s.editAnnotation(item.id, anchorFor(event));
+            }}
+          >
+            {annotationNumber(s.session.annotations, item)}
+          </button>
+        ))}
       {s.annotationDraft?.target.point && (
         <span
           className="annotation-pin"
@@ -241,7 +282,7 @@ export function AnnotationViewport() {
             top: s.annotationDraft.target.point.y * 100 + "%",
           }}
         >
-          1
+          {s.annotationDraft.number}
         </span>
       )}
     </div>
@@ -257,8 +298,21 @@ export function AnnotationChips() {
           {item.image && (
             <img src={item.image} alt={t("Selected point in the game")} />
           )}
-          <Icon name="annotate" size={12} />
-          <span title={item.note}>{item.target.label}</span>
+          <button
+            type="button"
+            className="annotation-edit"
+            data-annotation-ui
+            aria-label={t(
+              "Edit annotation #{0}: {1}",
+              annotationNumber(s.session.annotations, item),
+              item.target.label,
+            )}
+            title={item.note}
+            onClick={(event) => s.editAnnotation(item.id, anchorFor(event))}
+          >
+            <b>#{annotationNumber(s.session.annotations, item)}</b>{" "}
+            {item.target.label}
+          </button>
           <Button
             type="button"
             icon="close"
@@ -267,6 +321,11 @@ export function AnnotationChips() {
           />
         </div>
       ))}
+      {(s.session.annotations || []).length > 1 && (
+        <small>
+          {t("Ready to send together: {0}", s.session.annotations.length)}
+        </small>
+      )}
     </div>
   );
 }

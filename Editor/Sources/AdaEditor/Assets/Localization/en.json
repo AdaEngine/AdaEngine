@@ -1637,5 +1637,11 @@
   "This model receives text context only. Choose a vision model to include the image.": "This model receives text context only. Choose a vision model to include the image.",
   "Annotation target": "Annotation target",
   "Scene object": "Scene object",
-  "Game UI element": "Game UI element"
+  "Game UI element": "Game UI element",
+  "Annotation #{0}: {1}": "Annotation #{0}: {1}",
+  "Annotation #{0}": "Annotation #{0}",
+  "Save annotation": "Save annotation",
+  "Edit annotation #{0}: {1}": "Edit annotation #{0}: {1}",
+  "Ready to send together: {0}": "Ready to send together: {0}",
+  "This note was edited in the composer. Edit its text there or remove it before replacing it.": "This note was edited in the composer. Edit its text there or remove it before replacing it."
 }

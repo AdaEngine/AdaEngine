@@ -23,6 +23,7 @@ import {
   annotatePreview,
   addAnnotation,
   removeAnnotation,
+  editAnnotation,
 } from "./annotations.js";
 import { json, recovery, Preview, base64, download } from "./platform.js";
 import {
@@ -202,6 +203,9 @@ export class Studio {
   }
   toggleAnnotations() {
     toggleAnnotations(this);
+  }
+  editAnnotation(...args) {
+    return editAnnotation(this, ...args);
   }
   cancelAnnotation() {
     cancelAnnotation(this);

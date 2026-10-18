@@ -170,7 +170,12 @@ content, code, paths and protocol fields retain their original language.
 The header's Annotate button enters a project-element picker. Choose a hierarchy
 object, an object in the native viewport, or a component of an A2UI form; describe
 the change in the anchored popup, then Add to composer. Notes accumulate in the
-current conversation's saved draft and remain editable before Send. Picking a
+current conversation's saved draft with stable numbers. Selection remains active
+after Add so several notes can be collected and sent in one request. Click a
+numbered chip or a current viewport pin to reopen its popup and edit the note;
+saving replaces its composer block while preserving its number and other notes.
+Viewport pins only persist for the current selection session because camera
+navigation invalidates their screen positions. Picking a
 form button never executes it, and viewport picking never starts a gizmo gesture.
 Escape cancels the popup. Context chips remove their note without overwriting
 manually edited text. Neither selection nor Add invokes the provider.

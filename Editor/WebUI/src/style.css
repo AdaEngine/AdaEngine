@@ -2683,3 +2683,33 @@ strong {
   width: 20px;
   height: 20px;
 }
+button.annotation-pin {
+  pointer-events: auto;
+  cursor: pointer;
+}
+.annotation-edit {
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  padding: 4px;
+}
+.annotation-edit b {
+  color: #e0d5ff;
+  margin-right: 4px;
+}
+.annotation-hint small {
+  display: block;
+  margin-top: 4px;
+  color: #b9acd9;
+}
+.annotation-chips > small {
+  width: 100%;
+  color: #a99cc4;
+  font-size: 10px;
+  padding: 3px;
+}

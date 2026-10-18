@@ -6,11 +6,16 @@ export function validateAnnotations(items = []) {
   if (!Array.isArray(items) || items.length > 8)
     throw new Error("Invalid annotations");
   const ids = new Set();
+  const numbers = new Set();
   for (const item of items) {
     if (
       typeof item.id !== "string" ||
       item.id.length > 64 ||
       ids.has(item.id) ||
+      (item.number !== undefined &&
+        (!Number.isSafeInteger(item.number) ||
+          item.number < 1 ||
+          numbers.has(item.number))) ||
       typeof item.note !== "string" ||
       item.note.length > 4000 ||
       typeof item.fragment !== "string" ||
@@ -26,24 +31,30 @@ export function validateAnnotations(items = []) {
     )
       throw new Error("Invalid annotation");
     ids.add(item.id);
+    if (item.number !== undefined) numbers.add(item.number);
   }
 }
 
 export function toggleAnnotations(s) {
   s.annotationMode = !s.annotationMode;
   s.annotationDraft = null;
+  s.annotationBatchID = s.annotationMode ? crypto.randomUUID() : null;
   ++s.annotationEpoch;
   s.emit();
 }
 export function cancelAnnotation(s) {
   s.annotationMode = false;
   s.annotationDraft = null;
+  s.annotationBatchID = null;
   ++s.annotationEpoch;
   s.emit();
 }
-function open(s, target, anchor) {
+export const annotationNumber = (items, item) =>
+  item.number || items.indexOf(item) + 1;
+function open(s, target, anchor, editingID) {
   if (!s.document || s.projectBrowser) return;
-  if ((s.session.annotations || []).length >= 8)
+  const items = s.session.annotations || [];
+  if (!editingID && items.length >= 8)
     throw new Error(t("You can add up to eight annotations"));
   const draft = {
     target,
@@ -53,11 +64,50 @@ function open(s, target, anchor) {
     sessionID: s.session.id,
     epoch: ++s.annotationEpoch,
     busy: false,
+    editingID,
+    number: editingID
+      ? annotationNumber(
+          items,
+          items.find((r) => r.id === editingID),
+        )
+      : Math.max(0, ...items.map((r) => annotationNumber(items, r))) + 1,
   };
+  s.annotationBatchID ||= crypto.randomUUID();
   s.annotationMode = true;
   s.annotationDraft = draft;
   s.emit();
   return draft;
+}
+export function editAnnotation(s, id, anchor) {
+  const item = s.session.annotations?.find((r) => r.id === id);
+  if (!item) return;
+  const draft = open(s, clone(item.target), anchor, id);
+  if (!draft) return;
+  const header = item.fragment.split("\n")[0];
+  let start = s.prompt.indexOf(item.fragment),
+    end;
+  if (start >= 0) end = start + item.fragment.length;
+  else {
+    start = s.prompt.indexOf(header + "\n");
+    if (start >= 0) {
+      end = s.prompt.length;
+      for (const other of s.session.annotations.filter((r) => r.id !== id)) {
+        const next = s.prompt.indexOf(
+          "\n\n" + other.fragment.split("\n")[0] + "\n",
+          start + header.length,
+        );
+        if (next >= 0) end = Math.min(end, next);
+      }
+    }
+  }
+  draft.replacedFragment =
+    start >= 0 ? s.prompt.slice(start, end) : item.fragment;
+  draft.note =
+    start >= 0
+      ? draft.replacedFragment.slice(draft.replacedFragment.indexOf("\n") + 1)
+      : item.note;
+  draft.image = item.image;
+  s.emit();
 }
 function current(s, draft) {
   return (
@@ -142,7 +192,10 @@ export async function annotatePreview(s, point, anchor) {
         draft.target = { ...entityTarget(s, hit.entityID), point };
       if (hit.entityID) draft.sceneTarget = draft.target;
     }
-    const image = await s.preview.message("capture", { point });
+    const image = await s.preview.message("capture", {
+      point,
+      annotationNumber: draft.number,
+    });
     if (!current(s, draft)) return;
     if (s.preview.editorRevision !== revision)
       throw new Error(t("The preview changed. Select the element again."));
@@ -174,22 +227,46 @@ export function addAnnotation(s) {
   )
     return false;
   const item = {
-    id: crypto.randomUUID(),
+    id: draft.editingID || crypto.randomUUID(),
+    number: draft.number,
+    batchID: draft.editingID
+      ? s.session.annotations.find((r) => r.id === draft.editingID)?.batchID
+      : s.annotationBatchID,
     target: clone(draft.target),
     note: draft.note.trim(),
     fragment:
-      t("Annotation: {0}", draft.target.label) + "\n" + draft.note.trim(),
+      t("Annotation #{0}: {1}", draft.number, draft.target.label) +
+      "\n" +
+      draft.note.trim(),
     ...(draft.image ? { image: draft.image } : {}),
   };
-  const prompt = s.prompt + (s.prompt ? "\n\n" : "") + item.fragment;
+  const previous = s.session.annotations?.find((r) => r.id === draft.editingID);
+  let prompt = s.prompt;
+  if (previous) {
+    const fragment = draft.replacedFragment || previous.fragment;
+    if (!prompt.includes(fragment))
+      throw new Error(
+        t(
+          "This note was edited in the composer. Edit its text there or remove it before replacing it.",
+        ),
+      );
+    prompt = prompt.replace(fragment, () => item.fragment);
+  } else prompt += (prompt ? "\n\n" : "") + item.fragment;
   s.updateChat((c) => {
     const session = c.sessions.find((r) => r.id === draft.sessionID);
-    session.annotations = [...(session.annotations || []), item];
+    const items = (session.annotations || []).map((r, i) => ({
+      ...r,
+      number: r.number || i + 1,
+    }));
+    session.annotations = previous
+      ? items.map((r) => (r.id === item.id ? item : r))
+      : [...items, item];
     validateAnnotations(session.annotations);
     session.draft = prompt;
   });
   s.prompt = prompt;
-  cancelAnnotation(s);
+  s.annotationDraft = null;
+  ++s.annotationEpoch;
   s.assistant = true;
   s.viewportExpanded = false;
   if (s.view !== "editor" && s.view !== "assistant") s.view = "assistant";
