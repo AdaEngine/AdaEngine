@@ -1,6 +1,7 @@
 import { parse } from "yaml";
 import { unzipSync, zipSync } from "fflate";
 import { bytes, decode, encode, base64 } from "./platform.js";
+import { defaultChat, validateChat } from "./chat.js";
 export const clone = (value) => structuredClone(value);
 export const textFile = (path, text) => ({ path, data: encode(text) });
 export const file = (snapshot, path) =>
@@ -50,9 +51,15 @@ export function validPath(path) {
     /^[a-zA-Z0-9_./-]+$/.test(path) &&
     path.split("/").every((p) => p && p !== "." && p !== "..") &&
     (path === ".ada/project.json" ||
+      /^(AGENTS|DESIGN|PLAN|PROGRESS|README)\.md$/.test(path) ||
+      /^\.ada\/skills\/[a-zA-Z0-9_-]+\/(SKILL\.md|[a-zA-Z0-9_.-]+\.md)$/.test(
+        path,
+      ) ||
+      (path.startsWith("Docs/") && /\.(md|txt)$/.test(path)) ||
+      (path.startsWith("Tests/") && path.endsWith(".ada")) ||
       (path.startsWith("Sources/") && path.endsWith(".ada")) ||
       (path.startsWith("Assets/") &&
-        /\.(png|jpg|jpeg|wav|ogg|ascn|tilemap|tileset|json|ui|glb|gltf|bin)$/i.test(
+        /\.(png|jpg|jpeg|wav|ogg|ascn|tilemap|tileset|json|ui|glb|gltf|bin|vox)$/i.test(
           path,
         )))
   );
@@ -102,6 +109,7 @@ export function validate(snapshot) {
       4 * 1024 * 1024
   )
     throw new Error("История чата превышает лимит проекта");
+  validateChat(snapshot);
   scene(snapshot);
 }
 export function portable(snapshot, newIdentity = false) {
@@ -358,6 +366,7 @@ export function template(
 }
 export class Document {
   constructor(snapshot) {
+    snapshot = { ...snapshot, messages: snapshot.messages || [] };
     validate(snapshot);
     this.snapshot = clone(snapshot);
     this.undoStack = [];
@@ -394,6 +403,24 @@ export class Document {
   append(value) {
     const next = clone(this.snapshot);
     next.messages.push({ id: crypto.randomUUID(), ...value });
+    validate(next);
+    this.snapshot = next;
+    this.generation++;
+  }
+  chat(update) {
+    const next = clone(this.snapshot);
+    let marker = next.messages.find((m) => m.kind === "studio-state");
+    if (!marker) {
+      marker = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "",
+        kind: "studio-state",
+        studio: defaultChat(),
+      };
+      next.messages.push(marker);
+    }
+    update(marker.studio);
     validate(next);
     this.snapshot = next;
     this.generation++;

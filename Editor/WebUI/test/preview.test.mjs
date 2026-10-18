@@ -196,3 +196,31 @@ test("closing a project cancels rendering and rejects late responses", async () 
   assert.equal(h.preview.ready, false);
   assert.equal(h.preview.frame, null);
 });
+
+test("startup failures require the isolated frame and reject pending and subsequent loads", async () => {
+  const h = harness(false),
+    loaded = h.preview.load(snapshot, config, true);
+  loaded.catch(() => {});
+  await new Promise(setImmediate);
+  const event = {
+    source: h.preview.frame.contentWindow,
+    origin: "http://127.0.0.1:18444",
+    data: {
+      protocol: "ada-studio-preview-v1",
+      event: "startup-error",
+      message: "Missing Player module",
+    },
+  };
+  h.dispatch({ ...event, source: {} });
+  h.dispatch({ ...event, origin: "https://untrusted.example" });
+  assert.equal(h.preview.pending.size, 1);
+  h.dispatch(event);
+  await assert.rejects(loaded, /Missing Player module/);
+  assert.equal(h.preview.pending.size, 0);
+  await assert.rejects(
+    h.preview.load(snapshot, config, true),
+    /Missing Player module/,
+  );
+  h.preview.stop();
+  assert.equal(h.preview.startupError, null);
+});

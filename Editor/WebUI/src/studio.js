@@ -1,4 +1,20 @@
 import { runAgent, runTool } from "./agent.js";
+import {
+  chatState,
+  editChat,
+  newSession,
+  switchSession,
+  identity,
+} from "./chat.js";
+import {
+  receiveUI,
+  finishUI,
+  editSurface,
+  submitSurface,
+  undoSurface,
+  exportSurface,
+} from "./chat-ui-controller.js";
+import { writeTools } from "./agent-tools.js";
 import { json, recovery, Preview, base64, download } from "./platform.js";
 import {
   Document,
@@ -34,6 +50,9 @@ export class Studio {
   prompt = "";
   streamText = "";
   running = false;
+  runningSessionID = null;
+  permissionRequest = null;
+  allowedTools = new Set();
   runtime = "idle";
   playing = false;
   viewportError = "";
@@ -155,6 +174,107 @@ export class Studio {
   get snapshot() {
     return this.document?.snapshot;
   }
+  get chat() {
+    return chatState(this.snapshot);
+  }
+  get session() {
+    return (
+      this.chat.sessions.find((s) => s.id === this.chat.activeSessionID) ||
+      this.chat.sessions[0]
+    );
+  }
+  updateChat(update) {
+    editChat(this, update);
+  }
+  newSession() {
+    newSession(this);
+  }
+  switchSession(id) {
+    switchSession(this, id);
+  }
+  receiveUI(text, messageID, sessionID, final = false) {
+    return receiveUI(this, text, messageID, sessionID, final);
+  }
+  finishUI(sessionID, status) {
+    finishUI(this, sessionID, status);
+  }
+  editSurface(...args) {
+    return editSurface(this, ...args);
+  }
+  async submitSurface(...args) {
+    try {
+      return await submitSurface(this, ...args);
+    } catch (e) {
+      this.updateChat((c) => {
+        const card = c.surfaces.find((r) => r.generation === args[1]);
+        if (card) card.error = e.message;
+      });
+      throw e;
+    }
+  }
+  undoSurface(...args) {
+    return undoSurface(this, ...args);
+  }
+  exportSurface(...args) {
+    return exportSurface(this, ...args);
+  }
+  restoreSurface(id, generation) {
+    const card = this.chat.surfaces.find(
+      (r) =>
+        r.id === id &&
+        r.generation === generation &&
+        r.sessionID === this.session.id &&
+        r.owner === identity(this),
+    );
+    if (
+      this.running ||
+      !card?.components.root ||
+      !["failed", "cancelled"].includes(card.status)
+    )
+      throw new Error("Карточка недоступна");
+    this.updateChat((c) => {
+      const r = c.surfaces.find((r) => r.generation === generation);
+      r.status = "ready";
+      r.error = "";
+    });
+  }
+  requestTool(name, args, signal) {
+    const session =
+      this.chat.sessions.find((s) => s.id === this.runningSessionID) ||
+      this.session;
+    if (!writeTools.has(name)) return Promise.resolve();
+    if (session.mode === "plan")
+      return Promise.reject(
+        new Error("Режим обсуждения не разрешает правки проекта"),
+      );
+    if (
+      session.permission !== "ask" ||
+      this.allowedTools.has(session.id + ":" + name)
+    )
+      return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const done = (choice) => {
+        signal.removeEventListener("abort", cancel);
+        this.permissionRequest = null;
+        if (choice === "session")
+          this.allowedTools.add(session.id + ":" + name);
+        this.emit();
+        choice
+          ? resolve()
+          : reject(new Error("Пользователь отклонил инструмент"));
+      };
+      const cancel = () => done(false);
+      this.permissionRequest = {
+        name,
+        args,
+        sessionID: session.id,
+        decide: done,
+      };
+      signal.addEventListener("abort", cancel, { once: true });
+      if (signal.aborted) cancel();
+      else this.emit();
+    });
+  }
   get scene() {
     try {
       return this.snapshot ? scene(this.snapshot) : null;
@@ -176,6 +296,13 @@ export class Studio {
       this.snapshot?.files
         .filter((f) => f.path.startsWith("Sources/"))
         .sort((a, b) => a.path.localeCompare(b.path)) ?? []
+    );
+  }
+  get codeFiles() {
+    return (
+      this.snapshot?.files
+        .filter((f) => /\.(ada|md|txt|ui|json|ascn)$/.test(f.path))
+        .sort((a, b) => a.path.localeCompare(b.path)) || []
     );
   }
   async start() {
@@ -221,6 +348,19 @@ export class Studio {
     this.preview.stop();
     this.workspace = record;
     this.document = new Document(snapshot);
+    this.allowedTools.clear();
+    this.prompt = this.session.draft || "";
+    if (
+      this.chat.surfaces.some((s) =>
+        ["receiving", "submitting"].includes(s.status),
+      )
+    ) {
+      this.document.chat((c) => {
+        for (const surface of c.surfaces)
+          if (["receiving", "submitting"].includes(surface.status))
+            surface.status = "cancelled";
+      });
+    }
     this.selected = null;
     this.latestCodeSelection = "";
     this.activity = [];
@@ -239,6 +379,7 @@ export class Studio {
     this.checkpointPending = false;
     localStorage.setItem(`studio:last:${this.account.id}`, record.id);
     this.emit();
+    if (this.document.generation) this.changed();
   }
   async open(record) {
     if (record.id === this.workspace?.id) {
@@ -591,14 +732,42 @@ export class Studio {
     this.changed();
   }
   async uploadAsset(input) {
+    const document = this.document;
     const path =
         "Assets/Imports/" +
         crypto.randomUUID() +
         "_" +
         input.name.replace(/[^a-zA-Z0-9_.-]/g, "_"),
       data = base64(new Uint8Array(await input.arrayBuffer()));
-    this.document.edit((s) => s.files.push({ path, data }));
+    if (this.document !== document) throw new Error("Открыт другой проект");
+    document.edit((s) => s.files.push({ path, data }));
     this.changed();
+    return path;
+  }
+  async attachFile(input) {
+    const sessionID = this.session.id,
+      document = this.document;
+    if (this.session.attachments.length >= 4)
+      throw new Error("Можно приложить до четырёх файлов");
+    let path;
+    if (/\.(md|txt|ada)$/i.test(input.name)) {
+      if (input.size > 100_000)
+        throw new Error("Текстовое вложение превышает 100 КБ");
+      path =
+        "Docs/Attachments/" +
+        crypto.randomUUID() +
+        "_" +
+        input.name.replace(/[^a-zA-Z0-9_.-]/g, "_").replace(/\.ada$/i, ".txt");
+      const text = await input.text();
+      if (this.document !== document) throw new Error("Открыт другой проект");
+      document.write(path, text);
+      this.changed();
+    } else path = await this.uploadAsset(input);
+    if (this.document !== document) throw new Error("Открыт другой проект");
+    this.updateChat((c) => {
+      const session = c.sessions.find((c) => c.id === sessionID);
+      session.attachments.push(path);
+    });
     return path;
   }
   async importFile(input) {
@@ -684,8 +853,8 @@ export class Studio {
     this.document.append(value);
     this.changed();
   }
-  send(text) {
-    return runAgent(this, text);
+  send(text, options) {
+    return runAgent(this, text, options);
   }
   runTool(name, args) {
     return runTool(this, name, args);

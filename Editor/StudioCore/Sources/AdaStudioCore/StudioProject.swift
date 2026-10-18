@@ -73,8 +73,12 @@ public struct StudioSnapshot: Codable, Equatable, Sendable {
               path.unicodeScalars.allSatisfy({ CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./-").contains($0) }),
               path.split(separator: "/", omittingEmptySubsequences: false).allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }) else { return false }
         if path == ".ada/project.json" { return true }
+        if ["AGENTS.md", "DESIGN.md", "PLAN.md", "PROGRESS.md", "README.md"].contains(path) { return true }
+        if path.hasPrefix("Docs/") && ["md", "txt"].contains(URL(fileURLWithPath: path).pathExtension.lowercased()) { return true }
+        if path.hasPrefix("Tests/") && path.hasSuffix(".ada") { return true }
+        if path.range(of: #"^\.ada/skills/[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+\.md$"#, options: .regularExpression) != nil { return true }
         if path.hasPrefix("Sources/") { return path.hasSuffix(".ada") }
-        return path.hasPrefix("Assets/") && ["png", "jpg", "jpeg", "wav", "ogg", "ascn", "tilemap", "tileset", "json", "ui", "glb", "gltf", "bin"].contains(URL(fileURLWithPath: path).pathExtension.lowercased())
+        return path.hasPrefix("Assets/") && ["png", "jpg", "jpeg", "wav", "ogg", "ascn", "tilemap", "tileset", "json", "ui", "glb", "gltf", "bin", "vox"].contains(URL(fileURLWithPath: path).pathExtension.lowercased())
     }
 
     /// Export uses source paths and strips host-specific settings, never flattened player sources.

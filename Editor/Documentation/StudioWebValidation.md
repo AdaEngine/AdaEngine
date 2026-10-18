@@ -4,6 +4,41 @@ The implementation spans AdaEngine and the sibling `ada_cloud` checkout. No
 external environment was deployed, no paid provider request was submitted, and
 `STUDIO_WEB_ENABLED` remains off by default.
 
+## Shared browser agent and A2UI (current)
+
+- The build exports 19 native workflow sources plus the native A2UI prompt,
+  documentation, API source and examples; the browser/Cloud registry contains
+  35 fixed tools. No test-only route or fixture was added to application sources.
+- 55 Node tests pass, including progressive/invalid A2UI, ownership, bindings,
+  revision conflicts, atomic Apply and durable Undo, conversations/drafts,
+  cancellation, permissions, interrupted cleanup and attachment project switching.
+- The fixed Player exports with Swift 6.3.2/WASI (94.6 MiB / 33.1 MiB gzip).
+  Windows native Studio and its test executable build. Portable core: 8 Swift
+  Testing tests; native localization: 4; shared catalogs check passes. Cloud:
+  11 tests in 4 suites, including real PostgreSQL/Redis/S3 workspace I/O and both
+  provider adapters/fragmented streams. Python: 2 frontend preparation tests and
+  4 publication packaging tests, including portable agent notes/skills and VOX.
+- In the real browser, a deterministic external provider fixture called actual
+  skill/scene tools and streamed an NPC A2UI card. Cyrillic field values, role,
+  color and drafts survived autosave/reload. Ordinary Submit returned a preview
+  in the originating conversation and retained the user's draft. Switching
+  assistant language updated the mounted controls while preserving user content.
+- A color action changed the real AdaEngine mesh inspector to `#33AA77`;
+  card Undo survived reload and restored the prior scene. Spawn created two
+  entities (27 → 29); one card Undo restored 27. Card application and its durable
+  Undo record commit together, including rejection before any side effect when
+  chat quota cannot hold the record.
+- Native Player generators created actual PNG, PCM WAV and GLB project assets;
+  image/audio/model inspection tools consumed them. Native AdaA2UI exported both
+  an agent preview and a full bound/action form to `.ui` files opened in Code.
+  VOX support is implemented but was not exercised in this browser run.
+
+These checks use the real document/Player/Cloud path with an external, no-fee
+provider fixture. They do not establish live paid model quality, billing,
+audible playback or hosted publication acceptance. OS/process/MCP/TestWorld
+tools remain native-only. No shader or renderer algorithm changed in this pass;
+the preceding GPU validation below remains the relevant full-suite result.
+
 ## Viewport tools and source editor (current)
 
 The branch includes upstream `main` through `433e2d88`. The new Hi-Z buffer

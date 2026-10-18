@@ -2,6 +2,7 @@ import React from "react";
 import { studio } from "./state.js";
 import { useEffect } from "react";
 import { Icon, Mark, Button, act, entityIcon } from "./controls.jsx";
+import { t, languagePreference, setLanguage } from "../localization.js";
 
 function Modal({ title, onClose, children }) {
   useEffect(() => {
@@ -44,9 +45,25 @@ function Settings() {
       }}
     >
       <div className="modal-body">
+        <label className="field-label">
+          {t("Assistant language")}
+          <select
+            aria-label={t("Assistant language")}
+            value={languagePreference()}
+            onChange={(e) => {
+              setLanguage(e.target.value);
+              s.emit();
+            }}
+          >
+            <option value="system">{t("System language")}</option>
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+          </select>
+        </label>
         <p className="muted">Выберите, кто поможет вам создать игру.</p>
         <div className="segmented">
           <button
+            disabled={s.running}
             className={s.billingMode === "ada" ? "active" : ""}
             onClick={() => {
               s.billingMode = "ada";
@@ -56,6 +73,7 @@ function Settings() {
             Ada AI
           </button>
           <button
+            disabled={s.running}
             className={s.billingMode === "byok" ? "active" : ""}
             onClick={() => {
               s.billingMode = "byok";
@@ -68,6 +86,7 @@ function Settings() {
         <label className="field-label">
           Провайдер
           <select
+            disabled={s.running}
             value={s.providerID}
             onChange={(e) => {
               s.providerID = e.target.value;
@@ -85,6 +104,7 @@ function Settings() {
         <label className="field-label">
           Модель
           <select
+            disabled={s.running}
             value={s.modelID}
             onChange={(e) => {
               s.modelID = e.target.value;
@@ -105,6 +125,7 @@ function Settings() {
               API-ключ
               <input
                 type="password"
+                disabled={s.running}
                 autoComplete="off"
                 value={s.apiKey}
                 onChange={(e) => {

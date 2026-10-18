@@ -109,6 +109,16 @@ not use native ACP, processes, SourceKit, key storage or file dialogs. See
 boundaries and the browser release gate; source presence is not acceptance of a
 hosted deployment or a live paid provider.
 
+The browser assistant exports native bundled skills, documentation, examples and
+the A2UI prompt at build time. Conversations, drafts, attachments, selected skills,
+progress and interactive forms persist with the project. Build/plan modes and
+optional per-tool approval use a fixed 35-tool registry. A2UI uses validated DOM
+controls and native action envelopes; local scene actions and their durable Undo
+are atomic and revision checked. The isolated Player runs native procedural asset
+generators and exports `.ui` through AdaA2UI. New assistant chrome uses the shared
+en/ru catalogs; browser settings use the same language preference enum. OS/process,
+external MCP, search, TestWorld and publication tools remain unavailable here.
+
 Snapshot: **2026-10-04**, checked against the current working-tree source and
 documentation. “Present” means an implementation exists, not that every
 interaction or platform was exercised during this inventory. Test links identify

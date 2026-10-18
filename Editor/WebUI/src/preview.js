@@ -26,6 +26,17 @@ export class Preview {
         event.data?.protocol !== "ada-studio-preview-v1"
       )
         return;
+      if (event.data.event === "startup-error") {
+        const error = new Error(
+          String(event.data.message || "Player startup failed").slice(0, 2000),
+        );
+        for (const entry of this.pending.values()) entry.reject(error);
+        this.pending.clear();
+        this.ready = false;
+        this.startupError = error;
+        this.changed("error");
+        return;
+      }
       if (event.data.event === "editor") {
         if (this.ready && event.data.revision === this.editorRevision)
           this.onEditorEvent?.(event.data.type, event.data.value);
@@ -53,6 +64,7 @@ export class Preview {
     this.key = "";
     this.requestedKey = "";
     this.loading = null;
+    this.startupError = null;
     for (const entry of this.pending.values()) entry.reject(cancelled());
     this.pending.clear();
     this.queue = Promise.resolve();
@@ -70,11 +82,13 @@ export class Preview {
     };
     const work = async () => {
       active();
+      if (this.startupError) throw this.startupError;
       if (this.ready && this.key === key) return;
       this.ready = false;
       this.changed("loading");
       if (!this.frame) await this.mount(config);
       active();
+      if (this.startupError) throw this.startupError;
       const revision = crypto.randomUUID();
       await this.message("load", {
         formatVersion: 1,

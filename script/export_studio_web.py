@@ -29,12 +29,13 @@ def prepare(editor, player, origins, legacy=False, ui_dist=None):
         (editor / 'index.html').write_text(html, encoding='utf-8')
     if not (player / 'AdaWebPlayer.wasm').is_file():
         raise RuntimeError('Missing fixed player export')
-    for name in ('studio-player.js', 'studio-editor.js', 'studio-editor-math.js'):
+    for name in ('studio-player.js', 'studio-editor.js', 'studio-editor-math.js', 'studio-bootstrap.js'):
         shutil.copy2(ROOT / 'Plugins/AdaWebExportPlugin/Runtime' / name, player / name)
     html = (player / 'index.html').read_text(encoding='utf-8')
     html = re.sub(r'<script type="module" src="\./(?:player-lobby|main)\.js"></script>', '<script type="module" src="./studio-player.js"></script>', html)
     if './studio-player.js' not in html:
         raise RuntimeError('Exporter player entrypoint changed')
+    html = html.replace('<script type="module" src="./studio-player.js"></script>', '<script src="./studio-bootstrap.js"></script>\n  <script type="module" src="./studio-player.js"></script>')
     (player / 'studio-preview.html').write_text(html, encoding='utf-8')
     (player / 'studio-player-config.json').write_text(json.dumps({'allowedOrigins': origins}), encoding='utf-8')
     if not legacy:

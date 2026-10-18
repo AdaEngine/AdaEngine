@@ -127,6 +127,51 @@ credentials to the player. Generation stops advancing when the tab closes; an
 already submitted upstream response may finish server-side solely to settle its
 actual cost. Interrupted tool calls are not blindly replayed on return.
 
+### Shared agent workspace and A2UI
+
+The browser agent uses the native Studio workflow sources: the build exports all
+19 bundled skills, the native A2UI prompt as `ada-chat-ui`, offline documentation,
+API declarations and complete example sources. Read them through `editor.skills.*`,
+`editor.docs.*`, `editor.api.describe`, `editor.components.describe` and
+`editor.examples.*` (provider function names replace dots with underscores).
+Project workflows in `.ada/skills/<id>/SKILL.md` and root AGENTS/DESIGN/PLAN/PROGRESS
+notes are portable project reference data, never host authorization.
+
+The assistant offers per-project conversations, persistent drafts, selected skills,
+file/image context, progress, tool results and token usage. A turn stays with its
+originating conversation if the user opens another chat. Plan mode omits mutating
+tool schemas; Ask mode pauses document changes for an explicit per-tool decision.
+Closing the tab cancels the client loop. Incomplete forms/requests require an
+explicit continuation rather than replaying edits after reopening.
+
+The 35 browser tools include file search/patch, revision-checked scene batches,
+project configuration, selection, Player diagnostics/frames and asset generation.
+Sprite, sound, model and voxel scripts execute in the fixed WASM Player using
+the native bounded generators and PNG/WAV/GLB/VOX writers. Assets enter the common
+document transaction and undo path. WAV/GLB inspection reports measured metadata;
+it does not establish audible playback or visual correctness.
+
+A2UI v0.9.1 forms use the native Ada forms catalog: Text, Row/Column, TextField,
+Toggle, ChoicePicker, Slider and Button. JSONL frames stream into escaped DOM
+controls. Graphs, bindings, checks, ownership, generation and session are validated;
+invalid updates preserve the last valid surface and return correction feedback.
+Ordinary actions send the native action envelope back to the originating agent
+without clearing the user's draft. Local color/spawn/apply actions require a
+matching scene revision and commit the scene plus durable card Undo in one
+transaction. Export goes through native AdaA2UI in the Player to a real `.ui`
+source under `Assets/UI/AgentPreviews/`; the browser opens that source in Code.
+It does not contain the native visual UI Designer.
+
+Assistant chrome uses the shared English/Russian catalogs and
+`AdaEditor.language` preference values. The browser preference is stored locally,
+outside project exports; assistant settings switch the mounted UI. Agent/user
+content, code, paths and protocol fields retain their original language.
+
+Native ACP processes, shell/SwiftPM, SourceKit-LSP, external MCP, native Git,
+network search, TestWorld simulation and publication tools are explicitly absent
+from the browser host. Their shared workflow text is reference material, not an
+implementation of those capabilities. No ChatGPT/Codex OAuth was added.
+
 The retained legacy publishing UI captures a source snapshot, checks Pro and uses the existing upload,
 validation and moderation pipeline. An agent cannot call publication. Draft saves
 do not alter approved releases. Public release activation uses the existing

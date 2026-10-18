@@ -51,6 +51,7 @@ private struct PlayerContent: View {
     let directory: URL
     @State private var content: AnyView?
     @State private var didLoad = false
+    @State private var agentBridge = PlayerAgentBridge()
     #if os(WASI)
     @State private var reloadCallback: JSClosure?
     #endif
@@ -61,6 +62,7 @@ private struct PlayerContent: View {
 
     @discardableResult
     private func load(reload: Bool = false, requestID: String? = nil) -> String? {
+        agentBridge.install()
         guard reload || !didLoad else { return nil }
         didLoad = true
         do {

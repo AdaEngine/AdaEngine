@@ -40,7 +40,7 @@ function Workspace({ hidden = false }) {
     >
       <div
         aria-hidden={!viewport}
-        style={{ visibility: viewport ? "visible" : "hidden" }}
+        style={{ pointerEvents: viewport ? "auto" : "none" }}
         className={`stage ${mobile ? "mobile-preview" : ""}`}
       >
         <div className="stage-surface">
@@ -80,6 +80,7 @@ function Workspace({ hidden = false }) {
           )}
         </div>
       </div>
+      {!viewport && <div className="section-cover" aria-hidden="true" />}
       {!s.viewportExpanded && viewport && s.panel === "objects" && <Objects />}
       {((!s.viewportExpanded && s.assistant && s.view === "editor") ||
         s.view === "assistant") && <Assistant />}

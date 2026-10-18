@@ -766,7 +766,7 @@ targets.append(
         name: "AdaWebPlayer",
         dependencies: [
             .product(name: "AdaStudioCore", package: "StudioCore"),
-            "AdaEngine", "AdaScriptCompilerCore",
+            "AdaEngine", "AdaScriptCompilerCore", "AdaAssets", "AdaScripting", "AdaA2UI", "AdaUIDescription",
             .product(name: "Yams", package: "Yams"),
             "AdaMultiplayer",
             .product(name: "JavaScriptKit", package: "JavaScriptKit", condition: .when(platforms: [.wasi])),

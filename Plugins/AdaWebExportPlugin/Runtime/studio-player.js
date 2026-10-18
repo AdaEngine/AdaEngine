@@ -94,6 +94,12 @@ async function load(snapshot) {
 }
 
 async function execute(type,payload) {
+  if(type==='agent-tool') {
+    if(!loaded||typeof globalThis.__adaStudioTool!=='function')throw new Error('Update AdaPlayer to enable agent host tools');
+    const result=JSON.parse(globalThis.__adaStudioTool(JSON.stringify(payload)));
+    if(result.error)throw new Error(result.error);
+    return result;
+  }
   if(type==='load')return load(payload);
   if(type==='logs')return logs;
   if(type==='editor')return editor.command(payload||{});

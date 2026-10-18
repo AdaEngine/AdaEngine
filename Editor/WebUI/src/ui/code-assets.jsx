@@ -13,7 +13,7 @@ function Code({ hidden = false }) {
   return (
     <section className="code-panel panel" hidden={hidden}>
       <div className="file-tabs">
-        {s.sources.map((f) => (
+        {s.codeFiles.map((f) => (
           <button
             className={s.activeFile === f.path ? "active" : ""}
             key={f.path}
@@ -37,7 +37,9 @@ function Code({ hidden = false }) {
         <SourceEditor text={text} path={s.activeFile} />
       </div>
       <div className="code-status">
-        <span>AdaScript</span>
+        <span>
+          {s.activeFile.endsWith(".ada") ? "AdaScript" : "Текст проекта"}
+        </span>
         <span>{s.activeFile}</span>
         <span>UTF-8 · {lines} строк</span>
       </div>

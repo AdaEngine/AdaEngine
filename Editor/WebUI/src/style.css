@@ -2202,3 +2202,313 @@ strong {
   touch-action: none;
   outline: none;
 }
+/* Agent workspace: native workflow resources, persistent conversations and bounded A2UI. */
+.conversation-toolbar {
+  border-bottom: 1px solid #ffffff0c;
+  flex-shrink: 0;
+}
+.conversation-tabs {
+  display: flex;
+  overflow: auto;
+  gap: 4px;
+  padding: 8px 12px;
+}
+.conversation-tabs > button {
+  padding: 7px 10px;
+  color: #92929c;
+  white-space: nowrap;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.conversation-tabs > button.active {
+  color: #e6e0ff;
+  background: #8e79ef20;
+}
+.conversation-tabs .live-dot {
+  margin-left: 7px;
+}
+.agent-mode-controls {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 9px;
+}
+.agent-mode-controls select {
+  width: 50%;
+  min-width: 0;
+  background: #222328;
+  color: #b0adb9;
+  padding: 7px;
+  border: 1px solid #ffffff08;
+  border-radius: 6px;
+  font-size: 10px;
+}
+.markdown {
+  font-size: 12px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.markdown p {
+  white-space: pre-wrap;
+}
+.markdown code,
+.tool-event pre {
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+}
+.markdown pre,
+.tool-event pre {
+  padding: 12px;
+  background: #101217;
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 320px;
+  white-space: pre-wrap;
+}
+.markdown h3 {
+  font-size: 14px;
+  margin-top: 14px;
+}
+.skill-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 4px 0;
+}
+.skill-chip,
+.attachment-chips > button {
+  font-size: 9px;
+  padding: 4px 7px;
+  background: #8e79ef14;
+  border-radius: 5px;
+  color: #b6a6ef;
+}
+.skill-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: min(440px, 72vw);
+  z-index: 12;
+  background: #202126;
+  border: 1px solid #ffffff18;
+}
+.skill-menu > input {
+  margin: 10px 14px;
+  width: calc(100% - 28px);
+  background: #121318;
+  border: 1px solid #ffffff12;
+  border-radius: 6px;
+  padding: 9px;
+}
+.skill-menu > div:last-child {
+  max-height: 280px;
+  overflow: auto;
+}
+.skill-menu label {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 15px;
+  cursor: pointer;
+}
+.skill-menu strong {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.skill-menu small {
+  display: block;
+  color: #8e8c9b;
+  line-height: 1.5;
+  font-size: 10px;
+}
+.attachment-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.a2ui-card {
+  max-width: 620px;
+  margin: 15px 0;
+  padding: 16px;
+  background: #15171d;
+  border: 1px solid #9f8be335;
+  border-radius: 12px;
+}
+.a2ui-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  font-size: 11px;
+}
+.a2ui-card header span {
+  color: #9992ad;
+}
+.a2ui-column {
+  display: flex;
+  flex-direction: column;
+}
+.a2ui-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.a2ui-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.a2ui-control > .button {
+  align-self: flex-start;
+  white-space: normal;
+  text-align: left;
+}
+.a2ui-control label {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.a2ui-control input:not([type="checkbox"]):not([type="color"]),
+.a2ui-control select {
+  width: 100%;
+  border-radius: 6px;
+  padding: 9px;
+  color: #ddd8e7;
+  background: #23242b;
+  border: 1px solid #ffffff12;
+}
+.a2ui-control input[type="checkbox"] {
+  accent-color: #8d77ed;
+}
+.a2ui-control input[type="range"] {
+  accent-color: #8d77ed;
+  padding: 0 !important;
+}
+.a2ui-card p {
+  margin: 0;
+}
+.a2ui-card footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  border-top: 1px solid #ffffff0b;
+  padding-top: 12px;
+}
+.a2ui-card footer .button {
+  font-size: 10px;
+  padding: 7px 9px;
+}
+.a2ui-color input {
+  width: 42px;
+  height: 30px;
+  border: none;
+  background: none;
+}
+.field-error {
+  display: block;
+  font-size: 10px;
+  color: #edac9c;
+  padding: 5px 0;
+  overflow-wrap: anywhere;
+}
+.agent-usage {
+  padding: 5px 18px;
+  color: #7d7988;
+  font-size: 9px;
+}
+.tool-event {
+  font-size: 10px;
+  padding: 7px 0;
+  color: #a7a0b5;
+}
+.tool-event summary {
+  cursor: pointer;
+}
+.agent-plan {
+  padding: 12px 8px;
+  list-style: none;
+  background: #9282d90b;
+  border-radius: 8px;
+}
+.agent-plan li {
+  display: flex;
+  align-items: start;
+  gap: 9px;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #9992a6;
+}
+.agent-plan li.running {
+  color: #c3b3fb;
+}
+.agent-plan li.done {
+  color: #8bbda0;
+}
+.tool-permission {
+  border: 1px solid #caaa6a45;
+  background: #caaa6a10;
+  padding: 14px;
+  margin: 10px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+.tool-permission code {
+  display: block;
+  margin: 8px 0;
+}
+.tool-permission pre {
+  max-height: 110px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.tool-permission > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.tool-permission .button {
+  font-size: 10px;
+}
+.section-assistant .assistant-panel {
+  overflow: visible;
+}
+.section-assistant .conversation {
+  padding-left: clamp(16px, 5vw, 62px);
+  padding-right: clamp(16px, 5vw, 62px);
+}
+.assistant-panel {
+  overflow: visible;
+}
+.section-editor .assistant-panel:not(.collapsed) {
+  min-height: min(390px, calc(100% - 44px));
+  max-height: calc(100% - 44px);
+  bottom: 22px;
+}
+.assistant-panel .composer {
+  overflow: visible;
+  position: relative;
+}
+.assistant-panel .composer textarea {
+  border-radius: 11px 11px 0 0;
+}
+.file-tabs {
+  overflow-x: auto;
+}
+.file-tabs > button {
+  flex-shrink: 0;
+}
+.section-cover {
+  position: absolute;
+  inset: 0;
+  background: #131416;
+  z-index: 1;
+}
+.project-overview {
+  position: relative;
+  z-index: 2;
+}

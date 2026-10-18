@@ -4,6 +4,14 @@ import Testing
 
 @Suite("Studio portable projects")
 struct StudioDocumentTests {
+    @Test func agentProjectSourcePaths() {
+        for path in ["AGENTS.md", "DESIGN.md", "PLAN.md", "PROGRESS.md", "Docs/Context.txt", "Tests/Rules.ada", ".ada/skills/my-game/SKILL.md", "Assets/Generated/Tree.vox"] {
+            #expect(StudioSnapshot.validPath(path))
+        }
+        for path in [".ada/skills/my-game/run.sh", ".ada/skills/../SKILL.md", "Docs/run.exe", ".ada/credentials.md"] {
+            #expect(!StudioSnapshot.validPath(path))
+        }
+    }
     @Test func standardZIPChecksum() { #expect(StudioArchive.crc32(Data("123456789".utf8)) == 0xcbf43926) }
     @Test func importsDeflatedZIP() throws {
         // Produced by Python zipfile, independently of the Studio ZIP writer.
