@@ -283,6 +283,9 @@ extension EditorViewModel {
         if fileExtension == "particles" {
             return .particleEffect
         }
+        if fileExtension == "spriteanim" {
+            return .spriteAnimation
+        }
         switch kind {
         case .image:
             return .image
@@ -328,6 +331,15 @@ extension EditorViewModel {
                 let reference = assetReference(for: item.relativePath, assetsRoot: assetsRoot),
                 let absolutePath = absoluteFilePath(from: item.id) else { return nil }
             return .init(name: item.title, reference: reference, absolutePath: absolutePath)
+        }
+    }
+
+    static func spriteAnimationAssets(from items: [EditorProjectSidebarViewModel.Item]) -> [EditorInspectorSidebarViewModel.TextureAsset] {
+        items.compactMap { item in
+            guard URL(fileURLWithPath: item.title).pathExtension.lowercased() == "spriteanim",
+                let root = item.assetRoot, let reference = assetReference(for: item.relativePath, assetsRoot: root),
+                let absolute = absoluteFilePath(from: item.id) else { return nil }
+            return .init(name: item.title, reference: reference, absolutePath: absolute)
         }
     }
 
@@ -398,6 +410,7 @@ extension EditorViewModel {
         inspectorSidebar.textureAssets = Self.textureAssets(from: projectSidebar.items)
         inspectorSidebar.tileMapAssets = Self.tileMapAssets(from: projectSidebar.items)
         inspectorSidebar.particleEffectAssets = Self.particleEffectAssets(from: projectSidebar.items)
+        inspectorSidebar.spriteAnimationAssets = Self.spriteAnimationAssets(from: projectSidebar.items)
         inspectorSidebar.modelAssets = Self.modelAssets(from: projectSidebar.items)
         inspectorSidebar.spineAssets = projectSidebar.items.compactMap { item in
             guard !item.isFolder, EditorSpineResource.extensions.contains(URL(fileURLWithPath: item.title).pathExtension.lowercased()),

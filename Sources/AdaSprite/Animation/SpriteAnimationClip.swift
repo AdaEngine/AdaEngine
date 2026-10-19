@@ -85,8 +85,8 @@ public struct SpriteAnimationClip: Codable, Sendable, Equatable {
         columns: Range<Int>,
         framesPerSecond: Float = 12,
         playbackMode: SpriteAnimationPlaybackMode = .loop
-    ) -> SpriteAnimationClip {
-        SpriteAnimationClip(
+    ) -> Self {
+        Self(
             name: name,
             frames: columns.map { SpriteAnimationFrame(atlasCoordinates: PointInt(x: $0, y: row)) },
             framesPerSecond: framesPerSecond,
