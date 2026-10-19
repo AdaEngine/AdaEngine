@@ -100,6 +100,14 @@ enum EditorSceneFileLoader {
             }
             resolvedPayload["effect"] = .string(url.path)
         }
+        if typeName == EditorBuiltInComponentType.spriteAnimator,
+            let reference = payload["animations"]?.stringValue, !reference.isEmpty {
+            guard let url = resolveTileMapReference(reference, relativeTo: sourceURL, resourceRootURL: resourceRootURL, fileExtension: "spriteanim"),
+                url.pathExtension.lowercased() == "spriteanim" else {
+                throw AssetError.message("Sprite animation must be a .spriteanim resource inside project assets.")
+            }
+            resolvedPayload["animations"] = .string(url.path)
+        }
         if typeName == EditorBuiltInComponentType.environment3D,
             let reference = payload["imageBasedLightingSource"]?.stringValue, reference.hasPrefix("@res://"), let resourceRootURL {
             let url = resourceRootURL.appendingPathComponent(String(reference.dropFirst(7))).resolvingSymlinksInPath().standardizedFileURL

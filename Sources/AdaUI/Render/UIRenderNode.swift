@@ -89,10 +89,27 @@ public struct UIRenderNode: RenderNode {
                 return
             }
 
-            guard let texture = target.mainTexture else {
+            guard let mainTexture = target.mainTexture else {
                 return
             }
             let targetWindowId = camera.targetWindowId(from: primaryWindowId)
+
+            // A pixel-perfect camera drew its scene at a low resolution. The UI is not part of that picture: the scene is
+            // scaled into a picture of the output's size first, and the UI is drawn onto it at full resolution.
+            var texture: RenderTexture = mainTexture
+            var uiViewport = camera.viewport.rect
+            var pixelPerfectPresent: (layout: PixelPerfectLayout, settings: PixelPerfectSettings, pictures: PixelPerfectPictures, pipelines: PixelPerfectPipelines)?
+            if
+                let settings = target.pixelPerfect,
+                let output = target.outputTexture,
+                let pipelines = context.world.getResource(PixelPerfectPipelines.self),
+                let pictures = context.world.getResource(PixelPerfectPictures.self),
+                let layout = PixelPerfectLayout(settings: settings, outputSize: Size(width: Float(output.width), height: Float(output.height)))
+            {
+                texture = pictures.picture(for: source.entityId, size: SizeInt(width: output.width, height: output.height))
+                uiViewport = Rect(x: 0, y: 0, width: Float(texture.width), height: Float(texture.height))
+                pixelPerfectPresent = (layout, settings, pictures, pipelines)
+            }
 
             let texWidth = texture.width
             let texHeight = texture.height
@@ -117,8 +134,22 @@ public struct UIRenderNode: RenderNode {
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
             commandBuffer.label = "UI Render + Glass Capture"
 
+            if let present = pixelPerfectPresent {
+                PixelPerfectPresenter.present(
+                    source: mainTexture,
+                    into: texture,
+                    layout: present.layout,
+                    letterboxColor: present.settings.letterboxColor,
+                    pipeline: present.pipelines.intermediate,
+                    sampler: present.pipelines.sampler,
+                    commandBuffer: commandBuffer,
+                    label: "Pixel Perfect Scene"
+                )
+                present.pictures.markComposed(source.entityId)
+            }
+
             // Get viewport size
-            let viewportSize = camera.viewport.rect.size
+            let viewportSize = uiViewport.size
             let logicalViewportSize = camera.logicalViewport.rect.size
             let effectiveScaleFactor: Float
             if logicalViewportSize.width > 0 {
@@ -168,7 +199,7 @@ public struct UIRenderNode: RenderNode {
                 }
                 let region = GlassBackgroundCapture.region(
                     vertices: drawData.glassVertexBuffer.elements,
-                    viewport: camera.viewport.rect,
+                    viewport: uiViewport,
                     scaleFactor: effectiveScaleFactor,
                     textureSize: SizeInt(width: texWidth, height: texHeight)
                 )
@@ -206,7 +237,7 @@ public struct UIRenderNode: RenderNode {
                 if renderPass == nil {
                     let activePass = commandBuffer.beginRenderPass(uiRenderPassDescriptor)
                     activePass.setVertexBuffer(viewConstants, offset: 0, slot: GlobalBufferIndex.viewUniform)
-                    activePass.setViewport(camera.viewport.rect)
+                    activePass.setViewport(uiViewport)
                     renderPass = activePass
                 }
 

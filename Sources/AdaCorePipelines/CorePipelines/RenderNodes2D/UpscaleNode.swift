@@ -33,6 +33,18 @@ public struct UpscaleNode: RenderNode {
             return []
         }
 
+        if let settings = target.pixelPerfect, let mainTexture = target.mainTexture, let outputTexture = target.outputTexture {
+            presentPixelPerfect(
+                settings: settings,
+                main: mainTexture,
+                output: outputTexture,
+                view: viewEntity.id,
+                world: context.world,
+                renderContext: renderContext
+            )
+            return []
+        }
+
         if let mainTexture = target.mainTexture,
             let outputTexture = target.outputTexture,
             mainTexture !== outputTexture {
@@ -93,5 +105,54 @@ public struct UpscaleNode: RenderNode {
         }
 
         return []
+    }
+
+    /// Presents a pixel-perfect camera: the UI node has already composed a full-resolution picture, or this node
+    /// scales the low-resolution scene itself.
+    private func presentPixelPerfect(
+        settings: PixelPerfectSettings,
+        main: RenderTexture,
+        output: RenderTexture,
+        view: Entity.ID,
+        world: World,
+        renderContext: RenderContext
+    ) {
+        guard
+            let pipelines = world.getResource(PixelPerfectPipelines.self),
+            let pictures = world.getResource(PixelPerfectPictures.self),
+            let source = world.get(ExtractedCameraSource.self, from: view)?.entityId
+        else {
+            return
+        }
+        pictures.advanceFrame()
+        let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
+        commandBuffer.label = "Pixel Perfect Present"
+        if let picture = pictures.takeComposed(source) {
+            PixelPerfectPresenter.copy(
+                source: picture,
+                into: output,
+                pipeline: pipelines.output,
+                sampler: pipelines.sampler,
+                commandBuffer: commandBuffer,
+                label: "Pixel Perfect Copy"
+            )
+        } else if let layout = PixelPerfectLayout(settings: settings, outputSize: Size(width: Float(output.width), height: Float(output.height))) {
+            PixelPerfectPresenter.present(
+                source: main,
+                into: output,
+                layout: layout,
+                letterboxColor: settings.letterboxColor,
+                pipeline: pipelines.output,
+                sampler: pipelines.sampler,
+                commandBuffer: commandBuffer,
+                label: "Pixel Perfect Present"
+            )
+        } else {
+            return
+        }
+        commandBuffer.addCompletedHandler { [output] in
+            output.notifyRenderCompleted()
+        }
+        commandBuffer.commit()
     }
 }

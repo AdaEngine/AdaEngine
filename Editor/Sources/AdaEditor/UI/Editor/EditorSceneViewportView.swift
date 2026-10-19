@@ -195,7 +195,9 @@ struct EditorSceneViewportView: View {
     @MainActor
     static func uiProjectRoot(from resourceRoot: URL) -> URL {
         var candidate = resourceRoot
-        while candidate != candidate.deletingLastPathComponent() {
+        // Foundation maps the parent of "/" to "/../", so comparing with the parent never ends the walk
+        // for a project that has no marker file in any ancestor (a temporary folder, for example).
+        while candidate.standardizedFileURL.pathComponents.count > 1 {
             if FileManager.default.fileExists(atPath: candidate.appendingPathComponent(".ada/project.json").path)
                 || FileManager.default.fileExists(atPath: candidate.appendingPathComponent("Package.swift").path) {
                 return candidate
@@ -232,6 +234,8 @@ struct EditorSceneViewportView: View {
         app.addPlugin(SpinePlugin())
         app.addPlugin(TextPlugin())
         app.addPlugin(ScenePlugin())
+        // The editing camera is the editor's own; scene cameras are only driven while the scene plays.
+        if isPlayingThisDocument { app.addPlugin(Camera2DControllerPlugin()) }
         Self.configureSimulation(in: app, isPlaying: isPlayingThisDocument)
         app.addPlugin(TileMapPlugin())
         app.addPlugin(Core2DPlugin())

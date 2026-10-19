@@ -117,6 +117,10 @@ public struct Camera: Sendable {
     /// Opt-in temporal reconstruction for 3D cameras. Increment resetGeneration after a camera cut.
     public var temporalUpscaling: TemporalUpscalingSettings?
 
+    /// Opt-in fixed-resolution rendering for pixel art, presented with a whole-number scale and nearest sampling.
+    /// Not combined with temporal upscaling or foveation; those take precedence when set.
+    public var pixelPerfect: PixelPerfectSettings?
+
     /// Enables temporal reconstruction at 75 percent input scale through component reflection.
     public var temporalUpscalingEnabled: Bool {
         get { temporalUpscaling != nil }
@@ -177,7 +181,7 @@ extension Camera {
 
     /// Return point from viewport to 2D world.
     public func viewportToWorld2D(cameraGlobalTransform: Transform3D, viewportPosition: Vector2) -> Vector2? {
-        let ndc = viewportPosition * 2 / logicalViewport.rect.size.asVector2 - Vector2.one
+        let ndc = self.ndc(forViewportPoint: viewportPosition)
         let worldPlane = self.ndcToWorld(cameraGlobalTransform: cameraGlobalTransform, ndc: Vector3(ndc, 1))
 
         return worldPlane.xy
@@ -185,7 +189,7 @@ extension Camera {
 
     /// Return ray from viewport to world. More prefer for 3D space.
     public func viewportToWorld(cameraGlobalTransform: Transform3D, point: Vector2) -> Ray? {
-        let ndc = point * 2 / logicalViewport.rect.size.asVector2 - Vector2.one
+        let ndc = self.ndc(forViewportPoint: point)
         let ndcToWorld = cameraGlobalTransform * self.computedData.projectionMatrix.inverse
 
         let worldPlaneNear = ndcToWorld * Vector4(Vector3(ndc, 0), 1)
@@ -241,6 +245,8 @@ extension Camera {
         public var frustum: Frustum = .defaultValue
         /// The target scale factor.
         public var targetScaleFactor: Float = 1
+        /// The size the projection was last built for, so it is rebuilt when a pixel-perfect setting changes.
+        public var projectionViewportSize: Size = .zero
     }
 }
 

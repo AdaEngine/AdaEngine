@@ -365,7 +365,7 @@ extension EditorCenterWorkbench {
             return document.language == .swift ? "\u{E86F}" : "\u{E873}"
         case .asset(let document):
             switch document.kind {
-            case .particleEffect, .atlas,
+            case .particleEffect, .spriteAnimation, .atlas,
                 .tileSource,
                 .tileMap:
                 return "\u{E8F1}"
@@ -404,7 +404,7 @@ extension EditorCenterWorkbench {
             return theme.editorColors.blue
         case .asset(let document):
             switch document.kind {
-            case .particleEffect, .atlas,
+            case .particleEffect, .spriteAnimation, .atlas,
                 .tileSource,
                 .tileMap:
                 return theme.editorColors.blue
@@ -453,6 +453,9 @@ extension EditorCenterWorkbench {
         switch document.kind {
         case .particleEffect:
             EditorParticleEffectAssetEditor(document: document, model: viewModel.particleEffectModel(for: document), workbench: viewModel)
+                .id(document.id)
+        case .spriteAnimation:
+            EditorSpriteAnimationAssetEditor(document: document, model: viewModel.spriteAnimationModel(for: document), workbench: viewModel)
                 .id(document.id)
         case .spine2D:
             EditorSpineAssetPreview(document: document, workbench: viewModel).id(document.id)

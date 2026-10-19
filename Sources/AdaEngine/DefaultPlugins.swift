@@ -42,6 +42,7 @@ public struct DefaultPlugins: Plugin {
         insertPlugin(Mesh2DPlugin(), into: &plugins)
         insertPlugin(TextPlugin(), into: &plugins)
         insertPlugin(ScenePlugin(), into: &plugins)
+        insertPlugin(Camera2DControllerPlugin(), into: &plugins)
         insertPlugin(ScriptableObjectPlugin(), into: &plugins)
         insertPlugin(AudioPlugin(), into: &plugins)
         insertPlugin(WindowPlugin(), into: &plugins)
