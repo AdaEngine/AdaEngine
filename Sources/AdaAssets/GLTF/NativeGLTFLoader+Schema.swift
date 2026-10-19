@@ -9,6 +9,7 @@ extension NativeGLTFLoader {
         case invalidSkinningAttributes
         case unsupportedJointSet(Int)
         case invalidAnimation(Int)
+        case invalidMorphTargets(Int)
         case unsupportedAnimationPath(String)
         case invalidGLB
         case missingJSONChunk
@@ -77,10 +78,19 @@ extension NativeGLTFLoader {
                 let indices: Int?
                 let material: Int?
                 let mode: Int?
+                /// Morph targets: per target, the accessor of each displaced attribute (POSITION, NORMAL, TANGENT).
+                let targets: [[String: Int]]?
+            }
+
+            /// Application data glTF leaves open; `targetNames` is the widely used convention for naming morph targets.
+            struct Extras: Codable {
+                let targetNames: [String]?
             }
 
             let name: String?
             let primitives: [Primitive]
+            let weights: [Float]?
+            let extras: Extras?
         }
 
         struct TextureExtensions: Codable {
@@ -203,6 +213,7 @@ extension NativeGLTFLoader {
             let mesh: Int?
             let camera: Int?
             let skin: Int?
+            let weights: [Float]?
         }
 
         struct Skin: Codable {

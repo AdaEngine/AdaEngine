@@ -24,8 +24,19 @@ public struct GLTFImportResult: Sendable {
         public let skinIndex: Int?
         /// Authored local TRS; nil for nodes authored with a matrix.
         public let restPose: NodeTRS?
+        /// Morph target weights of this node's mesh instance; they replace the mesh's default weights.
+        public let weights: [Float]?
 
-        public init(name: String?, transform: Transform3D, children: [Int], meshIndex: Int?, skinIndex: Int? = nil, restPose: NodeTRS? = nil) {
+        public init(
+            name: String?,
+            transform: Transform3D,
+            children: [Int],
+            meshIndex: Int?,
+            skinIndex: Int? = nil,
+            restPose: NodeTRS? = nil,
+            weights: [Float]? = nil
+        ) {
+            self.weights = weights
             self.name = name
             self.transform = transform
             self.children = children
@@ -35,13 +46,36 @@ public struct GLTFImportResult: Sendable {
         }
     }
 
+    /// Per-vertex displacement of one morph target of a primitive. A target that leaves an attribute alone has an empty
+    /// array for it; otherwise each array has one entry per vertex. Tangent deltas are directions only (xyz).
+    public struct MorphTarget: Sendable, Equatable {
+        public let positionDeltas: [Vector3]
+        public let normalDeltas: [Vector3]
+        public let tangentDeltas: [Vector3]
+
+        public init(positionDeltas: [Vector3] = [], normalDeltas: [Vector3] = [], tangentDeltas: [Vector3] = []) {
+            self.positionDeltas = positionDeltas
+            self.normalDeltas = normalDeltas
+            self.tangentDeltas = tangentDeltas
+        }
+    }
+
     public struct Mesh: Sendable {
         public let name: String?
         public let primitives: [Primitive]
+        /// Default morph target weights, one per target; empty when the mesh has no morph targets.
+        public let defaultWeights: [Float]
+        /// Morph target names (from `extras.targetNames`); empty or one per target.
+        public let targetNames: [String]
 
-        public init(name: String?, primitives: [Primitive]) {
+        /// Number of morph targets every primitive of this mesh has.
+        public var morphTargetCount: Int { primitives.first?.morphTargets.count ?? 0 }
+
+        public init(name: String?, primitives: [Primitive], defaultWeights: [Float] = [], targetNames: [String] = []) {
             self.name = name
             self.primitives = primitives
+            self.defaultWeights = defaultWeights
+            self.targetNames = targetNames
         }
     }
 
@@ -51,8 +85,18 @@ public struct GLTFImportResult: Sendable {
         public let materialIndex: Int?
         public let mode: PrimitiveMode
         public let skinning: Skinning?
+        /// Morph targets of this primitive, in target order.
+        public let morphTargets: [MorphTarget]
 
-        public init(attributes: [Attribute: Accessor], indices: [UInt32]?, materialIndex: Int?, mode: PrimitiveMode, skinning: Skinning? = nil) {
+        public init(
+            attributes: [Attribute: Accessor],
+            indices: [UInt32]?,
+            materialIndex: Int?,
+            mode: PrimitiveMode,
+            skinning: Skinning? = nil,
+            morphTargets: [MorphTarget] = []
+        ) {
+            self.morphTargets = morphTargets
             self.attributes = attributes
             self.indices = indices
             self.materialIndex = materialIndex

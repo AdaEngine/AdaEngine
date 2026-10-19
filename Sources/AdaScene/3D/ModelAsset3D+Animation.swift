@@ -19,13 +19,15 @@ extension ModelAsset3D {
 
     static func makeClips(_ clips: [GLTFImportResult.Animation]) throws -> [SkeletalAnimationClip] {
         try clips.enumerated().map { index, clip in
-            let tracks = try clip.channels.map { channel in
+            // Morph weight channels are not pose tracks; they are played by the morph runtime, not by skeletal poses.
+            let tracks = try clip.channels.filter { $0.path != .weights }.map { channel in
                 let sampler = clip.samplers[channel.samplerIndex]
                 let path: SkeletalAnimationTrack.Path
                 switch channel.path {
                 case .translation: path = .translation
                 case .rotation: path = .rotation
                 case .scale: path = .scale
+                case .weights: preconditionFailure("Weight channels are filtered out above.")
                 }
                 let interpolation: SkeletalAnimationTrack.Interpolation
                 switch sampler.interpolation {

@@ -55,13 +55,20 @@ extension NativeGLTFLoader {
                 restPose = pose
                 transform = pose.matrix
             }
+            if let weights = node.weights {
+                // Node weights override the mesh's; there must be one per target of the node's mesh.
+                guard weights.count == morphTargetCount(ofNode: node, in: gltf), !weights.isEmpty, weights.allSatisfy(\.isFinite) else {
+                    throw GLTFError.invalidNode(index)
+                }
+            }
             return GLTFImportResult.Node(
                 name: node.name,
                 transform: transform,
                 children: node.children ?? [],
                 meshIndex: node.mesh,
                 skinIndex: node.skin,
-                restPose: restPose
+                restPose: restPose,
+                weights: node.weights
             )
         }
     }
