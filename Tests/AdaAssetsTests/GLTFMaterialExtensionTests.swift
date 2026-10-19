@@ -103,15 +103,6 @@ struct GLTFMaterialExtensionTests {
     }
 
     @Test
-    func clearcoatTexturesAreReportedAsSkipped() throws {
-        let result = try load(
-            material: ["extensions": ["KHR_materials_clearcoat": ["clearcoatFactor": 1, "clearcoatNormalTexture": ["index": 0]]]],
-            used: ["KHR_materials_clearcoat"]
-        )
-        #expect(result.warnings.count == 1 && result.warnings[0].contains("KHR_materials_clearcoat") && result.warnings[0].contains("Material 0"))
-    }
-
-    @Test
     func importsSheenAndAnisotropy() throws {
         let material = try #require(load(material: ["extensions": [
             "KHR_materials_sheen": ["sheenColorFactor": [0.9, 0.5, 0.2], "sheenRoughnessFactor": 0.4],
@@ -137,13 +128,43 @@ struct GLTFMaterialExtensionTests {
     }
 
     @Test
-    func sheenAndAnisotropyTexturesAreReportedAsSkipped() throws {
+    func importsEveryLayerTextureWithItsOwnUVSetAndTransform() throws {
+        func reference(_ values: [String: Any] = [:]) -> [String: Any] { ["index": 0].merging(values) { $1 } }
         let result = try load(material: ["extensions": [
-            "KHR_materials_sheen": ["sheenColorTexture": ["index": 0]],
-            "KHR_materials_anisotropy": ["anisotropyTexture": ["index": 0]],
-        ]], used: ["KHR_materials_sheen", "KHR_materials_anisotropy"])
-        #expect(result.warnings.count == 2)
-        #expect(result.warnings.contains { $0.contains("KHR_materials_sheen") } && result.warnings.contains { $0.contains("KHR_materials_anisotropy") })
+            "KHR_materials_clearcoat": [
+                "clearcoatFactor": 1,
+                "clearcoatTexture": reference(),
+                "clearcoatRoughnessTexture": reference(["texCoord": 1]),
+                "clearcoatNormalTexture": reference(["scale": 0.4]),
+            ],
+            "KHR_materials_sheen": ["sheenColorTexture": reference(), "sheenRoughnessTexture": reference()],
+            "KHR_materials_anisotropy": ["anisotropyTexture": reference(transform(["rotation": 0.5]))],
+            "KHR_materials_specular": [
+                "specularTexture": reference(transform(["scale": [2, 3], "texCoord": 1])),
+                "specularColorTexture": reference(),
+            ],
+        ]], used: ["KHR_materials_clearcoat", "KHR_materials_sheen", "KHR_materials_anisotropy", "KHR_materials_specular"])
+        let layers = try #require(result.materials.first).layerTextures
+        #expect(layers.clearcoat == .init(index: 0) && layers.sheenColor == .init(index: 0) && layers.specularColor == .init(index: 0))
+        #expect(layers.clearcoatRoughness?.texCoord == 1 && layers.clearcoatNormal?.scale == 0.4)
+        #expect(layers.anisotropy?.transform.rotation == 0.5)
+        #expect(layers.specular?.transform.scale == Vector2(2, 3), "A texture transform applies to a layer texture.")
+        #expect(layers.specular?.texCoord == 1, "A texture transform can pick the UV set for a layer texture.")
+        #expect(layers.sheenRoughness != nil)
+        #expect(result.warnings.isEmpty, "Supported layer textures must not be reported as skipped.")
+        let plain = try #require(load(material: [:]).materials.first)
+        #expect(plain.layerTextures == .init())
+    }
+
+    @Test(arguments: [
+        #"{"KHR_materials_clearcoat":{"clearcoatTexture":{"index":9}}}"#,
+        #"{"KHR_materials_sheen":{"sheenColorTexture":{"index":0,"texCoord":2}}}"#,
+        #"{"KHR_materials_specular":{"specularTexture":{"index":0,"extensions":{"KHR_texture_transform":{"offset":[1]}}}}}"#,
+        #"{"KHR_materials_anisotropy":{"anisotropyTexture":{"index":-1}}}"#,
+    ])
+    func rejectsLayerTexturesThatCannotBeRead(json: String) throws {
+        let extensions = try object(json)
+        #expect(throws: NativeGLTFLoader.GLTFError.invalidMaterial(0)) { try load(material: ["extensions": extensions]) }
     }
 
     @Test
@@ -158,12 +179,6 @@ struct GLTFMaterialExtensionTests {
         #expect(throws: NativeGLTFLoader.GLTFError.unsupportedRequiredExtension("KHR_materials_transmission")) {
             try load(material: [:], used: ["KHR_materials_transmission"], required: ["KHR_materials_transmission"])
         }
-    }
-
-    @Test
-    func specularTexturesAreReportedAsSkipped() throws {
-        let result = try load(material: ["extensions": ["KHR_materials_specular": ["specularTexture": ["index": 0]]]])
-        #expect(result.warnings.contains { $0.contains("Material 0") && $0.contains("texture") })
     }
 
     @Test

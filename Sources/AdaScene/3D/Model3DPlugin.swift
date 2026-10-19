@@ -217,6 +217,16 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
         let normalTexture = pbrMaterial?.normalTexture ?? Self.flatNormalTexture
         let emissiveTexture = pbrMaterial?.emissiveTexture ?? Texture2D.whiteTexture
         let heightTexture = pbrMaterial?.heightTexture ?? Texture2D.whiteTexture
+        // The main shader variant declares exactly the layer textures the material has (see PBRMaterial.shaderFeatures).
+        var layerBindings: [RenderResourceSet.Binding] = []
+        if !isMotion, let pbrMaterial {
+            let features = pbrMaterial.shaderFeatures
+            for kind in PBRLayerTexture.allCases where features.contains(kind.feature) {
+                if let layer = pbrMaterial.layerTextures[kind] {
+                    layerBindings.append(.init(binding: kind.binding, shaderStages: .fragment, resource: .texture(layer.texture)))
+                }
+            }
+        }
 
         if isMotion {
             let previous = world.getResource(Skinning3DUniforms.self)?.previousBuffer(for: item.entity) ?? palette
@@ -241,7 +251,7 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
                     .init(binding: 12, shaderStages: .fragment, resource: .texture(emissiveTexture)),
                     .init(binding: 13, shaderStages: .fragment, resource: .sampler(emissiveTexture.sampler)),
                     .init(binding: 17, shaderStages: .fragment, resource: .texture(heightTexture)),
-                ]
+                ] + layerBindings
             ),
             index: 0
         )

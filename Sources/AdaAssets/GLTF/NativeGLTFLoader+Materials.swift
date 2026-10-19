@@ -47,6 +47,31 @@ extension NativeGLTFLoader {
         return offset.count == 2 && scale.count == 2 && values.allSatisfy { $0.isFinite }
     }
 
+    /// Reads one extension texture reference. Returns `.absent` when there is none and `.invalid` when its index, UV set or
+    /// transform cannot be used.
+    private enum LayerReference {
+        case absent
+        case invalid
+        case value(GLTFImportResult.TextureReference)
+    }
+
+    private func layerReference(_ reference: GLTF.Material.Extensions.TextureReference?, textureCount: Int) -> LayerReference {
+        guard let reference else { return .absent }
+        let transformInfo = reference.extensions?.KHR_texture_transform
+        let texCoord = transformInfo?.texCoord ?? reference.texCoord ?? 0
+        let scale: Float = reference.scale ?? 1
+        guard reference.index >= 0, reference.index < textureCount, texCoord == 0 || texCoord == 1, scale.isFinite, isValid(transformInfo) else {
+            return .invalid
+        }
+        var transform = GLTFImportResult.TextureTransform.identity
+        if let transformInfo {
+            let offset: [Float] = transformInfo.offset ?? [0, 0]
+            let scaling: [Float] = transformInfo.scale ?? [1, 1]
+            transform = .init(offset: Vector2(offset[0], offset[1]), rotation: transformInfo.rotation ?? 0, scale: Vector2(scaling[0], scaling[1]))
+        }
+        return .value(.init(index: reference.index, texCoord: texCoord, transform: transform, scale: scale))
+    }
+
     private func importMaterial(_ material: GLTF.Material, index: Int, textureCount: Int) throws -> GLTFImportResult.Material {
         let pbr = material.pbrMetallicRoughness
         let base: [Float] = pbr?.baseColorFactor ?? [1, 1, 1, 1]
@@ -92,6 +117,27 @@ extension NativeGLTFLoader {
         let sheenColor: [Float] = sheen?.sheenColorFactor ?? [0, 0, 0]
         let sheenRoughness: Float = sheen?.sheenRoughnessFactor ?? 0
         let anisotropy = material.extensions?.KHR_materials_anisotropy
+        let layerInputs: [LayerReference] = [
+            layerReference(coat?.clearcoatTexture, textureCount: textureCount),
+            layerReference(coat?.clearcoatRoughnessTexture, textureCount: textureCount),
+            layerReference(coat?.clearcoatNormalTexture, textureCount: textureCount),
+            layerReference(sheen?.sheenColorTexture, textureCount: textureCount),
+            layerReference(sheen?.sheenRoughnessTexture, textureCount: textureCount),
+            layerReference(material.extensions?.KHR_materials_anisotropy?.anisotropyTexture, textureCount: textureCount),
+            layerReference(material.extensions?.KHR_materials_specular?.specularTexture, textureCount: textureCount),
+            layerReference(material.extensions?.KHR_materials_specular?.specularColorTexture, textureCount: textureCount),
+        ]
+        var layerValues: [GLTFImportResult.TextureReference?] = []
+        var layerTexturesAreValid = true
+        for input in layerInputs {
+            switch input {
+            case .absent: layerValues.append(nil)
+            case .invalid:
+                layerTexturesAreValid = false
+                layerValues.append(nil)
+            case let .value(value): layerValues.append(value)
+            }
+        }
         let anisotropyStrength: Float = anisotropy?.anisotropyStrength ?? 0
         let anisotropyRotation: Float = anisotropy?.anisotropyRotation ?? 0
         let textures: [Int?] = [
@@ -112,7 +158,7 @@ extension NativeGLTFLoader {
         let anisotropyIsValid = anisotropyStrength.isFinite && anisotropyStrength >= 0 && anisotropyStrength <= 1 && anisotropyRotation.isFinite
         let specularIsValid = ior.isFinite && ior >= 1 && ior <= 100 && specularFactor.isFinite && specularFactor >= 0
             && specularColor.count == 3 && specularColor.allSatisfy { $0.isFinite && $0 >= 0 }
-        guard factorsAreValid, scalarsAreValid, specularIsValid, coatIsValid, sheenIsValid, anisotropyIsValid, texturesExist, transformsAreValid,
+        guard factorsAreValid, scalarsAreValid, specularIsValid, coatIsValid, sheenIsValid, anisotropyIsValid, layerTexturesAreValid, texturesExist, transformsAreValid,
               coordinates.allSatisfy({ $0 == 0 || $0 == 1 }),
               let alpha = GLTFImportResult.AlphaMode(rawValue: material.alphaMode ?? "OPAQUE")
         else { throw GLTFError.invalidMaterial(index) }
@@ -143,7 +189,17 @@ extension NativeGLTFLoader {
             sheenColorFactor: Vector3(sheenColor[0], sheenColor[1], sheenColor[2]),
             sheenRoughnessFactor: sheenRoughness,
             anisotropyStrength: anisotropyStrength,
-            anisotropyRotation: anisotropyRotation
+            anisotropyRotation: anisotropyRotation,
+            layerTextures: GLTFImportResult.LayerTextures(
+                clearcoat: layerValues[0],
+                clearcoatRoughness: layerValues[1],
+                clearcoatNormal: layerValues[2],
+                sheenColor: layerValues[3],
+                sheenRoughness: layerValues[4],
+                anisotropy: layerValues[5],
+                specular: layerValues[6],
+                specularColor: layerValues[7]
+            )
         )
     }
 }

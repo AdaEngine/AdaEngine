@@ -81,6 +81,26 @@ extension ModelAsset3D {
             material.normalTexture = try texture(source.normalTextureIndex, sRGB: false)
             material.occlusionTexture = try texture(source.occlusionTextureIndex, sRGB: false)
             material.emissiveTexture = try texture(source.emissiveTextureIndex, sRGB: true)
+            let layers = source.layerTextures
+            let layerSources: [(PBRLayerTexture, GLTFImportResult.TextureReference?, Bool)] = [
+                (.clearcoat, layers.clearcoat, false),
+                (.clearcoatRoughness, layers.clearcoatRoughness, false),
+                (.clearcoatNormal, layers.clearcoatNormal, false),
+                (.sheenColor, layers.sheenColor, true),
+                (.sheenRoughness, layers.sheenRoughness, false),
+                (.anisotropy, layers.anisotropy, false),
+                (.specular, layers.specular, false),
+                (.specularColor, layers.specularColor, true),
+            ]
+            for (kind, reference, isSRGB) in layerSources {
+                guard let reference, let value = try texture(reference.index, sRGB: isSRGB) else { continue }
+                material.layerTextures[kind] = PBRTextureBinding(
+                    texture: value,
+                    texCoord: reference.texCoord,
+                    transform: PBRTextureTransform(offset: reference.transform.offset, rotation: reference.transform.rotation, scale: reference.transform.scale),
+                    scale: reference.scale
+                )
+            }
             return material
         }
         return materials.isEmpty ? [PBRMaterial()] : materials

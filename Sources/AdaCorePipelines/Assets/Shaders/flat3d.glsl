@@ -147,7 +147,39 @@ layout (binding = 15) uniform PBR3DUniform {
     vec4 u_Coat;       // x clearcoat strength, y clearcoat roughness (KHR_materials_clearcoat)
     vec4 u_Sheen;      // rgb sheen color, w sheen roughness (KHR_materials_sheen)
     vec4 u_Anisotropy; // x strength, y rotation in radians (KHR_materials_anisotropy)
+    // UV set of each layer texture (clearcoat, clearcoat roughness, clearcoat normal, sheen color, sheen roughness,
+    // anisotropy, specular, specular color), and for each a row-major 2x2 matrix then an offset.
+    vec4 u_LayerSets[2];
+    vec4 u_LayerTransforms[16];
+    vec4 u_LayerParameters; // x clearcoat normal scale
 };
+
+// Layer textures exist only in the shader variants of materials that have them. They are read with the base color
+// sampler, because the main pass has no free sampler slot.
+#ifdef ADA_CLEARCOAT_TEXTURE
+layout (binding = 32) uniform texture2D u_ClearcoatTexture;
+#endif
+#ifdef ADA_CLEARCOAT_ROUGHNESS_TEXTURE
+layout (binding = 33) uniform texture2D u_ClearcoatRoughnessTexture;
+#endif
+#ifdef ADA_CLEARCOAT_NORMAL_TEXTURE
+layout (binding = 34) uniform texture2D u_ClearcoatNormalTexture;
+#endif
+#ifdef ADA_SHEEN_COLOR_TEXTURE
+layout (binding = 35) uniform texture2D u_SheenColorTexture;
+#endif
+#ifdef ADA_SHEEN_ROUGHNESS_TEXTURE
+layout (binding = 36) uniform texture2D u_SheenRoughnessTexture;
+#endif
+#ifdef ADA_ANISOTROPY_TEXTURE
+layout (binding = 37) uniform texture2D u_AnisotropyTexture;
+#endif
+#ifdef ADA_SPECULAR_TEXTURE
+layout (binding = 38) uniform texture2D u_SpecularTexture;
+#endif
+#ifdef ADA_SPECULAR_COLOR_TEXTURE
+layout (binding = 39) uniform texture2D u_SpecularColorTexture;
+#endif
 
 vec2 applyTextureTransform(vec2 uv, int slot) {
     vec4 matrix = u_TextureTransforms[slot * 2];
@@ -272,6 +304,9 @@ float coatTransmission(float normalView) {
     return 1.0 - g_Clearcoat.x * fresnelSchlick(normalView, vec3(0.04)).x;
 }
 
+// Reflectance of non-metals at normal incidence for this fragment: the material value times its specular textures.
+vec3 g_Dielectric = vec3(0.04);
+
 // Sheen layer (cloth): rgb color, w roughness. A black color turns it off.
 vec4 g_Sheen = vec4(0.0);
 // Average share of light the sheen lobe takes from the base layer. The glTF sheen albedo lookup is replaced by this constant.
@@ -310,7 +345,17 @@ vec2 materialUV(float setIndex, int slot) {
     vec2 uv = setIndex > 0.5 ? Input.TextureCoordinate1 : Input.TextureCoordinate;
     // The parallax shift lives in mesh UV space, so it applies before the texture's own transform.
     if (abs(setIndex - u_Parallax.y) < 0.5) { uv += g_ParallaxDelta; }
+
     return applyTextureTransform(uv, slot);
+}
+
+// UV of a layer texture (slot 0 to 7 in PBRLayerTexture order): its UV set, with the parallax shift, then its own transform.
+vec2 layerUV(int slot) {
+    float setIndex = u_LayerSets[slot >> 2][slot & 3];
+    vec2 uv = setIndex > 0.5 ? Input.TextureCoordinate1 : Input.TextureCoordinate;
+    if (abs(setIndex - u_Parallax.y) < 0.5) { uv += g_ParallaxDelta; }
+    vec4 matrix = u_LayerTransforms[slot * 2];
+    return vec2(dot(matrix.xy, uv), dot(matrix.zw, uv)) + u_LayerTransforms[slot * 2 + 1].xy;
 }
 
 // Ray-marches the height map along the view ray. Returns the UV shift that makes the surface appear to have depth.
@@ -380,7 +425,7 @@ vec3 environmentLighting(vec3 normal, vec3 viewDirection, vec3 baseColor, float 
     vec3 worldNormal = normalize(mat3(u_EnvironmentInverseView) * normal);
     vec3 worldView = normalize(mat3(u_EnvironmentInverseView) * viewDirection);
     float ndotv = max(dot(normal, viewDirection), 0.0);
-    vec3 f0 = mix(u_Dielectric.rgb, baseColor, metallic);
+    vec3 f0 = mix(g_Dielectric, baseColor, metallic);
     vec3 fresnel = f0 + (max(vec3(1.0 - roughness), f0) - f0) * pow(1.0 - ndotv, 5.0);
     vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
     vec3 irradiance = texture(sampler2D(u_Irradiance, u_IBLSampler), environmentUV(worldNormal)).rgb;
@@ -522,7 +567,7 @@ vec3 evaluateDirect(vec3 normal, vec3 viewDirection, vec3 lightDirection, vec3 b
     vec3 base = vec3(0.0);
     if (nl > 0.0 && nv > 0.0) {
         vec3 halfway = normalize(viewDirection + lightDirection);
-        vec3 f0 = mix(u_Dielectric.rgb, baseColor, metallic);
+        vec3 f0 = mix(g_Dielectric, baseColor, metallic);
         vec3 fresnel = fresnelSchlick(max(dot(halfway, viewDirection), 0.0), f0);
         vec3 specular;
         if (hasAnisotropy()) {
@@ -685,19 +730,59 @@ void flat3d_fragment()
 
     vec3 normal = materialNormal();
     if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { normal = -normal; }
+    // Shading layers: each factor is multiplied by its texture when the material has one.
+    g_Dielectric = u_Dielectric.rgb;
+#ifdef ADA_SPECULAR_TEXTURE
+    g_Dielectric *= texture(sampler2D(u_SpecularTexture, u_BaseColorSampler), layerUV(6)).a;
+#endif
+#ifdef ADA_SPECULAR_COLOR_TEXTURE
+    g_Dielectric *= srgbToLinear(texture(sampler2D(u_SpecularColorTexture, u_BaseColorSampler), layerUV(7)).rgb);
+#endif
+
     g_Sheen = vec4(max(u_Sheen.rgb, vec3(0.0)), clamp(u_Sheen.w, 0.07, 1.0));
+#ifdef ADA_SHEEN_COLOR_TEXTURE
+    g_Sheen.rgb *= srgbToLinear(texture(sampler2D(u_SheenColorTexture, u_BaseColorSampler), layerUV(3)).rgb);
+#endif
+#ifdef ADA_SHEEN_ROUGHNESS_TEXTURE
+    g_Sheen.w = clamp(u_Sheen.w * texture(sampler2D(u_SheenRoughnessTexture, u_BaseColorSampler), layerUV(4)).a, 0.07, 1.0);
+#endif
+
     g_Anisotropy = clamp(u_Anisotropy.x, 0.0, 1.0);
+    vec2 anisotropyDirection = vec2(1.0, 0.0);
+#ifdef ADA_ANISOTROPY_TEXTURE
+    // Red and green hold the direction in tangent space, blue scales the strength.
+    vec3 anisotropySample = texture(sampler2D(u_AnisotropyTexture, u_BaseColorSampler), layerUV(5)).rgb;
+    g_Anisotropy = clamp(g_Anisotropy * anisotropySample.b, 0.0, 1.0);
+    vec2 sampledDirection = anisotropySample.rg * 2.0 - 1.0;
+    if (dot(sampledDirection, sampledDirection) > 0.0001) { anisotropyDirection = normalize(sampledDirection); }
+#endif
     if (hasAnisotropy()) {
         bool authored = Input.TextureFlags.w > 0.5;
         vec3 tangent = authored ? Input.ViewTangent.xyz : cotangentFrame(normalize(Input.ViewNormal), Input.ViewPosition, materialUV(u_UVSets.x, 0))[0];
         tangent = normalize(tangent - normal * dot(normal, tangent));
         vec3 bitangent = normalize(cross(normal, tangent)) * (authored ? Input.ViewTangent.w : 1.0);
-        g_AnisotropyT = normalize(cos(u_Anisotropy.y) * tangent + sin(u_Anisotropy.y) * bitangent);
+        // The rotation turns the direction, whether it comes from the texture or is the tangent itself.
+        float rotationCosine = cos(u_Anisotropy.y), rotationSine = sin(u_Anisotropy.y);
+        vec2 turned = vec2(rotationCosine * anisotropyDirection.x - rotationSine * anisotropyDirection.y,
+            rotationSine * anisotropyDirection.x + rotationCosine * anisotropyDirection.y);
+        g_AnisotropyT = normalize(turned.x * tangent + turned.y * bitangent);
         g_AnisotropyB = normalize(cross(normal, g_AnisotropyT));
     }
+
     g_Clearcoat = vec2(u_Coat.x, clamp(u_Coat.y, 0.04, 1.0));
     g_CoatNormal = normalize(Input.ViewNormal);
     if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { g_CoatNormal = -g_CoatNormal; }
+#ifdef ADA_CLEARCOAT_TEXTURE
+    g_Clearcoat.x *= texture(sampler2D(u_ClearcoatTexture, u_BaseColorSampler), layerUV(0)).r;
+#endif
+#ifdef ADA_CLEARCOAT_ROUGHNESS_TEXTURE
+    g_Clearcoat.y = clamp(u_Coat.y * texture(sampler2D(u_ClearcoatRoughnessTexture, u_BaseColorSampler), layerUV(1)).g, 0.04, 1.0);
+#endif
+#ifdef ADA_CLEARCOAT_NORMAL_TEXTURE
+    vec3 coatTangentNormal = texture(sampler2D(u_ClearcoatNormalTexture, u_BaseColorSampler), layerUV(2)).xyz * 2.0 - 1.0;
+    coatTangentNormal.xy *= u_LayerParameters.x;
+    g_CoatNormal = normalize(cotangentFrame(g_CoatNormal, Input.ViewPosition, layerUV(2)) * coatTangentNormal);
+#endif
     vec3 viewDirection = normalize(-Input.ViewPosition);
     vec3 lightDirection = normalize(u_LightDirectionIntensity.xyz);
     gl_FragDepth = gl_FragCoord.z;

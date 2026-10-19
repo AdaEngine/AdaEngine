@@ -1,7 +1,8 @@
 #if os(macOS)
+import AdaAssets
 import AdaECS
 @_spi(Internal) import AdaRender
-import AdaScene
+@testable import AdaScene
 import AdaTransform
 import AdaUtils
 import Foundation
@@ -189,6 +190,18 @@ extension Render3DGPUTests {
             return gain
         }
 
+        /// The largest shift toward red (red minus blue) a frame gained over `baseline` in the middle of the frame.
+        private static func largestRedShift(_ image: Image, over baseline: Image) -> Float {
+            var shift: Float = 0
+            for y in stride(from: 130, to: 350, by: 2) {
+                for x in stride(from: 170, to: 470, by: 2) {
+                    let now = image.getPixel(x: x, y: y), before = baseline.getPixel(x: x, y: y)
+                    shift = max(shift, (now.red - now.blue) - (before.red - before.blue))
+                }
+            }
+            return shift
+        }
+
         private static func matches(_ left: Image, _ right: Image) -> Bool {
             GoldenFrame.compare(left, right, tolerance: GoldenFrame.activeTolerance).passes(GoldenFrame.activeTolerance)
         }
@@ -310,6 +323,201 @@ extension Render3DGPUTests {
             material.anisotropyStrength = 0
             material.anisotropyRotation = 0
             #expect(Self.matches(round, try await scene.render(.none)), "Zero strength must restore the round highlight.")
+        }
+
+        // MARK: Layer textures
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func layerTexturesSelectShaderFeaturesAndReachTheUniform() async throws {
+            _ = try await Render3DDebugViewGPUTests.makeScene()
+            let material = PBRMaterial()
+            // A layer texture scales its layer's factor, so without the layer it selects nothing.
+            material.layerTextures[.clearcoat] = PBRTextureBinding(texture: Self.solid(1))
+            material.layerTextures[.sheenColor] = PBRTextureBinding(texture: Self.solid(1))
+            #expect(material.shaderFeatures.isEmpty)
+            // The specular textures belong to no layer.
+            material.layerTextures[.specular] = PBRTextureBinding(texture: Self.solid(1))
+            #expect(material.shaderFeatures == PBRLayerTexture.specular.feature)
+            material.clearcoatFactor = 1
+            #expect(material.shaderFeatures == [.clearcoat, PBRLayerTexture.clearcoat.feature, PBRLayerTexture.specular.feature])
+            #expect(Set(material.shaderFeatures.enablingMacros) == ["ADA_CLEARCOAT", "ADA_CLEARCOAT_TEXTURE", "ADA_SPECULAR_TEXTURE"])
+            #expect(Set(PBRLayerTexture.allCases.map(\.feature)).count == 8 && PBRLayerTexture.allCases.map(\.binding) == Array(32...39))
+            #expect(Set(PBRLayerTexture.allCases.map(\.feature)).isDisjoint(with: [.clearcoat, .sheen, .anisotropy]))
+
+            material.layerTextures[.clearcoatNormal] = PBRTextureBinding(
+                texture: Self.solid(1), texCoord: 1, transform: PBRTextureTransform(offset: Vector2(0.5, 0), scale: Vector2(2, 2)), scale: 0.3
+            )
+            let value = PBR3DUniform(material: material, descriptor: VertexDescriptor())
+            #expect(value.layerSets0 == Vector4(0, 0, 1, 0) && value.layerSets1 == .zero)
+            #expect(value.layerTransform2.matrix == Vector4(2, 0, 0, 2) && value.layerTransform2.offset == Vector4(0.5, 0, 0, 0))
+            #expect(value.layerTransform0.matrix == Vector4(1, 0, 0, 1))
+            #expect(value.layerParameters.x == 0.3)
+            let plain = PBR3DUniform(material: PBRMaterial(), descriptor: VertexDescriptor())
+            #expect(plain.layerSets0 == .zero && plain.layerParameters.x == 1)
+            #expect(plain.bitPatterns != value.bitPatterns)
+            let revision = material.uniformRevision
+            material.layerTextures[.clearcoat] = nil
+            #expect(material.uniformRevision > revision, "Adding or removing a layer texture must refresh the shared uniform.")
+        }
+
+        private static func solid(_ red: Float, _ green: Float = 0, _ blue: Float = 0, _ alpha: Float = 1) -> Texture2D {
+            Texture2D(image: Image(width: 1, height: 1, color: Color(red: red, green: green, blue: blue, alpha: alpha)))
+        }
+
+        /// Eight texels that are black on the left half and white on the right half.
+        private static func halves() -> Texture2D {
+            var image = Image(width: 8, height: 1, color: .black)
+            for x in 4..<8 { image.setPixel(in: Point(Float(x), 0), color: .white) }
+            return Texture2D(image: image)
+        }
+
+        private static let dark: (PBRMaterial) -> Void = { $0.baseColorFactor = [0.03, 0.03, 0.03, 1]; $0.roughnessFactor = 0.9 }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func aClearcoatTextureMasksTheCoat() async throws {
+            let (scene, material) = try await Self.makeScene(Self.dark)
+            let baseline = try await scene.render(.none)
+            material.clearcoatFactor = 1
+            material.clearcoatRoughnessFactor = 0.05
+            let full = Self.largestGain(try await scene.render(.none), over: baseline)
+            var gains: [Float] = []
+            for mask: Float in [0, 0.4, 0.8] {
+                material.layerTextures[.clearcoat] = PBRTextureBinding(texture: Self.solid(mask))
+                let image = try await scene.render(.none)
+                gains.append(Self.largestGain(image, over: baseline))
+                if mask == 0 { #expect(Self.matches(baseline, image), "A black coat mask must leave the paint uncoated.") }
+            }
+            #expect(zip(gains, gains.dropFirst()).allSatisfy { $0 < $1 } && gains[2] < full, "The coat must follow its mask: \(gains) against \(full) unmasked.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func aClearcoatRoughnessTextureSetsTheCoatRoughness() async throws {
+            let (scene, material) = try await Self.makeScene(Self.dark)
+            let baseline = try await scene.render(.none)
+            material.clearcoatFactor = 1
+            material.clearcoatRoughnessFactor = 0.05
+            let glossy = Self.largestGain(try await scene.render(.none), over: baseline)
+            material.clearcoatRoughnessFactor = 1
+            let blurred = Self.largestGain(try await scene.render(.none), over: baseline)
+            material.layerTextures[.clearcoatRoughness] = PBRTextureBinding(texture: Self.solid(0, 0.05))
+            let textured = Self.largestGain(try await scene.render(.none), over: baseline)
+            #expect(textured > blurred * 1.5 && abs(textured - glossy) < glossy * 0.3, "A green texel of 0.05 must act like a roughness of 0.05 (\(textured) vs \(glossy), rough \(blurred)).")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func aClearcoatNormalTextureBendsTheCoatOnly() async throws {
+            let (scene, material) = try await Self.makeScene { $0.baseColorFactor = [0.2, 0.2, 0.2, 1]; $0.roughnessFactor = 0.6; $0.clearcoatFactor = 1; $0.clearcoatRoughnessFactor = 0.08 }
+            let smooth = try await scene.render(.none)
+            material.layerTextures[.clearcoatNormal] = PBRTextureBinding(texture: Self.solid(0.5, 0.5, 1))
+            #expect(Self.matches(smooth, try await scene.render(.none)), "A flat normal map must not change the coat.")
+            material.layerTextures[.clearcoatNormal] = PBRTextureBinding(texture: Self.solid(0.95, 0.5, 0.7))
+            #expect(!Self.matches(smooth, try await scene.render(.none)), "A tilted normal map must move the coat's highlight.")
+            material.layerTextures[.clearcoatNormal] = PBRTextureBinding(texture: Self.solid(0.95, 0.5, 0.7), scale: 0)
+            #expect(Self.matches(smooth, try await scene.render(.none)), "A normal scale of zero must flatten the map.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func sheenTexturesScaleTheirFactors() async throws {
+            let (scene, material) = try await Self.makeScene(Self.dark)
+            let baseline = try await scene.render(.none)
+            material.sheenColorFactor = Vector3(1, 1, 1)
+            material.sheenRoughnessFactor = 0.4
+            let plain = Self.largestGain(try await scene.render(.none), over: baseline)
+            material.layerTextures[.sheenColor] = PBRTextureBinding(texture: Self.solid(0, 0, 0))
+            #expect(Self.matches(baseline, try await scene.render(.none)), "A black sheen color texture must remove the sheen.")
+            material.layerTextures[.sheenColor] = PBRTextureBinding(texture: Self.solid(1, 0, 0))
+            let red = try await scene.render(.none)
+            #expect(Self.largestGain(red, over: baseline) > 0.05 && Self.largestGain(red, over: baseline) < plain, "A red sheen color adds less light than white (\(Self.largestGain(red, over: baseline)) vs \(plain)).")
+            material.layerTextures[.sheenColor] = nil
+            material.layerTextures[.sheenRoughness] = PBRTextureBinding(texture: Self.solid(0, 0, 0, 0.1))
+            let tightened = try await scene.render(.none)
+            material.layerTextures[.sheenRoughness] = nil
+            #expect(!Self.matches(tightened, try await scene.render(.none)), "A sheen roughness texture must change the lobe.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func anAnisotropyTextureSuppliesStrengthAndDirection() async throws {
+            let (scene, material) = try await Self.makeScene { $0.baseColorFactor = [0.03, 0.03, 0.03, 1]; $0.roughnessFactor = 0.35 }
+            let round = try await scene.render(.none)
+            material.anisotropyStrength = 1
+            let alongTangent = try await scene.render(.none)
+            material.anisotropyRotation = .pi / 2
+            let alongBitangent = try await scene.render(.none)
+            material.anisotropyRotation = 0
+            // Direction (1, 0) is the tangent itself and (0, 1) the bitangent; blue is the strength.
+            material.layerTextures[.anisotropy] = PBRTextureBinding(texture: Self.solid(1, 0.5, 1))
+            #expect(Self.matches(alongTangent, try await scene.render(.none)), "A texture direction of (1, 0) must equal the tangent direction.")
+            material.layerTextures[.anisotropy] = PBRTextureBinding(texture: Self.solid(0.5, 1, 1))
+            #expect(Self.matches(alongBitangent, try await scene.render(.none)), "A texture direction of (0, 1) must equal a quarter turn.")
+            material.layerTextures[.anisotropy] = PBRTextureBinding(texture: Self.solid(1, 0.5, 0))
+            #expect(Self.matches(round, try await scene.render(.none)), "A blue strength of zero must remove the anisotropy.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func specularTexturesScaleTheDielectricReflection() async throws {
+            let (scene, material) = try await Self.makeScene { $0.baseColorFactor = [0.03, 0.03, 0.03, 1]; $0.roughnessFactor = 0.2 }
+            let standard = try await scene.render(.none)
+            material.specularFactor = 0
+            let none = try await scene.render(.none)
+            material.specularFactor = 1
+            material.layerTextures[.specular] = PBRTextureBinding(texture: Self.solid(1, 1, 1, 0))
+            #expect(Self.matches(none, try await scene.render(.none)), "A specular texture alpha of zero must equal a specular factor of zero.")
+            material.layerTextures[.specular] = PBRTextureBinding(texture: Self.solid(1, 1, 1, 1))
+            #expect(Self.matches(standard, try await scene.render(.none)), "A specular texture alpha of one must change nothing.")
+            material.layerTextures[.specular] = nil
+            material.ior = 2.5
+            let neutral = try await scene.render(.none)
+            material.layerTextures[.specularColor] = PBRTextureBinding(texture: Self.solid(1, 0, 0))
+            #expect(Self.largestRedShift(try await scene.render(.none), over: neutral) > 0.1, "A red specular color texture must shift the highlight toward red.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func aLayerTextureReadsThroughItsOwnTransform() async throws {
+            let (scene, material) = try await Self.makeScene(Self.dark)
+            let baseline = try await scene.render(.none)
+            material.clearcoatFactor = 1
+            material.clearcoatRoughnessFactor = 0.05
+            // Stretching the sampled range to a sliver sends every pixel to one half of the mask.
+            let squeeze = Vector2(0.0001, 1)
+            material.layerTextures[.clearcoat] = PBRTextureBinding(texture: Self.halves(), transform: PBRTextureTransform(offset: Vector2(0.9, 0), scale: squeeze))
+            let white = Self.largestGain(try await scene.render(.none), over: baseline)
+            material.layerTextures[.clearcoat] = PBRTextureBinding(texture: Self.halves(), transform: PBRTextureTransform(offset: Vector2(0.1, 0), scale: squeeze))
+            let black = try await scene.render(.none)
+            #expect(white > 0.3, "Sampling the white half must coat the sphere (\(white)).")
+            #expect(Self.matches(baseline, black), "Sampling the black half must leave it uncoated.")
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func importedLayerTexturesReachTheMaterial() async throws {
+            _ = try await Render3DDebugViewGPUTests.makeScene()
+            // A 1x1 PNG.
+            let png = try #require(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="))
+            let source = GLTFImportResult.Material(
+                name: nil,
+                baseColorFactor: .one,
+                baseColorTextureIndex: nil,
+                metallicFactor: 0,
+                roughnessFactor: 0.5,
+                metallicRoughnessTextureIndex: nil,
+                normalTextureIndex: nil,
+                clearcoatFactor: 1,
+                layerTextures: GLTFImportResult.LayerTextures(
+                    clearcoat: .init(index: 0),
+                    clearcoatNormal: .init(index: 0, texCoord: 1, transform: .init(scale: Vector2(2, 2)), scale: 0.5),
+                    specularColor: .init(index: 0)
+                )
+            )
+            let result = GLTFImportResult(
+                nodes: [], meshes: [], materials: [source],
+                textures: [.init(source: 0, sampler: nil)],
+                images: [.init(uri: nil, data: png, mimeType: "image/png")],
+                scenes: [], defaultScene: nil
+            )
+            let material = try #require(ModelAsset3D.makeMaterials(result).first as? PBRMaterial)
+            #expect(Set(material.layerTextures.keys) == [.clearcoat, .clearcoatNormal, .specularColor])
+            let normal = try #require(material.layerTextures[.clearcoatNormal])
+            #expect(normal.texCoord == 1 && normal.scale == 0.5 && normal.transform.scale == Vector2(2, 2))
+            #expect(material.shaderFeatures == [.clearcoat, PBRLayerTexture.clearcoat.feature, PBRLayerTexture.clearcoatNormal.feature, PBRLayerTexture.specularColor.feature])
         }
 
         @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))

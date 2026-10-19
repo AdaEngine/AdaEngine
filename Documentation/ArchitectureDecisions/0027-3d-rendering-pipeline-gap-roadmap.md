@@ -298,6 +298,7 @@ Each item needs its own short requirements note before implementation.
 - [x] Stage 2: `KHR_materials_clearcoat` factors (see "Stage 2, second slice").
 - [x] Stage 2: parallax occlusion mapping from `PBRMaterial.heightTexture` (world-unit `heightScale`, per-pixel ray march in `flat3d.glsl` that derives the UV shift from screen-space derivatives so no tangents are needed; the height map is read with the base color sampler because Metal has no free sampler slot; depth, shadows and silhouettes are not displaced; no glTF import yet because no displacement extension is ratified).
 - [x] Stage 2: sheen and anisotropy factors (see "Stage 2, third slice").
+- [x] Stage 2: clearcoat, clearcoat roughness and normal, sheen color and roughness, anisotropy and specular textures (see "Stage 2, fifth slice").
 - [ ] Stage 2: `KHR_lights_punctual` import.
 - [x] Stage 2: unsupported-extension degradation policy and documented supported list (`NativeGLTFLoader.supportedExtensions`, `GLTFImportResult.warnings`).
 - [ ] Stage 3: morph-target asset, glTF import and GPU evaluation.
@@ -849,6 +850,37 @@ Limits: WebAssembly builds ship precompiled WGSL and cannot specialize, so on th
 used); the motion and shadow passes do not use layers and are not split. The first draw of each new layer combination compiles
 a shader. Tests: `shaderFeaturesFollowTheLayersInUse`, `pipelineKeysSplitByFeaturesAndDefaultToThePlainShader`, and the existing
 clearcoat, sheen and anisotropy GPU tests, which now run through the variants (turning a layer off restores the plain frame).
+
+### Stage 2, fifth slice: layer textures (2026-10-19)
+
+The clearcoat, sheen, anisotropy and specular extensions now read their textures, which the earlier slices skipped. Eight textures
+(`PBRLayerTexture`): clearcoat strength (red), clearcoat roughness (green), clearcoat normal, sheen color (RGB, sRGB), sheen
+roughness (alpha), anisotropy direction (red and green) with strength (blue), specular strength (alpha) and specular color
+(RGB, sRGB). Each multiplies its factor, as the extension texts require.
+
+- **Import.** Each reference keeps its texture, UV set (0 or 1, or the `texCoord` of its own `KHR_texture_transform`), transform
+  and, for the clearcoat normal map, its scale (`GLTFImportResult.LayerTextures`). A bad index, UV set or transform fails with
+  `invalidMaterial`. Import warnings for skipped layer textures are gone because none are skipped.
+- **Binding.** Textures bind at 32 to 39, and only in the shader variant of a material that has them: `PBRMaterial.shaderFeatures`
+  gained one bit per texture (macros `ADA_CLEARCOAT_TEXTURE` and so on), and a texture selects its bit only while its layer is
+  on, because it scales a factor that would otherwise be zero. The specular textures belong to no layer. So a material pays for the
+  textures it has, and the plain shader and the bind groups of other materials are unchanged (`bare` geometry is still 1.77 ms).
+- **Sampling.** The main pass has no free sampler slot (Metal allows 16), so every layer texture is read with the base color
+  texture's sampler: a layer texture whose glTF sampler differs from the base color's (for example another wrap mode) takes the
+  base color's. UVs come from `layerUV`, which applies the parallax shift of the same UV set and then the texture's transform. The
+  material uniform carries each texture's UV set and transform (about 330 more bytes per material).
+- **Shading.** Clearcoat strength and roughness are scaled by their textures, the clearcoat normal bends the coat on its own
+  frame (derivative frame; the base normal map is untouched), sheen color and roughness are scaled, the anisotropy texture sets
+  the direction (rotated by `anisotropyRotation`) and scales the strength, and the specular textures scale the dielectric
+  reflectance `g_Dielectric`, which replaced the uniform value in every lighting term.
+
+Limits: the layer textures share the base color sampler; the clearcoat normal map uses the UV-derivative frame (no authored
+tangents), so it shares the faceting of that frame on coarse meshes; there is no web build of any layer (variants cannot be compiled
+there). Tests: import (`importsEveryLayerTextureWithItsOwnUVSetAndTransform` and the rejection cases), the mapping from an
+imported material to `PBRMaterial`, the feature bits and uniform, and one GPU test per texture. They include equivalences (an
+anisotropy texture of (1, 0.5, 1) equals the factor alone, and (0.5, 1, 1) equals a quarter turn; a specular alpha of zero equals a
+specular factor of zero; a flat clearcoat normal changes nothing) and a transform test that samples either half of a two-tone mask.
+Each of the shader reads was checked by removing it and watching its test fail.
 
 ## Validation requirements
 

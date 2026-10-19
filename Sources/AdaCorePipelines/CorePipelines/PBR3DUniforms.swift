@@ -43,6 +43,20 @@ public struct PBR3DUniform: Sendable, Equatable {
     public let sheen: Vector4
     /// X is the anisotropy strength and y its rotation in radians.
     public let anisotropy: Vector4
+    /// UV sets (0 or 1) of the layer textures in `PBRLayerTexture` order: clearcoat to sheen color, then sheen roughness to specular color.
+    public let layerSets0: Vector4
+    public let layerSets1: Vector4
+    /// UV transforms of the layer textures in `PBRLayerTexture` order.
+    public let layerTransform0: PBR3DTextureTransform
+    public let layerTransform1: PBR3DTextureTransform
+    public let layerTransform2: PBR3DTextureTransform
+    public let layerTransform3: PBR3DTextureTransform
+    public let layerTransform4: PBR3DTextureTransform
+    public let layerTransform5: PBR3DTextureTransform
+    public let layerTransform6: PBR3DTextureTransform
+    public let layerTransform7: PBR3DTextureTransform
+    /// X is the clearcoat normal scale.
+    public let layerParameters: Vector4
 
     public init(material: PBRMaterial?, descriptor _: VertexDescriptor) {
         func coordinate(_ slot: Int) -> Int {
@@ -91,6 +105,20 @@ public struct PBR3DUniform: Sendable, Equatable {
             0,
             0
         )
+        func layer(_ texture: PBRLayerTexture) -> PBRTextureBinding? { material?.layerTextures[texture] }
+        func layerSet(_ texture: PBRLayerTexture) -> Float { Float(min(max(layer(texture)?.texCoord ?? 0, 0), 1)) }
+        func layerTransform(_ texture: PBRLayerTexture) -> PBR3DTextureTransform { PBR3DTextureTransform(layer(texture)?.transform) }
+        layerSets0 = Vector4(layerSet(.clearcoat), layerSet(.clearcoatRoughness), layerSet(.clearcoatNormal), layerSet(.sheenColor))
+        layerSets1 = Vector4(layerSet(.sheenRoughness), layerSet(.anisotropy), layerSet(.specular), layerSet(.specularColor))
+        layerTransform0 = layerTransform(.clearcoat)
+        layerTransform1 = layerTransform(.clearcoatRoughness)
+        layerTransform2 = layerTransform(.clearcoatNormal)
+        layerTransform3 = layerTransform(.sheenColor)
+        layerTransform4 = layerTransform(.sheenRoughness)
+        layerTransform5 = layerTransform(.anisotropy)
+        layerTransform6 = layerTransform(.specular)
+        layerTransform7 = layerTransform(.specularColor)
+        layerParameters = Vector4(finiteRenderValue(layer(.clearcoatNormal)?.scale ?? 1, fallback: 1, range: 0...100), 0, 0, 0)
     }
 
     /// Reflectance at normal incidence of the dielectric layer: ((ior - 1) / (ior + 1))^2 tinted and scaled by the
@@ -115,7 +143,12 @@ public struct PBR3DUniform: Sendable, Equatable {
             bits(emissiveFactor), bits(properties), bits(flags), bits(coordinates), bits(emission), bits(parallax),
             bits(transform0.matrix), bits(transform0.offset), bits(transform1.matrix), bits(transform1.offset),
             bits(transform2.matrix), bits(transform2.offset), bits(transform3.matrix), bits(transform3.offset),
-            bits(transform4.matrix), bits(transform4.offset), bits(dielectric), bits(coat), bits(sheen), bits(anisotropy),
+            bits(transform4.matrix), bits(transform4.offset), bits(dielectric), bits(coat), bits(sheen), bits(anisotropy), bits(layerSets0), bits(layerSets1),
+            bits(layerTransform0.matrix), bits(layerTransform0.offset), bits(layerTransform1.matrix), bits(layerTransform1.offset),
+            bits(layerTransform2.matrix), bits(layerTransform2.offset), bits(layerTransform3.matrix), bits(layerTransform3.offset),
+            bits(layerTransform4.matrix), bits(layerTransform4.offset), bits(layerTransform5.matrix), bits(layerTransform5.offset),
+            bits(layerTransform6.matrix), bits(layerTransform6.offset), bits(layerTransform7.matrix), bits(layerTransform7.offset),
+            bits(layerParameters),
         ]
     }
 }

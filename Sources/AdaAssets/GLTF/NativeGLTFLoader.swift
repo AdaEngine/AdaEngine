@@ -30,27 +30,11 @@ public struct NativeGLTFLoader: GLTFLoader {
         "KHR_materials_anisotropy",
     ]
 
-    /// Optional content the importer cannot honor: unimplemented extensions the file lists as used, and the parts
-    /// of an implemented extension that are skipped (specular textures).
+    /// Optional content the importer cannot honor: extensions the file lists as used that are not implemented.
     private func warnings(for gltf: GLTF) -> [String] {
         var result: [String] = []
         for name in (gltf.extensionsUsed ?? []).sorted() where !Self.supportedExtensions.contains(name) {
             result.append("The extension \(name) is not supported and was ignored.")
-        }
-        for (index, material) in (gltf.materials ?? []).enumerated() {
-            if let specular = material.extensions?.KHR_materials_specular, specular.specularTexture != nil || specular.specularColorTexture != nil {
-                result.append("Material \(index) uses a KHR_materials_specular texture; only its factors were applied.")
-            }
-            if let coat = material.extensions?.KHR_materials_clearcoat,
-               coat.clearcoatTexture != nil || coat.clearcoatRoughnessTexture != nil || coat.clearcoatNormalTexture != nil {
-                result.append("Material \(index) uses a KHR_materials_clearcoat texture; only its factors were applied.")
-            }
-            if let sheen = material.extensions?.KHR_materials_sheen, sheen.sheenColorTexture != nil || sheen.sheenRoughnessTexture != nil {
-                result.append("Material \(index) uses a KHR_materials_sheen texture; only its factors were applied.")
-            }
-            if let anisotropy = material.extensions?.KHR_materials_anisotropy, anisotropy.anisotropyTexture != nil {
-                result.append("Material \(index) uses a KHR_materials_anisotropy texture; only its factors were applied.")
-            }
         }
         return result
     }

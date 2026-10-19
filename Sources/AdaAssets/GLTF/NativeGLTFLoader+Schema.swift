@@ -125,7 +125,12 @@ extension NativeGLTFLoader {
             struct Extensions: Codable {
                 struct EmissiveStrength: Codable { let emissiveStrength: Float }
                 struct IOR: Codable { let ior: Float? }
-                struct TextureReference: Codable { let index: Int }
+                struct TextureReference: Codable {
+                    let index: Int
+                    let texCoord: Int?
+                    let scale: Float?
+                    let extensions: TextureExtensions?
+                }
                 struct Specular: Codable {
                     let specularFactor: Float?
                     let specularColorFactor: [Float]?

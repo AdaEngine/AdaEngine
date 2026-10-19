@@ -25,6 +25,74 @@ public struct PBRTextureTransform: Sendable, Equatable {
     }
 }
 
+/// A texture read by one of the material's shading layers, with the UV set and transform it is read with.
+public struct PBRTextureBinding: Sendable {
+    public var texture: Texture2D
+    /// UV set (0 or 1).
+    public var texCoord: Int
+    public var transform: PBRTextureTransform
+    /// Scale of the sampled value; only the clearcoat normal map uses it.
+    public var scale: Float
+
+    public init(texture: Texture2D, texCoord: Int = 0, transform: PBRTextureTransform = .identity, scale: Float = 1) {
+        self.texture = texture
+        self.texCoord = texCoord
+        self.transform = transform
+        self.scale = scale
+    }
+}
+
+/// The textures of the shading layers and of the specular extension, and where they bind in the main shader.
+///
+/// They are read with the base color texture's sampler, because the main pass has no free sampler slots.
+public enum PBRLayerTexture: Int, CaseIterable, Hashable, Sendable {
+    /// Clearcoat strength (red).
+    case clearcoat
+    /// Clearcoat roughness (green).
+    case clearcoatRoughness
+    /// Tangent-space normal of the clearcoat layer.
+    case clearcoatNormal
+    /// Sheen color (RGB, sRGB).
+    case sheenColor
+    /// Sheen roughness (alpha).
+    case sheenRoughness
+    /// Anisotropy direction (red, green) and strength (blue).
+    case anisotropy
+    /// Specular strength (alpha).
+    case specular
+    /// Specular color (RGB, sRGB).
+    case specularColor
+
+    /// The texture binding in the main shader.
+    public var binding: Int { 32 + rawValue }
+
+    /// The feature bit that selects the shader variant declaring this texture.
+    public var feature: PBRMaterial.ShaderFeatures { PBRMaterial.ShaderFeatures(rawValue: 1 << UInt32(3 + rawValue)) }
+
+    var macro: String {
+        switch self {
+        case .clearcoat: "ADA_CLEARCOAT_TEXTURE"
+        case .clearcoatRoughness: "ADA_CLEARCOAT_ROUGHNESS_TEXTURE"
+        case .clearcoatNormal: "ADA_CLEARCOAT_NORMAL_TEXTURE"
+        case .sheenColor: "ADA_SHEEN_COLOR_TEXTURE"
+        case .sheenRoughness: "ADA_SHEEN_ROUGHNESS_TEXTURE"
+        case .anisotropy: "ADA_ANISOTROPY_TEXTURE"
+        case .specular: "ADA_SPECULAR_TEXTURE"
+        case .specularColor: "ADA_SPECULAR_COLOR_TEXTURE"
+        }
+    }
+
+    /// The layer a texture belongs to, if it only matters while that layer is on.
+    fileprivate var layer: PBRMaterial.ShaderFeatures? {
+        switch self {
+        case .clearcoat, .clearcoatRoughness, .clearcoatNormal: .clearcoat
+        case .sheenColor, .sheenRoughness: .sheen
+        case .anisotropy: .anisotropy
+        case .specular, .specularColor: nil
+        }
+    }
+}
+
 /// A material that uses Physically Based Rendering (PBR) to define its appearance.
 public class PBRMaterial: Material, @unchecked Sendable {
     public var baseColorFactor: Vector4 = .one { didSet { uniformRevision &+= 1 } }
@@ -82,9 +150,11 @@ public class PBRMaterial: Material, @unchecked Sendable {
     public var anisotropyStrength: Float = 0 { didSet { uniformRevision &+= 1 } }
     /// Rotation of the stretch direction from the surface tangent, in radians.
     public var anisotropyRotation: Float = 0 { didSet { uniformRevision &+= 1 } }
+    /// Textures of the clearcoat, sheen, anisotropy and specular layers. Each multiplies its layer's factor.
+    public var layerTextures: [PBRLayerTexture: PBRTextureBinding] = [:] { didSet { uniformRevision &+= 1 } }
 
-    /// The optional shading layers a material needs. The main shader is compiled with only the layers a material uses;
-    /// the empty set is the plain shader, which is also the only one that has a shader cache and a web build.
+    /// The optional shading layers and layer textures a material needs. The main shader is compiled with only what a
+    /// material uses; the empty set is the plain shader, which is also the only one that has a shader cache and a web build.
     public struct ShaderFeatures: OptionSet, Hashable, Sendable {
         public let rawValue: UInt32
         public init(rawValue: UInt32) { self.rawValue = rawValue }
@@ -93,25 +163,33 @@ public class PBRMaterial: Material, @unchecked Sendable {
         public static let sheen = ShaderFeatures(rawValue: 1 << 1)
         public static let anisotropy = ShaderFeatures(rawValue: 1 << 2)
 
-        /// Every layer.
+        /// Every layer, without textures.
         public static let all: ShaderFeatures = [.clearcoat, .sheen, .anisotropy]
 
-        /// Preprocessor names that switch each layer in this set on. Empty for the plain shader.
+        /// Preprocessor names that switch each layer and texture in this set on. Empty for the plain shader.
         public var enablingMacros: [String] {
             var macros: [String] = []
             if contains(.clearcoat) { macros.append("ADA_CLEARCOAT") }
             if contains(.sheen) { macros.append("ADA_SHEEN") }
             if contains(.anisotropy) { macros.append("ADA_ANISOTROPY") }
+            for texture in PBRLayerTexture.allCases where contains(texture.feature) {
+                macros.append(texture.macro)
+            }
             return macros
         }
     }
 
-    /// The layers this material currently uses, from its factor values.
+    /// The layers and textures this material currently uses, from its factor values and textures.
     public var shaderFeatures: ShaderFeatures {
         var features: ShaderFeatures = []
         if clearcoatFactor > 0 { features.insert(.clearcoat) }
         if max(sheenColorFactor.x, max(sheenColorFactor.y, sheenColorFactor.z)) > 0 { features.insert(.sheen) }
         if anisotropyStrength > 0 { features.insert(.anisotropy) }
+        for texture in layerTextures.keys {
+            // A layer texture scales its layer's factor, so with the layer off it changes nothing.
+            if let layer = texture.layer, !features.contains(layer) { continue }
+            features.insert(texture.feature)
+        }
         return features
     }
 
