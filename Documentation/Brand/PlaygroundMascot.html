@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Робот-проводник — Ada Playground</title>
+  <style>
+    *{box-sizing:border-box}html{background:#101214;color:#e9edf1;font:16px/1.6 Inter,system-ui,sans-serif}
+    body{max-width:1240px;margin:auto;padding:32px 32px 64px}a{color:#9bb9ff;text-underline-offset:4px}
+    a:focus-visible{outline:2px solid #78a7ff;outline-offset:5px}h1,h2,h3,p{margin:0}
+    header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:24px;border-bottom:1px solid #ffffff16}
+    .brand{font-weight:650;letter-spacing:-.03em}.eyebrow{color:#9bb9ff;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+    .intro{display:grid;grid-template-columns:minmax(0,1fr) 330px;align-items:center;gap:32px;padding:36px 0 28px}
+    h1{font-size:clamp(36px,5vw,60px);line-height:1.08;font-weight:500;letter-spacing:-.045em;margin:14px 0 22px}
+    .intro p{max-width:630px;color:#aeb7c2;font-size:18px}.intro img{width:100%;height:350px;object-fit:contain}
+    .actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}.actions a{display:inline-flex;align-items:center;min-height:44px;border:1px solid #ffffff20;border-radius:10px;padding:9px 15px;text-decoration:none}
+    .actions a:first-child{background:#688bff;color:#10192b;border-color:#688bff}.actions a:hover{filter:brightness(1.12)}
+    section{margin-top:40px}.heading{display:flex;justify-content:space-between;align-items:baseline;gap:24px;margin-bottom:20px}
+    h2{font-size:27px;font-weight:500;letter-spacing:-.03em}.heading p,.muted{color:#9da7b2}
+    .sheet{display:block;border-radius:18px;overflow:hidden;background:#dedbd5}.sheet img{display:block;width:100%;height:auto}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+    figure{margin:0;border:1px solid #ffffff14;border-radius:16px;overflow:hidden;background:#181c20}
+    figure>a{display:block;background:#dfdfda;padding:18px;height:370px}
+    figure img{display:block;width:100%;height:100%;object-fit:contain}figcaption{padding:18px}
+    h3{font-size:18px;font-weight:550}figcaption p{color:#aeb7c2;font-size:14px;margin:8px 0 12px}figcaption a{font-size:13px}
+    .notes{display:grid;grid-template-columns:1fr 1fr;gap:20px}.note{border:1px solid #ffffff14;border-radius:16px;padding:24px;background:#171b20}
+    .note h3{margin-bottom:12px}.note p{color:#aeb7c2}.palette{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}
+    .swatch{display:grid;gap:6px;font-size:11px;color:#aeb7c2}.swatch i{width:48px;height:32px;border-radius:8px;border:1px solid #ffffff24;background:var(--color)}
+    footer{margin-top:40px;padding-top:24px;border-top:1px solid #ffffff16;color:#8f9aa6;font-size:13px}
+    @media(max-width:850px){.intro{grid-template-columns:minmax(0,1fr) 220px;gap:16px}.intro img{height:280px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:560px){body{padding:24px 18px 40px}header{align-items:start;flex-direction:column;gap:6px}.intro{grid-template-columns:1fr;padding-top:28px}.intro img{height:280px;grid-row:2}.intro p{font-size:16px}.grid,.notes{grid-template-columns:1fr}.heading{flex-direction:column;gap:6px}figure>a{height:380px}}
+  </style>
+</head>
+<body>
+  <header><span class="brand">Ada Playground · Маскот</span><span class="muted">Паспорт v1 · 19 октября 2026</span></header>
+  <main>
+    <section class="intro">
+      <div>
+        <span class="eyebrow">Робот-проводник</span>
+        <h1>Открывать миры.<br>Создавать своё.</h1>
+        <p>Высокий робот из шапки Playground: тёплая керамика, голубые глаза-дуги и походный рюкзак. Любопытный помощник, который приглашает сделать следующий шаг.</p>
+        <div class="actions"><a href="PlaygroundMascot.md">Подробный паспорт и промпт</a><a href="Assets/PlaygroundMascot/manifest.json">Реестр файлов</a></div>
+      </div>
+      <img src="Assets/PlaygroundMascot/three-quarter-pointing-v1.png" alt="Маскот показывает правой рукой вперёд и вверх" width="1145" height="1374">
+    </section>
+    <section>
+      <div class="heading"><h2>Одна конструкция, четыре стороны</h2><p>Нажмите на изображение, чтобы открыть полный PNG.</p></div>
+      <a class="sheet" href="Assets/PlaygroundMascot/turnaround-v1.png" target="_blank" rel="noopener"><img src="Assets/PlaygroundMascot/turnaround-v1.png" alt="Модельный лист: спереди, профиль влево, сзади, профиль вправо" width="2172" height="724"></a>
+    </section>
+    <section>
+      <div class="heading"><h2>Отдельные ракурсы</h2><p>Полный рост · Студийные референсы PNG</p></div>
+      <div class="grid">
+        <figure><a href="Assets/PlaygroundMascot/front-v1.png" target="_blank" rel="noopener"><img src="Assets/PlaygroundMascot/front-v1.png" alt="Робот спереди в нейтральной позе" loading="lazy"></a><figcaption><h3>Спереди</h3><p>Один экран, две голубые дуги и одна антенна справа для зрителя.</p><a href="Assets/PlaygroundMascot/front.prompt.txt">Полный промпт ракурса</a></figcaption></figure>
+        <figure><a href="Assets/PlaygroundMascot/profile-left-v1.png" target="_blank" rel="noopener"><img src="Assets/PlaygroundMascot/profile-left-v1.png" alt="Строгий профиль, лицо направлено влево" loading="lazy"></a><figcaption><h3>Профиль · лицо влево</h3><p>Видны глубина экрана, круглый боковой модуль, антенна и рюкзак.</p><a href="Assets/PlaygroundMascot/profile-left.prompt.txt">Полный промпт ракурса</a></figcaption></figure>
+        <figure><a href="Assets/PlaygroundMascot/back-v1.png" target="_blank" rel="noopener"><img src="Assets/PlaygroundMascot/back-v1.png" alt="Робот сзади, виден коричневый рюкзак" loading="lazy"></a><figcaption><h3>Сзади</h3><p>Рюкзак с двумя застёжками. Лицо и грудной индикатор скрыты.</p><a href="Assets/PlaygroundMascot/back.prompt.txt">Полный промпт ракурса</a></figcaption></figure>
+        <figure><a href="Assets/PlaygroundMascot/profile-right-v1.png" target="_blank" rel="noopener"><img src="Assets/PlaygroundMascot/profile-right-v1.png" alt="Противоположный профиль, лицо направлено вправо" loading="lazy"></a><figcaption><h3>Профиль · лицо вправо</h3><p>Противоположная сторона. Антенна на дальней стороне головы скрыта.</p><a href="Assets/PlaygroundMascot/profile-right.prompt.txt">Полный промпт ракурса</a></figcaption></figure>
+        <figure><a href="Assets/PlaygroundMascot/three-quarter-pointing-v1.png" target="_blank" rel="noopener"><img src="Assets/PlaygroundMascot/three-quarter-pointing-v1.png" alt="Маскот в три четверти с характерным указательным жестом" loading="lazy"></a><figcaption><h3>Три четверти · приглашение</h3><p>Правой рукой показывает путь. Спокойная поза и устойчивые ступни.</p><a href="Assets/PlaygroundMascot/three-quarter-pointing.prompt.txt">Полный промпт ракурса</a></figcaption></figure>
+      </div>
+    </section>
+    <section class="notes">
+      <div class="note"><h3>Что делает его узнаваемым</h3><p>Большая округлая голова, короткие крепкие ноги, светлая сатиновая оболочка, единый чёрный экран, два голубых глаза, янтарные кольца и коричневый рюкзак.</p><div class="palette">
+        <span class="swatch"><i style="--color:#e8e5dc"></i>#E8E5DC</span><span class="swatch"><i style="--color:#091720"></i>#091720</span><span class="swatch"><i style="--color:#39d9ff"></i>#39D9FF</span><span class="swatch"><i style="--color:#e8b34b"></i>#E8B34B</span><span class="swatch"><i style="--color:#655144"></i>#655144</span>
+      </div></div>
+      <div class="note"><h3>Как сохранять личность</h3><p>К новой генерации прикладывайте модельный лист. Сторона антенны закреплена за телом робота: слева сзади у него самого. Не зеркальте изображение для противоположного профиля. Полные ограничения и примеры сцен есть в паспорте.</p></div>
+    </section>
+  </main>
+  <footer>Встроенный imagegen · Визуальные референсы, не 3D-модель. Ступни и вид со спины уточнены относительно исходной шапки. При расхождении мелких деталей главным остаётся модельный лист v1.</footer>
+</body>
+</html>

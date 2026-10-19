@@ -1,3 +1,9 @@
+import { attachmentAccept, attachmentEntries } from "../attachments.js";
+import { AttachmentChips } from "./attachment-chips.jsx";
+import { AICredits } from "./ai-credits.jsx";
+import { usePromptCompletion } from "./prompt-completion.jsx";
+import { CreationPicker } from "./creation-picker.jsx";
+import { creationOptions } from "../creation.js";
 import { t } from "../localization.js";
 import React from "react";
 import { studio } from "./state.js";
@@ -5,23 +11,16 @@ import { useRef, useEffect, useState } from "react";
 import { sessionMessages } from "../chat.js";
 import { Markdown, A2UICard } from "./chat-content.jsx";
 import { AnnotationChips } from "./annotations.jsx";
-import {
-  ConversationToolbar,
-  SkillPicker,
-  PermissionRequest,
-} from "./agent-sessions.jsx";
+import { SkillCommands, useSkillCommands } from "./skill-commands.jsx";
+import { ConversationToolbar, PermissionRequest } from "./agent-sessions.jsx";
 import { Icon, Mark, Button, act, entityIcon } from "./controls.jsx";
 
-function Assistant() {
+function Assistant({ collapsed, onToggle }) {
   const s = studio,
-    [collapsed, setCollapsed] = useState(false),
     chat = useRef();
   useEffect(() => {
     if (chat.current) chat.current.scrollTop = chat.current.scrollHeight;
   }, [s.streamText, s.snapshot.messages.length, s.running, s.session.id]);
-  useEffect(() => {
-    if (s.composerFocus) setCollapsed(false);
-  }, [s.composerFocus]);
   const messages = sessionMessages(s.snapshot, s.session.id).filter(
     (m) =>
       m.role !== "tool" &&
@@ -35,24 +34,20 @@ function Assistant() {
       className={`panel assistant-panel ${collapsed ? "collapsed" : ""}`}
     >
       <div className="panel-heading">
-        <h2>
-          <span className="assistant-star">
-            <Mark size={18} />
-          </span>
-          {t("Assistant")}
-        </h2>
+        <h2>{t("Assistant")}</h2>
         <span className="assistant-state">
           {s.running ? t("Creating…") : t("Here to help")}
         </span>
         <Button
           icon={collapsed ? "plus" : "minus"}
-          label={t("Collapse assistant")}
-          onClick={() => setCollapsed(!collapsed)}
+          label={collapsed ? t("Expand assistant") : t("Collapse assistant")}
+          onClick={onToggle}
         />
       </div>
       {!collapsed && (
         <>
           <ConversationToolbar />
+          {s.billingMode === "ada" && <AICredits />}
           <div className="conversation" ref={chat}>
             {s.session.plan?.length > 0 && (
               <ol className="agent-plan">
@@ -72,7 +67,6 @@ function Assistant() {
             )}
             {!messages.length ? (
               <div className="assistant-welcome">
-                <Mark size={30} />
                 <h3>{t("Let’s create something of your own")}</h3>
                 <p>
                   {t(
@@ -120,6 +114,9 @@ function Assistant() {
                       )
                     }
                   />
+                  {m.attachments?.length > 0 && (
+                    <AttachmentChips items={m.attachments} />
+                  )}
                   {s.chat.surfaces
                     .filter(
                       (r) =>
@@ -251,71 +248,149 @@ function Composer({ home = false }) {
   const s = studio,
     attach = useRef(),
     input = useRef();
+  const updateDraft = (value) => {
+    s.prompt = value;
+    if (s.document)
+      s.updateChat((c) => {
+        c.sessions.find((session) => session.id === s.session.id).draft = value;
+      });
+    else s.emit();
+  };
+  const [dragging, setDragging] = useState(false);
+  const attachments = attachmentEntries(s, home);
+  const blocked = s.attachmentBusy || s.admitting || s.running;
+  const canSend = !!s.prompt.trim() || attachments.length > 0;
+  const addFiles = (files) => s.action(() => s.attachFiles(files));
+  const commands = useSkillCommands(input, updateDraft);
+  const completion = usePromptCompletion(
+    input,
+    s.prompt,
+    updateDraft,
+    home && !commands.open && !s.running && !s.admitting,
+  );
+  const creation = creationOptions(s.creation);
+  const send = () => {
+    if (!blocked && canSend)
+      return s.action(() => s.send(s.prompt, home ? { creation } : undefined));
+  };
+  const working =
+    s.running && !!s.document && s.runningSessionID === s.session.id;
   useEffect(() => {
     if (s.composerFocus) input.current?.focus();
   }, [s.composerFocus]);
   return (
     <form
-      className={`composer ${home ? "home-composer" : ""}`}
+      className={`composer ${home ? "home-composer" : ""} ${working ? "composer-working" : ""} ${dragging ? "composer-dragging" : ""}`}
+      aria-busy={working || s.attachmentBusy || undefined}
+      onDragOver={(event) => {
+        if (Array.from(event.dataTransfer.types).includes("Files")) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = blocked ? "none" : "copy";
+          if (!blocked) setDragging(true);
+        }
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setDragging(false);
+      }}
+      onDrop={(event) => {
+        if (event.dataTransfer.files.length) {
+          event.preventDefault();
+          setDragging(false);
+          if (!blocked) addFiles(Array.from(event.dataTransfer.files));
+        }
+      }}
       onSubmit={(e) => {
         e.preventDefault();
-        s.action(() => s.send(s.prompt));
+        send();
       }}
     >
-      <textarea
-        ref={input}
-        aria-label={t("Message the assistant")}
-        placeholder={
-          home
-            ? t("Describe the game you dream of creating…")
-            : t("What would you like to create or change?")
-        }
-        value={s.prompt}
-        onChange={(e) => {
-          s.prompt = e.target.value;
-          if (s.document)
-            s.updateChat((c) => {
-              c.sessions.find((c) => c.id === s.session.id).draft =
-                e.target.value;
-            });
-          else s.emit();
-        }}
-        onPaste={(e) => {
-          const files = Array.from(e.clipboardData.files);
-          if (files.length && s.document) {
-            e.preventDefault();
-            s.action(async () => {
-              for (const f of files.slice(0, 4)) await s.attachFile(f);
-            });
+      {dragging && (
+        <div className="attachment-drop-hint">{t("Drop files to attach")}</div>
+      )}
+      <SkillCommands menu={commands} />
+      <div className="composer-input">
+        {completion.suffix && (
+          <div
+            className="completion-mirror"
+            ref={completion.mirror}
+            aria-hidden="true"
+          >
+            <span className="completion-prefix">{s.prompt}</span>
+            <span>{completion.suffix}</span>
+          </div>
+        )}
+        <textarea
+          ref={input}
+          role="combobox"
+          aria-autocomplete={completion.suffix ? "both" : "list"}
+          aria-describedby={completion.suffix ? completion.id : undefined}
+          aria-expanded={commands.open}
+          aria-controls={commands.open ? commands.id : undefined}
+          aria-activedescendant={
+            commands.open &&
+            commands.results.length &&
+            commands.phase === "ready"
+              ? `${commands.id}-${commands.selected}`
+              : undefined
           }
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            if (s.prompt.trim()) s.action(() => s.send(s.prompt));
+          onFocus={(event) => {
+            commands.onFocus(event);
+            completion.onFocus(event);
+          }}
+          onBlur={() => {
+            commands.onBlur();
+            completion.onBlur();
+          }}
+          onSelect={(event) => {
+            commands.onSelect(event);
+            completion.onSelect(event);
+          }}
+          onScroll={completion.onScroll}
+          onCompositionStart={completion.onCompositionStart}
+          onCompositionEnd={completion.onCompositionEnd}
+          aria-label={t("Message the assistant")}
+          placeholder={
+            home
+              ? t("Describe the game you dream of creating…")
+              : t("What would you like to create or change?")
           }
-        }}
-      />
-      {!home && <SkillPicker />}
+          value={s.prompt}
+          onChange={(e) => {
+            updateDraft(e.target.value);
+            commands.onInput(e);
+            completion.onInput(e);
+          }}
+          onPaste={(e) => {
+            const files = Array.from(e.clipboardData.files);
+            if (files.length) {
+              e.preventDefault();
+              if (!blocked) addFiles(files);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (commands.onKeyDown(e) || completion.onKeyDown(e)) return;
+            if (
+              e.key === "Enter" &&
+              !e.shiftKey &&
+              !e.nativeEvent.isComposing &&
+              e.keyCode !== 229
+            ) {
+              e.preventDefault();
+              if (canSend) send();
+            }
+          }}
+        />
+      </div>
       {!home && <AnnotationChips />}
-      {!home && (s.session.attachments || []).length > 0 && (
-        <div className="attachment-chips">
-          {s.session.attachments.map((path) => (
-            <button
-              type="button"
-              key={path}
-              onClick={() =>
-                s.updateChat((c) => {
-                  const session = c.sessions.find((c) => c.id === s.session.id);
-                  session.attachments = session.attachments.filter(
-                    (p) => p !== path,
-                  );
-                })
-              }
-            >
-              {path.split("/").at(-1)} ×
-            </button>
-          ))}
+      <AttachmentChips
+        items={attachments}
+        disabled={blocked}
+        onRemove={(id) => s.removeAttachment(id, home)}
+      />
+      {s.attachmentBusy && (
+        <div className="attachment-status" role="status">
+          {t("Preparing files…")}
         </div>
       )}
       <div className="composer-footer">
@@ -324,7 +399,7 @@ function Composer({ home = false }) {
           icon="plus"
           label={t("Attach a file")}
           onClick={() => attach.current.click()}
-          disabled={!s.document}
+          disabled={blocked}
         />
         <button
           type="button"
@@ -338,6 +413,70 @@ function Composer({ home = false }) {
           <span>{s.model?.title || t("Choose a model")}</span>
           <Icon name="down" size={11} />
         </button>
+        {home && (
+          <div className="creation-options">
+            <CreationPicker
+              label={t("Game dimension")}
+              value={creation.dimension}
+              disabled={s.admitting || s.running}
+              options={[
+                {
+                  value: 3,
+                  label: t("3D"),
+                  icon: "cube",
+                  description: t("Depth, light and space"),
+                },
+                {
+                  value: 2,
+                  label: t("2D"),
+                  icon: "image",
+                  description: t("Sprites and flat worlds"),
+                },
+              ]}
+              onChange={(dimension) => {
+                s.creation = { ...creation, dimension };
+                s.emit();
+              }}
+            />
+            <CreationPicker
+              label={t("Player mode")}
+              value={creation.players}
+              disabled={s.admitting || s.running}
+              options={[
+                {
+                  value: "single",
+                  label: t("Single-player"),
+                  icon: "user",
+                  description: t("An adventure of your own"),
+                },
+                {
+                  value: "multiplayer",
+                  label: t("Multiplayer"),
+                  icon: "users",
+                  description: t("Play together with others"),
+                },
+              ]}
+              onChange={(players) => {
+                s.creation = { ...creation, players };
+                s.emit();
+              }}
+            />
+          </div>
+        )}
+        {completion.suffix && (
+          <button
+            type="button"
+            className="completion-accept"
+            id={completion.id}
+            aria-label={t("Complete suggestion: {0}", completion.suffix)}
+            onPointerDown={(event) => event.preventDefault()}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={completion.accept}
+          >
+            <kbd>Tab</kbd>
+            {t("Accept suggestion")}
+          </button>
+        )}
         <span className="composer-spacer" />
         {s.running ? (
           <Button
@@ -353,7 +492,7 @@ function Composer({ home = false }) {
             icon="arrow"
             label={t("Send message")}
             className="send"
-            disabled={!s.prompt.trim() || !s.account}
+            disabled={!canSend || !s.account || blocked}
           />
         )}
       </div>
@@ -361,13 +500,12 @@ function Composer({ home = false }) {
         type="file"
         hidden
         ref={attach}
-        accept=".png,.jpg,.jpeg,.wav,.ogg,.glb,.md,.txt,.ada"
+        accept={attachmentAccept}
+        multiple
+        disabled={blocked}
         onChange={(e) => {
-          const f = e.target.files[0];
-          if (f)
-            s.action(async () => {
-              await s.attachFile(f);
-            });
+          const files = Array.from(e.target.files || []);
+          if (files.length) addFiles(files);
           e.target.value = "";
         }}
       />

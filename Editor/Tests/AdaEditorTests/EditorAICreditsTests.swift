@@ -70,6 +70,24 @@ struct EditorAICreditsTests {
             #expect(model.phase == ([404, 503].contains(status) ? .unavailable : .failed))
         }
     }
+    @Test("Cloud Pro purchase and exhausted allowance have different messages")
+    func cloudProAllowanceMessages() async {
+        var configured = catalog
+        configured["enabled"] = true
+        configured["availability"] = ["cloudServicesAvailable": true]
+        configured["capabilities"] = ["llm"]
+        let enabled = configured
+        var empty = wallet(available: 0, spent: 0, reserved: 0)
+        empty["allowance"] = 0
+        let noPlan = empty
+        let model = EditorAICreditsModel()
+        await model.refresh(client: EditorCloudAIClient(owner: owner) { path, _, _ in path == "/ai/catalog" ? enabled : noPlan })
+        #expect(model.summary == "Cloud Pro includes 500 AI credits per month. Subscribe to use Ada AI.")
+        await model.refresh(client: EditorCloudAIClient(owner: owner) { path, _, _ in
+            path == "/ai/catalog" ? enabled : wallet(available: 0, spent: 500_000_000, reserved: 0)
+        }, force: true)
+        #expect(model.summary == "Your AI credits are used up. They renew with your monthly Cloud Pro allowance.")
+    }
 
     @Test("The counter opens account details through the real UI event path")
     func badgeAction() throws {

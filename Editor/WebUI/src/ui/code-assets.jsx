@@ -1,3 +1,4 @@
+import { t, currentLanguage } from "../localization.js";
 import React from "react";
 import { studio } from "./state.js";
 import { useRef } from "react";
@@ -29,7 +30,7 @@ function Code({ hidden = false }) {
         <span />
         <Button
           icon="play"
-          label="Проверить в AdaPlayer"
+          label={t("Validate in AdaPlayer")}
           onClick={act(() => s.play(true))}
         />
       </div>
@@ -38,10 +39,10 @@ function Code({ hidden = false }) {
       </div>
       <div className="code-status">
         <span>
-          {s.activeFile.endsWith(".ada") ? "AdaScript" : "Текст проекта"}
+          {s.activeFile.endsWith(".ada") ? "AdaScript" : t("Project text")}
         </span>
         <span>{s.activeFile}</span>
-        <span>UTF-8 · {lines} строк</span>
+        <span>{t("UTF-8 · {0} lines", lines)}</span>
       </div>
     </section>
   );
@@ -54,17 +55,17 @@ function Assets() {
       <div className="panel-heading">
         <h2>
           <Icon name="folder" size={15} />
-          Ассеты проекта
+          {t("Project assets")}
         </h2>
         <span />
         <Button
           icon="upload"
-          label="Загрузить ассет"
+          label={t("Upload asset")}
           onClick={() => input.current.click()}
         />
         <Button
           icon="close"
-          label="Закрыть ассеты"
+          label={t("Close assets")}
           onClick={() => {
             s.view === "assets" ? s.navigate("editor") : (s.assetPanel = false);
             s.emit();
@@ -78,7 +79,7 @@ function Assets() {
             <button
               key={f.path}
               onClick={() => {
-                s.prompt += (s.prompt ? "\n" : "") + "Используй " + f.path;
+                s.prompt += (s.prompt ? "\n" : "") + t("Use {0}", f.path);
                 s.assistant = true;
                 s.navigate("assistant");
               }}
@@ -95,7 +96,15 @@ function Assets() {
                 />
               )}
               <span title={f.path}>{f.path.split("/").at(-1)}</span>
-              <small>{(bytes(f.data).length / 1024).toFixed(1)} КБ</small>
+              <small>
+                {t(
+                  "{0} KB",
+                  (bytes(f.data).length / 1024).toLocaleString(
+                    currentLanguage(),
+                    { minimumFractionDigits: 1, maximumFractionDigits: 1 },
+                  ),
+                )}
+              </small>
             </button>
           ))}
       </div>
@@ -103,7 +112,7 @@ function Assets() {
         ref={input}
         hidden
         type="file"
-        accept=".png,.jpg,.jpeg,.wav,.ogg,.glb"
+        accept=".png,.jpg,.jpeg,.wav,.ogg,.glb,.vox"
         onChange={(e) => {
           if (e.target.files[0])
             s.action(() => s.uploadAsset(e.target.files[0]));

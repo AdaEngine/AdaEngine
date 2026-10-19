@@ -1,0 +1,61 @@
+Use case: identity-preserve.
+Asset type: a polished stylized 3D brand mascot illustration for Ada Playground.
+
+REFERENCE PRIORITY
+The supplied turnaround-v1.png is the authoritative identity and construction
+reference. All four figures on that sheet are views of ONE SAME ROBOT.
+If a scene reference is also attached, use it for atmosphere only.
+Select the tall standing explorer robot, never the small crouching companion.
+
+IDENTITY LOCK
+Render the same friendly compact explorer robot with an oversized rounded
+warm-ivory ceramic helmet, slightly wider than its compact torso.
+Its head occupies about 42 percent of standing height, excluding the antenna.
+The face is one large glossy near-black rounded-rectangular inset visor.
+Exactly two luminous cyan eyes, each a thick inverted-U smiling arc with
+rounded ends. Keep the eye shapes crisp with restrained bloom.
+No human nose, lips, teeth, eyelashes or separate drawn mouth.
+
+Two warm golden circular side modules with dark centers and thin amber
+light rings. ONE short flattened paddle antenna with a yellow tip on the
+robot's OWN LEFT REAR crown. In front view it appears on viewer-right;
+in back view it appears on viewer-left. In the opposite side view it may
+be hidden by the head. Never mirror the robot or move the antenna.
+
+A short graphite accordion neck. Rounded cream torso armor with one small
+horizontal amber status lamp high at the center of the chest.
+Dark graphite joint gaps, rounded cream shoulder and forearm armor,
+gray rounded knee caps, short sturdy legs, broad cream boots with dark
+rubber soles and small amber ankle details.
+Each hand has exactly four digits: three fingers and one thumb.
+
+One compact cocoa-brown explorer backpack, two dark brown shoulder straps,
+a top flap and two dark fastening straps with metal buckles.
+From the front, show the shoulder straps, not the rear backpack face.
+From behind, do not show the visor, eyes or front chest lamp.
+
+MATERIAL AND RENDER
+High-quality stylized 3D game art with tactile satin ivory ceramic,
+warm metal hardware, dark rubber and restrained subtle edge wear.
+Clean and cared for, not a battle-damaged robot.
+Soft readable lighting, controlled reflections, moderate contrast.
+Preserve the reference silhouette, panel layout, backpack and proportions.
+
+VARIABLE SHOT
+[Specify ONE camera angle and ONE pose here.]
+[Specify full-body, portrait or scene framing here.]
+[Specify transparent background or a particular environment here.]
+
+COMPOSITION
+Keep the antenna, hands and feet inside the requested framing.
+For a full-body reference render, leave roughly ten percent clear margin.
+Use an orthographic-like 85 mm product-view perspective for turnarounds.
+For a UI header, place the robot to the right and leave calm negative space
+for live HTML text on the left. Do not generate text into the illustration.
+
+AVOID
+No extra robots, no extra antennae, no mirrored asymmetry, no human face,
+no extra fingers, no long thin adult-human limbs, no oversized combat armor,
+no guns or weapons, no chrome body, no purple eyes, no neon wash,
+no excessive bloom, no random lettering, no invented logo, no watermark.
+For transparent output, no painted checkerboard or opaque floor rectangle.

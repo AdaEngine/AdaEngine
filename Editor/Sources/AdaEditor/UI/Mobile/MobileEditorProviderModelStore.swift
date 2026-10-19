@@ -42,15 +42,23 @@ final class MobileEditorProviderModelStore {
         apiURL = credentials.apiURL
         apiKey = credentials.apiKey
         modelID = credentials.model
-        let initialProvider = credentials.provider ?? (MobileCodexCredentialStore.load() == nil ? .api : .codex)
+        let initialProvider = credentials.provider ?? (MobileCodexCredentialStore.load() != nil ? .codex : credentials.apiKey.isEmpty ? .ada : .api)
         provider = initialProvider
         selectedProvider = initialProvider
         selectedModelID = credentials.model
         selectedTitle = credentials.model
+        if initialProvider == .ada { modelID = Self.cloudModel.id; selectedModelID = modelID; selectedTitle = Self.cloudModel.title; models = [Self.cloudModel] }
     }
 
-    var providerTitle: String { provider == .codex ? "Codex" : "API key" }
-    var selectedProviderTitle: String { selectedProvider == .codex ? "Codex" : "API key" }
+    static let cloudModel = EditorProviderModel(id: "qwen/qwen3-coder-next", title: "Coder Next")
+    @discardableResult func useCloudAI() -> Bool {
+        switchProvider(to: .ada)
+        modelID = Self.cloudModel.id; models = [Self.cloudModel]; errorMessage = ""
+        return save()
+    }
+    func reportCloudError(_ message: String) { errorMessage = message }
+    var providerTitle: String { provider == .ada ? "Ada AI · Cloud Pro" : provider == .codex ? "Codex" : "API key" }
+    var selectedProviderTitle: String { selectedProvider == .ada ? "Ada AI · Cloud Pro" : selectedProvider == .codex ? "Codex" : "API key" }
     var isCodexConnected: Bool { MobileCodexCredentialStore.load() != nil }
 
     func switchProvider(to selected: MobileAgentProvider) {
@@ -112,6 +120,7 @@ final class MobileEditorProviderModelStore {
     }
 
     func reload() {
+        if provider == .ada { models = [Self.cloudModel]; modelID = Self.cloudModel.id; errorMessage = ""; return }
         cancel()
         let generation = requestID
         let providerForRequest = provider

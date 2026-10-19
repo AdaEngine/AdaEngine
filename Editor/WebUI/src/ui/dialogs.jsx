@@ -1,8 +1,15 @@
+import { AICredits } from "./ai-credits.jsx";
 import React from "react";
 import { studio } from "./state.js";
 import { useEffect } from "react";
 import { Icon, Mark, Button, act, entityIcon } from "./controls.jsx";
-import { t, languagePreference, setLanguage } from "../localization.js";
+import {
+  t,
+  languagePreference,
+  setLanguage,
+  currentLanguage,
+} from "../localization.js";
+import { providersForMode, setBillingMode } from "../provider-settings.js";
 
 function Modal({ title, onClose, children }) {
   useEffect(() => {
@@ -27,7 +34,7 @@ function Modal({ title, onClose, children }) {
       >
         <div className="panel-heading">
           <h2>{title}</h2>
-          <Button icon="close" label="Закрыть окно" onClick={onClose} />
+          <Button icon="close" label={t("Close window")} onClick={onClose} />
         </div>
         {children}
       </section>
@@ -38,7 +45,7 @@ function Settings() {
   const s = studio;
   return (
     <Modal
-      title="Ваш ассистент"
+      title={t("Your assistant")}
       onClose={() => {
         s.settings = false;
         s.emit();
@@ -46,9 +53,9 @@ function Settings() {
     >
       <div className="modal-body">
         <label className="field-label">
-          {t("Assistant language")}
+          {t("Interface language")}
           <select
-            aria-label={t("Assistant language")}
+            aria-label={t("Interface language")}
             value={languagePreference()}
             onChange={(e) => {
               setLanguage(e.target.value);
@@ -60,33 +67,50 @@ function Settings() {
             <option value="ru">Русский</option>
           </select>
         </label>
-        <p className="muted">Выберите, кто поможет вам создать игру.</p>
+        <p className="muted">
+          {t("Choose who will help you create your game.")}
+        </p>
         <div className="segmented">
           <button
-            disabled={s.running}
+            disabled={s.running || s.admitting}
             className={s.billingMode === "ada" ? "active" : ""}
             onClick={() => {
-              s.billingMode = "ada";
-              s.emit();
+              setBillingMode(s, "ada");
             }}
           >
             Ada AI
           </button>
           <button
-            disabled={s.running}
+            disabled={s.running || s.admitting}
             className={s.billingMode === "byok" ? "active" : ""}
             onClick={() => {
-              s.billingMode = "byok";
-              s.emit();
+              setBillingMode(s, "byok");
             }}
           >
-            Свой API-ключ
+            {t("Your API key")}
           </button>
+          {s.providers.some((p) => p.transport === "codex") && (
+            <button
+              disabled={s.running || s.admitting}
+              className={s.billingMode === "codex" ? "active" : ""}
+              onClick={() => setBillingMode(s, "codex")}
+            >
+              {t("Local Codex")}
+            </button>
+          )}
         </div>
+        {s.billingMode === "ada" && <AICredits details />}
+        {s.billingMode === "codex" && (
+          <p className="fine-print">
+            {t(
+              "Uses the Codex CLI sign-in on this computer. No API key is needed.",
+            )}
+          </p>
+        )}
         <label className="field-label">
-          Провайдер
+          {t("Provider")}
           <select
-            disabled={s.running}
+            disabled={s.running || s.admitting}
             value={s.providerID}
             onChange={(e) => {
               s.providerID = e.target.value;
@@ -94,7 +118,7 @@ function Settings() {
               s.emit();
             }}
           >
-            {s.providers.map((p) => (
+            {providersForMode(s).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}
               </option>
@@ -102,9 +126,9 @@ function Settings() {
           </select>
         </label>
         <label className="field-label">
-          Модель
+          {t("Model")}
           <select
-            disabled={s.running}
+            disabled={s.running || s.admitting}
             value={s.modelID}
             onChange={(e) => {
               s.modelID = e.target.value;
@@ -113,8 +137,7 @@ function Settings() {
           >
             {s.models.map((m) => (
               <option key={m.id} value={m.id} disabled={!m.tools}>
-                {m.title}
-                {!m.tools ? " — без инструментов" : ""}
+                {m.tools ? m.title : t("{0} — no tools", m.title)}
               </option>
             ))}
           </select>
@@ -122,21 +145,23 @@ function Settings() {
         {s.billingMode === "byok" && (
           <>
             <label className="field-label">
-              API-ключ
+              {t("API key")}
               <input
                 type="password"
-                disabled={s.running}
+                disabled={s.running || s.admitting}
                 autoComplete="off"
                 value={s.apiKey}
                 onChange={(e) => {
                   s.apiKey = e.target.value;
                   s.emit();
                 }}
-                placeholder="Ключ выбранного провайдера"
+                placeholder={t("Selected provider API key")}
               />
             </label>
             <p className="fine-print">
-              Ключ хранится только в памяти этой вкладки и не входит в проект.
+              {t(
+                "The key stays in this tab’s memory and is not included in the project.",
+              )}
             </p>
           </>
         )}
@@ -147,7 +172,7 @@ function Settings() {
             s.emit();
           }}
         >
-          Продолжить
+          {t("Continue")}
         </button>
       </div>
     </Modal>
@@ -157,7 +182,7 @@ function History() {
   const s = studio;
   return (
     <Modal
-      title="История вашего мира"
+      title={t("Your world’s history")}
       onClose={() => {
         s.history = false;
         s.emit();
@@ -165,24 +190,25 @@ function History() {
     >
       <div className="modal-body">
         <p className="muted">
-          Вернитесь к любой контрольной версии. Восстановление создаёт новую
-          версию.
+          {t("Return to any checkpoint. Restoring creates a new version.")}
         </p>
         <button
           className="button primary wide"
           onClick={act(() => s.checkpoint())}
         >
           <Icon name="plus" size={16} />
-          Сохранить контрольную версию
+          {t("Save checkpoint")}
         </button>
         <div className="history-list">
           {s.checkpoints.map((c) => (
             <button key={c.revision} onClick={act(() => s.restore(c.revision))}>
               <Icon name="history" />
               <span>
-                <strong>Версия {c.revision}</strong>
+                <strong>{t("Version {0}", c.revision)}</strong>
                 <small>
-                  {new Date(c.updatedAt * 1000).toLocaleString("ru-RU")}
+                  {new Date(c.updatedAt * 1000).toLocaleString(
+                    currentLanguage(),
+                  )}
                 </small>
               </span>
               <Icon name="undo" size={15} />
@@ -202,39 +228,40 @@ function LeaveProject() {
     s.emit();
   };
   return (
-    <Modal title="Не удалось сохранить проект в облаке" onClose={stay}>
+    <Modal title={t("Could not save the project to Cloud")} onClose={stay}>
       <div className="modal-body">
         <p>
-          Ваш проект «{s.snapshot.title}» остаётся открыт. Можно повторить
-          сохранение или сохранить изменения в этом браузере перед переходом к
-          списку проектов.
+          {t(
+            "Your project “{0}” stays open. Retry saving or save a local copy before returning to Playground.",
+            s.snapshot.title,
+          )}
         </p>
         <p className="muted">
-          Локальная копия доступна только на этом устройстве. При следующем
-          открытии проекта Studio восстановит её. ZIP можно скачать для
-          отдельной резервной копии.
+          {t(
+            "The local copy is available only on this device. Studio will restore it the next time you open the project. Download a ZIP for a separate backup.",
+          )}
         </p>
         <p role="status">{s.leavePrompt}</p>
         <div className="leave-actions">
           <Button autoFocus disabled={s.leaving} onClick={stay}>
-            Остаться в проекте
+            {t("Stay in project")}
           </Button>
           <Button
             disabled={s.leaving}
             onClick={act(() => s.export())}
             icon="download"
           >
-            Скачать ZIP
+            {t("Download ZIP")}
           </Button>
           <Button disabled={s.leaving} onClick={act(() => s.browseProjects())}>
-            Повторить сохранение
+            {t("Retry saving")}
           </Button>
           <Button
             disabled={s.leaving}
             className="primary"
             onClick={act(() => s.browseProjects(true))}
           >
-            Сохранить локально и выйти
+            {t("Save locally and leave")}
           </Button>
         </div>
       </div>

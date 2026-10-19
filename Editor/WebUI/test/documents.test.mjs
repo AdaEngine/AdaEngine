@@ -72,11 +72,11 @@ test("invalid scene edits are atomic and do not enter undo", () => {
     before = structuredClone(doc.snapshot);
   assert.throws(
     () => doc.scene((s) => (s.entities[0].parent = s.entities[0].id)),
-    /иерархия/,
+    /hierarchy/,
   );
   assert.deepEqual(doc.snapshot, before);
   assert.equal(doc.undoStack.length, 0);
-  assert.throws(() => doc.write("../escape.ada", "bad"), /Недопустимый/);
+  assert.throws(() => doc.write("../escape.ada", "bad"), /Invalid/);
   assert.deepEqual(doc.snapshot, before);
 });
 test("YAML scenes from native Studio remain editable after DOM transactions", () => {
@@ -128,7 +128,7 @@ test("stored and deflated archives are accepted, CRC-corrupt archives rejected",
     let cursor = 0;
     while (view.getUint32(cursor, true) !== 0x02014b50) cursor++;
     corrupt[cursor + 16] ^= 1;
-    assert.throws(() => importZIP(corrupt), /Повреждённый ZIP/);
+    assert.throws(() => importZIP(corrupt), /Invalid ZIP/);
   }
 });
 test("ZIP import rejects traversal, executable files, duplicates, oversize entries and truncation", () => {
@@ -147,14 +147,14 @@ test("ZIP import rejects traversal, executable files, duplicates, oversize entri
       importZIP(
         zipSync({ "Assets/a.png": new Uint8Array(16 * 1024 * 1024 + 1) }),
       ),
-    /размер/,
+    /size/,
   );
   assert.throws(
     () =>
       importZIP(
         zipSync({ "Assets/a.png": strToU8("a"), "Assets/A.png": strToU8("b") }),
       ),
-    /путь/,
+    /path/,
   );
   assert.throws(() => importZIP(exportZIP(template(3)).slice(0, -4)));
 });

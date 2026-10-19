@@ -78,6 +78,7 @@ AdaEngine is a game engine written in Swift for building 2D and 3D games and use
 * **[Tutorials](https://docs.adaengine.org/tutorials/adaengine/)**: Ada's official tutorials with how to start your first project.
 * **Building & Contributing Guides:** [Building](Sources/AdaEngine/AdaEngine.docc/Building.md), [Contributing](Sources/AdaEngine/AdaEngine.docc/Contributing.md)
 * **[Architecture Decision Records](Documentation/ArchitectureDecisions/README.md):** Accepted architectural decisions and their implementation status.
+* **[Playground Mascot](Documentation/Brand/PlaygroundMascot.md):** Character guide, turnaround views and detailed generation prompts.
 
 ## ⭐️ Examples
 

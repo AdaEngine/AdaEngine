@@ -1,3 +1,4 @@
+import { LocalizedError } from "./localization.js";
 import { file, metadata, scene, scenePath, template } from "./documents.js";
 import { decode } from "./platform.js";
 let cached;
@@ -5,7 +6,7 @@ export async function resources() {
   if (!cached)
     cached = fetch("./agent-resources.json")
       .then((r) => {
-        if (!r.ok) throw new Error("Agent resources unavailable");
+        if (!r.ok) throw new LocalizedError("Agent resources unavailable");
         return r.json();
       })
       .catch((e) => {
@@ -43,7 +44,7 @@ export async function knowledge(studio, name, args) {
     };
   if (name === "editor_skills_read") {
     const s = (await skills(studio)).find((s) => s.id === args.id);
-    if (!s) throw new Error("Unknown skill ID");
+    if (!s) throw new LocalizedError("Unknown skill ID");
     return {
       id: s.id,
       content: s.content,
@@ -77,11 +78,11 @@ export async function knowledge(studio, name, args) {
   if (name === "editor_docs_read") {
     if (!args.id) {
       const r = await fetch("./recipes.md");
-      if (!r.ok) throw new Error("Recipes unavailable");
+      if (!r.ok) throw new LocalizedError("Recipes unavailable");
       return r.text();
     }
     const a = data.docs.find((a) => a.id === args.id);
-    if (!a) throw new Error("Unknown documentation ID");
+    if (!a) throw new LocalizedError("Unknown documentation ID");
     return {
       id: a.id,
       source: a.source,
@@ -143,8 +144,8 @@ export async function knowledge(studio, name, args) {
     };
   if (name === "editor_examples_read") {
     const e = examples.find((e) => e.id === args.id);
-    if (!e) throw new Error("Unknown example ID");
+    if (!e) throw new LocalizedError("Unknown example ID");
     return e;
   }
-  throw new Error("Unknown knowledge tool");
+  throw new LocalizedError("Unknown knowledge tool");
 }

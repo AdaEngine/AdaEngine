@@ -1,10 +1,10 @@
 import { clone, scenePath } from "./documents.js";
 import { resolve } from "./a2ui.js";
-import { t } from "./localization.js";
+import { t, LocalizedError } from "./localization.js";
 
 export function validateAnnotations(items = []) {
   if (!Array.isArray(items) || items.length > 8)
-    throw new Error("Invalid annotations");
+    throw new LocalizedError("Invalid annotations");
   const ids = new Set();
   const numbers = new Set();
   for (const item of items) {
@@ -29,7 +29,7 @@ export function validateAnnotations(items = []) {
           !item.image.startsWith("data:image/jpeg;base64,") ||
           item.image.length > 96 * 1024))
     )
-      throw new Error("Invalid annotation");
+      throw new LocalizedError("Invalid annotation");
     ids.add(item.id);
     if (item.number !== undefined) numbers.add(item.number);
   }
@@ -55,7 +55,7 @@ function open(s, target, anchor, editingID) {
   if (!s.document || s.projectBrowser) return;
   const items = s.session.annotations || [];
   if (!editingID && items.length >= 8)
-    throw new Error(t("You can add up to eight annotations"));
+    throw new LocalizedError("You can add up to eight annotations");
   const draft = {
     target,
     anchor,
@@ -121,7 +121,7 @@ function current(s, draft) {
 export function entityTarget(s, id) {
   const entity = s.scene?.entities.find((e) => e.id === id);
   if (!entity)
-    throw new Error(t("The selected object is no longer in the scene"));
+    throw new LocalizedError("The selected object is no longer in the scene");
   return {
     kind: "entity",
     label: entity.name.slice(0, 500),
@@ -143,7 +143,7 @@ export function annotateUI(s, surfaceID, generation, componentID, anchor) {
     ),
     component = surface?.components[componentID];
   if (!component)
-    throw new Error(t("The selected UI element is no longer available"));
+    throw new LocalizedError("The selected UI element is no longer available");
   const label = resolve(
     component.label ?? component.text ?? component.placeholder ?? component.id,
     surface.data,
@@ -170,7 +170,7 @@ export async function annotatePreview(s, point, anchor) {
     !s.preview.ready ||
     ![point.x, point.y].every((n) => Number.isFinite(n) && n >= 0 && n <= 1)
   )
-    throw new Error(t("Wait for the preview to load"));
+    throw new LocalizedError("Wait for the preview to load");
   const revision = s.preview.editorRevision;
   const draft = open(
     s,
@@ -198,14 +198,16 @@ export async function annotatePreview(s, point, anchor) {
     });
     if (!current(s, draft)) return;
     if (s.preview.editorRevision !== revision)
-      throw new Error(t("The preview changed. Select the element again."));
+      throw new LocalizedError(
+        "The preview changed. Select the element again.",
+      );
     if (
       typeof image === "string" &&
       image.startsWith("data:image/jpeg;base64,") &&
       image.length <= 96 * 1024
     )
       draft.image = image;
-    else throw new Error(t("The preview image is unavailable"));
+    else throw new LocalizedError("The preview image is unavailable");
   } catch (error) {
     if (!current(s, draft)) return;
     draft.error = error.message;
@@ -245,10 +247,8 @@ export function addAnnotation(s) {
   if (previous) {
     const fragment = draft.replacedFragment || previous.fragment;
     if (!prompt.includes(fragment))
-      throw new Error(
-        t(
-          "This note was edited in the composer. Edit its text there or remove it before replacing it.",
-        ),
+      throw new LocalizedError(
+        "This note was edited in the composer. Edit its text there or remove it before replacing it.",
       );
     prompt = prompt.replace(fragment, () => item.fragment);
   } else prompt += (prompt ? "\n\n" : "") + item.fragment;

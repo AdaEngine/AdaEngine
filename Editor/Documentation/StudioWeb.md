@@ -1,12 +1,41 @@
 # Ada Studio Web
 
 `Editor/WebUI` is the default browser editor: a small React/DOM shell with native
-text inputs and floating object/assistant/inspector panels. Both the scene viewport
+text inputs and inset floating panels over a full-width viewport. The full-height
+assistant sits on the left, with scene objects and the inspector on the right.
+The bottom console reads the current AdaPlayer log stream and viewport diagnostics. Both the scene viewport
 and Play use the fixed `AdaWebPlayer` in one isolated iframe; the editor does not
 draw a separate scene in SVG, Canvas or another renderer. Opening a project starts
 AdaEngine asynchronously while the DOM controls remain available. There is no
 user Swift compilation, native process runner, ACP subprocess, SourceKit or
 credential-store dependency in the browser target.
+
+## Playground entry point
+
+The DOM WebUI now starts with the Playground library. Its rail has Games, Create,
+My projects and Account. Games reads the public `/v1/catalog` independently of
+Studio sign-in and AI availability; an empty catalog is shown honestly. Create
+uses the existing assistant and 2D/3D templates, and My projects opens private
+Cloud workspaces. Generated tag artwork lives under `WebUI/assets/playground`
+and is included in the ordinary frontend export.
+
+Opening a project restores the project tools in the rail. The Ada mark returns
+to Games and My projects opens the private list. Both paths wait for save, retain
+the document/undo/selection/Player and use the existing recovery dialog on failure.
+The library starts without automatically opening the last project. Create and My projects share an aligned mascot welcome layout with localized actions.
+Signed-out, loading, unavailable and genuinely empty workspaces have distinct
+states; an existing project list is never replaced by example content. Public game
+launches use a separate tab (or the native Ada Studio link); they do not replace
+the current editing document. Publishing controls remain a separate boundary.
+
+Rebuild `Editor/WebUI` and refresh `/studio/` to see this interface. The standalone
+HTML design preview and the Cloud website build are separate artifacts; changing
+one does not update WebUI. Hosted deployment still needs an explicit rollout.
+
+Optional assistant workflows are discovered by typing `/` in the composer.
+The compact completion menu filters commands as you type; Enter/Tab inserts a
+command into the editable draft, while Escape dismisses it. Only Send starts the
+agent. Explicit workflow commands can appear anywhere in the request.
 
 ## Modules and boundaries
 
@@ -74,6 +103,16 @@ ZIP or explicitly save a local draft and leave. The latter waits for a successfu
 IndexedDB transaction; storage failure keeps the project open. Local recovery is
 scoped to this browser/device and cloud reopen currently requires a connection.
 The browser's unload guard protects unsaved cloud changes and active agent work.
+
+## Local development
+
+Use the real Cloud services for project creation and persistence. A static server
+cannot handle `/v1/workspaces` or sign-in. From `Editor/WebUI`, run
+`npm run dev:setup` once, then `npm run dev`. The isolated stack serves Studio at
+`http://localhost:8080/studio/`, normal Cloud sign-in at `/cloud`, and email codes
+at `http://127.0.0.1:28088/`. It keeps PostgreSQL, Redis, Kafka and mirrored S3
+objects in ignored local state. See [WebUI development](../WebUI/README.md) for
+prerequisites, the separate Player export, ports and restart checks.
 
 ## Export
 

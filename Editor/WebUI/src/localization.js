@@ -5,14 +5,15 @@ const catalog =
     : __STUDIO_AGENT_LOCALES__;
 export function languagePreference() {
   try {
-    return localStorage.getItem("AdaEditor.language") || "system";
+    const preference = localStorage.getItem("AdaEditor.language");
+    return ["en", "ru", "system"].includes(preference) ? preference : "system";
   } catch {
     return "system";
   }
 }
 export function setLanguage(preference) {
   if (!["system", "en", "ru"].includes(preference))
-    throw new Error("Invalid language");
+    throw new LocalizedError("Invalid language");
   localStorage.setItem("AdaEditor.language", preference);
 }
 export function resolveLanguage(preference, languages) {
@@ -23,12 +24,28 @@ export function resolveLanguage(preference, languages) {
   }
   return "en";
 }
-export function t(key, ...values) {
-  const language = resolveLanguage(
+export function currentLanguage() {
+  return resolveLanguage(
     languagePreference(),
     globalThis.navigator?.languages || [],
   );
+}
+export function t(key, ...values) {
+  return translatedText(key, currentLanguage(), ...values);
+}
+export function translatedText(key, language, ...values) {
   return (catalog[language]?.[key] || key).replace(/\{(\d+)\}/g, (_, index) =>
     String(values[index] ?? ""),
   );
+}
+
+/** Keep app-authored errors translatable while an existing alert stays mounted. */
+export class LocalizedError extends Error {
+  constructor(key, ...values) {
+    super(key);
+    Object.defineProperty(this, "message", {
+      configurable: true,
+      get: () => t(key, ...values),
+    });
+  }
 }

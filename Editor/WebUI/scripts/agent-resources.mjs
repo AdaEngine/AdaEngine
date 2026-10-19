@@ -2,12 +2,16 @@ import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { parse } from "yaml";
-const root = fileURLToPath(new URL("../../..", import.meta.url));
-const read = (p) => readFile(path.join(root, p), "utf8");
-export async function agentResources(output) {
+const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
+export async function agentResources(output, root = repositoryRoot) {
+  const read = (p) => readFile(path.join(root, p), "utf8");
   const skills = [];
   const base = "Editor/Sources/AdaEditor/Assets/AgentSkills";
-  for (const dir of await readdir(path.join(root, base))) {
+  for (const entry of await readdir(path.join(root, base), {
+    withFileTypes: true,
+  })) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const dir = entry.name;
     const content = await read(`${base}/${dir}/SKILL.md`);
     const front = parse(content.split("---")[1] || "") || {};
     skills.push({
@@ -74,15 +78,19 @@ export async function agentResources(output) {
     for (const e of await readdir(path.join(root, folder), {
       withFileTypes: true,
     })) {
+      if (e.name === ".DS_Store") continue;
       const p = `${folder}/${e.name}`;
       if (e.isDirectory()) Object.assign(files, await walk(p, base));
-      else files[p.slice(base.length + 1)] = await read(p);
+      else if (e.isFile()) files[p.slice(base.length + 1)] = await read(p);
     }
     return files;
   };
-  for (const id of await readdir(
+  for (const entry of await readdir(
     path.join(root, "Editor/Sources/AdaEditor/Assets/Examples"),
+    { withFileTypes: true },
   )) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const id = entry.name;
     const files = await walk("Editor/Sources/AdaEditor/Assets/Examples/" + id);
     examples.push({
       id,

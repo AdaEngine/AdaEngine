@@ -1,3 +1,4 @@
+import { t } from "../localization.js";
 import React, { useEffect, useRef } from "react";
 import { studio } from "./state.js";
 
@@ -102,7 +103,7 @@ export function ViewportInput() {
       className="viewport-input"
       tabIndex={0}
       role="application"
-      aria-label="Управление сценой AdaEngine"
+      aria-label={t("AdaEngine scene controls")}
       onPointerDown={(e) => pointer(e, "down")}
       onPointerMove={(e) => pointer(e, "move")}
       onPointerUp={(e) => pointer(e, "up")}

@@ -1,5 +1,7 @@
+import { t, LocalizedError } from "./localization.js";
+
 const cancelled = () =>
-  new DOMException("Обновление сцены отменено", "AbortError");
+  new DOMException(t("Scene update cancelled"), "AbortError");
 
 /** One AdaEngine instance per open project; snapshots replace its scene, not its renderer. */
 export class Preview {
@@ -27,9 +29,9 @@ export class Preview {
       )
         return;
       if (event.data.event === "startup-error") {
-        const error = new Error(
-          String(event.data.message || "Player startup failed").slice(0, 2000),
-        );
+        const error = event.data.message
+          ? new Error(String(event.data.message).slice(0, 2000))
+          : new LocalizedError("Player startup failed");
         for (const entry of this.pending.values()) entry.reject(error);
         this.pending.clear();
         this.ready = false;
@@ -117,10 +119,11 @@ export class Preview {
 
   async mount(config) {
     if (!navigator.gpu)
-      throw new Error(
-        "Для сцены нужен браузер с WebGPU. Панели и код доступны без него.",
+      throw new LocalizedError(
+        "A WebGPU browser is required for the scene. Panels and code remain available.",
       );
-    if (!this.host) throw new Error("Игровая область пока недоступна");
+    if (!this.host)
+      throw new LocalizedError("The scene viewport is not ready yet.");
     const url = new URL(config.previewURL);
     const local = (host) => ["localhost", "127.0.0.1", "[::1]"].includes(host);
     const loopback =
@@ -134,12 +137,12 @@ export class Preview {
       url.username ||
       url.password
     )
-      throw new Error("Для сцены нужен отдельный защищённый хост");
+      throw new LocalizedError("The scene requires a separate secure host.");
     this.origin = url.origin;
     url.hash = new URLSearchParams({ studioParent: location.origin });
     const frame = document.createElement("iframe");
     this.frame = frame;
-    frame.title = "AdaEngine — сцена и игровой предпросмотр";
+    frame.title = t("AdaEngine — scene and game preview");
     frame.setAttribute(
       "sandbox",
       "allow-scripts allow-same-origin allow-pointer-lock",
@@ -148,7 +151,7 @@ export class Preview {
     frame.referrerPolicy = "no-referrer";
     const mounted = new Promise((resolve, reject) => {
       const timer = setTimeout(
-        () => reject(new Error("AdaPlayer не ответил")),
+        () => reject(new LocalizedError("AdaPlayer did not respond")),
         30000,
       );
       this.cancelMount = () => {
@@ -161,7 +164,7 @@ export class Preview {
       };
       frame.onerror = () => {
         clearTimeout(timer);
-        reject(new Error("Не удалось открыть AdaPlayer"));
+        reject(new LocalizedError("Could not open AdaPlayer"));
       };
     });
     frame.src = url;
@@ -171,13 +174,13 @@ export class Preview {
   }
 
   message(type, payload) {
-    if (!this.frame) throw new Error("Сцена ещё не загружена");
+    if (!this.frame) throw new LocalizedError("The scene has not loaded yet.");
     const id = crypto.randomUUID();
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
         () => {
           this.pending.delete(id);
-          reject(new Error("AdaPlayer не отвечает"));
+          reject(new LocalizedError("AdaPlayer is not responding"));
         },
         type === "load" ? 120000 : 30000,
       );

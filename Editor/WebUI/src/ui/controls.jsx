@@ -2,6 +2,12 @@ import React from "react";
 import { studio } from "./state.js";
 
 const paths = {
+  music:
+    "M9 18V5l12-3v13M9 5l12-3M9 18a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3m12-3a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3",
+  user: "M20 21v-2a7 7 0 0 0-14 0v2M13 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8",
+  users:
+    "M16 21v-2a6 6 0 0 0-12 0v2M10 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8m9 0a4 4 0 0 1 0 8m3 10v-2a6 6 0 0 0-3-5.2",
+  terminal: "M3 4h18v16H3Zm4 4 4 4-4 4m6 0h4",
   annotate: "M4 4h16v12H9l-5 4Zm4 4h8m-8 4h5",
   snap: "M4 3v10a8 8 0 0 0 16 0V3h-5v10a3 3 0 0 1-6 0V3Zm0 5h5m6 0h5",
   focus: "M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M9 9h6v6H9Z",
@@ -46,8 +52,8 @@ const paths = {
 function Icon({ name, size = 18, ...props }) {
   return (
     <svg
-      width={size}
-      height={size}
+      width={`${size / 13}rem`}
+      height={`${size / 13}rem`}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -66,8 +72,7 @@ function Mark({ size = 32 }) {
     <img
       className="brand-mark"
       src="./ada-logo.svg"
-      width={size}
-      height={(size * 302) / 425}
+      style={{ "--mark-size": `${size / 13}rem` }}
       alt=""
       aria-hidden="true"
       draggable="false"

@@ -9,6 +9,7 @@ import UIKit
 #endif
 
 enum MobileAgentProvider: String, Codable, Sendable {
+    case ada
     case codex
     case api
 }
