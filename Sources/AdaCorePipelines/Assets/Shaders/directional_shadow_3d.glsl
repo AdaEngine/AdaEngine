@@ -1,5 +1,10 @@
 #version 450 core
 #pragma stage : vert
+#ifdef ADA_MORPH
+#extension GL_EXT_samplerless_texture_functions : require
+#endif
+
+#include <AdaEngine/Morph.glsl>
 
 layout (location = 13) in vec4 a_JointIndices;
 layout (location = 14) in vec4 a_JointWeights;
@@ -39,13 +44,17 @@ layout (binding = 2) uniform DirectionalShadowViewUniform {
 [[main]]
 void directional_shadow_3d_vertex()
 {
+    vec3 localPosition = a_Position;
+#ifdef ADA_MORPH
+    applyMorphPosition(localPosition);
+#endif
     mat4 model = mat4(a_Model0, a_Model1, a_Model2, a_Model3) * skinTransform();
     v_Fade = a_ShadowFlags.w;
     v_TileBounds = u_TileBounds;
     v_UV0 = a_TextureCoordinate;
     v_UV1 = a_TextureCoordinate1;
     v_Alpha = a_Color.a * a_VertexColor.a;
-    gl_Position = u_ShadowViewProjection * model * vec4(a_Position, 1.0);
+    gl_Position = u_ShadowViewProjection * model * vec4(localPosition, 1.0);
 }
 
 #version 450 core
@@ -65,6 +74,9 @@ layout (binding = 15) uniform PBR3DUniform {
     vec4 u_SurfaceFlags;
     vec4 u_UVSets;
     vec4 u_Emission;
+    vec4 u_Parallax;
+    vec4 u_TextureTransforms[10];
+    vec4 u_Dielectric;
 };
 
 [[main]]
@@ -79,6 +91,7 @@ void directional_shadow_3d_fragment()
     if (u_SurfaceFlags.x < 0.5 && !gl_FrontFacing) { discard; }
     if (u_SurfaceProperties.w > 0.5 && u_SurfaceProperties.w < 1.5) {
         vec2 uv = u_UVSets.x > 0.5 ? v_UV1 : v_UV0;
+        uv = vec2(dot(u_TextureTransforms[0].xy, uv), dot(u_TextureTransforms[0].zw, uv)) + u_TextureTransforms[1].xy;
         float alpha = texture(sampler2D(u_BaseColorTexture, u_BaseColorSampler), uv).a * v_Alpha;
         if (alpha < u_SurfaceProperties.z) { discard; }
     }

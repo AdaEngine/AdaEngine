@@ -14,6 +14,9 @@ final class EditorModelAssetPreviewModel {
     var playsAnimation = true { didSet { updatePlayback() } }
     var animationGraph: AnimationGraph? { didSet { updatePlayback() } }
     var graphEventLog: [String] = []
+    /// Morph target weights by name that the preview shows; every target the entity has is set to its entry, so a target removed from
+    /// the map needs its default put back by the caller.
+    var morphWeights: [String: Float] = [:] { didSet { applyMorphWeights() } }
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var normalizationCache: (ObjectIdentifier, Transform, AABB)?
     @ObservationIgnored private weak var world: World?
@@ -56,6 +59,19 @@ final class EditorModelAssetPreviewModel {
         animationRoot = world.getEntities().first { $0.components[ModelAnimation3DComponent.self] != nil }?.id
         voxelRoot = world.getEntities().first { $0.components[VoxelAnimationPlayback3DComponent.self] != nil }?.id
         updatePlayback()
+        applyMorphWeights()
+    }
+
+    private func applyMorphWeights() {
+        guard let world, !morphWeights.isEmpty else { return }
+        for entity in world.getEntities() {
+            guard var component = entity.components[MorphWeights3DComponent.self] else { continue }
+            var changed = false
+            for (name, weight) in morphWeights where weight.isFinite {
+                if component.weight(named: name) != weight, component.setWeight(weight, named: name) { changed = true }
+            }
+            if changed { entity.components[MorphWeights3DComponent.self] = component }
+        }
     }
 
     /// Whether the previewed asset is a MagicaVoxel scene with animation to play.

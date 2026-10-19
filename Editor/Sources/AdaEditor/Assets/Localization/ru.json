@@ -2360,5 +2360,22 @@
   "Converted for your project": "Преобразовано для проекта",
   "Remove attachment {0}": "Убрать вложение {0}",
   "Drop files to attach": "Перетащите сюда файлы",
-  "Preparing files…": "Готовим файлы…"
+  "Preparing files…": "Готовим файлы…",
+  "Morph Targets": "Цели морфинга",
+  "MORPH TARGETS": "ЦЕЛИ МОРФИНГА",
+  "Loading morph target model…": "Загрузка модели с целями морфинга…",
+  "This model has no named morph targets.": "У этой модели нет именованных целей морфинга.",
+  "Targets without a name cannot be set from a scene.": "Цели без имени нельзя задать из сцены.",
+  "Applied to scene. Save the scene to keep these weights.": "Применено к сцене. Сохраните сцену, чтобы сохранить эти веса.",
+  "Morph weights cleared.": "Веса морфинга сброшены.",
+  "Morph weights applied": "Веса морфинга применены",
+  "Morph weights cleared": "Веса морфинга сброшены",
+  "Sprite Animation": "Анимация спрайта",
+  "Add Clip": "Добавить клип",
+  "Add Row Frames": "Добавить кадры из ряда",
+  "Import from Aseprite": "Импортировать из Aseprite",
+  "Export the sheet with Trim off and a JSON array. Replaces the image and clips.": "Экспортируйте лист спрайтов с выключенным Trim и JSON-массивом. Изображение и клипы будут заменены.",
+  "Choose sprite animation…": "Выберите анимацию спрайта…",
+  "Search sprite animations": "Поиск анимаций спрайтов",
+  "Create a Sprite Animation resource in Assets first.": "Сначала создайте ресурс анимации спрайта в разделе «Ресурсы»."
 }

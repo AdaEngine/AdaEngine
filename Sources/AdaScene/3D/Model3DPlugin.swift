@@ -37,6 +37,7 @@ public struct Model3DPlugin: Plugin {
         ModelAnimation3DComponent.registerComponent()
         ModelNode3DComponent.registerComponent()
         SkinnedMesh3DComponent.registerComponent()
+        MorphWeights3DComponent.registerComponent()
         app.addSystem(SkeletalAnimation3DSystem.self, on: .postUpdate)
         VoxelAnimationPlayback3DComponent.registerComponent()
         VoxelTransformAnimation3DComponent.registerComponent()
@@ -58,6 +59,7 @@ public struct Model3DPlugin: Plugin {
             .insertResource(AnimatedBounds3D())
             .insertResource(Active3DInstanceBuffers())
             .insertResource(Skinning3DUniforms())
+            .insertResource(Morph3DUniforms())
             .insertResource(PBR3DUniforms())
             .insertResource(RenderPipelines(configurator: PBR3DPipeline()))
             .insertResource(RenderPipelines(configurator: Flat3DPipeline()))
@@ -82,6 +84,9 @@ func ExtractModel3D(
     RelationshipComponent>>,
     _ skins: Extract<Query<Entity,
     SkinnedMesh3DComponent>>,
+    _ morphs: Extract<Query<Entity,
+    MorphWeights3DComponent>>,
+    _ morphUniforms: ResMut<Morph3DUniforms>,
     _ sources: ResMut<ExtractedMesh3DSources>,
     _ animatedBounds: ResMut<AnimatedBounds3D>,
     _ skinningUniforms: ResMut<Skinning3DUniforms>,
@@ -101,6 +106,11 @@ func ExtractModel3D(
     lods.wrappedValue.forEach { entity, lod in lodByEntity[entity.id] = lod }
     var posedBounds: [Entity.ID: AABB] = [:]
     skinningUniforms.wrappedValue.beginFrame(device: renderDevice.renderDevice)
+    morphUniforms.wrappedValue.beginFrame()
+    var morphByEntity: [Entity.ID: [Float]] = [:]
+    morphs.wrappedValue.forEach { entity, morph in morphByEntity[entity.id] = morph.weights }
+    // Morph deltas are applied before skinning, so a joint matrix that scales also scales the displacement.
+    var skinScale: [Entity.ID: Float] = [:]
     skins.wrappedValue.forEach { entity, skin in
         _ = skinningUniforms.wrappedValue.write(skin.matrices, for: entity.id, device: renderDevice.renderDevice, revision: .init(id: skin.paletteID, generation: skin.poseGeneration))
         if let mesh = entity.components[Mesh3DComponent.self]?.mesh {
@@ -111,6 +121,11 @@ func ExtractModel3D(
                 : animatedBounds.wrappedValue.bounds(mesh: mesh, matrices: skin.matrices)
             posedBounds[entity.id] = bounds
         }
+        var largest: Float = 1
+        for matrix in skin.matrices {
+            largest = max(largest, matrix.x.xyz.length, matrix.y.xyz.length, matrix.z.xyz.length)
+        }
+        skinScale[entity.id] = largest
     }
     materialUniforms.wrappedValue.beginFrame()
 
@@ -134,6 +149,22 @@ func ExtractModel3D(
         if palette == nil, let lod {
             for level in lod.alternatives { localBounds = localBounds.map { AABB(min: min($0.min, level.bounds.min), max: max($0.max, level.bounds.max)) } ?? level.bounds }
         }
+        // Weights move vertices past the rest-pose bounds, so culling and shadow bounds grow by the most the weights can displace.
+        var morphBuffers: [UInt64: any UniformBuffer] = [:]
+        if mesh.hasMorphTargets, let weights = morphByEntity[entity.id] {
+            let written = morphUniforms.wrappedValue.write(weights: weights, mesh: mesh, for: entity.id, device: renderDevice.renderDevice)
+            var displacement: Float = 0
+            for (key, buffer) in written {
+                morphBuffers[Mesh3DRenderSource.morphKey(model: key.model, part: key.part)] = buffer
+                if let set = mesh.models[key.model].parts[key.part].morphTargets {
+                    displacement = max(displacement, set.maximumDisplacement(for: weights))
+                }
+            }
+            if displacement > 0, let bounds = localBounds {
+                let growth = Vector3.one * (displacement * (skinScale[entity.id] ?? 1))
+                localBounds = AABB(min: bounds.min - growth, max: bounds.max + growth)
+            }
+        }
         sources.meshes.append(Mesh3DRenderSource(
             entity: entity.id,
             drawPass: drawPass.wrappedValue,
@@ -141,7 +172,8 @@ func ExtractModel3D(
             materials: mesh3d.materials,
             transform: transform.matrix,
             bounds: localBounds.map { MeshVisibility3DMath.transformed($0, by: transform.matrix) },
-            alternatives: palette == nil || lod?.skeletonCompatible == true && localBounds != nil ? lod?.alternatives ?? [] : [],
+            // Level-of-detail meshes have their own vertices, which the morph deltas do not address.
+            alternatives: morphBuffers.isEmpty && (palette == nil || lod?.skeletonCompatible == true && localBounds != nil) ? lod?.alternatives ?? [] : [],
             thresholds: lod?.screenThresholds ?? [],
             hysteresis: lod?.hysteresis ?? 0.15,
             maximumDistance: lod?.maximumDistance,
@@ -150,7 +182,8 @@ func ExtractModel3D(
             castShadows: mesh3d.castShadows,
             receiveShadows: mesh3d.receiveShadows,
             skinningBuffer: palette,
-            previousTransform: previousTransforms[entity.id]
+            previousTransform: previousTransforms[entity.id],
+            morphBuffers: morphBuffers
         ))
     }
 
@@ -179,12 +212,15 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
             return
         }
 
+        let isMotion = world.getResource(ActiveMotion3DPass.self)?.isEnabled == true
+        let morphed = item.morphBuffer != nil && part.morphTargets != nil
         let configuration = PBR3DConfiguration(
             vertex: part.vertexDescriptor,
             blended: (item.material as? PBRMaterial)?.alphaMode == .blend,
-            temporalDepth: view.components[RenderViewTarget.self]?.temporalUpscalingActive == true
+            temporalDepth: view.components[RenderViewTarget.self]?.temporalUpscalingActive == true,
+            // The motion shader has no shading layers, so its pipelines are not split by them.
+            features: (isMotion ? [] : (item.material as? PBRMaterial)?.shaderFeatures ?? []).union(morphed ? .morph : [])
         )
-        let isMotion = world.getResource(ActiveMotion3DPass.self)?.isEnabled == true
         let pipeline: any RenderPipeline
         if isMotion {
             let pipelines = world.getRefResource(RenderPipelines<Motion3DPipeline>.self)
@@ -214,6 +250,21 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
         let metallicRoughnessTexture = pbrMaterial?.metallicRoughnessTexture ?? Texture2D.whiteTexture
         let normalTexture = pbrMaterial?.normalTexture ?? Self.flatNormalTexture
         let emissiveTexture = pbrMaterial?.emissiveTexture ?? Texture2D.whiteTexture
+        let heightTexture = pbrMaterial?.heightTexture ?? Texture2D.whiteTexture
+        // The main shader variant declares exactly the layer textures the material has (see PBRMaterial.shaderFeatures).
+        var layerBindings: [RenderResourceSet.Binding] = []
+        if morphed, let morphBuffer = item.morphBuffer, let morphSet = part.morphTargets {
+            layerBindings.append(.init(binding: Morph3DUniforms.binding, shaderStages: .vertex, resource: .uniformBuffer(morphBuffer, offset: 0)))
+            layerBindings.append(.init(binding: Morph3DUniforms.textureBinding, shaderStages: .vertex, resource: .texture(morphSet.deltaTexture)))
+        }
+        if !isMotion, let pbrMaterial {
+            let features = pbrMaterial.shaderFeatures
+            for kind in PBRLayerTexture.allCases where features.contains(kind.feature) {
+                if let layer = pbrMaterial.layerTextures[kind] {
+                    layerBindings.append(.init(binding: kind.binding, shaderStages: .fragment, resource: .texture(layer.texture)))
+                }
+            }
+        }
 
         if isMotion {
             let previous = world.getResource(Skinning3DUniforms.self)?.previousBuffer(for: item.entity) ?? palette
@@ -237,7 +288,8 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
                     .init(binding: 9, shaderStages: .fragment, resource: .sampler(normalTexture.sampler)),
                     .init(binding: 12, shaderStages: .fragment, resource: .texture(emissiveTexture)),
                     .init(binding: 13, shaderStages: .fragment, resource: .sampler(emissiveTexture.sampler)),
-                ]
+                    .init(binding: 17, shaderStages: .fragment, resource: .texture(heightTexture)),
+                ] + layerBindings
             ),
             index: 0
         )

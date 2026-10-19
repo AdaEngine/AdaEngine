@@ -12,6 +12,32 @@ public struct Active3DInstanceBuffers: Resource {
 }
 
 /// Compact, frame-buffered draw lists per camera and per shadow cascade.
+/// A cheap rolling hash used to tell whether a shadow face would draw the same thing as last frame.
+struct FrameDigest3D: Sendable {
+    private(set) var value: UInt64 = 0xcbf2_9ce4_8422_2325
+
+    mutating func combine(_ word: UInt64) {
+        value = (value ^ word) &* 0x0000_0100_0000_01b3
+        value ^= value >> 29
+    }
+
+    mutating func combine(_ float: Float) { combine(UInt64(float.bitPattern)) }
+
+    mutating func combine(_ vector: Vector4) {
+        combine(vector.x)
+        combine(vector.y)
+        combine(vector.z)
+        combine(vector.w)
+    }
+
+    mutating func combine(_ matrix: Transform3D) {
+        combine(matrix.x)
+        combine(matrix.y)
+        combine(matrix.z)
+        combine(matrix.w)
+    }
+}
+
 public struct VisibleMesh3DLists: Resource {
     private struct Key: Hashable {
         var view: Entity.ID
@@ -24,6 +50,8 @@ public struct VisibleMesh3DLists: Resource {
         var count = Visibility3DCount()
         var records: [Record] = []
         var order: [Int32] = []
+        var digest = FrameDigest3D()
+        var isDynamic = false
     }
 
     private struct SelectionKey: Hashable {
@@ -37,6 +65,7 @@ public struct VisibleMesh3DLists: Resource {
         var material: MaterialKey
         var descriptor: Int32
         var skin: ObjectIdentifier?
+        var morph: ObjectIdentifier?
         var cast: Bool
         var receive: Bool
     }
@@ -58,6 +87,8 @@ public struct VisibleMesh3DLists: Resource {
         var blended: Bool
         /// Batch order, assigned when the first record of this batch is appended.
         var rank: Int
+        /// Hash of the batch key, which names the mesh part, material parameters and skin of every instance in it.
+        var batchHash: UInt64 = 0
     }
 
     /// A visible part, kept free of references so building, ordering and reading thousands of them costs no
@@ -73,6 +104,8 @@ public struct VisibleMesh3DLists: Resource {
     }
 
     private var entries: [Key: Entry] = [:]
+    /// Passes prepared since creation, for tests that check which lists a frame rebuilt.
+    private(set) var preparedPassCount = 0
     private var history: [SelectionKey: Int] = [:]
     public init() {}
 
@@ -92,6 +125,7 @@ public struct VisibleMesh3DLists: Resource {
         device: RenderDevice,
         materials: inout PBR3DUniforms
     ) {
+        preparedPassCount &+= 1
         let key = Key(view: view, pass: pass)
         var entry = entries.removeValue(forKey: key) ?? Entry()
         entry.items.removeAll(keepingCapacity: true)
@@ -100,6 +134,8 @@ public struct VisibleMesh3DLists: Resource {
         entry.order.removeAll(keepingCapacity: true)
         entry.candidates.removeAll(keepingCapacity: true)
         entry.count = Visibility3DCount()
+        entry.digest = FrameDigest3D()
+        entry.isDynamic = false
         let cameraPosition = viewMatrix.inverse.origin
         let frustum = MeshVisibilityFrustum3D(viewProjection: cullingProjection)
         let isShadowPass = pass >= 0
@@ -189,6 +225,7 @@ public struct VisibleMesh3DLists: Resource {
                         material: materialKey,
                         descriptor: Int32(descriptorID),
                         skin: sources[sourceIndex].skinningBuffer.map(ObjectIdentifier.init),
+                        morph: sources[sourceIndex].morphBuffers[Mesh3DRenderSource.morphKey(model: modelIndex, part: partIndex)].map(ObjectIdentifier.init),
                         cast: sources[sourceIndex].castShadows,
                         receive: sources[sourceIndex].receiveShadows
                     )
@@ -200,6 +237,7 @@ public struct VisibleMesh3DLists: Resource {
                         if !isShadowPass { materials.write(material: material, descriptor: descriptor, device: device) }
                         template = Int32(templates.count)
                         templateIndex[batchKey] = template
+                        let templateHash = UInt64(bitPattern: Int64(batchKey.hashValue))
                         templates.append(Self.makeTemplate(
                             material: material,
                             descriptor: descriptor,
@@ -207,6 +245,7 @@ public struct VisibleMesh3DLists: Resource {
                             blended: pbr?.alphaMode == .blend,
                             shadowOnly: isShadowPass
                         ))
+                        templates[Int(template)].batchHash = templateHash
                     }
                     if templates[Int(template)].rank < 0 {
                         templates[Int(template)].rank = rankCount
@@ -249,6 +288,14 @@ public struct VisibleMesh3DLists: Resource {
             let template = templates[Int(record.template)]
             var shadowFlags = template.shadowFlags
             shadowFlags.w = 1 - record.fade
+            if isShadowPass {
+                // A skinned pose changes without any CPU-visible identity change, so such a face is never reusable.
+                if sources[sourceIndex].skinningBuffer != nil || !sources[sourceIndex].morphBuffers.isEmpty { entry.isDynamic = true }
+                entry.digest.combine(template.batchHash)
+                entry.digest.combine(sources[sourceIndex].transform)
+                entry.digest.combine((sources[sourceIndex].materials[Int(record.material)] as? PBRMaterial)?.baseColorFactor ?? .one)
+                entry.digest.combine(shadowFlags.w)
+            }
             let instanceIndex = entry.buffers.append(Flat3DInstanceData(
                 modelMatrix: sources[sourceIndex].transform,
                 // Shadow batches can mix materials that only differ in colour, so that comes from the record itself.
@@ -276,7 +323,8 @@ public struct VisibleMesh3DLists: Resource {
                         castShadows: sources[sourceIndex].castShadows,
                         receiveShadows: sources[sourceIndex].receiveShadows,
                         batchRange: instanceIndex..<(instanceIndex + 1),
-                        skinningBuffer: sources[sourceIndex].skinningBuffer
+                        skinningBuffer: sources[sourceIndex].skinningBuffer,
+                        morphBuffer: sources[sourceIndex].morphBuffers[Mesh3DRenderSource.morphKey(model: Int(record.model), part: Int(record.part))]
                     )
                 )
             }
@@ -296,6 +344,18 @@ public struct VisibleMesh3DLists: Resource {
         entry.buffers.write(to: device)
         entry.count.drawCalls = entry.items.count
         entries[key] = entry
+    }
+
+    /// Fingerprint of everything a shadow pass would draw (batches, transforms, alpha inputs), or `nil` when the pass
+    /// contains skinned meshes whose pose changes without any visible change here. Equal fingerprints mean an
+    /// identical face. Meshes edited in place keep their buffer identity and are not noticed.
+    func shadowDigest(view: Entity.ID, pass: Int) -> UInt64? {
+        guard let entry = entries[Key(view: view, pass: pass)], !entry.isDynamic else {
+            return nil
+        }
+        var digest = entry.digest
+        digest.combine(UInt64(entry.items.count))
+        return digest.value
     }
 
     public func gpuCandidates(view: Entity.ID, pass: Int) -> [GPUVisibilityCandidate] { entries[Key(view: view, pass: pass)]?.candidates ?? [] }

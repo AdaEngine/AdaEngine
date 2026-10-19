@@ -33,6 +33,8 @@ extension Render3DGPUTests {
             var apply: (inout Environment3D) -> Void
             var temporalScale: Float?
             var extraLights = true
+            /// Additional unshadowed point lights spread over the grid, on top of the default lights.
+            var manyLights = 0
         }
 
         /// Spheres per side of the grid (400 spheres by default). `ADAENGINE_PERF_GRID=70` stresses the CPU with 4,900.
@@ -44,7 +46,7 @@ extension Render3DGPUTests {
         }
 
         /// A grid of spheres with eight materials, a ground, a sun with cascaded shadows and a ring of local lights.
-        private static func makeScene(size: SizeInt, temporalScale: Float?, localLights: Bool) async throws -> Render3DGPUTests.DebugViews.Scene {
+        private static func makeScene(size: SizeInt, temporalScale: Float?, localLights: Bool, manyLights: Int = 0) async throws -> Render3DGPUTests.DebugViews.Scene {
             unsafe RenderEngine.configurations.preferredBackend = .metal
             try RenderEngine.setupRenderEngine()
             try #require(unsafe RenderEngine.shared.type == .metal)
@@ -106,6 +108,13 @@ extension Render3DGPUTests {
                 Mesh3DComponent(mesh: Mesh.generateCube(size: [2 * Float(grid), 0.1, 2 * Float(grid)], renderDevice: device), materials: [ground])
                 Transform(position: [0, -0.05, Float(grid) * 0.4])
             }
+            for index in 0..<manyLights {
+                let column = Float(index % 6), row = Float(index / 6)
+                app.main.spawn("Fill \(index)") {
+                    PointLightComponent(radiance: [0.6, 0.8, 1], intensity: 3, castShadows: false, range: 5)
+                    Transform(position: [column * 4 - 10, 1.5, row * 4 - 2])
+                }
+            }
             if localLights {
                 for index in 0..<6 {
                     let angle = Float(index) / 6 * 2 * .pi
@@ -135,6 +144,10 @@ extension Render3DGPUTests {
             }
             return [
                 Configuration(name: "bare", detail: "geometry, shadows and composite only", apply: bare),
+                Configuration(name: "shadow cache off", detail: "bare, local shadow faces redrawn every frame") {
+                    bare(&$0)
+                    $0.localShadows.reusesStaticFaces = false
+                },
                 Configuration(name: "lights off", detail: "bare, no local lights", apply: bare, extraLights: false),
                 Configuration(name: "+ ssao", detail: "bare + SSAO") { bare(&$0); $0.ambientOcclusion.isEnabled = true },
                 Configuration(name: "+ ssr", detail: "bare + SSR") { bare(&$0); $0.screenSpaceReflection.isEnabled = true },
@@ -154,6 +167,19 @@ extension Render3DGPUTests {
                 Configuration(name: "+ depth of field", detail: "bare + DoF (radius 10)") {
                     bare(&$0)
                     $0.postProcess.depthOfField = DepthOfField3D(isEnabled: true, focusDistance: 14, aperture: 1.5, maximumBlurRadius: 10)
+                },
+                Configuration(name: "32 lights", detail: "bare + 24 unshadowed point lights (32 local lights in all)", apply: bare, manyLights: 24),
+                Configuration(name: "+ fog", detail: "bare + distance and height fog") {
+                    bare(&$0)
+                    $0.fog = Fog3D(isEnabled: true, density: 0.02, heightFalloff: 0.1)
+                },
+                Configuration(name: "+ light shafts 16", detail: "fog + sun light shafts, 16 steps") {
+                    bare(&$0)
+                    $0.fog = Fog3D(isEnabled: true, density: 0.02, volumetric: VolumetricFog3D(isEnabled: true, steps: 16, maxDistance: 40))
+                },
+                Configuration(name: "+ light shafts 48", detail: "fog + sun light shafts, 48 steps") {
+                    bare(&$0)
+                    $0.fog = Fog3D(isEnabled: true, density: 0.02, volumetric: VolumetricFog3D(isEnabled: true, steps: 48, maxDistance: 40))
                 },
                 Configuration(name: "+ grading", detail: "bare + vignette, saturation, contrast") {
                     bare(&$0)
@@ -186,7 +212,7 @@ extension Render3DGPUTests {
         }
 
         private static func measure(_ configuration: Configuration, size: SizeInt, warmup: Int, frames: Int) async throws -> Result {
-            let scene = try await makeScene(size: size, temporalScale: configuration.temporalScale, localLights: configuration.extraLights)
+            let scene = try await makeScene(size: size, temporalScale: configuration.temporalScale, localLights: configuration.extraLights, manyLights: configuration.manyLights)
             try scene.configure(configuration.apply)
             let metrics = Render3DPerformanceMetrics(warmupSamples: 0, synchronizesPasses: true)
             let renderWorld = try #require(scene.app.getSubworldBuilder(by: .renderWorld)?.main)

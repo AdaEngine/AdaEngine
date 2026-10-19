@@ -84,8 +84,8 @@ establish 2D HDR support.
 Expand runtime 2D mesh builders (ellipse, capsule, annulus, sector and regular
 polygon). Existing AdaUI shapes do not establish equivalent Mesh2D builders.
 Unify reusable slicing math with AdaUI when doing so preserves its public API.
-Sprite animation, particles and navigation require their own requirements;
-Bevy examples or ecosystem plugins are not evidence of built-in engines.
+Sprite animation (see below) has since been added. Navigation requires its own
+requirements; Bevy examples or ecosystem plugins are not evidence of built-in engines.
 
 ## Implementation checklist
 
@@ -98,8 +98,10 @@ Bevy examples or ecosystem plugins are not evidence of built-in engines.
 - [x] Chunked tile-map rendering with realistic performance evidence (debug/headless CPU preparation; Metal/native WGPU pixels).
 - [x] Sprite instancing with ordering and fallback (Metal/native WebGPU/browser pixels; native timings).
 - [x] Instanced WebGPU/browser and physical iPad rendering proof (iOS Simulator launched separately).
+- [x] Sprite animation clips, events, Aseprite import, AdaScript control and Studio editor (see "Sprite animation"; Studio window not manually exercised).
+- [x] Camera 2D controller: follow, dead zone, smoothing, limits, zoom, shake, pixel snapping, AdaScript and Studio (see "Camera 2D").
 - [ ] Alpha phases, sprite material convenience and UV transforms.
-- [ ] Pixel-perfect presentation preset.
+- [x] Pixel-perfect presentation preset (see "Pixel-perfect rendering"; Metal only, WebGPU and browser not run).
 - [ ] HDR 2D, bloom, tone mapping and UI composition.
 - [ ] Additional runtime 2D mesh builders.
 
@@ -494,6 +496,46 @@ smoke found unsigned Tint binding constants were omitted by the reflection parse
 this is fixed and covered by regression tests and real Tint output. Local Swan
 BridgeJS discovery and stale HTTP cache timestamps were also corrected. Full
 methods and commands are in [SpriteInstancing.md](../SpriteInstancing.md).
+
+## Sprite animation — 2026-10-19
+
+`SpriteAnimator` plays clips of a shared `SpriteAnimationSet` (`.spriteanim`) on the entity's `Sprite`; the set holds one image and named clips whose frames are grid cells or pixel rectangles. Playback fields (`currentClip`, `isPlaying`, `speed`, `restartCount`) are plain component fields so scripts and the Inspector drive them without methods. Frame, marker, loop and finish notifications arrive as `Events<SpriteAnimationEvent>`. `AsepriteSheet` converts an Aseprite JSON export (array or numbered hash layout) into clips; trimmed or rotated exports are rejected instead of drawn misplaced. Studio gets a Sprite Animation resource editor (clips, frames, markers, Aseprite import, live preview, Add to Scene) and a Sprite Animator component. Usage and format: [SpriteAnimation.md](../SpriteAnimation.md).
+
+Validation on 2026-10-19:
+
+- Swift Testing against the real systems: playback rules, the system in a real world with real textures and events, `.spriteanim` loading through the asset manager (including bad resources), Aseprite parsing, and an AdaScript that constructs and drives an animator (`AdaSpriteTests`, `AdaScriptingTests`).
+- Metal GPU check (`ADAENGINE_SPRITE_ANIM_METAL_SMOKE=1`): each frame of a grid clip and of an Aseprite clip with differently sized regions is drawn through the production extraction, batching and draw pass and read back, in both the instanced and the batched sprite path.
+- 17 Editor tests passed (authoring and persistence, rejected edits, external-change protection, Aseprite import then loading the saved resource, Add to Scene then reopening and loading in a world, and the editor view reacting to edits), together with the neighbouring Particle FX and Sprite Layout editor suites.
+- The Editor build used a plain copy of the tree named `AdaEngine`, a local AdaMCP v0.2.0 and a local patch removing the unreleased `_meta` argument from `EditorAgentWorkspaceMCPTools.swift`, because the checked-in Editor code needs an AdaMCP newer than the v0.2.0 tag. The patch is not part of this change.
+- Running the Editor tests exposed an endless loop in `EditorSceneViewportView.uiProjectRoot(from:)` for projects with no marker file in any ancestor folder (Foundation reports the parent of `/` as `/../`). It hung every scene load from a temporary folder, including the existing sprite layout test; the walk now stops at the root.
+
+Not covered: Studio's preview viewport on a real GPU window, WebGPU and browser rendering of animated sprites, mobile devices, and the Windows toolchain. Frame-count UI scales to 512 frames per clip and 64 clips per resource; larger sheets need a different editor. The animator does not blend between clips or support per-frame offsets and trimmed Aseprite frames.
+
+## Camera 2D — 2026-10-19
+
+`Camera2DController` (with `CameraTarget2D`) follows entities of a group by weight, with offset, dead zone, frame-rate-independent smoothing, limits that account for zoom and viewport origin, clamped and smoothed zoom, trauma-based shake with optional roll, and pixel snapping; `snapCount`, `position` and `snap(to:)` cover teleports and manual control. It runs after transform propagation and publishes the camera's transform and view data itself through the new `CameraSystem.refreshView`, so a frame is extracted with the camera on its target's final position instead of one frame behind. All settings are plain component fields for scripts and the Inspector. Usage: [Camera2D.md](../Camera2D.md).
+
+Validation on 2026-10-19:
+
+- Swift Testing: the pure rules (smoothing composition across frame rates, dead zone, limits at several zooms and origins, shake bounds and quadratic scaling, pixel snapping) and the controller in a real world with the real transform and camera systems: same-frame view, parented targets, smoothing at 60 and 10 frames per second, dead zone, limits, zoom clamp and smoothing, shake that settles exactly back, rotation left alone without roll shake, weighted groups, `snapCount`, manual position, disabled controllers, hostile numbers, Codable. An AdaScript test builds and drives a camera through fields.
+- Metal GPU check (`ADAENGINE_CAMERA2D_METAL_SMOKE=1`): a followed sprite stays at the screen centre in the frame it moves, spacing follows zoom, limits pin the view to the level corner and shake moves the picture.
+- 20 Editor tests passed, including camera descriptors, a scene saved with edited settings and loaded into a world that is then driven by the real systems, and old scenes without the component.
+- Writing these tests exposed an existing bug: `CameraSystem` inserted a camera's first `GlobalViewUniform` while its query was iterating. The insertion changes the camera's archetype, so with several cameras some were skipped or visited twice and ended the pass without a view uniform. The insertions now happen after the query; a regression test failed before the change and passes after it.
+- Installing the controller from `ScenePlugin` made worlds that use `ScenePlugin` without `TransformPlugin` trip the system graph's missing-dependency assertion (`SceneNavigatorTests`). It is installed by `DefaultPlugins` and the Studio play/runtime hosts instead.
+
+Not covered: the Studio play window and a physical device, WebGPU, rotation of the followed camera beyond the shake roll, cameras that have a parent (keep the camera at the scene root), and visibility culling, which still uses the camera from the start of the frame (an object entering the screen edge can appear one frame late at very high camera speeds).
+
+## Pixel-perfect rendering — 2026-10-20
+
+`Camera.pixelPerfect` renders a 2D camera at a fixed resolution and presents it with a whole-number scale, nearest sampling and a border; `integer` and `fit` scale modes. The camera's projection uses the fixed size, so one world unit is one art pixel at zoom 1. The scene is scaled into an output-sized picture by the UI node, which then draws AdaUI onto it at the output's own resolution (the ADR's "keep high-resolution UI separate"); the upscale node copies that picture to the output, or presents the low-resolution scene itself when no UI node ran. Pointer mapping (`viewportToWorld`, sprite picking) measures against the picture. Studio's Camera component has the settings. Usage: [PixelPerfect.md](../PixelPerfect.md).
+
+Validation on 2026-10-20:
+
+- Swift Testing: layout math and the camera's projection, limits and input mapping with the real systems.
+- Metal, whole engine through the real render graph (camera extraction, target preparation, 2D graph with the UI plugin, upscale node): picture rectangle and border exact at two output sizes, hard-edged art pixels with no blended colours, fit mode, an ordinary camera unchanged, and UI blocks on exact output pixels, one of them over the border. The UI check injects a UI render item with a test draw pass into the real UI node; text and gradients were not drawn through this path.
+- 21 Editor tests passed, including the camera settings round trip into a runtime camera.
+
+Not covered: WebGPU and the browser, mobile devices, windowed output (the tests render to textures), the glass effect over a pixel-perfect picture, and HDR or bloom (still open below).
 
 ## References
 

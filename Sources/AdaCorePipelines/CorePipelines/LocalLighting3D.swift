@@ -6,10 +6,24 @@ import Math
 public struct LocalShadowSettings3D: Codable, Sendable {
     public var isEnabled: Bool
     public var maximumLights: Int
+    /// Keep the shadow faces of lights and casters that did not change since the last frame instead of redrawing
+    /// them. Faces with skinned casters are always redrawn.
+    public var reusesStaticFaces: Bool
 
-    public init(isEnabled: Bool = true, maximumLights: Int = 4) {
+    public init(isEnabled: Bool = true, maximumLights: Int = 4, reusesStaticFaces: Bool = true) {
         self.isEnabled = isEnabled
         self.maximumLights = maximumLights
+        self.reusesStaticFaces = reusesStaticFaces
+    }
+
+    private enum CodingKeys: CodingKey { case isEnabled, maximumLights, reusesStaticFaces }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = LocalShadowSettings3D()
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? defaults.isEnabled
+        maximumLights = try container.decodeIfPresent(Int.self, forKey: .maximumLights) ?? defaults.maximumLights
+        reusesStaticFaces = try container.decodeIfPresent(Bool.self, forKey: .reusesStaticFaces) ?? defaults.reusesStaticFaces
     }
 }
 
@@ -210,6 +224,15 @@ struct LocalShadow3DViews: Resource {
         var color: RenderTexture?
         var depth: RenderTexture?
         var matrices = [Transform3D](repeating: .identity, count: 24)
+        /// Fingerprint of what each atlas face last drew, keyed by `slot * 6 + face`.
+        var faceDigests: [Int: UInt64] = [:]
+        /// Fingerprint of the face's view-projection matrix when its entry in `faceDigests` was taken.
+        var faceMatrixDigests: [Int: UInt64] = [:]
+        /// Fingerprint of the shadow casters when the faces were last prepared, or `nil` when it was not reusable.
+        var sceneDigest: UInt64?
+        /// Faces drawn and faces kept from an earlier frame by the last pass.
+        var renderedFaces = 0
+        var reusedFaces = 0
     }
     var entries: [Entity.ID: Entry] = [:]
 }

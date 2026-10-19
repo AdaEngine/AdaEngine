@@ -2360,5 +2360,22 @@
   "Converted for your project": "Converted for your project",
   "Remove attachment {0}": "Remove attachment {0}",
   "Drop files to attach": "Drop files to attach",
-  "Preparing files…": "Preparing files…"
+  "Preparing files…": "Preparing files…",
+  "Morph Targets": "Morph Targets",
+  "MORPH TARGETS": "MORPH TARGETS",
+  "Loading morph target model…": "Loading morph target model…",
+  "This model has no named morph targets.": "This model has no named morph targets.",
+  "Targets without a name cannot be set from a scene.": "Targets without a name cannot be set from a scene.",
+  "Applied to scene. Save the scene to keep these weights.": "Applied to scene. Save the scene to keep these weights.",
+  "Morph weights cleared.": "Morph weights cleared.",
+  "Morph weights applied": "Morph weights applied",
+  "Morph weights cleared": "Morph weights cleared",
+  "Sprite Animation": "Sprite Animation",
+  "Add Clip": "Add Clip",
+  "Add Row Frames": "Add Row Frames",
+  "Import from Aseprite": "Import from Aseprite",
+  "Export the sheet with Trim off and a JSON array. Replaces the image and clips.": "Export the sheet with Trim off and a JSON array. Replaces the image and clips.",
+  "Choose sprite animation…": "Choose sprite animation…",
+  "Search sprite animations": "Search sprite animations",
+  "Create a Sprite Animation resource in Assets first.": "Create a Sprite Animation resource in Assets first."
 }

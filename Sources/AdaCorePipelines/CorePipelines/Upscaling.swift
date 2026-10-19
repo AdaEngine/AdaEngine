@@ -23,8 +23,11 @@ public struct UpscalePlugin: Plugin {
             .unwrap(message: "Failed to fetch RenderDevice from world")
             .renderDevice
 
+        let upscalePipeline = UpscalePipeline(device: renderDevice)
         renderWorld
-            .insertResource(UpscalePipeline(device: renderDevice))
+            .insertResource(upscalePipeline)
+            .insertResource(PixelPerfectPipelines(device: renderDevice, outputPipeline: upscalePipeline.renderPipeline))
+            .insertResource(PixelPerfectPictures())
     }
 }
 

@@ -49,6 +49,13 @@ public struct Mesh3DRenderSource: Sendable {
     public var castShadows: Bool
     public var receiveShadows: Bool
     public var skinningBuffer: (any UniformBuffer)?
+    /// Morph weight buffers by mesh part (see ``morphKey(model:part:)``); empty for a mesh without morph weights.
+    public var morphBuffers: [UInt64: any UniformBuffer]
+
+    /// The key of a mesh part in ``morphBuffers``.
+    public static func morphKey(model: Int, part: Int) -> UInt64 {
+        UInt64(truncatingIfNeeded: model) << 32 | UInt64(truncatingIfNeeded: part)
+    }
 
     public init(
         entity: Entity.ID,
@@ -66,8 +73,10 @@ public struct Mesh3DRenderSource: Sendable {
         castShadows: Bool = true,
         receiveShadows: Bool = true,
         skinningBuffer: (any UniformBuffer)? = nil,
-        previousTransform: Transform3D? = nil
+        previousTransform: Transform3D? = nil,
+        morphBuffers: [UInt64: any UniformBuffer] = [:]
     ) {
+        self.morphBuffers = morphBuffers
         self.previousTransform = previousTransform ?? transform
         self.drawPass = drawPass
         self.entity = entity

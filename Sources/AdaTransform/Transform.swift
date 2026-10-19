@@ -58,6 +58,14 @@ extension Transform {
 @Component
 public struct GlobalTransform: Hashable, Sendable, Codable {
     public internal(set) var matrix: Transform3D
+
+    /// Creates a global transform from a world matrix.
+    ///
+    /// Transform propagation owns this component. Only systems that must publish a final world matrix within the
+    /// same frame, such as a camera controller that runs after propagation, should create one.
+    public init(matrix: Transform3D) {
+        self.matrix = matrix
+    }
 }
 
 extension GlobalTransform: DefaultValue {

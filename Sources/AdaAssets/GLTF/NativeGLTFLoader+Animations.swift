@@ -33,7 +33,8 @@ extension NativeGLTFLoader {
                 guard let path = GLTFImportResult.AnimationPath(rawValue: channel.target.path) else {
                     throw GLTFError.unsupportedAnimationPath(channel.target.path)
                 }
-                guard let node = channel.target.node, nodes.indices.contains(node), nodes[node].matrix == nil,
+                // Weights animate a mesh's morph targets, so they are valid on a node that is placed by a matrix too.
+                guard let node = channel.target.node, nodes.indices.contains(node), path == .weights || nodes[node].matrix == nil,
                     samplers.indices.contains(channel.sampler), targets.insert("\(node):\(path.rawValue)").inserted
                 else {
                     throw GLTFError.invalidAnimation(index)
@@ -41,8 +42,14 @@ extension NativeGLTFLoader {
                 let sampler = samplers[channel.sampler]
                 let output = try checkedAccessor(animation.samplers[channel.sampler].output, gltf: gltf)
                 let isCubic = sampler.interpolation == .cubicSpline
-                guard output.type == (path == .rotation ? "VEC4" : "VEC3"),
-                    sampler.output.count == sampler.times.count * (isCubic ? 3 : 1),
+                // A weights sampler holds one value per target and key (three of each per key for cubic splines).
+                let valuesPerKey = path == .weights ? morphTargetCount(ofNode: nodes[node], in: gltf) : 1
+                guard path != .weights || valuesPerKey > 0 else {
+                    throw GLTFError.invalidAnimation(index)
+                }
+                let expectedType = path == .rotation ? "VEC4" : (path == .weights ? "SCALAR" : "VEC3")
+                guard output.type == expectedType,
+                    sampler.output.count == sampler.times.count * valuesPerKey * (isCubic ? 3 : 1),
                     !isCubic || sampler.times.count >= 2
                 else {
                     throw GLTFError.invalidAnimation(index)
