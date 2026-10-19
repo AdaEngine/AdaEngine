@@ -32,8 +32,11 @@ public struct SkeletalRig: Sendable {
         public let parentIndex: Int?
         public let restPose: SkeletalJointPose?
         public let restMatrix: Transform3D
+        /// The morph target weights of the mesh on this node when nothing animates them; `nil` for a node without morph targets.
+        public let morphRestWeights: [Float]?
 
-        public init(parentIndex: Int?, restPose: SkeletalJointPose?, restMatrix: Transform3D, name: String? = nil) {
+        public init(parentIndex: Int?, restPose: SkeletalJointPose?, restMatrix: Transform3D, name: String? = nil, morphRestWeights: [Float]? = nil) {
+            self.morphRestWeights = morphRestWeights
             self.name = name
             self.parentIndex = parentIndex
             self.restPose = restPose
@@ -162,11 +165,14 @@ public struct SkeletalAnimationTrack: Sendable {
 public struct SkeletalAnimationClip: Sendable {
     public let name: String
     public let tracks: [SkeletalAnimationTrack]
+    /// Morph target weight tracks, which play alongside the pose tracks.
+    public let morphTracks: [MorphWeightsTrack]
     public let duration: Double
 
-    public init(name: String, tracks: [SkeletalAnimationTrack]) {
+    public init(name: String, tracks: [SkeletalAnimationTrack], morphTracks: [MorphWeightsTrack] = []) {
         self.name = name
         self.tracks = tracks
-        self.duration = tracks.compactMap { $0.times.last }.max() ?? 0
+        self.morphTracks = morphTracks
+        self.duration = (tracks.compactMap { $0.times.last } + morphTracks.compactMap { $0.times.last }).max() ?? 0
     }
 }

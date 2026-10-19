@@ -1,6 +1,10 @@
 #version 450 core
 #pragma stage : vert
+#ifdef ADA_MORPH
+#extension GL_EXT_samplerless_texture_functions : require
+#endif
 #include <AdaEngine/View.glsl>
+#include <AdaEngine/Morph.glsl>
 layout (binding = 14) uniform Skinning3DUniform { mat4 u_Joints[128]; };
 layout (binding = 24) uniform PreviousSkinning3DUniform { mat4 u_PreviousJoints[128]; };
 layout (binding = 23) uniform Temporal3DUniform {
@@ -42,8 +46,14 @@ void motion_vertex() {
         previousSkin = u_PreviousJoints[int(a_Joints.x)] * a_Weights.x + u_PreviousJoints[int(a_Joints.y)] * a_Weights.y
              + u_PreviousJoints[int(a_Joints.z)] * a_Weights.z + u_PreviousJoints[int(a_Joints.w)] * a_Weights.w;
     }
-    vec4 world = mat4(a_Model0, a_Model1, a_Model2, a_Model3) * skin * vec4(a_Position, 1.0);
-    vec4 previousWorld = mat4(a_PreviousModel0, a_PreviousModel1, a_PreviousModel2, a_PreviousModel3) * previousSkin * vec4(a_Position, 1.0);
+    vec3 localPosition = a_Position;
+    vec3 previousLocalPosition = a_Position;
+#ifdef ADA_MORPH
+    applyMorphPosition(localPosition);
+    previousLocalPosition = previousMorphedPosition(a_Position);
+#endif
+    vec4 world = mat4(a_Model0, a_Model1, a_Model2, a_Model3) * skin * vec4(localPosition, 1.0);
+    vec4 previousWorld = mat4(a_PreviousModel0, a_PreviousModel1, a_PreviousModel2, a_PreviousModel3) * previousSkin * vec4(previousLocalPosition, 1.0);
     v_CurrentClip = u_CurrentViewProjection * world;
     v_PreviousClip = u_Parameters.z > 0.5 ? v_CurrentClip : u_PreviousViewProjection * previousWorld;
     gl_Position = u_ViewProjection * world;
@@ -65,6 +75,9 @@ layout (binding = 4) uniform texture2D u_BaseColor;
 layout (binding = 7) uniform sampler u_Sampler;
 layout (binding = 15) uniform PBR3DUniform {
     vec4 u_EmissiveFactor; vec4 u_SurfaceProperties; vec4 u_SurfaceFlags; vec4 u_UVSets; vec4 u_Emission;
+    vec4 u_Parallax;
+    vec4 u_TextureTransforms[10];
+    vec4 u_Dielectric;
 };
 [[main]]
 void motion_fragment() {
@@ -75,7 +88,11 @@ void motion_fragment() {
         if ((values[y * 4 + x] + 0.5) / 16.0 < v_Fade) { discard; }
     }
     float alpha = v_ColorFlags.x;
-    if (v_ColorFlags.y > 0.5) { alpha *= texture(sampler2D(u_BaseColor, u_Sampler), u_UVSets.x > 0.5 ? v_UV1 : v_UV).a; }
+    if (v_ColorFlags.y > 0.5) {
+        vec2 uv = u_UVSets.x > 0.5 ? v_UV1 : v_UV;
+        uv = vec2(dot(u_TextureTransforms[0].xy, uv), dot(u_TextureTransforms[0].zw, uv)) + u_TextureTransforms[1].xy;
+        alpha *= texture(sampler2D(u_BaseColor, u_Sampler), uv).a;
+    }
     if (u_SurfaceProperties.w > 0.5 && u_SurfaceProperties.w < 1.5 && alpha < u_SurfaceProperties.z) { discard; }
     bool valid = v_CurrentClip.w > 0.00001 && v_PreviousClip.w > 0.00001;
     vec2 motion = valid ? (v_PreviousClip.xy / v_PreviousClip.w - v_CurrentClip.xy / v_CurrentClip.w) * vec2(0.5, -0.5) : vec2(0.0);

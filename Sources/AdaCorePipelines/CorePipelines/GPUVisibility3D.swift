@@ -79,7 +79,14 @@ public struct GPUVisibility3DState: Resource {
                 let material = materials.buffer(for: item.material)
             else { continue }
             let part = item.mesh.models[item.modelIndex].parts[item.partIndex]
-            pass.setRenderPipelineState(pipelines.pipeline(for: part.vertexDescriptor, device: device))
+            let morphed = item.morphBuffer != nil && part.morphTargets != nil
+            pass.setRenderPipelineState(pipelines.pipeline(for: Shadow3DConfiguration(vertex: part.vertexDescriptor, morph: morphed), device: device))
+            if morphed, let morphBuffer = item.morphBuffer, let morphSet = part.morphTargets {
+                pass.setResourceSet(.init(bindings: [
+                    .init(binding: Morph3DUniforms.binding, shaderStages: .vertex, resource: .uniformBuffer(morphBuffer, offset: 0)),
+                    .init(binding: Morph3DUniforms.textureBinding, shaderStages: .vertex, resource: .texture(morphSet.deltaTexture)),
+                ]), index: 0)
+            }
             pass.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
             pass.setVertexBuffer(wrap(instances), offset: Int(range.lowerBound) * MemoryLayout<Flat3DInstanceData>.stride, slot: 3)
             pass.setVertexBuffer(defaults, offset: 0, slot: 4)

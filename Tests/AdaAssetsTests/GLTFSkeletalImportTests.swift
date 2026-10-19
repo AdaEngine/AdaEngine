@@ -173,11 +173,12 @@ struct GLTFSkeletalImportTests {
     }
 
     @Test
-    func unsupportedMorphAnimationFailsExplicitly() throws {
+    func weightsChannelOnANodeWithoutMorphTargetsIsInvalid() throws {
+        // Weights animation is supported (see GLTFMorphTargetImportTests), but this node's mesh has no targets to weigh.
         var fixture = SkeletalGLTFFixture()
         fixture.channels[0]["target"] = ["node": 2, "path": "weights"]
         let data = try fixture.data()
-        #expect(throws: NativeGLTFLoader.GLTFError.unsupportedAnimationPath("weights")) { try NativeGLTFLoader().load(data: data) }
+        #expect(throws: NativeGLTFLoader.GLTFError.invalidAnimation(0)) { try NativeGLTFLoader().load(data: data) }
     }
 
     @Test

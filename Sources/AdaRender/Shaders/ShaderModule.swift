@@ -95,6 +95,39 @@ extension ShaderModule {
         try ShaderCompiler(from: fileUrl).compileShaderModule()
     }
 
+    /// Compile a bundled shader with every name in `defines` set to `1` in the vertex and fragment stages.
+    ///
+    /// The variant is compiled from the file's text rather than the file, so it bypasses the on-disk shader cache, whose
+    /// entries are keyed by file and stage and would mix up variants of one file. Callers should keep the result.
+    /// WebAssembly builds ship precompiled modules, so there the plain module is returned and `defines` are ignored.
+    public static func createBundled(at path: String, from bundle: Bundle, defines: [String]) throws -> ShaderModule {
+        guard !defines.isEmpty else {
+            return try loadBundled(at: path, from: bundle).asset
+        }
+        #if WASM
+            return try loadBundled(at: path, from: bundle).asset
+        #else
+            guard let resourceURL = bundle.resourceURL else {
+                throw ShaderModuleError.notFound(path)
+            }
+            let url = resourceURL.appendingPathComponent(path)
+            guard let data = FileSystem.current.readFile(at: url) else {
+                throw ShaderModuleError.notFound(path)
+            }
+            let source = try ShaderSource(
+                source: String(bytes: data, encoding: .utf8) ?? "",
+                includeSearchPaths: [.local(url.deletingLastPathComponent())]
+            )
+            let compiler = ShaderCompiler(shaderSource: source)
+            for name in defines {
+                for stage in [ShaderStage.vertex, .fragment] {
+                    compiler.setMacro(name, value: "1", for: stage)
+                }
+            }
+            return try compiler.compileShaderModule()
+        #endif
+    }
+
     /// Load a bundled shader module without the async asset pipeline.
     ///
     /// Browser startup still constructs render pipelines synchronously, so shader

@@ -5,8 +5,11 @@ public struct PBR3DConfiguration: Hashable, Sendable {
     public let vertex: VertexDescriptor
     public let blended: Bool
     public let temporalDepth: Bool
+    /// The shading layers the draw's material uses. The default is none, which is the plain shader.
+    public let features: PBRMaterial.ShaderFeatures
 
-    public init(vertex: VertexDescriptor, blended: Bool, temporalDepth: Bool = false) {
+    public init(vertex: VertexDescriptor, blended: Bool, temporalDepth: Bool = false, features: PBRMaterial.ShaderFeatures = []) {
+        self.features = features
         self.temporalDepth = temporalDepth
         self.vertex = vertex
         self.blended = blended
@@ -19,7 +22,7 @@ public struct PBR3DPipeline: RenderPipelineConfigurator {
     public init() {}
 
     public func configurate(with configuration: PBR3DConfiguration) -> RenderPipelineDescriptor {
-        var descriptor = base.configurate(with: configuration.vertex)
+        var descriptor = base.configurate(with: configuration.vertex, features: configuration.features)
         descriptor.backfaceCulling = false
         if configuration.temporalDepth { descriptor.depthPixelFormat = .depth_32f }
         descriptor.depthStencilDescriptor?.isDepthWriteEnabled = !configuration.blended

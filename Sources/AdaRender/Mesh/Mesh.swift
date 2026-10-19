@@ -69,6 +69,9 @@ extension Mesh {
         public var indexCount: Int
         public var vertexBuffer: VertexBuffer
 
+        /// Morph targets of this part, if it has any. Weights are applied by the vertex shader before skinning.
+        public var morphTargets: MorphTargetSet?
+
         @_spi(Internal)
         public init(
             id: Int,

@@ -90,6 +90,7 @@ public struct SkeletalAnimation3DSystem {
     @Query<Entity, Ref<ModelAnimation3DComponent>> private var models
     @Query<ModelNode3DComponent, Ref<Transform>> private var nodes
     @Query<Ref<SkinnedMesh3DComponent>> private var skins
+    @Query<ModelNode3DComponent, Ref<MorphWeights3DComponent>> private var morphNodes
     @Res<DeltaTime> private var time
     @EventsSender<ModelAnimation3DEvent> private var animationEvents
     @Query<Camera, CameraRenderGraph> private var cameras
@@ -108,6 +109,8 @@ public struct SkeletalAnimation3DSystem {
         // These references are local to this update; no structural world mutations occur here.
         var nodesByRoot: [Entity.ID: [(Int, Ref<Transform>)]] = [:]
         nodes.forEach { binding, transform in nodesByRoot[binding.modelRoot, default: []].append((binding.nodeIndex, transform)) }
+        var morphByRoot: [Entity.ID: [(Int, Ref<MorphWeights3DComponent>)]] = [:]
+        morphNodes.forEach { binding, weights in morphByRoot[binding.modelRoot, default: []].append((binding.nodeIndex, weights)) }
         var skinsByRoot: [Entity.ID: [Ref<SkinnedMesh3DComponent>]] = [:]
         skins.forEach { skin in skinsByRoot[skin.wrappedValue.modelRoot, default: []].append(skin) }
         models.forEach { root, animation in
@@ -133,6 +136,15 @@ public struct SkeletalAnimation3DSystem {
                     let pose = value.player.poses[index]
                     let next = Transform(rotation: pose.rotation, scale: pose.scale, position: pose.translation)
                     if transform.wrappedValue != next { transform.wrappedValue = next }
+                }
+                for (index, component) in morphByRoot[root.id] ?? [] {
+                    guard value.player.morphWeights.indices.contains(index), value.player.animatedMorphNodes.contains(index) else { continue }
+                    let weights = value.player.morphWeights[index]
+                    // Only nodes some clip animates are written, so weights authored on a model (Model3DSource.morphWeights)
+                    // survive on the others. The weights must also match the node's targets.
+                    if !weights.isEmpty, component.wrappedValue.weights.count == weights.count, component.wrappedValue.weights != weights {
+                        component.wrappedValue.weights = weights
+                    }
                 }
                 for skin in skinsByRoot[root.id] ?? [] { skin.wrappedValue.updateMatrices(using: value.player) }
                 value.appliedGeneration = value.player.poseGeneration

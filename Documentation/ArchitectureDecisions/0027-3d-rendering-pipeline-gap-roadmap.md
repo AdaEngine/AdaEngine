@@ -294,18 +294,25 @@ Each item needs its own short requirements note before implementation.
 - [x] Stage 1: depth of field.
 - [ ] Stage 1: motion blur (needs a velocity buffer that exists without temporal upscaling).
 - [ ] Stage 1: quality tiers for depth of field, bloom and auto-exposure.
-- [ ] Stage 2: `KHR_texture_transform`, IOR, specular and clearcoat material extensions.
+- [x] Stage 2: `KHR_texture_transform`, `KHR_materials_ior` and `KHR_materials_specular` factors (see "Stage 2, first slice").
+- [x] Stage 2: `KHR_materials_clearcoat` factors (see "Stage 2, second slice").
 - [x] Stage 2: parallax occlusion mapping from `PBRMaterial.heightTexture` (world-unit `heightScale`, per-pixel ray march in `flat3d.glsl` that derives the UV shift from screen-space derivatives so no tangents are needed; the height map is read with the base color sampler because Metal has no free sampler slot; depth, shadows and silhouettes are not displaced; no glTF import yet because no displacement extension is ratified).
-- [ ] Stage 2: sheen, anisotropy and `KHR_lights_punctual` import.
-- [ ] Stage 2: unsupported-extension degradation policy and documented supported list.
-- [ ] Stage 3: morph-target asset, glTF import and GPU evaluation.
-- [ ] Stage 3: morph with skinning, shadows, motion vectors, bounds and animation weights.
+- [x] Stage 2: sheen and anisotropy factors (see "Stage 2, third slice").
+- [x] Stage 2: clearcoat, clearcoat roughness and normal, sheen color and roughness, anisotropy and specular textures (see "Stage 2, fifth slice").
+- [ ] Stage 2: `KHR_lights_punctual` import.
+- [x] Stage 2: unsupported-extension degradation policy and documented supported list (`NativeGLTFLoader.supportedExtensions`, `GLTFImportResult.warnings`).
+- [x] Stage 3: morph-target asset, glTF import and GPU evaluation (see "Stage 3, first slice").
+- [x] Stage 3: morph with skinning, shadows, motion vectors and bounds.
+- [x] Stage 3: animated weights (clips, crossfades and the animation graph) and AdaScript access (see "Stage 3, second slice").
+- [x] Stage 3: Editor panel for morph weights (see "Stage 3, third slice").
 - [ ] Stage 4: OIT mode with sorted fallback.
 - [ ] Stage 4: transmission/volume pass.
-- [ ] Stage 5: distance/height fog.
+- [x] Stage 5: distance/height fog (`Fog3D` in `Environment3D`, applied in the composite pass; see "Stage 5, first slice").
 - [ ] Stage 5: physically based sky feeding IBL and time-of-day driver.
-- [ ] Stage 5: volumetric fog and planar reflections.
-- [ ] Stage 6: clustered or tiled light assignment with measured limits.
+- [x] Stage 5: sun light shafts through the fog (half-resolution raymarch, `Fog3D.volumetric`; see "Stage 5, second slice").
+- [ ] Stage 5: froxel volumetric fog for local lights, fog volumes and planar reflections.
+- [x] Stage 6: tiled local-light assignment with measured limits (2D tiles, CPU masks; depth slicing is not done; see "Stage 6, first slice").
+- [x] Stage 6: reuse of unchanged local shadow faces (see "Stage 6, second slice").
 - [ ] Stage 6: contact shadows, soft shadows, area lights and cookies.
 - [ ] Stage 7: decals, static-mesh LOD, terrain, water, foliage, 3D particles (each with its own requirements note).
 - [ ] Stage 7: Hi-Z/indirect-draw parity on WebGPU and Vulkan or documented fallback.
@@ -628,6 +635,348 @@ apart from two issues outside this work: `AdaUITests` crashes on
 press" test, and `Physics3DTests.fixedSchedulerAdvancesAndWritesBackDynamicBody`
 fails under parallel load but passes alone. Not verified: Apple mobile, Windows
 (the GPU suites are macOS-only), the windowed presentation notification path.
+
+### Stage 5, first slice: distance and height fog (2026-10-18)
+
+`Environment3D.fog` (`Fog3D`) adds exponential height fog with distance start, maximum opacity, optional sky
+influence and sun in-scattering. It is evaluated in `screen_space_reflection.glsl`, in linear HDR on the lit
+color and before exposure, bloom add, grading and tone mapping, so it follows exposure like any other light.
+Optical depth is the analytic integral of `density * exp(-heightFalloff * (y - baseHeight))` along the view
+ray (uniform distance fog when `heightFalloff` is `0`). It costs one extra branch per pixel when off and
+allocates nothing. Sky pixels are untouched unless `skyInfluence` is above zero. Sun in-scattering reads the
+primary directional light's radiance and direction. SSR-traced reflection hits are not fogged separately
+(the fog applies to the final composited pixel). Tests: `Render3DFogSettingsTests` and
+`Render3DGPUTests/Fog` (Metal passes, with the `pbr-spheres-fog` golden frame recorded; WebGPU references are not yet recorded because they need `script/validate_webgpu.sh` with Swan/Dawn and Swift 6.3.2).
+
+### Stage 5, second slice: volumetric light shafts (2026-10-18)
+
+The ADR first named froxel volumetrics. This slice uses the approach Bevy ships (a full-screen raymarch that
+samples shadow maps) instead of Godot's compute froxel grid: it needs no compute path, so it works on every
+backend the main pass does, and it reuses the cascaded sun shadows already rendered.
+
+`Fog3D.volumetric` (`VolumetricFog3D`: intensity, anisotropy, steps, maximum distance) enables
+`VolumetricFog3DRenderNode`, which runs after `Main3D` and before the composite. Per half-resolution pixel it
+marches the view ray to the surface (or to `maxDistance` for sky pixels) with interleaved-gradient jitter,
+integrates the fog medium (the same density and height falloff as the analytic fog), looks up the covering
+sun cascade and accumulates `density * transmittance * visibility`, scaled by a Henyey-Greenstein phase and the
+sun radiance. The composite adds the bilinearly upsampled result in linear HDR, and the unshadowed analytic
+`sunInscattering` term switches off while shafts run. A camera without active shafts allocates no texture
+(`VolumetricFog3DViews`) and records no pass.
+
+The upsample weights the four surrounding half-resolution texels by bilinear distance and by how close their
+view depth is to the full-resolution pixel's (sky counts as very far), so shafts do not bleed across silhouettes.
+
+**Cost (Apple M-class GPU, 1080p, release, 400-sphere benchmark scene, best of 3 rounds).** Analytic fog is free
+(`free` 2.43 ms bare, 2.45 ms with fog). Light shafts add 0.26 ms GPU for the pass at 16 steps (`free` 2.69 ms)
+and 0.65 ms at 48 steps (`free` 3.09 ms). Reproduce with `ADAENGINE_PERF_FILTER='bare,fog,shafts'`.
+
+Limits of this slice: sun only (no point or spot lights, no fog volumes), one shadow tap per step, no temporal
+accumulation (the jitter shows as fine noise), and no WebGPU validation yet. Tests: `Render3DGPUTests/Fog` (additive light, shadows carving the shafts, texture
+release, `pbr-spheres-light-shafts` golden frame on Metal).
+
+### Stage 6, first slice: tiled local lights (2026-10-18)
+
+Measured before building: on the benchmark scene the per-pixel loop over 8 local lights cost 0.47 ms (geometry
+1.71 ms against 1.24 ms without local lights) and over 32 lights 1.33 ms (2.57 ms). The local shadow pass is
+a separate 1.10 ms for 13 faces, which this slice does not touch.
+
+The CPU now bins the (up to 32) local lights into screen tiles of at least 32 pixels (the size doubles until
+there are at most 4,096 tiles, so 1080p is 60 by 34 tiles and 4K is 2,040 to 8,160 at 64 pixels).
+Each tile holds a 32-bit light mask; a light sets the bits of the tiles its view-space bounding box projects
+onto, plus one pixel of margin. A light whose sphere reaches the camera plane marks every tile. The main pass
+projects the fragment's view-space position with the same matrix to find its tile (so the lookup does not depend
+on a backend's fragment-coordinate origin), then loops only over the set bits. The masks are conservative: a
+light outside its range already contributed zero, so the lit image is unchanged. `Environment3D.tiledLocalLights`
+(on by default) falls back to the flat loop, and foveated rendering keeps the flat loop.
+
+**Results (same machine and method as Performance pass 1).** With 32 local lights geometry went from 2.57 ms to
+2.09 ms and `free` from 3.30 ms to 2.81 ms. With 8 lights the change is within noise (1.71 ms to 1.69 ms),
+so this helps scenes with many lights, not typical ones. The remaining 0.83 ms at 32 lights is mostly real
+shading: the benchmark lights overlap heavily (range 5 at 4 unit spacing), so each pixel still evaluates several.
+
+Not done: depth slicing into clusters (a tile still lists lights that are in front of or behind the surface),
+tighter bounds for spot cones, and a limit above 32 local lights. Those only pay off with many overlapping
+lights at different depths. Tests: `Render3DLightTilesMathTests` (bounds, near-plane handling, viewport offset,
+32-light cap), `Render3DGPUTests/LightTiles` (tiled and flat frames match; the test fails when the mask is
+broken) and the `32 lights` benchmark configuration.
+
+### Stage 6, second slice: reusing unchanged local shadow faces (2026-10-19)
+
+Every frame the local shadow pass cleared the atlas and redrew all faces (13 faces, 1.10 ms in the benchmark scene)
+even when nothing near a light had moved. Now each face keeps what it drew:
+
+- `VisibleMesh3DLists` fingerprints every shadow pass it prepares (`shadowDigest`): the batch key of each batch
+  (mesh part buffers, material parameter buffer, base color texture, skin), each caster's transform, color factor and
+  fade. A pass with a skinned caster has no fingerprint, because a pose changes without any visible change on
+  the CPU, so those faces are always redrawn.
+- `LocalShadow3DRenderNode` combines it with the face's view-projection matrix (the light's position, direction, range and
+  cone) and compares it with the one stored for the same atlas tile. If every face matches, the pass is skipped
+  entirely. Otherwise the atlas is loaded rather than cleared, each dirty tile is reset with a small
+  scissored clear draw and then redrawn, and clean tiles are left alone. A new atlas or a different budget starts
+  from scratch. `LocalShadowSettings3D.reusesStaticFaces` (on by default) turns it off, and
+  `Render3DLightStatistics.Snapshot.reusedShadowFaces` reports how many faces the last frame kept.
+
+**Result (same machine and method).** On the static benchmark scene the local shadow pass goes from 1.10 ms to
+0 ms and `free` from 2.39 ms to 1.90 ms. Preparing the per-face visible lists still runs on the CPU every frame
+because the fingerprint comes from it. A moving light dirties all of its faces; a moving caster dirties only the
+faces whose frustum it enters or leaves.
+
+**CPU follow-up.** Fingerprinting a face needed its visible list, so the node still prepared every face each frame.
+`ShadowSceneDigest3D` now fingerprints the shadow casters once per frame (transform, mesh part buffers, material
+identity and revision, base color texture). While that digest and a face's matrix are both unchanged, the face
+is kept without building its list; when the digest changes, every face is prepared and compared by content as
+before, so a caster that moves still dirties only the faces it touches. A scene with skinned casters, or with
+level-of-detail alternatives while LOD is on (the chosen mesh follows the camera), has no digest and keeps the
+per-face path. Measured on 4,900 meshes the node's CPU time per frame went from 0.49 ms to 0.21 ms; the frame
+itself is GPU-bound there (`free` 7.4 to 7.5 ms either way), so the saving shows on CPU-bound machines and
+scenes, not in the benchmark's frame time. The digest is now the main remaining cost (about 40 ns per caster); an
+extraction-time change counter would remove it.
+
+Limits: meshes edited in place (same buffers, new vertices) are not noticed; a caster that animates only through
+skinning keeps its faces dirty every frame; the directional cascades (0.53 ms) are not cached, since they follow
+the camera. Tests: `Render3DShadowFaceCacheSettingsTests`, and `Render3DGPUTests/ShadowFaceCache` (a static scene
+keeps all faces and looks identical to a redraw, a moved caster dirties some but not all faces and the partly
+reused atlas equals a full redraw, a moved light dirties every face).
+
+### Stage 2, first slice: texture transforms, IOR, specular and the extension policy (2026-10-19)
+
+**Correction to G2.** The audit said the loader "rejects" extensions it does not know. It only rejects those a file
+lists in `extensionsRequired`, which is what the glTF specification asks for; extensions listed only in
+`extensionsUsed` were already ignored, silently. The gap was the silence, not a rejection.
+
+- **Policy.** `NativeGLTFLoader.supportedExtensions` is the public list (`KHR_mesh_quantization`,
+  `KHR_materials_emissive_strength`, `KHR_texture_transform`, `KHR_materials_ior`, `KHR_materials_specular`). A file that
+  *requires* anything else still fails with `unsupportedRequiredExtension`. An extension a file merely *uses* is
+  ignored and reported in `GLTFImportResult.warnings`, as is a `KHR_materials_specular` texture (only the factors are
+  read). `ModelAsset3D.importWarnings` carries them to the engine; nothing is logged yet because `AdaScene` has no
+  logging dependency.
+- **`KHR_texture_transform`** for base color, metallic/roughness, normal, occlusion and emission: offset, rotation, scale and
+  the `texCoord` override. `PBRMaterial.textureTransforms` holds five `PBRTextureTransform`s; the material uniform stores each
+  as a 2x2 matrix and an offset, and `flat3d.glsl` applies it in `materialUV`. The directional-shadow and motion shaders
+  apply the base-color transform to their alpha test, so cut-out shadows and motion vectors follow the texture. A normal map
+  whose transform rotates or flips axes stops using authored tangents (the derivative frame follows the transformed UVs).
+- **`KHR_materials_ior` and `KHR_materials_specular` (factors).** Non-metal reflectance at normal incidence is
+  `min(((ior - 1) / (ior + 1))^2 * specularColor, 1) * specularFactor`, computed on the CPU into `PBR3DUniform.dielectric`
+  and used in place of the fixed 0.04 in the direct, local-light and image-based terms. The defaults give 0.04, so
+  existing frames are unchanged (all golden frames still match). The glTF specular `F90` term is not modeled (full
+  white at grazing angles, as before), and the SSR composite keeps its own fixed reflectivity.
+- **Validation.** Malformed transforms (wrong vector length, UV set above 1) and out-of-range reflectance (IOR outside
+  1...100, negative or short specular values) fail with `invalidMaterial`.
+
+Cost: the per-material uniform grew from 80 to 272 bytes and the deduplication key from five to sixteen vectors; the benchmark
+frame (`bare`, 1.91 ms) is unchanged. Tests: `GLTFMaterialExtensionTests` (import, validation, warnings, the required-extension
+failure), `GLTFMaterialExtensionMappingTests` (importer to `PBRMaterial`), `Render3DMaterialExtensionConstantTests` and
+`Render3DGPUTests/MaterialExtensions` (a transform moves, scales and rotates the texture, a full turn is the identity, higher IOR
+brightens and zero specular dims the highlight, a red tint shifts it, defaults change nothing). Not validated on WebGPU (no
+Swan/Dawn here). Still open in Stage 2: clearcoat, sheen, anisotropy, specular textures and `KHR_lights_punctual`.
+
+### Stage 2, second slice: clearcoat (2026-10-19)
+
+`KHR_materials_clearcoat` adds a clear lacquer layer over the base surface (car paint, varnished wood, nails).
+`PBRMaterial.clearcoatFactor` and `clearcoatRoughnessFactor` come from the glTF factors (0 to 1, validated on import) and
+reach the shader through `PBR3DUniform.coat`. Following the glTF layering model, in `flat3d.glsl`:
+
+- the coat is a dielectric layer (reflectance 0.04) shaded with its own GGX lobe and roughness on the **geometric normal**
+  (the normal map belongs to the base layer);
+- every light (the sun, extra directional lights and local lights, through `evaluateDirect`) adds the coat's highlight and
+  dims the base layer under it by `1 - strength * F(N.V)`, so energy is conserved;
+- with image-based lighting the coat also reflects the environment along the geometric normal, using the BRDF
+  lookup at the coat's roughness, and dims the base IBL by the same transmission;
+- with only the flat ambient, the ambient term is dimmed by the same transmission.
+
+A material with no coat takes one branch on `g_Clearcoat.x`. Measured against the merge commit without this change (1080p, Apple
+M-class, release): `bare` geometry 1.77 to 1.82 ms and 2.18 to 2.26 ms with 32 lights, about 3 to 4 percent. For reference
+the parallax merge from `main` had already moved `bare` geometry from 1.69 to 1.77 ms.
+
+Limits: the clearcoat, clearcoat roughness and clearcoat normal **textures are not read** (the importer reports them in
+`GLTFImportResult.warnings`), because the main pass has no free texture slots on Metal. The screen-space reflection composite
+reflects the procedural sky from the base layer's roughness only, so without image-based lighting the coat shows light
+highlights but not a sky reflection. There is no clearcoat debug view and no WebGPU validation. Tests:
+`GLTFMaterialExtensionTests` (import, ranges, texture warning), `Render3DMaterialExtensionConstantTests` (uniform),
+`Render3DGPUTests/MaterialExtensions` (a smooth coat adds a highlight to rough paint, a rougher coat dims it, the highlight grows
+with strength, turning the coat off restores the frame) and the `pbr-sphere-clearcoat` golden frame (Metal).
+
+### Stage 2, third slice: sheen and anisotropy (2026-10-19)
+
+`KHR_materials_sheen` (cloth) and `KHR_materials_anisotropy` (brushed metal, satin) factors. `PBRMaterial` gains
+`sheenColorFactor`, `sheenRoughnessFactor`, `anisotropyStrength` and `anisotropyRotation`, imported with range
+validation (sheen color and roughness 0 to 1, strength 0 to 1) and carried in `PBR3DUniform.sheen` and `.anisotropy`.
+
+- **Sheen.** The Charlie distribution with the Neubelt visibility term, as in the glTF specification, evaluated per light in
+  `evaluateDirect`; the base layer under it is dimmed by `1 - max(sheenColor) * 0.4`. The specification's sheen albedo lookup
+  table is replaced by that constant (0.4), and under image-based lighting sheen is a diffuse lobe from the irradiance map
+  with the same albedo. Without image-based lighting only the lights produce sheen.
+- **Anisotropy.** Anisotropic GGX (distribution and height-correlated visibility) with `alphaT = mix(alpha, 1, strength^2)`
+  along the stretch direction and `alpha` across it, so the highlight streaks perpendicular to the direction. The frame
+  is the authored tangent when the mesh has tangents and the UV-derivative frame otherwise, rotated by
+  `anisotropyRotation`. Image-based reflections bend the lookup normal toward the stretch (the Filament approximation).
+- **Layering order** is base, then sheen, then clearcoat. The sun now goes through `evaluateDirect` like every other light, which
+  removed the duplicated inline copy of the lighting model.
+
+**Cost (same machine and method).** With every layer switched off, `bare` main-pass geometry went from 1.77 ms at the merge
+with `main` to 1.82 ms with clearcoat and to 1.92 ms with sheen and anisotropy (32 lights: 2.18, 2.26, 2.40 ms), so the
+three layered-material features together cost about 8 percent of main-pass geometry on scenes that use none of them. The
+branches are uniform across a draw, so the cost is most likely register pressure from the larger lighting function. The fix
+is shader permutations selected by the material (the `HAS_...` define mechanism exists on `PBRMaterial`, but the PBR
+pipeline is keyed by vertex layout only), which is not done.
+
+Limits: the sheen color, sheen roughness and anisotropy textures are not read (reported as import warnings). Meshes
+without tangents get a tangent frame from UV derivatives, which is constant per triangle and shows faceting along an
+anisotropic highlight on coarse meshes (visible on the primitive sphere in `pbr-sphere-anisotropy`) and at UV poles; assets with
+authored tangents do not show it. No WebGPU validation. Tests: import, ranges and warnings in `GLTFMaterialExtensionTests`,
+the uniform in `Render3DMaterialExtensionConstantTests`, and in `Render3DGPUTests/MaterialExtensions` sheen adds light that
+grows with its color and tints it, turning it off restores the frame, anisotropy changes and rotates the highlight and a half
+turn looks the same, plus the `pbr-sphere-sheen` and `pbr-sphere-anisotropy` golden frames (Metal).
+
+### Stage 2, fourth slice: main shader specialized by shading layer (2026-10-19)
+
+The third slice left layered materials costing about 8 percent of main-pass geometry even when no material used a layer.
+The main shader is now specialized by material:
+
+- `PBRMaterial.shaderFeatures` is the set of layers a material uses (`clearcoat`, `sheen`, `anisotropy`, derived from the
+  factors, so editing a factor at run time changes it). `PBR3DConfiguration.features` joins the pipeline key, and
+  `Flat3DPipeline` takes the matching fragment shader from `PBR3DShaderVariants`.
+- In `flat3d.glsl`, `hasClearcoat()`, `hasSheen()` and `hasAnisotropy()` are constant `false` unless `ADA_CLEARCOAT`,
+  `ADA_SHEEN` or `ADA_ANISOTROPY` is defined, so the plain shader has none of the layer code. Names that enable a layer, not
+  ones that remove it, so the file with no macros is the plain shader.
+- `ShaderModule.createBundled(at:from:defines:)` compiles a variant from the file's text. That bypasses the on-disk shader
+  cache, which is keyed by file and stage (its manifest, reflection and device-compiled entries would otherwise be overwritten
+  by every variant), so a variant compiles in the process on first use, and about 1 second on this machine. The plain shader,
+  used by almost every material, keeps the disk cache. The first attempt had the macros remove the layers, which made
+  the common variant a runtime compile too, and the GPU test suite went from 12 s to 51 s; it was reversed.
+
+**Result (1080p, Apple M-class, release).** `bare` main-pass geometry 1.92 ms with the layers in every material back to 1.77 ms,
+the level before any layer (32 lights: 2.40 to 2.17 ms). Layered materials pay the full layer cost only where they are drawn.
+
+Limits: WebAssembly builds ship precompiled WGSL and cannot specialize, so on the web there are no layers (the plain module is
+used); the motion and shadow passes do not use layers and are not split. The first draw of each new layer combination compiles
+a shader. Tests: `shaderFeaturesFollowTheLayersInUse`, `pipelineKeysSplitByFeaturesAndDefaultToThePlainShader`, and the existing
+clearcoat, sheen and anisotropy GPU tests, which now run through the variants (turning a layer off restores the plain frame).
+
+### Stage 2, fifth slice: layer textures (2026-10-19)
+
+The clearcoat, sheen, anisotropy and specular extensions now read their textures, which the earlier slices skipped. Eight textures
+(`PBRLayerTexture`): clearcoat strength (red), clearcoat roughness (green), clearcoat normal, sheen color (RGB, sRGB), sheen
+roughness (alpha), anisotropy direction (red and green) with strength (blue), specular strength (alpha) and specular color
+(RGB, sRGB). Each multiplies its factor, as the extension texts require.
+
+- **Import.** Each reference keeps its texture, UV set (0 or 1, or the `texCoord` of its own `KHR_texture_transform`), transform
+  and, for the clearcoat normal map, its scale (`GLTFImportResult.LayerTextures`). A bad index, UV set or transform fails with
+  `invalidMaterial`. Import warnings for skipped layer textures are gone because none are skipped.
+- **Binding.** Textures bind at 32 to 39, and only in the shader variant of a material that has them: `PBRMaterial.shaderFeatures`
+  gained one bit per texture (macros `ADA_CLEARCOAT_TEXTURE` and so on), and a texture selects its bit only while its layer is
+  on, because it scales a factor that would otherwise be zero. The specular textures belong to no layer. So a material pays for the
+  textures it has, and the plain shader and the bind groups of other materials are unchanged (`bare` geometry is still 1.77 ms).
+- **Sampling.** The main pass has no free sampler slot (Metal allows 16), so every layer texture is read with the base color
+  texture's sampler: a layer texture whose glTF sampler differs from the base color's (for example another wrap mode) takes the
+  base color's. UVs come from `layerUV`, which applies the parallax shift of the same UV set and then the texture's transform. The
+  material uniform carries each texture's UV set and transform (about 330 more bytes per material).
+- **Shading.** Clearcoat strength and roughness are scaled by their textures, the clearcoat normal bends the coat on its own
+  frame (derivative frame; the base normal map is untouched), sheen color and roughness are scaled, the anisotropy texture sets
+  the direction (rotated by `anisotropyRotation`) and scales the strength, and the specular textures scale the dielectric
+  reflectance `g_Dielectric`, which replaced the uniform value in every lighting term.
+
+Limits: the layer textures share the base color sampler; the clearcoat normal map uses the UV-derivative frame (no authored
+tangents), so it shares the faceting of that frame on coarse meshes; there is no web build of any layer (variants cannot be compiled
+there). Tests: import (`importsEveryLayerTextureWithItsOwnUVSetAndTransform` and the rejection cases), the mapping from an
+imported material to `PBRMaterial`, the feature bits and uniform, and one GPU test per texture. They include equivalences (an
+anisotropy texture of (1, 0.5, 1) equals the factor alone, and (0.5, 1, 1) equals a quarter turn; a specular alpha of zero equals a
+specular factor of zero; a flat clearcoat normal changes nothing) and a transform test that samples either half of a two-tone mask.
+Each of the shader reads was checked by removing it and watching its test fail.
+
+### Stage 3, first slice: morph targets (2026-10-19)
+
+**Import.** Primitives carry `targets` (POSITION, NORMAL and TANGENT deltas per vertex; sparse accessors expand to dense), meshes carry
+the default `weights` and the `extras.targetNames` convention, nodes may override the weights, and animation channels with the
+`weights` path import with one value per target and key. Inconsistent data fails with `invalidMorphTargets`; morphed
+attributes other than the three deltas are reported as warnings.
+
+**GPU evaluation.** `MorphTargetSet` packs every target's deltas into one RGBA16F texture (`Part.morphTargets`): texel
+`(target * vertices + vertex) * attributes + attribute`, 2048 texels wide, up to 8192 rows (about 16.7 million texels of
+targets x vertices x attributes; a mesh past that fails to load with an explicit error). A draw applies at most 8 targets, the
+ones with the largest weights (`MorphTargetSet.activeTargets`), and its vertex shader fetches only those deltas with `texelFetch`
+(`Morph.glsl`, behind `ADA_MORPH`, so unmorphed meshes keep the plain shaders), so cost follows the active targets and memory follows all
+of them. Deltas are half precision (portable bit conversion, no `Float16`). The weights live in `Morph3DUniforms`, one buffer per entity
+and mesh part (parts differ in vertex count), holding the current and the previous frame's active targets.
+
+**Passes.** The morph feature (`PBRMaterial.ShaderFeatures.morph`, a property of the draw, not the material) selects a vertex
+shader variant of the main shader, the motion shader and the directional and local shadow shaders (`Shadow3DConfiguration` joins the
+pipeline key) and the occlusion prepass; weights and the delta texture bind at 21 and 40. Order is morph, then skin (the
+deltas move the rest pose before the joint matrices). The motion pass moves a vertex from where the previous weights put it.
+
+**Culling, batching and caches.** The source bounds grow by the most the active weights can displace (the largest delta of each
+active target times its weight, times the largest joint scale for skinned meshes), so frustum culling, shadow culling and the occlusion
+candidates see the morphed shape. A morphed mesh is its own batch (like a skinned one), has no level-of-detail
+alternatives, and counts as dynamic for the shadow face cache. `MorphWeights3DComponent` holds the weights (with `setWeight(_:named:)`),
+and `ModelAsset3D.instantiate` adds it with the file's default weights.
+
+**Tests.** Import (`GLTFMorphTargetImportTests`, 11 cases); packing, selection and uniform layout (`Render3DMorphTargetSelectionTests`);
+and GPU tests (`Render3DGPUTests/MorphTargets`): weight zero equals the unmorphed mesh, a weighted shift equals moving the entity (sun and
+local-light shadows included), only the heaviest eight targets apply, weight changes update the shadow faces on the first frame, a mesh
+resting off screen is not culled once morphed, normal deltas change shading but not the silhouette, the occlusion prepass and the
+temporal motion pass draw the morphed shape, the uniform keeps the previous frame's weights, and a glTF skinned to a joint turned a quarter turn
+applies its morph before the skin. Each shader read was checked by breaking it and watching a test fail.
+
+Limits: deltas are dense and half precision (no sparse or compacted storage, so a face with many targets costs texture memory
+in proportion to targets x vertices); the selection is made per frame on the CPU; only POSITION, NORMAL and TANGENT morph; layered materials
+and morph share the shader-variant mechanism, so the first draw of a morphed mesh compiles its variants (about a second each), and there is no web
+build. Not done at this slice: playing `weights` channels, AdaScript and the Editor (see the second slice).
+
+### Stage 3, second slice: animated weights and script access (2026-10-19)
+
+**Clips.** glTF `weights` channels import as `MorphWeightsTrack` (a validated track of `targetCount` weights per key, linear,
+step or cubic spline with per-target tangents scaled by the key span, sampled without allocating) in `SkeletalAnimationClip.morphTracks`;
+they count toward the clip duration and are valid on matrix-placed nodes. A rig node carries `morphRestWeights` (the node's weights, else the
+mesh's defaults), and a player rejects a track that addresses a node with a different target count.
+
+**Playback.** `SkeletalAnimationPlayer.morphWeights` holds the weights by rig node (empty where the node has no targets). Without a graph a
+clip's tracks overwrite the rest weights at its local time, looping and clamping like poses; a crossfade (`transitionDuration`)
+interpolates from the weights at the time of the switch. In a graph, blend nodes mix weights by input weight and mask with the rest weights
+filling a gap (a mask is read at the mesh node's rig index), and additive nodes add each further input's offset from the rest weights,
+the same rules the poses follow.
+
+**Scene.** `SkeletalAnimation3DSystem` writes `player.morphWeights` into the node's `MorphWeights3DComponent` whenever the pose generation
+changes, only for nodes the animation drives (matching, non-empty weights), so hand-set weights on other nodes are not touched. The
+renderer already treats weight changes as dynamic (shadow faces, bounds, previous-frame weights), so animated morphs need nothing more.
+
+**Scripts.** `MorphWeights3DComponent` is a reflected `@Component`, registered with the model plugin and Codable (a missing key
+decodes to its default). Reflection exposes scalars only, so arrays show as read-only fields; scripts and the inspector steer one target at a
+time through `selectedTarget`, `selectedTargetName` (assigning a name selects that target) and `selectedTargetWeight` (assigning a finite
+value sets the weight), and code uses `weights` and `setWeight(_:named:)`.
+
+**Tests.** 17 CPU tests (`MorphWeightsAnimationTests`): sampling and rejection, the player (rest weights, clip, loop and clamp, independent
+players, crossfade, track validation, duration), and the graph (blend with rest fill, mask on the mesh node, additive, clips without
+weight tracks). A GPU test loads a glTF with an animated weights channel through `ModelAsset3D`, seeks to half a second, checks that the
+entity holds `[0.5]`, that the frame equals the same weight set by hand, and that the end of the clip applies the full shift; reflection
+and Codable tests cover the component.
+
+Not done: an Editor panel (the Editor package keeps its own component catalog and builds separately) and animating weights from keyframe
+`AdaAnimation` clips (only glTF clips and the skeletal graph drive weights); an AdaScript sample.
+
+### Stage 3, third slice: authored weights and the Editor panel (2026-10-19)
+
+**Where weights live in a scene.** A model in a scene is a `Model3DSource` that instantiates a hierarchy at run time, so the weight
+components exist only on generated children. `Model3DSource.morphWeights` (target name to weight, absent in older scenes) is applied at
+instantiation to every mesh with a target of that name, which is what an Editor can author. They are the weights the instance
+starts with and keeps unless a clip animates that mesh's weights: `SkeletalAnimation3DSystem` now writes player weights only to
+nodes some clip animates (`SkeletalAnimationPlayer.animatedMorphNodes`). Before that, a rigged model's rest weights from the file
+would have overwritten authored ones on the first frame.
+
+**Editor.** The Animator panel has a Morph Targets mode next to the skeletal graph and keyframes. It loads the model, lists its *named*
+targets (a model's unnamed targets are counted and reported as not addressable from a scene) with one slider each from 0 to 1,
+shows the result live in the preview (`EditorModelAssetPreviewModel.morphWeights`), and applies it as one undoable scene transaction
+(`setMorphWeights`), stored as a structured `morphWeights` map on the Model 3D component (a weight equal to the file's default is not an
+override, and an empty map removes the key). Reset clears the overrides. Names the model does not have are dropped when it loads.
+
+**Tests (Editor package, built with Xcode's toolchain).** Six run and pass: the model (targets, defaults, clamping, unnamed targets), the payload,
+a scene transaction that saves, reopens, decodes through the component registry, undoes, redoes and clears, the preview applying and
+undoing weights, and the weight list drawing one named slider per target. A seventh (`loaderAppliesAuthoredWeights`) opens the saved scene
+through `EditorSceneFileLoader` and checks the instantiated entity's weights; it did not run here, because on this machine any Editor test that
+goes through that loader ends the test process silently, the existing `EditorAnimationGraphTests` scene round trip included. The same behavior is
+covered on the runtime side by `authoredWeightsStartTheInstanceAndYieldToAnimation`.
+
+Not done: slider interaction is covered through the model and workbench, not by driving the slider with simulated pointer events; the Environment 3D inspector does not yet list the fog, light-shaft, tiled-light or shadow-cache settings added earlier in this work; weights
+cannot be keyframed in the Editor's keyframe animator (only glTF clips and the skeletal graph animate them).
 
 ## Validation requirements
 

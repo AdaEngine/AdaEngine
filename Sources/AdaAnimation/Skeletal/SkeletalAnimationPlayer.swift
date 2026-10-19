@@ -17,7 +17,12 @@ public struct SkeletalAnimationPlayer: Sendable {
     public private(set) var poses: [SkeletalJointPose]
     public private(set) var localTransforms: [Transform3D]
     public private(set) var globalTransforms: [Transform3D]
+    /// Morph target weights by rig node: the weights of the mesh on that node, or an empty array for a node without morph targets.
+    public private(set) var morphWeights: [[Float]]
+    /// The rig nodes whose morph weights any clip animates. Other nodes keep whatever weights their entity was given.
+    public let animatedMorphNodes: Set<Int>
     private var transitionSource: [SkeletalJointPose] = []
+    private var transitionMorphSource: [[Float]] = []
     private var transitionDuration: Double = 0
     private var transitionTime: Double = 0
     private var graphState: CompiledAnimationGraph?
@@ -30,6 +35,8 @@ public struct SkeletalAnimationPlayer: Sendable {
         guard
             clips.allSatisfy({ clip in
                 clip.tracks.allSatisfy { rig.nodes.indices.contains($0.nodeIndex) && rig.nodes[$0.nodeIndex].restPose != nil }
+                    // A weights track must address a node whose mesh has exactly that many targets.
+                    && clip.morphTracks.allSatisfy { rig.nodes.indices.contains($0.nodeIndex) && rig.nodes[$0.nodeIndex].morphRestWeights?.count == $0.targetCount }
             })
         else { throw .invalidTrack }
         self.rig = rig
@@ -37,6 +44,8 @@ public struct SkeletalAnimationPlayer: Sendable {
         self.poses = rig.nodes.map { $0.restPose ?? SkeletalJointPose() }
         self.localTransforms = rig.nodes.map(\.restMatrix)
         self.globalTransforms = Array(repeating: .identity, count: rig.nodes.count)
+        self.morphWeights = rig.nodes.map { $0.morphRestWeights ?? [] }
+        self.animatedMorphNodes = Set(clips.flatMap { $0.morphTracks.map(\.nodeIndex) })
         evaluate()
     }
 
@@ -52,6 +61,7 @@ public struct SkeletalAnimationPlayer: Sendable {
         graphState = nil
         pendingGraphEvents.removeAll(keepingCapacity: true)
         self.transitionSource = poses
+        self.transitionMorphSource = morphWeights
         self.transitionDuration = transitionDuration.isFinite ? max(0, transitionDuration) : 0
         self.transitionTime = 0
         self.clipIndex = index
@@ -113,6 +123,7 @@ public struct SkeletalAnimationPlayer: Sendable {
         graphState = compiled
         clipIndex = nil
         transitionSource = poses
+        transitionMorphSource = morphWeights
         self.transitionDuration = transitionDuration.isFinite ? max(0, transitionDuration) : 0
         transitionTime = 0
         time = 0
@@ -156,13 +167,22 @@ public struct SkeletalAnimationPlayer: Sendable {
     }
 
     private mutating func evaluate() {
-        for index in rig.nodes.indices { poses[index] = rig.nodes[index].restPose ?? SkeletalJointPose() }
+        for index in rig.nodes.indices {
+            poses[index] = rig.nodes[index].restPose ?? SkeletalJointPose()
+            if let rest = rig.nodes[index].morphRestWeights {
+                // Element-wise, so the buffer is reused rather than reallocated every frame.
+                for target in rest.indices { morphWeights[index][target] = rest[target] }
+            }
+        }
         if graphState != nil {
             let graphTime = time
             let graphClips = clips
             graphState?.evaluate(time: graphTime, clips: graphClips)
             if let root = graphState?.root {
                 for index in poses.indices { poses[index] = graphState?.poses[root][index] ?? poses[index] }
+                for index in morphWeights.indices where !morphWeights[index].isEmpty {
+                    morphWeights[index] = graphState?.morph[root][index] ?? morphWeights[index]
+                }
             }
         } else if let clipIndex {
             let clip = clips[clipIndex]
@@ -176,6 +196,9 @@ public struct SkeletalAnimationPlayer: Sendable {
                 case .scale: poses[track.nodeIndex].scale = value.xyz
                 }
             }
+            for track in clip.morphTracks {
+                track.sample(at: localTime, into: &morphWeights[track.nodeIndex])
+            }
         }
         if transitionDuration > 0 && transitionTime < transitionDuration {
             let amount = Float(transitionTime / transitionDuration)
@@ -185,8 +208,15 @@ public struct SkeletalAnimationPlayer: Sendable {
                 poses[index].scale = source.scale + (poses[index].scale - source.scale) * amount
                 poses[index].rotation = slerpQuat(source.rotation, poses[index].rotation, t: amount)
             }
+            for index in morphWeights.indices where transitionMorphSource.indices.contains(index) && transitionMorphSource[index].count == morphWeights[index].count {
+                for target in morphWeights[index].indices {
+                    let from = transitionMorphSource[index][target]
+                    morphWeights[index][target] = from + (morphWeights[index][target] - from) * amount
+                }
+            }
         } else {
             transitionSource.removeAll(keepingCapacity: true)
+            transitionMorphSource.removeAll(keepingCapacity: true)
             transitionDuration = 0
         }
         rebuildTransforms()

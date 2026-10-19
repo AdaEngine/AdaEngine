@@ -9,6 +9,7 @@ extension NativeGLTFLoader {
         case invalidSkinningAttributes
         case unsupportedJointSet(Int)
         case invalidAnimation(Int)
+        case invalidMorphTargets(Int)
         case unsupportedAnimationPath(String)
         case invalidGLB
         case missingJSONChunk
@@ -77,16 +78,36 @@ extension NativeGLTFLoader {
                 let indices: Int?
                 let material: Int?
                 let mode: Int?
+                /// Morph targets: per target, the accessor of each displaced attribute (POSITION, NORMAL, TANGENT).
+                let targets: [[String: Int]]?
+            }
+
+            /// Application data glTF leaves open; `targetNames` is the widely used convention for naming morph targets.
+            struct Extras: Codable {
+                let targetNames: [String]?
             }
 
             let name: String?
             let primitives: [Primitive]
+            let weights: [Float]?
+            let extras: Extras?
+        }
+
+        struct TextureExtensions: Codable {
+            struct Transform: Codable {
+                let offset: [Float]?
+                let rotation: Float?
+                let scale: [Float]?
+                let texCoord: Int?
+            }
+            let KHR_texture_transform: Transform?
         }
 
         struct Material: Codable {
             struct TextureInfo: Codable {
                 let index: Int
                 let texCoord: Int?
+                let extensions: TextureExtensions?
             }
 
             struct PBR: Codable {
@@ -101,17 +122,55 @@ extension NativeGLTFLoader {
                 let index: Int
                 let texCoord: Int?
                 let scale: Float?
+                let extensions: TextureExtensions?
             }
 
             struct OcclusionTextureInfo: Codable {
                 let index: Int
                 let texCoord: Int?
                 let strength: Float?
+                let extensions: TextureExtensions?
             }
 
             struct Extensions: Codable {
                 struct EmissiveStrength: Codable { let emissiveStrength: Float }
+                struct IOR: Codable { let ior: Float? }
+                struct TextureReference: Codable {
+                    let index: Int
+                    let texCoord: Int?
+                    let scale: Float?
+                    let extensions: TextureExtensions?
+                }
+                struct Specular: Codable {
+                    let specularFactor: Float?
+                    let specularColorFactor: [Float]?
+                    let specularTexture: TextureReference?
+                    let specularColorTexture: TextureReference?
+                }
+                struct Clearcoat: Codable {
+                    let clearcoatFactor: Float?
+                    let clearcoatTexture: TextureReference?
+                    let clearcoatRoughnessFactor: Float?
+                    let clearcoatRoughnessTexture: TextureReference?
+                    let clearcoatNormalTexture: TextureReference?
+                }
+                struct Sheen: Codable {
+                    let sheenColorFactor: [Float]?
+                    let sheenColorTexture: TextureReference?
+                    let sheenRoughnessFactor: Float?
+                    let sheenRoughnessTexture: TextureReference?
+                }
+                struct Anisotropy: Codable {
+                    let anisotropyStrength: Float?
+                    let anisotropyRotation: Float?
+                    let anisotropyTexture: TextureReference?
+                }
                 let KHR_materials_emissive_strength: EmissiveStrength?
+                let KHR_materials_sheen: Sheen?
+                let KHR_materials_anisotropy: Anisotropy?
+                let KHR_materials_clearcoat: Clearcoat?
+                let KHR_materials_ior: IOR?
+                let KHR_materials_specular: Specular?
             }
 
             let name: String?
@@ -154,6 +213,7 @@ extension NativeGLTFLoader {
             let mesh: Int?
             let camera: Int?
             let skin: Int?
+            let weights: [Float]?
         }
 
         struct Skin: Codable {

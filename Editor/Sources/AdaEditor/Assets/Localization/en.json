@@ -1655,5 +1655,14 @@
   "Save annotation": "Save annotation",
   "Edit annotation #{0}: {1}": "Edit annotation #{0}: {1}",
   "Ready to send together: {0}": "Ready to send together: {0}",
-  "This note was edited in the composer. Edit its text there or remove it before replacing it.": "This note was edited in the composer. Edit its text there or remove it before replacing it."
+  "This note was edited in the composer. Edit its text there or remove it before replacing it.": "This note was edited in the composer. Edit its text there or remove it before replacing it.",
+  "Morph Targets": "Morph Targets",
+  "MORPH TARGETS": "MORPH TARGETS",
+  "Loading morph target model…": "Loading morph target model…",
+  "This model has no named morph targets.": "This model has no named morph targets.",
+  "Targets without a name cannot be set from a scene.": "Targets without a name cannot be set from a scene.",
+  "Applied to scene. Save the scene to keep these weights.": "Applied to scene. Save the scene to keep these weights.",
+  "Morph weights cleared.": "Morph weights cleared.",
+  "Morph weights applied": "Morph weights applied",
+  "Morph weights cleared": "Morph weights cleared"
 }
