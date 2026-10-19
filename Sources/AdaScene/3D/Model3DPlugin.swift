@@ -37,6 +37,7 @@ public struct Model3DPlugin: Plugin {
         ModelAnimation3DComponent.registerComponent()
         ModelNode3DComponent.registerComponent()
         SkinnedMesh3DComponent.registerComponent()
+        MorphWeights3DComponent.registerComponent()
         app.addSystem(SkeletalAnimation3DSystem.self, on: .postUpdate)
         VoxelAnimationPlayback3DComponent.registerComponent()
         VoxelTransformAnimation3DComponent.registerComponent()

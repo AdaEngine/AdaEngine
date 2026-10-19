@@ -303,7 +303,8 @@ Each item needs its own short requirements note before implementation.
 - [x] Stage 2: unsupported-extension degradation policy and documented supported list (`NativeGLTFLoader.supportedExtensions`, `GLTFImportResult.warnings`).
 - [x] Stage 3: morph-target asset, glTF import and GPU evaluation (see "Stage 3, first slice").
 - [x] Stage 3: morph with skinning, shadows, motion vectors and bounds.
-- [ ] Stage 3: animated weights (clips and the animation graph), AdaScript and Editor exposure.
+- [x] Stage 3: animated weights (clips, crossfades and the animation graph) and AdaScript access (see "Stage 3, second slice").
+- [ ] Stage 3: Editor panel for morph weights.
 - [ ] Stage 4: OIT mode with sorted fallback.
 - [ ] Stage 4: transmission/volume pass.
 - [x] Stage 5: distance/height fog (`Fog3D` in `Environment3D`, applied in the composite pass; see "Stage 5, first slice").
@@ -919,7 +920,38 @@ applies its morph before the skin. Each shader read was checked by breaking it a
 Limits: deltas are dense and half precision (no sparse or compacted storage, so a face with many targets costs texture memory
 in proportion to targets x vertices); the selection is made per frame on the CPU; only POSITION, NORMAL and TANGENT morph; layered materials
 and morph share the shader-variant mechanism, so the first draw of a morphed mesh compiles its variants (about a second each), and there is no web
-build. Not done: playing `weights` channels (clips and the animation graph), the Editor and AdaScript.
+build. Not done at this slice: playing `weights` channels, AdaScript and the Editor (see the second slice).
+
+### Stage 3, second slice: animated weights and script access (2026-10-19)
+
+**Clips.** glTF `weights` channels import as `MorphWeightsTrack` (a validated track of `targetCount` weights per key, linear,
+step or cubic spline with per-target tangents scaled by the key span, sampled without allocating) in `SkeletalAnimationClip.morphTracks`;
+they count toward the clip duration and are valid on matrix-placed nodes. A rig node carries `morphRestWeights` (the node's weights, else the
+mesh's defaults), and a player rejects a track that addresses a node with a different target count.
+
+**Playback.** `SkeletalAnimationPlayer.morphWeights` holds the weights by rig node (empty where the node has no targets). Without a graph a
+clip's tracks overwrite the rest weights at its local time, looping and clamping like poses; a crossfade (`transitionDuration`)
+interpolates from the weights at the time of the switch. In a graph, blend nodes mix weights by input weight and mask with the rest weights
+filling a gap (a mask is read at the mesh node's rig index), and additive nodes add each further input's offset from the rest weights,
+the same rules the poses follow.
+
+**Scene.** `SkeletalAnimation3DSystem` writes `player.morphWeights` into the node's `MorphWeights3DComponent` whenever the pose generation
+changes, only for nodes the animation drives (matching, non-empty weights), so hand-set weights on other nodes are not touched. The
+renderer already treats weight changes as dynamic (shadow faces, bounds, previous-frame weights), so animated morphs need nothing more.
+
+**Scripts.** `MorphWeights3DComponent` is a reflected `@Component`, registered with the model plugin and Codable (a missing key
+decodes to its default). Reflection exposes scalars only, so arrays show as read-only fields; scripts and the inspector steer one target at a
+time through `selectedTarget`, `selectedTargetName` (assigning a name selects that target) and `selectedTargetWeight` (assigning a finite
+value sets the weight), and code uses `weights` and `setWeight(_:named:)`.
+
+**Tests.** 17 CPU tests (`MorphWeightsAnimationTests`): sampling and rejection, the player (rest weights, clip, loop and clamp, independent
+players, crossfade, track validation, duration), and the graph (blend with rest fill, mask on the mesh node, additive, clips without
+weight tracks). A GPU test loads a glTF with an animated weights channel through `ModelAsset3D`, seeks to half a second, checks that the
+entity holds `[0.5]`, that the frame equals the same weight set by hand, and that the end of the clip applies the full shift; reflection
+and Codable tests cover the component.
+
+Not done: an Editor panel (the Editor package keeps its own component catalog and builds separately) and animating weights from keyframe
+`AdaAnimation` clips (only glTF clips and the skeletal graph drive weights); an AdaScript sample.
 
 ## Validation requirements
 

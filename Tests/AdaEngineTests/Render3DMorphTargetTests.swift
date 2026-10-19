@@ -52,6 +52,38 @@ struct Render3DMorphTargetSelectionTests {
         #expect(Set((0..<4).flatMap { model in (0..<4).map { Mesh3DRenderSource.morphKey(model: model, part: $0) } }).count == 16)
     }
 
+    @Test func componentRoundTripsThroughCodable() throws {
+        let component = MorphWeights3DComponent(weights: [0.25, 1], targetNames: ["smile", "blink"])
+        let decoded = try JSONDecoder().decode(MorphWeights3DComponent.self, from: JSONEncoder().encode(component))
+        #expect(decoded.weights == [0.25, 1] && decoded.targetNames == ["smile", "blink"])
+    }
+
+    @Test func scriptsAndTheInspectorSteerOneTargetAtATime() throws {
+        let descriptor = MorphWeights3DComponent.componentDescriptor
+        func field(_ key: String) -> ReflectedComponentField? { descriptor.fields.first { $0.key == key } }
+        #expect(field("selectedTarget")?.kind == .int && field("selectedTarget")?.isWritable == true)
+        #expect(field("selectedTargetName")?.kind == .string && field("selectedTargetName")?.isWritable == true)
+        #expect(field("selectedTargetWeight")?.kind == .float && field("selectedTargetWeight")?.isWritable == true)
+        #expect(field("weights")?.isWritable == false, "Arrays are not reflected as editable fields.")
+
+        var component = MorphWeights3DComponent(weights: [0, 0.5, 0], targetNames: ["smile", "blink", "frown"])
+        component.selectedTargetName = "blink"
+        #expect(component.selectedTarget == 1 && component.selectedTargetWeight == 0.5)
+        component.selectedTargetWeight = 0.9
+        #expect(component.weights == [0, 0.9, 0])
+        component.selectedTargetWeight = .nan
+        component.selectedTargetName = "unknown"
+        #expect(component.weights == [0, 0.9, 0] && component.selectedTarget == 1, "Bad input leaves the component alone.")
+        component.selectedTarget = 7
+        component.selectedTargetWeight = 1
+        #expect(component.weights == [0, 0.9, 0] && component.selectedTargetWeight == 0 && component.selectedTargetName.isEmpty)
+        #expect(component.targetCount == 3)
+
+        // Written back through reflection, as the inspector and AdaScript do.
+        let written = try #require(field("selectedTargetWeight")?.write(MorphWeights3DComponent(weights: [0, 0], selectedTarget: 1), .double(0.75)) as? MorphWeights3DComponent)
+        #expect(written.weights == [0, 0.75])
+    }
+
     @Test func componentFindsTargetsByName() {
         var component = MorphWeights3DComponent(weights: [0, 0.5], targetNames: ["smile", "blink"])
         #expect(component.weight(named: "blink") == 0.5 && component.weight(named: "frown") == nil)
@@ -274,7 +306,7 @@ extension Render3DGPUTests {
 
         /// A one-quad glTF skinned to a single joint that is turned a quarter turn about Z, with one morph target that moves
         /// every vertex by +0.6 on X (mesh weight 1 by default). Written to a temporary file and loaded like any asset.
-        private static func skinnedMorphModel() throws -> ModelAsset3D {
+        private static func skinnedMorphModel(animated: Bool = false) throws -> ModelAsset3D {
             var bytes = Data()
             var views: [[String: Any]] = []
             func add(_ data: Data) {
@@ -296,19 +328,23 @@ extension Render3DGPUTests {
             add(floats([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]))
             add(floats([0.6, 0, 0, 0.6, 0, 0, 0.6, 0, 0, 0.6, 0, 0]))
             add(floats([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]))
+            // Animation keys: the weight goes from 0 to 1 over one second.
+            add(floats([0, 1]))
+            add(floats([0, 1]))
             func accessor(_ view: Int, _ type: String, _ count: Int, _ component: Int = 5126) -> [String: Any] {
                 ["bufferView": view, "componentType": component, "count": count, "type": type]
             }
             var positionAccessor = accessor(0, "VEC3", 4)
             positionAccessor["min"] = [-0.5, 0, 0]
             positionAccessor["max"] = [0.5, 1, 0]
-            let document: [String: Any] = [
+            var document: [String: Any] = [
                 "asset": ["version": "2.0"],
                 "buffers": [["byteLength": bytes.count, "uri": "data:application/octet-stream;base64," + bytes.base64EncodedString()]],
                 "bufferViews": views,
                 "accessors": [
                     positionAccessor, accessor(1, "VEC3", 4), accessor(2, "SCALAR", 6, 5123), accessor(3, "VEC4", 4, 5121),
                     accessor(4, "VEC4", 4), accessor(5, "VEC3", 4), accessor(6, "MAT4", 1),
+                    accessor(7, "SCALAR", 2), accessor(8, "SCALAR", 2),
                 ],
                 "materials": [["doubleSided": true, "pbrMetallicRoughness": ["baseColorFactor": [0.8, 0.4, 0.3, 1], "metallicFactor": 0]]],
                 "meshes": [[
@@ -324,9 +360,46 @@ extension Render3DGPUTests {
                 "scenes": [["nodes": [0, 1]]],
                 "scene": 0,
             ]
+            if animated {
+                document["animations"] = [[
+                    "name": "Open",
+                    "samplers": [["input": 7, "output": 8, "interpolation": "LINEAR"]],
+                    "channels": [["sampler": 0, "target": ["node": 0, "path": "weights"]]],
+                ]]
+            }
             let url = FileManager.default.temporaryDirectory.appendingPathComponent("morph-skin-\(UUID().uuidString).gltf")
             try JSONSerialization.data(withJSONObject: document).write(to: url)
             return try #require(AssetsManager.loadSync(ModelAsset3D.self, at: url.path).asset)
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func animatedWeightsDriveTheMorphedMesh() async throws {
+            let scene = try await Render3DDebugViewGPUTests.makeScene()
+            let model = try Self.skinnedMorphModel(animated: true)
+            #expect(model.animationClips.map(\.name) == ["Open"] && model.animationClips[0].morphTracks.count == 1)
+            let root = model.instantiate(in: scene.app.main)
+            root.components[Transform.self] = Transform(position: [0, 0, -1.6])
+            let mesh = try #require(Self.morphedEntity(under: root))
+            var animation = try #require(root.components[ModelAnimation3DComponent.self])
+            try animation.player.play("Open", transitionDuration: 0)
+            animation.player.repeats = false
+            animation.player.isPlaying = false
+            animation.player.seek(to: 0.5)
+            root.components[ModelAnimation3DComponent.self] = animation
+            let animated = try await scene.render(.none, frames: 4)
+            #expect(mesh.components[MorphWeights3DComponent.self]?.weights == [0.5], "The clip's weight at half a second must reach the entity.")
+            // The same weight set by hand, with the animation out of the way.
+            root.components[ModelAnimation3DComponent.self] = nil
+            var component = try #require(mesh.components[MorphWeights3DComponent.self])
+            component.weights = [0.5]
+            mesh.components[MorphWeights3DComponent.self] = component
+            #expect(Self.matches(animated, try await scene.render(.none, frames: 4)), "Animated weights must draw like the same weights set directly.")
+            // And the end of the clip applies the full shift.
+            var finished = animation
+            finished.player.seek(to: 1)
+            root.components[ModelAnimation3DComponent.self] = finished
+            _ = try await scene.render(.none, frames: 2)
+            #expect(mesh.components[MorphWeights3DComponent.self]?.weights == [1])
         }
 
         private static func morphedEntity(under root: Entity) -> Entity? {

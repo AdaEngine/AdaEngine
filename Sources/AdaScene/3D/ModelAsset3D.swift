@@ -153,8 +153,8 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
             throw AssetError.message("A skinned mesh supports at most \(Skinning3DUniforms.maximumJoints) joints.")
         }
         skins = result.skins
-        animationRig = result.skins.isEmpty && result.animations.isEmpty ? nil : try Self.makeRig(nodes: result.nodes)
-        animationClips = try Self.makeClips(result.animations)
+        animationRig = result.skins.isEmpty && result.animations.isEmpty ? nil : try Self.makeRig(nodes: result.nodes, meshes: result.meshes)
+        animationClips = try Self.makeClips(result.animations, nodes: result.nodes, meshes: result.meshes)
         let device = unsafe RenderEngine.shared.renderDevice
 
         let materials = try Self.makeMaterials(result)
