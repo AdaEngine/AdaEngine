@@ -111,11 +111,17 @@ public struct CameraSystem: Sendable {
             camera.computedData.targetScaleFactor = texture.scaleFactor
         }
 
+        // A pixel-perfect camera projects its fixed resolution, not the window.
+        let projectionSize = camera.wrappedValue.projectionViewportSize
+        if camera.computedData.projectionViewportSize != projectionSize {
+            needsUpdateProjection = true
+        }
+
         if needsUpdateProjection {
-            let viewportSize = camera.logicalViewport.rect.size
+            camera.computedData.projectionViewportSize = projectionSize
             camera.projection.updateView(
-                width: viewportSize.width,
-                height: viewportSize.height
+                width: projectionSize.width,
+                height: projectionSize.height
             )
         }
     }

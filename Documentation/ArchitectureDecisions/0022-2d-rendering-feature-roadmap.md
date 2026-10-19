@@ -101,7 +101,7 @@ requirements; Bevy examples or ecosystem plugins are not evidence of built-in en
 - [x] Sprite animation clips, events, Aseprite import, AdaScript control and Studio editor (see "Sprite animation"; Studio window not manually exercised).
 - [x] Camera 2D controller: follow, dead zone, smoothing, limits, zoom, shake, pixel snapping, AdaScript and Studio (see "Camera 2D").
 - [ ] Alpha phases, sprite material convenience and UV transforms.
-- [ ] Pixel-perfect presentation preset.
+- [x] Pixel-perfect presentation preset (see "Pixel-perfect rendering"; Metal only, WebGPU and browser not run).
 - [ ] HDR 2D, bloom, tone mapping and UI composition.
 - [ ] Additional runtime 2D mesh builders.
 
@@ -524,6 +524,18 @@ Validation on 2026-10-19:
 - Installing the controller from `ScenePlugin` made worlds that use `ScenePlugin` without `TransformPlugin` trip the system graph's missing-dependency assertion (`SceneNavigatorTests`). It is installed by `DefaultPlugins` and the Studio play/runtime hosts instead.
 
 Not covered: the Studio play window and a physical device, WebGPU, rotation of the followed camera beyond the shake roll, cameras that have a parent (keep the camera at the scene root), and visibility culling, which still uses the camera from the start of the frame (an object entering the screen edge can appear one frame late at very high camera speeds).
+
+## Pixel-perfect rendering — 2026-10-20
+
+`Camera.pixelPerfect` renders a 2D camera at a fixed resolution and presents it with a whole-number scale, nearest sampling and a border; `integer` and `fit` scale modes. The camera's projection uses the fixed size, so one world unit is one art pixel at zoom 1. The scene is scaled into an output-sized picture by the UI node, which then draws AdaUI onto it at the output's own resolution (the ADR's "keep high-resolution UI separate"); the upscale node copies that picture to the output, or presents the low-resolution scene itself when no UI node ran. Pointer mapping (`viewportToWorld`, sprite picking) measures against the picture. Studio's Camera component has the settings. Usage: [PixelPerfect.md](../PixelPerfect.md).
+
+Validation on 2026-10-20:
+
+- Swift Testing: layout math and the camera's projection, limits and input mapping with the real systems.
+- Metal, whole engine through the real render graph (camera extraction, target preparation, 2D graph with the UI plugin, upscale node): picture rectangle and border exact at two output sizes, hard-edged art pixels with no blended colours, fit mode, an ordinary camera unchanged, and UI blocks on exact output pixels, one of them over the border. The UI check injects a UI render item with a test draw pass into the real UI node; text and gradients were not drawn through this path.
+- 21 Editor tests passed, including the camera settings round trip into a runtime camera.
+
+Not covered: WebGPU and the browser, mobile devices, windowed output (the tests render to textures), the glass effect over a pixel-perfect picture, and HDR or bloom (still open below).
 
 ## References
 

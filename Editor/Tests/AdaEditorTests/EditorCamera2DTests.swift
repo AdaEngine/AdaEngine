@@ -73,6 +73,46 @@ struct EditorCamera2DTests {
         #expect(position.x > 0 && position.x <= 304.5 && position.y > 0 && position.y <= 198)
     }
 
+    @Test("The Camera component's pixel-perfect settings edit, save, reopen and reach the runtime camera")
+    func pixelPerfectCamera() throws {
+        let type = EditorBuiltInComponentType.camera
+        let descriptor = try #require(EditorComponentRegistry.descriptor(named: type))
+
+        // The default is an ordinary camera, and a scene saved before the preset existed (no keys) is one too.
+        let ordinary = try #require(descriptor.decode(descriptor.makeDefaultPayload()) as? Camera)
+        #expect(ordinary.pixelPerfect == nil)
+        var legacy = descriptor.makeDefaultPayload()
+        for key in legacy.keys where key.hasPrefix("pixelPerfect") { legacy[key] = nil }
+        #expect((try #require(descriptor.decode(legacy) as? Camera)).pixelPerfect == nil)
+        #expect(Set(descriptor.fields.map(\.key)).isSuperset(of: Set(descriptor.makeDefaultPayload().keys)))
+
+        var scene = EditorSceneModel.default(projectName: "Pixels")
+        let entity = scene.addEntity(preset: .empty)
+        scene.addComponent(typeName: type, to: entity.id)
+        for (key, value) in [("pixelPerfect", "true"), ("pixelPerfectWidth", "256"), ("pixelPerfectHeight", "144"), ("pixelPerfectScale", "fit")] {
+            let field = try #require(descriptor.fields.first { $0.key == key }, "missing field \(key)")
+            scene.updateField(typeName: type, field: field, value: value, in: entity.id)
+        }
+        // A resolution below one pixel is refused by the field and leaves the saved value alone.
+        let width = try #require(descriptor.fields.first { $0.key == "pixelPerfectWidth" })
+        scene.updateField(typeName: type, field: width, value: "0", in: entity.id)
+
+        let world = World()
+        let result = EditorSceneFileLoader.load(model: try EditorSceneModel.decode(from: scene.encodedYAML()), into: world, loadsScriptableObjects: false, resourceRootURL: nil)
+        #expect(result.warnings.isEmpty, Comment(rawValue: result.warnings.joined(separator: "\n")))
+        let id = try #require(result.entitiesByEditorID[entity.id])
+        let camera = try #require(world.get(Camera.self, from: id))
+        #expect(camera.pixelPerfect?.resolution == SizeInt(width: 256, height: 144))
+        #expect(camera.pixelPerfect?.scaleMode == .fit)
+        #expect(camera.projectionViewportSize == Size(width: 256, height: 144))
+
+        // A payload with an impossible size is dropped rather than half applied.
+        var invalid = descriptor.makeDefaultPayload()
+        invalid["pixelPerfect"] = .bool(true)
+        invalid["pixelPerfectWidth"] = .int(0)
+        #expect((try #require(descriptor.decode(invalid) as? Camera)).pixelPerfect == nil)
+    }
+
     @Test("Scene files from before the camera controller still load")
     func legacyScenesUnaffected() throws {
         var scene = EditorSceneModel.default(projectName: "Legacy")

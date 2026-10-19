@@ -80,6 +80,10 @@ public struct RenderViewTarget: @unchecked Sendable {
     public var temporalReset = true
     public var temporalUpscalingActive = false
 
+    /// Resolved pixel-perfect settings for this frame. Nil when the camera is not pixel perfect or a feature that
+    /// takes precedence (temporal upscaling, foveation) is active.
+    public var pixelPerfect: PixelPerfectSettings?
+
     /// When true, ``Main2DRenderNode`` writes albedo to ``sceneColorTexture``; lighting composite writes ``mainTexture``.
     public var lighting2DUsesDeferredTargets: Bool = false
     /// When true, the main 3D pass writes the environment geometry buffers.
@@ -129,6 +133,7 @@ func ConfigurateRenderViewTarget(
         }
         renderViewTarget.temporalUpscalingActive = false
         renderViewTarget.temporalJitter = .zero
+        renderViewTarget.pixelPerfect = nil
         // A drawable belongs to this frame only, including frames we cannot render.
         renderViewTarget.outputTexture = nil
         ageRetiredFrameTextures(renderViewTarget)
@@ -145,8 +150,12 @@ func ConfigurateRenderViewTarget(
         }
 
         let scale = camera.computedData.targetScaleFactor
+        let pixelPerfect = camera.pixelPerfect.flatMap { settings in
+            settings.isValid && camera.temporalUpscaling == nil && camera.rasterizationRateMap == nil ? settings : nil
+        }
 
-        if case let .texture(asset) = camera.renderTarget, camera.temporalUpscaling == nil {
+        // A pixel-perfect camera always renders into its own low-resolution target, even when it draws to a texture.
+        if case let .texture(asset) = camera.renderTarget, camera.temporalUpscaling == nil, pixelPerfect == nil {
             let outputTexture = asset.asset
             renderViewTarget.outputTexture = outputTexture
             renderViewTarget.mainTexture = outputTexture
@@ -184,22 +193,27 @@ func ConfigurateRenderViewTarget(
 
         if case let .texture(asset) = camera.renderTarget { renderViewTarget.outputTexture = asset.asset }
 
-        let viewportSize = resolveRenderSize(
+        renderViewTarget.pixelPerfect = pixelPerfect
+        let viewportSize = pixelPerfect?.resolution ?? resolveRenderSize(
             outputSize: outputSize,
             mode: camera.rasterizationRateMap != nil ? .disabled : camera.temporalUpscaling.map { .spatial(renderScale: $0.renderScale) } ?? (unsafe RenderEngine.configurations.upscaling),
             supportsSpatialUpscaling: renderDevice.renderDevice.supportsSpatialUpscaling || (camera.temporalUpscaling != nil && renderDevice.renderDevice.supportsTemporalUpscaling)
         )
         let viewportScale = Float(viewportSize.width) / Float(outputSize.width)
-        camera.viewport.rect = Rect(
-            x: outputViewport.origin.x * viewportScale,
-            y: outputViewport.origin.y * viewportScale,
-            width: Float(viewportSize.width),
-            height: Float(viewportSize.height)
-        )
+        camera.viewport.rect = pixelPerfect != nil
+            ? Rect(x: 0, y: 0, width: Float(viewportSize.width), height: Float(viewportSize.height))
+            : Rect(
+                x: outputViewport.origin.x * viewportScale,
+                y: outputViewport.origin.y * viewportScale,
+                width: Float(viewportSize.width),
+                height: Float(viewportSize.height)
+            )
+        // The low-resolution picture has one texel per art pixel; the output's scale factor does not apply to it.
+        let mainScale: Float = pixelPerfect != nil ? 1 : scale
 
         if renderViewTarget.mainTexture == nil
             || renderViewTarget.mainTexture?.size != viewportSize
-            || renderViewTarget.mainTexture?.scaleFactor != scale
+            || renderViewTarget.mainTexture?.scaleFactor != mainScale
             || (camera.temporalUpscaling == nil && renderViewTarget.mainTexture?.pixelFormat != .bgra8) {
             let retiredTextures = [
                 renderViewTarget.mainTexture,
@@ -230,7 +244,7 @@ func ConfigurateRenderViewTarget(
             }
             renderViewTarget.mainTexture = RenderTexture(
                 size: viewportSize,
-                scaleFactor: scale,
+                scaleFactor: mainScale,
                 format: .bgra8,
                 debugLabel: "Camera Main Texture",
                 usage: camera.temporalUpscaling != nil ? [.renderTarget, .read, .write] : [.renderTarget, .read],

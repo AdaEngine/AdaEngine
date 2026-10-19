@@ -106,7 +106,8 @@ public struct SpritePickingSystem {
                 views.append(SpritePickingFrameCamera(
                     camera: SpritePickingCamera(
                         entityID: entity.id,
-                        viewport: camera.logicalViewport.rect,
+                        // A pixel-perfect camera shows its picture in the middle of the viewport; pointers map onto that.
+                        viewport: camera.pixelPerfectPresentation ?? camera.logicalViewport.rect,
                         projection: camera.computedData.projectionMatrix,
                         worldTransform: camera.viewMatrix.inverse,
                         renderOrder: camera.renderOrder

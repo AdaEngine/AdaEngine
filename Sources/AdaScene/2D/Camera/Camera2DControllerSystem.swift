@@ -85,7 +85,7 @@ public struct Camera2DControllerSystem {
     ) -> Output {
         var projection = OrthographicProjection()
         if case .orthographic(let current) = camera.wrappedValue.projection { projection = current }
-        let viewportSize = camera.wrappedValue.logicalViewport.rect.size
+        let viewportSize = camera.wrappedValue.projectionViewportSize
         let snapNow = !state.isInitialized || state.appliedSnapCount != state.snapCount
 
         // Zoom

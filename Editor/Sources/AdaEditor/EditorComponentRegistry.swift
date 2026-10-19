@@ -469,11 +469,29 @@ extension EditorComponentRegistry {
                 kind: .enumeration(["orthographic", "perspective"])
             )
             projection.defaultValue = .string("orthographic")
+            // Scenes saved before the preset existed carry none of these keys; the defaults describe "off".
+            var pixelPerfect = EditorComponentField(key: "pixelPerfect", label: "Pixel Perfect", kind: .bool)
+            pixelPerfect.defaultValue = .bool(false)
+            var pixelWidth = EditorComponentField(key: "pixelPerfectWidth", label: "Pixel Width", kind: .int)
+            pixelWidth.defaultValue = .int(320)
+            pixelWidth.minimumValue = 1
+            var pixelHeight = EditorComponentField(key: "pixelPerfectHeight", label: "Pixel Height", kind: .int)
+            pixelHeight.defaultValue = .int(180)
+            pixelHeight.minimumValue = 1
+            var pixelMode = EditorComponentField(key: "pixelPerfectScale", label: "Pixel Scale", kind: .enumeration(PixelPerfectSettings.ScaleMode.allCases.map(\.rawValue)))
+            pixelMode.defaultValue = .string(PixelPerfectSettings.ScaleMode.integer.rawValue)
+            var pixelBorder = EditorComponentField(key: "pixelPerfectBorder", label: "Pixel Border", kind: .color)
+            pixelBorder.defaultValue = .object(["red": .double(0), "green": .double(0), "blue": .double(0), "alpha": .double(1)])
             return [
                 projection,
                 EditorComponentField(key: "isActive", label: "Active", kind: .bool),
                 EditorComponentField(key: "renderOrder", label: "Render Order", kind: .int),
                 EditorComponentField(key: "backgroundColor", label: "Background", kind: .color),
+                pixelPerfect,
+                pixelWidth,
+                pixelHeight,
+                pixelMode,
+                pixelBorder,
             ]
         }(),
         makeDefaultPayload: {
@@ -487,6 +505,11 @@ extension EditorComponentRegistry {
                     "blue": .double(47.0 / 255.0),
                     "alpha": .double(1),
                 ]),
+                "pixelPerfect": .bool(false),
+                "pixelPerfectWidth": .int(320),
+                "pixelPerfectHeight": .int(180),
+                "pixelPerfectScale": .string(PixelPerfectSettings.ScaleMode.integer.rawValue),
+                "pixelPerfectBorder": .object(["red": .double(0), "green": .double(0), "blue": .double(0), "alpha": .double(1)]),
             ]
         },
         decode: { payload in
@@ -499,6 +522,18 @@ extension EditorComponentRegistry {
             camera.isActive = payload["isActive"]?.boolValue ?? true
             camera.renderOrder = Int(payload["renderOrder"]?.doubleValue ?? 0)
             camera.backgroundColor = payload["backgroundColor"]?.colorValue ?? .surfaceClearColor
+            if payload["pixelPerfect"]?.boolValue == true {
+                let settings = PixelPerfectSettings(
+                    resolution: SizeInt(
+                        width: payload["pixelPerfectWidth"]?.doubleValue.map(Int.init) ?? 320,
+                        height: payload["pixelPerfectHeight"]?.doubleValue.map(Int.init) ?? 180
+                    ),
+                    scaleMode: PixelPerfectSettings.ScaleMode(rawValue: payload["pixelPerfectScale"]?.stringValue ?? "") ?? .integer,
+                    letterboxColor: payload["pixelPerfectBorder"]?.colorValue ?? .black
+                )
+                // An invalid size would be ignored at render time; keep the camera ordinary instead of half configured.
+                camera.pixelPerfect = settings.isValid ? settings : nil
+            }
             return camera
         }
     )
