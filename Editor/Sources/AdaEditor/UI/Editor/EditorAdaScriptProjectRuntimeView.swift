@@ -112,6 +112,7 @@ struct EditorAdaScriptProjectRuntimeView: View {
         app.addPlugin(VisibilityPlugin())
         app.addPlugin(TextPlugin())
         app.addPlugin(ScenePlugin(includesModel3D: artifact.plugins.contains(.model3D)))
+        app.addPlugin(Camera2DControllerPlugin())
         app.addPlugin(ScriptableObjectPlugin())
         installFeaturePlugins(in: &app)
         if let scriptPlugin {

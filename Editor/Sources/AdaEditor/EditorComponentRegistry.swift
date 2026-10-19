@@ -9,6 +9,8 @@ enum EditorBuiltInComponentType {
     static let sprite = String(reflecting: Sprite.self)
     static let particleEmitter = String(reflecting: ParticleEmitter.self)
     static let spriteAnimator = String(reflecting: SpriteAnimator.self)
+    static let camera2DController = String(reflecting: Camera2DController.self)
+    static let cameraTarget2D = String(reflecting: CameraTarget2D.self)
     static let visibility = String(reflecting: Visibility.self)
     static let light2D = String(reflecting: Light2D.self)
     static let lightOccluder2D = String(reflecting: LightOccluder2D.self)
@@ -264,6 +266,8 @@ enum EditorComponentRegistry {
         spriteDescriptor,
         particleEmitterDescriptor,
         spriteAnimatorDescriptor,
+        camera2DControllerDescriptor,
+        cameraTarget2DDescriptor,
         visibilityDescriptor,
         light2DDescriptor,
         lightOccluder2DDescriptor,
@@ -297,6 +301,8 @@ enum EditorComponentRegistry {
         AssetsManager.registerAssetType(ParticleEffect.self)
         RuntimeTypeRegistry.registerComponent(SpriteAnimator.self, names: ["SpriteAnimator"])
         AssetsManager.registerAssetType(SpriteAnimationSet.self)
+        RuntimeTypeRegistry.registerComponent(Camera2DController.self, names: ["Camera2DController"])
+        RuntimeTypeRegistry.registerComponent(CameraTarget2D.self, names: ["CameraTarget2D"])
         RuntimeTypeRegistry.registerComponent(CompanionPanel.self, names: ["CompanionPanel"])
         RuntimeTypeRegistry.registerComponent(
             Transform.self,

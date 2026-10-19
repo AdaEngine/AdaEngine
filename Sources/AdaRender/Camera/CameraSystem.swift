@@ -27,25 +27,45 @@ public struct CameraSystem: Sendable {
 
     @MainActor
     public func update(context _: UpdateContext) {
+        var uniforms: [(Entity, GlobalViewUniform)] = []
         self.query.forEach { entity, camera, globalTransform in
-            let viewMatrix = globalTransform.matrix.inverse
-            camera.viewMatrix = viewMatrix
-            camera.computedData.viewMatrix = viewMatrix
-            self.updateViewportSizeIfNeeded(for: camera)
-            self.updateProjectionMatrix(for: camera)
-            self.updateFrustum(for: camera)
-
-            entity.components += GlobalViewUniform(
-                projectionMatrix: camera.computedData.projectionMatrix,
-                viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
-                viewMatrix: camera.viewMatrix
-            )
+            uniforms.append((entity, Self.refreshView(of: camera, globalTransform: globalTransform, primaryWindow: primaryWindow)))
+        }
+        // A camera's first uniform moves it to another archetype, which must not happen while the query iterates.
+        for (entity, uniform) in uniforms {
+            entity.components += uniform
         }
     }
 
+    /// Recomputes a camera's view, projection and frustum from a world transform and returns its ``GlobalViewUniform``.
+    ///
+    /// ``CameraSystem`` calls this for every camera at the start of a frame. A system that moves a camera after
+    /// transform propagation can call it again, so that extraction sees the camera where it ended up this frame.
+    /// The caller stores the result with `entity.components += uniform`, after its own query has finished iterating.
     @MainActor
-    private func updateViewportSizeIfNeeded(
-        for camera: Ref<Camera>
+    public static func refreshView(
+        of camera: Ref<Camera>,
+        globalTransform: GlobalTransform,
+        primaryWindow: PrimaryWindowId?
+    ) -> GlobalViewUniform {
+        let viewMatrix = globalTransform.matrix.inverse
+        camera.viewMatrix = viewMatrix
+        camera.computedData.viewMatrix = viewMatrix
+        self.updateViewportSizeIfNeeded(for: camera, primaryWindow: primaryWindow)
+        self.updateProjectionMatrix(for: camera)
+        self.updateFrustum(for: camera)
+
+        return GlobalViewUniform(
+            projectionMatrix: camera.computedData.projectionMatrix,
+            viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
+            viewMatrix: camera.viewMatrix
+        )
+    }
+
+    @MainActor
+    private static func updateViewportSizeIfNeeded(
+        for camera: Ref<Camera>,
+        primaryWindow: PrimaryWindowId?
     ) {
         var needsUpdateProjection = false
 
@@ -100,12 +120,12 @@ public struct CameraSystem: Sendable {
         }
     }
 
-    private func updateFrustum(for camera: Ref<Camera>) {
+    private static func updateFrustum(for camera: Ref<Camera>) {
         camera.computedData.frustum = camera.projection
             .makeFrustum(from: camera.viewMatrix)
     }
 
-    private func updateProjectionMatrix(for camera: Ref<Camera>) {
+    private static func updateProjectionMatrix(for camera: Ref<Camera>) {
         camera.computedData.projectionMatrix = camera.projection.makeClipView()
     }
 }

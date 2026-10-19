@@ -99,6 +99,7 @@ requirements; Bevy examples or ecosystem plugins are not evidence of built-in en
 - [x] Sprite instancing with ordering and fallback (Metal/native WebGPU/browser pixels; native timings).
 - [x] Instanced WebGPU/browser and physical iPad rendering proof (iOS Simulator launched separately).
 - [x] Sprite animation clips, events, Aseprite import, AdaScript control and Studio editor (see "Sprite animation"; Studio window not manually exercised).
+- [x] Camera 2D controller: follow, dead zone, smoothing, limits, zoom, shake, pixel snapping, AdaScript and Studio (see "Camera 2D").
 - [ ] Alpha phases, sprite material convenience and UV transforms.
 - [ ] Pixel-perfect presentation preset.
 - [ ] HDR 2D, bloom, tone mapping and UI composition.
@@ -509,6 +510,20 @@ Validation on 2026-10-19:
 - Running the Editor tests exposed an endless loop in `EditorSceneViewportView.uiProjectRoot(from:)` for projects with no marker file in any ancestor folder (Foundation reports the parent of `/` as `/../`). It hung every scene load from a temporary folder, including the existing sprite layout test; the walk now stops at the root.
 
 Not covered: Studio's preview viewport on a real GPU window, WebGPU and browser rendering of animated sprites, mobile devices, and the Windows toolchain. Frame-count UI scales to 512 frames per clip and 64 clips per resource; larger sheets need a different editor. The animator does not blend between clips or support per-frame offsets and trimmed Aseprite frames.
+
+## Camera 2D — 2026-10-19
+
+`Camera2DController` (with `CameraTarget2D`) follows entities of a group by weight, with offset, dead zone, frame-rate-independent smoothing, limits that account for zoom and viewport origin, clamped and smoothed zoom, trauma-based shake with optional roll, and pixel snapping; `snapCount`, `position` and `snap(to:)` cover teleports and manual control. It runs after transform propagation and publishes the camera's transform and view data itself through the new `CameraSystem.refreshView`, so a frame is extracted with the camera on its target's final position instead of one frame behind. All settings are plain component fields for scripts and the Inspector. Usage: [Camera2D.md](../Camera2D.md).
+
+Validation on 2026-10-19:
+
+- Swift Testing: the pure rules (smoothing composition across frame rates, dead zone, limits at several zooms and origins, shake bounds and quadratic scaling, pixel snapping) and the controller in a real world with the real transform and camera systems: same-frame view, parented targets, smoothing at 60 and 10 frames per second, dead zone, limits, zoom clamp and smoothing, shake that settles exactly back, rotation left alone without roll shake, weighted groups, `snapCount`, manual position, disabled controllers, hostile numbers, Codable. An AdaScript test builds and drives a camera through fields.
+- Metal GPU check (`ADAENGINE_CAMERA2D_METAL_SMOKE=1`): a followed sprite stays at the screen centre in the frame it moves, spacing follows zoom, limits pin the view to the level corner and shake moves the picture.
+- 20 Editor tests passed, including camera descriptors, a scene saved with edited settings and loaded into a world that is then driven by the real systems, and old scenes without the component.
+- Writing these tests exposed an existing bug: `CameraSystem` inserted a camera's first `GlobalViewUniform` while its query was iterating. The insertion changes the camera's archetype, so with several cameras some were skipped or visited twice and ended the pass without a view uniform. The insertions now happen after the query; a regression test failed before the change and passes after it.
+- Installing the controller from `ScenePlugin` made worlds that use `ScenePlugin` without `TransformPlugin` trip the system graph's missing-dependency assertion (`SceneNavigatorTests`). It is installed by `DefaultPlugins` and the Studio play/runtime hosts instead.
+
+Not covered: the Studio play window and a physical device, WebGPU, rotation of the followed camera beyond the shake roll, cameras that have a parent (keep the camera at the scene root), and visibility culling, which still uses the camera from the start of the frame (an object entering the screen edge can appear one frame late at very high camera speeds).
 
 ## References
 

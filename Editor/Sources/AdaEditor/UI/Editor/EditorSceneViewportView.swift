@@ -234,6 +234,8 @@ struct EditorSceneViewportView: View {
         app.addPlugin(SpinePlugin())
         app.addPlugin(TextPlugin())
         app.addPlugin(ScenePlugin())
+        // The editing camera is the editor's own; scene cameras are only driven while the scene plays.
+        if isPlayingThisDocument { app.addPlugin(Camera2DControllerPlugin()) }
         Self.configureSimulation(in: app, isPlaying: isPlayingThisDocument)
         app.addPlugin(TileMapPlugin())
         app.addPlugin(Core2DPlugin())
