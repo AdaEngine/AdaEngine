@@ -2,16 +2,38 @@ import AdaAssets
 import AdaECS
 import AdaRender
 
+/// What decides a shadow-pass pipeline: the part's vertex layout and whether its mesh has morph targets.
+public struct Shadow3DConfiguration: Hashable, Sendable {
+    public let vertex: VertexDescriptor
+    public let morph: Bool
+
+    public init(vertex: VertexDescriptor, morph: Bool = false) {
+        self.vertex = vertex
+        self.morph = morph
+    }
+}
+
 /// Pipeline that renders opaque mesh depth into the primary directional-light shadow map.
 public struct DirectionalShadow3DPipeline: RenderPipelineConfigurator {
+    public typealias Configuration = Shadow3DConfiguration
+
     private let shader: AssetHandle<ShaderModule>
+    private let variants = PBR3DShaderVariants()
 
     public init() {
         self.shader = ShaderModule.loadRequiredBundled(at: "Shaders/directional_shadow_3d.glsl", from: .adaModule)
     }
 
-    public func configurate(with configuration: VertexDescriptor) -> RenderPipelineDescriptor {
-        var configuration = configuration
+    /// The pipeline for a part without morph targets.
+    public func configurate(with vertex: VertexDescriptor) -> RenderPipelineDescriptor {
+        configurate(with: Shadow3DConfiguration(vertex: vertex))
+    }
+
+    public func configurate(with shadowConfiguration: Shadow3DConfiguration) -> RenderPipelineDescriptor {
+        let shader = shadowConfiguration.morph
+            ? variants.shader(at: "Shaders/directional_shadow_3d.glsl", for: .morph, fallback: self.shader)
+            : self.shader
+        var configuration = shadowConfiguration.vertex
         configureSkinningAttributes(&configuration)
         if !configuration.attributes.containsAttribute(by: MeshDescriptor.textureCoordinates.id.name) {
             configuration.attributes[2] = .attribute(.vector2, name: "defaultTextureCoordinate", bufferIndex: 4, offset: 0)

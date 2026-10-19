@@ -1,5 +1,10 @@
 #version 450 core
 #pragma stage : vert
+#ifdef ADA_MORPH
+#extension GL_EXT_samplerless_texture_functions : require
+#endif
+
+#include <AdaEngine/Morph.glsl>
 
 layout (location = 13) in vec4 a_JointIndices;
 layout (location = 14) in vec4 a_JointWeights;
@@ -39,13 +44,17 @@ layout (binding = 2) uniform DirectionalShadowViewUniform {
 [[main]]
 void directional_shadow_3d_vertex()
 {
+    vec3 localPosition = a_Position;
+#ifdef ADA_MORPH
+    applyMorphPosition(localPosition);
+#endif
     mat4 model = mat4(a_Model0, a_Model1, a_Model2, a_Model3) * skinTransform();
     v_Fade = a_ShadowFlags.w;
     v_TileBounds = u_TileBounds;
     v_UV0 = a_TextureCoordinate;
     v_UV1 = a_TextureCoordinate1;
     v_Alpha = a_Color.a * a_VertexColor.a;
-    gl_Position = u_ShadowViewProjection * model * vec4(a_Position, 1.0);
+    gl_Position = u_ShadowViewProjection * model * vec4(localPosition, 1.0);
 }
 
 #version 450 core

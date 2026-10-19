@@ -95,7 +95,7 @@ extension ShaderModule {
         try ShaderCompiler(from: fileUrl).compileShaderModule()
     }
 
-    /// Compile a bundled shader with every name in `defines` set to `1` in the fragment stage.
+    /// Compile a bundled shader with every name in `defines` set to `1` in the vertex and fragment stages.
     ///
     /// The variant is compiled from the file's text rather than the file, so it bypasses the on-disk shader cache, whose
     /// entries are keyed by file and stage and would mix up variants of one file. Callers should keep the result.
@@ -120,7 +120,9 @@ extension ShaderModule {
             )
             let compiler = ShaderCompiler(shaderSource: source)
             for name in defines {
-                compiler.setMacro(name, value: "1", for: .fragment)
+                for stage in [ShaderStage.vertex, .fragment] {
+                    compiler.setMacro(name, value: "1", for: stage)
+                }
             }
             return try compiler.compileShaderModule()
         #endif

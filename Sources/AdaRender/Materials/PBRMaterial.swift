@@ -163,6 +163,10 @@ public class PBRMaterial: Material, @unchecked Sendable {
         public static let sheen = ShaderFeatures(rawValue: 1 << 1)
         public static let anisotropy = ShaderFeatures(rawValue: 1 << 2)
 
+        /// The draw's mesh has morph targets. A property of the draw, not of the material, so ``PBRMaterial/shaderFeatures``
+        /// never contains it.
+        public static let morph = ShaderFeatures(rawValue: 1 << 11)
+
         /// Every layer, without textures.
         public static let all: ShaderFeatures = [.clearcoat, .sheen, .anisotropy]
 
@@ -172,6 +176,7 @@ public class PBRMaterial: Material, @unchecked Sendable {
             if contains(.clearcoat) { macros.append("ADA_CLEARCOAT") }
             if contains(.sheen) { macros.append("ADA_SHEEN") }
             if contains(.anisotropy) { macros.append("ADA_ANISOTROPY") }
+            if contains(.morph) { macros.append("ADA_MORPH") }
             for texture in PBRLayerTexture.allCases where contains(texture.feature) {
                 macros.append(texture.macro)
             }

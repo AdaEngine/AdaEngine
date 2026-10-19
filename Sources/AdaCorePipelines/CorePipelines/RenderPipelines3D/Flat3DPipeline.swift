@@ -223,26 +223,36 @@ public struct Flat3DPipeline: RenderPipelineConfigurator {
 }
 
 
-/// Compiled main-pass shaders by the shading layers they include. A variant is compiled on first use and shared by every
-/// pipeline that needs it; if it fails to compile, the unspecialized shader is used instead.
+/// Compiled shader variants by file and the features they include. A variant is compiled on first use and shared by every
+/// pipeline that needs it; if it fails to compile, the plain shader is used instead.
 final class PBR3DShaderVariants: @unchecked Sendable {
-    private let lock = NSLock()
-    private var variants: [PBRMaterial.ShaderFeatures: AssetHandle<ShaderModule>] = [:]
+    private struct Key: Hashable {
+        let path: String
+        let features: PBRMaterial.ShaderFeatures
+    }
 
-    func shader(for features: PBRMaterial.ShaderFeatures, fallback: AssetHandle<ShaderModule>) -> AssetHandle<ShaderModule> {
+    private let lock = NSLock()
+    private var variants: [Key: AssetHandle<ShaderModule>] = [:]
+
+    func shader(
+        at path: String = "Shaders/flat3d.glsl",
+        for features: PBRMaterial.ShaderFeatures,
+        fallback: AssetHandle<ShaderModule>
+    ) -> AssetHandle<ShaderModule> {
         lock.lock()
         defer { lock.unlock() }
-        if let existing = variants[features] {
+        let key = Key(path: path, features: features)
+        if let existing = variants[key] {
             return existing
         }
         let variant: AssetHandle<ShaderModule>
         do {
-            variant = AssetHandle(try ShaderModule.createBundled(at: "Shaders/flat3d.glsl", from: .adaModule, defines: features.enablingMacros))
+            variant = AssetHandle(try ShaderModule.createBundled(at: path, from: .adaModule, defines: features.enablingMacros))
         } catch {
-            assertionFailure("Main shader variant \(features.rawValue) failed to compile: \(error)")
+            assertionFailure("Shader variant \(features.rawValue) of \(path) failed to compile: \(error)")
             variant = fallback
         }
-        variants[features] = variant
+        variants[key] = variant
         return variant
     }
 }

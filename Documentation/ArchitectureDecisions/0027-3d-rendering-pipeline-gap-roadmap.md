@@ -301,8 +301,9 @@ Each item needs its own short requirements note before implementation.
 - [x] Stage 2: clearcoat, clearcoat roughness and normal, sheen color and roughness, anisotropy and specular textures (see "Stage 2, fifth slice").
 - [ ] Stage 2: `KHR_lights_punctual` import.
 - [x] Stage 2: unsupported-extension degradation policy and documented supported list (`NativeGLTFLoader.supportedExtensions`, `GLTFImportResult.warnings`).
-- [ ] Stage 3: morph-target asset, glTF import and GPU evaluation.
-- [ ] Stage 3: morph with skinning, shadows, motion vectors, bounds and animation weights.
+- [x] Stage 3: morph-target asset, glTF import and GPU evaluation (see "Stage 3, first slice").
+- [x] Stage 3: morph with skinning, shadows, motion vectors and bounds.
+- [ ] Stage 3: animated weights (clips and the animation graph), AdaScript and Editor exposure.
 - [ ] Stage 4: OIT mode with sorted fallback.
 - [ ] Stage 4: transmission/volume pass.
 - [x] Stage 5: distance/height fog (`Fog3D` in `Environment3D`, applied in the composite pass; see "Stage 5, first slice").
@@ -881,6 +882,44 @@ imported material to `PBRMaterial`, the feature bits and uniform, and one GPU te
 anisotropy texture of (1, 0.5, 1) equals the factor alone, and (0.5, 1, 1) equals a quarter turn; a specular alpha of zero equals a
 specular factor of zero; a flat clearcoat normal changes nothing) and a transform test that samples either half of a two-tone mask.
 Each of the shader reads was checked by removing it and watching its test fail.
+
+### Stage 3, first slice: morph targets (2026-10-19)
+
+**Import.** Primitives carry `targets` (POSITION, NORMAL and TANGENT deltas per vertex; sparse accessors expand to dense), meshes carry
+the default `weights` and the `extras.targetNames` convention, nodes may override the weights, and animation channels with the
+`weights` path import with one value per target and key. Inconsistent data fails with `invalidMorphTargets`; morphed
+attributes other than the three deltas are reported as warnings.
+
+**GPU evaluation.** `MorphTargetSet` packs every target's deltas into one RGBA16F texture (`Part.morphTargets`): texel
+`(target * vertices + vertex) * attributes + attribute`, 2048 texels wide, up to 8192 rows (about 16.7 million texels of
+targets x vertices x attributes; a mesh past that fails to load with an explicit error). A draw applies at most 8 targets, the
+ones with the largest weights (`MorphTargetSet.activeTargets`), and its vertex shader fetches only those deltas with `texelFetch`
+(`Morph.glsl`, behind `ADA_MORPH`, so unmorphed meshes keep the plain shaders), so cost follows the active targets and memory follows all
+of them. Deltas are half precision (portable bit conversion, no `Float16`). The weights live in `Morph3DUniforms`, one buffer per entity
+and mesh part (parts differ in vertex count), holding the current and the previous frame's active targets.
+
+**Passes.** The morph feature (`PBRMaterial.ShaderFeatures.morph`, a property of the draw, not the material) selects a vertex
+shader variant of the main shader, the motion shader and the directional and local shadow shaders (`Shadow3DConfiguration` joins the
+pipeline key) and the occlusion prepass; weights and the delta texture bind at 21 and 40. Order is morph, then skin (the
+deltas move the rest pose before the joint matrices). The motion pass moves a vertex from where the previous weights put it.
+
+**Culling, batching and caches.** The source bounds grow by the most the active weights can displace (the largest delta of each
+active target times its weight, times the largest joint scale for skinned meshes), so frustum culling, shadow culling and the occlusion
+candidates see the morphed shape. A morphed mesh is its own batch (like a skinned one), has no level-of-detail
+alternatives, and counts as dynamic for the shadow face cache. `MorphWeights3DComponent` holds the weights (with `setWeight(_:named:)`),
+and `ModelAsset3D.instantiate` adds it with the file's default weights.
+
+**Tests.** Import (`GLTFMorphTargetImportTests`, 11 cases); packing, selection and uniform layout (`Render3DMorphTargetSelectionTests`);
+and GPU tests (`Render3DGPUTests/MorphTargets`): weight zero equals the unmorphed mesh, a weighted shift equals moving the entity (sun and
+local-light shadows included), only the heaviest eight targets apply, weight changes update the shadow faces on the first frame, a mesh
+resting off screen is not culled once morphed, normal deltas change shading but not the silhouette, the occlusion prepass and the
+temporal motion pass draw the morphed shape, the uniform keeps the previous frame's weights, and a glTF skinned to a joint turned a quarter turn
+applies its morph before the skin. Each shader read was checked by breaking it and watching a test fail.
+
+Limits: deltas are dense and half precision (no sparse or compacted storage, so a face with many targets costs texture memory
+in proportion to targets x vertices); the selection is made per frame on the CPU; only POSITION, NORMAL and TANGENT morph; layered materials
+and morph share the shader-variant mechanism, so the first draw of a morphed mesh compiles its variants (about a second each), and there is no web
+build. Not done: playing `weights` channels (clips and the animation graph), the Editor and AdaScript.
 
 ## Validation requirements
 

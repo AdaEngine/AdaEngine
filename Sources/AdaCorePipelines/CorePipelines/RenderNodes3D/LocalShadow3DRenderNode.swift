@@ -9,8 +9,10 @@ struct LocalShadow3DScratch: Resource {
 }
 
 struct LocalShadow3DPipeline: RenderPipelineConfigurator {
+    typealias Configuration = Shadow3DConfiguration
+
     private let base = DirectionalShadow3DPipeline()
-    func configurate(with configuration: VertexDescriptor) -> RenderPipelineDescriptor {
+    func configurate(with configuration: Shadow3DConfiguration) -> RenderPipelineDescriptor {
         var descriptor = base.configurate(with: configuration)
         descriptor.debugName = "Local Shadow 3D"
         descriptor.colorAttachments = [.init(format: .rgba_16f)]
@@ -227,7 +229,14 @@ public struct LocalShadow3DRenderNode: RenderNode {
                     guard item.castShadows, let range = item.batchRange, (item.material as? PBRMaterial)?.alphaMode != .blend else { continue }
                     let part = item.mesh.models[item.modelIndex].parts[item.partIndex]
                     guard let material = materials.buffer(for: item.material), let palette = item.skinningBuffer ?? skinning.identityBuffer else { continue }
-                    pass.setRenderPipelineState(pipelines.pipeline(for: part.vertexDescriptor, device: device.renderDevice))
+                    let morphed = item.morphBuffer != nil && part.morphTargets != nil
+                    pass.setRenderPipelineState(pipelines.pipeline(for: Shadow3DConfiguration(vertex: part.vertexDescriptor, morph: morphed), device: device.renderDevice))
+                    if morphed, let morphBuffer = item.morphBuffer, let morphSet = part.morphTargets {
+                        pass.setResourceSet(RenderResourceSet(bindings: [
+                            .init(binding: Morph3DUniforms.binding, shaderStages: .vertex, resource: .uniformBuffer(morphBuffer, offset: 0)),
+                            .init(binding: Morph3DUniforms.textureBinding, shaderStages: .vertex, resource: .texture(morphSet.deltaTexture)),
+                        ]), index: 0)
+                    }
                     pass.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
                     pass.setVertexBuffer(instances, offset: Int(range.lowerBound) * MemoryLayout<Flat3DInstanceData>.stride, slot: 3)
                     if let defaults = buffers.defaults { pass.setVertexBuffer(defaults, offset: 0, slot: 4) }

@@ -23,6 +23,8 @@ public struct Opaque3DRenderItem: RenderItem {
     public let castShadows: Bool
     public let receiveShadows: Bool
     public let skinningBuffer: (any UniformBuffer)?
+    /// Weights of the active morph targets, for a part with ``Mesh/Part/morphTargets``.
+    public let morphBuffer: (any UniformBuffer)?
 
     public init(
         entity: Entity.ID,
@@ -36,7 +38,8 @@ public struct Opaque3DRenderItem: RenderItem {
         castShadows: Bool = true,
         receiveShadows: Bool = true,
         batchRange: Range<Int32>? = nil,
-        skinningBuffer: (any UniformBuffer)? = nil
+        skinningBuffer: (any UniformBuffer)? = nil,
+        morphBuffer: (any UniformBuffer)? = nil
     ) {
         self.entity = entity
         self.drawPass = drawPass
@@ -50,5 +53,6 @@ public struct Opaque3DRenderItem: RenderItem {
         self.receiveShadows = receiveShadows
         self.batchRange = batchRange
         self.skinningBuffer = skinningBuffer
+        self.morphBuffer = morphBuffer
     }
 }

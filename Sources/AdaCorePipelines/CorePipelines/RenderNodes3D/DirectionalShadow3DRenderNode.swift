@@ -211,7 +211,8 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
                     guard item.castShadows, (item.material as? PBRMaterial)?.alphaMode != .blend, let batchRange = item.batchRange else {
                         continue
                     }
-                    let pipeline = pipelines.pipeline(for: part.vertexDescriptor, device: renderDevice.renderDevice)
+                    let morphed = item.morphBuffer != nil && part.morphTargets != nil
+                    let pipeline = pipelines.pipeline(for: Shadow3DConfiguration(vertex: part.vertexDescriptor, morph: morphed), device: renderDevice.renderDevice)
                     pass.setRenderPipelineState(pipeline)
                     pass.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
                     if let material = materialUniforms.buffer(for: item.material) {
@@ -225,6 +226,12 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
                     if let palette = item.skinningBuffer ?? skinningUniforms.identityBuffer {
                         pass.setResourceSet(RenderResourceSet(bindings: [
                             .init(binding: Skinning3DUniforms.binding, shaderStages: .vertex, resource: .uniformBuffer(palette, offset: 0)),
+                        ]), index: 0)
+                    }
+                    if morphed, let morphBuffer = item.morphBuffer, let morphSet = part.morphTargets {
+                        pass.setResourceSet(RenderResourceSet(bindings: [
+                            .init(binding: Morph3DUniforms.binding, shaderStages: .vertex, resource: .uniformBuffer(morphBuffer, offset: 0)),
+                            .init(binding: Morph3DUniforms.textureBinding, shaderStages: .vertex, resource: .texture(morphSet.deltaTexture)),
                         ]), index: 0)
                     }
                     if let defaults = buffers.defaults {

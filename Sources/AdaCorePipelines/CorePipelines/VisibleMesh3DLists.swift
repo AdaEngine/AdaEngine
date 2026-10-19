@@ -65,6 +65,7 @@ public struct VisibleMesh3DLists: Resource {
         var material: MaterialKey
         var descriptor: Int32
         var skin: ObjectIdentifier?
+        var morph: ObjectIdentifier?
         var cast: Bool
         var receive: Bool
     }
@@ -224,6 +225,7 @@ public struct VisibleMesh3DLists: Resource {
                         material: materialKey,
                         descriptor: Int32(descriptorID),
                         skin: sources[sourceIndex].skinningBuffer.map(ObjectIdentifier.init),
+                        morph: sources[sourceIndex].morphBuffers[Mesh3DRenderSource.morphKey(model: modelIndex, part: partIndex)].map(ObjectIdentifier.init),
                         cast: sources[sourceIndex].castShadows,
                         receive: sources[sourceIndex].receiveShadows
                     )
@@ -288,7 +290,7 @@ public struct VisibleMesh3DLists: Resource {
             shadowFlags.w = 1 - record.fade
             if isShadowPass {
                 // A skinned pose changes without any CPU-visible identity change, so such a face is never reusable.
-                if sources[sourceIndex].skinningBuffer != nil { entry.isDynamic = true }
+                if sources[sourceIndex].skinningBuffer != nil || !sources[sourceIndex].morphBuffers.isEmpty { entry.isDynamic = true }
                 entry.digest.combine(template.batchHash)
                 entry.digest.combine(sources[sourceIndex].transform)
                 entry.digest.combine((sources[sourceIndex].materials[Int(record.material)] as? PBRMaterial)?.baseColorFactor ?? .one)
@@ -321,7 +323,8 @@ public struct VisibleMesh3DLists: Resource {
                         castShadows: sources[sourceIndex].castShadows,
                         receiveShadows: sources[sourceIndex].receiveShadows,
                         batchRange: instanceIndex..<(instanceIndex + 1),
-                        skinningBuffer: sources[sourceIndex].skinningBuffer
+                        skinningBuffer: sources[sourceIndex].skinningBuffer,
+                        morphBuffer: sources[sourceIndex].morphBuffers[Mesh3DRenderSource.morphKey(model: Int(record.model), part: Int(record.part))]
                     )
                 )
             }

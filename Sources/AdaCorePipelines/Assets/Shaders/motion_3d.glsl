@@ -1,6 +1,10 @@
 #version 450 core
 #pragma stage : vert
+#ifdef ADA_MORPH
+#extension GL_EXT_samplerless_texture_functions : require
+#endif
 #include <AdaEngine/View.glsl>
+#include <AdaEngine/Morph.glsl>
 layout (binding = 14) uniform Skinning3DUniform { mat4 u_Joints[128]; };
 layout (binding = 24) uniform PreviousSkinning3DUniform { mat4 u_PreviousJoints[128]; };
 layout (binding = 23) uniform Temporal3DUniform {
@@ -42,8 +46,14 @@ void motion_vertex() {
         previousSkin = u_PreviousJoints[int(a_Joints.x)] * a_Weights.x + u_PreviousJoints[int(a_Joints.y)] * a_Weights.y
              + u_PreviousJoints[int(a_Joints.z)] * a_Weights.z + u_PreviousJoints[int(a_Joints.w)] * a_Weights.w;
     }
-    vec4 world = mat4(a_Model0, a_Model1, a_Model2, a_Model3) * skin * vec4(a_Position, 1.0);
-    vec4 previousWorld = mat4(a_PreviousModel0, a_PreviousModel1, a_PreviousModel2, a_PreviousModel3) * previousSkin * vec4(a_Position, 1.0);
+    vec3 localPosition = a_Position;
+    vec3 previousLocalPosition = a_Position;
+#ifdef ADA_MORPH
+    applyMorphPosition(localPosition);
+    previousLocalPosition = previousMorphedPosition(a_Position);
+#endif
+    vec4 world = mat4(a_Model0, a_Model1, a_Model2, a_Model3) * skin * vec4(localPosition, 1.0);
+    vec4 previousWorld = mat4(a_PreviousModel0, a_PreviousModel1, a_PreviousModel2, a_PreviousModel3) * previousSkin * vec4(previousLocalPosition, 1.0);
     v_CurrentClip = u_CurrentViewProjection * world;
     v_PreviousClip = u_Parameters.z > 0.5 ? v_CurrentClip : u_PreviousViewProjection * previousWorld;
     gl_Position = u_ViewProjection * world;

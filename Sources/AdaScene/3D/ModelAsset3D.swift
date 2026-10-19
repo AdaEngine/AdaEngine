@@ -26,6 +26,8 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
         public let restPose: GLTFImportResult.NodeTRS?
         /// Keyed transform and mesh animation of imported voxel scenes.
         public let voxelAnimation: VoxelNodeAnimation?
+        /// Morph target weights of this node's mesh instance; they replace the mesh's default weights.
+        public let morphWeights: [Float]?
 
         public init(
             name: String?,
@@ -34,8 +36,10 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
             children: [Int],
             skinIndex: Int? = nil,
             restPose: GLTFImportResult.NodeTRS? = nil,
-            voxelAnimation: VoxelNodeAnimation? = nil
+            voxelAnimation: VoxelNodeAnimation? = nil,
+            morphWeights: [Float]? = nil
         ) {
+            self.morphWeights = morphWeights
             self.voxelAnimation = voxelAnimation
             self.name = name
             self.transform = transform
@@ -54,6 +58,8 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
     public let skins: [GLTFImportResult.Skin]
     public let animationRig: SkeletalRig?
     public let animationClips: [SkeletalAnimationClip]
+    /// Default morph target weights of each mesh, empty for a mesh without morph targets.
+    public private(set) var meshMorphWeights: [[Float]] = []
     /// Content of the source file the importer could not honor, such as glTF extensions it does not implement.
     /// Empty for formats that report nothing. The model still loads and renders without that content.
     public private(set) var importWarnings: [String] = []
@@ -206,7 +212,7 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
                 descriptor.indicies = converted.indices
                 descriptor.primitiveTopology = converted.topology
 
-                let part = Mesh.Part(
+                var part = Mesh.Part(
                     id: index,
                     materialIndex: primitive.materialIndex ?? 0,
                     primitiveTopology: descriptor.primitiveTopology,
@@ -217,13 +223,28 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
                     indexCount: descriptor.indicies.count,
                     vertexBuffer: descriptor.getVertexBuffer(renderDevice: device)
                 )
+                if !primitive.morphTargets.isEmpty {
+                    guard let morph = MorphTargetSet(
+                        positionDeltas: primitive.morphTargets.map(\.positionDeltas),
+                        normalDeltas: primitive.morphTargets.map(\.normalDeltas),
+                        tangentDeltas: primitive.morphTargets.map(\.tangentDeltas),
+                        vertexCount: descriptor.positions.count,
+                        targetNames: gltfMesh.targetNames
+                    ) else {
+                        throw AssetError.message("The \(primitive.morphTargets.count) morph targets of mesh \"\(gltfMesh.name ?? "")\" do not fit the delta texture (at most \(MorphTargetSet.textureWidth * MorphTargetSet.maximumTextureRows) texels of vertices x targets x attributes).")
+                    }
+                    part.morphTargets = morph
+                }
                 parts.append(part)
             }
 
             meshes.append(Mesh(models: [Mesh.Model(name: gltfMesh.name ?? "", parts: parts)]))
+            meshMorphWeights.append(gltfMesh.defaultWeights)
         }
 
-        nodes = result.nodes.map { Node(name: $0.name, transform: $0.transform, meshIndex: $0.meshIndex, children: $0.children, skinIndex: $0.skinIndex, restPose: $0.restPose) }
+        nodes = result.nodes.map {
+            Node(name: $0.name, transform: $0.transform, meshIndex: $0.meshIndex, children: $0.children, skinIndex: $0.skinIndex, restPose: $0.restPose, morphWeights: $0.weights)
+        }
         self.meshes = meshes
         self.materials = materials
         scenes = result.scenes
@@ -297,6 +318,11 @@ public final class ModelAsset3D: Asset, @unchecked Sendable {
         if let meshIndex = node.meshIndex {
             let mesh = meshes[meshIndex]
             entity.components[Mesh3DComponent.self] = Mesh3DComponent(mesh: mesh, materials: materials)
+            if mesh.hasMorphTargets {
+                let defaults = meshMorphWeights.indices.contains(meshIndex) ? meshMorphWeights[meshIndex] : []
+                let weights = node.morphWeights ?? (defaults.count == mesh.morphTargetCount ? defaults : [Float](repeating: 0, count: mesh.morphTargetCount))
+                entity.components[MorphWeights3DComponent.self] = MorphWeights3DComponent(weights: weights, targetNames: mesh.morphTargetNames)
+            }
             if let skinIndex = node.skinIndex, skins.indices.contains(skinIndex),
                let animation = modelRoot.components[ModelAnimation3DComponent.self] {
                 var binding = SkinnedMesh3DComponent(modelRoot: modelRoot.id, meshNodeIndex: nodeIndex, skin: skins[skinIndex])

@@ -4,13 +4,13 @@ import Math
 /// A fingerprint of every shadow caster in the extracted scene, used to skip rebuilding per-face draw lists when
 /// nothing a shadow face could draw has changed.
 enum ShadowSceneDigest3D {
-    /// The digest of the casters in `sources`, or `nil` when the scene cannot be summarized cheaply: a skinned caster
-    /// changes pose without any change visible here, and with level-of-detail on, which mesh a caster draws
+    /// The digest of the casters in `sources`, or `nil` when the scene cannot be summarized cheaply: a skinned or morphed
+    /// caster changes shape without any change visible here, and with level-of-detail on, which mesh a caster draws
     /// depends on the camera.
     static func compute(sources: [Mesh3DRenderSource], usesLOD: Bool) -> UInt64? {
         var digest = FrameDigest3D()
         for index in sources.indices where sources[index].castShadows {
-            if sources[index].skinningBuffer != nil || (usesLOD && !sources[index].alternatives.isEmpty) {
+            if sources[index].skinningBuffer != nil || !sources[index].morphBuffers.isEmpty || (usesLOD && !sources[index].alternatives.isEmpty) {
                 return nil
             }
             digest.combine(sources[index].transform)

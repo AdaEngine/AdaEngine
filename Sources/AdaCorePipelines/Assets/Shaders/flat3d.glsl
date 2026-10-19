@@ -1,5 +1,8 @@
 #version 450 core
 #pragma stage : vert
+#ifdef ADA_MORPH
+#extension GL_EXT_samplerless_texture_functions : require
+#endif
 
 #ifdef ADA_METAL_RENDER_LAYER
 #extension GL_ARB_shader_viewport_layer_array : require
@@ -9,6 +12,7 @@ layout (binding = 30) uniform RenderTargetLayer {
 #endif
 
 #include <AdaEngine/View.glsl>
+#include <AdaEngine/Morph.glsl>
 
 layout (binding = 1) uniform DirectionalLight3DUniform {
     vec4 u_LightDirectionIntensity;
@@ -76,12 +80,19 @@ void flat3d_vertex()
 #ifdef ADA_METAL_RENDER_LAYER
     gl_Layer = int(u_RenderTargetLayer);
 #endif
+    // Morph targets move the rest pose first; skinning then moves the morphed pose.
+    vec3 localPosition = a_Position;
+    vec3 localNormal = a_Normal;
+    vec3 localTangent = a_Tangent.xyz;
+#ifdef ADA_MORPH
+    applyMorph(localPosition, localNormal, localTangent);
+#endif
     mat4 model = mat4(a_Model0, a_Model1, a_Model2, a_Model3) * skinTransform();
     mat3 basis = mat3(model);
     mat3 normalMatrix = abs(determinant(basis)) > 0.000001 ? transpose(inverse(basis)) : mat3(1.0);
-    vec3 normal = normalize(normalMatrix * a_Normal);
-    vec4 worldPosition = model * vec4(a_Position, 1.0);
-    vec3 worldTangent = normalize(mat3(model) * a_Tangent.xyz);
+    vec3 normal = normalize(normalMatrix * localNormal);
+    vec4 worldPosition = model * vec4(localPosition, 1.0);
+    vec3 worldTangent = normalize(mat3(model) * localTangent);
     Output.Color = a_Color * a_VertexColor;
     Output.WorldPosition = worldPosition.xyz;
     Output.ViewPosition = (u_ViewMatrix * worldPosition).xyz;
