@@ -205,12 +205,21 @@ extension Render3DGPUTests {
                 )
             }
 
+            // The temporal resolve is not exactly repeatable at a bright highlight: two untouched renders already differ by a
+            // few steps there, and by a different amount from run to run. Its checks allow that measured drift on top of
+            // the LUT's own tolerance, so they test the LUT and not the noise floor.
+            func noise(_ x: Int, _ y: Int, _ channel: Int) -> Float {
+                guard path == .temporal else { return 0 }
+                return Self.steps(Self.channels(plain.getPixel(x: x, y: y))[channel], Self.channels(repeated.getPixel(x: x, y: y))[channel])
+            }
+
             let identity = AssetHandle(Self.lutTexture())
             try scene.configure { $0.postProcess.colorGrading = ColorGrading3D(lut: identity) }
             let same = try await scene.render(.none, frames: frames)
             for (x, y) in Self.probes {
-                for (left, right) in zip(Self.channels(same.getPixel(x: x, y: y)), Self.channels(plain.getPixel(x: x, y: y))) {
-                    #expect(Self.steps(left, right) <= 3, "\(path): identity LUT changed (\(x), \(y)) by \(Self.steps(left, right)) steps.")
+                for (channel, (left, right)) in zip(Self.channels(same.getPixel(x: x, y: y)), Self.channels(plain.getPixel(x: x, y: y))).enumerated() {
+                    let allowed = 3 + noise(x, y, channel)
+                    #expect(Self.steps(left, right) <= allowed, "\(path): identity LUT changed (\(x), \(y)) channel \(channel) by \(Self.steps(left, right)) steps (allowed \(allowed)).")
                 }
             }
 
@@ -222,7 +231,7 @@ extension Render3DGPUTests {
             for (x, y) in Self.probes {
                 let base = Self.channels(plain.getPixel(x: x, y: y))
                 for (index, value) in Self.channels(inverted.getPixel(x: x, y: y)).enumerated() {
-                    #expect(Self.steps(value, 1 - base[index]) <= 5, "\(path): inverted LUT at (\(x), \(y)) channel \(index): \(value * 255) vs \((1 - base[index]) * 255).")
+                    #expect(Self.steps(value, 1 - base[index]) <= 5 + noise(x, y, index), "\(path): inverted LUT at (\(x), \(y)) channel \(index): \(value * 255) vs \((1 - base[index]) * 255).")
                 }
                 // Halfway between a color and its inverse is mid gray whatever the color.
                 for value in Self.channels(halfway.getPixel(x: x, y: y)) {
