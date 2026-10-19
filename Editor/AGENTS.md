@@ -85,8 +85,9 @@ and assess gaps before proposing new features.
 
 ### Browser Studio
 
-`WebUI/` is the default React/DOM browser shell, with floating scene panels and
-native text inputs. The scene viewport and Play use one isolated fixed AdaPlayer
+`WebUI/` is the default React/DOM browser shell, with inset floating panels over
+a full-width viewport: a full-height assistant on the left, scene panels on the
+right, a bottom log console and native text inputs. The scene viewport and Play use one isolated fixed AdaPlayer
 with authored cameras, materials and lighting. Opening a project loads the engine;
 document/mode changes replace its world without recreating WASM or the GPU device.
 There is no separate SVG scene renderer. Editor mode disables gameplay, physics
@@ -95,9 +96,12 @@ duplicate/delete and a transient free camera are available. Gizmo gestures commi
 one undo transaction; navigation never changes authored cameras. CodeMirror provides
 AdaScript highlighting, indentation and search. It implements the existing
 portable snapshot/scene/API contracts with transactions/undo, cloud recovery, ZIP
-interchange and an in-tab agent. The rail switches overview, scene, assets, code
-and assistant within one project. Home opens its overview; All Projects waits for
-cloud save and retains the current document, undo, selection and Player for Continue.
+interchange and an in-tab agent. The entry library uses
+Games/Create/My projects/Account navigation and the public catalog independently
+of Studio sign-in. Opening a workspace switches the rail
+to overview, scene, assets, code and assistant within that project. The Ada mark
+returns to Games through the same save/recovery path as All Projects. The overview
+button opens the project overview; All Projects waits for cloud save and retains the current document, undo, selection and Player for Continue.
 Save failure offers Stay, retry, ZIP or an explicit IndexedDB-backed local exit;
 failed local writes keep the project open. Closing a tab with unsaved changes or
 an active agent requests browser confirmation. `Web/` retains the prior AdaUI/WASM application
@@ -115,8 +119,9 @@ progress and interactive forms persist with the project. Build/plan modes and
 optional per-tool approval use a fixed 35-tool registry. A2UI uses validated DOM
 controls and native action envelopes; local scene actions and their durable Undo
 are atomic and revision checked. The isolated Player runs native procedural asset
-generators and exports `.ui` through AdaA2UI. New assistant chrome uses the shared
-en/ru catalogs; browser settings use the same language preference enum. OS/process,
+generators and exports `.ui` through AdaA2UI. Browser chrome, inspector, source search and embedded Cloud panels use the shared
+en/ru catalogs and language preference enum. Language changes preserve mounted input;
+the frontend build rejects hardcoded Russian UI literals and missing translations. OS/process,
 external MCP, search, TestWorld and publication tools remain unavailable here.
 
 Web Annotate selects entities via hierarchy/native viewport, A2UI components, or
@@ -590,14 +595,14 @@ achievements/Game Center, cloud account/settings and standalone update UI exist.
 Shared AdaUI settings switches place labels and controls at opposite row edges,
 with animated thumb movement and track tint; settings rows omit On/Off text.
 
+Cloud Pro includes 500 shared monthly AI credits. Browser Studio selects hosted Coder Next from the server registry and shows remaining/used/reserved credits and renewal; missing service is distinct from an empty balance. BYOK/local connections remain independent.
+
 Ada Cloud AI wallet integration uses the existing account session for catalog,
 balance, cursor-paginated usage, quotes, reservations, lookup and cancellation.
 Credit counters appear on the start screen, shared workspace toolbar and iPhone navigation;
 Cloud settings show available/used/reserved credits and cycle activity. AI credits
 are separate from Cloud publishing Pro. Missing/disabled service and signed-out
-states do not imply a zero balance. Provider execution, settlement and subscription
-SKU activation remain server responsibilities; this client integration does not
-turn external/BYOK agents into hosted AI.
+states do not imply a zero balance. Hosted Ada AI uses the shared Cloud account transport, Coder Next tool loop and server wallet. Desktop selects the built-in Ada AI entry; mobile selects Ada AI in Providers. Tool mutations require approval; Cloud conversations persist separately from external runtime sessions. Provider keys and settlement stay server-side, and external/BYOK agents remain independent.
 Entry points: [EditorCloudAIClient.swift](Sources/AdaEditor/Cloud/EditorCloudAIClient.swift),
 [EditorAICreditsModel.swift](Sources/AdaEditor/Cloud/EditorAICreditsModel.swift).
 Coverage: [EditorAICreditsTests.swift](Tests/AdaEditorTests/EditorAICreditsTests.swift),
@@ -640,3 +645,13 @@ Before calling a feature missing, trace its UI entry point, implementation and
 nearest tests. Distinguish engine support, editor authoring, platform availability
 and runtime validation. Record proposals as proposals; do not list plans or
 test filenames as proof of a working feature.
+
+### Unified Playground web entry
+
+`Editor/WebUI` owns Games/Create/My projects and the editor in one shell. Robot
+artwork stays in `assets/playground`. Canonical routes include `/games`, `/create`,
+`/projects/:id`, `/account` and `/publications/:id`; `/studio/` is a compatibility
+entry and `/studio/*` serves static assets. Shared account/auth/legal/publication
+panels are built from adawebsite (`npm run build:panels`) and embedded without an
+iframe. Every navigation uses the existing save/leave guard. Keep publication
+page IDs separate from private workspace IDs and retain native/Store auth callbacks.

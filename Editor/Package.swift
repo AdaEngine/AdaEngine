@@ -3,9 +3,11 @@ import Foundation
 import PackageDescription
 
 let adaEngineLocalPath = ProcessInfo.processInfo.environment["ADAENGINE_PACKAGE_PATH"] ?? ".."
+let editorPackageURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+let adjacentAdaMCP = editorPackageURL.appendingPathComponent("../../AdaMCP").standardizedFileURL
 let adaMCPURL = ProcessInfo.processInfo.environment["ADA_MCP_LOCAL_PATH"].map {
-    URL(fileURLWithPath: $0, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL
-}
+    URL(fileURLWithPath: $0, relativeTo: editorPackageURL).standardizedFileURL
+} ?? (FileManager.default.fileExists(atPath: adjacentAdaMCP.appendingPathComponent("Package.swift").path) ? adjacentAdaMCP : nil)
 let isAndroidStudio = ProcessInfo.processInfo.environment["ADAEDITOR_ANDROID"] == "1"
 let sloppyRuntimeLocalPath = ProcessInfo.processInfo.environment["SLOPPY_RUNTIME_LOCAL_PATH"] ?? "../../Sloppy/Packages/SloppyRuntime"
 let sloppyRuntimeURL = URL(fileURLWithPath: sloppyRuntimeLocalPath, relativeTo: URL(fileURLWithPath: #filePath).deletingLastPathComponent()).standardizedFileURL

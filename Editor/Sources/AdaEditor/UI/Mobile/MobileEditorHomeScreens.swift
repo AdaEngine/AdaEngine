@@ -179,7 +179,7 @@ struct MobileEditorSettingsScreen: View {
             return credentials.model.isEmpty ? "OpenAI API key saved" : "\(credentials.model) configured"
         }
         if let agentStatus, !agentStatus.isEmpty { return agentStatus }
-        return "Connect Codex or configure an OpenAI model"
+        return "Use Ada AI with Cloud Pro, Codex, or your own API key"
     }
 }
 

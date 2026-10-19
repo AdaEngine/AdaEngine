@@ -1,3 +1,7 @@
+import { attachFiles, removeAttachment } from "./attachments.js";
+import { t, LocalizedError } from "./localization.js";
+import { refreshAICredits } from "./ai-credits.js";
+import { setBillingMode } from "./provider-settings.js";
 import { runAgent, runTool } from "./agent.js";
 import {
   chatState,
@@ -48,7 +52,15 @@ export class Studio {
   document = null;
   view = "editor";
   projectBrowser = false;
-  leavePrompt = "";
+  libraryView = "games";
+  libraryTarget = "projects";
+  leaveIssue = "";
+  get leavePrompt() {
+    return this.leaveIssue?.message ?? String(this.leaveIssue ?? "");
+  }
+  set leavePrompt(value) {
+    this.leaveIssue = value;
+  }
   leaving = false;
   panel = "objects";
   selected = null;
@@ -56,7 +68,16 @@ export class Studio {
   assistant = true;
   assetPanel = false;
   status = "loading";
-  error = "";
+  errorValue = "";
+  get error() {
+    return this.errorValue?.message ?? String(this.errorValue ?? "");
+  }
+  set error(value) {
+    this.errorValue = value;
+  }
+  homeAttachments = [];
+  attachmentBusy = false;
+  creation = { dimension: 3, players: "single" };
   prompt = "";
   streamText = "";
   running = false;
@@ -65,8 +86,18 @@ export class Studio {
   allowedTools = new Set();
   runtime = "idle";
   playing = false;
-  viewportError = "";
+  viewportIssue = "";
+  get viewportError() {
+    return this.viewportIssue?.message ?? String(this.viewportIssue ?? "");
+  }
+  set viewportError(value) {
+    this.viewportIssue = value;
+  }
   activity = [];
+  aiBalance = null;
+  aiCatalog = null;
+  aiPhase = "loading";
+  aiRefreshEpoch = 0;
   providers = [];
   providerID = "";
   modelID = "";
@@ -109,6 +140,8 @@ export class Studio {
     window.addEventListener("beforeunload", (e) => {
       if (
         this.running ||
+        this.attachmentBusy ||
+        this.homeAttachments.length > 0 ||
         !!this.annotationDraft?.note.trim() ||
         (this.document && this.document.generation !== this.savedGeneration)
       ) {
@@ -176,7 +209,7 @@ export class Studio {
   }
   fail(error) {
     if (error?.name === "AbortError") return;
-    this.error = error.message || String(error);
+    this.error = error;
     this.emit();
   }
   async action(fn) {
@@ -270,7 +303,7 @@ export class Studio {
       !card?.components.root ||
       !["failed", "cancelled"].includes(card.status)
     )
-      throw new Error("Карточка недоступна");
+      throw new LocalizedError("This card is unavailable");
     this.updateChat((c) => {
       const r = c.surfaces.find((r) => r.generation === generation);
       r.status = "ready";
@@ -284,7 +317,7 @@ export class Studio {
     if (!writeTools.has(name)) return Promise.resolve();
     if (session.mode === "plan")
       return Promise.reject(
-        new Error("Режим обсуждения не разрешает правки проекта"),
+        new LocalizedError("Discuss mode does not allow project changes"),
       );
     if (
       session.permission !== "ask" ||
@@ -300,7 +333,7 @@ export class Studio {
         this.emit();
         choice
           ? resolve()
-          : reject(new Error("Пользователь отклонил инструмент"));
+          : reject(new LocalizedError("The user declined the tool"));
       };
       const cancel = () => done(false);
       this.permissionRequest = {
@@ -344,24 +377,39 @@ export class Studio {
         .sort((a, b) => a.path.localeCompare(b.path)) || []
     );
   }
+  refreshAI() {
+    return refreshAICredits(this);
+  }
   async start() {
     try {
       this.account = await json("/v1/me");
       this.config = await json("/v1/ai/studio-config");
-      if (!this.config.enabled)
-        throw new Error("Studio пока недоступен в этом окружении");
+      if (!this.config.enabled) {
+        this.status = "offline";
+        this.projects = [];
+        this.emit();
+        return;
+      }
       this.providers = await json("/v1/ai/providers");
       this.providerID = this.providers[0]?.id ?? "";
       this.modelID = this.models.find((m) => m.tools)?.id ?? "";
+      setBillingMode(
+        this,
+        this.providers[0]?.transport === "codex"
+          ? "codex"
+          : this.providers.some((p) => p.hosted)
+            ? "ada"
+            : "byok",
+      );
+      await this.refreshAI();
       this.projects = await json("/v1/workspaces");
       this.status = "saved";
       this.emit();
-      const last = localStorage.getItem(`studio:last:${this.account.id}`),
-        existing = this.projects.find((p) => p.id === last);
-      if (existing) await this.open(existing);
+      // Start in Playground; opening a project is an explicit action.
     } catch (e) {
       this.status = e.status === 401 ? "signedout" : "offline";
-      this.fail(e);
+      if (e.status === 401) this.emit();
+      else this.fail(e);
     }
   }
   async refresh() {
@@ -370,7 +418,7 @@ export class Studio {
   }
   async create(dimension = 3) {
     if (this.running)
-      throw new Error("Остановите ассистента перед сменой проекта");
+      throw new LocalizedError("Stop the assistant before switching projects");
     await this.save();
     await this.createSnapshot(template(dimension));
   }
@@ -418,20 +466,23 @@ export class Studio {
     this.error = "";
     this.checkpointPending = false;
     localStorage.setItem(`studio:last:${this.account.id}`, record.id);
+    this.router?.opened(record.id);
     this.emit();
     if (this.document.generation) this.changed();
   }
   async open(record) {
     if (record.id === this.workspace?.id) {
       this.projectBrowser = false;
+      this.router?.opened(record.id);
       this.emit();
       return;
     }
     if (this.running)
-      throw new Error("Остановите ассистента перед сменой проекта");
+      throw new LocalizedError("Stop the assistant before switching projects");
     await this.save();
     const value = await json(`/v1/workspaces/${record.id}`);
-    if (!value.snapshot) throw new Error("Снимок проекта недоступен");
+    if (!value.snapshot)
+      throw new LocalizedError("The project snapshot is unavailable");
     this.install(value, value.snapshot);
     const draft = await recovery("load", this.account.id, record.id);
     if (
@@ -444,9 +495,11 @@ export class Studio {
       } else {
         await this.createSnapshot({
           ...draft.snapshot,
-          title: draft.snapshot.title + " — восстановлено",
+          title: t("{0} — recovered", draft.snapshot.title),
         });
-        this.error = "Несохранённые изменения восстановлены отдельным проектом";
+        this.error = new LocalizedError(
+          "Unsaved changes were recovered as a separate project",
+        );
         this.emit();
       }
     }
@@ -461,12 +514,42 @@ export class Studio {
     if (view === "editor") this.playing = false;
     this.assetPanel = false;
     this.viewportExpanded = false;
+    this.router?.opened(this.workspace.id);
     this.emit();
   }
-  async browseProjects(local = false) {
+  browseLibrary(view) {
+    if (this.router)
+      return this.router.navigate(
+        {
+          games: "/games",
+          create: "/create",
+          projects: "/projects",
+          account: "/account",
+          publications: "/publications",
+        }[view],
+      );
+    return this.browseProjects(false, view);
+  }
+  async browseProjects(local = false, view) {
     if (this.leaving) return;
     if (this.running)
-      throw new Error("Остановите ассистента перед выходом к проектам");
+      throw new LocalizedError(
+        "Stop the assistant before returning to projects",
+      );
+    const destination =
+      view || (this.leavePrompt ? this.libraryTarget : "projects");
+    if (
+      ![
+        "games",
+        "create",
+        "projects",
+        "account",
+        "publications",
+        "legal",
+      ].includes(destination)
+    )
+      return;
+    this.libraryTarget = destination;
     this.leaving = true;
     this.emit();
     try {
@@ -481,13 +564,18 @@ export class Studio {
         await this.save();
       }
       this.projectBrowser = true;
+      this.libraryView = destination;
+      this.router?.browsed(destination);
       this.cancelAnnotation();
       this.leavePrompt = "";
       this.history = false;
       // Retain the document, undo, selection and Player for the Continue action.
-      await this.refresh().catch((e) => this.fail(e));
+      if (destination === "projects" && this.account)
+        await this.refresh().catch((e) => this.fail(e));
+      return true;
     } catch (e) {
-      this.leavePrompt = e.message;
+      this.leavePrompt = e;
+      return false;
     } finally {
       this.leaving = false;
       this.emit();
@@ -558,10 +646,11 @@ export class Studio {
           this.agent?.abort();
           await this.createSnapshot({
             ...clone(doc.snapshot),
-            title: doc.snapshot.title + " — копия",
+            title: t("{0} — copy", doc.snapshot.title),
           });
-          this.error =
-            "Проект изменён в другой вкладке. Ваши правки сохранены отдельной копией.";
+          this.error = new LocalizedError(
+            "The project changed in another tab. Your edits were saved as a separate copy.",
+          );
         } else {
           this.status = e.status === 401 ? "signedout" : "offline";
           this.checkpointPending ||= keeps;
@@ -631,9 +720,13 @@ export class Studio {
         this.preview.key = "";
         return this.syncViewport();
       }
-      const t = value.transform;
+      const transformValue = value.transform;
       if (
-        ![t?.position, t?.rotation, t?.scale].every(
+        ![
+          transformValue?.position,
+          transformValue?.rotation,
+          transformValue?.scale,
+        ].every(
           (v, i) =>
             Array.isArray(v) &&
             v.length === [3, 4, 3][i] &&
@@ -645,13 +738,13 @@ export class Studio {
             ),
         )
       )
-        throw new Error("Некорректная трансформация");
+        throw new LocalizedError("Invalid transform");
       this.editScene((scene) => {
         const entity = scene.entities.find((e) => e.id === value.id);
         if (entity)
           entity.components["AdaTransform.Transform"] = {
             ...entity.components["AdaTransform.Transform"],
-            ...clone(t),
+            ...clone(transformValue),
           };
       });
     }
@@ -687,7 +780,7 @@ export class Studio {
             ...clone(e),
             id: ids.get(e.id),
             parent: ids.get(e.parent) ?? e.parent,
-            name: e.id === selected ? e.name + " — копия" : e.name,
+            name: e.id === selected ? t("{0} — copy", e.name) : e.name,
           })),
       );
     });
@@ -721,7 +814,7 @@ export class Studio {
     this.editScene((s) =>
       s.entities.push({
         id,
-        name: "Новый объект",
+        name: t("New object"),
         enabled: true,
         parent: null,
         components: {
@@ -780,40 +873,24 @@ export class Studio {
         "_" +
         input.name.replace(/[^a-zA-Z0-9_.-]/g, "_"),
       data = base64(new Uint8Array(await input.arrayBuffer()));
-    if (this.document !== document) throw new Error("Открыт другой проект");
+    if (this.document !== document)
+      throw new LocalizedError("A different project is open");
     document.edit((s) => s.files.push({ path, data }));
     this.changed();
     return path;
   }
+  attachFiles(inputs) {
+    return attachFiles(this, inputs);
+  }
   async attachFile(input) {
-    const sessionID = this.session.id,
-      document = this.document;
-    if (this.session.attachments.length >= 4)
-      throw new Error("Можно приложить до четырёх файлов");
-    let path;
-    if (/\.(md|txt|ada)$/i.test(input.name)) {
-      if (input.size > 100_000)
-        throw new Error("Текстовое вложение превышает 100 КБ");
-      path =
-        "Docs/Attachments/" +
-        crypto.randomUUID() +
-        "_" +
-        input.name.replace(/[^a-zA-Z0-9_.-]/g, "_").replace(/\.ada$/i, ".txt");
-      const text = await input.text();
-      if (this.document !== document) throw new Error("Открыт другой проект");
-      document.write(path, text);
-      this.changed();
-    } else path = await this.uploadAsset(input);
-    if (this.document !== document) throw new Error("Открыт другой проект");
-    this.updateChat((c) => {
-      const session = c.sessions.find((c) => c.id === sessionID);
-      session.attachments.push(path);
-    });
-    return path;
+    return (await this.attachFiles([input]))[0];
+  }
+  removeAttachment(id, home = !this.document) {
+    removeAttachment(this, id, home);
   }
   async importFile(input) {
     if (this.running)
-      throw new Error("Остановите ассистента перед сменой проекта");
+      throw new LocalizedError("Stop the assistant before switching projects");
     await this.save();
     await this.createSnapshot(importZIP(await input.arrayBuffer()));
   }
@@ -834,7 +911,7 @@ export class Studio {
   }
   async restore(revision) {
     if (this.running)
-      throw new Error("Остановите ассистента перед восстановлением");
+      throw new LocalizedError("Stop the assistant before restoring a version");
     await this.save();
     const id = this.workspace.id;
     await json(`/v1/workspaces/${id}/restore`, {
@@ -871,7 +948,7 @@ export class Studio {
     } catch (e) {
       if (e.name !== "AbortError" && this.document === document) {
         this.runtime = "error";
-        this.viewportError = e.message;
+        this.viewportError = e;
         this.emit();
       }
       throw e;

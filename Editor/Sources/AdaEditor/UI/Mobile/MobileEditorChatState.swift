@@ -81,6 +81,17 @@ final class MobileEditorChatState {
         return true
     }
 
+    func selectProvider(cloud: Bool, for id: UUID) {
+        guard runningProjectID != id else { return }
+        var conversation = conversations[id] ?? Conversation()
+        guard conversation.sessionID.hasPrefix("cloud-") != cloud else { return }
+        conversation.sessionID = (cloud ? "cloud-" : "session-") + UUID().uuidString.lowercased()
+        conversation.events = []
+        conversation.previousSession = nil
+        conversation.didCheckPreviousSession = true
+        conversations[id] = conversation
+    }
+
     func begin(_ id: UUID, agentIdentity: String? = nil) {
         interfaces.controller.sessions[sessionID(for: id)]?.beginRun(agentIdentity: agentIdentity)
         runningProjectID = id

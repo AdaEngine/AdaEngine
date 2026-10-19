@@ -1,3 +1,4 @@
+import { LocalizedError } from "./localization.js";
 export const encoder = new TextEncoder();
 export const decode = (base64) => new TextDecoder().decode(bytes(base64));
 export const bytes = (base64) =>
@@ -16,7 +17,7 @@ export async function api(
   signal,
 ) {
   if (!path.startsWith("/v1/") || path.includes("..") || path.includes("://"))
-    throw new Error("Недопустимый адрес API");
+    throw new LocalizedError("Invalid API address");
   const send = () =>
     fetch(path, {
       method,
@@ -36,12 +37,24 @@ export async function api(
     if (refresh.ok) response = await send();
   }
   if (!response.ok) {
-    const value = await response.json().catch(() => null),
-      error = new Error(
-        value?.error?.message ||
-          value?.reason ||
-          `Ошибка сервера: ${response.status}`,
-      );
+    const value = await response.json().catch(() => null);
+    let error =
+      value?.error?.message || value?.reason
+        ? new Error(value?.error?.message || value?.reason)
+        : new LocalizedError("Server error: {0}", response.status);
+    if (path.startsWith("/v1/ai/")) {
+      if (response.status === 402)
+        error = new LocalizedError(
+          "Not enough AI credits for this request. Check your balance in Cloud settings.",
+        );
+      if (
+        response.status === 403 &&
+        value?.error?.message === "Active AI entitlement required"
+      )
+        error = new LocalizedError(
+          "Cloud Pro includes 500 AI credits per month. Subscribe to use Ada AI.",
+        );
+    }
     error.status = response.status;
     throw error;
   }
@@ -60,7 +73,7 @@ export async function stream(body, signal, event) {
     const { value, done } = await reader.read();
     pending += decoder.decode(value, { stream: !done });
     if (pending.length > 2 * 1024 * 1024)
-      throw new Error("Слишком большой ответ провайдера");
+      throw new LocalizedError("The provider response is too large");
     let end;
     while ((end = pending.indexOf("\n")) >= 0) {
       const line = pending.slice(0, end).trim();

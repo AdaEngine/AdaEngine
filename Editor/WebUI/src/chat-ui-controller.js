@@ -1,4 +1,4 @@
-import { t } from "./localization.js";
+import { t, LocalizedError } from "./localization.js";
 import { encode } from "./platform.js";
 import { identity, editChat } from "./chat.js";
 import {
@@ -88,16 +88,14 @@ function owned(s, id, generation) {
     s.running ||
     !["ready", "submitted"].includes(surface.status)
   )
-    throw new Error(
-      t(
-        "Card unavailable: select its original agent and wait for the response to finish.",
-      ),
+    throw new LocalizedError(
+      "Card unavailable: select its original agent and wait for the response to finish.",
     );
   return surface;
 }
 export function editSurface(s, id, generation, path, value) {
   if (owned(s, id, generation).status !== "ready")
-    throw new Error(t("The form has already been submitted"));
+    throw new LocalizedError("The form has already been submitted");
   editChat(s, (c) => {
     const r = c.surfaces.find(
       (r) => r.id === id && r.sessionID === s.session.id,
@@ -112,13 +110,13 @@ export async function submitSurface(s, id, generation, componentID) {
     name = event.envelope.action.name,
     context = event.envelope.action.context;
   if (name === "editor.color.pick")
-    throw new Error(
+    throw new LocalizedError(
       "Use the color picker on the card to set its color binding.",
     );
   if (name.startsWith("editor.")) {
     if (s.session.mode === "plan")
-      throw new Error(
-        t("Switch this conversation to edit mode to apply the tool."),
+      throw new LocalizedError(
+        "Switch this conversation to edit mode to apply the tool.",
       );
     if (
       ![
@@ -127,12 +125,12 @@ export async function submitSurface(s, id, generation, componentID) {
         "editor.scene.apply",
       ].includes(name)
     )
-      throw new Error("Unsupported local action: " + name);
+      throw new LocalizedError("Unsupported local action: {0}", name);
     if (
       typeof context.revisionBinding !== "string" ||
       get(surface.data, context.revisionBinding) !== context.expectedRevision
     )
-      throw new Error("Card requires a matching revision binding");
+      throw new LocalizedError("Card requires a matching revision binding");
     let operations = context.operations;
     if (name === "editor.scene.spawn")
       operations = spawnOperations(s.snapshot, context);
@@ -145,7 +143,9 @@ export async function submitSurface(s, id, generation, componentID) {
       context.path !== before.path ||
       context.expectedRevision !== baseRevision
     )
-      throw new Error("Scene changed. Read the scene and refresh the card.");
+      throw new LocalizedError(
+        "Scene changed. Read the scene and refresh the card.",
+      );
     const candidate = clone(s.snapshot),
       value = scene(candidate);
     applyOperations(value, operations);
@@ -157,7 +157,7 @@ export async function submitSurface(s, id, generation, componentID) {
       s.document !== doc ||
       file(s.snapshot, before.path).data !== before.data
     )
-      throw new Error("Scene changed while validating revision");
+      throw new LocalizedError("Scene changed while validating revision");
     doc.edit((snapshot) => {
       file(snapshot, before.path).data = after;
       const r = snapshot.messages
@@ -166,7 +166,7 @@ export async function submitSurface(s, id, generation, componentID) {
           (r) =>
             r.generation === generation && r.sessionID === surface.sessionID,
         );
-      if (!r) throw new Error("Surface expired");
+      if (!r) throw new LocalizedError("Surface expired");
       r.data = set(r.data, context.revisionBinding, revision);
       r.lastApplication = {
         before,
@@ -180,7 +180,7 @@ export async function submitSurface(s, id, generation, componentID) {
     return;
   }
   if (surface.status === "submitted")
-    throw new Error(t("This form has already been submitted"));
+    throw new LocalizedError("This form has already been submitted");
   editChat(s, (c) => {
     c.surfaces.find((r) => r.generation === generation).status = "submitting";
   });
@@ -193,8 +193,8 @@ export async function submitSurface(s, id, generation, componentID) {
       { preserveDraft: true },
     );
     if (!completed)
-      throw new Error(
-        t("The response was interrupted. You can submit the form again."),
+      throw new LocalizedError(
+        "The response was interrupted. You can submit the form again.",
       );
     editChat(s, (c) => {
       const r = c.surfaces.find((r) => r.generation === generation);
@@ -221,8 +221,8 @@ export async function undoSurface(s, id, generation) {
     last.before.path !== scenePath(s.snapshot) ||
     last.revision !== (await sceneRevision(s.snapshot))
   )
-    throw new Error(
-      t("The scene has changed. Ask the agent to refresh the card."),
+    throw new LocalizedError(
+      "The scene has changed. Ask the agent to refresh the card.",
     );
   const candidate = clone(s.snapshot);
   file(candidate, last.before.path).data = last.before.data;
@@ -232,13 +232,13 @@ export async function undoSurface(s, id, generation) {
     s.document !== doc ||
     file(s.snapshot, last.before.path)?.data !== current
   )
-    throw new Error("Scene changed");
+    throw new LocalizedError("Scene changed");
   doc.edit((snapshot) => {
     file(snapshot, last.before.path).data = last.before.data;
     const card = snapshot.messages
       .find((m) => m.kind === "studio-state")
       .studio.surfaces.find((c) => c.generation === generation);
-    if (!card) throw new Error("Surface expired");
+    if (!card) throw new LocalizedError("Surface expired");
     card.data = set(card.data, last.binding, revision);
     delete card.lastApplication;
   });
@@ -256,7 +256,7 @@ export async function exportSurface(s, id, generation) {
       components: Object.values(r.components),
     },
   });
-  if (s.document !== doc) throw new Error("Project changed");
+  if (s.document !== doc) throw new LocalizedError("Project changed");
   const path =
     "Assets/UI/AgentPreviews/" +
     id.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 48) +

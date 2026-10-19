@@ -52,6 +52,9 @@ struct MobileEditorRootView: View {
     @State private var didPrepareImageQA = false
     @State private var didPrepareBackgroundQA = false
     @State private var didPrepareVoiceLayoutQA = false
+    @State private var cloudAgent: EditorCloudAgentService?
+    @State private var cloudPermission: EditorAgentPermissionRequest?
+    @State private var cloudAdmitting = false
     @State private var sloppyRuntime = SloppyRuntimeHost()
     @State private var chatState = MobileEditorChatState()
     @State private var agentOperation: MobileEditorAgentOperation?
@@ -97,6 +100,21 @@ struct MobileEditorRootView: View {
         )
         .mobileEditorSafeAreaContent(.bottom)
         .background(theme.editorColors.background.ignoresSafeArea())
+        .overlay {
+            if let permission = cloudPermission {
+                MobileEditorCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(L10n.text("Allow project change?")).font(MobileEditorFont.navigationFont(size: 20)).foregroundColor(theme.editorColors.text)
+                        Text(permission.summary).font(MobileEditorFont.font(size: 13)).foregroundColor(theme.editorColors.muted).lineLimit(4)
+                        HStack(spacing: 12) {
+                            MobileEditorPrimaryButton(title: "Allow once") { resolveCloudPermission("allow") }
+                            MobileEditorPrimaryButton(title: "Reject") { resolveCloudPermission("deny") }
+                        }
+                    }.padding(17)
+                }.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .accessibilityIdentifier("AdaEditor.Mobile.CloudPermission")
+            }
+        }
         .onAppear {
             #if os(Android)
             AndroidStudioHost.refreshInsets()
@@ -175,7 +193,7 @@ struct MobileEditorRootView: View {
                 submit: {
                     guard let id = activeChatProjectID else { return false }
                     submitPrompt(for: id)
-                    return isAgentRunning
+                    return isAgentRunning || cloudAdmitting
                 },
                 openKeyboard: {
                     isVoicePresented = false
@@ -417,7 +435,7 @@ struct MobileEditorRootView: View {
             }
         case .sessions(let id):
             if let directory = try? MobileAdaScriptProjectService.projectURL(for: id) {
-                MobileEditorSessionsScreen(workspaceURL: directory) { sessionID in
+                MobileEditorSessionsScreen(workspaceURL: directory, cloud: providerModels.selectedProvider == .ada) { sessionID in
                     navigationPath.append(MobileEditorDestination.session(id, sessionID))
                 }
                 .navigationTitle(L10n.text("Previous sessions"))
@@ -507,10 +525,16 @@ struct MobileEditorRootView: View {
         submitPrompt(for: id)
     }
 
-    private func submitPrompt(for id: UUID, a2uiSubmission: EditorAgentA2UISubmission? = nil) {
-        var started = false
+    private func resolveCloudPermission(_ choice: String) {
+        guard let permission = cloudPermission, let service = cloudAgent else { return }
+        cloudPermission = nil
+        Task { await service.resolvePermission(requestID: permission.id, optionID: choice) }
+    }
+
+    private func submitPrompt(for id: UUID, a2uiSubmission: EditorAgentA2UISubmission? = nil, cloudAdmitted: EditorCloudAITransport? = nil) {
+        var started = false, deferredAdmission = false
         defer {
-            if !started, let a2uiSubmission {
+            if !started, !deferredAdmission, let a2uiSubmission {
                 chatState.interfaces.controller.sessions[a2uiSubmission.sessionID]?.rejectSubmission(
                     agentStatus ?? "The agent could not start. Check its connection settings.", surfaceID: a2uiSubmission.surfaceID)
             }
@@ -520,13 +544,46 @@ struct MobileEditorRootView: View {
               let index = projects.firstIndex(where: { $0.id == id }) else {
             return
         }
-        let credentials = MobileSloppyCredentialStore.load()
+        let credentials = MobileSloppyCredentialStore.load() ?? MobileSloppyCredentials(model: MobileEditorProviderModelStore.cloudModel.id, provider: .ada)
         let codexCredentials = MobileCodexCredentialStore.load()
-        let usesCodex = credentials?.provider.map { $0 == .codex } ?? (codexCredentials != nil)
-        guard (usesCodex ? codexCredentials != nil : credentials?.apiKey.isEmpty == false),
-              let credentials, !credentials.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let usesAda = credentials.provider == .ada
+        let usesCodex = credentials.provider.map { $0 == .codex } ?? (codexCredentials != nil)
+        guard (usesAda || (usesCodex ? codexCredentials != nil : !credentials.apiKey.isEmpty)),
+              !credentials.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             agentStatus = nil
             configureAgent()
+            return
+        }
+        if usesAda, cloudAdmitted == nil {
+            guard !cloudAdmitting else { return }
+            cloudAdmitting = true; deferredAdmission = true
+            let draft = promptDraft.text
+            let cloudOwner = EditorCloudAccount.shared.accountID, cloudServer = EditorCloudAccount.shared.server
+            Task { @MainActor in
+                var continued = false
+                defer {
+                    cloudAdmitting = false
+                    if !continued, let a2uiSubmission {
+                        chatState.interfaces.controller.sessions[a2uiSubmission.sessionID]?.rejectSubmission(
+                            "The agent could not start. Check its connection settings.", surfaceID: a2uiSubmission.surfaceID)
+                    }
+                }
+                do {
+                    let transport = try await EditorCloudAccount.shared.hostedAIGenerator()
+                    guard EditorCloudAccount.shared.accountID == cloudOwner, EditorCloudAccount.shared.server == cloudServer,
+                          activeChatProjectID == id, !isAgentRunning,
+                          a2uiSubmission != nil || promptDraft.text == draft,
+                          (MobileSloppyCredentialStore.load()?.provider ?? .ada) == .ada else { return }
+                    continued = true
+                    submitPrompt(for: id, a2uiSubmission: a2uiSubmission, cloudAdmitted: transport)
+                } catch {
+                    guard providerModels.selectedProvider == .ada else { return }
+                    agentStatus = L10n.tr(error.localizedDescription)
+                    providerModels.reportCloudError(error.localizedDescription)
+                    isVoicePresented = false
+                    navigationPath.append(MobileEditorDestination.providers)
+                }
+            }
             return
         }
         let workspaceURL: URL
@@ -546,6 +603,9 @@ struct MobileEditorRootView: View {
                 return SloppyImageInput(data: try EditorImageAttachment.pngData(at: url), relativePath: path)
             }
             try SloppyRuntimeHost.validateImages(imageInputs)
+            if usesAda, !imageInputs.isEmpty {
+                throw EditorAgentServiceError.providerFailure(L10n.text("Coder Next supports text. Choose a vision model to send images."))
+            }
         } catch {
             agentStatus = error.localizedDescription
             return
@@ -556,6 +616,7 @@ struct MobileEditorRootView: View {
         } else {
             outgoingPrompt = value + "\n\nAttached files in the project:\n" + attachmentPaths.map { "- \($0)" }.joined(separator: "\n")
         }
+        chatState.selectProvider(cloud: usesAda, for: id)
         projects[index].prompt = value
         do {
             try MobileAdaScriptProjectService.saveProjects(projects)
@@ -628,6 +689,33 @@ struct MobileEditorRootView: View {
                     harnessSettings: runSettings
                 )
                 defer { toolService.finish() }
+                if usesAda {
+                    let service = EditorCloudAgentService(transportFactory: {
+                        guard let cloudAdmitted else { throw EditorAIError.sessionChanged }
+                        return cloudAdmitted
+                    }, toolsFactory: { url in
+                        try await MainActor.run { try EditorCloudToolHost(projectURL: url, mobile: toolService).tools() }
+                    })
+                    cloudAgent = service
+                    let project = try ProjectSystem.loadProject(at: workspaceURL)
+                    let request = EditorAgentRunRequest(project: project, projectURL: workspaceURL,
+                        session: .init(id: sessionID, events: chatState.events(for: id)), mode: .build,
+                        prompt: MobileEditorAgentContext.prompt(runSettings.prompt(outgoingPrompt), visiblePrompt: outgoingPrompt, a2uiAction: a2uiSubmission?.event),
+                        attachments: [], sceneContext: nil, codeSelection: nil, skills: [], a2uiEnabled: true)
+                    _ = try await service.send(request, onEvent: { event in
+                        await MainActor.run {
+                            chatState.record(event, for: id)
+                            if let permission = event.permission {
+                                isVoicePresented = false; isPromptPresented = false
+                                cloudPermission = permission
+                            }
+                            if event.kind == .toolCall { operation.completedStep() }
+                        }
+                    }, onProjectFileChanged: { _ in })
+                    try Task.checkCancellation()
+                    let validation = await toolService.validatePrototype()
+                    return .init(succeeded: validation.ok, detail: validation.ok ? "Done" : validation.payload)
+                }
                 sloppyRuntime = SloppyRuntimeHost(additionalTools: try MobileEditorAgentToolBridge.definitions())
                 if usesCodex, let codexCredentials {
                     try await sloppyRuntime.configureCodex(
@@ -731,7 +819,14 @@ struct MobileEditorRootView: View {
             },
             finished: { state, detail in
                 chatState.finish(id, succeeded: state == .completed, status: detail, cancelled: state == .cancelled || state == .interrupted, submission: a2uiSubmission)
-                await loadChat(for: id, sessionID: sessionID)
+                if usesAda {
+                    cloudPermission = nil; cloudAgent = nil
+                    do {
+                        var session = EditorAgentSession(id: sessionID, title: String(value.prefix(80)), events: chatState.events(for: id))
+                        session.agentTargetIdentity = mobileAgentIdentity
+                        try await EditorAgentSessionStore(projectURL: workspaceURL).saveSession(session, makeActive: true)
+                    } catch { agentStatus = error.localizedDescription }
+                } else { await loadChat(for: id, sessionID: sessionID) }
                 if state != .completed, chatState.sessionID(for: id) == sessionID {
                     chatState.record(EditorAgentEvent(kind: .runStatus, title: detail, isSuccessful: false), for: id)
                 }
@@ -740,7 +835,8 @@ struct MobileEditorRootView: View {
     }
 
     private var mobileAgentIdentity: String? {
-        guard let credentials = MobileSloppyCredentialStore.load() else { return nil }
+        let credentials = MobileSloppyCredentialStore.load() ?? MobileSloppyCredentials(model: MobileEditorProviderModelStore.cloudModel.id, provider: .ada)
+        if credentials.provider == .ada { return "ada-cloud:" + EditorCloudAccount.shared.server + ":" + (EditorCloudAccount.shared.accountID ?? "signedout") }
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
         guard let data = try? encoder.encode(credentials) else { return nil }
@@ -812,7 +908,7 @@ struct MobileEditorRootView: View {
         do {
             let directory = try MobileAdaScriptProjectService.projectURL(for: id)
             let previous = try await MobileEditorSessionStore(workspaceURL: directory).list()
-                .first { $0.id != sessionID && $0.messageCount > 0 }
+                .first { $0.id != sessionID && $0.messageCount > 0 && $0.id.hasPrefix("cloud-") == (providerModels.selectedProvider == .ada) }
             chatState.setPreviousSession(previous.map { .init(id: $0.id, title: $0.title) }, for: id, sessionID: sessionID)
         } catch {
             if activeChatProjectID == id { agentStatus = error.localizedDescription }

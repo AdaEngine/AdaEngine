@@ -1,6 +1,7 @@
 import React from "react";
 import { studio } from "./state.js";
 import { Button, Icon, act } from "./controls.jsx";
+import { t } from "../localization.js";
 
 export function ProjectOverview() {
   const s = studio;
@@ -8,41 +9,48 @@ export function ProjectOverview() {
     [
       "editor",
       "cube",
-      "Сцена",
-      `Объектов: ${s.scene?.entities.length ?? 0} · камера, гизмо и инспектор`,
+      t("Scene"),
+      t(
+        "{0} objects · camera, gizmos and inspector",
+        s.scene?.entities.length ?? 0,
+      ),
     ],
     [
       "assets",
       "image",
-      "Ассеты",
-      `Файлов: ${s.snapshot.files.filter((f) => f.path.startsWith("Assets/")).length} · модели, изображения и звук`,
+      t("Assets"),
+      t(
+        "{0} files · models, images and audio",
+        s.snapshot.files.filter((f) => f.path.startsWith("Assets/")).length,
+      ),
     ],
     [
       "code",
       "code",
-      "Код",
-      `Файлов AdaScript: ${s.sources.length} · поведение вашей игры`,
+      t("Code"),
+      t("{0} AdaScript files · your game’s behavior", s.sources.length),
     ],
     [
       "assistant",
       "spark",
-      "Ассистент",
-      "Чат, контекст проекта и изменения агента",
+      t("Assistant"),
+      t("Chat, project context and agent changes"),
     ],
   ];
   return (
-    <section className="project-overview" aria-label="Обзор проекта">
+    <section className="project-overview" aria-label={t("Project overview")}>
       <div className="overview-heading">
         <div>
-          <span className="eyebrow">ВАШ ПРОЕКТ</span>
+          <span className="eyebrow">{t("YOUR PROJECT")}</span>
           <h1>{s.snapshot.title}</h1>
           <p>
-            Сцена, ассеты, код и чат — части одной игры. Переключайтесь между
-            ними слева.
+            {t(
+              "Scene, assets, code and chat are parts of one game. Switch between them on the left.",
+            )}
           </p>
         </div>
         <Button className="primary" icon="play" onClick={act(() => s.play())}>
-          Играть
+          {t("Play")}
         </Button>
       </div>
       <div className="project-storage">
@@ -50,18 +58,20 @@ export function ProjectOverview() {
         <div>
           <strong>
             {s.status === "saved"
-              ? "Проект сохранён в Ada Cloud"
+              ? t("Project saved in Ada Cloud")
               : s.status === "saving"
-                ? "Сохраняем изменения…"
-                : "Изменения ещё не сохранены в облаке"}
+                ? t("Saving changes…")
+                : t("Changes have not been saved to Cloud yet")}
           </strong>
           <p>
-            Приватный проект · ревизия {s.workspace.revision}. Автосохранение
-            работает во всех разделах.
+            {t(
+              "Private project · revision {0}. Autosave works in every section.",
+              s.workspace.revision,
+            )}
           </p>
         </div>
         <Button icon="check" onClick={act(() => s.save())}>
-          Сохранить сейчас
+          {t("Save now")}
         </Button>
       </div>
       <div className="project-sections">
@@ -76,17 +86,18 @@ export function ProjectOverview() {
       </div>
       <div className="overview-bottom">
         <div>
-          <h2>Продолжайте с того же места</h2>
+          <h2>{t("Continue where you left off")}</h2>
           <p>
-            Проект доступен в списке «Все проекты». ZIP содержит исходники и
-            ассеты для повторного открытия.
+            {t(
+              "Find your project in All projects. ZIP includes sources and assets so you can reopen it.",
+            )}
           </p>
         </div>
         <Button icon="history" onClick={act(() => s.showHistory())}>
-          История версий
+          {t("Version history")}
         </Button>
         <Button icon="download" onClick={act(() => s.export())}>
-          Скачать ZIP
+          {t("Download ZIP")}
         </Button>
       </div>
     </section>

@@ -35,6 +35,30 @@ struct MobileEditorAgentSettingsScreen: View {
 
                 modelSelection
                 MobileEditorCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(L10n.text("Ada AI · Coder Next")).font(MobileEditorFont.navigationFont(size: 20)).foregroundColor(theme.editorColors.text)
+                        EditorAICreditsDetails()
+                        if modelStore.selectedProvider == .ada, !modelStore.errorMessage.isEmpty {
+                            Text(L10n.tr(modelStore.errorMessage)).font(MobileEditorFont.font(size: 13)).foregroundColor(theme.editorColors.text).lineLimit(4)
+                                .accessibilityIdentifier("AdaEditor.Mobile.CloudAIError")
+                        }
+                        MobileEditorPrimaryButton(title: "Use Ada AI") { _ = modelStore.useCloudAI() }
+                            .accessibilityIdentifier("AdaEditor.Mobile.UseCloudAI")
+                        if EditorCloudAccount.shared.accountID == nil {
+                            MobileEditorPrimaryButton(title: "Sign in to Ada Cloud") {
+                                EditorCloudAccount.shared.perform { try await EditorCloudAccount.shared.signInOnWebsite() }
+                            }
+                        } else if !EditorCloudAccount.shared.pro, EditorCloudAccount.shared.billingAvailable {
+                            MobileEditorPrimaryButton(title: "Subscribe to Cloud Pro") {
+                                EditorCloudAccount.shared.perform { try await EditorCloudAccount.shared.buyPro() }
+                            }
+                        }
+                        if !EditorCloudAccount.shared.status.isEmpty {
+                            Text(L10n.tr(EditorCloudAccount.shared.status)).font(MobileEditorFont.font(size: 12)).foregroundColor(theme.editorColors.muted).lineLimit(3)
+                        }
+                    }.padding(17)
+                }
+                MobileEditorCard {
                     EditorSloppyInviteSettingsView(catalog: sloppyInvites)
                         .padding(17)
                 }

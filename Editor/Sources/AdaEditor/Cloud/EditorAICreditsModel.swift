@@ -50,6 +50,8 @@ final class EditorAICreditsModel {
             if catalog?.capabilities.isEmpty == true {
                 return "Hosted AI will open soon."
             }
+            if balance?.allowance == 0 { return "Cloud Pro includes 500 AI credits per month. Subscribe to use Ada AI." }
+            if balance?.available == 0 { return "Your AI credits are used up. They renew with your monthly Cloud Pro allowance." }
             return "AI credits are shared across your Ada Studio apps."
         }
     }

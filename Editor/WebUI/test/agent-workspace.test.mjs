@@ -43,6 +43,8 @@ test.before(async () => {
 function harness() {
   globalThis.window = { addEventListener() {} };
   const s = new Studio();
+  s.billingMode = "byok";
+  s.apiKey = "fixture-key";
   s.document = new Document(template(3));
   s.workspace = { id: "project", revision: 1 };
   s.account = { id: "owner" };
@@ -79,7 +81,7 @@ test("attachments cannot write into another project after asynchronous file read
     s.document = new Document(template(2));
     const files = s.snapshot.files.length;
     finish(text ? "notes" : new Uint8Array([1]).buffer);
-    await assert.rejects(attachment, /другой проект/);
+    await assert.rejects(attachment, /different project/);
     assert.equal(s.snapshot.files.length, files);
   }
 });
@@ -412,14 +414,14 @@ test("explicit ask permissions wait for the user and cancel safely", async () =>
   assert.equal(allowed, true);
   const denied = s.requestTool("editor_file_write", {}, controller.signal);
   controller.abort();
-  await assert.rejects(denied, /отклонил/);
+  await assert.rejects(denied, /declined/);
   assert.equal(s.permissionRequest, null);
   s.updateChat((c) => {
     c.sessions[0].mode = "plan";
   });
   await assert.rejects(
     s.requestTool("editor_file_write", {}, new AbortController().signal),
-    /обсуждения/,
+    /Discuss mode/,
   );
 });
 test("agent turns remain attached to their originating session while another conversation is opened", async () => {
@@ -500,7 +502,7 @@ test("A2UI rejects a too-large durable undo record before changing any scene fil
     card = s.chat.surfaces[0];
   await assert.rejects(
     s.submitSurface(card.id, card.generation, "button"),
-    /лимит/,
+    /limit/,
   );
   assert.deepEqual(s.scene, before);
   assert.equal(s.document.undoStack.length, 0);
@@ -570,4 +572,130 @@ test("cancelling a streamed form persists an interrupted card without replaying 
   );
   s.restoreSurface(card.id, card.generation);
   assert.equal(s.chat.surfaces[0].status, "ready");
+});
+
+test("Create uses the selected world template and passes player mode into the real agent request", async () => {
+  for (const dimension of [2, 3]) {
+    const s = harness();
+    s.document = null;
+    let created, request;
+    s.createSnapshot = async (snapshot) => {
+      created = snapshot;
+      s.document = new Document(snapshot);
+      s.workspace = { id: "new-project", revision: 1 };
+    };
+    const resources = globalThis.fetch;
+    globalThis.fetch = async (url, options) => {
+      if (url === "/v1/ai/generate") {
+        request = JSON.parse(options.body);
+        return new Response(
+          'data: {"type":"text","text":"Ready"}\ndata: {"type":"complete"}\n',
+          { headers: { "Content-Type": "text/event-stream" } },
+        );
+      }
+      return resources(url, options);
+    };
+    const prompt = "My original idea";
+    assert.equal(
+      await runAgent(s, prompt, {
+        creation: { dimension, players: "multiplayer" },
+      }),
+      true,
+    );
+    const meta = JSON.parse(decode(file(created, ".ada/project.json").data));
+    assert.equal(meta.runtime.plugins.preset, `game${dimension}d`);
+    assert(
+      request.messages.some(
+        (message) =>
+          message.content.includes(`World: ${dimension}D`) &&
+          message.content.includes("Players: multiplayer"),
+      ),
+    );
+    const authored = s.snapshot.messages.find(
+      (message) => message.role === "user" && message.displayContent === prompt,
+    );
+    assert(authored.content.startsWith(prompt));
+    assert.equal(authored.displayContent, prompt);
+  }
+});
+
+test("staged media survive admission and Cloud errors, then reach the agent with real image input and saved asset paths", async () => {
+  const s = harness();
+  s.document = null;
+  s.prompt = "Use my reference, character and soundtrack";
+  const preview = "data:image/jpeg;base64,AQID";
+  const staged = [
+    {
+      id: "picture",
+      path: "Assets/Imports/reference.png",
+      data: btoa("original image bytes"),
+      name: "reference.png",
+      kind: "image",
+      size: 20,
+      preview,
+    },
+    {
+      id: "model",
+      path: "Assets/Imports/character.glb",
+      data: btoa("model bytes"),
+      name: "character.glb",
+      kind: "model",
+      size: 11,
+    },
+    {
+      id: "audio",
+      path: "Assets/Imports/music.wav",
+      data: btoa("music bytes"),
+      name: "music.wav",
+      kind: "audio",
+      size: 11,
+    },
+  ];
+  s.homeAttachments = staged;
+  s.apiKey = "";
+  await assert.rejects(runAgent(s, s.prompt), /API key/);
+  assert.equal(s.homeAttachments, staged);
+  assert.equal(s.document, null);
+  assert.ok(s.prompt);
+  s.apiKey = "fixture-key";
+  s.createSnapshot = async () => {
+    throw new Error("Cloud offline");
+  };
+  await assert.rejects(runAgent(s, s.prompt), /Cloud offline/);
+  assert.equal(s.homeAttachments, staged);
+  assert.equal(s.document, null);
+  assert.ok(s.prompt);
+  let created, request;
+  s.createSnapshot = async (snapshot) => {
+    created = snapshot;
+    s.document = new Document(snapshot);
+    s.workspace = { id: "media-project", revision: 1 };
+  };
+  const resources = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    if (url === "/v1/ai/generate") {
+      request = JSON.parse(options.body);
+      return new Response(
+        'data: {"type":"text","text":"Ready"}\ndata: {"type":"complete"}\n',
+      );
+    }
+    return resources(url, options);
+  };
+  assert.equal(await runAgent(s, s.prompt), true);
+  assert.equal(s.homeAttachments.length, 0);
+  for (const item of staged)
+    assert.equal(file(created, item.path).data, item.data);
+  assert.equal(chatState(created).sessions[0].attachments.length, 3);
+  const message = request.messages.find((message) =>
+    message.images?.includes(preview),
+  );
+  assert.ok(message, "the image is a model input, not only a filename");
+  for (const item of staged) assert.ok(message.content.includes(item.path));
+  assert.deepEqual(
+    s.snapshot.messages
+      .find((message) => message.attachments?.length)
+      .attachments.map((item) => item.kind),
+    ["image", "model", "audio"],
+  );
+  assert.equal(s.session.attachments.length, 0);
 });

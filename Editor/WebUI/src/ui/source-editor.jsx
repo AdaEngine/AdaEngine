@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Compartment } from "@codemirror/state";
 import {
   EditorView,
   lineNumbers,
@@ -20,6 +20,11 @@ import {
 import { tags } from "@lezer/highlight";
 import { adaScript } from "../adascript.js";
 import { studio } from "./state.js";
+import { currentLanguage } from "../localization.js";
+import {
+  editorLanguageExtensions,
+  refreshEditorLanguage,
+} from "../editor-language.js";
 
 const colors = HighlightStyle.define([
   { tag: tags.keyword, color: "#c8a0ff" },
@@ -35,13 +40,16 @@ const colors = HighlightStyle.define([
 export function SourceEditor({ text, path }) {
   const host = useRef(),
     view = useRef(),
-    applying = useRef(false);
+    applying = useRef(false),
+    language = useRef(new Compartment());
+  const locale = currentLanguage();
   useEffect(() => {
     const editor = new EditorView({
       parent: host.current,
       state: EditorState.create({
         doc: text,
         extensions: [
+          language.current.of(editorLanguageExtensions()),
           lineNumbers(),
           highlightActiveLine(),
           highlightActiveLineGutter(),
@@ -78,10 +86,6 @@ export function SourceEditor({ text, path }) {
             indentWithTab,
             ...defaultKeymap,
           ]),
-          EditorView.contentAttributes.of({
-            "aria-label": "Исходный код",
-            spellcheck: "false",
-          }),
           EditorView.theme(
             {
               "&": { height: "100%", background: "#101319", color: "#d6dce5" },
@@ -144,5 +148,8 @@ export function SourceEditor({ text, path }) {
       }
     }
   }, [text]);
+  useEffect(() => {
+    if (view.current) refreshEditorLanguage(view.current, language.current);
+  }, [locale]);
   return <div ref={host} className="source-editor" />;
 }

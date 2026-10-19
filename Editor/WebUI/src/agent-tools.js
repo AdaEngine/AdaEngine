@@ -1,3 +1,4 @@
+import { LocalizedError } from "./localization.js";
 import { knowledge } from "./knowledge.js";
 import { sceneApply, sceneRevision } from "./scene-tools.js";
 import { file, metadata, scenePath, clone } from "./documents.js";
@@ -174,10 +175,10 @@ export async function extraTool(s, name, args) {
       return sceneApply(s, args);
     case "editor_file_patch": {
       const f = file(s.snapshot, args.path);
-      if (!f) throw new Error("File not found");
+      if (!f) throw new LocalizedError("File not found");
       const text = decode(f.data);
       if (!args.oldText || text.split(args.oldText).length !== 2)
-        throw new Error("Patch must match exactly once");
+        throw new LocalizedError("Patch must match exactly once");
       s.document.write(
         args.path,
         text.replace(args.oldText, () => args.newText),
@@ -207,7 +208,7 @@ export async function extraTool(s, name, args) {
         const meta = metadata(snapshot);
         if (args.runtime) {
           if (args.runtime.entry?.view)
-            throw new Error("AdaScript views are unavailable");
+            throw new LocalizedError("AdaScript views are unavailable");
           meta.runtime = { ...meta.runtime, ...args.runtime };
         }
         if (args.inputActions) meta.inputActions = args.inputActions;
@@ -229,7 +230,7 @@ export async function extraTool(s, name, args) {
             !["pending", "running", "done"].includes(step.status),
         )
       )
-        throw new Error("Invalid progress plan");
+        throw new LocalizedError("Invalid progress plan");
       s.updateChat((c) => {
         const session = c.sessions.find(
           (c) => c.id === (s.runningSessionID || s.session.id),
@@ -240,15 +241,15 @@ export async function extraTool(s, name, args) {
     }
     case "editor_image_read": {
       if (!s.model?.vision)
-        throw new Error("Selected model cannot inspect images");
+        throw new LocalizedError("Selected model cannot inspect images");
       const f = file(s.snapshot, args.path);
       if (!f || !/\.(png|jpe?g)$/i.test(f.path) || f.data.length > 500000)
-        throw new Error("Use a project PNG/JPEG below 375 KiB");
+        throw new LocalizedError("Use a project PNG/JPEG below 375 KiB");
       return `data:image/${/\.png$/i.test(f.path) ? "png" : "jpeg"};base64,${f.data}`;
     }
     case "editor_model_inspect": {
       const f = file(s.snapshot, args.path);
-      if (!f) throw new Error("File not found");
+      if (!f) throw new LocalizedError("File not found");
       const data = bytes(f.data),
         v = new DataView(data.buffer);
       if (
@@ -259,7 +260,7 @@ export async function extraTool(s, name, args) {
         v.getUint32(16, true) !== 0x4e4f534a ||
         v.getUint32(12, true) > data.length - 20
       )
-        throw new Error("Invalid GLB");
+        throw new LocalizedError("Invalid GLB");
       const model = JSON.parse(
         new TextDecoder().decode(data.subarray(20, 20 + v.getUint32(12, true))),
       );
@@ -279,7 +280,7 @@ export async function extraTool(s, name, args) {
     }
     case "editor_audio_inspect": {
       const f = file(s.snapshot, args.path);
-      if (!f) throw new Error("File not found");
+      if (!f) throw new LocalizedError("File not found");
       const data = bytes(f.data),
         v = new DataView(data.buffer);
       let offset = 12,
@@ -292,15 +293,16 @@ export async function extraTool(s, name, args) {
         new TextDecoder().decode(data.subarray(0, 4)) !== "RIFF" ||
         new TextDecoder().decode(data.subarray(8, 12)) !== "WAVE"
       )
-        throw new Error("Expected WAV");
+        throw new LocalizedError("Expected WAV");
       while (offset + 8 <= data.length) {
         const id = new TextDecoder().decode(data.subarray(offset, offset + 4)),
           length = v.getUint32(offset + 4, true),
           start = offset + 8;
-        if (start + length > data.length) throw new Error("Truncated WAV");
+        if (start + length > data.length)
+          throw new LocalizedError("Truncated WAV");
         if (id === "fmt ") {
           if (length < 16 || v.getUint16(start + 14, true) !== 16)
-            throw new Error("Expected PCM16");
+            throw new LocalizedError("Expected PCM16");
           format = v.getUint16(start, true);
           channels = v.getUint16(start + 2, true);
           sampleRate = v.getUint32(start + 4, true);
@@ -315,7 +317,7 @@ export async function extraTool(s, name, args) {
         !pcm?.length ||
         pcm.length % 2
       )
-        throw new Error("Expected PCM16 WAV");
+        throw new LocalizedError("Expected PCM16 WAV");
       let sum = 0,
         peak = 0,
         clipped = 0;
@@ -339,7 +341,7 @@ export async function extraTool(s, name, args) {
       const kind = name.match(
         /^editor_(sprite|audio|model|voxel)_generate$/,
       )?.[1];
-      if (!kind) throw new Error("Недоступный инструмент: " + name);
+      if (!kind) throw new LocalizedError("Unavailable tool: {0}", name);
       const ext = { sprite: "png", audio: "wav", model: "glb", voxel: "vox" }[
         kind
       ];
@@ -351,8 +353,9 @@ export async function extraTool(s, name, args) {
         !args.destination.endsWith("." + ext) ||
         file(s.snapshot, args.destination)
       )
-        throw new Error(
-          "Choose a NEW project asset destination with extension ." + ext,
+        throw new LocalizedError(
+          "Choose a new project asset path ending in .{0}",
+          ext,
         );
       const doc = s.document;
       if (!s.preview.ready) await s.syncViewport();
@@ -360,10 +363,10 @@ export async function extraTool(s, name, args) {
         name,
         source: args.source,
       });
-      if (s.document !== doc) throw new Error("Project changed");
+      if (s.document !== doc) throw new LocalizedError("Project changed");
       s.document.edit((snapshot) => {
         if (file(snapshot, args.destination))
-          throw new Error("Destination exists");
+          throw new LocalizedError("Destination exists");
         snapshot.files.push({ path: args.destination, data: result.data });
       });
       s.changed();

@@ -19,7 +19,8 @@ test("a completed gizmo drag is exactly one document undo and does not move auth
   const s = workspace(),
     player = s.scene.entities.find((e) => e.name === "Player");
   const before = structuredClone(s.snapshot),
-    camera = structuredClone(s.scene.entities.find((e) => e.name === "Камера"));
+    camera = structuredClone(s.scene.entities.find((e) => e.components["AdaRender.Camera"]));
+  assert.ok(camera, "The template contains an authored camera");
   const transform = {
     position: [3, 1, -2],
     rotation: [0, 0, 0, 1],

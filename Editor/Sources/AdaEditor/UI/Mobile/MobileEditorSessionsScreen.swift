@@ -19,19 +19,29 @@ actor MobileEditorSessionStore {
 
     private var agentsURL: URL { workspaceURL.appendingPathComponent(".ada/workspace/agents", isDirectory: true) }
 
-    func list() throws -> [MobileEditorSessionSummary] {
-        guard FileManager.default.fileExists(atPath: agentsURL.appendingPathComponent("mobile").path) else { return [] }
-        let store = AgentSessionFileStore(agentsRootURL: agentsURL)
-        return try store.listSessions(agentID: "mobile").map { summary in
-            let detail = try store.loadSession(agentID: "mobile", sessionID: summary.id)
-            let messages = MobileSloppyChatAdapter.events(from: detail.events).compactMap(\.message)
-            let title = messages.first(where: { $0.role == .user })?.segments.first?.text ?? summary.title
-            let preview = messages.last?.segments.first?.text ?? ""
-            return MobileEditorSessionSummary(
-                id: summary.id, title: String(title.prefix(80)), updatedAt: summary.updatedAt,
-                messageCount: messages.count, preview: String(preview.prefix(200))
-            )
+    func list() async throws -> [MobileEditorSessionSummary] {
+        let native = EditorAgentSessionStore(projectURL: workspaceURL)
+        var result: [MobileEditorSessionSummary] = []
+        for summary in try await native.listSessions() where Self.cloudID(summary.id) {
+            let session = try await native.loadSession(id: summary.id)
+            let messages = session.events.compactMap(\.message)
+            result.append(.init(id: summary.id, title: summary.title, updatedAt: summary.updatedAt,
+                                messageCount: messages.count, preview: String((messages.last?.segments.first?.text ?? "").prefix(200))))
         }
+        if FileManager.default.fileExists(atPath: agentsURL.appendingPathComponent("mobile").path) {
+            let store = AgentSessionFileStore(agentsRootURL: agentsURL)
+            for summary in try store.listSessions(agentID: "mobile") {
+                let detail = try store.loadSession(agentID: "mobile", sessionID: summary.id)
+                let messages = await MobileSloppyChatAdapter.events(from: detail.events).compactMap(\.message)
+                let title = messages.first(where: { $0.role == .user })?.segments.first?.text ?? summary.title
+                result.append(.init(id: summary.id, title: String(title.prefix(80)), updatedAt: summary.updatedAt,
+                             messageCount: messages.count, preview: String((messages.last?.segments.first?.text ?? "").prefix(200))))
+            }
+        }
+        return result.sorted { $0.updatedAt > $1.updatedAt }
+    }
+    private static func cloudID(_ id: String) -> Bool {
+        id.hasPrefix("cloud-") && id.range(of: "^[a-zA-Z0-9_-]{1,100}$", options: .regularExpression) != nil
     }
 
     func messages(id: String) throws -> [SloppyChatMessage] {
@@ -52,10 +62,14 @@ actor MobileEditorSessionStore {
         }
     }
 
-    func events(id: String? = nil) throws -> [EditorAgentEvent] {
-        guard let sessionID = try id ?? list().first?.id else { return [] }
+    func events(id: String? = nil) async throws -> [EditorAgentEvent] {
+        let sessionID: String
+        if let id { sessionID = id }
+        else if let first = try await list().first { sessionID = first.id }
+        else { return [] }
+        if Self.cloudID(sessionID) { return try await EditorAgentSessionStore(projectURL: workspaceURL).loadSession(id: sessionID).events }
         let detail = try AgentSessionFileStore(agentsRootURL: agentsURL).loadSession(agentID: "mobile", sessionID: sessionID)
-        return MobileSloppyChatAdapter.events(from: detail.events)
+        return await MobileSloppyChatAdapter.events(from: detail.events)
     }
 }
 
@@ -65,6 +79,7 @@ struct MobileEditorSessionsScreen: View {
     @State private var status = "Loading sessions…"
     @State private var loadTask: Task<Void, Never>?
     let workspaceURL: URL
+    var cloud = false
     let open: (String) -> Void
 
     var body: some View {
@@ -98,8 +113,8 @@ struct MobileEditorSessionsScreen: View {
                 do {
                     let loaded = try await MobileEditorSessionStore(workspaceURL: workspaceURL).list()
                     try Task.checkCancellation()
-                    sessions = loaded
-                    status = loaded.isEmpty ? "No sessions yet. Your conversations will appear here after the first request." : ""
+                    sessions = loaded.filter { $0.id.hasPrefix("cloud-") == cloud }
+                    status = sessions.isEmpty ? "No sessions yet. Your conversations will appear here after the first request." : ""
                 } catch { if !Task.isCancelled { status = error.localizedDescription } }
             }
         }

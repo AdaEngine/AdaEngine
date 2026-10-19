@@ -1,3 +1,4 @@
+import { LocalizedError } from "./localization.js";
 export const catalogID = "https://adaengine.org/a2ui/catalogs/forms/v1";
 const unsafe = (s) => ["__proto__", "constructor", "prototype"].includes(s);
 const object = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -6,13 +7,13 @@ const bounded = (text, max = 4096) =>
 export function tokens(path) {
   if (path === undefined || path === "/") return [];
   if (!bounded(path) || !path.startsWith("/") || /~(?![01])/g.test(path))
-    throw new Error("Expected absolute JSON Pointer");
+    throw new LocalizedError("Expected absolute JSON Pointer");
   const parts = path
     .slice(1)
     .split("/")
     .map((p) => p.replaceAll("~1", "/").replaceAll("~0", "~"));
   if (parts.length > 64 || parts.some(unsafe))
-    throw new Error("Unsafe data binding");
+    throw new LocalizedError("Unsafe data binding");
   return parts;
 }
 export function get(model, path) {
@@ -31,18 +32,18 @@ export function get(model, path) {
 export function set(model, path, value, remove = false) {
   const parts = tokens(path);
   if (!parts.length) {
-    if (remove) throw new Error("Cannot delete root");
+    if (remove) throw new LocalizedError("Cannot delete root");
     return structuredClone(value);
   }
   let parent = model;
   for (const [i, p] of parts.entries()) {
     if (!object(parent) && !Array.isArray(parent))
-      throw new Error("Binding parent is not a container");
+      throw new LocalizedError("Binding parent is not a container");
     if (
       Array.isArray(parent) &&
       (!/^(0|[1-9]\d*)$/.test(p) || Number(p) > parent.length)
     )
-      throw new Error("Invalid array index");
+      throw new LocalizedError("Invalid array index");
     if (i === parts.length - 1) {
       if (remove) {
         if (Array.isArray(parent)) parent[p] = null;
@@ -56,7 +57,7 @@ export function set(model, path, value, remove = false) {
   return model;
 }
 export function resolve(value, data, depth = 0) {
-  if (depth > 64) throw new Error("Action nesting exceeds limit");
+  if (depth > 64) throw new LocalizedError("Action nesting exceeds limit");
   if (
     object(value) &&
     Object.keys(value).length === 1 &&
@@ -68,7 +69,7 @@ export function resolve(value, data, depth = 0) {
   if (object(value))
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => {
-        if (unsafe(k)) throw new Error("Unsafe context key");
+        if (unsafe(k)) throw new LocalizedError("Unsafe context key");
         return [k, resolve(v, data, depth + 1)];
       }),
     );
@@ -96,55 +97,55 @@ const required = {
 };
 function binding(v) {
   if (!object(v) || Object.keys(v).length !== 1 || typeof v.path !== "string")
-    throw new Error("Input requires a writable binding");
+    throw new LocalizedError("Input requires a writable binding");
   tokens(v.path);
 }
 function text(v, data) {
   if (typeof v === "string") {
-    if (v.length > 65536) throw new Error("Text exceeds limit");
+    if (v.length > 65536) throw new LocalizedError("Text exceeds limit");
     return;
   }
   binding(v);
   const current = get(data, v.path);
   if (current !== undefined && typeof current !== "string")
-    throw new Error("Text binding requires a string");
+    throw new LocalizedError("Text binding requires a string");
 }
 export function validateSurface(s) {
   if (!object(s.data) || JSON.stringify(s.data).length > 1024 * 1024)
-    throw new Error("Invalid or oversized data model");
+    throw new LocalizedError("Invalid or oversized data model");
   const bindingTypes = new Map();
   const register = (v, type) => {
     if (object(v) && typeof v.path === "string") {
       const key = JSON.stringify(tokens(v.path)),
         previous = bindingTypes.get(key);
       if (previous && type !== previous)
-        throw new Error("Incompatible binding types");
+        throw new LocalizedError("Incompatible binding types");
       bindingTypes.set(key, type);
     }
   };
   const all = Object.values(s.components);
-  if (all.length > 1024) throw new Error("Too many components");
+  if (all.length > 1024) throw new LocalizedError("Too many components");
   for (const c of all) {
     if (
       !bounded(c.id, 256) ||
       unsafe(c.id) ||
       !Object.hasOwn(properties, c.component)
     )
-      throw new Error("Unsupported component");
+      throw new LocalizedError("Unsupported component");
     if (
       Object.keys(c).some(
         (k) => !["id", "component", ...properties[c.component]].includes(k),
       ) ||
       required[c.component].some((k) => !Object.hasOwn(c, k))
     )
-      throw new Error("Unsupported or missing component property");
+      throw new LocalizedError("Unsupported or missing component property");
     if (["Text", "Button", "TextField"].includes(c.component)) {
       text(c.text, s.data);
       register(c.text, "string");
     }
     if (c.component === "TextField") binding(c.text);
     if (c.placeholder !== undefined && typeof c.placeholder !== "string")
-      throw new Error("Invalid placeholder");
+      throw new LocalizedError("Invalid placeholder");
     if (c.label !== undefined) {
       text(c.label, s.data);
       register(c.label, "string");
@@ -161,7 +162,7 @@ export function validateSurface(s) {
         (typeof current !== type ||
           (type === "number" && !Number.isFinite(current)))
       )
-        throw new Error("Wrong input binding type");
+        throw new LocalizedError("Wrong input binding type");
     }
     if (
       c.component === "ChoicePicker" &&
@@ -177,7 +178,7 @@ export function validateSurface(s) {
         ) ||
         new Set(c.options.map((o) => o.value)).size !== c.options.length)
     )
-      throw new Error("Invalid choices");
+      throw new LocalizedError("Invalid choices");
     if (
       c.component === "Slider" &&
       (!Number.isFinite(c.min) ||
@@ -185,7 +186,7 @@ export function validateSurface(s) {
         c.min >= c.max ||
         (c.step !== undefined && (!Number.isFinite(c.step) || c.step <= 0)))
     )
-      throw new Error("Invalid slider range");
+      throw new LocalizedError("Invalid slider range");
     if (
       c.children !== undefined &&
       (!Array.isArray(c.children) ||
@@ -193,12 +194,12 @@ export function validateSurface(s) {
         new Set(c.children).size !== c.children.length ||
         c.children.some((id) => !bounded(id, 256)))
     )
-      throw new Error("Invalid children");
+      throw new LocalizedError("Invalid children");
     if (
       c.spacing !== undefined &&
       (!Number.isFinite(c.spacing) || c.spacing < 0 || c.spacing > 128)
     )
-      throw new Error("Invalid spacing");
+      throw new LocalizedError("Invalid spacing");
     if (c.component === "Button") {
       const event = c.action?.event;
       if (
@@ -209,12 +210,12 @@ export function validateSurface(s) {
         Object.keys(event).some((k) => !["name", "context"].includes(k)) ||
         (event.context !== undefined && !object(event.context))
       )
-        throw new Error("Only server event actions are supported");
+        throw new LocalizedError("Only server event actions are supported");
       resolve(event.context || {}, s.data);
     }
     if (c.checks !== undefined) {
       if (!Array.isArray(c.checks) || c.checks.length > 32)
-        throw new Error("Invalid form checks");
+        throw new LocalizedError("Invalid form checks");
       for (const check of c.checks) {
         const cond = check.condition,
           args = cond?.args;
@@ -226,7 +227,7 @@ export function validateSurface(s) {
           Object.keys(cond).some((k) => !["call", "args"].includes(k)) ||
           Object.keys(check).some((k) => !["condition", "message"].includes(k))
         )
-          throw new Error("Unsupported check");
+          throw new LocalizedError("Unsupported check");
         if (
           !Object.hasOwn(args, "value") ||
           Object.keys(args).some(
@@ -236,7 +237,7 @@ export function validateSurface(s) {
               ).includes(k),
           )
         )
-          throw new Error("Invalid check arguments");
+          throw new LocalizedError("Invalid check arguments");
         if (object(args.value)) binding(args.value);
         if (cond.call === "range") register(args.value, "number");
         if (
@@ -245,13 +246,13 @@ export function validateSurface(s) {
             !Number.isFinite(args.max) ||
             args.min > args.max)
         )
-          throw new Error("Invalid check range");
+          throw new LocalizedError("Invalid check range");
       }
     }
   }
   const visit = (id, stack = new Set(), depth = 0, mounted = null) => {
     if (depth > 64 || stack.has(id) || mounted?.has(id))
-      throw new Error("Cyclic or repeated component mount");
+      throw new LocalizedError("Cyclic or repeated component mount");
     mounted?.add(id);
     const c = s.components[id];
     if (!c) return;
@@ -286,7 +287,7 @@ export function receive(records, envelope, owner) {
     JSON.stringify(envelope).length > 1024 * 1024 ||
     envelope.version !== "v0.9.1"
   )
-    throw new Error("Unsupported A2UI envelope");
+    throw new LocalizedError("Unsupported A2UI envelope");
   const kinds = [
     "createSurface",
     "updateComponents",
@@ -294,11 +295,11 @@ export function receive(records, envelope, owner) {
     "deleteSurface",
   ].filter((k) => Object.hasOwn(envelope, k));
   if (kinds.length !== 1 || Object.keys(envelope).length !== 2)
-    throw new Error("One A2UI message per envelope required");
+    throw new LocalizedError("One A2UI message per envelope required");
   const kind = kinds[0],
     v = envelope[kind];
   if (!object(v) || !bounded(v.surfaceId, 256) || unsafe(v.surfaceId))
-    throw new Error("Invalid surface ID");
+    throw new LocalizedError("Invalid surface ID");
   const index = records.findIndex(
       (s) =>
         s.id === v.surfaceId &&
@@ -307,7 +308,7 @@ export function receive(records, envelope, owner) {
     ),
     old = records[index];
   if (old && old.owner !== owner.owner)
-    throw new Error("Surface belongs to another agent");
+    throw new LocalizedError("Surface belongs to another agent");
   let next;
   if (kind === "createSurface") {
     if (
@@ -323,7 +324,7 @@ export function receive(records, envelope, owner) {
       ) ||
       (v.sendDataModel !== undefined && typeof v.sendDataModel !== "boolean")
     )
-      throw new Error("Unsupported surface or catalog");
+      throw new LocalizedError("Unsupported surface or catalog");
     next = {
       id: v.surfaceId,
       ...owner,
@@ -334,11 +335,12 @@ export function receive(records, envelope, owner) {
       sendDataModel: v.sendDataModel === true,
     };
   } else {
-    if (!old) throw new Error("Create the surface before updating");
+    if (!old) throw new LocalizedError("Create the surface before updating");
     next = structuredClone(old);
     delete next.error;
     if (kind === "deleteSurface") {
-      if (Object.keys(v).length !== 1) throw new Error("Invalid deletion");
+      if (Object.keys(v).length !== 1)
+        throw new LocalizedError("Invalid deletion");
       records.splice(index, 1);
       return;
     }
@@ -350,17 +352,17 @@ export function receive(records, envelope, owner) {
         new Set(v.components.map((c) => c.id)).size !== v.components.length ||
         Object.keys(v).some((k) => !["surfaceId", "components"].includes(k))
       )
-        throw new Error("Invalid component update");
+        throw new LocalizedError("Invalid component update");
       for (const c of v.components) {
         if (!bounded(c.id, 256) || unsafe(c.id))
-          throw new Error("Invalid component ID");
+          throw new LocalizedError("Invalid component ID");
         next.components[c.id] = c;
       }
     } else {
       if (
         Object.keys(v).some((k) => !["surfaceId", "path", "value"].includes(k))
       )
-        throw new Error("Invalid data update");
+        throw new LocalizedError("Invalid data update");
       next.data = set(next.data, v.path, v.value, !Object.hasOwn(v, "value"));
     }
     next.status = "receiving";
@@ -402,7 +404,7 @@ export function decodeFences(source, finish = false) {
     if ((!last || finish) && line.trim()) {
       try {
         if (line.length > 1024 * 1024)
-          throw new Error("A2UI frame exceeds limit");
+          throw new LocalizedError("A2UI frame exceeds limit");
         frames.push(JSON.parse(line));
       } catch (e) {
         errors.push(e.message);
@@ -415,7 +417,7 @@ export function decodeFences(source, finish = false) {
 export function actionEnvelope(surface, id) {
   const c = surface.components[id];
   if (c?.component !== "Button" || failures(c, surface.data).length)
-    throw new Error("Form is invalid");
+    throw new LocalizedError("Form is invalid");
   const event = c.action.event;
   return {
     envelope: {

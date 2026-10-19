@@ -22,6 +22,25 @@ struct EditorAgentCatalogView: View {
                     EditorAgentCatalogToolbar(agent: agent)
                 }
             }
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L10n.text("Ada AI · Coder Next")).font(.system(size: 14, weight: .semibold)).foregroundColor(theme.editorColors.text)
+                Text(L10n.text("Cloud Pro includes 500 AI credits per month, shared across your devices."))
+                    .font(.system(size: 12)).foregroundColor(theme.editorColors.muted)
+                EditorAICreditsBadge()
+                HStack {
+                    Button(L10n.text("Use Ada AI")) { Task { await agent.connectCatalogAgent(installed: EditorCloudAgentRouter.entry) } }
+                        .buttonStyle(actionButtonStyle)
+                        .disabled(!agent.canConnectCatalogAgent)
+                        .accessibilityIdentifier("AdaEditor.Agents.UseCloudAI")
+                    if EditorCloudAccount.shared.accountID == nil {
+                        Button(L10n.text("Sign in to Ada Cloud")) { EditorCloudAccount.shared.perform { try await EditorCloudAccount.shared.signInOnWebsite() } }
+                    } else if !EditorCloudAccount.shared.pro, EditorCloudAccount.shared.billingAvailable {
+                        Button(L10n.text("Subscribe to Cloud Pro")) { EditorCloudAccount.shared.perform { try await EditorCloudAccount.shared.buyPro() } }
+                    }
+                }
+            }
+            .padding(12)
+            .background(RoundedRectangleShape(cornerRadius: 10).fill(theme.editorColors.surface))
             #if os(macOS) || os(Windows)
                 Text(L10n.text("Choose an agent for all projects, then open Agent Chat. Sign in through the agent's own account setup."))
                     .font(.system(size: 11)).foregroundColor(theme.editorColors.muted)

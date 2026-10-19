@@ -232,6 +232,50 @@ test("tab close protection and active agent guards do not prevent switching proj
   s.running = true;
   s.home();
   assert.equal(s.view, "overview");
-  await assert.rejects(s.browseProjects(), /ассистента/);
-  await assert.rejects(s.create(2), /ассистента/);
+  await assert.rejects(s.browseProjects(), /assistant/);
+  await assert.rejects(s.create(2), /assistant/);
+});
+
+test("Games and Create save before leaving and retain the current editor world", async (t) => {
+  const { s, records } = harness(t),
+    doc = s.document,
+    preview = s.preview;
+  s.writeCode("// playground navigation");
+  await s.browseLibrary("games");
+  assert.equal(s.libraryView, "games");
+  assert.equal(s.projectBrowser, true);
+  assert.equal(records.get("first").revision, 2);
+  assert.equal(s.document, doc);
+  assert.equal(s.preview, preview);
+  await s.browseLibrary("create");
+  assert.equal(s.libraryView, "create");
+  s.navigate("code");
+  assert.equal(s.projectBrowser, false);
+  assert.equal(s.document.undoStack.length, 1);
+  s.running = true;
+  await assert.rejects(s.browseLibrary("games"), /assistant/);
+});
+test("save retry and durable local exit keep the intended Playground destination", async (t) => {
+  const { s, offline, disk } = harness(t);
+  s.writeCode("// keep target");
+  offline(true);
+  await s.browseLibrary("games");
+  assert.equal(s.projectBrowser, false);
+  assert.equal(s.libraryTarget, "games");
+  await s.browseProjects();
+  assert.equal(s.projectBrowser, false);
+  disk(true);
+  await s.browseProjects(true);
+  assert.equal(s.projectBrowser, false);
+  disk(false);
+  await s.browseProjects(true);
+  assert.equal(s.libraryView, "games");
+  assert.equal(s.projectBrowser, true);
+  s.navigate("editor");
+  s.writeCode("// retry to create");
+  await s.browseLibrary("create");
+  offline(false);
+  await s.browseProjects();
+  assert.equal(s.libraryView, "create");
+  assert.equal(s.projectBrowser, true);
 });

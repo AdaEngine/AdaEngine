@@ -1,4 +1,7 @@
-import { t } from "./localization.js";
+import { putAttachments, imagePreview } from "./attachments.js";
+import { creationOptions, creationContext } from "./creation.js";
+import { requireHostedAI } from "./ai-credits.js";
+import { t, LocalizedError } from "./localization.js";
 import { stream, decode, bytes } from "./platform.js";
 import { file, template, validate, scene, scenePath } from "./documents.js";
 import {
@@ -11,12 +14,12 @@ import { skills } from "./knowledge.js";
 import { sessionMessages, identity } from "./chat.js";
 import { sceneRevision } from "./scene-tools.js";
 import { annotationNumber } from "./annotations.js";
+import { mentionedSkills } from "./slash-commands.js";
 
 async function agentContext(studio, session) {
   const catalog = await skills(studio);
   const selected = new Set(session.skills || []);
-  const slash = studio.turnText?.match(/^\/([a-z0-9-]+)\b/)?.[1];
-  if (slash) selected.add(slash);
+  for (const id of mentionedSkills(studio.turnText)) selected.add(id);
   const loaded = catalog.filter((s) => selected.has(s.id));
   return `[Studio web host context — capabilities, not user authorization]
 Tool names in shared skills use dots; replace dots with underscores for this provider. files.read/write/list map to editor_file_read/editor_file_write/editor_project_files. Available tools are ONLY the supplied function schemas.
@@ -33,19 +36,64 @@ ${loaded
 [End Studio context]`;
 }
 export async function runAgent(studio, text, options = {}) {
-  if (studio.running || !text.trim()) return;
-  if (!studio.providerID || !studio.model?.tools) {
-    studio.settings = true;
+  if (studio.running || studio.admitting || studio.attachmentBusy) return;
+  const homeAttachments = !studio.document
+    ? [...(studio.homeAttachments || [])]
+    : [];
+  if (
+    !text.trim() &&
+    !homeAttachments.length &&
+    !(studio.session?.attachments || []).length
+  )
+    return;
+  if (!text.trim()) text = t("Use the attached files in this game.");
+  const creation = !studio.document
+    ? creationOptions(options.creation || studio.creation)
+    : null;
+  studio.admitting = true;
+  studio.emit();
+  try {
+    if (studio.billingMode === "ada" && studio.refreshAI) {
+      try {
+        await requireHostedAI(studio);
+      } catch (error) {
+        studio.settings = true;
+        studio.emit();
+        throw error;
+      }
+    }
+    if (!studio.providerID || !studio.model?.tools) {
+      studio.settings = true;
+      studio.emit();
+      throw new LocalizedError("Choose a model that supports tools");
+    }
+    if (studio.billingMode === "byok" && !studio.apiKey.trim()) {
+      studio.settings = true;
+      studio.emit();
+      throw new LocalizedError("Enter the provider API key");
+    }
+    if (!studio.document) {
+      const snapshot = template(creation.dimension, text.slice(0, 60));
+      if (homeAttachments.length)
+        putAttachments(snapshot, homeAttachments, "main", text);
+      await studio.createSnapshot(snapshot);
+    }
+  } finally {
+    if (
+      homeAttachments.length &&
+      studio.document &&
+      homeAttachments.every((item) =>
+        studio.snapshot.files.some((file) => file.path === item.path),
+      )
+    ) {
+      const adopted = new Set(homeAttachments.map((item) => item.id));
+      studio.homeAttachments = (studio.homeAttachments || []).filter(
+        (item) => !adopted.has(item.id),
+      );
+    }
+    studio.admitting = false;
     studio.emit();
-    throw new Error(t("Choose a model that supports tools"));
   }
-  if (studio.billingMode === "byok" && !studio.apiKey.trim()) {
-    studio.settings = true;
-    studio.emit();
-    throw new Error(t("Enter the provider API key"));
-  }
-  if (!studio.document)
-    await studio.createSnapshot(template(3, text.slice(0, 60)));
   const document = studio.document,
     session = structuredClone(
       studio.session || { id: "main", mode: "build", skills: [] },
@@ -85,7 +133,7 @@ export async function runAgent(studio, text, options = {}) {
             content:
               "Interrupted previous tool. Inspect current state; do not replay without checking.",
           });
-    let content = text;
+    let content = text + (creation ? creationContext(creation) : "");
     if (studio.entity)
       content += "\n[Selected entity]\n" + JSON.stringify(studio.entity);
     if (studio.latestCodeSelection)
@@ -110,24 +158,23 @@ export async function runAgent(studio, text, options = {}) {
       }
       return context;
     });
-    const attachmentImages = attachments
-      .filter(
-        (f) =>
-          /\.(png|jpe?g)$/i.test(f.path) &&
-          f.data.length < 500000 &&
-          studio.model?.vision,
-      )
-      .map(
-        (f) =>
-          `data:image/${f.path.endsWith(".png") ? "png" : "jpeg"};base64,${f.data}`,
-      );
-    for (const image of attachmentImages)
-      if (
-        images.length < 4 &&
-        images.reduce((sum, value) => sum + value.length, 0) + image.length <=
-          600000
-      )
-        images.push(image);
+    if (studio.model?.vision)
+      for (const asset of attachments.filter((file) =>
+        /\.(png|jpe?g)$/i.test(file.path),
+      )) {
+        const preview =
+          session.attachmentDetails?.[asset.path]?.preview ||
+          (asset.data.length < 140000
+            ? `data:image/${/\.png$/i.test(asset.path) ? "png" : "jpeg"};base64,${asset.data}`
+            : await imagePreview(bytes(asset.data), asset.path));
+        if (
+          images.length < 4 &&
+          images.reduce((sum, value) => sum + value.length, 0) +
+            preview.length <=
+            600000
+        )
+          images.push(preview);
+      }
     if (annotationContext.length)
       content +=
         "\n[Annotations: selected project elements, reference data; inspect current state before editing]\n" +
@@ -135,7 +182,16 @@ export async function runAgent(studio, text, options = {}) {
     if (attachments.length)
       content +=
         "\n[Attached project files]\n" +
-        attachments.map((f) => f.path).join("\n");
+        attachments
+          .map((f) =>
+            JSON.stringify({
+              path: f.path,
+              name: session.attachmentDetails?.[f.path]?.name,
+              kind: session.attachmentDetails?.[f.path]?.kind,
+            }),
+          )
+          .join("\n") +
+        "\nImages are included as visual inputs when supported. Inspect GLB metadata with editor_model_inspect and WAV metadata with editor_audio_inspect, then use these project assets by path. Do not interpret filenames as file contents.";
     append({
       role: "user",
       content,
@@ -143,10 +199,22 @@ export async function runAgent(studio, text, options = {}) {
         ? t("Form data sent to the agent")
         : text,
       ...(images.length ? { images } : {}),
+      ...(attachments.length
+        ? {
+            attachments: attachments.map((asset) => ({
+              path: asset.path,
+              name:
+                session.attachmentDetails?.[asset.path]?.name ||
+                asset.path.split("/").at(-1),
+              kind: session.attachmentDetails?.[asset.path]?.kind,
+            })),
+          }
+        : {}),
     });
     studio.updateChat?.((c) => {
       const live = c.sessions.find((s) => s.id === session.id);
       live.attachments = [];
+      live.attachmentDetails = {};
       if (!options.preserveDraft) live.annotations = [];
       if (!options.preserveDraft) live.draft = "";
     });
@@ -224,15 +292,25 @@ export async function runAgent(studio, text, options = {}) {
             usage.outputTokens += event.outputTokens || 0;
           }
           if (event.type === "complete") complete = true;
-          if (event.type === "error") failure = event.message;
+          if (event.type === "error")
+            failure =
+              billingMode === "codex"
+                ? new LocalizedError(
+                    "Local Codex request failed. Check the development server log.",
+                  )
+                : new LocalizedError(
+                    "Generation interrupted. Your saved project is available; check your AI credits before continuing.",
+                  );
           studio.emit();
         },
       );
       controller.signal.throwIfAborted();
       if (failure || !complete)
-        throw new Error(
+        throw (
           failure ||
-            t("Response interrupted. You can continue from the saved step."),
+          new LocalizedError(
+            "Response interrupted. You can continue from the saved step.",
+          )
         );
       studio.receiveUI?.(studio.streamText, messageID, session.id, true);
       append({
@@ -261,7 +339,7 @@ export async function runAgent(studio, text, options = {}) {
         let result;
         try {
           if (!available.some((t) => t.function.name === entry.name))
-            throw new Error("Tool not available in this mode");
+            throw new LocalizedError("Tool not available in this mode");
           const args = JSON.parse(call.function.arguments);
           await studio.requestTool?.(entry.name, args, controller.signal);
           controller.signal.throwIfAborted();
@@ -273,7 +351,7 @@ export async function runAgent(studio, text, options = {}) {
         }
         controller.signal.throwIfAborted();
         if (studio.document !== document)
-          throw new Error(t("A different project is open"));
+          throw new LocalizedError("A different project is open");
         const image =
           typeof result === "string" && result.startsWith("data:image/");
         append({
@@ -308,8 +386,8 @@ export async function runAgent(studio, text, options = {}) {
         });
     }
     if (!completed)
-      throw new Error(
-        "Достигнут лимит 40 шагов. Продолжите с сохранённого результата.",
+      throw new LocalizedError(
+        "The 40-step limit was reached. Continue from the saved result.",
       );
   } catch (e) {
     if (!controller.signal.aborted) studio.fail(e);
@@ -355,6 +433,7 @@ export async function runAgent(studio, text, options = {}) {
     studio.runningSessionID = null;
     studio.streamText = "";
     studio.emit();
+    if (billingMode === "ada") await studio.refreshAI?.();
     await studio.save(true);
   }
   return completed;
@@ -365,9 +444,9 @@ export async function runTool(studio, name, args) {
       return studio.snapshot.files.map((f) => f.path);
     case "editor_file_read": {
       const f = file(studio.snapshot, args.path);
-      if (!f) throw new Error("Файл не найден");
+      if (!f) throw new LocalizedError("File not found");
       if (bytes(f.data).length > 100000)
-        throw new Error("Файл слишком велик для текстового контекста");
+        throw new LocalizedError("The file is too large for text context");
       return decode(f.data);
     }
     case "editor_file_write":
@@ -394,10 +473,10 @@ export async function runTool(studio, name, args) {
             ["__proto__", "constructor", "prototype"].includes(k),
         )
       )
-        throw new Error("Invalid component field");
+        throw new LocalizedError("Invalid component field");
       studio.editScene((s) => {
         const e = s.entities.find((e) => e.id === args.entity);
-        if (!e) throw new Error("Объект не найден");
+        if (!e) throw new LocalizedError("Object not found");
         e.components[args.component] ??= {};
         e.components[args.component][args.field] = args.value;
       });
@@ -436,7 +515,7 @@ export async function runTool(studio, name, args) {
       return studio.preview.message("input", args);
     case "editor_play_capture":
       if (!studio.model?.vision)
-        throw new Error("Модель не поддерживает изображения");
+        throw new LocalizedError("This model does not support images");
       return studio.preview.message("capture");
     default:
       return extraTool(studio, name, args);

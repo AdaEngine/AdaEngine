@@ -8,6 +8,8 @@ const image = "data:image/jpeg;base64," + "A".repeat(90000);
 function harness() {
   globalThis.window = { addEventListener() {} };
   const s = new Studio();
+  s.billingMode = "byok";
+  s.apiKey = "fixture-key";
   s.document = new Document(template(3));
   s.changed = () => {};
   s.emit = () => {};

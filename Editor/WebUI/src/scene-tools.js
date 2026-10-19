@@ -1,3 +1,4 @@
+import { t, LocalizedError } from "./localization.js";
 import { file, scenePath, scene, clone } from "./documents.js";
 export async function sceneRevision(snapshot) {
   const digest = await crypto.subtle.digest(
@@ -14,7 +15,7 @@ const safe = (key) => {
     !key ||
     ["__proto__", "constructor", "prototype"].includes(key)
   )
-    throw new Error("Invalid scene key");
+    throw new LocalizedError("Invalid scene key");
   return key;
 };
 export function applyOperations(value, operations) {
@@ -23,10 +24,10 @@ export function applyOperations(value, operations) {
     !operations.length ||
     operations.length > 100
   )
-    throw new Error("Use 1–100 scene operations");
+    throw new LocalizedError("Use 1–100 scene operations");
   const entity = (id) => {
     const e = value.entities.find((e) => e.id === id);
-    if (!e) throw new Error("Entity not found: " + id);
+    if (!e) throw new LocalizedError("Entity not found: {0}", id);
     return e;
   };
   for (const op of operations) {
@@ -34,7 +35,7 @@ export function applyOperations(value, operations) {
     switch (op.op) {
       case "createEntity": {
         if (value.entities.some((e) => e.id === id))
-          throw new Error("Entity ID already exists");
+          throw new LocalizedError("Entity ID already exists");
         value.entities.push({
           id: id || crypto.randomUUID(),
           name: op.name,
@@ -49,7 +50,7 @@ export function applyOperations(value, operations) {
         break;
       case "setEntityEnabled":
         if (typeof op.enabled !== "boolean")
-          throw new Error("Expected boolean");
+          throw new LocalizedError("Expected boolean");
         entity(id).enabled = op.enabled;
         break;
       case "reparentEntity":
@@ -76,13 +77,13 @@ export function applyOperations(value, operations) {
         const e = entity(id),
           name = safe(op.typeName);
         if (op.op === "addComponent" && Object.hasOwn(e.components, name))
-          throw new Error("Component already exists");
+          throw new LocalizedError("Component already exists");
         if (
           !op.payload ||
           typeof op.payload !== "object" ||
           Array.isArray(op.payload)
         )
-          throw new Error("Expected full component payload");
+          throw new LocalizedError("Expected full component payload");
         e.components[name] = clone(op.payload);
         break;
       }
@@ -90,26 +91,26 @@ export function applyOperations(value, operations) {
         delete entity(id).components[safe(op.typeName)];
         break;
       default:
-        throw new Error("Unsupported scene operation: " + op.op);
+        throw new LocalizedError("Unsupported scene operation: {0}", op.op);
     }
   }
   if (value.entities.length > 4096)
-    throw new Error("Scene entity limit reached");
+    throw new LocalizedError("Scene entity limit reached");
 }
 export async function sceneApply(studio, args) {
   const document = studio.document,
     before = file(studio.snapshot, scenePath(studio.snapshot)).data;
   if (args.path && args.path !== scenePath(studio.snapshot))
-    throw new Error("Only the active project scene is available");
+    throw new LocalizedError("Only the active project scene is available");
   if (args.expectedRevision !== (await sceneRevision(studio.snapshot)))
-    throw new Error(
+    throw new LocalizedError(
       "Scene changed. Read editor.scene.get and refresh the revision.",
     );
   if (
     studio.document !== document ||
     file(studio.snapshot, scenePath(studio.snapshot)).data !== before
   )
-    throw new Error("Scene changed while validating revision");
+    throw new LocalizedError("Scene changed while validating revision");
   studio.editScene((s) => applyOperations(s, args.operations));
   return {
     path: scenePath(studio.snapshot),
@@ -128,28 +129,33 @@ export function spawnOperations(snapshot, { entityID, count, spacing }) {
     !Number.isFinite(spacing) ||
     Math.abs(spacing) > 100000
   )
-    throw new Error("Choose an existing NPC, count 1–100 and finite spacing");
+    throw new LocalizedError(
+      "Choose an existing NPC, count 1–100 and finite spacing",
+    );
   const ids = new Set([entityID]);
   for (let before = -1; before !== ids.size; ) {
     before = ids.size;
     for (const e of value.entities) if (ids.has(e.parent)) ids.add(e.id);
   }
   if (ids.size * count > 100)
-    throw new Error("Spawn may create at most 100 entities including children");
+    throw new LocalizedError(
+      "Spawn may create at most 100 entities including children",
+    );
   const operations = [];
   for (let index = 1; index <= count; index++) {
     const remap = new Map([...ids].map((id) => [id, crypto.randomUUID()]));
     for (const e of value.entities.filter((e) => ids.has(e.id))) {
       const components = clone(e.components);
       if (e.id === entityID) {
-        const t = components["AdaTransform.Transform"];
-        if (!t?.position) throw new Error("NPC requires a transform");
-        t.position[0] += spacing * index;
+        const transformValue = components["AdaTransform.Transform"];
+        if (!transformValue?.position)
+          throw new LocalizedError("NPC requires a transform");
+        transformValue.position[0] += spacing * index;
       }
       operations.push({
         op: "createEntity",
         id: remap.get(e.id),
-        name: e.name + " — копия",
+        name: t("{0} — copy", e.name),
         parentID: remap.get(e.parent) || e.parent,
         components,
         enabled: e.enabled,
@@ -170,7 +176,7 @@ export function colorValue(text) {
   };
   text = names[text?.toLowerCase()] || text;
   if (!/^#([a-f\d]{6}|[a-f\d]{8})$/i.test(text || ""))
-    throw new Error("Use #RRGGBB or #RRGGBBAA");
+    throw new LocalizedError("Use #RRGGBB or #RRGGBBAA");
   const n = text.slice(1);
   return {
     red: parseInt(n.slice(0, 2), 16) / 255,
@@ -192,7 +198,7 @@ export function colorOperations(
     !payload[fieldName] ||
     !("red" in payload[fieldName])
   )
-    throw new Error("Choose an existing registered color field");
+    throw new LocalizedError("Choose an existing registered color field");
   payload[fieldName] = colorValue(color);
   return [{ op: "setComponent", entityID, typeName, payload }];
 }

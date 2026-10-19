@@ -56,14 +56,14 @@ test("agent file and scene tools enter the same document undo history", async ()
   assert.equal(file(studio.snapshot, "Sources/Agent.ada"), undefined);
   await assert.rejects(
     runTool(studio, "editor_publish", {}),
-    /Недоступный инструмент/,
+    /Unavailable tool/,
   );
   await assert.rejects(
     runTool(studio, "editor_file_write", {
       path: "../escape.ada",
       content: "bad",
     }),
-    /Недопустимый/,
+    /Invalid/,
   );
 });
 test("agent clears running state even when appending to a full conversation fails", async () => {
@@ -90,5 +90,5 @@ test("agent clears running state even when appending to a full conversation fail
   assert.equal(studio.running, false);
   assert.equal(studio.agent, null);
   assert.equal(saved, true);
-  assert.match(failure, /История/);
+  assert.match(failure, /Chat history|История чата/);
 });

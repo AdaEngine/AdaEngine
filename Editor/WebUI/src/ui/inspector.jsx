@@ -1,8 +1,21 @@
+import { t } from "../localization.js";
 import React from "react";
 import { studio } from "./state.js";
 import { useState, useEffect } from "react";
 import { Icon, Mark, Button, act, entityIcon } from "./controls.jsx";
 
+const componentLabels = {
+  Transform: () => t("Transform"),
+  Camera: () => t("Camera"),
+  Mesh3DComponent: () => t("3D mesh"),
+  DirectionalLightComponent: () => t("Directional light"),
+  PointLightComponent: () => t("Point light"),
+  SpotLightComponent: () => t("Spot light"),
+  Sprite: () => t("Sprite"),
+  Audio: () => t("Audio"),
+  Model3DSource: () => t("3D model"),
+  SceneInstance: () => t("Scene instance"),
+};
 function Inspector() {
   const s = studio,
     e = s.entity;
@@ -16,7 +29,7 @@ function Inspector() {
         </h2>
         <Button
           icon="close"
-          label="Скрыть инспектор"
+          label={t("Hide inspector")}
           onClick={() => {
             s.inspector = false;
             s.emit();
@@ -27,21 +40,21 @@ function Inspector() {
         <div className="object-actions">
           <Button
             icon="focus"
-            label="Фокус на выбранном объекте"
+            label={t("Focus selected object")}
             onClick={() => s.editorCommand({ action: "focus" })}
           >
-            Фокус
+            {t("Focus")}
           </Button>
           <Button
             icon="plus"
-            label="Дублировать объект"
+            label={t("Duplicate object")}
             onClick={act(() => s.duplicateEntity())}
           >
-            Копия
+            {t("Duplicate")}
           </Button>
         </div>
         <label className="field-label">
-          Название
+          {t("Name")}
           <input
             value={e.name}
             onChange={(event) =>
@@ -61,8 +74,8 @@ function Inspector() {
                 name={component.includes("Transform") ? "move" : entityIcon(e)}
                 size={13}
               />
-              {component.split(".").at(-1) === "Transform"
-                ? "Трансформация"
+              {componentLabels[component.split(".").at(-1)]
+                ? componentLabels[component.split(".").at(-1)]()
                 : component.split(".").at(-1)}
             </h3>
             {Object.entries(fields).map(([name, value]) => (
@@ -79,34 +92,37 @@ function Inspector() {
           className="text-button danger"
           onClick={act(() => s.removeEntity())}
         >
-          <Icon name="trash" size={14} /> Удалить объект
+          <Icon name="trash" size={14} /> {t("Delete object")}
         </button>
         <small className="inspector-hint">
-          Выделенный объект передаётся ассистенту как контекст.
+          {t("The selected object is included in the assistant’s context.")}
         </small>
       </div>
     </section>
   );
 }
 const fieldLabels = {
-  position: "Позиция",
-  rotation: "Вращение",
-  scale: "Масштаб",
-  color: "Цвет",
-  mesh: "Форма",
-  size: "Размер",
-  metallic: "Металличность",
-  roughness: "Шероховатость",
-  intensity: "Яркость",
-  isActive: "Включена",
-  projection: "Проекция",
-  renderOrder: "Порядок",
-  castShadows: "Отбрасывает тени",
-  receiveShadows: "Принимает тени",
-  source: "Файл",
-  volume: "Громкость",
-  loops: "Повтор",
-  autoplay: "Автозапуск",
+  backgroundColor: () => t("Background color"),
+  radiance: () => t("Light color"),
+  tintColor: () => t("Tint color"),
+  position: () => t("Position"),
+  rotation: () => t("Rotation"),
+  scale: () => t("Scale"),
+  color: () => t("Color"),
+  mesh: () => t("Shape"),
+  size: () => t("Size"),
+  metallic: () => t("Metallic"),
+  roughness: () => t("Roughness"),
+  intensity: () => t("Intensity"),
+  isActive: () => t("Active"),
+  projection: () => t("Projection"),
+  renderOrder: () => t("Render order"),
+  castShadows: () => t("Cast shadows"),
+  receiveShadows: () => t("Receive shadows"),
+  source: () => t("File"),
+  volume: () => t("Volume"),
+  loops: () => t("Loop"),
+  autoplay: () => t("Autoplay"),
 };
 function Property({ name, value, onChange }) {
   const [draft, setDraft] = useState(JSON.stringify(value));
@@ -117,13 +133,17 @@ function Property({ name, value, onChange }) {
   if (Array.isArray(value) && value.every((n) => typeof n === "number"))
     return (
       <label className="field-label">
-        {fieldLabels[name] || name}
+        {fieldLabels[name] ? fieldLabels[name]() : name}
         <div className="vector-input">
           {value.map((n, i) => (
             <div key={i}>
               <span className={"axis-" + i}>{["X", "Y", "Z", "W"][i]}</span>
               <input
-                aria-label={`${fieldLabels[name] || name} ${["X", "Y", "Z", "W"][i]}`}
+                aria-label={t(
+                  "{0}, {1} axis",
+                  fieldLabels[name] ? fieldLabels[name]() : name,
+                  ["X", "Y", "Z", "W"][i],
+                )}
                 type="number"
                 step="0.1"
                 value={Number(n.toFixed(4))}
@@ -150,11 +170,11 @@ function Property({ name, value, onChange }) {
         .join("");
     return (
       <label className="field-label color-field">
-        {fieldLabels[name] || name}
+        {fieldLabels[name] ? fieldLabels[name]() : name}
         <span>
           <input
             type="color"
-            aria-label={fieldLabels[name] || name}
+            aria-label={fieldLabels[name] ? fieldLabels[name]() : name}
             value={hex}
             onChange={(e) => {
               const v = e.target.value;
@@ -174,7 +194,7 @@ function Property({ name, value, onChange }) {
   if (typeof value === "boolean")
     return (
       <label className="check-field">
-        {fieldLabels[name] || name}
+        {fieldLabels[name] ? fieldLabels[name]() : name}
         <input
           type="checkbox"
           checked={value}
@@ -184,7 +204,7 @@ function Property({ name, value, onChange }) {
     );
   return (
     <label className="field-label">
-      {fieldLabels[name] || name}
+      {fieldLabels[name] ? fieldLabels[name]() : name}
       <input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
