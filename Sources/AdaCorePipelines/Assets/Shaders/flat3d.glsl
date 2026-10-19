@@ -257,6 +257,16 @@ vec3 fresnelSchlick(float cosine, vec3 reflectanceAtNormal) {
 vec2 g_Clearcoat = vec2(0.0);
 vec3 g_CoatNormal = vec3(0.0, 0.0, 1.0);
 
+// The optional layers are compiled in only for materials that use them (ADA_CLEARCOAT, ADA_SHEEN, ADA_ANISOTROPY), which
+// keeps the common path as small as it was before the layers existed.
+bool hasClearcoat() {
+#ifdef ADA_CLEARCOAT
+    return g_Clearcoat.x > 0.0;
+#else
+    return false;
+#endif
+}
+
 // Share of the base layer's light that survives the coat at this view angle.
 float coatTransmission(float normalView) {
     return 1.0 - g_Clearcoat.x * fresnelSchlick(normalView, vec3(0.04)).x;
@@ -268,7 +278,11 @@ vec4 g_Sheen = vec4(0.0);
 const float SHEEN_ALBEDO = 0.4;
 
 bool hasSheen() {
+#ifdef ADA_SHEEN
     return max(g_Sheen.r, max(g_Sheen.g, g_Sheen.b)) > 0.0;
+#else
+    return false;
+#endif
 }
 
 // Share of the base layer's light that survives the sheen.
@@ -280,6 +294,14 @@ float sheenTransmission() {
 float g_Anisotropy = 0.0;
 vec3 g_AnisotropyT = vec3(1.0, 0.0, 0.0);
 vec3 g_AnisotropyB = vec3(0.0, 1.0, 0.0);
+
+bool hasAnisotropy() {
+#ifdef ADA_ANISOTROPY
+    return g_Anisotropy > 0.0;
+#else
+    return false;
+#endif
+}
 
 // UV shift from parallax occlusion mapping, applied to every material texture that uses the height map's UV set.
 vec2 g_ParallaxDelta = vec2(0.0);
@@ -363,7 +385,7 @@ vec3 environmentLighting(vec3 normal, vec3 viewDirection, vec3 baseColor, float 
     vec3 diffuseWeight = (vec3(1.0) - fresnel) * (1.0 - metallic);
     vec3 irradiance = texture(sampler2D(u_Irradiance, u_IBLSampler), environmentUV(worldNormal)).rgb;
     vec3 reflectionNormal = worldNormal;
-    if (g_Anisotropy > 0.0) {
+    if (hasAnisotropy()) {
         // Bend the reflection toward the stretched direction so the environment smears along it (Filament).
         vec3 anisotropicTangent = cross(g_AnisotropyB, viewDirection);
         vec3 anisotropicNormal = cross(anisotropicTangent, g_AnisotropyB);
@@ -379,7 +401,7 @@ vec3 environmentLighting(vec3 normal, vec3 viewDirection, vec3 baseColor, float 
         // Sheen under image-based lighting is approximated as a diffuse lobe with the average sheen albedo.
         result = result * sheenTransmission() + g_Sheen.rgb * SHEEN_ALBEDO * irradiance / PI * u_IBLParameters.y;
     }
-    if (g_Clearcoat.x > 0.0) {
+    if (hasClearcoat()) {
         // The coat reflects the environment along the geometric normal and dims the base layer beneath it.
         vec3 coatWorldNormal = normalize(mat3(u_EnvironmentInverseView) * g_CoatNormal);
         float coatNormalView = max(dot(g_CoatNormal, viewDirection), 0.0);
@@ -503,7 +525,7 @@ vec3 evaluateDirect(vec3 normal, vec3 viewDirection, vec3 lightDirection, vec3 b
         vec3 f0 = mix(u_Dielectric.rgb, baseColor, metallic);
         vec3 fresnel = fresnelSchlick(max(dot(halfway, viewDirection), 0.0), f0);
         vec3 specular;
-        if (g_Anisotropy > 0.0) {
+        if (hasAnisotropy()) {
             // Anisotropic GGX: roughness stretches along the tangent, so the highlight streaks along the bitangent.
             float normalHalfway = max(dot(normal, halfway), 0.0);
             float alpha = roughness * roughness;
@@ -525,7 +547,7 @@ vec3 evaluateDirect(vec3 normal, vec3 viewDirection, vec3 lightDirection, vec3 b
             base = base * sheenTransmission() + sheen * max(radiance, vec3(0.0)) * nl;
         }
     }
-    if (g_Clearcoat.x <= 0.0) { return base; }
+    if (!hasClearcoat()) { return base; }
     vec4 coat = clearcoatDirect(viewDirection, lightDirection, radiance);
     return base * coat.a + coat.rgb;
 }
@@ -665,7 +687,7 @@ void flat3d_fragment()
     if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { normal = -normal; }
     g_Sheen = vec4(max(u_Sheen.rgb, vec3(0.0)), clamp(u_Sheen.w, 0.07, 1.0));
     g_Anisotropy = clamp(u_Anisotropy.x, 0.0, 1.0);
-    if (g_Anisotropy > 0.0) {
+    if (hasAnisotropy()) {
         bool authored = Input.TextureFlags.w > 0.5;
         vec3 tangent = authored ? Input.ViewTangent.xyz : cotangentFrame(normalize(Input.ViewNormal), Input.ViewPosition, materialUV(u_UVSets.x, 0))[0];
         tangent = normalize(tangent - normal * dot(normal, tangent));
@@ -716,12 +738,12 @@ void flat3d_fragment()
     vec3 radiance = max(u_LightRadianceAmbient.rgb, vec3(0.0)) * max(u_LightDirectionIntensity.w, 0.0);
     // The sun term is multiplied by n.l, so surfaces facing away from it skip the cascade lookups. The clearcoat
     // follows the geometric normal and can still be lit there.
-    float shadowVisibility = (normalLight > 0.0 || g_Clearcoat.x > 0.0) ? directionalShadow(normal, lightDirection) : 1.0;
+    float shadowVisibility = (normalLight > 0.0 || hasClearcoat()) ? directionalShadow(normal, lightDirection) : 1.0;
     vec3 directLighting = evaluateDirect(normal, viewDirection, lightDirection, baseColor.rgb, metallic, roughness, radiance) * shadowVisibility;
     directLighting += additionalLighting(normal, viewDirection, baseColor.rgb, metallic, roughness);
     vec3 ambient = baseColor.rgb * (1.0 - metallic) * max(u_LightRadianceAmbient.w, 0.0);
     if (u_IBLParameters.x > 0.5) { ambient = environmentLighting(normal, viewDirection, baseColor.rgb, metallic, roughness); }
-    else if (g_Clearcoat.x > 0.0) { ambient *= coatTransmission(max(dot(g_CoatNormal, viewDirection), 0.0)); }
+    else if (hasClearcoat()) { ambient *= coatTransmission(max(dot(g_CoatNormal, viewDirection), 0.0)); }
     float occlusion = u_SurfaceFlags.y > 0.5 ? texture(sampler2D(u_OcclusionTexture, u_OcclusionSampler), materialUV(u_UVSets.w, 3)).r : 1.0;
     ambient *= mix(1.0, occlusion, u_SurfaceProperties.y);
     float emissiveVisibility = 1.0;

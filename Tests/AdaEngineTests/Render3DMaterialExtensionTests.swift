@@ -72,6 +72,35 @@ struct Render3DMaterialExtensionConstantTests {
         #expect(plain.bitPatterns != value.bitPatterns && value.bitPatterns != wild.bitPatterns)
     }
 
+    @Test func shaderFeaturesFollowTheLayersInUse() {
+        let material = PBRMaterial()
+        #expect(material.shaderFeatures.isEmpty && material.shaderFeatures.enablingMacros.isEmpty)
+        material.clearcoatFactor = 0.5
+        #expect(material.shaderFeatures == [.clearcoat])
+        material.sheenColorFactor = Vector3(0, 0.2, 0)
+        material.anisotropyStrength = 0.3
+        #expect(material.shaderFeatures == .all)
+        #expect(Set(material.shaderFeatures.enablingMacros) == ["ADA_CLEARCOAT", "ADA_SHEEN", "ADA_ANISOTROPY"])
+        material.clearcoatFactor = 0
+        material.anisotropyStrength = 0
+        #expect(material.shaderFeatures == [.sheen] && material.shaderFeatures.enablingMacros == ["ADA_SHEEN"])
+        // A roughness or rotation alone does not use a layer.
+        let inert = PBRMaterial()
+        inert.clearcoatRoughnessFactor = 0.4
+        inert.sheenRoughnessFactor = 0.4
+        inert.anisotropyRotation = 1
+        #expect(inert.shaderFeatures.isEmpty)
+    }
+
+    @Test func pipelineKeysSplitByFeaturesAndDefaultToThePlainShader() {
+        let vertex = VertexDescriptor()
+        let plain = PBR3DConfiguration(vertex: vertex, blended: false)
+        #expect(plain.features.isEmpty)
+        let coated = PBR3DConfiguration(vertex: vertex, blended: false, features: .clearcoat)
+        #expect(plain != coated && coated == PBR3DConfiguration(vertex: vertex, blended: false, features: .clearcoat))
+        #expect(Set([plain, coated, PBR3DConfiguration(vertex: vertex, blended: false, features: .all)]).count == 3)
+    }
+
     @Test func nonFiniteValuesFallBackToDefaults() {
         let material = PBRMaterial()
         material.ior = .nan

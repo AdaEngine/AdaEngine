@@ -83,6 +83,38 @@ public class PBRMaterial: Material, @unchecked Sendable {
     /// Rotation of the stretch direction from the surface tangent, in radians.
     public var anisotropyRotation: Float = 0 { didSet { uniformRevision &+= 1 } }
 
+    /// The optional shading layers a material needs. The main shader is compiled with only the layers a material uses;
+    /// the empty set is the plain shader, which is also the only one that has a shader cache and a web build.
+    public struct ShaderFeatures: OptionSet, Hashable, Sendable {
+        public let rawValue: UInt32
+        public init(rawValue: UInt32) { self.rawValue = rawValue }
+
+        public static let clearcoat = ShaderFeatures(rawValue: 1 << 0)
+        public static let sheen = ShaderFeatures(rawValue: 1 << 1)
+        public static let anisotropy = ShaderFeatures(rawValue: 1 << 2)
+
+        /// Every layer.
+        public static let all: ShaderFeatures = [.clearcoat, .sheen, .anisotropy]
+
+        /// Preprocessor names that switch each layer in this set on. Empty for the plain shader.
+        public var enablingMacros: [String] {
+            var macros: [String] = []
+            if contains(.clearcoat) { macros.append("ADA_CLEARCOAT") }
+            if contains(.sheen) { macros.append("ADA_SHEEN") }
+            if contains(.anisotropy) { macros.append("ADA_ANISOTROPY") }
+            return macros
+        }
+    }
+
+    /// The layers this material currently uses, from its factor values.
+    public var shaderFeatures: ShaderFeatures {
+        var features: ShaderFeatures = []
+        if clearcoatFactor > 0 { features.insert(.clearcoat) }
+        if max(sheenColorFactor.x, max(sheenColorFactor.y, sheenColorFactor.z)) > 0 { features.insert(.sheen) }
+        if anisotropyStrength > 0 { features.insert(.anisotropy) }
+        return features
+    }
+
     /// Changes whenever parameters in the shared PBR uniform snapshot are edited.
     @_spi(Internal) public private(set) var uniformRevision: UInt64 = 0
 

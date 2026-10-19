@@ -9,6 +9,7 @@ import AdaAssets
 import AdaECS
 import AdaRender
 import AdaUtils
+import Foundation
 import Math
 
 /// Per-instance data consumed by the flat 3D vertex pipeline.
@@ -158,12 +159,19 @@ public struct Opaque3DInstanceBuffers: Resource {
 /// Pipeline configurator for a simple unlit 3D mesh pass.
 public struct Flat3DPipeline: RenderPipelineConfigurator {
     private let shader: AssetHandle<ShaderModule>
+    private let variants = PBR3DShaderVariants()
 
     public init() {
         self.shader = ShaderModule.loadRequiredBundled(at: "Shaders/flat3d.glsl", from: .adaModule)
     }
 
     public func configurate(with configuration: VertexDescriptor) -> RenderPipelineDescriptor {
+        configurate(with: configuration, features: [])
+    }
+
+    /// A pipeline whose fragment shader only contains the shading layers in `features`.
+    public func configurate(with configuration: VertexDescriptor, features: PBRMaterial.ShaderFeatures) -> RenderPipelineDescriptor {
+        let shader = features.isEmpty ? shader : variants.shader(for: features, fallback: shader)
         var configuration = configuration
         if !configuration.attributes.containsAttribute(by: MeshDescriptor.textureCoordinates.id.name) {
             configuration.attributes[2] = .attribute(.vector2, name: "defaultTextureCoordinate", bufferIndex: 4, offset: 0)
@@ -194,7 +202,7 @@ public struct Flat3DPipeline: RenderPipelineConfigurator {
 
         var descriptor = RenderPipelineDescriptor(vertex: shader.asset.requiredShader(for: .vertex))
         descriptor.fragment = shader.asset.getShader(for: .fragment)
-        descriptor.debugName = "Flat 3D Pipeline"
+        descriptor.debugName = features.isEmpty ? "Flat 3D Pipeline" : "Flat 3D Pipeline \(features.rawValue)"
         descriptor.vertexDescriptor = configuration
         #if os(Android)
             descriptor.frontFaceWinding = .clockwise
@@ -211,5 +219,30 @@ public struct Flat3DPipeline: RenderPipelineConfigurator {
             RenderPipelineColorAttachmentDescriptor(format: .rgba_16f),
         ]
         return descriptor
+    }
+}
+
+
+/// Compiled main-pass shaders by the shading layers they include. A variant is compiled on first use and shared by every
+/// pipeline that needs it; if it fails to compile, the unspecialized shader is used instead.
+final class PBR3DShaderVariants: @unchecked Sendable {
+    private let lock = NSLock()
+    private var variants: [PBRMaterial.ShaderFeatures: AssetHandle<ShaderModule>] = [:]
+
+    func shader(for features: PBRMaterial.ShaderFeatures, fallback: AssetHandle<ShaderModule>) -> AssetHandle<ShaderModule> {
+        lock.lock()
+        defer { lock.unlock() }
+        if let existing = variants[features] {
+            return existing
+        }
+        let variant: AssetHandle<ShaderModule>
+        do {
+            variant = AssetHandle(try ShaderModule.createBundled(at: "Shaders/flat3d.glsl", from: .adaModule, defines: features.enablingMacros))
+        } catch {
+            assertionFailure("Main shader variant \(features.rawValue) failed to compile: \(error)")
+            variant = fallback
+        }
+        variants[features] = variant
+        return variant
     }
 }

@@ -179,12 +179,14 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
             return
         }
 
+        let isMotion = world.getResource(ActiveMotion3DPass.self)?.isEnabled == true
         let configuration = PBR3DConfiguration(
             vertex: part.vertexDescriptor,
             blended: (item.material as? PBRMaterial)?.alphaMode == .blend,
-            temporalDepth: view.components[RenderViewTarget.self]?.temporalUpscalingActive == true
+            temporalDepth: view.components[RenderViewTarget.self]?.temporalUpscalingActive == true,
+            // The motion shader has no shading layers, so its pipelines are not split by them.
+            features: isMotion ? [] : (item.material as? PBRMaterial)?.shaderFeatures ?? []
         )
-        let isMotion = world.getResource(ActiveMotion3DPass.self)?.isEnabled == true
         let pipeline: any RenderPipeline
         if isMotion {
             let pipelines = world.getRefResource(RenderPipelines<Motion3DPipeline>.self)

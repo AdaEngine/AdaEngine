@@ -825,6 +825,31 @@ the uniform in `Render3DMaterialExtensionConstantTests`, and in `Render3DGPUTest
 grows with its color and tints it, turning it off restores the frame, anisotropy changes and rotates the highlight and a half
 turn looks the same, plus the `pbr-sphere-sheen` and `pbr-sphere-anisotropy` golden frames (Metal).
 
+### Stage 2, fourth slice: main shader specialized by shading layer (2026-10-19)
+
+The third slice left layered materials costing about 8 percent of main-pass geometry even when no material used a layer.
+The main shader is now specialized by material:
+
+- `PBRMaterial.shaderFeatures` is the set of layers a material uses (`clearcoat`, `sheen`, `anisotropy`, derived from the
+  factors, so editing a factor at run time changes it). `PBR3DConfiguration.features` joins the pipeline key, and
+  `Flat3DPipeline` takes the matching fragment shader from `PBR3DShaderVariants`.
+- In `flat3d.glsl`, `hasClearcoat()`, `hasSheen()` and `hasAnisotropy()` are constant `false` unless `ADA_CLEARCOAT`,
+  `ADA_SHEEN` or `ADA_ANISOTROPY` is defined, so the plain shader has none of the layer code. Names that enable a layer, not
+  ones that remove it, so the file with no macros is the plain shader.
+- `ShaderModule.createBundled(at:from:defines:)` compiles a variant from the file's text. That bypasses the on-disk shader
+  cache, which is keyed by file and stage (its manifest, reflection and device-compiled entries would otherwise be overwritten
+  by every variant), so a variant compiles in the process on first use, and about 1 second on this machine. The plain shader,
+  used by almost every material, keeps the disk cache. The first attempt had the macros remove the layers, which made
+  the common variant a runtime compile too, and the GPU test suite went from 12 s to 51 s; it was reversed.
+
+**Result (1080p, Apple M-class, release).** `bare` main-pass geometry 1.92 ms with the layers in every material back to 1.77 ms,
+the level before any layer (32 lights: 2.40 to 2.17 ms). Layered materials pay the full layer cost only where they are drawn.
+
+Limits: WebAssembly builds ship precompiled WGSL and cannot specialize, so on the web there are no layers (the plain module is
+used); the motion and shadow passes do not use layers and are not split. The first draw of each new layer combination compiles
+a shader. Tests: `shaderFeaturesFollowTheLayersInUse`, `pipelineKeysSplitByFeaturesAndDefaultToThePlainShader`, and the existing
+clearcoat, sheen and anisotropy GPU tests, which now run through the variants (turning a layer off restores the plain frame).
+
 ## Validation requirements
 
 Use Swift Testing for logic (settings decoding, extension gating, budgets,
