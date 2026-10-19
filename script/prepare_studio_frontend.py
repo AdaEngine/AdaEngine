@@ -53,6 +53,8 @@ def prepare(output, ui=None):
     for file in ui.iterdir():
         if file.is_file():
             shutil.copy2(file, editor / file.name)
+        elif file.is_dir():
+            shutil.copytree(file, editor / file.name, dirs_exist_ok=True)
     # Old export artifacts may coexist for rollback; index.html has no reference to editor WASM.
     player = Path(output) / 'player/AdaWebPlayer.wasm'
     if player.is_file():
