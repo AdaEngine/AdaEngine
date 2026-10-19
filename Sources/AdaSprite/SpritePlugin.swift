@@ -18,12 +18,14 @@ public struct SpritePlugin: Plugin {
 
     public func setup(in app: AppWorlds) {
         Sprite.registerComponent()
+        SpriteAnimator.registerComponent()
         RuntimeTypeRegistry.registerComponent(ParticleEmitter.self, names: ["ParticleEmitter"])
         AssetsManager.registerAssetType(ParticleEffect.self)
 
         app
             .addSystem(UpdateBoundingsSystem.self, on: .postUpdate)
             .addSystem(ParticleSimulationSystem.self, on: .postUpdate)
+            .addSystem(SpriteAnimationSystem.self, on: .update)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
