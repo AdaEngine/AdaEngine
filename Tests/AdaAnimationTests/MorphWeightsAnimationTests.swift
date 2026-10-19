@@ -138,6 +138,13 @@ struct MorphWeightsAnimationTests {
     }
 
     @Test
+    func onlyNodesSomeClipAnimatesAreReportedAsAnimated() throws {
+        #expect(try makePlayer().animatedMorphNodes == [0])
+        let still = try SkeletalAnimationPlayer(rig: makeRig(), clips: [SkeletalAnimationClip(name: "Still", tracks: [])])
+        #expect(still.animatedMorphNodes.isEmpty, "A rig whose clips animate no weights must leave entity weights alone.")
+    }
+
+    @Test
     func weightTracksCountTowardTheClipDuration() throws {
         #expect(try clip("Long", from: [0, 0], to: [1, 1], duration: 2.5).duration == 2.5)
     }

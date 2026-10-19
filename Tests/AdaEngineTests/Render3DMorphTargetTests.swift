@@ -84,6 +84,15 @@ struct Render3DMorphTargetSelectionTests {
         #expect(written.weights == [0, 0.75])
     }
 
+    @Test func modelSourceKeepsAuthoredMorphWeightsAndDecodesOlderScenes() throws {
+        let source = Model3DSource(source: "model.glb", morphWeights: ["smile": 0.5, "blink": 1])
+        let decoded = try JSONDecoder().decode(Model3DSource.self, from: JSONEncoder().encode(source))
+        #expect(decoded == source && decoded.morphWeights == ["smile": 0.5, "blink": 1])
+        let older = try JSONDecoder().decode(Model3DSource.self, from: Data(#"{"source":"a.glb","animation":"","autoplay":false,"repeats":true}"#.utf8))
+        #expect(older.morphWeights.isEmpty && older.source == "a.glb")
+        #expect(Model3DSource(source: "a.glb") != source && Model3DSource(source: "model.glb", morphWeights: ["smile": 0.6]) != source)
+    }
+
     @Test func componentFindsTargetsByName() {
         var component = MorphWeights3DComponent(weights: [0, 0.5], targetNames: ["smile", "blink"])
         #expect(component.weight(named: "blink") == 0.5 && component.weight(named: "frown") == nil)
@@ -400,6 +409,31 @@ extension Render3DGPUTests {
             root.components[ModelAnimation3DComponent.self] = finished
             _ = try await scene.render(.none, frames: 2)
             #expect(mesh.components[MorphWeights3DComponent.self]?.weights == [1])
+        }
+
+        @Test(.enabled(if: Render3DDebugViewGPUTests.enabled))
+        func authoredWeightsStartTheInstanceAndYieldToAnimation() async throws {
+            let scene = try await Render3DDebugViewGPUTests.makeScene()
+            // A rigged model whose clips do not animate weights: the authored weight must survive the animation system.
+            let still = try Self.skinnedMorphModel()
+            // The owner carries the same reference, as in a scene; otherwise the source system treats the instance as stale.
+            let reference = Model3DSource(source: "x", morphWeights: ["shift": 0.4, "unknown": 1])
+            let owner = scene.app.main.spawn("Owner")
+            owner.components[Model3DSource.self] = reference
+            let root = try reference.instantiate(still, in: scene.app.main, under: owner)
+            let mesh = try #require(Self.morphedEntity(under: root))
+            #expect(mesh.components[MorphWeights3DComponent.self]?.weights == [0.4], "A name the model does not have is ignored.")
+            _ = try await scene.render(.none, frames: 4)
+            #expect(mesh.components[MorphWeights3DComponent.self]?.weights == [0.4], "Rest weights from the player must not overwrite authored ones.")
+            // A model whose clip animates the weights: the clip takes over on the first pose.
+            let animated = try Self.skinnedMorphModel(animated: true)
+            let animatedReference = Model3DSource(source: "y", animation: "Open", autoplay: false, morphWeights: ["shift": 0.4])
+            let animatedOwner = scene.app.main.spawn("Animated owner")
+            animatedOwner.components[Model3DSource.self] = animatedReference
+            let animatedRoot = try animatedReference.instantiate(animated, in: scene.app.main, under: animatedOwner)
+            let animatedMesh = try #require(Self.morphedEntity(under: animatedRoot))
+            _ = try await scene.render(.none, frames: 4)
+            #expect(animatedMesh.components[MorphWeights3DComponent.self]?.weights == [0], "A clip that animates the weights owns them.")
         }
 
         private static func morphedEntity(under root: Entity) -> Entity? {

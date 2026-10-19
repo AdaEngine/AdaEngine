@@ -37,9 +37,14 @@ public struct Model3DSource: Codable, Equatable, Sendable {
     public var lod: Model3DSourceLOD?
     /// Import settings for MagicaVoxel (`.vox`) sources; ignored for other formats.
     public var voxel: VoxelImportSettings?
+    /// Morph target weights by target name, applied to every mesh of the model that has a target of that name. They are the
+    /// weights the instance starts with and keeps unless an animation clip animates that mesh's weights.
+    public var morphWeights: [String: Float]
 
     public init(source: String = "", animation: String = "", autoplay: Bool = false, repeats: Bool = true,
-                animationGraph: AnimationGraph? = nil, lod: Model3DSourceLOD? = nil, voxel: VoxelImportSettings? = nil) {
+                animationGraph: AnimationGraph? = nil, lod: Model3DSourceLOD? = nil, voxel: VoxelImportSettings? = nil,
+                morphWeights: [String: Float] = [:]) {
+        self.morphWeights = morphWeights
         self.voxel = voxel
         self.source = source
         self.animation = animation
@@ -47,6 +52,23 @@ public struct Model3DSource: Codable, Equatable, Sendable {
         self.repeats = repeats
         self.animationGraph = animationGraph
         self.lod = lod
+    }
+
+    private enum CodingKeys: CodingKey {
+        case source, animation, autoplay, repeats, animationGraph, lod, voxel, morphWeights
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        source = try container.decode(String.self, forKey: .source)
+        animation = try container.decode(String.self, forKey: .animation)
+        autoplay = try container.decode(Bool.self, forKey: .autoplay)
+        repeats = try container.decode(Bool.self, forKey: .repeats)
+        animationGraph = try container.decodeIfPresent(AnimationGraph.self, forKey: .animationGraph)
+        lod = try container.decodeIfPresent(Model3DSourceLOD.self, forKey: .lod)
+        voxel = try container.decodeIfPresent(VoxelImportSettings.self, forKey: .voxel)
+        // Scenes written before morph targets have no weights.
+        morphWeights = try container.decodeIfPresent([String: Float].self, forKey: .morphWeights) ?? [:]
     }
 
     /// The path the model asset is loaded from: ``source`` plus the import settings of a `.vox` file as an asset query.
@@ -74,6 +96,19 @@ public struct Model3DSource: Codable, Equatable, Sendable {
             try animationGraph.validate(rig: rig, clips: model.animationClips)
         }
         let root = model.instantiate(in: world)
+        if !morphWeights.isEmpty {
+            var pending = [root]
+            while let node = pending.popLast() {
+                if var component = node.components[MorphWeights3DComponent.self] {
+                    var changed = false
+                    for (name, weight) in morphWeights where weight.isFinite {
+                        if component.setWeight(weight, named: name) { changed = true }
+                    }
+                    if changed { node.components[MorphWeights3DComponent.self] = component }
+                }
+                pending.append(contentsOf: node.children)
+            }
+        }
         if var animationComponent = root.components[ModelAnimation3DComponent.self], animationGraph != nil || !animation.isEmpty {
             if let animationGraph {
                 try animationComponent.player.play(animationGraph, transitionDuration: 0)

@@ -138,9 +138,10 @@ public struct SkeletalAnimation3DSystem {
                     if transform.wrappedValue != next { transform.wrappedValue = next }
                 }
                 for (index, component) in morphByRoot[root.id] ?? [] {
-                    guard value.player.morphWeights.indices.contains(index) else { continue }
+                    guard value.player.morphWeights.indices.contains(index), value.player.animatedMorphNodes.contains(index) else { continue }
                     let weights = value.player.morphWeights[index]
-                    // Only nodes the animation drives (a matching, non-empty set of weights) are written.
+                    // Only nodes some clip animates are written, so weights authored on a model (Model3DSource.morphWeights)
+                    // survive on the others. The weights must also match the node's targets.
                     if !weights.isEmpty, component.wrappedValue.weights.count == weights.count, component.wrappedValue.weights != weights {
                         component.wrappedValue.weights = weights
                     }

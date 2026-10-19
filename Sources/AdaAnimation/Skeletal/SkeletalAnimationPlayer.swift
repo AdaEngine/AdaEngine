@@ -19,6 +19,8 @@ public struct SkeletalAnimationPlayer: Sendable {
     public private(set) var globalTransforms: [Transform3D]
     /// Morph target weights by rig node: the weights of the mesh on that node, or an empty array for a node without morph targets.
     public private(set) var morphWeights: [[Float]]
+    /// The rig nodes whose morph weights any clip animates. Other nodes keep whatever weights their entity was given.
+    public let animatedMorphNodes: Set<Int>
     private var transitionSource: [SkeletalJointPose] = []
     private var transitionMorphSource: [[Float]] = []
     private var transitionDuration: Double = 0
@@ -43,6 +45,7 @@ public struct SkeletalAnimationPlayer: Sendable {
         self.localTransforms = rig.nodes.map(\.restMatrix)
         self.globalTransforms = Array(repeating: .identity, count: rig.nodes.count)
         self.morphWeights = rig.nodes.map { $0.morphRestWeights ?? [] }
+        self.animatedMorphNodes = Set(clips.flatMap { $0.morphTracks.map(\.nodeIndex) })
         evaluate()
     }
 
