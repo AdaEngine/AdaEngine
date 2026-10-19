@@ -304,7 +304,7 @@ Each item needs its own short requirements note before implementation.
 - [x] Stage 3: morph-target asset, glTF import and GPU evaluation (see "Stage 3, first slice").
 - [x] Stage 3: morph with skinning, shadows, motion vectors and bounds.
 - [x] Stage 3: animated weights (clips, crossfades and the animation graph) and AdaScript access (see "Stage 3, second slice").
-- [ ] Stage 3: Editor panel for morph weights.
+- [x] Stage 3: Editor panel for morph weights (see "Stage 3, third slice").
 - [ ] Stage 4: OIT mode with sorted fallback.
 - [ ] Stage 4: transmission/volume pass.
 - [x] Stage 5: distance/height fog (`Fog3D` in `Environment3D`, applied in the composite pass; see "Stage 5, first slice").
@@ -952,6 +952,31 @@ and Codable tests cover the component.
 
 Not done: an Editor panel (the Editor package keeps its own component catalog and builds separately) and animating weights from keyframe
 `AdaAnimation` clips (only glTF clips and the skeletal graph drive weights); an AdaScript sample.
+
+### Stage 3, third slice: authored weights and the Editor panel (2026-10-19)
+
+**Where weights live in a scene.** A model in a scene is a `Model3DSource` that instantiates a hierarchy at run time, so the weight
+components exist only on generated children. `Model3DSource.morphWeights` (target name to weight, absent in older scenes) is applied at
+instantiation to every mesh with a target of that name, which is what an Editor can author. They are the weights the instance
+starts with and keeps unless a clip animates that mesh's weights: `SkeletalAnimation3DSystem` now writes player weights only to
+nodes some clip animates (`SkeletalAnimationPlayer.animatedMorphNodes`). Before that, a rigged model's rest weights from the file
+would have overwritten authored ones on the first frame.
+
+**Editor.** The Animator panel has a Morph Targets mode next to the skeletal graph and keyframes. It loads the model, lists its *named*
+targets (a model's unnamed targets are counted and reported as not addressable from a scene) with one slider each from 0 to 1,
+shows the result live in the preview (`EditorModelAssetPreviewModel.morphWeights`), and applies it as one undoable scene transaction
+(`setMorphWeights`), stored as a structured `morphWeights` map on the Model 3D component (a weight equal to the file's default is not an
+override, and an empty map removes the key). Reset clears the overrides. Names the model does not have are dropped when it loads.
+
+**Tests (Editor package, built with Xcode's toolchain).** Six run and pass: the model (targets, defaults, clamping, unnamed targets), the payload,
+a scene transaction that saves, reopens, decodes through the component registry, undoes, redoes and clears, the preview applying and
+undoing weights, and the weight list drawing one named slider per target. A seventh (`loaderAppliesAuthoredWeights`) opens the saved scene
+through `EditorSceneFileLoader` and checks the instantiated entity's weights; it did not run here, because on this machine any Editor test that
+goes through that loader ends the test process silently, the existing `EditorAnimationGraphTests` scene round trip included. The same behavior is
+covered on the runtime side by `authoredWeightsStartTheInstanceAndYieldToAnimation`.
+
+Not done: slider interaction is covered through the model and workbench, not by driving the slider with simulated pointer events; the Environment 3D inspector does not yet list the fog, light-shaft, tiled-light or shadow-cache settings added earlier in this work; weights
+cannot be keyframed in the Editor's keyframe animator (only glTF clips and the skeletal graph animate them).
 
 ## Validation requirements
 

@@ -322,6 +322,7 @@ enum EditorComponentRegistry {
         AssetsManager.registerAssetType(SpineSkeleton.self)
         RuntimeTypeRegistry.registerComponent(AudioSource.self, names: ["AudioSource"], makeDefault: { AudioSource() })
         ModelAnimationPlayback3DComponent.registerComponent()
+        MorphWeights3DComponent.registerComponent()
         CharacterController3DComponent.registerComponent()
         CameraCollision3DComponent.registerComponent()
         RuntimeTypeRegistry.registerComponent(UIComponent.self, names: ["UIComponent"])

@@ -1655,5 +1655,14 @@
   "Save annotation": "Сохранить аннотацию",
   "Edit annotation #{0}: {1}": "Редактировать аннотацию №{0}: {1}",
   "Ready to send together: {0}": "Будут отправлены вместе: {0}",
-  "This note was edited in the composer. Edit its text there or remove it before replacing it.": "Текст замечания изменён в композере. Отредактируйте его там или удалите аннотацию перед заменой."
+  "This note was edited in the composer. Edit its text there or remove it before replacing it.": "Текст замечания изменён в композере. Отредактируйте его там или удалите аннотацию перед заменой.",
+  "Morph Targets": "Цели морфинга",
+  "MORPH TARGETS": "ЦЕЛИ МОРФИНГА",
+  "Loading morph target model…": "Загрузка модели с целями морфинга…",
+  "This model has no named morph targets.": "У этой модели нет именованных целей морфинга.",
+  "Targets without a name cannot be set from a scene.": "Цели без имени нельзя задать из сцены.",
+  "Applied to scene. Save the scene to keep these weights.": "Применено к сцене. Сохраните сцену, чтобы сохранить эти веса.",
+  "Morph weights cleared.": "Веса морфинга сброшены.",
+  "Morph weights applied": "Веса морфинга применены",
+  "Morph weights cleared": "Веса морфинга сброшены"
 }

@@ -4,7 +4,8 @@ import Math
 
 struct EditorAnimationPanel: View {
     let viewModel: EditorViewModel
-    @State private var usesSkeletalGraph = true
+    private enum Mode { case skeletalGraph, morphTargets, keyframes }
+    @State private var mode = Mode.skeletalGraph
 
     @Environment(\.metrics) private var metrics
     @Environment(\.theme) private var theme
@@ -13,12 +14,15 @@ struct EditorAnimationPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             if let target = viewModel.skeletalAnimationTarget {
                 HStack(spacing: 8) {
-                    cycleButton(title: "Skeletal Graph", identifier: "AdaEditor.Animator.GraphMode") { usesSkeletalGraph = true }
-                    cycleButton(title: "Keyframes", identifier: "AdaEditor.Animator.KeyframeMode") { usesSkeletalGraph = false }
+                    cycleButton(title: "Skeletal Graph", identifier: "AdaEditor.Animator.GraphMode") { mode = .skeletalGraph }
+                    cycleButton(title: "Morph Targets", identifier: "AdaEditor.Animator.MorphMode") { mode = .morphTargets }
+                    cycleButton(title: "Keyframes", identifier: "AdaEditor.Animator.KeyframeMode") { mode = .keyframes }
                     Spacer()
                 }.padding(6)
-                if usesSkeletalGraph {
+                if mode == .skeletalGraph {
                     EditorSkeletalAnimatorPanel(viewModel: viewModel, target: target).id(target.documentID + target.entityID)
+                } else if mode == .morphTargets {
+                    EditorMorphTargetsPanel(viewModel: viewModel, target: target).id(target.documentID + target.entityID)
                 } else {
                     panelToolbar
                     panelContent
