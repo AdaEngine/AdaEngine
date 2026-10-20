@@ -38,8 +38,8 @@
             let depthStencilState = Self.makeDepthStencilState(from: descriptor)
 
             var reflection = ShaderReflectionData()
-            reflection.merge(descriptor.vertex.reflectionData)
-            if let fragment = descriptor.fragment { reflection.merge(fragment.reflectionData) }
+            reflection.merge(Self.bindingReflection(for: descriptor.vertex))
+            if let fragment = descriptor.fragment { reflection.merge(Self.bindingReflection(for: fragment)) }
             let bindingKinds: [[Int: WGPUBindingKind]] = reflection.descriptorSets.map { set in
                 var kinds: [Int: WGPUBindingKind] = [:]
                 for binding in set.uniformsBuffers.keys { kinds[binding] = .uniformBuffer }
@@ -112,6 +112,17 @@
                     )
                 #endif
             }
+        }
+
+        /// Native auto-layout uses the translated WGSL interface, which can prune GLSL
+        /// resources. Preserve original SPIR-V member metadata elsewhere for materials.
+        private static func bindingReflection(for shader: Shader) -> ShaderReflectionData {
+            #if !WASM
+                if case let .code(source) = shader.source {
+                    return WGSLReflection.parse(from: source, stage: shader.stage, entryPoint: shader.entryPoint)
+                }
+            #endif
+            return shader.reflectionData
         }
 
         var cachedBindGroupCount: Int { bindingLock.withLock { bindingCache.count } }

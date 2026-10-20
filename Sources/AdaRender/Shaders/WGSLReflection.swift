@@ -2,8 +2,9 @@ import Foundation
 
 /// Reflection for generated WGSL sidecars used by browser startup.
 enum WGSLReflection {
-    static func parse(from source: String, stage: ShaderStage) -> ShaderReflectionData {
+    static func parse(from source: String, stage: ShaderStage, entryPoint: String? = nil) -> ShaderReflectionData {
         var reflection = ShaderReflectionData()
+        let usedNames = entryPoint.map { reachableNames(in: source, entryPoint: $0) }
         let stageFlag = ShaderStageFlags(shaderStage: stage)
         let pattern = #"@group\(\s*(\d+)u?\s*\)\s*@binding\(\s*(\d+)u?\s*\)\s*var(?:<([^>]+)>)?\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^;]+);"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else {
@@ -30,6 +31,9 @@ enum WGSLReflection {
                 addressSpace = ""
             }
             let name = String(source[nameRange])
+            if let usedNames, !usedNames.contains(name) {
+                continue
+            }
             let type = String(source[typeRange])
 
             reflection.ensureDescriptorSet(at: group)
@@ -69,6 +73,66 @@ enum WGSLReflection {
         }
 
         return reflection
+    }
+
+    /// Dawn's automatic layout includes only globals statically accessed by this entry point.
+    /// Tint emits ordinary named functions; traverse their token references rather than
+    /// treating declarations in dead helper functions as live bindings.
+    private static func reachableNames(in source: String, entryPoint: String) -> Set<String> {
+        let chars = Array(source)
+        var tokens: [String] = []
+        var cursor = 0
+        while cursor < chars.count {
+            if chars[cursor] == "/", cursor + 1 < chars.count, chars[cursor + 1] == "/" {
+                while cursor < chars.count, chars[cursor] != "\n" { cursor += 1 }
+            } else if chars[cursor] == "/", cursor + 1 < chars.count, chars[cursor + 1] == "*" {
+                cursor += 2
+                var depth = 1
+                while cursor + 1 < chars.count, depth > 0 {
+                    if chars[cursor] == "/", chars[cursor + 1] == "*" {
+                        depth += 1; cursor += 2
+                    } else if chars[cursor] == "*", chars[cursor + 1] == "/" {
+                        depth -= 1; cursor += 2
+                    } else {
+                        cursor += 1
+                    }
+                }
+            } else if chars[cursor].isLetter || chars[cursor] == "_" {
+                let start = cursor
+                cursor += 1
+                while cursor < chars.count, chars[cursor].isLetter || chars[cursor].isNumber || chars[cursor] == "_" { cursor += 1 }
+                tokens.append(String(chars[start..<cursor]))
+            } else {
+                if chars[cursor] == "{" || chars[cursor] == "}" { tokens.append(String(chars[cursor])) }
+                cursor += 1
+            }
+        }
+        var bodies: [String: Set<String>] = [:]
+        cursor = 0
+        while cursor + 1 < tokens.count {
+            guard tokens[cursor] == "fn" else { cursor += 1; continue }
+            let name = tokens[cursor + 1]
+            cursor += 2
+            while cursor < tokens.count, tokens[cursor] != "{" { cursor += 1 }
+            var depth = 0
+            var names: Set<String> = []
+            repeat {
+                guard cursor < tokens.count else { break }
+                let token = tokens[cursor]
+                if token == "{" { depth += 1 } else if token == "}" { depth -= 1 } else { names.insert(token) }
+                cursor += 1
+            } while depth > 0
+            bodies[name] = names
+        }
+        var pending = [entryPoint]
+        var visited: Set<String> = []
+        var result: Set<String> = []
+        while let name = pending.popLast() {
+            guard visited.insert(name).inserted, let body = bodies[name] else { continue }
+            result.formUnion(body)
+            pending.append(contentsOf: body.filter { bodies[$0] != nil && !visited.contains($0) })
+        }
+        return result
     }
 }
 

@@ -3,13 +3,31 @@ import Testing
 
 @Suite("Generated WGSL bindings")
 struct WGSLReflectionTests {
+    @Test func autoLayoutFollowsOnlyEntryPointReachableHelpers() {
+        let source = """
+            @group(0) @binding(0) var<uniform> used: vec4f;
+            @group(0) @binding(1) var<uniform> dead: vec4f;
+            @group(1) @binding(2) var<uniform> other: vec4f;
+            fn helper() -> vec4f { return used; }
+            fn deadHelper() -> vec4f { return dead; }
+            @fragment fn main() -> @location(0) vec4f { /* deadHelper(); */ return helper(); }
+            @fragment fn second() -> @location(0) vec4f { return other; }
+            """
+        let main = WGSLReflection.parse(from: source, stage: .fragment, entryPoint: "main")
+        #expect(Set(main.shaderBuffers.keys) == ["used"])
+        #expect(main.descriptorSets.count == 1)
+        let second = WGSLReflection.parse(from: source, stage: .fragment, entryPoint: "second")
+        #expect(Set(second.shaderBuffers.keys) == ["other"])
+        #expect(WGSLReflection.parse(from: source, stage: .fragment).shaderBuffers.count == 3)
+    }
+
     @Test(arguments: ["0", "0u", " 0u "])
     func recognizesTintUnsignedBindings(group: String) {
         let source = """
-        @group(\(group)) @binding(2u) var<uniform> view: GlobalView;
-        @group(\(group)) @binding(0u) var image: texture_2d<f32>;
-        @group(\(group)) @binding(1u) var imageSampler: sampler;
-        """
+            @group(\(group)) @binding(2u) var<uniform> view: GlobalView;
+            @group(\(group)) @binding(0u) var image: texture_2d<f32>;
+            @group(\(group)) @binding(1u) var imageSampler: sampler;
+            """
         let reflection = WGSLReflection.parse(from: source, stage: .fragment)
         #expect(reflection.descriptorSets.count == 1)
         #expect(reflection.shaderBuffers["view"]?.binding == 2)

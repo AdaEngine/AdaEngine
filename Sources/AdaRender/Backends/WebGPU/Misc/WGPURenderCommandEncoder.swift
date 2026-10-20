@@ -402,6 +402,7 @@
             while remainingSets != 0 {
                 let setIndex = remainingSets.trailingZeroBitCount
                 remainingSets &= remainingSets - 1
+                guard pipeline.bindingKinds.indices.contains(setIndex), !pipeline.bindingKinds[setIndex].isEmpty else { continue }
                 guard let resources = bindGroupResources[setIndex] else {
                     continue
                 }

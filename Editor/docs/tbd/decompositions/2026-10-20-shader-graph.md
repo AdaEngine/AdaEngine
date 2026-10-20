@@ -344,3 +344,16 @@ budgets are estimates, not permission to hide implementation in generated files.
 - Graph-generated GLSL/WGSL, GPU pixels, Studio UI/app interaction, mobile,
   Windows/Linux and exported-game validation remain for their corresponding
   slices. No claim of a working Shader Graph editor is made by slice 1.
+
+### WebGPU auto-layout prerequisite (during canvas work)
+
+- Native Dawn auto-layout prunes resources unreachable from a shader entry point.
+  Pipeline binding layouts now follow the generated WGSL call graph; empty groups
+  are not submitted. Original SPIR-V member metadata remains available to materials.
+- Fresh Tint/WebGPU graph PBR parameter/texture and directional/local alpha-shadow
+  pixel checks pass (`/tmp/adaengine-shader-graph-webgpu-focused.log`).
+- WGSL reflection reachability tests and stock WebGPU debug-view golden frames pass
+  (`/tmp/adaengine-shader-graph-webgpu-reflection.log`).
+- The full WebGPU script additionally exposed an existing unequal Metal/WebGPU
+  golden-reference filename inventory; this is tracked separately from passing
+  graph pixels and is not waived by the focused checks.
