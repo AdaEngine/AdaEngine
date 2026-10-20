@@ -616,6 +616,11 @@ Guides: [Notifications.md](Documentation/Notifications.md),
 
 ## Confirmed boundaries and incomplete paths
 
+- Shader Graph currently provides a versioned `ShaderGraph` value, a
+  `.shadergraph` asset envelope and validated typed IR in `AdaRender`. Shader
+  code generation, graph-material rendering and the Studio graph editor are
+  subsequent increments, not existing capabilities. See
+  [ShaderGraph.md](Documentation/ShaderGraph.md) and `ShaderGraphTests`.
 - `EditorDistribution` gates capabilities: Swift projects require standalone;
   App Store distributions expose AdaScript templates. External process tooling
   and local ACP agents must not be assumed available on iOS.
