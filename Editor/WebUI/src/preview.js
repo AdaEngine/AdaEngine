@@ -44,6 +44,18 @@ export class Preview {
           this.onEditorEvent?.(event.data.type, event.data.value);
         return;
       }
+      if (event.data.event === "runtime-diagnostics") {
+        if (
+          event.data.revision === this.editorRevision &&
+          Array.isArray(event.data.diagnostics)
+        )
+          this.onDiagnostics?.(
+            event.data.diagnostics
+              .slice(-30)
+              .map((value) => String(value).slice(0, 2000)),
+          );
+        return;
+      }
       const entry = this.pending.get(event.data.id);
       if (!entry) return;
       this.pending.delete(event.data.id);

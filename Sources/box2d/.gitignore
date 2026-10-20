@@ -5,8 +5,13 @@ settings.ini
 .vs/
 .cap
 .DS_Store
+.build/
 CMakeUserPresets.json
 .cache/
 .idea/
-.build/
-.swiftpm/
+.tmp/
+*.b2rec
+zig-out/
+.zig-cache/
+zig-pkg
+__pycache__

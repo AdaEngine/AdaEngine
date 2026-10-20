@@ -1,8 +1,19 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { currentLanguage } from "../localization.js";
-import { promptCompletion } from "../prompt-completion.js";
+import {
+  promptCompletion,
+  completionEligible,
+  completionLanguage,
+  requestPromptCompletion,
+} from "../prompt-completion.js";
 
-export function usePromptCompletion(input, text, updateDraft, enabled) {
+export function usePromptCompletion(
+  input,
+  text,
+  updateDraft,
+  enabled,
+  assistant = {},
+) {
   const id = useId(),
     mirror = useRef();
   const [caret, setCaret] = useState(null),
@@ -11,6 +22,28 @@ export function usePromptCompletion(input, text, updateDraft, enabled) {
     [dismissed, setDismissed] = useState(null);
   const [candidate, setCandidate] = useState(null);
   const language = currentLanguage();
+  const {
+    providerID,
+    model,
+    billingMode,
+    accountID,
+    dimension = 3,
+    players = "single",
+    remote = false,
+  } = assistant;
+  const stamp = JSON.stringify([
+    text,
+    providerID,
+    model,
+    billingMode,
+    accountID,
+    dimension,
+    players,
+    language,
+  ]);
+  const cache = useRef(new Map());
+  const [phase, setPhase] = useState("idle"),
+    [retry, setRetry] = useState(0);
   const suffix =
     enabled &&
     focused &&
@@ -18,31 +51,87 @@ export function usePromptCompletion(input, text, updateDraft, enabled) {
     dismissed !== text &&
     caret?.start === text.length &&
     caret?.end === text.length &&
-    candidate?.text === text
+    candidate?.stamp === stamp
       ? candidate.suffix
       : "";
   useEffect(() => {
     setCandidate(null);
-    if (!enabled || !focused || composing || dismissed === text || !caret)
+    setPhase("idle");
+    if (
+      !enabled ||
+      !focused ||
+      composing ||
+      dismissed === text ||
+      !caret ||
+      !completionEligible(text, caret.start, caret.end)
+    )
       return;
+    let live = true;
+    const controller = new AbortController();
+    let deadline;
     const timer = setTimeout(
-      () =>
-        setCandidate({
-          text,
-          suffix: promptCompletion(text, caret.start, caret.end, language),
-        }),
-      300,
+      async () => {
+        const local = promptCompletion(text, caret.start, caret.end, language);
+        if (local) {
+          setCandidate({ stamp, suffix: local });
+          return;
+        }
+        if (!remote || text.trim().length < 8) return;
+        if (cache.current.has(stamp)) {
+          setCandidate({ stamp, suffix: cache.current.get(stamp) });
+          return;
+        }
+        setPhase("loading");
+        deadline = setTimeout(() => controller.abort(), 22000);
+        try {
+          const suffix = await requestPromptCompletion(
+            {
+              providerID,
+              model,
+              billingMode,
+              text,
+              language: completionLanguage(text, language),
+              dimension,
+              players,
+            },
+            controller.signal,
+          );
+          if (
+            live &&
+            input.current?.value === text &&
+            input.current.selectionStart === text.length &&
+            input.current.selectionEnd === text.length
+          ) {
+            cache.current.set(stamp, suffix);
+            if (cache.current.size > 32)
+              cache.current.delete(cache.current.keys().next().value);
+            setCandidate({ stamp, suffix });
+            setPhase("idle");
+          }
+        } catch {
+          if (live) setPhase("unavailable");
+        } finally {
+          clearTimeout(deadline);
+        }
+      },
+      remote ? 700 : 300,
     );
-    return () => clearTimeout(timer);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+      clearTimeout(deadline);
+      controller.abort();
+    };
   }, [
-    text,
+    stamp,
     caret?.start,
     caret?.end,
     enabled,
     focused,
     composing,
     dismissed,
-    language,
+    retry,
+    remote,
   ]);
   useEffect(() => {
     if (mirror.current && input.current) {
@@ -77,6 +166,13 @@ export function usePromptCompletion(input, text, updateDraft, enabled) {
     id,
     mirror,
     suffix,
+    phase: focused && enabled ? phase : "idle",
+    focused,
+    retry: () => {
+      cache.current.delete(stamp);
+      setRetry((value) => value + 1);
+      input.current?.focus();
+    },
     accept,
     onFocus: (event) => {
       setFocused(true);

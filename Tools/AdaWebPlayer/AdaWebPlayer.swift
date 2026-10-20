@@ -63,6 +63,7 @@ private struct PlayerContent: View {
     @discardableResult
     private func load(reload: Bool = false, requestID: String? = nil) -> String? {
         agentBridge.install()
+        installReloadCallback()
         guard reload || !didLoad else { return nil }
         didLoad = true
         do {
@@ -88,7 +89,8 @@ private struct PlayerContent: View {
                 // A new identity tears down the previous world, while retaining the
                 // browser window, renderer, GPU device and compiled WASM instance.
                 self.content = AnyView(scene.view.id(UUID()))
-                installReloadCallback()
+                agentBridge.runtimeDiagnostics = { scene.script.diagnostics }
+                agentBridge.gameInput = scene.gameInput
                 print("[AdaWebPlayer] Ready: scene \(project.entryScene ?? "")")
                 return nil
             }

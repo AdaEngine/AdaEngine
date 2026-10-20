@@ -93,7 +93,7 @@ enum EditorAgentBundledExamples {
         var sun = EditorComponentRegistry.defaultPayload(for: EditorBuiltInComponentType.directionalLight3D)
         sun["intensity"] = .double(2)
         var entities = [
-            entity("camera", "Camera", [types.transform: transform([0, 0.3, 11]), EditorBuiltInComponentType.camera: camera]),
+            entity("camera", "Camera", [types.transform: transform([0, 0.3, -11]), EditorBuiltInComponentType.camera: camera]),
             entity("sun", "Sun", [types.transform: transform([0, 4, 4], rotation: [-0.342, 0, 0, 0.940]), EditorBuiltInComponentType.directionalLight3D: sun]),
             entity("ground", "Ground", visual("Cube", 1, (0.91, 0.79, 0.55), at: [0, -3.2, 0], scale: [40, 0.4, 4])),
         ]
@@ -114,7 +114,7 @@ enum EditorAgentBundledExamples {
             var audio = EditorComponentRegistry.defaultPayload(for: types.audio)
             audio["source"] = .string("@res://Audio/\(cue).wav")
             entities.append(entity("sound-\(cue)", "Sound \(cue)", [
-                types.transform: transform([0, 0.3, 11]), types.audio: audio, "runner.sound-cue": ["name": .string(cue)],
+                types.transform: transform([0, 0.3, -11]), types.audio: audio, "runner.sound-cue": ["name": .string(cue)],
             ]))
         }
         var ui = EditorComponentRegistry.defaultPayload(for: EditorBuiltInComponentType.uiComponent)

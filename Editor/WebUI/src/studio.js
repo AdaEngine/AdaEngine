@@ -1,8 +1,10 @@
 import { attachFiles, removeAttachment } from "./attachments.js";
 import { t, LocalizedError } from "./localization.js";
 import { refreshAICredits } from "./ai-credits.js";
-import { setBillingMode } from "./provider-settings.js";
+import { setBillingMode, developmentAssistant } from "./provider-settings.js";
 import { runAgent, runTool } from "./agent.js";
+import { sceneRevision } from "./scene-tools.js";
+import { boundedRuntimeLines } from "./runtime-output.js";
 import {
   chatState,
   editChat,
@@ -36,6 +38,7 @@ import {
   file,
   metadata,
   scene,
+  scenePath,
   template,
   portable,
   exportZIP,
@@ -75,6 +78,7 @@ export class Studio {
   set error(value) {
     this.errorValue = value;
   }
+  homePrompt = "";
   homeAttachments = [];
   attachmentBusy = false;
   creation = { dimension: 3, players: "single" };
@@ -98,6 +102,7 @@ export class Studio {
   aiCatalog = null;
   aiPhase = "loading";
   aiRefreshEpoch = 0;
+  development = null;
   providers = [];
   providerID = "";
   modelID = "";
@@ -130,6 +135,39 @@ export class Studio {
     });
     this.preview.onEditorEvent = (type, value) =>
       this.action(() => this.editorEvent(type, value));
+    this.preview.onDiagnostics = (diagnostics) => {
+      diagnostics = boundedRuntimeLines(diagnostics);
+      const owner = this.previewDiagnosticOwner;
+      if (
+        !owner ||
+        owner.document !== this.document ||
+        owner.generation !== this.document.contentGeneration ||
+        !diagnostics.length
+      )
+        return;
+      this.runtimeValidation = {
+        ...this.runtimeValidation,
+        valid: false,
+        generation: owner.generation,
+        diagnostics: diagnostics.map((message) => ({
+          code: "runtime.script",
+          message,
+          repairTool: "editor_api_describe",
+        })),
+      };
+      this.viewportError = diagnostics.join("\n");
+      this.updateChat((chat) => {
+        chat.events.push({
+          id: crypto.randomUUID(),
+          sessionID: owner.sessionID,
+          type: "runtime-error",
+          generation: owner.generation,
+          message: diagnostics.join("\n").slice(0, 4000),
+        });
+        chat.events = chat.events.slice(-100);
+      });
+      this.emit();
+    };
     window.addEventListener("online", () => {
       if (this.document) this.save().catch((e) => this.fail(e));
     });
@@ -142,6 +180,7 @@ export class Studio {
         this.running ||
         this.attachmentBusy ||
         this.homeAttachments.length > 0 ||
+        !!this.homePrompt.trim() ||
         !!this.annotationDraft?.note.trim() ||
         (this.document && this.document.generation !== this.savedGeneration)
       ) {
@@ -382,6 +421,9 @@ export class Studio {
   }
   async start() {
     try {
+      this.development = await developmentAssistant();
+      this.providers = this.development?.providers || [];
+      if (this.providers.length) setBillingMode(this, "codex");
       this.account = await json("/v1/me");
       this.config = await json("/v1/ai/studio-config");
       if (!this.config.enabled) {
@@ -408,8 +450,10 @@ export class Studio {
       // Start in Playground; opening a project is an explicit action.
     } catch (e) {
       this.status = e.status === 401 ? "signedout" : "offline";
-      if (e.status === 401) this.emit();
-      else this.fail(e);
+      if (e.status === 401) {
+        this.account = null;
+        this.emit();
+      } else this.fail(e);
     }
   }
   async refresh() {
@@ -879,8 +923,8 @@ export class Studio {
     this.changed();
     return path;
   }
-  attachFiles(inputs) {
-    return attachFiles(this, inputs);
+  attachFiles(inputs, home = false) {
+    return attachFiles(this, inputs, { home });
   }
   async attachFile(input) {
     return (await this.attachFiles([input]))[0];
@@ -936,19 +980,53 @@ export class Studio {
     const generation = document.contentGeneration;
     const snapshot = portable(this.snapshot);
     snapshot.messages = [];
+    const revision = await sceneRevision(snapshot);
+    const current = () =>
+      this.document === document && document.contentGeneration === generation;
     try {
       // Creating a project from the home composer mounts Workspace asynchronously.
       if (!this.preview.host) await new Promise(requestAnimationFrame);
       await this.preview.load(snapshot, this.config, editMode);
-      if (this.document === document) {
+      if (current()) {
         this.viewportError = "";
         this.renderedGeneration = generation;
+        this.runtimeValidation = {
+          valid: true,
+          generation,
+          sceneRevision: revision,
+          editMode,
+          rendered: true,
+          diagnostics: [],
+        };
+        this.previewDiagnosticOwner = {
+          document,
+          generation,
+          sessionID: this.runningSessionID || this.session.id,
+        };
         if (editMode) await this.editorCommand();
       }
     } catch (e) {
-      if (e.name !== "AbortError" && this.document === document) {
+      if (e.name !== "AbortError" && current()) {
         this.runtime = "error";
         this.viewportError = e;
+        this.runtimeValidation = {
+          valid: false,
+          generation,
+          sceneRevision: revision,
+          editMode,
+          rendered: false,
+          diagnostics: [
+            {
+              code: "runtime.load",
+              file:
+                e.message.match(/Sources\/[A-Za-z0-9_./-]+\.ada/)?.[0] ||
+                scenePath(snapshot),
+              message: boundedRuntimeLines([e.message])[0],
+              repairHint:
+                "Inspect the named source or component and use editor_project_apply/editor_scene_apply to repair it. Read schemas before changing encodings.",
+            },
+          ],
+        };
         this.emit();
       }
       throw e;

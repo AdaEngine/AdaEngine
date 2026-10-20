@@ -12,7 +12,7 @@ export function RuntimeConsole({ onClose, active = true }) {
     [unavailable, setUnavailable] = useState(false);
   useEffect(() => {
     if (!active) return;
-    let active = true,
+    let mounted = true,
       reading = false;
     const refresh = async () => {
       if (reading || !studio.preview.frame) return;
@@ -20,12 +20,12 @@ export function RuntimeConsole({ onClose, active = true }) {
       const source = studio.preview.frame;
       try {
         const snapshot = await studio.preview.message("logs");
-        if (!active || source !== studio.preview.frame) return;
+        if (!mounted || source !== studio.preview.frame) return;
         setUnavailable(false);
         if (buffer.current.update(snapshot, source))
           setLines(buffer.current.lines);
       } catch (error) {
-        if (active && error.name !== "AbortError") setUnavailable(true);
+        if (mounted && error.name !== "AbortError") setUnavailable(true);
       } finally {
         reading = false;
       }
@@ -33,7 +33,7 @@ export function RuntimeConsole({ onClose, active = true }) {
     refresh();
     const timer = setInterval(refresh, 750);
     return () => {
-      active = false;
+      mounted = false;
       clearInterval(timer);
     };
   }, [active]);

@@ -194,7 +194,7 @@
   --fg:#e9e9ed; --muted:#9a9da5; --accent:#688bff; --accent-hover:#8fa8ff; --accent-muted:#1c2842; --on-accent:#10192b;
   --surface:#171819; --surface-strong:#202123; --font-body:Inter,"Segoe UI",Arial,sans-serif; --font-display:var(--font-body); --font-mono:ui-monospace,monospace;
 }
-.playground-app .rail { flex-shrink:0; }
+.playground-app .rail { flex-shrink:0; border-right:0; background:#101112; }
 .playground-app.library-mode .rail { width:78px; padding:0 8px 16px; }
 .library-navigation { display:flex; flex-direction:column; gap:14px; width:100%; margin-top:12px; }
 .library-nav-item { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:7px; width:100%; min-height:60px; padding:10px 3px; border:0; border-radius:11px; color:var(--muted); background:transparent; font:400 10px/1.3 var(--font-body); text-align:center; text-decoration:none; cursor:pointer; }
@@ -206,7 +206,12 @@
 .library-wordmark span { font-size:12px; color:var(--muted); }
 .playground-app.library-mode .topbar { min-height:76px; padding-inline:40px; border-bottom:0; }
 .playground-app .playground-main { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; width:100%; max-width:1260px; margin-inline:auto; padding:28px 40px 64px; background:#121314; }
-.playground-app.library-mode .main { background:#121314; }
+.playground-app.library-mode .main { background:#101112; }
+.library-content {
+  display:flex; flex-direction:column; flex:1; min-height:0; min-width:0;
+  margin:0 .92308rem .92308rem 0; overflow:hidden;
+  border:1px solid #ffffff0d; border-radius:1.46154rem; background:#121314;
+}
 .playground-main button { font-family:inherit; }
 .playground-main .playground-card-link { width:100%; text-align:left; padding:0; }
 .playground-main .playground-back { border:0; background:none; gap:8px; }
@@ -229,6 +234,7 @@
   .library-bottom { flex:1; margin:0; }
   .library-nav-item { min-height:58px; padding:6px 3px; gap:4px; }
   .playground-app.library-mode .topbar { padding-inline:18px; min-height:66px; }
+  .library-content { margin:0 8px 8px; }
   .playground-app .playground-main { padding-inline:18px; }
 }
 

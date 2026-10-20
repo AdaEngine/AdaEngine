@@ -91,6 +91,32 @@ def forward(handler, port, headers=None):
         handler.close_connection = True
 
 
+
+def codex_preference(state, requested=None):
+    if requested is not None:
+        return requested
+    path = state / 'development-options.json'
+    if not path.exists():
+        return False
+    value = json.loads(path.read_text())
+    if not isinstance(value, dict) or not isinstance(value.get('codex'), bool):
+        raise ValueError('Invalid development-options.json: expected a codex boolean')
+    return value['codex']
+
+
+def remember_codex_preference(state, enabled):
+    path = state / 'development-options.json'
+    temporary = path.with_suffix('.tmp')
+    with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as file:
+        json.dump({'codex': enabled}, file)
+        file.write('\n')
+    os.replace(temporary, path)
+
+
+def development_studio_config(provider):
+    # Public metadata only; generation still requires Identity admission and Origin.
+    return {'development': True, 'codexEnabled': provider is not None, 'providers': [provider] if provider else []}
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cloud', type=Path, default=ENGINE.parent / 'adaengine-service')
@@ -99,13 +125,18 @@ def main():
     parser.add_argument('--bin-dir', type=Path)
     parser.add_argument('--player', type=Path, default=UI / '.local/studio-web/player')
     parser.add_argument('--port', type=int, default=8080)
-    parser.add_argument('--codex', action='store_true', help='Offer the local Codex CLI sign-in as a test provider')
+    parser.add_argument('--codex', action=argparse.BooleanOptionalAction, default=None, help='Offer the local Codex CLI sign-in; remembered for this state directory (--no-codex disables it)')
     parser.add_argument('--pg-bin', type=Path, default=Path(os.getenv('PG_BIN', '/opt/homebrew/opt/postgresql@17/bin')))
     parser.add_argument('--redis', default=os.getenv('REDIS_SERVER', '/opt/homebrew/opt/redis/bin/redis-server'))
     parser.add_argument('--kafka', type=Path, default=Path(os.getenv('KAFKA_HOME', str(ENGINE.parent / 'adaengine-service/.local/ugc-tooling/kafka_2.13-4.1.2'))))
     parser.add_argument('--check', action='store_true', help='Check prerequisites without starting services')
     args = parser.parse_args()
     state = args.state.resolve()
+    requested_codex = args.codex
+    try:
+        args.codex = codex_preference(state, requested_codex)
+    except (ValueError, OSError) as error:
+        parser.error(str(error))
     binaries = (args.bin_dir or state / 'build/debug').resolve()
     required = [args.cloud / 'Package.swift', args.website / 'index.html', UI / 'dist/studio.js',
                 args.pg_bin / 'initdb', args.pg_bin / 'postgres', Path(args.redis),
@@ -147,6 +178,8 @@ def main():
         from dev_codex import Bridge
         codex_bridge = Bridge(shutil.which('codex'), state / 'codex-workspace')
         codex_provider = codex_bridge.catalog()
+    if requested_codex is not None:
+        remember_codex_preference(state, args.codex)
     env = {k: v for k, v in os.environ.items() if k in ('PATH', 'HOME', 'USER', 'TMPDIR', 'LANG', 'JAVA_HOME', 'DYLD_LIBRARY_PATH')}
     env.update(private)
     env.update(BIND_ADDRESS='127.0.0.1', DEPLOYMENT_ENV='development', CLOUD_DEV_COUNTRY='RU',
@@ -280,6 +313,15 @@ num.partitions=1
                     return
                 # Preserve origin checks and cookies exactly as the real API expects.
                 development_path = urlsplit(self.path).path
+                if self.command in ('GET', 'HEAD') and development_path == '/__dev/studio-config':
+                    data = json.dumps(development_studio_config(codex_provider)).encode()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Content-Length', str(len(data)))
+                    self.send_header('Cache-Control', 'no-store')
+                    self.end_headers()
+                    if self.command == 'GET': self.wfile.write(data)
+                    return
                 if self.command in ('GET', 'HEAD') and development_path in ('/__dev/inbox.js', '/__dev/localization.js'):
                     data = inbox_script(UI) if development_path == '/__dev/inbox.js' else (UI / 'src/localization.js').read_bytes()
                     self.send_response(200)

@@ -69,5 +69,23 @@ class StorageTests(unittest.TestCase):
                     moto.stop()
 
 
+class CodexPreferenceTests(unittest.TestCase):
+    def test_explicit_choice_is_remembered_and_can_be_disabled(self):
+        with tempfile.TemporaryDirectory() as folder:
+            state = Path(folder)
+            self.assertFalse(dev.codex_preference(state))
+            self.assertTrue(dev.codex_preference(state, True))
+            dev.remember_codex_preference(state, True)
+            self.assertTrue(dev.codex_preference(state))
+            self.assertFalse(dev.codex_preference(state, False))
+            dev.remember_codex_preference(state, False)
+            self.assertFalse(dev.codex_preference(state))
+
+    def test_public_development_config_contains_catalog_metadata_only(self):
+        self.assertEqual(dev.development_studio_config(None), {'development': True, 'codexEnabled': False, 'providers': []})
+        provider = {'id': 'local-codex', 'transport': 'codex', 'models': [{'id': 'listed'}]}
+        self.assertEqual(dev.development_studio_config(provider)['providers'], [provider])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -67,7 +67,7 @@ function Workspace({ hidden = false }) {
                 s.runtime === "ready" &&
                 !s.playing && <ViewportInput />}
               {viewport && (s.runtime === "error" || !s.preview.hasFrame) && (
-                <div className="runtime-loading">
+                <div className={s.preview.hasFrame ? "runtime-loading runtime-recovery" : "runtime-loading"}>
                   {s.runtime !== "error" && <span className="spinner" />}
                   <h3>
                     {s.runtime === "error"

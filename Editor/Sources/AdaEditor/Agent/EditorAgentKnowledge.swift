@@ -162,7 +162,7 @@ enum EditorAgentKnowledge {
         camera["projection"] = .string("perspective")
         scene.editor = .init(selectedEntity: "cube", expandedEntities: [])
         scene.entities = [
-            entity("camera", "Camera", [0, 0, 4], [EditorBuiltInComponentType.camera: camera]),
+            entity("camera", "Camera", [0, 0, -4], [EditorBuiltInComponentType.camera: camera]),
             entity("cube", "Cube", [0, 0, 0], [
                 EditorBuiltInComponentType.mesh3D: EditorComponentRegistry.defaultPayload(for: EditorBuiltInComponentType.mesh3D),
                 EditorBuiltInComponentType.visibility: EditorComponentRegistry.defaultPayload(for: EditorBuiltInComponentType.visibility),

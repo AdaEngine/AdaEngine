@@ -71,6 +71,7 @@ let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
 var products: [Product] = [
     .executable(name: "NavigationDemo", targets: ["NavigationDemo"]),
+    .executable(name: "Physics2DDemo", targets: ["Physics2DDemo"]),
     .library(name: "AdaNavigation", targets: ["AdaNavigation"]),
     .library(name: "AdaNavigationBaking", targets: ["AdaNavigationBaking"]),
     .executable(name: "SpinePreview", targets: ["SpinePreview"]),
@@ -326,6 +327,13 @@ let adaEngineMacros: Target = .macro(
 // MARK: Other Targets
 
 var targets: [Target] = [
+    .executableTarget(
+        name: "Physics2DDemo",
+        dependencies: ["AdaEngine"],
+        path: "Demos/Physics2D",
+        exclude: ["README.md", "script", "dist", ".codex"],
+        swiftSettings: swiftSettings
+    ),
     .executableTarget(
         name: "NavigationDemo",
         dependencies: ["AdaEngine", "AdaNavigationBaking"],
@@ -929,23 +937,17 @@ targets += [
     .target(
         name: "box2d",
         exclude: [
-            "shared",
-            "docs",
-            "samples",
-            "test",
-            "benchmark",
-            "extern",
-            "build.bat",
-            "build.sh",
-            "build_emscripten.sh",
-            "CMakeLists.txt",
-            "deploy_docs.sh",
-            "LICENSE"
+            "src/box2d.natvis",
+            "src/box2d.pc.in",
+            "src/CMakeLists.txt",
+            "src/contact_solver_wide.inl",
+            "src/recording_ops.inl"
         ],
+        sources: ["src"],
         publicHeadersPath: "include",
         cSettings: [
             .define("_POSIX_C_SOURCE", to: "200809L", .when(platforms: [.linux])),
-            .unsafeFlags(["-w"])
+            .unsafeFlags(["-w", "-ffp-contract=off"])
         ]
     ),
 

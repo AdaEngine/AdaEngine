@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022 Erin Catto
+// SPDX-FileCopyrightText: 2025 Erin Catto
 // SPDX-License-Identifier: MIT
 
 #include "doohickey.h"
@@ -22,7 +22,7 @@ Doohickey::Doohickey()
 	m_isSpawned = false;
 }
 
-void Doohickey::Spawn( b2WorldId worldId, b2Vec2 position, float scale )
+void Doohickey::Spawn( b2WorldId worldId, b2Pos position, float scale )
 {
 	assert( m_isSpawned == false );
 
@@ -30,49 +30,50 @@ void Doohickey::Spawn( b2WorldId worldId, b2Vec2 position, float scale )
 	bodyDef.type = b2_dynamicBody;
 
 	b2ShapeDef shapeDef = b2DefaultShapeDef();
+	shapeDef.material.rollingResistance = 0.1f;
+
 	b2Circle circle = { { 0.0f, 0.0f }, 1.0f * scale };
 	b2Capsule capsule = { { -3.5f * scale, 0.0f }, { 3.5f * scale, 0.0f }, 0.15f * scale };
 
-	bodyDef.position = b2MulAdd( position, scale, { -5.0f, 3.0f } );
+	bodyDef.position = b2OffsetPos( position, b2MulSV( scale, { -5.0f, 3.0f } ) );
 	m_wheelId1 = b2CreateBody( worldId, &bodyDef );
 	b2CreateCircleShape( m_wheelId1, &shapeDef, &circle );
 
-	bodyDef.position = b2MulAdd( position, scale, { 5.0f, 3.0f } );
+	bodyDef.position = b2OffsetPos( position, b2MulSV( scale, { 5.0f, 3.0f } ) );
 	m_wheelId2 = b2CreateBody( worldId, &bodyDef );
 	b2CreateCircleShape( m_wheelId2, &shapeDef, &circle );
 
-	bodyDef.position = b2MulAdd( position, scale, { -1.5f, 3.0f } );
+	bodyDef.position = b2OffsetPos( position, b2MulSV( scale, { -1.5f, 3.0f } ) );
 	m_barId1 = b2CreateBody( worldId, &bodyDef );
 	b2CreateCapsuleShape( m_barId1, &shapeDef, &capsule );
 
-	bodyDef.position = b2MulAdd( position, scale, { 1.5f, 3.0f } );
+	bodyDef.position = b2OffsetPos( position, b2MulSV( scale, { 1.5f, 3.0f } ) );
 	m_barId2 = b2CreateBody( worldId, &bodyDef );
 	b2CreateCapsuleShape( m_barId2, &shapeDef, &capsule );
 
 	b2RevoluteJointDef revoluteDef = b2DefaultRevoluteJointDef();
 
-	revoluteDef.bodyIdA = m_wheelId1;
-	revoluteDef.bodyIdB = m_barId1;
-	revoluteDef.localAnchorA = { 0.0f, 0.0f };
-	revoluteDef.localAnchorB = { -3.5f * scale, 0.0f };
+	revoluteDef.base.bodyIdA = m_wheelId1;
+	revoluteDef.base.bodyIdB = m_barId1;
+	revoluteDef.base.localFrameA.p = { 0.0f, 0.0f };
+	revoluteDef.base.localFrameB.p = { -3.5f * scale, 0.0f };
 	revoluteDef.enableMotor = true;
 	revoluteDef.maxMotorTorque = 2.0f * scale;
 	b2CreateRevoluteJoint( worldId, &revoluteDef );
 
-	revoluteDef.bodyIdA = m_wheelId2;
-	revoluteDef.bodyIdB = m_barId2;
-	revoluteDef.localAnchorA = { 0.0f, 0.0f };
-	revoluteDef.localAnchorB = { 3.5f * scale, 0.0f };
+	revoluteDef.base.bodyIdA = m_wheelId2;
+	revoluteDef.base.bodyIdB = m_barId2;
+	revoluteDef.base.localFrameA.p = { 0.0f, 0.0f };
+	revoluteDef.base.localFrameB.p = { 3.5f * scale, 0.0f };
 	revoluteDef.enableMotor = true;
 	revoluteDef.maxMotorTorque = 2.0f * scale;
 	b2CreateRevoluteJoint( worldId, &revoluteDef );
 
 	b2PrismaticJointDef prismaticDef = b2DefaultPrismaticJointDef();
-	prismaticDef.bodyIdA = m_barId1;
-	prismaticDef.bodyIdB = m_barId2;
-	prismaticDef.localAxisA = { 1.0f, 0.0f };
-	prismaticDef.localAnchorA = { 2.0f * scale, 0.0f };
-	prismaticDef.localAnchorB = { -2.0f * scale, 0.0f };
+	prismaticDef.base.bodyIdA = m_barId1;
+	prismaticDef.base.bodyIdB = m_barId2;
+	prismaticDef.base.localFrameA.p = { 2.0f * scale, 0.0f };
+	prismaticDef.base.localFrameB.p = { -2.0f * scale, 0.0f };
 	prismaticDef.lowerTranslation = -2.0f * scale;
 	prismaticDef.upperTranslation = 2.0f * scale;
 	prismaticDef.enableLimit = true;

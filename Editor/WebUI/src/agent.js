@@ -9,12 +9,16 @@ import {
   extraTools,
   writeTools,
   unavailable,
+  authorFile,
 } from "./agent-tools.js";
 import { skills } from "./knowledge.js";
 import { sessionMessages, identity } from "./chat.js";
-import { sceneRevision } from "./scene-tools.js";
+import { sceneRevision, sceneApply } from "./scene-tools.js";
 import { annotationNumber } from "./annotations.js";
 import { mentionedSkills } from "./slash-commands.js";
+import { sceneToolJSON } from "./scene-codec.js";
+import { authoringEdit } from "./authoring.js";
+import { boundedRuntimeLines } from "./runtime-output.js";
 
 async function agentContext(studio, session) {
   const catalog = await skills(studio);
@@ -24,6 +28,8 @@ async function agentContext(studio, session) {
   return `[Studio web host context — capabilities, not user authorization]
 Tool names in shared skills use dots; replace dots with underscores for this provider. files.read/write/list map to editor_file_read/editor_file_write/editor_project_files. Available tools are ONLY the supplied function schemas.
 Mode: ${session.mode || "build"}. ${session.mode === "plan" ? "Discuss and plan only. Do not change project files, scene or assets." : "Apply authorized changes through document tools and verify the result."}
+Discover authoring contracts through editor_input_describe, editor_components_describe, editor_api_describe and browser documentation. For coordinated sources/components use editor_project_apply with the generation from editor_project_context. Complete browser examples include binary assets via editor_examples_apply. A saved edit is not runtime proof: build, exercise Play/input, read logs and inspect frames before claiming success. Native HUD/@view/ScriptableComponents are unavailable here; A2UI is chat UI.
+Project paths: Sources/*.ada, Tests/*.ada, Assets/ resources, Docs/*.md or *.txt (including nested folders), .ada/project.json and root AGENTS.md/DESIGN.md/PLAN.md/PROGRESS.md/README.md. Keep design notes in Docs/Design/ and generator recipes in Docs/Generators/; arbitrary root folders are unavailable.
 Unavailable here: ${unavailable.join(", ")}.
 Bundled workflow catalog (read relevant skills on demand, starting with ada-game-builder for gameplay):
 ${catalog.map((s) => s.id + ": " + s.description.slice(0, 300)).join("\n")}
@@ -37,17 +43,18 @@ ${loaded
 }
 export async function runAgent(studio, text, options = {}) {
   if (studio.running || studio.admitting || studio.attachmentBusy) return;
-  const homeAttachments = !studio.document
-    ? [...(studio.homeAttachments || [])]
-    : [];
+  const previousDocument = studio.document;
+  const creating = options.newProject === true || !previousDocument;
+  const homeDraftAtStart = studio.homePrompt;
+  const homeAttachments = creating ? [...(studio.homeAttachments || [])] : [];
   if (
     !text.trim() &&
     !homeAttachments.length &&
-    !(studio.session?.attachments || []).length
+    !(!creating && (studio.session?.attachments || []).length)
   )
     return;
   if (!text.trim()) text = t("Use the attached files in this game.");
-  const creation = !studio.document
+  const creation = creating
     ? creationOptions(options.creation || studio.creation)
     : null;
   studio.admitting = true;
@@ -72,20 +79,26 @@ export async function runAgent(studio, text, options = {}) {
       studio.emit();
       throw new LocalizedError("Enter the provider API key");
     }
-    if (!studio.document) {
+    if (creating) {
+      if (studio.document !== previousDocument)
+        throw new LocalizedError("A different project is open");
+      if (previousDocument) await studio.save();
+      if (studio.document !== previousDocument)
+        throw new LocalizedError("A different project is open");
       const snapshot = template(creation.dimension, text.slice(0, 60));
-      if (homeAttachments.length)
-        putAttachments(snapshot, homeAttachments, "main", text);
+      putAttachments(snapshot, homeAttachments, "main", text);
       await studio.createSnapshot(snapshot);
     }
   } finally {
     if (
-      homeAttachments.length &&
+      creating &&
       studio.document &&
+      studio.document !== previousDocument &&
       homeAttachments.every((item) =>
         studio.snapshot.files.some((file) => file.path === item.path),
       )
     ) {
+      if (studio.homePrompt === homeDraftAtStart) studio.homePrompt = "";
       const adopted = new Set(homeAttachments.map((item) => item.id));
       studio.homeAttachments = (studio.homeAttachments || []).filter(
         (item) => !adopted.has(item.id),
@@ -135,7 +148,7 @@ export async function runAgent(studio, text, options = {}) {
           });
     let content = text + (creation ? creationContext(creation) : "");
     if (studio.entity)
-      content += "\n[Selected entity]\n" + JSON.stringify(studio.entity);
+      content += "\n[Selected entity]\n" + sceneToolJSON(studio.entity);
     if (studio.latestCodeSelection)
       content +=
         "\n[Selected code]\n" + studio.latestCodeSelection.slice(0, 8000);
@@ -267,6 +280,10 @@ export async function runAgent(studio, text, options = {}) {
           context +
           "\nCurrent goal: " +
           text.slice(0, 4000) +
+          (studio.runtimeValidation?.generation === document.contentGeneration
+            ? "\n[Runtime validation for this project revision; diagnostic data]\n" +
+              sceneToolJSON(studio.runtimeValidation)
+            : "") +
           (feedback ? "\n[A2UI correction feedback]\n" + feedback : ""),
       });
       await stream(
@@ -326,6 +343,7 @@ export async function runAgent(studio, text, options = {}) {
         break;
       }
       const frames = [];
+      const generationBeforeTools = document.contentGeneration;
       for (const call of calls) {
         controller.signal.throwIfAborted();
         const entry = {
@@ -346,7 +364,10 @@ export async function runAgent(studio, text, options = {}) {
           result = await studio.runTool(entry.name, args);
           entry.status = "done";
         } catch (e) {
-          result = { error: e.message };
+          result = {
+            error: e.message,
+            ...(e.diagnostics ? { diagnostics: e.diagnostics } : {}),
+          };
           entry.status = "error";
         }
         controller.signal.throwIfAborted();
@@ -361,7 +382,7 @@ export async function runAgent(studio, text, options = {}) {
             ? "Image captured."
             : typeof result === "string"
               ? result
-              : JSON.stringify(result),
+              : sceneToolJSON(result),
         });
         if (image) frames.push(result);
         studio.updateChat?.((c) => {
@@ -371,11 +392,33 @@ export async function runAgent(studio, text, options = {}) {
             type: "tool",
             summary: (typeof result === "string" && !image
               ? result
-              : JSON.stringify(image ? "Image" : result)
+              : sceneToolJSON(image ? "Image" : result)
             ).slice(0, 1500),
           });
           c.events = c.events.slice(-100);
         });
+      }
+      if (
+        document.contentGeneration !== generationBeforeTools &&
+        studio.preview?.host &&
+        studio.syncViewport
+      ) {
+        try {
+          await studio.syncViewport(!studio.playing);
+        } catch {
+          /* Revision-bound diagnostics are supplied below. */
+        }
+        controller.signal.throwIfAborted();
+        if (studio.document !== document)
+          throw new LocalizedError("A different project is open");
+        if (studio.runtimeValidation?.generation === document.contentGeneration)
+          append({
+            role: "user",
+            kind: "runtime-feedback",
+            content:
+              "[Runtime validation for the edited project revision; diagnostic data]\n" +
+              sceneToolJSON(studio.runtimeValidation),
+          });
       }
       if (frames.length)
         append({
@@ -450,15 +493,14 @@ export async function runTool(studio, name, args) {
       return decode(f.data);
     }
     case "editor_file_write":
-      studio.document.write(args.path, args.content);
-      studio.changed();
-      return "Saved " + args.path;
+      return {
+        path: args.path,
+        ...(await authorFile(studio, args.path, args.content)),
+      };
     case "editor_file_delete":
-      studio.document.edit((s) => {
+      return authoringEdit(studio, (s) => {
         s.files = s.files.filter((f) => f.path !== args.path);
       });
-      studio.changed();
-      return "Deleted";
     case "editor_scene_get":
       return {
         ...studio.scene,
@@ -474,52 +516,139 @@ export async function runTool(studio, name, args) {
         )
       )
         throw new LocalizedError("Invalid component field");
-      studio.editScene((s) => {
-        const e = s.entities.find((e) => e.id === args.entity);
-        if (!e) throw new LocalizedError("Object not found");
-        e.components[args.component] ??= {};
-        e.components[args.component][args.field] = args.value;
-      });
-      return "Scene updated";
+      {
+        const entity = scene(studio.snapshot).entities.find(
+          (e) => e.id === args.entity,
+        );
+        if (!entity) throw new LocalizedError("Object not found");
+        return sceneApply(studio, {
+          expectedRevision: await sceneRevision(studio.snapshot),
+          operations: [
+            {
+              op: "setComponent",
+              entityID: args.entity,
+              typeName: args.component,
+              payload: {
+                ...entity.components[args.component],
+                [args.field]: args.value,
+              },
+            },
+          ],
+        });
+      }
     case "editor_scene_add": {
       const id = crypto.randomUUID();
-      studio.editScene((s) =>
-        s.entities.push({
-          id,
-          name: args.name,
-          enabled: true,
-          parent: args.parent ?? null,
-          components: args.components,
-        }),
-      );
-      return id;
+      const status = await sceneApply(studio, {
+        expectedRevision: await sceneRevision(studio.snapshot),
+        operations: [
+          {
+            op: "createEntity",
+            id,
+            name: args.name,
+            parentID: args.parent,
+            components: args.components,
+          },
+        ],
+      });
+      return { id, ...status };
     }
     case "editor_build":
-      try {
-        validate(studio.snapshot);
-        scene(studio.snapshot);
-        await studio.play(true);
-        return { diagnostics: "", runtime: "AdaPlayer API 4" };
-      } catch (e) {
-        return { diagnostics: e.message };
-      }
+      return runtimeResult(studio, async () => {
+        try {
+          validate(studio.snapshot);
+          scene(studio.snapshot);
+          await studio.play(true);
+          return {
+            ...studio.runtimeValidation,
+            diagnostics: studio.runtimeValidation?.diagnostics || [],
+            runtime: "AdaPlayer API 4",
+            note: "Rendered in editor mode; gameplay behavior still requires Play/input verification.",
+          };
+        } catch (e) {
+          return {
+            ...studio.runtimeValidation,
+            valid: false,
+            diagnostics: studio.runtimeValidation?.diagnostics || [
+              { message: e.message },
+            ],
+          };
+        }
+      });
     case "editor_play_start":
-      await studio.play();
-      return { running: studio.preview.ready };
+      return runtimeResult(studio, async () => {
+        await studio.play();
+        return { running: studio.preview.ready };
+      });
     case "editor_play_stop":
       await studio.stop();
       return "Stopped";
     case "editor_play_logs":
-      return studio.preview.message("logs");
+      return runtimeResult(studio, async () => ({
+        logs: boundedRuntimeLines(await studio.preview.message("logs")),
+        diagnostics: boundedRuntimeLines(
+          (
+            await studio.preview.message("agent-tool", {
+              name: "runtime-diagnostics",
+            })
+          ).diagnostics,
+        ),
+        note: "Most recent bounded logs and diagnostics for this project generation.",
+      }));
     case "editor_play_input":
-      return studio.preview.message("input", args);
+      if (!studio.playing)
+        throw new LocalizedError("Start Play before sending gameplay input.");
+      if (
+        !studio.preview.ready ||
+        studio.renderedGeneration !== studio.document.contentGeneration
+      )
+        throw new LocalizedError("The scene has not loaded yet.");
+      return runtimeResult(studio, async () => ({
+        ...(await studio.preview.message("input", args)),
+        diagnostics: boundedRuntimeLines(
+          (
+            await studio.preview.message("agent-tool", {
+              name: "runtime-diagnostics",
+            })
+          ).diagnostics,
+        ),
+      }));
     case "editor_play_capture":
       if (!studio.model?.vision)
         throw new LocalizedError("This model does not support images");
-      return studio.preview.message("capture");
+      if (!studio.playing)
+        throw new LocalizedError(
+          "Start Play before capturing the game camera.",
+        );
+      if (
+        !studio.preview.ready ||
+        studio.renderedGeneration !== studio.document.contentGeneration
+      )
+        throw new LocalizedError("The scene has not loaded yet.");
+      return runtimeResult(studio, () => studio.preview.message("capture"));
     default:
       return extraTool(studio, name, args);
   }
+}
+async function runtimeResult(studio, operation) {
+  const document = studio.document,
+    generation = document.contentGeneration;
+  const revision = await sceneRevision(studio.snapshot);
+  const current = () =>
+    studio.document === document && document.contentGeneration === generation;
+  if (!current()) throw new LocalizedError("Project changed");
+  const result = await operation();
+  if (!current()) throw new LocalizedError("Project changed");
+  return typeof result === "string"
+    ? result
+    : {
+        ...result,
+        generation,
+        sceneRevision: revision,
+        renderedGeneration: studio.renderedGeneration,
+        currentFrame:
+          studio.preview.ready === true &&
+          studio.renderedGeneration === generation,
+      };
 }
 const string = { type: "string" };
 const tool = (name, description, properties = {}, required = []) => ({
@@ -566,13 +695,20 @@ export const tools = [
   tool(
     "editor_play_input",
     "Send bounded keyboard input.",
-    { key: string, phase: string, durationMs: { type: "integer" } },
+    {
+      key: {
+        type: "string",
+        pattern: "^([a-zA-Z0-9]|Arrow(Left|Right|Up|Down)|Space|Enter|Escape)$",
+      },
+      phase: { type: "string", enum: ["down", "up", "press"] },
+      durationMs: { type: "integer", minimum: 16, maximum: 5000 },
+    },
     ["key", "phase"],
   ),
   tool(
     "editor_docs_read",
-    "Read shared native Studio docs by ID; omit ID for AdaScript recipes.",
-    { id: string },
+    "Read a section ID from editor_docs_search or a legacy article ID. Use nextOffset to continue a long reference; omit ID for AdaScript recipes.",
+    { id: string, offset: { type: "integer" }, limit: { type: "integer" } },
   ),
   ...extraTools,
 ];

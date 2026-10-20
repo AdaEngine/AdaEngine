@@ -284,6 +284,8 @@ extension PlayerSceneDocument {
 @MainActor
 struct PlayerScene {
     let view: AnyView
+    let script: AdaScriptPlugin
+    let gameInput = PlayerGameInput()
 
     init(project: AdaWebPlayerProject, sources: [AdaScriptSource], directory: URL, onFrameRendered: (@MainActor (Texture2D) -> Void)? = nil) throws {
         let scene = try PlayerSceneDocument.load(project: project, directory: directory)
@@ -308,6 +310,7 @@ struct PlayerScene {
             name: project.moduleName ?? project.title,
             startupSystemIdentifier: project.startupSystem
         )
+        self.script = script
         let components = try PlayerSceneComponents.prepare(scene: scene, script: script, project: project, directory: directory)
         let editor = PlayerEditorBridge()
         let configuration: MultiplayerConfiguration?
@@ -345,6 +348,7 @@ struct PlayerScene {
             configuration = nil
             transport = nil
         }
+        let gameInput = self.gameInput
         self.view = AnyView(
             SceneView(
                 isInteractive: !PlayerBrowserSession.editMode,
@@ -373,6 +377,7 @@ struct PlayerScene {
                     if PlayerBrowserSession.editMode { script.registerSceneComponents(in: app.main) }
                     else { app.addPlugin(script) }
                     app.addPlugin(PlayerSceneEntryPlugin(scene: scene, tileMaps: tileMaps, components: components, editor: editor))
+                    gameInput.world = app.main
                 },
                 updateContent: { _, _ in },
                 onFrameRendered: onFrameRendered

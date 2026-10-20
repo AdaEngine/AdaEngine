@@ -10,7 +10,11 @@ import {
 import { Icon } from "./controls.jsx";
 import { studio } from "./state.js";
 
-export function useSkillCommands(input, updateDraft) {
+export function useSkillCommands(
+  input,
+  updateDraft,
+  { home = false, text = studio.prompt } = {},
+) {
   const id = useId(),
     [token, setToken] = useState(null),
     [focused, setFocused] = useState(false),
@@ -18,14 +22,16 @@ export function useSkillCommands(input, updateDraft) {
     [catalog, setCatalog] = useState([]),
     [phase, setPhase] = useState("loading"),
     [active, setActive] = useState(0);
-  const owner = studio.document
-    ? `${studio.workspace.id}:${studio.session.id}`
-    : "home";
-  const signature = token
-    ? `${studio.prompt}:${token.start}:${token.end}`
-    : null;
+  const owner =
+    !home && studio.document
+      ? `${studio.workspace.id}:${studio.session.id}`
+      : "home";
+  const signature = token ? `${text}:${token.start}:${token.end}` : null;
   const open = focused && !!token && signature !== dismissed;
-  const results = commandMatches(catalog.map(skillPresentation), token?.query || "");
+  const results = commandMatches(
+    catalog.map(skillPresentation),
+    token?.query || "",
+  );
   const selected = Math.min(active, Math.max(0, results.length - 1));
   useEffect(() => {
     setToken(null);
@@ -35,7 +41,7 @@ export function useSkillCommands(input, updateDraft) {
     if (!open) return;
     let current = true;
     setPhase("loading");
-    skills(studio)
+    skills(home ? {} : studio)
       .then((value) => {
         if (current) {
           setCatalog(value);
@@ -48,7 +54,7 @@ export function useSkillCommands(input, updateDraft) {
     return () => {
       current = false;
     };
-  }, [open, studio.document]);
+  }, [open, home ? null : studio.document]);
   const inspect = (event) => {
     const next = slashQuery(
       event.currentTarget.value,
@@ -61,13 +67,9 @@ export function useSkillCommands(input, updateDraft) {
   const choose = (skill) => {
     // Resolve the caret again so a stale menu cannot replace another draft/token.
     const node = input.current;
-    const current = slashQuery(
-      studio.prompt,
-      node.selectionStart,
-      node.selectionEnd,
-    );
+    const current = slashQuery(text, node.selectionStart, node.selectionEnd);
     if (!current) return;
-    const completion = completeSlash(studio.prompt, current, skill.id);
+    const completion = completeSlash(text, current, skill.id);
     updateDraft(completion.text);
     setToken(null);
     requestAnimationFrame(() => {

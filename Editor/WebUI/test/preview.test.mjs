@@ -224,3 +224,29 @@ test("startup failures require the isolated frame and reject pending and subsequ
   h.preview.stop();
   assert.equal(h.preview.startupError, null);
 });
+
+test("asynchronous runtime diagnostics require the current source, origin and accepted revision", async () => {
+  const h = harness(),
+    diagnostics = [];
+  h.preview.onDiagnostics = (value) => diagnostics.push(value);
+  await h.preview.load(snapshot, config, false);
+  const event = {
+    source: h.preview.frame.contentWindow,
+    origin: "http://127.0.0.1:18444",
+    data: {
+      protocol: "ada-studio-preview-v1",
+      event: "runtime-diagnostics",
+      revision: h.preview.editorRevision,
+      diagnostics: ["Invalid script field"],
+    },
+  };
+  h.dispatch({ ...event, source: {} });
+  h.dispatch({ ...event, origin: "http://untrusted.example" });
+  h.dispatch({ ...event, data: { ...event.data, revision: "old" } });
+  assert.equal(diagnostics.length, 0);
+  h.dispatch(event);
+  assert.deepEqual(diagnostics, [["Invalid script field"]]);
+  h.preview.stop();
+  h.dispatch(event);
+  assert.equal(diagnostics.length, 1);
+});

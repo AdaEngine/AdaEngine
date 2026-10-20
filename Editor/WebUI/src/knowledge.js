@@ -1,6 +1,12 @@
 import { LocalizedError } from "./localization.js";
-import { file, metadata, scene, scenePath, template } from "./documents.js";
 import { decode } from "./platform.js";
+import {
+  readDocumentation,
+  searchDocumentation,
+  referenceMatches,
+} from "./documentation.js";
+import { describeInput } from "./input-actions.js";
+import { projectSchemas } from "./project-schemas.js";
 let cached;
 export async function resources() {
   if (!cached)
@@ -36,6 +42,8 @@ export async function skills(studio) {
 }
 export async function knowledge(studio, name, args) {
   const data = await resources();
+  if (name === "editor_input_describe")
+    return describeInput(data.contract.input, args);
   if (name === "editor_skills_list")
     return {
       skills: (await skills(studio))
@@ -55,97 +63,103 @@ export async function knowledge(studio, name, args) {
         "Use only tools advertised by this web host. No native processes, Swift builds, LSP, remote MCP or publication.",
     };
   }
-  if (name === "editor_docs_search") {
-    const articles = data.docs.filter((a) =>
-      matches(
-        a.title + " " + a.blocks.map((b) => b.text).join(" "),
-        args.query,
-      ),
-    );
-    return {
-      total: articles.length,
-      articles: articles.slice(0, 20).map((a) => ({
-        id: a.id,
-        title: a.title,
-        source: a.source,
-        excerpt: a.blocks
-          .map((b) => b.text)
-          .join("\n")
-          .slice(0, 1200),
-      })),
-    };
-  }
+  if (name === "editor_docs_search")
+    return searchDocumentation(data.docs, args);
   if (name === "editor_docs_read") {
     if (!args.id) {
       const r = await fetch("./recipes.md");
       if (!r.ok) throw new LocalizedError("Recipes unavailable");
       return r.text();
     }
-    const a = data.docs.find((a) => a.id === args.id);
-    if (!a) throw new LocalizedError("Unknown documentation ID");
+    const result = readDocumentation(data.docs, args);
+    if (!result) throw new LocalizedError("Unknown documentation ID");
     return {
-      id: a.id,
-      source: a.source,
-      content: a.blocks
-        .map((b) => b.text)
-        .join("\n")
-        .slice(0, 48000),
+      ...result,
+      hostNote:
+        "Web Player API 4: @view, native UIComponent and ScriptableComponents HUD bindings are unavailable. A2UI is chat UI. Use browser examples and the supplied tool schemas; native process/LSP/TestWorld recipes do not apply.",
     };
   }
-  if (name === "editor_api_describe" && studio.preview?.ready)
-    return studio.preview.message("agent-tool", {
-      name: "api-describe",
-      query: args.query || "",
-    });
   if (name === "editor_api_describe")
     return {
-      source: "Current AdaScript compiler API catalog source",
-      content: data.apiSource
-        .split("\n")
-        .filter(
-          (line, i, lines) =>
-            !args.query ||
-            matches(
-              lines.slice(Math.max(0, i - 2), i + 3).join(" "),
-              args.query,
-            ),
-        )
-        .join("\n")
-        .slice(0, 48000),
+      source: data.contract.source,
+      fingerprint: data.contract.fingerprint,
+      types: data.contract.api.types.filter((type) =>
+        referenceMatches(
+          type.name + " " + type.members.map((member) => member.name).join(" "),
+          args.query,
+        ),
+      ),
+      functions: data.contract.api.functions.filter((fn) =>
+        referenceMatches(fn.name, args.query),
+      ),
+      note: "Compiler API signatures are independent of scene loading. Scene components must also appear in editor_components_describe. @view and editor-only context APIs are unavailable in this web host.",
     };
   if (name === "editor_components_describe") {
-    const defaults = new Map();
-    for (const snapshot of [template(2), template(3), studio.snapshot])
-      for (const e of scene(snapshot).entities)
-        for (const [type, payload] of Object.entries(e.components))
-          if (!defaults.has(type)) defaults.set(type, payload);
+    let project = { available: false, schemas: [] },
+      diagnostic;
+    try {
+      project = await projectSchemas(studio);
+    } catch (error) {
+      diagnostic = error.message;
+    }
+    const components = [
+      ...data.contract.components,
+      ...project.schemas.filter((schema) => schema.kind === "component"),
+    ].filter((component) =>
+      referenceMatches(
+        component.typeName +
+          " " +
+          (component.name || "") +
+          " " +
+          (component.description || "") +
+          " " +
+          component.fields.map((field) => field.name).join(" "),
+        args.query,
+      ),
+    );
     return {
-      components: [...defaults]
-        .filter(([type]) => matches(type, args.query))
-        .map(([typeName, defaultPayload]) => ({ typeName, defaultPayload })),
-      note: "Linked template/current-scene components. Player diagnostics determine runtime support.",
+      components,
+      total: components.length,
+      runtimeAPI: data.contract.runtimeAPI,
+      fingerprint: data.contract.fingerprint,
+      source: data.contract.source,
+      projectComponentsAvailable: project.available,
+      assetReferences:
+        "Use @res:// relative to Assets, for example Assets/Sprites/player.png becomes @res://Sprites/player.png. Existing Assets/... project paths and resource-relative paths are normalized to that native wire form. Missing or escaping assets are rejected.",
+      ...(diagnostic ? { diagnostic } : {}),
+      ...(project.validation ? { projectValidation: project.validation } : {}),
+      note: "Built-ins use verified native descriptors. Project components use the production source-schema parser; full compilation/runtime validation is separate. Entity-instance values are never schema defaults. defaultPayloadJSON preserves exact native integers; defaultPayload uses decimal strings for unsafe integer tool values.",
     };
   }
-  const examples = [
-    {
-      id: "basic-3d-scene",
-      description: "Portable camera, cube, light and AdaScript project",
-      files: Object.fromEntries(
-        template(3).files.map((f) => [f.path, decode(f.data)]),
-      ),
-    },
-    ...data.examples,
-  ];
+  const examples = data.examples;
   if (name === "editor_examples_list")
     return {
       examples: examples
-        .filter((e) => matches(e.id + " " + e.description, args.query))
-        .map(({ files, ...e }) => ({ ...e, files: Object.keys(files) })),
+        .filter((e) =>
+          referenceMatches(
+            e.id + " " + e.description + " " + (e.tags || []).join(" "),
+            args.query,
+          ),
+        )
+        .map(({ files, assets, ...e }) => ({
+          ...e,
+          files: Object.keys(files),
+          assets: Object.keys(assets || {}),
+        })),
     };
   if (name === "editor_examples_read") {
     const e = examples.find((e) => e.id === args.id);
     if (!e) throw new LocalizedError("Unknown example ID");
-    return e;
+    const { assets, ...example } = e;
+    return {
+      ...example,
+      assets: Object.entries(assets || {}).map(([path, data]) => ({
+        path,
+        bytes: (data.length * 3) / 4,
+      })),
+      importTool: "editor_examples_apply",
+      note: "Use editor_examples_apply to import text and binary assets atomically. Native HUD is unavailable in this browser profile.",
+    };
   }
   throw new LocalizedError("Unknown knowledge tool");
 }

@@ -30,13 +30,16 @@ test.before(async () => {
     export {Inspector} from './src/ui/inspector.jsx';
     export {Home} from './src/ui/home.jsx';
     export {Composer} from './src/ui/assistant.jsx';
-    export {promptCompletion} from './src/prompt-completion.js';
+    export {promptCompletion,requestPromptCompletion,validateCompletion} from './src/prompt-completion.js';
     export {Assets} from './src/ui/code-assets.jsx';
     export {ProjectOverview} from './src/ui/project-overview.jsx';
     export {Settings} from './src/ui/dialogs.jsx';
+    export {RuntimeConsole} from './src/ui/runtime-console.jsx';
     export {SourceEditor} from './src/ui/source-editor.jsx';
     export {studio} from './src/ui/state.js';
     export {Document,template,scene} from './src/documents.js';
+    export {normalizeInputActions} from './src/input-actions.js';
+    export {AuthoringError} from './src/authoring-validation.js';
     export * from './src/localization.js';
     export {api} from './src/platform.js';
     export * from './src/editor-language.js';
@@ -95,6 +98,39 @@ test.after(async () => {
 async function render(Component) {
   await act(() => root.render(React.createElement(Component)));
 }
+test("opening the runtime console mounts its polling effect and shows current Player logs", async () => {
+  language("en");
+  const { studio, RuntimeConsole } = ui;
+  const originalFrame = studio.preview.frame;
+  const originalMessage = studio.preview.message;
+  let reads = 0;
+  studio.preview.frame = {};
+  studio.preview.message = async () => {
+    reads++;
+    return ["QA round started", "QA star collected"];
+  };
+  try {
+    await render(RuntimeConsole);
+    assert.match(host.textContent, /QA round started/);
+    assert.match(host.textContent, /QA star collected/);
+    assert.equal(reads, 1);
+    await act(() =>
+      root.render(React.createElement(RuntimeConsole, { active: false })),
+    );
+    const atPause = reads;
+    await act(() => new Promise((resolve) => setTimeout(resolve, 800)));
+    assert.equal(reads, atPause);
+    language("ru");
+    await act(() =>
+      root.render(React.createElement(RuntimeConsole, { active: false })),
+    );
+    assert.match(host.textContent, /Консоль/);
+  } finally {
+    await act(() => root.render(null));
+    studio.preview.frame = originalFrame;
+    studio.preview.message = originalMessage;
+  }
+});
 function language(lang) {
   ui.setLanguage(lang);
 }
@@ -108,10 +144,51 @@ function prepare() {
       .scene(studio.snapshot)
       .entities.find((e) => e.components["AdaEngine.Transform"])?.id ??
     ui.scene(studio.snapshot).entities[0].id;
+  studio.homePrompt = "";
   studio.billingMode = "byok";
   studio.running = false;
   return studio;
 }
+
+test("input diagnostics follow language changes after the error was created", () => {
+  language("en");
+  let failure;
+  try {
+    ui.normalizeInputActions(
+      [{ name: "Jump", deadZone: 0.2, bindings: [{ key: { _0: "space" } }] }],
+      {
+        defaultDeadZone: 0.2,
+        bindings: [
+          { kind: "key", name: "space", encoded: { key: { _0: " " } } },
+        ],
+      },
+    );
+  } catch (error) {
+    failure = error;
+  }
+  assert.ok(failure);
+  assert.match(failure.message, /Unsupported input binding/);
+  language("ru");
+  assert.match(failure.message, /Такая привязка ввода не поддерживается/);
+  assert.equal(failure.diagnostics[0].message, failure.message);
+  assert.equal(failure.diagnostics[0].path, "inputActions[0].bindings[0]");
+  language("en");
+});
+test("component diagnostics translate both the envelope and the field error after a language switch", () => {
+  language("en");
+  const error = new ui.AuthoringError(
+    "component.value",
+    "entities.player.enabled",
+    new ui.LocalizedError("Expected boolean"),
+  );
+  assert.match(error.message, /Expected boolean/);
+  language("ru");
+  assert.match(error.message, /Не удалось применить значение/);
+  assert.match(error.message, /Нужно логическое значение/);
+  assert.equal(error.diagnostics[0].detail, "Нужно логическое значение");
+  assert.equal(error.diagnostics[0].path, "entities.player.enabled");
+  language("en");
+});
 
 test("mounted panels change language and retain authored values and uncommitted input", async () => {
   const s = prepare();
@@ -513,7 +590,7 @@ test("Create offers game choices and accepts a local completion without sending 
     );
     assert.deepEqual(sends[0], [
       textarea.value,
-      { creation: { dimension: 2, players: "multiplayer" } },
+      { creation: { dimension: 2, players: "multiplayer" }, newProject: true },
     ]);
     await type("Create a plat");
     await act(() =>
@@ -665,6 +742,249 @@ test("Create accepts multiple picked, pasted and dropped media, shows removable 
   } finally {
     s.send = originalSend;
     s.homeAttachments = [];
+    await act(() => root.render(null));
+  }
+});
+
+test("selected Codex completes arbitrary drafts, cancels stale requests and only appends after Tab", async () => {
+  const s = prepare();
+  s.document = null;
+  s.prompt = "";
+  s.homeAttachments = [];
+  s.status = "saved";
+  s.account = { id: "owner" };
+  s.config = { enabled: true };
+  s.providers = [
+    {
+      id: "local-codex",
+      title: "Codex",
+      transport: "codex",
+      models: [{ id: "selected-model", title: "Selected", tools: true }],
+    },
+  ];
+  s.providerID = "local-codex";
+  s.modelID = "selected-model";
+  s.billingMode = "codex";
+  const originalFetch = globalThis.fetch,
+    calls = [];
+  globalThis.fetch = (url, options) => {
+    assert.equal(url, "/v1/ai/complete");
+    return new Promise((resolve) =>
+      calls.push({
+        body: JSON.parse(options.body),
+        signal: options.signal,
+        resolve,
+      }),
+    );
+  };
+  function Host() {
+    React.useSyncExternalStore(s.subscribe, s.getVersion);
+    return React.createElement(ui.Home, { section: "create" });
+  }
+  const settle = async () => {
+    for (let i = 0; i < 3; i++)
+      await new Promise((resolve) => setImmediate(resolve));
+  };
+  const type = async (text) => {
+    const textarea = host.querySelector("textarea");
+    await act(() => {
+      textarea.focus();
+      Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        "value",
+      ).set.call(textarea, text);
+      textarea.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 740)));
+    return textarea;
+  };
+  const response = (suffix) =>
+    new Response(
+      "data: " + JSON.stringify({ type: "completion", suffix }) + "\n\n",
+      { headers: { "Content-Type": "text/event-stream" } },
+    );
+  try {
+    await render(Host);
+    const textarea = await type("A space bakery where");
+    assert(host.querySelector(".composer-focused"));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].body.model, "selected-model");
+    assert.equal(calls[0].body.text, textarea.value);
+    assert(!("tools" in calls[0].body));
+    assert(!("apiKey" in calls[0].body));
+    assert(!("messages" in calls[0].body));
+    await type("A space bakery where I");
+    assert.equal(calls[0].signal.aborted, true);
+    await act(async () => {
+      calls[0].resolve(response(" OLD suggestion"));
+      await settle();
+    });
+    assert.equal(host.querySelector(".completion-mirror"), null);
+    assert.equal(calls.length, 2);
+    await act(async () => {
+      calls[1].resolve(response(" bake bread in zero gravity."));
+      await settle();
+    });
+    assert(
+      host
+        .querySelector(".completion-mirror")
+        .textContent.includes("zero gravity"),
+    );
+    assert.equal(textarea.value, "A space bakery where I");
+    assert.equal(s.running, false);
+    assert.equal(s.document, null);
+    await act(() =>
+      textarea.dispatchEvent(
+        new window.KeyboardEvent("keydown", {
+          key: "Tab",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    assert.equal(
+      textarea.value,
+      "A space bakery where I bake bread in zero gravity.",
+    );
+    await act(() => textarea.blur());
+    assert.equal(host.querySelector(".composer-focused"), null);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await act(() => root.render(null));
+  }
+});
+
+test("completion transport handles split SSE and rejects oversized or non-text suggestions", async () => {
+  const bytes = new TextEncoder().encode(
+    'data: {"type":"completion","suffix":" another world"}\n\n',
+  );
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(bytes.slice(0, 23));
+      controller.enqueue(bytes.slice(23));
+      controller.close();
+    },
+  });
+  let observed;
+  assert.equal(
+    await ui.requestPromptCompletion(
+      { text: "Build a game" },
+      undefined,
+      async (url, options) => {
+        observed = JSON.parse(options.body);
+        return new Response(stream, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      },
+    ),
+    " another world",
+  );
+  assert.equal(observed.text, "Build a game");
+  assert.equal(ui.validateCompletion("prefix suffix", "prefix"), " suffix");
+  assert.equal(ui.validateCompletion("x".repeat(241), "prefix"), "");
+  assert.equal(ui.validateCompletion("bad\nline", "prefix"), "");
+  assert.equal(ui.validateCompletion({ suffix: "bad" }, "prefix"), "");
+});
+
+test("Create remains available after returning from a project and isolates its draft and attachments", async () => {
+  const s = prepare();
+  s.account = { id: "owner" };
+  s.status = "saved";
+  s.config = { enabled: true };
+  s.projectBrowser = true;
+  s.libraryView = "create";
+  s.homePrompt = "";
+  s.homeAttachments = [];
+  const previous = s.document,
+    selected = s.selected,
+    preview = s.preview;
+  previous.write("Docs/keep.md", "Existing project edit");
+  previous.chat((chat) => {
+    chat.sessions[0].draft = "Unsent project chat";
+  });
+  s.prompt = "Unsent project chat";
+  const snapshot = JSON.stringify(previous.snapshot),
+    undo = previous.undoStack.length;
+  const oldChanged = s.changed,
+    oldSave = s.save,
+    oldSend = s.send;
+  let changes = 0,
+    sends = [];
+  s.changed = () => {
+    changes++;
+  };
+  s.save = async () => {};
+  s.send = async (...args) => sends.push(args);
+  function Host() {
+    React.useSyncExternalStore(s.subscribe, s.getVersion);
+    return s.projectBrowser
+      ? React.createElement(ui.Home, { section: "create" })
+      : React.createElement(ui.Composer);
+  }
+  const settle = async () => {
+    for (let n = 0; n < 4; n++)
+      await new Promise((resolve) => setImmediate(resolve));
+  };
+  try {
+    await render(Host);
+    assert(host.querySelector(".resume-project"));
+    const field = host.querySelector(".home-composer textarea");
+    assert(field);
+    assert.equal(field.value, "");
+    await act(() => {
+      Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        "value",
+      ).set.call(field, "New idea");
+      field.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    assert.equal(s.homePrompt, "New idea");
+    assert.equal(s.prompt, "Unsent project chat");
+    assert.equal(s.session.draft, "Unsent project chat");
+    assert.equal(JSON.stringify(previous.snapshot), snapshot);
+    assert.equal(changes, 0);
+    const picker = host.querySelector("input[type=file][multiple]");
+    Object.defineProperty(picker, "files", {
+      value: [new window.File([new Uint8Array([1, 2, 3])], "new.glb")],
+      configurable: true,
+    });
+    await act(async () => {
+      picker.dispatchEvent(new window.Event("change", { bubbles: true }));
+      await settle();
+    });
+    assert.equal(s.homeAttachments.length, 1);
+    assert.equal(s.session.attachments.length, 0);
+    assert.equal(JSON.stringify(previous.snapshot), snapshot);
+    const continuation = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent.includes("Continue working"),
+    );
+    await act(() => continuation.click());
+    assert.equal(s.projectBrowser, false);
+    assert.equal(host.querySelector("textarea").value, "Unsent project chat");
+    assert.equal(s.document, previous);
+    assert.equal(s.preview, preview);
+    assert.equal(s.selected, selected);
+    assert.equal(previous.undoStack.length, undo);
+    await act(async () => {
+      await s.browseProjects(false, "create");
+    });
+    assert.equal(
+      host.querySelector(".home-composer textarea").value,
+      "New idea",
+    );
+    assert.equal(host.querySelectorAll(".composer-attachment").length, 1);
+    await act(() => host.querySelector("button[type=submit]").click());
+    assert.equal(sends.length, 1);
+    assert.equal(sends[0][0], "New idea");
+    assert.equal(sends[0][1].newProject, true);
+    assert.equal(JSON.stringify(previous.snapshot), snapshot);
+    assert.equal(s.prompt, "Unsent project chat");
+  } finally {
+    s.changed = oldChanged;
+    s.save = oldSave;
+    s.send = oldSend;
+    s.homeAttachments = [];
+    s.homePrompt = "";
     await act(() => root.render(null));
   }
 });

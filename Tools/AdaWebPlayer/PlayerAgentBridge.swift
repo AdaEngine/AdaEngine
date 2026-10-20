@@ -1,5 +1,6 @@
 import AdaA2UI
 import AdaAssets
+import AdaEngine
 import AdaScriptCompilerCore
 import AdaScripting
 import AdaUIDescription
@@ -11,6 +12,8 @@ import JavaScriptKit
 /// Fixed host tools: no filesystem, network or credentials are exposed to generator scripts.
 @MainActor
 final class PlayerAgentBridge {
+    var runtimeDiagnostics: (() -> [String])?
+    var gameInput: PlayerGameInput?
     #if os(WASI)
     private var callback: JSClosure?
     #endif
@@ -44,6 +47,26 @@ final class PlayerAgentBridge {
     }
 
     private func run(_ name: String, _ fields: [String: Any]) throws -> [String: Any] {
+        if name == "capabilities" { return ["runtimeAPI": 4, "agentToolsVersion": 2, "sourceSchemas": true] }
+        if name == "validate-component-values" { return try validateComponentValues(fields) }
+        if name == "runtime-diagnostics" { return ["diagnostics": Array((runtimeDiagnostics?() ?? []).suffix(30))] }
+        if name == "game-input" {
+            guard let key = fields["key"] as? String, let down = fields["down"] as? Bool, let gameInput else { throw Failure("Gameplay input unavailable") }
+            try gameInput.send(key: key, down: down)
+            return ["ok": true]
+        }
+        if name == "inspect-sources" {
+            guard let input = fields["sources"] as? [[String: String]], input.count <= 512 else { throw Failure("Expected at most 512 AdaScript source files") }
+            var names = Set<String>()
+            let sources = try input.map { item -> AdaScriptCompilerSource in
+                guard let path = item["path"], path.hasPrefix("Sources/"), path.hasSuffix(".ada"),
+                      !path.split(separator: "/").contains(".."), names.insert(path).inserted,
+                      let source = item["source"], source.utf8.count <= 512 * 1024 else { throw Failure("Invalid AdaScript source path or size") }
+                return AdaScriptCompilerSource(path: path, source: source)
+            }
+            guard let value = try JSONSerialization.jsonObject(with: AdaScriptAgentSchemaCatalog.encoded(sources: sources)) as? [String: Any] else { throw Failure("Invalid schema catalog") }
+            return value
+        }
         if name == "api-describe" {
             let query = (fields["query"] as? String ?? "").lowercased()
             let environment = AdaScriptTypeEnvironment.standard
@@ -91,5 +114,42 @@ final class PlayerAgentBridge {
     private struct Failure: Error, CustomStringConvertible {
         let description: String
         init(_ description: String) { self.description = description }
+    }
+
+    /// Decode complex values with the same native codecs as scene loading, without
+    /// creating textures, worlds, scripts or gameplay systems. JSON is carried as
+    /// text so JavaScript cannot round native 64-bit masks before decoding.
+    private func validateComponentValues(_ fields: [String: Any]) throws -> [String: Any] {
+        guard let components = fields["components"] as? [[String: String]], components.count <= 4096 else {
+            throw Failure("Expected component payloads")
+        }
+        var diagnostics: [[String: String]] = []
+        for item in components {
+            guard let name = item["typeName"], let text = item["payloadJSON"], let entity = item["entityID"] else { throw Failure("Missing component payload") }
+            let data = Data(text.utf8)
+            do {
+                switch name {
+                case "AdaPhysics.PhysicsBody2DComponent": _ = try JSONDecoder().decode(PhysicsBody2DComponent.self, from: data)
+                case "AdaScene.PointLightComponent": _ = try JSONDecoder().decode(PointLightComponent.self, from: data)
+                case "AdaRender.Environment3D": _ = try JSONDecoder().decode(Environment3D.self, from: data)
+                case "AdaSprite.Sprite":
+                    struct SpriteValues: Decodable { let anchor: SpriteAnchor; let imageMode: SpriteImageMode }
+                    _ = try JSONDecoder().decode(SpriteValues.self, from: data)
+                default: throw Failure("Unsupported native preflight component: " + name)
+                }
+            } catch {
+                let context: DecodingError.Context?
+                switch error {
+                case let DecodingError.dataCorrupted(value), let DecodingError.keyNotFound(_, value),
+                     let DecodingError.typeMismatch(_, value), let DecodingError.valueNotFound(_, value): context = value
+                default: context = nil
+                }
+                let field = context?.codingPath.map(\.stringValue).joined(separator: ".") ?? ""
+                diagnostics.append(["entityID": entity, "component": name,
+                    "path": "entities.\(entity).components.\(name)" + (field.isEmpty ? "" : "." + field),
+                    "message": String(describing: error), "repairTool": "editor_components_describe"])
+            }
+        }
+        return ["valid": diagnostics.isEmpty, "diagnostics": diagnostics]
     }
 }

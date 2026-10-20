@@ -245,20 +245,21 @@ export function putAttachments(snapshot, items, sessionID = "main", draft) {
     session.attachmentDetails[path] = details;
   if (draft !== undefined) session.draft = draft;
 }
-export async function attachFiles(studio, inputs) {
+export async function attachFiles(studio, inputs, { home = false } = {}) {
   const files = Array.from(inputs);
   if (!files.length) return [];
   if (studio.admitting || studio.running || studio.attachmentBusy)
     throw new LocalizedError(
       "Wait for the current operation before attaching files.",
     );
-  const owner = studio.document,
+  const origin = studio.document,
+    owner = home ? null : origin,
     sessionID = owner ? studio.session.id : null;
-  const existing = attachmentEntries(studio);
+  const existing = attachmentEntries(studio, home || !owner);
   if (existing.length + files.length > maximumAttachments)
     throw new LocalizedError("You can attach up to four files");
   const assertCurrent = () => {
-    if (studio.document !== owner)
+    if (studio.document !== origin)
       throw new LocalizedError("A different project is open");
   };
   studio.attachmentBusy = true;

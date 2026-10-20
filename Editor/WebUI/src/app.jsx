@@ -212,14 +212,17 @@ function App() {
           </div>
         </header>
         {s.document && <Workspace hidden={s.projectBrowser} />}
-        {library &&
-          (s.libraryView === "games" ? (
-            <Games selectedId={s.route?.id} />
-          ) : ["account", "publications", "legal"].includes(s.libraryView) ? (
-            <CloudPanel route={s.route || { href: location.pathname }} />
-          ) : (
-            <Home section={s.libraryView} />
-          ))}
+        {library && (
+          <div className="library-content">
+            {s.libraryView === "games" ? (
+              <Games selectedId={s.route?.id} />
+            ) : ["account", "publications", "legal"].includes(s.libraryView) ? (
+              <CloudPanel route={s.route || { href: location.pathname }} />
+            ) : (
+              <Home section={s.libraryView} />
+            )}
+          </div>
+        )}
       </div>
       {s.settings && <Settings />}
       {s.history && <History />}

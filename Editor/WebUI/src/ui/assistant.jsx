@@ -248,7 +248,13 @@ function Composer({ home = false }) {
   const s = studio,
     attach = useRef(),
     input = useRef();
+  const draft = home ? s.homePrompt : s.prompt;
   const updateDraft = (value) => {
+    if (home) {
+      s.homePrompt = value;
+      s.emit();
+      return;
+    }
     s.prompt = value;
     if (s.document)
       s.updateChat((c) => {
@@ -259,28 +265,45 @@ function Composer({ home = false }) {
   const [dragging, setDragging] = useState(false);
   const attachments = attachmentEntries(s, home);
   const blocked = s.attachmentBusy || s.admitting || s.running;
-  const canSend = !!s.prompt.trim() || attachments.length > 0;
-  const addFiles = (files) => s.action(() => s.attachFiles(files));
-  const commands = useSkillCommands(input, updateDraft);
+  const canSend = !!draft.trim() || attachments.length > 0;
+  const addFiles = (files) => s.action(() => s.attachFiles(files, home));
+  const commands = useSkillCommands(input, updateDraft, { home, text: draft });
   const completion = usePromptCompletion(
     input,
-    s.prompt,
+    draft,
     updateDraft,
-    home && !commands.open && !s.running && !s.admitting,
+    home && !commands.open && !s.running && !s.admitting && !s.attachmentBusy,
+    {
+      providerID: s.providerID,
+      model: s.modelID,
+      billingMode: s.billingMode,
+      accountID: s.account?.id,
+      dimension: s.creation.dimension,
+      players: s.creation.players,
+      remote:
+        !!s.account &&
+        s.billingMode === "codex" &&
+        s.providers.some(
+          (provider) =>
+            provider.id === s.providerID && provider.transport === "codex",
+        ),
+    },
   );
   const creation = creationOptions(s.creation);
   const send = () => {
     if (!blocked && canSend)
-      return s.action(() => s.send(s.prompt, home ? { creation } : undefined));
+      return s.action(() =>
+        s.send(draft, home ? { creation, newProject: true } : undefined),
+      );
   };
   const working =
     s.running && !!s.document && s.runningSessionID === s.session.id;
   useEffect(() => {
-    if (s.composerFocus) input.current?.focus();
+    if (!home && s.composerFocus) input.current?.focus();
   }, [s.composerFocus]);
   return (
     <form
-      className={`composer ${home ? "home-composer" : ""} ${working ? "composer-working" : ""} ${dragging ? "composer-dragging" : ""}`}
+      className={`composer ${home ? "home-composer" : ""} ${working ? "composer-working" : ""} ${completion.focused ? "composer-focused" : ""} ${dragging ? "composer-dragging" : ""}`}
       aria-busy={working || s.attachmentBusy || undefined}
       onDragOver={(event) => {
         if (Array.from(event.dataTransfer.types).includes("Files")) {
@@ -316,7 +339,7 @@ function Composer({ home = false }) {
             ref={completion.mirror}
             aria-hidden="true"
           >
-            <span className="completion-prefix">{s.prompt}</span>
+            <span className="completion-prefix">{draft}</span>
             <span>{completion.suffix}</span>
           </div>
         )}
@@ -355,7 +378,7 @@ function Composer({ home = false }) {
               ? t("Describe the game you dream of creating…")
               : t("What would you like to create or change?")
           }
-          value={s.prompt}
+          value={draft}
           onChange={(e) => {
             updateDraft(e.target.value);
             commands.onInput(e);
@@ -475,6 +498,22 @@ function Composer({ home = false }) {
           >
             <kbd>Tab</kbd>
             {t("Accept suggestion")}
+          </button>
+        )}
+        {completion.phase === "loading" && (
+          <span className="completion-status" role="status">
+            {t("Completing your idea…")}
+          </span>
+        )}
+        {completion.phase === "unavailable" && (
+          <button
+            type="button"
+            className="completion-status"
+            onPointerDown={(event) => event.preventDefault()}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={completion.retry}
+          >
+            {t("Retry suggestion")}
           </button>
         )}
         <span className="composer-spacer" />

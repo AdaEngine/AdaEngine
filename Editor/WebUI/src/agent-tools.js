@@ -1,8 +1,14 @@
 import { LocalizedError } from "./localization.js";
-import { knowledge } from "./knowledge.js";
+import { knowledge, resources } from "./knowledge.js";
 import { sceneApply, sceneRevision } from "./scene-tools.js";
 import { file, metadata, scenePath, clone } from "./documents.js";
 import { decode, encode, bytes } from "./platform.js";
+import { authoringEdit } from "./authoring.js";
+import { applyOperations } from "./scene-tools.js";
+import { scene } from "./documents.js";
+import { stringifySceneValue } from "./scene-codec.js";
+import { sceneOperationsSchema } from "./scene-operation-schema.js";
+import { runtimePatchSchema, patchRuntime } from "./runtime-config.js";
 const str = { type: "string" },
   obj = { type: "object" },
   integer = { type: "integer" };
@@ -21,8 +27,50 @@ export const extraTools = [
   ),
   tool(
     "editor_project_configure",
-    "Patch portable runtime/plugins/inputActions project configuration.",
-    { runtime: obj, inputActions: { type: "array" } },
+    'Patch runtime or input actions atomically. Use named bindings such as {kind:"key",name:"space"}; read editor_input_describe for names. The tool encodes native JSON and rejects invalid input before saving.',
+    {
+      runtime: runtimePatchSchema,
+      inputActions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: str,
+            deadZone: { type: "number", minimum: 0, exclusiveMaximum: 1 },
+            bindings: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  kind: {
+                    type: "string",
+                    enum: [
+                      "key",
+                      "mouseButton",
+                      "mouseScroll",
+                      "mouseMotion",
+                      "gamepadButton",
+                      "gamepadAxis",
+                      "touch",
+                      "touchEvent",
+                    ],
+                  },
+                  name: str,
+                },
+                required: ["kind", "name"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["name", "bindings"],
+        },
+      },
+    },
+  ),
+  tool(
+    "editor_input_describe",
+    "Discover valid keyboard, mouse, gamepad and touch bindings with exact authoring names and native encodings. Query a kind/name such as key space or gamepadAxis; use nextOffset to continue.",
+    { query: str, offset: integer, limit: integer },
   ),
   tool(
     "editor_files_search",
@@ -43,20 +91,54 @@ export const extraTools = [
     {
       path: str,
       expectedRevision: str,
-      operations: { type: "array", items: obj },
+      operations: sceneOperationsSchema,
     },
     ["expectedRevision", "operations"],
   ),
+  tool(
+    "editor_project_apply",
+    "Atomically write source/config/scene text and apply scene operations in ONE Undo step. Read generation from editor_project_context. New @component declarations are parsed from these proposed files before attaching them. Rejection preserves the document. Run editor_build separately for full compilation/runtime validation.",
+    {
+      expectedGeneration: integer,
+      files: {
+        type: "array",
+        maxItems: 100,
+        items: {
+          type: "object",
+          properties: { path: str, content: str },
+          required: ["path", "content"],
+          additionalProperties: false,
+        },
+      },
+      operations: { ...sceneOperationsSchema, minItems: 0 },
+    },
+    ["expectedGeneration", "files", "operations"],
+  ),
+  tool(
+    "editor_examples_apply",
+    "Import a complete browser example, including binary assets, as one Undo transaction. Replaces gameplay Sources/Tests and the active scene/runtime/input setup; preserves project identity, chat, notes and existing assets. Read the example first. Use generation from editor_project_context; then run editor_build and Play.",
+    { id: str, expectedGeneration: integer },
+    ["id", "expectedGeneration"],
+  ),
+  tool(
+    "editor_docs_search",
+    "Find ranked documentation sections by exact API names or English/Russian authoring questions. Returns matching excerpts and section IDs for editor_docs_read. An empty result means no reference matched.",
+    {
+      query: str,
+      limit: integer,
+      platform: { type: "string", enum: ["web", "native"] },
+    },
+    ["query"],
+  ),
   ...[
     "skills_list",
-    "docs_search",
     "api_describe",
     "components_describe",
     "examples_list",
   ].map((name) =>
     tool(
       "editor_" + name,
-      "Search the shared native Studio " +
+      "Search this browser host's Studio " +
         name.replaceAll("_", " ") +
         " catalog.",
       { query: str },
@@ -65,9 +147,9 @@ export const extraTools = [
   ...["skills_read", "examples_read"].map((name) =>
     tool(
       "editor_" + name,
-      "Read a complete shared native Studio " +
+      "Read a Studio " +
         name.replaceAll("_", " ") +
-        ". Dot tool names in skills map to underscores in this host.",
+        ". Browser capability notes apply; dot tool names in workflows map to underscores in this host.",
       { id: str },
       ["id"],
     ),
@@ -127,6 +209,8 @@ export const writeTools = new Set([
   "editor_scene_add",
   "editor_scene_apply",
   "editor_project_configure",
+  "editor_project_apply",
+  "editor_examples_apply",
   "editor_sprite_generate",
   "editor_audio_generate",
   "editor_model_generate",
@@ -143,8 +227,52 @@ export const unavailable = [
   "native TestWorld simulation",
   "publication",
 ];
+export async function authorFile(studio, path, text) {
+  if (path === ".ada/project.json" || /\.(ascn|ada)$/.test(path))
+    return authoringEdit(studio, (snapshot) => {
+      const existing = file(snapshot, path);
+      if (existing) existing.data = encode(text);
+      else snapshot.files.push({ path, data: encode(text) });
+    });
+  studio.document.write(path, text);
+  studio.changed();
+  return { saved: true, runtimePending: true };
+}
 export async function extraTool(s, name, args) {
-  if (/^(editor_(skills|docs|api|components|examples)_)/.test(name))
+  if (name === "editor_examples_apply") {
+    const document = s.document;
+    const generation = document.contentGeneration;
+    if (args.expectedGeneration !== generation)
+      throw new LocalizedError("Project changed");
+    const example = (await resources()).examples.find((e) => e.id === args.id);
+    if (!example) throw new LocalizedError("Unknown example ID");
+    if (s.document !== document || document.contentGeneration !== generation)
+      throw new LocalizedError("Project changed");
+    return authoringEdit(s, (snapshot) => {
+      const identity = metadata(snapshot).project;
+      snapshot.files = snapshot.files.filter(
+        (f) => !f.path.startsWith("Sources/") && !f.path.startsWith("Tests/"),
+      );
+      for (const [path, content] of Object.entries(example.files)) {
+        let text = content;
+        if (path === ".ada/project.json")
+          text = JSON.stringify(
+            { ...JSON.parse(content), project: identity },
+            null,
+            2,
+          );
+        const existing = file(snapshot, path);
+        if (existing) existing.data = encode(text);
+        else snapshot.files.push({ path, data: encode(text) });
+      }
+      for (const [path, data] of Object.entries(example.assets || {})) {
+        const existing = file(snapshot, path);
+        if (existing) existing.data = data;
+        else snapshot.files.push({ path, data });
+      }
+    });
+  }
+  if (/^(editor_(skills|docs|api|components|examples|input)_)/.test(name))
     return knowledge(s, name, args);
   switch (name) {
     case "editor_project_context":
@@ -153,6 +281,7 @@ export async function extraTool(s, name, args) {
         project: metadata(s.snapshot),
         scenePath: scenePath(s.snapshot),
         sceneRevision: await sceneRevision(s.snapshot),
+        generation: s.document.contentGeneration,
         selection: s.entity,
         capabilities: [
           "AdaScript",
@@ -166,24 +295,64 @@ export async function extraTool(s, name, args) {
         ],
         unavailable,
         instructions: s.snapshot.files
-          .filter((f) => /^(AGENTS|DESIGN|PLAN|PROGRESS)\.md$/.test(f.path))
+          .filter((f) =>
+            /^(AGENTS\.md|(?:Docs\/Design\/)?(?:DESIGN|PLAN|PROGRESS)\.md)$/.test(
+              f.path,
+            ),
+          )
           .map((f) => ({ path: f.path, content: decode(f.data) })),
       };
     case "editor_selection_get":
       return { entity: s.entity || null, code: s.latestCodeSelection || "" };
     case "editor_scene_apply":
       return sceneApply(s, args);
+    case "editor_project_apply": {
+      if (args.expectedGeneration !== s.document.contentGeneration)
+        throw new LocalizedError("Project changed");
+      if (
+        !Array.isArray(args.files) ||
+        args.files.length > 100 ||
+        !Array.isArray(args.operations)
+      )
+        throw new LocalizedError("Invalid project transaction");
+      const paths = new Set();
+      return authoringEdit(s, (snapshot) => {
+        for (const entry of args.files) {
+          if (
+            typeof entry.path !== "string" ||
+            typeof entry.content !== "string" ||
+            paths.has(entry.path)
+          )
+            throw new LocalizedError("Invalid project transaction");
+          paths.add(entry.path);
+          const existing = file(snapshot, entry.path);
+          if (existing) existing.data = encode(entry.content);
+          else
+            snapshot.files.push({
+              path: entry.path,
+              data: encode(entry.content),
+            });
+        }
+        if (args.operations.length) {
+          const value = scene(snapshot);
+          applyOperations(value, args.operations);
+          file(snapshot, scenePath(snapshot)).data = encode(
+            stringifySceneValue(value, 2),
+          );
+        }
+      });
+    }
     case "editor_file_patch": {
       const f = file(s.snapshot, args.path);
       if (!f) throw new LocalizedError("File not found");
       const text = decode(f.data);
       if (!args.oldText || text.split(args.oldText).length !== 2)
         throw new LocalizedError("Patch must match exactly once");
-      s.document.write(
+      await authorFile(
+        s,
         args.path,
         text.replace(args.oldText, () => args.newText),
       );
-      s.changed();
       return { path: args.path };
     }
     case "editor_files_search":
@@ -204,20 +373,20 @@ export async function extraTool(s, name, args) {
         )
         .slice(0, 100);
     case "editor_project_configure": {
-      s.document.edit((snapshot) => {
+      const status = await authoringEdit(s, (snapshot) => {
         const meta = metadata(snapshot);
         if (args.runtime) {
           if (args.runtime.entry?.view)
             throw new LocalizedError("AdaScript views are unavailable");
-          meta.runtime = { ...meta.runtime, ...args.runtime };
+          meta.runtime = patchRuntime(meta.runtime, args.runtime);
         }
-        if (args.inputActions) meta.inputActions = args.inputActions;
+        if (args.inputActions !== undefined)
+          meta.inputActions = args.inputActions;
         file(snapshot, ".ada/project.json").data = encode(
           JSON.stringify(meta, null, 2),
         );
       });
-      s.changed();
-      return metadata(s.snapshot);
+      return { ...metadata(s.snapshot), ...status };
     }
     case "editor_plan_update": {
       if (

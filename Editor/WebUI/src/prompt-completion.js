@@ -1,6 +1,6 @@
 import { currentLanguage, translatedText } from "./localization.js";
 
-// Local, editable continuations. No remote generation or agent side turn while typing.
+// Instant local continuations; arbitrary drafts can use the separate tool-free completion endpoint.
 const examples = [
   (language) =>
     translatedText(
@@ -96,4 +96,82 @@ export function promptCompletion(
     .map((example) => example(script))
     .find((example) => example.toLocaleLowerCase(script).startsWith(prefix));
   return match ? match.slice(text.length - leading) : "";
+}
+
+export function completionEligible(text, caret, end = caret) {
+  return (
+    caret === text.length &&
+    end === caret &&
+    text.trim().length >= 3 &&
+    text.length <= 2000 &&
+    !/(?:^|\s)[/@]\S*$/.test(text) &&
+    !/[.!?]\s*$/.test(text)
+  );
+}
+export function completionLanguage(text, fallback = currentLanguage()) {
+  return /[\u0400-\u04ff]/u.test(text)
+    ? "ru"
+    : /[a-z]/i.test(text)
+      ? "en"
+      : fallback;
+}
+export function validateCompletion(value, prefix) {
+  if (typeof value !== "string") return "";
+  const suffix = value.startsWith(prefix) ? value.slice(prefix.length) : value;
+  return suffix.length <= 240 &&
+    !/[\x00-\x1f]/.test(suffix) &&
+    !suffix.includes("```")
+    ? suffix
+    : "";
+}
+export async function requestPromptCompletion(body, signal, request = fetch) {
+  const send = () =>
+    request("/v1/ai/complete", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  let response = await send();
+  if (response.status === 401) {
+    const refresh = await request("/v1/auth/refresh", {
+      method: "POST",
+      credentials: "same-origin",
+      signal,
+    });
+    if (refresh.ok) response = await send();
+  }
+  if (
+    !response.ok ||
+    !response.headers.get("Content-Type")?.includes("text/event-stream")
+  )
+    throw new Error("Completion unavailable");
+  const reader = response.body.getReader(),
+    decoder = new TextDecoder();
+  let pending = "",
+    size = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      pending += decoder.decode(value, { stream: !done });
+      size += value?.length || 0;
+      if (size > 32000) throw new Error("Completion response too large");
+      let end;
+      while ((end = pending.indexOf("\n")) >= 0) {
+        const line = pending.slice(0, end).trim();
+        pending = pending.slice(end + 1);
+        if (!line.startsWith("data:")) continue;
+        const event = JSON.parse(line.slice(5));
+        if (event.type === "error") throw new Error("Completion unavailable");
+        if (event.type === "completion")
+          return validateCompletion(event.suffix, body.text);
+      }
+      if (done) return "";
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }

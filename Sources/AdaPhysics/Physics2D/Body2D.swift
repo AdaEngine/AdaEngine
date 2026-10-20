@@ -84,7 +84,7 @@ public final class Body2D: @unchecked Sendable {
     }
 
     func getWorldCenter() -> Vector2 {
-        b2Body_GetWorldCenterOfMass(bodyId).asVector2
+        b2Body_GetWorldCenter(bodyId).asVector2
     }
 
     func setTransform(position: Vector2, angle: Angle) {
@@ -185,12 +185,12 @@ final class BoxShape2D {
         b2Shape_GetType(shape)
     }
 
-    func getMaterial() -> Int32 {
-        b2Shape_GetMaterial(shape)
+    func getMaterial() -> UInt64 {
+        b2Shape_GetUserMaterial(shape)
     }
 
-    func setMaterial(_ material: Int32) {
-        return b2Shape_SetMaterial(shape, material)
+    func setMaterial(_ material: UInt64) {
+        return b2Shape_SetUserMaterial(shape, material)
     }
 
     static func makeShape(

@@ -37,13 +37,21 @@ function Home({ section = "create" }) {
     }
   };
   const signIn = (
-    <LibraryAction href={`/account?continue=${encodeURIComponent(section === "create" ? "/create" : "/projects")}`}>{t("Sign in to Ada Cloud")}</LibraryAction>
+    <LibraryAction
+      href={`/account?continue=${encodeURIComponent(section === "create" ? "/create" : "/projects")}`}
+    >
+      {t("Sign in to Ada Cloud")}
+    </LibraryAction>
   );
   const upload = () => input.current.click();
   return (
     <main className={`home library-home ${section}`}>
       <div className="library-home-content">
-        {section === "projects" && signedIn && <LibraryAction secondary href="/publications">{t("Publishing")}</LibraryAction>}
+        {section === "projects" && signedIn && (
+          <LibraryAction secondary href="/publications">
+            {t("Publishing")}
+          </LibraryAction>
+        )}
         {s.document && (
           <section className="resume-project">
             <div>
@@ -109,7 +117,7 @@ function Home({ section = "create" }) {
                     )}
               </p>
             )}
-            {!s.document && canCreate && !pending && (
+            {canCreate && !pending && (
               <div className="library-create-composer">
                 <Composer home />
               </div>

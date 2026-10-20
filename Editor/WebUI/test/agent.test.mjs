@@ -3,12 +3,18 @@ import assert from "node:assert/strict";
 import { runAgent, runTool } from "../src/agent.js";
 import { Document, template, file, scene } from "../src/documents.js";
 import { decode } from "../src/platform.js";
+import { readFile } from "node:fs/promises";
+const contract = JSON.parse(
+  await readFile(new URL("../assets/agent-contract.json", import.meta.url)),
+);
+globalThis.fetch = async () => Response.json({ contract });
 
 test("agent file and scene tools enter the same document undo history", async () => {
   const document = new Document(template(2));
   let edits = 0;
   const studio = {
     document,
+    preview: { frame: {}, message: async () => ({ valid: true }) },
     get snapshot() {
       return document.snapshot;
     },

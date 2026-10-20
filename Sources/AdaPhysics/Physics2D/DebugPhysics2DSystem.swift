@@ -105,7 +105,8 @@ private final class WorldDebugDrawContext {
 // MARK: - Box2D Debug Draw Callbacks
 
 private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
-    _ transform: b2Transform,
+    _ transform: b2WorldTransform,
+    _ localCenter: b2Vec2,
     _ radius: Float,
     _ color: b2HexColor,
     _ context: UnsafeMutableRawPointer?
@@ -119,7 +120,7 @@ private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
 
     let color = Color.fromHex(Int(color.rawValue))
 
-    let center = Vector2(transform.p.x, transform.p.y)
+    let center = b2TransformPoint(transform, localCenter).asVector2
 
     debugContext.addCircle(center: center, radius: radius, color: color)
 
@@ -199,11 +200,11 @@ public func ExtractPhysicsDebug(
     let drawContext = WorldDebugDrawContext()
 
     var debugDraw = unsafe b2DefaultDebugDraw()
-    unsafe debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
-    unsafe debugDraw.DrawSolidCircle = DebugPhysicsExctract2DSystem_DrawSolidCircle
+    unsafe debugDraw.DrawSolidPolygonFcn = DebugPhysicsExctract2DSystem_DrawSolidPolygon
+    unsafe debugDraw.DrawSolidCircleFcn = DebugPhysicsExctract2DSystem_DrawSolidCircle
     unsafe debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
     unsafe debugDraw.drawShapes = true
-    unsafe debugDraw.drawAABBs = false
+    unsafe debugDraw.drawBounds = false
 
     unsafe physicsWorld().world.debugDraw(with: debugDraw)
 

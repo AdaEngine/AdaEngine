@@ -1,4 +1,5 @@
 import { t } from "../localization.js";
+import { parseSceneValue, stringifySceneValue } from "../scene-codec.js";
 import React from "react";
 import { studio } from "./state.js";
 import { useState, useEffect } from "react";
@@ -125,10 +126,11 @@ const fieldLabels = {
   autoplay: () => t("Autoplay"),
 };
 function Property({ name, value, onChange }) {
-  const [draft, setDraft] = useState(JSON.stringify(value));
+  const [draft, setDraft] = useState(stringifySceneValue(value));
   useEffect(
-    () => setDraft(typeof value === "string" ? value : JSON.stringify(value)),
-    [JSON.stringify(value)],
+    () =>
+      setDraft(typeof value === "string" ? value : stringifySceneValue(value)),
+    [stringifySceneValue(value)],
   );
   if (Array.isArray(value) && value.every((n) => typeof n === "number"))
     return (
@@ -210,9 +212,11 @@ function Property({ name, value, onChange }) {
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
           try {
-            onChange(typeof value === "string" ? draft : JSON.parse(draft));
+            onChange(
+              typeof value === "string" ? draft : parseSceneValue(draft),
+            );
           } catch {
-            setDraft(JSON.stringify(value));
+            setDraft(stringifySceneValue(value));
           }
         }}
         onKeyDown={(e) => {

@@ -71,7 +71,7 @@ public struct Physics2DSyncSystem: Sendable {
                 applyMassProperties(physicsBody.massProperties, fixedRotation: physicsBody.fixedRotation, to: body)
             } else {
                 var def = unsafe b2DefaultBodyDef()
-                unsafe def.fixedRotation = physicsBody.fixedRotation
+                unsafe def.motionLocks.angularZ = physicsBody.fixedRotation
                 unsafe def.position = transform.position.xy.b2Vec
                 unsafe def.type = physicsBody.mode.b2Type
                 unsafe def.gravityScale = physicsBody.gravityScale
@@ -84,8 +84,13 @@ public struct Physics2DSyncSystem: Sendable {
                 for shapeResource in physicsBody.wrappedValue.shapes {
                     var shapeDef = unsafe b2DefaultShapeDef()
                     unsafe shapeDef.density = physicsBody.material.density
-                    unsafe shapeDef.restitution = physicsBody.material.restitution
-                    unsafe shapeDef.friction = physicsBody.material.friction
+                    unsafe shapeDef.material.restitution = physicsBody.material.restitution
+                    unsafe shapeDef.material.friction = physicsBody.material.friction
+                    unsafe shapeDef.enableContactEvents = true
+                    unsafe shapeDef.enableSensorEvents = true
+                    unsafe shapeDef.enableHitEvents = true
+                    unsafe shapeDef.enableCustomFiltering = true
+                    unsafe shapeDef.enablePreSolveEvents = true
                     unsafe shapeDef.filter = physicsBody.filter.b2Filter
 
                     if physicsBody.wrappedValue.isTrigger {
@@ -93,7 +98,7 @@ public struct Physics2DSyncSystem: Sendable {
                     }
 
                     if let debugColor = physicsBody.debugColor {
-                        unsafe shapeDef.customColor = UInt32(debugColor.toHex)
+                        unsafe shapeDef.material.customColor = UInt32(debugColor.toHex)
                     }
 
                     unsafe body.appendShape(
@@ -153,8 +158,13 @@ public struct Physics2DSyncSystem: Sendable {
                     var shapeDef = unsafe b2DefaultShapeDef()
                     unsafe shapeDef.density = 1
                     if let debugColor = collisionBody.debugColor {
-                        unsafe shapeDef.customColor = UInt32(debugColor.toHex)
+                        unsafe shapeDef.material.customColor = UInt32(debugColor.toHex)
                     }
+                    unsafe shapeDef.enableContactEvents = true
+                    unsafe shapeDef.enableSensorEvents = true
+                    unsafe shapeDef.enableHitEvents = true
+                    unsafe shapeDef.enableCustomFiltering = true
+                    unsafe shapeDef.enablePreSolveEvents = true
                     unsafe shapeDef.filter = collisionBody.filter.b2Filter
                     if case .trigger = collisionBody.mode {
                         unsafe shapeDef.isSensor = true

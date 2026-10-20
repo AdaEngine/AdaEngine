@@ -1,5 +1,9 @@
 import { t, LocalizedError } from "./localization.js";
 import { file, scenePath, scene, clone } from "./documents.js";
+import { encode } from "./platform.js";
+import { stringifySceneValue } from "./scene-codec.js";
+import { authoringEdit } from "./authoring.js";
+import { validateSceneOperation } from "./scene-operation-schema.js";
 export async function sceneRevision(snapshot) {
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -30,7 +34,8 @@ export function applyOperations(value, operations) {
     if (!e) throw new LocalizedError("Entity not found: {0}", id);
     return e;
   };
-  for (const op of operations) {
+  for (const [index, op] of operations.entries()) {
+    validateSceneOperation(op, index);
     const id = op.entityID || op.id;
     switch (op.op) {
       case "createEntity": {
@@ -111,11 +116,17 @@ export async function sceneApply(studio, args) {
     file(studio.snapshot, scenePath(studio.snapshot)).data !== before
   )
     throw new LocalizedError("Scene changed while validating revision");
-  studio.editScene((s) => applyOperations(s, args.operations));
+  const status = await authoringEdit(studio, (snapshot) => {
+    const value = scene(snapshot);
+    applyOperations(value, args.operations);
+    file(snapshot, scenePath(snapshot)).data = encode(
+      stringifySceneValue(value, 2),
+    );
+  });
   return {
     path: scenePath(studio.snapshot),
     revision: await sceneRevision(studio.snapshot),
-    message: "Scene updated",
+    ...status,
   };
 }
 export function spawnOperations(snapshot, { entityID, count, spacing }) {

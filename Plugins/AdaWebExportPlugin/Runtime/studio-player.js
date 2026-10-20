@@ -9,6 +9,7 @@ const config = fetch('./studio-player-config.json', {cache:'no-store',credential
 const originalFetch = globalThis.fetch.bind(globalThis);
 const logs = [];
 let ready, failed, loaded = false, frameWaiter, currentResources;
+let activeRevision = null, lastDiagnostics = '';
 const gameReady = new Promise((resolve,reject) => {ready=resolve;failed=reject;});
 gameReady.catch(()=>{});
 for (const level of ['log','info','warn','error']) {
@@ -88,10 +89,26 @@ async function load(snapshot) {
   await frame;
   await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
   await editor.load(snapshot.editMode===true,snapshot.revision);
+  activeRevision = snapshot.revision; lastDiagnostics = '';
   return {ready:true, editMode:snapshot.editMode===true};
   } catch (error) {frameWaiter?.reject(error);throw error;}
   finally {if(frameWaiter?.id===id)frameWaiter=null;}
 }
+
+// Runtime errors can arrive after the first rendered frame. Keep them attached
+// to the accepted revision; failed candidate loads leave the old revision alone.
+setInterval(() => {
+  if (!activeRevision || typeof globalThis.__adaStudioTool !== 'function') return;
+  try {
+    const result = JSON.parse(globalThis.__adaStudioTool(JSON.stringify({name:'runtime-diagnostics'})));
+    if (!Array.isArray(result.diagnostics)) return;
+    const diagnostics = result.diagnostics.slice(-30).map(value=>String(value).slice(0,2000));
+    const key = JSON.stringify(diagnostics);
+    if (key === lastDiagnostics) return;
+    lastDiagnostics = key;
+    parent.postMessage({protocol,event:'runtime-diagnostics',revision:activeRevision,diagnostics},requestedOrigin);
+  } catch { /* Startup and load errors are reported by the load response. */ }
+}, 500);
 
 async function execute(type,payload) {
   if(type==='agent-tool') {
@@ -135,10 +152,16 @@ async function execute(type,payload) {
   }
   if(type==='input') {
     if(!['down','up','press'].includes(payload.phase)||!/^([a-zA-Z0-9]|Arrow(Left|Right|Up|Down)|Space|Enter|Escape)$/.test(payload.key||''))throw new Error('Unsupported input');
-    const key=payload.key==='Space'?' ':payload.key, code=payload.key.length===1?`${/^[0-9]$/.test(payload.key)?'Digit':'Key'}${payload.key.toUpperCase()}`:payload.key;
-    const dispatch=type=>canvas.dispatchEvent(new KeyboardEvent(type,{key,code,bubbles:true,cancelable:true}));
-    canvas.focus();dispatch(payload.phase==='up'?'keyup':'keydown');
-    if(payload.phase==='press')await new Promise(resolve=>setTimeout(()=>{dispatch('keyup');resolve();},Math.max(16,Math.min(5000,Number(payload.durationMs)||100))));
+    if(typeof globalThis.__adaStudioTool!=='function')throw new Error('Update AdaPlayer to enable gameplay input');
+    const dispatch=down=>{
+      const value=JSON.parse(globalThis.__adaStudioTool(JSON.stringify({name:'game-input',key:payload.key,down})));
+      if(value.error)throw new Error(value.error);
+    };
+    canvas.focus();dispatch(payload.phase!=='up');
+    if(payload.phase==='press') {
+      await new Promise(resolve=>setTimeout(resolve,Math.max(16,Math.min(5000,Number(payload.durationMs)||100))));
+      dispatch(false);
+    }
     return {ok:true};
   }
   throw new Error('Unknown preview message');

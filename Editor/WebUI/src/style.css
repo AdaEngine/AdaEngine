@@ -3091,7 +3091,8 @@ button.annotation-pin {
 .composer-working {
   box-shadow: 0 0 0 1px #b5a0ff22, 0 0 1.23077rem #9274e810;
 }
-.composer-working::before {
+.composer-working::before,
+.composer-focused::before {
   content: "";
   position: absolute;
   inset: -1px;
@@ -3114,7 +3115,7 @@ button.annotation-pin {
   to { --composer-border-angle: 360deg; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .composer-working::before { animation: none; }
+  .composer-working::before,.composer-focused::before { animation: none; }
 }
 
 .composer-attachments { display:flex; flex-wrap:wrap; gap:.5rem; padding:.4rem 1rem .6rem; }
@@ -3130,3 +3131,40 @@ button.annotation-pin {
 .attachment-status { padding:0 1.1rem .5rem; color:#a4a1b8; font-size:.8rem; }
 .composer-dragging { border-color:#aa9bff; box-shadow:0 0 0 2px #aa9bff33; }
 .attachment-drop-hint { position:absolute; inset:0; display:grid; place-items:center; z-index:5; border-radius:inherit; background:#252238ee; color:#e5dcff; font-size:1rem; pointer-events:none; }
+
+.composer-focused:not(.composer-working)::before { animation-duration:6s; }
+.completion-status { color:#a7a1bf; font-size:.78rem; padding:0 .6rem; white-space:nowrap; }
+button.completion-status:hover { color:#d6caff; }
+
+/* A breathing halo sits outside the focused composer; text stays sharp. */
+.composer-focused {
+  border-color:#c3adff99;
+  box-shadow:0 0 0 1px #bba4ff38,0 0 1.5rem #9969ff66,0 0 3.5rem #7477ff38,0 .5rem 4.5rem #b875e926;
+  animation:composer-focus-pulse 2.8s ease-in-out infinite;
+}
+.composer-focused::before {
+  padding:1.8px;
+  background:conic-gradient(from var(--composer-border-angle),#9e86ff88 0%,#d0a5ff 18%,#95d9ff 33%,#9e86ff66 49%,#a190ff88 57%,#f0a6e5 74%,#c0a7ff 88%,#9e86ff88 100%);
+}
+@keyframes composer-focus-pulse {
+  0%,100% { box-shadow:0 0 0 1px #bba4ff30,0 0 1.3rem #9969ff55,0 0 3rem #7477ff2e,0 .5rem 4rem #b875e91c; }
+  50% { box-shadow:0 0 0 1px #cfbaff66,0 0 2rem #ad7bffaa,0 0 4.5rem #7e7aff66,0 .7rem 6rem #c584ef40; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .composer-focused { animation:none; box-shadow:0 0 0 1px #bba4ff38,0 0 1.8rem #9969ff66,0 0 4rem #7477ff40; }
+}
+
+/* A rejected candidate must leave the last accepted scene visible. */
+.runtime-loading.runtime-recovery {
+  inset: auto 16px 76px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 16px 20px;
+  gap: 8px;
+  border: 1px solid #ef9d714d;
+  border-radius: 16px;
+  background: #1b1e24ed;
+  box-shadow: 0 12px 36px #0006;
+}
+.runtime-loading.runtime-recovery h3 { font-size: 1rem; margin: 0; }
+.runtime-loading.runtime-recovery p { margin: 0; font-size: .85rem; }

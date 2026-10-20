@@ -140,6 +140,8 @@ class Bridge:
         self.directory.mkdir(parents=True, exist_ok=True)
         self.models = []
         self.active = threading.BoundedSemaphore(2)
+        self.completion_active = threading.BoundedSemaphore(1)
+        self.completion_efforts = {}
 
     def catalog(self):
         with Client(self.executable, self.directory) as client:
@@ -148,6 +150,8 @@ class Bridge:
                 raise CodexError('Sign in to Codex with ChatGPT using codex login')
             result = client.rpc('model/list', {'limit': 100})
         entries = sorted(result['data'], key=lambda m: not m.get('isDefault'))
+        self.completion_efforts = {entry['model']: next((effort for effort in ('low', 'minimal', 'none')
+            if effort in [(option.get('reasoningEffort') if isinstance(option, dict) else option) for option in (entry.get('supportedReasoningEfforts') or [])]), None) for entry in entries}
         self.models = [{'id': m['model'], 'title': m['displayName'], 'tools': True,
                         'vision': 'image' in m.get('inputModalities', [])} for m in entries]
         return {'id': PROVIDER, 'title': 'Codex', 'transport': 'codex', 'models': self.models}
@@ -231,6 +235,9 @@ def upstream(handler, path):
 
 def handle(handler, bridge, provider, origin):
     path = handler.path.split('?', 1)[0]
+    if path == '/v1/ai/complete':
+        from dev_completion import handle_completion
+        return handle_completion(handler, bridge, origin)
     if path not in ('/v1/ai/providers', '/v1/ai/generate'):
         return False
     # Inspect a bounded body only on generate. All other providers retain Cloud routing.

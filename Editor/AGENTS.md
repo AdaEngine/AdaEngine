@@ -116,7 +116,7 @@ hosted deployment or a live paid provider.
 The browser assistant exports native bundled skills, documentation, examples and
 the A2UI prompt at build time. Conversations, drafts, attachments, selected skills,
 progress and interactive forms persist with the project. Build/plan modes and
-optional per-tool approval use a fixed 35-tool registry. A2UI uses validated DOM
+optional per-tool approval use a fixed 38-tool registry. A2UI uses validated DOM
 controls and native action envelopes; local scene actions and their durable Undo
 are atomic and revision checked. The isolated Player runs native procedural asset
 generators and exports `.ui` through AdaA2UI. Browser chrome, inspector, source search and embedded Cloud panels use the shared

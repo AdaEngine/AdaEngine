@@ -70,6 +70,18 @@ function Settings() {
         <p className="muted">
           {t("Choose who will help you create your game.")}
         </p>
+        {!s.account && s.status !== "loading" && (
+          <p className="fine-print" role="status">
+            {t("Sign in to Ada Cloud to create and save projects.")}
+          </p>
+        )}
+        {s.development && !s.development.codexEnabled && (
+          <p className="fine-print">
+            {t(
+              "Local Codex is disabled. Start the development server once with --codex to enable and remember it.",
+            )}
+          </p>
+        )}
         <div className="segmented">
           <button
             disabled={s.running || s.admitting}
@@ -110,7 +122,7 @@ function Settings() {
         <label className="field-label">
           {t("Provider")}
           <select
-            disabled={s.running || s.admitting}
+            disabled={s.running || s.admitting || !providersForMode(s).length}
             value={s.providerID}
             onChange={(e) => {
               s.providerID = e.target.value;
@@ -118,6 +130,13 @@ function Settings() {
               s.emit();
             }}
           >
+            {!providersForMode(s).length && (
+              <option value="">
+                {s.status === "loading"
+                  ? t("Loading providers…")
+                  : t("No providers available")}
+              </option>
+            )}
             {providersForMode(s).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}
@@ -128,13 +147,16 @@ function Settings() {
         <label className="field-label">
           {t("Model")}
           <select
-            disabled={s.running || s.admitting}
+            disabled={s.running || s.admitting || !s.models.length}
             value={s.modelID}
             onChange={(e) => {
               s.modelID = e.target.value;
               s.emit();
             }}
           >
+            {!s.models.length && (
+              <option value="">{t("No models available")}</option>
+            )}
             {s.models.map((m) => (
               <option key={m.id} value={m.id} disabled={!m.tools}>
                 {m.tools ? m.title : t("{0} — no tools", m.title)}

@@ -65,10 +65,6 @@ await cp("assets/playground", "dist/playground", { recursive: true });
 // Copy the canonical brand assets unchanged; do not redraw the AdaEngine mark.
 await copyFile("../../Assets/logo_dark.svg", "dist/ada-logo.svg");
 await copyFile("../../Assets/logo_light.svg", "dist/ada-logo-light.svg");
-await copyFile(
-  "../Web/Sources/AdaEditorWeb/Resources/AdaScriptRecipes.md",
-  "dist/recipes.md",
-);
 console.log("Ada Studio Web → dist/ (no editor WASM)");
 
 try {

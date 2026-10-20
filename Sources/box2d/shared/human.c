@@ -3,19 +3,19 @@
 
 #include "human.h"
 
-#include "random.h"
+#include "utils.h"
 
 #include "box2d/box2d.h"
 #include "box2d/math_functions.h"
 
 #include <assert.h>
 
-void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale, float frictionTorque, float hertz, float dampingRatio,
-						   int groupIndex, void* userData, bool colorize )
+void CreateHuman( Human* human, b2WorldId worldId, b2Pos position, float scale, float frictionTorque, float hertz,
+				  float dampingRatio, int groupIndex, void* userData, bool colorize )
 {
 	assert( human->isSpawned == false );
 
-	for ( int i = 0; i < boneId_count; ++i )
+	for ( int i = 0; i < bone_count; ++i )
 	{
 		human->bones[i].bodyId = b2_nullBodyId;
 		human->bones[i].jointId = b2_nullJointId;
@@ -23,7 +23,9 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		human->bones[i].parentIndex = -1;
 	}
 
+	human->originalScale = scale;
 	human->scale = scale;
+	human->frictionTorque = frictionTorque;
 
 	b2BodyDef bodyDef = b2DefaultBodyDef();
 	bodyDef.type = b2_dynamicBody;
@@ -31,13 +33,13 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 	bodyDef.userData = userData;
 
 	b2ShapeDef shapeDef = b2DefaultShapeDef();
-	shapeDef.friction = 0.2f;
+	shapeDef.material.friction = 0.2f;
 	shapeDef.filter.groupIndex = -groupIndex;
 	shapeDef.filter.categoryBits = 2;
 	shapeDef.filter.maskBits = ( 1 | 2 );
 
 	b2ShapeDef footShapeDef = shapeDef;
-	footShapeDef.friction = 0.05f;
+	footShapeDef.material.friction = 0.05f;
 
 	// feet don't collide with ragdolls
 	footShapeDef.filter.categoryBits = 2;
@@ -45,7 +47,7 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 
 	if ( colorize )
 	{
-		footShapeDef.customColor = b2_colorSaddleBrown;
+		footShapeDef.material.customColor = b2_colorSaddleBrown;
 	}
 
 	float s = scale;
@@ -62,16 +64,18 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 
 	// hip
 	{
-		Bone* bone = human->bones + boneId_hip;
+		Bone* bone = human->bones + bone_hip;
 		bone->parentIndex = -1;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 0.95f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.95f * s } );
 		bodyDef.linearDamping = 0.0f;
+		bodyDef.name = "hip";
+
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 
 		if ( colorize )
 		{
-			shapeDef.customColor = pantColor;
+			shapeDef.material.customColor = pantColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.02f * s }, { 0.0f, 0.02f * s }, 0.095f * s };
@@ -80,11 +84,13 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 
 	// torso
 	{
-		Bone* bone = human->bones + boneId_torso;
-		bone->parentIndex = boneId_hip;
+		Bone* bone = human->bones + bone_torso;
+		bone->parentIndex = bone_hip;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 1.2f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 1.2f * s } );
 		bodyDef.linearDamping = 0.0f;
+		bodyDef.name = "torso";
+
 		// bodyDef.type = b2_staticBody;
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 		bone->frictionScale = 0.5f;
@@ -92,18 +98,18 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 
 		if ( colorize )
 		{
-			shapeDef.customColor = shirtColor;
+			shapeDef.material.customColor = shirtColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.135f * s }, { 0.0f, 0.135f * s }, 0.09f * s };
 		b2CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 1.0f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 1.0f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.25f * B2_PI;
 		jointDef.upperAngle = 0.0f;
@@ -112,25 +118,26 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
 
 	// head
 	{
-		Bone* bone = human->bones + boneId_head;
-		bone->parentIndex = boneId_torso;
+		Bone* bone = human->bones + bone_head;
+		bone->parentIndex = bone_torso;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f * s, 1.475f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f * s, 1.475f * s } );
 		bodyDef.linearDamping = 0.1f;
+		bodyDef.name = "head";
 
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 		bone->frictionScale = 0.25f;
 
 		if ( colorize )
 		{
-			shapeDef.customColor = skinColor;
+			shapeDef.material.customColor = skinColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.038f * s }, { 0.0f, 0.039f * s }, 0.075f * s };
@@ -140,12 +147,12 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		// capsule = { { 0.0f, -0.12f * s }, { 0.0f, -0.08f * s }, 0.05f * s };
 		// b2CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 1.4f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 1.4f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.3f * B2_PI;
 		jointDef.upperAngle = 0.1f * B2_PI;
@@ -154,35 +161,37 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
 
 	// upper left leg
 	{
-		Bone* bone = human->bones + boneId_upperLeftLeg;
-		bone->parentIndex = boneId_hip;
+		Bone* bone = human->bones + bone_upperLeftLeg;
+		bone->parentIndex = bone_hip;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 0.775f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.775f * s } );
 		bodyDef.linearDamping = 0.0f;
+		bodyDef.name = "upper_left_leg";
+
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 		bone->frictionScale = 1.0f;
 
 		if ( colorize )
 		{
-			shapeDef.customColor = pantColor;
+			shapeDef.material.customColor = pantColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.125f * s }, { 0.0f, 0.125f * s }, 0.06f * s };
 		b2CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 0.9f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.9f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.05f * B2_PI;
 		jointDef.upperAngle = 0.4f * B2_PI;
@@ -191,7 +200,7 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
@@ -208,17 +217,19 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 
 	// lower left leg
 	{
-		Bone* bone = human->bones + boneId_lowerLeftLeg;
-		bone->parentIndex = boneId_upperLeftLeg;
+		Bone* bone = human->bones + bone_lowerLeftLeg;
+		bone->parentIndex = bone_upperLeftLeg;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 0.475f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.475f * s } );
 		bodyDef.linearDamping = 0.0f;
+		bodyDef.name = "lower_left_leg";
+
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 		bone->frictionScale = 0.5f;
 
 		if ( colorize )
 		{
-			shapeDef.customColor = pantColor;
+			shapeDef.material.customColor = pantColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.155f * s }, { 0.0f, 0.125f * s }, 0.045f * s };
@@ -232,12 +243,12 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 
 		b2CreatePolygonShape( bone->bodyId, &footShapeDef, &footPolygon );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 0.625f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.625f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.5f * B2_PI;
 		jointDef.upperAngle = -0.02f * B2_PI;
@@ -246,35 +257,37 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
 
 	// upper right leg
 	{
-		Bone* bone = human->bones + boneId_upperRightLeg;
-		bone->parentIndex = boneId_hip;
+		Bone* bone = human->bones + bone_upperRightLeg;
+		bone->parentIndex = bone_hip;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 0.775f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.775f * s } );
 		bodyDef.linearDamping = 0.0f;
+		bodyDef.name = "upper_right_leg";
+
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 		bone->frictionScale = 1.0f;
 
 		if ( colorize )
 		{
-			shapeDef.customColor = pantColor;
+			shapeDef.material.customColor = pantColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.125f * s }, { 0.0f, 0.125f * s }, 0.06f * s };
 		b2CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 0.9f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.9f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.05f * B2_PI;
 		jointDef.upperAngle = 0.4f * B2_PI;
@@ -283,24 +296,26 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
 
 	// lower right leg
 	{
-		Bone* bone = human->bones + boneId_lowerRightLeg;
-		bone->parentIndex = boneId_upperRightLeg;
+		Bone* bone = human->bones + bone_lowerRightLeg;
+		bone->parentIndex = bone_upperRightLeg;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 0.475f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.475f * s } );
 		bodyDef.linearDamping = 0.0f;
+		bodyDef.name = "lower_right_leg";
+
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 		bone->frictionScale = 0.5f;
 
 		if ( colorize )
 		{
-			shapeDef.customColor = pantColor;
+			shapeDef.material.customColor = pantColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.155f * s }, { 0.0f, 0.125f * s }, 0.045f * s };
@@ -314,12 +329,12 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 
 		b2CreatePolygonShape( bone->bodyId, &footShapeDef, &footPolygon );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 0.625f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.625f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.5f * B2_PI;
 		jointDef.upperAngle = -0.02f * B2_PI;
@@ -328,35 +343,37 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
 
 	// upper left arm
 	{
-		Bone* bone = human->bones + boneId_upperLeftArm;
-		bone->parentIndex = boneId_torso;
+		Bone* bone = human->bones + bone_upperLeftArm;
+		bone->parentIndex = bone_torso;
 		bone->frictionScale = 0.5f;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 1.225f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 1.225f * s } );
 		bodyDef.linearDamping = 0.0f;
+		bodyDef.name = "upper_left_arm";
+
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 
 		if ( colorize )
 		{
-			shapeDef.customColor = shirtColor;
+			shapeDef.material.customColor = shirtColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.125f * s }, { 0.0f, 0.125f * s }, 0.035f * s };
 		b2CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 1.35f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 1.35f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.1f * B2_PI;
 		jointDef.upperAngle = 0.8f * B2_PI;
@@ -365,36 +382,38 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
 
 	// lower left arm
 	{
-		Bone* bone = human->bones + boneId_lowerLeftArm;
-		bone->parentIndex = boneId_upperLeftArm;
+		Bone* bone = human->bones + bone_lowerLeftArm;
+		bone->parentIndex = bone_upperLeftArm;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 0.975f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.975f * s } );
 		bodyDef.linearDamping = 0.1f;
+		bodyDef.name = "lower_left_arm";
+
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 		bone->frictionScale = 0.1f;
 
 		if ( colorize )
 		{
-			shapeDef.customColor = skinColor;
+			shapeDef.material.customColor = skinColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.125f * s }, { 0.0f, 0.125f * s }, 0.03f * s };
 		b2CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 1.1f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 1.1f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
-		jointDef.referenceAngle = 0.25f * B2_PI;
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameA.q = b2MakeRot( 0.25f * B2_PI );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.2f * B2_PI;
 		jointDef.upperAngle = 0.3f * B2_PI;
@@ -403,35 +422,37 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
 
 	// upper right arm
 	{
-		Bone* bone = human->bones + boneId_upperRightArm;
-		bone->parentIndex = boneId_torso;
+		Bone* bone = human->bones + bone_upperRightArm;
+		bone->parentIndex = bone_torso;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 1.225f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 1.225f * s } );
 		bodyDef.linearDamping = 0.0f;
+		bodyDef.name = "upper_right_arm";
+
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 		bone->frictionScale = 0.5f;
 
 		if ( colorize )
 		{
-			shapeDef.customColor = shirtColor;
+			shapeDef.material.customColor = shirtColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.125f * s }, { 0.0f, 0.125f * s }, 0.035f * s };
 		b2CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 1.35f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 1.35f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.1f * B2_PI;
 		jointDef.upperAngle = 0.8f * B2_PI;
@@ -440,36 +461,38 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
 
 	// lower right arm
 	{
-		Bone* bone = human->bones + boneId_lowerRightArm;
-		bone->parentIndex = boneId_upperRightArm;
+		Bone* bone = human->bones + bone_lowerRightArm;
+		bone->parentIndex = bone_upperRightArm;
 
-		bodyDef.position = b2Add( ( b2Vec2 ){ 0.0f, 0.975f * s }, position );
+		bodyDef.position = b2OffsetPos( position, (b2Vec2){ 0.0f, 0.975f * s } );
 		bodyDef.linearDamping = 0.1f;
+		bodyDef.name = "lower_right_arm";
+
 		bone->bodyId = b2CreateBody( worldId, &bodyDef );
 		bone->frictionScale = 0.1f;
 
 		if ( colorize )
 		{
-			shapeDef.customColor = skinColor;
+			shapeDef.material.customColor = skinColor;
 		}
 
 		b2Capsule capsule = { { 0.0f, -0.125f * s }, { 0.0f, 0.125f * s }, 0.03f * s };
 		b2CreateCapsuleShape( bone->bodyId, &shapeDef, &capsule );
 
-		b2Vec2 pivot = b2Add( ( b2Vec2 ){ 0.0f, 1.1f * s }, position );
+		b2Pos pivot = b2OffsetPos( position, (b2Vec2){ 0.0f, 1.1f * s } );
 		b2RevoluteJointDef jointDef = b2DefaultRevoluteJointDef();
-		jointDef.bodyIdA = human->bones[bone->parentIndex].bodyId;
-		jointDef.bodyIdB = bone->bodyId;
-		jointDef.localAnchorA = b2Body_GetLocalPoint( jointDef.bodyIdA, pivot );
-		jointDef.localAnchorB = b2Body_GetLocalPoint( jointDef.bodyIdB, pivot );
-		jointDef.referenceAngle = 0.25f * B2_PI;
+		jointDef.base.bodyIdA = human->bones[bone->parentIndex].bodyId;
+		jointDef.base.bodyIdB = bone->bodyId;
+		jointDef.base.localFrameA.p = b2Body_GetLocalPoint( jointDef.base.bodyIdA, pivot );
+		jointDef.base.localFrameA.q = b2MakeRot( 0.25f * B2_PI );
+		jointDef.base.localFrameB.p = b2Body_GetLocalPoint( jointDef.base.bodyIdB, pivot );
 		jointDef.enableLimit = enableLimit;
 		jointDef.lowerAngle = -0.2f * B2_PI;
 		jointDef.upperAngle = 0.3f * B2_PI;
@@ -478,7 +501,7 @@ void CreateHuman( Human* human, b2WorldId worldId, b2Vec2 position, float scale,
 		jointDef.enableSpring = hertz > 0.0f;
 		jointDef.hertz = hertz;
 		jointDef.dampingRatio = dampingRatio;
-		jointDef.drawSize = drawSize;
+		jointDef.base.drawScale = drawSize;
 
 		bone->jointId = b2CreateRevoluteJoint( worldId, &jointDef );
 	}
@@ -490,7 +513,7 @@ void DestroyHuman( Human* human )
 {
 	assert( human->isSpawned == true );
 
-	for ( int i = 0; i < boneId_count; ++i )
+	for ( int i = 0; i < bone_count; ++i )
 	{
 		if ( B2_IS_NULL( human->bones[i].jointId ) )
 		{
@@ -501,7 +524,7 @@ void DestroyHuman( Human* human )
 		human->bones[i].jointId = b2_nullJointId;
 	}
 
-	for ( int i = 0; i < boneId_count; ++i )
+	for ( int i = 0; i < bone_count; ++i )
 	{
 		if ( B2_IS_NULL( human->bones[i].bodyId ) )
 		{
@@ -517,7 +540,7 @@ void DestroyHuman( Human* human )
 
 void Human_SetVelocity( Human* human, b2Vec2 velocity )
 {
-	for ( int i = 0; i < boneId_count; ++i )
+	for ( int i = 0; i < bone_count; ++i )
 	{
 		b2BodyId bodyId = human->bones[i].bodyId;
 
@@ -534,7 +557,7 @@ void Human_ApplyRandomAngularImpulse( Human* human, float magnitude )
 {
 	assert( human->isSpawned == true );
 	float impulse = RandomFloatRange( -magnitude, magnitude );
-	b2Body_ApplyAngularImpulse( human->bones[boneId_torso].bodyId, impulse, true );
+	b2Body_ApplyAngularImpulse( human->bones[bone_torso].bodyId, impulse, true );
 }
 
 void Human_SetJointFrictionTorque( Human* human, float torque )
@@ -542,14 +565,14 @@ void Human_SetJointFrictionTorque( Human* human, float torque )
 	assert( human->isSpawned == true );
 	if ( torque == 0.0f )
 	{
-		for ( int i = 1; i < boneId_count; ++i )
+		for ( int i = 1; i < bone_count; ++i )
 		{
 			b2RevoluteJoint_EnableMotor( human->bones[i].jointId, false );
 		}
 	}
 	else
 	{
-		for ( int i = 1; i < boneId_count; ++i )
+		for ( int i = 1; i < bone_count; ++i )
 		{
 			b2RevoluteJoint_EnableMotor( human->bones[i].jointId, true );
 			float scale = human->scale * human->bones[i].frictionScale;
@@ -563,14 +586,14 @@ void Human_SetJointSpringHertz( Human* human, float hertz )
 	assert( human->isSpawned == true );
 	if ( hertz == 0.0f )
 	{
-		for ( int i = 1; i < boneId_count; ++i )
+		for ( int i = 1; i < bone_count; ++i )
 		{
 			b2RevoluteJoint_EnableSpring( human->bones[i].jointId, false );
 		}
 	}
 	else
 	{
-		for ( int i = 1; i < boneId_count; ++i )
+		for ( int i = 1; i < bone_count; ++i )
 		{
 			b2RevoluteJoint_EnableSpring( human->bones[i].jointId, true );
 			b2RevoluteJoint_SetSpringHertz( human->bones[i].jointId, hertz );
@@ -581,8 +604,95 @@ void Human_SetJointSpringHertz( Human* human, float hertz )
 void Human_SetJointDampingRatio( Human* human, float dampingRatio )
 {
 	assert( human->isSpawned == true );
-	for ( int i = 1; i < boneId_count; ++i )
+	for ( int i = 1; i < bone_count; ++i )
 	{
 		b2RevoluteJoint_SetSpringDampingRatio( human->bones[i].jointId, dampingRatio );
 	}
+}
+
+void Human_EnableSensorEvents( Human* human, bool enable )
+{
+	assert( human->isSpawned == true );
+	b2BodyId bodyId = human->bones[bone_torso].bodyId;
+
+	b2ShapeId shapeId;
+	int count = b2Body_GetShapes( bodyId, &shapeId, 1 );
+	if ( count == 1 )
+	{
+		b2Shape_EnableSensorEvents( shapeId, enable );
+	}
+}
+
+void Human_SetScale( Human* human, float scale )
+{
+	assert( human->isSpawned == true );
+	assert( 0.01f < scale && scale < 100.0f );
+	assert( 0.0f < human->scale );
+
+	float ratio = scale / human->scale;
+
+	// Torque scales by pow(length, 4) due to mass change and length change. However, gravity is also a factor
+	// so I'm using pow(length, 3)
+	float originalRatio = scale / human->originalScale;
+	float frictionTorque = ( originalRatio * originalRatio * originalRatio ) * human->frictionTorque;
+
+	b2Pos origin = b2Body_GetPosition( human->bones[0].bodyId );
+
+	for ( int boneIndex = 0; boneIndex < bone_count; ++boneIndex )
+	{
+		Bone* bone = human->bones + boneIndex;
+
+		if ( boneIndex > 0 )
+		{
+			// Scale the bone offset from the root in float, the offset is bone scale
+			b2WorldTransform worldTransform = b2Body_GetTransform( bone->bodyId );
+			b2Vec2 d = b2MulSV( ratio, b2SubPos( worldTransform.p, origin ) );
+			b2Body_SetTransform( bone->bodyId, b2OffsetPos( origin, d ), worldTransform.q );
+
+			b2Transform localFrameA = b2Joint_GetLocalFrameA( bone->jointId );
+			b2Transform localFrameB = b2Joint_GetLocalFrameB( bone->jointId );
+			localFrameA.p = b2MulSV( ratio, localFrameA.p );
+			localFrameB.p = b2MulSV( ratio, localFrameB.p );
+			b2Joint_SetLocalFrameA( bone->jointId, localFrameA );
+			b2Joint_SetLocalFrameB( bone->jointId, localFrameB );
+
+			b2JointType type = b2Joint_GetType( bone->jointId );
+			if ( type == b2_revoluteJoint )
+			{
+				b2RevoluteJoint_SetMaxMotorTorque( bone->jointId, bone->frictionScale * frictionTorque );
+			}
+		}
+
+		b2ShapeId shapeIds[2];
+		int shapeCount = b2Body_GetShapes( bone->bodyId, shapeIds, 2 );
+		for ( int shapeIndex = 0; shapeIndex < shapeCount; ++shapeIndex )
+		{
+			b2ShapeType type = b2Shape_GetType( shapeIds[shapeIndex] );
+			if ( type == b2_capsuleShape )
+			{
+				b2Capsule capsule = b2Shape_GetCapsule( shapeIds[shapeIndex] );
+				capsule.center1 = b2MulSV( ratio, capsule.center1 );
+				capsule.center2 = b2MulSV( ratio, capsule.center2 );
+				capsule.radius *= ratio;
+				b2Shape_SetCapsule( shapeIds[shapeIndex], &capsule );
+			}
+			else if ( type == b2_polygonShape )
+			{
+				b2Polygon polygon = b2Shape_GetPolygon( shapeIds[shapeIndex] );
+				for ( int pointIndex = 0; pointIndex < polygon.count; ++pointIndex )
+				{
+					polygon.vertices[pointIndex] = b2MulSV( ratio, polygon.vertices[pointIndex] );
+				}
+
+				polygon.centroid = b2MulSV( ratio, polygon.centroid );
+				polygon.radius *= ratio;
+
+				b2Shape_SetPolygon( shapeIds[shapeIndex], &polygon );
+			}
+		}
+
+		b2Body_UpdateMassFromShapes( bone->bodyId );
+	}
+
+	human->scale = scale;
 }

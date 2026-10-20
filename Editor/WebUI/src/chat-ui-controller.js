@@ -1,5 +1,6 @@
 import { t, LocalizedError } from "./localization.js";
 import { encode } from "./platform.js";
+import { stringifySceneValue } from "./scene-codec.js";
 import { identity, editChat } from "./chat.js";
 import {
   decodeFences,
@@ -149,7 +150,7 @@ export async function submitSurface(s, id, generation, componentID) {
     const candidate = clone(s.snapshot),
       value = scene(candidate);
     applyOperations(value, operations);
-    const after = encode(JSON.stringify(value, null, 2));
+    const after = encode(stringifySceneValue(value, 2));
     file(candidate, before.path).data = after;
     const revision = await sceneRevision(candidate);
     owned(s, id, generation);

@@ -212,6 +212,19 @@ test("shared knowledge tools and project workflows are readable through producti
     (await runTool(s, "editor_project_context", {})).instructions[0].content,
     /playable/,
   );
+  await runTool(s, "editor_file_write", {
+    path: "Docs/Design/PROGRESS.md",
+    content: "Verified arrow movement in Play",
+  });
+  const reopened = harness();
+  reopened.document = new Document(importZIP(exportZIP(s.snapshot)));
+  assert.ok(
+    (await runTool(reopened, "editor_project_context", {})).instructions.some(
+      (note) =>
+        note.path === "Docs/Design/PROGRESS.md" &&
+        note.content.includes("arrow movement"),
+    ),
+  );
 });
 test("fenced UI streams once per complete JSONL frame and does not replay defaults over local values", () => {
   const s = harness(),
@@ -698,4 +711,95 @@ test("staged media survive admission and Cloud errors, then reach the agent with
     ["image", "model", "audio"],
   );
   assert.equal(s.session.attachments.length, 0);
+});
+
+test("sending from Create saves the retained project and creates a separate game without touching its chat", async () => {
+  const s = harness(),
+    previous = s.document;
+  previous.write("Docs/kept.md", "Keep this edit");
+  previous.chat((chat) => {
+    chat.sessions[0].draft = "Old project draft";
+  });
+  s.prompt = "Old project draft";
+  s.homePrompt = "A new 2D adventure";
+  const item = {
+    id: "new-file",
+    path: "Assets/Imports/new.glb",
+    data: btoa("model bytes"),
+    name: "new.glb",
+    kind: "model",
+    size: 11,
+  };
+  s.homeAttachments = [item];
+  const original = JSON.stringify(previous.snapshot),
+    undo = previous.undoStack.length;
+  const options = {
+    newProject: true,
+    creation: { dimension: 2, players: "single" },
+  };
+  const order = [];
+  s.save = async () => {
+    order.push("save");
+    throw new Error("Cannot save old project");
+  };
+  s.createSnapshot = async () => {
+    throw new Error("Must not create before saving");
+  };
+  await assert.rejects(
+    runAgent(s, s.homePrompt, options),
+    /Cannot save old project/,
+  );
+  assert.equal(s.document, previous);
+  assert.equal(s.homePrompt, "A new 2D adventure");
+  assert.equal(s.prompt, "Old project draft");
+  assert.equal(s.homeAttachments.length, 1);
+  s.save = async () => {
+    order.push("save");
+  };
+  s.createSnapshot = async () => {
+    order.push("create");
+    throw new Error("Cloud offline");
+  };
+  await assert.rejects(runAgent(s, s.homePrompt, options), /Cloud offline/);
+  assert.equal(s.document, previous);
+  assert.equal(s.homePrompt, "A new 2D adventure");
+  assert.equal(JSON.stringify(previous.snapshot), original);
+  order.length = 0;
+  let created, request;
+  s.createSnapshot = async (snapshot) => {
+    order.push("create");
+    created = snapshot;
+    s.document = new Document(snapshot);
+    s.workspace = { id: "new-game", revision: 1 };
+    s.prompt = s.session.draft;
+    s.selected = null;
+    s.latestCodeSelection = "";
+  };
+  const resources = globalThis.fetch;
+  globalThis.fetch = async (url, input) => {
+    if (url === "/v1/ai/generate") {
+      request = JSON.parse(input.body);
+      return new Response(
+        'data: {"type":"text","text":"Ready"}\ndata: {"type":"complete"}\n',
+      );
+    }
+    return resources(url, input);
+  };
+  assert.equal(await runAgent(s, s.homePrompt, options), true);
+  assert.deepEqual(order.slice(0, 2), ["save", "create"]);
+  assert.notEqual(s.document, previous);
+  assert.equal(s.workspace.id, "new-game");
+  assert.equal(
+    JSON.parse(decode(file(created, ".ada/project.json").data)).runtime.plugins
+      .preset,
+    "game2d",
+  );
+  assert.equal(file(created, item.path).data, item.data);
+  assert.equal(s.homePrompt, "");
+  assert.equal(s.homeAttachments.length, 0);
+  assert.equal(JSON.stringify(previous.snapshot), original);
+  assert.equal(previous.undoStack.length, undo);
+  const content = request.messages.map((message) => message.content).join("\n");
+  assert(content.includes("A new 2D adventure"));
+  assert(!content.includes("Old project draft"));
 });

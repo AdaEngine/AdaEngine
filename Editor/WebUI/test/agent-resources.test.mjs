@@ -22,10 +22,25 @@ test("resource export ignores filesystem metadata without dropping skills or exa
     await cp(path.join(repository, relative), destination);
   }
   const assets = path.join(root, "Editor/Sources/AdaEditor/Assets");
+  const contract = JSON.parse(
+    await readFile(
+      path.join(repository, "Editor/WebUI/assets/agent-contract.json"),
+      "utf8",
+    ),
+  );
+  // This fixture deliberately contains one tiny source corpus; the real export
+  // snapshot and its full fingerprint are checked in native-contract tests.
+  const source = "Sources/AdaScriptCompilerCore/AdaScriptAPICatalog.swift";
+  contract.sourceHashes = { [source]: contract.sourceHashes[source] };
+  await mkdir(path.join(root, "Editor/WebUI/assets"), { recursive: true });
+  await writeFile(
+    path.join(root, "Editor/WebUI/assets/agent-contract.json"),
+    JSON.stringify(contract),
+  );
   await mkdir(path.join(assets, "AgentSkills/example"), { recursive: true });
   await writeFile(
     path.join(assets, "AgentSkills/example/SKILL.md"),
-    "---\nname: example\n---\nSkill content",
+    "---\nname: example\n---\nKeep notes in `Design/` and recipes in `Generators/`. Read `DESIGN.md`.",
   );
   await mkdir(path.join(assets, "Examples/game/Sources"), { recursive: true });
   await writeFile(path.join(assets, "Examples/game/README.md"), "Example game");
@@ -63,11 +78,22 @@ test("resource export ignores filesystem metadata without dropping skills or exa
     resources.skills.map((skill) => skill.id),
     ["example", "ada-chat-ui"],
   );
-  assert.equal(resources.examples.length, 1);
-  assert.equal(resources.examples[0].id, "game");
-  assert.deepEqual(resources.examples[0].files, {
-    ".ada/project.json": "{}",
-    "README.md": "Example game",
-    "Sources/main.gravity": "var score = 0;",
-  });
+  assert.match(resources.skills[0].content, /`Docs\/Design\/`/);
+  assert.match(resources.skills[0].content, /`Docs\/Generators\/`/);
+  assert.match(resources.skills[0].content, /`DESIGN\.md`/);
+  assert.doesNotMatch(resources.skills[0].content, /`(?:Design|Generators)\/`/);
+  assert.equal(resources.examples.length, 4);
+  for (const example of resources.examples) {
+    assert.ok(example.files[".ada/project.json"]);
+    assert.ok(example.files["Assets/Scenes/Main.ascn"]);
+    assert.ok(!Object.keys(example.files).some((p) => p.includes(".DS_Store")));
+    assert.ok(!Object.values(example.files).includes("var score = 0;"));
+  }
+  const recipes = await readFile(path.join(output, "recipes.md"), "utf8");
+  assert.match(recipes, /editor_project_apply/);
+  assert.match(recipes, /editor_input_describe/);
+  assert.match(recipes, /HUD recipes are not supported/);
+  assert.doesNotMatch(recipes, /scriptBindings|HudModel/);
+  assert.equal(resources.apiSource, undefined);
+  assert.equal(resources.contract.examples, undefined);
 });

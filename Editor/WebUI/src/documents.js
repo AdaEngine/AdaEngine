@@ -1,5 +1,5 @@
 import { t, LocalizedError } from "./localization.js";
-import { parse } from "yaml";
+import { parseSceneValue, stringifySceneValue } from "./scene-codec.js";
 import { unzipSync, zipSync } from "fflate";
 import { bytes, decode, encode, base64 } from "./platform.js";
 import { defaultChat, validateChat } from "./chat.js";
@@ -11,9 +11,7 @@ export const metadata = (snapshot) =>
   JSON.parse(decode(file(snapshot, ".ada/project.json").data));
 export const scenePath = (snapshot) => metadata(snapshot).runtime.entry.scene;
 export function scene(snapshot) {
-  const value = parse(decode(file(snapshot, scenePath(snapshot)).data), {
-    maxAliasCount: 0,
-  });
+  const value = parseSceneValue(decode(file(snapshot, scenePath(snapshot)).data));
   if (
     value?.format !== "ada.scene" ||
     value.schemaVersion !== 1 ||
@@ -400,7 +398,7 @@ export class Document {
     this.edit((s) => {
       const value = scene(s);
       update(value);
-      file(s, scenePath(s)).data = encode(JSON.stringify(value, null, 2));
+      file(s, scenePath(s)).data = encode(stringifySceneValue(value, 2));
     });
   }
   append(value) {
