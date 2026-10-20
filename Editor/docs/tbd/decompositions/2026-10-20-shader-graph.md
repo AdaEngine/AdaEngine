@@ -59,7 +59,7 @@ budgets are estimates, not permission to hide implementation in generated files.
 | # | PR title | Purpose | Strategy | Budget | Depends on | Status |
 |---|----------|---------|----------|--------|------------|--------|
 | 1 | Validate and lower typed shader graphs | Decode graph assets, validate typed connections and produce deterministic IR. | Additive CPU API | 550 actual | — | in-review (local) |
-| 2 | Compile graph expressions into shader functions | Generate GLSL with node/port diagnostics and compile a real fixture through the engine compiler. | Additive compiler API | ~550 | 1 | planned |
+| 2 | Compile graph expressions into shader functions | Generate GLSL with node/port diagnostics and compile a real fixture through the engine compiler. | Additive compiler API | ~550 | 1 | implemented locally |
 | 3 | Bind graph parameters and texture resources | Produce stable resource layouts and independent material-instance values. | Additive material API | ~550 | 2 | planned |
 | 4 | Render Sprite graph materials | Support graph output in sprite extraction, batching and both draw implementations. | Complete opt-in runtime path | ~600 | 3 | planned |
 | 5 | Author Sprite graph assignments in Studio | Persist graph references/values and expose assignment in the Sprite Inspector. | Complete consumer of slice 4 | ~550 | 4 | planned |
@@ -241,6 +241,15 @@ budgets are estimates, not permission to hide implementation in generated files.
   blockers. No publication or CI success is claimed from local tests alone.
 
 ## Decision log
+
+- 2026-10-20: User explicitly requested uninterrupted implementation through all
+  functionality and checks. Continue the approved sequence using separate local
+  commit/branch boundaries; do not stop after each slice or require repeated
+  approval. Public PR creation/merges remain outside this local delivery.
+- 2026-10-20: Slice 2 produces GLSL, stable parameter/texture binding metadata and
+  node/port source maps. Real fresh SPIR-V compilation passes for both graph
+  targets; 21 graph tests pass. glslang initialization/finalization is protected
+  by one process-wide lock for all existing ShaderCompiler callers.
 
 - 2026-10-20: User selected 2D and 3D outputs and native Studio first, then
   approved the proposed typed-IR/AdaUI direction and requested implementation.

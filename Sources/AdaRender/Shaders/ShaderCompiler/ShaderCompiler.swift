@@ -56,6 +56,8 @@ public struct ShaderDefine: Hashable, Sendable {
 
 /// ShaderCompiler compile engine shader code to Shader objects (with SPIR-V binary).
 public final class ShaderCompiler {
+    // glslang initialization/finalization is process-wide, including editor background compiles.
+    private static let compilationLock = NSLock()
     enum CompileError: LocalizedError {
         case fileReadingFailed(String)
         case glslError(String)
@@ -259,6 +261,8 @@ public final class ShaderCompiler {
     }
 
     internal func compileCode(_ code: String, entryPoint: String, stage: ShaderStage) throws -> SpirvBinary {
+        Self.compilationLock.lock()
+        defer { Self.compilationLock.unlock() }
         let span = AdaTrace.startSpan(lazyName: "ShaderCompiler.compileCode.\(stage.rawValue)")
         defer {
             span.end()
