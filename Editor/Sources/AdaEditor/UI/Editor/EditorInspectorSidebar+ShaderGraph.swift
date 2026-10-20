@@ -9,6 +9,9 @@ extension EditorInspectorSidebar {
             assetSearchText.isEmpty || $0.reference.localizedCaseInsensitiveContains(assetSearchText)
         }
         return VStack(alignment: .leading, spacing: 6) {
+            if field.field.valuePath.first == "graphMaterials", field.field.valuePath.count > 1 {
+                Text(L10n.text("Material \(field.field.valuePath[1])")).font(.system(size: 10)).foregroundColor(theme.editorColors.muted)
+            }
             Button(action: {
                 activeAssetFieldID = activeAssetFieldID == identifier ? nil : identifier
                 assetSearchText = ""

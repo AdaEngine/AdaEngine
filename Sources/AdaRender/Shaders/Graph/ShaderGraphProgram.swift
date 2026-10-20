@@ -1,7 +1,10 @@
 /// Generated fragment functions and their renderer-independent binding contract.
 public struct ShaderGraphProgram: Hashable, Sendable {
     public static let uniformBinding = 28
-    public static let samplerBinding = 2
+    // Group 1 avoids the vertex View (2) and Skinning (14) bindings in group 0;
+    // slot 14 also fits Metal's sixteen sampler slots without replacing stock samplers.
+    public static let samplerBinding = 14
+    public static let samplerSet = 1
     public static let firstTextureBinding = 48
 
     public struct Parameter: Hashable, Sendable {
@@ -74,7 +77,7 @@ extension ShaderGraph {
             "layout(binding = \(ShaderGraphProgram.uniformBinding)) uniform AdaGraphUniforms { vec4 ada_graph_values[\(parameters.count + 1)]; };"
         ]
         if !textures.isEmpty {
-            lines.append("layout(binding = \(ShaderGraphProgram.samplerBinding)) uniform sampler ada_graph_sampler;")
+            lines.append("layout(set = \(ShaderGraphProgram.samplerSet), binding = \(ShaderGraphProgram.samplerBinding)) uniform sampler ada_graph_sampler;")
         }
         for (index, texture) in textures.enumerated() {
             lines.append("layout(binding = \(texture.binding)) uniform texture2D ada_graph_texture\(index);")

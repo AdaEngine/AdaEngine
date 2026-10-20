@@ -2424,5 +2424,6 @@
   "Shader Graph": "Граф шейдера",
   "Choose shader graph…": "Выбрать граф шейдера…",
   "Search shader graphs": "Найти граф шейдера",
-  "Create a Shader Graph resource in Assets first.": "Сначала создайте граф шейдера в папке ресурсов."
+  "Create a Shader Graph resource in Assets first.": "Сначала создайте граф шейдера в папке ресурсов.",
+  "Material {0}": "Материал {0}"
 }

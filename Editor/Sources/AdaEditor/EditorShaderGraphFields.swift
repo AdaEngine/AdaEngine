@@ -3,14 +3,19 @@ import Foundation
 
 enum EditorShaderGraphFields {
     static var path: EditorComponentField {
+        path(at: ["graphMaterial"])
+    }
+
+    static func path(at root: [String]) -> EditorComponentField {
         var field = EditorComponentField(key: "graphMaterialPath", label: "Shader Graph", kind: .assetReference)
-        field.valuePath = ["graphMaterial", "path"]
+        if root.first == "graphMaterials" { field.key += ":\(root.last ?? "0")" }
+        field.valuePath = root + ["path"]
         field.coding = .shaderGraphPath
         return field
     }
 
-    static func parameters(in payload: EditorComponentPayload) -> [EditorComponentField] {
-        guard let value = payload["graphMaterial"], value != .null,
+    static func parameters(in payload: EditorComponentPayload, root: [String] = ["graphMaterial"]) -> [EditorComponentField] {
+        guard let value = EditorSceneValue.object(payload).value(at: root[...]), value != .null,
             let data = try? JSONEncoder().encode(value),
             let source = try? JSONDecoder().decode(ShaderGraphMaterialSource.self, from: data) else { return [] }
         let graph: ShaderGraph?
@@ -30,13 +35,23 @@ enum EditorShaderGraphFields {
             case .texture2D: kind = .assetReference
             }
             let texture = node.type == .texture2D
-            var field = EditorComponentField(key: "\(texture ? "graphTexture" : "graphValue"):\(id)", label: id, kind: kind)
-            field.valuePath = ["graphMaterial", texture ? "textures" : "values", id]
+            var field = EditorComponentField(key: "\(texture ? "graphTexture" : "graphValue"):\(root.joined(separator: ".")):\(id)", label: id, kind: kind)
+            field.valuePath = root + [texture ? "textures" : "values", id]
             if !texture {
                 field.coding = .shaderGraphValue
                 field.defaultValue = .array(node.value.map { .double(Double($0)) })
             }
             return field
+        }
+    }
+
+    static func modelFields(in payload: EditorComponentPayload) -> [EditorComponentField] {
+        guard let reference = try? EditorComponentPayloadDecoder.decode(Model3DSource.self, payload: payload) as? Model3DSource,
+            !reference.source.isEmpty,
+            let model = try? AssetsManager.loadSync(ModelAsset3D.self, at: reference.assetPath).asset else { return [] }
+        return model.materials.indices.flatMap { index in
+            let root = ["graphMaterials", String(index)]
+            return [path(at: root)] + parameters(in: payload, root: root)
         }
     }
 

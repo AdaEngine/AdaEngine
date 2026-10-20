@@ -715,15 +715,39 @@ float reachingLightCount() {
 }
 
 // Surface evaluation is independent of the shared lighting implementation.
+#define ADA_GRAPH_SOURCE_MARKER 1
+
 struct AdaPBRSurface {
     vec4 baseColor;
     vec3 normal;
     float roughness;
     float metallic;
     float opacity;
+    float occlusion;
+    vec3 emission;
 };
 
 AdaPBRSurface ada_material_surface() {
+    #ifdef ADA_SHADER_GRAPH
+    AdaGraphSurface graph = ada_graph_evaluate(Input.TextureCoordinate);
+    vec4 baseColor = Input.Color * graph.color;
+    baseColor.a *= graph.alpha;
+    if (u_SurfaceProperties.w > 0.5 && u_SurfaceProperties.w < 1.5 && baseColor.a < u_SurfaceProperties.z) { discard; }
+    float opacity = u_SurfaceProperties.w > 1.5 ? baseColor.a : 1.0;
+    vec3 geometric = normalize(Input.ViewNormal);
+    vec3 tangentNormal = length(graph.normal) > 0.00001 ? normalize(graph.normal) : vec3(0.0, 0.0, 1.0);
+    vec3 normal;
+    if (Input.TextureFlags.w > 0.5) {
+        vec3 tangent = normalize(Input.ViewTangent.xyz - geometric * dot(geometric, Input.ViewTangent.xyz));
+        vec3 bitangent = normalize(cross(geometric, tangent)) * Input.ViewTangent.w;
+        normal = normalize(mat3(tangent, bitangent, geometric) * tangentNormal);
+    } else {
+        normal = normalize(cotangentFrame(geometric, Input.ViewPosition, Input.TextureCoordinate) * tangentNormal);
+    }
+    if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { normal = -normal; }
+    return AdaPBRSurface(baseColor, normal, clamp(graph.roughness, 0.04, 1.0), clamp(graph.metallic, 0.0, 1.0), opacity,
+        clamp(graph.occlusion, 0.0, 1.0), max(graph.emission, vec3(0.0)));
+    #else
     vec4 baseColor = Input.Color;
     if (Input.TextureFlags.x > 0.5) {
         vec4 sampledBaseColor = texture(sampler2D(u_BaseColorTexture, u_BaseColorSampler), materialUV(u_UVSets.x, 0));
@@ -745,7 +769,8 @@ AdaPBRSurface ada_material_surface() {
 
     vec3 normal = materialNormal();
     if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { normal = -normal; }
-    return AdaPBRSurface(baseColor, normal, roughness, metallic, opacity);
+    return AdaPBRSurface(baseColor, normal, roughness, metallic, opacity, 1.0, vec3(0.0));
+    #endif
 }
 
 [[main]]
@@ -859,7 +884,11 @@ void flat3d_fragment()
     vec3 ambient = baseColor.rgb * (1.0 - metallic) * max(u_LightRadianceAmbient.w, 0.0);
     if (u_IBLParameters.x > 0.5) { ambient = environmentLighting(normal, viewDirection, baseColor.rgb, metallic, roughness); }
     else if (hasClearcoat()) { ambient *= coatTransmission(max(dot(g_CoatNormal, viewDirection), 0.0)); }
+    #ifdef ADA_SHADER_GRAPH
+    float occlusion = surface.occlusion;
+    #else
     float occlusion = u_SurfaceFlags.y > 0.5 ? texture(sampler2D(u_OcclusionTexture, u_OcclusionSampler), materialUV(u_UVSets.w, 3)).r : 1.0;
+    #endif
     ambient *= mix(1.0, occlusion, u_SurfaceProperties.y);
     float emissiveVisibility = 1.0;
     if (Input.EmissiveLightThreshold >= 0.0) {
@@ -869,10 +898,14 @@ void flat3d_fragment()
             normalLight
         );
     }
+    #ifdef ADA_SHADER_GRAPH
+    vec3 emissive = surface.emission * emissiveVisibility;
+    #else
     vec3 emissive = srgbToLinear(texture(
         sampler2D(u_EmissiveTexture, u_EmissiveSampler),
         materialUV(u_Emission.x, 4)
     ).rgb) * u_EmissiveFactor.rgb * Input.EmissiveStrength * emissiveVisibility;
+    #endif
 
     color = vec4(directLighting + ambient + emissive, opacity);
     if (u_ShadowAtlas.w > 0.5) {

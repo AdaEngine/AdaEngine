@@ -64,7 +64,7 @@ budgets are estimates, not permission to hide implementation in generated files.
 | 4 | Render Sprite graph materials | Support graph output in sprite extraction, batching and both draw implementations. | Complete opt-in runtime path | ~600 | 3 | implemented locally; CPU/render preparation verified |
 | 5 | Author Sprite graph assignments in Studio | Persist graph references/values and expose assignment in the Sprite Inspector. | Complete consumer of slice 4 | ~550 | 4 | implemented locally; focused Editor checks pass |
 | 6 | Extract the existing PBR surface evaluation seam | Separate surface evaluation from shared lighting with identical stock-material pixels. | Complete behavior-preserving shader refactor | ~550 | — | implemented locally; Metal golden frames pass |
-| 7 | Assign opaque PBR graph materials | Render and persist graph surface overrides for primitives and imported model material slots. | Complete opaque-only path | ~600 | 3, 6 | planned |
+| 7 | Assign opaque PBR graph materials | Render and persist graph surface overrides for primitives and imported model material slots. | Complete opaque-only path | ~600 | 3, 6 | implemented locally; Metal pixels and Editor tests pass |
 | 8 | Keep graph alpha consistent across 3D passes | Add mask/blend settings with matching depth, shadow and auxiliary-pass behavior. | Complete alpha-mode addition | ~600 | 7 | planned |
 | 9 | Edit graph documents with transactional history | Add document operations, stable selection and undo/redo independent of the visual canvas. | Additive unused authoring model | ~550 | 1 | planned |
 | 10 | Draw a reusable AdaUI node canvas | Implement graph-space geometry, node/port layout, wires, pan/zoom and hit testing. | New unregistered component | ~600 | 9 | planned |
@@ -267,6 +267,18 @@ budgets are estimates, not permission to hide implementation in generated files.
   apply; no PR, merge or release has been published.
 
 ## Evidence
+
+- Slice 7: actual Metal verifies roughness values in the G-buffer, runtime value
+  changes, texture replacement through the production material bindings, and
+  byte-identical restoration when removing the graph. Imported model overrides
+  are independent per instance and never mutate the asset's original materials.
+  Log: `/tmp/adaengine-shader-graph-pbr-tests.log` (2 tests, 3 suites).
+- Native Editor's PBR/Inspector/model/localization checks pass (19 tests, 4
+  suites), log `/tmp/adaengine-shader-graph-editor-pbr-tests.log`.
+- Portable bindings: uniforms use group 0/binding 28; textures start at group
+  0/binding 48; the shared graph sampler uses group 1/binding 14. The last choice
+  avoids group-0 View/Skinning collisions while fitting Metal's sampler slots.
+  Texture/uniform/sampler snapshots are created atomically and remain immutable.
 
 - Slice 6: `Render3DGPUTests/DebugViews/everyViewMatchesItsGoldenFrame` passes
   on actual Metal after the surface-function extraction, comparing all existing

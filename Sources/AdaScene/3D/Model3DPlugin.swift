@@ -221,13 +221,25 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
             // The motion shader has no shading layers, so its pipelines are not split by them.
             features: (isMotion ? [] : (item.material as? PBRMaterial)?.shaderFeatures ?? []).union(morphed ? .morph : [])
         )
-        let pipeline: any RenderPipeline
+        var pipeline: any RenderPipeline
         if isMotion {
             let pipelines = world.getRefResource(RenderPipelines<Motion3DPipeline>.self)
             pipeline = pipelines.wrappedValue.pipeline(for: configuration, device: renderDevice)
         } else {
             let pipelines = world.getRefResource(RenderPipelines<PBR3DPipeline>.self)
             pipeline = pipelines.wrappedValue.pipeline(for: configuration, device: renderDevice)
+        }
+        if !isMotion, let graph = (item.material as? PBRMaterial)?.graphMaterial {
+            do {
+                pipeline = try ShaderGraph3DPipeline.make(
+                    material: graph, base: pipeline, device: renderDevice,
+                    variant: "pbr:\(configuration.blended):\(configuration.temporalDepth):\(configuration.features.rawValue)",
+                    features: configuration.features
+                )
+            } catch {
+                graph.reportCompilationError(error)
+                return
+            }
         }
         // Instance data of the view being drawn, written by VisibleMesh3DLists and activated by the render node.
         let active = world.getResource(Active3DInstanceBuffers.self)
@@ -294,6 +306,9 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
             index: 0
         )
         renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
+        if !isMotion, let graph = pbrMaterial?.graphMaterial {
+            graph.bind(to: renderEncoder, device: renderDevice)
+        }
         renderEncoder.setVertexBuffer(
             instances,
             offset: Int(batchRange.lowerBound) * MemoryLayout<Flat3DInstanceData>.stride,

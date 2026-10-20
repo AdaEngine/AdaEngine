@@ -95,6 +95,8 @@ public enum PBRLayerTexture: Int, CaseIterable, Hashable, Sendable {
 
 /// A material that uses Physically Based Rendering (PBR) to define its appearance.
 public class PBRMaterial: Material, @unchecked Sendable {
+    /// Optional fragment graph; lighting, skinning and render-pass configuration stay shared.
+    public var graphMaterial: ShaderGraphMaterial? { didSet { uniformRevision &+= 1 } }
     public var baseColorFactor: Vector4 = .one { didSet { uniformRevision &+= 1 } }
     public var baseColorTexture: Texture2D?
     public var metallicFactor: Float = 1

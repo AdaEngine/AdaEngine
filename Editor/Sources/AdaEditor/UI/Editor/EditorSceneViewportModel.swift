@@ -1244,17 +1244,23 @@ extension EditorSceneViewportModel {
             )
         }
 
+        let graphFields: [EditorComponentField]
+        if [EditorBuiltInComponentType.sprite, EditorBuiltInComponentType.mesh3D].contains(typeName) {
+            graphFields = EditorShaderGraphFields.parameters(in: payload)
+        } else if typeName == EditorBuiltInComponentType.model3DSource {
+            graphFields = EditorShaderGraphFields.modelFields(in: payload)
+        } else { graphFields = [] }
         return EditorInspectorSidebarViewModel.ComponentSection(
             typeName: typeName,
             displayName: descriptor.displayName,
-            fields: (descriptor.fields + (typeName == EditorBuiltInComponentType.sprite ? EditorShaderGraphFields.parameters(in: payload) : []))
+            fields: (descriptor.fields + graphFields)
                 .filter { typeName != EditorBuiltInComponentType.sprite || EditorSpriteLayoutFields.isVisible($0, in: payload) }.map {
                 EditorInspectorSidebarViewModel.ComponentField(
                     typeName: typeName,
                     field: $0,
                     value: $0.displayValue(in: payload)
                 )
-            },
+                },
             canRemove: typeName != EditorBuiltInComponentType.transform
         )
     }

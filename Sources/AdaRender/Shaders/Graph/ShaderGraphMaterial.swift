@@ -39,7 +39,13 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     private var revision: UInt64 = 0
     private var time: Float = 0
     private var issue: String?
-    private var bindings: [ObjectIdentifier: (device: RenderDevice, revision: UInt64, resources: RenderResourceSet)] = [:]
+    private struct Prepared {
+        let device: RenderDevice
+        let revision: UInt64
+        let resources: RenderResourceSet
+        let samplers: RenderResourceSet
+    }
+    private var bindings: [ObjectIdentifier: Prepared] = [:]
 
     public var descriptor: ShaderGraphMaterialSource {
         lock.lock()
@@ -132,11 +138,22 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
 
     /// Called on the renderer's owning context. A revision reuses one immutable snapshot per device.
     public func resourceSet(device: RenderDevice) -> RenderResourceSet {
+        prepared(device: device).resources
+    }
+
+    /// Binds an atomic texture/uniform/sampler snapshot using the portable descriptor groups.
+    public func bind(to encoder: RenderCommandEncoder, device: RenderDevice) {
+        let snapshot = prepared(device: device)
+        encoder.setResourceSet(snapshot.resources, index: 0)
+        if !snapshot.samplers.bindings.isEmpty { encoder.setResourceSet(snapshot.samplers, index: ShaderGraphProgram.samplerSet) }
+    }
+
+    private func prepared(device: RenderDevice) -> Prepared {
         lock.lock()
         defer { lock.unlock() }
         let key = ObjectIdentifier(device)
         if let cached = bindings[key], cached.revision == revision {
-            return cached.resources
+            return cached
         }
         var words = [Float](repeating: 0, count: (program.parameters.count + 1) * 4)
         words[0] = time
@@ -152,12 +169,13 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         for texture in program.textures {
             resources.append(.init(binding: texture.binding, shaderStages: .fragment, resource: .texture(loadedTextures[texture.binding] ?? .whiteTexture)))
         }
+        var samplers: [RenderResourceSet.Binding] = []
         if let first = program.textures.first {
             let texture = loadedTextures[first.binding] ?? .whiteTexture
-            resources.append(.init(binding: ShaderGraphProgram.samplerBinding, shaderStages: .fragment, resource: .sampler(texture.sampler)))
+            samplers.append(.init(binding: ShaderGraphProgram.samplerBinding, shaderStages: .fragment, resource: .sampler(texture.sampler)))
         }
-        let result = RenderResourceSet(bindings: resources)
-        bindings[key] = (device, revision, result)
+        let result = Prepared(device: device, revision: revision, resources: .init(bindings: resources), samplers: .init(bindings: samplers))
+        bindings[key] = result
         return result
     }
 
