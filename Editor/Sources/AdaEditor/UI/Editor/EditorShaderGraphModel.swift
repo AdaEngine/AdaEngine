@@ -53,7 +53,9 @@ final class EditorShaderGraphModel {
             savedGraph = loaded
             savedData = data
             isReadOnly =
-                loaded.nodes.contains { ShaderGraph.Operation(rawValue: $0.kind) == nil || $0.id.isEmpty }
+                (try url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink == true)
+                || !FileManager.default.isWritableFile(atPath: url.path)
+                || loaded.nodes.contains { ShaderGraph.Operation(rawValue: $0.kind) == nil || $0.id.isEmpty }
                 || Set(loaded.nodes.map(\.id)).count != loaded.nodes.count
             selection = selection.intersection(Set(loaded.nodes.map(\.id)))
             undoStack = []
@@ -82,6 +84,7 @@ final class EditorShaderGraphModel {
         do {
             guard !isReadOnly else { throw EditorShaderGraphFileError.readOnly }
             guard let url, let graph else { throw EditorShaderGraphFileError.unavailable }
+            guard try url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else { throw EditorShaderGraphFileError.readOnly }
             _ = try graph.lowered()
             guard try Data(contentsOf: url) == savedData else { throw EditorShaderGraphFileError.changedOnDisk }
             let encoder = JSONEncoder()

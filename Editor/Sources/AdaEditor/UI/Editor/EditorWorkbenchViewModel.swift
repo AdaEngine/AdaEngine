@@ -48,6 +48,7 @@ final class EditorWorkbenchViewModel {
     @ObservationIgnored var particleEffectModels: [String: EditorParticleEffectEditorModel] = [:]
     @ObservationIgnored var spriteAnimationModels: [String: EditorSpriteAnimationEditorModel] = [:]
     @ObservationIgnored var textureSettingsModels: [String: EditorTextureSettingsModel] = [:]
+    @ObservationIgnored var shaderGraphModels: [String: EditorShaderGraphModel] = [:]
     @ObservationIgnored var sceneUndoHistory: [String: [EditorSceneDocument]] = [:]
     @ObservationIgnored var sceneRedoHistory: [String: [EditorSceneDocument]] = [:]
     var selectedPreviewID: String?
@@ -137,6 +138,10 @@ final class EditorWorkbenchViewModel {
 
     func open(_ document: EditorWorkbenchDocument) {
         if let index = openDocuments.firstIndex(where: { $0.id == document.id }) {
+            if let graph = shaderGraphModels[document.id] {
+                if graph.isDirty { selectDocument(id: document.id); return }
+                graph.reload()
+            }
             openDocuments[index] = document
         } else {
             openDocuments.append(document)
@@ -250,6 +255,7 @@ final class EditorWorkbenchViewModel {
         particleEffectModels.removeValue(forKey: documentID)?.cancelPreview()
         spriteAnimationModels.removeValue(forKey: documentID)?.cancelPreview()
         textureSettingsModels.removeValue(forKey: documentID)
+        shaderGraphModels.removeValue(forKey: documentID)
         sceneUndoHistory.removeValue(forKey: documentID)
         sceneRedoHistory.removeValue(forKey: documentID)
         reconcilePanes()
@@ -288,6 +294,7 @@ final class EditorWorkbenchViewModel {
             spriteAnimationModels.removeValue(forKey: id)?.cancelPreview()
         }
         textureSettingsModels = textureSettingsModels.filter { !discardedIDSet.contains($0.key) }
+        shaderGraphModels = shaderGraphModels.filter { !discardedIDSet.contains($0.key) }
         sceneUndoHistory = sceneUndoHistory.filter { !discardedIDSet.contains($0.key) }
         sceneRedoHistory = sceneRedoHistory.filter { !discardedIDSet.contains($0.key) }
         navigationHistory.removeAll { discardedIDSet.contains($0) }

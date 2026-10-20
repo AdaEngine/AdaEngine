@@ -223,6 +223,7 @@ extension EditorViewModel {
         if SceneDocumentFormat.isSceneFile(url) {
             return .scene
         }
+        if url.pathExtension.lowercased() == "shadergraph" { return .genericAsset }
 
         if isImageAsset(url) {
             return .image
@@ -267,6 +268,7 @@ extension EditorViewModel {
         for kind: EditorProjectFileKind,
         fileExtension: String
     ) -> EditorAssetPreviewKind {
+        if fileExtension == "shadergraph" { return .shaderGraph }
         if EditorSpineResource.extensions.contains(fileExtension.lowercased()) { return .spine2D }
         if EditorModelResource.extensions.contains(fileExtension.lowercased()) {
             return .model3D
