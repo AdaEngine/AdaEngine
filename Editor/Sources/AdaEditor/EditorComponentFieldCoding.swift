@@ -1,7 +1,7 @@
 import Foundation
 
 enum EditorComponentFieldCoding: Equatable, Sendable {
-    case standard, enumCase, json, unsignedInteger, vectorObject, spriteImageMode, spriteAnchorPreset, spriteSize
+    case standard, enumCase, json, unsignedInteger, vectorObject, spriteImageMode, spriteAnchorPreset, spriteSize, shaderGraphPath, shaderGraphValue
 }
 
 extension EditorComponentField {

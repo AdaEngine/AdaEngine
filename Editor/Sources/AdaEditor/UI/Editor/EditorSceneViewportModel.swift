@@ -1247,7 +1247,8 @@ extension EditorSceneViewportModel {
         return EditorInspectorSidebarViewModel.ComponentSection(
             typeName: typeName,
             displayName: descriptor.displayName,
-            fields: descriptor.fields.filter { typeName != EditorBuiltInComponentType.sprite || EditorSpriteLayoutFields.isVisible($0, in: payload) }.map {
+            fields: (descriptor.fields + (typeName == EditorBuiltInComponentType.sprite ? EditorShaderGraphFields.parameters(in: payload) : []))
+                .filter { typeName != EditorBuiltInComponentType.sprite || EditorSpriteLayoutFields.isVisible($0, in: payload) }.map {
                 EditorInspectorSidebarViewModel.ComponentField(
                     typeName: typeName,
                     field: $0,

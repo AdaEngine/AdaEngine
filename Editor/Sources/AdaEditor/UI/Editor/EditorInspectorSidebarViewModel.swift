@@ -90,6 +90,7 @@ final class EditorInspectorSidebarViewModel {
     var particleEffectAssets: [TextureAsset] = []
     var spriteAnimationAssets: [TextureAsset] = []
     var modelAssets: [TextureAsset] = []
+    var shaderGraphAssets: [TextureAsset] = []
     var spineAssets: [TextureAsset] = []
     var sceneAssets: [SceneAsset] = []
     var uiSourcePaths: [String] = []

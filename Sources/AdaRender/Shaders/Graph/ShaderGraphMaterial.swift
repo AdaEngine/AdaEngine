@@ -15,6 +15,16 @@ public struct ShaderGraphMaterialSource: Codable, Hashable, Sendable {
         self.values = values
         self.textures = textures
     }
+
+    private enum CodingKeys: CodingKey { case path, graph, values, textures }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        path = try container.decodeIfPresent(String.self, forKey: .path)
+        graph = try container.decodeIfPresent(ShaderGraph.self, forKey: .graph)
+        values = try container.decodeIfPresent([String: [Float]].self, forKey: .values) ?? [:]
+        textures = try container.decodeIfPresent([String: String].self, forKey: .textures) ?? [:]
+    }
 }
 
 /// Immutable shader code with independently editable, synchronized instance values.

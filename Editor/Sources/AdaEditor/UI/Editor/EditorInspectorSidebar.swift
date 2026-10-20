@@ -170,7 +170,7 @@ struct EditorInspectorSidebar: View {
 
     private func componentFieldRow(_ field: EditorInspectorSidebarViewModel.ComponentField) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            fieldLabel(field.field.label)
+            fieldLabel(field.field.label, verbatim: field.field.key.hasPrefix("graphValue:") || field.field.key.hasPrefix("graphTexture:"))
             if [EditorBuiltInComponentType.uiComponent, EditorBuiltInComponentType.companionPanel].contains(field.typeName), field.field.key == "path" {
                 Button(L10n.text("Choose UI source…")) { activeSceneFieldID = activeSceneFieldID == "ui-source" ? nil : "ui-source" }
                 if activeSceneFieldID == "ui-source" {
@@ -195,6 +195,8 @@ struct EditorInspectorSidebar: View {
                     is3D: field.typeName == EditorBuiltInComponentType.physicsBody3D
                 )
                 .id(viewModel.selectedEntity?.editorID)
+            } else if field.field.coding == .shaderGraphPath {
+                shaderGraphReferenceField(field)
             } else if field.typeName == EditorBuiltInComponentType.spineSource, ["animation", "skin"].contains(field.field.key) {
                 spineChoiceField(field)
             } else {
@@ -210,8 +212,8 @@ struct EditorInspectorSidebar: View {
         }
     }
 
-    func fieldLabel(_ label: String) -> some View {
-        Text(L10n.tr(label))
+    func fieldLabel(_ label: String, verbatim: Bool = false) -> some View {
+        Text(verbatim: verbatim ? label : L10n.tr(label))
             .font(.system(size: 11))
             .foregroundColor(theme.editorColors.muted)
             .frame(maxWidth: .infinity, alignment: .leading)

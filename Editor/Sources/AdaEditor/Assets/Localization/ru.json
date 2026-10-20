@@ -2420,5 +2420,9 @@
   "Invalid runtime setting. Read the project configuration schema.": "Некорректная настройка запуска. Посмотрите схему конфигурации проекта.",
   "Start Play before sending gameplay input.": "Запустите игру, прежде чем отправлять команды управления.",
   "Start Play before capturing the game camera.": "Запустите игру, прежде чем снимать кадр игровой камеры.",
-  "Use a signed 32-bit integer for this browser field.": "Для этого поля в браузере нужно знаковое 32-битное целое число."
+  "Use a signed 32-bit integer for this browser field.": "Для этого поля в браузере нужно знаковое 32-битное целое число.",
+  "Shader Graph": "Граф шейдера",
+  "Choose shader graph…": "Выбрать граф шейдера…",
+  "Search shader graphs": "Найти граф шейдера",
+  "Create a Shader Graph resource in Assets first.": "Сначала создайте граф шейдера в папке ресурсов."
 }

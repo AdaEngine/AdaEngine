@@ -99,6 +99,7 @@ struct EditorComponentField: Equatable, Identifiable, Sendable {
     }
 
     func displayValue(in payload: EditorComponentPayload) -> String {
+        if coding == .shaderGraphValue { return EditorShaderGraphFields.display(self, in: payload) }
         if coding == .spriteAnchorPreset {
             return EditorSpriteLayoutFields.anchorPreset(in: payload)
         }
@@ -132,6 +133,10 @@ struct EditorComponentField: Equatable, Identifiable, Sendable {
         guard isEditable else {
             return
         }
+        if coding == .shaderGraphPath || coding == .shaderGraphValue {
+            EditorShaderGraphFields.write(rawValue, field: self, to: &payload)
+            return
+        }
         if coding == .spriteAnchorPreset {
             EditorSpriteLayoutFields.writeAnchorPreset(rawValue, to: &payload)
             return
@@ -158,7 +163,7 @@ struct EditorComponentField: Equatable, Identifiable, Sendable {
         }
         switch coding {
         case .standard, .spriteSize: break
-        case .spriteImageMode, .spriteAnchorPreset: return
+        case .spriteImageMode, .spriteAnchorPreset, .shaderGraphPath, .shaderGraphValue: return
         case .enumCase: value = .object([value.stringValue: .object([:])])
         case .json:
             guard let decoded = try? JSONDecoder().decode(EditorSceneValue.self, from: Data(rawValue.utf8)) else {
@@ -301,6 +306,7 @@ enum EditorComponentRegistry {
         AssetsManager.registerAssetType(ParticleEffect.self)
         RuntimeTypeRegistry.registerComponent(SpriteAnimator.self, names: ["SpriteAnimator"])
         AssetsManager.registerAssetType(SpriteAnimationSet.self)
+        AssetsManager.registerAssetType(ShaderGraphAsset.self)
         RuntimeTypeRegistry.registerComponent(Camera2DController.self, names: ["Camera2DController"])
         RuntimeTypeRegistry.registerComponent(CameraTarget2D.self, names: ["CameraTarget2D"])
         RuntimeTypeRegistry.registerComponent(CompanionPanel.self, names: ["CompanionPanel"])
@@ -551,7 +557,7 @@ extension EditorComponentRegistry {
             EditorComponentField(key: "flipY", label: "Flip Y", kind: .bool),
             EditorComponentField(key: "texture", label: "Texture", kind: .assetReference),
             EditorSpriteLayoutFields.sizeField,
-        ] + EditorSpriteLayoutFields.fields,
+        ] + EditorSpriteLayoutFields.fields + [EditorShaderGraphFields.path],
         makeDefaultPayload: {
             [
                 "texture": .null,
@@ -579,7 +585,7 @@ extension EditorComponentRegistry {
             }
             let anchor = try payload["anchor"].map { try JSONDecoder().decode(SpriteAnchor.self, from: JSONEncoder().encode($0)) } ?? .center
             let imageMode = try payload["imageMode"].map { try JSONDecoder().decode(SpriteImageMode.self, from: JSONEncoder().encode($0)) } ?? .stretch
-            return Sprite(
+            var sprite = Sprite(
                 texture: texture,
                 tintColor: payload["tintColor"]?.colorValue ?? .white,
                 flipX: payload["flipX"]?.boolValue ?? false,
@@ -588,6 +594,8 @@ extension EditorComponentRegistry {
                 anchor: anchor,
                 imageMode: imageMode
             )
+            sprite.graphMaterial = try EditorShaderGraphFields.decode(in: payload, target: .sprite)
+            return sprite
         }
     )
 

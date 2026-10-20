@@ -412,6 +412,7 @@ extension EditorViewModel {
         inspectorSidebar.particleEffectAssets = Self.particleEffectAssets(from: projectSidebar.items)
         inspectorSidebar.spriteAnimationAssets = Self.spriteAnimationAssets(from: projectSidebar.items)
         inspectorSidebar.modelAssets = Self.modelAssets(from: projectSidebar.items)
+        inspectorSidebar.shaderGraphAssets = Self.shaderGraphAssets(from: projectSidebar.items)
         inspectorSidebar.spineAssets = projectSidebar.items.compactMap { item in
             guard !item.isFolder, EditorSpineResource.extensions.contains(URL(fileURLWithPath: item.title).pathExtension.lowercased()),
                   let root = item.assetRoot, let reference = Self.assetReference(for: item.relativePath, assetsRoot: root),

@@ -2420,5 +2420,9 @@
   "Invalid runtime setting. Read the project configuration schema.": "Invalid runtime setting. Read the project configuration schema.",
   "Start Play before sending gameplay input.": "Start Play before sending gameplay input.",
   "Start Play before capturing the game camera.": "Start Play before capturing the game camera.",
-  "Use a signed 32-bit integer for this browser field.": "Use a signed 32-bit integer for this browser field."
+  "Use a signed 32-bit integer for this browser field.": "Use a signed 32-bit integer for this browser field.",
+  "Shader Graph": "Shader Graph",
+  "Choose shader graph…": "Choose shader graph…",
+  "Search shader graphs": "Search shader graphs",
+  "Create a Shader Graph resource in Assets first.": "Create a Shader Graph resource in Assets first."
 }
