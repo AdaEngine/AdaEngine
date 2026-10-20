@@ -70,7 +70,7 @@ budgets are estimates, not permission to hide implementation in generated files.
 | 10 | Draw a reusable AdaUI node canvas | Implement graph-space geometry, node/port layout, wires, pan/zoom and hit testing. | New unregistered component | ~600 | 9 | implemented locally; canvas geometry checks pass |
 | 11 | Connect and manipulate nodes on the canvas | Add compatible-port gestures, node movement, selection and transaction boundaries. | New unregistered interactive component | ~600 | 10 | implemented locally; AdaUI pointer events pass |
 | 12 | Open complete Shader Graph documents in Studio | Wire tab routing, creation, file IO, Inspector and parameter controls into the existing workbench. | Final small authoring registration | ~600 | 5, 7, 9, 11 | planned |
-| 13 | Preview graph edits through the production renderer | Add revision-bound compilation, preview transport and visible diagnostic recovery. | Complete preview addition to working editor | ~600 | 8, 12 | planned |
+| 13 | Preview graph edits through the production renderer | Add revision-bound compilation, preview transport and visible diagnostic recovery. | Complete preview addition to working editor | ~600 | 8, 12 | implemented locally; CPU revision/recovery and real WebGPU pass |
 | 14 | Ship animated and procedural effect templates | Add Time/UV operations, base procedural noise, Dissolve and UV Scroll examples. | Independently runnable nodes/templates | ~550 | 13 | planned |
 | 15 | Navigate and organize larger graphs | Add context-aware node search, copy/paste, groups, comments and error navigation. | Complete usability additions | ~600 | 12 | planned |
 | 16 | Change exposed graph values from AdaScript | Add typed parameter access through the real runtime and native AOT binding paths. | Additive scripting API | ~550 | 5, 7 | planned |
@@ -369,3 +369,9 @@ budgets are estimates, not permission to hide implementation in generated files.
 - Canvas + graph/workbench/localization validation: 18 tests in 5 suites pass,
   including actual AdaUI pointer events and one-step movement Undo
   (`/tmp/adaengine-shader-graph-workbench-tests.log`).
+
+- Preview/compiler/resource reload: 32 CPU and real WebGPU tests pass
+  (`/tmp/adaengine-shader-graph-preview-core-gpu.log`). Graph source diagnostics
+  use virtual source 101 to preserve node/port mapping across target templates.
+  New material instances read freshly saved graph assets; existing instances keep
+  their authored values. Background preview validation is CPU-only.

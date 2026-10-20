@@ -99,6 +99,12 @@ public final class ShaderCompiler {
         self.includeSearchPaths.append(contentsOf: shaderSource.includeSearchPaths)
     }
 
+    /// Validates complete GLSL without creating device objects or accessing the renderer.
+    /// Useful for background authoring diagnostics and offline shader export.
+    public static func validateFragmentGLSL(_ code: String, entryPoint: String = "main") throws -> Data {
+        try ShaderCompiler(shaderSource: ShaderSource()).compileCode(code, entryPoint: entryPoint, stage: .fragment).data
+    }
+
     public func addHeaderSearchPaths(_ paths: [ShaderSource.IncludeSearchPath]) {
         self.includeSearchPaths.append(contentsOf: paths)
     }

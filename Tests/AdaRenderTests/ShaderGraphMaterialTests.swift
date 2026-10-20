@@ -4,6 +4,19 @@ import Testing
 
 @Suite("Shader graph instances")
 struct ShaderGraphMaterialTests {
+    @Test func aNewMaterialReadsTheSavedGraphRatherThanAnOlderAsset() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("GraphReload-\(UUID().uuidString).shadergraph")
+        defer { try? FileManager.default.removeItem(at: url) }
+        var graph = try #require(source().graph)
+        try JSONEncoder().encode(graph).write(to: url)
+        let first = try ShaderGraphMaterial(source: .init(path: url.path))
+        graph.nodes[0].value = [0, 1, 0, 1]
+        try JSONEncoder().encode(graph).write(to: url)
+        let reopened = try ShaderGraphMaterial(source: .init(path: url.path))
+        #expect(first.value(for: "tint") == [1, 1, 1, 1])
+        #expect(reopened.value(for: "tint") == [0, 1, 0, 1])
+    }
+
     @Test func graphRenderSettingsAreEffectiveWithoutChangingLegacyMaterialState() throws {
         var source = source()
         source.graph?.target = .pbrSurface

@@ -4,6 +4,16 @@ import Testing
 
 @Suite("Generated shader graph functions", .serialized)
 struct ShaderGraphProgramTests {
+    @Test func validationRetainsNodeAndPortLocations() throws {
+        let program = try graph().compileGLSL()
+        try program.validateGLSL()
+        let entry = try #require(program.sourceMap.first { $0.value.nodeID == "output" && $0.value.port == "color" })
+        let error = program.diagnostic(for: "ERROR: 101:\(entry.key): invalid assignment")
+        #expect(error.nodeID == "output")
+        #expect(error.port == "color")
+        #expect(program.diagnostic(for: "Device failure without a source location").nodeID == nil)
+    }
+
     private func graph() -> ShaderGraph {
         ShaderGraph(target: .sprite, output: "output", nodes: [
             .init(id: "uv", operation: .uv, type: .vector2),

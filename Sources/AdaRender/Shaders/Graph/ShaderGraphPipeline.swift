@@ -60,7 +60,7 @@ extension ShaderGraphMaterial {
             guard template.contains("#define ADA_GRAPH_SOURCE_MARKER 1") else {
                 throw ShaderGraphDiagnostic(code: .invalidReference)
             }
-            let generated = template.replacingOccurrences(of: "#define ADA_GRAPH_SOURCE_MARKER 1", with: program.source)
+            let generated = program.inserting(in: template)
             var sharedKey = key
             sharedKey.source = generated
             return try ShaderGraphPipelineStorage.shared.resolve(sharedKey, device: device, cacheFailure: false) {

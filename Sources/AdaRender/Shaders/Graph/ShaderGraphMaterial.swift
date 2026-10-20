@@ -35,6 +35,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     let pipelineStorage = ShaderGraphPipelineStorage()
     private let lock = NSLock()
     private var source: ShaderGraphMaterialSource
+    private let resourceBasePath: String?
     private var loadedTextures: [Int: Texture2D] = [:]
     private var revision: UInt64 = 0
     private var time: Float = 0
@@ -73,7 +74,8 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         if changed { Logger(label: "org.adaengine.shader-graph").error("\(message)") }
     }
 
-    public init(source: ShaderGraphMaterialSource) throws {
+    public init(source: ShaderGraphMaterialSource, resourceBasePath: String? = nil) throws {
+        self.resourceBasePath = resourceBasePath
         let graph: ShaderGraph
         if let inline = source.graph, source.path == nil {
             graph = inline
@@ -81,7 +83,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
             #if WASM
                 throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: path)
             #else
-                graph = try AssetsManager.loadSync(ShaderGraphAsset.self, at: path).asset.graph
+                graph = try AssetsManager.loadFreshSync(ShaderGraphAsset.self, at: path).graph
             #endif
         } else {
             throw ShaderGraphDiagnostic(code: .invalidReference)
@@ -94,7 +96,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         }
         for texture in program.textures {
             let path = texture.parameterID.flatMap { source.textures[$0] } ?? texture.path
-            if let path { loadedTextures[texture.binding] = try Self.loadTexture(path, relativeTo: source.path) }
+            if let path { loadedTextures[texture.binding] = try Self.loadTexture(path, relativeTo: source.path ?? resourceBasePath) }
         }
     }
 
@@ -124,7 +126,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         guard let texture = program.textures.first(where: { $0.parameterID == id }) else {
             throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: id)
         }
-        let loaded = try Self.loadTexture(path, relativeTo: descriptor.path)
+        let loaded = try Self.loadTexture(path, relativeTo: descriptor.path ?? resourceBasePath)
         lock.lock()
         defer { lock.unlock() }
         source.textures[id] = path
