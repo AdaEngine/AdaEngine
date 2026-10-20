@@ -23,7 +23,7 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
     }
 
     public enum Operation: String, Codable, Sendable {
-        case constant, parameter, texture, sampleTexture, uv, add, multiply, lerp, output
+        case constant, parameter, texture, sampleTexture, uv, spriteTexture, add, multiply, lerp, output
     }
 
     /// A stable reference to a node's output port. Port identifiers are never localized.
@@ -116,6 +116,14 @@ public struct ShaderGraphDiagnostic: Error, Equatable, Sendable {
     public var port: String?
     public var expected: ShaderGraph.ValueType?
     public var actual: ShaderGraph.ValueType?
+
+    public init(code: Code, nodeID: String? = nil, port: String? = nil, expected: ShaderGraph.ValueType? = nil, actual: ShaderGraph.ValueType? = nil) {
+        self.code = code
+        self.nodeID = nodeID
+        self.port = port
+        self.expected = expected
+        self.actual = actual
+    }
 }
 
 /// Canonically ordered, reachable computations. This value has no editor or GPU state.

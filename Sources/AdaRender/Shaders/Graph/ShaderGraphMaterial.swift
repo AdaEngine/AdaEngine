@@ -1,5 +1,6 @@
 import AdaAssets
 import Foundation
+import Logging
 
 /// Authored reference plus independent parameter overrides. Inline graphs support procedural materials.
 public struct ShaderGraphMaterialSource: Codable, Hashable, Sendable {
@@ -21,17 +22,34 @@ public struct ShaderGraphMaterialSource: Codable, Hashable, Sendable {
 /// are replaced rather than overwritten, preserving values used by in-flight commands.
 public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     public let program: ShaderGraphProgram
+    let pipelineStorage = ShaderGraphPipelineStorage()
     private let lock = NSLock()
     private var source: ShaderGraphMaterialSource
     private var loadedTextures: [Int: Texture2D] = [:]
     private var revision: UInt64 = 0
     private var time: Float = 0
+    private var issue: String?
     private var bindings: [ObjectIdentifier: (device: RenderDevice, revision: UInt64, resources: RenderResourceSet)] = [:]
 
     public var descriptor: ShaderGraphMaterialSource {
         lock.lock()
         defer { lock.unlock() }
         return source
+    }
+
+    public var compilationError: String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return issue
+    }
+
+    public func reportCompilationError(_ error: any Error) {
+        let message = String(describing: error)
+        lock.lock()
+        let changed = issue != message
+        issue = message
+        lock.unlock()
+        if changed { Logger(label: "org.adaengine.shader-graph").error("\(message)") }
     }
 
     public init(source: ShaderGraphMaterialSource) throws {

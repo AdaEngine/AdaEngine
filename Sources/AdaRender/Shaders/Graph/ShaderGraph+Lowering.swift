@@ -123,6 +123,9 @@ extension ShaderGraph {
         }
         let expected: ValueType?
         switch operation {
+        case .spriteTexture:
+            guard target == .sprite else { throw ShaderGraphDiagnostic(code: .typeMismatch, nodeID: node.id) }
+            expected = .color
         case .texture: expected = .texture2D
         case .sampleTexture: expected = .vector4
         case .uv: expected = .vector2

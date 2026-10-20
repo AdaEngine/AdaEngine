@@ -21,6 +21,7 @@ public struct SpriteBatch: Sendable {
     public var texture: Texture2D
     /// The range of prepared quads; instancing uses it directly, batching expands each quad to six indices.
     public var range: Range<Int32>
+    public var graphMaterial: ShaderGraphMaterial?
 }
 
 /// A resource that contains all sprite batches for rendering.
@@ -83,6 +84,7 @@ public struct ExtractedSprite: Sendable {
     /// Local sprite layout, copied during extraction.
     public var anchor: SpriteAnchor
     public var imageMode: SpriteImageMode
+    public var graphMaterial: ShaderGraphMaterial?
 
     /// Initialize an extracted sprite.
     public init(
@@ -109,6 +111,7 @@ public struct ExtractedSprite: Sendable {
         self.visibilityEntityId = visibilityEntityId
         self.anchor = anchor
         self.imageMode = imageMode
+        self.graphMaterial = nil
     }
 }
 
@@ -148,7 +151,7 @@ public func ExtractSprite(
         if visible == .hidden {
             return
         }
-        extracted[entity.id] = ExtractedSprite(
+        var extractedSprite = ExtractedSprite(
             entityId: entity.id,
             texture: sprite.texture?.asset,
             size: sprite.size,
@@ -161,6 +164,8 @@ public func ExtractSprite(
             anchor: sprite.anchor,
             imageMode: sprite.imageMode
         )
+        extractedSprite.graphMaterial = sprite.graphMaterial
+        extracted[entity.id] = extractedSprite
     }
     swap(&extracted, &extractedSprites.wrappedValue.sprites)
 }
@@ -324,6 +329,8 @@ public struct SpriteRenderSystem {
         var instanceCount: Int32 = 0
         var batchEntityId: Entity.ID?
         var batchItemIndex: Int?
+        var currentMaterial: ShaderGraphMaterial?
+        var currentPipeline = pipeline
 
         func finishCurrentBatch() {
             if let batchEntity = batchEntityId,
@@ -331,11 +338,12 @@ public struct SpriteRenderSystem {
                 batchStartIndex < instanceCount {
                 spriteBatches.batches[batchEntity] = SpriteBatch(
                     texture: texture,
-                    range: batchStartIndex..<instanceCount
+                    range: batchStartIndex..<instanceCount,
+                    graphMaterial: currentMaterial
                 )
                 if let batchItemIndex {
                     renderItems.items.items[batchItemIndex].batchRange = batchStartIndex..<instanceCount
-                    renderItems.items.items[batchItemIndex].renderPipeline = pipeline
+                    renderItems.items.items[batchItemIndex].renderPipeline = currentPipeline
                 }
             }
         }
@@ -357,10 +365,25 @@ public struct SpriteRenderSystem {
             let texture = sprite.texture ?? .whiteTexture
 
             // Check if we need to start a new batch (texture changed)
-            let needsNewBatch = currentTexture.map { !isSameTexture($0, texture) } ?? true
+            let needsNewBatch = (currentTexture.map { !isSameTexture($0, texture) } ?? true) || currentMaterial !== sprite.graphMaterial
 
             if needsNewBatch {
                 finishCurrentBatch()
+
+                if let material = sprite.graphMaterial {
+                    do {
+                        currentPipeline = try SpriteGraphPipeline.make(material: material, base: pipeline, instanced: usesInstancing, device: device)
+                    } catch {
+                        material.reportCompilationError(error)
+                        currentTexture = nil
+                        currentMaterial = nil
+                        batchEntityId = nil
+                        batchItemIndex = nil
+                        batchStartIndex = instanceCount
+                        continue
+                    }
+                } else { currentPipeline = pipeline }
+                currentMaterial = sprite.graphMaterial
 
                 // Start new batch
                 currentTexture = texture

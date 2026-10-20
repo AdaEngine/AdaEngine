@@ -61,7 +61,7 @@ budgets are estimates, not permission to hide implementation in generated files.
 | 1 | Validate and lower typed shader graphs | Decode graph assets, validate typed connections and produce deterministic IR. | Additive CPU API | 550 actual | — | in-review (local) |
 | 2 | Compile graph expressions into shader functions | Generate GLSL with node/port diagnostics and compile a real fixture through the engine compiler. | Additive compiler API | ~550 | 1 | implemented locally |
 | 3 | Bind graph parameters and texture resources | Produce stable resource layouts and independent material-instance values. | Additive material API | ~550 | 2 | implemented locally |
-| 4 | Render Sprite graph materials | Support graph output in sprite extraction, batching and both draw implementations. | Complete opt-in runtime path | ~600 | 3 | planned |
+| 4 | Render Sprite graph materials | Support graph output in sprite extraction, batching and both draw implementations. | Complete opt-in runtime path | ~600 | 3 | implemented locally; CPU/render preparation verified |
 | 5 | Author Sprite graph assignments in Studio | Persist graph references/values and expose assignment in the Sprite Inspector. | Complete consumer of slice 4 | ~550 | 4 | planned |
 | 6 | Extract the existing PBR surface evaluation seam | Separate surface evaluation from shared lighting with identical stock-material pixels. | Complete behavior-preserving shader refactor | ~550 | — | planned |
 | 7 | Assign opaque PBR graph materials | Render and persist graph surface overrides for primitives and imported model material slots. | Complete opaque-only path | ~600 | 3, 6 | planned |
@@ -267,6 +267,11 @@ budgets are estimates, not permission to hide implementation in generated files.
   apply; no PR, merge or release has been published.
 
 ## Evidence
+
+- Slice 4: 39 graph/Sprite tests pass. Real SpriteRenderSystem scheduling preserves
+  A/B/A material order and three batches while both instances reuse one compiled
+  pipeline. Both expanded and instanced templates have graph integration; GPU
+  pixels are still required by the final acceptance gate.
 
 - Slice 3: 23 graph tests pass, including independent material instances,
   Codable round trips and immutable per-device uniform snapshots. Changing an

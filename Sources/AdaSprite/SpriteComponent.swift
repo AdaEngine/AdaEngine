@@ -31,6 +31,8 @@ public struct Sprite: Codable {
     public var anchor: SpriteAnchor = .center
     /// How the texture fills the sprite size.
     public var imageMode: SpriteImageMode = .stretch
+    /// Optional authored shader graph and independent material values.
+    public var graphMaterial: ShaderGraphMaterial?
 
     /// Create a new sprite component for specific texture and tintColor.
     /// - Parameter texture: Asset that contains texture.
@@ -86,7 +88,7 @@ public struct Sprite: Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case texture, tintColor, flipX, flipY, size, anchor, imageMode
+        case texture, tintColor, flipX, flipY, size, anchor, imageMode, graphMaterial
     }
 
     /// Legacy scenes without layout fields keep their original centered, stretched appearance.
@@ -99,5 +101,6 @@ public struct Sprite: Codable {
         self.size = try container.decodeIfPresent(Size.self, forKey: .size)
         self.anchor = try container.decodeIfPresent(SpriteAnchor.self, forKey: .anchor) ?? .center
         self.imageMode = try container.decodeIfPresent(SpriteImageMode.self, forKey: .imageMode) ?? .stretch
+        self.graphMaterial = try container.decodeIfPresent(ShaderGraphMaterial.self, forKey: .graphMaterial)
     }
 }

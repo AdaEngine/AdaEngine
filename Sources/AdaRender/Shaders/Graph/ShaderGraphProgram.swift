@@ -120,6 +120,7 @@ extension ShaderGraph {
                 default: expression = value
                 }
             case .uv: expression = "ada_graph_uv"
+            case .spriteTexture: expression = "texture(sampler2D(u_Texture, u_Sampler), ada_graph_uv)"
             case .add: expression = "(\(argument("a")) + \(argument("b")))"
             case .multiply: expression = "(\(argument("a")) * \(argument("b")))"
             case .lerp: expression = "mix(\(argument("a")), \(argument("b")), \(argument("t")))"

@@ -40,10 +40,18 @@ layout (location = 0) in VertexOut Input;
 layout (binding = 0) uniform texture2D u_Texture;
 layout (binding = 1) uniform sampler   u_Sampler;
 
+#define ADA_GRAPH_SOURCE_MARKER 1
+
 [[main]]
 void sprite_fragment()
 {
+    #ifdef ADA_SHADER_GRAPH
+    AdaGraphSurface surface = ada_graph_evaluate(Input.TexCoordinate);
+    color = surface.color * Input.Color;
+    color.a *= surface.alpha;
+    #else
     color = texture(sampler2D(u_Texture, u_Sampler), Input.TexCoordinate) * Input.Color;
+    #endif
 
     // to avoid depth write
     if (color.a == 0.0) {
