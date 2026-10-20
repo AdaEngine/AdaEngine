@@ -714,12 +714,16 @@ float reachingLightCount() {
     return count;
 }
 
-[[main]]
-void flat3d_fragment()
-{
-    if (u_SurfaceFlags.z > 0.5) { g_ParallaxDelta = parallaxDelta(); }
-    if (Input.ShadowFlags.w > 0.0 && visibilityDither(gl_FragCoord.xy) < Input.ShadowFlags.w) { discard; }
-    if (u_SurfaceFlags.x < 0.5 && !gl_FrontFacing) { discard; }
+// Surface evaluation is independent of the shared lighting implementation.
+struct AdaPBRSurface {
+    vec4 baseColor;
+    vec3 normal;
+    float roughness;
+    float metallic;
+    float opacity;
+};
+
+AdaPBRSurface ada_material_surface() {
     vec4 baseColor = Input.Color;
     if (Input.TextureFlags.x > 0.5) {
         vec4 sampledBaseColor = texture(sampler2D(u_BaseColorTexture, u_BaseColorSampler), materialUV(u_UVSets.x, 0));
@@ -741,6 +745,21 @@ void flat3d_fragment()
 
     vec3 normal = materialNormal();
     if (!gl_FrontFacing && u_SurfaceFlags.x > 0.5) { normal = -normal; }
+    return AdaPBRSurface(baseColor, normal, roughness, metallic, opacity);
+}
+
+[[main]]
+void flat3d_fragment()
+{
+    if (u_SurfaceFlags.z > 0.5) { g_ParallaxDelta = parallaxDelta(); }
+    if (Input.ShadowFlags.w > 0.0 && visibilityDither(gl_FragCoord.xy) < Input.ShadowFlags.w) { discard; }
+    if (u_SurfaceFlags.x < 0.5 && !gl_FrontFacing) { discard; }
+    AdaPBRSurface surface = ada_material_surface();
+    vec4 baseColor = surface.baseColor;
+    float opacity = surface.opacity;
+    float roughness = surface.roughness;
+    float metallic = surface.metallic;
+    vec3 normal = surface.normal;
     // Shading layers: each factor is multiplied by its texture when the material has one.
     g_Dielectric = u_Dielectric.rgb;
 #ifdef ADA_SPECULAR_TEXTURE

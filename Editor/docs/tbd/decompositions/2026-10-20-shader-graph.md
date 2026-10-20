@@ -63,7 +63,7 @@ budgets are estimates, not permission to hide implementation in generated files.
 | 3 | Bind graph parameters and texture resources | Produce stable resource layouts and independent material-instance values. | Additive material API | ~550 | 2 | implemented locally |
 | 4 | Render Sprite graph materials | Support graph output in sprite extraction, batching and both draw implementations. | Complete opt-in runtime path | ~600 | 3 | implemented locally; CPU/render preparation verified |
 | 5 | Author Sprite graph assignments in Studio | Persist graph references/values and expose assignment in the Sprite Inspector. | Complete consumer of slice 4 | ~550 | 4 | implemented locally; focused Editor checks pass |
-| 6 | Extract the existing PBR surface evaluation seam | Separate surface evaluation from shared lighting with identical stock-material pixels. | Complete behavior-preserving shader refactor | ~550 | — | planned |
+| 6 | Extract the existing PBR surface evaluation seam | Separate surface evaluation from shared lighting with identical stock-material pixels. | Complete behavior-preserving shader refactor | ~550 | — | implemented locally; Metal golden frames pass |
 | 7 | Assign opaque PBR graph materials | Render and persist graph surface overrides for primitives and imported model material slots. | Complete opaque-only path | ~600 | 3, 6 | planned |
 | 8 | Keep graph alpha consistent across 3D passes | Add mask/blend settings with matching depth, shadow and auxiliary-pass behavior. | Complete alpha-mode addition | ~600 | 7 | planned |
 | 9 | Edit graph documents with transactional history | Add document operations, stable selection and undo/redo independent of the visual canvas. | Additive unused authoring model | ~550 | 1 | planned |
@@ -267,6 +267,12 @@ budgets are estimates, not permission to hide implementation in generated files.
   apply; no PR, merge or release has been published.
 
 ## Evidence
+
+- Slice 6: `Render3DGPUTests/DebugViews/everyViewMatchesItsGoldenFrame` passes
+  on actual Metal after the surface-function extraction, comparing all existing
+  debug views with their checked-in golden frames. No references were changed.
+  `script/ensure_tint.py --check` passes. Log:
+  `/tmp/adaengine-shader-graph-pbr-golden.log`.
 
 - Slice 5: the native Editor builds; 10 tests across Graph Inspector, localization
   and existing Sprite layout suites pass. The localization checker passes for
