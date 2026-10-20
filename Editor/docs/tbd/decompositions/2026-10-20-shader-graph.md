@@ -67,8 +67,8 @@ budgets are estimates, not permission to hide implementation in generated files.
 | 7 | Assign opaque PBR graph materials | Render and persist graph surface overrides for primitives and imported model material slots. | Complete opaque-only path | ~600 | 3, 6 | implemented locally; Metal pixels and Editor tests pass |
 | 8 | Keep graph alpha consistent across 3D passes | Add mask/blend settings with matching depth, shadow and auxiliary-pass behavior. | Complete alpha-mode addition | ~600 | 7 | implemented locally; all 29 core/GPU checks pass |
 | 9 | Edit graph documents with transactional history | Add document operations, stable selection and undo/redo independent of the visual canvas. | Additive unused authoring model | ~550 | 1 | implemented locally; document tests pass |
-| 10 | Draw a reusable AdaUI node canvas | Implement graph-space geometry, node/port layout, wires, pan/zoom and hit testing. | New unregistered component | ~600 | 9 | planned |
-| 11 | Connect and manipulate nodes on the canvas | Add compatible-port gestures, node movement, selection and transaction boundaries. | New unregistered interactive component | ~600 | 10 | planned |
+| 10 | Draw a reusable AdaUI node canvas | Implement graph-space geometry, node/port layout, wires, pan/zoom and hit testing. | New unregistered component | ~600 | 9 | implemented locally; canvas geometry checks pass |
+| 11 | Connect and manipulate nodes on the canvas | Add compatible-port gestures, node movement, selection and transaction boundaries. | New unregistered interactive component | ~600 | 10 | implemented locally; AdaUI pointer events pass |
 | 12 | Open complete Shader Graph documents in Studio | Wire tab routing, creation, file IO, Inspector and parameter controls into the existing workbench. | Final small authoring registration | ~600 | 5, 7, 9, 11 | planned |
 | 13 | Preview graph edits through the production renderer | Add revision-bound compilation, preview transport and visible diagnostic recovery. | Complete preview addition to working editor | ~600 | 8, 12 | planned |
 | 14 | Ship animated and procedural effect templates | Add Time/UV operations, base procedural noise, Dissolve and UV Scroll examples. | Independently runnable nodes/templates | ~550 | 13 | planned |
@@ -357,3 +357,15 @@ budgets are estimates, not permission to hide implementation in generated files.
 - The full WebGPU script additionally exposed an existing unequal Metal/WebGPU
   golden-reference filename inventory; this is tracked separately from passing
   graph pixels and is not waived by the focused checks.
+
+### Authoring integration refinement
+
+- Canvas drawing and pointer interaction (10–11) remain one review-sized local
+  unit. The document registration is split into 12a (node presentation/templates)
+  and 12b (workbench/UI registration), with the standalone preview helper (13)
+  built before 12b. This keeps registration complete when it is introduced and
+  avoids a placeholder preview or a feature flag. All parts remain in scope.
+
+- Canvas + graph/workbench/localization validation: 18 tests in 5 suites pass,
+  including actual AdaUI pointer events and one-step movement Undo
+  (`/tmp/adaengine-shader-graph-workbench-tests.log`).
