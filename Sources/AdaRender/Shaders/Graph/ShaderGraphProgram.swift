@@ -65,7 +65,7 @@ extension ShaderGraph {
         var textureNames: [String: String] = [:]
         for node in ir.instructions where node.type == .texture2D {
             let parameter = node.operation == .parameter ? node.reference : nil
-            let path = node.operation == .texture ? node.reference : nil
+            let path = node.operation == .texture ? node.reference : nodes.first { $0.id == node.nodeID }?.defaultTexture
             let index: Int
             if let existing = textures.firstIndex(where: { $0.parameterID == parameter && $0.path == path }) {
                 index = existing

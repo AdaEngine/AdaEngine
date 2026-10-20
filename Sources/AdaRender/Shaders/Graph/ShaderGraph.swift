@@ -35,7 +35,7 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
         var isNumeric: Bool { self != .bool && self != .texture2D }
     }
 
-    public enum Operation: String, Codable, Sendable {
+    public enum Operation: String, Codable, CaseIterable, Sendable {
         case constant, parameter, texture, sampleTexture, uv, spriteTexture, add, multiply, lerp, output
     }
 
@@ -60,6 +60,9 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
         /// Stable exposed-parameter ID, or project resource path for a texture node.
         public var reference: String?
         public var inputs: [String: Link]
+        /// Authored labels and texture defaults never become shader identifiers.
+        public var label: String?
+        public var defaultTexture: String?
 
         public init(
             id: String,
@@ -88,12 +91,36 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
         }
     }
 
+    public struct LayoutGroup: Codable, Hashable, Sendable {
+        public var title: String
+        public var nodes: [String]
+        public var tint: Int
+
+        public init(title: String, nodes: [String], tint: Int = 0) {
+            self.title = title
+            self.nodes = nodes
+            self.tint = tint
+        }
+    }
+
+    public struct LayoutNote: Codable, Hashable, Sendable {
+        public var text: String
+        public var position: Position
+
+        public init(text: String, position: Position) {
+            self.text = text
+            self.position = position
+        }
+    }
+
     public var version: Int
     public var target: Target
     public var output: String
     public var nodes: [Node]
     public var layout: [String: Position]
     public var renderSettings: RenderSettings
+    public var groups: [String: LayoutGroup] = [:]
+    public var notes: [String: LayoutNote] = [:]
 
     public init(target: Target, output: String, nodes: [Node], layout: [String: Position] = [:]) {
         self.version = Self.currentVersion
@@ -104,7 +131,7 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
         self.renderSettings = .init(mode: target == .sprite ? .blend : .opaque)
     }
 
-    private enum CodingKeys: CodingKey { case version, target, output, nodes, layout, renderSettings }
+    private enum CodingKeys: CodingKey { case version, target, output, nodes, layout, renderSettings, groups, notes }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -117,6 +144,8 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
         output = try container.decode(String.self, forKey: .output)
         nodes = try container.decode([Node].self, forKey: .nodes)
         layout = try container.decodeIfPresent([String: Position].self, forKey: .layout) ?? [:]
+        groups = try container.decodeIfPresent([String: LayoutGroup].self, forKey: .groups) ?? [:]
+        notes = try container.decodeIfPresent([String: LayoutNote].self, forKey: .notes) ?? [:]
     }
 }
 

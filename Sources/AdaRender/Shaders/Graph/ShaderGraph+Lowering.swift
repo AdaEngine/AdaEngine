@@ -1,4 +1,22 @@
 extension ShaderGraph {
+    /// The same typed port catalog used by validation and visual authoring.
+    public func inputPorts(for node: Node) -> [String: ValueType] {
+        guard let operation = Operation(rawValue: node.kind) else {
+            return [:]
+        }
+        return inputTypes(for: node, operation: operation)
+    }
+
+    public func outputPorts(for node: Node) -> [String: ValueType] {
+        guard let operation = Operation(rawValue: node.kind), operation != .output else {
+            return [:]
+        }
+        if operation == .sampleTexture || operation == .spriteTexture {
+            return ["value": operation == .spriteTexture ? .color : .vector4, "color": .color, "rgb": .vector3, "alpha": .float]
+        }
+        return ["value": node.type]
+    }
+
     /// Validates every authored node, then emits only computations reachable from the output.
     /// Scalar broadcasts are explicit in the IR; vectors and colors never implicitly change type.
     public func lowered() throws -> ShaderGraphIR {
@@ -106,6 +124,9 @@ extension ShaderGraph {
     }
 
     private func validatePayload(_ node: Node, operation: Operation) throws {
+        if node.defaultTexture != nil, operation != .parameter || node.type != .texture2D {
+            throw ShaderGraphDiagnostic(code: .invalidReference, nodeID: node.id)
+        }
         switch operation {
         case .parameter where node.type == .texture2D:
             guard node.value.isEmpty else { throw ShaderGraphDiagnostic(code: .invalidLiteral, nodeID: node.id) }
@@ -157,12 +178,6 @@ extension ShaderGraph {
     }
 
     private func outputType(of node: Node, port: String) -> ValueType? {
-        guard let operation = Operation(rawValue: node.kind), operation != .output else {
-            return nil
-        }
-        if operation == .sampleTexture {
-            return ["value": .vector4, "color": .color, "rgb": .vector3, "alpha": .float][port]
-        }
-        return port == "value" ? node.type : nil
+        outputPorts(for: node)[port]
     }
 }

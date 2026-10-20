@@ -66,7 +66,7 @@ budgets are estimates, not permission to hide implementation in generated files.
 | 6 | Extract the existing PBR surface evaluation seam | Separate surface evaluation from shared lighting with identical stock-material pixels. | Complete behavior-preserving shader refactor | ~550 | — | implemented locally; Metal golden frames pass |
 | 7 | Assign opaque PBR graph materials | Render and persist graph surface overrides for primitives and imported model material slots. | Complete opaque-only path | ~600 | 3, 6 | implemented locally; Metal pixels and Editor tests pass |
 | 8 | Keep graph alpha consistent across 3D passes | Add mask/blend settings with matching depth, shadow and auxiliary-pass behavior. | Complete alpha-mode addition | ~600 | 7 | implemented locally; all 29 core/GPU checks pass |
-| 9 | Edit graph documents with transactional history | Add document operations, stable selection and undo/redo independent of the visual canvas. | Additive unused authoring model | ~550 | 1 | planned |
+| 9 | Edit graph documents with transactional history | Add document operations, stable selection and undo/redo independent of the visual canvas. | Additive unused authoring model | ~550 | 1 | implemented locally; document tests pass |
 | 10 | Draw a reusable AdaUI node canvas | Implement graph-space geometry, node/port layout, wires, pan/zoom and hit testing. | New unregistered component | ~600 | 9 | planned |
 | 11 | Connect and manipulate nodes on the canvas | Add compatible-port gestures, node movement, selection and transaction boundaries. | New unregistered interactive component | ~600 | 10 | planned |
 | 12 | Open complete Shader Graph documents in Studio | Wire tab routing, creation, file IO, Inspector and parameter controls into the existing workbench. | Final small authoring registration | ~600 | 5, 7, 9, 11 | planned |
@@ -267,6 +267,15 @@ budgets are estimates, not permission to hide implementation in generated files.
   apply; no PR, merge or release has been published.
 
 ## Evidence
+
+- Slice 9: 10 document/Inspector/localization tests pass. One drag produces one
+  Undo, metadata-only moves do not change shader revision, selection survives
+  history, invalid wires produce no Undo, incomplete intermediate nodes can be
+  connected, and external/future-version files cannot be overwritten.
+  Log: `/tmp/adaengine-shader-graph-document-tests.log`.
+- Public port metadata is shared by authoring and validation. Optional labels,
+  texture defaults, groups and notes extend v1 decoding compatibly; layout-only
+  metadata stays out of lowered shader computations.
 
 - Slice 8: 29 tests in 7 suites pass, including actual Metal directional and
   point-light alpha clipping, equality against hiding the same caster, matching

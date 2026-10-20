@@ -35,7 +35,7 @@ enum EditorShaderGraphFields {
             case .texture2D: kind = .assetReference
             }
             let texture = node.type == .texture2D
-            var field = EditorComponentField(key: "\(texture ? "graphTexture" : "graphValue"):\(root.joined(separator: ".")):\(id)", label: id, kind: kind)
+            var field = EditorComponentField(key: "\(texture ? "graphTexture" : "graphValue"):\(root.joined(separator: ".")):\(id)", label: node.label ?? id, kind: kind)
             field.valuePath = root + [texture ? "textures" : "values", id]
             if !texture {
                 field.coding = .shaderGraphValue
