@@ -5,6 +5,9 @@ extension ShaderGraph {
         guard version == Self.currentVersion else {
             throw ShaderGraphDiagnostic(code: .unsupportedVersion)
         }
+        guard renderSettings.alphaCutoff.isFinite, (0...1).contains(renderSettings.alphaCutoff) else {
+            throw ShaderGraphDiagnostic(code: .invalidLiteral, nodeID: output, port: "alphaCutoff")
+        }
         let sortedNodes = nodes.sorted { $0.id < $1.id }
         var lookup: [String: Node] = [:]
         for node in sortedNodes {

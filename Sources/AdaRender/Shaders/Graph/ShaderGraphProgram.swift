@@ -1,10 +1,11 @@
 /// Generated fragment functions and their renderer-independent binding contract.
 public struct ShaderGraphProgram: Hashable, Sendable {
-    public static let uniformBinding = 28
-    // Group 1 avoids the vertex View (2) and Skinning (14) bindings in group 0;
-    // slot 14 also fits Metal's sixteen sampler slots without replacing stock samplers.
+    // All graph resources live in group 1. Native slot choices also avoid the
+    // stock fragment LocalShadow/LightTiles buffers and fit Metal's sampler limit.
+    public static let resourceSet = 1
+    public static let uniformBinding = 24
     public static let samplerBinding = 14
-    public static let samplerSet = 1
+    public static let samplerSet = resourceSet
     public static let firstTextureBinding = 48
 
     public struct Parameter: Hashable, Sendable {
@@ -27,6 +28,7 @@ public struct ShaderGraphProgram: Hashable, Sendable {
     }
 
     public let target: ShaderGraph.Target
+    public let renderSettings: ShaderGraph.RenderSettings
     /// Cache shaders by this source, not parameter defaults, resource paths or layout.
     public let source: String
     public let parameters: [Parameter]
@@ -74,13 +76,13 @@ extension ShaderGraph {
             textureNames[node.nodeID] = "ada_graph_texture\(index)"
         }
         var lines = [
-            "layout(binding = \(ShaderGraphProgram.uniformBinding)) uniform AdaGraphUniforms { vec4 ada_graph_values[\(parameters.count + 1)]; };"
+            "layout(set = \(ShaderGraphProgram.resourceSet), binding = \(ShaderGraphProgram.uniformBinding)) uniform AdaGraphUniforms { vec4 ada_graph_values[\(parameters.count + 1)]; };"
         ]
         if !textures.isEmpty {
             lines.append("layout(set = \(ShaderGraphProgram.samplerSet), binding = \(ShaderGraphProgram.samplerBinding)) uniform sampler ada_graph_sampler;")
         }
         for (index, texture) in textures.enumerated() {
-            lines.append("layout(binding = \(texture.binding)) uniform texture2D ada_graph_texture\(index);")
+            lines.append("layout(set = \(ShaderGraphProgram.resourceSet), binding = \(texture.binding)) uniform texture2D ada_graph_texture\(index);")
         }
         lines += [
             "struct AdaGraphSurface { vec4 color; vec3 normal; float metallic; float roughness; vec3 emission; float occlusion; float alpha; };",
@@ -134,6 +136,6 @@ extension ShaderGraph {
             lines.append("\(type.glslType) \(name) = \(expression);")
         }
         lines += ["return surface;", "}"]
-        return ShaderGraphProgram(target: target, source: lines.joined(separator: "\n"), parameters: parameters, textures: textures, sourceMap: locations)
+        return ShaderGraphProgram(target: target, renderSettings: renderSettings, source: lines.joined(separator: "\n"), parameters: parameters, textures: textures, sourceMap: locations)
     }
 }

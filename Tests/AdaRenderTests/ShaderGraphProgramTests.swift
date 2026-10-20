@@ -47,8 +47,8 @@ struct ShaderGraphProgramTests {
         let binary = try ShaderCompiler(shaderSource: source).compileSpirvBin(for: .fragment, ignoreCache: true)
         #expect(!binary.data.isEmpty)
         let reflection = try SpirvCompiler(spriv: binary.data, stage: .fragment, deviceLang: .glsl).reflection()
-        #expect(reflection.descriptorSets[0].uniformsBuffers[ShaderGraphProgram.uniformBinding] != nil)
-        #expect(reflection.descriptorSets[0].sampledImages[ShaderGraphProgram.firstTextureBinding] != nil)
+        #expect(reflection.descriptorSets[ShaderGraphProgram.resourceSet].uniformsBuffers[ShaderGraphProgram.uniformBinding] != nil)
+        #expect(reflection.descriptorSets[ShaderGraphProgram.resourceSet].sampledImages[ShaderGraphProgram.firstTextureBinding] != nil)
         #expect(reflection.descriptorSets[ShaderGraphProgram.samplerSet].samplers[ShaderGraphProgram.samplerBinding] != nil)
     }
 }

@@ -308,7 +308,7 @@ public struct Main3DRenderNode: RenderNode {
 
             if !visibleItems.isEmpty {
                 // Resolve blend state and view depth once per item instead of inside the comparator.
-                let blendFlags = visibleItems.map { ($0.material as? PBRMaterial)?.alphaMode == .blend }
+                let blendFlags = visibleItems.map { ($0.material as? PBRMaterial)?.effectiveAlphaMode == .blend }
                 if blendFlags.contains(true) {
                     let viewMatrix = uniform.viewMatrix
                     let keys: [(isBlend: Bool, depth: Float)] = visibleItems.indices.map { index in

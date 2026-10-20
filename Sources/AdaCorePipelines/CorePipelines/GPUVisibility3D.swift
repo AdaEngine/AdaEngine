@@ -75,12 +75,13 @@ public struct GPUVisibility3DState: Resource {
         pass.setVertexBuffer(viewUniform, offset: 0, slot: GlobalBufferIndex.viewUniform)
         for item in items {
             // Alpha masks/facing/distance dithering use the same shader rules as visible geometry.
-            guard (item.material as? PBRMaterial)?.alphaMode != .blend, let range = item.batchRange,
+            guard (item.material as? PBRMaterial)?.effectiveAlphaMode != .blend, let range = item.batchRange,
                 let material = materials.buffer(for: item.material)
             else { continue }
             let part = item.mesh.models[item.modelIndex].parts[item.partIndex]
             let morphed = item.morphBuffer != nil && part.morphTargets != nil
-            pass.setRenderPipelineState(pipelines.pipeline(for: Shadow3DConfiguration(vertex: part.vertexDescriptor, morph: morphed), device: device))
+            let pipeline = pipelines.pipeline(for: Shadow3DConfiguration(vertex: part.vertexDescriptor, morph: morphed), device: device)
+            guard ShaderGraph3DPipeline.bindShadow(encoder: pass, base: pipeline, material: item.material, device: device, morph: morphed) else { continue }
             if morphed, let morphBuffer = item.morphBuffer, let morphSet = part.morphTargets {
                 pass.setResourceSet(.init(bindings: [
                     .init(binding: Morph3DUniforms.binding, shaderStages: .vertex, resource: .uniformBuffer(morphBuffer, offset: 0)),

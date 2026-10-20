@@ -43,7 +43,6 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         let device: RenderDevice
         let revision: UInt64
         let resources: RenderResourceSet
-        let samplers: RenderResourceSet
     }
     private var bindings: [ObjectIdentifier: Prepared] = [:]
 
@@ -57,6 +56,12 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return issue
+    }
+
+    public var valueRevision: UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        return revision
     }
 
     public func reportCompilationError(_ error: any Error) {
@@ -144,8 +149,7 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
     /// Binds an atomic texture/uniform/sampler snapshot using the portable descriptor groups.
     public func bind(to encoder: RenderCommandEncoder, device: RenderDevice) {
         let snapshot = prepared(device: device)
-        encoder.setResourceSet(snapshot.resources, index: 0)
-        if !snapshot.samplers.bindings.isEmpty { encoder.setResourceSet(snapshot.samplers, index: ShaderGraphProgram.samplerSet) }
+        encoder.setResourceSet(snapshot.resources, index: ShaderGraphProgram.resourceSet)
     }
 
     private func prepared(device: RenderDevice) -> Prepared {
@@ -157,6 +161,13 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         }
         var words = [Float](repeating: 0, count: (program.parameters.count + 1) * 4)
         words[0] = time
+        words[1] = program.renderSettings.alphaCutoff
+        switch program.renderSettings.mode {
+        case .opaque: words[2] = 0
+        case .mask: words[2] = 1
+        case .blend: words[2] = 2
+        }
+        words[3] = program.renderSettings.doubleSided ? 1 : 0
         for parameter in program.parameters {
             let value = source.values[parameter.id] ?? parameter.defaultValue
             for (index, number) in value.enumerated() { words[parameter.slot * 4 + index] = number }
@@ -169,12 +180,11 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         for texture in program.textures {
             resources.append(.init(binding: texture.binding, shaderStages: .fragment, resource: .texture(loadedTextures[texture.binding] ?? .whiteTexture)))
         }
-        var samplers: [RenderResourceSet.Binding] = []
         if let first = program.textures.first {
             let texture = loadedTextures[first.binding] ?? .whiteTexture
-            samplers.append(.init(binding: ShaderGraphProgram.samplerBinding, shaderStages: .fragment, resource: .sampler(texture.sampler)))
+            resources.append(.init(binding: ShaderGraphProgram.samplerBinding, shaderStages: .fragment, resource: .sampler(texture.sampler)))
         }
-        let result = Prepared(device: device, revision: revision, resources: .init(bindings: resources), samplers: .init(bindings: samplers))
+        let result = Prepared(device: device, revision: revision, resources: .init(bindings: resources))
         bindings[key] = result
         return result
     }

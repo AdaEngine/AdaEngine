@@ -212,6 +212,7 @@ extension Render3DGPUTests {
             let sun: Entity
             /// The ground's material, which tests edit between renders.
             var groundMaterial: PBRMaterial?
+            var sphereEntities: [Entity] = []
 
             /// Scales the sun's intensity, which changes how bright the whole lit scene is.
             func setSunIntensity(_ intensity: Float) throws {
@@ -295,15 +296,17 @@ extension Render3DGPUTests {
                 Transform(rotation: Quat.euler([-0.9, 0.6, 0]))
             }
             let sphere = Mesh.generateSphere(radius: 0.5, renderDevice: device)
+            var sphereEntities: [Entity] = []
             for index in 0..<4 {
                 let material = PBRMaterial()
                 material.baseColorFactor = [0.8, 0.45, 0.3, 1]
                 material.roughnessFactor = roughness[index]
                 material.metallicFactor = metallic[index]
-                app.main.spawn("Sphere \(index)") {
+                let entity = app.main.spawn("Sphere \(index)") {
                     Mesh3DComponent(mesh: sphere, materials: [material])
                     Transform(position: [Float(index) * 1.1 - 1.65, 0.5, 0])
                 }
+                sphereEntities.append(entity)
             }
             if emissiveSphere {
                 // An HDR light source above the row, against the sky, so bloom is visible outside its silhouette.
@@ -336,7 +339,8 @@ extension Render3DGPUTests {
                 Mesh3DComponent(mesh: Mesh.generateCube(size: [10, 0.1, 10], renderDevice: device), materials: [ground])
                 Transform(position: [0, -0.05, 0])
             }
-            return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity, sun: sunEntity, groundMaterial: ground)
+            return Scene(app: app, device: device, target: target, queue: queue, camera: cameraEntity, sun: sunEntity,
+                         groundMaterial: ground, sphereEntities: sphereEntities)
         }
 
         private static func expectGolden(_ image: Image, named name: String) throws {

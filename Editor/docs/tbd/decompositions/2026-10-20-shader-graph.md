@@ -65,7 +65,7 @@ budgets are estimates, not permission to hide implementation in generated files.
 | 5 | Author Sprite graph assignments in Studio | Persist graph references/values and expose assignment in the Sprite Inspector. | Complete consumer of slice 4 | ~550 | 4 | implemented locally; focused Editor checks pass |
 | 6 | Extract the existing PBR surface evaluation seam | Separate surface evaluation from shared lighting with identical stock-material pixels. | Complete behavior-preserving shader refactor | ~550 | — | implemented locally; Metal golden frames pass |
 | 7 | Assign opaque PBR graph materials | Render and persist graph surface overrides for primitives and imported model material slots. | Complete opaque-only path | ~600 | 3, 6 | implemented locally; Metal pixels and Editor tests pass |
-| 8 | Keep graph alpha consistent across 3D passes | Add mask/blend settings with matching depth, shadow and auxiliary-pass behavior. | Complete alpha-mode addition | ~600 | 7 | planned |
+| 8 | Keep graph alpha consistent across 3D passes | Add mask/blend settings with matching depth, shadow and auxiliary-pass behavior. | Complete alpha-mode addition | ~600 | 7 | implemented locally; all 29 core/GPU checks pass |
 | 9 | Edit graph documents with transactional history | Add document operations, stable selection and undo/redo independent of the visual canvas. | Additive unused authoring model | ~550 | 1 | planned |
 | 10 | Draw a reusable AdaUI node canvas | Implement graph-space geometry, node/port layout, wires, pan/zoom and hit testing. | New unregistered component | ~600 | 9 | planned |
 | 11 | Connect and manipulate nodes on the canvas | Add compatible-port gestures, node movement, selection and transaction boundaries. | New unregistered interactive component | ~600 | 10 | planned |
@@ -268,6 +268,17 @@ budgets are estimates, not permission to hide implementation in generated files.
 
 ## Evidence
 
+- Slice 8: 29 tests in 7 suites pass, including actual Metal directional and
+  point-light alpha clipping, equality against hiding the same caster, matching
+  depth images, actual temporal/motion encoding, texture/parameter changes,
+  stock golden frames, core validation and immutable binding snapshots. Log:
+  `/tmp/adaengine-shader-graph-alpha-final.log`.
+- Masked graph revisions participate in both scene-wide and per-face shadow
+  digests. Opaque graph materials retain the stock shadow/motion fast paths.
+- Point-light testing caught a fragment UBO collision with LocalShadow's slot
+  28. The final resource contract below fixes it. Tests remain enabled and static
+  face reuse is retained; temporary debugging code was removed.
+
 - Slice 7: actual Metal verifies roughness values in the G-buffer, runtime value
   changes, texture replacement through the production material bindings, and
   byte-identical restoration when removing the graph. Imported model overrides
@@ -275,9 +286,10 @@ budgets are estimates, not permission to hide implementation in generated files.
   Log: `/tmp/adaengine-shader-graph-pbr-tests.log` (2 tests, 3 suites).
 - Native Editor's PBR/Inspector/model/localization checks pass (19 tests, 4
   suites), log `/tmp/adaengine-shader-graph-editor-pbr-tests.log`.
-- Portable bindings: uniforms use group 0/binding 28; textures start at group
-  0/binding 48; the shared graph sampler uses group 1/binding 14. The last choice
-  avoids group-0 View/Skinning collisions while fitting Metal's sampler slots.
+- Portable bindings (corrected during slice 8): all graph resources use group 1.
+  Uniforms use binding 24, textures start at binding 48, and the shared sampler
+  uses binding 14. Native fragment slots avoid LocalShadow (28), LightTiles (27)
+  and stock samplers; descriptor groups separate View/Skinning on WebGPU.
   Texture/uniform/sampler snapshots are created atomically and remain immutable.
 
 - Slice 6: `Render3DGPUTests/DebugViews/everyViewMatchesItsGoldenFrame` passes

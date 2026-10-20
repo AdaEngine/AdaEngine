@@ -32,6 +32,11 @@ void sprite_instanced_fragment() {
     AdaGraphSurface surface = ada_graph_evaluate(Input.TexCoordinate);
     color = surface.color * Input.Color;
     color.a *= surface.alpha;
+    if (ada_graph_values[0].z < 0.5) { color.a = 1.0; }
+    else if (ada_graph_values[0].z < 1.5) {
+        if (color.a < ada_graph_values[0].y) { discard; }
+        color.a = 1.0;
+    }
     #else
     color = texture(sampler2D(u_Texture, u_Sampler), Input.TexCoordinate) * Input.Color;
     #endif

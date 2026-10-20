@@ -216,7 +216,7 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
         let morphed = item.morphBuffer != nil && part.morphTargets != nil
         let configuration = PBR3DConfiguration(
             vertex: part.vertexDescriptor,
-            blended: (item.material as? PBRMaterial)?.alphaMode == .blend,
+            blended: (item.material as? PBRMaterial)?.effectiveAlphaMode == .blend,
             temporalDepth: view.components[RenderViewTarget.self]?.temporalUpscalingActive == true,
             // The motion shader has no shading layers, so its pipelines are not split by them.
             features: (isMotion ? [] : (item.material as? PBRMaterial)?.shaderFeatures ?? []).union(morphed ? .morph : [])
@@ -229,12 +229,14 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
             let pipelines = world.getRefResource(RenderPipelines<PBR3DPipeline>.self)
             pipeline = pipelines.wrappedValue.pipeline(for: configuration, device: renderDevice)
         }
-        if !isMotion, let graph = (item.material as? PBRMaterial)?.graphMaterial {
+        let usesGraph = !isMotion || (item.material as? PBRMaterial)?.effectiveAlphaMode != .opaque
+        if usesGraph, let graph = (item.material as? PBRMaterial)?.graphMaterial {
             do {
                 pipeline = try ShaderGraph3DPipeline.make(
                     material: graph, base: pipeline, device: renderDevice,
-                    variant: "pbr:\(configuration.blended):\(configuration.temporalDepth):\(configuration.features.rawValue)",
-                    features: configuration.features
+                    variant: "pbr:\(isMotion):\(configuration.blended):\(configuration.temporalDepth):\(configuration.features.rawValue)",
+                    features: configuration.features,
+                    template: isMotion ? "Shaders/motion_3d.glsl" : "Shaders/flat3d.glsl"
                 )
             } catch {
                 graph.reportCompilationError(error)
@@ -306,7 +308,7 @@ public final class Model3DDrawPass: DrawPass, @unchecked Sendable {
             index: 0
         )
         renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
-        if !isMotion, let graph = pbrMaterial?.graphMaterial {
+        if usesGraph, let graph = pbrMaterial?.graphMaterial {
             graph.bind(to: renderEncoder, device: renderDevice)
         }
         renderEncoder.setVertexBuffer(

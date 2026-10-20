@@ -226,11 +226,12 @@ public struct LocalShadow3DRenderNode: RenderNode {
                 )
                 pass.setVertexBuffer(constants, offset: 0, slot: GlobalBufferIndex.viewUniform)
                 for item in lists.items(view: source.entityId, pass: 100 + index) {
-                    guard item.castShadows, let range = item.batchRange, (item.material as? PBRMaterial)?.alphaMode != .blend else { continue }
+                    guard item.castShadows, let range = item.batchRange, (item.material as? PBRMaterial)?.effectiveAlphaMode != .blend else { continue }
                     let part = item.mesh.models[item.modelIndex].parts[item.partIndex]
                     guard let material = materials.buffer(for: item.material), let palette = item.skinningBuffer ?? skinning.identityBuffer else { continue }
                     let morphed = item.morphBuffer != nil && part.morphTargets != nil
-                    pass.setRenderPipelineState(pipelines.pipeline(for: Shadow3DConfiguration(vertex: part.vertexDescriptor, morph: morphed), device: device.renderDevice))
+                    let pipeline = pipelines.pipeline(for: Shadow3DConfiguration(vertex: part.vertexDescriptor, morph: morphed), device: device.renderDevice)
+                    guard ShaderGraph3DPipeline.bindShadow(encoder: pass, base: pipeline, material: item.material, device: device.renderDevice, morph: morphed) else { continue }
                     if morphed, let morphBuffer = item.morphBuffer, let morphSet = part.morphTargets {
                         pass.setResourceSet(RenderResourceSet(bindings: [
                             .init(binding: Morph3DUniforms.binding, shaderStages: .vertex, resource: .uniformBuffer(morphBuffer, offset: 0)),

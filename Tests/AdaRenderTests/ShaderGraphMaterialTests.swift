@@ -4,6 +4,28 @@ import Testing
 
 @Suite("Shader graph instances")
 struct ShaderGraphMaterialTests {
+    @Test func graphRenderSettingsAreEffectiveWithoutChangingLegacyMaterialState() throws {
+        var source = source()
+        source.graph?.target = .pbrSurface
+        source.graph?.nodes[1].inputs = ["baseColor": .init("color")]
+        source.graph?.renderSettings.mode = .mask
+        source.graph?.renderSettings.alphaCutoff = 0.3
+        source.graph?.renderSettings.doubleSided = true
+        let material = PBRMaterial()
+        material.alphaMode = .blend
+        material.graphMaterial = try ShaderGraphMaterial(source: source)
+        #expect(material.effectiveAlphaMode == .mask)
+        #expect(material.effectiveAlphaCutoff == 0.3)
+        #expect(material.effectiveDoubleSided)
+        material.graphMaterial = nil
+        #expect(material.effectiveAlphaMode == .blend)
+        #expect(!material.effectiveDoubleSided)
+        source.graph?.renderSettings.alphaCutoff = .nan
+        #expect(throws: ShaderGraphDiagnostic(code: .invalidLiteral, nodeID: "output", port: "alphaCutoff")) {
+            try ShaderGraphMaterial(source: source)
+        }
+    }
+
     private func source() -> ShaderGraphMaterialSource {
         .init(graph: ShaderGraph(target: .sprite, output: "output", nodes: [
             .init(id: "color", operation: .parameter, type: .color, value: [1, 1, 1, 1], reference: "tint"),

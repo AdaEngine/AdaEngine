@@ -208,12 +208,12 @@ public struct DirectionalShadow3DRenderNode: RenderNode {
                 let encodingSpan = AdaTrace.startSpan("Render3D.ShadowEncode")
                 for item in visibleItems {
                     let part = item.mesh.models[item.modelIndex].parts[item.partIndex]
-                    guard item.castShadows, (item.material as? PBRMaterial)?.alphaMode != .blend, let batchRange = item.batchRange else {
+                    guard item.castShadows, (item.material as? PBRMaterial)?.effectiveAlphaMode != .blend, let batchRange = item.batchRange else {
                         continue
                     }
                     let morphed = item.morphBuffer != nil && part.morphTargets != nil
                     let pipeline = pipelines.pipeline(for: Shadow3DConfiguration(vertex: part.vertexDescriptor, morph: morphed), device: renderDevice.renderDevice)
-                    pass.setRenderPipelineState(pipeline)
+                    guard ShaderGraph3DPipeline.bindShadow(encoder: pass, base: pipeline, material: item.material, device: renderDevice.renderDevice, morph: morphed) else { continue }
                     pass.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
                     if let material = materialUniforms.buffer(for: item.material) {
                         let base = (item.material as? PBRMaterial)?.baseColorTexture ?? Texture2D.whiteTexture

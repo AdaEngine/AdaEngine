@@ -4,6 +4,19 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
 
     public enum Target: String, Codable, Sendable { case sprite, pbrSurface }
 
+    public struct RenderSettings: Codable, Hashable, Sendable {
+        public enum Mode: String, Codable, CaseIterable, Sendable { case opaque, mask, blend }
+        public var mode: Mode
+        public var alphaCutoff: Float
+        public var doubleSided: Bool
+
+        public init(mode: Mode = .opaque, alphaCutoff: Float = 0.5, doubleSided: Bool = false) {
+            self.mode = mode
+            self.alphaCutoff = alphaCutoff
+            self.doubleSided = doubleSided
+        }
+    }
+
     public enum ValueType: String, Codable, Sendable {
         /// Color components are linear RGBA, distinct from an untyped four-component vector.
         case color
@@ -80,6 +93,7 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
     public var output: String
     public var nodes: [Node]
     public var layout: [String: Position]
+    public var renderSettings: RenderSettings
 
     public init(target: Target, output: String, nodes: [Node], layout: [String: Position] = [:]) {
         self.version = Self.currentVersion
@@ -87,9 +101,10 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
         self.output = output
         self.nodes = nodes
         self.layout = layout
+        self.renderSettings = .init(mode: target == .sprite ? .blend : .opaque)
     }
 
-    private enum CodingKeys: CodingKey { case version, target, output, nodes, layout }
+    private enum CodingKeys: CodingKey { case version, target, output, nodes, layout, renderSettings }
 
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -98,6 +113,7 @@ public struct ShaderGraph: Codable, Hashable, Sendable {
             throw ShaderGraphDiagnostic(code: .unsupportedVersion)
         }
         target = try container.decode(Target.self, forKey: .target)
+        renderSettings = try container.decodeIfPresent(RenderSettings.self, forKey: .renderSettings) ?? .init(mode: target == .sprite ? .blend : .opaque)
         output = try container.decode(String.self, forKey: .output)
         nodes = try container.decode([Node].self, forKey: .nodes)
         layout = try container.decodeIfPresent([String: Position].self, forKey: .layout) ?? [:]
