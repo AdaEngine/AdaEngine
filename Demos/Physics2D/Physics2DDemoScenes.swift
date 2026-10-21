@@ -4,7 +4,7 @@ import Observation
 
 /// The same scenes run in the interactive window, offscreen capture and deterministic validation.
 enum PhysicsDemoScene: String, CaseIterable {
-    case raycast, events, queries
+    case raycast, events, queries, mechanisms, characters
     var gravity: Vector2 { self == .raycast || self == .queries ? .zero : [0, -9.81] }
 }
 
@@ -13,6 +13,21 @@ enum PhysicsDemoScene: String, CaseIterable {
 final class PhysicsDemoSession: Resource {
     let scene: PhysicsDemoScene
     let rendering: Bool
+    var mechanismOwners: [Entity] = []
+    var mechanismStarts: [Vector2] = []
+    var reverseRequested = false
+    var breakRequested = false
+    var driveDirection: Float = 1
+    var moverDirection: Float = 1
+    var connectedJoints = 0
+    var jointBreaks = 0
+    var character: Entity?
+    var crate: Entity?
+    var platform: Entity?
+    var characterMode = CharacterController2DMode.query
+    var moveDirection: Float = 0
+    var jumpRequest = false
+    var platformDirection: Float = 1
     var debugDrawState = "extract pending"
     var probeMode = PhysicsProbeMode.cast
     var querySensors = true
@@ -44,6 +59,10 @@ final class PhysicsDemoSession: Resource {
 
     func resetScene() {
         elapsed = 0
+        mechanismOwners.removeAll(); mechanismStarts.removeAll()
+        reverseRequested = false; breakRequested = false; driveDirection = 1; moverDirection = 1
+        connectedJoints = 0; jointBreaks = 0
+        character = nil; crate = nil; platform = nil; moveDirection = 0; jumpRequest = false; platformDirection = 1
         resetRequested = false
         rayStatus = "Waiting for physics sync"
         contactBegins = 0
@@ -100,6 +119,12 @@ func PhysicsDemoStartup(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoS
         var camera = Camera()
         camera.backgroundColor = Color(0.035, 0.055, 0.10, 1)
         world.spawn("Physics camera", bundle: Camera2D(camera: camera, orthographicProjection: OrthographicProjection(scale: 48)))
+    }
+    if session.scene == .mechanisms || session.scene == .characters {
+        do {
+            if session.scene == .mechanisms { try setupMechanisms(in: world, session: session) } else { try setupCharacters(in: world, session: session) }
+        } catch { session.rayStatus = "Setup failed: \(error)" }
+        return
     }
     if session.scene == .queries {
         do { try setupGeometryQueries(in: world, session: session) } catch { session.rayStatus = "Geometry failed: \(error)" }
@@ -164,6 +189,14 @@ func PhysicsDemoStartup(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoS
 func PhysicsDemoControls(_ state: Res<PhysicsDemoSession>, _ time: Res<FixedTime>) {
     let session = state.wrappedValue
     session.elapsed += Float(time.deltaTime)
+    if session.scene == .mechanisms {
+        controlMechanisms(session)
+        return
+    }
+    if session.scene == .characters {
+        controlCharacter(session)
+        return
+    }
     guard session.scene == .events else {
         return
     }
@@ -185,7 +218,8 @@ func PhysicsDemoFrame(
     _ state: Res<PhysicsDemoSession>,
     _ begins: Events<CollisionEvents.Began>,
     _ ends: Events<CollisionEvents.Ended>,
-    _ hits: Events<CollisionEvents.Hit>
+    _ hits: Events<CollisionEvents.Hit>,
+    _ jointEvents: Events<Joint2DEvents.ThresholdExceeded>
 ) {
     let session = state.wrappedValue
     for event in begins {
@@ -194,8 +228,18 @@ func PhysicsDemoFrame(
     for event in ends {
         if event.isSensor { session.sensorEnds += 1; session.sensorOccupied = false } else { session.contactEnds += 1 }
     }
+    for _ in jointEvents { session.jointBreaks += 1 }
     for event in hits { session.impacts += 1; session.lastImpactSpeed = event.approachSpeed }
     session.sensor?.components[Sprite.self]?.tintColor = session.sensorOccupied ? Color(0.2, 1, 0.5, 0.8) : Color(0.15, 0.6, 0.4, 0.45)
+    if session.scene == .mechanisms {
+        session.connectedJoints = session.mechanismOwners.filter { $0.components[PhysicsJoint2DComponent.self]?.isConnected == true }.count
+        session.rayStatus = "\(session.connectedJoints) / 9 connected · \(session.jointBreaks) break events · filter box passes through its block"
+        return
+    }
+    if session.scene == .characters {
+        updateCharacterStatus(session)
+        return
+    }
     if session.scene == .queries {
         updateGeometryQueries(in: context.world, session: session)
         return

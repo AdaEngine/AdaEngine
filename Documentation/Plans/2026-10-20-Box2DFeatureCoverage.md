@@ -52,20 +52,20 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 |---|---|---|---:|---|---|
 | 01 | Apply local shape offsets and box rotation correctly | A: complete compatibility fix | 300–450 | — | draft PR #167 |
 | 02 | Add capsule and rounded convex colliders | A: additive factories/fixtures | 450–600 | 01 | locally validated |
-| 03 | Add segments and owned chain colliders | A: additive shapes, explicit lifetime | 500–600 | 01 | locally validated |
-| 04 | Add point, AABB and convex-shape overlap queries | A: additive world queries | 450–600 | 02 | locally validated |
+| 03 | Add segments and owned chain colliders | A: additive shapes, explicit lifetime | 500–600 | 02 | locally validated |
+| 04 | Add point, AABB and convex-shape overlap queries | A: additive world queries | 450–600 | 02, 03 | locally validated |
 | 05 | Add nearest/all convex shape casts | A: additive world queries | 450–600 | 02, 04 | locally validated |
-| 06 | Make distance/rope joints work through the ECS lifecycle | A: complete joint system + first constraint | 500–600 | — | locally validated |
+| 06 | Make distance/rope joints work through the ECS lifecycle | A: complete joint system + first constraint | 500–600 | 04 | locally validated |
 | 07 | Add revolute joints with spring, limits and motor | A: complete second constraint | 400–550 | 06 | locally validated |
-| 08 | Add prismatic, weld and filter constraints | A: additive complete joint kinds | 450–600 | 06 | locally validated |
+| 08 | Add prismatic, weld and filter constraints | A: additive complete joint kinds | 450–600 | 06, 07 | locally validated |
 | 09 | Add wheel suspension and motor joints | A: additive complete mechanisms | 450–600 | 07, 08 | locally validated |
 | 10a | Retune existing native joints without recreation | A: complete live settings API | 350–500 | 06–09 | locally validated |
 | 10b | Add threshold events and opt-in break behavior | A: complete world-local events | 350–500 | 10a | locally validated |
-| 11 | Add native mover and pogo joints | A: additive complete joint kinds | 450–600 | 06, 10 | locally validated |
+| 11 | Add native mover and pogo joints | A: additive complete joint kinds | 450–600 | 10a, 10b | locally validated |
 | 12 | Add a query-based 2D capsule character controller | A: new component activates its system | 500–600 | 02, 05 | locally validated |
 | 13 | Add dynamic character movement using mover/pogo joints | A: explicit dynamic mode | 500–600 | 11, 12 | locally validated |
-| 14 | Add geometry/query playground scenes | A: isolated demo screens | 350–550 | 02–05 | locally validated + native GPU |
-| 15 | Add mechanism and character playground scenes | A: isolated demo screens | 450–600 | 09–13 | planned |
+| 14 | Add geometry/query playground scenes | A: isolated demo screens | 350–550 | 05, 11 | locally validated + native GPU |
+| 15 | Add mechanism and character playground scenes | A: isolated demo screens | 450–600 | 09–14 | locally validated + native GPU |
 
 ## Slice details
 
@@ -242,3 +242,14 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 - 2026-10-21: Slice 13 locally validated: explicit dynamic capsule mode, bounded mover/pogo, native gravity once, jumping, dynamic pushing, moving/ascending platforms, slopes, filters, visual transform independence, teleport/mode/owner cleanup with retained copies, world disposal and ordinary-joint endpoints. Added endpoint read declarations and preserved zero native mass for static/kinematic bodies (Box2D 3.2 SetMassData otherwise enables gravity on kinematic sims). 172 physics/fixed-step/2D+3D character tests in 33 suites passed; changed Swift sources pass SwiftLint. Measured reviewable Swift diff: 586 lines.
 
 - 2026-10-21: Slice 14 validated: native capsule/rounded/line/chain/joint debug primitives and geometry playground with cast/overlap/AABB, masks, sensor inclusion, nearest/all and animation controls. 174 focused regressions in 34 suites and all three deterministic demo scenes passed. Native --verify exercised real UI controls and scene re-entry, checked frame size/color diversity, and saved reviewed Metal geometry-cast/geometry-area frames plus verification.json. Fixed the new pane's 20-pixel SceneView collapse with an explicit expanding VStack. Actual reviewable Swift diff: 444 lines; SwiftLint zero violations.
+
+- 2026-10-21: Native mechanism rendering exposed an upstream 3.2 omission: mover/pogo torque queries asserted despite their angular reaction being zero. Added the missing cases, vendor patch provenance and active-load threshold regressions; backported the isolated fix to slice 11 (b811ccc5c) and rebased only unpublished dependent branches. No published history was rewritten.
+- 2026-10-21: Slice 15 validated: all nine mechanism kinds, live reverse, break/repair, query/dynamic character movement and jumps, actual crate pushing, moving platform/ramp, mode collider cleanup and scene re-entry. All five deterministic scenes and the native Metal UI/GPU verification passed; mechanisms and both character-mode frames were visually reviewed. Final regression: 175 tests in 34 suites; SwiftLint zero violations. Actual reviewable demo/script diff: 430 lines.
+
+## Final delivery state
+
+- All four selected capability groups are locally implemented, tested and demonstrated. Strategy A remained additive; no temporary feature flags or cleanup debt remain.
+- Full local stack: `codex/box2d-15-mechanism-character-demos` in the attached `box2d-feature-coverage` worktree. Earlier branch names remain the bounded review units; minimum dependencies above were updated to reflect shared helpers and native torque safety.
+- Public publication authorized only for slice 01: https://github.com/AdaEngine/Ada/pull/167 remains open/draft at 94f22ea05. Remaining slices are local; no merge was performed.
+- Evidence: `/tmp/ada-box2d-final-regression.log` (175 passing tests), `/tmp/ada-box2d-15-validate.log` (five passing deterministic scenes), `/tmp/ada-box2d-15-native.log` and `Demos/Physics2D/dist/proof/verification.json` (native UI/GPU). Reviewed PNGs: geometry-cast, geometry-area, mechanisms, character-query, character-dynamic.
+- Qualified limits: the earlier full parallel package run failed outside the changed physics paths (navigation, golden reference naming, scratch-path tool lookup and WindowFrameRequests). Full-suite/Windows/current CI success is not claimed. Pogo remains experimental upstream; arbitrary stair climbing, AdaScript bindings and Studio inspectors remain the explicit out-of-scope items.

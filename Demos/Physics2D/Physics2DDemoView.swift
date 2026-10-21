@@ -13,6 +13,8 @@ private struct Physics2DDemoView: View {
     @State private var raycast = PhysicsDemoSession(scene: .raycast)
     @State private var events = PhysicsDemoSession(scene: .events)
     @State private var queries = PhysicsDemoSession(scene: .queries)
+    @State private var mechanisms = PhysicsDemoSession(scene: .mechanisms)
+    @State private var characters = PhysicsDemoSession(scene: .characters)
 
     var body: some View {
         VStack(spacing: 12) {
@@ -21,6 +23,8 @@ private struct Physics2DDemoView: View {
                 Button("Raycasts") { scene = .raycast }.accessibilityIdentifier("physics-demo.raycasts")
                 Button("Collisions & sensors") { scene = .events }.accessibilityIdentifier("physics-demo.events")
                 Button("Geometry & queries") { scene = .queries }.accessibilityIdentifier("physics-demo.queries")
+                Button("Mechanisms") { scene = .mechanisms }.accessibilityIdentifier("physics-demo.mechanisms")
+                Button("Characters") { scene = .characters }.accessibilityIdentifier("physics-demo.characters")
             }
             if scene == .raycast {
                 HStack(spacing: 18) {
@@ -34,6 +38,10 @@ private struct Physics2DDemoView: View {
                     .frameCaptureLabel("Physics2D Raycasts")
                     .id(PhysicsDemoScene.raycast)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if scene == .mechanisms {
+                PhysicsMechanismsDemoPane(session: mechanisms)
+            } else if scene == .characters {
+                PhysicsCharactersDemoPane(session: characters)
             } else if scene == .queries {
                 PhysicsQueriesDemoPane(session: queries)
             } else {

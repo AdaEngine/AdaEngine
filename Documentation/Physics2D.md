@@ -239,3 +239,12 @@ and joints, even if a component/runtime copy is retained. Dynamic mode requires
 ECS scheduling; manual `moveCharacter` is for query mode. Static/kinematic bodies
 retain zero native mass when applying authored mass properties, so moving support
 platforms follow their velocity instead of receiving gravity.
+
+### Runnable coverage
+
+`Demos/Physics2D` contains ray/event, geometry/query, nine-mechanism and character
+playgrounds. Its `--validate` mode runs the same scene setup deterministically;
+`script/build_and_run.sh --verify` stages a native macOS app, exercises controls,
+checks live state/re-entry and saves real Metal GPU frames and verification JSON.
+The local Box2D 3.2 torque-query patch for linear mover/pogo joints is recorded in
+`Sources/box2d/ADAENGINE_PATCHES.md`; it prevents native getter/debug assertions.
