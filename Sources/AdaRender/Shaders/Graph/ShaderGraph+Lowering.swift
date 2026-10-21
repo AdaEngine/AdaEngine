@@ -168,6 +168,9 @@ extension ShaderGraph {
         case .combine2: expected = .vector2
         case .combine3: expected = .vector3
         case .combine4: expected = .vector4
+        case .select:
+            guard node.type != .texture2D else { throw ShaderGraphDiagnostic(code: .typeMismatch, nodeID: node.id) }
+            expected = nil
         case .time, .noise2D: expected = .float
         case .add, .multiply, .lerp, .subtract, .divide, .power, .minimum, .maximum, .clamp, .saturate, .oneMinus,
              .sine, .cosine, .absolute, .fraction, .floor, .step, .smoothstep:
@@ -192,6 +195,7 @@ extension ShaderGraph {
         case .combine2: ["x": .float, "y": .float]
         case .combine3: ["x": .float, "y": .float, "z": .float]
         case .combine4: ["x": .float, "y": .float, "z": .float, "w": .float]
+        case .select: ["condition": .bool, "a": node.type, "b": node.type]
         case .sampleTexture: ["texture": .texture2D, "uv": .vector2]
         case .output:
             target == .sprite ? ["color": .color, "alpha": .float] : [

@@ -14,12 +14,15 @@ public struct ShaderGraphProgram: Hashable, Sendable {
         public let defaultValue: [Float]
         /// One aligned vec4 per parameter; slot zero contains animation time.
         public let slot: Int
+        /// Authored display label; the stable `id` remains the binding identity.
+        public let displayName: String?
     }
 
     public struct Texture: Hashable, Sendable {
         public let parameterID: String?
         public let path: String?
         public let binding: Int
+        public let displayName: String?
     }
 
     public struct Location: Hashable, Sendable {
@@ -60,7 +63,7 @@ extension ShaderGraph {
             guard let node = numeric.first(where: { $0.reference == id }), let type = node.type else {
                 return nil
             }
-            return .init(id: id, type: type, defaultValue: node.value, slot: index + 1)
+            return .init(id: id, type: type, defaultValue: node.value, slot: index + 1, displayName: nodes.first { $0.id == node.nodeID }?.label)
         }
         var textures: [ShaderGraphProgram.Texture] = []
         var textureNames: [String: String] = [:]
@@ -72,7 +75,7 @@ extension ShaderGraph {
                 index = existing
             } else {
                 index = textures.count
-                textures.append(.init(parameterID: parameter, path: path, binding: ShaderGraphProgram.firstTextureBinding + index))
+                textures.append(.init(parameterID: parameter, path: path, binding: ShaderGraphProgram.firstTextureBinding + index, displayName: nodes.first { $0.id == node.nodeID }?.label))
             }
             textureNames[node.nodeID] = "ada_graph_texture\(index)"
         }
@@ -162,6 +165,7 @@ extension ShaderGraph {
             case .combine2: expression = "vec2(\(argument("x")), \(argument("y")))"
             case .combine3: expression = "vec3(\(argument("x")), \(argument("y")), \(argument("z")))"
             case .combine4: expression = "vec4(\(argument("x")), \(argument("y")), \(argument("z")), \(argument("w")))"
+            case .select: expression = "(\(argument("condition")) ? \(argument("a")) : \(argument("b")))"
             case .lerp: expression = "mix(\(argument("a")), \(argument("b")), \(argument("t")))"
             case .sampleTexture: expression = "texture(sampler2D(\(argument("texture")), ada_graph_sampler), \(argument("uv")))"
             case .texture, .output: continue

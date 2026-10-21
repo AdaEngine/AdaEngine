@@ -105,6 +105,24 @@ public final class ShaderGraphMaterial: Codable, @unchecked Sendable {
         try self.init(source: ShaderGraphMaterialSource(from: decoder))
     }
 
+    /// Shares immutable code and texture assets while retaining independent values,
+    /// clocks and GPU snapshots. Copying never reloads a changed graph file.
+    public func makeInstance() -> ShaderGraphMaterial {
+        lock.lock()
+        defer { lock.unlock() }
+        let instance = ShaderGraphMaterial(program: program, source: source, textures: loadedTextures, resourceBasePath: resourceBasePath)
+        instance.time = time
+        instance.automaticTime = automaticTime
+        return instance
+    }
+
+    private init(program: ShaderGraphProgram, source: ShaderGraphMaterialSource, textures: [Int: Texture2D], resourceBasePath: String?) {
+        self.program = program
+        self.source = source
+        self.loadedTextures = textures
+        self.resourceBasePath = resourceBasePath
+    }
+
     public func encode(to encoder: any Encoder) throws {
         try descriptor.encode(to: encoder)
     }
