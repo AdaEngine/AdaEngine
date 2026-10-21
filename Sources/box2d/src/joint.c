@@ -1197,6 +1197,8 @@ static float b2GetJointConstraintTorque( b2World* world, b2Joint* joint )
 	switch ( joint->type )
 	{
 		case b2_distanceJoint:
+		case b2_moverJoint:
+		case b2_pogoJoint:
 			return 0.0f;
 
 		case b2_motorJoint:

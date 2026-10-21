@@ -100,6 +100,23 @@ struct Physics2DJointBreakingTests {
         #expect(b2World_GetCounters(try #require(world.physicsWorld2D).worldId).jointCount == 0)
     }
 
+    @Test(arguments: [false, true])
+    func linearJointThresholdsHaveNoAngularImpulse(_ pogo: Bool) async throws {
+        let fixture = try await PhysicsJoint2DFixture(gravity: pogo ? [0, -10] : .zero)
+        let a = fixture.body(mode: .static)
+        let b = fixture.body(at: [0, 2])
+        let descriptor = try pogo
+            ? PhysicsJoint2DDescriptor.pogo(entityA: a, entityB: b, settings: .init(restLength: 2, collideConnected: false))
+            : PhysicsJoint2DDescriptor.mover(entityA: a, entityB: b, settings: .init(linearVelocity: [4, 0], maximumVelocityForce: [10, 0]))
+        let owner = try await fixture.connect(descriptor.withBreakSettings(.init(forceThreshold: 0.1, removeOnBreak: false)))
+        let log = JointThresholdLog()
+        let subscription = fixture.app.main.subscribe(to: Joint2DEvents.ThresholdExceeded.self) { log.append($0) }
+        defer { subscription.cancel() }
+        try step(fixture)
+        #expect(log.events.count == 1 && log.events.first?.torque == 0)
+        #expect(b2Joint_GetConstraintTorque(try fixture.native(owner)) == 0)
+    }
+
     @Test
     func invalidThresholdsAreRejectedAndProxyDoesNotRetainWorld() async throws {
         weak var physics: PhysicsWorld2D?
