@@ -20,6 +20,8 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
         case prismatic(Entity.ID, Entity.ID, PrismaticJoint2DSettings)
         case weld(Entity.ID, Entity.ID, WeldJoint2DSettings)
         case filter(Entity.ID, Entity.ID)
+        case wheel(Entity.ID, Entity.ID, WheelJoint2DSettings)
+        case motor(Entity.ID, Entity.ID, MotorJoint2DSettings)
     }
 
     internal init(joint: Joint) {
@@ -35,6 +37,8 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
         if case let .hinge(_, _, settings) = joint { try settings.validate() }
         if case let .prismatic(_, _, settings) = joint { try settings.validate() }
         if case let .weld(_, _, settings) = joint { try settings.validate() }
+        if case let .wheel(_, _, settings) = joint { try settings.validate() }
+        if case let .motor(_, _, settings) = joint { try settings.validate() }
         if case let .worldHinge(_, anchor, settings) = joint {
             try settings.validate()
             guard JointFrame2D(position: anchor).isValid else { throw PhysicsJoint2DError.invalidSettings }

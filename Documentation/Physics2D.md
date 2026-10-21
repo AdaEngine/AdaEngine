@@ -140,3 +140,15 @@ length units; spring frequency/damping follow the distance-joint convention.
 linear/angular springs. `filter(entityA:entityB:)` only suppresses pair collision.
 Removal restores collision even for stationary, already overlapping bodies:
 the wrapper refilters the pair before native joint destruction.
+
+### Suspension and motor joints
+
+`wheel(entityA:entityB:settings:)` provides suspension along frame A's local X
+axis, optional travel limits, and a torque-bounded wheel motor. For vertical
+suspension set frame A's angle to pi/2 (Box2D 3.2 uses X, not a separate axis
+vector). Unlike a slider, wheel rotation remains free.
+`motor(entityA:entityB:settings:)` controls relative linear/angular velocity and
+can independently align the two frames using position/angle springs. Velocity
+force/torque bounds and spring force/torque bounds are independent. A nil motor
+spring disables its position control; default zero velocity with finite effort
+acts as friction. Every bound is finite and nonnegative.

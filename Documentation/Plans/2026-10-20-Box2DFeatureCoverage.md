@@ -58,8 +58,9 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 | 06 | Make distance/rope joints work through the ECS lifecycle | A: complete joint system + first constraint | 500–600 | — | locally validated |
 | 07 | Add revolute joints with spring, limits and motor | A: complete second constraint | 400–550 | 06 | locally validated |
 | 08 | Add prismatic, weld and filter constraints | A: additive complete joint kinds | 450–600 | 06 | locally validated |
-| 09 | Add wheel suspension and motor joints | A: additive complete mechanisms | 450–600 | 07, 08 | planned |
-| 10 | Add joint runtime tuning and break events | A: opt-in break behavior | 400–550 | 06–09 | planned |
+| 09 | Add wheel suspension and motor joints | A: additive complete mechanisms | 450–600 | 07, 08 | locally validated |
+| 10a | Retune existing native joints without recreation | A: complete live settings API | 350–500 | 06–09 | planned |
+| 10b | Add threshold events and opt-in break behavior | A: complete world-local events | 350–500 | 10a | planned |
 | 11 | Add native mover and pogo joints | A: additive complete joint kinds | 450–600 | 06, 10 | planned |
 | 12 | Add a query-based 2D capsule character controller | A: new component activates its system | 500–600 | 02, 05 | planned |
 | 13 | Add dynamic character movement using mover/pogo joints | A: explicit dynamic mode | 500–600 | 11, 12 | planned |
@@ -227,3 +228,5 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 - 2026-10-21: Slice 07 locally validated: two-body and world-anchor revolute hinges, spring targets, angular limits/motors, legacy one-body behavior and anchor-body cleanup. 11 joint tests and 121 physics/fixed-step tests in 24 suites passed; SwiftLint zero violations.
 
 - 2026-10-21: Slice 08 locally validated: rotated-axis prismatic springs/limits/motors, rigid/soft welds and pair-filter constraints. Removing a non-colliding joint now explicitly refilters stationary overlaps before native destruction (native DestroyJoint only wakes bodies). 16 joint tests and 126 physics/fixed-step tests in 25 suites passed; SwiftLint zero violations.
+
+- 2026-10-21: Slice 09 locally validated: vertical/rotated suspension, wheel travel limits and motors, relative velocity and bounded pose servos. 21 joint tests and 131 physics/fixed-step tests in 26 suites passed; SwiftLint zero violations. Split the next planned row into independently complete live-tuning (10a) and break-event (10b) units to keep review diffs bounded.
