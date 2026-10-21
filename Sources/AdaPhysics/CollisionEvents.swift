@@ -25,11 +25,17 @@ public enum CollisionEvents {
         /// True for a sensor overlap; `entityA` is the sensor and the impulse is zero.
         public let isSensor: Bool
 
-        public init(entityA: Entity, entityB: Entity, impulse: Float, isSensor: Bool = false) {
+        /// Nil for sensors and non-2D producers. The handle can already have expired at delivery.
+        public let contactID: Contact2DID?
+        public let contact: Contact2DSnapshot?
+
+        public init(entityA: Entity, entityB: Entity, impulse: Float, isSensor: Bool = false, contactID: Contact2DID? = nil, contact: Contact2DSnapshot? = nil) {
             self.entityA = entityA
             self.entityB = entityB
             self.impulse = impulse
             self.isSensor = isSensor
+            self.contactID = contactID
+            self.contact = contact
         }
     }
 
@@ -44,10 +50,16 @@ public enum CollisionEvents {
         /// True when a sensor overlap ends. `entityA` is the sensor.
         public let isSensor: Bool
 
-        public init(entityA: Entity, entityB: Entity, isSensor: Bool = false) {
+        /// Native end contacts commonly expire before delivery; contact data is optional.
+        public let contactID: Contact2DID?
+        public let contact: Contact2DSnapshot?
+
+        public init(entityA: Entity, entityB: Entity, isSensor: Bool = false, contactID: Contact2DID? = nil, contact: Contact2DSnapshot? = nil) {
             self.entityA = entityA
             self.entityB = entityB
             self.isSensor = isSensor
+            self.contactID = contactID
+            self.contact = contact
         }
     }
 
@@ -64,5 +76,24 @@ public enum CollisionEvents {
         public let approachSpeed: Float
         /// Sum of the contact's total normal impulses for this step.
         public let impulse: Float
+        public let contactID: Contact2DID?
+        public let contact: Contact2DSnapshot?
+
+        public init(
+            entityA: Entity,
+            entityB: Entity,
+            point: Vector2,
+            globalPoint: PhysicsPosition2D,
+            normal: Vector2,
+            approachSpeed: Float,
+            impulse: Float,
+            contactID: Contact2DID? = nil,
+            contact: Contact2DSnapshot? = nil
+        ) {
+            self.entityA = entityA; self.entityB = entityB
+            self.point = point; self.globalPoint = globalPoint; self.normal = normal
+            self.approachSpeed = approachSpeed; self.impulse = impulse
+            self.contactID = contactID; self.contact = contact
+        }
     }
 }

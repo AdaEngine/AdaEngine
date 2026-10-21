@@ -127,6 +127,12 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
         }
     }
     // Native constraints belong to this world. Records never retain bodies or their world.
+    @MainActor var simulationStep: UInt64 = 0
+    @MainActor var collisionPreparedStep: UInt64?
+    @MainActor var contactsDeliveredStep: UInt64?
+    @MainActor var sensorsDeliveredStep: UInt64?
+    @MainActor var contactNotices: [CollisionNotice2D] = []
+    @MainActor var sensorNotices: [CollisionNotice2D] = []
     @MainActor var jointRecords: [Entity.ID: RuntimeJoint2D] = [:]
     @MainActor var seenJointOwners: Set<Entity.ID> = []
     @MainActor var retiredJointOwners: [Entity.ID] = []
@@ -258,6 +264,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
             Float(delta), /* timeStep */
             Int32(self.substepIterations) /* velocityIterations */
         )
+        simulationStep &+= 1
     }
 
     func recordPerformance(into metrics: PhysicsPerformanceMetrics) {
@@ -312,7 +319,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     }
 
     @MainActor
-    func processContacts() {
+    private func captureContacts() {
         let contactEvents = unsafe b2World_GetContactEvents(self.worldId)
 
         // Subscribers may destroy bodies or shapes. Snapshot the native buffers before delivery.
@@ -325,12 +332,25 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     }
 
     @MainActor
-    func processSensors() {
+    private func captureSensors() {
         let sensorEvents = unsafe b2World_GetSensorEvents(self.worldId)
         let begins = unsafe Array(UnsafeBufferPointer(start: sensorEvents.beginEvents, count: Int(sensorEvents.beginCount)))
         let ends = unsafe Array(UnsafeBufferPointer(start: sensorEvents.endEvents, count: Int(sensorEvents.endCount)))
         for event in begins { onSensorBeginContact(event) }
         for event in ends { onSensorEndContact(event) }
+    }
+
+    /// Capture all contact and sensor payloads before joint/collision subscribers can mutate native storage.
+    @MainActor
+    func prepareCollisionEvents() {
+        guard collisionPreparedStep != simulationStep else {
+            return
+        }
+        contactNotices.removeAll(keepingCapacity: true)
+        sensorNotices.removeAll(keepingCapacity: true)
+        captureContacts()
+        captureSensors()
+        collisionPreparedStep = simulationStep
     }
 
     nonisolated func destroyBody(_ body: Body2D) {
@@ -372,7 +392,7 @@ extension PhysicsWorld2D {
             isSensor: true
         )
 
-        send(event)
+        sensorNotices.append(.began(event))
     }
 
     @MainActor
@@ -400,7 +420,7 @@ extension PhysicsWorld2D {
             isSensor: true
         )
 
-        send(event)
+        sensorNotices.append(.ended(event))
     }
 
     @MainActor
@@ -417,13 +437,17 @@ extension PhysicsWorld2D {
             return
         }
 
+        let handle = Contact2DID(contact.contactId, scope: contactScope)
+        let info = contactSnapshot(for: handle)
         let event = CollisionEvents.Began(
             entityA: entityA,
             entityB: entityB,
-            impulse: contactImpulse(contact.contactId)
+            impulse: contactImpulse(contact.contactId),
+            contactID: handle,
+            contact: info
         )
 
-        send(event)
+        contactNotices.append(.began(event))
     }
 
     @MainActor
@@ -445,12 +469,15 @@ extension PhysicsWorld2D {
             return
         }
 
+        let handle = Contact2DID(contact.contactId, scope: contactScope)
         let event = CollisionEvents.Ended(
             entityA: entityA,
-            entityB: entityB
+            entityB: entityB,
+            contactID: handle,
+            contact: contactSnapshot(for: handle)
         )
 
-        send(event)
+        contactNotices.append(.ended(event))
     }
 
     @MainActor
@@ -461,15 +488,18 @@ extension PhysicsWorld2D {
             let entityA = shapeA.body?.entity, let entityB = shapeB.body?.entity else {
             return
         }
-        send(CollisionEvents.Hit(
+        let handle = Contact2DID(contact.contactId, scope: contactScope)
+        contactNotices.append(.hit(CollisionEvents.Hit(
             entityA: entityA,
             entityB: entityB,
             point: localPosition(contact.point),
             globalPoint: PhysicsPosition2D(contact.point),
             normal: contact.normal.asVector2,
             approachSpeed: contact.approachSpeed,
-            impulse: contactImpulse(contact.contactId)
-        ))
+            impulse: contactImpulse(contact.contactId),
+            contactID: handle,
+            contact: contactSnapshot(for: handle)
+        )))
     }
 
     private func contactImpulse(_ contact: b2ContactId) -> Float {
@@ -498,12 +528,19 @@ private func PhysicsWorld2D_PreSolve(
     _ manifold: UnsafeMutablePointer<b2Manifold>?,
     _ context: UnsafeMutableRawPointer?
 ) {
-    let contact = unsafe manifold.map { ptr in
-        unsafe Manifold2D(
-            normal: ptr.pointee.normal.asVector2,
-            rollingImpulse: ptr.pointee.rollingImpulse
+    // Avoid per-contact point arrays unless a delegate actually consumes pre-solve information.
+    let world = unsafe context.map { Unmanaged<PhysicsWorld2D>.fromOpaque($0).takeUnretainedValue() }
+    let contact: Manifold2D?
+    if let world, world.delegate != nil, let manifold = unsafe manifold {
+        contact = unsafe makeManifold2D(
+            manifold.pointee,
+            bodyA: b2Shape_GetBody(shapeA),
+            bodyB: b2Shape_GetBody(shapeB),
+            origin: world.coordinateOrigin,
+            phase: .preSolve,
+            hasNormalVelocity: false
         )
-    }
+    } else { contact = nil }
     if unsafe !PhysicsWorld2D_ShouldSolve(shapeA, shapeB, manifold: contact, context: context) {
         unsafe manifold?.pointee.pointCount = 0
     }
