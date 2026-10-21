@@ -225,6 +225,23 @@ final class AnnotatedGravityComponentView: @unchecked Sendable, AdaScriptNonSend
     @GSExportableIgnore
     var isPresent: Bool { cursor.isPresent(componentAt: access.componentIndex) }
 
+    func shader(_ slot: Int) -> GSValue {
+        do {
+            guard lease.isActive else { throw ShaderGraphScriptError.expired }
+            let material = try ShaderGraphScriptComponent.material(cursor: cursor, index: access.componentIndex, slot: slot)
+            let handle = ShaderGraphScriptHandle(material: material, writable: access.isWritable, isActive: { [lease] in lease.isActive })
+            let bridge = AdaScriptShaderGraphBridge.make(handle: handle, virtualMachine: virtualMachine, reportDiagnostic: reportDiagnostic)
+            return GSValue(object: bridge, in: virtualMachine)
+        } catch { reportDiagnostic("ShaderGraph: \(error)"); return GSValue(nullIn: virtualMachine) }
+    }
+
+    func assignShader(_ slot: Int, _ path: String) -> Bool {
+        do {
+            guard lease.isActive else { throw ShaderGraphScriptError.expired }
+            return try ShaderGraphScriptComponent.assign(cursor: cursor, index: access.componentIndex, slot: slot, path: path, writable: access.isWritable)
+        } catch { reportDiagnostic("ShaderGraph: \(error)"); return false }
+    }
+
     func get(_ fieldName: String) -> GSValue {
         guard lease.isActive else {
             reportDiagnostic("Component view is no longer valid")

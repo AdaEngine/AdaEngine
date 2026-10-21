@@ -13,6 +13,7 @@ final class GravityAttachedComponentView: @unchecked Sendable, AdaScriptNonSenda
     private let entityID: Entity.ID
     private let reportDiagnostic: @Sendable (String) -> Void
     private let virtualMachine: GravityVirtualMachine
+    private let graphLease: AnnotatedGravityQueryLease?
     // The VM may retain this bridge; it must never keep a stopped scene alive.
     // Access runs under AdaScriptRuntimeCoordinator; each use retains a local world snapshot.
     private weak var world: World?
@@ -24,14 +25,16 @@ final class GravityAttachedComponentView: @unchecked Sendable, AdaScriptNonSenda
         componentType: any Component.Type,
         descriptor: ReflectedComponentDescriptor?,
         reportDiagnostic: @escaping @Sendable (String) -> Void,
-        virtualMachine: GravityVirtualMachine
+        virtualMachine: GravityVirtualMachine,
+        graphLease: AnnotatedGravityQueryLease? = nil
     ) -> GravityAttachedComponentView {
         GravityAttachedComponentView(
             world: world,
             entityID: entityID,
             target: .native(type: componentType, descriptor: descriptor),
             reportDiagnostic: reportDiagnostic,
-            virtualMachine: virtualMachine
+            virtualMachine: virtualMachine,
+            graphLease: graphLease
         )
     }
 
@@ -41,14 +44,16 @@ final class GravityAttachedComponentView: @unchecked Sendable, AdaScriptNonSenda
         entityID: Entity.ID,
         runtimeDescriptor: RuntimeComponentDescriptor,
         reportDiagnostic: @escaping @Sendable (String) -> Void,
-        virtualMachine: GravityVirtualMachine
+        virtualMachine: GravityVirtualMachine,
+        graphLease: AnnotatedGravityQueryLease? = nil
     ) -> GravityAttachedComponentView {
         GravityAttachedComponentView(
             world: world,
             entityID: entityID,
             target: .runtime(runtimeDescriptor),
             reportDiagnostic: reportDiagnostic,
-            virtualMachine: virtualMachine
+            virtualMachine: virtualMachine,
+            graphLease: graphLease
         )
     }
 
@@ -57,13 +62,31 @@ final class GravityAttachedComponentView: @unchecked Sendable, AdaScriptNonSenda
         entityID: Entity.ID,
         target: Target,
         reportDiagnostic: @escaping @Sendable (String) -> Void,
-        virtualMachine: GravityVirtualMachine
+        virtualMachine: GravityVirtualMachine,
+        graphLease: AnnotatedGravityQueryLease?
     ) {
         self.target = target
         self.entityID = entityID
         self.reportDiagnostic = reportDiagnostic
         self.virtualMachine = virtualMachine
+        self.graphLease = graphLease
         self.world = world
+    }
+
+    func shader(_ slot: Int) -> GSValue {
+        do {
+            guard let world, let lease = graphLease, lease.isActive, case .native(let type, _) = target else { throw ShaderGraphScriptError.expired }
+            let material = try ShaderGraphScriptComponent.material(world: world, entity: entityID, component: type.identifier, slot: slot)
+            let handle = ShaderGraphScriptHandle(material: material, writable: true, isActive: { [lease] in lease.isActive })
+            return GSValue(object: AdaScriptShaderGraphBridge.make(handle: handle, virtualMachine: virtualMachine, reportDiagnostic: reportDiagnostic), in: virtualMachine)
+        } catch { reportDiagnostic("ShaderGraph: \(error)"); return GSValue(nullIn: virtualMachine) }
+    }
+
+    func assignShader(_ slot: Int, _ path: String) -> Bool {
+        do {
+            guard let world, graphLease?.isActive == true, case .native(let type, _) = target else { throw ShaderGraphScriptError.expired }
+            return try ShaderGraphScriptComponent.assign(world: world, entity: entityID, component: type.identifier, slot: slot, path: path)
+        } catch { reportDiagnostic("ShaderGraph: \(error)"); return false }
     }
 
     func available() -> Bool {

@@ -1138,6 +1138,7 @@ private final class AnnotatedGravityRuntime: @unchecked Sendable {
         try suspensionPolicy.bindBorrowed(AnnotatedGravityQueryBridge.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityQueryRow.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityComponentView.self, to: virtualMachine)
+        try suspensionPolicy.bindBorrowed(AdaScriptShaderGraphBridge.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AnnotatedGravityResourceView.self, to: virtualMachine)
         try suspensionPolicy.bindBorrowed(AdaScriptMultiplayerAPI.self, to: virtualMachine)
         self.globalVariableNames = module.globalVariableNames

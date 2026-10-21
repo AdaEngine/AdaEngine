@@ -2,6 +2,7 @@
 @_spi(Scripting) import AdaECS
 import AdaInput
 @_spi(Scripting) import AdaScene
+import AdaUtils
 import Foundation
 import GravityAOT
 
@@ -324,6 +325,24 @@ private final class NativeAttachedComponent: NativeHostObject {
             return nil
         }
         return world.readComponentField(component: component, entity: entity, field: field)?.nativeValue
+    }
+    func call(_ method: String, arguments: [NativeValue]) throws -> NativeValue? {
+        try scope.check()
+        do {
+            guard let world, let first = arguments.first, case .integer(let raw) = first, let slot = Int(exactly: raw) else { return nil }
+            if method == "shader", arguments.count == 1 {
+                let material = try ShaderGraphScriptComponent.material(world: world, entity: entity, component: component, slot: slot)
+                let handle = ShaderGraphScriptHandle(material: material, writable: true, isActive: { [scope] in scope.isActive })
+                return .host(NativeShaderGraphHost(handle: handle))
+            }
+            if method == "assignShader", arguments.count == 2, case .string(let path) = arguments[1] {
+                return .boolean(try ShaderGraphScriptComponent.assign(world: world, entity: entity, component: component, slot: slot, path: path))
+            }
+            return nil
+        } catch {
+            RuntimeLogStore.shared.append(level: "error", label: "AdaScript", message: "ShaderGraph: \(error)")
+            return method == "assignShader" ? .boolean(false) : .null
+        }
     }
     func write(_ key: String, value: NativeValue) throws -> Bool {
         try scope.check()

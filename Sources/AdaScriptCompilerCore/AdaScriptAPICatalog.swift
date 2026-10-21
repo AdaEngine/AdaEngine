@@ -31,6 +31,29 @@ public extension AdaScriptTypeEnvironment {
     ]
 
     private static let standardMembers: [String: [String: AdaScriptMemberType]] = [
+        "Sprite": shaderComponentMembers,
+        "Mesh3DComponent": shaderComponentMembers,
+        "$AdaShaderGraph": members([
+            method("parameterIDs", parameters: [], returning: .list(.string), detail: "Stable exposed parameter IDs"),
+            method("parameterName", parameters: [.string], returning: .string, detail: "Display label of an exposed parameter"),
+            method("parameterType", parameters: [.string], returning: .string, detail: "Declared Shader Graph value type"),
+            method("getValue", parameters: [.string, .string], returning: .any, detail: "getValue(id, type) — typed graph value"),
+            method("setValue", parameters: [.string, .string, .any], returning: .bool, detail: "setValue(id, type, value) — requires query write access"),
+            method("getFloat", parameters: [.string], returning: .float, detail: "Read a Float parameter"),
+            method("setFloat", parameters: [.string, .float], returning: .bool, detail: "Set a Float parameter without shader recompilation"),
+            method("getBool", parameters: [.string], returning: .bool, detail: "Read a Bool parameter"),
+            method("setBool", parameters: [.string, .bool], returning: .bool, detail: "Set a Bool parameter"),
+            method("getVector2", parameters: [.string], returning: .list(.float), detail: "Read two vector components"),
+            method("setVector2", parameters: [.string, .list(.float)], returning: .bool, detail: "Set two vector components"),
+            method("getVector3", parameters: [.string], returning: .list(.float), detail: "Read three vector components"),
+            method("setVector3", parameters: [.string, .list(.float)], returning: .bool, detail: "Set three vector components"),
+            method("getVector4", parameters: [.string], returning: .list(.float), detail: "Read four vector components"),
+            method("setVector4", parameters: [.string, .list(.float)], returning: .bool, detail: "Set four vector components"),
+            method("getColor", parameters: [.string], returning: .list(.float), detail: "Read linear RGBA components"),
+            method("setColor", parameters: [.string, .list(.float)], returning: .bool, detail: "Set linear RGBA components"),
+            method("getTexture", parameters: [.string], returning: .string, detail: "Read an exposed texture resource path"),
+            method("setTexture", parameters: [.string, .string], returning: .bool, detail: "Set an exposed texture resource path"),
+        ]),
         "NavigationTarget3DComponent": members([
             property("destination", type: .list(.float), detail: "World-space goal; assign null to stop navigation"),
         ]),
@@ -351,6 +374,13 @@ public extension AdaScriptTypeEnvironment {
             viewMethod("zStack", detail: "Create an overlaying AdaUI stack"),
         ]),
     ]
+
+    private static var shaderComponentMembers: [String: AdaScriptMemberType] {
+        members([
+            method("shader", parameters: [.int], returning: .named("$AdaShaderGraph"), detail: "shader(slot) — callback-scoped graph material; Sprite uses slot 0"),
+            method("assignShader", parameters: [.int, .string], returning: .bool, detail: "assignShader(slot, path) — assign a graph or clear with an empty path; requires query write access"),
+        ])
+    }
 
     private static func members(_ entries: [(String, AdaScriptMemberType)]) -> [String: AdaScriptMemberType] {
         Dictionary(uniqueKeysWithValues: entries)

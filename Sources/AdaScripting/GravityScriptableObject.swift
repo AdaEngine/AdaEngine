@@ -614,6 +614,7 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
         try virtualMachine.bindClass(with: AnnotatedGravityQueryBridge.self)
         try virtualMachine.bindClass(with: AnnotatedGravityQueryRow.self)
         try virtualMachine.bindClass(with: AnnotatedGravityComponentView.self)
+        try virtualMachine.bindClass(with: AdaScriptShaderGraphBridge.self)
         try virtualMachine.bindClass(with: AnnotatedGravityResourceView.self)
         try virtualMachine.bindClass(with: GravityAttachedComponentView.self)
         try virtualMachine.bindClass(with: GravityAttachedResourceView.self)
@@ -714,7 +715,9 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
             guard let instance = instances[instanceID], instance.hasMethod(named: method) else {
                 return
             }
-            let inputBindings = bind(bindings, to: instance, context: context)
+            let graphLease = AnnotatedGravityQueryLease()
+            defer { graphLease.isActive = false }
+            let inputBindings = bind(bindings, to: instance, context: context, graphLease: graphLease)
             defer { for input in inputBindings { input.invalidate() } }
             let lifecycleContext = GravityScriptableLifecycleContext.make(
                 context,
@@ -741,7 +744,9 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
             guard let instance = instances[instanceID], instance.hasMethod(named: "event") else {
                 return
             }
-            let inputBindings = bind(bindings, to: instance, context: context)
+            let graphLease = AnnotatedGravityQueryLease()
+            defer { graphLease.isActive = false }
+            let inputBindings = bind(bindings, to: instance, context: context, graphLease: graphLease)
             defer { for input in inputBindings { input.invalidate() } }
             let lifecycleContext = GravityScriptableLifecycleContext.make(
                 context,
@@ -812,7 +817,8 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
     private func bind(
         _ bindings: [ResolvedGravityScriptableBinding],
         to instance: GSValue,
-        context: ScriptableObjectContext
+        context: ScriptableObjectContext,
+        graphLease: AnnotatedGravityQueryLease
     ) -> [AdaScriptInputBridge] {
         var inputBindings: [AdaScriptInputBridge] = []
         for binding in bindings {
@@ -836,7 +842,8 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
                     componentType: type,
                     descriptor: descriptor,
                     reportDiagnostic: delegate.append,
-                    virtualMachine: virtualMachine
+                    virtualMachine: virtualMachine,
+                    graphLease: graphLease
                 )
             case let .runtimeComponent(name, descriptor, _):
                 propertyName = name
@@ -845,7 +852,8 @@ private final class GravityScriptableModuleRuntime: @unchecked Sendable {
                     entityID: context.entityID,
                     runtimeDescriptor: descriptor,
                     reportDiagnostic: delegate.append,
-                    virtualMachine: virtualMachine
+                    virtualMachine: virtualMachine,
+                    graphLease: graphLease
                 )
             case let .resource(name, type, fields, optional):
                 propertyName = name
