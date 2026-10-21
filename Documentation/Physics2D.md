@@ -70,3 +70,21 @@ flags; all child segments are destroyed with the owning body. A sensor chain
 uses body-owned loose sensor segments because native chain definitions cannot
 set `isSensor`. Compound/chain events and query hits remain per shape pair;
 several segments belonging to one entity can produce several hits.
+
+## Overlap queries
+
+Call the main-actor methods `world.overlap(at:)` for point containment,
+`world.overlap(in:)` for broad-phase Rect/AABB candidates, and
+`world.overlap(shape, at: transform)` for exact convex-shape overlap.
+The shape overload accepts circles, capsules, boxes, rounded/ordinary convex
+polygons and two-sided segments; chains are not convex query volumes and throw
+`Physics2DQueryError.unsupportedShape`. Invalid poses/geometry throw typed errors;
+invalid point or rectangle inputs return no hits. Query transforms follow the
+same local geometry, scale and body rotation convention as collider creation.
+
+Masks select shape categories (and native symmetric query filtering still
+applies). Sensors are included by default; use `includeSensors: false` to omit
+them, and `excluding: [entity.id]` to exclude an entity's complete compound shape.
+`Overlap2DHit` is per shape, sorted by entity ID then shape ID. Its `shapeID` is
+an ephemeral native identifier within this world, not a persistent asset ID.
+Callers needing unique entities can deduplicate by entity ID explicitly.

@@ -125,7 +125,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
             b2World_SetHitEventThreshold(worldId, newValue)
         }
     }
-    private let worldId: b2WorldId
+    let worldId: b2WorldId
     private let defaultContactRecycleDistance: Float
     var eventManager: EventManager = .default
     weak var eventSource: World?
