@@ -31,11 +31,26 @@ struct EditorNodeCanvasWire: Equatable {
     var type: String
 }
 
+struct EditorNodeCanvasDecoration: Identifiable {
+    var id: String
+    var title: String
+    var bounds: Rect
+    var isNote = false
+}
+
 struct EditorNodeCanvasGeometry {
     static let nodeWidth: Float = 208
     let nodes: [EditorNodeCanvasItem]
     let pan: Vector2
     let zoom: Float
+    private let nodeByID: [String: EditorNodeCanvasItem]
+
+    init(nodes: [EditorNodeCanvasItem], pan: Vector2, zoom: Float) {
+        self.nodes = nodes
+        self.pan = pan
+        self.zoom = zoom
+        self.nodeByID = nodes.reduce(into: [:]) { $0[$1.id] = $1 }
+    }
 
     func screen(_ point: Vector2) -> Vector2 { point * zoom + pan }
     func world(_ point: Vector2) -> Vector2 { (point - pan) / max(0.01, zoom) }
@@ -50,7 +65,7 @@ struct EditorNodeCanvasGeometry {
     }
 
     func port(_ endpoint: EditorNodeCanvasEndpoint) -> Vector2? {
-        guard let node = nodes.first(where: { $0.id == endpoint.node }), let row = (endpoint.isOutput ? node.outputs : node.inputs).firstIndex(where: { $0.id == endpoint.port }) else {
+        guard let node = nodeByID[endpoint.node], let row = (endpoint.isOutput ? node.outputs : node.inputs).firstIndex(where: { $0.id == endpoint.port }) else {
             return nil
         }
         return screen(origin(node) + Vector2(endpoint.isOutput ? Self.nodeWidth - 13 : 13, 46 + Float(row) * 24))

@@ -223,6 +223,8 @@ final class EditorShaderGraphModel {
         edit { graph in
             graph.nodes.removeAll { removed.contains($0.id) }
             for id in removed { graph.layout.removeValue(forKey: id) }
+            for id in graph.groups.keys { graph.groups[id]?.nodes.removeAll { removed.contains($0) } }
+            graph.groups = graph.groups.filter { !$0.value.nodes.isEmpty }
             for index in graph.nodes.indices { graph.nodes[index].inputs = graph.nodes[index].inputs.filter { !removed.contains($0.value.node) } }
         }
     }

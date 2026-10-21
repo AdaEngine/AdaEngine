@@ -2478,5 +2478,15 @@
   "Noise 2D": "Шум 2D",
   "Combine Vector2": "Собрать Vector2",
   "Combine Vector3": "Собрать Vector3",
-  "Combine Vector4": "Собрать Vector4"
+  "Combine Vector4": "Собрать Vector4",
+  "Search Nodes": "Найти узлы",
+  "Add Parameter": "Добавить параметр",
+  "Group Selection": "Сгруппировать",
+  "Add Comment": "Добавить заметку",
+  "Copy Graph Source": "Копировать исходник графа",
+  "Remove Group": "Убрать группу",
+  "Remove Comment": "Удалить заметку",
+  "Group": "Группа",
+  "Comment": "Заметка",
+  "Parameters": "Параметры"
 }

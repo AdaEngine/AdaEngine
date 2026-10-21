@@ -27,9 +27,10 @@ extension EditorShaderGraphModel {
         guard let graph else {
             return []
         }
+        let nodes = graph.nodes.reduce(into: [String: ShaderGraph.Node]()) { $0[$1.id] = $1 }
         return graph.nodes.flatMap { node in
             node.inputs.sorted { $0.key < $1.key }.map { port, link in
-                let type = graph.nodes.first { $0.id == link.node }.flatMap { graph.outputPorts(for: $0)[link.port] }
+                let type = nodes[link.node].flatMap { graph.outputPorts(for: $0)[link.port] }
                 return .init(source: .init(node: link.node, port: link.port, isOutput: true), target: .init(node: node.id, port: port, isOutput: false), type: type?.rawValue ?? "float")
             }
         }
@@ -42,13 +43,21 @@ extension EditorShaderGraphModel {
         interaction.commit = { [weak self] in self?.endTransaction() }
         interaction.cancel = { [weak self] in self?.cancelTransaction() }
         interaction.move = { [weak self] positions in self?.edit(semantic: false) { graph in for (id, value) in positions { graph.layout[id] = .init(x: value.x, y: value.y) } } }
-        interaction.connect = { [weak self] source, target in self?.connect(.init(source.node, port: source.port), to: target.node, port: target.port) }
+        interaction.connect = { [weak self, weak interaction] source, target in
+            guard let self, self.canConnect(.init(source.node, port: source.port), to: target.node, port: target.port) else {
+                return
+            }
+            self.beginTransaction()
+            if let old = interaction?.replacedInput, old != target { self.editNode(old.node) { $0.inputs[old.port] = nil } }
+            self.connect(.init(source.node, port: source.port), to: target.node, port: target.port)
+            self.endTransaction()
+        }
         return interaction
     }
 
-    func addNode(_ operation: ShaderGraph.Operation, type: ShaderGraph.ValueType, at position: Vector2) {
+    @discardableResult func addNode(_ operation: ShaderGraph.Operation, type: ShaderGraph.ValueType, at position: Vector2) -> String? {
         guard let graph, operation != .output, operation != .spriteTexture || graph.target == .sprite else {
-            return
+            return nil
         }
         let id = UUID().uuidString
         var node = ShaderGraph.Node(id: id, operation: operation, type: type)
@@ -64,7 +73,9 @@ extension EditorShaderGraphModel {
             graph.layout[id] = .init(x: position.x, y: position.y)
         }) {
             selection = [id]
+            return id
         }
+        return nil
     }
 
     static func defaultValue(_ type: ShaderGraph.ValueType) -> [Float] {

@@ -2478,5 +2478,15 @@
   "Noise 2D": "Noise 2D",
   "Combine Vector2": "Combine Vector2",
   "Combine Vector3": "Combine Vector3",
-  "Combine Vector4": "Combine Vector4"
+  "Combine Vector4": "Combine Vector4",
+  "Search Nodes": "Search Nodes",
+  "Add Parameter": "Add Parameter",
+  "Group Selection": "Group Selection",
+  "Add Comment": "Add Comment",
+  "Copy Graph Source": "Copy Graph Source",
+  "Remove Group": "Remove Group",
+  "Remove Comment": "Remove Comment",
+  "Group": "Group",
+  "Comment": "Comment",
+  "Parameters": "Parameters"
 }

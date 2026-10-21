@@ -7,12 +7,14 @@ import Observation
     private(set) var anchor: EditorNodeCanvasEndpoint?
     private(set) var marquee: Rect?
     private(set) var revision: UInt64 = 0
+    private(set) var replacedInput: EditorNodeCanvasEndpoint?
     @ObservationIgnored var select: (Set<String>) -> Void = { _ in }
     @ObservationIgnored var move: ([String: Vector2]) -> Void = { _ in }
     @ObservationIgnored var begin: () -> Void = {}
     @ObservationIgnored var commit: () -> Void = {}
     @ObservationIgnored var cancel: () -> Void = {}
     @ObservationIgnored var connect: (EditorNodeCanvasEndpoint, EditorNodeCanvasEndpoint) -> Void = { _, _ in }
+    @ObservationIgnored var emptyDrop: (EditorNodeCanvasEndpoint, Vector2) -> Void = { _, _ in }
     @ObservationIgnored private var operation: Operation?
     @ObservationIgnored private var origin = Vector2.zero
     @ObservationIgnored private var didMove = false
@@ -29,6 +31,7 @@ import Observation
             origin = start
             if let port = geometry.hitPort(start) {
                 let fixed = !port.isOutput ? (wires.first { $0.target == port }?.source ?? port) : port
+                replacedInput = !port.isOutput && fixed != port ? port : nil
                 anchor = fixed
                 operation = .wire(fixed)
             } else if state.panMode {
@@ -64,8 +67,12 @@ import Observation
     }
 
     func end(at point: Vector2, geometry: EditorNodeCanvasGeometry) {
-        if case .wire(let fixed) = operation, let endpoint = geometry.hitPort(point, outputsOnly: !fixed.isOutput) {
-            connect(fixed.isOutput ? fixed : endpoint, fixed.isOutput ? endpoint : fixed)
+        if case .wire(let fixed) = operation {
+            if let endpoint = geometry.hitPort(point, outputsOnly: !fixed.isOutput) {
+                connect(fixed.isOutput ? fixed : endpoint, fixed.isOutput ? endpoint : fixed)
+            } else if geometry.hitNode(point) == nil {
+                emptyDrop(fixed, geometry.world(point))
+            }
         }
         if didMove { commit() }
         reset()
@@ -79,6 +86,7 @@ import Observation
     private func reset() {
         operation = nil
         anchor = nil
+        replacedInput = nil
         marquee = nil
         didMove = false
         revision &+= 1
