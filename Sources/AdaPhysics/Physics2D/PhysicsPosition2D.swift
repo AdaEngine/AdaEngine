@@ -41,7 +41,7 @@ extension PhysicsBody2DComponent {
     /// Teleports an existing body using exact global coordinates. Returns false for invalid input or no body.
     /// An ECS-owned precise position should also be updated when authoritative component sync is active.
     @discardableResult
-    public func setPosition(_ position: PhysicsPosition2D, angle: Angle? = nil) -> Bool {
+    public func setGlobalPosition(_ position: PhysicsPosition2D, angle: Angle? = nil) -> Bool {
         guard position.isFinite, let body = runtimeBody, b2Body_IsValid(body.bodyId) else {
             return false
         }
@@ -108,4 +108,34 @@ private func PreciseRaycast2D(_ id: b2ShapeId, _ point: b2Pos, _ normal: b2Vec2,
     }
     unsafe collector.pointee.hits.append(hit)
     return 1
+}
+
+@MainActor
+extension PhysicsBody2DComponent {
+    public var preciseWorldCenter: PhysicsPosition2D? {
+        guard let body = runtimeBody, b2Body_IsValid(body.bodyId) else {
+            return nil
+        }
+        return PhysicsPosition2D(b2Body_GetWorldCenter(body.bodyId))
+    }
+
+    /// Applies force at an exact global point; torque uses a precise nearby lever arm.
+    @discardableResult
+    public func applyForce(force: Vector2, atGlobalPoint point: PhysicsPosition2D, wake: Bool) -> Bool {
+        guard point.isFinite, force.x.isFinite, force.y.isFinite, let body = runtimeBody, b2Body_IsValid(body.bodyId) else {
+            return false
+        }
+        b2Body_ApplyForce(body.bodyId, force.b2Vec, point.native, wake)
+        return true
+    }
+
+    /// Applies an impulse at an exact global point without narrowing its world coordinates.
+    @discardableResult
+    public func applyLinearImpulse(_ impulse: Vector2, atGlobalPoint point: PhysicsPosition2D, wake: Bool) -> Bool {
+        guard point.isFinite, impulse.x.isFinite, impulse.y.isFinite, let body = runtimeBody, b2Body_IsValid(body.bodyId) else {
+            return false
+        }
+        b2Body_ApplyLinearImpulse(body.bodyId, impulse.b2Vec, point.native, wake)
+        return true
+    }
 }

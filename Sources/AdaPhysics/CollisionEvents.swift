@@ -56,6 +56,8 @@ public enum CollisionEvents {
         public let entityA: Entity
         public let entityB: Entity
         public let point: Vector2
+        /// Exact global 2D hit point.
+        public let globalPoint: PhysicsPosition2D
         /// Points from `entityA` toward `entityB`.
         public let normal: Vector2
         /// Positive relative approach speed in world units per second.

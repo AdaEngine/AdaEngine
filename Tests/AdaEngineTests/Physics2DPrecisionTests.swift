@@ -22,7 +22,7 @@ struct Physics2DPrecisionTests {
         let physics = try #require(fixture.app.main.physicsWorld2D)
         let component = try #require(entity.components[PhysicsBody2DComponent.self])
         let initial = PhysicsPosition2D(x: 1_000_000_000.125, y: 1_000_000_000.25)
-        #expect(component.setPosition(initial))
+        #expect(component.setGlobalPosition(initial))
         #expect(component.precisePosition == initial)
         let hit = try #require(physics.raycast(from: initial.offset(by: [-1, 0]), translation: [2, 0], query: .first).first)
         #expect(hit.entity === entity)
@@ -33,7 +33,7 @@ struct Physics2DPrecisionTests {
         let moved = try #require(component.precisePosition)
         #expect(moved.x > initial.x + 0.001)
         #expect(moved.x < initial.x + 0.002)
-        #expect(!component.setPosition(.init(x: .nan, y: 0)))
+        #expect(!component.setGlobalPosition(.init(x: .nan, y: 0)))
         #expect(physics.raycast(from: initial, translation: .zero).isEmpty)
     }
 }

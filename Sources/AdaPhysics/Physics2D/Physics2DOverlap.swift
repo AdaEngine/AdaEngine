@@ -21,7 +21,17 @@ extension PhysicsWorld2D {
         includeSensors: Bool = true,
         excluding entities: Set<Entity.ID> = []
     ) -> [Overlap2DHit] {
-        guard point.x.isFinite, point.y.isFinite, !mask.isEmpty else {
+        overlap(atGlobal: coordinateOrigin.offset(by: point), mask: mask, includeSensors: includeSensors, excluding: entities)
+    }
+
+    /// Exact point overlap using global Double input.
+    public func overlap(
+        atGlobal point: PhysicsPosition2D,
+        mask: CollisionGroup = .all,
+        includeSensors: Bool = true,
+        excluding entities: Set<Entity.ID> = []
+    ) -> [Overlap2DHit] {
+        guard point.isFinite, !mask.isEmpty else {
             return []
         }
         var center = b2Vec2_zero
@@ -37,6 +47,20 @@ extension PhysicsWorld2D {
         includeSensors: Bool = true,
         excluding entities: Set<Entity.ID> = []
     ) -> [Overlap2DHit] {
+        overlap(in: bounds, relativeTo: coordinateOrigin, mask: mask, includeSensors: includeSensors, excluding: entities)
+    }
+
+    /// Broad-phase bounds expressed near an exact global origin; bounds themselves remain Float.
+    public func overlap(
+        in bounds: Rect,
+        relativeTo origin: PhysicsPosition2D,
+        mask: CollisionGroup = .all,
+        includeSensors: Bool = true,
+        excluding entities: Set<Entity.ID> = []
+    ) -> [Overlap2DHit] {
+        guard origin.isFinite else {
+            return []
+        }
         guard bounds.minX.isFinite, bounds.minY.isFinite, bounds.maxX.isFinite, bounds.maxY.isFinite,
             bounds.width >= 0, bounds.height >= 0, !mask.isEmpty else {
             return []
@@ -48,7 +72,7 @@ extension PhysicsWorld2D {
         filter.maskBits = mask.rawValue
         // Native traversal is synchronous. Both the context and its result storage stay alive here.
         _ = unsafe withUnsafeMutablePointer(to: &collector) {
-            unsafe b2World_OverlapAABB(worldId, b2Pos_zero, native, filter, PhysicsWorld2D_Overlap, $0)
+            unsafe b2World_OverlapAABB(worldId, origin.native, native, filter, PhysicsWorld2D_Overlap, $0)
         }
         return collector.sortedHits
     }
@@ -67,12 +91,27 @@ extension PhysicsWorld2D {
         guard !mask.isEmpty else {
             return []
         }
-        return unsafe overlapProxy(&proxy, origin: pose.position.xy, mask: mask, includeSensors: includeSensors, excluding: entities)
+        return unsafe overlapProxy(&proxy, origin: coordinateOrigin.offset(by: pose.position.xy), mask: mask, includeSensors: includeSensors, excluding: entities)
     }
 
-    private func overlapProxy(
+    /// Exact convex overlap at a global position; rotation and scale describe local geometry.
+    public func overlap(
+        _ shape: Shape2DResource,
+        atGlobal position: PhysicsPosition2D,
+        rotation: Quat = .identity,
+        scale: Vector2 = Vector2(1),
+        mask: CollisionGroup = .all,
+        includeSensors: Bool = true,
+        excluding entities: Set<Entity.ID> = []
+    ) throws -> [Overlap2DHit] {
+        guard position.isFinite else { throw Physics2DQueryError.invalidPose }
+        var proxy = try NativeConvexQuery2D.make(shape, pose: Transform(rotation: rotation, scale: [scale.x, scale.y, 1]))
+        return unsafe overlapProxy(&proxy, origin: position, mask: mask, includeSensors: includeSensors, excluding: entities)
+    }
+
+    func overlapProxy(
         _ proxy: UnsafePointer<b2ShapeProxy>,
-        origin: Vector2,
+        origin: PhysicsPosition2D,
         mask: CollisionGroup,
         includeSensors: Bool,
         excluding entities: Set<Entity.ID>
@@ -82,7 +121,7 @@ extension PhysicsWorld2D {
         filter.categoryBits = UInt64.max
         filter.maskBits = mask.rawValue
         _ = unsafe withUnsafeMutablePointer(to: &collector) {
-            unsafe b2World_OverlapShape(worldId, origin.b2Position, proxy, filter, PhysicsWorld2D_Overlap, $0)
+            unsafe b2World_OverlapShape(worldId, origin.native, proxy, filter, PhysicsWorld2D_Overlap, $0)
         }
         return collector.sortedHits
     }

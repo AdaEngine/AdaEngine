@@ -461,7 +461,8 @@ extension PhysicsWorld2D {
         send(CollisionEvents.Hit(
             entityA: entityA,
             entityB: entityB,
-            point: contact.point.asVector2,
+            point: localPosition(contact.point),
+            globalPoint: PhysicsPosition2D(contact.point),
             normal: contact.normal.asVector2,
             approachSpeed: contact.approachSpeed,
             impulse: contactImpulse(contact.contactId)

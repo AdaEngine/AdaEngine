@@ -12,6 +12,9 @@ public struct Raycast2DHit {
     /// The point of the hit.
     public let point: Vector2
 
+    /// Exact global hit point, independent of the nearby render origin.
+    public let globalPoint: PhysicsPosition2D
+
     /// The normal of the hit.
     public let normal: Vector2
 
@@ -45,6 +48,7 @@ func PhysicsWorld2D_Raycast(
     let result = unsafe Raycast2DHit(
         entity: entity,
         point: PhysicsPosition2D(point).displacement(from: collector.pointee.origin),
+        globalPoint: PhysicsPosition2D(point),
         normal: normal.asVector2,
         distance: collector.pointee.length * fraction
     )
