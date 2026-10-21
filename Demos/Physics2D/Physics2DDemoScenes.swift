@@ -4,7 +4,8 @@ import Observation
 
 /// The same scenes run in the interactive window, offscreen capture and deterministic validation.
 enum PhysicsDemoScene: String, CaseIterable {
-    case raycast, events
+    case raycast, events, queries, mechanisms, characters, advanced, largeWorld
+    var gravity: Vector2 { self == .raycast || self == .queries ? .zero : [0, -9.81] }
 }
 
 @MainActor
@@ -12,6 +13,31 @@ enum PhysicsDemoScene: String, CaseIterable {
 final class PhysicsDemoSession: Resource {
     let scene: PhysicsDemoScene
     let rendering: Bool
+    var largeWorld = PhysicsLargeWorldState()
+    var advanced = PhysicsAdvancedState()
+    var mechanismOwners: [Entity] = []
+    var mechanismStarts: [Vector2] = []
+    var reverseRequested = false
+    var breakRequested = false
+    var driveDirection: Float = 1
+    var moverDirection: Float = 1
+    var connectedJoints = 0
+    var jointBreaks = 0
+    var character: Entity?
+    var crate: Entity?
+    var platform: Entity?
+    var characterMode = CharacterController2DMode.query
+    var moveDirection: Float = 0
+    var jumpRequest = false
+    var platformDirection: Float = 1
+    var debugDrawState = "extract pending"
+    var probeMode = PhysicsProbeMode.cast
+    var querySensors = true
+    var queryShape: Shape2DResource?
+    var queryEntities: [Entity] = []
+    var queryPoints: [Vector2] = []
+    var probeY: Float = 1.6
+    var probeContact: Vector2?
     var allHits = true
     var blueOnly = false
     var scan = true
@@ -34,7 +60,13 @@ final class PhysicsDemoSession: Resource {
     var lastHits: [Raycast2DHit] = []
 
     func resetScene() {
+        largeWorld = PhysicsLargeWorldState()
+        advanced = PhysicsAdvancedState()
         elapsed = 0
+        mechanismOwners.removeAll(); mechanismStarts.removeAll()
+        reverseRequested = false; breakRequested = false; driveDirection = 1; moverDirection = 1
+        connectedJoints = 0; jointBreaks = 0
+        character = nil; crate = nil; platform = nil; moveDirection = 0; jumpRequest = false; platformDirection = 1
         resetRequested = false
         rayStatus = "Waiting for physics sync"
         contactBegins = 0
@@ -51,6 +83,7 @@ final class PhysicsDemoSession: Resource {
         visitor = nil
         falling = nil
         lastHits.removeAll()
+        queryEntities.removeAll(); queryPoints.removeAll(); queryShape = nil; probeContact = nil
     }
 
     init(scene: PhysicsDemoScene, rendering: Bool = true) {
@@ -64,7 +97,7 @@ func configurePhysicsDemo(_ app: inout AppWorlds, session: PhysicsDemoSession) {
     app.addPlugin(TransformPlugin()).addPlugin(InputPlugin()).addPlugin(RenderWorldPlugin())
         .addPlugin(CameraPlugin()).addPlugin(AssetsPlugin()).addPlugin(VisibilityPlugin())
         .addPlugin(SpritePlugin()).addPlugin(Core2DPlugin()).addPlugin(UpscalePlugin())
-        .addPlugin(Physics2DPlugin(gravity: session.scene == .raycast ? .zero : [0, -9.81]))
+        .addPlugin(Physics2DPlugin(gravity: session.scene.gravity))
         .addPlugin(PhysicsDemoPlugin(session: session))
 }
 
@@ -76,6 +109,7 @@ struct PhysicsDemoPlugin: Plugin {
             .addSystem(PhysicsDemoStartupSystem.self, on: .startup)
             .addSystem(PhysicsDemoControlsSystem.self, on: .fixedPreUpdate)
             .addSystem(PhysicsDemoFrameSystem.self, on: .postUpdate)
+        app.getSubworldBuilder(by: .renderWorld)?.addSystem(PhysicsDemoProbeExtractSystem.self, on: .extract)
     }
 }
 
@@ -88,7 +122,26 @@ func PhysicsDemoStartup(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoS
     if session.rendering {
         var camera = Camera()
         camera.backgroundColor = Color(0.035, 0.055, 0.10, 1)
-        world.spawn("Physics camera", bundle: Camera2D(camera: camera, orthographicProjection: OrthographicProjection(scale: 48)))
+        let entity = world.spawn("Physics camera", bundle: Camera2D(camera: camera, orthographicProjection: OrthographicProjection(scale: 48)))
+        if session.scene == .largeWorld { entity.components[PhysicsPosition2DComponent.self] = .init(session.largeWorld.base) }
+    }
+    if session.scene == .largeWorld {
+        do { try setupLargeWorld(in: world, session: session) } catch { session.rayStatus = "Large-world setup failed: \(error)" }
+        return
+    }
+    if session.scene == .advanced {
+        do { try setupAdvanced(in: world, session: session) } catch { session.rayStatus = "Advanced setup failed: \(error)" }
+        return
+    }
+    if session.scene == .mechanisms || session.scene == .characters {
+        do {
+            if session.scene == .mechanisms { try setupMechanisms(in: world, session: session) } else { try setupCharacters(in: world, session: session) }
+        } catch { session.rayStatus = "Setup failed: \(error)" }
+        return
+    }
+    if session.scene == .queries {
+        do { try setupGeometryQueries(in: world, session: session) } catch { session.rayStatus = "Geometry failed: \(error)" }
+        return
     }
     if session.scene == .raycast {
         for (index, x) in [Float(-3), 0, 3].enumerated() {
@@ -146,9 +199,25 @@ func PhysicsDemoStartup(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoS
 
 @System
 @MainActor
-func PhysicsDemoControls(_ state: Res<PhysicsDemoSession>, _ time: Res<FixedTime>) {
+func PhysicsDemoControls(_ context: WorldUpdateContext, _ state: Res<PhysicsDemoSession>, _ time: Res<FixedTime>) {
     let session = state.wrappedValue
     session.elapsed += Float(time.deltaTime)
+    if session.scene == .largeWorld {
+        controlLargeWorld(in: context.world, session: session)
+        return
+    }
+    if session.scene == .advanced {
+        controlAdvanced(in: context.world, session: session)
+        return
+    }
+    if session.scene == .mechanisms {
+        controlMechanisms(session)
+        return
+    }
+    if session.scene == .characters {
+        controlCharacter(session)
+        return
+    }
     guard session.scene == .events else {
         return
     }
@@ -170,7 +239,8 @@ func PhysicsDemoFrame(
     _ state: Res<PhysicsDemoSession>,
     _ begins: Events<CollisionEvents.Began>,
     _ ends: Events<CollisionEvents.Ended>,
-    _ hits: Events<CollisionEvents.Hit>
+    _ hits: Events<CollisionEvents.Hit>,
+    _ jointEvents: Events<Joint2DEvents.ThresholdExceeded>
 ) {
     let session = state.wrappedValue
     for event in begins {
@@ -179,8 +249,33 @@ func PhysicsDemoFrame(
     for event in ends {
         if event.isSensor { session.sensorEnds += 1; session.sensorOccupied = false } else { session.contactEnds += 1 }
     }
-    for event in hits { session.impacts += 1; session.lastImpactSpeed = event.approachSpeed }
+    for _ in jointEvents { session.jointBreaks += 1 }
+    for event in hits {
+        session.impacts += 1; session.lastImpactSpeed = event.approachSpeed
+        if session.scene == .advanced { session.advanced.hitPoints = event.contact?.manifold.points.count ?? 0 }
+    }
     session.sensor?.components[Sprite.self]?.tintColor = session.sensorOccupied ? Color(0.2, 1, 0.5, 0.8) : Color(0.15, 0.6, 0.4, 0.45)
+    if session.scene == .largeWorld {
+        frameLargeWorld(in: context.world, session: session)
+        return
+    }
+    if session.scene == .advanced {
+        frameAdvanced(in: context.world, session: session)
+        return
+    }
+    if session.scene == .mechanisms {
+        session.connectedJoints = session.mechanismOwners.filter { $0.components[PhysicsJoint2DComponent.self]?.isConnected == true }.count
+        session.rayStatus = "\(session.connectedJoints) / 9 connected · \(session.jointBreaks) break events · filter box passes through its block"
+        return
+    }
+    if session.scene == .characters {
+        updateCharacterStatus(session)
+        return
+    }
+    if session.scene == .queries {
+        updateGeometryQueries(in: context.world, session: session)
+        return
+    }
     guard session.scene == .raycast, let physics = context.world.physicsWorld2D else {
         return
     }

@@ -54,7 +54,7 @@ case "$MODE" in
                 cat "$DEMO_ROOT/dist/runtime.log"
                 exit 0
             fi
-            if rg -q 'verification FAIL|Fatal error' "$DEMO_ROOT/dist/runtime.log"; then
+            if rg -q 'verification FAIL|Fatal error|BOX2D ASSERTION' "$DEMO_ROOT/dist/runtime.log"; then
                 tail -40 "$DEMO_ROOT/dist/runtime.log"
                 exit 1
             fi
