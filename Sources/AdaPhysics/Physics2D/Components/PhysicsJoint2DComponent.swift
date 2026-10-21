@@ -6,7 +6,6 @@
 //
 
 import AdaECS
-import AdaUtils
 import Math
 
 public final class PhysicsJoint2DDescriptor: Codable, Sendable {
@@ -15,10 +14,22 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
     enum Joint: Codable, Sendable {
         case rope(Entity.ID, Entity.ID, Vector2, Vector2)
         case revolute(Entity.ID)
+        case distance(Entity.ID, Entity.ID, DistanceJoint2DSettings)
     }
 
     internal init(joint: Joint) {
         self.joint = joint
+    }
+
+    private enum CodingKeys: CodingKey { case joint }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        joint = try values.decode(Joint.self, forKey: .joint)
+        if case let .distance(_, _, settings) = joint { try settings.validate() }
+        if case let .rope(_, _, a, b) = joint {
+            guard JointFrame2D(position: a).isValid, JointFrame2D(position: b).isValid else { throw PhysicsJoint2DError.invalidSettings }
+        }
     }
 
     @MainActor
@@ -33,10 +44,13 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
 }
 
 @Component
-public struct PhysicsJoint2DComponent: @unchecked Sendable {
-    let jointDescriptor: PhysicsJoint2DDescriptor
+public struct PhysicsJoint2DComponent: Codable, Sendable {
+    /// Replace the immutable descriptor to reconnect with new settings on the next physics sync.
+    public var jointDescriptor: PhysicsJoint2DDescriptor
+    public internal(set) var jointError: PhysicsJoint2DError?
+    var runtimeJoint: RuntimeJoint2D?
 
-    var runtimeJoint: UnsafeAnyBox?
+    @MainActor public var isConnected: Bool { runtimeJoint?.isConnected ?? false }
 
     public init(joint: PhysicsJoint2DDescriptor) {
         self.jointDescriptor = joint

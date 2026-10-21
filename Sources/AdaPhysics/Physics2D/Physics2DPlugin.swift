@@ -50,6 +50,7 @@ public struct Physics2DPlugin: Plugin {
             )
             .insertResource(PhysicsDebugOptions())
             .addSystem(Physics2DSyncSystem.self, on: .physicsSync)
+            .addSystem(PhysicsJoint2DSyncSystem.self, on: .physicsSync)
             .addSystem(Physics2DUpdateSystem.self, on: .physicsStep)
             .addSystem(Physics2DWritebackSystem.self, on: .physicsWriteback)
             .addSystem(PhysicsEventProxySystem.self, on: .startup)

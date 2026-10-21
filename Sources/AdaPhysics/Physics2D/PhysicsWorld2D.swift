@@ -125,6 +125,10 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
             b2World_SetHitEventThreshold(worldId, newValue)
         }
     }
+    // Native constraints belong to this world. Records never retain bodies or their world.
+    @MainActor var jointRecords: [Entity.ID: RuntimeJoint2D] = [:]
+    @MainActor var seenJointOwners: Set<Entity.ID> = []
+    @MainActor var retiredJointOwners: [Entity.ID] = []
     let worldId: b2WorldId
     private let defaultContactRecycleDistance: Float
     var eventManager: EventManager = .default

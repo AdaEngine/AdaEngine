@@ -50,12 +50,12 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 
 | # | PR title / purpose | Strategy | Budget | Depends on | Status |
 |---|---|---|---:|---|---|
-| 01 | Apply local shape offsets and box rotation correctly | A: complete compatibility fix | 300–450 | — | in-progress |
-| 02 | Add capsule and rounded convex colliders | A: additive factories/fixtures | 450–600 | 01 | in-progress |
-| 03 | Add segments and owned chain colliders | A: additive shapes, explicit lifetime | 500–600 | 01 | in-progress |
-| 04 | Add point, AABB and convex-shape overlap queries | A: additive world queries | 450–600 | 02 | in-progress |
-| 05 | Add nearest/all convex shape casts | A: additive world queries | 450–600 | 02, 04 | planned |
-| 06 | Make distance/rope joints work through the ECS lifecycle | A: complete joint system + first constraint | 500–600 | — | planned |
+| 01 | Apply local shape offsets and box rotation correctly | A: complete compatibility fix | 300–450 | — | draft PR #167 |
+| 02 | Add capsule and rounded convex colliders | A: additive factories/fixtures | 450–600 | 01 | locally validated |
+| 03 | Add segments and owned chain colliders | A: additive shapes, explicit lifetime | 500–600 | 01 | locally validated |
+| 04 | Add point, AABB and convex-shape overlap queries | A: additive world queries | 450–600 | 02 | locally validated |
+| 05 | Add nearest/all convex shape casts | A: additive world queries | 450–600 | 02, 04 | locally validated |
+| 06 | Make distance/rope joints work through the ECS lifecycle | A: complete joint system + first constraint | 500–600 | — | locally validated |
 | 07 | Add revolute joints with spring, limits and motor | A: complete second constraint | 400–550 | 06 | planned |
 | 08 | Add prismatic, weld and filter constraints | A: additive complete joint kinds | 450–600 | 06 | planned |
 | 09 | Add wheel suspension and motor joints | A: additive complete mechanisms | 450–600 | 07, 08 | planned |
@@ -221,3 +221,5 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 
 - 2026-10-21: User explicitly authorized push and draft PR for slice 01. Published draft PR #167 at https://github.com/AdaEngine/Ada/pull/167; no merge performed.
 - 2026-10-21: Slice 05 locally validated: sorted convex sweeps, nearest clipping, sensor/mask/exclusion policy, explicit initial/zero-motion overlaps, chain-facing tests and analytic thin-box geometry. Five new tests passed; extended physics/fixed-step selection passed 109 tests in 22 suites; SwiftLint zero violations. The thin-box fix is also being backported to the slice 01 draft before review.
+
+- 2026-10-21: Slice 06 locally validated: real rigid/spring/limited/motorized distance constraints and legacy ropes; deferred body resolution, component/entity/body removal, reconnection, checked Sendable runtime records and backwards-compatible Codable. Six new tests passed; 116 physics/fixed-step tests in 23 suites passed; SwiftLint zero violations. No remote publication of this slice.

@@ -43,9 +43,6 @@ public struct Physics2DSyncSystem: Sendable {
     @Query<Entity, Ref<Collision2DComponent>, Ref<Transform>>
     private var collisionQuery
 
-    @Query<Entity, Ref<PhysicsJoint2DComponent>, Ref<Transform>>
-    private var jointsQuery
-
     @Res<Physics2DWorldHolder>
     private var physicsWorld
 

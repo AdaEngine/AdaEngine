@@ -99,3 +99,22 @@ The same masks, sensor option and entity exclusions apply as in overlap queries.
 Initial overlaps have fraction/distance zero and a zero normal; zero motion uses
 exact overlap. Chains can be targets but cannot be swept as query volumes.
 Thin boxes use analytic vertices so hull welding does not discard them.
+
+### Distance and rope joints
+
+Attach `PhysicsJoint2DComponent(joint: descriptor)` to a joint-owner entity (no
+Transform is required). `try PhysicsJoint2DDescriptor.distance(entityA:entityB:settings:)`
+connects two entities in the same world. `DistanceJoint2DSettings` supports rigid
+rest length, optional spring, lower/upper distance limits and a bounded motor.
+`JointFrame2D` anchors are body-local physical coordinates, independent of entity
+scale. Spring frequency is in Hz, damping ratio is dimensionless, length/speed
+use world length units, motor effort is force.
+
+The legacy `rope(entityA:entityB:)` factory now creates a real cable whose maximum
+length is measured when both bodies first resolve; it allows slack. Body creation
+can be deferred. Read `isConnected` and `jointError` on the component for status.
+Replacing `jointDescriptor` reconnects at the next physics sync. Removing the
+owner/component/body releases the constraint; a recreated body reconnects on the
+next sync. Runtime records do not keep bodies or worlds alive, and native world
+destruction releases all remaining constraints. New distance factories and decoded
+settings reject nonfinite/invalid values before native calls.
