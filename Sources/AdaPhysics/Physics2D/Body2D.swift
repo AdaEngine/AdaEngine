@@ -70,7 +70,7 @@ public final class Body2D: @unchecked Sendable {
     }
 
     func getPosition() -> Vector2 {
-        b2Body_GetPosition(bodyId).asVector2
+        world?.localPosition(b2Body_GetPosition(bodyId)) ?? .zero
     }
 
     func getAngle() -> Angle {
@@ -84,11 +84,11 @@ public final class Body2D: @unchecked Sendable {
     }
 
     func getWorldCenter() -> Vector2 {
-        b2Body_GetWorldCenter(bodyId).asVector2
+        world?.localPosition(b2Body_GetWorldCenter(bodyId)) ?? .zero
     }
 
     func setTransform(position: Vector2, angle: Angle) {
-        b2Body_SetTransform(bodyId, position.b2Position, b2MakeRot(angle.radians))
+        b2Body_SetTransform(bodyId, world?.nativePosition(position) ?? position.b2Position, b2MakeRot(angle.radians))
     }
 
     /// Set the linear velocity of the center of mass.
@@ -98,7 +98,7 @@ public final class Body2D: @unchecked Sendable {
 
     /// Apply a force at a world point. If the force is not applied at the center of mass, it will generate a torque and affect the angular velocity. This wakes up the body.
     func applyForce(force: Vector2, point: Vector2, wake: Bool) {
-        b2Body_ApplyForce(bodyId, force.b2Vec, point.b2Position, wake)
+        b2Body_ApplyForce(bodyId, force.b2Vec, world?.nativePosition(point) ?? point.b2Position, wake)
     }
 
     /// Apply a force to the center of mass. This wakes up the body.
@@ -109,7 +109,7 @@ public final class Body2D: @unchecked Sendable {
     /// Apply an impulse at a point. This immediately modifies the velocity.
     /// It also modifies the angular velocity if the point of application is not at the center of mass. This wakes up the body.
     func applyLinearImpulse(_ impulse: Vector2, point: Vector2, wake: Bool) {
-        b2Body_ApplyLinearImpulse(bodyId, impulse.b2Vec, point.b2Position, wake)
+        b2Body_ApplyLinearImpulse(bodyId, impulse.b2Vec, world?.nativePosition(point) ?? point.b2Position, wake)
     }
 
     /// Apply a torque. This affects the angular velocity without affecting the linear velocity of the center of mass. This wakes up the body.
@@ -122,7 +122,7 @@ public final class Body2D: @unchecked Sendable {
     /// - Returns: The world velocity of a point or zero if entity not attached to Physics2DWorld.
 
     func getLinearVelocityFromWorldPoint(_ worldPoint: Vector2) -> Vector2 {
-        return b2Body_GetWorldPointVelocity(bodyId, worldPoint.b2Position).asVector2
+        return b2Body_GetWorldPointVelocity(bodyId, world?.nativePosition(worldPoint) ?? worldPoint.b2Position).asVector2
     }
 
     /// Get the world velocity of a local point.

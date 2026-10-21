@@ -44,6 +44,8 @@ public struct Physics2DSyncSystem: Sendable {
     @Query<Entity, Ref<Collision2DComponent>, Ref<Transform>>
     private var collisionQuery
 
+    @PhysicsCoordinateAccess2D private var coordinates
+
     @Res<Physics2DWorldHolder>
     private var physicsWorld
 
@@ -58,19 +60,22 @@ public struct Physics2DSyncSystem: Sendable {
 
     private func syncPhysicsBodyEntities(in world: PhysicsWorld2D) {
         self.physicsBodyQuery.forEach { entity, physicsBody, transform in
+            guard let position = world.authoredPosition(entity, fallback: transform.position.xy) else {
+                physicsBody.runtimeBody = nil
+                return
+            }
             if let body = physicsBody.runtimeBody {
-                if physicsBody.mode == .static {
-                    body.setTransform(
-                        position: transform.position.xy,
-                        angle: transform.rotation.angle2D
-                    )
+                let hasGlobalPosition = entity.components[PhysicsPosition2DComponent.self] != nil
+                let movedGlobally = PhysicsPosition2D(b2Body_GetPosition(body.bodyId)) != PhysicsPosition2D(position)
+                if physicsBody.mode == .static || (hasGlobalPosition && movedGlobally) {
+                    b2Body_SetTransform(body.bodyId, position, b2MakeRot(transform.rotation.angle2D.radians))
                 }
 
                 applyMassProperties(physicsBody.massProperties, fixedRotation: physicsBody.fixedRotation, to: body)
             } else {
                 var def = unsafe b2DefaultBodyDef()
                 unsafe def.motionLocks.angularZ = physicsBody.fixedRotation
-                unsafe def.position = transform.position.xy.b2Position
+                unsafe def.position = position
                 unsafe def.rotation = b2MakeRot(transform.rotation.angle2D.radians)
                 unsafe def.type = physicsBody.mode.b2Type
                 unsafe def.gravityScale = physicsBody.gravityScale
@@ -142,17 +147,18 @@ public struct Physics2DSyncSystem: Sendable {
 
     private func syncCollisionEntities(in world: PhysicsWorld2D) {
         collisionQuery.forEach { entity, collisionBody, transform in
+            guard let position = world.authoredPosition(entity, fallback: transform.position.xy) else {
+                collisionBody.runtimeBody = nil
+                return
+            }
             if let body = collisionBody.runtimeBody {
                 let angleDelta = body.getAngle().radians - transform.rotation.angle2D.radians
-                if body.getPosition() != transform.position.xy || abs(Math.sin(angleDelta * 0.5)) > 0.00001 {
-                    body.setTransform(
-                        position: transform.position.xy,
-                        angle: transform.rotation.angle2D
-                    )
+                if PhysicsPosition2D(b2Body_GetPosition(body.bodyId)) != PhysicsPosition2D(position) || abs(Math.sin(angleDelta * 0.5)) > 0.00001 {
+                    b2Body_SetTransform(body.bodyId, position, b2MakeRot(transform.rotation.angle2D.radians))
                 }
             } else {
                 var def = unsafe b2DefaultBodyDef()
-                unsafe def.position = transform.position.xy.b2Position
+                unsafe def.position = position
                 unsafe def.rotation = b2MakeRot(transform.rotation.angle2D.radians)
                 unsafe def.type = b2_staticBody
 
@@ -200,6 +206,7 @@ public struct Physics2DSyncSystem: Sendable {
 /// A system for writing back simulated 2D physics state into scene components.
 @PlainSystem
 public struct Physics2DWritebackSystem: Sendable {
+    @PhysicsCoordinateWriteAccess2D private var coordinates
     @Res<Physics2DWorldHolder>
     private var physicsWorld
 

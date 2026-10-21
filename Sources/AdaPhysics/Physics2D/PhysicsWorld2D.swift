@@ -47,6 +47,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     enum CodingKeys: CodingKey {
         case substepIterations
         case gravity
+        case coordinateOrigin
     }
 
     /// The delegate of the physics world.
@@ -134,6 +135,8 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     @MainActor var characterRecords: [Entity.ID: CharacterRuntime2D] = [:]
     @MainActor var seenCharacters: Set<Entity.ID> = []
     @MainActor var retiredCharacters: [Entity.ID] = []
+    /// Global origin of the nearby frame used by Float APIs and render transforms.
+    public internal(set) var coordinateOrigin: PhysicsPosition2D = .zero
     let worldId: b2WorldId
     private let defaultContactRecycleDistance: Float
     var eventManager: EventManager = .default
@@ -178,11 +181,15 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
         self.init(gravity: gravity)
 
         self.substepIterations = try container.decode(Int.self, forKey: .substepIterations)
+        let origin = try container.decodeIfPresent(PhysicsPosition2D.self, forKey: .coordinateOrigin) ?? .zero
+        guard origin.isFinite else { throw DecodingError.dataCorruptedError(forKey: .coordinateOrigin, in: container, debugDescription: "Invalid coordinate origin") }
+        self.coordinateOrigin = origin
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.gravity, forKey: .gravity)
+        try container.encode(coordinateOrigin, forKey: .coordinateOrigin)
         try container.encode(self.substepIterations, forKey: .substepIterations)
     }
 
@@ -208,11 +215,11 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
         var filter = b2DefaultQueryFilter()
         filter.categoryBits = UInt64.max
         filter.maskBits = mask.rawValue
-        var collector = Raycast2DCollector(length: length, query: query)
+        var collector = Raycast2DCollector(length: length, query: query, origin: coordinateOrigin)
         // Box2D invokes the callback synchronously; the stack context never escapes this call.
         unsafe withUnsafeMutablePointer(to: &collector) { context in
             _ = unsafe b2World_CastRay(
-                worldId, startPoint.b2Position, translation.b2Vec, filter, PhysicsWorld2D_Raycast, context
+                worldId, nativePosition(startPoint), translation.b2Vec, filter, PhysicsWorld2D_Raycast, context
             )
         }
         return collector.results.sorted { $0.distance < $1.distance }
@@ -277,7 +284,12 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
                 continue
             }
 
-            let position = unsafe event.transform.p.asVector2
+            let globalPosition = unsafe PhysicsPosition2D(event.transform.p)
+            if var coordinate = entity.components[PhysicsPosition2DComponent.self] {
+                coordinate.position = globalPosition
+                entity.components[PhysicsPosition2DComponent.self] = coordinate
+            }
+            let position = globalPosition.displacement(from: coordinateOrigin)
             let rotation = unsafe Quat(
                 axis: [0, 0, 1],
                 angle: b2Rot_GetAngle(event.transform.q)

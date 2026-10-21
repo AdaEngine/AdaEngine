@@ -22,6 +22,7 @@ public struct Raycast2DHit {
 struct Raycast2DCollector {
     let length: Float
     let query: CollisionCastQueryType
+    let origin: PhysicsPosition2D
     var results: [Raycast2DHit] = []
 }
 
@@ -43,7 +44,7 @@ func PhysicsWorld2D_Raycast(
     let collector = unsafe context.assumingMemoryBound(to: Raycast2DCollector.self)
     let result = unsafe Raycast2DHit(
         entity: entity,
-        point: point.asVector2,
+        point: PhysicsPosition2D(point).displacement(from: collector.pointee.origin),
         normal: normal.asVector2,
         distance: collector.pointee.length * fraction
     )
