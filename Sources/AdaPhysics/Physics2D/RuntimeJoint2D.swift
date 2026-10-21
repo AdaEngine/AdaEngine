@@ -6,7 +6,7 @@ import Math
 @MainActor
 final class RuntimeJoint2D {
     weak var world: PhysicsWorld2D?
-    let descriptor: PhysicsJoint2DDescriptor
+    var descriptor: PhysicsJoint2DDescriptor
     private(set) var id: b2JointId
     let bodyA: b2BodyId
     let bodyB: b2BodyId

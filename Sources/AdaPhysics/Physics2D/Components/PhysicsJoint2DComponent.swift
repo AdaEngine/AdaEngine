@@ -28,6 +28,8 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
         self.joint = joint
     }
 
+    func replacingJoint(_ value: Joint) -> PhysicsJoint2DDescriptor { PhysicsJoint2DDescriptor(joint: value) }
+
     private enum CodingKeys: CodingKey { case joint }
 
     public init(from decoder: any Decoder) throws {

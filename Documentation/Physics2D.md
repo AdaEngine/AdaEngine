@@ -152,3 +152,15 @@ can independently align the two frames using position/angle springs. Velocity
 force/torque bounds and spring force/torque bounds are independent. A nil motor
 spring disables its position control; default zero velocity with finite effort
 acts as friction. Every bound is finite and nonnegative.
+
+### Live joint settings
+
+Use the main-actor mutating `PhysicsJoint2DComponent.updateSettings(...)`
+overloads with distance, revolute, prismatic, weld, wheel or motor settings.
+They validate before native calls, preserve the native joint ID, wake attached
+bodies, and update the component's descriptor so coding/reconnection retains
+the settings. Keep and edit your settings value when changing one field.
+World hinges retain their original pivot/reference angle while retuning.
+A disconnected joint or a pending descriptor replacement throws `notConnected`;
+a settings type for another joint throws `unsupportedControl`. To defer changes
+until bodies exist, replace `jointDescriptor` instead.

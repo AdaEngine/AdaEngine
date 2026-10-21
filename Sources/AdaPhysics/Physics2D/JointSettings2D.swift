@@ -7,6 +7,8 @@ public enum PhysicsJoint2DError: Error, Equatable, Sendable {
     case invalidBodyPair
     case missingBody
     case nativeCreationFailed
+    case notConnected
+    case unsupportedControl
 }
 
 /// A body-local physical frame. Entity scale does not rescale joint anchors.
