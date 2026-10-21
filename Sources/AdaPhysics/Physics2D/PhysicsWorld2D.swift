@@ -156,7 +156,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
             // Box2D 3.2 owns its worker threads when task callbacks are not supplied.
             unsafe worldDef.workerCount = Int32(max(1, min(Int(B2_MAX_WORKERS), workerCount)))
         #endif
-        self.worldId = unsafe b2CreateWorld(&worldDef)
+        self.worldId = unsafe b2CreateWorldDoublePrecision(&worldDef)
         b2World_EnableWarmStarting(worldId, true)
         self.defaultContactRecycleDistance = b2World_GetContactRecycleDistance(worldId)
 
@@ -574,6 +574,10 @@ extension Vector2 {
             self = unsafe unsafeBitCast(newValue, to: Vector2.self)
         }
     }
+}
+
+extension b2Pos {
+    var asVector2: Vector2 { Vector2(Float(x), Float(y)) }
 }
 
 extension b2Vec2 {

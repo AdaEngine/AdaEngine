@@ -208,8 +208,8 @@ private func DebugPhysics2D_Circle(_ center: b2Pos, _ radius: Float, _ color: b2
 
 private func DebugPhysics2D_Point(_ center: b2Pos, _ size: Float, _ color: b2HexColor, _ context: UnsafeMutableRawPointer?) {
     let radius = max(0.025, min(0.12, size * 0.005))
-    unsafe DebugPhysics2D_Line(b2Pos(x: center.x - radius, y: center.y), b2Pos(x: center.x + radius, y: center.y), color, context)
-    unsafe DebugPhysics2D_Line(b2Pos(x: center.x, y: center.y - radius), b2Pos(x: center.x, y: center.y + radius), color, context)
+    unsafe DebugPhysics2D_Line(b2OffsetPos(center, b2Vec2(x: -radius, y: 0)), b2OffsetPos(center, b2Vec2(x: radius, y: 0)), color, context)
+    unsafe DebugPhysics2D_Line(b2OffsetPos(center, b2Vec2(x: 0, y: -radius)), b2OffsetPos(center, b2Vec2(x: 0, y: radius)), color, context)
 }
 
 private func DebugPhysics2D_Capsule(_ start: b2Pos, _ end: b2Pos, _ radius: Float, _ color: b2HexColor, _ context: UnsafeMutableRawPointer?) {

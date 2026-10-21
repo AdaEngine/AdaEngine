@@ -18,7 +18,7 @@ struct Physics2DRevoluteJointTests {
         bob.components[PhysicsBody2DComponent.self]?.angularVelocity = 1
         let id = try fixture.native(joint)
         var maximumAngle: Float = 0
-        var pivotError: Float = 0
+        var pivotError: Double = 0
         for _ in 0..<180 {
             try fixture.step(1)
             let pivot = b2Body_GetWorldPoint(b2Joint_GetBodyB(id), b2Joint_GetLocalFrameB(id).p)

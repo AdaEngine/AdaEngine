@@ -55,7 +55,7 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 | # | Purpose / proposed PR | Budget | Depends on | Strategy | Status |
 |---|---|---:|---|---|---|
 | 16 | Distinguish native world positions from local vectors in the existing bridge | 350–550 | prior stack | mechanical, same behavior | locally validated |
-| 17 | Enable one consistent native Double ABI and expose precise body positions and rays | 450–600 | 16 | A, complete precise API | planned |
+| 17 | Enable one consistent native Double ABI and expose precise body positions and rays | 450–600 | 16 | A, complete precise API | locally validated |
 | 18 | Integrate authoritative Double ECS positions and nearby rendering for rigid/static bodies | 500–600 | 17 | A, opt-in coordinate components | planned |
 | 19 | Preserve precision across overlaps, shape casts, forces and contact positions | 450–600 | 18 | A, complete precise query overloads | planned |
 | 20 | Keep joints, both character modes and debug geometry consistent with the world origin | 500–600 | 18, 19 | A, complete origin-aware paths | planned |
@@ -209,3 +209,5 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 - 2026-10-21: User approved the full extension map and recommended strategy A. Implementation proceeds locally, one complete slice at a time.
 
 - 2026-10-21: Slice 16 distinguishes world positions and world transforms from local vectors. All 175 physics/fixed-step/character tests in 34 suites pass; changed sources pass SwiftLint. Mechanical source diff: 51 reviewable lines.
+
+- 2026-10-21: Slice 17 enables Double positions through the shared config header and upstream Double creation symbol. Exact position/ray APIs and 1e9/small-motion tests pass. Broad selection: 176/177 passed; the sole 3D scheduler failure passed in an isolated 5-test Physics3DTests retry. Changed files pass SwiftLint (zero violations). No assertion of a completely green broad run.
