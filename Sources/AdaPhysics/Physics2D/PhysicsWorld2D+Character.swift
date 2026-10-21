@@ -12,11 +12,13 @@ extension PhysicsWorld2D {
         deltaTime: Float,
         excluding owner: Entity.ID? = nil
     ) throws(CharacterController2DError) {
+        guard controller.mode == .query else { throw .dynamicRequiresECS }
         let settings = controller.settings
         try settings.validate()
         guard deltaTime.isFinite, deltaTime > 0, position.x.isFinite, position.y.isFinite,
             controller.desiredVelocity.x.isFinite, controller.desiredVelocity.y.isFinite else { throw .invalidMotion }
-        if controller.runtime?.world !== self || controller.runtime?.owner != owner || controller.runtime?.radius != settings.radius || controller.runtime?.height != settings.height {
+        if controller.runtime?.mode != .query || controller.runtime?.world !== self || controller.runtime?.owner != owner
+            || controller.runtime?.radius != settings.radius || controller.runtime?.height != settings.height {
             controller.runtime = CharacterRuntime2D(world: self, owner: owner, settings: settings)
             controller.lastPosition = nil
         }

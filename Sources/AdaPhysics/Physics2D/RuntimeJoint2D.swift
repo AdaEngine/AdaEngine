@@ -36,6 +36,7 @@ final class RuntimeJoint2D {
 
     static func body(_ entity: Entity?) -> Body2D? {
         entity?.components[PhysicsBody2DComponent.self]?.runtimeBody ?? entity?.components[Collision2DComponent.self]?.runtimeBody
+            ?? entity?.components[CharacterController2DComponent.self]?.runtime?.body
     }
 
     static func endpoints(_ descriptor: PhysicsJoint2DDescriptor) -> (Entity.ID?, Entity.ID)? {
@@ -95,9 +96,10 @@ final class RuntimeJoint2D {
 }
 
 /// Resolves late bodies and removes constraints when owners, components or attached bodies disappear.
-@PlainSystem(dependencies: [.after(Physics2DSyncSystem.self)])
+@PlainSystem(dependencies: [.after(Physics2DSyncSystem.self), .after(DynamicCharacter2DSyncSystem.self)])
 public struct PhysicsJoint2DSyncSystem {
     @Query<Entity, Ref<PhysicsJoint2DComponent>> private var joints
+    @JointBodyAccess2D private var bodyAccess
     @Res<Physics2DWorldHolder> private var physics
     public init(world _: World) {}
 
@@ -145,5 +147,21 @@ public struct PhysicsJoint2DSyncSystem {
         world.retiredJointOwners.removeAll(keepingCapacity: true)
         for owner in world.jointRecords.keys where !world.seenJointOwners.contains(owner) { world.retiredJointOwners.append(owner) }
         for owner in world.retiredJointOwners { world.jointRecords.removeValue(forKey: owner)?.destroy() }
+    }
+}
+
+/// Joint endpoints can live in other archetypes, so their O(1) entity lookups declare these reads.
+@propertyWrapper
+struct JointBodyAccess2D: SystemParameter {
+    var wrappedValue: Self { self }
+    init() {}
+    init(from _: World) {}
+    func update(from _: World) {}
+    static var access: SystemAccessSet {
+        var access = SystemAccessSet()
+        access.addComponentRead(PhysicsBody2DComponent.self)
+        access.addComponentRead(Collision2DComponent.self)
+        access.addComponentRead(CharacterController2DComponent.self)
+        return access
     }
 }

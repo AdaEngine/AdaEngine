@@ -63,7 +63,7 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 | 10b | Add threshold events and opt-in break behavior | A: complete world-local events | 350–500 | 10a | locally validated |
 | 11 | Add native mover and pogo joints | A: additive complete joint kinds | 450–600 | 06, 10 | locally validated |
 | 12 | Add a query-based 2D capsule character controller | A: new component activates its system | 500–600 | 02, 05 | locally validated |
-| 13 | Add dynamic character movement using mover/pogo joints | A: explicit dynamic mode | 500–600 | 11, 12 | planned |
+| 13 | Add dynamic character movement using mover/pogo joints | A: explicit dynamic mode | 500–600 | 11, 12 | locally validated |
 | 14 | Add geometry/query playground scenes | A: isolated demo screens | 350–550 | 02–05 | planned |
 | 15 | Add mechanism and character playground scenes | A: isolated demo screens | 450–600 | 09–13 | planned |
 
@@ -238,3 +238,5 @@ All rows are ordered implementation/review units. Work on one at a time; re-chec
 - 2026-10-21: Slice 11 locally validated: per-axis relative-velocity mover, independently bounded pogo support, normalized force normals, frame-B Y spring axis, impulse/velocity initialization and available live controls. Active-drive tests disable sleep because native pogo correction avoids injecting velocity. Vertical/horizontal support, force caps, Codable, invalid input and owner removal pass; 145 physics/fixed-step tests in 29 suites passed; SwiftLint zero violations.
 
 - 2026-10-21: Slice 12 locally validated: virtual upright capsule, reusable filtered native planes/sweeps, acceleration/braking/gravity/jump, walkable slopes and steep barriers, descending snap, ceilings/corners, one-sided chains, teleport/copy reset semantics, exact world support points and ECS/conflict/serialization paths. Explicit With/Without queries avoid requiring optional body targets. Nine new controller tests and 162 physics/fixed-step/2D+3D character tests in 31 suites passed; SwiftLint zero violations.
+
+- 2026-10-21: Slice 13 locally validated: explicit dynamic capsule mode, bounded mover/pogo, native gravity once, jumping, dynamic pushing, moving/ascending platforms, slopes, filters, visual transform independence, teleport/mode/owner cleanup with retained copies, world disposal and ordinary-joint endpoints. Added endpoint read declarations and preserved zero native mass for static/kinematic bodies (Box2D 3.2 SetMassData otherwise enables gravity on kinematic sims). 172 physics/fixed-step/2D+3D character tests in 33 suites passed; changed Swift sources pass SwiftLint. Measured reviewable Swift diff: 586 lines.

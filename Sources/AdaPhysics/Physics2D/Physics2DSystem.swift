@@ -126,6 +126,10 @@ public struct Physics2DSyncSystem: Sendable {
     }
 
     private func applyMassProperties(_ properties: PhysicsMassProperties, fixedRotation: Bool, to body: Body2D) {
+        // Box2D 3.2 SetMassData also changes non-dynamic inverse mass; preserve their zero mass.
+        guard b2Body_GetType(body.bodyId) == b2_dynamicBody else {
+            return
+        }
         var data = body.massData
         data.mass = properties.mass
         if fixedRotation {

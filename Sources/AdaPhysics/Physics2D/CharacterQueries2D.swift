@@ -15,11 +15,19 @@ final class CharacterRuntime2D {
     let owner: Entity.ID?
     let radius: Float
     let height: Float
+    let mode: CharacterController2DMode
+    var body: Body2D?
+    var shapeID = b2_nullShapeId
+    var airAnchor = b2_nullBodyId
+    var mover = b2_nullJointId
+    var pogo = b2_nullJointId
+    var lastDeltaTime: Float = 1.0 / 60
+    var visualRotation: Quat?
     var planes: [b2CollisionPlane] = []
     var contacts: [CharacterGround2D] = []
 
-    init(world: PhysicsWorld2D, owner: Entity.ID?, settings: CharacterController2DSettings) {
-        self.world = world; self.owner = owner; radius = settings.radius; height = settings.height
+    init(world: PhysicsWorld2D, owner: Entity.ID?, settings: CharacterController2DSettings, mode: CharacterController2DMode = .query) {
+        self.world = world; self.owner = owner; radius = settings.radius; height = settings.height; self.mode = mode
     }
 
     func collide(position: Vector2, capsule: b2Capsule, filter: b2QueryFilter, horizontal: Float, minimumNormal: Float) {

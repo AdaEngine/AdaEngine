@@ -131,6 +131,9 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     @MainActor var retiredJointOwners: [Entity.ID] = []
     @MainActor var jointThresholdIDs: Set<UInt64> = []
     @MainActor var jointThresholdNotices: [JointThresholdNotice2D] = []
+    @MainActor var characterRecords: [Entity.ID: CharacterRuntime2D] = [:]
+    @MainActor var seenCharacters: Set<Entity.ID> = []
+    @MainActor var retiredCharacters: [Entity.ID] = []
     let worldId: b2WorldId
     private let defaultContactRecycleDistance: Float
     var eventManager: EventManager = .default
@@ -316,7 +319,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     }
 
     nonisolated func destroyBody(_ body: Body2D) {
-        b2DestroyBody(body.bodyId)
+        if b2Body_IsValid(body.bodyId) { b2DestroyBody(body.bodyId) }
     }
 
     func createBody(with definition: b2BodyDef, for entity: Entity) -> Body2D {

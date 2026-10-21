@@ -6,6 +6,7 @@ public enum CharacterController2DError: Error, Equatable, Sendable {
     case invalidConfiguration
     case invalidMotion
     case conflictingBody
+    case dynamicRequiresECS
 }
 
 /// Upright capsule dimensions use physical world units; visual scale/rotation do not resize it.
@@ -38,12 +39,14 @@ public struct CharacterController2DSettings: Codable, Equatable, Sendable {
     }
 }
 
-/// Query-based capsule mover. Transform.position is its bottom, matching the 3D controller.
+/// Upright capsule controller. Transform.position is its bottom, matching the 3D controller.
 /// Use on a root entity without PhysicsBody2DComponent/Collision2DComponent. It ignores sensors,
-/// does not push bodies, and registers no collider for other character controllers.
+/// `.query` is virtual; `.dynamic` owns a native capsule and mover/pogo support.
 @Component
 public struct CharacterController2DComponent: Codable, Sendable {
     public var settings: CharacterController2DSettings
+    public var mode: CharacterController2DMode = .query
+    public var dynamics = CharacterController2DDynamics()
     public var filter = CollisionFilter()
     /// Requested horizontal world velocity; Y is ignored.
     public var desiredVelocity: Vector2 = .zero
@@ -65,11 +68,14 @@ public struct CharacterController2DComponent: Codable, Sendable {
     public init(radius: Float = 0.35, height: Float = 1.8) { settings = .init(radius: radius, height: height) }
     public init(settings: CharacterController2DSettings) { self.settings = settings }
 
-    private enum CodingKeys: CodingKey { case settings, filter }
+    private enum CodingKeys: CodingKey { case settings, filter, mode, dynamics }
     public init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         settings = try values.decodeIfPresent(CharacterController2DSettings.self, forKey: .settings) ?? .init()
         filter = try values.decodeIfPresent(CollisionFilter.self, forKey: .filter) ?? .init()
+        mode = try values.decodeIfPresent(CharacterController2DMode.self, forKey: .mode) ?? .query
+        dynamics = try values.decodeIfPresent(CharacterController2DDynamics.self, forKey: .dynamics) ?? .init()
         try settings.validate()
+        try dynamics.validate()
     }
 }

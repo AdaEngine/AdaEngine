@@ -217,3 +217,25 @@ Motion state has value semantics when copied; native plane storage is reused.
 Sweeps skip sensors/self and include native one-sided chain tests. Plane queries
 preserve chain fronts and convert Box2D 3.2's shape-local core support point to the
 actual world surface, including rounded geometry.
+
+### Dynamic character mode
+
+Set `controller.mode = .dynamic` before the physics sync. The engine owns an
+upright native capsule, an empty static air anchor, a mover and ground pogo
+support. The collider pushes rigid bodies; motor and spring efforts are bounded
+by `controller.dynamics`. Input, jump, slope limits, filters and status match the
+query mode. Physical capsule size ignores visual scale/rotation, and the visual
+rotation is preserved. Mover velocity is relative to the support body's motion;
+pogo anchors track its world contact point, including vertically moving platforms.
+The character body stays awake for active pogo correction, with contact recycling
+disabled. Native contacts remain enabled; force bounds apply to the drive/support
+joints. Ordinary joints can attach to a dynamic character entity.
+
+Only Box2D integrates the dynamic body. Position/ground status are published after
+writeback, and jumps inherit the support point's vertical velocity. Teleports reset
+drive/support state; geometry and mode changes apply at physics sync. Removing a
+component/entity or switching to query mode explicitly destroys the owned bodies
+and joints, even if a component/runtime copy is retained. Dynamic mode requires
+ECS scheduling; manual `moveCharacter` is for query mode. Static/kinematic bodies
+retain zero native mass when applying authored mass properties, so moving support
+platforms follow their velocity instead of receiving gravity.
