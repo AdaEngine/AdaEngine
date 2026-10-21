@@ -48,13 +48,14 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
         case substepIterations
         case gravity
         case coordinateOrigin
+        case solverSettings
     }
 
     /// The delegate of the physics world.
     public weak var delegate: PhysicsWorld2DDelegate? {
         didSet {
             // A delegate may change its collision decisions without moving either body.
-            b2World_SetContactRecycleDistance(worldId, delegate == nil ? defaultContactRecycleDistance : 0)
+            b2World_SetContactRecycleDistance(worldId, delegate == nil ? authoredContactRecycleDistance : 0)
         }
     }
 
@@ -145,7 +146,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     public internal(set) var coordinateOrigin: PhysicsPosition2D = .zero
     let contactScope = ContactScope2D()
     let worldId: b2WorldId
-    private let defaultContactRecycleDistance: Float
+    var authoredContactRecycleDistance: Float
     var eventManager: EventManager = .default
     weak var eventSource: World?
     // A world-local bus avoids a global subscription retaining its owning ECS world.
@@ -170,7 +171,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
         b2World_EnableWarmStarting(worldId, true)
         b2World_SetFrictionCallback(worldId, Physics2D_Friction)
         b2World_SetRestitutionCallback(worldId, Physics2D_Restitution)
-        self.defaultContactRecycleDistance = b2World_GetContactRecycleDistance(worldId)
+        self.authoredContactRecycleDistance = b2World_GetContactRecycleDistance(worldId)
 
         let unsafeWorldPtr = unsafe Unmanaged.passUnretained(self).toOpaque()
         unsafe b2World_SetPreSolveCallback(
@@ -189,7 +190,12 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
 
         self.init(gravity: gravity)
 
-        self.substepIterations = try container.decode(Int.self, forKey: .substepIterations)
+        var settings = try container.decodeIfPresent(PhysicsSolver2DSettings.self, forKey: .solverSettings) ?? self.solverSettings
+        if !container.contains(.solverSettings) {
+            settings.substepIterations = try container.decodeIfPresent(Int.self, forKey: .substepIterations) ?? 4
+        }
+        try settings.validate()
+        applySolver(settings)
         let origin = try container.decodeIfPresent(PhysicsPosition2D.self, forKey: .coordinateOrigin) ?? .zero
         guard origin.isFinite else { throw DecodingError.dataCorruptedError(forKey: .coordinateOrigin, in: container, debugDescription: "Invalid coordinate origin") }
         self.coordinateOrigin = origin
@@ -200,6 +206,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
         try container.encode(self.gravity, forKey: .gravity)
         try container.encode(coordinateOrigin, forKey: .coordinateOrigin)
         try container.encode(self.substepIterations, forKey: .substepIterations)
+        try container.encode(solverSettings, forKey: .solverSettings)
     }
 
     // MARK: - Raycasting
@@ -259,6 +266,10 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
 
     @MainActor
     func updateSimulation(_ delta: TimeInterval) {
+        guard delta.isFinite, delta >= 0, Float(delta).isFinite,
+            substepIterations > 0, substepIterations <= Int(Int32.max) else {
+            return
+        }
         b2World_Step(
             worldId,
             Float(delta), /* timeStep */
