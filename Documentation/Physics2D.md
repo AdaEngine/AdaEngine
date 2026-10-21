@@ -194,3 +194,26 @@ rest length through `updatePogoSpring`; normal/bound changes use a new descripto
 Pogo is marked experimental upstream. Its position correction deliberately avoids
 injecting body velocity; keep an actively driven mover awake while correcting a
 target. Both types allow pair collision by default for physical character support.
+
+### Query-based 2D characters
+
+Add `CharacterController2DComponent` and `Transform` to a root entity. Its position
+is the capsule bottom; physical radius/height are independent of visual scale and
+rotation. Set `desiredVelocity.x` (Y is ignored) and set `jumpRequested` on press
+edges. Fixed-step movement includes acceleration/braking, world Y gravity, jump,
+walkable-slope normals, wall/ceiling/corner sliding, and descending ground snap.
+Snap follows small descending steps; there is no arbitrary stair-climb algorithm.
+The controller ignores sensors and honors both masks in its `CollisionFilter`.
+Read actual `velocity`, `isGrounded`, `groundNormal`, `groundPoint`, `groundEntityID`
+and `lastError`. External position changes or `resetMotion` clear accumulated
+motion. A PhysicsBody2D/Collision2D component on the same entity is a reported
+conflict; the controller does not move it. Invalid settings/motion are rejected
+before native queries. Settings/filter are serialized; input and motion are not.
+
+This virtual capsule queries the world and registers no body for other characters;
+it does not push dynamic bodies. For manual fixed-step use, call the main-actor
+`try world.moveCharacter(&controller, position: &bottom, deltaTime: dt)`.
+Motion state has value semantics when copied; native plane storage is reused.
+Sweeps skip sensors/self and include native one-sided chain tests. Plane queries
+preserve chain fronts and convert Box2D 3.2's shape-local core support point to the
+actual world surface, including rounded geometry.
