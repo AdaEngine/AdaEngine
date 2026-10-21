@@ -17,6 +17,7 @@ public final class Body2D: @unchecked Sendable {
 
     var appliedMaterial: PhysicsMaterial?
     let bodyId: b2BodyId
+    private var shapeIDBuffer: [b2ShapeId] = []
 
     internal init(world: consuming PhysicsWorld2D, bodyId: b2BodyId, entity: consuming Entity) {
         self.world = world
@@ -56,6 +57,17 @@ public final class Body2D: @unchecked Sendable {
         defer { shapes.deallocate() }
         unsafe b2Body_GetShapes(bodyId, shapes, count)
         return unsafe Array(UnsafeBufferPointer(start: shapes, count: Int(count))).map { BoxShape2D(shape: $0) }
+    }
+
+    /// Reuses native ID storage for per-step forces. Geometry changes resize it only when necessary.
+    func forEachNativeShape(_ action: (b2ShapeId) -> Void) {
+        let count = Int(shapesCount)
+        guard count > 0 else {
+            return
+        }
+        if shapeIDBuffer.count != count { shapeIDBuffer = Array(repeating: b2_nullShapeId, count: count) }
+        _ = unsafe shapeIDBuffer.withUnsafeMutableBufferPointer { unsafe b2Body_GetShapes(bodyId, $0.baseAddress, Int32($0.count)) }
+        for id in shapeIDBuffer { action(id) }
     }
 
     var gravityScale: Float {

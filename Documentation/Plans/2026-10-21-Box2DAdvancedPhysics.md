@@ -63,7 +63,7 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 | 22 | Add linear/angular motion locks and individual sleep controls | 350–500 | 21 | A, default-compatible settings | locally validated |
 | 23 | Add rolling resistance, conveyor speed and complete live material propagation | 400–550 | prior stack | A, default-compatible materials | locally validated |
 | 24 | Add worker-safe material mixing rules with deterministic precedence | 350–550 | 23 | A, explicit material policies | locally validated |
-| 25 | Add native wind, aerodynamic drag and lift force application | 350–550 | 23 | A, explicit atmosphere component/API | planned |
+| 25 | Add native wind, aerodynamic drag and lift force application | 350–550 | 23 | A, explicit atmosphere component/API | locally validated |
 | 26 | Expose contact handles and immutable complete manifold snapshots | 400–550 | 19 | A, additive lookup API | planned |
 | 27 | Attach safe contact snapshots to collision events and pre-solve data | 350–550 | 26 | A, backward-compatible events | planned |
 | 28 | Add validated live and serialized solver tuning | 400–550 | prior stack | A, old defaults retained | planned |
@@ -225,3 +225,5 @@ All implementation rows are planned. Dependencies on the previous feature map ar
 - 2026-10-21: Slice 23 adds validated rolling/conveyor materials, Collision2D material ownership, all-shape/chain propagation and live replacement with wake-touching. Changed density refreshes shape-derived inertia while preserving authored mass policy. The shape enumeration buffer is now deallocated. All 136 selected tests (2D, characters and 3D compatibility) in 26 suites pass; SwiftLint reports zero violations.
 
 - 2026-10-21: Slice 24 adds deterministic friction/restitution policies, material priority and low-32-bit user IDs. Pure native callbacks decode immutable policy bits, with no world capture/global mutable registry. Actual bounce and friction differ as authored across independent worlds; all 139 selected tests in 27 suites pass. Changed-file SwiftLint: zero violations after the Self spelling correction.
+
+- 2026-10-21: Slice 25 adds opt-in fixed-step and one-shot native wind/drag/lift, sensor/sleep policy and reusable shape-ID storage. Broad 142-test run exposed the native ApplyWind wake path retaining a pre-wake body-sim pointer; the adapter now wakes explicitly before calling the native awake path. All three wind tests pass after this correction; the remaining broad tests passed before it. SwiftLint: zero violations. No vendor-source change is needed for this workaround.

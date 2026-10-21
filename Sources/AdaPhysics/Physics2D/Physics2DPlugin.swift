@@ -38,6 +38,7 @@ public struct Physics2DPlugin: Plugin {
         physicsWorld.eventManager = app.main.eventManager
         physicsWorld.eventSource = app.main
 
+        PhysicsWind2DComponent.registerComponent()
         PhysicsPosition2DComponent.registerComponent()
         CharacterController2DComponent.registerComponent()
         PhysicsBody2DComponent.registerComponent()
@@ -57,6 +58,7 @@ public struct Physics2DPlugin: Plugin {
             .addSystem(DynamicCharacter2DSyncSystem.self, on: .physicsSync)
             .addSystem(PhysicsJoint2DSyncSystem.self, on: .physicsSync)
             .addSystem(DynamicCharacter2DControlSystem.self, on: .physicsStep)
+            .addSystem(PhysicsWind2DSystem.self, on: .physicsStep)
             .addSystem(Physics2DUpdateSystem.self, on: .physicsStep)
             .addSystem(Physics2DWritebackSystem.self, on: .physicsWriteback)
             .addSystem(CharacterController2DSystem.self, on: .physicsWriteback)
