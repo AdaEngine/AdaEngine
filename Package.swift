@@ -1537,7 +1537,7 @@ package.targets.append(.target(
     name: "AdaScriptAOTFixture",
     dependencies: [.product(name: "CGravity", package: "gravity-lang")],
     path: "Tests/AdaScriptAOTFixture",
-    exclude: ["Movement.ada", "HostAdapters.ada", "Async.ada", "Navigation.ada"],
+    exclude: ["Movement.ada", "HostAdapters.ada", "Async.ada", "Navigation.ada", "ShaderGraph.ada"],
     publicHeadersPath: "include"
 ))
 
