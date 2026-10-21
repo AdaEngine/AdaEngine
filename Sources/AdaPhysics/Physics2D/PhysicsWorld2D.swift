@@ -137,6 +137,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     @MainActor var retiredCharacters: [Entity.ID] = []
     /// Global origin of the nearby frame used by Float APIs and render transforms.
     public internal(set) var coordinateOrigin: PhysicsPosition2D = .zero
+    let contactScope = ContactScope2D()
     let worldId: b2WorldId
     private let defaultContactRecycleDistance: Float
     var eventManager: EventManager = .default
@@ -621,10 +622,13 @@ extension PhysicsBodyMode {
     }
 }
 
-/// A manifold of a collision.
+/// Copied native manifold. Pre-solve impulses are cached, not solved impulses.
 public struct Manifold2D: Sendable {
-    /// The normal of the manifold.
     public let normal: Vector2
-    /// The rolling impulse of the manifold.
     public let rollingImpulse: Float
+    public let points: [ContactPoint2D]
+    public let phase: Contact2DPhase
+    public init(normal: Vector2, rollingImpulse: Float, points: [ContactPoint2D] = [], phase: Contact2DPhase = .preSolve) {
+        self.normal = normal; self.rollingImpulse = rollingImpulse; self.points = points; self.phase = phase
+    }
 }
