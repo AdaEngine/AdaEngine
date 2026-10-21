@@ -29,6 +29,7 @@ public struct PhysicsBody2DDynamics: Codable, Equatable, Sendable {
     }
 }
 
+@MainActor
 extension PhysicsBody2DComponent {
     /// Validates atomically, updates an existing native body without recreation and wakes it.
     /// Before creation, stores the settings used by the first physics sync. Invalid settings leave it unchanged.

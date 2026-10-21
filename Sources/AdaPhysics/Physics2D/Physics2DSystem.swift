@@ -72,10 +72,11 @@ public struct Physics2DSyncSystem: Sendable {
                     b2Body_SetTransform(body.bodyId, position, b2MakeRot(transform.rotation.angle2D.radians))
                 }
 
+                body.applyMotion(physicsBody.motion, fixedRotation: physicsBody.fixedRotation, massProperties: physicsBody.massProperties)
                 applyMassProperties(physicsBody.massProperties, fixedRotation: physicsBody.fixedRotation, to: body)
             } else {
                 var def = unsafe b2DefaultBodyDef()
-                unsafe def.motionLocks.angularZ = physicsBody.fixedRotation
+                unsafe physicsBody.motion.apply(to: &def, fixedRotation: physicsBody.fixedRotation)
                 unsafe def.position = position
                 unsafe def.rotation = b2MakeRot(transform.rotation.angle2D.radians)
                 unsafe def.type = physicsBody.mode.b2Type
